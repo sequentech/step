@@ -9,9 +9,10 @@ import os
 import signal
 import sys
 from collections.abc import Sequence
+from dataclasses import replace
 from pathlib import Path
 
-from . import summarize, ui_update, workspace
+from . import focused_test, rust, summarize, ui_update, wasm, workspace
 from .common import default_output_dir
 from .edits import EditError, EditSpec, load_edits
 from .isolation import Dind, IsolationError, parse_seed, remove_as_root
@@ -312,6 +313,179 @@ def run_ui_update(arguments: argparse.Namespace) -> list[Path]:
     return ui_update.run_ui_update(options)
 
 
+def default_target_dir(checkout: Path) -> Path:
+    # The devcontainer shell's CARGO_TARGET_DIR=rust-local-target, from packages/.
+    return checkout / "packages" / "rust-local-target"
+
+
+def add_test(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
+    parser = subparsers.add_parser(
+        "test",
+        help="save-to-result time of a focused test command",
+        description=focused_test.__doc__,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    common_options(parser)
+    parser.add_argument("--suite", required=True, choices=sorted(focused_test.SUITES))
+    parser.add_argument(
+        "--edit",
+        help="replace the suite's edit with a named Rust edit "
+        f"({', '.join(rust.RUST_EDITS)}) or one from --edits",
+    )
+    parser.add_argument("--edits", type=caller_path, help="JSON file of named edits")
+    parser.add_argument("--command", help="replace the suite's command")
+    parser.add_argument(
+        "--cargo-target-dir",
+        type=caller_path,
+        help="default: <checkout>/packages/rust-local-target",
+    )
+    parser.add_argument("--samples", type=positive_int, default=10)
+    parser.add_argument("--warmup", type=int, default=1)
+    parser.add_argument("--timeout", type=float, default=3600.0)
+
+
+def run_test(arguments: argparse.Namespace) -> Path:
+    suite = focused_test.SUITES[arguments.suite]
+    if arguments.edit:
+        suite = replace(
+            suite, edit=edit_choice(arguments.edit, arguments.edits, rust.RUST_EDITS)
+        )
+    if arguments.command:
+        suite = replace(suite, command=arguments.command)
+    options = focused_test.TestOptions(
+        checkout=arguments.checkout,
+        label=arguments.label,
+        suite_name=arguments.suite,
+        suite=suite,
+        target_dir=arguments.cargo_target_dir or default_target_dir(arguments.checkout),
+        samples=arguments.samples,
+        warmup=arguments.warmup,
+        timeout=arguments.timeout,
+        output_dir=arguments.output_dir,
+    )
+    return focused_test.run_test(options)
+
+
+def add_rust(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
+    parser = subparsers.add_parser(
+        "rust",
+        help="incremental Cargo rebuild time after one edit, with unit timings",
+        description=rust.__doc__,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    common_options(parser)
+    parser.add_argument(
+        "--edit",
+        required=True,
+        help=f"named edit: {', '.join(rust.RUST_EDITS)} or one from --edits",
+    )
+    parser.add_argument("--edits", type=caller_path, help="JSON file of named edits")
+    parser.add_argument(
+        "--build",
+        action="append",
+        required=True,
+        help=f"build to time after each save: {', '.join(rust.BUILDS)} "
+        "or NAME=COMMAND (repeat)",
+    )
+    parser.add_argument(
+        "--cargo-target-dir",
+        type=caller_path,
+        help="default: <checkout>/packages/rust-local-target",
+    )
+    parser.add_argument("--samples", type=positive_int, default=10)
+    parser.add_argument("--warmup", type=int, default=1)
+    parser.add_argument("--timeout", type=float, default=7200.0)
+
+
+def build_choices(values: Sequence[str]) -> dict[str, str]:
+    builds: dict[str, str] = {}
+    for value in values:
+        name, separator, command = value.partition("=")
+        if separator:
+            builds[name] = command
+        elif value in rust.BUILDS:
+            builds[value] = rust.BUILDS[value]
+        else:
+            raise ValueError(
+                f"unknown build {value!r} (choose {', '.join(rust.BUILDS)})"
+            )
+    return builds
+
+
+def run_rust(arguments: argparse.Namespace) -> list[Path]:
+    options = rust.RustOptions(
+        checkout=arguments.checkout,
+        label=arguments.label,
+        edit_name=arguments.edit,
+        edit=edit_choice(arguments.edit, arguments.edits, rust.RUST_EDITS),
+        builds=build_choices(arguments.build),
+        target_dir=arguments.cargo_target_dir or default_target_dir(arguments.checkout),
+        samples=arguments.samples,
+        warmup=arguments.warmup,
+        timeout=arguments.timeout,
+        output_dir=arguments.output_dir,
+    )
+    return rust.run_rust(options)
+
+
+def add_wasm(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
+    parser = subparsers.add_parser(
+        "wasm",
+        help="Rust/WASM save-to-browser time through the packaging workflow",
+        description=wasm.__doc__,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    common_options(parser)
+    change = parser.add_mutually_exclusive_group(required=True)
+    change.add_argument(
+        "--edit", help=f"named edit: {', '.join(wasm.WASM_EDITS)} or one from --edits"
+    )
+    change.add_argument(
+        "--no-change", action="store_true", help="run the same sequence without an edit"
+    )
+    parser.add_argument("--edits", type=caller_path, help="JSON file of named edits")
+    parser.add_argument(
+        "--build-cmd",
+        help="build command run from the checkout (default: the patched "
+        "build-sequent-core.sh)",
+    )
+    parser.add_argument(
+        "--install-cmd",
+        default="yarn install",
+        help="dependency install run from packages/ after the build",
+    )
+    parser.add_argument(
+        "--target",
+        default="voting",
+        choices=sorted(set(ui_update.TARGETS) - {"storybook"}),
+    )
+    parser.add_argument("--port", type=int, default=41100)
+    parser.add_argument("--samples", type=positive_int, default=10)
+    parser.add_argument("--warmup", type=int, default=1)
+    parser.add_argument("--timeout", type=float, default=1800.0)
+
+
+def run_wasm(arguments: argparse.Namespace) -> Path:
+    edit = None
+    if arguments.edit:
+        edit = edit_choice(arguments.edit, arguments.edits, wasm.WASM_EDITS)
+    options = wasm.WasmOptions(
+        checkout=arguments.checkout,
+        label=arguments.label,
+        edit_name=arguments.edit or wasm.NO_CHANGE,
+        edit=edit,
+        build=arguments.build_cmd,
+        install=arguments.install_cmd,
+        target=arguments.target,
+        port=arguments.port,
+        samples=arguments.samples,
+        warmup=arguments.warmup,
+        timeout=arguments.timeout,
+        output_dir=arguments.output_dir,
+    )
+    return wasm.run_wasm(options)
+
+
 def add_summarize(
     subparsers: argparse._SubParsersAction[argparse.ArgumentParser],
 ) -> None:
@@ -359,6 +533,9 @@ def parser() -> argparse.ArgumentParser:
     subparsers = root.add_subparsers(dest="scenario", required=True)
     add_workspace(subparsers)
     add_ui_update(subparsers)
+    add_test(subparsers)
+    add_wasm(subparsers)
+    add_rust(subparsers)
     add_summarize(subparsers)
     add_clean(subparsers)
     return root
@@ -383,6 +560,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         runners = {
             "workspace": run_workspace,
             "ui-update": run_ui_update,
+            "test": run_test,
+            "wasm": run_wasm,
+            "rust": run_rust,
         }
         written = runners[arguments.scenario](arguments)
     except (IsolationError, ProbeError, ValueError) as error:
