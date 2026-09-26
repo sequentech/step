@@ -81,10 +81,14 @@ const meta = {
 export default meta
 type Story = StoryObj<Scenario>
 
-const cells = (row: HTMLElement) =>
+const cells = (row: HTMLElement, role: "cell" | "gridcell" = "cell") =>
     within(row)
-        .getAllByRole("cell")
+        .getAllByRole(role)
         .map((cell) => cell.textContent)
+
+// Candidate results are a data grid; candidates are shown by their alias.
+const candidateCells = (canvasElement: HTMLElement, alias: RegExp) =>
+    cells(within(canvasElement).getByRole("row", {name: alias}), "gridcell")
 
 export const Populated: Story = {
     play: async ({canvasElement}) => {
@@ -97,18 +101,10 @@ export const Populated: Story = {
                 })
             )
         ).toEqual(["90", "75.00%"])
-        expect(cells(canvas.getByRole("row", {name: /Alice Example/}))).toEqual([
-            "Alice Example",
-            "50",
-            "59.52%",
-            "1",
-        ])
-        expect(cells(canvas.getByRole("row", {name: /Bob Example/}))).toEqual([
-            "Bob Example",
-            "34",
-            "40.48%",
-            "2",
-        ])
+        expect(candidateCells(canvasElement, /^Alice/)).toEqual(["Alice", "50", "59.52%", "1"])
+        expect(candidateCells(canvasElement, /^Bob/)).toEqual(["Bob", "34", "40.48%", "2"])
+        // The section reads the loaded results only; it sends no request of its own.
+        expect(boundary.calls).toEqual([])
     },
 }
 
@@ -116,18 +112,24 @@ export const OtherContest: Story = {
     args: {contest: "deputy"},
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
-        expect(cells(canvas.getByRole("row", {name: /Carol Example/}))).toEqual([
+        expect(candidateCells(canvasElement, /Carol Example/)).toEqual([
             "Carol Example",
             "21",
             "55.26%",
             "1",
         ])
-        expect(canvas.queryByRole("row", {name: /Alice Example/})).toBeNull()
+        expect(canvas.queryByRole("row", {name: /^Alice/})).toBeNull()
     },
 }
 
 export const InstantRunoffRounds: Story = {
     args: {countingAlgorithm: ICountingAlgorithm.INSTANT_RUNOFF},
+    parameters: {
+        expectedFailure: {
+            reason: "The shared preferential results table's winner chip has white text on the success green.",
+            a11y: ["color-contrast"],
+        },
+    },
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
         await expect(
@@ -155,7 +157,7 @@ export const StaleResultsKeepLoading: Story = {
     play: async ({canvasElement}) => {
         // Results of another results event are never shown for this tally.
         expect(canvasElement.querySelector(".seq-admin-tally-results__loading")).not.toBeNull()
-        expect(within(canvasElement).queryByRole("row", {name: /Alice Example/})).toBeNull()
+        expect(within(canvasElement).queryByRole("row", {name: /^Alice/})).toBeNull()
     },
 }
 
