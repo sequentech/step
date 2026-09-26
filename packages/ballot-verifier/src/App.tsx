@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useContext, useEffect, useMemo, useState} from "react"
-import {Routes, Route, useNavigate, Navigate, useMatch} from "react-router-dom"
+import {Routes, Route, Navigate, useMatch} from "react-router-dom"
 import {styled} from "@mui/material/styles"
 import {Footer, Header, NotFoundScreen, PageBanner} from "@sequentech/ui-essentials"
 import {
@@ -82,7 +82,6 @@ const HeaderWithContext: React.FC = () => {
 }
 
 const App = () => {
-    const navigate = useNavigate()
     const {globalSettings} = useContext(SettingsContext)
     const [confirmationBallot, setConfirmationBallot] = useState<IConfirmationBallot | null>(null)
     const [ballotId, setBallotId] = useState<string>("")
@@ -98,14 +97,6 @@ const App = () => {
         setBallotId("")
         setFileName("")
     }, [currentEventId])
-
-    useEffect(() => {
-        if (globalSettings.DISABLE_AUTH) {
-            navigate(
-                `/tenant/${globalSettings.DEFAULT_TENANT_ID}/event/${globalSettings.DEFAULT_EVENT_ID}/start`
-            )
-        }
-    }, [navigate])
 
     useEffect(() => {
         const presentation = ballotStyle?.ballot_eml?.election_event_presentation
@@ -143,7 +134,7 @@ const App = () => {
                             element={
                                 <Navigate
                                     replace
-                                    to={`/tenant/${globalSettings.DEFAULT_TENANT_ID}/event/${globalSettings.DEFAULT_EVENT_ID}/login`}
+                                    to={`/tenant/${globalSettings.DEFAULT_TENANT_ID}/event/${globalSettings.DEFAULT_EVENT_ID}/${globalSettings.DISABLE_AUTH ? "start" : "login"}`}
                                 />
                             }
                         />

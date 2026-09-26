@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+import {SettingsContext} from "../providers/SettingsContextProvider"
 import React, {useState, useEffect, useContext, useMemo} from "react"
 import Typography from "@mui/material/Typography"
 import Button from "@mui/material/Button"
@@ -144,7 +145,10 @@ export const HomeScreen: React.FC<IProps> = ({
     const [isNextActive, setNextActive] = useState(false)
     const navigate = useNavigate()
     const {tenantId, eventId} = useContext(TenantEventContext)
-    const {data: dataBallotStyles} = useQuery<GetPublishedBallotStylesQuery>(GET_BALLOT_STYLES)
+    const {globalSettings} = useContext(SettingsContext)
+    const {data: dataBallotStyles} = useQuery<GetPublishedBallotStylesQuery>(GET_BALLOT_STYLES, {
+        skip: globalSettings.DISABLE_AUTH,
+    })
     const dispatch = useAppDispatch()
 
     useEffect(() => {

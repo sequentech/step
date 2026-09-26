@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
 import React from "react"
+import i18n from "i18next"
 import {render, screen, waitFor, within} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import {configureStore} from "@reduxjs/toolkit"
@@ -160,7 +161,8 @@ async function importAndContinue() {
 }
 
 let services: ReturnType<typeof serve>
-beforeEach(() => {
+beforeEach(async () => {
+    await i18n.changeLanguage("en")
     resetKeycloak()
     resetSequentCore()
     jest.spyOn(console, "log").mockImplementation(() => undefined)
@@ -309,12 +311,21 @@ describe("with authentication disabled", () => {
         expect(FakeKeycloak.instances).toHaveLength(0)
     })
 
-    // Expected failure: ApolloContextProvider.tsx:458-468 creates a client only
-    // for a signed-in voter, so ApolloWrapper shows a spinner instead.
-    it.failing("opens the import step", async () => {
+    it("verifies an imported ballot without redirecting confirmation back to import", async () => {
+        services = serve({DISABLE_AUTH: true})
+        launch("/")
+        await importAndContinue()
+        await expectLocation(`${eventPath(defaultEvent.tenant, defaultEvent.event)}/confirmation`)
+        expect(FakeKeycloak.instances).toHaveLength(0)
+        expect(services.graphql).toHaveLength(0)
+    })
+
+    it("opens the import step", async () => {
         services = serve({DISABLE_AUTH: true})
         launch("/")
 
         expect(await importStep()).toBeVisible()
+        expect(FakeKeycloak.instances).toHaveLength(0)
+        expect(services.graphql).toHaveLength(0)
     })
 })
