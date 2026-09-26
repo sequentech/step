@@ -300,6 +300,10 @@ fn sorted(value: Value) -> Value {
 /// Pinned rather than trusted, because the file is the thing that ships and the
 /// functions are the thing that is reviewed. A preset changed in Rust without
 /// regenerating fails here, which is the only moment anybody would notice.
+///
+/// Gated like `profile`, which holds the shipped file: coverage builds the crate's
+/// tests with `default_features,keycloak` alone, where that module does not exist.
+#[cfg(feature = "election_config_templates")]
 #[test]
 fn default_profile_json_matches_the_shipped_presets() {
     let written = serde_json::to_string_pretty(&sorted(json!({
