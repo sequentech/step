@@ -150,6 +150,8 @@ in
     source .devcontainer/.env
     export LD_LIBRARY_PATH=${pkgs.openssl.out}/lib:$LD_LIBRARY_PATH
     export PATH=$DEVENV_ROOT/packages/step-cli/rust-local-target/release:$PATH
+    # The same linker as the Rust service containers (docker-compose-base.yml).
+    export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=$DEVENV_ROOT/.devcontainer/scripts/rust-lld-cc.sh
     set +a
 
     export RUST_SRC_PATH=${rustStable}/lib/rustlib/src/rust/library
