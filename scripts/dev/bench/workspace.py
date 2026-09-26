@@ -35,7 +35,7 @@ from .isolation import (
     require_isolated,
     seed_image,
 )
-from .probes import Probe, ProbeRunner
+from .probes import Probe, ProbeKind, ProbeRunner
 from .process import BackgroundProcess
 from .results import CacheState
 
@@ -127,7 +127,11 @@ class MemorySampler:
 
 
 def optional_names(probes: list[Probe]) -> set[str]:
-    return {probe.name for probe in probes if not probe.required}
+    return {
+        probe.name
+        for probe in probes
+        if not probe.required or probe.kind is ProbeKind.FAIL
+    }
 
 
 def cli_outcome(log: Path) -> dict[str, Any]:
@@ -273,6 +277,9 @@ def measure(
                 if options.after_up:
                     start_after_up(docker, outcome, options.after_up)
                     phases["after_up_started"] = timer.elapsed()
+            if runner.failed:
+                error = f"failure seen by {sorted(runner.failed)}; see container logs"
+                break
             if "cli_up" in phases and runner.ready():
                 break
             if timer.elapsed() > options.timeout:
@@ -295,6 +302,7 @@ def measure(
         "cli_outcome": outcome,
         "devcontainer_up_log": str(log),
         "services": docker.names(running_only=True),
+        "failures": runner.failed,
         "optional_not_passed": [
             probe.name
             for probe in options.probes
