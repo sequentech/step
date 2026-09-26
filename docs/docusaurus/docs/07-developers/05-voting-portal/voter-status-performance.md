@@ -276,6 +276,8 @@ Use your configured namespace in place of `load-testing`. Failed or interrupted 
 
 To reuse an already provisioned event, set `preparation.existing_event` to a previous run's `inputs/config.json`, and choose an unused `workload.start` range. The CLI imports the new census and prepares fresh ballots; it does not republish that event. The existing event must still be open and eligible.
 
+Generated inputs retain `election_external_id` from the exported election. Census authorization uses that nonempty value, falling back to `election_id` when it is absent, null or empty; voting requests continue to use the election UUID. When reusing an older input file for an election with an external ID, use a copy containing its actual `election_external_id` and preserve the original run's inputs.
+
 Custom fixtures use `preparation.template`; explicit ballot selections use `preparation.choices`. Paths resolve relative to the workload YAML. Deployments that run S3 publication preparation separately can set `preparation.publication_preparer` to their application writer executable; its database and S3 environment must be configured on the coordinator.
 
 ## Read and share results

@@ -22,6 +22,36 @@ use std::path::PathBuf;
 
 use crate::utils::read_config::load_external_config;
 
+/// An election's alias lives at `presentation.i18n.<lang>.alias`, not as a
+/// top-level "alias" field — prefers "en", falls back to any other language
+/// with an alias set, then to that language's name, then "Unknown".
+fn election_alias(el: &Value) -> String {
+    let Some(i18n) = el
+        .get("presentation")
+        .and_then(|p| p.get("i18n"))
+        .and_then(Value::as_object)
+    else {
+        return "Unknown".to_string();
+    };
+    let field = |lang: &str, key: &str| {
+        i18n.get(lang)
+            .and_then(|v| v.get(key))
+            .and_then(Value::as_str)
+    };
+    field("en", "alias")
+        .or_else(|| field("en", "name"))
+        .or_else(|| {
+            i18n.values()
+                .find_map(|v| v.get("alias").and_then(Value::as_str))
+        })
+        .or_else(|| {
+            i18n.values()
+                .find_map(|v| v.get("name").and_then(Value::as_str))
+        })
+        .unwrap_or("Unknown")
+        .to_string()
+}
+
 #[derive(Args)]
 #[command(about)]
 pub struct GenerateVoters {
@@ -158,9 +188,16 @@ impl GenerateVoters {
 
         // Build election mapping.
         let mut election_map = std::collections::HashMap::new();
+        let mut authorization_keys = std::collections::HashMap::new();
         for el in elections {
             if let Some(e_id) = el.get("id").and_then(Value::as_str) {
-                let alias = el.get("alias").and_then(Value::as_str).unwrap_or("Unknown");
+                let alias = election_alias(el);
+                let key = el
+                    .get("external_id")
+                    .and_then(Value::as_str)
+                    .filter(|key| !key.is_empty())
+                    .unwrap_or(e_id);
+                authorization_keys.insert(e_id.to_string(), key.to_string());
                 let cluster_prec = el
                     .get("annotations")
                     .and_then(|ann| ann.get("clustered_precint_id"))
@@ -306,6 +343,7 @@ impl GenerateVoters {
                 .unwrap_or(&[]);
 
             let mut election_aliases = Vec::new();
+            let mut election_ids = Vec::new();
             let mut precincts = Vec::new();
 
             for cid in assigned_cids {
@@ -317,9 +355,11 @@ impl GenerateVoters {
                 let default_value = (String::from("Unknown"), String::from("Unknown"));
                 let (alias, cluster_prec) = election_map.get(&e_id).unwrap_or(&default_value);
                 election_aliases.push(alias.clone());
+                election_ids.push(authorization_keys.get(&e_id).cloned().unwrap_or(e_id));
                 precincts.push(cluster_prec.clone());
             }
             election_aliases = self.deduplicate_preserve_order(&election_aliases);
+            election_ids = self.deduplicate_preserve_order(&election_ids);
             precincts = self.deduplicate_preserve_order(&precincts);
 
             let election_country_candidate = if let Some(first_alias) = election_aliases.first() {
@@ -342,17 +382,20 @@ impl GenerateVoters {
                 .get(&lookup_key)
                 .cloned()
                 .unwrap_or_else(|| (election_country_candidate.clone(), "Unknown".to_string()));
-            let joined_aliases = if !election_aliases.is_empty() {
+            // The configured Keycloak mapper resolves each CSV value as external_id,
+            // falling back to id only when external_id is absent or empty. It then
+            // supplies database IDs to Hasura; aliases remain display/lookup values.
+            let joined_election_ids = if !election_ids.is_empty() {
                 if authorized_elections_count > 0 {
                     let amount =
-                        std::cmp::min(authorized_elections_count as usize, election_aliases.len());
-                    election_aliases
+                        std::cmp::min(authorized_elections_count as usize, election_ids.len());
+                    election_ids
                         .choose_multiple(&mut rand::thread_rng(), amount)
                         .cloned()
                         .collect::<Vec<String>>()
                         .join("|")
                 } else {
-                    election_aliases.join("|")
+                    election_ids.join("|")
                 }
             } else {
                 "Unknown".to_string()
@@ -407,7 +450,7 @@ impl GenerateVoters {
                     "clusteredPrecinct" => joined_precincts.clone(),
                     "overseasReferences" => overseas_reference.to_string(),
                     "area_name" => area_name.to_string(),
-                    "authorized-election-ids" => joined_aliases.clone(),
+                    "authorized-election-ids" => joined_election_ids.clone(),
                     "password" => password.clone(),
                     "email" => email.clone(),
                     "password_salt" => password_salt.to_string(),
@@ -480,5 +523,38 @@ mod username_start_regression {
                 expected
             );
         }
+    }
+    #[test]
+    fn generated_csv_uses_mapper_external_keys_with_null_and_empty_id_fallbacks() {
+        let dir = tempfile::tempdir().unwrap();
+        let config = json!({
+            "election_event_json_file":"event.json", "realm_name":"synthetic", "tenant_id":"tenant",
+            "election_event_id":"event", "area_id":"area", "election_id":"election",
+            "generate_voters":{"csv_file_name":"voters","fields":["area_name","authorized-election-ids"],
+                "excluded_columns":[],"email_prefix":"voter","domain":"example.test","sequence_email_number":true,
+                "sequence_start_number":0,"voter_password":"test","password_salt":"salt","hashed_password":"hash",
+                "overseas_reference":"B","min_age":18,"max_age":90,"authorized_elections_count":0,"email_verified":true},
+            "duplicate_votes":{"row_id_to_clone":"row"},"generate_applications":{"applicant_data":{},"annotations":{}}
+        });
+        let event = json!({
+            "areas":[{"id":"a","name":"Eligible"},{"id":"b","name":"No elections"}],
+            "elections":[{"id":"db-1","external_id":"external-1"},{"id":"db-2","external_id":null},
+                {"id":"db-3","external_id":""},{"id":"db-4"}],
+            "contests":[{"id":"c1","election_id":"db-1"},{"id":"c2","election_id":"db-2"},
+                {"id":"c3","election_id":"db-3"},{"id":"c4","election_id":"db-4"}],
+            "area_contests":[{"area_id":"a","contest_id":"c1"},{"area_id":"a","contest_id":"c2"},
+                {"area_id":"a","contest_id":"c1"},{"area_id":"a","contest_id":"c3"},{"area_id":"a","contest_id":"c4"}]
+        });
+        std::fs::write(dir.path().join("external_config.json"), config.to_string()).unwrap();
+        std::fs::write(dir.path().join("event.json"), event.to_string()).unwrap();
+        let command = GenerateVoters {
+            working_directory: dir.path().to_str().unwrap().into(),
+            num_users: 2,
+        };
+        command
+            .run_generate_voters(&command.working_directory, 2)
+            .unwrap();
+        assert_eq!(std::fs::read_to_string(dir.path().join("voters_2.csv")).unwrap(),
+            "area_name,authorized-election-ids\nEligible,external-1|db-2|db-3|db-4\nNo elections,Unknown\n");
     }
 }
