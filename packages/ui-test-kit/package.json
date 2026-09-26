@@ -10,6 +10,7 @@
     "./adapters/playwright": "./adapters/playwright.ts",
     "./coverage/fixture": "./coverage/fixture.ts",
     "./fixtures": "./fixtures/index.ts",
+    "./fixtures/scenarios": "./fixtures/scenarios.ts",
     "./mocks/graphql": "./mocks/graphql.ts",
     "./mocks/http": "./mocks/http.ts",
     "./mocks/oidc": "./mocks/oidc.ts",
