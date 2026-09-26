@@ -178,6 +178,12 @@ Decisions so far:
   (n=10). Production adoption remains deferred; SMS delivery, one-time links,
   CAPTCHA and external identity providers need their configured integration
   environments. Commands and fixture limits are in the Keycloak developer guide.
+- **Keycloak visual and accessibility refinement**: the login and custom OTP
+  workspace is being redesigned using the supplied Election Architect reference
+  and its public login styles. Validation will cover the existing authentication
+  behavior, Sequent branding, keyboard operation, full-code paste/autofill,
+  errors, focus, contrast, language and narrow-screen reflow against WCAG 2.2 AA.
+  The earlier walkthrough predates this refinement.
 - **Workbench** (adopted): shared scenarios and snapshots in `ui-test-kit`, one
   preview provider for Storybook and the workbench, production routes and loaders,
   typed policy overrides and the real sequent-core pipeline. The dev server now
@@ -221,6 +227,10 @@ rate-limited.
   reuse verifies its complete input identity and output checksums: rebuilding
   locally took 19.3 s median, 19.1–20.7 (n=3), versus 0.26 s, 0.26–0.42 (n=10)
   for verified reuse. This native aarch64 result excludes hosted transfers.
+  Hosted validation found a composite-action expression rejected before Rust
+  setup: the repository cache epoch now enters through workflow inputs in all
+  ten callers. Toolchain-only jobs count as an initial check, not a product-code
+  result. The observed queue delay remains separate from execution time.
 - **Rust compiler caching**: CI restores bounded sccache units separately from
   downloaded dependencies. On wrap-map-err, fresh output directories with an
   edited source compiled and passed all 18 tests in 3.42 s median, 3.42–3.52
@@ -272,7 +282,9 @@ rate-limited.
   samples. The first hosted startup attempt timed out during the first fresh
   volume/container creation (180 seconds, zero successful samples); cleanup
   then found the volume still in use. Both errors and raw artifacts are retained,
-  and timeout/cleanup handling is being corrected before rerunning. The amd64
+  and timeout/cleanup handling now records separate create/start phases, allows
+  a 600-second fresh start and retains pending owned resources for bounded cleanup.
+  The native rerun, amd64
   build and successful startup measurements remain pending.
   Image build success does not establish workspace or service readiness.
 - **Repeatable backend scenarios**: all three named states create and reuse their
@@ -284,7 +296,8 @@ rate-limited.
   0.633–0.953 for kiosk, 0.625 s, 0.589–0.793 for completed ceremony, and 0.631 s,
   0.595–0.715 for published results (n=10 each, one excluded warmup). These are
   current-state timings under concurrent load, not before/after speedups.
-  All 84 scenario tests and the integrated 439 developer-tool tests pass.
+  All 84 scenario tests and the latest integrated 445 developer-tool tests pass.
+  The subsequent CI-classification and cache-epoch checks pass (16 focused tests).
 - **Browser runner preflight**: focused journey/workbench commands launch the
   suite's configured Chromium before executing tests and give an actionable
   error when the pinned runtime cannot start. An actual pinned-browser launch
