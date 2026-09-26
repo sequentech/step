@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import {getPublishedSupportMaterialsPolicy} from "../services/SupportMaterialsPolicy"
+import {getPublishedSupportMaterialsPolicy} from "../services/PublishedBallots"
 import {Alert, Box, Button, Checkbox, FormControlLabel, Typography} from "@mui/material"
 import React, {useContext, useEffect, useMemo, useState} from "react"
 import {useTranslation} from "react-i18next"
