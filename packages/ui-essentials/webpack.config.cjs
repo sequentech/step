@@ -223,3 +223,7 @@ module.exports = function (env, argv) {
         ],
     }
 }
+
+// Read by `src/ballot/ballotDependencies.test.ts`, which checks every package the
+// ballot leaves to its host is one this package declares.
+module.exports.BALLOT_EXTERNALS = BALLOT_EXTERNALS

@@ -49,6 +49,7 @@
   "peerDependencies": {
     "@emotion/react": "11.14.0",
     "@emotion/styled": "11.14.1",
+    "@mui/icons-material": "7.3.2",
     "@mui/material": "7.3.2",
     "@mui/x-data-grid": "8.17.0",
     "apexcharts": "3.41.1",
@@ -86,6 +87,7 @@
     "@storybook/addon-docs": "10.6.0",
     "@storybook/addon-vitest": "10.6.0",
     "@storybook/react-vite": "10.6.0",
+    "@mui/icons-material": "7.3.2",
     "@mui/material": "7.3.2",
     "@mui/x-data-grid": "8.17.0",
     "apexcharts": "3.41.1",
