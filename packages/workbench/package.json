@@ -1,0 +1,51 @@
+{
+  "name": "@sequentech/workbench",
+  "version": "0.1.0",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "description": "Browser-only workbench for the production voting screens and synthetic scenarios",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --project tsconfig.json",
+    "lint": "eslint .",
+    "lint:fix": "eslint --fix .",
+    "prettify": "prettier --check . --ignore-path .prettierignore",
+    "prettify:fix": "prettier --write . --ignore-path .prettierignore",
+    "test": "vitest run",
+    "test:smoke": "playwright test --config playwright.config.ts"
+  },
+  "dependencies": {
+    "@emotion/react": "11.14.0",
+    "@emotion/styled": "11.14.1",
+    "@mui/material": "7.3.2",
+    "@sequentech/ui-core": "*",
+    "@sequentech/ui-essentials": "*",
+    "@sequentech/ui-test-kit": "*",
+    "react": "19.1.1",
+    "react-dom": "19.1.1",
+    "react-router": "7.18.2",
+    "sequent-core": "file:../voting-portal/rust/sequent-core-0.1.0.tgz",
+    "voting-portal": "*"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.1",
+    "@playwright/test": "1.62.1",
+    "@storybook/react-vite": "10.6.0",
+    "@types/node": "^24.3.3",
+    "@types/react": "^19.1.13",
+    "@types/react-dom": "^19.1.9",
+    "@typescript-eslint/parser": "^8.46.4",
+    "@vitejs/plugin-react": "^5.1.0",
+    "eslint": "^9.39.1",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^7.0.1",
+    "globals": "^15.9.0",
+    "prettier": "^3.6.2",
+    "storybook": "10.6.0",
+    "typescript": "^5.9.2",
+    "vite": "^7.3.5",
+    "vitest": "4.1.11"
+  }
+}
