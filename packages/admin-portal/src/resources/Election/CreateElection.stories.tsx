@@ -106,11 +106,11 @@ export const Rejected: Story = {
     play: async ({canvasElement}) => {
         await fillIn(canvasElement)
         await waitFor(() => expect(creations()).toHaveLength(1))
-        // The screen only logs the refusal: it stays on the form and tells nobody.
+        const message = await within(document.body).findByText("Synthetic election rejected")
+        await waitFor(() => expect(message).toBeVisible())
         await expect(
             within(canvasElement).getByRole("status", {name: "Current location"})
         ).toHaveTextContent("/sequent_backend_election/create")
-        expect(within(document.body).queryByText("Synthetic election rejected")).toBeNull()
         expect(lastCreated).not.toHaveBeenCalled()
         expect(electionFlag).not.toHaveBeenCalled()
     },
