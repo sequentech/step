@@ -4808,7 +4808,7 @@
   resolved "https://registry.yarnpkg.com/@pkgr/core/-/core-0.2.9.tgz#d229a7b7f9dac167a156992ef23c7f023653f53b"
   integrity sha512-QNqXyfVS2wm9hweSYD2O7F0G06uurj9kZ96TRQE5Y9hU7+tgdZwIkbAKc5Ocy1HxEY2kuDQa6cQ1WRs/O5LFKA==
 
-"@playwright/test@1.62.1", "@playwright/test@^1.49.0":
+"@playwright/test@1.62.1":
   version "1.62.1"
   resolved "https://registry.yarnpkg.com/@playwright/test/-/test-1.62.1.tgz#68e1aaf6e480e1923936dee6c66fae1921d3a65a"
   integrity sha512-DTcUc8qii+cpHvtOwggMtBRMjKZHXYWdw8syRYu2vtzuq4Wxphqq4NfCs5Zt44L6mA8rfDfj+PHnxFc/FeK6mQ==
@@ -5361,7 +5361,7 @@
     polished "^4.2.2"
     ts-dedent "^2.2.0"
 
-"@storybook/addon-links@^9.1.17", "@storybook/addon-links@^9.1.5":
+"@storybook/addon-links@^9.1.5":
   version "9.1.17"
   resolved "https://registry.yarnpkg.com/@storybook/addon-links/-/addon-links-9.1.17.tgz#58d23d44b63f5d40ae0b7b406afde442d9a31d72"
   integrity sha512-LqtrDXRJrdMfZJ0om38SjmY2lQUGmpL8Zt2xTZtQjUy1V+ZiQpuUx7+TJZIOWujzRp75fxhM4AB0HuLDsemlcA==
@@ -5448,7 +5448,7 @@
     webpack-hot-middleware "^2.25.1"
     webpack-virtual-modules "^0.6.0"
 
-"@storybook/cli@^9.1.17", "@storybook/cli@^9.1.5":
+"@storybook/cli@^9.1.5":
   version "9.1.17"
   resolved "https://registry.yarnpkg.com/@storybook/cli/-/cli-9.1.17.tgz#3beef860a52cdadc96c3647352a336b8498a1528"
   integrity sha512-j4eb7ADrDF5rnwS4xpXpqaRy0PhZUvywULYx9QxTeB7/+pFzRLzk0iSA3IQgdPGYGeEqF84B+geTcLPR6Ss9wQ==
@@ -5545,7 +5545,7 @@
   resolved "https://registry.yarnpkg.com/@storybook/node-logger/-/node-logger-8.6.15.tgz#d8fae8ce6558c6a5dc43e8434ddfa4cc2182961b"
   integrity sha512-jubNUjIB6SzvnboI+Nr/cWF3LlmefVeCREKnmytvMA/20e74F8D5DwLHpd1bzsupJULBIoWlf9be2Qr5KiWcqA==
 
-"@storybook/preset-create-react-app@^9.1.17", "@storybook/preset-create-react-app@^9.1.5":
+"@storybook/preset-create-react-app@^9.1.5":
   version "9.1.17"
   resolved "https://registry.yarnpkg.com/@storybook/preset-create-react-app/-/preset-create-react-app-9.1.17.tgz#1eaef07394a342895d54f70c5c5ca2805d6f64ab"
   integrity sha512-pjYuNKP8X4ihgEwhRi8iqPduD9eCt/arHbmQ1oX+2ihetpc3+uE3XC1lMJyTCJhQJBCzzC28s9UlJcp6jqJvNQ==
@@ -5615,7 +5615,7 @@
     resolve "^1.22.8"
     tsconfig-paths "^4.2.0"
 
-"@storybook/react-webpack5@^9.1.17", "@storybook/react-webpack5@^9.1.5":
+"@storybook/react-webpack5@^9.1.5":
   version "9.1.17"
   resolved "https://registry.yarnpkg.com/@storybook/react-webpack5/-/react-webpack5-9.1.17.tgz#f979ba3b698ceaaee4cbdc018596f5192ed48a14"
   integrity sha512-GDOYMUzAj1dqFyrD1XbJaekcCrFZOIz0wVimbLeqRPwn+BNIZ9sylgvMiLxbiGMHWzVwJOyWDG/XVbuqXGfzWw==
@@ -5634,7 +5634,7 @@
     react-docgen "^8.0.2"
     react-docgen-typescript "^2.2.2"
 
-"@storybook/react@8.6.15", "@storybook/react@9.1.17", "@storybook/react@^9.1.17", "@storybook/react@^9.1.5":
+"@storybook/react@8.6.15", "@storybook/react@9.1.17", "@storybook/react@^9.1.5":
   version "8.6.15"
   resolved "https://registry.yarnpkg.com/@storybook/react/-/react-8.6.15.tgz#368759e7d24d0237efc3fab430dc029cf8f31ffc"
   integrity sha512-hdnhlJg+YkpPMOw2hvK7+mhdxAbguA+TFTIAzVV9CeUYoHDIZAsgeKVhRmgZGN20NGjRN5ZcwkplAMJnF9v+6w==
@@ -13913,6 +13913,11 @@ jsonfile@^6.0.1:
   optionalDependencies:
     graceful-fs "^4.1.6"
 
+jsqr@1.4.0:
+  version "1.4.0"
+  resolved "https://registry.yarnpkg.com/jsqr/-/jsqr-1.4.0.tgz#8efb8d0a7cc6863cb6d95116b9069123ce9eb2d1"
+  integrity sha512-dxLob7q65Xg2DvstYkRpkYtmKm2sPJ9oFhrhmudT1dZvNFFTlroai3AWSpLey/w5vMcLBXRgOJsbXpdN9HzU/A==
+
 "jsx-ast-utils@^2.4.1 || ^3.0.0", jsx-ast-utils@^3.3.5:
   version "3.3.5"
   resolved "https://registry.yarnpkg.com/jsx-ast-utils/-/jsx-ast-utils-3.3.5.tgz#4766bd05a8e2a11af222becd19e15575e52a853a"
@@ -18126,7 +18131,7 @@ run-parallel@^1.1.9:
   dependencies:
     queue-microtask "^1.2.2"
 
-rxjs@^7.8.1:
+rxjs@7.8.2, rxjs@^7.8.1:
   version "7.8.2"
   resolved "https://registry.yarnpkg.com/rxjs/-/rxjs-7.8.2.tgz#955bc473ed8af11a002a2be52071bf475638607b"
   integrity sha512-dhKf903U/PQZY6boNNtAGdWbG85WAbjT/1xYoZIC7FAY0yWapOBQVsVrDl58W86//e1VpMNBtRV4MaXfdMySFA==
