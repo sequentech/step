@@ -14,7 +14,8 @@
       "results-portal",
       "ui-test-kit",
       "ui-e2e",
-      "workbench"
+      "workbench",
+      "keycloak-ui"
     ]
   },
   "resolutions": {
