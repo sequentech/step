@@ -50,9 +50,7 @@ const resolveRelative = (from: string, specifier: string): string | undefined =>
 }
 
 const packageName = (specifier: string): string =>
-    specifier.startsWith("@")
-        ? specifier.split("/").slice(0, 2).join("/")
-        : specifier.split("/")[0]
+    specifier.startsWith("@") ? specifier.split("/").slice(0, 2).join("/") : specifier.split("/")[0]
 
 /** Packages the ballot bundle leaves to its host, and which file first imported each. */
 const ballotPackages = (): Map<string, string> => {
