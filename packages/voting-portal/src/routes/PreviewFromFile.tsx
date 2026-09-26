@@ -25,8 +25,8 @@ import {PreviewDocument, updateBallotStyleAndSelection} from "./PreviewPublicati
 export const PREVIEW_FILE_KEY = "previewFromFile"
 export const PREVIEW_FILE_AREA_KEY = "previewFromFileArea"
 
-/** What is wrong with the file, in words somebody can act on. */
-const rejects = (document: unknown): string | null => {
+/** What is wrong with the file, in words somebody can act on, or `null`. */
+export const rejectPreviewDocument = (document: unknown): string | null => {
     if (typeof document !== "object" || document === null) {
         return "That file does not contain a JSON object."
     }
@@ -39,6 +39,13 @@ const rejects = (document: unknown): string | null => {
     }
     if (typeof carrier.election_event !== "object" || carrier.election_event === null) {
         return "That file has no `election_event`."
+    }
+    // Hydration iterates these after it has stored the event, so a missing one
+    // would leave half an event loaded behind a "not iterable" error.
+    for (const key of ["elections", "documents", "support_materials"] as const) {
+        if (!Array.isArray(carrier[key])) {
+            return `That file has no \`${key}\` list.`
+        }
     }
     return null
 }
@@ -102,6 +109,10 @@ export const PreviewFromFile: React.FC = () => {
         }
         try {
             const parsed = JSON.parse(held) as PreviewDocument
+            if (rejectPreviewDocument(parsed) !== null) {
+                sessionStorage.removeItem(PREVIEW_FILE_KEY)
+                return
+            }
             const area = sessionStorage.getItem(PREVIEW_FILE_AREA_KEY)
             setDocument(parsed)
             if (area !== null) {
@@ -124,7 +135,7 @@ export const PreviewFromFile: React.FC = () => {
     const read = async (file: File): Promise<void> => {
         try {
             const parsed = JSON.parse(await file.text()) as unknown
-            const wrong = rejects(parsed)
+            const wrong = rejectPreviewDocument(parsed)
             if (wrong !== null) {
                 setFailure(wrong)
                 setDocument(null)
