@@ -304,3 +304,77 @@ export async function openUsersAndRoles(page: Page, portal: PortalServices) {
     await page.goto(`${portal.origin}/user-roles?lang=en`)
     await expect(page.getByText("Users and Roles", {exact: true})).toBeVisible()
 }
+
+export const PENDING_APPLICATION_ID = "99999999-9999-4999-8999-999999999901"
+export const REJECTED_APPLICATION_ID = "99999999-9999-4999-8999-999999999902"
+
+export const APPLICANT_ATTRIBUTES = [
+    attribute("first_name", {display_name: "First name"}),
+    attribute("last_name", {display_name: "Last name"}),
+    attribute("email", {display_name: "Email"}),
+    attribute("dateOfBirth", {display_name: "Birth date", annotations: {inputType: "html5-date"}}),
+]
+
+export function application(id: string, status: string, overrides: Record<string, unknown> = {}) {
+    return {
+        id,
+        tenant_id: TENANT_ID,
+        election_event_id: IDS.event,
+        area_id: AREA_ID,
+        applicant_id: "carol-applicant",
+        applicant_data: {
+            firstName: "Carol",
+            lastName: "Voter",
+            email: "carol@example.test",
+            dateOfBirth: "1990-05-01",
+        },
+        annotations: {"search-attributes": "first_name,last_name,email"},
+        labels: {},
+        verification_type: "MANUAL",
+        status,
+        permission_label: null,
+        created_at: FIXED_TIME,
+        updated_at: FIXED_TIME,
+        ...overrides,
+    }
+}
+
+/** Answers the event page, its Approvals tab and an application's matching voters. */
+export function mockApprovals(
+    portal: PortalServices,
+    applications: ReturnType<typeof application>[],
+    matches: Record<string, unknown>[] = []
+) {
+    const event = electionEvent()
+    portal.graphql.on("sequent_backend_election_event", () => ({
+        data: {
+            sequent_backend_election_event: [event],
+            sequent_backend_election_event_aggregate: {aggregate: {count: 1}},
+        },
+    }))
+    portal.graphql.on("election_events_tree", () => ({
+        data: {sequent_backend_election_event: [event]},
+    }))
+    portal.graphql.on("election_tree", () => ({data: {sequent_backend_election: []}}))
+    portal.graphql.on("getUserProfileAttributes", () => ({
+        data: {get_user_profile_attributes: APPLICANT_ATTRIBUTES},
+    }))
+    portal.graphql.on("sequent_backend_applications", ({variables}) => {
+        const where = variables.where as {id?: {_eq?: string}} | undefined
+        const rows = where?.id?._eq
+            ? applications.filter((row) => row.id === where.id?._eq)
+            : applications
+        return {
+            data: {
+                sequent_backend_applications: rows,
+                sequent_backend_applications_aggregate: {aggregate: {count: rows.length}},
+            },
+        }
+    })
+    portal.graphql.on("getUsers", () => ({
+        data: {get_users: {items: matches, total: {aggregate: {count: matches.length}}}},
+    }))
+    portal.graphql.on("sequent_backend_area", () => ({
+        data: {sequent_backend_area: [], sequent_backend_area_aggregate: {aggregate: {count: 0}}},
+    }))
+}
