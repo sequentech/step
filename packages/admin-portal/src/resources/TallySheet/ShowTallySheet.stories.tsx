@@ -242,7 +242,10 @@ export const RestoredDraft: Story = {
         const canvas = await loaded(canvasElement)
         await expect(canvas.getByText("PAPER")).toBeVisible()
         expect(field(canvasElement, "total_votes")?.value).toBe("60")
-        expect(canvasElement.querySelector<HTMLInputElement>(`input[id="${STORY_IDS.candidate}"]`)?.value).toBe("32")
+        expect(
+            canvasElement.querySelector<HTMLInputElement>(`input[id="${STORY_IDS.candidate}"]`)
+                ?.value
+        ).toBe("32")
         expect(data.writes).toEqual([])
     },
 }

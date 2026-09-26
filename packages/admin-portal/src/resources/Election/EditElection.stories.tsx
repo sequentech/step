@@ -112,14 +112,14 @@ export const OpenTheVoting: Story = {
                 1
             )
         )
-        expect(
-            graphqlCalls().find(({name}) => name === "CreateScheduledEvent")?.variables
-        ).toEqual({
-            tenantId: TENANT_ID,
-            electionEventId: STORY_IDS.event,
-            eventProcessor: "UPDATE_VOTING_STATUS",
-            eventPayload: {election_id: STORY_IDS.election, status: "OPEN"},
-        })
+        expect(graphqlCalls().find(({name}) => name === "CreateScheduledEvent")?.variables).toEqual(
+            {
+                tenantId: TENANT_ID,
+                electionEventId: STORY_IDS.event,
+                eventProcessor: "UPDATE_VOTING_STATUS",
+                eventPayload: {election_id: STORY_IDS.election, status: "OPEN"},
+            }
+        )
         // The screen reloads the election after scheduling the change.
         await waitFor(() => expect(reads("getOne", "sequent_backend_election")).toHaveLength(2))
         expect(dataWrites()).toEqual([])
