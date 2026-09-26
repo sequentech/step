@@ -754,6 +754,14 @@ services:
     ports:
       - "5672:5672"
       - "15672:15672"
+    # Windmill and beat abort when they cannot connect at startup, and a
+    # restart with compiled binaries reaches RabbitMQ before it listens.
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "check_port_listener", "5672"]
+      interval: 5s
+      timeout: 10s
+      retries: 60
+      start_period: 10s
 
   immudb-init:
     profiles: ["full", "base"]
@@ -885,7 +893,7 @@ services:
       devcontainer:
         condition: service_started
       rabbitmq:
-        condition: service_started
+        condition: service_healthy
       configure-minio:
         condition: service_completed_successfully
       #- postgres
@@ -990,7 +998,7 @@ services:
       devcontainer:
         condition: service_started
       rabbitmq:
-        condition: service_started
+        condition: service_healthy
       harvest:
         condition: service_started
     working_dir: ${DEVCONTAINER_WORKSPACE_FOLDER:-/workspaces/step}/packages/windmill
