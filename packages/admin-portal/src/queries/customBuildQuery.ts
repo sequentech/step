@@ -69,7 +69,11 @@ export const customBuildQuery =
             let validFilters = COLUMNS_MAP[resourceName]
             if (validFilters) {
                 Object.keys(params.filter).forEach((f) => {
-                    if (!validFilters.includes(f)) {
+                    // ra-data-hasura reads `column@operator` keys, such as
+                    // `name@_ilike`, and comma-joins several of them; each
+                    // must name one of the table's columns.
+                    const columns = f.split(",").map((key) => key.split("@")[0])
+                    if (!columns.every((column) => validFilters.includes(column))) {
                         console.log(`removing ${resourceName}.filter.${f}`)
                         delete params.filter[f]
                     }
