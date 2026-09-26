@@ -2,58 +2,14 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-// Document downloads and background tasks of the admin widgets. DownloadDocument
-// looks a document up (GetDocument), asks Harvest for its address
-// (FetchDocument) and saves it through a temporary link; stories answer both
-// queries and record the link instead of following it.
+// Background tasks of the admin widgets that export files; the document
+// boundary they save through is in src/__stories__/downloads.ts.
 import type {FetchResult, Operation} from "@apollo/client"
-import {expect, spyOn, waitFor, within} from "storybook/test"
+import {expect, waitFor, within} from "storybook/test"
 import {EVENT_ID, TENANT_ID} from "@/__stories__/AdminStoryProvider"
 import {FIXED_TIME} from "@/__stories__/fixtures"
 
-/** The presigned address a story's FetchDocument returns for a document. */
-export const documentUrl = (documentId: string) =>
-    `https://s3.admin-story.invalid/documents/${documentId}`
-
 type Handler = (operation: Operation) => FetchResult
-
-/** GetDocument and FetchDocument answers for the named documents; others are not found. */
-export function documentHandlers(
-    documents: Record<string, {name: string; annotations?: Record<string, unknown>}>
-): Record<"GetDocument" | "FetchDocument", Handler> {
-    return {
-        GetDocument: ({variables}) => {
-            const document = documents[String(variables.id)]
-            return {
-                data: {
-                    sequent_backend_document: document
-                        ? [{name: document.name, annotations: document.annotations ?? {}}]
-                        : [],
-                },
-            }
-        },
-        FetchDocument: ({variables}) => ({
-            data: {fetchDocument: {url: documentUrl(String(variables.documentId))}},
-        }),
-    }
-}
-
-export interface RecordedDownload {
-    /** The file name the link asks the browser to save. */
-    name: string
-    href: string
-}
-
-/** Records the links the story clicks to save files; call `restore` in the cleanup. */
-export function recordDownloads() {
-    const downloads: RecordedDownload[] = []
-    const spy = spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (
-        this: HTMLAnchorElement
-    ) {
-        downloads.push({name: this.download, href: this.href})
-    })
-    return {downloads, restore: () => spy.mockRestore()}
-}
 
 /** GetTaskById answers of the task widget: every started task reports this status. */
 export function taskHandler(

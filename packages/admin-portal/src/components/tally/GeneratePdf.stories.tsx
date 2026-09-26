@@ -15,11 +15,9 @@ import {
     documentHandlers,
     documentUrl,
     recordDownloads,
-    startedTask,
-    taskHandler,
-    taskWidgetDefects,
     type RecordedDownload,
-} from "./__stories__/DownloadFixture"
+} from "@/__stories__/downloads"
+import {startedTask, taskHandler, taskWidgetDefects} from "./__stories__/DownloadFixture"
 import {GeneratePDF} from "./GeneratePdf"
 
 const PDF_ID = documentId(70)

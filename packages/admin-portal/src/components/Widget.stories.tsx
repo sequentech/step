@@ -14,11 +14,11 @@ import {
 import {EStoryPermissions} from "../../../ui-essentials/.storybook/globals"
 import {pending} from "../../../ui-essentials/.storybook/screens"
 import {ETasksExecution} from "@/types/tasksExecution"
+import {recordDownloads} from "@/__stories__/downloads"
 import {
     DOCUMENT_ID,
     DOCUMENT_URL,
     TASK_ID,
-    recordDownloads,
     taskLogs,
     taskRecord,
     widgetDefects,

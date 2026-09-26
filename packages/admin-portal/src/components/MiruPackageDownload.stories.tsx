@@ -16,12 +16,14 @@ import {WidgetsContextProvider} from "@/providers/WidgetsContextProvider"
 import {
     documentHandlers,
     documentUrl,
-    exportMenuHidden,
     recordDownloads,
+    type RecordedDownload,
+} from "@/__stories__/downloads"
+import {
+    exportMenuHidden,
     startedTask,
     taskHandler,
     taskWidgetDefects,
-    type RecordedDownload,
 } from "./tally/__stories__/DownloadFixture"
 import {MIRU_DOCUMENT_IDS, miruDocuments} from "./__stories__/MiruFixture"
 import {MiruPackageDownload} from "./MiruPackageDownload"
@@ -53,7 +55,11 @@ const meta = {
         reportFails = false
         boundary = graphqlBoundary(
             {
-                ...documentHandlers({[REPORT_ID]: {name: "transmission_report.pdf"}}),
+                ...documentHandlers({
+                    [REPORT_ID]: {name: "transmission_report.pdf"},
+                    [MIRU_DOCUMENT_IDS.eml]: {name: "package.eml"},
+                    [MIRU_DOCUMENT_IDS.allServers]: {name: "package.zip"},
+                }),
                 ...taskHandler("SUCCESS", "GENERATE_TRANSMISSION_REPORT"),
                 generate_transmission_report: () => {
                     if (reportFails) throw new Error("Synthetic report service unavailable")

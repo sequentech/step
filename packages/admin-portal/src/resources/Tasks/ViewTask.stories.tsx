@@ -15,7 +15,7 @@ import {
     documentUrl,
     recordDownloads,
     type RecordedDownload,
-} from "@/resources/User/__stories__/DownloadDocumentFixture"
+} from "@/__stories__/downloads"
 import {ViewTask} from "./ViewTask"
 import {TASK_DOCUMENT_ID, TASK_ID, taskRecord} from "./__stories__/TasksFixture"
 import {pending} from "../../../../ui-essentials/.storybook/screens"

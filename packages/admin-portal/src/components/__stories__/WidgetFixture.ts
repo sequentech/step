@@ -1,7 +1,6 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import {spyOn} from "storybook/test"
 import {ETaskExecutionStatus} from "@sequentech/ui-core"
 import type {Sequent_Backend_Tasks_Execution} from "@/gql/graphql"
 import type {IKeysCeremonyLog} from "@/services/KeyCeremony"
@@ -44,22 +43,6 @@ export function taskRecord(
         labels: {},
         ...overrides,
     }
-}
-
-export interface RecordedDownload {
-    name: string
-    href: string
-}
-
-/** Records the links `downloadUrl` clicks instead of following them; restore it after the story. */
-export function recordDownloads() {
-    const downloads: RecordedDownload[] = []
-    const click = spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (
-        this: HTMLAnchorElement
-    ) {
-        downloads.push({name: this.download, href: this.href})
-    })
-    return {downloads, restore: () => click.mockRestore()}
 }
 
 const WIDGET_DEFECTS = {

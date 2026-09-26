@@ -22,12 +22,8 @@ import {
     TallyStoryContext,
     tallyData,
 } from "@/resources/Tally/__stories__/TallyFixture"
-import {
-    documentUrl,
-    exportMenuHidden,
-    recordDownloads,
-    type RecordedDownload,
-} from "./__stories__/DownloadFixture"
+import {documentUrl, recordDownloads, type RecordedDownload} from "@/__stories__/downloads"
+import {exportMenuHidden} from "./__stories__/DownloadFixture"
 import {ExportElectionMenu, type IResultDocumentsData} from "./ExportElectionMenu"
 
 interface Scenario {
