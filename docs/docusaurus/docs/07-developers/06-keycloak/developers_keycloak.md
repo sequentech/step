@@ -79,13 +79,115 @@ keep the change, rebuild the image and recreate the container (the
 by the `up` command above), and run the module's tests with
 `mvn -f packages/keycloak-extensions/pom.xml -pl <module> -am verify`.
 
-## React login pages
+## React login and OTP development
 
-A Keycloakify pilot of the login and message OTP pages, built on the UI
-Essentials theme with Storybook stories, was evaluated and not adopted. It signed
-in through the tenant realm's flow and the existing message OTP authenticator,
-but each change needs a full theme rebuild before a real Keycloak shows it, while
-the mounted FreeMarker themes update on reload. Its generic page context also
-drops data the Sequent pages rely on: realm attributes (the credential and
-validation policies), realm localization overrides and Java enum values such as
-the OTP courier. The evaluation is recorded in `docs/design/feedback-loops.md`.
+`packages/keycloak-ui` is an opt-in Keycloakify workspace using the UI Essentials
+React theme. Its Vite server provides synthetic previews, Storybook and hot
+updates on real Keycloak login and message OTP pages. Production images and
+existing realm themes continue to use the Sequent FreeMarker themes.
+
+Install the workspace dependencies from `packages` with `yarn install
+--frozen-lockfile`. Run these commands in the development shell from the repository
+root:
+
+```sh
+# No Keycloak or database is needed for synthetic previews.
+scripts/dev/step-dev keycloak dev
+# http://127.0.0.1:5174/?scenario=email-otp&locale=es
+
+# Or interactive stories, with the shared synthetic user and OTP fixtures.
+scripts/dev/step-dev keycloak storybook
+# http://127.0.0.1:6011
+```
+
+The preview selector includes login, a read-only username hint, server-side
+validation, email/SMS OTP and one-time-link presentation. Synthetic submissions
+are intercepted. They do not authenticate a user. Storybook interaction tests use
+`ui-test-kit`, including its network guard and accessibility checks:
+
+```sh
+cd packages/keycloak-ui
+yarn test:stories
+yarn test:story 'Login.stories.tsx' --watch
+yarn typecheck && yarn lint && yarn prettify
+```
+
+### Hot updates on a real authentication session
+
+Use a disposable development Keycloak running the Sequent extensions and dummy
+message senders. Initialize this checkout's `.devcontainer/.env` and start its
+`ui-keycloak` mode first. Point `DOCKER_HOST` at the isolated development daemon;
+`keycloak mount` rejects the default host socket. Prepare the two additional
+folder themes once, then mount them from the checkout's host path:
+
+```sh
+# Development shell; requires Node, Yarn and Java/Maven for the initial theme jar.
+scripts/dev/step-dev keycloak prepare
+
+# Host terminal, with this checkout's paths visible to the isolated Docker daemon.
+scripts/dev/step-dev keycloak mount --docker-host "$DOCKER_HOST"
+
+# Development shell; use the upstream origin reachable from this shell.
+scripts/dev/step-dev keycloak dev --keycloak-url http://127.0.0.1:8090
+```
+
+In the disposable client's Keycloak configuration, set its **Login theme**
+(`attributes.login_theme`) to `sequent-ui-admin` or `sequent-ui-voting`, and allow a
+callback on the Vite origin. Open the OIDC authorization URL through Vite, such as
+`http://127.0.0.1:5174/realms/<realm>/protocol/openid-connect/auth?...`, with that
+client and callback. Vite proxies Keycloak's realm and resource requests while
+preserving the browser origin, cookies and native form actions. The themes are
+usable only while this server is running in hot mode. No existing client or realm
+is switched by the setup command.
+
+Edits to `src/login/pages/Login.tsx` and `MessageOtpLogin.tsx` use React refresh
+without a rebuild or manual reload. Theme FreeMarker, messages and resource edits
+trigger an automatic page reload; those reloads can discard unfinished form
+input. `context.ftl` changes refresh the small server context bridge and reload
+the page. Use `prepare --runtime built` to test a bundled theme without the Vite
+runtime; use `prepare --runtime hot --skip-build` to restore hot mode. Regenerate
+the initial jar after changing Keycloakify configuration or upgrading it.
+
+The context bridge carries the two login presentation policies, the OTP courier
+wire value and an explicit set of server-resolved messages, including realm
+localization overrides. It does not expose the realm attribute map. Standard
+username/password login and the custom message OTP page render in React.
+Registration, profile updates and other pages inherit the original FreeMarker
+implementation, including User Profile annotations and telephone widgets. Login
+also falls back to the original template for multi-attribute matching, structured
+credentials, CAPTCHA, identity-provider buttons, hidden usernames and alternative
+login methods. These cases retain their current behavior and support template
+auto-reload, but are not React implementations.
+
+### Real authentication and reload verification
+
+The integration suite creates a uniquely named disposable realm from the checked-in
+tenant import, adds synthetic clients and a user with a generated password, and
+deletes the realm afterward. It compares the React and FreeMarker themes through
+password and email OTP, redeemed authorization codes, invalid codes, Spanish,
+realm localization overrides, profile metadata, login policies and the structured
+credential fallback. It needs an administrator of the disposable development
+server and a log file following its dummy email sender; never use production
+credentials or logs. Pass credentials through the environment without committing
+them:
+
+```sh
+# Set KEYCLOAK_ADMIN and KEYCLOAK_ADMIN_PASSWORD in this shell.
+export KEYCLOAK_UI_URL=http://127.0.0.1:5174
+export KEYCLOAK_UI_LOG=/absolute/path/to/development-keycloak.log
+export KEYCLOAK_UI_EVIDENCE_FILE=/absolute/path/to/keycloak-ui-evidence.json
+cd packages/keycloak-ui
+yarn test:real
+
+# With Vite running: one warm-up plus ten visible edits on each live page.
+# Restores the source files even when an assertion fails.
+yarn test:hot
+```
+
+The hot-update check records browser, runtime and dependency versions, machine
+load and per-edit durations in the evidence file. It requires a visible marker,
+no document navigation, preserved typed inputs and a completed OTP session after
+the edits. Run it in a dedicated checkout so simultaneous edits cannot conflict
+with source restoration. SMS delivery, one-time-link redemption, CAPTCHA and
+external identity providers need their own configured integration environments;
+synthetic stories cover their presentation only where supplied.

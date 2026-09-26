@@ -97,6 +97,10 @@ summary = "Storybook test runner and network guard shared by every package's sto
 summary = "Maven reactor of the Keycloak extensions, including the sequent theme"
 depends = ["keycloak-theme-tests"]
 
+[units.keycloak-ui]
+summary = "Opt-in React login and message OTP development workspace"
+depends = ["keycloak-theme-tests"]
+
 [units.ecies]
 summary = "ECIESEncryption Java utility"
 
@@ -361,7 +365,7 @@ workflows = ["frontend-ui-tests.yml"]
 
 [[checks]]
 id = "stories:{unit}"
-for_each = ["ui-essentials", "voting-portal", "admin-portal", "results-portal", "ballot-verifier"]
+for_each = ["ui-essentials", "voting-portal", "admin-portal", "results-portal", "ballot-verifier", "keycloak-ui"]
 units = ["test-support"]
 kind = "test"
 runner = "storybook"
@@ -455,7 +459,7 @@ workflows = ["frontend-ui-tests.yml"]
 
 [[checks]]
 id = "types:{unit}"
-for_each = ["ui-test-kit", "ui-e2e", "workbench"]
+for_each = ["ui-test-kit", "ui-e2e", "workbench", "keycloak-ui"]
 kind = "types"
 runner = "shell"
 cost = "fast"
@@ -465,7 +469,7 @@ workflows = ["frontend-ui-tests.yml", "frontend-stack-e2e.yml"]
 
 [[checks]]
 id = "lint:{unit}"
-for_each = ["ui-core", "ui-essentials", "voting-portal", "admin-portal", "ballot-verifier", "results-portal", "workbench", "ui-test-kit", "ui-e2e"]
+for_each = ["ui-core", "ui-essentials", "voting-portal", "admin-portal", "ballot-verifier", "results-portal", "workbench", "ui-test-kit", "ui-e2e", "keycloak-ui"]
 kind = "lint"
 runner = "shell"
 cost = "fast"
