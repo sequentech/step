@@ -190,7 +190,7 @@ Before submitting a feature PR, ensure:
 
 ## Dev Environment
 
-Recommended: VS Code Dev Containers or GitHub Codespaces. Services auto-start via Docker Compose with Nix/devenv.
+Recommended: VS Code Dev Containers or GitHub Codespaces. Services auto-start via Docker Compose with Nix/devenv (the full stack by default; lighter devcontainer modes are in `docs/docusaurus/docs/07-developers/03-development-environment/fast-feedback.md`). A checkout in a folder not named `step` prefixes its container names with `<folder>-`.
 
 Dev service URLs (inside dev container):
 - Keycloak: http://127.0.0.1:8090 (admin/admin)
