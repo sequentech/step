@@ -18,7 +18,7 @@ interface Smoke {
     settlesAt?: string
     shows: (page: Page) => Promise<void>
     /** A defect that stops the route from rendering, pinned as an expected failure. */
-    defect?: {reason: string; violation?: RegExp}
+    defect?: {reason: string; violation?: RegExp; operation?: string}
     /**
      * Console errors of a pinned defect; any other console error still fails.
      * `settled` waits until the work that logs them has finished.
@@ -81,6 +81,7 @@ const scheduledEventsPage = async (page: Page) => {
 const usersPage = (page: Page) => cell(page, "maria.lopez")
 const upsertAreaDefect = {
     reason: "UpsertArea as a route view gets no electionEventId, sends an invalid query and renders nothing",
+    operation: "sequent_backend_area_extended",
     violation:
         /^Invalid GraphQL operation sequent_backend_area_extended: Variable "\$electionEventId"/,
 }
@@ -353,16 +354,30 @@ test.describe("route smoke", () => {
 
     for (const [path, smoke] of Object.entries(SMOKE)) {
         test(`${path} renders its main content`, async ({page, portal}) => {
-            test.fail(!!smoke.defect, smoke.defect?.reason)
             serveAdminTenant(portal)
             const consoleErrors = await open(page, portal, smoke)
             const known = smoke.defect?.violation
             try {
-                if (known)
+                if (known) {
                     await expect
-                        .poll(() => portal.violations.list().some((entry) => known.test(entry)))
+                        .poll(
+                            () =>
+                                portal.violations.list().some((entry) => known.test(entry)) ||
+                                portal.graphql.callsTo(smoke.defect!.operation!).length > 0
+                        )
                         .toBe(true)
+                    const failures = portal.violations.list()
+                    expect(
+                        failures.filter((entry) => !known.test(entry)),
+                        "unrelated service requests"
+                    ).toEqual([])
+                    if (failures.length) {
+                        test.fail(true, smoke.defect!.reason)
+                        expect(failures, "the route must send a valid scoped query").toEqual([])
+                    }
+                }
                 expect(portal.violations.list(), "unexpected service requests").toEqual([])
+                if (smoke.defect && !known) test.fail(true, smoke.defect.reason)
                 await smoke.shows(page)
                 if (smoke.settlesAt)
                     await expect(page).toHaveURL((url) => url.pathname === smoke.settlesAt)
@@ -379,6 +394,7 @@ test.describe("route smoke", () => {
                     ),
                     "console errors"
                 ).toEqual([])
+                if (known) test.fail(true, smoke.defect!.reason)
             } finally {
                 // Only the defect's own request is waived; any other one still fails teardown.
                 if (known) {
@@ -392,11 +408,17 @@ test.describe("route smoke", () => {
         const consoleDefect = smoke.consoleDefect
         if (consoleDefect)
             test(`${path} logs no console errors`, async ({page, portal}) => {
-                test.fail(true, consoleDefect.reason)
                 serveAdminTenant(portal)
                 const consoleErrors = await open(page, portal, smoke)
                 await smoke.shows(page)
                 await consoleDefect.settled(page)
+                expect(
+                    consoleErrors.filter(
+                        (message) => !consoleDefect.errors.some((error) => error.test(message))
+                    ),
+                    "unrelated console errors"
+                ).toEqual([])
+                test.fail(true, consoleDefect.reason)
                 expect(consoleErrors).toEqual([])
             })
     }
