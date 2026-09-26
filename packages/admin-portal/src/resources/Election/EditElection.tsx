@@ -62,7 +62,6 @@ const ElectionForm: React.FC = () => {
                     election_id: record?.id,
                     status: nextStatus,
                 },
-                createdBy: "admin",
             },
         })
         setShowProgress(false)
