@@ -131,7 +131,12 @@ export const PreferentialRounds: Story = {
                 candidates_wins: Object.fromEntries(
                     candidates.map(({id, name}) => [
                         id,
-                        {name, wins: 30 + index, transference: index, percentage: 30 + index},
+                        {
+                            name,
+                            wins: 30 + index,
+                            transference: index,
+                            percentage: (30 + index) / 100,
+                        },
                     ])
                 ),
             })),
@@ -141,6 +146,7 @@ export const PreferentialRounds: Story = {
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
         await expect(canvas.getByRole("columnheader", {name: /Round 1/})).toBeVisible()
+        await expect(canvas.getAllByText("30 (30.00%)", {exact: true})).toHaveLength(3)
         for (let step = 0; step < 3; step++)
             await userEvent.click(canvas.getByRole("button", {name: "Navigate to next rounds"}))
         await expect(canvas.getByRole("columnheader", {name: /Round 5/})).toBeVisible()
