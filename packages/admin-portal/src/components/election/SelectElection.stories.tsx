@@ -30,10 +30,13 @@ interface Scenario {
 let graphql: ReturnType<typeof graphqlBoundary>
 let data: ReturnType<typeof resourceBoundary>
 
+// The search filters the name and alias columns.
 const elections = [
-    electionRecord(),
+    electionRecord(undefined, {name: "Council election", alias: "Council"}),
     electionRecord(undefined, {
         id: STORY_IDS.secondElection,
+        name: "Deputy election",
+        alias: "Deputy",
         presentation: electionPresentation("Deputy election"),
     }),
 ]
@@ -119,10 +122,17 @@ export const SearchAndSelect: Story = {
                 pagination: {page: 1, perPage: 200},
             })
         }
-        await userEvent.click(await within(document.body).findByRole("option", {name: "Deputy"}))
-        expect(args.onSelectElection).toHaveBeenLastCalledWith(
-            STORY_IDS.secondElection,
-            expect.anything()
+        // The debounced search replaces the options; click only the filtered list.
+        const options = () => within(document.body).queryAllByRole("option")
+        await waitFor(() =>
+            expect(options().map(({textContent}) => textContent)).toEqual(["Deputy"])
+        )
+        await userEvent.click(options()[0])
+        await waitFor(() =>
+            expect(args.onSelectElection).toHaveBeenLastCalledWith(
+                STORY_IDS.secondElection,
+                expect.anything()
+            )
         )
         await userEvent.click(canvas.getByRole("button", {name: "Save"}))
         await waitFor(() => expect(args.onSubmit).toHaveBeenCalledTimes(1))

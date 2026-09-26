@@ -25,15 +25,22 @@ export interface RecordedWrite {
 
 const ILIKE = /@_i?like$/
 
-/** Hasura-style list filters: plain values compare equal, arrays contain, `@_ilike` matches. */
+/** The `@_ilike` pattern matches the record's column; as in SQL, a null column matches none. */
+function likeMatches(record: RaRecord, key: string, expected: unknown) {
+    const value = record[key.replace(ILIKE, "")]
+    const pattern = String(expected).replaceAll("%", "").toLowerCase()
+    return value != null && String(value).toLowerCase().includes(pattern)
+}
+
+/**
+ * Hasura-style list filters: plain values compare equal, arrays contain, `@_ilike`
+ * matches, and ra-data-hasura's comma-joined `@_ilike` keys match any column.
+ */
 function matches(record: RaRecord, filter: Record<string, unknown> = {}) {
     return Object.entries(filter).every(([key, expected]) => {
         if (expected === undefined || key === "q") return true
         if (ILIKE.test(key)) {
-            // As in SQL, a null column matches no pattern.
-            const value = record[key.replace(ILIKE, "")]
-            const pattern = String(expected).replaceAll("%", "").toLowerCase()
-            return value != null && String(value).toLowerCase().includes(pattern)
+            return key.split(",").some((column) => likeMatches(record, column, expected))
         }
         if (key.includes("@") || !(key in record)) return true
         const value = record[key]
