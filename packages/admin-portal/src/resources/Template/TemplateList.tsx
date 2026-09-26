@@ -111,10 +111,6 @@ export const TemplateList: React.FC = () => {
     const handleCloseDrawer = () => {
         setOpenDrawer(false)
         refresh()
-
-        setTimeout(() => {
-            setRecordId(undefined)
-        }, 400)
     }
 
     const handleImport = () => {

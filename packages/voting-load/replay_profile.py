@@ -87,11 +87,9 @@ def compile_profile(capture: dict, har: dict) -> dict:
             else:
                 raise ValueError("Unrecognized POST in browser journey")
         elif method == "GET":
-            if url.query and any(
-                k.lower() in {"code", "state", "session_state", "iss"}
-                for k in parse_qs(url.query)
-            ):
-                step["url"] = urlunsplit(url._replace(query="", fragment=""))
+            # Generic resources have no binding for captured session values.
+            # Signed publication URLs are rebound above instead of copied.
+            step["url"] = urlunsplit(url._replace(query="", fragment=""))
             step.update(kind="account" if url.path.endswith("/account") else "resource")
             if "/publication-" in url.path:
                 raise ValueError("Unbound publication URL")

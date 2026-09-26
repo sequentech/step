@@ -3,6 +3,7 @@
 
 import json
 import os
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
@@ -10,7 +11,7 @@ from unittest import mock
 
 from . import rust, timed_linker
 from .rust import build_environment, critical_path, parse_timings, timings_summary
-from .wasm import BUILD_SCRIPT, patched_script, script_phases
+from .wasm import BUILD_SCRIPT, default_build_command, patched_script, script_phases
 
 SCRIPT = "TARGET_DIR=/workspaces/step/packages/sequent-core"
 
@@ -162,6 +163,40 @@ class WasmScriptTest(unittest.TestCase):
             )
             patched = patched_script(root, root / "build.sh").read_text()
         self.assertEqual(patched, f"TARGET_DIR={root}/packages/sequent-core\ncd ..\n")
+
+    def test_current_wrapper_runs_from_its_checkout(self):
+        wrapper = Path(__file__).resolve().parents[3] / BUILD_SCRIPT
+        with tempfile.TemporaryDirectory(prefix="wasm checkout ") as directory:
+            root = Path(directory)
+            self.write_script(root, wrapper.read_text())
+            entrypoint = root / "scripts/dev/step-dev"
+            entrypoint.parent.mkdir(parents=True)
+            entrypoint.write_text('#!/usr/bin/env bash\nprintf "%s\\n" "$@"\n')
+            entrypoint.chmod(0o755)
+            destination = root / "logs/build.sh"
+            result = subprocess.run(
+                default_build_command(root, destination),
+                shell=True,
+                capture_output=True,
+                text=True,
+                cwd=root.parent,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(result.stdout.splitlines(), ["wasm", "--release-package"])
+            self.assertFalse(destination.exists())
+
+    def test_legacy_wrapper_runs_with_the_measured_checkout(self):
+        with tempfile.TemporaryDirectory(prefix="wasm checkout ") as directory:
+            root = Path(directory)
+            self.write_script(root, f'{SCRIPT}\nprintf "%s\\n" "$TARGET_DIR"\n')
+            result = subprocess.run(
+                default_build_command(root, root / "build.sh"),
+                shell=True,
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(result.stdout.strip(), str(root / "packages/sequent-core"))
 
     def test_refuses_scripts_with_other_workspace_paths(self):
         cases = {

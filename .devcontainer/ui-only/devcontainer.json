@@ -13,6 +13,8 @@
     "devcontainer"
   ],
   "forwardPorts": [
+    // Browser-only election workbench
+    5173,
     // Storybook: ui-essentials, voting-portal, admin-portal, results-portal and
     // ballot-verifier
     6006,

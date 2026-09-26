@@ -19,14 +19,15 @@ configurations; the `devcontainer` CLI selects one with `--config`.
 
 | Mode | Configuration | Compose services | Dev servers | Use |
 | --- | --- | --- | --- | --- |
-| `ui-only` | `.devcontainer/ui-only/devcontainer.json` | `devcontainer` | Storybook 6006–6010 (default `ui-essentials`), portals 3000–3004 | Stories and screens on fixtures |
+| `ui-only` | `.devcontainer/ui-only/devcontainer.json` | `devcontainer` | Storybook 6006–6010 (default `ui-essentials`), workbench 5173, portals 3000–3004 | Stories and screens on fixtures |
 | `ui-keycloak` | `.devcontainer/ui-keycloak/devcontainer.json` | adds `postgres-keycloak` and `keycloak` (8090), which starts without Harvest | Storybook 6006–6010 | Login and account themes |
 | `backend` | `.devcontainer/backend/devcontainer.json` | the `base` profile: databases, MinIO, RabbitMQ, ImmuDB, Keycloak, Hasura, Harvest, Windmill, beat and B4 | none | Rust services, Hasura, step-cli |
-| `full` | `.devcontainer/devcontainer.json` | as `backend` | portals 3000–3004 (default voting 3000 and admin 3002), Storybook | End-to-end work in the portals |
+| `full` | `.devcontainer/devcontainer.json` | as `backend` | portals 3000–3004 (default voting 3000 and admin 3002), Storybook, workbench 5173 | End-to-end work in the portals |
 
 ```sh
 scripts/dev/step-dev mode list
 scripts/dev/step-dev mode status
+scripts/dev/step-dev mode up ui-only --servers storybook-ui-essentials,workbench
 scripts/dev/step-dev mode up ui-keycloak
 scripts/dev/step-dev mode switch backend
 scripts/dev/step-dev mode stop
@@ -95,6 +96,26 @@ for anonymous pulls. Change a toolchain/feature input to get a new tag, or
 manually run the workflow to refresh an existing recipe, then pull again.
 `prebuild fingerprint` prints the key; `prebuild context --destination <empty-dir>`
 creates the same small build context for local inspection.
+
+After building, the workflow starts the local native image with networking
+disabled and checks Node, Yarn, Rust, Cargo, wasm-pack, wasm-bindgen and the Rust
+WASM standard library. It measures three fresh Nix-volume starts, then ten
+new-container starts sharing the final volume after an excluded warmup. Only one
+copied store exists at a time. Raw timings, tool versions, load, image identity,
+logs and the sample counts are in the platform's `prebuild-smoke` artifact.
+Fresh-volume seeding is included; image build/pull and application/service
+readiness are separate. The smoke has a ten-minute budget; if copying the store
+limits the fresh series after its first sample, the report states that limit.
+Warm samples must complete. Insufficient disk headroom fails before any store
+copy. To check an already built local image without downloading or publishing:
+
+```sh
+python3 -m scripts.dev.prebuild_smoke --image <local-image> --output-dir /tmp/prebuild-smoke
+```
+
+Pass `--docker-host unix:///path/to/owned/docker.sock` for an isolated daemon;
+otherwise the helper uses `DOCKER_HOST` when set, or the default local daemon.
+It removes only the containers and volumes bearing this run's UUID owner label.
 
 ## Shared UI hot reload
 
@@ -319,14 +340,22 @@ samples by default.
 ```sh
 B="scripts/dev/step-dev bench"
 $B ui-update --label before --checkout . --edit shared-header \
-  --target voting --target admin --target verifier --target results \
-  --rebuild-cmd 'yarn --cwd packages build:ui-essentials'
+  --target voting --target admin --target verifier --target results
 $B ui-update --label before --checkout . --edit voting-screen --target voting
 $B ui-update --label before --checkout . --edit shared-header --target storybook
 $B test --label before --checkout . --suite cargo-harvest
 $B rust --label before --checkout . --edit windmill-service --build windmill --build harvest
 $B wasm --label before --checkout . --edit sequent-core-wasm
 $B summarize ~/.cache/step-bench/results --phases
+```
+
+Portal dev servers compile shared UI source directly. For a legacy baseline
+that loads shared `dist` output, select that mode and include its rebuild:
+
+```sh
+STEP_SHARED_UI=dist $B ui-update --label legacy-dist --checkout . --edit shared-header \
+  --target voting --target admin --target verifier --target results \
+  --rebuild-cmd 'yarn --cwd packages build:ui-essentials'
 ```
 
 Edits insert a unique marker line and restore the file afterwards. `ui-update`

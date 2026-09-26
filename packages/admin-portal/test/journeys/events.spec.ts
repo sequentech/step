@@ -315,6 +315,65 @@ for (const encrypted of [false, true])
         )
         await expect(page.getByText("Imported council", {exact: true}).first()).toBeVisible()
     })
+test("imports a plain archive after cancelling an encrypted archive without reusing its password or MIME type", async ({
+    page,
+    portal,
+}) => {
+    const workflow = eventWorkflow(portal, "import")
+    await boot(page, portal)
+    await page.getByRole("button", {name: "Import", exact: true}).click()
+    const drawer = page.getByRole("dialog").filter({
+        has: page.getByRole("textbox", {name: "Integrity Check (SHA-256)"}),
+    })
+    await drawer.getByRole("textbox", {name: "Integrity Check (SHA-256)"}).fill(CHECKSUM)
+    await drawer.locator('input[type="file"]').setInputFiles({
+        name: "cancelled.ezip",
+        mimeType: "application/ezip",
+        buffer: CONTENT,
+    })
+    const passwordDialog = page.getByRole("dialog", {name: "Decryption Password", exact: true})
+    await passwordDialog.locator('input[type="password"]').fill("cancelled archive password")
+    await passwordDialog.press("Escape")
+    await expect(passwordDialog).toBeHidden()
+    expect(portal.graphql.callsTo("GetUploadUrl")).toEqual([])
+    expect(portal.graphql.callsTo("ImportElectionEvent")).toEqual([])
+
+    const upload = page.waitForRequest(
+        (request) => request.url() === workflow.url && request.method() === "PUT"
+    )
+    await drawer.locator('input[type="file"]').setInputFiles({
+        name: "event.json",
+        mimeType: "application/json",
+        buffer: CONTENT,
+    })
+    const request = await upload
+    expect(request.postDataBuffer()).toEqual(CONTENT)
+    expect(request.headers()["content-type"]).toBe("application/json")
+    await expect.poll(() => portal.graphql.callsTo("ImportElectionEvent").length).toBe(1)
+    expect({
+        upload: portal.graphql.callsTo("GetUploadUrl").map(({variables}) => variables),
+        validation: portal.graphql.callsTo("ImportElectionEvent").map(({variables}) => variables),
+    }).toEqual({
+        upload: [{name: "event.json", media_type: "application/json", size: 16, is_public: false}],
+        validation: [{tenantId: TENANT_ID, documentId: DOCUMENT_ID, checkOnly: true, password: ""}],
+    })
+    await expect(drawer.getByRole("button", {name: "Import", exact: true})).toBeEnabled()
+    await drawer.getByRole("button", {name: "Import", exact: true}).click()
+    await expect.poll(() => portal.graphql.callsTo("ImportElectionEvent").length).toBe(2)
+    expect(portal.graphql.callsTo("ImportElectionEvent")[1].variables).toEqual({
+        tenantId: TENANT_ID,
+        documentId: DOCUMENT_ID,
+        password: "",
+        sha256: CHECKSUM,
+    })
+    await expect.poll(() => portal.graphql.callsTo("GetTaskById").length).toBeGreaterThan(0)
+    workflow.complete("SUCCESS")
+    await page.clock.runFor(250)
+    await expect(page).toHaveURL(
+        new RegExp(`/sequent_backend_election_event/${workflow.eventId()}`)
+    )
+    await expect(page.getByText("Imported council", {exact: true}).first()).toBeVisible()
+})
 test("shows failed import task logs without navigating to an event", async ({page, portal}) => {
     const workflow = eventWorkflow(portal, "import")
     const drawer = await selectArchive(page, portal, workflow.url, false)

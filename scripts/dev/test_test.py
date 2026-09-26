@@ -5,9 +5,11 @@
 import io
 import json
 import os
+import subprocess
 import tempfile
 import unittest
 from contextlib import redirect_stderr, redirect_stdout
+from dataclasses import replace
 from pathlib import Path
 from unittest import mock
 
@@ -423,6 +425,86 @@ class ResolverTest(unittest.TestCase):
         jest = self.plan("portal").steps[0]
         with mock.patch.object(focused.shutil, "which", return_value=None):
             self.assertIn("devenv shell", focused.missing(self.model, jest))
+
+    def test_playwright_requires_its_pinned_browser_despite_a_system_override(self):
+        step = self.plan("journeys:portal").steps[0]
+        with (
+            mock.patch.dict(os.environ, {"CHROMIUM_EXECUTABLE_PATH": "/bin/sh"}),
+            mock.patch.object(focused.shutil, "which", return_value="/bin/node"),
+            mock.patch.object(
+                focused.subprocess,
+                "run",
+                return_value=subprocess.CompletedProcess(
+                    [],
+                    1,
+                    "",
+                    "browserType.launch: Executable doesn't exist\ninstall help",
+                ),
+            ) as launch,
+        ):
+            problem = focused.missing(self.model, step)
+        self.assertIsNotNone(problem)
+        self.assertIn("Playwright Chromium cannot launch", problem)
+        self.assertIn("install --with-deps chromium", problem)
+        self.assertIn("Executable doesn't exist", problem)
+        self.assertEqual(launch.call_args.args[0][-1], "")
+        self.assertEqual(launch.call_args.kwargs["cwd"], self.root / "packages/portal")
+        self.assertEqual(launch.call_args.kwargs["timeout"], 15)
+
+    def test_playwright_accepts_its_installed_runtime_without_system_chromium(self):
+        step = self.plan("journeys:portal").steps[0]
+        with (
+            mock.patch.dict(os.environ, {"PLAYWRIGHT_BROWSERS_PATH": "/ms-playwright"}),
+            mock.patch.object(
+                focused.shutil,
+                "which",
+                side_effect=lambda name: (
+                    f"/bin/{name}" if name in ("node", "yarn") else None
+                ),
+            ),
+            mock.patch.object(
+                focused.subprocess,
+                "run",
+                return_value=subprocess.CompletedProcess([], 0),
+            ) as launch,
+        ):
+            self.assertIsNone(focused.missing(self.model, step))
+        self.assertEqual(
+            launch.call_args.kwargs["env"]["PLAYWRIGHT_BROWSERS_PATH"], "/ms-playwright"
+        )
+
+    def test_workbench_preflight_uses_only_its_configured_override(self):
+        step = self.plan("journeys:portal").steps[0]
+        step.check = replace(step.check, id="smoke:workbench")
+        with (
+            mock.patch.dict(
+                os.environ,
+                {
+                    "CHROMIUM_EXECUTABLE_PATH": "/other/browser",
+                    "WORKBENCH_TEST_CHROME_PATH": "/workbench/browser",
+                },
+            ),
+            mock.patch.object(focused.shutil, "which", return_value="/bin/node"),
+            mock.patch.object(
+                focused.subprocess,
+                "run",
+                return_value=subprocess.CompletedProcess([], 0),
+            ) as launch,
+        ):
+            self.assertIsNone(focused.missing(self.model, step))
+        self.assertEqual(launch.call_args.args[0][-1], "/workbench/browser")
+
+    def test_playwright_preflight_timeout_is_unavailable(self):
+        step = self.plan("journeys:portal").steps[0]
+        with (
+            mock.patch.object(focused.shutil, "which", return_value="/bin/node"),
+            mock.patch.object(
+                focused.subprocess,
+                "run",
+                side_effect=subprocess.TimeoutExpired("node", 15),
+            ),
+        ):
+            self.assertIn("timed out", focused.missing(self.model, step))
 
     def test_watch_uses_jest_watch_and_polls_other_runners(self):
         (jest,) = self.plan("portal", "--watch").steps
