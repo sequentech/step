@@ -12,7 +12,9 @@ from __future__ import annotations
 
 import json
 import shutil
+import socket
 import time
+import urllib.parse
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -23,6 +25,7 @@ from scripts.dev.mode.manifest import Manifest
 from scripts.dev.mode.plan import Readiness, readiness
 from scripts.e2e.journeys import bootstrap, fixtures
 from scripts.e2e.journeys.client import (
+    HASURA_URL,
     KEYCLOAK_URL,
     TENANT_ID,
     TENANT_REALM,
@@ -295,6 +298,15 @@ class StackBackend:
 
     def authenticate(self) -> None:
         """Waits for the tenant's bootstrap and signs its administrator in."""
+        for url in (HASURA_URL, KEYCLOAK_URL):
+            host = urllib.parse.urlsplit(url).hostname or url
+            try:
+                socket.getaddrinfo(host, None)
+            except socket.gaierror as error:
+                raise ScenarioError(
+                    f"{host} does not resolve here ({error}); run step-dev scenario "
+                    "in the devcontainer, which is on the Compose network"
+                ) from error
         self._wait(
             "the super tenant",
             lambda: (bootstrap.tenant_row() is not None, "no tenant row"),

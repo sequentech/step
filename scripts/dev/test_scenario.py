@@ -2,10 +2,13 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """Tests for scripts.dev.scenario, with fake backends instead of a stack."""
 
+import contextlib
 import importlib
+import io
 import json
 import os
 import re
+import socket
 import tempfile
 import unittest
 from pathlib import Path
@@ -14,7 +17,7 @@ from unittest import mock
 from scripts.dev.mode.checkout import REPOSITORY_ROOT, Checkout
 from scripts.dev.mode.docker import ContainerState
 from scripts.dev.mode.manifest import load_manifest
-from scripts.dev.scenario import catalog, runner
+from scripts.dev.scenario import catalog, cli, runner
 from scripts.dev.scenario.catalog import (
     CENSUS,
     SCENARIOS,
@@ -601,6 +604,101 @@ class SettingsTest(unittest.TestCase):
             self.assertEqual(find_step_cli(None, root, str(on_path.parent)), on_path)
 
 
+class CommandTest(StoreTestCase):
+    def context(self, output=cli.OutputFormat.JSON):
+        checkout = Checkout(
+            self.root,
+            {"COMPOSE_PROJECT_NAME": PROJECT, "DEVCONTAINER_NAME_PREFIX": "prefix-"},
+        )
+        return cli.Context(
+            checkout,
+            self.store,
+            JOURNEY_ENVIRONMENT,
+            Portals.from_environment(JOURNEY_ENVIRONMENT),
+            output,
+        )
+
+    def run_command(self, function, *args):
+        stdout = io.StringIO()
+        with (
+            contextlib.redirect_stdout(stdout),
+            contextlib.redirect_stderr(io.StringIO()),
+        ):
+            code = function(*args)
+        return code, stdout.getvalue()
+
+    def test_urls_need_a_scenario_that_is_up(self):
+        with self.assertRaisesRegex(ScenarioError, "step-dev scenario up kiosk-voter"):
+            cli.command_urls(self.context(), KIOSK)
+
+    def test_urls_print_links_and_synthetic_credentials(self):
+        state = new_state(KIOSK.name, PROJECT, TENANT)
+        state.event_id = "event"
+        state.voters = catalog.census_usernames(KIOSK)
+        self.store.save(state)
+        code, output = self.run_command(cli.command_urls, self.context(), KIOSK)
+        document = json.loads(output)
+        self.assertEqual(code, cli.EXIT_OK)
+        self.assertEqual(
+            document["links"]["kiosk"],
+            f"http://localhost:3000/tenant/{TENANT}/event/event/login?kiosk",
+        )
+        self.assertEqual(list(document["links"]), ["kiosk", "verifier", "admin"])
+        credentials = document["credentials"]
+        self.assertIs(credentials["synthetic"], True)
+        self.assertEqual(credentials["voterPassword"], fixtures.VOTER_PASSWORD)
+        self.assertEqual(credentials["voters"]["A"][0], "e2e-kiosk-voter-a1")
+        self.assertEqual(
+            credentials["admin"], {"username": "admin", "password": "admin"}
+        )
+
+    def test_text_urls_mark_the_credentials_synthetic(self):
+        state = new_state(RESULTS.name, PROJECT, TENANT)
+        state.event_id = "event"
+        state.voters = catalog.census_usernames(RESULTS)
+        self.store.save(state)
+        _, output = self.run_command(
+            cli.command_urls, self.context(cli.OutputFormat.TEXT), RESULTS
+        )
+        self.assertIn("synthetic fixture credentials, not real people", output)
+        self.assertIn("results   http://localhost:3004/event", output)
+        self.assertIn("e2e-published-results-a1 Alice", output)
+        self.assertIn("docker logs prefix-keycloak", output)
+
+    def test_status_without_state_needs_no_backend(self):
+        with mock.patch.object(cli, "_backend") as backend:
+            code, output = self.run_command(
+                cli.command_status, self.context(), SCENARIOS
+            )
+        backend.assert_not_called()
+        self.assertEqual(code, cli.EXIT_OK)
+        document = json.loads(output)
+        self.assertEqual(
+            {name: entry["state"] for name, entry in document["scenarios"].items()},
+            {scenario.name: "absent" for scenario in SCENARIOS},
+        )
+
+    def test_status_reports_an_unreachable_backend(self):
+        state = new_state(KIOSK.name, PROJECT, TENANT)
+        state.event_id = "event"
+        self.store.save(state)
+        unreachable = mock.Mock()
+        unreachable.event_annotations.side_effect = OSError("connection refused")
+        with mock.patch.object(cli, "_backend", return_value=unreachable):
+            _, output = self.run_command(cli.command_status, self.context(), [KIOSK])
+        entry = json.loads(output)["scenarios"]["kiosk-voter"]
+        self.assertEqual(entry["eventId"], "event")
+        self.assertIn("connection refused", entry["unverified"])
+
+    def test_reset_without_state_touches_no_backend(self):
+        with mock.patch.object(cli, "_backend") as backend:
+            code, _ = self.run_command(
+                cli.command_reset, self.context(), KIOSK, None, None
+            )
+        backend.assert_not_called()
+        self.assertEqual(code, cli.EXIT_OK)
+
+
 class FakeHasura:
     """Answers each query document with a function of its variables."""
 
@@ -738,6 +836,16 @@ class StackTest(StoreTestCase):
             "trustee1",
             "trustee2",
         )
+
+    def test_compose_hostnames_that_do_not_resolve_stop_at_once(self):
+        failure = socket.gaierror(socket.EAI_NONAME, "Name or service not known")
+        with mock.patch.object(
+            backend_module.socket, "getaddrinfo", side_effect=failure
+        ):
+            with self.assertRaisesRegex(
+                ScenarioError, "graphql-engine does not resolve.*devcontainer"
+            ):
+                self.backend.authenticate()
 
     def test_a_timeout_reports_the_last_observation_and_hint(self):
         with self.assertRaisesRegex(
