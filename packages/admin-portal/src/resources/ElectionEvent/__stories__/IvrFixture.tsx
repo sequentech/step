@@ -3,8 +3,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 // A telephone-voting election event with a small IVR flow and its prompts.
-import type {Sequent_Backend_Election_Event} from "@/gql/graphql"
-import {eventRecord, type StoryRecord} from "@/__stories__/fixtures"
+import type {Sequent_Backend_Ballot_Style, Sequent_Backend_Election_Event} from "@/gql/graphql"
+import {EVENT_ID, TENANT_ID} from "@/__stories__/AdminStoryProvider"
+import {FIXED_TIME, STORY_IDS, eventRecord, storyId, type StoryRecord} from "@/__stories__/fixtures"
+import type {Action, EmulatorConfig, IvrEmulatorApi, PromptInfo} from "@/services/IvrEmulator"
 import {
     IVR_CONFIG_ANNOTATION,
     IVR_PHONE_NUMBER_ANNOTATION,
@@ -60,3 +62,126 @@ export const jsonEditorDefects = {
 /** The unnamed icon button of a row that shows the MUI icon with this test ID. */
 export const iconButton = (row: HTMLElement, icon: string) =>
     row.querySelector<HTMLElement>(`[data-testid="${icon}"]`)?.closest("button") ?? null
+
+export const BALLOT_EML = '{"id":"council-ballot"}'
+
+/** The published ballot style of the first election in the first area. */
+export const ballotStyleRecord: StoryRecord<Sequent_Backend_Ballot_Style> = {
+    id: storyId(9, 1),
+    tenant_id: TENANT_ID,
+    election_event_id: EVENT_ID,
+    election_id: STORY_IDS.election,
+    area_id: STORY_IDS.area,
+    ballot_publication_id: storyId(9, 2),
+    ballot_eml: BALLOT_EML,
+    created_at: FIXED_TIME,
+    deleted_at: null,
+}
+
+export interface IvrScript {
+    /** Actions of the call before the first input. */
+    start: Action[]
+    /** Actions after each DTMF input, by input. */
+    input: (value: string) => Action[]
+    /** Actions after a timeout. */
+    timeout: Action[]
+    /** Makes executing the call fail with this message. */
+    failure?: string
+}
+
+/** What the emulator driver received: its configuration and the caller's inputs. */
+export interface IvrSession {
+    configs: EmulatorConfig[]
+    inputs: string[]
+    freed: number
+}
+
+const prompt = (text: string, language = "en-US"): PromptInfo => ({
+    prompt_text: `<speak>${text}</speak>`,
+    language,
+    voice_id: "story-voice",
+})
+
+/** A call that greets, asks for the voter ID, and hangs up after it or retries on timeout. */
+export const IVR_SCRIPT: IvrScript = {
+    start: [
+        {type: "Prompt", prompt: prompt("Welcome to the council vote")},
+        {type: "Noop"},
+        {
+            type: "ExpectInput",
+            prompt: prompt("Enter your voter ID"),
+            valid_inputs: "0-9",
+            max_digits: 3,
+            timeout: 10,
+        },
+    ],
+    input: (value) => [
+        {type: "Prompt", prompt: prompt(`Voter ${value} accepted`)},
+        {type: "Disconnect", prompt: prompt("Adiós", "es-ES")},
+    ],
+    timeout: [
+        {
+            type: "ExpectInput",
+            prompt: prompt("No input received, enter your voter ID"),
+            valid_inputs: "0-9",
+            max_digits: 3,
+            timeout: 10,
+        },
+    ],
+}
+
+let current: {script: IvrScript; session: IvrSession} | undefined
+
+/**
+ * The emulator's WASM driver, replaced by a scripted call: each `execute`
+ * returns the next action queued by the start of the call, an input or a timeout.
+ */
+class StoryIvrDriver {
+    private queue: Action[]
+    private readonly script: IvrScript
+    private readonly session: IvrSession
+
+    constructor(config: EmulatorConfig) {
+        if (!current) throw new Error("No IVR story session")
+        this.script = current.script
+        this.session = current.session
+        this.session.configs.push(config)
+        this.queue = [...this.script.start]
+    }
+
+    free() {
+        this.session.freed += 1
+    }
+
+    [Symbol.dispose]() {
+        this.free()
+    }
+
+    attributes() {
+        return {}
+    }
+
+    async execute(_untilIo: boolean): Promise<Action> {
+        if (this.script.failure) throw new Error(this.script.failure)
+        return this.queue.shift() ?? {type: "Noop"}
+    }
+
+    send_input(input: string) {
+        this.session.inputs.push(input)
+        this.queue.push(...this.script.input(input))
+    }
+
+    send_timeout() {
+        this.queue.push(...this.script.timeout)
+    }
+}
+
+/** An emulator API whose driver plays `script`; the returned session records its use. */
+export function ivrEmulatorApi(script: IvrScript = IVR_SCRIPT): {
+    api: IvrEmulatorApi
+    session: IvrSession
+} {
+    const session: IvrSession = {configs: [], inputs: [], freed: 0}
+    current = {script, session}
+    return {api: {IvrEmulatorDriver: StoryIvrDriver}, session}
+}
