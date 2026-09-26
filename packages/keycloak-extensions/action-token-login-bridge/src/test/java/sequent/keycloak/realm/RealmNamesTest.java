@@ -44,4 +44,14 @@ class RealmNamesTest {
         "150017",
         RealmNames.electionEventIdFromRealmName("tenant-acme-event-150017").orElseThrow());
   }
+
+  @Test
+  void extractsOnlyAdministrativeTenantRealmNames() {
+    assertEquals("acme-prod", RealmNames.tenantIdFromRealmName("tenant-acme-prod").orElseThrow());
+    assertTrue(RealmNames.tenantIdFromRealmName(null).isEmpty());
+    assertTrue(RealmNames.tenantIdFromRealmName("master").isEmpty());
+    assertTrue(RealmNames.tenantIdFromRealmName("tenant-").isEmpty());
+    assertTrue(RealmNames.tenantIdFromRealmName("tenant-acme-event-spring").isEmpty());
+    assertTrue(RealmNames.tenantIdFromRealmName("tenant-acme-event-").isEmpty());
+  }
 }
