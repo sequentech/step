@@ -22,6 +22,8 @@ import {ShowTallySheet} from "./ShowTallySheet"
 interface Scenario {
     /** Whether the sheet is a stored version or one the wizard has just entered. */
     stored: boolean
+    /** Whether the sheet comes only from the wizard's saved draft, not a prop. */
+    fromDraft?: boolean
     candidateReads: ReadState
     /** A save fails with this message. */
     writeError?: string
@@ -42,12 +44,12 @@ const ENTERED_SHEET: Sequent_Backend_Tally_Sheet_Insert_Input = {
     content: SHEET.content,
 }
 
-function Fixture({stored}: Scenario) {
+function Fixture({stored, fromDraft}: Scenario) {
     const submitRef = useRef<HTMLButtonElement>(null)
     return (
         <AdminStoryProvider boundary={graphql} dataProvider={data.provider}>
             <ShowTallySheet
-                tallySheet={stored ? SHEET : ENTERED_SHEET}
+                tallySheet={fromDraft ? undefined : stored ? SHEET : ENTERED_SHEET}
                 contest={CONTEST as Sequent_Backend_Contest}
                 submitRef={submitRef}
             />
@@ -71,6 +73,8 @@ const meta = {
         },
     },
     beforeEach: async ({args}) => {
+        // The wizard's edit step saves the entered sheet under this key.
+        if (args.fromDraft) localStorage.setItem("tallySheetData", JSON.stringify(ENTERED_SHEET))
         data = resourceBoundary(
             {
                 sequent_backend_candidate: CANDIDATES,
@@ -91,6 +95,7 @@ const meta = {
             {schema: true}
         )
         await graphql.ready
+        return () => localStorage.removeItem("tallySheetData")
     },
     render: (args) => <Fixture {...args} />,
 } satisfies WidgetMeta<Scenario>
@@ -228,5 +233,16 @@ export const LoadingCandidates: Story = {
         // The counts are filled in once the candidates have loaded.
         expect(field(canvasElement, "total_votes")?.value).toBe("")
         expect(canvas.queryByText("Alice")).toBeNull()
+    },
+}
+
+export const RestoredDraft: Story = {
+    args: {fromDraft: true},
+    play: async ({canvasElement}) => {
+        const canvas = await loaded(canvasElement)
+        await expect(canvas.getByText("PAPER")).toBeVisible()
+        expect(field(canvasElement, "total_votes")?.value).toBe("60")
+        expect(canvasElement.querySelector<HTMLInputElement>(`input[id="${STORY_IDS.candidate}"]`)?.value).toBe("32")
+        expect(data.writes).toEqual([])
     },
 }
