@@ -78,6 +78,7 @@ jobs:
       - name: Set up Rust tests
         uses: ./.github/actions/setup-rust-tests
         with:
+          cache-epoch: ${{ vars.STEP_RUST_CACHE_EPOCH || 'v1' }}
           cargo-build-name: ${{ matrix.service }}
           cargo-build-path: packages/target
           cargo-lock-path: packages/Cargo.lock
@@ -167,6 +168,7 @@ jobs:
       - name: Set up Rust tests
         uses: ./.github/actions/setup-rust-tests
         with:
+          cache-epoch: ${{ vars.STEP_RUST_CACHE_EPOCH || 'v1' }}
           cargo-build-name: windmill
           cargo-build-path: packages/target
           cargo-lock-path: packages/Cargo.lock

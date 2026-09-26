@@ -23,6 +23,7 @@ jobs:
           persist-credentials: false
       - uses: ./.github/actions/setup-rust-tests
         with:
+          cache-epoch: ${{ vars.STEP_RUST_CACHE_EPOCH || 'v1' }}
           cargo-build-name: miru-component
           cargo-build-path: packages/target
           cargo-lock-path: packages/Cargo.lock

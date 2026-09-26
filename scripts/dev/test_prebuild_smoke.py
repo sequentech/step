@@ -39,11 +39,27 @@ class FakeDocker:
         self.failure = None
         self.clock = 0
         self.duration = 2
+        self.create_seconds = 1
+        self.cold_create_seconds = None
+        self.definitions = {}
+        self.delayed = None
+        self.delayed_inspections = 0
+        self.reveal_after = 3
+        self.foreign_owner = False
 
     def run(self, kind, action, *arguments, **_kwargs):
+        if kind in ("logs", "cp"):
+            return subprocess.CompletedProcess(
+                [], 0, "retained daemon diagnostics\n", ""
+            )
         objects = self.objects[kind]
         name = arguments[-1]
         if action == "inspect":
+            if kind == "container" and self.delayed and name == self.delayed[0]:
+                self.delayed_inspections += 1
+                if self.delayed_inspections >= self.reveal_after:
+                    objects[name] = self.delayed[1]
+                    self.delayed = None
             if name not in objects:
                 return subprocess.CompletedProcess([], 1, "", f"No such {kind}")
             owner = {smoke.OWNER_LABEL: objects[name]}
@@ -68,16 +84,35 @@ class FakeDocker:
             raise AssertionError("reused a fresh volume")
 
     def start(self, invocation, *, log, **_kwargs):
-        container = invocation[invocation.index("--name") + 1]
-        volume = invocation[invocation.index("--mount") + 1].split(",")[1].split("=")[1]
-        owner = invocation[invocation.index("--label") + 1].split("=", 1)[1]
-        self.objects["container"][container] = owner
+        if invocation[1] == "create":
+            container = invocation[invocation.index("--name") + 1]
+            volume = (
+                invocation[invocation.index("--mount") + 1].split(",")[1].split("=")[1]
+            )
+            owner = invocation[invocation.index("--label") + 1].split("=", 1)[1]
+            self.definitions[container] = (volume, invocation)
+            seconds = (
+                self.cold_create_seconds
+                if volume not in self.used and self.cold_create_seconds is not None
+                else self.create_seconds
+            )
+            self.clock += seconds
+            log.write_text("Docker create request\n")
+            if seconds >= 600:
+                self.delayed = (container, owner)
+                return CommandResult("docker create", -9, seconds, "")
+            self.objects["container"][container] = (
+                "foreign" if self.foreign_owner else owner
+            )
+            return CommandResult("docker create", 0, seconds, container)
+        container = invocation[-1]
+        volume, create_command = self.definitions[container]
         self.starts.append(
             {
                 "container": container,
                 "volume": volume,
                 "warm": volume in self.used,
-                "command": invocation,
+                "command": create_command,
             }
         )
         self.used.add(volume)
@@ -89,6 +124,9 @@ class FakeDocker:
             "ordinary startup output\n" + smoke.READY_PREFIX + json.dumps(READY) + "\n"
         )
         return CommandResult("docker run", 0, self.duration, "ready")
+
+    def sleep(self, duration):
+        self.clock += duration
 
 
 class SmokeTests(unittest.TestCase):
@@ -118,6 +156,7 @@ class SmokeTests(unittest.TestCase):
             patch.object(
                 smoke.time, "monotonic", side_effect=lambda: self.docker.clock
             ),
+            patch.object(smoke.time, "sleep", side_effect=self.docker.sleep),
         ):
             return smoke.measure(self.root, self.output, self.docker, IMAGE, **options)
 
@@ -135,6 +174,8 @@ class SmokeTests(unittest.TestCase):
         self.assertEqual(warm["summary"]["n"], 10)
         self.assertEqual(warm["samples"][0]["role"], "warmup")
         self.assertEqual(warm["samples"][1]["detail"]["tools"], VERSIONS)
+        self.assertEqual(warm["samples"][1]["phases"], {"create": 1, "toolchain": 2})
+        self.assertEqual(warm["samples"][1]["seconds"], 3)
         for item in starts:
             command = item["command"]
             self.assertEqual(command[command.index("--pull") + 1], "never")
@@ -161,7 +202,7 @@ class SmokeTests(unittest.TestCase):
                 self.assertIsNone(report["samples"][0]["seconds"])
                 self.assertIn(
                     "actual container failure details",
-                    next(self.output.rglob("measured-1.log")).read_text(),
+                    next(self.output.rglob("measured-1.start.log")).read_text(),
                 )
                 self.assertEqual(self.docker.objects, {"container": {}, "volume": {}})
 
@@ -172,6 +213,17 @@ class SmokeTests(unittest.TestCase):
         self.assertEqual(cold["summary"]["n"], 1)
         self.assertIn("limited to 1/3", cold["notes"][0])
         self.assertEqual(warm["summary"]["n"], 2)
+
+    def test_slow_first_copy_completes_then_reserves_time_for_all_warm_samples(self):
+        self.docker.cold_create_seconds = 250
+        runs = self.series()
+        cold, warm = [json.loads(run.path.read_text()) for run in runs]
+        self.assertEqual(cold["summary"]["n"], 1)
+        self.assertEqual(cold["samples"][0]["seconds"], 252)
+        self.assertIn("limited to 1/3", cold["notes"][0])
+        self.assertEqual(warm["summary"]["n"], 10)
+        self.assertEqual(warm["summary"]["median"], 3)
+        self.assertEqual(self.docker.objects, {"container": {}, "volume": {}})
 
     def test_zero_exit_without_the_tools_and_wasm_target_is_not_ready(self):
         log = self.root / "log"
@@ -229,11 +281,14 @@ class SmokeTests(unittest.TestCase):
     def test_unreachable_daemon_preserves_owned_names_for_cleanup(self):
         owned = smoke.OwnedResources(self.docker, self.root / "cleanup.log")
         name = owned.volume()
-        with patch.object(
-            self.docker,
-            "run",
-            return_value=subprocess.CompletedProcess(
-                [], 1, "", "Cannot connect to the Docker daemon"
+        with (
+            patch.object(smoke.time, "monotonic", side_effect=[0, 91]),
+            patch.object(
+                self.docker,
+                "run",
+                return_value=subprocess.CompletedProcess(
+                    [], 1, "", "Cannot connect to the Docker daemon"
+                ),
             ),
         ):
             with self.assertRaisesRegex(smoke.SmokeError, "cleanup failed"):
@@ -242,6 +297,54 @@ class SmokeTests(unittest.TestCase):
             json.loads((self.root / "resources.json").read_text())["volumes"], [name]
         )
         self.assertIn("Cannot connect", (self.root / "cleanup.log").read_text())
+
+    def test_timed_out_create_is_retained_until_it_becomes_visible_and_is_removed(self):
+        self.docker.create_seconds = 600
+        with self.assertRaisesRegex(smoke.SmokeError, "container create failed"):
+            self.series()
+        self.assertEqual(self.docker.delayed_inspections, 3)
+        self.assertEqual(self.docker.objects, {"container": {}, "volume": {}})
+        state = json.loads((self.output / "resources.json").read_text())
+        self.assertEqual(state["pending_creates"], [])
+        self.assertIn(
+            "container create failed", (self.output / "failure.log").read_text()
+        )
+        self.assertTrue(list((self.output / "diagnostics").glob("*-container.log")))
+        rows = [
+            json.loads(line)
+            for line in (self.output / "inspections.jsonl").read_text().splitlines()
+        ]
+        self.assertEqual(
+            [row["returncode"] for row in rows if row["kind"] == "container"], [1, 1, 0]
+        )
+
+    def test_cleanup_failure_does_not_replace_primary_readiness_failure(self):
+        self.docker.foreign_owner = True
+        self.docker.failure = 1
+        with self.assertRaisesRegex(smoke.SmokeError, "toolchain readiness failed"):
+            self.series()
+        message = (self.output / "failure.log").read_text()
+        self.assertIn("toolchain readiness failed", message)
+        self.assertIn("cleanup failed", message)
+        self.assertEqual(list(self.docker.objects["container"].values()), ["foreign"])
+        self.assertFalse((self.output / "diagnostics").exists())
+
+    def test_create_still_pending_after_cleanup_grace_keeps_container_and_volume_names(
+        self,
+    ):
+        self.docker.create_seconds = 600
+        self.docker.reveal_after = 1000
+        with self.assertRaisesRegex(smoke.SmokeError, "container create failed"):
+            self.series()
+        state = json.loads((self.output / "resources.json").read_text())
+        self.assertEqual(len(state["containers"]), 1)
+        self.assertEqual(state["pending_creates"], state["containers"])
+        self.assertEqual(len(state["volumes"]), 1)
+        self.assertEqual(list(self.docker.objects["volume"]), state["volumes"])
+        self.assertIn("pending create", (self.output / "cleanup.log").read_text())
+        self.assertIn(
+            "container create failed", (self.output / "failure.log").read_text()
+        )
 
 
 if __name__ == "__main__":

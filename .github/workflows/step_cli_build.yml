@@ -51,6 +51,7 @@ jobs:
       - name: Restore compatible compiler units
         uses: ./.github/actions/setup-rust-cache
         with:
+          epoch: ${{ vars.STEP_RUST_CACHE_EPOCH || 'v1' }}
           name: step-cli
           target-dir: packages/step-cli/rust-local-target
           lockfile: packages/Cargo.lock

@@ -47,6 +47,7 @@ jobs:
       - name: Set up Rust
         uses: ./.github/actions/setup-rust-tests
         with:
+          cache-epoch: ${{ vars.STEP_RUST_CACHE_EPOCH || 'v1' }}
           profile: dev
           features: default,sqlite,postgres
           cargo-build-name: wbraid-lint
@@ -80,6 +81,7 @@ jobs:
       - name: Set up Rust
         uses: ./.github/actions/setup-rust-tests
         with:
+          cache-epoch: ${{ vars.STEP_RUST_CACHE_EPOCH || 'v1' }}
           profile: release
           features: default,sqlite,postgres
           cargo-build-name: wbraid-test
@@ -105,6 +107,7 @@ jobs:
       - name: Set up Rust
         uses: ./.github/actions/setup-rust-tests
         with:
+          cache-epoch: ${{ vars.STEP_RUST_CACHE_EPOCH || 'v1' }}
           profile: release
           features: no-default-features,wasm-core
           cargo-build-name: wbraid-wasm
@@ -173,6 +176,7 @@ jobs:
       - name: Set up Rust
         uses: ./.github/actions/setup-rust-tests
         with:
+          cache-epoch: ${{ vars.STEP_RUST_CACHE_EPOCH || 'v1' }}
           profile: release
           features: default,sqlite,postgres
           cargo-build-name: wbraid-test

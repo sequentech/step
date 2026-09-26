@@ -19,8 +19,8 @@ configurations; the `devcontainer` CLI selects one with `--config`.
 
 | Mode | Configuration | Compose services | Dev servers | Use |
 | --- | --- | --- | --- | --- |
-| `ui-only` | `.devcontainer/ui-only/devcontainer.json` | `devcontainer` | Storybook 6006–6010 (default `ui-essentials`), workbench 5173, portals 3000–3004 | Stories and screens on fixtures |
-| `ui-keycloak` | `.devcontainer/ui-keycloak/devcontainer.json` | adds `postgres-keycloak` and `keycloak` (8090), which starts without Harvest | Storybook 6006–6010 | Login and account themes |
+| `ui-only` | `.devcontainer/ui-only/devcontainer.json` | `devcontainer` | Storybook 6006–6011 (default `ui-essentials`), workbench 5173, portals 3000–3004 | Stories and screens on fixtures |
+| `ui-keycloak` | `.devcontainer/ui-keycloak/devcontainer.json` | adds `postgres-keycloak` and `keycloak` (8090), which starts without Harvest | Storybook 6006–6011 | Login and account themes |
 | `backend` | `.devcontainer/backend/devcontainer.json` | the `base` profile: databases, MinIO, RabbitMQ, ImmuDB, Keycloak, Hasura, Harvest, Windmill, beat and B4 | none | Rust services, Hasura, step-cli |
 | `full` | `.devcontainer/devcontainer.json` | as `backend` | portals 3000–3004 (default voting 3000 and admin 3002), Storybook, workbench 5173 | End-to-end work in the portals |
 
@@ -28,6 +28,7 @@ configurations; the `devcontainer` CLI selects one with `--config`.
 scripts/dev/step-dev mode list
 scripts/dev/step-dev mode status
 scripts/dev/step-dev mode up ui-only --servers storybook-ui-essentials,workbench
+scripts/dev/step-dev mode up ui-only --servers storybook-keycloak-ui
 scripts/dev/step-dev mode up ui-keycloak
 scripts/dev/step-dev mode switch backend
 scripts/dev/step-dev mode stop
@@ -104,10 +105,12 @@ new-container starts sharing the final volume after an excluded warmup. Only one
 copied store exists at a time. Raw timings, tool versions, load, image identity,
 logs and the sample counts are in the platform's `prebuild-smoke` artifact.
 Fresh-volume seeding is included; image build/pull and application/service
-readiness are separate. The smoke has a ten-minute budget; if copying the store
-limits the fresh series after its first sample, the report states that limit.
-Warm samples must complete. Insufficient disk headroom fails before any store
-copy. To check an already built local image without downloading or publishing:
+readiness are separate. Each sample records container creation and toolchain
+startup separately, with a combined ten-minute timeout and a twelve-minute
+measurement budget. If the observed first fresh start leaves insufficient time
+for the remaining fresh starts and warm series, the report states the smaller
+sample count. Warm samples must complete. Insufficient disk headroom fails before
+any store copy. To check an already built local image without downloading or publishing:
 
 ```sh
 python3 -m scripts.dev.prebuild_smoke --image <local-image> --output-dir /tmp/prebuild-smoke
@@ -116,6 +119,10 @@ python3 -m scripts.dev.prebuild_smoke --image <local-image> --output-dir /tmp/pr
 Pass `--docker-host unix:///path/to/owned/docker.sock` for an isolated daemon;
 otherwise the helper uses `DOCKER_HOST` when set, or the default local daemon.
 It removes only the containers and volumes bearing this run's UUID owner label.
+A timed-out creation stays tracked while cleanup waits up to ninety seconds for
+the container to become inspectable. Failure artifacts retain creation/start
+logs, available container/daemon diagnostics and any resources still awaiting
+cleanup. The workflow allows fifteen minutes for measurement and cleanup.
 
 ## Shared UI hot reload
 
@@ -134,11 +141,19 @@ Apollo and `sequent-core` always resolve to the portal's own copy. Dev servers d
 not type-check: run `test:types` in the voting portal, results portal or ballot
 verifier (it resolves the shared sources), or build the admin portal.
 
-Production builds and journeys still use the packages' `dist` entry points: run
+Default webpack production builds and journeys use the packages' `dist` entry points: run
 `yarn --cwd packages build:ui-core` and `build:ui-essentials` before
 `build:<portal>`. `STEP_SHARED_UI=dist` makes a dev server use those builds too,
 for example to reproduce a production-only difference. The shared settings are in
 `packages/ui-essentials/webpack.portal.cjs`.
+
+The ballot verifier also has an opt-in Vite server:
+`yarn --cwd packages/ballot-verifier start:vite`. Its `build:vite` compiles shared
+source into `dist-vite`, and `preview:vite` serves that output. Webpack remains
+the default server, release build and CI build. See the
+[UI browser test guide](testing/ui-browser-tests.md) for Vite production and
+development journeys. Other portals require their own asset, bootstrap and
+journey validation before adopting this configuration.
 
 ## Screens, workbench and scenarios
 

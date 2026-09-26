@@ -38,7 +38,7 @@ SCENARIO = "ci"
 PUSH_EVENTS = frozenset({"pull_request", "pull_request_target", "push", "merge_group"})
 RESULT_CONCLUSIONS = frozenset({"success", "failure"})
 STATIC_CHECK = re.compile(
-    r"lint|prettif|format|\bfmt\b|clippy|tooling|"
+    r"lint|prettif|format|\bfmt\b|clippy|tooling|\bPrebuild development tools\b|"
     r"(?:Required feedback|Selected frontend) checks\b|"
     r"Select affected feedback checks\b|\bdocs-(?:build|graphql)\b",
     re.I,

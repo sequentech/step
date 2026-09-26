@@ -41,7 +41,7 @@ jobs:
           - runner: ubuntu-24.04-arm
             arch: arm64
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 90
+    timeout-minutes: 95
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
@@ -60,7 +60,7 @@ jobs:
             --config "$RUNNER_TEMP/step-env-context/.devcontainer/devcontainer.json" \
             --image-name "step-devenv-validation:$PREBUILD_ARCH"
       - name: Measure offline toolchain readiness
-        timeout-minutes: 12
+        timeout-minutes: 15
         env:
           PREBUILD_ARCH: ${{ matrix.arch }}
         run: |
@@ -98,7 +98,7 @@ jobs:
           - runner: ubuntu-24.04-arm
             arch: arm64
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 90
+    timeout-minutes: 95
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
@@ -121,7 +121,7 @@ jobs:
             --config "$RUNNER_TEMP/step-env-context/.devcontainer/devcontainer.json" \
             --image-name "$PREBUILD_IMAGE"
       - name: Measure offline toolchain readiness
-        timeout-minutes: 12
+        timeout-minutes: 15
         env:
           PREBUILD_IMAGE: ${{ steps.environment.outputs.image }}-${{ matrix.arch }}
         run: |
