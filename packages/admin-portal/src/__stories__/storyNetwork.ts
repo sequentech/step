@@ -44,7 +44,21 @@ export function guardStoryNetwork(): () => void {
         opened: [],
     }
     active = story
-    const restoreFetch = routeFetch(story.services, story.violations)
+    const nativeFetch = globalThis.fetch
+    const restoreRoutedFetch = routeFetch(story.services, story.violations)
+    const routedFetch = globalThis.fetch
+    // As for the other APIs, blob: and data: addresses never leave the page.
+    globalThis.fetch = (input, init) => {
+        const address = input instanceof Request ? input.url : String(input)
+        const {protocol} = new URL(address, globalThis.location.href)
+        return ["blob:", "data:"].includes(protocol)
+            ? nativeFetch(input, init)
+            : routedFetch(input, init)
+    }
+    const restoreFetch = () => {
+        globalThis.fetch = routedFetch
+        restoreRoutedFetch()
+    }
     const blocked = (kind: string, address: string | URL) => {
         const message = `Unexpected ${kind}: ${String(address)}`
         story.violations.add(message)
