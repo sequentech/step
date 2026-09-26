@@ -38,8 +38,8 @@ export default meta
 type Story = StoryObj<BallotStyleServices>
 
 /**
- * Chooses the option with this value: the tenant, event and election options
- * show fields those records no longer have, so they have no visible name.
+ * Chooses the option with this value: the tenant options show a `username`
+ * tenants do not have, so they have no visible name.
  */
 async function choose(canvasElement: HTMLElement, label: string, value: string) {
     await userEvent.click(await within(canvasElement).findByRole("combobox", {name: label}))
@@ -65,8 +65,15 @@ export const CreateForAnArea: Story = {
         const canvas = within(canvasElement)
         await userEvent.type(canvas.getByRole("textbox", {name: "Ballot eml"}), "{{}")
         await choose(canvasElement, "Tenant", TENANT_ID)
-        await choose(canvasElement, "Election event", EVENT_ID)
-        await choose(canvasElement, "Election", STORY_IDS.election)
+        // Event and election names live in the presentation since migration 1772358027729.
+        await userEvent.click(await canvas.findByRole("combobox", {name: "Election event"}))
+        await userEvent.click(
+            await within(document.body).findByRole("option", {name: "Council event"})
+        )
+        await userEvent.click(await canvas.findByRole("combobox", {name: "Election"}))
+        await userEvent.click(
+            await within(document.body).findByRole("option", {name: "Council election"})
+        )
         await userEvent.click(await canvas.findByRole("combobox", {name: "Area"}))
         await userEvent.click(
             await within(document.body).findByRole("option", {name: "North district"})

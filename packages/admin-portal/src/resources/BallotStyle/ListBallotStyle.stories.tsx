@@ -43,6 +43,9 @@ export const Populated: Story = {
     play: async ({canvasElement}) => {
         const north = await row(canvasElement, "North district")
         await expect(within(north).getByText("PUBLISHED")).toBeVisible()
+        // Election and event names live in the presentation since migration 1772358027729.
+        await expect(await within(north).findByText("Council election")).toBeVisible()
+        await expect(await within(north).findByText("Council event")).toBeVisible()
         await expect(await row(canvasElement, "South district")).toBeVisible()
         expect(reads("getList", "sequent_backend_ballot_style")[0].args[1]).toMatchObject({
             filter: {tenant_id: TENANT_ID},

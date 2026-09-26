@@ -51,6 +51,10 @@ export const Populated: Story = {
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
         await expect(await canvas.findByText(northBallot.id)).toBeVisible()
+        // Election and event names live in the presentation since migration 1772358027729.
+        const form = within(canvas.getByText(northBallot.id).closest("form")!)
+        await expect(await form.findByText("Council election")).toBeVisible()
+        await expect(await form.findByText("Council event")).toBeVisible()
         await expect(await areaSelect(canvasElement)).toHaveTextContent("North district")
         expect(reads("getOne", "sequent_backend_ballot_style")[0].args[1]).toMatchObject({
             id: northBallot.id,
