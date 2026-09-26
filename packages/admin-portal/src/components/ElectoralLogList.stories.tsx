@@ -272,9 +272,7 @@ export const ExportOutsideTheEventRecord: Story = {
     play: async ({canvasElement}) => {
         const dialog = await exportAs(canvasElement, "CSV")
         await userEvent.click(dialog.getByRole("button", {name: "Export"}))
-        // The list reads the given event, but the export only looks at the
-        // record context, so it asks for an event with an empty id.
-        await waitFor(() => expect(graphql.calls).toEqual(exported("", "CSV")))
+        await waitFor(() => expect(graphql.calls).toEqual(exported(EVENT_ID, "CSV")))
         expect(listed()?.[1]).toMatchObject({filter: {election_event_id: EVENT_ID}})
     },
 }
