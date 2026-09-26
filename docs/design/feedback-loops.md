@@ -169,9 +169,9 @@ Decisions so far:
   opt-in `keycloak-ui` React workspace. Login and message OTP use React refresh;
   unported or complex login widgets inherit the original templates with automatic
   reload. The explicit server context carries login policies, OTP courier and
-  localized messages, including realm overrides. Eleven real authentication/policy
-  checks, 12 browser stories, 23 original theme tests, and a theme build pass.
-  Warm visible edits on real Keycloak: login 0.077 s median, 0.076–0.077 (n=10);
+  localized messages, including realm overrides. The earlier implementation
+  passed eleven real authentication/policy checks, 12 browser stories and 23
+  original theme tests. Its warm visible edits on real Keycloak: login 0.077 s median, 0.076–0.077 (n=10);
   OTP 0.076 s, 0.075–0.087 (n=10). Typed input and the authentication session survive
   without navigation; the OTP exchange completes after the edits. Server message
   edits also reload automatically (n=1). The earlier packaged pilot took 8.4 s
@@ -179,11 +179,22 @@ Decisions so far:
   CAPTCHA and external identity providers need their configured integration
   environments. Commands and fixture limits are in the Keycloak developer guide.
 - **Keycloak visual and accessibility refinement**: the login and custom OTP
-  workspace is being redesigned using the supplied Election Architect reference
-  and its public login styles. Validation will cover the existing authentication
-  behavior, Sequent branding, keyboard operation, full-code paste/autofill,
-  errors, focus, contrast, language and narrow-screen reflow against WCAG 2.2 AA.
-  The earlier walkthrough predates this refinement.
+  pages use a scoped Sequent theme inspired by Election Architect, local fonts,
+  a responsive card and visible keyboard focus. The final 28 stories and 15 real
+  authentication checks pass; the separate hot-update timing case is pending.
+  Both React and original FreeMarker complete password/whole-code OTP login and
+  redeem the OIDC code. The original OTP's missing names and truncated autofill
+  fail before the fix and pass after it. New checks exercise credential errors,
+  native locale/recovery/registration links, realm options, provider fallbacks,
+  keyboard order, 320px reflow and 200% text. Provider 137 and theme 62 tests,
+  TypeScript, lint, formatting and the theme JAR build pass. Source palette
+  contrast is 5.30:1 for the main button and 3.43:1 for field borders; browser
+  accessibility scans and visual review supplement the interaction checks.
+  Concurrent theme preparation uses a per-checkout lock and atomic files, with
+  two failing-before regressions. Automated checks do not establish formal WCAG
+  conformance: native screen readers, browser zoom, password-manager extensions
+  and the inherited flows retain explicit verification limits. The earlier
+  walkthrough predates this refinement.
 - **Workbench** (adopted): shared scenarios and snapshots in `ui-test-kit`, one
   preview provider for Storybook and the workbench, production routes and loaders,
   typed policy overrides and the real sequent-core pipeline. The dev server now
@@ -204,10 +215,12 @@ coverage against `ovcs` 833385f62396 passes (one base/head pair), with all four
 metrics increasing. Current `ovcs` b8f2a5c69d is merged through all three phases;
 the updated voting suite, types, lint and formatting pass. Admin stories pass
 (110 tests, one run), as do the six upstream load-replay regressions. Hosted
-reruns remain queued. All four current Copilot findings are settled; the WASM
+reruns remain in progress. All five current Copilot threads are settled; the WASM
 benchmark wrapper preserves its checkout path, and CI verification reports
-planning failures before decoding a selection. CodeRabbit requests were
-rate-limited.
+planning failures before decoding a selection. The repeated failed-plan finding
+is covered by GitHub's default status guard and seven passing CLI regressions.
+Copilot could not review phase 1 because its diff exceeds 20,000 lines; phase 2/3
+received Lite reviews after runner timeouts. CodeRabbit requests remain rate-limited.
 
 - **Public admin build settings**: webpack defines only the four settings read
   by the application; private build environment values no longer enter the
