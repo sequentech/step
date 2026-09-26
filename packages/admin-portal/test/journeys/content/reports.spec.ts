@@ -271,6 +271,20 @@ test.describe("report administrator", () => {
         expectRole(portal, "EncryptReport", "report-write")
     })
 
+    test("opens a single create drawer", async ({page, portal}) => {
+        test.fail(
+            true,
+            "ListActions and ListReports each render a create drawer bound to openCreateReport (Reports/ListReports.tsx:475,542)"
+        )
+        reports(portal)
+        await openReports(page, portal)
+        await page.getByRole("button", {name: "Add", exact: true}).click()
+        await expect(page.getByRole("dialog").filter({hasText: "Create Report"})).toBeVisible()
+        await expect(page.getByRole("dialog", {includeHidden: true})).toHaveCount(1, {
+            timeout: 1000,
+        })
+    })
+
     test("keeps a report unencrypted when the passwords differ", async ({page, portal}) => {
         reports(portal, [reportRow()])
         await openReports(page, portal)

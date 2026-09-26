@@ -233,7 +233,9 @@ test.describe("support material create drawer", () => {
         await expect(
             page.getByRole("dialog").filter({hasText: "Enter support material data."})
         ).toBeVisible()
-        await expect(page.getByRole("dialog", {includeHidden: true})).toHaveCount(1)
+        await expect(page.getByRole("dialog", {includeHidden: true})).toHaveCount(1, {
+            timeout: 1000,
+        })
     })
 })
 

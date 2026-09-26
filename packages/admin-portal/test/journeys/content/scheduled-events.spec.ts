@@ -166,6 +166,22 @@ test.describe("schedule administrator", () => {
         })
     })
 
+    test("opens a single create drawer", async ({page, portal}) => {
+        test.fail(
+            true,
+            "ListActions and ListScheduledEvents each render a create drawer bound to openCreateEvent (ScheduledEvents/ListScheduledEvent.tsx:322,387)"
+        )
+        scheduled(portal)
+        await openSchedule(page, portal)
+        await page.getByRole("button", {name: "Add", exact: true}).click()
+        await expect(
+            page.getByRole("dialog").filter({hasText: "Create Scheduled Event"})
+        ).toBeVisible()
+        await expect(page.getByRole("dialog", {includeHidden: true})).toHaveCount(1, {
+            timeout: 1000,
+        })
+    })
+
     test("blocks a start schedule that opens online and early voting together", async ({
         page,
         portal,

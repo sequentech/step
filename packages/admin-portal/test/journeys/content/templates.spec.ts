@@ -284,7 +284,9 @@ test.describe("template administrator", () => {
         await openTemplates(page, portal)
         await page.getByRole("button", {name: "Add", exact: true}).click()
         await expect(page.getByRole("dialog").filter({hasText: "Create a Template"})).toBeVisible()
-        await expect(page.getByRole("dialog", {includeHidden: true})).toHaveCount(1)
+        await expect(page.getByRole("dialog", {includeHidden: true})).toHaveCount(1, {
+            timeout: 1000,
+        })
     })
 })
 
