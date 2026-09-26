@@ -37,6 +37,7 @@ check is not a passing test. `validate` includes slower checks; inspect its
 | Rust-backed frontend logic | `step-dev wasm`, then reload/rerun the affected real WASM flow |
 | Rust service | Inspect the checkout's existing watcher logs before starting another compiler; use `step-dev test <crate> <test-name>` |
 | Keycloak template, message or CSS | `ui-keycloak` mode, the live theme mount and the relevant authentication page |
+| Toolchain setup or cache reuse | `step-dev prebuild status`; use `pull` before recreating a task-owned devcontainer, and inspect the fallback selection |
 | Backend state | `step-dev scenario list`, then `scenario up <name>` only when a fixture-backed screen cannot answer the question |
 
 Use `ui-only` for synthetic screens. Find stable story and workbench links in
@@ -61,3 +62,7 @@ user asked to retain the workspace. Use `step-dev bench` for performance claims,
 with cache state, load, raw samples and sample counts; do not infer latency from
 one successful test run. CI uses the same selection model; compare its summary
 with the local `affected --base <ref> --json` output when scope differs.
+`python3 -m scripts.dev.ci plan --base <ref> --output /tmp/ci-plan.json`
+shows the exact hosted matrices. Cache hits reuse verified compiler outputs;
+selected tests still execute. Read the guide's Incremental CI section before
+changing cache keys or selected checks.

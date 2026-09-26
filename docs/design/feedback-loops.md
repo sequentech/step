@@ -179,14 +179,16 @@ Decisions so far:
   preview provider for Storybook and the workbench, production routes and loaders,
   typed policy overrides and the real sequent-core pipeline.
 
-Current validation: the voting Jest suite passes locally (30 suites, 259 tests,
+Current validation: the voting Jest suite passes locally (30 suites, 264 tests,
 one run), as do verifier stories (14 tests, including one retained expected
 accessibility failure) and results stories (19 tests), one browser run each.
 The hosted regressions were a missing story CSS hook, virtual mocks for a now-real
 shared module and obsolete expected-failure markers after upstream accessibility
 fixes. Frontend lint and formatting pass across all seven packages. Paired voting
 coverage against `ovcs` 833385f62396 passes (one base/head pair), with all four
-metrics increasing. Hosted reruns remain in progress.
+metrics increasing. Current `ovcs` 38b0c3d834 is merged through all three phases;
+the updated voting suite, types, lint and formatting pass. Hosted reruns remain
+in progress.
 
 - **Public admin build settings**: webpack defines only the four settings read
   by the application; private build environment values no longer enter the
@@ -198,6 +200,27 @@ metrics increasing. Hosted reruns remain in progress.
   `fast-feedback` skill, the developer guide and `step-dev` commands. Explicit
   CLI help exits successfully, and shared UI edits no longer instruct agents to
   rebuild production libraries.
+
+- **Incremental CI**: the Tests workflow uses the local dependency model, runs
+  selected suites and calls the reusable frontend workflow. Selected tests rerun;
+  a strict aggregate check rejects missing, cancelled or unexpectedly skipped
+  jobs. Production journey shards share one current portal build. Shared UI
+  reuse verifies its complete input identity and output checksums: rebuilding
+  locally took 19.3 s median, 19.1–20.7 (n=3), versus 0.26 s, 0.26–0.42 (n=10)
+  for verified reuse. This native aarch64 result excludes hosted transfers.
+- **Rust compiler caching**: CI restores bounded sccache units separately from
+  downloaded dependencies. On wrap-map-err, fresh output directories with an
+  edited source compiled and passed all 18 tests in 3.42 s median, 3.42–3.52
+  (n=10) without compiler reuse, versus 2.02 s, 1.97–2.07 (n=10) with it.
+  Deliberately corrupt cached units triggered a successful ordinary rebuild
+  (n=1, 18 tests). These small-crate results do not establish hosted full-workspace
+  speedups; hosted measurements remain pending.
+- **Optional environment prebuilds**: native arm64/amd64 builds use a source-free
+  toolchain context. PRs build without publishing; trusted branch workflows
+  publish matching images. Local selection checks identity and architecture,
+  falling back to the standard image when missing or incompatible. Unit tests,
+  source-free warm-up, Dockerfile checks and fallback Compose validation pass;
+  complete image builds and startup measurements remain pending hosted validation.
 
 Keep the stack synchronized with new `ovcs` commits using normal merges into
 phase 1 and then each descendant. All feedback commands must be discoverable and
