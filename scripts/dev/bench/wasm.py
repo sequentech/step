@@ -34,7 +34,7 @@ from .edits import EditSpec, MarkerEdit, marker_for
 from .process import BackgroundProcess, run_command, wait_for_http
 from .results import CacheState
 from .rust import RUST_MARKER
-from .ui_update import TARGETS, BrowserProbe
+from .ui_update import TARGETS, BrowserProbe, browser_error
 
 SCENARIO = "wasm"
 BUILD_SCRIPT = ".devcontainer/scripts/build-sequent-core.sh"
@@ -352,7 +352,10 @@ def measure(
                 detail.update(
                     page_loads=observed.get("reloads"),
                     wasm_modules=observed.get("wasm_modules"),
+                    page_errors=observed.get("page_errors"),
+                    mock_violations=observed.get("violations"),
                 )
+                error = browser_error(observed)
             else:
                 # Nothing changed and nothing restarts: done when the commands are.
                 phases["visible"] = time.time() - saved

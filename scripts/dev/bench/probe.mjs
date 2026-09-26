@@ -424,7 +424,15 @@ async function visit({id, text, timeout = 600}) {
     const modules = await moduleLoaded(state, text, deadline, () =>
         state.page.goto(state.url, {timeout: timeout * 1000})
     )
-    emit({event: "visited", id, text, wasm_modules: modules, reloads: state.loads - loads})
+    emit({
+        event: "visited",
+        id,
+        text,
+        wasm_modules: modules,
+        reloads: state.loads - loads,
+        page_errors: state.errors,
+        violations: state.violations ? state.violations.list().length : 0,
+    })
 }
 
 // Like visit, but the running dev server must reload the page by itself.
@@ -435,7 +443,15 @@ async function watch({id, text, timeout = 600}) {
     const modules = await moduleLoaded(state, text, deadline, async () =>
         emit({event: "waiting", id, text})
     )
-    emit({event: "watched", id, text, wasm_modules: modules, reloads: state.loads - loads})
+    emit({
+        event: "watched",
+        id,
+        text,
+        wasm_modules: modules,
+        reloads: state.loads - loads,
+        page_errors: state.errors,
+        violations: state.violations ? state.violations.list().length : 0,
+    })
 }
 
 const handlers = {open, wait, gone: wait, park, visit, watch}
