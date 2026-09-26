@@ -100,7 +100,8 @@ export const TemplateFormContent: React.FC<TTemplateFormContent> = ({
         console.log("Fetch data EFFECT.")
         const fetchDefaultTemplateData = async () => {
             try {
-                const currType = selectedTemplateType?.value as ETemplateType
+                const currType = selectedTemplateType?.value as ETemplateType | undefined
+                if (!currType) return
                 const {data: templateData, errors} = await GetUserTemplate({
                     variables: {
                         template_type: currType.toLowerCase() as string,

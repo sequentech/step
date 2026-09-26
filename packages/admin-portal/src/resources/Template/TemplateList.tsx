@@ -26,7 +26,7 @@ import {
 import {IPermissions} from "@/types/keycloak"
 import {ListActions} from "@/components/ListActions"
 import UploadIcon from "@mui/icons-material/Upload"
-import {ActionsColumn} from "@/components/ActionButons"
+import {ActionsColumn, type Action} from "@/components/ActionButons"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {Dialog, IconButton} from "@sequentech/ui-essentials"
 import {useTenantStore} from "@/providers/TenantContextProvider"
@@ -57,24 +57,12 @@ const TemplateEmpty = styled(Box)`
     width: 100%;
 `
 
-const useActionPermissions = () => {
-    const [tenantId] = useTenantStore()
-    const authContext = useContext(AuthContext)
-
-    const canWriteTenant = authContext.isAuthorized(true, tenantId, IPermissions.TENANT_WRITE)
-
-    return {
-        canWriteTenant,
-    }
-}
-
 const OMIT_FIELDS = ["id"]
 const Filters: Array<ReactElement> = []
 
 export const TemplateList: React.FC = () => {
     const {t} = useTranslation()
     const [deleteOne] = useDelete()
-    const {canWriteTenant} = useActionPermissions()
     const authContext = useContext(AuthContext)
     const [tenantId] = useTenantStore()
     const templateRead = authContext.isAuthorized(true, tenantId, IPermissions.template_READ)
@@ -123,10 +111,6 @@ export const TemplateList: React.FC = () => {
     const handleCloseDrawer = () => {
         setOpenDrawer(false)
         refresh()
-
-        setTimeout(() => {
-            setRecordId(undefined)
-        }, 400)
     }
 
     const handleImport = () => {
@@ -153,10 +137,12 @@ export const TemplateList: React.FC = () => {
         setDeleteId(undefined)
     }
 
-    const actions: any[] = [
-        {icon: <EditIcon />, action: handleEditDrawer},
-        {icon: <DeleteIcon />, action: deleteAction},
-    ]
+    const actions: Action[] = templateWrite
+        ? [
+              {icon: <EditIcon />, action: handleEditDrawer},
+              {icon: <DeleteIcon />, action: deleteAction},
+          ]
+        : []
 
     const CreateButton = () => (
         <Button onClick={handleCreateDrawer}>
@@ -230,10 +216,6 @@ export const TemplateList: React.FC = () => {
         )
     }
 
-    if (!canWriteTenant) {
-        return <Empty />
-    }
-
     return (
         <>
             <ElectionHeader
@@ -251,11 +233,12 @@ export const TemplateList: React.FC = () => {
                         doImport={handleImport}
                         withExport={true}
                         doExport={handleExport}
-                        withImport={true}
+                        withImport={templateWrite}
                         open={openDrawer}
                         setOpen={setOpenDrawer}
-                        Component={<TemplateCreate close={handleCloseDrawer} />}
-                        withComponent={templateWrite}
+                        withAction={templateWrite}
+                        doAction={handleCreateDrawer}
+                        actionLabel="common.label.add"
                     />
                 }
                 empty={<Empty />}

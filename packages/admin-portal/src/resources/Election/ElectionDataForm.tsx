@@ -8,6 +8,7 @@ import {
     TextInput,
     useRecordContext,
     SimpleForm,
+    useSaveContext,
     useGetOne,
     Toolbar,
     SaveButton,
@@ -43,6 +44,7 @@ import {
     ManageElectionDatesMutation,
 } from "../../gql/graphql"
 
+import type {FieldValues} from "react-hook-form"
 import React, {useCallback, useContext, useEffect, useState} from "react"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 
@@ -92,6 +94,8 @@ import {useGetDocumentUrl} from "@/hooks/useGetDocumentUrl"
 import {SettingsLanguageSelector} from "@/components/SettingsLanguageSelector"
 import {IVR_ENTITY_I18N_ANNOTATION, parseIvrEntityAnnotations} from "@/utils/ivr"
 
+const formResetOptions = {keepDirtyValues: true}
+
 const LangsWrapper = styled(Box)`
     margin-top: 46px;
 `
@@ -111,6 +115,7 @@ export type Sequent_Backend_Election_Extended = RaRecord<Identifier> & {
 } & Sequent_Backend_Election
 
 export const ElectionDataForm: React.FC = () => {
+    const {save} = useSaveContext()
     const record = useRecordContext<Sequent_Backend_Election>()
     const [tenantId] = useTenantStore()
     const {t} = useTranslation()
@@ -595,24 +600,20 @@ export const ElectionDataForm: React.FC = () => {
                     imageData?.name
                 )
 
-                const onSave = async () => {}
-
                 return (
                     <SimpleForm
+                        onSubmit={async (values: FieldValues) => {
+                            try {
+                                return await save?.(values)
+                            } catch {
+                                // The transform reports the error; retain the editable form.
+                                return undefined
+                            }
+                        }}
                         defaultValues={{contestsOrder: sortedContests}}
                         record={parsedValue}
-                        toolbar={
-                            <Toolbar>
-                                {canEdit && (
-                                    <SaveButton
-                                        onClick={() => {
-                                            onSave()
-                                        }}
-                                        type="button"
-                                    />
-                                )}
-                            </Toolbar>
-                        }
+                        resetOptions={formResetOptions}
+                        toolbar={<Toolbar>{canEdit && <SaveButton />}</Toolbar>}
                     >
                         <Accordion
                             sx={{width: "100%"}}
@@ -787,7 +788,8 @@ export const ElectionDataForm: React.FC = () => {
                                 <Grid container spacing={1}>
                                     <Grid size={2}>
                                         {parsedValue?.image_document_id &&
-                                        parsedValue?.image_document_id !== "" ? (
+                                        imageData?.id === parsedValue.image_document_id &&
+                                        imageData.name ? (
                                             <img
                                                 width={200}
                                                 height={200}
@@ -884,6 +886,7 @@ export const ElectionDataForm: React.FC = () => {
                                     </Typography>
 
                                     <JsonEditor
+                                        theme={{styles: {itemCount: {color: "#444"}}}}
                                         data={customFilters ?? []}
                                         onUpdate={(data) =>
                                             updateCustomFilters(

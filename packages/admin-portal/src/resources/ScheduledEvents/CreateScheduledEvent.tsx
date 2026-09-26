@@ -206,7 +206,14 @@ const CreateEvent: FC<CreateEventProps> = ({
             if (data?.manage_election_dates?.error_msg || errors) {
                 notify(t("eventsScreen.messages.createError"), {type: "error"})
             } else {
-                notify(t("eventsScreen.messages.editSuccess"), {type: "success"})
+                notify(
+                    t(
+                        isEditEvent
+                            ? "eventsScreen.messages.editSuccess"
+                            : "eventsScreen.messages.createSuccess"
+                    ),
+                    {type: "success"}
+                )
             }
         } catch (error) {
             setIsLoading(false)

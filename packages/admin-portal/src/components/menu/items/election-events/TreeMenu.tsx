@@ -482,6 +482,23 @@ function TreeMenuItem({
     const {canCreateElectionEvent, canReadContest, canReadCandidate, canReadElection} =
         useActionPermissions()
 
+    const immediateParent: DataTreeMenuType & {election_event_id?: string} =
+        treeResourceNames[0] === "sequent_backend_candidate"
+            ? {
+                  __typename: "sequent_backend_contest",
+                  id: (resource as CandidateType).contest_id,
+                  election_event_id: (resource as CandidateType).election_event_id,
+                  name: "",
+              }
+            : treeResourceNames[0] === "sequent_backend_contest"
+              ? {
+                    __typename: "sequent_backend_election",
+                    id: (resource as ContestType).election_id,
+                    election_event_id: (resource as ContestType).election_event_id,
+                    name: "",
+                }
+              : superParentData
+
     const canShowMenu =
         (hasNext && treeResourceNames[0] === "sequent_backend_election_event" && canReadElection) ||
         (hasNext && treeResourceNames[0] === "sequent_backend_election" && canReadContest) ||
@@ -539,19 +556,17 @@ function TreeMenuItem({
                     </MenuStyles.StyledSideBarNavLink>
                 )}
                 <MenuStyles.MenuActionContainer className={`menu-actions-${treeResourceNames[0]}`}>
-                    {canCreateElectionEvent ? (
-                        <MenuActions
-                            isArchivedTab={isArchivedElectionEvents}
-                            resourceId={id}
-                            resourceName={name}
-                            resourceType={treeResourceNames[0]}
-                            parentData={superParentData}
-                            menuItemRef={menuItemRef}
-                            setAnchorEl={setAnchorEl}
-                            anchorEl={anchorEl}
-                            reloadTree={reloadTree}
-                        ></MenuActions>
-                    ) : null}
+                    <MenuActions
+                        isArchivedTab={isArchivedElectionEvents}
+                        resourceId={id}
+                        resourceName={name}
+                        resourceType={treeResourceNames[0]}
+                        parentData={immediateParent}
+                        menuItemRef={menuItemRef}
+                        setAnchorEl={setAnchorEl}
+                        anchorEl={anchorEl}
+                        reloadTree={reloadTree}
+                    />
                 </MenuStyles.MenuActionContainer>
             </TreeMenuItemContainer>
             {resource?.active && open && (

@@ -1,117 +1,84 @@
-// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React from "react"
-import {Meta, StoryObj} from "@storybook/react"
-import Container from "@mui/material/Container"
+import React, {useState} from "react"
+import type {Meta, StoryObj} from "@storybook/react-vite"
+import {MockedProvider} from "@apollo/client/testing"
+import {Provider} from "react-redux"
+import {configureStore} from "@reduxjs/toolkit"
+import {expect, userEvent, within} from "storybook/test"
+import {initCore} from "@sequentech/ui-core"
 import {HomeScreen} from "../../screens/HomeScreen"
-import {LanguageSetter} from "@sequentech/ui-essentials"
-import {withRouter} from "storybook-addon-react-router-v6"
-import {IBallotService, provideBallotService} from "../../services/BallotService"
-import {within, userEvent} from "@storybook/testing-library"
-import {expect} from "@storybook/jest"
-import {IDecodedVoteContest, IAuditableBallot} from "@sequentech/ui-core"
+import {IConfirmationBallot, provideBallotService} from "../../services/BallotService"
+import ballotStyles from "../../store/ballotStyles/ballotStylesSlice"
+import {GET_BALLOT_STYLES} from "../../queries/GetBallotStyles"
 
-// Remove this line — PlayFunction doesn't exist
-// import type { PlayFunction } from "@storybook/testing-library"
-
-/* -------------------------------------------------
-   Types
-   ------------------------------------------------- */
-type HomeScreenProps = React.ComponentProps<typeof HomeScreen>
-
-interface StoryArgs extends HomeScreenProps {
-    language: "en" | "es"
-}
-
-/* -------------------------------------------------
-   Meta
-   ------------------------------------------------- */
-const meta = {
-    title: "screens/HomeScreen",
-    component: HomeScreen,
-    decorators: [withRouter],
-    parameters: {
-        backgrounds: {default: "white"},
-        reactRouter: {routePath: "/", routeParams: {}},
-    },
-    argTypes: {
-        setConfirmationBallot: {table: {disable: true}},
-        ballotService: {table: {disable: true}},
-    },
-} satisfies Meta<typeof HomeScreen>
-
-export default meta
-
-/* -------------------------------------------------
-   Service provider
-   ------------------------------------------------- */
-const getBallotServiceProvider = (): IBallotService => {
-    const service = provideBallotService()
-
-    const decodeAuditableBallot = (
-        _auditableBallot: IAuditableBallot
-    ): Array<IDecodedVoteContest> | null => null
-
-    return {...service, decodeAuditableBallot}
-}
-
-/* -------------------------------------------------
-   Template
-   ------------------------------------------------- */
-const Template: React.FC<StoryArgs> = ({language, ballotService: _ignore, ...componentProps}) => {
-    const ballotService = getBallotServiceProvider()
-
+const HomeFixture = () => {
+    const [store] = useState(() => configureStore({reducer: {ballotStyles}}))
+    const [confirmationBallot, setConfirmationBallot] = useState<IConfirmationBallot | null>(null)
+    const [ballotId, setBallotId] = useState("")
+    const [fileName, setFileName] = useState("")
     return (
-        <Container style={{backgroundColor: "white"}}>
-            <LanguageSetter language={language}>
-                <HomeScreen ballotService={ballotService} {...componentProps} />
-            </LanguageSetter>
-        </Container>
+        <MockedProvider
+            mocks={[
+                {
+                    request: {query: GET_BALLOT_STYLES},
+                    result: {data: {sequent_backend_ballot_style: []}},
+                },
+            ]}
+        >
+            <Provider store={store}>
+                <HomeScreen
+                    confirmationBallot={confirmationBallot}
+                    setConfirmationBallot={setConfirmationBallot}
+                    ballotId={ballotId}
+                    setBallotId={setBallotId}
+                    fileName={fileName}
+                    setFileName={setFileName}
+                    ballotService={provideBallotService()}
+                />
+            </Provider>
+        </MockedProvider>
     )
 }
-
-/* -------------------------------------------------
-   Stories
-   ------------------------------------------------- */
-type Story = StoryObj<StoryArgs>
+const meta = {
+    title: "screens/HomeScreen",
+    render: () => <HomeFixture />,
+    loaders: [
+        async () => {
+            await initCore()
+            return {}
+        },
+    ],
+} satisfies Meta
+export default meta
+type Story = StoryObj<typeof meta>
 
 export const Primary: Story = {
-    render: (args) => <Template {...args} />,
-    args: {
-        language: "en",
-        confirmationBallot: null,
-        setConfirmationBallot: () => {},
-        ballotId: "",
-        setBallotId: () => {},
-        // Add other required props here
+    play: async ({canvasElement}) => {
+        await expect(within(canvasElement).getByRole("button", {name: /Next/})).toBeDisabled()
+    },
+}
+export const InvalidJson: Story = {
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        const file = new File(["{invalid JSON"], "ballot.json", {type: "application/json"})
+        await userEvent.upload(canvas.getByTestId<HTMLInputElement>("drop-input-file"), file)
+        await expect(await canvas.findByRole("alert")).toBeVisible()
+        await expect(canvas.getByRole("button", {name: /Next/})).toBeDisabled()
     },
 }
 
-/* -------------------------------------------------
-   Error Interaction Test
-   ------------------------------------------------- */
-export const Error: Story = {
-    render: (args) => <Template {...args} />,
-    args: {
-        language: "en",
-        confirmationBallot: null,
-        setConfirmationBallot: () => {},
-        ballotId: "",
-        setBallotId: () => {},
-    },
-
-    // Use correct type: StoryContext from @storybook/react
-    play: async ({canvasElement}: {canvasElement: HTMLElement}) => {
+export const SampleBallot: Story = {
+    play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
-
-        const fakeFile = new File(["hello"], "hello.png", {type: "image/png"})
-
-        const inputFile = canvas.getByTestId<HTMLInputElement>("drop-input-file")
-        await userEvent.upload(inputFile, fakeFile)
-
-        expect(inputFile.files).toHaveLength(1)
-        expect(inputFile.files![0]).toStrictEqual(fakeFile)
-        expect(inputFile.files!.item(0)).toStrictEqual(fakeFile)
+        await userEvent.click(canvas.getByRole("button", {name: "Use a sample ballot"}))
+        await expect(
+            canvas.getByRole<HTMLInputElement>("textbox", {name: "Ballot ID"}).value
+        ).toMatch(/^[0-9a-f]{64}$/)
+        await expect(canvas.getByText("Uploaded", {exact: true})).toBeVisible()
+        await expect(canvas.getByRole("button", {name: "Next"})).toBeEnabled()
+        await userEvent.clear(canvas.getByRole("textbox", {name: "Ballot ID"}))
+        await expect(canvas.getByRole("button", {name: "Next"})).toBeDisabled()
     },
 }

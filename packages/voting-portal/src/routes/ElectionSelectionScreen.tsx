@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+import {getPublishedSupportMaterialsPolicy} from "../services/PublishedBallots"
 import {Box, Button, CircularProgress, Typography, Alert} from "@mui/material"
 import React, {useContext, useEffect, useMemo, useState} from "react"
 import {Trans, useTranslation} from "react-i18next"
@@ -21,7 +22,6 @@ import {
     parseResultsWebsitePolicy,
     formatVotingPortalDateTime,
     ESupportMaterialsPolicy,
-    getEffectiveSupportMaterialsPolicy,
 } from "@sequentech/ui-core"
 import {AuthContext} from "../providers/AuthContextProvider"
 import {faCircleQuestion} from "@fortawesome/free-solid-svg-icons"
@@ -270,7 +270,7 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
             return false
         }
 
-        if (!canVoteTest && !election.name?.includes("TEST")) {
+        if (!canVoteTest) {
             return false
         }
 
@@ -399,8 +399,9 @@ const ElectionSelectionScreen: React.FC = () => {
     )
     const [openChooserHelp, setOpenChooserHelp] = useState(false)
     // Presentation comes from the immutable S3 publication snapshot.
-    const materialsPolicy = getEffectiveSupportMaterialsPolicy(
-        electionEvent?.presentation?.materials
+    const materialsPolicy = getPublishedSupportMaterialsPolicy(
+        oneBallotStyle?.ballot_eml.election_event_presentation,
+        electionEvent?.presentation
     )
     const isMaterialsVisible = materialsPolicy !== ESupportMaterialsPolicy.OFF
     const isMaterialsMandatory = materialsPolicy === ESupportMaterialsPolicy.MANDATORY_FOR_VOTING
@@ -855,7 +856,7 @@ const ElectionSelectionScreen: React.FC = () => {
                             electionId={electionId}
                             key={electionId}
                             bypassChooser={bypassChooser}
-                            canVoteTest={canVoteTest}
+                            canVoteTest={canVoteTest || electionId === testElectionId}
                             materialsGate={materialsGate}
                         />
                     ))

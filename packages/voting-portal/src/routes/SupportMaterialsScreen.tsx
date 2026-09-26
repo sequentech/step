@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+import {getPublishedSupportMaterialsPolicy} from "../services/PublishedBallots"
 import {Alert, Box, Button, Checkbox, FormControlLabel, Typography} from "@mui/material"
 import React, {useContext, useEffect, useMemo, useState} from "react"
 import {useTranslation} from "react-i18next"
@@ -11,7 +12,6 @@ import {
     translate,
     translateFromPresentation,
     ESupportMaterialsPolicy,
-    getEffectiveSupportMaterialsPolicy,
 } from "@sequentech/ui-core"
 import {styled} from "@mui/material/styles"
 import {TenantEventType} from ".."
@@ -127,10 +127,11 @@ const SupportMaterialsScreen: React.FC = () => {
         }
     }, [electionEvent])
 
-    // Sourced from the published ballot style snapshot, not the live election
-    // event, so a policy change only takes effect after the next publication.
-    const materialsPolicy = getEffectiveSupportMaterialsPolicy(
-        ballotStyle?.ballot_eml.election_event_presentation?.materials
+    // The chooser loads the published event before any ballot style is needed.
+    // Both sources belong to the immutable publication snapshot.
+    const materialsPolicy = getPublishedSupportMaterialsPolicy(
+        ballotStyle?.ballot_eml.election_event_presentation,
+        electionEvent?.presentation
     )
     const isMandatory = materialsPolicy === ESupportMaterialsPolicy.MANDATORY_FOR_VOTING
 

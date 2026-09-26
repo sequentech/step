@@ -24,6 +24,8 @@ module.exports = {
         "!src/__mocks__/**",
         "!src/setupTests.ts",
         "!src/setupJestGlobals.ts",
+        "!src/**/*.stories.{ts,tsx}",
+        "!src/**/__stories__/**",
     ],
     coverageProvider: "babel",
     coverageDirectory: "coverage",

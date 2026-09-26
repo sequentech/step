@@ -63,7 +63,7 @@ export const CreateRole: React.FC<CreateRoleProps> = ({close, permissions}) => {
             }
             close?.()
         } catch (error) {
-            notify(t("usersAndRolesScreen.voters.roles.createError"), {type: "error"})
+            notify(t("usersAndRolesScreen.roles.errors.createError"), {type: "error"})
             console.log(`Error creating role: ${error}`)
             close?.()
         }

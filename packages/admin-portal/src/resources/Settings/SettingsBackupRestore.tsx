@@ -146,7 +146,7 @@ export const SettingsBackupRestore: React.FC<void> = () => {
                     <SaveButton
                         className="save"
                         label={String(t("settings.backupRestore.backup.label"))}
-                        alwaysEnable
+                        alwaysEnable={!isLoading}
                         disabled={isLoading}
                     />
                 }
@@ -165,9 +165,13 @@ export const SettingsBackupRestore: React.FC<void> = () => {
                     <SaveButton
                         className="save"
                         label={String(t("settings.backupRestore.restore.label"))}
-                        alwaysEnable
+                        alwaysEnable={
+                            !isLoading &&
+                            !!importConfigurations?.includeTenant &&
+                            !!importConfigurations?.includeKeycloak &&
+                            !!importConfigurations?.includeRoles
+                        }
                         disabled={
-                            // TODO: fix disable mode
                             isLoading ||
                             !(
                                 !!importConfigurations?.includeTenant &&

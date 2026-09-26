@@ -3,7 +3,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 module.exports = {
-    collectCoverageFrom: ["src/**/*.{ts,tsx}", "!src/**/*.d.ts", "!src/**/*.test.{ts,tsx}"],
+    testMatch: ["<rootDir>/src/**/*.test.[jt]s?(x)"],
+    collectCoverageFrom: [
+        "src/**/*.{ts,tsx}",
+        "!src/**/*.d.ts",
+        "!src/**/*.test.{ts,tsx}",
+        "!src/**/*.stories.{ts,tsx}",
+        "!src/**/__stories__/**",
+    ],
     coverageProvider: "babel",
     coverageReporters: ["text", "html", "lcov", "json", "json-summary"],
     moduleNameMapper: {

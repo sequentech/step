@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+import {CombinedGraphQLErrors} from "@apollo/client/errors"
 import React from "react"
 import {fireEvent, render, screen, waitFor, within} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
@@ -37,7 +38,11 @@ import ConfirmationScreen from "./ConfirmationScreen"
 jest.mock("react-i18next", () => ({
     useTranslation: () => ({
         t: (key: string, values?: {ballotId?: string}) =>
-            key === "ballotHash" ? `Ballot ID: ${values?.ballotId?.slice(0, 8)}` : key,
+            key === "reviewScreen.error.INCONSISTENT_HASH" && mockEmptyHashTranslation
+                ? ""
+                : key === "ballotHash"
+                  ? `Ballot ID: ${values?.ballotId?.slice(0, 8)}`
+                  : key,
         i18n: {language: "en"},
     }),
 }))
@@ -78,6 +83,11 @@ jest.mock(
         ).BallotHashCopyButton,
         theme: jest.requireActual("../../../ui-essentials/src/services/theme").default,
         Dialog: () => null,
+        WarnBox: jest.requireActual("../../../ui-essentials/src/components/WarnBox/WarnBox")
+            .default,
+        EWarnBoxAnnouncement: jest.requireActual(
+            "../../../ui-essentials/src/components/WarnBox/WarnBox"
+        ).EWarnBoxAnnouncement,
         QRCode: jest.requireActual("../../../ui-essentials/src/components/QRCode/QRCode").default,
     }),
     {virtual: true}
@@ -138,6 +148,7 @@ const mockDispatch = jest.fn()
 const mockReauthWithGold = jest.fn()
 const mockInsertCastVote = jest.fn()
 const routeAction = jest.fn(() => null)
+let mockEmptyHashTranslation = false
 let mockIsGoldUser = false
 let mockDisableAuth = true
 let mockElectionQueryData:
@@ -265,6 +276,7 @@ beforeEach(() => {
     mockInsertCastVote.mockResolvedValue(CAST_VOTE_RESULT)
     mockReauthWithGold.mockResolvedValue(undefined)
     mockIsGoldUser = false
+    mockEmptyHashTranslation = false
     mockDisableAuth = true
     mockElectionQueryData = undefined
     sessionStorage.clear()
@@ -554,3 +566,158 @@ describe("pending cast", () => {
         expect(mockInsertCastVote).toHaveBeenCalledTimes(1)
     })
 })
+
+describe("Apollo 4 cast failures", () => {
+    it.each([
+        [
+            new CombinedGraphQLErrors({
+                errors: [{message: "Cannot cast", extensions: {code: "AreaNotFound"}}],
+            }),
+            "CAST_VOTE_AreaNotFound",
+        ],
+        [
+            new CombinedGraphQLErrors({
+                errors: [{message: "Cannot cast", extensions: {code: "CheckStatusFailed"}}],
+            }),
+            "CAST_VOTE_CheckStatusFailed",
+        ],
+        [
+            new CombinedGraphQLErrors({
+                errors: [
+                    {
+                        message: "Cannot cast",
+                        extensions: {code: "InsertFailedExceedsAllowedRevotes"},
+                    },
+                ],
+            }),
+            "CAST_VOTE_InsertFailedExceedsAllowedRevotes",
+        ],
+        [new TypeError("Failed to fetch"), "NETWORK_ERROR"],
+    ])("shows the specific failure and permits a successful retry: %s", async (error, message) => {
+        mockDisableAuth = false
+        mockInsertCastVote.mockRejectedValueOnce(error)
+        const user = userEvent.setup()
+        renderRoute(<ReviewScreen />, "review")
+        const cast = screen.getByRole("button", {name: "reviewScreen.castBallotButton"})
+        await user.click(cast)
+        expect(await screen.findByRole("alert")).toHaveTextContent(`reviewScreen.error.${message}`)
+        expect(cast).toBeEnabled()
+        expect(mockInsertCastVote).toHaveBeenCalledTimes(1)
+        await user.click(cast)
+        await waitFor(() => expect(mockInsertCastVote).toHaveBeenCalledTimes(2))
+        expect(mockInsertCastVote).toHaveBeenCalledTimes(2)
+        expect(mockInsertCastVote.mock.calls[1]).toEqual(mockInsertCastVote.mock.calls[0])
+    })
+})
+
+describe("review ballot hash integrity", () => {
+    it("renders the hash-integrity error instead of crashing when only the recorded hash differs", () => {
+        const validReview = renderRoute(<ReviewScreen />, "review")
+        expect(screen.queryByRole("alert")).toBeNull()
+        expect(screen.getByRole("heading", {name: "First contest"})).toBeVisible()
+        validReview.unmount()
+
+        mockState.auditableBallots["election-1"]!.auditableBallot.ballot_hash = "f".repeat(64)
+        renderRoute(<ReviewScreen />, "review")
+        expect(screen.getByRole("alert")).toHaveTextContent("reviewScreen.error.INCONSISTENT_HASH")
+        expect(screen.queryByText("errors.encoding.writeInCharsExceeded")).toBeNull()
+        expect(screen.getByRole("heading", {name: "First contest"})).toBeVisible()
+        expect(mockInsertCastVote).not.toHaveBeenCalled()
+    })
+})
+
+it.each([false, true])(
+    "blocks a mismatched ballot before casting or gold reauthentication: gold=%s",
+    async (gold) => {
+        mockDisableAuth = false
+        if (gold)
+            mockState.elections["election-1"]!.presentation!.cast_vote_gold_level =
+                ECastVoteGoldLevelPolicy.GOLD_LEVEL
+        const user = userEvent.setup()
+        const valid = renderRoute(<ReviewScreen />, "review")
+        await user.click(screen.getByRole("button", {name: "reviewScreen.castBallotButton"}))
+        await waitFor(() =>
+            expect(gold ? mockReauthWithGold : mockInsertCastVote).toHaveBeenCalledTimes(1)
+        )
+        valid.unmount()
+        jest.clearAllMocks()
+        sessionStorage.clear()
+        mockState.auditableBallots["election-1"]!.auditableBallot.ballot_hash = "f".repeat(64)
+        const invalid = renderRoute(<ReviewScreen />, "review")
+        const cast = screen.getByRole("button", {name: "reviewScreen.castBallotButton"})
+        fireEvent.click(cast)
+        expect(mockInsertCastVote).not.toHaveBeenCalled()
+        expect(mockReauthWithGold).not.toHaveBeenCalled()
+        expect(sessionStorage.getItem(BALLOT_DATA_KEY)).toBeNull()
+        expect(cast).toBeDisabled()
+        await user.click(screen.getByRole("link", {name: "reviewScreen.backButton"}))
+        expect(invalid.router.state.location.pathname).toBe(`${ELECTION_PATH}/vote`)
+    }
+)
+
+it("keeps the integrity guard active with an empty custom error translation", () => {
+    mockEmptyHashTranslation = true
+    mockDisableAuth = false
+    mockState.auditableBallots["election-1"]!.auditableBallot.ballot_hash = "f".repeat(64)
+    renderRoute(<ReviewScreen />, "review")
+    const cast = screen.getByRole("button", {name: "reviewScreen.castBallotButton"})
+    fireEvent.click(cast)
+    expect(cast).toBeDisabled()
+    expect(mockInsertCastVote).not.toHaveBeenCalled()
+    expect(mockReauthWithGold).not.toHaveBeenCalled()
+})
+
+it.each([
+    [false, false],
+    [true, false],
+    [false, true],
+    [true, true],
+])(
+    "blocks an inconsistent automatic gold cast: demo=%s, empty translation=%s",
+    async (isDemo, emptyTranslation) => {
+        mockDisableAuth = false
+        mockIsGoldUser = true
+        mockState.elections["election-1"]!.presentation!.cast_vote_gold_level =
+            ECastVoteGoldLevelPolicy.GOLD_LEVEL
+        // Match the supported partial-state reauthentication path: the ballot
+        // is still available for integrity checking, but selections are absent.
+        mockState = {...mockState, ballotSelections: {}}
+        const storeBallot = () => {
+            const ballotData: SessionBallotData = {
+                ballotId: BALLOT_ID,
+                electionId: "election-1",
+                isDemo,
+                ballot: "{}",
+            }
+            sessionStorage.setItem(BALLOT_DATA_KEY, JSON.stringify(ballotData))
+            sessionStorage.setItem(BALLOT_DATA_EXPIRATION_KEY, String(Date.now() + 60_000))
+        }
+        storeBallot()
+        const valid = renderRoute(<ReviewScreen />, "review")
+        await waitFor(() => expect(routeAction).toHaveBeenCalledTimes(1))
+        expect(mockInsertCastVote).toHaveBeenCalledTimes(isDemo ? 0 : 1)
+        expect(mockDispatch).toHaveBeenCalledWith(
+            expect.objectContaining({type: "castVotes/addCastVotes"})
+        )
+        valid.unmount()
+        jest.clearAllMocks()
+
+        storeBallot()
+        mockEmptyHashTranslation = emptyTranslation
+        mockState.auditableBallots["election-1"]!.auditableBallot.ballot_hash = "f".repeat(64)
+        const invalid = renderRoute(<ReviewScreen />, "review")
+        expect(mockInsertCastVote).not.toHaveBeenCalled()
+        expect(mockDispatch).not.toHaveBeenCalledWith(
+            expect.objectContaining({type: "castVotes/addCastVotes"})
+        )
+        expect(routeAction).not.toHaveBeenCalled()
+        expect(mockReauthWithGold).not.toHaveBeenCalled()
+        expect(screen.getByRole("button", {name: "reviewScreen.castBallotButton"})).toBeDisabled()
+        if (!emptyTranslation)
+            expect(screen.getByRole("alert")).toHaveTextContent(
+                "reviewScreen.error.INCONSISTENT_HASH"
+            )
+        await userEvent.setup().click(screen.getByRole("link", {name: "reviewScreen.backButton"}))
+        expect(invalid.router.state.location.pathname).toBe(`${ELECTION_PATH}/vote`)
+    }
+)

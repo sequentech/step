@@ -283,6 +283,7 @@ export const SelectTenant = () => {
         const slug = tenant.trim()
         if (!slug) {
             setError("Please enter a tenant name")
+            setOpen(true)
             setIsLoading(false)
             return
         }

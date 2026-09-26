@@ -3,7 +3,11 @@
 
 import {ApolloClient} from "@apollo/client"
 import {GetBallotStylesQuery, GetElectionEventQuery, GetElectionsQuery} from "../gql/graphql"
-import {IBallotStyle as BallotDefinition} from "@sequentech/ui-core"
+import {
+    IBallotStyle as BallotDefinition,
+    getEffectiveSupportMaterialsPolicy,
+    type IElectionEventPresentation,
+} from "@sequentech/ui-core"
 
 type Election = GetElectionsQuery["sequent_backend_election"][number]
 export type BallotRecord = GetBallotStylesQuery["sequent_backend_ballot_style"][number]
@@ -30,6 +34,8 @@ export interface VoterFiles {
 export class PublicationDownloadError extends Error {
     constructor(public status: number) {
         super("Unable to download published ballot data")
+        // Preserve the custom error identity when the production bundle targets ES5.
+        Object.setPrototypeOf(this, PublicationDownloadError.prototype)
     }
 }
 
@@ -157,3 +163,9 @@ export async function loadSelectedBallot(
     }
     return style
 }
+
+/** Resolve one published policy for both the chooser gate and acknowledgement screen. */
+export const getPublishedSupportMaterialsPolicy = (
+    ballotPresentation: IElectionEventPresentation | undefined,
+    eventPresentation: IElectionEventPresentation | null | undefined
+) => getEffectiveSupportMaterialsPolicy((ballotPresentation ?? eventPresentation)?.materials)

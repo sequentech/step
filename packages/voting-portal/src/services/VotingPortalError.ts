@@ -63,6 +63,7 @@ export class VotingPortalError extends Error {
 
     constructor(type: VotingPortalErrorType) {
         super(type)
+        Object.setPrototypeOf(this, VotingPortalError.prototype)
         this.name = "VotingPortalError"
         this.type = type
     }
