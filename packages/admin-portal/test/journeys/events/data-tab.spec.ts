@@ -362,6 +362,89 @@ async function captureRejections(page: Page) {
         )
 }
 
+test("flags conflicting weighted voting and an invalid custom date format before saving", async ({
+    page,
+    portal,
+}) => {
+    editableEvent(portal)
+    await openEvent(page, portal)
+    await page.getByRole("button", {name: "Advanced Configurations", exact: true}).click()
+    await choose(page, /^Weighted Voting Policy/, "Weighted Voting for Voters")
+    await choose(page, /^Delegated Voting Policy/, "Enabled")
+    await choose(page, /^Include decoded ballots/, "Include")
+    await choose(page, /^Voting Portal date & time format/, "Custom format")
+    const custom = page.getByRole("textbox", {name: "Custom date & time format"})
+    await custom.fill("every tuesday")
+    await page.getByRole("button", {name: "Save", exact: true}).click()
+    await expect(
+        page.getByText("The form is not valid. Please check for errors", {exact: true})
+    ).toBeVisible()
+    await expect(
+        page.getByText("Weighted Voting for Voters cannot be combined with Delegated Voting", {
+            exact: true,
+        })
+    ).toBeVisible()
+    await expect(
+        page.getByText(
+            "Weighted Voting for Voters cannot be combined with including decoded ballots in the results",
+            {exact: true}
+        )
+    ).toBeVisible()
+    await expect(
+        page.getByText("Invalid format. Use at least one of the tokens yyyy, MM, dd, HH, mm, ss.", {
+            exact: true,
+        })
+    ).toBeVisible()
+    expect(portal.graphql.callsTo("SetCustomUrls")).toHaveLength(0)
+    expect(portal.graphql.callsTo("update_sequent_backend_election_event")).toHaveLength(0)
+
+    await choose(page, /^Weighted Voting Policy/, "Disabled Weighted Voting")
+    await custom.fill("dd.MM.yyyy HH:mm")
+    const update = await save(page, portal)
+    const presentation = (update._set as {presentation: Row}).presentation
+    expect(presentation.voting_portal_datetime_format).toEqual({custom: "dd.MM.yyyy HH:mm"})
+    expect(presentation.weighted_voting_policy).toBe("disabled-weighted-voting")
+})
+
+test("edits the name of each enabled language and changes the default language", async ({
+    page,
+    portal,
+}) => {
+    editableEvent(portal, {
+        language_conf: {enabled_language_codes: ["en", "es"], default_language_code: "en"},
+        i18n: {
+            en: {
+                name: "Council election",
+                alias: "Council",
+                description: "Annual council election",
+            },
+            es: {name: "Elección del consejo"},
+        },
+    })
+    await openEvent(page, portal)
+    await page.getByRole("tab", {name: "Spanish", exact: true}).click()
+    const name = page.getByRole("textbox", {name: "Name", exact: true})
+    await expect(name).toHaveValue("Elección del consejo")
+    await name.fill("Consejo 2026")
+    await page.getByRole("button", {name: "Language", exact: true}).click()
+    const languages = page
+        .getByRole("region")
+        .filter({has: page.getByRole("switch", {name: "Spanish"})})
+    await expect(languages.getByRole("switch", {name: "Spanish"})).toBeChecked()
+    await languages.getByRole("radio").nth(1).check()
+    const update = await save(page, portal)
+    const presentation = (update._set as {presentation: Row}).presentation
+    expect(presentation.i18n).toEqual({
+        en: {name: "Council election", alias: "Council", description: "Annual council election"},
+        es: {name: "Consejo 2026"},
+    })
+    expect(presentation.language_conf).toEqual({
+        enabled_language_codes: ["en", "es"],
+        default_language_code: "es",
+        language_detection_policy: "browser-detect",
+    })
+})
+
 test("applies typed custom URL prefixes and reports each record's outcome", async ({
     page,
     portal,
