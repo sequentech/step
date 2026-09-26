@@ -118,6 +118,7 @@ export const SearchAndSelect: Story = {
             expect(search[1]).toMatchObject({
                 filter: expect.objectContaining(eventScope),
                 pagination: {page: 1, perPage: 200},
+                sort: {field: "external_id", order: "ASC"},
             })
         }
         // The debounced search replaces the options; click only the filtered list.
