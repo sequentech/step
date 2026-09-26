@@ -145,3 +145,11 @@ describe("the ovcs fixes carried into the shared review row", () => {
         }
     })
 })
+
+describe("the cast spinner", () => {
+    it("has an accessible name, since a progressbar without one fails axe", () => {
+        render(<ReviewActions casting onCast={() => undefined} />)
+
+        expect(screen.getByRole("progressbar")).toHaveAttribute("aria-label", "a11y.loading")
+    })
+})

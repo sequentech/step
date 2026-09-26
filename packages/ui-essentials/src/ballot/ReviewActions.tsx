@@ -127,7 +127,11 @@ export const ReviewActions = ({
                         )}
                     </Box>
                     {casting ? (
-                        <StyledCircularProgress className="cast-ballot-progress" color="inherit" />
+                        <StyledCircularProgress
+                            className="cast-ballot-progress"
+                            color="inherit"
+                            aria-label={t("a11y.loading")}
+                        />
                     ) : (
                         <StyledIcon className="cast-ballot-icon" icon={faAngleRight} size="sm" />
                     )}
