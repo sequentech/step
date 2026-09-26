@@ -256,14 +256,24 @@ test.describe("template administrator", () => {
         await openTemplates(page, portal)
         await page.getByRole("button", {name: "Import", exact: true}).click()
         const drawer = page.getByRole("dialog").filter({hasText: "Import Templates"})
+        const csv = Buffer.from("alias,name\nreceipt,Ballot receipt\n")
+        const uploaded = page.waitForRequest(
+            (request) => request.url() === url && request.method() === "PUT"
+        )
         await drawer.locator('input[type="file"]').setInputFiles({
             name: "templates.csv",
             mimeType: "text/csv",
-            buffer: Buffer.from("alias,name\nreceipt,Ballot receipt\n"),
+            buffer: csv,
         })
         await expect(
             notification(page, "File uploaded to server - but not imported yet")
         ).toBeVisible()
+        const request = await uploaded
+        expect(request.postDataBuffer()).toEqual(csv)
+        expect(request.headers()["content-type"]).toBe("text/csv")
+        expect(portal.graphql.callsTo("GetUploadUrl").map(({variables}) => variables)).toEqual([
+            {name: "templates.csv", media_type: "text/csv", size: csv.length, is_public: false},
+        ])
         await drawer.getByRole("textbox", {name: "Integrity Check (SHA-256)"}).fill("cd".repeat(32))
         await drawer.getByRole("button", {name: "Import", exact: true}).click()
         await expect.poll(() => portal.graphql.callsTo("ImportTemplates").length).toBe(1)

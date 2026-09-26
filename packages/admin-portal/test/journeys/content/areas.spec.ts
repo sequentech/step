@@ -227,6 +227,9 @@ test.describe("area administrator", () => {
                 .click()
             const drawer = page.getByRole("dialog").filter({hasText: "Import Areas"})
             const csv = Buffer.from("name,description\nEast,Eastern ward\n")
+            const uploaded = page.waitForRequest(
+                (request) => request.url() === url && request.method() === "PUT"
+            )
             await drawer.locator('input[type="file"]').setInputFiles({
                 name: "areas.csv",
                 mimeType: "text/csv",
@@ -241,6 +244,9 @@ test.describe("area administrator", () => {
                 size: csv.length,
                 is_public: false,
             })
+            const request = await uploaded
+            expect(request.postDataBuffer()).toEqual(csv)
+            expect(request.headers()["content-type"]).toBe("text/csv")
             expect(portal.s3.requestsFor(key).map((request) => request.method)).toEqual(["PUT"])
             await drawer
                 .getByRole("textbox", {name: "Integrity Check (SHA-256)"})
