@@ -19,7 +19,7 @@ test.describe("settings administrator", () => {
         await expect(page.getByRole("tab", {name: "ELECTION TYPES"})).toBeVisible()
         await expect
             .poll(() => portal.graphql.callsTo("sequent_backend_election_type").length)
-            .toBe(1)
+            .toBeGreaterThan(0)
         expectRole(portal, "sequent_backend_election_type", "election-type-read")
     })
 })

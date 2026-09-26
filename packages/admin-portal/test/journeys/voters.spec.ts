@@ -22,6 +22,7 @@ const writerRoles = [
     "voter-delete",
     "area-read",
     "cast-vote-read",
+    "ee-voters-columns",
 ]
 test.use({roles: writerRoles})
 function voters(portal: PortalServices, existing = false) {
@@ -175,6 +176,10 @@ test("creates, reviews an edit, and deletes an event voter with scoped mutations
         userRolesIds: [],
         secretAttributes: {},
     })
+    await page.getByRole("button", {name: "Columns", exact: true}).click()
+    await page.getByRole("switch", {name: "Email", exact: true}).check()
+    await page.keyboard.press("Escape")
+    await expect(page.getByRole("cell", {name: "alice@example.test", exact: true})).toBeVisible()
     await page.getByRole("button", {name: "Actions", exact: true}).click()
     await page.getByRole("menuitem", {name: "Edit", exact: true}).click()
     await expect(drawer.getByRole("textbox", {name: "Username", exact: true})).toBeDisabled()
@@ -184,7 +189,14 @@ test("creates, reviews an edit, and deletes an event voter with scoped mutations
     expect(portal.graphql.callsTo("EditUser")).toHaveLength(0)
     await expect(drawer.getByText("alice@example.test", {exact: true})).toBeVisible()
     await expect(drawer.getByText("updated@example.test", {exact: true})).toBeVisible()
+    const refreshedUsers = page.waitForResponse(
+        (response) =>
+            response.request().method() === "POST" &&
+            response.request().postDataJSON()?.operationName === "getUsers"
+    )
     await drawer.getByRole("button", {name: "Confirm changes", exact: true}).click()
+    await (await refreshedUsers).finished()
+    await expect(page.getByRole("cell", {name: "updated@example.test", exact: true})).toBeVisible()
     await expect(drawer).not.toBeVisible()
     expect(portal.graphql.callsTo("EditUser")[0].variables).toEqual({
         body: {
@@ -200,7 +212,7 @@ test("creates, reviews an edit, and deletes an event voter with scoped mutations
             secret_attributes: {},
         },
     })
-    // Email is omitted from the default list columns: reopen the editor to verify the refreshed value.
+    // The refreshed email is visible before reopening the menu, so its list cannot remount mid-click.
     await page.getByRole("button", {name: "Actions", exact: true}).click()
     await page.getByRole("menuitem", {name: "Edit", exact: true}).click()
     await expect(drawer.getByRole("textbox", {name: "Email", exact: true})).toHaveValue(

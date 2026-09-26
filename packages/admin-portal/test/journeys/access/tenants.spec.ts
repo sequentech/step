@@ -91,9 +91,11 @@ test.describe("tenant creator", () => {
         await expect
             .poll(() => portal.graphql.callsTo("update_sequent_backend_tenant").length)
             .toBe(1)
-        expect(portal.graphql.callsTo("update_sequent_backend_tenant")[0].variables).toMatchObject({
+        expect(portal.graphql.callsTo("update_sequent_backend_tenant")[0].variables).toEqual({
+            where: {id: {_eq: TENANT_ID}},
             _set: {slug: "synthetic-renamed"},
         })
+        expectRole(portal, "update_sequent_backend_tenant", "admin-user")
     })
 })
 

@@ -134,6 +134,7 @@ test.describe("voter list reconciliation operator", () => {
         const upload = page.waitForRequest((request) => request.method() === "PUT")
         const drawer = await dropFile(page)
         const put = await upload
+        expect(put.url()).toBe(portal.s3.presign(`documents/${first.upload}`, "sync-0"))
         expect(put.postDataBuffer()).toEqual(FILE)
         expect(put.headers()["content-type"]).toBe("text/csv")
         await expect(
