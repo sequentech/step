@@ -31,7 +31,13 @@ const CustomAutocompleteArrayInput: React.FC<CustomAutocompleteArrayInputProps> 
 }) => {
     const [inputValue, setInputValue] = useState<string>("")
     const [selectedValues, setSelectedValues] = useState<string[]>(defaultValue || [])
-    const [updatedChoices, setUpdatedChoices] = useState<Choice[] | undefined>(choices)
+    const [createdChoices, setCreatedChoices] = useState<Choice[]>([])
+    // Remote choices can arrive after mounting. Keep only local additions in
+    // state so both the menu and creation guard see the current props immediately.
+    const updatedChoices = [
+        ...(choices || []),
+        ...createdChoices.filter((local) => !choices?.some((choice) => choice.name === local.name)),
+    ]
     const inputRef = useRef<HTMLInputElement>(null)
 
     const handleInputChange = (event: ChangeEvent<{}>, newInputValue: string) => {
@@ -66,29 +72,34 @@ const CustomAutocompleteArrayInput: React.FC<CustomAutocompleteArrayInputProps> 
     const handleCreateOption = () => {
         if (inputValue.trim()) {
             // Ensure inputValue is not blank
-            const newLabels = inputValue.trim().split(/\s+/)
+            const newLabels = Array.from(new Set(inputValue.trim().split(/\s+/)))
 
             const updatedValues = [...selectedValues]
-            const newChoices = [...(updatedChoices || [])]
+            const newChoices = [...createdChoices]
 
             newLabels.forEach((newLabel) => {
-                if (
-                    newLabel &&
-                    !updatedValues.includes(newLabel) &&
-                    !newChoices.some((choice) => choice.name === newLabel)
-                ) {
-                    updatedValues.push(newLabel)
-                    newChoices.push({id: newLabel, name: newLabel})
+                if (newLabel) {
+                    if (!updatedValues.includes(newLabel)) {
+                        updatedValues.push(newLabel)
+                    }
+                    if (!updatedChoices.some((choice) => choice.name === newLabel)) {
+                        newChoices.push({id: newLabel, name: newLabel})
+                    }
                 }
             })
 
             setSelectedValues(updatedValues)
-            setUpdatedChoices(newChoices)
+            setCreatedChoices(newChoices)
             setInputValue("") // Clear inputValue after creating labels
             inputRef?.current?.focus()
 
             newLabels.forEach((newLabel) => {
-                if (onCreate && newLabel && !selectedValues.includes(newLabel)) {
+                if (
+                    onCreate &&
+                    newLabel &&
+                    !selectedValues.includes(newLabel) &&
+                    !updatedChoices?.some((choice) => choice.name === newLabel)
+                ) {
                     onCreate(newLabel)
                 }
             })
