@@ -72,7 +72,12 @@ test("reports a rejected document download after a successful download", async (
     const download = page.waitForEvent("download")
     await page.getByRole("button", {name: "Download Document", exact: true}).click()
     await download
+    const detail = page.getByRole("button", {name: "Download Document", exact: true}).locator("..")
+    // The browser download starts before PerformDownload clears its in-flight state.
+    await expect(detail.getByRole("progressbar")).not.toBeVisible()
     await page.getByRole("cell", {name: "expired.txt", exact: true}).click()
+    await expect(page).toHaveURL(new RegExp(`/sequent_backend_document/${SECOND_DOCUMENT_ID}/show`))
+    await expect(detail.getByText("expired.txt", {exact: true})).toBeVisible()
     await page.getByRole("button", {name: "Download Document", exact: true}).click()
     await expect.poll(() => portal.graphql.callsTo("FetchDocument").length).toBe(2)
     expect(portal.graphql.callsTo("FetchDocument").map(({variables}) => variables)).toEqual([
