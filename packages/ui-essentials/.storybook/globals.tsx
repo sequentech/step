@@ -71,7 +71,7 @@ export const DEFAULT_STORY_GLOBALS: StoryGlobals = {
     locale: EStoryLocale.ENGLISH,
     tenant: EStoryTenant.SEQUENT,
     permissions: EStoryPermissions.ADMIN,
-    workflow: EStoryWorkflow.RESULTS,
+    workflow: EStoryWorkflow.ENDED,
 }
 
 const member = <T extends string>(values: Record<string, T>, value: unknown, fallback: T): T =>
@@ -105,7 +105,7 @@ export const STORY_BRANDING: Record<EStoryTenant, StoryBranding> = {
         logo_url: `data:image/svg+xml,${encodeURIComponent(CUSTOM_LOGO)}`,
         css: [
             ".header-class { background-color: #e6f4ec; border-bottom: 4px solid #0b6e4f; }",
-            "h1, h2, h3, h4, h5, h6 { color: #0b4f3a; }",
+            'h1, h2, h3, h4, h5, h6, [class*="MuiTypography-h"] { color: #0b4f3a; }',
         ].join("\n"),
     },
 }
