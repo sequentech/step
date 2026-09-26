@@ -152,7 +152,8 @@ def _print_links(context: Context, scenario: Scenario, state: State) -> None:
     admin = credentials["admin"]
     say(
         f"  admin     {admin['username']} / {admin['password']} (development default; "
-        f"the emailed code is in docker logs {context.checkout.name_prefix}keycloak)"
+        "use the delivered email code, or configure a test code in the isolated "
+        "development realm when using a dummy courier)"
     )
 
 

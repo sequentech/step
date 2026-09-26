@@ -3,15 +3,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 //
 // The React theme against a running development Keycloak with the Sequent
-// extensions: the tenant realm's browser flow (password, then
-// MessageOTPAuthenticator by email through the dummy sender), compared with the
-// FreeMarker theme on the same realm. Needs:
+// extensions: a disposable tenant realm's browser flow (password, then
+// MessageOTPAuthenticator in test mode), compared with the FreeMarker theme.
+// Provider unit tests cover verification of the generated and stored OTP. Needs:
 //   KEYCLOAK_UI_URL   Keycloak as the browser reaches it
-//   KEYCLOAK_UI_LOG   a file following the Keycloak container log (codes)
 //   KEYCLOAK_UI_EVIDENCE_FILE  where the observations are written as JSON
 //   KEYCLOAK_ADMIN, KEYCLOAK_ADMIN_PASSWORD  the development admin
-import {randomBytes, randomUUID} from "node:crypto"
-import {readFileSync, statSync, writeFileSync} from "node:fs"
+import {randomBytes, randomInt, randomUUID} from "node:crypto"
+import {readFileSync, writeFileSync} from "node:fs"
 import {dirname, join} from "node:path"
 import {loadavg} from "node:os"
 import {expect, test, type Page} from "@playwright/test"
@@ -23,13 +22,13 @@ import {
 
 const KEYCLOAK = process.env.KEYCLOAK_UI_URL ?? "http://localhost:5174"
 const REALM = `keycloak-ui-${randomUUID()}`
-const KEYCLOAK_LOG = process.env.KEYCLOAK_UI_LOG ?? ""
 const EVIDENCE_FILE = process.env.KEYCLOAK_UI_EVIDENCE_FILE ?? ""
 const CALLBACK = `${KEYCLOAK}/synthetic-callback`
 const USERNAME = KEYCLOAK_SYNTHETIC_USER.username
 const EMAIL = KEYCLOAK_SYNTHETIC_USER.email
-// Generated per run: no credential is stored anywhere.
+// Generated per run and configured only in the disposable realm.
 const PASSWORD = randomBytes(18).toString("base64url")
+const TEST_MODE_CODE = String(randomInt(0, 1000000)).padStart(6, "0")
 const KEYCLOAK_UI_THEME = "sequent-ui-admin"
 const OVERRIDE_TEXT = "Synthetic realm override"
 
@@ -44,7 +43,11 @@ const CLIENT_IDS: Record<Theme, string> = {
 }
 
 type Json = Record<string, unknown>
-const evidence: Record<string, unknown> = {keycloak: KEYCLOAK, realm: REALM}
+const evidence: Record<string, unknown> = {
+    keycloak: KEYCLOAK,
+    realm: REALM,
+    otpVerification: "test-mode",
+}
 
 async function captureEvidence(page: Page, name: string): Promise<void> {
     if (EVIDENCE_FILE !== "") {
@@ -179,40 +182,14 @@ function authorizeUrl(theme: Theme, state: string, locale?: string): string {
     return `${KEYCLOAK}/realms/${REALM}/protocol/openid-connect/auth?${parameters}`
 }
 
-function logSize(): number {
-    return statSync(KEYCLOAK_LOG).size
-}
-
-// The dummy email sender logs every message; the code is in its text body.
-async function sentCode(offset: number): Promise<string> {
-    const deadline = Date.now() + 30000
-    while (Date.now() < deadline) {
-        const log = readFileSync(KEYCLOAK_LOG, "utf8").slice(offset)
-        const sent = log.lastIndexOf(`address=${EMAIL}`)
-        if (sent >= 0) {
-            const code = /\b(\d{6})\b/.exec(log.slice(sent, sent + 600))
-            if (code !== null) {
-                return code[1]
-            }
-        }
-        await new Promise((resolve) => setTimeout(resolve, 250))
-    }
-    throw new Error(`no code sent to ${EMAIL}`)
-}
-
-async function passwordStep(
-    page: Page,
-    theme: Theme,
-    locale?: string
-): Promise<{state: string; offset: number}> {
+async function passwordStep(page: Page, theme: Theme, locale?: string): Promise<string> {
     const state = randomUUID()
     await page.goto(authorizeUrl(theme, state, locale))
     await page.locator("#username").fill(USERNAME)
     await page.locator("#password").fill(PASSWORD)
-    const offset = logSize()
     await page.locator("#kc-login").click()
     await expect(page.locator("#otp-1")).toBeVisible()
-    return {state, offset}
+    return state
 }
 
 async function enterCode(page: Page, code: string): Promise<void> {
@@ -267,7 +244,6 @@ function copyForImport(value: Json): Json {
 let realmCreated = false
 
 test.beforeAll(async () => {
-    expect(KEYCLOAK_LOG, "KEYCLOAK_UI_LOG").not.toBe("")
     const token = await adminToken()
     const template = JSON.parse(
         readFileSync(
@@ -286,6 +262,31 @@ test.beforeAll(async () => {
     expect(created.status, "create disposable realm").toBe(201)
     realmCreated = true
     const realm = (await (await admin(token, "GET", "")).json()) as Json
+    const executions = (await (
+        await admin(
+            token,
+            "GET",
+            `/authentication/flows/${encodeURIComponent(String(realm.browserFlow))}/executions`
+        )
+    ).json()) as {providerId?: string; authenticationConfig?: string}[]
+    const messageOtp = executions.filter(
+        ({providerId}) => providerId === "message-otp-authenticator"
+    )
+    expect(messageOtp.length, "disposable realm MessageOTP executions").toBeGreaterThan(0)
+    for (const execution of messageOtp) {
+        expect(execution.authenticationConfig, "MessageOTP configuration").toBeTruthy()
+        const path = `/authentication/config/${execution.authenticationConfig}`
+        const configuration = (await (await admin(token, "GET", path)).json()) as Json
+        await admin(token, "PUT", path, {
+            ...configuration,
+            config: {
+                ...(configuration.config as Json),
+                length: "6",
+                "test-mode": "true",
+                "test-mode-code": TEST_MODE_CODE,
+            },
+        })
+    }
     const locales = new Set([...((realm.supportedLocales as string[]) ?? []), "en", "es"])
     await admin(token, "PUT", "", {
         ...realm,
@@ -305,11 +306,11 @@ test.afterAll(async () => {
 })
 
 for (const theme of [Theme.React, Theme.Ftl]) {
-    test(`${theme}: password and message OTP end in a code the client can redeem`, async ({
+    test(`${theme}: password and test-mode message OTP end in a code the client can redeem`, async ({
         page,
     }) => {
         await page.route(`${CALLBACK}**`, (route) => route.fulfill({status: 200, body: "callback"}))
-        const {state, offset} = await passwordStep(page, theme)
+        const state = await passwordStep(page, theme)
         await expect(page.getByText("We sent a code to", {exact: false})).toBeVisible()
         await expect(page.getByRole("group", {name: "Verification code"})).toBeVisible()
         for (let digit = 1; digit <= 6; digit += 1) {
@@ -322,11 +323,10 @@ for (const theme of [Theme.React, Theme.Ftl]) {
         expect(otpAxe.filter(({id}) => id === "label")).toEqual([])
         const context = theme === Theme.React ? await kcContext(page) : undefined
         const html = await page.content()
-        const code = await sentCode(offset)
         // Exercise the single-event input used by one-time-code autofill in
         // both themes. Six separate fills cannot detect truncation of that path.
-        await page.locator("#otp-1").fill(code)
-        await expect(page.locator("#code")).toHaveValue(code)
+        await page.locator("#otp-1").fill(TEST_MODE_CODE)
+        await expect(page.locator("#code")).toHaveValue(TEST_MODE_CODE)
         await expect(page.locator("#kc-form-submit")).toBeFocused()
         await page.keyboard.press("Enter")
         await page.waitForURL((url) => url.href.startsWith(CALLBACK))
@@ -354,7 +354,7 @@ for (const theme of [Theme.React, Theme.Ftl]) {
         expect(claims.email).toBe(EMAIL)
         // Neither theme may hand the browser the password or the expected code.
         expect(html).not.toContain(PASSWORD)
-        expect(html).not.toContain(code)
+        expect(html).not.toContain(TEST_MODE_CODE)
         evidence[`${theme}.login`] = {
             ok: true,
             callbackParameters: [...callback.searchParams.keys()].sort(),
@@ -367,7 +367,7 @@ for (const theme of [Theme.React, Theme.Ftl]) {
             expect(context.courier).toBe("EMAIL")
             const serialized = JSON.stringify(context)
             expect(serialized).not.toContain(PASSWORD)
-            expect(serialized).not.toContain(code)
+            expect(serialized).not.toContain(TEST_MODE_CODE)
             evidence[`${theme}.otpContext`] = {
                 keys: Object.keys(context).sort(),
                 authenticatorAttributes: Object.fromEntries(
@@ -389,12 +389,12 @@ for (const theme of [Theme.React, Theme.Ftl]) {
         }
     })
 
-    test(`${theme}: a wrong code keeps the OTP page with the authenticator's error`, async ({
+    test(`${theme}: an incomplete code keeps the OTP page with the authenticator's error`, async ({
         page,
     }) => {
-        const {offset} = await passwordStep(page, theme)
-        const code = await sentCode(offset)
-        await enterCode(page, code === "000000" ? "111111" : "000000")
+        await passwordStep(page, theme)
+        // Five digits cannot match either the test-mode or generated six-digit code.
+        await enterCode(page, TEST_MODE_CODE.slice(0, -1))
         await expect(page.getByText("Invalid code entered, please enter it again.")).toBeVisible()
         await expect(page.locator("#otp-1")).toBeVisible()
         if (theme === Theme.React) {
@@ -409,7 +409,7 @@ for (const theme of [Theme.React, Theme.Ftl]) {
                 )
             }
         }
-        evidence[`${theme}.wrongCode`] = {ok: true}
+        evidence[`${theme}.wrongCode`] = {ok: true, input: "five digits"}
     })
 
     test(`${theme}: Spanish through ui_locales`, async ({page}) => {
@@ -462,14 +462,30 @@ test("react: wrong credentials announce the error and describe both fields", asy
 
 test("react: the language selector follows the realm's locale link", async ({page}) => {
     await page.goto(authorizeUrl(Theme.React, randomUUID(), "en"))
-    const language = page.getByRole("combobox", {name: "Languages"})
+    const header = page.getByRole("banner")
+    const properties = (await kcContext(page)).properties as Record<string, string>
+    for (const [key, label] of [
+        ["systemVersion", "Version:"],
+        ["systemHash", "Hash:"],
+    ]) {
+        expect(properties[key], key).toBeTruthy()
+        const field = header.getByRole("term").filter({hasText: label}).locator("..")
+        await expect(field.getByRole("definition")).toHaveText(properties[key])
+    }
+    const language = header.getByRole("combobox", {name: "Languages"})
     await expect(language).toHaveValue("en")
     await language.selectOption("es")
     await expect(page.getByRole("button", {name: "INICIAR SESIÓN"})).toBeVisible()
     await expect(page.locator("html")).toHaveAttribute("lang", /^es(?:-|$)/)
     await expect(page.locator("html")).toHaveAttribute("dir", "ltr")
     await expect(page.locator("#username")).toBeFocused()
-    evidence.localeSelector = {ok: true, selectedLanguage: "es", direction: "ltr"}
+    await expect(header.getByText("Versión:", {exact: true})).toBeVisible()
+    evidence.localeSelector = {
+        ok: true,
+        selectedLanguage: "es",
+        direction: "ltr",
+        headerBuildMatchesServer: true,
+    }
 })
 
 test("react: realm options retain remember-me and native recovery and registration links", async ({
@@ -583,6 +599,15 @@ test("react: login and OTP reflow while keyboard focus remains reachable", async
                 `${step}, ${width}px, text ${fontSize}`
             ).toBeLessThanOrEqual(dimensions.width + 1)
             await first.focus()
+            await page.keyboard.press("Shift+Tab")
+            const language = page.getByRole("banner").getByRole("combobox")
+            await expect(language).toBeFocused()
+            await expect(language).toBeInViewport()
+            expect(
+                await language.evaluate((element) => getComputedStyle(element).outlineStyle)
+            ).not.toBe("none")
+            await page.keyboard.press("Tab")
+            await expect(first).toBeFocused()
             if (width === 320 && fontSize === "200%") {
                 await page.keyboard.press("Tab")
                 await page.keyboard.press("Shift+Tab")
@@ -815,7 +840,10 @@ test("structured credentials retain the Sequent FreeMarker widget in the opt-in 
     }
 })
 
-test("automatic reload preserves a real login and OTP session", async ({page, browser}) => {
+test("automatic reload preserves a real login and test-mode OTP session", async ({
+    page,
+    browser,
+}) => {
     const samples = Number(process.env.KEYCLOAK_UI_HMR_SAMPLES ?? 0)
     test.skip(samples < 1, "Set KEYCLOAK_UI_HMR_SAMPLES=10 with the Vite development server")
     test.setTimeout(180000)
@@ -896,18 +924,12 @@ test("automatic reload preserves a real login and OTP session", async ({page, br
         ;(observations.samples as Json)[step] = timings
         if (step === "login") {
             await expect(page.locator("#password")).toHaveValue(PASSWORD)
-            const offset = logSize()
             await page.locator("#kc-login").click()
             await expect(page.locator("#otp-1")).toBeVisible()
-            const code = await sentCode(offset)
             await page.locator("#otp-1").fill("1")
-            // Held only in this test's memory and removed before recording evidence.
-            observations.code = code
         }
     }
-    const code = String(observations.code)
-    delete observations.code
-    await enterCode(page, code)
+    await enterCode(page, TEST_MODE_CODE)
     await page.waitForURL((url) => url.href.startsWith(CALLBACK))
     expect(new URL(page.url()).searchParams.get("state")).toBe(state)
     expect(new URL(page.url()).searchParams.get("code")).toBeTruthy()

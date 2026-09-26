@@ -21,6 +21,10 @@ export const Default: Story = {
     play: async ({canvasElement}) => {
         await within(canvasElement).findByRole("heading", {level: 1})
         const canvas = within(canvasElement)
+        const header = within(canvas.getByRole("banner"))
+        await expect(header.getByRole("combobox", {name: "Languages"})).toBeVisible()
+        await expect(header.getByText("0.0.0-preview")).toBeVisible()
+        await expect(header.getByText("synthetic")).toBeVisible()
         await expect(canvas.getByLabelText("Username or email")).toBeVisible()
         await expect(canvas.getByLabelText("Password")).toBeVisible()
         await expect(canvas.getByRole("button", {name: "LOGIN"})).toBeEnabled()
@@ -67,6 +71,9 @@ export const Spanish: Story = {
         await within(canvasElement).findByRole("heading", {level: 1})
         await expect(
             within(canvasElement).getByRole("button", {name: "INICIAR SESIÓN"})
+        ).toBeVisible()
+        await expect(
+            within(within(canvasElement).getByRole("banner")).getByText("Versión:")
         ).toBeVisible()
         await expect(canvasElement.ownerDocument.documentElement).toHaveAttribute("lang", "es")
         await expect(canvasElement.ownerDocument.documentElement).toHaveAttribute("dir", "ltr")
@@ -129,6 +136,12 @@ export const PasswordManagerAndKeyboard: Story = {
         const username = canvas.getByLabelText("Username or email")
         const password = canvas.getByLabelText("Password")
         await userEvent.click(username)
+        await userEvent.tab({shift: true})
+        await expect(
+            within(canvas.getByRole("banner")).getByRole("combobox", {name: "Languages"})
+        ).toHaveFocus()
+        await userEvent.tab()
+        await expect(username).toHaveFocus()
         await userEvent.clear(username)
         await userEvent.paste(KEYCLOAK_SYNTHETIC_USER.username)
         await userEvent.tab()

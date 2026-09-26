@@ -105,7 +105,7 @@ public class SmartLink {
           .send("SmartLinkSubject", subjAttr, "smart-link-email.ftl", bodyAttr);
       return true;
     } catch (EmailException error) {
-      log.error("Failed to send smart link email", error);
+      log.error("Failed to send smart link email");
     }
     return false;
   }

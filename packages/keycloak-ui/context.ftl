@@ -14,6 +14,7 @@ window.kcContext.courier = "${courier?string?js_string}";
 <#list [
     "loginAccountTitle", "doLogIn", "username", "usernameOrEmail", "email", "password",
     "rememberMe", "doForgotPassword", "noAccount", "doRegister", "doSubmit", "languages",
+    "system.version", "system.hash",
     "otpDigit", "otpCodeLabel",
     "invalidCredentialsMessage", "messageOtp.auth.title", "messageOtp.otl.title",
     "messageOtp.auth.address", "messageOtp.auth.instructionBoth",

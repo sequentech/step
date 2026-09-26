@@ -37,12 +37,15 @@
     margin: auto;
     padding: 48px 24px 32px;
 }
+.sequent-auth .auth-header {
+    margin-bottom: 32px;
+}
 .sequent-auth .auth-brand {
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 24px;
-    margin-bottom: 32px;
+    margin-bottom: 16px;
 }
 .sequent-auth .auth-brand img {
     display: block;
@@ -56,6 +59,36 @@
     font-size: 0.875rem;
     line-height: 1.5;
     letter-spacing: 0.025em;
+}
+.sequent-auth .auth-header-tools {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 8px 24px;
+}
+.sequent-auth .auth-build {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 4px 16px;
+    max-width: 100%;
+    margin: 0;
+    color: #bfd4dc;
+    font-size: 0.75rem;
+    line-height: 1.5;
+}
+.sequent-auth .auth-build > div {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 4px;
+    max-width: 100%;
+}
+.sequent-auth .auth-build dd {
+    min-width: 0;
+    margin: 0;
+    overflow-wrap: anywhere;
 }
 .sequent-auth .auth-card {
     padding: 40px;
@@ -253,6 +286,8 @@
     }
     .sequent-auth .auth-brand {
         gap: 16px;
+    }
+    .sequent-auth .auth-header {
         margin-bottom: 26px;
     }
     .sequent-auth .auth-brand img {
