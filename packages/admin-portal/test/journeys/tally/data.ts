@@ -116,18 +116,19 @@ export function registerUsers(portal: AdminPortal, users: Row[] = [adminUser()])
 }
 
 /**
- * Records unhandled promise rejections instead of letting them fail the fixture, so an
- * expected-failure test can pin a missing error handler and still flip once it is fixed.
+ * Records the specific known rejection so its missing notification can be asserted.
+ * Other unhandled rejections still fail the strict page-error fixture.
  */
-export async function recordRejections(page: Page) {
-    await page.addInitScript(() => {
+export async function recordRejections(page: Page, expectedMessage: string) {
+    await page.addInitScript((expected) => {
         const log: string[] = []
         Object.assign(window, {unhandledRejections: log})
         window.addEventListener("unhandledrejection", (event) => {
-            log.push(String(event.reason?.message ?? event.reason))
-            event.preventDefault()
+            const message = String(event.reason?.message ?? event.reason)
+            log.push(message)
+            if (message === expected) event.preventDefault()
         })
-    })
+    }, expectedMessage)
     return () =>
         page.evaluate(
             () => (window as unknown as {unhandledRejections: string[]}).unhandledRejections

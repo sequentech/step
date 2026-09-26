@@ -305,7 +305,6 @@ test("opens a version's source import on the election event's imports tab", asyn
     page,
     portal,
 }) => {
-    test.fail(true, "Open import keeps the election path, which has no tally sheet imports tab")
     ballotBox(portal)
     importReference(portal)
     registerUsers(portal)
@@ -313,6 +312,7 @@ test("opens a version's source import on the election event's imports tab", asyn
     const row = await openTallySheets(page, portal)
     const versions = await openVersions(page, row)
     await versions.pending.getByRole("button", {name: "Open import", exact: true}).click()
+    test.fail(true, "Open import keeps the election path, which has no tally sheet imports tab")
     await expect(page).toHaveURL(
         new RegExp(
             `/sequent_backend_election_event/${EVENT_ID}\\?.*tallySheetImportId=${IMPORT_ID}`
@@ -324,8 +324,7 @@ test("opens a version's source import on the election event's imports tab", asyn
 })
 
 test("reports a failed tally sheet review", async ({page, portal}) => {
-    test.fail(true, "a ReviewTallySheet error rejects unhandled instead of notifying the failure")
-    const rejections = await recordRejections(page)
+    const rejections = await recordRejections(page, "sheet already reviewed")
     ballotBox(portal)
     importReference(portal)
     portal.graphql.on("ReviewTallySheet", () => ({errors: [{message: "sheet already reviewed"}]}))
@@ -339,6 +338,7 @@ test("reports a failed tally sheet review", async ({page, portal}) => {
         tallySheetId: SHEET_V2,
         newStatus: "DISAPPROVED",
     })
+    test.fail(true, "a ReviewTallySheet error rejects unhandled instead of notifying the failure")
     await expect(page.getByText("Error reviewing tally sheet", {exact: true})).toBeVisible({
         timeout: 3000,
     })

@@ -474,7 +474,6 @@ test("reports a failed source URL request instead of downloading the previous UR
     page,
     portal,
 }) => {
-    test.fail(true, "a FetchDocument error keeps the previous result, so the stale URL downloads")
     importsService(portal, [importRecord()])
     sourceDocument(portal)
     portal.graphql.once("FetchDocument", () => ({errors: [{message: "document expired"}]}))
@@ -490,6 +489,12 @@ test("reports a failed source URL request instead of downloading the previous UR
     const downloads: string[] = []
     page.on("download", (download) => downloads.push(download.url()))
     await source.click()
+    await expect.poll(() => portal.graphql.callsTo("FetchDocument").length).toBe(2)
+    expect(portal.graphql.callsTo("FetchDocument").map(({variables}) => variables)).toEqual([
+        {electionEventId: EVENT_ID, documentId: DOCUMENT_ID},
+        {electionEventId: EVENT_ID, documentId: DOCUMENT_ID},
+    ])
+    test.fail(true, "a FetchDocument error keeps the previous result, so the stale URL downloads")
     await expect(
         page.getByText(/^(document expired|Could not create source download URL)$/)
     ).toBeVisible({timeout: 5000})
@@ -497,15 +502,15 @@ test("reports a failed source URL request instead of downloading the previous UR
 })
 
 test("names the import format and channel selectors after their labels", async ({page, portal}) => {
-    test.fail(
-        true,
-        "the Format and Channel selects have no labelId, so their comboboxes are unnamed"
-    )
     importsService(portal)
     await openImportsTab(page, portal)
     await page.getByRole("button", {name: "Import tally sheets", exact: true}).click()
     const drawer = page.getByRole("presentation").filter({hasText: "Import tally sheets"})
     await expect(drawer.getByRole("combobox").first()).toHaveText("ES&S Enhanced XML")
+    test.fail(
+        true,
+        "the Format and Channel selects have no labelId, so their comboboxes are unnamed"
+    )
     await expect(drawer.getByRole("combobox", {name: "Format"})).toHaveText("ES&S Enhanced XML", {
         timeout: 2000,
     })
