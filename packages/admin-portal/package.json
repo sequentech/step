@@ -20,6 +20,7 @@
     "@sequentech/ui-core": "*",
     "@sequentech/ui-essentials": "*",
     "@tinymce/tinymce-react": "^4.3.2",
+    "@tanstack/react-query": "^5.83.0",
     "tinymce": "^7.9.3",
     "@types/diff": "^5.0.8",
     "antd": "^5.21.5",
