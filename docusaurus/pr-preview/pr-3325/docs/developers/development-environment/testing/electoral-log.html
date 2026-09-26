@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Electoral Log tests | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-3325/docs/developers/development-environment/testing/electoral-log"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Electoral Log tests | Sequent Online Voting"><meta data-rh="true" name="description" content="--&gt;"><meta data-rh="true" property="og:description" content="--&gt;"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-3325/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3325/docs/developers/development-environment/testing/electoral-log"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3325/docs/developers/development-environment/testing/electoral-log" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3325/docs/developers/development-environment/testing/electoral-log" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Electoral Log tests","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-3325/docs/developers/development-environment/testing/electoral-log"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-3325/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/pr-preview/pr-3325/assets/js/runtime~main.b1553c41.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-3325/assets/js/runtime~main.451796bc.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-3325/assets/js/main.183ea38b.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -41,9 +41,13 @@ never a successful partial audit page.</li>
 rejection, with at most five retries. Native tests check error classification
 and the attempt limit; an owned-database test forces a competing commit and
 verifies that the original batch persists exactly once. Windmill retries only
-the current board with a fresh session and transaction. Ambiguous commit
-outcomes are never replayed. Exhausted retries and other failures still need
-operational recovery; the queue does not provide a durable redelivery guarantee.</li>
+the current board with a fresh session and transaction. Exhausted retries and
+other failures leave the original durable RabbitMQ delivery unacknowledged.
+Each board stores a receipt with its audit rows in the same transaction; a
+redelivery after a partial or uncertain commit therefore skips committed rows.
+The stable correlation ID and original input fingerprint identify a delivery,
+including legacy batch task IDs with an event index. Reusing an ID with a
+different input is rejected and retained for operator investigation.</li>
 </ul>
 <p>The existing protocol signs the statement. Search metadata and the separate
 artifact are not authenticated by <code>Message::verify</code>; these tests make no broader
@@ -61,6 +65,29 @@ integration coverage. Neither missing feature support nor an empty report is
 converted into a zero baseline.</p>
 <p>Sorting on nonunique timestamps or metadata appends <code>id ASC</code> unless callers
 already specify the ID direction. A literal SQL regression and real tied-row
-pagination controls check both default and explicit tie-breaking. No database ordering is inferred from insertion luck.</p></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-edit-meta-row"><div class="col noPrint_WFHX"><a href="https://github.com/sequentech/step/edit/main/docs/docusaurus/docs/07-developers/03-development-environment/testing/electoral-log.md" target="_blank" rel="noopener noreferrer" class="theme-edit-this-page"><svg fill="currentColor" height="20" width="20" viewBox="0 0 40 40" class="iconEdit_Z9Sw" aria-hidden="true"><g><path d="m34.5 11.7l-3 3.1-6.3-6.3 3.1-3q0.5-0.5 1.2-0.5t1.1 0.5l3.9 3.9q0.5 0.4 0.5 1.1t-0.5 1.2z m-29.5 17.1l18.4-18.5 6.3 6.3-18.4 18.4h-6.3v-6.2z"></path></g></svg>Edit this page</a></div><div class="col lastUpdated_JAkA"></div></div></footer></article><nav class="docusaurus-mt-lg pagination-nav" aria-label="Docs pages"><a class="pagination-nav__link pagination-nav__link--prev" href="/docusaurus/pr-preview/pr-3325/docs/developers/development-environment/testing/ecies-encryption"><div class="pagination-nav__sublabel">Previous</div><div class="pagination-nav__label">ECIES command-line tests</div></a><a class="pagination-nav__link pagination-nav__link--next" href="/docusaurus/pr-preview/pr-3325/docs/developers/development-environment/testing/harvest"><div class="pagination-nav__sublabel">Next</div><div class="pagination-nav__label">Harvest request boundary tests</div></a></nav></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="footer__bottom text--center"><div class="footer__copyright">Copyright © 2026 Sequent</div></div></div></footer></div>
+pagination controls check both default and explicit tie-breaking. No database ordering is inferred from insertion luck.</p>
+<p>Windmill owns the AMQP channel until all boards commit. Returned errors close it;
+cancellation drops it, causing RabbitMQ to requeue unacknowledged input. Session
+cleanup errors after a confirmed commit do not prevent acknowledgement. Existing
+worker arguments for <code>electoral_log_batch_queue</code> or <code>electoral_log_event_queue</code>
+select the dispatcher queue; the dispatcher drains both current single events and
+legacy queued batches. Stop old workers when deploying this change so they cannot
+consume these queues with the old early-acknowledgement behavior. Already lost
+messages from older workers cannot be reconstructed. An old dispatcher may also
+have published a batch before crashing without ACKing its originals; those two
+envelopes have different IDs and cannot be deduplicated retrospectively. The
+dispatcher has no fixed preparation deadline, matching the former batch processor,
+so a large valid batch is not repeatedly cancelled before its first commit.
+A permanently invalid input
+stays queued and can block progress until investigated; it is never silently ACKed.</p>
+<p>The broker regressions use owned RabbitMQ 3.12.11 containers on ephemeral loopback
+ports and the owned ImmuDB fixture. They check sink errors, cancellation, legacy
+batches, partial and uncertain commits, and six real conflicts followed by successful
+redelivery. Docker must be available (set <code>WINDMILL_TEST_DOCKER_SUDO=1</code> only when
+local Docker access requires noninteractive sudo). From the repository root:</p>
+<div class="language-bash codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-bash codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token builtin class-name" style="color:rgb(255, 203, 107)">cd</span><span class="token plain"> packages</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain"></span><span class="token function" style="color:rgb(130, 170, 255)">cargo</span><span class="token plain"> </span><span class="token builtin class-name" style="color:rgb(255, 203, 107)">test</span><span class="token plain"> </span><span class="token parameter variable" style="color:rgb(191, 199, 213)">--locked</span><span class="token plain"> </span><span class="token parameter variable" style="color:rgb(191, 199, 213)">-p</span><span class="token plain"> windmill </span><span class="token parameter variable" style="color:rgb(191, 199, 213)">--features</span><span class="token plain"> rabbitmq-tests </span><span class="token parameter variable" style="color:rgb(191, 199, 213)">--test</span><span class="token plain"> electoral_log_delivery</span><br></span></code></pre></div></div>
+<p>The Windmill CI job runs these contracts separately from its native unit profile.
+The receipt table is additive and created on existing boards before delivery;
+backups and restores must retain it alongside the audit rows to retain deduplication.</p></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-edit-meta-row"><div class="col noPrint_WFHX"><a href="https://github.com/sequentech/step/edit/main/docs/docusaurus/docs/07-developers/03-development-environment/testing/electoral-log.md" target="_blank" rel="noopener noreferrer" class="theme-edit-this-page"><svg fill="currentColor" height="20" width="20" viewBox="0 0 40 40" class="iconEdit_Z9Sw" aria-hidden="true"><g><path d="m34.5 11.7l-3 3.1-6.3-6.3 3.1-3q0.5-0.5 1.2-0.5t1.1 0.5l3.9 3.9q0.5 0.4 0.5 1.1t-0.5 1.2z m-29.5 17.1l18.4-18.5 6.3 6.3-18.4 18.4h-6.3v-6.2z"></path></g></svg>Edit this page</a></div><div class="col lastUpdated_JAkA"></div></div></footer></article><nav class="docusaurus-mt-lg pagination-nav" aria-label="Docs pages"><a class="pagination-nav__link pagination-nav__link--prev" href="/docusaurus/pr-preview/pr-3325/docs/developers/development-environment/testing/ecies-encryption"><div class="pagination-nav__sublabel">Previous</div><div class="pagination-nav__label">ECIES command-line tests</div></a><a class="pagination-nav__link pagination-nav__link--next" href="/docusaurus/pr-preview/pr-3325/docs/developers/development-environment/testing/harvest"><div class="pagination-nav__sublabel">Next</div><div class="pagination-nav__label">Harvest request boundary tests</div></a></nav></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="footer__bottom text--center"><div class="footer__copyright">Copyright © 2026 Sequent</div></div></div></footer></div>
 </body>
 </html>
