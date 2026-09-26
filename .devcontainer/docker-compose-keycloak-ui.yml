@@ -1,0 +1,19 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# Opt in after `step-dev keycloak prepare`; production builds never include this overlay.
+services:
+  keycloak:
+    volumes:
+      - type: bind
+        source: ${LOCAL_WORKSPACE_FOLDER:-..}/.cache/keycloak-ui/themes/sequent-ui-admin
+        target: /opt/keycloak/themes/sequent-ui-admin
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${LOCAL_WORKSPACE_FOLDER:-..}/.cache/keycloak-ui/themes/sequent-ui-voting
+        target: /opt/keycloak/themes/sequent-ui-voting
+        read_only: true
+        bind:
+          create_host_path: false

@@ -151,9 +151,11 @@ Its local storage keys start with `sequent.workbench.v1.`; Reset removes them an
 portal's session storage. Requests to other origins and non-GET requests are refused.
 Workbench controls have stories under `Workbench/`.
 
-`WORKBENCH_SEQUENT_CORE=<wasm-pack web output>` loads another sequent-core build
-without reinstalling; the page reloads when its files change and the inspector shows
-the binary's hash. `WORKBENCH_TEST_CHROME_PATH` selects a local Chromium for
+The workbench dev server automatically loads the artifact published by
+`step-dev wasm`, falling back to the installed package when none exists. Production
+builds use the installed package. `WORKBENCH_SEQUENT_CORE=<wasm-pack web output>`
+explicitly selects another build for either mode. No reinstall is needed; the page
+reloads when the artifact changes and the inspector shows the binary's hash. `WORKBENCH_TEST_CHROME_PATH` selects a local Chromium for
 `test:smoke`. Stories render one production route with its action; the workbench mounts
 the production event routes. The only preview UI inside the portal frame is the error
 shown when the portal loader rejects a snapshot.
@@ -184,6 +186,11 @@ new stack the first `up` enrolls the tenant administrator's email code, as the j
 do; the admin portal then asks for it, and the Keycloak container log shows it.
 `VOTING_PORTAL_URL`, `BALLOT_VERIFIER_URL` and `RESULTS_PORTAL_URL` select the printed
 portals, and `--step-cli` another step-cli build.
+
+`up`, `urls`, `status` and `reset` accept `--format json`; progress goes to stderr.
+An empty reset still returns a JSON outcome. Reset refuses a mismatched owner or
+tenant and keeps the state file if deletion fails, so it can be retried. A second
+command for the same scenario fails while the first holds its lock.
 
 ## Incremental WASM
 

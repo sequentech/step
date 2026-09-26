@@ -164,20 +164,28 @@ Decisions so far:
   rename, fingerprinted sources, an incremental development profile (cargo 15 s →
   5 s on a leaf edit, +0.4% wasm size); the committed package was stale and is now
   regenerated reproducibly with a freshness check in CI.
-- **Keycloak** (adopted: live theme folders; Keycloakify development continues). The pilot
-  passed a real password + email OTP login with the existing authenticator (8/8) and
-  its pages were lighter with no axe violations, but its real-Keycloak loop took
-  8.4 s (n=10), realm localization overrides and per-event login policies did not
-  reach the pages, the OTP courier enum was lost and dotted template ids needed
-  workarounds; porting would cover 29 templates, 251 message keys in up to eight
-  locales and a Node build stage. These results defer production adoption; they
-  do not end the React development path. Keep an opt-in Keycloakify workspace
-  with automatic reload and continue closing the localization, policy and custom
-  OTP context gaps. Document commands and browser validation for both developers
-  and agents through the shared `step-dev` entry point and `AGENTS.md`.
+- **Keycloak** (adopted for development): live theme folders plus the retained
+  opt-in `keycloak-ui` React workspace. Login and message OTP use React refresh;
+  unported or complex login widgets inherit the original templates with automatic
+  reload. The explicit server context carries login policies, OTP courier and
+  localized messages, including realm overrides. Eleven real authentication/policy
+  checks, 12 browser stories, 23 original theme tests, and a theme build pass.
+  Warm visible edits on real Keycloak: login 0.077 s median, 0.076–0.077 (n=10);
+  OTP 0.076 s, 0.075–0.087 (n=10). Typed input and the authentication session survive
+  without navigation; the OTP exchange completes after the edits. Server message
+  edits also reload automatically (n=1). The earlier packaged pilot took 8.4 s
+  (n=10). Production adoption remains deferred; SMS delivery, one-time links,
+  CAPTCHA and external identity providers need their configured integration
+  environments. Commands and fixture limits are in the Keycloak developer guide.
 - **Workbench** (adopted): shared scenarios and snapshots in `ui-test-kit`, one
   preview provider for Storybook and the workbench, production routes and loaders,
-  typed policy overrides and the real sequent-core pipeline.
+  typed policy overrides and the real sequent-core pipeline. The dev server now
+  picks up `step-dev wasm`'s versioned artifact automatically; the inspector tracks
+  the active binary through publication/reload. Unit tests (33), smoke flows (3),
+  an actual versioned artifact switch with the five-step ballot pipeline (n=1),
+  and the production build pass. Production WASM exactly matches the installed
+  package. Voting Storybook exposes tenant/workflow controls and all eight
+  locales; all 80 story tests pass (n=1 run).
 
 Current validation: the voting Jest suite passes locally (30 suites, 264 tests,
 one run), as do verifier stories (14 tests, including one retained expected
@@ -221,6 +229,16 @@ in progress.
   falling back to the standard image when missing or incompatible. Unit tests,
   source-free warm-up, Dockerfile checks and fallback Compose validation pass;
   complete image builds and startup measurements remain pending hosted validation.
+- **Repeatable backend scenarios**: all three named states create and reuse their
+  own events; targeted reset rejects foreign ownership, tenant mismatches and
+  concurrent execution. Four browser checks pass against current portal sources:
+  kiosk and online ballot casting, verifier upload and the exact published
+  totals. The task backend reuses binaries from `728c258313`; the driver and
+  portal validation use `149131a62a`. Warm reuse takes 0.786 s median,
+  0.633–0.953 for kiosk, 0.625 s, 0.589–0.793 for completed ceremony, and 0.631 s,
+  0.595–0.715 for published results (n=10 each, one excluded warmup). These are
+  current-state timings under concurrent load, not before/after speedups.
+  All 84 scenario tests and the integrated 415 developer-tool tests pass.
 
 Keep the stack synchronized with new `ovcs` commits using normal merges into
 phase 1 and then each descendant. All feedback commands must be discoverable and
