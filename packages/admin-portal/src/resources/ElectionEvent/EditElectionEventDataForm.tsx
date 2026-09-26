@@ -31,6 +31,7 @@ import {
     Tab,
     Grid,
     Box,
+    CircularProgress,
     Typography,
 } from "@mui/material"
 import {styled} from "@mui/material/styles"
@@ -742,7 +743,10 @@ export const EditElectionEventDataForm: React.FC<{
     })
 
     const parsedValue = useMemo(
-        () => parseValues(record as Sequent_Backend_Election_Event_Extended, languageSettings),
+        () =>
+            record
+                ? parseValues(record as Sequent_Backend_Election_Event_Extended, languageSettings)
+                : undefined,
         [record, languageSettings, parseValues]
     )
 
@@ -1180,6 +1184,11 @@ export const EditElectionEventDataForm: React.FC<{
 
     const saveTransform = async (values: Sequent_Backend_Election_Event_Extended) =>
         transform(await onSave(values))
+
+    // EditBase has no record until the event is read.
+    if (!parsedValue) {
+        return <CircularProgress aria-label={t("loading")} />
+    }
 
     return (
         <>
