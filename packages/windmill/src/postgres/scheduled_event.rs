@@ -77,7 +77,7 @@ pub async fn find_all_active_events(
                 *
             FROM "sequent_backend".scheduled_event
             WHERE
-                stopped_at IS NULL
+                stopped_at IS NULL AND archived_at IS NULL
             "#,
         )
         .await?;
@@ -248,7 +248,7 @@ pub async fn archive_scheduled_event(
             UPDATE
                 "sequent_backend".scheduled_event
             SET
-                stopped_at = NOW(),
+                stopped_at = COALESCE(stopped_at, NOW()),
                 archived_at = NOW()
             WHERE
                 tenant_id = $1
@@ -472,7 +472,10 @@ pub async fn find_scheduled_event_by_election_event_id_and_event_processor(
         .map_err(|err| anyhow!("Error running the find_scheduled_event_by_task_id query: {err}"))?;
 
     let rows: Vec<Row> = hasura_transaction
-        .query(&statement, &[&tenant_uuid, &election_event_uuid])
+        .query(
+            &statement,
+            &[&tenant_uuid, &election_event_uuid, &event_processor],
+        )
         .await
         .map_err(|err| anyhow!("Error running the find_scheduled_event_by_task_id query: {err}"))?;
 

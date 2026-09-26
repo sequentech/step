@@ -459,7 +459,13 @@ pub async fn delete_election_event(
     tenant_id: &str,
     election_event_id: &str,
 ) -> Result<()> {
+    // Children before the rows their ON DELETE RESTRICT foreign keys name:
+    // tally_sheet_import_item references tally_sheet, tally_sheet_import,
+    // election, area and contest; tally_sheet references tally_sheet_import,
+    // which references document. tally_session_resolution goes with its
+    // tally_session, but its contest foreign key must not outlive contest.
     let related_tables = vec![
+        "phone_blacklist",
         "tally_results_publication",
         "secret",
         "area_contest",
@@ -473,8 +479,11 @@ pub async fn delete_election_event(
         "ballot_style",
         "ballot_publication",
         "candidate",
+        "tally_session_resolution",
         "tally_session_contest",
+        "tally_sheet_import_item",
         "tally_sheet",
+        "tally_sheet_import",
         "tally_session_execution",
         "contest",
         "cast_vote",
