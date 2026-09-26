@@ -10,7 +10,11 @@ jest.mock("@sequentech/ui-core", () => ({
     useWasm: () => ({status: mockWasmStatus}),
     WasmStatus: {LOADING: "loading", READY: "ready", ERROR: "error"},
 }))
-jest.mock("@sequentech/ui-essentials", () => ({Loader: () => <div role="status">Loading</div>}))
+// This unit boundary must also resolve after a clean install, before the shared
+// package's dist entry exists. The actual startup gates remain under test.
+jest.mock("@sequentech/ui-essentials", () => ({Loader: () => <div role="status">Loading</div>}), {
+    virtual: true,
+})
 jest.mock("react-i18next", () => ({useTranslation: () => ({t: (key: string) => key})}))
 
 const originalFetch = global.fetch

@@ -37,13 +37,13 @@ export async function routePortal(context: BrowserContext, services: PortalServi
     const handler = async (route: Route) => {
         const request = route.request()
         const url = new URL(request.url())
-        const mockRequest = {
-            method: request.method(),
-            url,
-            headers: await request.allHeaders(),
-            body: request.postData() ?? undefined,
-        }
         try {
+            const mockRequest = {
+                method: request.method(),
+                url,
+                headers: await request.allHeaders(),
+                body: request.postData() ?? undefined,
+            }
             if (url.origin !== services.origin) {
                 services.violations.add(`Unexpected external request: ${request.method()} ${url}`)
                 await route.abort("blockedbyclient")

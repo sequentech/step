@@ -80,10 +80,10 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
             if (!response.ok) {
                 throw new Error("File upload failed")
             }
-            setIsUploading(false)
         }
 
         const uploadFileToS3 = async (theFile: File) => {
+            setIsUploading(true)
             try {
                 // Get the Upload URL
                 let {data} = await getUploadUrl({
@@ -96,7 +96,6 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
                 })
 
                 if (!data?.get_upload_url?.url) {
-                    setIsUploading(false)
                     notify(t("electionEventScreen.import.fileUploadError"), {type: "error"})
                     return
                 }
@@ -110,12 +109,14 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
                 notify(t("electionEventScreen.import.fileUploadSuccess"), {type: "success"})
             } catch (_error) {
                 setDocumentId(null)
-                setIsUploading(false)
                 notify(t("electionEventScreen.import.fileUploadError"), {type: "error"})
+            } finally {
+                setIsUploading(false)
             }
         }
 
         const handleFiles = async (files: FileList | null) => {
+            if (loading || isUploading || passwordDialogOpen) return
             setDocumentId(null)
             // https://fullstackdojo.medium.com/s3-upload-with-presigned-url-react-and-nodejs-b77f348d54cc
             setPassword("")
@@ -129,7 +130,6 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
             }
 
             if (theFile) {
-                setIsUploading(true)
                 await uploadFileToS3(theFile)
             } else {
                 setIsUploading(false)
@@ -170,7 +170,9 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
                     }
                 />
 
-                <DropFile handleFiles={async (files) => handleFiles(files)} />
+                <Box component="fieldset" disabled={isWorking()} sx={{border: 0, m: 0, p: 0}}>
+                    <DropFile handleFiles={async (files) => handleFiles(files)} />
+                </Box>
 
                 <FormStyles.StatusBox>
                     {isWorking() ? <FormStyles.ShowProgress /> : null}

@@ -5,7 +5,7 @@ import {test, expect} from "@playwright/test"
 import {createHash} from "node:crypto"
 import {createServer} from "node:http"
 import type {AddressInfo} from "node:net"
-import type {Page} from "playwright"
+import type {Page} from "@playwright/test"
 import {collectNetworkViolations, installNetworkGuard} from "../../test-support/storybook/network"
 
 async function ownedServer() {

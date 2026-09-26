@@ -10,7 +10,11 @@ export const StartupError = () => {
         <Alert
             className="startup-error"
             severity="error"
-            action={<Button className="startup-retry" onClick={() => window.location.reload()}>{t("startup.retry")}</Button>}
+            action={
+                <Button className="startup-retry" onClick={() => window.location.reload()}>
+                    {t("startup.retry")}
+                </Button>
+            }
         >
             {t("startup.error")}
         </Alert>
