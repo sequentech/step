@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import {buildGetListVariables} from "ra-data-hasura/dist/buildVariables/buildGetListVariables"
 import type {FetchType, IntrospectedResource, IntrospectionResult} from "ra-data-hasura/dist/types"
-import {electionSearchFilter} from "./ElectionSearch"
+import {electionSearchFilter, electionSearchQuery, electionSearchText} from "./ElectionSearch"
 
 describe("electionSearchFilter", () => {
     it.each(["", "   "])("does not filter an empty search %p", (text) => {
@@ -13,12 +13,20 @@ describe("electionSearchFilter", () => {
         expect(electionSearchFilter(" Deputy ")).toEqual({
             _or: {
                 format: "hasura-raw-query",
+                text: " Deputy ",
                 value: [
                     {external_id: {_ilike: "%Deputy%"}},
                     {presentation: {_cast: {String: {_ilike: "%Deputy%"}}}},
                 ],
             },
         })
+    })
+})
+
+describe("electionSearchText", () => {
+    it("gives back the text typed into the search", () => {
+        expect(electionSearchText(electionSearchQuery("Mayoral "))).toBe("Mayoral ")
+        expect(electionSearchText(undefined)).toBe("")
     })
 })
 
