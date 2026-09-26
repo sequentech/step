@@ -74,6 +74,27 @@ Nix store only keeps what the checkouts visible in that container use, so run
 
 ## Shared UI hot reload
 
+Portal dev servers compile `@sequentech/ui-core` and `@sequentech/ui-essentials`
+from `src`, so a shared component edit reaches every running portal without a
+package build or server restart. `PORT` overrides a portal's default port and
+`BROWSER=none` stops it opening a browser:
+
+```sh
+PORT=3100 BROWSER=none yarn --cwd packages/voting-portal start
+```
+
+React Refresh keeps component state when the edited module exports only
+components; other edits reload the page. React, MUI, Emotion, router, i18n,
+Apollo and `sequent-core` always resolve to the portal's own copy. Dev servers do
+not type-check: run `test:types` in the voting portal, results portal or ballot
+verifier (it resolves the shared sources), or build the admin portal.
+
+Production builds and journeys still use the packages' `dist` entry points: run
+`yarn --cwd packages build:ui-core` and `build:ui-essentials` before
+`build:<portal>`. `STEP_SHARED_UI=dist` makes a dev server use those builds too,
+for example to reproduce a production-only difference. The shared settings are in
+`packages/ui-essentials/webpack.portal.cjs`.
+
 ## Screens, workbench and scenarios
 
 Production voter screens open against synthetic elections without login or services.
