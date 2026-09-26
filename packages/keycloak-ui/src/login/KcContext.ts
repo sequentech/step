@@ -34,7 +34,7 @@ export type KcContextExtension = {
 export type KcContextExtensionPerPage = {
     "message-otp.login.ftl": {
         address: string
-        courier: MessageCourier
+        courier?: MessageCourier
         isOtl: boolean
         codeJustSent?: boolean
         resendTimer?: string
