@@ -104,6 +104,8 @@ export type {
 } from "./ballot/SupportMaterialsLayout"
 export {ConfirmationLayout} from "./ballot/ConfirmationLayout"
 export type {IConfirmationLayoutProps} from "./ballot/ConfirmationLayout"
+export {StartLayout} from "./ballot/StartLayout"
+export type {IStartLayoutProps} from "./ballot/StartLayout"
 export {ReviewLayout} from "./ballot/ReviewLayout"
 export type {IReviewLayoutProps} from "./ballot/ReviewLayout"
 // The voter's breadcrumb. The portal's `Stepper` is a shim over this that answers
