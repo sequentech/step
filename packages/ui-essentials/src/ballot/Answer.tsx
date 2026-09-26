@@ -9,7 +9,6 @@ import {
     normalizeWriteInText,
     translate,
     isAcclaimedContest,
-    isEligibleAcclaimedCandidate,
     ICandidate,
     IContest,
 } from "@sequentech/ui-core"
@@ -24,7 +23,7 @@ import {
 } from "./presentation"
 import {IBallotStyle} from "./types"
 import {useTranslation} from "react-i18next"
-import {IDecodedVoteContest} from "sequent-core"
+import type {IDecodedVoteContest} from "@sequentech/ui-core"
 import {useBallotEngine} from "./engine"
 import {writeInErrorId} from "./InvalidErrorsList"
 import {ECandidatesIconCheckboxPolicy} from "@sequentech/ui-core"
@@ -222,7 +221,7 @@ export const Answer: React.FC<IAnswerProps> = ({
 
     // Use the same domain policy as tally/publication: ballot markers,
     // disabled entries and empty write-in slots are not acclaimed winners.
-    if (isAcclaimed && !isEligibleAcclaimedCandidate(answer)) {
+    if (isAcclaimed && !engine.isEligibleAcclaimedCandidate(answer)) {
         return null
     }
 

@@ -54,6 +54,7 @@ const ENGINE: BallotEngine = {
     isPreferential: () => false,
     checkIsBlank: () => false,
     getWriteInAvailableCharacters: () => 0,
+    isEligibleAcclaimedCandidate: () => true,
 }
 
 // Nothing is marked: the contract under test is category expansion.

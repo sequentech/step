@@ -44,9 +44,14 @@ export type {CategoriesMap, ICategorizedCandidates, ICategory} from "./services/
 // What a candidate's presentation flags mean.
 export {checkIsCategoryList, checkIsExplicitBlankVote} from "./services/candidatePresentation"
 
+// Whether a contest is acclaimed: display-only, never encoded. A field read, so it
+// is here; *which* of its candidates an acclaimed contest shows is the encoder's
+// rule and reaches the ballot through `BallotEngine.isEligibleAcclaimedCandidate`.
+export {isAcclaimedContest} from "./services/acclamation"
+
 // Text.
-export {translate} from "./services/translate"
-export {stringToHtml} from "./services/stringToHtml"
+export {translate, translateFromPresentation} from "./services/translate"
+export {stringToHtml, translateHtml} from "./services/stringToHtml"
 export {normalizeWriteInText} from "./services/normalizeWriteInText"
 
 // Small helpers, kept here rather than reached for from lodash.

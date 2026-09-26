@@ -348,3 +348,27 @@ describe("the review screen's rendering of the same contest", () => {
         expect(screen.queryAllByRole("checkbox")).toHaveLength(0)
     })
 })
+
+describe("an acclaimed contest", () => {
+    it("asks the host's engine which candidates it shows", () => {
+        // Which entries an acclaimed contest lists is the tally's rule
+        // (`Candidate::is_acclamation_eligible`), so it reaches the ballot through
+        // `BallotEngine` like the other compiled calls. Imported from `ui-core`
+        // instead, it was `undefined` in the Election Architect's `ballot.js`,
+        // whose `ui-core` is the WebAssembly-free `pure` entry.
+        mountContest(
+            aContest({
+                is_acclaimed: true,
+                candidates: [
+                    aCandidate("a", "Alice Okonjo"),
+                    option("w", "Write-in", "is_write_in"),
+                    option("x", "None of the above", "is_explicit_blank"),
+                ],
+            } as never)
+        )
+
+        expect(screen.getByText("Alice Okonjo")).toBeInTheDocument()
+        expect(screen.queryByText("Write-in")).not.toBeInTheDocument()
+        expect(screen.queryByText("None of the above")).not.toBeInTheDocument()
+    })
+})

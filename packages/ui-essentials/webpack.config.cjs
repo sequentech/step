@@ -170,6 +170,12 @@ module.exports = function (env, argv) {
                     test: /\.(png|jpe?g|gif|ico|svg)$/i,
                 },
             ],
+            // On the ballot pass a name that `ui-core`'s `pure` entry does not export
+            // is a build error, not a warning. Webpack's default only warns, and the
+            // name is then `undefined` in `ballot.js`: after the ovcs merge that was
+            // `isAcclaimedContest`, and the Election Architect's preview threw on
+            // every contest while this build reported success.
+            ...(ballotOnly ? {parser: {javascript: {exportsPresence: "error"}}} : {}),
         },
         externals: ballotOnly
             ? BALLOT_EXTERNALS

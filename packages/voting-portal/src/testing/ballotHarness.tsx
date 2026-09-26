@@ -239,7 +239,7 @@ const portOver = (held: {current: IDecodedVoteContest}, isVoted = false): Ballot
  * The engine, over the harness's stub of the WebAssembly boundary.
  *
  * Which makes the injection point visible in the tests rather than hidden in a
- * module mock: these four are the calls a ballot cannot draw itself without, and
+ * module mock: these five are the calls a ballot cannot draw itself without, and
  * this is where a test decides what they answer. The stubbed behaviours — order
  * preserved, blank when nothing is selected, preferential when the algorithm's name
  * says so — are documented in `ui-essentials/src/testing/sequentCoreStub.ts`, and
@@ -254,6 +254,13 @@ const ENGINE: BallotEngine = {
             ? false
             : (contest.choices ?? []).every((choice) => choice.selected < 0),
     getWriteInAvailableCharacters: () => 240,
+    // `Candidate::is_acclamation_eligible`: markers, disabled entries and write-in
+    // slots are not acclaimed winners.
+    isEligibleAcclaimedCandidate: (candidate) =>
+        !candidate.presentation?.is_explicit_blank &&
+        !candidate.presentation?.is_explicit_invalid &&
+        !candidate.presentation?.is_disabled &&
+        !candidate.presentation?.is_write_in,
 }
 
 export interface MountErrorsOptions {

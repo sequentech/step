@@ -39,6 +39,7 @@ import type {BallotEngine, BallotSelectionPort} from "@sequentech/ui-essentials"
 import {
     checkIsBlank,
     getWriteInAvailableCharacters,
+    isEligibleAcclaimedCandidate,
     isPreferential,
     sortCandidatesInContest,
 } from "@sequentech/ui-core"
@@ -62,6 +63,7 @@ const ENGINE: BallotEngine = {
     isPreferential,
     checkIsBlank,
     getWriteInAvailableCharacters,
+    isEligibleAcclaimedCandidate,
 }
 
 export const BallotSelectionAdapter = ({children}: PropsWithChildren): React.JSX.Element => {
@@ -109,7 +111,7 @@ export const BallotSelectionAdapter = ({children}: PropsWithChildren): React.JSX
         [dispatch, store, globalSettings.PUBLIC_BUCKET_URL, selections, voted]
     )
 
-    // This portal's build of the core. The wizard passes the same four functions
+    // This portal's build of the core. The wizard passes the same five functions
     // out of `sequent-election-config`, which is the same Rust compiled with a
     // different feature set — so the order a voter sees and the order an election
     // manager approves come from one implementation.

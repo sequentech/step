@@ -5,9 +5,9 @@
 /**
  * The compiled calls a ballot cannot draw itself without, supplied by the host.
  *
- * Four of them, and every one is WebAssembly rather than TypeScript: the ordering
- * rule, the blank-vote test, the preferential predicate and the write-in character
- * budget. They are in the render path — `Question` cannot decide candidate order without one,
+ * Five of them, and every one is WebAssembly rather than TypeScript: the ordering
+ * rule, the blank-vote test, the preferential predicate, the write-in character
+ * budget and which candidates an acclaimed contest shows. They are in the render path — `Question` cannot decide candidate order without one,
  * `Answer` cannot decide between an ordinal picker and a checkbox — so they are not
  * something a shared component can do without or approximate.
  *
@@ -26,7 +26,7 @@
  * Taking them as an interface means each host supplies the build it already has,
  * and the ordering a voter sees comes from the same Rust either way.
  *
- * Four rather than six: `interpretContestSelection` and its multi-contest sibling
+ * Five rather than seven: `interpretContestSelection` and its multi-contest sibling
  * were imported by the warning list and never called — they arrived with a
  * fifteen-function service object that was destructured wholesale. An interface
  * member no caller uses is work for every host that implements it, so they are not
@@ -71,6 +71,13 @@ export interface BallotEngine {
         contestSelection: IDecodedVoteContest,
         election: IBallotStyle["ballot_eml"]
     ): number
+
+    /**
+     * Whether an acclaimed contest shows this candidate: the tally's rule, so ballot
+     * markers, disabled entries and empty write-in slots are not presented as
+     * acclaimed winners. `Candidate::is_acclamation_eligible` in Rust.
+     */
+    isEligibleAcclaimedCandidate(candidate: ICandidate): boolean
 }
 
 const refuse = (name: string) => (): never => {
@@ -88,6 +95,7 @@ const NONE: BallotEngine = {
     isPreferential: refuse("isPreferential"),
     checkIsBlank: refuse("checkIsBlank"),
     getWriteInAvailableCharacters: refuse("getWriteInAvailableCharacters"),
+    isEligibleAcclaimedCandidate: refuse("isEligibleAcclaimedCandidate"),
 }
 
 const BallotEngineContext = createContext<BallotEngine>(NONE)

@@ -20,7 +20,7 @@ import {useBallotSelection} from "./selection"
 import {ICategory} from "@sequentech/ui-core"
 import {IBallotStyle} from "./types"
 import {useTranslation} from "react-i18next"
-import {sortCandidatesInContest, ECandidatesIconCheckboxPolicy} from "@sequentech/ui-core"
+import {ECandidatesIconCheckboxPolicy} from "@sequentech/ui-core"
 import {styled} from "@mui/material/styles"
 import Typography from "@mui/material/Typography"
 
