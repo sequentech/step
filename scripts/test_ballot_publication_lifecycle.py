@@ -28,21 +28,39 @@ LOCK = (
 
 
 def run_regressions(database):
-    """Prove serialization, tenant isolation, and release at both transaction outcomes."""
+    """Serialize publishers while allowing foreign-key inserts for their event."""
     database.connection.execute(
         "INSERT INTO sequent_backend.election_event (id, tenant_id) VALUES (%s, %s), (%s, %s)",
         (EVENT, TENANT, OTHER_EVENT, TENANT),
     )
+    database.connection.execute(
+        """
+        CREATE TABLE publication_reference (
+            event_id uuid REFERENCES sequent_backend.election_event(id)
+        )
+        """
+    )
     for outcome in ("commit", "rollback"):
-        with psycopg.connect(database.dsn) as worker, psycopg.connect(
-            database.dsn
-        ) as contender:
+        with (
+            psycopg.connect(database.dsn) as worker,
+            psycopg.connect(database.dsn) as contender,
+        ):
             assert worker.execute(LOCK, (TENANT, EVENT)).fetchone() is not None
             contender.execute("SET lock_timeout = '100ms'")
             # A mismatched tenant cannot acquire or observe the event lock.
             assert contender.execute(LOCK, (OTHER_TENANT, EVENT)).fetchone() is None
             # Independent events do not serialize with this worker.
             assert contender.execute(LOCK, (TENANT, OTHER_EVENT)).fetchone() is not None
+            contender.commit()
+            contender.execute("SET lock_timeout = '100ms'")
+            # Foreign-key checks acquire KEY SHARE on their parent. Publication
+            # must not stall ordinary inserts while it uploads files to S3.
+            for event in (OTHER_EVENT, EVENT):
+                row = contender.execute(
+                    "INSERT INTO publication_reference VALUES (%s) RETURNING event_id::text",
+                    (event,),
+                ).fetchone()
+                assert row == (event,)
             contender.commit()
             contender.execute("SET lock_timeout = '100ms'")
             try:
@@ -55,7 +73,7 @@ def run_regressions(database):
             contender.execute("SET lock_timeout = '100ms'")
             assert contender.execute(LOCK, (TENANT, EVENT)).fetchone() is not None
     print(
-        "Publication lifecycle: commit/rollback serialization, independent events and tenant isolation passed"
+        "Publication lifecycle: commit/rollback serialization, foreign-key inserts, independent events and tenant isolation passed"
     )
 
 
