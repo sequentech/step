@@ -63,7 +63,7 @@ const withTaskWidget = (status: "SUCCESS" | "FAILED") => {
     return {
         expectedFailure: {
             reason: `${gridDefects.reason} ${expectedFailure.reason}`,
-            a11y: [...new Set([...gridDefects.a11y, ...expectedFailure.a11y])],
+            a11y: Array.from(new Set([...gridDefects.a11y, ...expectedFailure.a11y])),
         },
     }
 }
