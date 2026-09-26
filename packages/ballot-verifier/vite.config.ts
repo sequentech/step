@@ -5,7 +5,7 @@ import {readFile} from "node:fs/promises"
 import {fileURLToPath} from "node:url"
 import {resolve} from "node:path"
 import react from "@vitejs/plugin-react"
-import {defineConfig, type Plugin} from "vite"
+import {defineConfig, normalizePath, type Plugin} from "vite"
 import {sequentCoreViteAlias} from "../ui-core/sequent-core-dev.cjs"
 
 const directory = fileURLToPath(new URL(".", import.meta.url))
@@ -89,7 +89,12 @@ export default defineConfig(({command}) => {
     const development = command === "serve"
     const port = Number(process.env.PORT ?? 3001)
     return {
-        plugins: [react(), portalHtml()],
+        plugins: [
+            // Bootstrap owns createRoot. When its imports change it must reload,
+            // rather than accept React Refresh and create a second root.
+            react({exclude: [normalizePath(resolve(directory, "src/index.tsx"))]}),
+            portalHtml(),
+        ],
         base: "/",
         cacheDir: process.env.VITE_CACHE_DIR ?? "node_modules/.vite-verifier",
         resolve: {
