@@ -166,7 +166,9 @@ export const ApproveAVersion: Story = {
     parameters: {widgets: ["ListTallySheetVersions"]},
     play: async ({canvasElement}) => {
         await reviewLatestPaperVersion(canvasElement, "Approve")
-        await expect(await within(document.body).findByText("Tally sheet reviewed")).toBeVisible()
+        await waitFor(() =>
+            expect(within(document.body).getByText("Tally sheet reviewed")).toBeVisible()
+        )
         expect(graphql.calls).toEqual([
             {
                 name: "ReviewTallySheet",
@@ -186,9 +188,9 @@ export const DisapprovalFails: Story = {
     parameters: {widgets: ["ListTallySheetVersions"]},
     play: async ({canvasElement}) => {
         await reviewLatestPaperVersion(canvasElement, "Disapprove")
-        await expect(
-            await within(document.body).findByText("Error reviewing tally sheet")
-        ).toBeVisible()
+        await waitFor(() =>
+            expect(within(document.body).getByText("Error reviewing tally sheet")).toBeVisible()
+        )
         expect(graphql.calls.map(({variables}) => variables.newStatus)).toEqual([
             EStatus.DISAPPROVED,
         ])

@@ -210,11 +210,11 @@ export const PublishSelectedContests: Story = {
                 name: i18n.t("tally.resultsPublication.publishSelectedContests"),
             })
         )
-        await expect(
-            await within(document.body).findByText(
-                i18n.t("tally.resultsPublication.publishStarted")
-            )
-        ).toBeVisible()
+        await waitFor(() =>
+            expect(
+                within(document.body).getByText(i18n.t("tally.resultsPublication.publishStarted"))
+            ).toBeVisible()
+        )
         const publish = graphql.calls.find(({name}) => name === "PublishResultsWebsite")
         expect(publish?.variables).toEqual({
             election_event_id: EVENT_ID,
@@ -229,7 +229,7 @@ export const PublishSelectedContests: Story = {
             visibility_scope: EResultsWebsiteVisibilityScope.FULL_EVENT,
         })
         expect(publish?.headers).toEqual({"x-hasura-role": "publish-results-write"})
-        await expect(await within(document.body).findByText("SUCCESS")).toBeVisible()
+        await waitFor(() => expect(within(document.body).getByText("SUCCESS")).toBeVisible())
         await waitFor(() => expect(within(document.body).queryByRole("dialog")).toBeNull())
     },
 }
@@ -252,11 +252,13 @@ export const PublicationServiceWarning: Story = {
                 name: i18n.t("tally.resultsPublication.publishSelectedContests"),
             })
         )
-        await expect(
-            await within(document.body).findByText("Synthetic publication already running")
-        ).toBeVisible()
+        await waitFor(() =>
+            expect(
+                within(document.body).getByText("Synthetic publication already running")
+            ).toBeVisible()
+        )
         expect(graphql.calls.map(({name}) => name)).toEqual(["PublishResultsWebsite"])
-        await expect(await within(document.body).findByText("FAILED")).toBeVisible()
+        await waitFor(() => expect(within(document.body).getByText("FAILED")).toBeVisible())
         await waitFor(() => expect(within(document.body).queryByRole("dialog")).toBeNull())
     },
 }
@@ -287,9 +289,11 @@ export const RevokePublishedVersion: Story = {
         await userEvent.click(
             row.getByRole("button", {name: i18n.t("tally.resultsPublication.revoke")})
         )
-        await expect(
-            await within(document.body).findByText(i18n.t("tally.resultsPublication.revoked"))
-        ).toBeVisible()
+        await waitFor(() =>
+            expect(
+                within(document.body).getByText(i18n.t("tally.resultsPublication.revoked"))
+            ).toBeVisible()
+        )
         expect(graphql.calls.map(({name, variables}) => ({name, variables}))).toEqual([
             {
                 name: "RevokeResultsPublication",

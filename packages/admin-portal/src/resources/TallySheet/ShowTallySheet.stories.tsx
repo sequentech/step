@@ -174,7 +174,9 @@ export const SaveAStoredVersion: Story = {
     play: async ({canvasElement}) => {
         const canvas = await loaded(canvasElement)
         await userEvent.click(canvas.getByRole("button", {name: "Submit tally sheet"}))
-        await expect(await within(document.body).findByText("Tally Sheet saved")).toBeVisible()
+        await waitFor(() =>
+            expect(within(document.body).getByText("Tally Sheet saved")).toBeVisible()
+        )
         expect(data.writes).toEqual([
             {
                 method: "update",
@@ -190,7 +192,9 @@ export const SaveAnEnteredSheet: Story = {
     play: async ({canvasElement}) => {
         const canvas = await loaded(canvasElement)
         await userEvent.click(canvas.getByRole("button", {name: "Submit tally sheet"}))
-        await expect(await within(document.body).findByText("Tally Sheet saved")).toBeVisible()
+        await waitFor(() =>
+            expect(within(document.body).getByText("Tally Sheet saved")).toBeVisible()
+        )
         expect(data.writes).toEqual([
             {
                 method: "create",
@@ -206,9 +210,9 @@ export const SaveFailure: Story = {
     play: async ({canvasElement}) => {
         const canvas = await loaded(canvasElement)
         await userEvent.click(canvas.getByRole("button", {name: "Submit tally sheet"}))
-        await expect(
-            await within(document.body).findByText("Error saving Tally Sheet")
-        ).toBeVisible()
+        await waitFor(() =>
+            expect(within(document.body).getByText("Error saving Tally Sheet")).toBeVisible()
+        )
         expect(data.writes).toHaveLength(1)
     },
 }

@@ -208,9 +208,11 @@ export const CancelRunningTally: Story = {
         await userEvent.click(
             dialog.getByRole("button", {name: i18n.t("tally.common.dialog.okCancel")})
         )
-        await expect(
-            await within(document.body).findByText(i18n.t("tally.cancelTallyCeremonySuccess"))
-        ).toBeVisible()
+        await waitFor(() =>
+            expect(
+                within(document.body).getByText(i18n.t("tally.cancelTallyCeremonySuccess"))
+            ).toBeVisible()
+        )
         expect(graphql.calls.find(({name}) => name === "UpdateTallyCeremony")?.variables).toEqual({
             election_event_id: EVENT_ID,
             tally_session_id: STORY_IDS.tallySession,
@@ -227,9 +229,11 @@ export const RecountCompletedTally: Story = {
         await userEvent.click(
             dialog.getByRole("button", {name: i18n.t("tally.recountTallyCeremonyOk")})
         )
-        await expect(
-            await within(document.body).findByText(i18n.t("tally.recountTallyCeremonySuccess"))
-        ).toBeVisible()
+        await waitFor(() =>
+            expect(
+                within(document.body).getByText(i18n.t("tally.recountTallyCeremonySuccess"))
+            ).toBeVisible()
+        )
         expect(graphql.calls.find(({name}) => name === "RecountTallySession")?.variables).toEqual({
             election_event_id: EVENT_ID,
             tally_session_id: STORY_IDS.tallySession,

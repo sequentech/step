@@ -232,9 +232,11 @@ export const ResolveTieAndApply: Story = {
         await expect(await canvas.findByText("Pending calculation")).toBeVisible()
         await expect(canvas.getByRole("combobox")).toBeDisabled()
         await userEvent.click(applyButton(canvasElement))
-        await expect(
-            await within(document.body).findByText("Resolutions submitted. Tally is resuming...")
-        ).toBeVisible()
+        await waitFor(() =>
+            expect(
+                within(document.body).getByText("Resolutions submitted. Tally is resuming...")
+            ).toBeVisible()
+        )
         expect(graphql.calls).toEqual([
             {
                 name: "SubmitTallyResolution",
@@ -299,11 +301,11 @@ export const SubmitFailure: Story = {
         const canvas = within(canvasElement)
         await decidePendingTie(canvasElement)
         await userEvent.click(applyButton(canvasElement))
-        await expect(
-            await within(document.body).findByText(
-                "Failed to submit resolutions. Please try again."
-            )
-        ).toBeVisible()
+        await waitFor(() =>
+            expect(
+                within(document.body).getByText("Failed to submit resolutions. Please try again.")
+            ).toBeVisible()
+        )
         expect(args.onResolutionSubmitted).not.toHaveBeenCalled()
         // The decision is kept so it can be applied again.
         await expect(canvas.getByText("Pending calculation")).toBeVisible()
