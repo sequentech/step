@@ -151,7 +151,7 @@ export const OnlyElectionsWithBallotStylesAreOffered: Story = {
 }
 
 export const CallSession: Story = {
-    parameters: {widgets: ["ConfigForm", "EmulatorInterface", "PromptLine"]},
+    parameters: {widgets: ["ConfigForm"]},
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
         await startCall(canvasElement)
@@ -188,7 +188,7 @@ export const CallSession: Story = {
 }
 
 export const TimeoutRepeatsThePrompt: Story = {
-    parameters: {widgets: ["EmulatorInterface", "PromptLine"]},
+    parameters: {widgets: []},
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
         await startCall(canvasElement)
@@ -204,7 +204,7 @@ export const TimeoutRepeatsThePrompt: Story = {
 }
 
 export const EndSessionReturnsToTheForm: Story = {
-    parameters: {widgets: ["ConfigForm", "EmulatorInterface"]},
+    parameters: {widgets: ["ConfigForm"]},
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
         await startCall(canvasElement)
@@ -219,7 +219,7 @@ export const EndSessionReturnsToTheForm: Story = {
 
 export const CallFailure: Story = {
     args: {failure: "Synthetic emulator crash"},
-    parameters: {widgets: ["EmulatorInterface"]},
+    parameters: {widgets: []},
     play: async ({canvasElement}) => {
         await startCall(canvasElement)
         await expect(
