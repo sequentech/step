@@ -83,10 +83,12 @@ export const CreateFailure: Story = {
     args: {failure: true},
     play: async ({canvasElement, args}) => {
         await createByElection(canvasElement)
-        // The drawer closes on failure too, without telling the user.
-        await waitFor(() => expect(args.close).toHaveBeenCalledOnce())
+        const message = await within(document.body).findByText("Synthetic election type failure")
+        await waitFor(() => expect(message).toBeVisible())
         expect(data.writes.map(({method}) => method)).toEqual(["create"])
-        expect(within(document.body).queryByText("Synthetic election type failure")).toBeNull()
+        // The drawer stays open with what was typed.
+        expect(args.close).not.toHaveBeenCalled()
+        expect(within(canvasElement).getByRole("textbox", {name: "Name"})).toHaveValue("By-election")
     },
 }
 

@@ -94,10 +94,12 @@ export const SaveFailure: Story = {
     args: {failure: true},
     play: async ({canvasElement, args}) => {
         await replaceTheKey(canvasElement)
-        // The drawer closes without telling the user the key was not saved.
-        await waitFor(() => expect(args.close).toHaveBeenCalledOnce())
+        const message = await within(document.body).findByText("Synthetic trustee failure")
+        await waitFor(() => expect(message).toBeVisible())
         expect(data.writes.map(({method}) => method)).toEqual(["update"])
-        expect(within(document.body).queryByText("Synthetic trustee failure")).toBeNull()
+        // The drawer stays open with the new key.
+        expect(args.close).not.toHaveBeenCalled()
+        await expect(await keyInput(canvasElement)).toHaveValue("bmV3IGtleQ")
     },
 }
 
