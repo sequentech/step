@@ -132,6 +132,49 @@ Implementation references:
 - [Vite performance guidance](https://vite.dev/guide/performance)
 - [Devcontainer prebuilds](https://containers.dev/guide/prebuild)
 
+## Decisions and measurements
+
+Measured on one aarch64 host (16 cores, 62 GiB) while other work ran, so each row
+records its sample count; load averages are in the raw `step-dev bench` results.
+Before = `ovcs` 679c3ea181. Cold stacks ran in fresh, task-owned Docker daemons.
+
+| Loop | Before | After |
+| --- | --- | --- |
+| Full stack from zero to ready | 1532 s (n=1) | 1481 s (n=1) |
+| Full stack, warm restart | 59 s median, 48–67 (n=10) | — |
+| UI-only devcontainer from zero | — (full stack only) | 420 s median, 320–623 (n=3) |
+| UI + Keycloak from zero | — | 670 s (n=1) |
+| Devcontainer recreate (rebuild, mode switch) | whole Nix store downloaded again | 32 s median with the shared store volume (n=10); 365 s with an empty one (n=2) |
+| Shared UI component edit → visible in a portal | 16–20 s median per portal via `build:ui-essentials` (n=10 each) | 1.8–3.6 s for voting, verifier and results, 12 s for admin including react-admin reload (n=5); 0.48 s with Fast Refresh when the module exports only components |
+| Shared UI edit → visible in Storybook | 1.3 s (n=10) | 0.16 s in place (n=10, workbench story) |
+| sequent-core edit → WASM rebuilt | 75 s for an unchanged tree: full script, reinstall, restart (n=10) | 0.15 s no-op (n=10); 6.3 s build and 15 s until the new ballot ID shows after rerunning the voting flow (n=10) |
+| Keycloak template, message or CSS edit → visible | 191 s image rebuild and recreate (n=3) | 0.12–0.19 s live mount (n=10 each); 27 s for a provider jar (n=3) |
+
+Decisions so far:
+
+- **Shared UI source in development** (adopted): exact-match aliases to `src`, a
+  resolver plugin that keeps one copy of React and the context libraries, React
+  Refresh, `eval-cheap-module-source-map` (webpack rebuild 389 ms against 689 ms,
+  n=10). Production output is byte-identical except admin's embedded environment.
+- **Devcontainer modes** (adopted): four configurations from one manifest,
+  per-checkout Compose projects and prefixed names outside a folder named `step`, the
+  checkout's parent mounted at its host path so worktrees resolve, and shared cache
+  volumes (Nix store per devcontainer image tag, `~/.cache`, `~/.cargo`).
+- **Incremental WASM** (adopted): content-addressed builds published by one atomic
+  rename, fingerprinted sources, an incremental development profile (cargo 15 s →
+  5 s on a leaf edit, +0.4% wasm size); the committed package was stale and is now
+  regenerated reproducibly with a freshness check in CI.
+- **Keycloak** (adopted: live theme folders; rejected: Keycloakify). The pilot
+  passed a real password + email OTP login with the existing authenticator (8/8) and
+  its pages were lighter with no axe violations, but its real-Keycloak loop took
+  8.4 s (n=10), realm localization overrides and per-event login policies did not
+  reach the pages, the OTP courier enum was lost and dotted template ids needed
+  workarounds; porting would cover 29 templates, 251 message keys in up to eight
+  locales and a Node build stage.
+- **Workbench** (adopted): shared scenarios and snapshots in `ui-test-kit`, one
+  preview provider for Storybook and the workbench, production routes and loaders,
+  typed policy overrides and the real sequent-core pipeline.
+
 ## Continuing this work
 
 Another machine or agent resumes from the tracking issue, this record and the pushed
