@@ -34,15 +34,16 @@ scripts/dev/step-dev mode stop
 
 They work inside the devcontainer and on the host. `up` starts the mode's
 services, waits for their health checks and probes, starts the mode's default
-dev servers (`--servers none`, or a comma-separated list) and prints the URLs. A
-server already listening on its port is reused rather than started again; the
-ones `step-dev` starts log to `.cache/dev-mode/`. `switch` first stops the
-services and `step-dev` servers the target mode does not use; `stop` stops all
-of them except the devcontainer. Nothing removes containers, volumes or caches,
-and `up` reuses existing containers as they are: rebuild the devcontainer to
-apply Compose changes. `up`, `switch` and the devcontainer's initialize command
-fail before touching a container when another Compose project publishes a port
-or holds a container name the mode needs.
+dev servers (`--servers none`, or a comma-separated list) and prints the URLs.
+Dev servers need `yarn --cwd packages install --frozen-lockfile` first. A server
+already listening on its port is reused rather than started again; the ones
+`step-dev` starts log to `.cache/dev-mode/`. `switch` first stops the services
+and `step-dev` servers the target mode does not use; `stop` stops all of them
+except the devcontainer. Nothing removes containers, volumes or caches, and `up`
+reuses existing containers as they are: rebuild the devcontainer to apply
+Compose changes. `up`, `switch` and the devcontainer's initialize command fail
+before touching a container when another Compose project publishes a port or
+holds a container name the mode needs.
 
 Reopening the folder with another configuration attaches to the running
 devcontainer without starting that mode's services: run `step-dev mode switch`,
@@ -66,11 +67,13 @@ worktree or a recreated container does not download them again:
 | `step-devcontainer-cache` | `~/.cache` | Yarn, Nix fetcher and Playwright caches | never stale: entries are versioned |
 | `step-devcontainer-cargo` | `~/.cargo` | Cargo registry and git checkouts | never stale: entries are versioned |
 
-`docker compose down --volumes` leaves them alone. To reset one, stop the
-devcontainers using it (`docker ps --filter volume=<name>`) and
-`docker volume rm <name>`; the next start recreates it. Garbage-collecting the
-Nix store only keeps what the checkouts visible in that container use, so run
-`nix-collect-garbage` while no other devcontainer builds.
+`docker compose down --volumes` leaves them alone. To reset one, remove the
+containers that mount it, `docker ps --all --filter volume=<name>` (the Rust
+services and Hasura share the devcontainer's mounts), then
+`docker volume rm <name>`; the next start recreates them. Every devcontainer
+runs its own Nix daemon on the shared store. A garbage collection sees only the
+roots and builds of its own container, so run `nix-collect-garbage` while no
+other devcontainer is up; `.devcontainer/scripts/free-space.sh` skips it then.
 
 ## Shared UI hot reload
 
