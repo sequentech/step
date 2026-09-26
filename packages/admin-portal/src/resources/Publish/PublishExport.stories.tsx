@@ -154,11 +154,16 @@ export const ExportFailure: Story = {
     play: async ({canvasElement}) => {
         const dialog = await exportPublication(canvasElement)
         await expect(await within(document.body).findByText("FAILED")).toBeVisible()
-        // The dialog stays open with its confirmation spent; only cancelling closes it.
-        await expect(within(dialog).getByRole("button", {name: "Export"})).toBeDisabled()
-        await userEvent.click(within(dialog).getByRole("button", {name: "Cancel"}))
+        // The dialog closes, so the export can be tried again.
         await waitFor(() => expect(dialog).not.toBeInTheDocument())
-        expect(graphql.calls.map(({name}) => name)).toEqual(["ExportBallotPublication"])
+        const retry = await exportPublication(canvasElement)
+        await waitFor(() =>
+            expect(graphql.calls.map(({name}) => name)).toEqual([
+                "ExportBallotPublication",
+                "ExportBallotPublication",
+            ])
+        )
+        await waitFor(() => expect(retry).not.toBeInTheDocument())
         expect(downloads).toEqual([])
     },
 }
