@@ -4,10 +4,11 @@
 import React from "react"
 import type {StoryObj} from "@storybook/react-vite"
 import {expect, userEvent, waitFor, within} from "storybook/test"
-import {ResourceContextProvider, ShowBase} from "react-admin"
+import {RecordContextProvider, ResourceContextProvider, ShowBase} from "react-admin"
 import {
     EElectionEventLockedDown,
     EVoterCertificatePolicy,
+    i18n,
     initCore,
     type IElectionEventPresentation,
 } from "@sequentech/ui-core"
@@ -24,6 +25,11 @@ interface Scenario {
     lockedDown: boolean
     /** Whether the event has no record yet. */
     loading: boolean
+    /**
+     * Whether the tabs get the event from a record context instead of the
+     * route's query, so its edit forms find no cached record.
+     */
+    uncached?: boolean
 }
 
 let graphql: ReturnType<typeof graphqlBoundary>
@@ -44,7 +50,7 @@ const tabsEvent = (lockedDown: boolean) => {
     })
 }
 
-function Fixture() {
+function Fixture({uncached}: Pick<Scenario, "uncached">) {
     const {permissions, tenant} = useStoryGlobals()
     return (
         <AdminStoryProvider
@@ -55,9 +61,15 @@ function Fixture() {
         >
             {/* As in the event's route, whose cached record the tabs' edit forms reuse. */}
             <ResourceContextProvider value="sequent_backend_election_event">
-                <ShowBase>
-                    <ElectionEventTabs />
-                </ShowBase>
+                {uncached ? (
+                    <RecordContextProvider value={tabsEvent(false)}>
+                        <ElectionEventTabs />
+                    </RecordContextProvider>
+                ) : (
+                    <ShowBase>
+                        <ElectionEventTabs />
+                    </ShowBase>
+                )}
             </ResourceContextProvider>
         </AdminStoryProvider>
     )
@@ -79,13 +91,15 @@ const meta = {
     },
     beforeEach: async ({args}) => {
         data = recordsOrPending(
-            args.loading ? {} : {sequent_backend_election_event: [tabsEvent(args.lockedDown)]}
+            args.loading || args.uncached
+                ? {}
+                : {sequent_backend_election_event: [tabsEvent(args.lockedDown)]}
         )
         graphql = graphqlBoundary(answerOrPending(), {schema: true})
         // The dashboard builds the voting portal addresses with sequent-core.
         await Promise.all([graphql.ready, initCore()])
     },
-    render: (_args, {globals}) => <Fixture key={JSON.stringify(globals)} />,
+    render: (args, {globals}) => <Fixture key={JSON.stringify(globals)} uncached={args.uncached} />,
 } satisfies WidgetMeta<Scenario>
 export default meta
 type Story = StoryObj<Scenario>
@@ -250,6 +264,18 @@ export const TallySheetImportLink: Story = {
 export const Data: Story = {
     parameters: {widgets: ["DataTab"]},
     play: tabPlay("Data", {reads: ["getList sequent_backend_election"]}),
+}
+
+export const DataWhileTheEventLoads: Story = {
+    args: {uncached: true},
+    parameters: {widgets: ["DataTab"]},
+    play: async ({canvasElement}) => {
+        await openTab(canvasElement, "Data")
+        await expect(
+            await within(canvasElement).findByRole("progressbar", {name: i18n.t("loading")})
+        ).toBeVisible()
+        expect(readsOf(data)).toContain("getOne sequent_backend_election_event")
+    },
 }
 
 export const Ivr: Story = {
