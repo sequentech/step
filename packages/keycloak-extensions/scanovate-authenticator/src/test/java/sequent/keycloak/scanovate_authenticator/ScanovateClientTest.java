@@ -145,6 +145,9 @@ class ScanovateClientTest {
     assertEquals(
         "https://kc/realms/r/login-actions/authenticate?session_code=a&execution=b",
         body.get("redirect_url").asText());
+    assertEquals(
+        "https://kc/realms/r/login-actions/authenticate?session_code=a&execution=b",
+        body.get("desktop_redirect_url").asText());
     assertEquals("Spain", body.at("/params/country").asText());
     assertEquals("do_not_save", body.get("save_option").asText());
     assertFalse(body.has("id_number"));

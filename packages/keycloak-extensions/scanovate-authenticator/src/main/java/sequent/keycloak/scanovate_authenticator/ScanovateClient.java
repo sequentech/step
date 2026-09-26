@@ -81,6 +81,9 @@ public class ScanovateClient {
       body.put("id_number", request.idNumber());
     }
     body.put("redirect_url", request.redirectUrl());
+    // Where the desktop browser, which holds the Keycloak session, returns when the voter
+    // continues the flow on a phone
+    body.put("desktop_redirect_url", request.redirectUrl());
     ObjectNode params = body.putObject("params");
     request.params().forEach(params::put);
     if (request.saveOption() != SaveOption.DEFAULT) {
