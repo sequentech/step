@@ -49,6 +49,10 @@ jobs:
             exit 1
           fi
 
+      - name: Check that the committed package was built from the current sources
+        working-directory: packages/sequent-core
+        run: nix develop --command bash -c 'cd ../.. && python3 -m scripts.dev.wasm --check-package'
+
       - name: Print tool versions
         working-directory: packages/sequent-core
         run: |
