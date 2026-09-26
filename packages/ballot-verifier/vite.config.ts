@@ -3,7 +3,7 @@
 
 import {readFile} from "node:fs/promises"
 import {fileURLToPath} from "node:url"
-import {resolve} from "node:path"
+import {extname, resolve} from "node:path"
 import react from "@vitejs/plugin-react"
 import {defineConfig, normalizePath, type Plugin} from "vite"
 import {sequentCoreViteAlias} from "../ui-core/sequent-core-dev.cjs"
@@ -51,11 +51,12 @@ function portalHtml(): Plugin {
         configureServer(server) {
             // Reuse the webpack template for every SPA navigation, including deep links.
             server.middlewares.use(async (request, response, next) => {
+                if (request.method !== "GET" && request.method !== "HEAD") return next()
                 const pathname = new URL(request.url ?? "/", "http://localhost").pathname
                 if (
-                    !request.headers.accept?.includes("text/html") &&
                     pathname !== "/" &&
-                    pathname !== "/index.html"
+                    pathname !== "/index.html" &&
+                    (!request.headers.accept?.includes("text/html") || extname(pathname))
                 )
                     return next()
                 try {
@@ -85,8 +86,8 @@ function portalHtml(): Plugin {
     }
 }
 
-export default defineConfig(({command}) => {
-    const development = command === "serve"
+export default defineConfig(({command, isPreview}) => {
+    const development = command === "serve" && !isPreview
     const port = Number(process.env.PORT ?? 3001)
     return {
         plugins: [
