@@ -18,7 +18,7 @@ import KcPage from "./KcPage"
 // Synthetic values only: no real addresses, codes or credentials.
 const kcContextExtension: KcContextExtension = {
     themeName: themeNames[0],
-    properties: {...kcEnvDefaults},
+    properties: {...kcEnvDefaults, systemVersion: "0.0.0-preview", systemHash: "synthetic"},
     sequent: {
         loginValidationPolicy: LoginValidationPolicy.Browser,
         loginHintUsernamePolicy: LoginHintUsernamePolicy.Editable,

@@ -37,7 +37,7 @@ export default function Template(props: TemplateProps<KcContext, I18n>) {
         children,
     } = props
     const {msgStr, currentLanguage, enabledLanguages} = i18n
-    const {realm, message, isAppInitiatedAction} = kcContext
+    const {realm, message, isAppInitiatedAction, properties} = kcContext
     const voting = kcContext.themeName === "sequent-ui-voting"
     // Keycloakify derives direction from the language when older contexts do
     // not include locale.rtl; preserve that resolved value.
@@ -70,11 +70,54 @@ export default function Template(props: TemplateProps<KcContext, I18n>) {
             <CssBaseline />
             <Box className="sequent-auth" lang={currentLanguage.languageTag} dir={direction}>
                 <Box className="auth-layout">
-                    <Box component="header" className="auth-brand">
-                        <img src={logo} alt="Sequent" width={170} height={32} />
-                        <span className="auth-brand-context" lang={copy.languageTag}>
-                            {voting ? copy.votingPortal : copy.adminPortal}
-                        </span>
+                    <Box component="header" className="auth-header">
+                        <Box className="auth-brand">
+                            <img src={logo} alt="Sequent" width={170} height={32} />
+                            <span className="auth-brand-context" lang={copy.languageTag}>
+                                {voting ? copy.votingPortal : copy.adminPortal}
+                            </span>
+                        </Box>
+                        <Box className="auth-header-tools">
+                            {(properties.systemVersion || properties.systemHash) && (
+                                <dl className="auth-build">
+                                    {properties.systemVersion && (
+                                        <div>
+                                            <dt
+                                                lang={messageLanguage(
+                                                    kcContext,
+                                                    i18n,
+                                                    "system.version"
+                                                )}
+                                            >
+                                                {msgStr("system.version")}
+                                            </dt>
+                                            <dd dir="ltr">{properties.systemVersion}</dd>
+                                        </div>
+                                    )}
+                                    {properties.systemHash && (
+                                        <div>
+                                            <dt
+                                                lang={messageLanguage(
+                                                    kcContext,
+                                                    i18n,
+                                                    "system.hash"
+                                                )}
+                                            >
+                                                {msgStr("system.hash")}
+                                            </dt>
+                                            <dd dir="ltr">{properties.systemHash}</dd>
+                                        </div>
+                                    )}
+                                </dl>
+                            )}
+                            {enabledLanguages.length > 1 && (
+                                <LanguageSelect
+                                    label={msgStr("languages")}
+                                    current={currentLanguage.languageTag}
+                                    languages={enabledLanguages}
+                                />
+                            )}
+                        </Box>
                     </Box>
                     <Box component="main" aria-labelledby="kc-page-title">
                         <Paper className="auth-card" elevation={0}>
@@ -122,13 +165,6 @@ export default function Template(props: TemplateProps<KcContext, I18n>) {
                     </Box>
                     <Box component="footer" className="auth-footer">
                         <span lang={copy.languageTag}>{copy.poweredBy}</span>
-                        {enabledLanguages.length > 1 && (
-                            <LanguageSelect
-                                label={msgStr("languages")}
-                                current={currentLanguage.languageTag}
-                                languages={enabledLanguages}
-                            />
-                        )}
                     </Box>
                 </Box>
             </Box>

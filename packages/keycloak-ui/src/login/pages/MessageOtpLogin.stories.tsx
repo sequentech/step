@@ -21,8 +21,16 @@ export const Email: Story = {
     play: async ({canvasElement}) => {
         await within(canvasElement).findByRole("heading", {level: 1})
         const canvas = within(canvasElement)
+        const header = within(canvas.getByRole("banner"))
+        await expect(header.getByText("0.0.0-preview")).toBeVisible()
+        await expect(header.getByText("synthetic")).toBeVisible()
         await expect(canvas.getByText("Enter the code we sent to your email.")).toBeVisible()
         await expect(canvas.getByRole("group", {name: "Verification code"})).toBeVisible()
+        await userEvent.click(canvas.getByLabelText("Digit 1 of 6"))
+        await userEvent.tab({shift: true})
+        await expect(header.getByRole("combobox", {name: "Languages"})).toHaveFocus()
+        await userEvent.tab()
+        await expect(canvas.getByLabelText("Digit 1 of 6")).toHaveFocus()
         await userEvent.type(canvas.getByLabelText("Digit 1 of 6"), "123456")
         await expect(canvas.getByRole("button", {name: "Submit"})).toHaveFocus()
         const form = canvas.getByLabelText("Digit 1 of 6").closest("form")!
