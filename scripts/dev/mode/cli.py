@@ -177,7 +177,9 @@ def _wait_services(
             waiting = ", ".join(
                 f"{service} ({details[service]})" for service in pending
             )
-            raise ModeError(f"not ready after {timeout:.0f}s: {waiting}")
+            logs = " ".join(states[s].name for s in pending if s in states)
+            hint = f"; see docker logs {logs}" if logs else ""
+            raise ModeError(f"not ready after {timeout:.0f}s: {waiting}{hint}")
         if now >= next_progress:
             waiting = ", ".join(
                 f"{service} ({details[service]})" for service in pending
