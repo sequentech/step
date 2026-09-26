@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import {test, expect, TENANT_ID} from "./fixtures"
 import type {AdminPortal} from "./fixtures"
+import type {Page} from "@playwright/test"
 import {createRequire} from "node:module"
 import initSqlJs from "sql.js"
 
@@ -188,6 +189,17 @@ test("a closed published election advances from automatic tally to results publi
     page,
     portal,
 }) => {
+    await completedTally(page, portal)
+})
+
+test("a completed tally with a non-string election ID never loads the results database", async ({
+    page,
+    portal,
+}) => {
+    await completedTally(page, portal, [ELECTION_ID, 17])
+})
+
+async function completedTally(page: Page, portal: AdminPortal, returnedElectionIds?: unknown[]) {
     const event = registerEvent(portal)
     portal.settings.QUERY_FAST_POLL_INTERVAL_MS = 100
     portal.settings.QUERY_POLL_INTERVAL_MS = 100
@@ -256,7 +268,7 @@ test("a closed published election advances from automatic tally to results publi
         tenant_id: TENANT_ID,
         election_event_id: EVENT_ID,
         keys_ceremony_id: KEYS_ID,
-        election_ids: [ELECTION_ID],
+        election_ids: returnedElectionIds ?? [ELECTION_ID],
         execution_status: "IN_PROGRESS",
         threshold: 2,
         created_at: FIXED_TIME,
@@ -403,6 +415,16 @@ test("a closed published election advances from automatic tally to results publi
     session.is_execution_completed = true
     await page.clock.runFor(101)
     await expect(page.getByText("Status: SUCCESS", {exact: true})).toBeVisible()
+    if (returnedElectionIds) {
+        const logs = page.getByRole("button", {name: "Logs", exact: true})
+        await logs.click()
+        await expect(page.getByText("No logs yet.", {exact: true})).not.toBeVisible()
+        await logs.click()
+        await expect(page.getByText("No logs yet.", {exact: true})).toBeVisible()
+        expect(portal.graphql.callsTo("FetchDocument")).toEqual([])
+        expect(portal.s3.requestsFor(objectKey)).toEqual([])
+        return
+    }
     await expect(
         page
             .getByRole("row", {name: /Alice Example/})
@@ -455,7 +477,7 @@ test("a closed published election advances from automatic tally to results publi
     expect(publishCalls[0].headers["x-hasura-role"]).toBe("publish-results-write")
     await expect.poll(() => portal.graphql.callsTo("GetTaskById").length).toBeGreaterThan(0)
     expect(portal.graphql.callsTo("GetTaskById")[0].variables).toEqual({task_id: taskId})
-})
+}
 
 /** Real SQLite bytes, loaded by the production portal's own SQL.js/WASM path. */
 async function resultsDatabase(
