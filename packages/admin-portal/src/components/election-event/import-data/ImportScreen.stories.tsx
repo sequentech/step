@@ -19,7 +19,7 @@ type Props = React.ComponentProps<typeof ImportScreen> & {
 }
 
 const meta = {
-    title: "Admin/Election event/ImportScreen",
+    title: "Admin/Election event/Import data/ImportScreen",
     component: ImportScreen,
     args: {
         doImport: fn(async () => {}),

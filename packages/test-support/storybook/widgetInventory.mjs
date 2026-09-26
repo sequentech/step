@@ -254,9 +254,11 @@ export function scanComponents(packageDir, sources) {
         const target = (name) => {
             const seen = new Set()
             let current = name
-            while (!bindings.has(current) && aliases.has(current) && !seen.has(current)) {
+            let next = aliases.get(current)
+            while (!bindings.has(current) && next !== undefined && !seen.has(current)) {
                 seen.add(current)
-                current = /** @type {string} */ aliases.get(current)
+                current = next
+                next = aliases.get(current)
             }
             return bindings.has(current) ? current : undefined
         }
@@ -314,22 +316,25 @@ function resolveImport(packageDir, storyFile, specifier, sources) {
 }
 
 /**
- * Reads a string array from a story's `parameters.widgets` Babel AST node.
- * @param {any} annotations
+ * Reads the string literals of a story's `parameters.widgets`.
+ * @param {Record<string, import("@babel/types").Node> | undefined} annotations
  * @returns {string[]}
  */
 function widgetParameter(annotations) {
     const parameters = annotations?.parameters
-    if (!parameters || parameters.type !== "ObjectExpression") return []
-    const property = parameters.properties.find(
-        (/** @type {any} */ entry) =>
-            entry.type === "ObjectProperty" &&
-            (entry.key.name === "widgets" || entry.key.value === "widgets")
-    )
-    if (!property || property.value.type !== "ArrayExpression") return []
-    return property.value.elements
-        .filter((/** @type {any} */ element) => element?.type === "StringLiteral")
-        .map((/** @type {any} */ element) => element.value)
+    if (parameters?.type !== "ObjectExpression") return []
+    for (const property of parameters.properties) {
+        if (property.type !== "ObjectProperty") continue
+        const {key, value} = property
+        const named =
+            (key.type === "Identifier" && key.name === "widgets") ||
+            (key.type === "StringLiteral" && key.value === "widgets")
+        if (!named || value.type !== "ArrayExpression") continue
+        return value.elements.flatMap((element) =>
+            element?.type === "StringLiteral" ? [element.value] : []
+        )
+    }
+    return []
 }
 
 /**
@@ -346,16 +351,19 @@ export function scanSections(packageDir, sources) {
             makeTitle: (title) => title,
         }).parse()
         const title = csf._meta?.title ?? ""
-        const specifier = /** @type {any} */ csf._componentImportSpecifier
+        const specifier = csf._componentImportSpecifier
         const componentPath = csf._rawComponentPath
         const resolved = componentPath
             ? resolveImport(packageDir, file, componentPath, sources)
             : undefined
+        const imported = specifier?.type === "ImportSpecifier" ? specifier.imported : undefined
         const exportName =
             specifier?.type === "ImportDefaultSpecifier"
                 ? "default"
-                : (specifier?.imported?.name ?? specifier?.imported?.value)
-        const annotations = /** @type {Record<string, any>} */ csf._storyAnnotations
+                : imported?.type === "Identifier"
+                  ? imported.name
+                  : imported?.value
+        const annotations = csf._storyAnnotations
         return {
             file,
             title,
