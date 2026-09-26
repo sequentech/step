@@ -83,6 +83,16 @@ describe("resource list variables", () => {
         })
     })
 
+    it("keeps an operator filter on a whitelisted column", () => {
+        const built = list("sequent_backend_area", {
+            sort: undefined,
+            filter: {"name@_ilike": "Nor", "election_event_id": EVENT, "contests@_ilike": "Mayor"},
+        })
+        expect(built.variables.where).toEqual({
+            _and: [{name: {_ilike: "%Nor%"}}, {election_event_id: {_eq: EVENT}}],
+        })
+    })
+
     it("keeps a sort on a whitelisted column", () => {
         const built = list("sequent_backend_area", {sort: {field: "name", order: "ASC"}})
         expect(built.variables.order_by).toEqual({name: "asc"})
