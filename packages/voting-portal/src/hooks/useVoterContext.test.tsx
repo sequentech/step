@@ -6,7 +6,7 @@ import {act, renderHook, waitFor} from "@testing-library/react"
 import {ApolloClient, ApolloLink, InMemoryCache, Observable} from "@apollo/client"
 import {ApolloProvider} from "@apollo/client/react"
 import {MemoryRouter, Route, Routes, useNavigate} from "react-router-dom"
-import {buildClientSchema, validate} from "graphql"
+import {buildClientSchema, type IntrospectionQuery, validate} from "graphql"
 import schema from "../../graphql.schema.json"
 import {GET_VOTER_STATUS} from "../queries/GetVoterStatus"
 import {GET_ELECTIONS} from "../queries/GetElections"
@@ -112,7 +112,7 @@ function setup(count: number) {
 }
 
 test("the minimal status request validates against the schema", () => {
-    const extended = buildClientSchema(schema as any)
+    const extended = buildClientSchema(schema as unknown as IntrospectionQuery)
     expect(validate(extended, GET_VOTER_STATUS)).toEqual([])
 })
 
