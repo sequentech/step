@@ -42,7 +42,7 @@ const PhoneInput = ({
                     separateDialCode: true,
                     geoIpLookup: (success, failure) => {
                         const userTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
-                        let countryCode = data[userTimeZone].toString()
+                        let countryCode = data[userTimeZone]?.toString()
                         if (countryCode) {
                             return success(countryCode)
                         }

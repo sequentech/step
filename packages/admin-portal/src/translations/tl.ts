@@ -2808,6 +2808,8 @@ const tagalogTranslation: TranslationType = {
                 verified_by: "Napatunayan Noong",
             },
             approvalRequest: "Kahilingan para sa Pag-apruba",
+            taskInformation: "Impormasyon ng Gawain",
+            ok: "Sige",
             title: "Mga Botante",
             subtitle: "Maghanap ng mga tumutugmang botante",
             approve: {

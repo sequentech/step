@@ -2817,6 +2817,8 @@ const frenchTranslation: TranslationType = {
                 verified_by: "Vérifié Par",
             },
             approvalRequest: "Informations d'approbation",
+            taskInformation: "Informations sur la tâche",
+            ok: "D'accord",
             title: "Électeurs",
             subtitle: "Rechercher des électeurs correspondants",
             approve: {

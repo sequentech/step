@@ -14,8 +14,11 @@ bots, dependency audit, static-analysis upload, documentation preview):
                      included
   first_actionable   the earliest such job that builds or tests product code,
                      i.e. one whose workflow and name do not mark it as a lint,
-                     format or CI-tooling self-check
+                     format, selection, result summary or CI-tooling self-check
   all_done           the last job of the push, once every run has completed
+
+Queue and execution timings require an assigned runner. Queued/skipped API
+placeholders and negative timestamp differences do not represent elapsed work.
 """
 
 from __future__ import annotations
@@ -37,7 +40,12 @@ from .results import CacheState, SampleRole
 SCENARIO = "ci"
 PUSH_EVENTS = frozenset({"pull_request", "pull_request_target", "push", "merge_group"})
 RESULT_CONCLUSIONS = frozenset({"success", "failure"})
-STATIC_CHECK = re.compile(r"lint|prettif|format|\bfmt\b|clippy|tooling", re.I)
+STATIC_CHECK = re.compile(
+    r"lint|prettif|format|\bfmt\b|clippy|tooling|\bPrebuild development tools\b|"
+    r"(?:Required feedback|Selected frontend) checks\b|"
+    r"Select affected feedback checks\b|\bdocs-(?:build|graphql)\b",
+    re.I,
+)
 DEFAULT_EXCLUDED_WORKFLOWS = (
     r"reuse",
     r"\bcla\b",
@@ -100,7 +108,8 @@ def parse_time(value: str | None) -> datetime | None:
 def seconds_between(start: datetime | None, end: datetime | None) -> float | None:
     if start is None or end is None:
         return None
-    return (end - start).total_seconds()
+    seconds = (end - start).total_seconds()
+    return seconds if seconds >= 0 else None
 
 
 def completion(job: Job) -> datetime:
@@ -127,6 +136,18 @@ class Job:
     steps: list[dict[str, Any]]
     runner: str | None
 
+    @property
+    def execution_started(self) -> datetime | None:
+        # The API also sets started_at on queued and skipped placeholders.
+        if (
+            not self.runner
+            or self.status not in {"in_progress", "completed"}
+            or self.conclusion == "skipped"
+            or seconds_between(self.created, self.started) is None
+        ):
+            return None
+        return self.started
+
     def breakdown(self) -> dict[str, float]:
         totals = {kind.value: 0.0 for kind in StepKind}
         for step in self.steps:
@@ -144,9 +165,9 @@ class Job:
             "status": self.status,
             "conclusion": self.conclusion,
             "runner": self.runner,
-            "queued_seconds": seconds_between(self.created, self.started),
-            "duration_seconds": seconds_between(self.started, self.completed),
-            "push_to_start_seconds": seconds_between(push, self.started),
+            "queued_seconds": seconds_between(self.created, self.execution_started),
+            "duration_seconds": seconds_between(self.execution_started, self.completed),
+            "push_to_start_seconds": seconds_between(push, self.execution_started),
             "push_to_completion_seconds": seconds_between(push, self.completed),
             "steps_seconds": self.breakdown(),
         }
@@ -170,6 +191,8 @@ def push_metrics(
         if job.status == "completed"
         and job.conclusion in RESULT_CONCLUSIONS
         and job.completed is not None
+        and job.completed >= push
+        and (job.started is None or job.completed >= job.started)
         and not is_excluded(job.workflow, excluded)
     ]
     actionable = [
@@ -179,11 +202,23 @@ def push_metrics(
     ]
     first_check = min(results, key=completion) if results else None
     first = min(actionable, key=completion) if actionable else None
-    finished = [job.completed for job in jobs if job.completed is not None]
-    started = [job.started for job in jobs if job.started is not None]
+    finished = [
+        job.completed
+        for job in jobs
+        if job.completed is not None
+        and job.completed >= push
+        and (job.started is None or job.completed >= job.started)
+    ]
+    started = [
+        started
+        for job in jobs
+        if (started := job.execution_started) is not None and started >= push
+    ]
     queues = [
         value
-        for value in (seconds_between(job.created, job.started) for job in jobs)
+        for value in (
+            seconds_between(job.created, job.execution_started) for job in jobs
+        )
         if value is not None
     ]
     phases: dict[str, float] = {}
@@ -203,6 +238,7 @@ def push_metrics(
         "complete": complete,
         "first_check_job": None if first_check is None else job_name(first_check),
         "first_actionable_job": None if first is None else job_name(first),
+        "queue_sample_count": len(queues),
         "phases": phases,
         "jobs": [job.to_dict(push) for job in jobs],
     }

@@ -2,7 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useContext} from "react"
-import type {Meta, StoryObj} from "@storybook/react"
+import type {StoryObj} from "@storybook/react"
+import type {WidgetMeta} from "@/__stories__/widgetStory"
 import {expect, fn, spyOn, userEvent, waitFor, within} from "storybook/test"
 import type {RaRecord} from "react-admin"
 import {
@@ -77,8 +78,8 @@ function Fixture() {
     )
 }
 const meta = {
-    title: "Admin/Trustee key backup",
-    component: Fixture,
+    title: "Admin/Keys ceremony/TrusteeWizard",
+    component: TrusteeWizard,
     args: {download: "success", checkFailure: false},
     beforeEach: ({args}) => {
         blobs = []
@@ -135,9 +136,9 @@ const meta = {
         }
     },
     render: () => <Fixture />,
-} satisfies Meta<Scenario>
+} satisfies WidgetMeta<Scenario>
 export default meta
-type Story = StoryObj<typeof meta>
+type Story = StoryObj<Scenario>
 async function downloadStep(canvasElement: HTMLElement) {
     const canvas = within(canvasElement)
     await expect(await canvas.findByRole("heading", {name: "Trustee Key Ceremony"})).toBeVisible()

@@ -80,6 +80,7 @@ const DashboardElectionEvent: React.FC<DashboardElectionEventProps> = (props) =>
 
     const {
         loading,
+        error,
         data: dataStats,
         refetch: doRefetch,
     } = useQuery<GetElectionEventStatsQuery>(GET_ELECTION_EVENT_STATS, {
@@ -254,6 +255,7 @@ const DashboardElectionEvent: React.FC<DashboardElectionEventProps> = (props) =>
                     <Container className="dashboard-container">
                         <VotesPerDay
                             data={(dataStats?.stats?.votes_per_day as CastVotesPerDay[]) ?? null}
+                            unavailable={!!error}
                             width={cardWidth}
                             height={cardHeight}
                             selection={votesTimeSelection}

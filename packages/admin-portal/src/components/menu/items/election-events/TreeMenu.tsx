@@ -233,6 +233,9 @@ function TreeLeaves({
 
                         {treeResourceNames[0] === TREE_RESOURCE_NAMES[0] ? (
                             <MenuStyles.StyledNavLinkButton
+                                component="button"
+                                type="button"
+                                aria-haspopup="menu"
                                 className={treeResourceNames[0]}
                                 style={{
                                     textAlign: i18n.dir(i18n.language) === "rtl" ? "end" : "start",

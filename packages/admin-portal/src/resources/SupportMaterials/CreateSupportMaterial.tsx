@@ -81,8 +81,6 @@ export const CreateSupportMaterial: React.FC<CreateSupportMaterialProps> = (prop
     }
 
     const onError = async (res: any) => {
-        refresh()
-        close?.()
         notify(t("materials.createMaterialError"), {type: "error"})
     }
 

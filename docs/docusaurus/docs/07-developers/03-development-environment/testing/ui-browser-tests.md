@@ -39,10 +39,9 @@ Redux voter session before loading each fixture; see `Question/__stories__` and
 `routes/__stories__` for ballot rules, pagination, declaration and decline flows. Tests block unexpected network requests;
 only local module, image, font and WASM assets may reach the server.
 
-Admin stories cover event uploads, keys ceremony thresholds and publication controls.
-Their provider supplies the production admin theme, tenant and recorded Apollo responses;
-assert mutation variables, permission headers, callbacks and visible errors. Run
-`yarn --cwd packages/admin-portal typecheck:stories` to check these fixtures and stories.
+Every admin widget has its own section; see [Admin widget catalog](#admin-widget-catalog).
+Assert mutation variables, permission headers, callbacks and visible errors. Run
+`yarn --cwd packages/admin-portal typecheck:stories` to check admin fixtures and stories.
 
 Stories are excluded from production type builds and the existing Jest coverage
 profile. Storybook coverage is reported separately from that gate. Shared test
@@ -88,7 +87,24 @@ Add journeys under `packages/voting-portal/test/journeys/`, importing its `test`
 fixture for a fresh browser context, clock and service mocks. The shared
 `packages/ui-test-kit` validates GraphQL against the portal schema, checks OIDC
 PKCE and owns ephemeral static-server ports. Register every service response;
-unexpected requests fail teardown. Audit assertions decode downloaded ballots
+unexpected requests fail teardown. With no `STEP_UI_TEST_PORT_BASE` (or a value of
+`0`), the kernel assigns each server an ephemeral port. To use an assigned range,
+set `STEP_UI_TEST_PORT_BASE` and optionally `STEP_UI_TEST_PORT_LIMIT` (inclusive;
+default `65535`). This command stays inside the assigned range:
+
+```sh
+STEP_UI_TEST_PORT_BASE=44000 STEP_UI_TEST_PORT_LIMIT=44999 yarn --cwd packages/voting-portal test:journeys
+```
+
+Playwright fixtures pass their `workerInfo` to `serveDist` as
+the third argument: parallel slot 0 uses base, base + workers, and so on; slot 1
+uses base + 1, base + 1 + workers, and so on. Retries reuse their parallel slot.
+Standalone callers and a one-worker run retain consecutive ports starting at the
+base. Exhaustion and occupied ports fail explicitly; the server never probes a
+port and rebinds it or silently leaves the selected range. Assign disjoint ranges
+to concurrent Playwright invocations.
+
+Audit assertions decode downloaded ballots
 with the vendored WASM in Node. CI uploads traces, screenshots and JUnit results
 from `test-results/`. Known accessibility failures are marked only after the
 journey and the exact known rule/target have been checked.
@@ -123,6 +139,32 @@ artifact should settle without repeating authentication; include a valid control
 and assert that a route change uses the new event's token.
 
 The ballot verifier's `test:journeys` runs against its production build and the voting portal's production build. Run `yarn build:ui-core`, `yarn build:ui-essentials`, `yarn build:ballot-verifier`, and `yarn build:voting-portal` from `packages`, then `yarn --cwd ballot-verifier test:types` and `yarn --cwd ballot-verifier test:journeys`. Its Node fixture encrypts and signs real single- and multiple-contest ballots; the cross-portal case imports the exact voting-portal audit download. Invalid inputs first pass a valid control, then change only the signature, JSON, or supplied ballot ID. Confirmation stories and the production scan require semantic candidate lists, including blank selections and grouped contest choices. Authentication-disabled journeys complete verification without private service requests.
+
+The verifier's opt-in Vite build runs the same journeys. After preparing the
+shared packages and voting portal above, use:
+
+```sh
+yarn --cwd packages/ballot-verifier build:vite
+BALLOT_VERIFIER_JOURNEY_DIST=dist-vite yarn --cwd packages/ballot-verifier test:journeys
+```
+
+To check development behavior, start `yarn --cwd packages/ballot-verifier start:vite`
+in another terminal, then run:
+
+```sh
+BALLOT_VERIFIER_JOURNEY_URL=http://127.0.0.1:3001 yarn --cwd packages/ballot-verifier test:journeys
+```
+
+This adds a regression journey that edits and restores a leaf component, shared
+Header and core translation, checking React state and the browser error ledger.
+Run it against an idle checkout so it owns those temporary edits. With the pinned
+Playwright image, pass the selected variable with Docker `-e`; development tests
+also need the server's network namespace (`--network container:<devcontainer>`,
+or `--network host` for a server on the Linux host) and a writable checkout mount.
+Production journeys remain strict; only the explicitly selected development
+origin's Vite HMR websocket is allowed. Webpack remains the default/release/CI
+path; this configuration has not been validated for other portals' assets or
+bootstrap lifecycles.
 
 Admin production journeys use `yarn --cwd packages/admin-portal test:journeys` after building the shared UI packages and admin portal. `test:types` checks their fixtures; `typecheck:stories` checks admin stories. The fixture answers the known React-admin telemetry request locally and rejects every other unexpected service request. Tally and policy stories use strict data-provider and Apollo boundaries; form submission assertions check serialized policy values.
 
@@ -182,6 +224,66 @@ It prints the selected files, story IDs and Vitest command. Coverage stays off
 unless `--coverage` is passed; other `--option=value` arguments go to Vitest. Story
 tests launch devenv's Chromium when `CHROMIUM_EXECUTABLE_PATH` is set, as in the
 devcontainer; elsewhere install Playwright's Chromium as shown above.
+
+## Admin widget catalog
+
+Each authored admin component has a Storybook section titled
+`Admin/<Feature>/<Component>`, where the feature is its directory under `src/resources`
+or `src/components` (`Components` for the shared components directly in
+`src/components`, `Screens` for `src/screens`); the complete screens above keep their
+`Screens/Admin/...` sections. A component defined inside a module without being exported
+is shown by a story of that module's exported widget, which names it in
+`parameters: {widgets: ["ExportDialog"]}`. Styled primitives, context providers and
+components that render nothing are listed, with the reason, in
+`packages/admin-portal/.storybook/widgets.mjs`.
+
+```sh
+yarn --cwd packages/admin-portal stories:inventory                      # widgets per feature and those without a story
+yarn --cwd packages/admin-portal stories:inventory src/resources/Area/ListArea.tsx
+yarn --cwd packages/admin-portal stories:inventory --markdown           # source-to-story table
+yarn --cwd packages/admin-portal stories:inventory --check              # fails on a missing or misnamed section
+yarn --cwd packages/admin-portal test:story admin-area-listarea--delete-area-after-confirmation
+```
+
+The admin-portal stories job in CI runs `stories:inventory --check`, so a new
+widget needs its section in the same change. The inventory reads `parameters.widgets` from
+each story, not from the section's `meta`, and a story may only name components that its
+section's module defines.
+
+With a source file, component name or feature, the inventory prints each widget's
+section, story IDs, direct links and focused test command. Story IDs follow the title
+and the export name: `http://localhost:6008/?path=/story/admin-area-listarea--populated`
+opens a story and `?path=/docs/admin-area-listarea--docs` the section's documentation.
+Section files sit beside their component as `<Module>.stories.tsx`; set `component` to the
+imported production widget, never to a fixture wrapper.
+
+Stories compose the helpers in `packages/admin-portal/src/__stories__/`:
+
+- `AdminStoryProvider` renders react-admin with an empty in-memory preference store, the
+  admin theme and translations, and signs in the story's role group (`role`), an explicit
+  role list (`roles`) or other session values (`auth`). Its settings disable polling and
+  point every service at the reserved `.invalid` domain.
+- `graphqlBoundary(handlers, {schema: true})` answers Apollo operations by name and
+  executes each reply against `graphql.schema.json`, so fixtures are type checked and
+  trimmed; `await boundary.ready` in `beforeEach`. A handler that throws is a network
+  error and one returning `pending()` keeps its query loading.
+- `resourceBoundary(records, {reads})` answers react-admin reads from synthetic rows with
+  Hasura-style filters, sorting and pagination, and records writes in `writes`; `reads`
+  selects answered, loading or failing reads for all or some resources.
+- `storyFetch(routes)` answers other `fetch` requests, such as presigned uploads, and
+  records them; `openedWindows()` lists addresses passed to `window.open`.
+- `fixtures.ts` holds typed synthetic records (tenant, event, election, contest,
+  candidates, areas, trustees, keys ceremony and tally session) that follow the
+  `workflow` global.
+
+Around every story, in the Storybook UI as in the test runner, the admin preview
+refuses `fetch`, `XMLHttpRequest`, `WebSocket`, `EventSource` and beacon requests that
+leave the Storybook server unless a story answers them, fails a story whose boundaries
+saw an unexpected operation, and fails a story that never rendered its section's
+component or a widget named in `parameters.widgets`. Give each widget the states it
+supports: populated, empty, loading, failing, read-only or disabled, permission
+variants and interactions whose play function asserts both the visible result and the
+boundary call.
 
 ## Admin coverage before a refactor
 

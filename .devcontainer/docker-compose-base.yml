@@ -5,7 +5,7 @@
 services:
   devcontainer:
     profiles: ["full", "base"]
-    image: ghcr.io/cachix/devenv/devcontainer:v1.10
+    image: ${DEVCONTAINER_IMAGE:-ghcr.io/cachix/devenv/devcontainer:v1.10}
     container_name: ${DEVCONTAINER_NAME_PREFIX:-}devcontainer
     volumes:
     - type: bind
@@ -593,6 +593,9 @@ services:
       ROCKET_ADDRESS: ${ROCKET_ADDRESS}
       ROCKET_PORT: ${HARVEST_PORT}
       RUSTFLAGS: ${RUSTFLAGS}
+      # Keep linker settings compatible for units sharing packages/target.
+      # The wrapper preserves debug flags and uses cc when bundled LLD is absent.
+      CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: ${DEVCONTAINER_WORKSPACE_FOLDER:-/workspaces/step}/.devcontainer/scripts/rust-lld-cc.sh
       CARGO_TERM_COLOR: ${CARGO_TERM_COLOR}
       IMMUDB_USER: ${IMMUDB_USER}
       IMMUDB_PASSWORD: ${IMMUDB_PASSWORD}
@@ -900,6 +903,7 @@ services:
       #- postgres-keycloak
     environment:
       RUSTFLAGS: ${RUSTFLAGS}
+      CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: ${DEVCONTAINER_WORKSPACE_FOLDER:-/workspaces/step}/.devcontainer/scripts/rust-lld-cc.sh
       RUST_BACKTRACE: ${RUST_BACKTRACE}
       LOG_LEVEL: ${LOG_LEVEL}
       CARGO_TERM_COLOR: ${CARGO_TERM_COLOR}
@@ -1016,6 +1020,7 @@ services:
     ]
     environment:
       RUSTFLAGS: ${RUSTFLAGS}
+      CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: ${DEVCONTAINER_WORKSPACE_FOLDER:-/workspaces/step}/.devcontainer/scripts/rust-lld-cc.sh
       LOG_LEVEL: ${LOG_LEVEL}
       CARGO_TERM_COLOR: ${CARGO_TERM_COLOR}
       HASURA_ENDPOINT: ${HASURA_ENDPOINT}

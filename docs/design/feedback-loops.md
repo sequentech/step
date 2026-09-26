@@ -134,21 +134,143 @@ Implementation references:
 
 ## Decisions and measurements
 
-Measured on one aarch64 host (16 cores, 62 GiB) while other work ran, so each row
-records its sample count; load averages are in the raw `step-dev bench` results.
-Before = `ovcs` 679c3ea181. Cold stacks ran in fresh, task-owned Docker daemons.
+Measured on one aarch64 host (16 cores, 62 GiB). Final UI, WASM,
+focused-test and backend/UI-only warm series ran sequentially at `d5ec0a32bf`
+(UI focused uses the identical tree at `990549ab821`). Earlier concurrent
+runs retain their qualifications below. Every result records sample counts
+and host load. Unless specified, before = `ovcs` 679c3ea181. Historical cold
+stacks used fresh task-owned Docker daemons and fresh Nix/application stores;
+the full and UI+Keycloak attempts explicitly seeded two MinIO images after
+an initial registry failure. Different service sets, readiness conditions
+and cache states preclude a general startup-speedup comparison.
 
 | Loop | Before | After |
 | --- | --- | --- |
-| Full stack from zero to ready | 1532 s (n=1) | 1481 s (n=1) |
-| Full stack, warm restart | 59 s median, 48–67 (n=10) | — |
-| UI-only devcontainer from zero | — (full stack only) | 420 s median, 320–623 (n=3) |
-| UI + Keycloak from zero | — | 670 s (n=1) |
-| Devcontainer recreate (rebuild, mode switch) | whole Nix store downloaded again | 32 s median with the shared store volume (n=10); 365 s with an empty one (n=2) |
-| Shared UI component edit → visible in a portal | 16–20 s median per portal via `build:ui-essentials` (n=10 each) | 1.8–3.6 s for voting, verifier and results, 12 s for admin including react-admin reload (n=5); 0.48 s with Fast Refresh when the module exports only components |
-| Shared UI edit → visible in Storybook | 1.3 s (n=10) | 0.16 s in place (n=10, workbench story) |
-| sequent-core edit → WASM rebuilt | 75 s for an unchanged tree: full script, reinstall, restart (n=10) | 0.15 s no-op (n=10); 6.3 s build and 15 s until the new ballot ID shows after rerunning the voting flow (n=10) |
+| Historical full-mode cold readiness, Beat optional | 1532.528 s (n=1) | 1480.829 s (n=1) |
+| Historical full-mode warm readiness, Windmill required | 0/10 successful; all 10 failed the Windmill exit guard | — |
+| Historical warm readiness with Windmill optional | 59.045 s median, 48.232–66.628 (n=10 under the weaker rule); Windmill ready in 5/10 and exited in 5/10 | — |
+| Historical UI-only cold devcontainer CLI completion | — | 420.362 s median, 320.039–622.610 (n=3); no UI server/browser readiness probe |
+| Historical UI+Keycloak cold CLI and tenant OIDC readiness | — | 670.247 s (n=1); no UI server started |
+| Historical UI-only devcontainer recreation, CLI completion | — | Retained Nix store: 31.725 s median, 24.591–61.303 (n=10); empty Nix store: 365.442 s, 319.147–411.737 (n=2); images warm in both |
+| Final backend warm command-to-ready, strict required probes | No matched baseline | 47.941 s median, 19.241–48.444 (n=10, zero failures; one excluded warmup) |
+| Final UI-only warm command-to-ready, CLI + Storybook HTTP | No matched baseline | 3.1885 s median, 3.132–3.248 (n=10, zero failures; one excluded warmup) |
+| Shared UI component edit → visible in a portal | Voting 15.721 s; verifier 15.519; results 14.822; admin 18.330 | Voting 2.648 s; verifier 2.448; results 1.905; admin 4.873 (n=10 per portal/version) |
+| Voting screen edit → visible | 2.4235 s, 2.324–2.468 | 0.781 s, 0.779–0.782 (n=10 each) |
+| Shared Header edit → visible in Storybook | 1.283 s, 1.281–1.286 | 1.2825 s, 1.281–1.287 (n=10 each; unchanged) |
+| sequent-core edit → visible WASM result | 80.084 s, 78.001–82.670 | 6.1155 s, 6.024–6.245 (n=10 each); no-change command 0.164 s, 0.164–0.165 (n=10) |
+| Direct test → focused selector, same selected tests | Voting 2.3175 s; WarnBox 1.316; Header story 4.246; core SQLite 4.3715 | 2.417 / 1.516 / 4.9725 / 4.596 s respectively (n=10 each; selector overhead, not speedup) |
 | Keycloak template, message or CSS edit → visible | 191 s image rebuild and recreate (n=3) | 0.12–0.19 s live mount (n=10 each); 27 s for a provider jar (n=3) |
+
+Final backend warm command-to-ready measures `devcontainer up` after the
+harness has stopped the stack. Shutdown, image preparation, initial Nix and
+CLI cache preparation, and one warmup are outside the timer. All ten measured
+starts passed at `d5ec0a32bf`; median 1-minute host load was 9.325
+(6.96–10.89). The required scope is CLI completion, every configured Docker
+healthcheck, Hasura, tenant OIDC, Harvest readiness, Windmill main-running
+and readiness, and required nonzero-exit guards. No frontend server is selected.
+Beat is observed separately: readiness passed in 10/10 starts and no nonzero
+Beat exit was observed. This is a final backend workflow result, with no
+matched baseline for a speedup claim.
+
+The four application/realm HTTP endpoints were all ready at median 19.068 s
+(16.108–20.494). In eight of ten starts, Hasura's last Docker health transition
+extended completion by 26.735–29.869 s beyond the endpoint probes; in the other
+two, CLI completion and health polling were the final gate. The required
+Docker health policy was unchanged.
+
+The initial unprepared final-backend series is retained separately: its
+warmup and all ten measured attempts failed before application readiness
+because the original Compose-created stack lacked the local devcontainer
+feature image. Excluded preparation then built the configured feature and
+UID-mapping images, applied the frozen RabbitMQ healthcheck to its retained
+container, and completed the configured devenv/onCreate/postCreate work.
+Original service images, the Nix volume and the two existing Cargo targets
+were retained. This prepared-cache success does not establish fresh-machine
+or cold-start readiness.
+
+The historical full cold rows require CLI, Docker health, Hasura, tenant OIDC,
+Harvest, Windmill and Storybook readiness; Beat was optional and never passed
+its probe. Historical UI-only cold and recreation rows stop at CLI completion.
+The earlier 59.045 s warm baseline uses a weaker condition than strict backend
+readiness and cannot serve as its before value. Its preceding strict series
+failed all ten starts. Retained logs correlate those failures and all five
+optional-rule Windmill exits with AMQP connection refusal before RabbitMQ's
+listener opened. The final configuration waits for the RabbitMQ healthcheck.
+
+The final UI-only warm series uses the same frozen source and original Nix
+volume, with competing task previews stopped. CLI completion takes 1.213 s
+median; Storybook HTTP readiness completes the command-to-ready measurement
+at 3.1885 s (3.132–3.248, n=10). The excluded warmup takes 20.9 s. Median host
+load is 7.87 (7.14–10.01). Shutdown and prior dependency preparation are outside
+the timer. This checks the devcontainer and selected Storybook endpoint; it
+does not time a browser render or compare against a matched earlier UI-only run.
+
+The final backend footprint is a snapshot after the prepared warm series;
+it includes earlier native-test and paired-build outputs. Startup memory is
+the maximum observed over ten measured starts with five-second sampling,
+which can miss brief peaks. Inner-container and whole-DinD measurements
+describe overlapping scopes and must not be added. The Nix store is included
+in daemon storage; host-bound Cargo outputs are reported separately. These
+results do not establish a footprint reduction.
+
+| Final backend resource observation | GiB |
+| --- | ---: |
+| Maximum sampled simultaneous inner-container memory | 3.092 |
+| Maximum sampled whole task-daemon memory | 12.760 |
+| Retained daemon storage, including images, cache and volumes | 38.494 |
+| Nix store, apparent bytes; included in daemon storage | 18.782 |
+| Existing `packages/target` | 56.097 |
+| Existing `packages/rust-local-target` | 35.837 |
+| New configured CLI `packages/step-cli/rust-local-target` | 3.289 |
+
+The configured postCreate `init-cli` created the additional 3.289 GiB CLI
+target during excluded preparation: `CARGO_TARGET_DIR=rust-local-target`
+is relative to the CLI working directory, and the configured devenv PATH
+expects its release binary there. This deviated from the intent to reuse
+only the two existing targets. The additional cache is retained for a working
+CLI and reported explicitly; the two original targets remain intact.
+
+In the final UI-only warm series, sampled whole-daemon peak memory is
+0.760 GiB median (0.704–0.773). Each measured start finishes before the
+five-second inner-container sampler, so its empty measurements mean unobserved,
+not zero usage. The excluded warmup samples 0.981 GiB inner and 1.803 GiB
+whole-daemon peaks. Retained UI-daemon storage is 42.172 GiB, including other
+stopped task stacks and caches; the Nix store is 18.785 GiB within that total.
+The checkout has 0.916 GiB of node_modules. This is not an isolated incremental
+UI footprint and cannot be added to the overlapping daemon/Nix figures.
+
+Historical full cold disk snapshots were 42.282 GiB before and 42.719 GiB
+after for daemon storage, with the same approximately 16.893 GiB main target,
+3.266 GiB CLI target and 0.867 GiB node_modules. Persistent volumes move
+storage out of writable containers; these results do not show lower total
+full-stack disk use. Historical UI-only cold daemon storage was 22.617 GiB,
+with no application outputs created, so its smaller footprint also reflects
+less work. These historical cold snapshots and the final accumulated warm
+backend snapshot are separate observations, not a before/after comparison.
+
+Final portal shared-update ranges, before → after in seconds (n=10 each):
+voting 15.308–15.867 → 2.512–2.877; verifier 15.376–15.808 → 2.401–2.682;
+results 14.379–14.990 → 1.861–1.995; admin 17.931–18.840 → 4.698–5.005.
+
+The final browser runs record zero page exceptions and mock violations through
+all edits and restoration, with source/package hashes unchanged afterward. Portal
+shared baselines include manual library builds; the new path does not. Storybook
+already loaded source: its previous 0.16-second result was a different workbench
+story and is not the final Header comparison. The WASM baseline wrapper keeps
+installed dependencies rather than deleting them, while retaining archive build,
+Yarn install and server restart; this is a conservative warm comparison. The
+incremental build itself completes in 3.695 s median (3.669–3.771, n=10). No-change
+measures command latency, not a browser update. Raw phase markers are cumulative
+milestones, not independent stage durations.
+
+Focused comparisons preserve identical selected scope in each pair: 13 voting,
+10 WarnBox, five Header and 16 core SQLite tests per invocation. All 88 invocations,
+including excluded warmups, pass. UI direct/selector ranges are 2.267–2.368 /
+2.318–2.417, 1.266–1.316 / 1.466–1.567, and 4.171–4.321 / 4.971–5.123 seconds;
+core ranges are 4.271–4.471 / 4.471–5.072. Header host load is higher after
+(4.145 versus 2.095), so the difference is not solely wrapper overhead. The core
+pair uses the same final source and existing target; it is not an original-to-final
+application comparison.
 
 Decisions so far:
 
@@ -168,15 +290,36 @@ Decisions so far:
   opt-in `keycloak-ui` React workspace. Login and message OTP use React refresh;
   unported or complex login widgets inherit the original templates with automatic
   reload. The explicit server context carries login policies, OTP courier and
-  localized messages, including realm overrides. Eleven real authentication/policy
-  checks, 12 browser stories, 23 original theme tests, and a theme build pass.
-  Warm visible edits on real Keycloak: login 0.077 s median, 0.076–0.077 (n=10);
+  localized messages, including realm overrides. The earlier implementation
+  passed eleven real authentication/policy checks, 12 browser stories and 23
+  original theme tests. Its warm visible edits on real Keycloak: login 0.077 s median, 0.076–0.077 (n=10);
   OTP 0.076 s, 0.075–0.087 (n=10). Typed input and the authentication session survive
   without navigation; the OTP exchange completes after the edits. Server message
   edits also reload automatically (n=1). The earlier packaged pilot took 8.4 s
   (n=10). Production adoption remains deferred; SMS delivery, one-time links,
   CAPTCHA and external identity providers need their configured integration
   environments. Commands and fixture limits are in the Keycloak developer guide.
+- **Keycloak visual and accessibility refinement**: the login and custom OTP
+  pages use a scoped Sequent theme inspired by Election Architect, local fonts,
+  a responsive card and visible keyboard focus. The final 30 stories pass, including two failing-before missing-courier cases.
+  Fifteen real authentication checks and all 137 provider/62 theme tests also
+  pass after the final review corrections at `46c91b4a8d`. Real-page hot edits measured at `d5ec0a32bf`
+  take 0.07533 s median (0.07449–0.07674) for login and 0.07535 s
+  (0.07472–0.07716) for OTP, n=10 each plus excluded warmups, with input/session
+  preserved and exact source restoration.
+  Both React and original FreeMarker complete password/whole-code OTP login and
+  redeem the OIDC code. The original OTP's missing names and truncated whole-code input
+  fail before the fix and pass after it. New checks exercise credential errors,
+  native locale/recovery/registration links, realm options, provider fallbacks,
+  keyboard order, 320px reflow and 200% text. Provider 137 and theme 62 tests,
+  TypeScript, lint, formatting and the theme JAR build pass. Source palette
+  contrast is 5.30:1 for the main button and 3.43:1 for field borders; browser
+  accessibility scans and visual review supplement the interaction checks.
+  Concurrent theme preparation uses a per-checkout lock and atomic files, with
+  two failing-before regressions. Automated checks do not establish formal WCAG
+  conformance: native screen readers, browser zoom, OS clipboard integration,
+  native autofill, password-manager extensions and inherited flows retain
+  explicit verification limits. The replacement walkthrough shows the final design and keyboard behavior.
 - **Workbench** (adopted): shared scenarios and snapshots in `ui-test-kit`, one
   preview provider for Storybook and the workbench, production routes and loaders,
   typed policy overrides and the real sequent-core pipeline. The dev server now
@@ -187,13 +330,242 @@ Decisions so far:
   package. Voting Storybook exposes tenant/workflow controls and all eight
   locales; all 80 story tests pass (n=1 run).
 
-Current validation: the voting Jest suite passes locally (30 suites, 259 tests,
+Current validation: the voting Jest suite passes locally (30 suites, 264 tests,
 one run), as do verifier stories (14 tests, including one retained expected
 accessibility failure) and results stories (19 tests), one browser run each.
 The hosted regressions were a missing story CSS hook, virtual mocks for a now-real
 shared module and obsolete expected-failure markers after upstream accessibility
-fixes. Frontend lint and formatting pass across all seven packages. Hosted
-reruns and paired voting coverage remain to be checked before claiming CI green.
+fixes. Frontend lint and formatting pass across all seven packages. Paired voting
+coverage against `ovcs` 833385f62396 passes (one base/head pair), with all four
+metrics increasing. Current `ovcs` b8f2a5c69d is merged through all three phases;
+the updated voting suite, types, lint and formatting pass. Admin stories pass
+(110 tests, one run), as do the six upstream load-replay regressions. Hosted
+`1d25f2b73e` passes all 51 Tests jobs, including frontend journeys, safety-net
+coverage and the final aggregate; its notification-only job is intentionally
+skipped. Independent backend E2E validation has its own check status. Inline review corrections include recoverable cache snapshots, isolated worker
+ports, impossible CI timestamps and nonpersistent checkout credentials; replies
+and current check status are recorded in the issue and PR discussions.
+The WASM benchmark wrapper preserves its checkout path, and CI verification
+reports planning failures before decoding a selection. The repeated failed-plan
+finding is covered by GitHub's default status guard and seven passing CLI
+regressions. Phase-two review fixes cover SELinux mounts, matching English messages,
+absent OTP courier context, strict generated-template identifiers and redirect-derived
+origins. The repeated depth option and comprehension-bound `glob` names work
+as verified by actual CLI commands and their regression tests; both findings
+have no-change replies.
+Copilot could not review phase 1 because its diff exceeds 20,000 lines; phase 2/3
+received Lite reviews after runner timeouts. CodeRabbit reviewed phases 2 and 3; phase 1 requests remain rate-limited.
+
+- **Public admin build settings**: webpack defines only the four settings read
+  by the application; private build environment values no longer enter the
+  browser bundle. Five compiler regression tests cover private values, public
+  settings, defaults, mode and reproducibility. Admin tests pass (47 suites,
+  362 tests, one run); two production builds with different synthetic private
+  values have identical bytes in all 309 output files.
+- **Agent discovery**: `AGENTS.md` and the Claude entry point share the
+  `fast-feedback` skill, the developer guide and `step-dev` commands. Explicit
+  CLI help exits successfully, and shared UI edits no longer instruct agents to
+  rebuild production libraries.
+
+- **Incremental CI**: the Tests workflow uses the local dependency model, runs
+  selected suites and calls the reusable frontend workflow. Selected tests rerun;
+  a strict aggregate check rejects missing, cancelled or unexpectedly skipped
+  jobs. Production journey shards share one current portal build. Dependency
+  and shared-output caches keep their complete input identity in the restore
+  prefix and add run/attempt generations to saved keys. Rejected snapshots are
+  repaired by a normal install or build and a new immutable generation; actual
+  Yarn and output-checksum fault probes cover corrupted caches and retries.
+  Shared UI reuse verifies its complete input identity and output checksums: rebuilding
+  locally took 19.3 s median, 19.1–20.7 (n=3), versus 0.26 s, 0.26–0.42 (n=10)
+  for verified reuse. This native aarch64 result excludes hosted transfers.
+  At hosted head `1d25f2b73e`, checksum verification accepts the shared output
+  and both library-build and cache-save steps are skipped. All 32 observed
+  dependency restores pass Yarn checks and skip installation: restore median
+  15.2715 s (8.056–19.135), verification 22.5655 s (12.183–24.157). These are
+  observations of the original cache keys, not tests of the generation repair
+  or a matched speedup comparison.
+  Hosted validation found a composite-action expression rejected before Rust
+  setup: the repository cache epoch now enters through workflow inputs in all
+  ten callers. Toolchain-only jobs count as an initial check, not a product-code
+  result. Queue and execution metrics require an assigned runner; GitHub's
+  placeholder start timestamps on queued/skipped jobs and negative intervals
+  are excluded. A completion before its recorded start cannot become the first
+  result or the all-done timestamp; two regressions cover invalid and absent starts. The observed queue delay remains separate from execution time.
+  The latest first actionable product result, six ECIES Java tests at `1d25f2b73e`,
+  completes 46 s after the push proxy: 2 s dispatch, 7 s queue and 37 s execution
+  (18 s test step). An earlier candidate at `514ac24d55` took 57 s with 20 s
+  queued and 35 s executing. Historical median is 565.5 s, range 42–3242, across 34
+  actionable pushes out of 35 observed. The proxy is the earliest eligible
+  workflow creation time, including the CLA pull-request-target event. This
+  single uncontrolled result does not establish a speedup. A historical ECIES
+  exemplar also executes in 35 s but waits 535 s for its runner.
+  Fresh hosted runs exposed missing Python coverage, Node fixture dependencies,
+  Compose defaults and container Git trust; the selected setup now supplies these
+  prerequisites. All 463 developer-tool tests, 97 Python coverage tests and five real Node
+  coverage fixtures pass in hosted CI at `1d25f2b73e`. The verifier catalog has its own Vite configuration,
+  preserving shared Storybook settings and excluding the application HTML plugin;
+  its actual 14-story static build, config typecheck and formatting pass.
+- **Rust compiler caching**: CI restores bounded sccache units separately from
+  downloaded dependencies. On wrap-map-err, fresh output directories with an
+  edited source compiled and passed all 18 tests in 3.42 s median, 3.42–3.52
+  (n=10) without compiler reuse, versus 2.02 s, 1.97–2.07 (n=10) with it.
+  Deliberately corrupt cached units triggered a successful ordinary rebuild
+  (n=1, 18 tests). These small-crate results do not establish hosted full-workspace
+  speedups. The hosted `1d25f2b73e` run restores no Rust compiler snapshots:
+  all ten jobs have cache misses, with 4,063 Rust misses and no Rust hits. Its
+  411 C/C++/assembler hits occur within the sequent-core job. Successful normal PR runs now save snapshots within GitHub's isolated merge-ref
+  cache scope; trusted pushes seed shared snapshots, and other events remain
+  restore-only. Compiler keys add run/attempt generations under the complete
+  compiler-and-lock identity so source edits can refresh stored units. Cargo
+  downloads keep fixed lockfile keys. Twenty modeled runs verify refresh, retry,
+  success-only saves, incompatible identities and branch/PR isolation; seven
+  failures before the correction become zero afterward. This validates the
+  transport policy, not an actual hosted cache hit or a speedup; current hosted
+  save/restore evidence is tracked in the issue.
+- **Rust service linker** (adopted on aarch64 Linux): identical application sources at
+  `e443270f5c` were measured before and after selecting bundled LLD on aarch64.
+  All 60 measured saves succeeded, with ten per edit and linker plus excluded
+  warmups. Harvest's actual ready probe improves from 36.755 s median,
+  36.24–38.66, to 9.895 s, 9.66–12.18. Its separate settled observation has a
+  15-second floor. Windmill edits settle in 54.760 s, 53.48–55.93, versus
+  128.290 s, 124.35–131.86; shared-core edits settle in 54.310 s, 53.19–55.33,
+  versus 134.570 s, 130.80–154.65. Median host loads before/after are
+  5.560/8.275, 8.215/4.955 and 7.845/7.140 on 16 CPUs. The candidate also
+  requires Beat readiness after recreation; the baseline observed binary start
+  because its probe did not respond. That recovery is not a linker effect.
+  Repeated crate names represent different profiles/features: B4 uses release,
+  and Harvest's Windmill graph enables `bstr/unicode`. A shared union build would
+  not replace each service's own compatible build, so that experiment is rejected.
+  Direct alternating cc/LLD builds also pass all 60 measured samples, n=10 per
+  arm and edit: Harvest 29.108 s (28.508–29.510) versus 8.628 s (8.627–8.878);
+  Windmill 38.322 s (37.668–39.024) versus 21.776 s (20.996–22.548); shared core
+  to Harvest 53.721 s (53.195–55.551) versus 27.179 s (26.606–28.760).
+  Corresponding linker medians fall from 23.498/19.534/31.194 s to
+  3.091/2.765/4.364 s. Both arms rebuild the same 1/2/4 Cargo units; wall time
+  minus links also includes Cargo coordination and is not isolated codegen.
+  The LLD Harvest binary retains full debug sections: GDB hits its source
+  breakpoint and produces a Rust/Tokio backtrace. Native validation at
+  `a33e1b46f2` passes Harvest 202 tests, Windmill 1,439 (six ignored), and core
+  528 with `keycloak,default_features,sqlite`; scoped Clippy and formatting pass.
+  The full core test suite uses the configured development shell's PostgreSQL
+  binaries for private test clusters; Harvest uses its CI SQL-default settings.
+  Cargo-watch already follows local dependency directories, and the baseline
+  Harvest edit only rebuilds Harvest in all ten samples. Extra watch lists and
+  a pure-logic crate extraction are not justified by this evidence. No profiles,
+  FIPS settings or features change.
+- **Ballot verifier Vite** (adopted as opt-in): the final alternating comparison
+  at `fa670fb53b` exceeds the predeclared 20% median improvement threshold.
+  Warm first render improves from 8.599 s, 8.400–9.047, to 3.265 s,
+  3.211–3.309 (n=10 each); fresh compiler/optimizer caches improve from
+  9.028 s, 8.557–12.808, to 3.583 s, 3.523–4.777 (n=3 each). These fresh
+  caches retain installed dependencies and the host filesystem cache. Visible
+  leaf edits improve from 0.784 s to 0.075 s, and shared Header edits from
+  2.256 s to 1.323 s (n=10 each). Production builds improve from 19.745 s to
+  7.025 s (n=3 each); output and gzip bytes decrease 5.66% and 4.19%, with
+  identical WASM bytes. Median warm server memory is 1148 versus 572 MiB
+  (n=10, browser excluded). Loads range from 2.00 to 4.90 on 16 CPUs.
+  Every measured browser operation and restore has zero page errors or mocked
+  service violations. The complete journey matrix passes: 13 Webpack production,
+  13 Vite production and 14 Vite development tests, including leaf state retention
+  and shared/core edit restoration. Bootstrap changes reload to avoid recreating
+  the React root. Webpack remains the default release/CI path; another portal
+  requires its own compatibility and performance decision.
+- **Optional environment prebuilds**: native arm64/amd64 builds use a source-free
+  toolchain context. PRs build without publishing; trusted branch workflows
+  publish matching images. Local selection checks identity and architecture,
+  falling back to the standard image when missing or incompatible. Both native
+  builds and offline toolchain readiness pass at PR head `1d25f2b73e`, GitHub
+  merge checkout `dd2754340f`. Fresh-volume readiness, including copying the
+  store, is 257.596 s on arm64 and 208.564 s on amd64 (n=1 each, bounded budget).
+  Warm medians are 11.657 s (11.483–11.751) and 13.525 s (13.324–13.779),
+  n=10 each plus excluded warmups. Every sample verifies the baked tools and
+  WASM standard library with networking disabled; cleanup leaves no owned
+  resources. Earlier fresh-start timeouts and Nix database permission failures
+  remain in the raw records. Bounded creation/cleanup and an explicit daemon
+  handshake address these failures; three regressions fail before the daemon
+  correction. The logs establish the permission failure, not a proven daemon
+  race. These measurements establish toolchain readiness, not application/service
+  readiness or a hosted CI speedup.
+- **Repeatable backend scenarios**: all three named states create and reuse their
+  own events; targeted reset rejects foreign ownership, tenant mismatches and
+  concurrent execution. Four browser checks pass against current portal sources:
+  kiosk and online ballot casting, verifier upload and the exact published
+  totals. The task backend reuses binaries from `728c258313`; the driver and
+  portal validation use `149131a62a`. Warm reuse takes 0.786 s median,
+  0.633–0.953 for kiosk, 0.625 s, 0.589–0.793 for completed ceremony, and 0.631 s,
+  0.595–0.715 for published results (n=10 each, one excluded warmup). These are
+  current-state timings under concurrent load, not before/after speedups.
+  All 85 scenario tests pass. The final integrated developer-tool suite passes
+  465 tests in the configured devcontainer with no skips; Ruff lint and formatting
+  pass. Hosted CI at `1d25f2b73e` passes its earlier 463-test suite with no skips.
+- **Static browser-test servers**: configured port ranges are divided among
+  Playwright parallel slots, including multiple servers per slot; ephemeral ports
+  remain the default. A real two-worker reproduction fails before with a bind
+  collision and passes after with four simultaneous listeners. Four permanent
+  contracts, all owning fixture typechecks, lint and formatting pass.
+- **Browser runner preflight**: focused journey/workbench commands launch the
+  suite's configured Chromium before executing tests and give an actionable
+  error when the pinned runtime cannot start. An actual pinned-browser launch
+  passes; the local missing-library case fails early instead of hanging.
+- **Workspace validation limits**: the historical backend cold attempt timed
+  out with Harvest and Docker health still pending (one failed sample, zero
+  successful samples). CLI and Windmill probes passed at 1750 s and 1736 s;
+  no cause was established before cleanup. The final prepared warm backend
+  series passes all ten starts under required readiness, but does not resolve
+  or reclassify that cold failure. The initial unprepared final warm series
+  also retains ten failures plus its failed warmup. Historical full cold
+  before/after and UI+Keycloak cold remain n=1; UI-only cold has n=3. No matched
+  final full-stack warm speedup or footprint reduction is established.
+- **Walkthrough and retained preview**: the [106-second narrated recording](https://github.com/user-attachments/assets/8b2e5af0-49d0-43a8-a340-bf2225703820)
+  at `154d17e442` shows the workbench, actual five-step WASM pipeline, verifier,
+  redesigned desktop/mobile Keycloak pages and keyboard controls, plus actual
+  command selection. All ten captured scenes pass with empty page/console-error
+  ledgers and all five actual WASM steps passing. The synthetic clipboard event is explicitly labeled; this
+  recording does not submit authentication or establish formal WCAG conformance.
+  The first capture exposed an incomplete verifier GraphQL response and a missing
+  Keycloak favicon; the fixture now supplies both queried fields and the existing
+  Sequent asset is served. Actual Apollo cache validation fails before the fixture
+  correction and passes afterward. Six Storybooks and the workbench remain in a
+  separate UI-only project within a task-owned isolated Docker daemon.
+- **Admin widget catalog** (separate stacked PR https://github.com/sequentech/step/pull/3361):
+  - **Coverage.** All 330 inventoried admin-portal widgets (of 493 scanned components) have an
+    `Admin/<Feature>/<Component>` section that renders the production component with typed
+    synthetic fixtures, with no backend or login. The stories assert the visible result and the
+    boundary calls. The 163 styled primitives, providers and render-nothing helpers are excluded
+    with reasons. The admin stories job runs `stories:inventory --check`, so a new widget needs
+    its section.
+  - **Harness decisions.**
+    - Fixtures use only schema columns (`StoryRecord<T>`).
+    - The resource boundary evaluates the Hasura `where` that ra-data-hasura builds.
+    - Deep MUI imports are pre-bundled, so Vite never reloads mid-run.
+    - Download helpers live once, in `src/__stories__/downloads.ts`.
+    - Axe defects already present in production are marked per story with their exact rules
+      (strict: a listed rule that stops firing fails the story).
+  - **How the catalog was built.** Up to six agents in separate worktrees wrote the sections. The
+    coordinator cherry-picked their commits and gated each push on `typecheck:stories`, eslint,
+    prettier and the changed stories.
+  - **Production defects the isolated stories exposed.** Each was fixed with a failing story or
+    test first:
+    - Election, event, contest and candidate screens still searched, sorted, showed and saved the
+      `name`/`alias` columns that migration `1772358027729` removed. Election search found nothing.
+    - Tenant options read a missing `username`.
+    - Several forms crashed or read by the wrong ID before their record loaded.
+    - Create and edit failures were silent or discarded the input.
+    - Menu controls were unreachable by keyboard.
+    - The archived event tab read an empty ID.
+    - The dashboards spun forever on error.
+    - Notification dates read a missing column.
+    - Reported, not fixed: the unused `CreateContestData`, ListTally's unreachable filters, and
+      the notification create button, which has no create form behind it.
+  - **Measurements.**
+    - At `8e69814e85` the suite is 246 story files and 1355 tests. All pass locally (aarch64,
+      one Vitest worker, load 4–7, n=1) in 1100 s. The three `--shard=i/3` runs took 380, 355
+      and 365 s. `build-storybook` took 51 s.
+    - Hosted, the job took 8m22s for 518 tests and 11m44s for about 680, so the full suite would
+      pass the job's 20-minute limit.
+    - A three-shard matrix like the journeys job's was proposed to the CI workstream
+      (https://github.com/sequentech/step/pull/3360#issuecomment-5849901470) rather than
+      changed here.
 
 Keep the stack synchronized with new `ovcs` commits using normal merges into
 phase 1 and then each descendant. All feedback commands must be discoverable and

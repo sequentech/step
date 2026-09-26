@@ -59,7 +59,7 @@ export const SettingsTemplates: React.FC<void> = () => {
     }
 
     useEffect(() => {
-        if (record.settings) {
+        if (record?.settings) {
             setSetting({
                 mail: record?.settings?.mail || true,
                 sms: record?.settings?.sms || false,
