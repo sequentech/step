@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import {test as unit, type Page} from "@playwright/test"
 import {IPermissions} from "../../../src/types/keycloak"
-import {test, expect, TENANT_ID} from "../fixtures"
+import {test, expect, TENANT_ID, type AdminPortal} from "../fixtures"
 import {appRoutes} from "./routes"
 import {serveAdminTenant, SHELL_IDS} from "./data"
+import {serveTrusteeWorkerHelper} from "../tally/trustee-startup"
 
 /**
  * One entry per router route. The matrix gives breadth: each route loads with
@@ -17,13 +18,7 @@ interface Smoke {
     /** The path a redirecting route settles on. */
     settlesAt?: string
     shows: (page: Page) => Promise<void>
-    /** A defect that stops the route from rendering, pinned as an expected failure. */
-    defect?: {reason: string; violation?: RegExp; operation?: string; consoleErrors?: RegExp[]}
-    /**
-     * Console errors of a pinned defect; any other console error still fails.
-     * `settled` waits until the work that logs them has finished.
-     */
-    consoleDefect?: {reason: string; errors: RegExp[]; settled: (page: Page) => Promise<void>}
+    checkConsole?: boolean
 }
 
 const heading = (page: Page, name: string) =>
@@ -79,12 +74,6 @@ const scheduledEventsPage = async (page: Page) => {
     await cell(page, "Start Voting Period")
 }
 const usersPage = (page: Page) => cell(page, "maria.lopez")
-const upsertAreaDefect = {
-    reason: "UpsertArea as a route view gets no electionEventId, sends an invalid query and renders nothing",
-    operation: "sequent_backend_area_extended",
-    violation:
-        /^Invalid GraphQL operation sequent_backend_area_extended: Variable "\$electionEventId"/,
-}
 
 export const SMOKE: Record<string, Smoke> = {
     "/": {url: "/", ...eventRedirect},
@@ -104,17 +93,13 @@ export const SMOKE: Record<string, Smoke> = {
     },
     "/trustee": {
         url: "/trustee",
-        shows: (page) => heading(page, "Braid Trustee Node"),
-        consoleDefect: {
-            reason: "the bundle fetches braid-wasm's rayon worker helper from a build-time file:// URL",
-            errors: [
-                /^Fetch API cannot load file:\/\/\/.*\/braid-wasm\/snippets\/.*\/workerHelpers\.no-bundler\.js/,
-            ],
-            settled: (page) =>
-                expect(
-                    page.getByText(/braid-wasm loaded and thread pool initialized|WASM init failed/)
-                ).toBeVisible(),
+        shows: async (page) => {
+            await heading(page, "Braid Trustee Node")
+            await expect(
+                page.getByText(/braid-wasm loaded and thread pool initialized/)
+            ).toBeVisible()
         },
+        checkConsole: true,
     },
     "/messages": {url: "/messages", shows: (page) => text(page, "Messages")},
     "/settings/*": {url: "/settings", shows: settingsPage},
@@ -195,11 +180,7 @@ export const SMOKE: Record<string, Smoke> = {
             await text(page, "Ballot Style configuration")
             await text(page, SHELL_IDS.ballotStyle)
         },
-        consoleDefect: {
-            reason: "EditBallotStyle renders the text status column in a JSON input",
-            errors: [/^react-json-view error: src property must be a valid json object/],
-            settled: nextFrames,
-        },
+        checkConsole: true,
     },
     "/sequent_backend_area": {
         url: "/sequent_backend_area",
@@ -211,12 +192,10 @@ export const SMOKE: Record<string, Smoke> = {
     "/sequent_backend_area/create": {
         url: "/sequent_backend_area/create",
         shows: (page) => text(page, "Area configuration."),
-        defect: upsertAreaDefect,
     },
     "/sequent_backend_area/:id": {
         url: `/sequent_backend_area/${SHELL_IDS.area}`,
         shows: (page) => text(page, "Area configuration."),
-        defect: upsertAreaDefect,
     },
     "/sequent_backend_area_contest": {
         url: "/sequent_backend_area_contest",
@@ -243,9 +222,6 @@ export const SMOKE: Record<string, Smoke> = {
     "/sequent_backend_tenant/create": {
         url: "/sequent_backend_tenant/create",
         shows: (page) => expect(page.getByRole("textbox", {name: "Slug"})).toBeVisible(),
-        defect: {
-            reason: "CreateTenant is a drawer that stays closed without its isDrawerOpen prop",
-        },
     },
     "/sequent_backend_tenant/:id": {
         url: `/sequent_backend_tenant/${TENANT_ID}`,
@@ -271,12 +247,6 @@ export const SMOKE: Record<string, Smoke> = {
             await text(page, "results.pdf")
             await text(page, "application/pdf")
         },
-        defect: {
-            reason: "ShowDocument's JsonField reads labels from a missing record prop and crashes",
-            consoleErrors: [
-                /^TypeError: Cannot read properties of undefined \(reading 'labels'\)\n/,
-            ],
-        },
     },
     "/sequent_backend_notification": {
         url: "/sequent_backend_notification",
@@ -296,13 +266,7 @@ export const SMOKE: Record<string, Smoke> = {
     "/sequent_backend_template/create": {
         url: "/sequent_backend_template/create",
         shows: (page) => text(page, "Create a Template"),
-        consoleDefect: {
-            reason: "TemplateFormContent fetches a default template before any type is chosen",
-            errors: [
-                /^Error fetching template data: TypeError: Cannot read properties of undefined \(reading 'toLowerCase'\)/,
-            ],
-            settled: nextFrames,
-        },
+        checkConsole: true,
     },
     "/sequent_backend_template/:id": {
         url: `/sequent_backend_template/${SHELL_IDS.template}`,
@@ -328,7 +292,14 @@ export const SMOKE: Record<string, Smoke> = {
         shows: reportsPage,
     },
     "/user": {url: "/user", shows: usersPage},
-    "/user/:id": {url: `/user/${SHELL_IDS.user}`, shows: usersPage, defect: upsertAreaDefect},
+    "/user/:id": {
+        url: `/user/${SHELL_IDS.user}`,
+        shows: async (page) => {
+            await expect(
+                page.getByRole("dialog").getByRole("textbox", {name: "Email", exact: true})
+            ).toHaveValue("maria.lopez@example.test")
+        },
+    },
 }
 
 unit("the smoke matrix has exactly one entry per router route", () => {
@@ -355,84 +326,37 @@ test.describe("route smoke", () => {
         return consoleErrors
     }
 
+    async function checkRoute(page: Page, portal: AdminPortal, smoke: Smoke) {
+        serveAdminTenant(portal)
+        if (smoke.url === "/trustee")
+            await page.addInitScript(() => {
+                Object.defineProperty(navigator, "hardwareConcurrency", {value: 2})
+            })
+        const unroute =
+            smoke.url === "/trustee"
+                ? await serveTrusteeWorkerHelper(page.context(), portal)
+                : undefined
+        let consoleErrors: string[] = []
+        try {
+            consoleErrors = await open(page, portal, smoke)
+            await smoke.shows(page)
+            if (smoke.settlesAt)
+                await expect(page).toHaveURL((url) => url.pathname === smoke.settlesAt)
+            await nextFrames(page)
+        } finally {
+            await unroute?.()
+            expect(portal.violations.list(), "unexpected service requests").toEqual([])
+            expect(consoleErrors, "console errors").toEqual([])
+        }
+    }
+
     for (const [path, smoke] of Object.entries(SMOKE)) {
         test(`${path} renders its main content`, async ({page, portal}) => {
-            serveAdminTenant(portal)
-            const consoleErrors = await open(page, portal, smoke)
-            const known = smoke.defect?.violation
-            try {
-                if (known) {
-                    await expect
-                        .poll(
-                            () =>
-                                portal.violations.list().some((entry) => known.test(entry)) ||
-                                portal.graphql.callsTo(smoke.defect!.operation!).length > 0
-                        )
-                        .toBe(true)
-                    const failures = portal.violations.list()
-                    expect(
-                        failures.filter((entry) => !known.test(entry)),
-                        "unrelated service requests"
-                    ).toEqual([])
-                    if (failures.length) {
-                        test.fail(true, smoke.defect!.reason)
-                        expect(failures, "the route must send a valid scoped query").toEqual([])
-                    }
-                }
-                expect(portal.violations.list(), "unexpected service requests").toEqual([])
-                if (smoke.defect && !known) test.fail(true, smoke.defect.reason)
-                await smoke.shows(page)
-                if (smoke.settlesAt)
-                    await expect(page).toHaveURL((url) => url.pathname === smoke.settlesAt)
-                await (smoke.consoleDefect?.settled ?? nextFrames)(page)
-                const expected = smoke.consoleDefect?.errors ?? []
-                for (const error of expected)
-                    expect(
-                        consoleErrors.some((message) => error.test(message)),
-                        `${error}`
-                    ).toBe(true)
-                expect(
-                    consoleErrors.filter(
-                        (message) => !expected.some((error) => error.test(message))
-                    ),
-                    "console errors"
-                ).toEqual([])
-                if (known) test.fail(true, smoke.defect!.reason)
-            } finally {
-                // Only the defect's own request is waived; any other one still fails teardown.
-                if (known) {
-                    const others = portal.violations.list().filter((entry) => !known.test(entry))
-                    portal.violations.clear()
-                    others.forEach((entry) => portal.violations.add(entry))
-                }
-                const expected = [
-                    ...(smoke.consoleDefect?.errors ?? []),
-                    ...(smoke.defect?.consoleErrors ?? []),
-                ]
-                const unrelated = consoleErrors.filter(
-                    (message) => !expected.some((error) => error.test(message))
-                )
-                // A rendering defect must not absorb another failure from the route.
-                if (unrelated.length) test.info().expectedStatus = "passed"
-                expect(unrelated, "unrelated console errors").toEqual([])
-            }
+            await checkRoute(page, portal, smoke)
         })
-
-        const consoleDefect = smoke.consoleDefect
-        if (consoleDefect)
+        if (smoke.checkConsole)
             test(`${path} logs no console errors`, async ({page, portal}) => {
-                serveAdminTenant(portal)
-                const consoleErrors = await open(page, portal, smoke)
-                await smoke.shows(page)
-                await consoleDefect.settled(page)
-                expect(
-                    consoleErrors.filter(
-                        (message) => !consoleDefect.errors.some((error) => error.test(message))
-                    ),
-                    "unrelated console errors"
-                ).toEqual([])
-                test.fail(true, consoleDefect.reason)
-                expect(consoleErrors).toEqual([])
+                await checkRoute(page, portal, smoke)
             })
     }
 })
