@@ -31,16 +31,9 @@ const meta = {
         expectedFailure: {
             reason:
                 "React-admin row selection labels a MUI 7 span instead of its checkbox, " +
-                "the contest chips read a name column the contest table does not have, " +
                 "the JSON inputs grey their item counts below the contrast minimum, and " +
                 "the Add contest link wraps a button.",
-            a11y: [
-                "aria-prohibited-attr",
-                "color-contrast",
-                "label",
-                "link-name",
-                "nested-interactive",
-            ],
+            a11y: ["aria-prohibited-attr", "color-contrast", "label", "nested-interactive"],
         },
     },
     beforeEach: ({args}) =>

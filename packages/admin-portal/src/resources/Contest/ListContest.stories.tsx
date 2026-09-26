@@ -17,10 +17,8 @@ import {
 
 const listDefects = {
     expectedFailure: {
-        reason:
-            "React-admin row selection labels a MUI 7 span instead of its checkbox, and the " +
-            "candidate chips show a name column candidates no longer have, leaving empty links.",
-        a11y: ["aria-prohibited-attr", "label", "link-name"],
+        reason: "React-admin row selection labels a MUI 7 span instead of its checkbox.",
+        a11y: ["aria-prohibited-attr", "label"],
     },
 }
 

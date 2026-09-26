@@ -41,14 +41,6 @@ const row = (canvasElement: HTMLElement, description: string) =>
     within(canvasElement).findByRole("row", {name: new RegExp(description)})
 
 export const Populated: Story = {
-    parameters: {
-        expectedFailure: {
-            reason:
-                "React-admin row selection labels a MUI 7 span instead of its checkbox, and " +
-                "the contest chips read a name column the contest table does not have.",
-            a11y: ["aria-prohibited-attr", "label", "link-name"],
-        },
-    },
     play: async ({canvasElement}) => {
         const council = await row(canvasElement, "Choose the council members")
         await expect(council).toBeVisible()
