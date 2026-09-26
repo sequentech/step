@@ -58,14 +58,16 @@ test("audit downloads independently decode the selected candidate without storin
 test("real PKCE login, signed ballot files, selection, cast and receipt agree with the database", async ({
     page,
 }) => {
-    const privateRequests: {url: string; headers: Record<string, string>}[] = []
+    const privateRequests: Promise<{url: string; headers: Record<string, string>}>[] = []
     const authorizations: URL[] = []
     page.on("request", (request) => {
         if (
             new URL(request.url()).origin === "http://minio:9000" &&
             new URL(request.url()).searchParams.has("X-Amz-Signature")
         )
-            privateRequests.push({url: request.url(), headers: request.headers()})
+            privateRequests.push(
+                request.allHeaders().then((headers) => ({url: request.url(), headers}))
+            )
         if (request.url().includes("/protocol/openid-connect/auth?"))
             authorizations.push(new URL(request.url()))
     })
@@ -73,7 +75,7 @@ test("real PKCE login, signed ballot files, selection, cast and receipt agree wi
     expect(authorizations.length).toBeGreaterThan(0)
     expect(authorizations[0].searchParams.get("code_challenge_method")).toBe("S256")
     expect(privateRequests.length).toBeGreaterThanOrEqual(3)
-    for (const request of privateRequests) {
+    for (const request of await Promise.all(privateRequests)) {
         expect(new URL(request.url).searchParams.get("X-Amz-Signature")).toBeTruthy()
         expect(request.headers).not.toHaveProperty("authorization")
         expect(request.headers).not.toHaveProperty("cookie")
