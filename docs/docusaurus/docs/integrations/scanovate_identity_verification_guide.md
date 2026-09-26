@@ -37,7 +37,9 @@ sequenceDiagram
     K->>V: 303 redirect to the flow URL
     V->>B: document scan, liveness, ...
     B->>V: redirect to redirect_url?processId=...&token=...
-    V->>K: GET redirect_url
+    V->>K: GET /realms/{realm}/scanovate/return
+    K->>V: 303 redirect to the login actions URL, without token
+    V->>K: GET /realms/{realm}/login-actions/...?processId=...
     K->>B: POST /auth/token
     K->>B: GET /api/v3/mobile_interaction/{processId}/token
     K->>B: GET /api/v3/mobile_interaction/v2/{sessionToken}/results_with_image_names
@@ -50,6 +52,12 @@ Some design decisions to be aware of:
 - **The browser is never trusted.** The `token` that B-Trust appends to the
   redirect URL is ignored. Keycloak stores the process id in the authentication
   session and exchanges it for a session token server to server.
+- **Return endpoint.** The `redirect_url` sent to B-Trust is
+  `/realms/{realm}/scanovate/return`, not the login actions URL. Keycloak's
+  registration endpoint reads a `token` query parameter as an action token, so
+  the `token` that B-Trust appends would break the registration flow. The
+  endpoint forwards only Keycloak's own parameters and the process id to the
+  login actions URL of the same realm, and only for known flows.
 - **Fast results.** Results are fetched from `results_with_image_names`, which
   returns file paths instead of base64 media, as the specs recommend. Images and
   videos are never downloaded.
@@ -156,8 +164,35 @@ The following message keys are provided in English and Tagalog:
 ### COMELEC janitor
 
 The COMELEC realm template (`packages/windmill/external-bin/janitor/templates/COMELEC/keycloak.hbs`)
-has rules for PhilSys ID, Seaman's Book, Philippine passport, driver's license
-and IBP. `run.py` fills it from these `settings` rows of the spreadsheet:
+offers the voter these document types, each with its own rules:
+
+| Document type | `sequent.read-only.id-card-type` |
+| --- | --- |
+| Passport | `philippinePassport` |
+| Driver’s License | `driversLicense` |
+| PhilSys ID | `philSysID` |
+| Integrated Bar of the Philippines ID | `iBP` |
+| Seafarer’s Book | `seamanBook` |
+
+All of them require liveness, a minimum face match score, an authentic
+document and a document that hasn't expired. All but the Integrated Bar of the
+Philippines ID must also be issued by the Philippines (`PHL`).
+
+Only Filipino citizens can enroll. The document rules alone don't guarantee
+it: a Philippine driver's license or PhilSys ID can also be issued to foreign
+residents. Eligibility comes from the voter registry: after the identity
+verification, `lookup-and-update-user` only accepts the enrollment when the
+name and date of birth read from the document match a pre-loaded voter of the
+election event. The `country` and `embassy` fields are the post abroad where
+the Filipino voter is registered, not their nationality.
+
+If a document type must also prove citizenship by itself, add a rule on the
+OCR nationality, e.g.
+`{"type": "equalValue", "equalValue": "PHL", "process": "ocr", "attributePath": "/nationality/alpha3"}`,
+only once real B-Trust results confirm that the field is read for that
+document. Otherwise the rule fails closed and rejects every voter using it.
+
+`run.py` fills the template from these `settings` rows of the spreadsheet:
 
 | Setting | Default |
 | --- | --- |
@@ -228,34 +263,89 @@ mostly useful in `auto-complete` mode:
 (`http://127.0.0.1:8500` in the dev container), while `base-url` must be
 reachable from Keycloak (`http://mock_server:8500`).
 
-### Manual test in the dev container
+### Starting the development environment
 
-1. Start the `full` profile so that `mock_server` is running, and check it with
-   `curl http://127.0.0.1:8500/`.
-2. The development election event realm ships a `scanovate-registration`
-   authenticator config pointing to the mock server in `interactive` mode. In
-   the Keycloak admin console (http://127.0.0.1:8090), open that realm, go to
-   **Authentication**, and add a **Scanovate B-Trust Identity Verification**
-   step to the registration flow after the registration form. Select the
-   `scanovate-registration` config.
-3. Enroll a voter from the voting portal. After the registration form you are
-   redirected to the mock flow page.
-4. Choose `success`. You're sent back to Keycloak and shown the confirmation
-   page with the extracted name and date of birth. Click **Continue** and check
-   that the enrollment finishes and that the user has
+The mock server belongs to the `full` docker compose profile, while the dev
+container starts the `base` profile by default.
+
+1. Set `COMPOSE_PROFILES=full` in `.devcontainer/.env.development` before
+   opening the dev container (VS Code **Dev Containers: Reopen in Container**,
+   or `devcontainer up --workspace-folder .`). With the dev container already
+   running, start the missing services from the host instead:
+
+   ```bash
+   cd .devcontainer
+   docker compose --profile full up -d mock_server janitor
+   ```
+
+2. Check that the mock server answers with `curl http://127.0.0.1:8500/`.
+3. The Keycloak image compiles the extensions when it's built. After changing
+   `packages/keycloak-extensions`, rebuild and restart it:
+
+   ```bash
+   cd .devcontainer
+   docker compose build keycloak && docker compose up -d keycloak
+   ```
+
+4. Enrollment OTPs aren't sent: the dummy email and SMS senders write them to
+   the Keycloak log. Read them with `docker logs keycloak 2>&1 | grep "Your OTP is"`.
+
+### Sample election event
+
+`packages/step-cli/data/scanovate-enrollment/` has an election event that
+enrolls voters with Scanovate against the mock server:
+
+| File | Contents |
+| --- | --- |
+| `election-event.json` | The *Scanovate Enrollment Demo* election event: one area (`Japan - Tokyo PE`), one election and one contest. Its Keycloak realm is the COMELEC realm template with enrollment enabled, `scanovate-registration` pointing to `http://mock_server:8500` in `interactive` mode, and the five accepted document types. |
+| `voters.csv` | The voter registry: `JUAN DELA CRUZ`, born `1990-01-01`, registered at the Tokyo PE. It's the voter the mock server returns when no voters were uploaded to it. |
+
+To use it:
+
+1. In the admin portal (http://127.0.0.1:3002), import `election-event.json`
+   with **Import Election Event**.
+2. Open the new election event, go to **Voters** and import `voters.csv`.
+3. Open the enrollment page of the election event from the voting portal, or
+   directly at
+   `http://127.0.0.1:8090/realms/tenant-<tenant id>-event-<election event id>/protocol/openid-connect/registrations?client_id=voting-portal&response_type=code&scope=openid&redirect_uri=http%3A%2F%2F127.0.0.1%3A3000%2F`.
+4. Fill in the form with any valid ID, a password and an email, select
+   **Japan/Tokyo PE** and **Tokyo PE**, and click **Enroll**. Enter the OTPs
+   from the Keycloak log.
+5. You're redirected to the mock flow page. Pick an outcome, as described
+   below.
+
+The voter can only enroll once. To enroll again, for example with another
+document type, delete the enrolled voter and import `voters.csv` again.
+
+Since the B-Trust flow is mocked, no identity document is needed: the mock
+returns the data of the voter above. To test with documents against the real
+B-Trust, see [Testing against B-Trust](#testing-against-b-trust).
+
+### Manual test
+
+1. Enroll a voter as described in [Sample election event](#sample-election-event).
+   The development election event realm also ships a `scanovate-registration`
+   config pointing to the mock server, to be added to its registration flow
+   from the Keycloak admin console (http://127.0.0.1:8090).
+2. Choose `success`. You're sent back to Keycloak and shown the confirmation
+   page with the extracted name, ID number and date of birth. Click
+   **Continue** and check that the enrollment finishes and that the user has
    `sequent.read-only.id-card-number-validated = VERIFIED`.
-5. Repeat with each failure outcome and check the error message. **Retry**
+3. Repeat with each failure outcome and check the error message. **Retry**
    starts a new B-Trust session, and after `max-attempts` failures the voter is
    rejected with `scanovateMaxRetriesError`.
-6. Security checks:
+4. Security checks:
    - Refresh the page after coming back from the mock. The same results must
      not be processed twice: a new session is started instead.
    - Edit the `processId` query parameter of the return URL. It must be
      ignored: either the session stored in Keycloak is processed, or a new
      session is started.
+   - Change the `flow` query parameter of the return URL to anything other
+     than a Keycloak login actions flow. The return endpoint must answer
+     `400 Bad Request`.
    - Submit the confirmation form (`action=confirm`) from a session that never
      completed a verification. It must not complete the step.
-7. Check the Keycloak logs (`docker logs keycloak`) for
+5. Check the Keycloak logs (`docker logs keycloak`) for
    `ScanovateAuthenticator` entries, and the Keycloak events for
    `scanovate_verification_failed` errors carrying `scanovate_error` and
    `scanovate_process_id` details.
@@ -285,3 +375,19 @@ test election templates (`packages/step-cli/data/*.json`) use this mode against
    rejected.
 5. If `save-option` is `do_not_save`, remember that fetching the results deletes
    the session data in B-Trust.
+
+#### Testing without your own documents
+
+With the mock server, no document is needed at all. Against B-Trust, avoid
+using personal documents in shared environments:
+
+- Ask Scanovate for test documents. B-Trust sandboxes usually come with sample
+  documents, or can be configured to accept them.
+- Official specimen images (for example the passport and PhilSys specimens
+  published by the issuing agencies) are useful to check that OCR fields
+  resolve. Expect Document Liveness Plus to reject them when shown on a screen
+  or printed, and the face match to fail because the selfie isn't the holder's.
+  To exercise the whole flow with them, use a separate sandbox authenticator
+  config without the `document_liveness_plus` rule and with a lower
+  `biometric_match` threshold. Never use that config in production.
+- Real voters' documents must never be used for testing.
