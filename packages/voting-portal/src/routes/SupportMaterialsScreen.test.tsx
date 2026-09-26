@@ -15,14 +15,10 @@ import SupportMaterialsScreen from "./SupportMaterialsScreen"
 jest.mock("react-i18next", () => ({
     useTranslation: () => ({t: (key: string) => key, i18n: {language: "en"}}),
 }))
-jest.mock(
-    "@sequentech/ui-essentials",
-    () => ({
-        PageLimit: ({children}: {children: React.ReactNode}) => <main>{children}</main>,
-        theme: jest.requireActual("../../../ui-essentials/src/services/theme").default,
-    }),
-    {virtual: true}
-)
+jest.mock("@sequentech/ui-essentials", () => ({
+    PageLimit: ({children}: {children: React.ReactNode}) => <main>{children}</main>,
+    theme: jest.requireActual("../../../ui-essentials/src/services/theme").default,
+}))
 jest.mock("../store/hooks", () => ({
     useAppSelector: (selector: (state: RootState) => unknown) => selector(mockState),
     useAppDispatch: () => jest.fn(),

@@ -27,7 +27,7 @@
     "web-vitals": "^5.1.0"
   },
   "scripts": {
-    "start": "PORT=3001 NODE_OPTIONS='--openssl-legacy-provider --max-old-space-size=4096' webpack serve --config webpack.config.cjs  --mode development",
+    "start": "NODE_OPTIONS='--openssl-legacy-provider --max-old-space-size=4096' webpack serve --config webpack.config.cjs  --mode development",
     "build": "DISABLE_ESLINT_PLUGIN=false NODE_OPTIONS='--openssl-legacy-provider --max-old-space-size=4096' webpack --config webpack.config.cjs --mode production",
     "test": "jest --config jest.config.cjs",
     "eject": "react-scripts eject",

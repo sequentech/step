@@ -4,10 +4,10 @@
 
 // The @sequentech/ui-core package entry points at its built dist/ bundle,
 // which a clean `yarn install` does not produce, so jest can't resolve the
-// package on CI. These unit tests only need enums, type guards and the
-// self-contained services below, so they are re-exported straight from
-// ui-core's sources instead of loading the whole barrel (which pulls in
-// i18next and the WASM context). Mapped in jest.config.cjs.
+// package on CI. These unit tests, and the UI Essentials sources they load,
+// only need enums, type guards and the self-contained services below, so they
+// are re-exported straight from ui-core's sources instead of loading the whole
+// barrel (which pulls in i18next and the WASM context). Mapped in jest.config.cjs.
 export * from "../../../ui-core/src/types/AreaPresentation"
 export * from "../../../ui-core/src/types/ContestPresentation"
 export * from "../../../ui-core/src/types/CoreTypes"
@@ -19,3 +19,6 @@ export * from "../../../ui-core/src/services/stringToHtml"
 export * from "../../../ui-core/src/services/candidatePresentation"
 export * from "../../../ui-core/src/services/acclamation"
 export * from "../../../ui-core/src/services/translationScopes"
+export * from "../../../ui-core/src/services/percentFormatter"
+export * from "../../../ui-core/src/types/VotingChannel"
+export * from "../../../ui-core/src/utils/ref"
