@@ -4,8 +4,8 @@
 // @ts-check
 
 // Runs the Vitest browser test of one story, of one title or of one story file
-// in the Storybook of the current package. Plain JavaScript, so it runs on the
-// devcontainer's Node without a TypeScript loader.
+// in the Storybook of the current package. Plain JavaScript, so it runs on every
+// Node version the workspace uses without a TypeScript loader.
 import {spawn} from "node:child_process"
 import {existsSync, readdirSync, statSync} from "node:fs"
 import {readFile} from "node:fs/promises"
