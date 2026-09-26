@@ -86,13 +86,6 @@ function VerifierScreen() {
     )
 }
 
-const candidateListDefect = {
-    expectedFailure: {
-        reason: "PlaintextVoteContest renders candidate li elements under a div instead of a list.",
-        a11y: ["listitem"],
-    },
-}
-
 const meta = {
     title: "Screens/Verifier/Ballot verification",
     component: VerifierScreen,
@@ -194,7 +187,6 @@ export const Empty: Story = {
 }
 
 export const Populated: Story = {
-    parameters: candidateListDefect,
     play: async ({canvasElement, loaded}) => {
         const {ballot, hash} = (loaded as {voterBallot: ReturnType<typeof encryptAndSign>})
             .voterBallot
