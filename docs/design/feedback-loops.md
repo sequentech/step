@@ -229,6 +229,16 @@ in progress.
   falling back to the standard image when missing or incompatible. Unit tests,
   source-free warm-up, Dockerfile checks and fallback Compose validation pass;
   complete image builds and startup measurements remain pending hosted validation.
+- **Repeatable backend scenarios**: all three named states create and reuse their
+  own events; targeted reset rejects foreign ownership, tenant mismatches and
+  concurrent execution. Four browser checks pass against current portal sources:
+  kiosk and online ballot casting, verifier upload and the exact published
+  totals. The task backend reuses binaries from `728c258313`; the driver and
+  portal validation use `149131a62a`. Warm reuse takes 0.786 s median,
+  0.633–0.953 for kiosk, 0.625 s, 0.589–0.793 for completed ceremony, and 0.631 s,
+  0.595–0.715 for published results (n=10 each, one excluded warmup). These are
+  current-state timings under concurrent load, not before/after speedups.
+  All 84 scenario tests and the integrated 415 developer-tool tests pass.
 
 Keep the stack synchronized with new `ovcs` commits using normal merges into
 phase 1 and then each descendant. All feedback commands must be discoverable and
