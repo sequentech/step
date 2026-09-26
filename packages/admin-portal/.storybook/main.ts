@@ -33,7 +33,8 @@ const adminConfig = {
     viteFinal: async (viteConfig, options) =>
         mergeConfig(await config.viteFinal!(viteConfig, options), {
             plugins: [adminGraphqlSchema()],
-            define: {"process.env.MAX_DIFF_LINES": "500"},
+            // As in webpack.config.cjs: public assets such as /tinymce are served from the root.
+            define: {"process.env.MAX_DIFF_LINES": "500", "process.env.PUBLIC_URL": '""'},
             server: {fs: {allow: [searchForWorkspaceRoot(process.cwd()), realmTemplates]}},
             css: {postcss: {plugins: [postcssPresetEnv()]}},
             optimizeDeps: {
