@@ -320,7 +320,7 @@ def command_up(
     if drifted and context.checkout.binds_resolve_on_host:
         # Only the containers go; the next command creates them again, in
         # dependency order, with volumes and bind mounts untouched.
-        context.say(f"replacing {', '.join(drifted)}: their health check changed")
+        context.say(f"health check changed, replacing {', '.join(drifted)}")
         code = plan.compose.run("rm", "--stop", "--force", *drifted)
         if code != EXIT_OK:
             raise ModeError(f"docker compose rm failed with exit code {code}")
