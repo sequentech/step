@@ -144,6 +144,41 @@ fn a_new_event_imports_each_shard_then_opens_only_online_voting() {
 }
 
 #[test]
+fn exported_election_external_ids_survive_preparation_and_event_reuse() {
+    for external in [
+        None,
+        Some(Value::Null),
+        Some(json!("")),
+        Some(json!("external-election-2026")),
+    ] {
+        let mut f = Fixture::new();
+        if let Some(value) = external.clone() {
+            f.api.exports[0].1["elections"][0]["external_id"] = value;
+        }
+        f.run().unwrap();
+        let config_path = f.output.join("config.json");
+        let prepared: Value = files::read(&config_path).unwrap();
+        assert_eq!(prepared["election_id"], ELECTION);
+        assert_eq!(
+            prepared["election_external_id"],
+            external.clone().unwrap_or(Value::Null)
+        );
+
+        let mut reused = Fixture::new();
+        reused.settings.preparation.existing_event = Some(config_path);
+        reused.settings.workload.start = 100;
+        reused.run().unwrap();
+        let input: Value = files::read(&reused.output.join("config.json")).unwrap();
+        assert_eq!(input["election_id"], ELECTION);
+        assert_eq!(
+            input["election_external_id"],
+            external.unwrap_or(Value::Null)
+        );
+        assert!(reused.api.state.lock().unwrap().imported_event.is_none());
+    }
+}
+
+#[test]
 fn direct_upload_mode_reaches_both_event_and_voter_imports() {
     let mut f = Fixture::new();
     f.settings.target.upload_mode = UploadMode::Direct;
