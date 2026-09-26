@@ -100,8 +100,18 @@ test.describe("template administrator", () => {
     test("creates a template from the default of its type", async ({page, portal}) => {
         const rows = templates(portal)
         await openTemplates(page, portal)
+        await rowButtons(page, "Welcome letter").nth(0).click()
+        const edit = page.getByRole("dialog").filter({hasText: "Edit a Template"})
+        await expect(edit.getByRole("textbox", {name: "Template Alias"})).toHaveValue("welcome")
+        await page.clock.pauseAt(new Date(Date.parse(FIXED_TIME) + 60_000))
+        await page.keyboard.press("Escape")
+        // Finish the drawer transition while its 400 ms record reset is still pending.
+        await page.clock.runFor(250)
         await page.getByRole("button", {name: "Add", exact: true}).click()
         const drawer = page.getByRole("dialog").filter({hasText: "Create a Template"})
+        await expect(drawer).toBeVisible()
+        await page.clock.resume()
+        expect(portal.graphql.callsTo("UpdateTemplate")).toEqual([])
         await drawer.getByRole("textbox", {name: "Template Alias"}).fill("receipt")
         await drawer.getByRole("textbox", {name: "Template Name"}).fill("Ballot receipt")
         await drawer.getByRole("combobox", {name: "Type"}).click()

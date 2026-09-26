@@ -136,7 +136,13 @@ async function boot(page: Page, portal: PortalServices) {
     await page.goto(`${portal.origin}/?lang=en`)
     await expect(page.getByText("No Election Event yet", {exact: true})).toBeVisible()
 }
-async function selectArchive(page: Page, portal: PortalServices, url: string, encrypted: boolean) {
+async function selectArchive(
+    page: Page,
+    portal: PortalServices,
+    url: string,
+    encrypted: boolean,
+    whileUploading?: () => Promise<void>
+) {
     await boot(page, portal)
     await page.getByRole("button", {name: "Import", exact: true}).click()
     const drawer = page.getByRole("dialog")
@@ -157,6 +163,7 @@ async function selectArchive(page: Page, portal: PortalServices, url: string, en
         await password.getByRole("button", {name: "Ok", exact: true}).click()
     }
     const request = await upload
+    await whileUploading?.()
     expect(request.postDataBuffer()).toEqual(CONTENT)
     expect(request.headers()["content-type"]).toBe(
         encrypted ? "application/ezip" : "application/json"
@@ -236,7 +243,61 @@ for (const encrypted of [false, true])
         portal,
     }) => {
         const workflow = eventWorkflow(portal, "import")
-        const drawer = await selectArchive(page, portal, workflow.url, encrypted)
+        let releaseUpload!: () => void
+        const heldUpload = new Promise<void>((resolve) => {
+            releaseUpload = resolve
+        })
+        if (encrypted) {
+            await page.route(workflow.url, async (route) => {
+                await heldUpload
+                await route.fallback()
+            })
+        }
+        const drawer = await selectArchive(
+            page,
+            portal,
+            workflow.url,
+            encrypted,
+            encrypted
+                ? async () => {
+                      try {
+                          const uploading = page.getByRole("dialog").filter({
+                              has: page.getByRole("textbox", {
+                                  name: "Integrity Check (SHA-256)",
+                              }),
+                          })
+                          await expect(uploading.getByRole("progressbar")).toBeVisible()
+                          await expect(
+                              uploading.getByRole("textbox", {name: "Integrity Check (SHA-256)"})
+                          ).toBeDisabled()
+                          await expect(uploading.locator('input[type="file"]')).toBeDisabled()
+                          await expect(
+                              uploading.getByRole("button", {name: "Cancel", exact: true})
+                          ).toBeDisabled()
+                          const transfer = await page.evaluateHandle(() => {
+                              const data = new DataTransfer()
+                              data.items.add(
+                                  new File(["replacement"], "replacement.json", {
+                                      type: "application/json",
+                                  })
+                              )
+                              return data
+                          })
+                          try {
+                              await uploading
+                                  .locator(".drop-file-dropzone")
+                                  .dispatchEvent("drop", {dataTransfer: transfer})
+                          } finally {
+                              await transfer.dispose()
+                          }
+                          expect(portal.graphql.callsTo("GetUploadUrl")).toHaveLength(1)
+                          expect(portal.graphql.callsTo("ImportElectionEvent")).toEqual([])
+                      } finally {
+                          releaseUpload()
+                      }
+                  }
+                : undefined
+        )
         await expect(drawer.getByRole("button", {name: "Import", exact: true})).toBeEnabled()
         await drawer.getByRole("button", {name: "Import", exact: true}).click()
         await expect.poll(() => portal.graphql.callsTo("ImportElectionEvent").length).toBe(2)
