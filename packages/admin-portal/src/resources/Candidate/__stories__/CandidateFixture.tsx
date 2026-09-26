@@ -5,10 +5,10 @@ import React, {useContext, type PropsWithChildren} from "react"
 import {Outlet} from "react-router"
 import {fn} from "storybook/test"
 import type {FetchResult, Operation} from "@apollo/client"
-import type {DataProvider, RaRecord} from "react-admin"
+import type {RaRecord} from "react-admin"
 import {graphqlBoundary, TENANT_ID} from "@/__stories__/AdminStoryProvider"
 import {resourceBoundary, type ReadState} from "@/__stories__/resourceBoundary"
-import {ResourceScreen, withMissingRecords} from "@/__stories__/resourceScreen"
+import {ResourceScreen} from "@/__stories__/resourceScreen"
 import {
     FIXED_TIME,
     STORY_IDS,
@@ -76,7 +76,6 @@ export function aliceRecord(withImage = false): StoryRecord<Sequent_Backend_Cand
 
 let graphql: ReturnType<typeof graphqlBoundary>
 let data: ReturnType<typeof resourceBoundary>
-let provider: DataProvider
 
 /** NewResourceContext's record of the last created resource. */
 export const lastCreated = fn()
@@ -105,9 +104,6 @@ export async function setUpCandidates(
         },
         {reads: {[RESOURCE]: reads}, writeError}
     )
-    // Until its contest has loaded, CandidateDataForm reads the election whose
-    // ID is the tenant's, which Hasura does not find.
-    provider = withMissingRecords(data.provider, [["sequent_backend_election", TENANT_ID]])
     graphql = graphqlBoundary(
         {
             election_events_tree: () => ({data: {sequent_backend_election_event: []}}),
@@ -127,7 +123,7 @@ export function CandidateScreen({children}: PropsWithChildren) {
             resource={RESOURCE}
             label="Candidates"
             boundary={graphql}
-            dataProvider={provider}
+            dataProvider={data.provider}
             role={permissions}
             tenant={tenant}
             // Pictures load from the Storybook server, which answers that they are

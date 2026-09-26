@@ -5,10 +5,9 @@ import React, {useContext, type PropsWithChildren} from "react"
 import {Outlet} from "react-router"
 import {fn} from "storybook/test"
 import {initCore} from "@sequentech/ui-core"
-import type {DataProvider} from "react-admin"
-import {graphqlBoundary, TENANT_ID} from "@/__stories__/AdminStoryProvider"
+import {graphqlBoundary} from "@/__stories__/AdminStoryProvider"
 import {resourceBoundary, type ReadState} from "@/__stories__/resourceBoundary"
-import {ResourceScreen, withMissingRecords} from "@/__stories__/resourceScreen"
+import {ResourceScreen} from "@/__stories__/resourceScreen"
 import {
     STORY_IDS,
     candidateRecords,
@@ -47,7 +46,6 @@ export const contests = () => [
 
 let graphql: ReturnType<typeof graphqlBoundary>
 let data: ReturnType<typeof resourceBoundary>
-let provider: DataProvider
 
 /** NewResourceContext's record of the last created resource. */
 export const lastCreated = fn()
@@ -69,9 +67,6 @@ export async function setUpContests({reads, empty, writeError}: ContestServices)
         },
         {reads: {[RESOURCE]: reads}, writeError}
     )
-    // Without a picture, ContestDataForm reads the document whose ID is the
-    // tenant's, which Hasura does not find.
-    provider = withMissingRecords(data.provider, [["sequent_backend_document", TENANT_ID]])
     graphql = graphqlBoundary(
         {election_events_tree: () => ({data: {sequent_backend_election_event: []}})},
         {schema: true}
@@ -88,7 +83,7 @@ export function ContestScreen({children}: PropsWithChildren) {
             resource={RESOURCE}
             label="Contests"
             boundary={graphql}
-            dataProvider={provider}
+            dataProvider={data.provider}
             role={permissions}
             tenant={tenant}
         >
