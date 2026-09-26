@@ -533,7 +533,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
         "sequent_backend_election",
         {
             pagination: {page: 1, perPage: 300},
-            sort: {field: "name", order: "DESC"},
+            sort: {field: "external_id", order: "DESC"},
             filter: {
                 tenant_id: tenantId,
                 election_event_id: electionEventId,
@@ -1120,15 +1120,6 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
     }
 
     const aliasRenderer = useAliasRenderer()
-
-    const searched = useRef("")
-
-    const electionFilterToQuery = (searchText: string) => {
-        if (searchText && searchText.length > 0) {
-            searched.current = searchText.trim()
-        }
-        return {"name@_ilike,alias@_ilike": searched.current}
-    }
 
     const formattedElections = electionsList?.map((e) => {
         return {

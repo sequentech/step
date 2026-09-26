@@ -95,7 +95,7 @@ const ConfigFormBody: React.FC<{
 
     const {data: rawElections} = useGetList<Sequent_Backend_Election>("sequent_backend_election", {
         pagination: {page: 1, perPage: 300},
-        sort: {field: "name", order: "DESC"},
+        sort: {field: "external_id", order: "DESC"},
         filter: {
             tenant_id: electionEvent.tenant_id,
             election_event_id: electionEvent.id,
