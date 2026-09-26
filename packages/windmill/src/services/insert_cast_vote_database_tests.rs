@@ -187,8 +187,7 @@ async fn materialized_dates_follow_the_online_voting_channel() {
             "2026-10-01T12:00:00Z",
         ),
     ] {
-        let task =
-            generate_manage_date_task_name(&tenant, &event, Some(&election), &processor);
+        let task = generate_manage_date_task_name(&tenant, &event, Some(&election), &processor);
         transaction
             .execute(
                 r#"
