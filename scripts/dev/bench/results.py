@@ -23,6 +23,8 @@ LABEL_PATTERN = re.compile(r"^[a-z0-9][a-z0-9._-]*$")
 class CacheState(Enum):
     COLD = "cold"
     WARM = "warm"
+    # Hosted CI: runner images and Actions caches are as GitHub provides them.
+    UNCONTROLLED = "uncontrolled"
 
 
 class SampleRole(Enum):

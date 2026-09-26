@@ -12,7 +12,7 @@ from collections.abc import Sequence
 from dataclasses import replace
 from pathlib import Path
 
-from . import focused_test, rust, summarize, ui_update, wasm, workspace
+from . import ci, focused_test, rust, summarize, ui_update, wasm, workspace
 from .common import default_output_dir
 from .edits import EditError, EditSpec, load_edits
 from .isolation import Dind, IsolationError, parse_seed, remove_as_root
@@ -53,7 +53,7 @@ def label(value: str) -> str:
         raise argparse.ArgumentTypeError(str(error)) from None
 
 
-def common_options(parser: argparse.ArgumentParser) -> None:
+def common_options(parser: argparse.ArgumentParser, checkout: bool = True) -> None:
     parser.add_argument(
         "--label",
         type=label,
@@ -67,12 +67,13 @@ def common_options(parser: argparse.ArgumentParser) -> None:
         help="results root; files go to <dir>/<scenario>/ (default: "
         "$STEP_BENCH_OUTPUT_DIR or ~/.cache/step-bench/results)",
     )
-    parser.add_argument(
-        "--checkout",
-        type=checkout_path,
-        required=True,
-        help="the step checkout to measure (never modified beyond reverted edits)",
-    )
+    if checkout:
+        parser.add_argument(
+            "--checkout",
+            type=checkout_path,
+            required=True,
+            help="the step checkout to measure (never modified beyond reverted edits)",
+        )
 
 
 def add_workspace(
@@ -209,6 +210,44 @@ def run_workspace(arguments: argparse.Namespace) -> Path:
         footprint=not arguments.no_footprint,
     )
     return workspace.run_workspace(options)
+
+
+def add_ci(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
+    parser = subparsers.add_parser(
+        "ci",
+        help="push-to-first-actionable and push-to-done times of pull request pushes",
+        description=ci.__doc__,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    common_options(parser, checkout=False)
+    parser.add_argument("--repository", default=DEFAULT_REPOSITORY)
+    parser.add_argument(
+        "--pr",
+        type=positive_int,
+        action="append",
+        required=True,
+        help="pull request number (repeat)",
+    )
+    parser.add_argument(
+        "--pushes", type=positive_int, default=10, help="latest pushes per pull request"
+    )
+    parser.add_argument(
+        "--exclude",
+        action="append",
+        metavar="REGEX",
+        help="workflow names that are not actionable (replaces defaults)",
+    )
+
+
+def run_ci(arguments: argparse.Namespace) -> Path:
+    return ci.run_ci(
+        repository=arguments.repository,
+        numbers=arguments.pr,
+        label=arguments.label,
+        pushes_per_pr=arguments.pushes,
+        excluded=arguments.exclude or list(ci.DEFAULT_EXCLUDED_WORKFLOWS),
+        output_dir=arguments.output_dir,
+    )
 
 
 def edit_choice(
@@ -536,6 +575,7 @@ def parser() -> argparse.ArgumentParser:
     add_test(subparsers)
     add_wasm(subparsers)
     add_rust(subparsers)
+    add_ci(subparsers)
     add_summarize(subparsers)
     add_clean(subparsers)
     return root
@@ -563,6 +603,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             "test": run_test,
             "wasm": run_wasm,
             "rust": run_rust,
+            "ci": run_ci,
         }
         written = runners[arguments.scenario](arguments)
     except (IsolationError, ProbeError, ValueError) as error:
