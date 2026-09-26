@@ -9,6 +9,7 @@ from typing import Any
 from .changes import Scope
 from .config import Cost
 from .model import Decision, Impact, Model, Selection, UnitImpact
+from .workspaces import Unit
 
 JSON_SCHEMA = 1
 SHORT = 10
@@ -126,6 +127,24 @@ def graph_report(model: Model) -> str:
     return "\n".join(lines)
 
 
+def unit_entry(unit: Unit, impact: UnitImpact | None) -> dict[str, Any]:
+    return {
+        "id": unit.id,
+        "kind": unit.kind.value,
+        "path": unit.path,
+        "workspace": unit.workspace,
+        "summary": unit.summary,
+        "depends": sorted(unit.depends),
+        "inputs": [glob.pattern for glob in unit.inputs],
+        "test_inputs": [glob.pattern for glob in unit.test_inputs],
+        "affected": impact is not None,
+        "impact": impact.impact.value if impact else None,
+        "files": list(impact.files) if impact else [],
+        "test_files": list(impact.test_files) if impact else [],
+        "chain": list(impact.chain) if impact else [],
+    }
+
+
 def json_report(model: Model, selection: Selection) -> dict[str, Any]:
     changes = selection.changeset
     selected = selection.selected()
@@ -155,25 +174,7 @@ def json_report(model: Model, selection: Selection) -> dict[str, Any]:
             for file in selection.files
         ],
         "units": [
-            {
-                "id": unit.id,
-                "kind": unit.kind.value,
-                "path": unit.path,
-                "workspace": unit.workspace,
-                "depends": sorted(unit.depends),
-                "affected": unit.id in selection.units,
-                "impact": (
-                    selection.units[unit.id].impact.value
-                    if unit.id in selection.units
-                    else None
-                ),
-                "files": (
-                    selection.units[unit.id].files if unit.id in selection.units else []
-                ),
-                "chain": (
-                    selection.units[unit.id].chain if unit.id in selection.units else []
-                ),
-            }
+            unit_entry(unit, selection.units.get(unit.id))
             for unit in sorted(model.units.values(), key=lambda unit: unit.id)
         ],
         "checks": [
@@ -190,6 +191,7 @@ def json_report(model: Model, selection: Selection) -> dict[str, Any]:
                 "requires": [
                     requirement.value for requirement in decision.check.requires
                 ],
+                "paths": [glob.pattern for glob in decision.check.paths],
                 "workflows": list(decision.check.workflows),
                 "actions": list(decision.check.actions),
                 "units": sorted(model.check_units[decision.check.id]),

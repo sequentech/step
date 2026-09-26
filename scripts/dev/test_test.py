@@ -574,6 +574,12 @@ class ParsingTest(unittest.TestCase):
         self.assertFalse(focused.Depth.BROAD.allows(cost.INTEGRATION))
         self.assertTrue(focused.Depth.FULL.allows(cost.INTEGRATION))
 
+    def test_outermost_paths(self):
+        self.assertEqual(
+            focused.outermost(["scripts/dev/a.py", "scripts/dev", "scripts/devx", "b"]),
+            ["b", "scripts/dev", "scripts/devx"],
+        )
+
     def test_static_prefix(self):
         self.assertEqual(focused.static_prefix("scripts/dev/**"), "scripts/dev")
         self.assertEqual(focused.static_prefix("packages/*/rust"), "packages")

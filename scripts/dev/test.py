@@ -495,7 +495,10 @@ class Resolver:
         directory = (self.model.root / path).is_dir()
         claim = self.model.claim(f"{path}/{DIRECTORY_PROBE}" if directory else path)
         if claim is None or not claim.units:
-            raise SelectionError(f"{path} belongs to no package or area of the model")
+            raise SelectionError(
+                f"no package or area claims {path}; step-dev test --affected "
+                f"--files {path} runs every check"
+            )
         units = [self.model.units[unit] for unit in claim.units]
         unit = next(
             (unit for unit in units if unit.kind is not UnitKind.AREA), units[0]
@@ -543,9 +546,11 @@ class Resolver:
         elif any(check.kind is CheckKind.TEST for check in owned):
             return self.unit(unit.id)
         else:
+            others = ", ".join(check.id for check in owned)
             raise SelectionError(
-                f"{path} belongs to {unit.id}, which has no tests of its own; "
-                f"step-dev affected --files {path} shows the checks it selects"
+                f"{path} belongs to {unit.id}, which has no tests"
+                + (f"; run one of its checks: {others}" if others else "")
+                + f"; step-dev test --affected --files {path} runs what it selects"
             )
         self.not_run(plan, unit.id)
         return plan
@@ -777,9 +782,19 @@ def fingerprint(root: Path, paths: Sequence[str]) -> str:
     return digest.hexdigest()
 
 
+def outermost(paths: Sequence[str]) -> list[str]:
+    """The paths that no other path in the list contains."""
+    unique = sorted(set(paths))
+    return [
+        path
+        for path in unique
+        if not any(path.startswith(f"{other}/") for other in unique if other != path)
+    ]
+
+
 def poll(model: Model, steps: Sequence[Step]) -> int:
     """Rerun the steps whenever a watched file changes, until interrupted."""
-    paths = sorted({path for step in steps for path in step.watch_paths})
+    paths = outermost([path for step in steps for path in step.watch_paths])
     print(f"\nwatching {', '.join(paths)} (Ctrl-C stops)", flush=True)
     last = None
     try:

@@ -493,6 +493,12 @@ class SelectionTest(Fixture):
         self.assertIn("wasm-freshness", chosen)
         self.assertIn("jest:portal", chosen)
 
+    def test_fixture_change_reaches_the_packages_that_use_the_kit(self):
+        _, selection = self.select("packages/kit/fixtures/election.ts")
+        self.assertEqual(selection.units["portal"].chain, ["kit", "portal"])
+        chosen = {decision.check.id for decision in selection.selected()}
+        self.assertEqual(chosen, {"jest:portal", "stories:portal"})
+
     def test_test_inputs_select_only_the_owners_checks(self):
         _, selection = self.select("schema/001.sql")
         self.assertEqual(selection.units["service"].impact, Impact.TEST_INPUT)
@@ -562,6 +568,10 @@ class SelectionTest(Fixture):
         portal = next(unit for unit in report["units"] if unit["id"] == "portal")
         self.assertEqual(portal["impact"], "dependency")
         self.assertEqual(portal["chain"], ["core-ui", "portal"])
+        service = next(unit for unit in report["units"] if unit["id"] == "service")
+        self.assertEqual(service["test_inputs"], ["schema/**"])
+        self.assertEqual(service["inputs"], ["docs/data.txt"])
+        self.assertIsNone(service["impact"])
         check = next(c for c in report["checks"] if c["id"] == "jest:portal")
         self.assertEqual(check["cwd"], "packages/portal")
         self.assertEqual(check["command"], "yarn test")

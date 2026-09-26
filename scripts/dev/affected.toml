@@ -522,9 +522,6 @@ command = "cargo test --locked -p {unit}"
 focus = ["cargo", "test", "--locked", "-p", "{unit}"]
 workflows = ["tests.yml"]
 actions = ["setup-rust-tests"]
-[checks.also]
-# The load report embeds these files at compile time.
-step-cli = ["voting-load"]
 
 # Renders PDFs in place with a local Chromium.
 [[checks]]
@@ -831,8 +828,44 @@ command = "yarn generate:voting-portal && yarn generate:admin-portal && yarn gen
 paths = ["packages/*/codegen.ts"]
 
 [[checks]]
-id = "db-contracts"
+id = "python:scripts-database"
+units = ["scripts-database"]
+kind = "test"
+runner = "python"
+cost = "fast"
+cwd = "."
+command = "python3 -m unittest scripts.voting_flow.test_castvote_fixture"
+focus = ["python3", "-m", "unittest"]
+tests = ["scripts/voting_flow/test_*.py"]
+workflows = ["backend-database-contracts.yml"]
+
+# Capture tests start a private PostgreSQL from the devenv's server binaries.
+[[checks]]
+id = "python:voting-load"
+units = ["voting-load"]
+kind = "test"
+runner = "python"
+cost = "fast"
+cwd = "."
+command = "python3 -m unittest discover -s packages/voting-load"
+focus = ["python3", "-m", "unittest"]
+tests = ["packages/voting-load/test_*.py"]
+workflows = ["backend-database-contracts.yml"]
+
+[[checks]]
+id = "voting-flow"
 units = ["scripts-database", "hasura", "voting-load"]
+kind = "test"
+runner = "shell"
+cost = "integration"
+cwd = "."
+command = "docker build --tag voting-flow-harness scripts/voting_flow && for suite in test_cast_vote_scalability test_scheduled_voting_channels test_ballot_publication_lifecycle test_voting_window_preflight; do docker run --rm --volume \"$PWD:/step:ro\" --workdir /step voting-flow-harness python3 scripts/$suite.py || exit 1; done && docker run --rm --volume \"$PWD:/step:ro\" --workdir /step voting-flow-harness python3 -m unittest discover -s packages/voting-load"
+requires = ["docker"]
+workflows = ["backend-database-contracts.yml"]
+
+[[checks]]
+id = "db-contracts"
+units = ["scripts-database", "hasura"]
 kind = "test"
 runner = "shell"
 cost = "integration"
