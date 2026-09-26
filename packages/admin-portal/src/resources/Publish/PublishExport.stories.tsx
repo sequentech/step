@@ -150,7 +150,14 @@ export const ExportAnElectionPublication: Story = {
 
 export const ExportFailure: Story = {
     args: {exportFails: true},
-    parameters: taskWidgetDefects("FAILED"),
+    parameters: {
+        expectedFailure: {
+            reason:
+                "The task widgets' icon buttons have no accessible name and sit inside their " +
+                "accordion summary buttons, and each widget's details region has the same name.",
+            a11y: ["button-name", "landmark-unique", "nested-interactive"],
+        },
+    },
     play: async ({canvasElement}) => {
         const dialog = await exportPublication(canvasElement)
         await expect(await within(document.body).findByText("FAILED")).toBeVisible()
