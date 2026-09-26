@@ -52,9 +52,10 @@ function ballot(portal: PortalServices) {
     portal.graphql.on("contest_tree", () => ({data: {sequent_backend_contest: contests}}))
 }
 
-async function reorder(page: Page, portal: PortalServices) {
+async function reorder(page: Page, portal: PortalServices, loadContests?: () => Promise<void>) {
     await page.goto(`${portal.origin}/sequent_backend_election/${IDS.election}?lang=en`)
     await page.getByRole("textbox", {name: "Name", exact: true}).fill("City election")
+    await loadContests?.()
     await page.getByRole("textbox", {name: "Description", exact: true}).fill("Ordered city ballot")
     await page.getByRole("textbox", {name: "IVR prompt", exact: true}).fill("City voting")
     await page.getByRole("button", {name: "Ballot Design", exact: true}).click()
@@ -89,7 +90,33 @@ test("saves election text and a custom contest order with complete payloads", as
     portal,
 }) => {
     ballot(portal)
-    await reorder(page, portal)
+    let releaseContests!: () => void
+    const heldContests = new Promise<void>((resolve) => {
+        releaseContests = resolve
+    })
+    let contestsWaiting = false
+    await page.route("**/v1/graphql", async (route) => {
+        const body = route.request().postDataJSON()
+        if (body.operationName === "sequent_backend_contest") {
+            contestsWaiting = true
+            await heldContests
+        }
+        await route.fallback()
+    })
+    try {
+        await reorder(page, portal, async () => {
+            await expect.poll(() => contestsWaiting).toBe(true)
+            releaseContests()
+            await page.getByRole("button", {name: "Ballot Design", exact: true}).click()
+            await expect(page.locator('[draggable="true"]')).toHaveText(["Mayor", "Council seats"])
+            await page.getByRole("button", {name: "General", exact: true}).click()
+            await expect(page.getByRole("textbox", {name: "Name", exact: true})).toHaveValue(
+                "City election"
+            )
+        })
+    } finally {
+        releaseContests()
+    }
     await expect(notification(page, "Element updated")).toBeVisible()
     await page.clock.runFor(5001)
     await expect

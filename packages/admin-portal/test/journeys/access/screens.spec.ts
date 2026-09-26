@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import {FIXED_TIME, IDS} from "@sequentech/ui-test-kit/fixtures"
 import {test, expect, TENANT_ID} from "../fixtures"
+import {serveTrusteeWorkerHelper} from "../tally/trustee-startup"
 import {expectRole} from "./data"
 
 test.describe("settings administrator", () => {
@@ -71,6 +72,10 @@ test.describe("browser trustee", () => {
     test.use({roles: ["admin-user", "trustee-ceremony"]})
 
     test("keeps board actions locked until the trustee is configured", async ({page, portal}) => {
+        await page.addInitScript(() => {
+            Object.defineProperty(navigator, "hardwareConcurrency", {value: 2})
+        })
+        await serveTrusteeWorkerHelper(page.context(), portal)
         await page.goto(`${portal.origin}/trustee?lang=en`)
         await expect(page.getByText("Braid Trustee Node", {exact: true})).toBeVisible()
         await expect(page.getByRole("textbox", {name: "Trustee Name"})).toHaveValue(

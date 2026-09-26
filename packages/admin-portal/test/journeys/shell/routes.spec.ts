@@ -17,7 +17,7 @@ interface Smoke {
     url: string
     /** The path a redirecting route settles on. */
     settlesAt?: string
-    shows: (page: Page) => Promise<void>
+    shows: (page: Page, portal: AdminPortal) => Promise<void>
     checkConsole?: boolean
 }
 
@@ -195,7 +195,20 @@ export const SMOKE: Record<string, Smoke> = {
     },
     "/sequent_backend_area/:id": {
         url: `/sequent_backend_area/${SHELL_IDS.area}`,
-        shows: (page) => text(page, "Area configuration."),
+        shows: async (page, portal) => {
+            await text(page, "Area configuration.")
+            await expect(page.getByRole("textbox", {name: "Name", exact: true})).toHaveValue(
+                "North district"
+            )
+            await expect(
+                page.locator(".area-contest").getByText("Mayor contest", {exact: true})
+            ).toBeVisible()
+            expect(
+                portal.graphql
+                    .callsTo("sequent_backend_area_extended")
+                    .map(({variables}) => variables)
+            ).toEqual([{electionEventId: SHELL_IDS.event, areaId: SHELL_IDS.area}])
+        },
     },
     "/sequent_backend_area_contest": {
         url: "/sequent_backend_area_contest",
@@ -339,7 +352,7 @@ test.describe("route smoke", () => {
         let consoleErrors: string[] = []
         try {
             consoleErrors = await open(page, portal, smoke)
-            await smoke.shows(page)
+            await smoke.shows(page, portal)
             if (smoke.settlesAt)
                 await expect(page).toHaveURL((url) => url.pathname === smoke.settlesAt)
             await nextFrames(page)
