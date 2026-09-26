@@ -64,7 +64,7 @@ type Story = StoryObj<Scenario>
 const read = () => data.calls.find(({method}) => method === "getOne")?.args
 
 const addTenant = (canvasElement: HTMLElement) =>
-    within(canvasElement).queryByRole("button", {name: "icon button"})
+    within(canvasElement).queryByRole("button", {name: "Create new tenant"})
 
 export const Populated: Story = {
     play: async ({canvasElement}) => {

@@ -87,9 +87,11 @@ const documentReads = () =>
     services.data.calls.filter(
         ({method, args}) => method === "getOne" && args[0] === "sequent_backend_document"
     )
-/** Opens the menu of the new election event's two ways, a text that is not a button. */
+/** Opens the menu of the new election event's two ways. */
 const createEventMenu = async (canvasElement: HTMLElement) => {
-    await userEvent.click(within(canvasElement).getByText("Create an Election Event"))
+    await userEvent.click(
+        within(canvasElement).getByRole("button", {name: "Create an Election Event"})
+    )
     return within(document.body).findByRole("menu")
 }
 
@@ -110,7 +112,7 @@ export const Populated: Story = {
         await expect(await item(canvasElement, "Members")).toBeVisible()
         await expect(await item(canvasElement, "Alice")).toBeVisible()
         await expect(await item(canvasElement, "Bob")).toBeVisible()
-        expect(canvas.getByText("Create an Election Event")).toBeVisible()
+        expect(canvas.getByRole("button", {name: "Create an Election Event"})).toBeVisible()
         expect(canvas.getByRole("link", {name: "Create an Election"})).toHaveAttribute(
             "href",
             `/sequent_backend_election/create?electionEventId=${EVENT_ID}`
@@ -282,7 +284,7 @@ export const ElectionReader: Story = {
         expect(canvas.queryByRole("link", {name: "Members"})).toBeNull()
         expect(canvas.queryByText("Create an Election Event")).toBeNull()
         expect(canvas.queryByRole("link", {name: "Create an Election"})).toBeNull()
-        expect(canvas.queryByTestId("MoreHorizIcon")).toBeNull()
+        expect(canvas.queryByRole("button", {name: /^Actions/})).toBeNull()
     },
 }
 

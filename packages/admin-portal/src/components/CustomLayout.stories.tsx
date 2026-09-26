@@ -104,7 +104,7 @@ export const CreateAnEvent: Story = {
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
         await canvas.findByRole("link", {name: "Council"})
-        await userEvent.click(canvas.getByText("Create an Election Event"))
+        await userEvent.click(canvas.getByRole("button", {name: "Create an Election Event"}))
         const menu = await within(document.body).findByRole("menu")
         await userEvent.click(
             within(menu).getByRole("menuitem", {name: "Create an Election Event"})
@@ -126,7 +126,7 @@ export const ImportAnEvent: Story = {
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
         await canvas.findByRole("link", {name: "Council"})
-        await userEvent.click(canvas.getByText("Create an Election Event"))
+        await userEvent.click(canvas.getByRole("button", {name: "Create an Election Event"}))
         const menu = await within(document.body).findByRole("menu")
         await userEvent.click(within(menu).getByRole("menuitem", {name: "Import Election Event"}))
         const hint = await within(document.body).findByText(

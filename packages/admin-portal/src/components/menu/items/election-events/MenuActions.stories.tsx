@@ -133,7 +133,7 @@ const openedDrawer = (canvasElement: HTMLElement) =>
     within(canvasElement).getByRole("status", {name: "Opened drawer"})
 
 async function openActions(canvasElement: HTMLElement) {
-    await userEvent.click(within(canvasElement).getByTestId("MoreHorizIcon"))
+    await userEvent.click(within(canvasElement).getByRole("button", {name: /^Actions: /}))
     return body().findByRole("menu")
 }
 
@@ -150,6 +150,9 @@ async function confirm(action: string, prompt: RegExp) {
 
 export const EventActions: Story = {
     play: async ({canvasElement}) => {
+        await expect(
+            within(canvasElement).getByRole("button", {name: "Actions: Council"})
+        ).toHaveAttribute("aria-haspopup", "menu")
         const menu = await openActions(canvasElement)
         expect(actionNames(menu)).toEqual([
             "Create an Election Event",
@@ -382,7 +385,7 @@ export const WithoutCandidatePermissions: Story = {
     args: {resourceType: "sequent_backend_candidate", roles: ["candidate-read"]},
     play: async ({canvasElement}) => {
         await expect(within(canvasElement).getByText("Alice")).toBeVisible()
-        expect(within(canvasElement).queryByTestId("MoreHorizIcon")).toBeNull()
+        expect(within(canvasElement).queryByRole("button", {name: /^Actions/})).toBeNull()
         expect(operations()).toEqual([])
     },
 }
