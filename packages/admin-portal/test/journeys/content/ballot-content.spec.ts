@@ -106,57 +106,79 @@ test.describe("ballot content editor", () => {
         await expect(page.getByRole("tab", {name: "Data"})).toBeVisible()
     })
 
-    test("creates a contest in an election and opens it", async ({page, portal}) => {
+    test("creates a contest with numeric limits and sends numeric defaults", async ({
+        page,
+        portal,
+    }) => {
         const {contests} = ballot(portal)
-        // Hasura rejects string Int variables; answer that way so the defect stays visible.
+        const expectedFields = {
+            description: "Yes or no",
+            is_acclaimed: false,
+            is_active: true,
+            winning_candidates_num: 1,
+            counting_algorithm: "plurality-at-large",
+            is_encrypted: true,
+            tenant_id: TENANT_ID,
+            election_event_id: IDS.event,
+            election_id: IDS.election,
+            presentation: {
+                allow_writeins: true,
+                candidates_order: "alphabetical",
+                i18n: everyLanguage({name: "Referendum", description: "Yes or no"}),
+            },
+        }
+        const createPath = `/sequent_backend_contest/create?electionEventId=${IDS.event}&electionId=${IDS.election}`
+        // React Admin's public source query initializes the hidden limits for a valid control.
+        const source = encodeURIComponent(JSON.stringify({min_votes: 0, max_votes: 1}))
+        await open(page, portal, `${createPath}&source=${source}`)
+        await page.getByRole("textbox", {name: "Name"}).fill("Referendum")
+        await page.getByRole("textbox", {name: "Description"}).fill("Yes or no")
+        await page.getByRole("button", {name: "Save", exact: true}).click()
+        await expect(page).toHaveURL(new RegExp(`/sequent_backend_contest/${NEW_CONTEST_ID}`))
+        expect(portal.graphql.callsTo("insert_sequent_backend_contest")[0].variables).toEqual({
+            objects: {...expectedFields, min_votes: 0, max_votes: 1},
+        })
+        expectRole(portal, "insert_sequent_backend_contest", "contest-create")
+        expect(contests.map((row) => row.id)).toEqual([
+            IDS.contest,
+            CONTENT_IDS.secondContest,
+            NEW_CONTEST_ID,
+        ])
+        expect(contests.find((row) => row.id === NEW_CONTEST_ID)).toMatchObject({
+            ...expectedFields,
+            min_votes: 0,
+            max_votes: 1,
+        })
+        await expect(page.getByRole("tab", {name: "Data", exact: true})).toBeVisible()
+
+        // Hasura rejects string Int variables; leave every other request field checked normally.
         answerInvalid(
             portal,
             "insert_sequent_backend_contest",
-            (variables) => typeof (variables.objects as Row).min_votes === "string",
+            (variables) =>
+                typeof (variables.objects as Row).min_votes === "string" ||
+                typeof (variables.objects as Row).max_votes === "string",
             'expected a 32-bit integer for type "Int", but found a string'
         )
-        await open(
-            page,
-            portal,
-            `/sequent_backend_contest/create?electionEventId=${IDS.event}&electionId=${IDS.election}`
-        )
+        await open(page, portal, createPath)
         await page.getByRole("textbox", {name: "Name"}).fill("Referendum")
         await page.getByRole("textbox", {name: "Description"}).fill("Yes or no")
-        const request = page.waitForRequest(
+        const requested = page.waitForRequest(
             (candidate) =>
                 candidate.postDataJSON()?.operationName === "insert_sequent_backend_contest"
         )
         await page.getByRole("button", {name: "Save", exact: true}).click()
-        const insert = (await request).postDataJSON().variables
+        const request = await requested
+        const insert = request.postDataJSON().variables
+        const {min_votes, max_votes, ...otherFields} = insert.objects
+        expect({...insert, objects: otherFields}).toEqual({objects: expectedFields})
+        // answerInvalid intercepts before the recorder, so inspect this request's actual header.
+        expect(request.headers()["x-hasura-role"]).toBe("contest-create")
         test.fail(
             true,
             'CreateContest sends the default vote limits as strings (Contest/CreateContest.tsx:103-104: defaultValue="0"/"1")'
         )
-        expect(insert).toEqual({
-            objects: {
-                description: "Yes or no",
-                is_acclaimed: false,
-                is_active: true,
-                min_votes: 0,
-                max_votes: 1,
-                winning_candidates_num: 1,
-                counting_algorithm: "plurality-at-large",
-                is_encrypted: true,
-                tenant_id: TENANT_ID,
-                election_event_id: IDS.event,
-                election_id: IDS.election,
-                presentation: {
-                    allow_writeins: true,
-                    candidates_order: "alphabetical",
-                    i18n: everyLanguage({name: "Referendum", description: "Yes or no"}),
-                },
-            },
-        })
-        await expect(page).toHaveURL(new RegExp(`/sequent_backend_contest/${NEW_CONTEST_ID}`), {
-            timeout: 3000,
-        })
-        expectRole(portal, "insert_sequent_backend_contest", "contest-create")
-        expect(contests.map((row) => row.id)).toContain(NEW_CONTEST_ID)
+        expect({min_votes, max_votes}).toEqual({min_votes: 0, max_votes: 1})
     })
 
     test("creates a candidate in a contest and opens it", async ({page, portal}) => {
