@@ -8,6 +8,7 @@ import type {
     Sequent_Backend_Election_Type,
     Sequent_Backend_Preview,
     Sequent_Backend_Tenant,
+    Sequent_Backend_Trustee,
 } from "@/gql/graphql"
 import {
     FIXED_TIME,
@@ -26,6 +27,8 @@ export const PREVIEW_RESOURCE = "sequent_backend_preview"
 export const GENERAL_TYPE_ID = storyId(3, 1)
 export const REFERENDUM_TYPE_ID = storyId(3, 2)
 export const PREVIEW_DOCUMENT_ID = storyId(5, 7)
+export const FIRST_TRUSTEE_ID = storyId(4, 1)
+export const SECOND_TRUSTEE_ID = storyId(4, 2)
 
 /** The tenant with the settings each tab reads. */
 export function settingsTenant(
@@ -60,6 +63,19 @@ export const electionTypeRecords = (): StoryRecord<Sequent_Backend_Election_Type
         tenant_id: TENANT_ID,
         created_at: FIXED_TIME,
         updated_at: FIXED_TIME,
+        annotations: {},
+        labels: {},
+    }))
+
+export const trusteeRecords = (): StoryRecord<Sequent_Backend_Trustee>[] =>
+    [
+        {id: FIRST_TRUSTEE_ID, name: "trustee1", public_key: "Q2VydGlmaWVkIGtleSBvbmU"},
+        {id: SECOND_TRUSTEE_ID, name: "trustee2", public_key: "Q2VydGlmaWVkIGtleSB0d28"},
+    ].map((trustee) => ({
+        ...trustee,
+        tenant_id: TENANT_ID,
+        created_at: FIXED_TIME,
+        last_updated_at: FIXED_TIME,
         annotations: {},
         labels: {},
     }))
