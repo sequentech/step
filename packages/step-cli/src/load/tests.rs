@@ -243,7 +243,9 @@ fn indexed_jobs_have_no_retries_or_embedded_passwords() {
     let input = input();
     let job = executor::job(&input.settings, "run-test", 40, 1005, 1005);
     assert_eq!(job["spec"]["parallelism"], 40);
-    assert_eq!(job["spec"]["backoffLimit"], 0);
+    assert_eq!(job["spec"]["backoffLimitPerIndex"], 0);
+    assert_eq!(job["spec"]["maxFailedIndexes"], 40);
+    assert!(job["spec"].get("backoffLimit").is_none());
     assert_eq!(
         job["spec"]["template"]["spec"]["containers"][0]["command"][0],
         "/usr/local/bin/step-load-worker"
