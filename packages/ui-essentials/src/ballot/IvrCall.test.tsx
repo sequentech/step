@@ -135,6 +135,19 @@ describe("what the caller can press", () => {
         expect(box).toHaveValue("")
     })
 
+    it("keeps the keypad named once the call has failed", async () => {
+        // The placeholder was the box's only name, and it goes when nothing is
+        // expected, which left a failed call with an unlabelled form field.
+        const driver = new FakeDriver([])
+        driver.execute = () => Promise.reject(new Error("Synthetic emulator crash"))
+        const logged = jest.spyOn(console, "error").mockImplementation(() => {})
+        render(<IvrCall start={() => driver} inputLabel="Keypad input" />)
+
+        await screen.findByText(/Synthetic emulator crash/)
+        expect(screen.getByRole("textbox", {name: "Keypad input"})).toBeDisabled()
+        logged.mockRestore()
+    })
+
     it("will not send an empty press", async () => {
         const driver = new FakeDriver([asks("Enter your voter id")])
         render(<IvrCall start={() => driver} sendLabel="Press" />)

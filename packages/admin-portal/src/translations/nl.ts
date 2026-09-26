@@ -771,6 +771,7 @@ const dutchTranslation: TranslationType = {
                         credentials: 'De geldige kiezer-ID en pincode zijn "123" en "123".',
                     },
                     sendDtmf: "DTMF-invoer verzenden",
+                    keypadInput: "Toetsenbordinvoer",
                     sendTimeout: "Time-out verzenden",
                     disconnected: "Verbinding verbroken",
                     startSession: "Nieuwe sessie starten",

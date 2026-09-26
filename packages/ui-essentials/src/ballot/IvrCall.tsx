@@ -73,6 +73,8 @@ export interface IIvrCallProps {
     onStatusChange?: (status: IvrCallStatus) => void
     /** What to say in the box, given what the call is waiting for. */
     placeholder?: (expected: IvrExpectedInput) => string
+    /** The keypad box's accessible name; the placeholder is gone between prompts. */
+    inputLabel?: string
     /** The button that lets the caller's patience run out. */
     timeoutLabel?: string
     /** The button that presses the keys. */
@@ -137,6 +139,7 @@ export const IvrCall: React.FC<IIvrCallProps> = ({
     start,
     onStatusChange,
     placeholder,
+    inputLabel,
     timeoutLabel,
     sendLabel,
     disconnectedLabel,
@@ -303,6 +306,7 @@ export const IvrCall: React.FC<IIvrCallProps> = ({
                                     "pattern": "[0-9*#]*",
                                     "maxLength": expected?.max_digits,
                                     "data-testid": "ivr-call-input",
+                                    "aria-label": inputLabel,
                                 },
                             }}
                             disabled={!expected}

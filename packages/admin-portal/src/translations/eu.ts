@@ -767,6 +767,7 @@ const basqueTranslation: TranslationType = {
                         credentials: 'Baliozko hautesle-IDa eta PINa "123" eta "123" dira.',
                     },
                     sendDtmf: "Bidali DTMF sarrera",
+                    keypadInput: "Teklatuaren sarrera",
                     sendTimeout: "Bidali denbora-muga",
                     disconnected: "Deskonektatuta",
                     startSession: "Hasi saio berria",

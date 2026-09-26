@@ -773,6 +773,7 @@ const catalanTranslation: TranslationType = {
                             'L\'identificador de votant i el PIN vàlids són "123" i "123".',
                     },
                     sendDtmf: "Envia una entrada DTMF",
+                    keypadInput: "Entrada del teclat",
                     sendTimeout: "Envia el temps d'espera",
                     disconnected: "Desconnectat",
                     startSession: "Inicia una sessió nova",

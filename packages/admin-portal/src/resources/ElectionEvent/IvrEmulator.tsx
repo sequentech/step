@@ -264,6 +264,7 @@ export const IvrEmulator: React.FC = () => {
                                             timeout: expected.timeout,
                                         })
                                     }
+                                    inputLabel={t("electionEventScreen.ivr.emulator.keypadInput")}
                                     timeoutLabel={t("electionEventScreen.ivr.emulator.sendTimeout")}
                                     sendLabel={t("electionEventScreen.ivr.emulator.sendDtmf")}
                                     disconnectedLabel={t(
