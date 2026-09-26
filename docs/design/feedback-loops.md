@@ -230,7 +230,9 @@ rate-limited.
   Hosted validation found a composite-action expression rejected before Rust
   setup: the repository cache epoch now enters through workflow inputs in all
   ten callers. Toolchain-only jobs count as an initial check, not a product-code
-  result. The observed queue delay remains separate from execution time.
+  result. Queue and execution metrics require an assigned runner; GitHub's
+  placeholder start timestamps on queued/skipped jobs and negative intervals
+  are excluded. The observed queue delay remains separate from execution time.
 - **Rust compiler caching**: CI restores bounded sccache units separately from
   downloaded dependencies. On wrap-map-err, fresh output directories with an
   edited source compiled and passed all 18 tests in 3.42 s median, 3.42–3.52
@@ -252,7 +254,15 @@ rate-limited.
   Repeated crate names represent different profiles/features: B4 uses release,
   and Harvest's Windmill graph enables `bstr/unicode`. A shared union build would
   not replace each service's own compatible build, so that experiment is rejected.
-  Direct alternating linker measurements, debugger/native checks and the final
+  Direct alternating cc/LLD builds also pass all 60 measured samples, n=10 per
+  arm and edit: Harvest 29.108 s (28.508–29.510) versus 8.628 s (8.627–8.878);
+  Windmill 38.322 s (37.668–39.024) versus 21.776 s (20.996–22.548); shared core
+  to Harvest 53.721 s (53.195–55.551) versus 27.179 s (26.606–28.760).
+  Corresponding linker medians fall from 23.498/19.534/31.194 s to
+  3.091/2.765/4.364 s. Both arms rebuild the same 1/2/4 Cargo units; wall time
+  minus links also includes Cargo coordination and is not isolated codegen.
+  The LLD Harvest binary retains full debug sections: GDB hits its source
+  breakpoint and produces a Rust/Tokio backtrace. Native checks and the final
   adoption decision remain pending; no profiles, FIPS settings or features change.
 - **Ballot verifier Vite** (adopted as opt-in): the final alternating comparison
   at `fa670fb53b` exceeds the predeclared 20% median improvement threshold.
