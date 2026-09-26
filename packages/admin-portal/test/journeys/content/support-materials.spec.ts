@@ -292,8 +292,17 @@ test.describe("support material editor", () => {
             `${portal.s3.publicBucketUrl()}tenant-${TENANT_ID}/document-${CONTENT_IDS.document}/guide.pdf`
         )
         await title.fill("Voting guide 2026")
+        const refreshed = page.waitForResponse(
+            (response) =>
+                response.request().method() === "POST" &&
+                response.url().endsWith("/v1/graphql") &&
+                response.request().postDataJSON()?.operationName ===
+                    "sequent_backend_support_material"
+        )
         await drawer.getByRole("button", {name: "Save", exact: true}).click()
+        await refreshed
         await expect(notification(page, "Support material updated")).toBeVisible()
+        await expect(drawer).not.toBeVisible()
         const update = portal.graphql.callsTo("update_sequent_backend_support_material")[0]
         expect(update.variables.where).toEqual({id: {_eq: CONTENT_IDS.supportMaterial}})
         // Only the changed column is sent.
