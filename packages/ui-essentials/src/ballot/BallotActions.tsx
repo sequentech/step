@@ -4,7 +4,6 @@
 
 import {faAngleLeft, faAngleRight} from "@fortawesome/free-solid-svg-icons"
 import {Box} from "@mui/material"
-import {styled} from "@mui/material/styles"
 import React from "react"
 
 import {useTranslation} from "react-i18next"
@@ -12,44 +11,17 @@ import {useTranslation} from "react-i18next"
 import Icon from "../components/Icon/Icon"
 import {ActionsContainer, StyledButton} from "../components/ActionsRow/ActionsRow"
 
-/**
- * What frames the Back control.
- *
- * The portal's is `styled(RouterLink)`; this is the same rule set on a `Box`, so the
- * caller says what to render it *as* — a router link in the portal, a plain element in
- * a preview that has no router. The two `outline: none` rules are the portal's own,
- * and its comment for them was: a link must contain a single tabbable element, the
- * button inside it.
- */
-const BackFrame = styled(Box)<{
-    /** What to render as. `Box` forwards this; the type is restated because
-     * `styled()` drops the polymorphism from `Box`'s own props. */
-    component?: React.ElementType
-    /** Consumed by a router `Link` given as `component`, ignored by a `div`. */
-    to?: string | object
-}>`
-    margin: auto 0;
-    text-decoration: none;
-
-    &:focus {
-        outline: none;
-    }
-
-    & *[tabindex] {
-        outline: none;
-    }
-`
-
 export interface IBallotActionsProps {
     /**
-     * What to render the Back control as, when it navigates by link. The portal
-     * passes its router's `Link` and the `to` below; a preview passes neither and
-     * gets a plain `div` around a button.
+     * What to render the Back control as, when it navigates by link, with `backTo`
+     * as its destination. Back is then the link itself rather than a button inside
+     * one, so it stays a single keyboard stop. Without it Back is a button and
+     * `onBack` does the navigating, which is what the portal does.
      */
     backComponent?: React.ElementType
     /** Where Back goes, for `backComponent`. */
     backTo?: string | object
-    /** Called before Back navigates — the portal steps its contest pagination here. */
+    /** Back was pressed. The portal steps its contest pagination and navigates here. */
     onBack?: () => void
     /** Clear every choice on this ballot. */
     onClear?: () => void
@@ -106,9 +78,13 @@ export const BallotActions = ({
     const clear = t("votingScreen.clearButton")
     const next = t("votingScreen.reviewButton")
 
+    const backLink =
+        backComponent === undefined ? {} : {component: backComponent, to: backTo}
+
     return (
         <>
             <StyledButton
+                className="clear-selection-button"
                 sx={{
                     display: {sm: "none"},
                     width: "100%",
@@ -117,23 +93,26 @@ export const BallotActions = ({
                 disabled={inert}
                 onClick={onClear}
             >
-                <Box>{clear}</Box>
+                <Box className="clear-selection-label">{clear}</Box>
             </StyledButton>
 
-            <ActionsContainer sx={{marginBottom: "20px", marginTop: "10px"}}>
-                <BackFrame
-                    component={backComponent ?? "div"}
-                    to={backComponent === undefined ? undefined : backTo}
-                    sx={{width: {xs: "100%", sm: "200px"}}}
+            <ActionsContainer
+                className="actions-container"
+                sx={{marginBottom: "20px", marginTop: "10px"}}
+            >
+                <StyledButton
+                    {...backLink}
+                    className="back-button"
+                    sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}
+                    disabled={inert}
                     onClick={onBack}
                 >
-                    <StyledButton sx={{width: {xs: "100%", sm: "200px"}}} disabled={inert}>
-                        <Icon icon={faAngleLeft} size="sm" />
-                        <Box>{back}</Box>
-                    </StyledButton>
-                </BackFrame>
+                    <Icon className="back-button-icon" icon={faAngleLeft} size="sm" />
+                    <Box className="back-button-label">{back}</Box>
+                </StyledButton>
 
                 <StyledButton
+                    className="clear-selection-button"
                     sx={{
                         display: {xs: "none", sm: "block"},
                         width: {xs: "100%", sm: "200px"},
@@ -142,7 +121,7 @@ export const BallotActions = ({
                     disabled={inert}
                     onClick={onClear}
                 >
-                    <Box>{clear}</Box>
+                    <Box className="clear-selection-label">{clear}</Box>
                 </StyledButton>
 
                 <StyledButton
@@ -151,8 +130,8 @@ export const BallotActions = ({
                     onClick={onNext}
                     disabled={inert === true || disableNext === true}
                 >
-                    <Box>{next}</Box>
-                    <Icon icon={faAngleRight} size="sm" />
+                    <Box className="next-button-label">{next}</Box>
+                    <Icon className="next-button-icon" icon={faAngleRight} size="sm" />
                 </StyledButton>
             </ActionsContainer>
         </>

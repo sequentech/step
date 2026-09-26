@@ -31,4 +31,4 @@ export const StyledButton = styled(Button)`
         text-overflow: ellipsis;
         padding: 5px;
     }
-`
+` as typeof Button

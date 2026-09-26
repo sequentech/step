@@ -103,3 +103,45 @@ describe("the buttons under a review", () => {
         expect(screen.queryByText(WORDS.castBallotButton)).toBeNull()
     })
 })
+
+describe("the ovcs fixes carried into the shared review row", () => {
+    it("finishes rather than casts when every contest was acclaimed", () => {
+        render(<ReviewActions isFullyAcclaimed onCast={() => undefined} />)
+
+        expect(document.querySelector(".cast-ballot-label")?.textContent).toBe(
+            "reviewScreen.acclamation.finishButton"
+        )
+    })
+
+    it("makes Back a single keyboard stop when the host navigates in onBack", async () => {
+        const back = jest.fn()
+        render(<ReviewActions onBack={back} />)
+
+        const button = screen.getByRole("button", {name: WORDS.backButton})
+        expect(button).toHaveClass("edit-ballot-button")
+        expect(button.closest("a")).toBeNull()
+
+        await userEvent.click(button)
+        expect(back).toHaveBeenCalledTimes(1)
+    })
+
+    it("carries the portal's CSS hooks", () => {
+        render(<ReviewActions withAudit casting={false} onCast={() => undefined} />)
+
+        for (const hook of [
+            "review-actions",
+            "actions-container",
+            "edit-ballot-button",
+            "edit-ballot-icon",
+            "edit-ballot-label",
+            "audit-button",
+            "audit-button-icon",
+            "audit-button-label",
+            "cast-ballot-button",
+            "cast-ballot-label",
+            "cast-ballot-icon",
+        ]) {
+            expect(document.querySelector(`.${hook}`)).not.toBeNull()
+        }
+    })
+})

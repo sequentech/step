@@ -144,3 +144,45 @@ describe("the buttons under a ballot", () => {
         }
     })
 })
+
+describe("the ovcs accessibility fixes carried into the shared row", () => {
+    it("makes Back a single keyboard stop when the host navigates in onBack", async () => {
+        // The portal used to wrap a button in a router link, so Tab stopped on both.
+        const back = jest.fn()
+        render(<BallotActions onBack={back} />)
+
+        const button = screen.getByRole("button", {name: WORDS.backButton})
+        expect(button).toHaveClass("back-button")
+        expect(button.closest("a")).toBeNull()
+        expect(button.parentElement?.closest("button")).toBeNull()
+
+        await userEvent.click(button)
+        expect(back).toHaveBeenCalledTimes(1)
+    })
+
+    it("makes Back the link itself when the host navigates by link", () => {
+        render(<BallotActions backComponent="a" backTo="/somewhere" />)
+
+        const link = document.querySelector("a.back-button")
+        expect(link).not.toBeNull()
+        expect(link?.querySelector("button, a")).toBeNull()
+    })
+
+    it("carries the portal's CSS hooks", () => {
+        const {container} = render(<BallotActions />)
+
+        for (const hook of [
+            "clear-selection-button",
+            "clear-selection-label",
+            "actions-container",
+            "back-button",
+            "back-button-icon",
+            "back-button-label",
+            "next-button",
+            "next-button-label",
+            "next-button-icon",
+        ]) {
+            expect(container.ownerDocument.querySelector(`.${hook}`)).not.toBeNull()
+        }
+    })
+})

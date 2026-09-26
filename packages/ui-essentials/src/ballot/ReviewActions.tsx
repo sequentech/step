@@ -23,15 +23,6 @@ const StyledCircularProgress = styled(CircularProgress)`
     height: 14px !important;
 `
 
-/** What frames the Back control. The portal's is a router link; see `BallotActions`. */
-const BackFrame = styled(Box)<{
-    component?: React.ElementType
-    to?: string | object
-}>`
-    margin: auto 0;
-    text-decoration: none;
-`
-
 export interface IReviewActionsProps {
     /**
      * Whether *Audit ballot* is shown.
@@ -43,7 +34,15 @@ export interface IReviewActionsProps {
     withAudit?: boolean
     /** Casting is under way: the button waits with a spinner rather than a chevron. */
     casting?: boolean
-    /** What to render Back as when it navigates by link. */
+    /**
+     * Every contest is acclaimed, so there is no ballot to cast: the button finishes
+     * instead, under `reviewScreen.acclamation.finishButton`.
+     */
+    isFullyAcclaimed?: boolean
+    /**
+     * What to render Back as when it navigates by link. Back is then the link itself,
+     * a single keyboard stop; without it Back is a button and `onBack` navigates.
+     */
     backComponent?: React.ElementType
     backTo?: string | object
     onBack?: () => void
@@ -77,6 +76,7 @@ export interface IReviewActionsProps {
 export const ReviewActions = ({
     withAudit = false,
     casting = false,
+    isFullyAcclaimed = false,
     backComponent,
     backTo,
     onBack,
@@ -87,22 +87,18 @@ export const ReviewActions = ({
     const {t} = useTranslation()
 
     return (
-        <Box sx={{marginBottom: "10px", marginTop: "10px"}}>
+        <Box className="review-actions" sx={{marginBottom: "10px", marginTop: "10px"}}>
             <ActionsContainer className="actions-container">
-                <BackFrame
-                    component={backComponent ?? "div"}
-                    to={backComponent === undefined ? undefined : backTo}
+                <StyledButton
+                    {...(backComponent === undefined ? {} : {component: backComponent, to: backTo})}
+                    className="edit-ballot-button"
                     sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}
+                    disabled={inert && onBack === undefined}
                     onClick={onBack}
                 >
-                    <StyledButton
-                        sx={{width: {xs: "100%", sm: "200px"}}}
-                        disabled={inert && onBack === undefined}
-                    >
-                        <Icon icon={faAngleLeft} size="sm" />
-                        <Box>{t("reviewScreen.backButton")}</Box>
-                    </StyledButton>
-                </BackFrame>
+                    <Icon className="edit-ballot-icon" icon={faAngleLeft} size="sm" />
+                    <Box className="edit-ballot-label">{t("reviewScreen.backButton")}</Box>
+                </StyledButton>
 
                 {withAudit ? (
                     <StyledButton
@@ -112,8 +108,8 @@ export const ReviewActions = ({
                         disabled={onAudit === undefined}
                         onClick={onAudit}
                     >
-                        <Icon icon={faFire} size="sm" />
-                        <Box>{t("reviewScreen.auditButton")}</Box>
+                        <Icon className="audit-button-icon" icon={faFire} size="sm" />
+                        <Box className="audit-button-label">{t("reviewScreen.auditButton")}</Box>
                     </StyledButton>
                 ) : null}
 
@@ -123,11 +119,17 @@ export const ReviewActions = ({
                     disabled={casting || onCast === undefined}
                     onClick={onCast}
                 >
-                    <Box>{t("reviewScreen.castBallotButton")}</Box>
+                    <Box className="cast-ballot-label">
+                        {t(
+                            isFullyAcclaimed
+                                ? "reviewScreen.acclamation.finishButton"
+                                : "reviewScreen.castBallotButton"
+                        )}
+                    </Box>
                     {casting ? (
-                        <StyledCircularProgress color="inherit" />
+                        <StyledCircularProgress className="cast-ballot-progress" color="inherit" />
                     ) : (
-                        <StyledIcon icon={faAngleRight} size="sm" />
+                        <StyledIcon className="cast-ballot-icon" icon={faAngleRight} size="sm" />
                     )}
                 </StyledButton>
             </ActionsContainer>
