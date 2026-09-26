@@ -212,6 +212,8 @@ HASURA_DB__HOST = "127.0.0.1"
         self.assertFalse(any("--tests" in command for command in commands))
 
     def test_successful_run_cleans_before_collecting_new_counters(self) -> None:
+        # Clearing counters alone retains binaries from old feature profiles.
+        # Their source regions must not contaminate the new denominator.
         commands = []
 
         def record(command: list[str], log: Path, environment: dict[str, str]) -> str:

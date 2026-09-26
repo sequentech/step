@@ -4247,6 +4247,7 @@ dependencies = [
  "graphql_client",
  "handlebars",
  "immudb-rs",
+ "keycloak",
  "regex",
  "reqwest",
  "rocket",
