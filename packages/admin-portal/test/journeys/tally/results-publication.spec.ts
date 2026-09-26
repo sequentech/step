@@ -87,6 +87,13 @@ async function openPublication(page: Page, portal: AdminPortal) {
     const row = page.getByRole("row").filter({hasText: TALLY_ID})
     await row.locator('button:has(svg[aria-label="View Tally Ceremony"])').click()
     await expect(page.getByText("Status: SUCCESS", {exact: true})).toBeVisible()
+    // The completed session arrives before its SQLite results. Wait for the
+    // displayed result before expanding publication, which mounts with that data.
+    await expect(
+        page
+            .getByRole("row", {name: /Alice Example/})
+            .getByRole("gridcell", {name: "37", exact: true})
+    ).toBeVisible()
     await page.getByRole("button", {name: "Publish to results website", exact: true}).click()
     await expect(page.getByRole("checkbox", {name: "Harbour election - Mayor"})).toBeChecked()
 }
