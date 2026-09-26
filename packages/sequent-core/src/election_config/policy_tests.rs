@@ -490,3 +490,33 @@ fn a_level_that_only_breaks_ties_its_own_way_is_not_empty() {
     assert!(!overrides.tally.is_empty());
     assert!(!overrides.is_empty());
 }
+
+/// A real rule with a value it does not have is named as a bad value.
+///
+/// It used to fall through to the tally patch, which ignores unknown keys, and
+/// came back as "not a ballot rule" about a field that plainly is one.
+#[test]
+fn a_bad_value_for_a_real_rule_names_the_value() {
+    let why = Behaviour::default()
+        .accepts("over_vote", "bogus")
+        .expect_err("not a value over_vote has");
+
+    assert!(
+        why.contains("'bogus' is not one of the values 'over_vote' has"),
+        "{why}"
+    );
+}
+
+/// A preset sets ballot rules; the counting is not one.
+///
+/// The wizard applies a preset as the policies half of the overrides, so a tally
+/// field in one would be a button that silently does less than it says.
+#[test]
+fn a_preset_cannot_set_how_a_contest_is_counted() {
+    let why = Behaviour::default()
+        .accepts("counting_algorithm", "plurality-at-large")
+        .expect_err("not a ballot rule");
+
+    assert!(why.contains("is not a ballot rule"), "{why}");
+    assert!(Behaviour::default().accepts("over_vote", "allowed").is_ok());
+}

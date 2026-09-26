@@ -589,26 +589,22 @@ impl Behaviour {
     /// second list of the policies, and the way a second list fails is a policy
     /// added to one and forgotten in the other — so this asks the type that
     /// already knows.
+    ///
+    /// **Only the ballot rules, not the counting.** A preset is applied by the
+    /// wizard's `PolicyChoice` as the policies half of a level's overrides, so a
+    /// tally field in one would be offered on a button and then dropped. This used
+    /// to fall through to `TallyPatch` as well, which could never answer yes — a
+    /// patch that ignores unknown keys deserializes a tally field as an empty
+    /// policy patch first — and could only answer the wrong thing: a policy with a
+    /// bad value came back as "not a ballot rule" rather than naming the value.
     pub fn accepts(&self, field: &str, value: &str) -> Result<(), String> {
         let one = serde_json::json!({ field: value });
 
         // Unknown fields are refused rather than ignored, so a typo in a
         // profile is a load error instead of a preset that quietly does less
-        // than it says.
-        let patch: Result<PolicyPatch, _> = serde_json::from_value(one.clone());
-        if let Ok(patch) = patch {
-            return if patch.is_empty() {
-                Err(format!(
-                    "'{field}' is not a ballot rule. The rules are the fields \
-                     `policyCatalog()` lists."
-                ))
-            } else {
-                Ok(())
-            };
-        }
-
-        let tally: Result<TallyPatch, _> = serde_json::from_value(one);
-        match tally {
+        // than it says. `PolicyPatch` ignores unknown keys, so an unknown field
+        // shows up as an empty patch.
+        match serde_json::from_value::<PolicyPatch>(one) {
             Ok(patch) if !patch.is_empty() => Ok(()),
             Ok(_) => Err(format!(
                 "'{field}' is not a ballot rule. The rules are the fields \
