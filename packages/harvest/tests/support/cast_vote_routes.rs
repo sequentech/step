@@ -400,6 +400,46 @@ async fn each_insertion_error_has_its_own_answer() {
 }
 
 #[rocket::async_test]
+async fn a_failed_cast_logs_its_error_and_elapsed_time() {
+    use crate::request_boundaries::{is_isolated_child, run_isolated};
+    if !is_isolated_child() {
+        let log = run_isolated(
+            "routes::insert_cast_vote::route_tests::a_failed_cast_logs_its_error_and_elapsed_time",
+            "http://127.0.0.1:1",
+        );
+        let elapsed: Vec<_> = log
+            .lines()
+            .filter_map(|line| {
+                line.split_once("insert-cast-vote took ")?.1.strip_suffix(
+                    " ms to complete but failed with error=AreaNotFound",
+                )
+            })
+            .collect();
+        assert_eq!(elapsed.len(), 1, "{log}");
+        // Zero milliseconds is valid; no wall-clock advance is required.
+        elapsed[0].parse::<u128>().expect("elapsed milliseconds");
+        return;
+    }
+    let services = Services::without_database().with_cast_votes(
+        ScriptedCastVotes::answering([Ok(
+            InsertCastVoteResult::SkipRetryFailure(CastVoteError::AreaNotFound),
+        )]),
+    );
+    let client = services
+        .client_with_log_level(rocket::config::LogLevel::Normal)
+        .await;
+    assert_eq!(
+        json(cast(&client, &voter()).await).await,
+        (
+            Status::NotFound,
+            json!({"message": "Area not found", "extensions": {"code": "AreaNotFound"}}),
+        ),
+    );
+    assert_eq!(services.cast_votes.attempts().len(), 1);
+    assert!(services.tasks.sent().is_empty());
+}
+
+#[rocket::async_test]
 async fn exhausted_retries_return_the_last_error_without_enqueuing() {
     let mut outcomes: Vec<_> = (0..5)
         .map(|_| Err(CastVoteError::GetDbClientFailed("pool exhausted".into())))
