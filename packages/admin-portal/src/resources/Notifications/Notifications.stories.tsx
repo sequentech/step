@@ -12,7 +12,7 @@ import {
     TENANT_ID,
     graphqlBoundary,
 } from "@/__stories__/AdminStoryProvider"
-import {eventRecord} from "@/__stories__/fixtures"
+import {FIXED_TIME, eventRecord} from "@/__stories__/fixtures"
 import {resourceBoundary, type ReadState} from "@/__stories__/resourceBoundary"
 import type {WidgetMeta} from "@/__stories__/widgetStory"
 import Notifications from "./Notifications"
@@ -62,8 +62,10 @@ type Story = StoryObj<Scenario>
 export const Populated: Story = {
     play: async ({canvasElement}) => {
         const rows = await within(canvasElement).findAllByRole("row")
-        // The schedule column reads a field notifications do not have.
-        await expect(within(rows[1]).getByText("Invalid Date")).toBeVisible()
+        await expect(
+            within(rows[1]).getByText(new Date(FIXED_TIME).toLocaleString())
+        ).toBeVisible()
+        expect(within(canvasElement).queryByText("Invalid Date")).toBeNull()
         expect(data.calls).toEqual([
             {
                 method: "getList",
