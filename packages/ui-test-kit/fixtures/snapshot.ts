@@ -11,6 +11,9 @@ export enum ScenarioId {
     KIOSK_VOTER = "kiosk-voter",
 }
 
+export const isScenarioId = (value: unknown): value is ScenarioId =>
+    Object.values(ScenarioId).includes(value as ScenarioId)
+
 /** How the voter reaches the portal; the values match the election `voting_channels` keys. */
 export enum ScenarioChannel {
     ONLINE = "online",
@@ -194,7 +197,7 @@ export function validateSnapshot(value: unknown): ScenarioSnapshot {
             `version: expected ${SNAPSHOT_VERSION}, found ${describe(value.version)}`,
         ])
     const issues: string[] = []
-    if (!isEnumValue(ScenarioId, value.scenarioId))
+    if (!isScenarioId(value.scenarioId))
         issues.push(
             `scenarioId: expected one of ${Object.values(ScenarioId).join(", ")}, found ${describe(value.scenarioId)}`
         )

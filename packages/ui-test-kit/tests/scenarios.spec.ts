@@ -3,6 +3,7 @@
 
 import {test, expect} from "@playwright/test"
 import {
+    isScenarioId,
     parseSnapshot,
     RANKED_IDS,
     SCENARIOS,
@@ -40,6 +41,9 @@ test("scenario IDs, titles and channels are the documented stable identifiers", 
     for (const {id, title} of SCENARIOS)
         expect(title.toLowerCase().replace(/[^a-z0-9]+/g, "-")).toBe(id)
     expect(Object.values(ScenarioId).sort()).toEqual(SCENARIOS.map(({id}) => id).sort())
+    expect(SCENARIOS.every(({id}) => isScenarioId(id))).toBe(true)
+    for (const other of ["Simple-plurality", "simple plurality", "", undefined, 1])
+        expect(isScenarioId(other)).toBe(false)
 })
 
 for (const {id} of SCENARIOS) {
