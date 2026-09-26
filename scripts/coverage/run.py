@@ -164,8 +164,22 @@ def markdown_summary(profile: str, result: dict[str, Any]) -> str:
     return "\n".join(lines) + "\n"
 
 
+def entries_in_checkout(
+    package: Path, entries: dict[str, str]
+) -> tuple[dict[str, str], list[str]]:
+    """Split a reviewed file policy into files this checkout has and files it lacks."""
+    present = {
+        name: reason for name, reason in entries.items() if (package / name).is_file()
+    }
+    return present, sorted(set(entries) - set(present))
+
+
 def measure(
-    profile_name: str, baseline: bool, offline: bool, output_root: Path | None = None
+    profile_name: str,
+    baseline: bool,
+    offline: bool,
+    output_root: Path | None = None,
+    comparison_base: bool = False,
 ) -> int:
     """Measure one configured package; return 1 for a failed strict target."""
     config = tomllib.loads(CONFIG.read_text())
@@ -199,7 +213,20 @@ def measure(
 
     try:
         excluded_files = profile.get("excluded_files", {})
-        validate_exclusions(package, excluded_files, profile["scope_exceptions"])
+        scope_exceptions = profile["scope_exceptions"]
+        if comparison_base:
+            # The head's reviewed policy also names files that the head adds.
+            # A base predates them; entries for its own files stay strict.
+            excluded_files, absent_exclusions = entries_in_checkout(
+                package, excluded_files
+            )
+            scope_exceptions, absent_exceptions = entries_in_checkout(
+                package, scope_exceptions
+            )
+            result["policy_files_absent_from_base"] = sorted(
+                absent_exclusions + absent_exceptions
+            )
+        validate_exclusions(package, excluded_files, scope_exceptions)
         export_arguments = exclusion_arguments(package, excluded_files)
         tool = execute(
             ["cargo", "llvm-cov", "--version"], output / "tool.log", environment
@@ -304,7 +331,7 @@ def measure(
                             payload,
                             package,
                             config["minimum_lines"],
-                            profile["scope_exceptions"],
+                            scope_exceptions,
                             excluded_files,
                         )
                     )
@@ -381,6 +408,11 @@ def main() -> int:
     parser.add_argument(
         "--output-dir", type=Path, help="Store reports outside the measured checkout"
     )
+    parser.add_argument(
+        "--comparison-base",
+        action="store_true",
+        help="Measure a comparison base: skip policy entries for files it predates",
+    )
     arguments = parser.parse_args()
     if arguments.checkout is not None:
         ROOT = arguments.checkout.resolve()
@@ -402,6 +434,7 @@ def main() -> int:
             arguments.baseline,
             arguments.offline,
             arguments.output_dir.resolve() if arguments.output_dir else None,
+            arguments.comparison_base,
         )
 
 
