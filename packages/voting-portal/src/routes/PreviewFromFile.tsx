@@ -167,22 +167,34 @@ export const PreviewFromFile: React.FC = () => {
     }
 
     return (
-        <PageLimit maxWidth="md">
-            <Box sx={{display: "flex", flexDirection: "column", gap: 2, py: 4}}>
-                <Typography variant="h4">
+        <PageLimit maxWidth="md" className="preview-from-file-screen screen">
+            <Box
+                className="preview-from-file-content"
+                sx={{display: "flex", flexDirection: "column", gap: 2, py: 4}}
+            >
+                <Typography className="screen-title" variant="h4" component="h1">
                     {t("previewFromFile.title", "Preview a ballot")}
                 </Typography>
-                <Typography variant="body1" color={theme.palette.customGrey.contrastText}>
+                <Typography
+                    className="screen-description"
+                    variant="body1"
+                    color={theme.palette.customGrey.contrastText}
+                >
                     {t(
                         "previewFromFile.blurb",
                         "Open a ballot preview file to see the ballot exactly as voters will. The file is read here in your browser — nothing is uploaded — and the ballots it contains cannot be voted on."
                     )}
                 </Typography>
 
-                <Box>
-                    <Button variant="contained" component="label">
+                <Box className="preview-file-picker">
+                    <Button
+                        className="preview-file-button"
+                        variant="contained"
+                        component="label"
+                    >
                         {t("previewFromFile.choose", "Choose a preview file")}
                         <input
+                            className="preview-file-input"
                             hidden
                             type="file"
                             accept="application/json,.json"
@@ -199,15 +211,22 @@ export const PreviewFromFile: React.FC = () => {
                 </Box>
 
                 {failure !== null && (
-                    <Alert severity="error" data-testid="preview-file-failed">
+                    <Alert
+                        className="preview-file-error"
+                        severity="error"
+                        data-testid="preview-file-failed"
+                    >
                         {failure}
                     </Alert>
                 )}
 
                 {document_ !== null && (
-                    <Box sx={{display: "flex", flexDirection: "column", gap: 1}}>
-                        <Alert severity="info">
-                            <AlertTitle>
+                    <Box
+                        className="preview-file-ballots"
+                        sx={{display: "flex", flexDirection: "column", gap: 1}}
+                    >
+                        <Alert className="preview-file-notice" severity="info">
+                            <AlertTitle className="preview-file-notice-title">
                                 {t("previewFromFile.notReal", "This is a preview, not an election")}
                             </AlertTitle>
                             {t(
@@ -215,11 +234,12 @@ export const PreviewFromFile: React.FC = () => {
                                 "The key it carries is a stand-in, so nothing you do here is recorded and no vote can be cast."
                             )}
                         </Alert>
-                        <Typography variant="h6">
+                        <Typography className="preview-file-pick" variant="h6" component="h2">
                             {t("previewFromFile.pick", "Which ballot?")}
                         </Typography>
                         {choices(document_, i18n.language).map((choice) => (
                             <Button
+                                className="preview-file-ballot-button"
                                 key={choice.areaId}
                                 variant="outlined"
                                 sx={{justifyContent: "flex-start"}}
