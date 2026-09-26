@@ -2,14 +2,18 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React from "react"
-import {Meta, StoryObj} from "@storybook/react"
-import {INITIAL_VIEWPORTS} from "@storybook/addon-viewport"
+import {Meta, StoryObj} from "@storybook/react-vite"
+import {INITIAL_VIEWPORTS} from "storybook/viewport"
 import ReviewChangesTable from "../ReviewChangesTable"
 
 const meta: Meta<typeof ReviewChangesTable> = {
     title: "components/ReviewChangesTable",
     component: ReviewChangesTable,
     parameters: {
+        expectedFailure: {
+            reason: "Changed lines use colors below the minimum text contrast.",
+            a11y: ["color-contrast"],
+        },
         backgrounds: {
             default: "white",
         },

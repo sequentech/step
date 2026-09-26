@@ -2,16 +2,16 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React from "react"
-import {Meta, StoryObj} from "@storybook/react"
+import {Meta, StoryObj} from "@storybook/react-vite"
 import SelectElection, {SelectElectionProps} from "../SelectElection"
-import {INITIAL_VIEWPORTS} from "@storybook/addon-viewport"
+import {INITIAL_VIEWPORTS} from "storybook/viewport"
 import {Box} from "@mui/material"
 
 const SelectElectionWrapper: React.FC<SelectElectionProps & {className?: string}> = ({
     className,
     ...props
 }) => (
-    <Box className={className}>
+    <Box role="list" className={className}>
         <SelectElection {...props} />
     </Box>
 )
