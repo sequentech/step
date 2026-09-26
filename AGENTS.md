@@ -8,6 +8,17 @@ For unit tests and coverage work, use
 the package's testing guide and configured tool versions. Invoke it with
 `$implement-unit-tests add tests for packages/<package>`.
 
+## Development loop
+
+Use `scripts/dev/step-dev` from the repository root for the devcontainer modes,
+focused tests and change selection (`affected`), incremental WASM builds, named
+backend scenarios and benchmarks; the
+[Fast feedback loops](docs/docusaurus/docs/07-developers/03-development-environment/fast-feedback.md)
+guide describes them. Portal dev servers and Storybook load `ui-core` and
+`ui-essentials` from source; build those packages only for production builds and
+journeys. In another checkout or worktree, keep Cargo output in that checkout's
+`rust-local-target` and never run Compose against another checkout's project.
+
 ## Issues
 
 Preserve the issue template and existing relationships when editing a ticket.
