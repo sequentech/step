@@ -4,6 +4,7 @@
 import React from "react"
 import type {StoryObj} from "@storybook/react-vite"
 import {expect, userEvent, waitFor, within} from "storybook/test"
+import {EVENT_ID, TENANT_ID} from "@/__stories__/AdminStoryProvider"
 import type {WidgetMeta} from "@/__stories__/widgetStory"
 import {CreateDocument} from "./CreateDocument"
 import {
@@ -77,6 +78,29 @@ export const CreateTheDocument: Story = {
                 within(canvasElement).getByRole("status", {name: "Current location"})
             ).toHaveTextContent("/sequent_backend_document/created-1")
         )
+    },
+}
+
+export const ForAnElectionEvent: Story = {
+    parameters: {expectedFailure: null},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await userEvent.type(await canvas.findByRole("textbox", {name: "Name"}), "minutes.pdf")
+        // Tenant options show a `username` tenants do not have, so pick it by value.
+        await userEvent.click(await canvas.findByRole("combobox", {name: "Tenant"}))
+        const tenants = await within(document.body).findByRole("listbox")
+        await userEvent.click(tenants.querySelector<HTMLElement>(`[data-value="${TENANT_ID}"]`)!)
+        await waitFor(() => expect(within(document.body).queryByRole("listbox")).toBeNull())
+        // Event names live in the presentation since migration 1772358027729.
+        await userEvent.click(await canvas.findByRole("combobox", {name: "Election event"}))
+        await userEvent.click(
+            await within(document.body).findByRole("option", {name: "Council event"})
+        )
+        await userEvent.click(canvas.getByRole("button", {name: "Save"}))
+        await waitFor(() => expect(dataWrites()).toHaveLength(1))
+        expect(dataWrites()[0].params).toMatchObject({
+            data: {name: "minutes.pdf", tenant_id: TENANT_ID, election_event_id: EVENT_ID},
+        })
     },
 }
 
