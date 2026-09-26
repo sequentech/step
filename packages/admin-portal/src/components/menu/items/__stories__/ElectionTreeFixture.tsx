@@ -5,7 +5,7 @@
 // The side menu's election event tree: the council event with its elections,
 // contest and candidates, and the services the tree reads and changes them with.
 import React, {useState, type PropsWithChildren} from "react"
-import {memoryStore} from "react-admin"
+import {memoryStore, type DataProvider} from "react-admin"
 import {createStore, Provider as AtomProvider} from "jotai"
 import {ETaskExecutionStatus} from "@sequentech/ui-core"
 import {AdminStoryProvider, EVENT_ID, graphqlBoundary} from "@/__stories__/AdminStoryProvider"
@@ -181,6 +181,9 @@ export interface TreeServicesOptions {
 export interface TreeServices {
     graphql: ReturnType<typeof graphqlBoundary>
     data: ReturnType<typeof resourceBoundary>
+    provider: DataProvider
+    /** Resources read with an empty id, which Hasura rejects as an invalid uuid. */
+    invalidReads: string[]
 }
 
 const settle = <T,>(reads: ReadState, value: () => T): T | Promise<never> => {
@@ -276,7 +279,16 @@ export function treeServices({
         },
         {schema: true}
     )
-    return {graphql, data}
+    const invalidReads: string[] = []
+    const provider: DataProvider = {
+        ...data.provider,
+        getOne: (resource, params) => {
+            if (params.id !== "") return data.provider.getOne(resource, params)
+            invalidReads.push(resource)
+            return Promise.reject(new Error('invalid input syntax for type uuid: ""'))
+        },
+    }
+    return {graphql, data, provider, invalidReads}
 }
 
 /** Shows which of the create provider's drawers the menu opened. */
@@ -304,7 +316,7 @@ export function TreeStory({
     return (
         <AdminStoryProvider
             boundary={services.graphql}
-            dataProvider={services.data.provider}
+            dataProvider={services.provider}
             role={role}
             roles={roles}
             store={memoryStore({"sidebar.open": sidebarOpen})}
