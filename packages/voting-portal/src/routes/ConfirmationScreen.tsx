@@ -485,6 +485,11 @@ const ConfirmationScreen: React.FC = () => {
         if (isDemo) {
             event.preventDefault()
             setDemoBallotUrlHelp(true)
+        } else if (isKiosk() && ballotTrackerUrl) {
+            // Keep the in-memory kiosk session; a new tab starts a fresh login.
+            event.preventDefault()
+            const {pathname, search} = new URL(ballotTrackerUrl)
+            navigate({pathname, search})
         }
     }
 
@@ -600,7 +605,7 @@ const ConfirmationScreen: React.FC = () => {
                                 data-testid="ballot-id"
                                 className="ballot-id-value ballot-id-value-desktop"
                                 href={!isDemo ? ballotTrackerUrl : undefined}
-                                target={!isDemo ? "_blank" : undefined}
+                                target={!isDemo && !isKiosk() ? "_blank" : undefined}
                                 sx={{display: {xs: "none", sm: "block"}}}
                                 onClick={handleBallotIdLinkClick}
                             >
@@ -610,7 +615,7 @@ const ConfirmationScreen: React.FC = () => {
                                 data-testid="ballot-id"
                                 className="ballot-id-value ballot-id-value-mobile"
                                 href={!isDemo ? ballotTrackerUrl : undefined}
-                                target={!isDemo ? "_blank" : undefined}
+                                target={!isDemo && !isKiosk() ? "_blank" : undefined}
                                 sx={{display: {xs: "block", sm: "none"}}}
                                 onClick={handleBallotIdLinkClick}
                             >
