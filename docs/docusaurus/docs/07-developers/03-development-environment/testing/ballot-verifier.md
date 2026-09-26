@@ -55,11 +55,12 @@ and test setup are excluded consistently from counters and exports. CI compares
 lines, statements, functions and branches separately against the actual PR base
 using the same unit profile and each revision's own tests.
 
-
 With authentication disabled, event routes may fetch their public
 `election_event_config.json` to apply the event language policy and scoped
 translations. This optional request never authenticates, queries private Hasura
 data or blocks importing a local ballot when metadata is unavailable. The App
 routing tests use actual configuration/translation services and verify these
 boundaries. Direct login redirects replace their browser-history entry so Back
-can leave the verifier instead of entering a redirect loop.
+can leave the verifier instead of entering a redirect loop. Production browser
+journeys verify a real signed ballot with both available and missing public
+metadata, while asserting the exact public request and absence of private calls.
