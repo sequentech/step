@@ -393,7 +393,9 @@ impl<C: Ctx, S: LocalBoardStorage> Trustee<C, S> {
 
         // Process the rest of the messages
         if !messages.is_empty() {
-            return self.update(messages, configuration);
+            return self
+                .update(messages, configuration)
+                .map(|remaining| added + remaining);
         }
 
         Ok(added)

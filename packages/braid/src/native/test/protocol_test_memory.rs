@@ -4,8 +4,6 @@
 
 use anyhow::Result;
 use log::{error, info};
-use rand::seq::IndexedRandom;
-use rand::Rng;
 use rayon::prelude::*;
 use std::collections::HashSet;
 use std::marker::PhantomData;
@@ -28,31 +26,27 @@ use crate::native::test::vector_board::VectorBoard;
 use crate::native::test::vector_session::VectorSession;
 use crate::protocol::trustee::Trustee;
 
+const ALL_TRUSTEES: [usize; MAX_TRUSTEES] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+
+/// Trustee counts and selected trustees (1-based, in mixing order; the first
+/// also decrypts). Selecting two of three leaves an unselected trustee and empty
+/// trustee set slots; selecting all MAX_TRUSTEES fills every slot.
+const CONFIGURATIONS: [(usize, &[usize]); 2] = [(3, &[3, 1]), (MAX_TRUSTEES, &ALL_TRUSTEES)];
+
 pub fn run<C: Ctx + 'static>(ciphertexts: u32, batches: usize, ctx: C) {
-    let n_trustees = rand::rng().random_range(2..13);
-    let n_threshold = rand::rng().random_range(2..=n_trustees);
-    // To test all trustees participating
-    // let n_trustees = 12;
-    // let n_threshold = n_trustees;
-    let max: [usize; 12] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
-    let all = &max[0..n_trustees];
-    let mut rng = &mut rand::rng();
-    let threshold: Vec<usize> = all
-        .choose_multiple(&mut rng, n_threshold)
-        .cloned()
-        .collect();
+    for (n_trustees, threshold) in CONFIGURATIONS {
+        let now = Instant::now();
+        let test = create_protocol_test(n_trustees, threshold, ctx.clone()).unwrap();
+        run_protocol_test(test, ciphertexts, batches, threshold).unwrap();
 
-    let now = Instant::now();
-    let test = create_protocol_test(n_trustees, &threshold, ctx).unwrap();
-    run_protocol_test(test, ciphertexts, batches, &threshold).unwrap();
-
-    let time = now.elapsed().as_millis() as f64 / 1000.0;
-    info!(
-        "batches = {}, time = {}, rate = {}",
-        batches,
-        time,
-        ((ciphertexts as f64 * batches as f64) / time),
-    );
+        let time = now.elapsed().as_millis() as f64 / 1000.0;
+        info!(
+            "batches = {}, time = {}, rate = {}",
+            batches,
+            time,
+            ((ciphertexts as f64 * batches as f64) / time),
+        );
+    }
 }
 
 fn run_protocol_test<C: Ctx + 'static>(
@@ -157,6 +151,26 @@ fn run_protocol_test<C: Ctx + 'static>(
         error!("No plaintexts found");
         panic!();
     }
+
+    // Every other trustee verifies and signs the published plaintexts. Wait
+    // until the decryptor has read all of those signatures, instead of stopping
+    // at whatever the parallel step that produced the plaintexts happened to see.
+    let decryptor = selected_trustees[0] - 1;
+    let signers: HashSet<usize> = (0..sessions.len()).filter(|t| *t != decryptor).collect();
+    let signed = |sessions: &[VectorSession<C, _>]| {
+        (0..batches).all(|b| sessions[decryptor].plaintexts_signers((b + 1) as u64) == signers)
+    };
+    for i in 0..30 {
+        if signed(&sessions) {
+            break;
+        }
+        info!("Cycle {}", i);
+
+        sessions.par_iter_mut().for_each(|t| {
+            t.step();
+        });
+    }
+    assert!(signed(&sessions), "Not every trustee signed the plaintexts");
 
     info!("***************************************************************");
     info!("* Completed");
