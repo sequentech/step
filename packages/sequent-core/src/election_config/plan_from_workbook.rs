@@ -741,10 +741,16 @@ fn read_voters(
                 .cells
                 .iter()
                 .filter(|(header, _)| !known.contains(&header.as_str()))
-                .filter_map(|(header, value)| {
-                    value
-                        .as_str()
-                        .map(|text| (header.clone(), text.to_string()))
+                // Every kind of cell, not only text: an `.xlsx` number arrives as
+                // a JSON number, and `as_str` dropped a numeric `member_id` from
+                // every voter without a word. Rendered the way `SheetCensus`
+                // renders it; an empty cell is still no attribute at all.
+                .filter_map(|(header, value)| match value {
+                    Value::Null => None,
+                    Value::String(text) => {
+                        Some((header.clone(), text.to_string()))
+                    }
+                    other => Some((header.clone(), cell_text(other, false))),
                 })
                 .collect();
 

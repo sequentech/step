@@ -875,3 +875,58 @@ fn an_area_that_allows_early_voting_still_does_after_the_workbook() {
     assert!(back.areas[0].allow_early_voting);
     assert!(!back.areas[1].allow_early_voting);
 }
+
+/// A census column holding numbers survives as text.
+///
+/// An `.xlsx` numeric cell reads as a JSON number, and only strings were kept, so
+/// a `member_id` column vanished from every voter with nothing said.
+#[test]
+fn a_voters_numeric_and_boolean_columns_come_back_as_text() {
+    use crate::election_config::paths::Cell;
+    use crate::election_config::sheet::{Sheet, Workbook};
+
+    let voters = Sheet::from_grid(
+        "Voters",
+        &[
+            vec![
+                Cell::text("username"),
+                Cell::text("area.external_id"),
+                Cell::text("member_id"),
+                Cell::text("dues_paid"),
+                Cell::text("note"),
+            ],
+            vec![
+                Cell::text("ada"),
+                Cell::text("north"),
+                Cell::Int(1042),
+                Cell::Bool(true),
+                Cell::text("hello"),
+            ],
+        ],
+    )
+    .unwrap();
+    let workbook = workbook_of(&sound()).expect("the plan writes");
+    let sheets: Vec<Sheet> = workbook
+        .sheets()
+        .iter()
+        .map(|sheet| {
+            if sheet.key == "voters" {
+                voters.clone()
+            } else {
+                sheet.clone()
+            }
+        })
+        .collect();
+
+    let back = read_voters(&Workbook::new(sheets).unwrap());
+
+    assert_eq!(
+        back[0].extra.get("member_id").map(String::as_str),
+        Some("1042")
+    );
+    assert_eq!(
+        back[0].extra.get("dues_paid").map(String::as_str),
+        Some("true")
+    );
+    assert_eq!(back[0].extra.get("note").map(String::as_str), Some("hello"));
+}
