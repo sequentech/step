@@ -13,6 +13,9 @@ use std::{collections::BTreeSet, path::Path};
 pub struct Event {
     pub election_event_id: String,
     pub election_id: String,
+    /// The census mapper uses a nonempty external ID, otherwise the election UUID.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub election_external_id: Option<String>,
     pub realm: String,
     pub area_name: String,
     pub login_url: String,
