@@ -261,6 +261,9 @@ jobs:
         if: matrix.check == 'python:scripts-coverage'
         with:
           node-version: '22.22.0'
+      - name: Install the Python coverage tool
+        if: matrix.check == 'python:scripts-coverage'
+        run: python3 -m pip install coverage==7.16.0
       - name: Run the selected tooling suite
         env:
           CHECK_COMMAND: ${{ matrix.command }}
