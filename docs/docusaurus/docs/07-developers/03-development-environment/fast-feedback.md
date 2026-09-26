@@ -431,11 +431,15 @@ gates. Repository maintainers can add the stable feedback check to branch rules.
 Frontend dependency caches require an exact OS, architecture, Node, Yarn,
 workspace-manifest, lockfile and packaged-WASM match. Restored dependencies pass
 Yarn's integrity and file checks before installation is skipped; a missing or
-invalid cache runs a normal frozen install. Cache availability never substitutes
-for a current build or test. GitHub scopes PR-written caches to that PR; base
-pushes populate caches that later PRs can restore. The setup step reports hits
-and misses. To force a dependency cache miss, increment `frontend-v1` in the setup
-action, or delete the relevant Actions cache.
+invalid cache runs a normal frozen install. Dependency and shared-output keys add
+a run-and-attempt generation to the complete identity; restore prefixes retain
+that complete identity. Verification decides reuse even when Actions reports
+`cache-hit=false` for a compatible prefix match. An invalid restore installs or
+rebuilds and saves a fresh generation, repairing reuse on later runs without
+overwriting an immutable cache. Cache availability never substitutes for a
+current build or test. GitHub scopes PR-written caches to that PR; base pushes
+populate caches that later PRs can restore. To force a dependency cache miss,
+increment `frontend-v2` in both setup-action keys, or delete the relevant cache.
 
 Shared UI outputs also use an exact content identity: transitive workspace
 sources, workspace manifests, lockfile, packaged WASM, build configuration and
