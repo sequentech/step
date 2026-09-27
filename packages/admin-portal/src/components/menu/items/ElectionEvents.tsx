@@ -684,7 +684,7 @@ export default function ElectionEvents() {
                     {isOpenSidebar && showAddElectionEvent ? (
                         <StyledIconButton
                             onClick={handleOpenCreateElectionEventMenu}
-                            ariaLabel={String(t("common.label.add"))}
+                            ariaLabel={`${t("common.label.add")}: ${t("sideMenu.electionEvents")}`}
                             className="election-event-create-button"
                             icon={faPlusCircle as any}
                             size="xs"

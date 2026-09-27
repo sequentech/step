@@ -40,8 +40,10 @@ export const HoverShowsTheInformation: Story = {
         await waitFor(() => expect(tooltip).toBeVisible())
         expect(tooltip).toHaveTextContent(INFO)
         await userEvent.unhover(trigger(canvasElement))
-        await waitFor(() =>
-            expect(within(document.body).queryByRole("tooltip")).not.toBeInTheDocument()
+        // The popper leaves after MUI's exit transition, which a loaded CI runner slows.
+        await waitFor(
+            () => expect(within(document.body).queryByRole("tooltip")).not.toBeInTheDocument(),
+            {timeout: 5000}
         )
     },
 }

@@ -312,14 +312,15 @@ summary percentages. Compare each file's uncovered lines and wire contracts
 before changing its implementation. A missing layer is explicitly marked and
 does not establish that the combined coverage is complete.
 
-CI runs admin journeys in four shards with two workers each and publishes the
+CI runs admin stories in three shards and admin journeys in four shards with two
+workers each, and publishes the
 area and per-file tables in the safety-net job summary. The
 `admin-portal-safety-net` artifact contains `coverage-union.json` and
 `coverage-union.md`, including uncovered line ranges. Locally these files are
 under `packages/admin-portal/test-results/safety-net/`. To combine downloaded
 artifacts, pass repeated `--layer jest=<path>`, `--layer stories=<path>` and
 `--layer journeys=<path>` options; directories are searched for raw line reports
-and journey shards are united before the layer comparison.
+and story and journey shards are united before the layer comparison.
 
 CI step summaries list passes, expected failures (JUnit `fail`/`expected-failure` properties),
 failures, skips and coverage as covered/total (percent): Istanbul for stories; for journeys, the

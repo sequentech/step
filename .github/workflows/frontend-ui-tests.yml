@@ -17,15 +17,15 @@ permissions:
 jobs:
   stories:
     if: fromJSON(inputs.selection).ui_jobs.stories
-    name: ${{ matrix.package }} stories
+    name: ${{ matrix.package }} stories (${{ matrix.shard }}/${{ matrix.shards }})
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     container: mcr.microsoft.com/playwright:v1.62.1-noble
     strategy:
       fail-fast: false
-      max-parallel: 4
+      max-parallel: 8
       matrix:
-        package: ${{ fromJSON(inputs.selection).stories }}
+        include: ${{ fromJSON(inputs.selection).story_shards }}
     env:
       CI: true
       PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1"
@@ -36,11 +36,11 @@ jobs:
           persist-credentials: false
       - uses: ./.github/actions/setup-frontend
       - name: Typecheck component stories
-        if: matrix.package == 'admin-portal' || matrix.package == 'ui-essentials'
+        if: matrix.shard == 1 && (matrix.package == 'admin-portal' || matrix.package == 'ui-essentials')
         working-directory: packages/${{ matrix.package }}
         run: yarn typecheck:stories
       - name: Check every admin widget has its Storybook section
-        if: matrix.package == 'admin-portal'
+        if: matrix.shard == 1 && matrix.package == 'admin-portal'
         working-directory: packages/admin-portal
         run: yarn stories:inventory --check
       - name: Typecheck voting stories and tests
@@ -56,8 +56,9 @@ jobs:
           yarn prettify
       - name: Run interactions and accessibility checks in Chromium
         working-directory: packages/${{ matrix.package }}
-        run: yarn test:stories --coverage --reporter=default --reporter=junit --outputFile=test-results/stories.xml
+        run: yarn test:stories --shard=${{ matrix.shard }}/${{ matrix.shards }} --coverage --reporter=default --reporter=junit --outputFile=test-results/stories.xml
       - name: Build the Storybook catalog
+        if: matrix.shard == 1
         working-directory: packages/${{ matrix.package }}
         run: yarn build-storybook --quiet
       - name: Summarize stories and Istanbul coverage
@@ -67,7 +68,7 @@ jobs:
         if: always()
         with:
           overwrite: true
-          name: stories-${{ matrix.package }}-${{ github.run_id }}
+          name: stories-${{ matrix.package }}-${{ matrix.shard }}-of-${{ matrix.shards }}-${{ github.run_id }}
           path: packages/${{ matrix.package }}/test-results
           if-no-files-found: warn
 
@@ -325,11 +326,11 @@ jobs:
         continue-on-error: true
         working-directory: packages/admin-portal
         run: yarn test --coverage --coverageReporters=json --coverageDirectory="$LAYERS/jest"
-      - name: Download story line coverage
+      - name: Download story line coverage from every shard
         continue-on-error: true
         uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4.2.1
         with:
-          name: stories-admin-portal-${{ github.run_id }}
+          pattern: stories-admin-portal-*-${{ github.run_id }}
           path: ${{ env.LAYERS }}/stories
       - name: Download journey line coverage from every shard
         continue-on-error: true
@@ -341,7 +342,10 @@ jobs:
         run: >-
           node --experimental-strip-types packages/ui-test-kit/coverage/summary.mts
           safety-net packages/admin-portal
-          --layer "jest=$LAYERS/jest" --layer "stories=$LAYERS/stories"
+          --layer "jest=$LAYERS/jest"
+          --layer "stories=$LAYERS/stories/stories-admin-portal-1-of-3-${{ github.run_id }}"
+          --layer "stories=$LAYERS/stories/stories-admin-portal-2-of-3-${{ github.run_id }}"
+          --layer "stories=$LAYERS/stories/stories-admin-portal-3-of-3-${{ github.run_id }}"
           --layer "journeys=$LAYERS/journeys/admin-portal-production-journeys-1-of-4-${{ github.run_id }}"
           --layer "journeys=$LAYERS/journeys/admin-portal-production-journeys-2-of-4-${{ github.run_id }}"
           --layer "journeys=$LAYERS/journeys/admin-portal-production-journeys-3-of-4-${{ github.run_id }}"

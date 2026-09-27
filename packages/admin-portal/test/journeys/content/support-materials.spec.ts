@@ -245,11 +245,16 @@ test.describe("support material editor", () => {
                 },
             },
         ])
-        await expect(page.getByRole("cell", {name: "Voting guide", exact: true})).toBeVisible()
-
         await expect(notification(page, "Error updating support material")).toBeVisible({
             timeout: 2000,
         })
+        // The form stays open with the rejected edit, so it can be corrected and saved again.
+        await expect(drawer.getByRole("textbox", {name: "Title", exact: true})).toHaveValue(
+            "Rejected title"
+        )
+        await page.keyboard.press("Escape")
+        await expect(drawer).toBeHidden()
+        await expect(page.getByRole("cell", {name: "Voting guide", exact: true})).toBeVisible()
     })
 
     test("refuses to create a material without a title and a document", async ({page, portal}) => {
