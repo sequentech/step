@@ -45,17 +45,23 @@ Each checkout builds into its own `packages/rust-local-target`. The shared
 root.
 
 ```sh
-devenv shell -- bash -c 'cd packages && CARGO_TARGET_DIR="$PWD/rust-local-target" cargo build -p <crate>'
-cargo test -p <crate> [<test-name>]    # same shell and target directory
+devenv shell                           # from the repository root
+cd packages
+export CARGO_TARGET_DIR="$PWD/rust-local-target"
+cargo build -p <crate>
+cargo test -p <crate> [<test-name>]
 cargo test --release -p braid          # braid tests need an optimized build
 cargo fmt -- --check
 cargo clippy -p <crate>
 ```
 
+A single command can run the same steps non-interactively:
+`devenv shell -- bash -c 'cd packages && CARGO_TARGET_DIR="$PWD/rust-local-target" cargo test -p <crate>'`.
+
 In `backend` and `full` modes Harvest, Windmill and beat already rebuild on
 change: run `scripts/dev/step-dev mode status` and read the checkout's service
-container logs before starting another compiler. `step-dev test <crate>
-<test-name>` runs one focused test in the checkout's target directory.
+container logs before starting another compiler.
+`scripts/dev/step-dev test <crate> <test-name>` runs one focused test in the checkout's target directory.
 
 ## TypeScript
 
@@ -77,7 +83,7 @@ those packages only for production builds and journeys.
 ### sequent-core WASM
 
 `scripts/dev/step-dev wasm` rebuilds the development artifact incrementally
-without reinstalling dependencies, and `step-dev wasm --status` reports whether
+without reinstalling dependencies, and `scripts/dev/step-dev wasm --status` reports whether
 the committed package matches its sources. See
 [Incremental WASM](./fast-feedback.md#incremental-wasm).
 

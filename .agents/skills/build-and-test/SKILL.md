@@ -23,7 +23,7 @@ edit, use [fast-feedback](../fast-feedback/SKILL.md) first.
    tests. Do not build `ui-core`/`ui-essentials` for ordinary source edits.
 4. Java: `mvn clean verify` in `packages/keycloak-extensions/`.
 5. Rust used by the portals: `scripts/dev/step-dev wasm`, then
-   `step-dev wasm --status`; a failed rebuild is not a preview of new source.
+   `scripts/dev/step-dev wasm --status`; a failed rebuild is not a preview of new source.
 6. GraphQL query or schema change: `yarn generate:<portal>` from `packages/`.
    Hasura schema changes go through `hasura console` so migrations are recorded.
 7. Before committing: `cargo fmt -- --check`, `cargo clippy -p <crate>`, the

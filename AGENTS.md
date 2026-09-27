@@ -11,7 +11,8 @@ with the [contributing guide](docs/docusaurus/docs/07-developers/00-contributing
 ## Rules
 
 - Every file has REUSE (SPDX) headers; `reuse lint` passes.
-- Branches: `feat/meta-<issue>-<description>/<target>`. PR bodies start with
+- Branches: `feat/meta-<issue>-<description>/<target>`, or
+  `fix/meta-<issue>/release/X.Y` for release fixes. PR bodies start with
   `Parent issue: https://github.com/sequentech/meta/issues/<n>`.
 - Never force-push or rebase a shared branch; merge instead.
 - TDD: a failing test first, then the code.
@@ -19,7 +20,7 @@ with the [contributing guide](docs/docusaurus/docs/07-developers/00-contributing
 - No client-specific features; design for every client.
 - Data changes stay backwards compatible (optional or defaulted fields).
 - Cargo builds into this checkout's `packages/rust-local-target`, never
-  `packages/target` or another checkout's services.
+  `packages/target`; leave other checkouts' services alone.
 
 ## Skills
 
