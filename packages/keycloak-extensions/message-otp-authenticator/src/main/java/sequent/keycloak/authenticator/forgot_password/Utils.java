@@ -9,7 +9,6 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
 import jakarta.ws.rs.core.MultivaluedMap;
 import java.io.BufferedReader;
-import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -148,7 +147,7 @@ public class Utils {
     if (mapConfig == null
         || !mapConfig.containsKey(configKey)
         || mapConfig.get(configKey).strip().length() == 0) {
-      log.debugv("getString(): NullOrNotFound mapConfig={0}", mapConfig);
+      log.debugv("getString(): missing configuration for {0}", configKey);
       return defaultValue;
     }
     return mapConfig.get(configKey);
@@ -166,7 +165,7 @@ public class Utils {
     if (mapConfig == null
         || !mapConfig.containsKey(configKey)
         || mapConfig.get(configKey).strip().length() == 0) {
-      log.debugv("getMultivalueString(): NullOrNotFound mapConfig={0}", mapConfig);
+      log.debugv("getMultivalueString(): missing configuration for {0}", configKey);
       return defaultValue;
     }
 
@@ -186,7 +185,7 @@ public class Utils {
     if (mapConfig == null
         || !mapConfig.containsKey(configKey)
         || mapConfig.get(configKey).strip().length() == 0) {
-      log.debugv("getInt(): NullOrNotFound mapConfig={0}", mapConfig);
+      log.debugv("getInt(): missing configuration for {0}", configKey);
       return Integer.parseInt(defaultValue);
     }
     return Integer.parseInt(mapConfig.get(configKey));
@@ -204,7 +203,7 @@ public class Utils {
     if (mapConfig == null
         || !mapConfig.containsKey(configKey)
         || mapConfig.get(configKey).strip().length() == 0) {
-      log.debugv("getBoolean(): NullOrNotFound mapConfig={0}", mapConfig);
+      log.debugv("getBoolean(): missing configuration for {0}", configKey);
       return defaultValue;
     }
     return Boolean.parseBoolean(mapConfig.get(configKey));
@@ -377,6 +376,7 @@ public class Utils {
       String secret,
       Double minScore) {
     log.info("validateRecaptcha()");
+    success = false;
     HttpClient httpClient =
         context.getSession().getProvider(HttpClientProvider.class).getHttpClient();
     HttpPost post = new HttpPost(Utils.RECAPTCHA_SITE_VERIFY_URL);
@@ -384,36 +384,29 @@ public class Utils {
     formparams.add(new BasicNameValuePair("secret", secret));
     formparams.add(new BasicNameValuePair("response", captcha));
     formparams.add(new BasicNameValuePair("remoteip", context.getConnection().getRemoteAddr()));
-    log.debugv("validateRecaptcha(): secret={0},  captcha={1}", secret, captcha);
     try {
       UrlEncodedFormEntity form = new UrlEncodedFormEntity(formparams, "UTF-8");
       post.setEntity(form);
       HttpResponse response = httpClient.execute(post);
-      InputStream content = response.getEntity().getContent();
-      InputStreamReader isr = new InputStreamReader(content);
-      BufferedReader br = new BufferedReader(isr);
-      StringBuilder result = new StringBuilder();
-      String line;
-      while ((line = br.readLine()) != null) {
-        result.append(line);
-      }
-      log.debugv("recaptcha result = {0}", result.toString());
-      try {
-        Object scoreObj = JsonSerialization.readValue(result.toString(), Map.class).get("score");
+      try (BufferedReader br =
+          new BufferedReader(
+              new InputStreamReader(response.getEntity().getContent(), StandardCharsets.UTF_8))) {
+        StringBuilder result = new StringBuilder();
+        String line;
+        while ((line = br.readLine()) != null) {
+          result.append(line);
+        }
+        Map<?, ?> verification = JsonSerialization.readValue(result.toString(), Map.class);
+        Object scoreObj = verification.get("score");
         Double userScore = Double.parseDouble((scoreObj != null) ? scoreObj.toString() : "0");
         log.infov(
             "validateRecaptcha() userScore[{0}] > minScore[{1}] = [{2}]",
             userScore, minScore, (userScore > minScore));
-        if (userScore > minScore) {
-          success = true;
-        } else {
-          success = false;
-        }
-      } finally {
-        content.close();
+        success = Boolean.TRUE.equals(verification.get("success")) && userScore > minScore;
       }
     } catch (Exception error) {
-      log.infov("validateRecaptcha(): error {0}", error);
+      success = false;
+      log.error("reCAPTCHA verification failed");
     }
     return success;
   }

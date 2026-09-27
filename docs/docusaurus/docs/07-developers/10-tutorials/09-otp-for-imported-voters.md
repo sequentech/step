@@ -95,18 +95,14 @@ SMS:
 
 Entering the code completes the login.
 
-In the development environment the message is written to the Keycloak log rather
-than sent, so you can read an emailed code with:
+Use the code received through the configured email or SMS provider. Dummy
+couriers simulate delivery and log delivery metadata; they do not send messages
+or expose their contents.
 
-```bash
-docker logs keycloak --since 2m 2>&1 | grep -A6 "Sending dummy email"
-```
-
-The dummy SMS sender logs its messages in the same way:
-
-```bash
-docker logs keycloak --since 2m 2>&1 | grep -A3 "Sending dummy sms"
-```
+For a local run with a dummy courier, enable **Test Mode** and choose a **Test Mode
+Code** on this Message OTP execution in an isolated development realm. Use the
+configured number of digits. Restore the previous settings after the run; do not
+enable test mode in a production realm.
 
 ## Step 4: verify the credential was created
 

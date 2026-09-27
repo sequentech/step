@@ -374,7 +374,8 @@ class StackBackend:
             self._restore_otp_test_mode()
         self.say(
             "enrolled the tenant administrator's email code; the admin portal asks "
-            f"for it, and docker logs {self.checkout.name_prefix}keycloak shows it"
+            "for the delivered code. Dummy couriers require an explicit test code "
+            "configured only in this isolated development realm"
         )
 
     def _restore_otp_test_mode(self) -> None:

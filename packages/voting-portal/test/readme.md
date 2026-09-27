@@ -13,7 +13,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 - send voter notification email and get login url from windmill logs
 - initialize and run voting-portal via codespace (```yarn && yarn build:ui-essentials && yarn start:voting-portal```)
 - manually log in via login url to initialize voter account by changing default password and verifying email via otp
-- get email verification otp from keycloak logs
+- use the delivered email verification code; dummy couriers require a test code configured only in an isolated development realm
 - configure ./index.ts with loginUrl, voter email and voter updated password
 
 ### Keycloak
