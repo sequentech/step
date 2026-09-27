@@ -577,12 +577,12 @@ const englishTranslation = {
                 },
                 link: {
                     "area-missing": {
-                        lead: "Ballot link to a missing area",
-                        text: "Ballot link to a missing area — a contest is put on the ballot of an area that is not in this file.",
+                        lead: "Ballot link to missing area",
+                        text: "Ballot link to missing area — a contest is put on the ballot of an area that is not in this file.",
                     },
                     "contest-missing": {
-                        lead: "Ballot link to a missing contest",
-                        text: "Ballot link to a missing contest — an area's ballot lists a contest that is not in this file.",
+                        lead: "Ballot link to missing contest",
+                        text: "Ballot link to missing contest — an area's ballot lists a contest that is not in this file.",
                     },
                 },
                 logo: {
@@ -751,8 +751,8 @@ const englishTranslation = {
                         text: "Vote weight column misspelled — '{{column}}' is not recognised. The column is spelled exactly '{{expected}}', or every voter would be counted with weight 1.",
                     },
                     "vote-weight-not-a-number": {
-                        lead: "Vote weight is not a number",
-                        text: "Vote weight is not a number — '{{value}}' on row {{row}} must be a whole number between 1 and {{max}}.",
+                        lead: "Vote weight not a number",
+                        text: "Vote weight not a number — '{{value}}' on row {{row}} must be a whole number between 1 and {{max}}.",
                     },
                     "vote-weight-out-of-range": {
                         lead: "Vote weight out of range",

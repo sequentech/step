@@ -63,6 +63,21 @@ const entries = (messages: Messages): Map<string, Entry> => {
 const placeholders = (text: string): string[] =>
     [...new Set([...text.matchAll(/\{\{(\w+)\}\}/g)].map((match) => match[1]!))].sort()
 
+/**
+ * A label, not a sentence: the lead is what a row underlines, and a link somebody
+ * has to finish reading before deciding to click is not a link. English is held to
+ * the Election Architect's original bound; the other languages say the same label
+ * in more letters — "circumscripció", "boto-txartel" — so get a looser one that
+ * still refuses a whole clause.
+ */
+const leadFits = (lead: string, strict: boolean): boolean => {
+    const words = lead.split(/\s+/).length
+    return (
+        lead.trim() !== "" &&
+        (strict ? lead.length <= 36 && words <= 5 : lead.length <= 56 && words <= 8)
+    )
+}
+
 describe("problem catalog", () => {
     const raised = raisedIds()
     const english = entries(en.translations.problems.messages)
@@ -86,7 +101,8 @@ describe("problem catalog", () => {
 
     it.each(Object.entries(locales))(
         "%s: every text opens with its lead and names what English names",
-        (_, locale) => {
+        (language, locale) => {
+            const strict = language === "en"
             const own = entries(locale.translations.problems.messages)
             expect([...own.keys()].sort()).toEqual([...english.keys()].sort())
             for (const [id, entry] of own) {
@@ -94,6 +110,7 @@ describe("problem catalog", () => {
                     id,
                     opens: true,
                 })
+                expect({id, lead: leadFits(entry.lead, strict)}).toEqual({id, lead: true})
                 expect({id, names: placeholders(entry.text)}).toEqual({
                     id,
                     names: placeholders(english.get(id)!.text),
