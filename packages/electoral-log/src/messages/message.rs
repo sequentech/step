@@ -727,7 +727,7 @@ mod tests {
 
     #[test]
     fn publication_failures_are_signed_errors_with_task_and_publication_context() -> Result<()> {
-        let system_sk = StrandSignatureSk::r#gen()?;
+        let system_sk = StrandSignatureSk::generate()?;
         let system_pk = StrandSignaturePk::from_sk(&system_sk)?;
         let signing_data = SigningData::new(system_sk.clone(), "", system_sk);
         for stage in [
