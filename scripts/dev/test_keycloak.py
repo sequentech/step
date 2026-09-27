@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import tempfile
 import unittest
 import zipfile
@@ -223,6 +224,13 @@ class KeycloakThemeTests(unittest.TestCase):
                 Checkout(self.root, {"COMPOSE_PROJECT_NAME": "step_devcontainer"}),
                 "unix:///isolated/docker.sock",
             )
+
+    def test_the_overlay_mounts_every_prepared_theme(self):
+        repository = Path(__file__).resolve().parents[2]
+        themes = json.loads((repository / keycloak.PACKAGE / "themes.json").read_text())
+        overlay = (repository / ".devcontainer" / keycloak.OVERLAY).read_text()
+        for theme in themes:
+            self.assertIn(f"target: /opt/keycloak/themes/{theme}\n", overlay)
 
     def test_proxy_accepts_origins_without_credentials_or_paths(self):
         self.assertEqual(upstream("http://localhost:8090/"), "http://localhost:8090")

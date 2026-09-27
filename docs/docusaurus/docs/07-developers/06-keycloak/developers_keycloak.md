@@ -229,6 +229,10 @@ through the admin API. Its browser flow asks for the email address
 denies users without the role. A `google` identity provider is included but
 disabled; it only links to existing users. The `sequent-ui-architect` theme
 (`themes.json`) is the admin theme with the Election Architect header and title.
+The realm file keeps `sequent.admin-portal` as its login theme so it imports on
+any Keycloak, including production images without the opt-in themes; the
+Architect's `npm run dev` and both test suites switch it to `sequent-ui-architect`
+when the server has that theme (`keycloak prepare` + `keycloak mount`).
 The gate, the Delivery contract and the one-command local loop are documented in
 beyond's `packages/election-architect/gateway/README.md`.
 
