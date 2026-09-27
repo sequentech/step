@@ -141,7 +141,9 @@ describe("problem catalog", () => {
      * that count. "greeting have no words in 'es'" is what the Call Emulator said
      * of one missing prompt. Tagalog marks the plural with "mga", which reads as
      * well left out, so its one sentence serves every count; i18next's Filipino
-     * rules would call two "one" in any case.
+     * rules would call two "one" in any case. It still carries the `_one` keys,
+     * because every locale is typed against English's, and repeats the sentence
+     * in them.
      */
     const COUNTED = ["ivr.missing-prompts"]
     const INFLECTING = ["en", "es", "cat", "eu", "fr", "gl", "nl"]
@@ -154,6 +156,18 @@ describe("problem catalog", () => {
             const entry = own.get(id)!
             expect({id, singular: typeof entry.text_one}).toEqual({id, singular: "string"})
             expect({id, differs: entry.text_one !== entry.text}).toEqual({id, differs: true})
+        }
+    })
+
+    it("tl: a counted sentence reads the same for every count", () => {
+        const own = entries(tl.translations.problems.messages)
+        for (const id of COUNTED) {
+            const entry = own.get(id)!
+            expect({id, lead: entry.lead_one, text: entry.text_one}).toEqual({
+                id,
+                lead: entry.lead,
+                text: entry.text,
+            })
         }
     })
 })
