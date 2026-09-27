@@ -169,3 +169,39 @@ fn no_flow_is_no_call_and_unreadable_prompts_are_no_prompts() {
     );
     assert_eq!(missing[0].prompt_keys.len(), 3);
 }
+
+fn missing(keys: &[&str]) -> MissingPrompts {
+    MissingPrompts {
+        language: "es".to_string(),
+        prompt_keys: strings(keys),
+    }
+}
+
+#[test]
+fn one_missing_prompt_is_spoken_of_in_the_singular() {
+    // "greeting have no words in 'es'", as the Call Emulator first said it.
+    let problem = missing(&["greeting"]).problem("ivr.prompts");
+    assert_eq!(
+        problem.message,
+        "greeting has no words in 'es', and the telephone system refuses \
+         every call until it does"
+    );
+    assert_eq!(problem.details.get("count").map(String::as_str), Some("1"));
+}
+
+#[test]
+fn several_missing_prompts_are_spoken_of_in_the_plural() {
+    let problem =
+        missing(&["greeting", "declaration_text"]).problem("ivr.prompts");
+    assert_eq!(
+        problem.message,
+        "greeting, declaration_text have no words in 'es', and the telephone \
+         system refuses every call until they do"
+    );
+    // The count the catalogue picks its plural form by.
+    assert_eq!(problem.details.get("count").map(String::as_str), Some("2"));
+    assert_eq!(
+        problem.details.get("prompts").map(String::as_str),
+        Some("greeting, declaration_text")
+    );
+}

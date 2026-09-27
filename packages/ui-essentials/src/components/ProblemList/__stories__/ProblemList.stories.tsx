@@ -112,3 +112,37 @@ export const Unnamed: Story = {
         await expect(canvas.getByText("something the core has no name for yet")).toBeInTheDocument()
     },
 }
+
+const missingPrompts = (language: string, prompts: string[]): Problem => ({
+    severity: "error",
+    code: "MissingField",
+    path: "ivr.prompts",
+    message: `${prompts.join(", ")} have no words in '${language}'`,
+    id: "ivr.missing-prompts",
+    details: {language, prompts: prompts.join(", "), count: String(prompts.length)},
+})
+
+/**
+ * A sentence that agrees with what it counts: one missing prompt "has" no words,
+ * two "have" none. The Call Emulator once said "greeting have no words in 'es'".
+ */
+export const CountedInTheSingularAndPlural: Story = {
+    args: {
+        report: {
+            problems: [
+                missingPrompts("es", ["greeting"]),
+                missingPrompts("fr", ["greeting", "declaration_text"]),
+            ],
+        },
+    },
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        const [one, two] = canvas.getAllByTestId("problem")
+        await expect(one).toHaveTextContent(
+            "Call prompt missing — greeting has no words in 'es', and the telephone system refuses every call until it does."
+        )
+        await expect(two).toHaveTextContent(
+            "Call prompts missing — greeting, declaration_text have no words in 'fr', and the telephone system refuses every call until they do."
+        )
+    },
+}

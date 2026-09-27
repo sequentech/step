@@ -47,7 +47,12 @@ const raisedIds = (): Set<string> => {
     return ids
 }
 
-type Entry = {lead: string; text: string}
+/**
+ * One complaint's sentence. A sentence that counts something (`count` in the
+ * core's details) may carry i18next's singular form beside it: `text_one`, and a
+ * `lead_one` when the lead inflects too. The unsuffixed pair is every other count.
+ */
+type Entry = {lead: string; text: string; lead_one?: string; text_one?: string}
 type Messages = Record<string, Record<string, Entry>>
 
 const entries = (messages: Messages): Map<string, Entry> => {
@@ -106,16 +111,49 @@ describe("problem catalog", () => {
             const own = entries(locale.translations.problems.messages)
             expect([...own.keys()].sort()).toEqual([...english.keys()].sort())
             for (const [id, entry] of own) {
-                expect({id, opens: entry.text.startsWith(entry.lead)}).toEqual({
+                const forms: Array<[string, string]> = [[entry.lead, entry.text]]
+                if (entry.text_one !== undefined) {
+                    forms.push([entry.lead_one ?? entry.lead, entry.text_one])
+                }
+                for (const [lead, text] of forms) {
+                    expect({id, text, opens: text.startsWith(lead)}).toEqual({
+                        id,
+                        text,
+                        opens: true,
+                    })
+                    expect({id, lead: leadFits(lead, strict)}).toEqual({id, lead: true})
+                    expect({id, text, names: placeholders(text)}).toEqual({
+                        id,
+                        text,
+                        names: placeholders(english.get(id)!.text),
+                    })
+                }
+                expect({id, orphanLead: entry.lead_one !== undefined && !entry.text_one}).toEqual({
                     id,
-                    opens: true,
-                })
-                expect({id, lead: leadFits(entry.lead, strict)}).toEqual({id, lead: true})
-                expect({id, names: placeholders(entry.text)}).toEqual({
-                    id,
-                    names: placeholders(english.get(id)!.text),
+                    orphanLead: false,
                 })
             }
         }
     )
+
+    /*
+     * Sentences about a counted thing, and the languages whose words change with
+     * that count. "greeting have no words in 'es'" is what the Call Emulator said
+     * of one missing prompt. Tagalog marks the plural with "mga", which reads as
+     * well left out, so its one sentence serves every count; i18next's Filipino
+     * rules would call two "one" in any case.
+     */
+    const COUNTED = ["ivr.missing-prompts"]
+    const INFLECTING = ["en", "es", "cat", "eu", "fr", "gl", "nl"]
+
+    it.each(INFLECTING)("%s: a counted sentence has its singular form", (language) => {
+        const own = entries(
+            locales[language as keyof typeof locales].translations.problems.messages
+        )
+        for (const id of COUNTED) {
+            const entry = own.get(id)!
+            expect({id, singular: typeof entry.text_one}).toEqual({id, singular: "string"})
+            expect({id, differs: entry.text_one !== entry.text}).toEqual({id, differs: true})
+        }
+    })
 })

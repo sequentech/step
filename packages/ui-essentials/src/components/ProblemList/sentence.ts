@@ -48,7 +48,13 @@ export const problemSentence = (t: ProblemTranslate, problem: Problem): ProblemS
     if (problem.id === undefined) {
         return {text: problem.message, lead: problem.message, rest: ""}
     }
-    const values = {message: problem.message, ...problem.details}
+    const values: Record<string, unknown> = {message: problem.message, ...problem.details}
+    // The core's details are strings, and i18next picks a plural form (`text_one`)
+    // only for a numeric `count`: "2" would read every count as the general form.
+    const count = problem.details?.count
+    if (count !== undefined && /^\d+$/.test(count)) {
+        values.count = Number(count)
+    }
     const text = t(problemKey(problem.id, "text"), {...values, defaultValue: problem.message})
     const lead = t(problemKey(problem.id, "lead"), {...values, defaultValue: text})
     return text.startsWith(lead)
