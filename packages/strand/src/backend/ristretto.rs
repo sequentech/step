@@ -839,10 +839,7 @@ mod tests {
 
         // Exponentiation agrees with the context and with the generator table.
         assert_eq!(a.mod_pow(&x, &modulus), ctx.emod_pow(&a, &x));
-        assert_eq!(
-            ctx.generator().mod_pow(&x, &modulus),
-            ctx.gmod_pow(&x)
-        );
+        assert_eq!(ctx.generator().mod_pow(&x, &modulus), ctx.gmod_pow(&x));
         assert_eq!(a.mod_pow(&one_x, &modulus), a);
         // (a^x)^y = a^(xy)
         assert_eq!(
