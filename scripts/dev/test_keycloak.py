@@ -55,7 +55,12 @@ class KeycloakThemeTests(unittest.TestCase):
         output = package / "dist_keycloak"
         output.mkdir()
         with zipfile.ZipFile(output / "sequent-ui.jar", "w") as jar:
-            for page in ("login.ftl", "message-otp.login.ftl", "register.ftl"):
+            for page in (
+                "login.ftl",
+                "login-username.ftl",
+                "message-otp.login.ftl",
+                "register.ftl",
+            ):
                 jar.writestr("theme/sequent-ui-admin/login/" + page, HTML)
             jar.writestr("theme/sequent-ui-admin/login/resources/dist/app.js", "built")
 
@@ -145,6 +150,12 @@ class KeycloakThemeTests(unittest.TestCase):
         )
         self.assertFalse((login / "register.ftl").exists())
         self.assertIn("/@vite/client", (login / "template.ftl").read_text())
+        # The username-first page renders in React, identity providers included:
+        # only the password page keeps the FreeMarker fallback.
+        username = (login / "login-username.ftl").read_text()
+        self.assertIn('src="/src/main.tsx"', username)
+        self.assertIn("window.kcContext.sequent", username)
+        self.assertNotIn("sequent-login.ftl", username)
 
     def test_built_pages_keep_compiled_entry_and_remove_dev_client(self):
         prepare(self.root, Runtime.HOT, skip_build=True)

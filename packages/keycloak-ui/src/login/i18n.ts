@@ -9,7 +9,11 @@ const englishMessages = {
     loginAccountTitle: {
         "sequent-ui-admin": "Sign in to continue",
         "sequent-ui-voting": "Sign in to vote",
+        "sequent-ui-architect": "Sign in to Election Architect",
     },
+    doContinue: "Continue",
+    "identity-provider-login-label": "Or sign in with",
+    continueWithProvider: "Continue with {0}",
     doLogIn: "LOGIN",
     "system.version": "Version:",
     "system.hash": "Hash:",
@@ -49,7 +53,11 @@ const {useI18n, ofTypeI18n} = i18nBuilder
             loginAccountTitle: {
                 "sequent-ui-admin": "Iniciar sesión para continuar",
                 "sequent-ui-voting": "Iniciar sesión para votar",
+                "sequent-ui-architect": "Iniciar sesión en Election Architect",
             },
+            doContinue: "Continuar",
+            "identity-provider-login-label": "O inicie sesión con",
+            continueWithProvider: "Continuar con {0}",
             doLogIn: "INICIAR SESIÓN",
             "system.version": "Versión:",
             "system.hash": "Hash:",
