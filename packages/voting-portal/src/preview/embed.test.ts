@@ -227,13 +227,31 @@ test("a label's placeholders are filled in, and unknown ones left alone", () => 
 
 describe("keypadHint", () => {
     const labels = {
-        placeholder: "Up to {{maxDigits}} of {{validInputs}}, within {{timeout}}s",
+        placeholder: "Press {{validInputs}}, within {{timeout}}s",
         placeholderAnyKeys: "Up to {{maxDigits}} digits, within {{timeout}}s",
+        or: "or",
     }
 
-    test("names the keys a prompt accepts", () => {
+    test("names the keys a prompt accepts, in order, as a sentence", () => {
+        // The Election Architect's language menu said "Up to 1 of 2,1, within 5s".
+        expect(keypadHint(labels, {valid_inputs: "2,1", max_digits: 1, timeout: 5})).toBe(
+            "Press 1 or 2, within 5s"
+        )
         expect(keypadHint(labels, {valid_inputs: "1,2,0", max_digits: 1, timeout: 5})).toBe(
-            "Up to 1 of 1,2,0, within 5s"
+            "Press 0, 1 or 2, within 5s"
+        )
+        expect(keypadHint(labels, {valid_inputs: "1", max_digits: 1, timeout: 10})).toBe(
+            "Press 1, within 10s"
+        )
+    })
+
+    test("puts the symbols after the digits and names each key once", () => {
+        expect(keypadHint(labels, {valid_inputs: "#, 2,1,2", max_digits: 1, timeout: 5})).toBe(
+            "Press 1, 2 or #, within 5s"
+        )
+        // The Lambda pads a longer menu's numbers to one length: "01,00,03".
+        expect(keypadHint(labels, {valid_inputs: "03,01,10", max_digits: 2, timeout: 5})).toBe(
+            "Press 01, 03 or 10, within 5s"
         )
     })
 
@@ -246,16 +264,30 @@ describe("keypadHint", () => {
         }
     })
 
-    test("a framing tool's own words are used for both", () => {
+    test("a framing tool's own words are used for both, its 'or' included", () => {
         const spanish = {
-            placeholder: "Hasta {{maxDigits}} de {{validInputs}} en {{timeout}} s",
+            placeholder: "Pulse {{validInputs}}, en {{timeout}} s",
             placeholderAnyKeys: "Hasta {{maxDigits}} dígitos en {{timeout}} s",
+            or: "o",
         }
         expect(keypadHint(spanish, {valid_inputs: "", max_digits: 4, timeout: 10})).toBe(
             "Hasta 4 dígitos en 10 s"
         )
-        expect(keypadHint(spanish, {valid_inputs: "1", max_digits: 1, timeout: 10})).toBe(
-            "Hasta 1 de 1 en 10 s"
+        expect(keypadHint(spanish, {valid_inputs: "2,1", max_digits: 1, timeout: 10})).toBe(
+            "Pulse 1 o 2, en 10 s"
         )
     })
+
+    test("says 'or' in English when a framing tool sends no word for it", () => {
+        const {or: _, ...older} = labels
+        expect(keypadHint(older, {valid_inputs: "2,1", max_digits: 1, timeout: 5})).toBe(
+            "Press 1 or 2, within 5s"
+        )
+    })
+})
+
+test("a framing tool's word for 'or' has to be a word", () => {
+    expect(callIssuesOf(call({labels: {or: ""}}))).toEqual([
+        'labels.or: expected a non-empty string, found ""',
+    ])
 })

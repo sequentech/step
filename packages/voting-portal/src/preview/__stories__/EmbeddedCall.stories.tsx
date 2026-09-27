@@ -56,7 +56,8 @@ export const Translated: Story = {
             ...meta.args.request,
             labels: {
                 input: "Teclas",
-                placeholder: "Hasta {{maxDigits}} de {{validInputs}} en {{timeout}} s",
+                placeholder: "Pulse {{validInputs}} en {{timeout}} s",
+                or: "o",
                 timeout: "Esperar",
                 send: "Pulsar",
                 disconnected: "La llamada terminó.",
@@ -65,7 +66,7 @@ export const Translated: Story = {
     },
     play: async ({canvasElement}) => {
         const keypad = await within(canvasElement).findByRole("textbox", {name: "Teclas"})
-        await expect(keypad).toHaveAttribute("placeholder", "Hasta 1 de 1 en 10 s")
+        await expect(keypad).toHaveAttribute("placeholder", "Pulse 1 en 10 s")
     },
 }
 
@@ -83,7 +84,7 @@ export const AnyDigits: Story = {
         await userEvent.type(keypad, "12345678")
         await userEvent.click(canvas.getByRole("button", {name: "Press these keys"}))
         await expect(await canvas.findByText("Press 1 to hear your ballot.")).toBeVisible()
-        await expect(keypad).toHaveAttribute("placeholder", "Up to 1 of 1, within 10s")
+        await expect(keypad).toHaveAttribute("placeholder", "Press 1, within 10s")
     },
 }
 
@@ -101,6 +102,11 @@ export const LanguageMenu: Story = {
         await expect(canvas.getByText("Para español, pulse 2")).toHaveAttribute("lang", "es-ES")
         await expect(canvas.getByTitle("en-US")).toHaveTextContent("EN")
         await expect(canvasElement.textContent).not.toMatch(/<lang|xml:lang|<\/?speak/)
+        // The Lambda lists the menu's keys as they come ("2,1"); the hint orders them.
+        await expect(canvas.getByRole("textbox", {name: "Keys to press"})).toHaveAttribute(
+            "placeholder",
+            "Press 1 or 2, within 5s"
+        )
     },
 }
 

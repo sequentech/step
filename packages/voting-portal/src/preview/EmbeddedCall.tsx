@@ -22,8 +22,9 @@ import {
 /** What a call says when the framing tool sends no words of its own. */
 export const DEFAULT_CALL_LABELS: Required<CallLabels> = {
     input: "Keys to press",
-    placeholder: "Up to {{maxDigits}} of {{validInputs}}, within {{timeout}}s",
+    placeholder: "Press {{validInputs}}, within {{timeout}}s",
     placeholderAnyKeys: "Up to {{maxDigits}} digits, within {{timeout}}s",
+    or: "or",
     timeout: "Say nothing",
     send: "Press these keys",
     disconnected: "The call ended.",

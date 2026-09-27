@@ -63,13 +63,18 @@ export interface ShowRequest {
 export interface CallLabels {
     /** The keypad's accessible name. */
     input?: string
-    /** The keypad's placeholder: `{{maxDigits}}`, `{{validInputs}}` and `{{timeout}}` are filled in. */
+    /**
+     * The keypad's placeholder when the prompt names its keys: `{{validInputs}}` is filled
+     * in as a list ("1 or 2", joined by `or`), `{{maxDigits}}` and `{{timeout}}` as numbers.
+     */
     placeholder?: string
     /**
      * The keypad's placeholder when any digits will do, such as for a PIN, which the Lambda
      * says by listing no valid inputs: `{{maxDigits}}` and `{{timeout}}` are filled in.
      */
     placeholderAnyKeys?: string
+    /** The word before the last of the keys a prompt names: "1, 2 or 3". */
+    or?: string
     /** The button that lets the caller's patience run out. */
     timeout?: string
     /** The button that presses the keys. */
@@ -84,6 +89,7 @@ export const CALL_LABEL_KEYS: readonly (keyof CallLabels)[] = [
     "input",
     "placeholder",
     "placeholderAnyKeys",
+    "or",
     "timeout",
     "send",
     "disconnected",
@@ -266,6 +272,33 @@ export const fillLabel = (template: string, values: Record<string, string | numb
         name in values ? String(values[name]) : whole
     )
 
+/** Digits by their value (`0`, `1`, `01`, `10`), then the keypad's symbols (`*`, `#`). */
+const byKey = (a: string, b: string): number => {
+    const digits = /^\d+$/
+    if (digits.test(a) !== digits.test(b)) return digits.test(a) ? -1 : 1
+    return digits.test(a) ? Number(a) - Number(b) || a.localeCompare(b) : a.localeCompare(b)
+}
+
+/**
+ * The keys a prompt accepts, as somebody would say them: "0, 1 or 2".
+ *
+ * The Lambda sends them comma-separated in no particular order ("2,1" for a language
+ * menu), each padded to the prompt's length ("01,00,03").
+ */
+export const keyList = (validInputs: string, or: string): string => {
+    const keys = [
+        ...new Set(
+            validInputs
+                .split(",")
+                .map((key) => key.trim())
+                .filter(Boolean)
+        ),
+    ].sort(byKey)
+    const last = keys.pop()
+    if (last === undefined) return ""
+    return keys.length ? `${keys.join(", ")} ${or} ${last}` : last
+}
+
 /**
  * What the keypad says while the call waits for keys.
  *
@@ -273,10 +306,11 @@ export const fillLabel = (template: string, values: Record<string, string | numb
  * to `max_digits`); filling the list into "Up to 8 of …" then leaves "Up to 8 of ,".
  */
 export const keypadHint = (
-    labels: Required<Pick<CallLabels, "placeholder" | "placeholderAnyKeys">>,
+    labels: Required<Pick<CallLabels, "placeholder" | "placeholderAnyKeys">> &
+        Pick<CallLabels, "or">,
     expected: {valid_inputs: string; max_digits: number; timeout: number}
 ): string => {
-    const validInputs = expected.valid_inputs.trim()
+    const validInputs = keyList(expected.valid_inputs, labels.or ?? "or")
     return fillLabel(validInputs ? labels.placeholder : labels.placeholderAnyKeys, {
         maxDigits: expected.max_digits,
         validInputs,

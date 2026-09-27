@@ -69,14 +69,14 @@ test("speaks the framing tool's words, the keypad's name included", async () => 
     placed({
         labels: {
             input: "Teclas",
-            placeholder: "Hasta {{maxDigits}} de {{validInputs}} en {{timeout}} s",
+            placeholder: "Pulse {{validInputs}} en {{timeout}} s",
             send: "Pulsar",
             timeout: "Esperar",
             disconnected: "Fin",
         },
     })
     const keypad = await screen.findByRole("textbox", {name: "Teclas"})
-    expect(keypad).toHaveAttribute("placeholder", "Hasta 1 de 1 en 10 s")
+    expect(keypad).toHaveAttribute("placeholder", "Pulse 1 en 10 s")
     await userEvent.click(screen.getByRole("button", {name: "Esperar"}))
     await userEvent.type(keypad, "1")
     await userEvent.click(screen.getByRole("button", {name: "Pulsar"}))
@@ -92,7 +92,7 @@ test("a prompt that takes any digits says so rather than listing no keys", async
     await userEvent.type(keypad, "12345678")
     await userEvent.click(screen.getByRole("button", {name: "Press these keys"}))
     await screen.findByText("Press 1 to hear your ballot.")
-    expect(keypad).toHaveAttribute("placeholder", "Up to 1 of 1, within 10s")
+    expect(keypad).toHaveAttribute("placeholder", "Press 1, within 10s")
 })
 
 test("silence at the PIN asks for it again", async () => {
@@ -111,7 +111,7 @@ test("a framing tool's words for any digits are used too", async () => {
     placed(
         {
             labels: {
-                placeholder: "Hasta {{maxDigits}} de {{validInputs}} en {{timeout}} s",
+                placeholder: "Pulse {{validInputs}} en {{timeout}} s",
                 placeholderAnyKeys: "Hasta {{maxDigits}} dígitos en {{timeout}} s",
             },
         },

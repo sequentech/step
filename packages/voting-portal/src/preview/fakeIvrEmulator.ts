@@ -116,7 +116,8 @@ export class FakeLanguageMenuIvrDriver extends FakeIvrDriver {
                 language: "es-ES",
                 voice_id: "Lucia",
             },
-            valid_inputs: "1,2",
+            // In the order the real Lambda listed them to the Election Architect.
+            valid_inputs: "2,1",
             max_digits: 1,
             timeout: 5,
         }
