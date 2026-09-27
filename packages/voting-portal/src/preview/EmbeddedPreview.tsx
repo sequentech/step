@@ -148,18 +148,27 @@ export const EmbeddedPreview: React.FC<EmbeddedPreviewProps> = ({host = window.p
 
     if (issues)
         return (
-            <Alert severity="error" sx={{m: 2}}>
-                <AlertTitle>The voter preview could not open this request</AlertTitle>
-                <Box component="ul" sx={{m: 0, pl: 2}}>
+            <Alert severity="error" className="embedded-preview-error" sx={{m: 2}}>
+                <AlertTitle className="embedded-preview-error-title">
+                    The voter preview could not open this request
+                </AlertTitle>
+                <Box component="ul" className="embedded-preview-issues" sx={{m: 0, pl: 2}}>
                     {issues.map((issue) => (
-                        <li key={issue}>{issue}</li>
+                        <li key={issue} className="embedded-preview-issue">
+                            {issue}
+                        </li>
                     ))}
                 </Box>
             </Alert>
         )
     if (!shown)
         return (
-            <Typography role="status" sx={{m: 2}} color="text.secondary">
+            <Typography
+                role="status"
+                className="embedded-preview-waiting"
+                sx={{m: 2}}
+                color="text.secondary"
+            >
                 Waiting for a ballot to preview
             </Typography>
         )
