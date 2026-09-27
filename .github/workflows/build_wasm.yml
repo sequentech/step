@@ -145,7 +145,8 @@ jobs:
 
       # The voter preview other tools frame, e.g. beyond's Election Architect, which
       # takes it from the same run as the election-config WASM (`yarn vendor-core`).
-      # Built from source like the workbench it belongs to; `embed.html` is its entry.
+      # Built from source like the workbench it belongs to; `embed.html` is its entry,
+      # and `problem-list/` the problem list the same tools import.
       - name: Build the voter preview
         working-directory: packages
         run: yarn --cwd workbench build

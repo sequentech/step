@@ -7,7 +7,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 A browser-only development surface for the production voting screens and the shared
 synthetic scenarios. `embed.html` serves the same screens for other tools to frame and
-send documents to, such as the Election Architect
+send documents to, and places telephone calls against the IVR emulator they serve, such
+as the Election Architect. `yarn build` also writes `dist/problem-list/`, the problem list
+those tools import
 ([embedded voter preview](../../docs/docusaurus/docs/07-developers/03-development-environment/fast-feedback.md#embedded-voter-preview)).
 Commands, links and boundaries are described in
 [Fast feedback loops](../../docs/docusaurus/docs/07-developers/03-development-environment/fast-feedback.md#screens-workbench-and-scenarios).

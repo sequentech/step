@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
 
+import type {IvrCallStatus, IvrEmulatorConfig} from "@sequentech/ui-essentials"
 import {DEMO_PUBLIC_KEY} from "@sequentech/ui-test-kit/fixtures"
 import {
     previewIssues,
@@ -13,10 +14,14 @@ import {isPreviewScreen, PREVIEW_SCREENS, PreviewScreen, type PreviewSource} fro
  * The messages between the embedded voter preview (`workbench/embed.html`) and the window
  * that frames it, such as the Election Architect. The parent sends a publication preview
  * document; the embed renders the portal's production screens for it and reports which
- * screen the voter is on. Both sides refuse a version they do not know.
+ * screen the voter is on. Or the parent places a telephone call: the embed runs the IVR
+ * emulator it names and reports the call's status. Both sides refuse a version they do
+ * not know.
+ *
+ * Version 2 added the call (`call` and `calling`).
  */
 export const EMBED_PROTOCOL = "sequent.voter-preview"
-export const EMBED_VERSION = 1
+export const EMBED_VERSION = 2
 
 /**
  * The key the election-config core writes before a key ceremony: eight zero bytes,
@@ -34,8 +39,12 @@ export enum EmbedMessageType {
     SHOW = "show",
     /** Embed to parent: the voter is on this screen, after `show` or their own navigation. */
     SHOWN = "shown",
-    /** Embed to parent: a `show` was refused or the portal could not load its document. */
+    /** Embed to parent: a request was refused, or the portal or emulator could not load. */
     FAILED = "failed",
+    /** Parent to embed: place a telephone call against the IVR emulator. */
+    CALL = "call",
+    /** Embed to parent: where the call is, or that no emulator is served at its URL. */
+    CALLING = "calling",
 }
 
 export interface ShowRequest {
@@ -50,12 +59,56 @@ export interface ShowRequest {
     channel?: ScenarioChannel
 }
 
+/** The words around a call, in the framing tool's language; English by default. */
+export interface CallLabels {
+    /** The keypad's accessible name. */
+    input?: string
+    /** The keypad's placeholder: `{{maxDigits}}`, `{{validInputs}}` and `{{timeout}}` are filled in. */
+    placeholder?: string
+    /** The button that lets the caller's patience run out. */
+    timeout?: string
+    /** The button that presses the keys. */
+    send?: string
+    /** The line under a call that has ended. */
+    disconnected?: string
+    /** What the embed says while the emulator loads. */
+    connecting?: string
+}
+
+export const CALL_LABEL_KEYS: readonly (keyof CallLabels)[] = [
+    "input",
+    "placeholder",
+    "timeout",
+    "send",
+    "disconnected",
+    "connecting",
+]
+
+export interface CallRequest {
+    /** What the IVR Lambda is given in production: the event, the open ballots and the caller. */
+    config: IvrEmulatorConfig
+    /**
+     * The emulator's base URL, absolute: `<url>.js` and `<url>_bg.wasm` are what
+     * wasm-bindgen emits. The framing tool serves it, so it names it.
+     */
+    emulatorUrl: string
+    labels?: CallLabels
+}
+
+/** `absent`: nothing is served at the emulator's URL, the normal case away from a deployment. */
+export type CallStatus = IvrCallStatus | "loading" | "absent"
+
 export type EmbedReply =
     | {type: EmbedMessageType.READY}
     | {type: EmbedMessageType.SHOWN; screen?: PreviewScreen; path: string}
     | {type: EmbedMessageType.FAILED; issues: string[]}
+    | {type: EmbedMessageType.CALLING; status: CallStatus}
 
-export type EmbedMessage = (EmbedReply | ({type: EmbedMessageType.SHOW} & ShowRequest)) & {
+export type EmbedRequest =
+    | ({type: EmbedMessageType.SHOW} & ShowRequest)
+    | ({type: EmbedMessageType.CALL} & CallRequest)
+
+export type EmbedMessage = (EmbedReply | EmbedRequest) & {
     protocol: typeof EMBED_PROTOCOL
     version: typeof EMBED_VERSION
 }
@@ -71,9 +124,11 @@ export class EmbedMessageError extends Error {
     }
 }
 
-export const embedMessage = <M extends EmbedReply | ({type: EmbedMessageType.SHOW} & ShowRequest)>(
-    message: M
-) => ({protocol: EMBED_PROTOCOL, version: EMBED_VERSION, ...message})
+export const embedMessage = <M extends EmbedReply | EmbedRequest>(message: M) => ({
+    protocol: EMBED_PROTOCOL,
+    version: EMBED_VERSION,
+    ...message,
+})
 
 const isObject = (value: unknown): value is Record<string, unknown> =>
     typeof value === "object" && value !== null && !Array.isArray(value)
@@ -83,17 +138,23 @@ const isNonEmptyString = (value: unknown): value is string =>
 
 const describe = (value: unknown) => (value === undefined ? "nothing" : JSON.stringify(value))
 
-/**
- * The request in a `show` message, or nothing for any other message. Other scripts post
- * messages to a window too, so only this protocol's `show` is read; a malformed one throws.
- */
-export function readShowMessage(data: unknown): ShowRequest | undefined {
-    if (!isObject(data) || data.protocol !== EMBED_PROTOCOL || data.type !== EmbedMessageType.SHOW)
-        return undefined
+/** This protocol's message of that type, of this version; a message of another version throws. */
+function ofType(data: unknown, type: EmbedMessageType): Record<string, unknown> | undefined {
+    if (!isObject(data) || data.protocol !== EMBED_PROTOCOL || data.type !== type) return undefined
     if (data.version !== EMBED_VERSION)
         throw new EmbedMessageError([
             `version: expected ${EMBED_VERSION}, found ${describe(data.version)}`,
         ])
+    return data
+}
+
+/**
+ * The request in a `show` message, or nothing for any other message. Other scripts post
+ * messages to a window too, so only this protocol's `show` is read; a malformed one throws.
+ */
+export function readShowMessage(message: unknown): ShowRequest | undefined {
+    const data = ofType(message, EmbedMessageType.SHOW)
+    if (!data) return undefined
 
     const issues: string[] = []
     if (!isNonEmptyString(data.areaId))
@@ -122,6 +183,82 @@ export function readShowMessage(data: unknown): ShowRequest | undefined {
         channel: data.channel as ScenarioChannel | undefined,
     }
 }
+
+const isStringList = (value: unknown): value is string[] =>
+    Array.isArray(value) && value.every((each) => typeof each === "string")
+
+const CONFIG_STRINGS = [
+    "caller_number",
+    "contact_id",
+    "tenant_id",
+    "election_event_id",
+    "election_event",
+] as const
+const CONFIG_LISTS = ["ballot_styles", "open_elections", "blacklisted_numbers"] as const
+
+/**
+ * The request in a `call` message, or nothing for any other message; a malformed one
+ * throws with every problem named. The emulator is only reached over http(s), and its
+ * configuration is checked field by field, because the WebAssembly reports a missing
+ * field as a panic rather than a sentence.
+ */
+export function readCallMessage(message: unknown): CallRequest | undefined {
+    const data = ofType(message, EmbedMessageType.CALL)
+    if (!data) return undefined
+
+    const issues: string[] = []
+    let emulatorUrl: URL | undefined
+    try {
+        emulatorUrl = isNonEmptyString(data.emulatorUrl) ? new URL(data.emulatorUrl) : undefined
+    } catch {
+        emulatorUrl = undefined
+    }
+    if (!emulatorUrl || !["http:", "https:"].includes(emulatorUrl.protocol))
+        issues.push(
+            `emulatorUrl: expected an absolute http(s) URL, found ${describe(data.emulatorUrl)}`
+        )
+
+    const config = data.config
+    if (!isObject(config)) issues.push(`config: expected an object, found ${describe(config)}`)
+    else {
+        for (const key of CONFIG_STRINGS)
+            if (!isNonEmptyString(config[key]))
+                issues.push(
+                    `config.${key}: expected a non-empty string, found ${describe(config[key])}`
+                )
+        for (const key of CONFIG_LISTS)
+            if (!isStringList(config[key]))
+                issues.push(
+                    `config.${key}: expected a list of strings, found ${describe(config[key])}`
+                )
+        if (isStringList(config.ballot_styles) && config.ballot_styles.length === 0)
+            issues.push("config.ballot_styles: a call needs at least one ballot style")
+    }
+
+    const labels = data.labels
+    if (labels !== undefined) {
+        if (!isObject(labels)) issues.push(`labels: expected an object, found ${describe(labels)}`)
+        else
+            for (const key of CALL_LABEL_KEYS)
+                if (labels[key] !== undefined && !isNonEmptyString(labels[key]))
+                    issues.push(
+                        `labels.${key}: expected a non-empty string, found ${describe(labels[key])}`
+                    )
+    }
+    if (issues.length) throw new EmbedMessageError(issues)
+
+    return {
+        config: config as unknown as IvrEmulatorConfig,
+        emulatorUrl: data.emulatorUrl as string,
+        labels: labels as CallLabels | undefined,
+    }
+}
+
+/** A label's `{{name}}`s, filled in from `values`; an unknown name is left as it is. */
+export const fillLabel = (template: string, values: Record<string, string | number>) =>
+    template.replace(/\{\{\s*(\w+)\s*\}\}/g, (whole, name: string) =>
+        name in values ? String(values[name]) : whole
+    )
 
 /**
  * The document, with the demo key where it has the core's stand-in.

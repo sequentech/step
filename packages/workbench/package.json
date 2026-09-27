@@ -6,7 +6,8 @@
   "description": "Browser-only workbench for the production voting screens and synthetic scenarios",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "vite build && yarn build:problem-list",
+    "build:problem-list": "vite build --config vite.problem-list.config.ts && tsc -p tsconfig.problem-list.json",
     "preview": "vite preview",
     "typecheck": "tsc --project tsconfig.json",
     "lint": "eslint .",

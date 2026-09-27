@@ -102,6 +102,33 @@ describe("loading the emulator", () => {
         expect(imported).toHaveBeenCalledTimes(1)
     })
 
+    it("loads the emulator it is asked for, not the first one it loaded", async () => {
+        // The embedded voter preview is told which emulator to call by the tool framing
+        // it; a second address must not be answered with the first one's module.
+        globalThis.fetch = jest.fn(ok) as unknown as typeof fetch
+        const other = {...shim, IvrEmulatorDriver: class {}}
+        const imported = jest.fn(async (href: string) => (href.includes("/b/") ? other : shim))
+
+        const a = await loadIvrEmulator("https://a.example/a/emu", imported)
+        const b = await loadIvrEmulator("https://b.example/b/emu", imported)
+
+        expect(imported).toHaveBeenCalledTimes(2)
+        expect(a.IvrEmulatorDriver).toBe(shim.IvrEmulatorDriver)
+        expect(b.IvrEmulatorDriver).toBe(other.IvrEmulatorDriver)
+    })
+
+    it("loads an emulator once, whatever query or fragment its address carries", async () => {
+        // The files fetched drop both, so they are the same emulator.
+        globalThis.fetch = jest.fn(ok) as unknown as typeof fetch
+        const imported = jest.fn(async () => shim)
+
+        await loadIvrEmulator("https://a.example/wasm/emu?v=1", imported)
+        await loadIvrEmulator("https://a.example/wasm/emu#call", imported)
+        await loadIvrEmulator("https://a.example/wasm/emu", imported)
+
+        expect(imported).toHaveBeenCalledTimes(1)
+    })
+
     it("lets a failed load be tried again", async () => {
         // Opening the panel after a deploy should retry, not repeat the first
         // answer for as long as the tab stays open.

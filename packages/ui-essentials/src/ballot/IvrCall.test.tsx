@@ -225,22 +225,26 @@ describe("the driver's memory", () => {
 describe("when the call cannot be placed at all", () => {
     it("says so rather than rendering an empty transcript", async () => {
         const thrown = jest.spyOn(console, "error").mockImplementation(() => undefined)
+        const onError = jest.fn()
         render(
             <IvrCall
                 start={() => {
                     throw new Error("no ballot styles")
                 }}
+                onError={onError}
             />
         )
 
         await screen.findByText(/no ballot styles/)
+        expect(onError).toHaveBeenCalledWith("Error: no ballot styles")
         thrown.mockRestore()
     })
 
     it("says so when the WebAssembly fails mid-call", async () => {
         const thrown = jest.spyOn(console, "error").mockImplementation(() => undefined)
         const driver = new FakeDriver([])
-        render(<IvrCall start={() => driver} />)
+        const onError = jest.fn()
+        render(<IvrCall start={() => driver} onError={onError} />)
 
         await act(async () => {
             driver.release({type: "Prompt", prompt: says("x")})
@@ -252,6 +256,7 @@ describe("when the call cannot be placed at all", () => {
         })
 
         await waitFor(() => expect(thrown).toHaveBeenCalled())
+        expect(onError).toHaveBeenCalledTimes(1)
         thrown.mockRestore()
     })
 })

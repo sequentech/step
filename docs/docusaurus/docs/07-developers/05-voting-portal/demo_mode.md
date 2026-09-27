@@ -15,7 +15,8 @@ When demo mode is active
 
 What users see
 - Background watermark: a tiled DEMO image appears across the app background.
-  - Image path: /demo-banner.png
+  - Image: `src/components/WaterMark/assets/demo-banner.png`, bundled with the portal, so it
+    also shows when the portal is served below another path (the embedded voter preview)
   - Container CSS class: watermark-background
 - Warning dialog: a dismissible warning appears on the election start screen (not on the election chooser).
   - Dialog CSS class: demo-dialog

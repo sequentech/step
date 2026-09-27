@@ -15,8 +15,11 @@ import {
     NOT_A_KEY,
     embedMessage,
     embeddedSource,
+    fillLabel,
+    readCallMessage,
     readShowMessage,
 } from "./embed"
+import {fakeCallConfig} from "./fakeIvrEmulator"
 import {PreviewScreen} from "./screens"
 
 const show = (fields: Record<string, unknown> = {}) => {
@@ -146,4 +149,77 @@ test("a document from before its key ceremony is previewed with the demo key", (
     })
     const plain = readShowMessage(show())!
     expect(embeddedSource(plain).preview).toBe(plain.document)
+})
+
+const EMULATOR = "https://architect.example/wasm/ivr_emulator_wasm"
+
+const call = (fields: Record<string, unknown> = {}) => ({
+    protocol: EMBED_PROTOCOL,
+    version: EMBED_VERSION,
+    type: EmbedMessageType.CALL,
+    config: fakeCallConfig(),
+    emulatorUrl: EMULATOR,
+    ...fields,
+})
+
+const callIssuesOf = (data: unknown) => {
+    try {
+        readCallMessage(data)
+    } catch (error) {
+        if (error instanceof EmbedMessageError) return error.issues
+        throw error
+    }
+    throw new Error("The message was accepted")
+}
+
+test("a call names the emulator, what it is given and the words around it", () => {
+    const labels = {input: "Teclas", send: "Pulsar"}
+    expect(readCallMessage(call({labels}))).toEqual({
+        config: fakeCallConfig(),
+        emulatorUrl: EMULATOR,
+        labels,
+    })
+    // Each reader reads its own type only.
+    expect(readShowMessage(call())).toBeUndefined()
+    expect(readCallMessage(show())).toBeUndefined()
+    expect(readCallMessage({type: "webpackOk"})).toBeUndefined()
+})
+
+test("a call of another version is refused", () => {
+    expect(callIssuesOf(call({version: 1}))).toEqual([
+        `version: expected ${EMBED_VERSION}, found 1`,
+    ])
+})
+
+test("every problem of a call is reported together", () => {
+    const issues = callIssuesOf(
+        call({
+            emulatorUrl: "javascript:alert(1)",
+            config: {...fakeCallConfig(), contact_id: "", ballot_styles: [], open_elections: [3]},
+            labels: {send: "", timeout: 4},
+        })
+    )
+    expect(issues).toEqual([
+        'emulatorUrl: expected an absolute http(s) URL, found "javascript:alert(1)"',
+        'config.contact_id: expected a non-empty string, found ""',
+        "config.open_elections: expected a list of strings, found [3]",
+        "config.ballot_styles: a call needs at least one ballot style",
+        "labels.timeout: expected a non-empty string, found 4",
+        'labels.send: expected a non-empty string, found ""',
+    ])
+    expect(callIssuesOf(call({emulatorUrl: "/wasm/ivr", config: "x", labels: []}))).toEqual([
+        'emulatorUrl: expected an absolute http(s) URL, found "/wasm/ivr"',
+        'config: expected an object, found "x"',
+        "labels: expected an object, found []",
+    ])
+})
+
+test("a label's placeholders are filled in, and unknown ones left alone", () => {
+    expect(
+        fillLabel("Up to {{maxDigits}} of {{ validInputs }} in {{timeout}}s {{other}}", {
+            maxDigits: 2,
+            validInputs: "0-9",
+            timeout: 5,
+        })
+    ).toBe("Up to 2 of 0-9 in 5s {{other}}")
 })

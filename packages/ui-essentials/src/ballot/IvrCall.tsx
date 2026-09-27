@@ -71,6 +71,11 @@ export interface IIvrCallProps {
      */
     start: () => IvrCallDriver
     onStatusChange?: (status: IvrCallStatus) => void
+    /**
+     * The emulator threw, starting or running the call. The call is over; the
+     * component shows the message itself, this is for whoever is watching the call.
+     */
+    onError?: (message: string) => void
     /** What to say in the box, given what the call is waiting for. */
     placeholder?: (expected: IvrExpectedInput) => string
     /** The keypad box's accessible name; the placeholder is gone between prompts. */
@@ -138,6 +143,7 @@ export const IvrPromptLine: React.FC<{prompt: IvrPrompt}> = ({prompt}) => {
 export const IvrCall: React.FC<IIvrCallProps> = ({
     start,
     onStatusChange,
+    onError,
     placeholder,
     inputLabel,
     timeoutLabel,
@@ -163,6 +169,11 @@ export const IvrCall: React.FC<IIvrCallProps> = ({
         () => status === "ExpectingInput" && Boolean(input.trim()),
         [input, status]
     )
+
+    const fail = (e: unknown): void => {
+        setError(`${e}`)
+        onError?.(`${e}`)
+    }
 
     const changeStatus = (value: IvrCallStatus): void => {
         setStatus(value)
@@ -227,7 +238,7 @@ export const IvrCall: React.FC<IIvrCallProps> = ({
             .catch((e) => {
                 console.error("Failed to execute the emulator", e)
                 if (!toDispose.current.has(current)) {
-                    setError(`${e}`)
+                    fail(e)
                     dispose(current)
                 }
             })
@@ -262,7 +273,7 @@ export const IvrCall: React.FC<IIvrCallProps> = ({
             driver.current = start()
         } catch (e) {
             console.error("Failed to create the emulator", e)
-            setError(`${e}`)
+            fail(e)
             return
         }
         run(driver.current)

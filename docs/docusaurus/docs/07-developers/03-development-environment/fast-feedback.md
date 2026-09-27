@@ -222,25 +222,40 @@ shown when the portal loader rejects a snapshot.
 such as beyond's Election Architect. `EmbeddedPreview` in
 `packages/voting-portal/src/preview/` renders the production event routes inside the
 portal chrome (`components/PortalChrome.tsx`: header, footer, watermark and the
-event's stylesheet) in the publication preview's demo mode. The framing window talks
-to it with `postMessage` (`preview/embed.ts`, protocol `sequent.voter-preview`,
-version 1):
+event's stylesheet) in the publication preview's demo mode. It also places telephone
+calls: `EmbeddedCall` runs the IVR emulator the framing tool serves through
+`ui-essentials`' `IvrCall`, the component the Admin Portal's emulator uses. The framing
+window talks to it with `postMessage` (`preview/embed.ts`, protocol
+`sequent.voter-preview`, version 2):
 
 | Message | Direction | Fields |
 | --- | --- | --- |
-| `ready` | embed to parent | sent on load; the parent then sends `show` |
+| `ready` | embed to parent | sent on load; the parent then sends `show` or `call` |
 | `show` | parent to embed | `document` (a publication preview document), `areaId`, `screen`, optional `electionId`, `language` and `channel`; opens a new voter session |
 | `shown` | embed to parent | `screen` (when it is a preview screen) and `path`, after `show` and after each navigation by the voter |
-| `failed` | embed to parent | `issues`, for a malformed `show` or a document the portal loader rejects |
+| `call` | parent to embed | `config` (what the IVR Lambda is given: the event, the open ballot styles, the caller), `emulatorUrl` (absolute base URL of the wasm-bindgen output) and optional `labels` in the parent's language; places a new call |
+| `calling` | embed to parent | `status`: `loading`, then `IvrCall`'s `Running`, `ExpectingInput` or `Disconnected`, or `absent` when nothing is served at `emulatorUrl` |
+| `failed` | embed to parent | `issues`, for a malformed request, a document the portal loader rejects, or an emulator that does not start |
 
 The embed only reads messages from its parent window and replies to that window's
-origin. During development a framing tool points at the dev server
+origin. Its network guard admits same-origin reads and the two emulator files a `call`
+names, which may live at the framing tool's origin. The demo watermark is bundled, so
+it also shows when the embed is served below another path. During development a framing tool points at the dev server
 (`http://127.0.0.1:5173/embed.html`), so portal edits reload inside it. `vite build`
 writes both pages to `packages/workbench/dist/` with relative URLs, and the
 `build_wasm` workflow uploads that directory as the `voter-preview` artifact beside
-`sequent-election-config-wasm`. The story `embedded-voter-preview--vote` shows a
-screen inside the chrome, and `yarn --cwd packages/workbench test:smoke tests/embed.spec.ts`
-drives the messages from a framing page.
+`sequent-election-config-wasm`, with `voter-wording-keys.json`: every wording key the
+portal draws a string for, which the Election Architect checks its overrides against.
+`yarn build` also writes `dist/problem-list/`: `ui-essentials`' `ProblemList` and
+`ui-core`'s `problems.*` sentences as one ES module (`src/problemList.ts`, built by
+`vite.problem-list.config.ts` with React, MUI and i18next left to the host, declarations
+by `tsconfig.problem-list.json`). The Election Architect imports it to show an import's
+problems as the Admin Portal does, and gets it with the voter preview.
+The story `embedded-voter-preview--vote` shows a screen inside the chrome, the
+`embedded-voter-preview-telephone-call--*` stories a call over a stand-in emulator
+(`preview/fakeIvrEmulator.ts`), and
+`yarn --cwd packages/workbench test:smoke tests/embed.spec.ts` drives the messages
+from a framing page.
 
 ### Real-backend scenarios
 
