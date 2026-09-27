@@ -1,84 +1,31 @@
 <!-- SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io> -->
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 
-# Repository guidance
+# Agent guidance
 
-For unit tests and coverage work, use
-[implement-unit-tests](.agents/skills/implement-unit-tests/SKILL.md), together with
-the package's testing guide and configured tool versions. Invoke it with
-`$implement-unit-tests add tests for packages/<package>`.
+Sequent Voting Platform: an end-to-end verifiable online voting system.
+`packages/` is both a Cargo and a Yarn workspace; Rust also compiles to WASM
+for the portals. Developer docs: `docs/docusaurus/docs/07-developers/`, starting
+with the [contributing guide](docs/docusaurus/docs/07-developers/00-contributing.md).
 
-## Development loop
+## Rules
 
-Use [fast-feedback](.agents/skills/fast-feedback/SKILL.md) to choose a preview,
-focused test or benchmark for the current edit. These commands and instructions
-are shared by developers, ChatGPT/Codex and Claude; no IDE interaction is needed.
+- Every file has REUSE (SPDX) headers; `reuse lint` passes.
+- Branches: `feat/meta-<issue>-<description>/<target>`, or
+  `fix/meta-<issue>/release/X.Y` for release fixes. PR bodies start with
+  `Parent issue: https://github.com/sequentech/meta/issues/<n>`.
+- Never force-push or rebase a shared branch; merge instead.
+- TDD: a failing test first, then the code.
+- Policies are enums, not booleans.
+- No client-specific features; design for every client.
+- Data changes stay backwards compatible (optional or defaulted fields).
+- Cargo builds into this checkout's `packages/rust-local-target`, never
+  `packages/target`; leave other checkouts' services alone.
 
-Use `scripts/dev/step-dev` from the repository root for the devcontainer modes,
-focused tests and change selection (`affected`), incremental WASM builds, named
-backend scenarios and benchmarks; the
-[Fast feedback loops](docs/docusaurus/docs/07-developers/03-development-environment/fast-feedback.md)
-guide describes them. Portal dev servers and Storybook load `ui-core` and
-`ui-essentials` from source; build those packages only for production builds and
-journeys. In another checkout or worktree, keep Cargo output in that checkout's
-`rust-local-target` and never run Compose against another checkout's project.
+## Skills
 
-## Issues
-
-Preserve the issue template and existing relationships when editing a ticket.
-For programme trackers, retain this section order:
-
-- `### Suggestion`: concise objective, Parent issue and relevant related issues.
-- `### Affected Versions`: affected versions or branches.
-- `### Acceptance criteria`: verifiable completion conditions; distinguish an
-  improvement target from the actual CI gate.
-- `### Main PRs`: one plain, full PR URL per bullet; preserve every active PR link.
-- `## stable PRs`, when present: matching PRs for stable target versions, in stack
-  order, with the target branch identified; preserve this section too.
-- `### Verification`: a compact before/after table and **Work performed** bullets,
-  followed by concrete remaining gaps or validation limits where needed.
-- `### Documentation`: topic bullets with paired rendered and source links.
-
-Keep the current state, not a running history of ticket consolidation or previous
-edits. Completed-work bullets belong under Verification, not Acceptance criteria.
-Label measurement profiles and incomparable baselines; do not conflate LLVM
-regions with branches or local checks with hosted CI.
-
-Use full GitHub URLs for cross-repository issues and PRs; a bare `#123` resolves
-in the current repository. Preserve parent/related links and documentation links
-when shortening a body. Read back remote edits to verify formatting and links.
-
-## Pull requests and stacks
-
-Start PR bodies with `Parent issue: <full issue URL>`. Keep the remainder short:
-concrete problem, resulting behavior, relevant validation and documentation.
-Do not add `Supersedes`/`Superseeds` sections or historical replacement narratives.
-
-Use the correct parent ticket in new branch names, following the existing branch
-convention. Keep each stacked PR based on its immediate predecessor. Preserve
-existing PR identities and review discussions; formatting edits do not require
-recreating PRs. Branch replacement, ticket closure and publication require the
-user's authorization. For an authorized stack update, propagate shared fixes
-through the affected descendants without force-pushing or merging PRs.
-
-Address review feedback in GitHub as well as in code when that work is authorized:
-reply with the outcome and evidence in the relevant thread, including a reasoned
-no-change outcome. Resolve only settled findings, then verify the posted result.
-
-## Developer documentation
-
-Place developer guides in the appropriate existing section under
-`docs/docusaurus/docs/07-developers/`; package READMEs may forward to the canonical
-guide. Keep reusable setup, commands, prerequisites, contracts and interpretation
-there. Programme targets, coverage snapshots, issue IDs and progress history
-belong in issues or PRs. Do not remove useful commands while removing status prose.
-
-End an issue's Documentation section with one bullet per topic in this form:
-
-```markdown
-- **Topic**: [Docusaurus](<rendered guide URL>) · [GitHub Markdown](<source URL>)
-```
-
-Use real corresponding URLs, preserving both links. For repository-only material
-such as skills, retain the source link without inventing a rendered guide. Check
-moved links and navigation, and build Docusaurus when guide changes warrant it.
+- [fast-feedback](.agents/skills/fast-feedback/SKILL.md): edit, preview and focused-test loop.
+- [build-and-test](.agents/skills/build-and-test/SKILL.md): per-stack build, test, lint, WASM, GraphQL, Hasura.
+- [code-standards](.agents/skills/code-standards/SKILL.md): product and code rules, feature checklist.
+- [implement-unit-tests](.agents/skills/implement-unit-tests/SKILL.md): regression tests and coverage.
+- [github-workflow](.agents/skills/github-workflow/SKILL.md): branches, stacks, PRs, reviews, issues.
