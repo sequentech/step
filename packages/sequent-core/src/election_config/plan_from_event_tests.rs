@@ -210,3 +210,324 @@ fn a_derived_identifier_is_what_a_child_area_points_at() {
     // And an identifier the export gave is untouched.
     assert_eq!(areas[2].external_id, "theirs-south");
 }
+
+// -- what does not look like an export -------------------------------------
+
+#[test]
+fn json_with_no_election_event_is_refused_with_what_to_open_instead() {
+    for document in [
+        serde_json::json!({}),
+        serde_json::json!({"election_event": "not an object"}),
+        serde_json::json!([1, 2]),
+    ] {
+        let refused = plan_from_event(&document).expect_err("not an export");
+        assert_eq!(refused.problems.len(), 1);
+        assert!(
+            refused.problems[0]
+                .message
+                .contains("export_election_event"),
+            "{}",
+            refused.problems[0].message
+        );
+        assert!(refused.has_errors());
+    }
+}
+
+/// An export with the awkward parts in it: a blank translation, a contest whose
+/// description is only in the flat column, a tally configuration, an area whose
+/// parent is missing, and IVR annotations nobody could parse.
+fn awkward() -> Value {
+    serde_json::json!({
+        "election_event": {
+            "external_id": "union-2027",
+            "presentation": {
+                "i18n": {
+                    "en": {"name": "Union Election"},
+                    "es": {"name": ""},
+                    "fr": {"description": "Tous"}
+                }
+            },
+            "annotations": {
+                "ivr:config": "{not json",
+                "ivr:prompts": "also not json",
+                "ivr:phone-number": "   "
+            }
+        },
+        "areas": [
+            {"id": "a1", "external_id": "north", "name": "North"},
+            {"id": "a2", "external_id": "south", "name": "South",
+             "parent_id": "gone"},
+            "not an area"
+        ],
+        "elections": [
+            {"id": "e1", "external_id": "officers",
+             "presentation": {"i18n": {"en": {"name": "Officers"}}}}
+        ],
+        "contests": [
+            {"id": "c1", "external_id": "president", "election_id": "e1",
+             "description": "Elects the president",
+             "tally_configuration": {"counting_algorithm": "plurality-at-large"},
+             "presentation": {"i18n": {"en": {"name": "President"}}}}
+        ],
+        "candidates": [
+            {"id": "k1", "external_id": "alice", "contest_id": "c1",
+             "image_document_id": "photo-alice",
+             "presentation": {"i18n": {"en": {"name": "Alice"}}}},
+            {"id": "k2", "external_id": "bob", "contest_id": "c1",
+             "image_document_id": "photo-bob",
+             "presentation": {"i18n": {"en": {"name": "Bob"}}}}
+        ],
+        "support_materials": [
+            {"external_id": "guide", "document_id": "doc-guide", "kind": "PDF",
+             "is_hidden": true,
+             "presentation": {"i18n": {"en": {"title": "Voter guide"}}}},
+            {"external_id": "faq", "document_id": "doc-faq", "kind": "PDF"},
+            "not a row"
+        ]
+    })
+}
+
+#[test]
+fn a_blank_translation_is_no_translation() {
+    let read = plan_from_event(&awkward()).expect("reads");
+    assert_eq!(
+        read.plan.name.by_language.keys().collect::<Vec<_>>(),
+        ["en"],
+        "the blank Spanish name is not a name"
+    );
+    assert_eq!(
+        read.plan
+            .description
+            .by_language
+            .get("fr")
+            .map(String::as_str),
+        Some("Tous")
+    );
+}
+
+#[test]
+fn telephone_annotations_nobody_could_parse_are_no_telephone_configuration() {
+    let read = plan_from_event(&awkward()).expect("reads");
+    assert!(read.plan.ivr.is_none());
+}
+
+#[test]
+fn an_area_whose_parent_is_not_in_the_export_comes_back_without_one() {
+    let read = plan_from_event(&awkward()).expect("reads");
+    assert_eq!(read.plan.areas.len(), 2);
+    assert!(read.plan.areas[1].parent_external_id.is_none());
+    assert!(read
+        .report
+        .problems
+        .iter()
+        .any(|problem| problem.message.contains("`south` names a parent")));
+}
+
+#[test]
+fn a_contests_description_falls_back_to_the_flat_column() {
+    let read = plan_from_event(&awkward()).expect("reads");
+    let contest = &read.plan.elections[0].contests[0];
+    assert_eq!(
+        contest
+            .description
+            .by_language
+            .get("en")
+            .map(String::as_str),
+        Some("Elects the president")
+    );
+}
+
+// -- what travels beside the document ---------------------------------------
+
+fn filled(
+    beside: &Beside,
+) -> (Blueprint, Report, crate::election_config::sources::Sources) {
+    let document = awkward();
+    let mut read = plan_from_event(&document).expect("reads");
+    let mut report = Report::default();
+    let sources =
+        fill_from_archive(&mut read.plan, &document, beside, &mut report);
+    (read.plan, report, sources)
+}
+
+#[test]
+fn a_photograph_the_archive_lacks_is_named_and_the_rest_are_matched() {
+    let (plan, report, _) = filled(&Beside {
+        voters: None,
+        files: vec![
+            // The platform's tempfile prefix, which is why the match is unanchored.
+            (
+                "images/enGgihs9azd5document_photo-alice_alice.jpg".to_string(),
+                vec![1, 2, 3],
+            ),
+            // The right marker in the wrong folder is not a photograph.
+            ("elsewhere/document_photo-bob_bob.jpg".to_string(), vec![4]),
+        ],
+    });
+
+    let candidates = &plan.elections[0].contests[0].candidates;
+    let alice = candidates[0].image.as_ref().expect("alice's photograph");
+    assert_eq!(alice.file_name, "alice.jpg");
+    assert_eq!(alice.bytes, vec![1, 2, 3]);
+    assert!(candidates[1].image.is_none());
+
+    let said = report
+        .problems
+        .iter()
+        .find(|problem| problem.path == "elections")
+        .expect("the missing one is named");
+    assert!(said.message.contains("a candidate"), "{}", said.message);
+    assert!(said.message.contains("bob"), "{}", said.message);
+}
+
+#[test]
+fn several_missing_photographs_are_counted() {
+    let (_, report, _) = filled(&Beside::default());
+    let said = report
+        .problems
+        .iter()
+        .find(|problem| problem.path == "elections")
+        .expect("both are named");
+    assert!(said.message.contains("2 candidates"), "{}", said.message);
+    assert!(said.message.contains("alice, bob"), "{}", said.message);
+}
+
+#[test]
+fn support_material_is_read_with_its_file_or_named_as_missing() {
+    let (plan, report, _) = filled(&Beside {
+        voters: None,
+        files: vec![(
+            "export_S3_files/xyz_document_doc-guide_guide.pdf".to_string(),
+            b"%PDF".to_vec(),
+        )],
+    });
+
+    assert_eq!(
+        plan.materials.len(),
+        2,
+        "the row that is not one is skipped"
+    );
+    let guide = &plan.materials[0];
+    assert_eq!(guide.external_id, "guide");
+    assert_eq!(guide.file_name, "guide.pdf");
+    assert_eq!(guide.bytes, b"%PDF".to_vec());
+    assert_eq!(guide.kind, "PDF");
+    assert!(guide.is_hidden);
+    assert_eq!(
+        guide.title.by_language.get("en").map(String::as_str),
+        Some("Voter guide")
+    );
+    let faq = &plan.materials[1];
+    assert_eq!(faq.file_name, "");
+    assert!(faq.bytes.is_empty());
+    assert!(!faq.is_hidden);
+
+    let said = report
+        .problems
+        .iter()
+        .find(|problem| problem.path == "materials")
+        .expect("the missing one is named");
+    assert!(said.message.ends_with(": faq"), "{}", said.message);
+}
+
+#[test]
+fn a_census_that_cannot_be_read_leaves_the_plan_with_nobody_and_says_so() {
+    for (csv, fragment) in [
+        ("", "could not be read"),
+        ("email,first_name\na@b.org,Ada\n", "username"),
+    ] {
+        let (_, report, sources) = filled(&Beside {
+            voters: Some(csv.to_string()),
+            files: Vec::new(),
+        });
+        assert!(sources.census.is_none(), "{csv:?}");
+        assert!(
+            report
+                .problems
+                .iter()
+                .any(|problem| problem.path == "voters"
+                    && problem.message.contains(fragment)),
+            "{csv:?}: {report}"
+        );
+    }
+}
+
+#[test]
+fn a_census_from_the_export_resolves_areas_by_name_and_keeps_its_own_columns() {
+    let (_, _, sources) = filled(&Beside {
+        voters: Some(
+            "username,email,area_name,id,branch\nada,a@b.org,North,7,west\ngrace,,Atlantis,8,\n"
+                .to_string(),
+        ),
+        files: Vec::new(),
+    });
+    let census = sources.census.expect("a census");
+    census.rewind().unwrap();
+    let voters = census.next_batch(10).unwrap();
+    assert_eq!(voters.len(), 2);
+    assert_eq!(voters[0].area_external_id, "north");
+    assert_eq!(
+        voters[0].extra.get("branch").map(String::as_str),
+        Some("west")
+    );
+    assert!(!voters[0].extra.contains_key("id"));
+    // Kept as written so validation can point at it.
+    assert_eq!(voters[1].area_external_id, "Atlantis");
+    assert!(voters[1].extra.is_empty(), "a blank cell is not a value");
+}
+
+#[test]
+fn a_realm_profile_in_an_unexpected_shape_is_nothing_to_compare_with() {
+    let census = "username,branch_code\nada,B-14\n";
+    let with_config = |config: Value| {
+        serde_json::json!({
+            "keycloak_event_realm": {
+                "components": {
+                    "org.keycloak.userprofile.UserProfileProvider": [
+                        {"config": {"kc.user.profile.config": config}}
+                    ]
+                }
+            }
+        })
+    };
+    let said = |document: &Value, csv: &str| {
+        let mut report = Report::default();
+        check_census_against_profile(document, csv, &mut report);
+        report.problems.len()
+    };
+
+    // A bare string rather than a one-element list is read the same way.
+    let profile =
+        serde_json::json!({"attributes": [{"name": "other"}]}).to_string();
+    assert_eq!(said(&with_config(Value::String(profile)), census), 1);
+    // Anything else is not a profile.
+    assert_eq!(said(&with_config(serde_json::json!(42)), census), 0);
+    // Nor is a string that is not JSON.
+    assert_eq!(said(&with_config(serde_json::json!("{nope")), census), 0);
+    // And an unreadable census is not this check's to report.
+    let profile = serde_json::json!({"attributes": []}).to_string();
+    assert_eq!(said(&with_config(Value::String(profile)), ""), 0);
+}
+
+#[test]
+fn two_columns_the_realm_never_declared_are_named_together() {
+    let profile = serde_json::json!({"attributes": []}).to_string();
+    let document = serde_json::json!({
+        "keycloak_event_realm": {
+            "components": {
+                "org.keycloak.userprofile.UserProfileProvider": [
+                    {"config": {"kc.user.profile.config": profile}}
+                ]
+            }
+        }
+    });
+    let mut report = Report::default();
+    check_census_against_profile(
+        &document,
+        "username,branch,seniority\nada,w,3\n",
+        &mut report,
+    );
+    let said = &report.problems[0].message;
+    assert!(said.contains("columns"), "{said}");
+    assert!(said.contains("dropping them: branch, seniority"), "{said}");
+}
