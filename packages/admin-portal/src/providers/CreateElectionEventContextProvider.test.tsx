@@ -33,6 +33,16 @@ jest.mock("react-admin", () => ({
 jest.mock("react-router-dom", () => ({useNavigate: () => mockNavigate}))
 jest.mock("react-i18next", () => ({useTranslation: () => ({t: (key: string) => key})}))
 jest.mock("@sequentech/ui-core", () => ({isNull: (value: unknown) => value === null}))
+// Not resolvable from the portal's jest; the real `readProblems` is tested in
+// ui-essentials. This one keeps its contract: an array, or nothing.
+jest.mock(
+    "@sequentech/ui-essentials",
+    () => ({
+        readProblems: (value: unknown) =>
+            Array.isArray(value) && value.length > 0 ? value : undefined,
+    }),
+    {virtual: true}
+)
 jest.mock("@/providers/TenantContextProvider", () => ({useTenantStore: () => ["tenant-a"]}))
 jest.mock("@/providers/WidgetsContextProvider", () => ({
     useWidgetStore: () => [() => ({identifier: "widget-a"}), mockTask, mockFailed],
@@ -112,4 +122,29 @@ it("checks the uploaded archive before starting a task without treating validati
     })
     expect(mockCreated).not.toHaveBeenCalled()
     expect(mockTask).not.toHaveBeenCalled()
+})
+it("keeps the named problems of a refused archive beside its error text", async () => {
+    const problem = {
+        severity: "error",
+        code: "unreadable",
+        path: "file",
+        message: "the file is not a readable election event",
+        id: "file.not-json",
+    }
+    mockImport.mockResolvedValueOnce({
+        data: {import_election_event: {error: "Error checking import", problems: [problem]}},
+    })
+    const {result} = renderHook(useCreateElectionEventStore, {wrapper: CreateElectionEventProvider})
+    await act(async () =>
+        expect(result.current.uploadCallback("document-a", "")).rejects.toThrow(
+            "Error checking import"
+        )
+    )
+    expect(result.current.errors).toBe("Error checking import")
+    expect(result.current.problems).toEqual([problem])
+
+    // Opening the drawer again starts from nothing.
+    await act(async () => result.current.openImportDrawer())
+    expect(result.current.errors).toBeNull()
+    expect(result.current.problems).toBeNull()
 })

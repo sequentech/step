@@ -470,6 +470,26 @@ mod tests {
     }
 
     #[test]
+    fn a_file_refused_for_one_reason_says_so_in_the_singular() {
+        let rejected = Rejected::one(
+            "voters file",
+            Problem::error(
+                Code::Unreadable,
+                "row 3",
+                "row 3 could not be read",
+            ),
+        );
+        assert_eq!(rejected.report.problems.len(), 1);
+        assert_eq!(
+            rejected.to_string(),
+            "The voters file cannot be imported; 1 problem found:\n  \
+             error: row 3: row 3 could not be read"
+        );
+        let error: &dyn std::error::Error = &rejected;
+        assert!(error.source().is_none());
+    }
+
+    #[test]
     fn the_new_codes_serialise_in_snake_case() {
         for (code, name) in [
             (Code::Unreadable, "unreadable"),
