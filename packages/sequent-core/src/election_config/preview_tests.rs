@@ -666,3 +666,176 @@ fn a_candidates_photograph_previews_from_the_plans_own_bytes() {
         "no bucket path should survive in the preview:\n{styles}"
     );
 }
+
+// -- pickers over several ballots ------------------------------------------
+
+/// `sound()` with two areas the one contest is on.
+fn two_areas() -> Blueprint {
+    let mut plan = sound();
+    plan.areas = ["north", "south"]
+        .iter()
+        .map(|id| PlannedArea {
+            external_id: id.to_string(),
+            name: id.to_uppercase(),
+            parent_external_id: None,
+            allow_early_voting: false,
+        })
+        .collect();
+    plan.elections[0].contests[0].areas =
+        vec!["north".to_string(), "south".to_string()];
+    plan
+}
+
+#[test]
+fn an_election_on_several_areas_is_one_choice_in_the_picker() {
+    let bundle = built(&two_areas());
+    let schema: ImportElectionEventSchema =
+        serde_json::from_value(bundle.export.clone()).unwrap();
+    let preview =
+        preview_publication(&bundle, &PreviewOptions::default()).unwrap();
+    assert_eq!(preview.ballot_styles.len(), 2, "one ballot per area");
+    assert_eq!(preview.elections(&schema).len(), 1);
+    assert_eq!(preview.areas(&schema).len(), 2);
+}
+
+#[test]
+fn an_area_voting_in_several_elections_is_one_choice_in_the_picker() {
+    let mut plan = sound();
+    let mut second = plan.elections[0].clone();
+    second.external_id = "bylaws".to_string();
+    for contest in &mut second.contests {
+        contest.external_id = format!("bylaws-{}", contest.external_id);
+        for candidate in &mut contest.candidates {
+            candidate.external_id = format!("bylaws-{}", candidate.external_id);
+        }
+    }
+    plan.elections.push(second);
+
+    let bundle = built(&plan);
+    let schema: ImportElectionEventSchema =
+        serde_json::from_value(bundle.export.clone()).unwrap();
+    let preview =
+        preview_publication(&bundle, &PreviewOptions::default()).unwrap();
+    assert_eq!(preview.ballot_styles.len(), 2, "one ballot per election");
+    assert_eq!(preview.areas(&schema).len(), 1);
+    assert_eq!(preview.elections(&schema).len(), 2);
+}
+
+// -- what a preview cannot be made from ------------------------------------
+
+fn refused(bundle: &Bundle) -> Report {
+    match preview_publication(bundle, &PreviewOptions::default()) {
+        Ok(_) => panic!("expected no preview"),
+        Err(report) => report,
+    }
+}
+
+#[test]
+fn a_bundle_that_is_not_the_import_schema_has_nothing_to_preview() {
+    let mut bundle = built(&sound());
+    bundle.export = serde_json::json!({"election_event": 3});
+    let report = refused(&bundle);
+    assert!(report.problems[0]
+        .message
+        .contains("does not match the import schema"));
+}
+
+#[test]
+fn a_bundle_with_no_elections_has_no_ballot_to_show() {
+    let mut bundle = built(&sound());
+    bundle.export["elections"] = serde_json::json!([]);
+    let report = refused(&bundle);
+    assert_eq!(report.problems[0].path, "elections");
+}
+
+#[test]
+fn areas_that_do_not_form_a_tree_cannot_be_previewed() {
+    let mut bundle = built(&two_areas());
+    let areas = bundle.export["areas"].as_array_mut().unwrap();
+    let first = areas[0]["id"].clone();
+    let second = areas[1]["id"].clone();
+    areas[0]["parent_id"] = second;
+    areas[1]["parent_id"] = first;
+    let report = refused(&bundle);
+    assert_eq!(report.problems[0].path, "areas");
+    assert!(report.problems[0].message.contains("do not form a tree"));
+}
+
+#[test]
+fn an_event_with_no_identifier_cannot_name_its_preview_ballots() {
+    let mut bundle = built(&sound());
+    bundle.event_external_id = String::new();
+    let report = refused(&bundle);
+    assert_eq!(report.problems[0].path, "external_id");
+}
+
+// -- inline images -----------------------------------------------------------
+
+#[test]
+fn an_inline_image_says_what_type_it_is_by_its_extension() {
+    let mut bundle = built(&sound());
+    bundle.images = [
+        "a.PNG", "b.jpg", "c.jpeg", "d.gif", "e.webp", "f.svg", "g.avif",
+        "h.jfif", "noext",
+    ]
+    .iter()
+    .enumerate()
+    .map(|(n, name)| crate::election_config::build::ImageFile {
+        document_id: format!("doc-{n}"),
+        file_name: name.to_string(),
+        bytes: vec![1, 2, 3],
+    })
+    .collect();
+
+    let inline = inline_images(&bundle);
+    let mime = |n: usize, name: &str| {
+        let path =
+            format!("tenant-{}/document-doc-{n}/{name}", bundle.tenant_id);
+        let data = inline.get(&path).unwrap_or_else(|| panic!("{path}"));
+        data.strip_prefix("data:")
+            .and_then(|rest| rest.split_once(';'))
+            .map(|(mime, _)| mime.to_string())
+            .unwrap()
+    };
+    assert_eq!(mime(0, "a.PNG"), "image/png");
+    assert_eq!(mime(1, "b.jpg"), "image/jpeg");
+    assert_eq!(mime(2, "c.jpeg"), "image/jpeg");
+    assert_eq!(mime(3, "d.gif"), "image/gif");
+    assert_eq!(mime(4, "e.webp"), "image/webp");
+    assert_eq!(mime(5, "f.svg"), "image/svg+xml");
+    assert_eq!(mime(6, "g.avif"), "image/avif");
+    assert_eq!(mime(7, "h.jfif"), "image");
+    assert_eq!(mime(8, "noext"), "image");
+    assert!(inline.values().all(|data| data.ends_with(";base64,AQID")));
+}
+
+#[test]
+fn the_logo_previews_inline_and_a_link_that_is_not_a_picture_is_left_alone() {
+    let mut bundle = built(&sound());
+    bundle.images = vec![crate::election_config::build::ImageFile {
+        document_id: "logo-doc".to_string(),
+        file_name: "logo.png".to_string(),
+        bytes: vec![1, 2, 3],
+    }];
+    let path = bundle.images[0].public_path(&bundle.tenant_id);
+    bundle.export["election_event"]["presentation"]["logo_url"] =
+        serde_json::json!(path);
+    bundle.export["candidates"][0]["presentation"]["urls"] = serde_json::json!([
+        {"url": "https://example.org/manifesto", "is_image": false},
+        {"url": "https://example.org/elsewhere.png", "is_image": true}
+    ]);
+
+    let preview =
+        preview_publication(&bundle, &PreviewOptions::default()).unwrap();
+    let document = serde_json::to_string(&preview.to_document()).unwrap();
+    assert!(
+        document.contains("data:image/png;base64,AQID"),
+        "the logo is inline: {document}"
+    );
+    assert!(!document.contains("logo.png"), "{document}");
+    assert!(document.contains("https://example.org/manifesto"));
+    assert!(
+        document.contains("https://example.org/elsewhere.png"),
+        "a picture the bundle does not carry keeps its link"
+    );
+}

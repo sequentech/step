@@ -1389,3 +1389,145 @@ fn an_algorithm_the_wizard_does_not_offer_is_still_a_valid_plan() {
         );
     }
 }
+
+// -- values stated as null, and a few refusals nobody had reached ------------
+
+/// `sound()` with this change made to its JSON, for the fields the typed schema
+/// makes awkward to build in place.
+fn sound_with(
+    change: impl FnOnce(&mut serde_json::Value),
+) -> ImportElectionEventSchema {
+    let mut json = serde_json::to_value(sound()).unwrap();
+    change(&mut json);
+    serde_json::from_value(json).expect("still a bundle")
+}
+
+#[test]
+fn a_null_ordering_is_the_platforms_default_rather_than_a_bad_value() {
+    let mut bundle = sound();
+    bundle.election_event.presentation = Some(serde_json::json!({
+        "elections_order": null,
+        "show_cast_vote_logs": null
+    }));
+    bundle.elections[0].presentation =
+        Some(serde_json::json!({"contests_order": null}));
+    bundle.contests[0].presentation = Some(serde_json::json!({
+        "collapsible_lists": null,
+        "enable_checkable_lists": null
+    }));
+    bundle.contests[0].tally_configuration =
+        Some(serde_json::json!({"tie_breaking_policy": null}));
+    let report = validate(&bundle);
+    assert!(!report.has_errors(), "{report}");
+}
+
+#[test]
+fn a_list_setting_that_is_not_text_is_refused_by_name() {
+    let mut bundle = sound();
+    bundle.contests[0].presentation =
+        Some(serde_json::json!({"collapsible_lists": 3}));
+    let report = validate(&bundle);
+    assert!(report
+        .problems
+        .iter()
+        .any(|problem| problem.severity == Severity::Error
+            && problem.message.contains("collapsible_lists should be text")));
+}
+
+#[test]
+fn a_negative_per_type_cap_is_refused() {
+    let mut bundle = sound();
+    bundle.contests[0].presentation =
+        Some(serde_json::json!({"max_selections_per_type": -1}));
+    let report = validate(&bundle);
+    assert!(report
+        .problems
+        .iter()
+        .any(|problem| problem.severity == Severity::Error
+            && problem.message.contains("-1 is not a number of selections")));
+}
+
+#[test]
+fn a_negative_grace_period_is_refused() {
+    let mut bundle = sound();
+    bundle.elections[0].presentation = Some(serde_json::json!({
+        "grace_period_policy": "grace-period-without-alert",
+        "grace_period_secs": -30
+    }));
+    let report = validate(&bundle);
+    assert!(report
+        .problems
+        .iter()
+        .any(|problem| problem.severity == Severity::Error
+            && problem.message.contains("-30 is not a length of time")));
+}
+
+#[test]
+fn a_support_material_from_another_event_or_with_a_blank_document_is_refused() {
+    let bundle = sound_with(|json| {
+        let material = |event: &str, document: &str| {
+            serde_json::json!({
+                "id": "f1000000-0000-5000-8000-000000000000",
+                "created_at": "2027-01-01T00:00:00+00:00",
+                "last_updated_at": "2027-01-01T00:00:00+00:00",
+                "kind": "PDF",
+                "data": {},
+                "tenant_id": TENANT,
+                "election_event_id": event,
+                "labels": {},
+                "annotations": {},
+                "document_id": document,
+                "is_hidden": false
+            })
+        };
+        json["support_materials"] = serde_json::json!([
+            material("e9999999-0000-5000-8000-000000000000", "doc-1"),
+            material("e0000000-0000-5000-8000-000000000000", "   "),
+        ]);
+        json["election_event"]["presentation"] =
+            serde_json::json!({"materials": {"activated": true}});
+    });
+
+    let report = validate(&bundle);
+    let ids: Vec<&str> = report
+        .problems
+        .iter()
+        .filter_map(|problem| problem.id.as_deref())
+        .collect();
+    assert!(ids.contains(&"material.wrong-event"), "{report}");
+    assert!(ids.contains(&"material.empty-document"), "{report}");
+    assert!(
+        !ids.contains(&"material.tab-off"),
+        "the tab is on: {report}"
+    );
+    let wrong = report
+        .problems
+        .iter()
+        .find(|problem| problem.id.as_deref() == Some("material.wrong-event"))
+        .unwrap();
+    assert_eq!(wrong.path, "support_materials[0].election_event_id");
+}
+
+#[test]
+fn a_grandchild_area_inherits_the_contest_linked_two_levels_up() {
+    // The walk goes more than one step: a leaf under a leaf under the linked
+    // area still gets a ballot, so there is nothing to warn about.
+    let mut bundle = sound();
+    bundle.area_contests[0].area_id =
+        "a1000000-0000-5000-8000-000000000000".to_string();
+    let mut grandchild = bundle.areas[1].clone();
+    grandchild.id = "a3000000-0000-5000-8000-000000000000".to_string();
+    grandchild.name = Some("North Local 1 Annex".to_string());
+    grandchild.parent_id =
+        Some("a2000000-0000-5000-8000-000000000000".to_string());
+    bundle.areas.push(grandchild);
+
+    let report = validate(&bundle);
+    assert!(
+        !report
+            .problems
+            .iter()
+            .any(|problem| problem.message.contains("empty ballot")),
+        "{report}"
+    );
+}
