@@ -779,6 +779,8 @@ const tagalogTranslation: TranslationType = {
                         "Walang nakitang na-publish na mga ballot style na tumutugma sa iyong mga pinili",
                     inputPlaceholder:
                         "Ilagay ang iyong input (max na digit={{maxDigits}}, mga valid na input={{validInputs}}, timeout={{timeout}} s)",
+                    inputPlaceholderAnyKeys:
+                        "Maglagay ng hanggang {{maxDigits}} digit (anumang digit, timeout={{timeout}} s)",
                     blacklistCaller: "I-block ang tumatawag",
                     elections: "Mga halalan",
                     area: "Lugar",

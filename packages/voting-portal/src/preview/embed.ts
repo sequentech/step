@@ -1,7 +1,11 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import type {IvrCallStatus, IvrEmulatorConfig} from "@sequentech/ui-essentials"
+import {
+    keypadHint as sharedKeypadHint,
+    type IvrCallStatus,
+    type IvrEmulatorConfig,
+} from "@sequentech/ui-essentials"
 import {DEMO_PUBLIC_KEY} from "@sequentech/ui-test-kit/fixtures"
 import {
     previewIssues,
@@ -267,22 +271,17 @@ export const fillLabel = (template: string, values: Record<string, string | numb
     )
 
 /**
- * What the keypad says while the call waits for keys.
- *
- * The Lambda lists the keys a prompt accepts, or none when any digits will do (a PIN, up
- * to `max_digits`); filling the list into "Up to 8 of …" then leaves "Up to 8 of ,".
+ * What the keypad says while the call waits for keys, in a framing tool's words:
+ * `placeholderAnyKeys` when the Lambda lists no keys because any digits will do.
  */
 export const keypadHint = (
     labels: Required<Pick<CallLabels, "placeholder" | "placeholderAnyKeys">>,
     expected: {valid_inputs: string; max_digits: number; timeout: number}
-): string => {
-    const validInputs = expected.valid_inputs.trim()
-    return fillLabel(validInputs ? labels.placeholder : labels.placeholderAnyKeys, {
-        maxDigits: expected.max_digits,
-        validInputs,
-        timeout: expected.timeout,
+): string =>
+    sharedKeypadHint(expected, {
+        listed: (values) => fillLabel(labels.placeholder, values),
+        anyKeys: (values) => fillLabel(labels.placeholderAnyKeys, values),
     })
-}
 
 /**
  * The document, with the demo key where it has the core's stand-in.

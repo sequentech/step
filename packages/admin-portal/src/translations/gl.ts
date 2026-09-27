@@ -780,6 +780,8 @@ const galegoTranslation: TranslationType = {
                         "Non se atoparon estilos de papeleta publicados que coincidan coas súas seleccións",
                     inputPlaceholder:
                         "Introduza a súa entrada (máximo de díxitos={{maxDigits}}, entradas válidas={{validInputs}}, tempo de espera={{timeout}} s)",
+                    inputPlaceholderAnyKeys:
+                        "Introduza ata {{maxDigits}} díxitos (calquera díxito, tempo de espera={{timeout}} s)",
                     blacklistCaller: "Bloquear a persoa que chama",
                     elections: "Eleccións",
                     area: "Área",

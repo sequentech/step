@@ -129,6 +129,8 @@ export type {IBallotActionsProps} from "./ballot/BallotActions"
 // consumers for the same reason as above: the portal tries a call against a
 // published event, the wizard against the plan on screen.
 export {IvrCall, IvrPromptLine} from "./ballot/IvrCall"
+export {keypadHint} from "./ballot/keypadHint"
+export type {KeypadHintValues, KeypadHintWording} from "./ballot/keypadHint"
 export type {
     IIvrCallProps,
     IvrAction,
