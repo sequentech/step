@@ -399,7 +399,7 @@ pub async fn import_election_event_f(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use anyhow::{anyhow, Context};
+    use anyhow::anyhow;
     use windmill::services::import::rejection::reject;
 
     fn task() -> TasksExecution {
