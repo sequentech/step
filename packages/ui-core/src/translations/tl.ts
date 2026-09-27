@@ -555,6 +555,16 @@ const tagalogTranslation: TranslationType = {
                         text: "Dalawang beses ginamit ang identifier — ginagamit na ng {{first}} ang '{{identifier}}'. Natatangi ang mga identifier sa buong election event, kaya papalitan ng pangalawa ang una sa halip na maidagdag.",
                     },
                 },
+                ivr: {
+                    "language-not-spoken": {
+                        lead: "Wikang hindi available sa telepono",
+                        text: "Wikang hindi available sa telepono — Ingles, Pranses at Espanyol lang ang sinasalita ng tawag, kaya hindi iniaalok ang {{languages}} sa mga tumatawag.",
+                    },
+                    "missing-prompts": {
+                        lead: "Kulang ang mga mensahe ng tawag",
+                        text: "Kulang ang mga mensahe ng tawag — walang teksto sa '{{language}}' ang {{prompts}}, kaya tinatanggihan ng sistema ng telepono ang bawat tawag hanggang magkaroon.",
+                    },
+                },
                 labels: {
                     "in-use": {
                         lead: "May ginagamit na permission label",

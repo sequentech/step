@@ -1575,6 +1575,7 @@ fn no_two_problems_anywhere_share_a_name() {
         include_str!("build.rs"),
         include_str!("open.rs"),
         include_str!("import_problems.rs"),
+        include_str!("ivr.rs"),
         include_str!("profile.rs"),
         include_str!("sheet.rs"),
         include_str!("xlsx.rs"),

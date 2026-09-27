@@ -1691,6 +1691,7 @@ pub fn validate_plan(plan: &Blueprint, sources: &Sources) -> Report {
     check_passwords(plan, sources, &mut report);
     check_census(plan, sources, &mut report);
     check_ballot(plan, &mut report);
+    check_ivr(plan, &mut report);
     check_unique_identifiers(plan, &mut report);
 
     // There was a `messages.not-automatic` warning here, on every plan carrying a
@@ -1743,6 +1744,54 @@ pub fn validate_plan(plan: &Blueprint, sources: &Sources) -> Report {
     }
 
     report
+}
+
+/// Whether the telephone call can say everything it has to, in every language.
+///
+/// The IVR refuses to place *any* call while an announcement has no words in one
+/// of the event's spoken languages, so an English-only greeting on an event that
+/// also offers Spanish is not a Spanish problem: nobody can vote by telephone. The
+/// rule is [`super::ivr`]'s, shared with the bundle validator and with `ivr-core`,
+/// and the problem points at `ivr.prompts` so it appears on the Telephone Voting
+/// step, where the words are typed.
+///
+/// Only when the channel is on: the flow of a plan that has since switched the
+/// telephone off is not a call anybody can make.
+fn check_ivr(plan: &Blueprint, report: &mut Report) {
+    if !plan.voting_channels.telephone {
+        return;
+    }
+    let Some(ivr) = plan.ivr.as_ref() else {
+        return;
+    };
+    let required = super::ivr::required_prompt_keys(
+        ivr.flow
+            .iter()
+            .map(|phase| (phase.phase.as_str(), phase.prompt_key.as_str())),
+    );
+    for missing in
+        super::ivr::missing_prompts(&required, &ivr.prompts, &plan.languages)
+    {
+        report.push(missing.problem("ivr.prompts"));
+    }
+
+    let unspoken = super::ivr::unspoken_languages(&plan.languages);
+    if !ivr.flow.is_empty() && !unspoken.is_empty() {
+        let languages = unspoken.join(", ");
+        report.push(
+            Problem::warning(
+                Code::InvalidValue,
+                "ivr.prompts",
+                format!(
+                    "the telephone call speaks only {}, so callers are not \
+                     offered {languages}",
+                    super::ivr::SPOKEN_LANGUAGES.join(", ")
+                ),
+            )
+            .id("ivr.language-not-spoken")
+            .detail("languages", languages),
+        );
+    }
 }
 
 /// The ballot's languages, and which one a voter starts in.
