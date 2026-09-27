@@ -172,8 +172,11 @@ export const EmbeddedPreview: React.FC<EmbeddedPreviewProps> = ({host = window.p
                 Waiting for a ballot to preview
             </Typography>
         )
+    // Keyed by request: VoterPreview holds whether the voter chose a language, which
+    // must not carry over into the next document.
     return (
         <VoterPreview
+            key={shown.sequence}
             session={shown.session}
             language={shown.request.language}
             onLoadError={onLoadError}

@@ -12,12 +12,17 @@ import type {VoterPreviewProps} from "./VoterPreview"
 
 // The portal's providers and screens have their own tests; this one is about the messages.
 const mockVoterPreview = jest.fn()
-jest.mock("./VoterPreview", () => ({
-    VoterPreview: (props: VoterPreviewProps) => {
-        mockVoterPreview(props)
-        return <>{props.children}</>
-    },
-}))
+const mockVoterPreviewMounted = jest.fn()
+jest.mock("./VoterPreview", () => {
+    const {useEffect} = jest.requireActual<typeof React>("react")
+    return {
+        VoterPreview: (props: VoterPreviewProps) => {
+            mockVoterPreview(props)
+            useEffect(() => mockVoterPreviewMounted(props.language), [])
+            return <>{props.children}</>
+        },
+    }
+})
 jest.mock("../components/PortalChrome", () => ({
     PortalChrome: ({children}: React.PropsWithChildren) => <div role="banner">{children}</div>,
 }))
@@ -72,6 +77,7 @@ function parent() {
 
 beforeEach(() => {
     mockVoterPreview.mockReset()
+    mockVoterPreviewMounted.mockReset()
     window.sessionStorage.clear()
 })
 
@@ -104,6 +110,18 @@ test("opens the requested screen and reports it to the sender's origin", async (
         }),
         origin: "https://architect.example",
     })
+})
+
+test("each request gets its own providers, so a language does not outlive it", async () => {
+    // The portal keeps whether the voter chose a language in VoterPreview's state; a
+    // request without a language must get the new document's default, not the last one.
+    const {host, send} = parent()
+    render(<EmbeddedPreview host={host} />)
+    send(showMessage({language: "es"}))
+    await screen.findByRole("link", {name: "Next"})
+    send(showMessage())
+    await screen.findByRole("link", {name: "Next"})
+    expect(mockVoterPreviewMounted.mock.calls).toEqual([["es"], [undefined]])
 })
 
 test("reports the voter's own navigation", async () => {
