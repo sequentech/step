@@ -246,6 +246,11 @@ writes both pages to `packages/workbench/dist/` with relative URLs, and the
 `build_wasm` workflow uploads that directory as the `voter-preview` artifact beside
 `sequent-election-config-wasm`, with `voter-wording-keys.json`: every wording key the
 portal draws a string for, which the Election Architect checks its overrides against.
+`yarn build` also writes `dist/problem-list/`: `ui-essentials`' `ProblemList` and
+`ui-core`'s `problems.*` sentences as one ES module (`src/problemList.ts`, built by
+`vite.problem-list.config.ts` with React, MUI and i18next left to the host, declarations
+by `tsconfig.problem-list.json`). The Election Architect imports it to show an import's
+problems as the Admin Portal does, and gets it with the voter preview.
 The story `embedded-voter-preview--vote` shows a screen inside the chrome, the
 `embedded-voter-preview-telephone-call--*` stories a call over a stand-in emulator
 (`preview/fakeIvrEmulator.ts`), and
