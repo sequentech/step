@@ -7,6 +7,18 @@ export type SsmlSegment =
     | {kind: "text"; text: string; lang?: string}
     | {kind: "break"; time?: string}
 
+const NAMED_ENTITIES: Record<string, string> = {amp: "&", lt: "<", gt: ">", quot: '"', apos: "'"}
+
+/** XML's own entity and character references; anything else, a bare `&` included, stays. */
+function decodeEntities(text: string): string {
+    return text.replace(/&(#x[0-9a-f]+|#[0-9]+|[a-z]+);/gi, (whole, name: string) => {
+        if (name[0] !== "#") return NAMED_ENTITIES[name] ?? whole
+        const code =
+            name[1] === "x" || name[1] === "X" ? parseInt(name.slice(2), 16) : Number(name.slice(1))
+        return code > 0 && code <= 0x10ffff ? String.fromCodePoint(code) : whole
+    })
+}
+
 const TEXT_NODE = 3
 const ELEMENT_NODE = 1
 const CDATA_SECTION_NODE = 4
@@ -22,13 +34,15 @@ const CDATA_SECTION_NODE = 4
  * with a bare `&`, is shown as its text with the tags taken out.
  */
 export function ssmlSegments(ssml: string): SsmlSegment[] {
-    const source = /^\s*<speak[\s>]/.test(ssml) ? ssml : `<speak>${ssml}</speak>`
+    const source = /^\s*(<\?xml[^>]*\?>\s*)?<speak[\s>]/.test(ssml)
+        ? ssml
+        : `<speak>${ssml}</speak>`
     const document =
         typeof DOMParser === "undefined"
             ? undefined
             : new DOMParser().parseFromString(source, "application/xml")
     if (!document || document.getElementsByTagName("parsererror").length > 0) {
-        const text = ssml.replace(/<[^>]*>/g, "")
+        const text = decodeEntities(ssml.replace(/<[^>]*>/g, ""))
         return text ? [{kind: "text", text}] : []
     }
 

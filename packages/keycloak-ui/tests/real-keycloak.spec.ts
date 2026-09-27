@@ -468,9 +468,15 @@ test("react: the language selector follows the realm's locale link", async ({pag
         ["systemVersion", "Version:"],
         ["systemHash", "Hash:"],
     ]) {
-        expect(properties[key], key).toBeTruthy()
-        const field = header.getByRole("term").filter({hasText: label}).locator("..")
-        await expect(field.getByRole("definition")).toHaveText(properties[key])
+        // theme.properties defaults to empty when Keycloak lacks APP_VERSION/APP_HASH,
+        // and the header then leaves the row out rather than showing `${env...}`.
+        expect(properties[key] ?? "", key).not.toContain("${")
+        const term = header.getByRole("term").filter({hasText: label})
+        if (properties[key]) {
+            await expect(term.locator("..").getByRole("definition")).toHaveText(properties[key])
+        } else {
+            await expect(term).toHaveCount(0)
+        }
     }
     const language = header.getByRole("combobox", {name: "Languages"})
     await expect(language).toHaveValue("en")

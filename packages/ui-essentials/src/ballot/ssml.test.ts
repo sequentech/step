@@ -45,5 +45,22 @@ describe("ssmlSegments", () => {
             {kind: "text", text: "Q&A sí"},
         ])
         expect(ssmlSegments("plain words")).toEqual([{kind: "text", text: "plain words"}])
+        // Entity references are still read as characters; a bare `&` stays as it is.
+        expect(ssmlSegments("<speak>A&B &amp; C &#233;&#x41; &lt;ok&gt;</speak>")).toEqual([
+            {kind: "text", text: "A&B & C éA <ok>"},
+        ])
+    })
+
+    it("reads a whole document that starts with an XML declaration", () => {
+        expect(
+            ssmlSegments(
+                '<?xml version="1.0"?>\n<speak>Hi<break time="1s"/>' +
+                    '<lang xml:lang="es-ES">hola</lang></speak>'
+            )
+        ).toEqual([
+            {kind: "text", text: "Hi"},
+            {kind: "break", time: "1s"},
+            {kind: "text", text: "hola", lang: "es-ES"},
+        ])
     })
 })
