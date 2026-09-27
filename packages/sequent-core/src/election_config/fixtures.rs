@@ -197,7 +197,7 @@ mod tests {
         // `Code` does not compile until somebody says which side it belongs on. The
         // old hard-coded list left a new variant neither covered nor reported, which
         // is the opposite of what its comment claimed.
-        const EVERY_CODE: [Code; 11] = [
+        const EVERY_CODE: [Code; 14] = [
             Code::MissingField,
             Code::InvalidValue,
             Code::DanglingReference,
@@ -209,6 +209,9 @@ mod tests {
             Code::PermissionLabel,
             Code::MissingSchedule,
             Code::ConflictingColumns,
+            Code::Unreadable,
+            Code::IncompatibleVersion,
+            Code::IntegrityMismatch,
         ];
 
         for code in EVERY_CODE {
@@ -228,6 +231,10 @@ mod tests {
                 Code::MissingSchedule => false,
                 // Reported while reading a workbook's columns, not from a bundle.
                 Code::ConflictingColumns => false,
+                // Raised by an importer about the file, before there is a bundle.
+                Code::Unreadable
+                | Code::IncompatibleVersion
+                | Code::IntegrityMismatch => false,
             };
             assert_eq!(
                 covered.contains(&code),
