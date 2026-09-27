@@ -187,6 +187,13 @@ function checkPreview(issues: string[], preview: unknown, areaId: unknown) {
     })
 }
 
+/** The problems of a publication preview document for a voter of `areaId`, by JSON path. */
+export function previewIssues(preview: unknown, areaId: unknown): string[] {
+    const issues: string[] = []
+    checkPreview(issues, preview, areaId)
+    return issues
+}
+
 /** Checks the envelope and the parts of the preview document the portal loader relies on. */
 export function validateSnapshot(value: unknown): ScenarioSnapshot {
     if (!isObject(value))

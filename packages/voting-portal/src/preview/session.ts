@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import {isAcclaimedContest, type BallotSelection} from "@sequentech/ui-core"
-import type {ScenarioSnapshot} from "@sequentech/ui-test-kit/fixtures/scenarios"
 import {
     updateBallotStyleAndSelection,
     type PreviewDocument,
@@ -20,10 +19,10 @@ import {
 import {setIsVoted} from "../store/extra/extraSlice"
 import {clearVoterSession, type AppDispatch, type RootState} from "../store/store"
 import {isMultiContestStyle} from "./ballotPipeline"
-import {PreviewScreen, previewTarget} from "./screens"
+import {PreviewScreen, previewTarget, type PreviewSource} from "./screens"
 
-export interface PreviewSession {
-    snapshot: ScenarioSnapshot
+export interface PreviewSession<Source extends PreviewSource = PreviewSource> {
+    snapshot: Source
     /** The screen whose state loading prepares; navigating afterwards keeps the session. */
     screen: PreviewScreen
 }
@@ -35,7 +34,7 @@ export type EncryptForReview = (
 ) => boolean
 
 /** Replaces the voter session with the snapshot through the production preview loader. */
-export function loadPreviewSnapshot(snapshot: ScenarioSnapshot, dispatch: AppDispatch) {
+export function loadPreviewSnapshot(snapshot: PreviewSource, dispatch: AppDispatch) {
     dispatch(clearVoterSession())
     // Adapter boundary: the validated snapshot document is the publication preview document.
     updateBallotStyleAndSelection(

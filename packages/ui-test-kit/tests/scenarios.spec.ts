@@ -5,6 +5,7 @@ import {test, expect} from "@playwright/test"
 import {
     isScenarioId,
     parseSnapshot,
+    previewIssues,
     RANKED_IDS,
     SCENARIOS,
     ScenarioChannel,
@@ -264,6 +265,20 @@ test("all issues are reported together and in the error message", () => {
     expect((error as SnapshotError).message).toBe(
         'Invalid workbench snapshot:\n- snapshot.tenantId: expected a non-empty string, found 7\n- channel: expected one of online, kiosk, found "telephone"'
     )
+})
+
+test("a preview document is checked on its own, with paths below preview", () => {
+    const {preview, areaId} = control()
+    expect(previewIssues(preview, areaId)).toEqual([])
+    delete preview.election_event
+    firstContest(preview).max_votes = -1
+    expect(previewIssues(preview, areaId)).toEqual([
+        "preview.election_event: expected an object, found nothing",
+        "preview.ballot_styles[0].contests[0].max_votes: expected a non-negative integer, found -1",
+    ])
+    expect(previewIssues("text", areaId)).toEqual([
+        'preview: expected a publication preview object, found "text"',
+    ])
 })
 
 function firstContest(preview: JsonObject): JsonObject {

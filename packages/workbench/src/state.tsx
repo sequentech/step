@@ -12,12 +12,7 @@ import {
     ScenarioId,
     type ScenarioSnapshot,
 } from "@sequentech/ui-test-kit/fixtures/scenarios"
-import {
-    PreviewScreen,
-    previewScreenAt,
-    previewScreenPath,
-    previewTarget,
-} from "voting-portal/src/preview/screens"
+import {PreviewScreen, previewScreenAt, previewSessionPath} from "voting-portal/src/preview/screens"
 import type {PreviewSession} from "voting-portal/src/preview/session"
 import {
     applyPolicyOverrides,
@@ -59,7 +54,7 @@ export interface WorkbenchState {
     base: ScenarioSnapshot
     overrides: PolicyOverrides
     /** What the portal shows: the base with overrides applied, prepared for a screen. */
-    session: PreviewSession
+    session: PreviewSession<ScenarioSnapshot>
     events: readonly WorkbenchEvent[]
     importIssues?: string[]
 }
@@ -160,13 +155,8 @@ export function initialState(storage: StorageArea, screen: PreviewScreen): Workb
 }
 
 /** The production route of a screen, or the chooser when the area has no election. */
-export function screenPath(snapshot: ScenarioSnapshot, screen: PreviewScreen) {
-    const target = previewTarget(snapshot)
-    return (
-        previewScreenPath(target, screen) ??
-        `/tenant/${target.tenantId}/event/${target.eventId}/election-chooser`
-    )
-}
+export const screenPath = (snapshot: ScenarioSnapshot, screen: PreviewScreen) =>
+    previewSessionPath(snapshot, screen)
 
 /** Exported snapshots carry their overrides in the document and list them as provenance. */
 export function exportedSnapshot(

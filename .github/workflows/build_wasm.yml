@@ -142,3 +142,17 @@ jobs:
       - name: Build ui-essentials
         working-directory: packages
         run: yarn build:ui-essentials
+
+      # The voter preview other tools frame, e.g. beyond's Election Architect, which
+      # takes it from the same run as the election-config WASM (`yarn vendor-core`).
+      # Built from source like the workbench it belongs to; `embed.html` is its entry.
+      - name: Build the voter preview
+        working-directory: packages
+        run: yarn --cwd workbench build
+
+      - name: Upload the voter preview
+        uses: actions/upload-artifact@v4
+        with:
+          name: voter-preview
+          path: packages/workbench/dist
+          if-no-files-found: error

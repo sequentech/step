@@ -216,6 +216,32 @@ reloads when the artifact changes and the inspector shows the binary's hash. `WO
 the production event routes. The only preview UI inside the portal frame is the error
 shown when the portal loader rejects a snapshot.
 
+### Embedded voter preview
+
+`packages/workbench/embed.html` is the same voter preview for other tools to frame,
+such as beyond's Election Architect. `EmbeddedPreview` in
+`packages/voting-portal/src/preview/` renders the production event routes inside the
+portal chrome (`components/PortalChrome.tsx`: header, footer, watermark and the
+event's stylesheet) in the publication preview's demo mode. The framing window talks
+to it with `postMessage` (`preview/embed.ts`, protocol `sequent.voter-preview`,
+version 1):
+
+| Message | Direction | Fields |
+| --- | --- | --- |
+| `ready` | embed to parent | sent on load; the parent then sends `show` |
+| `show` | parent to embed | `document` (a publication preview document), `areaId`, `screen`, optional `electionId`, `language` and `channel`; opens a new voter session |
+| `shown` | embed to parent | `screen` (when it is a preview screen) and `path`, after `show` and after each navigation by the voter |
+| `failed` | embed to parent | `issues`, for a malformed `show` or a document the portal loader rejects |
+
+The embed only reads messages from its parent window and replies to that window's
+origin. During development a framing tool points at the dev server
+(`http://127.0.0.1:5173/embed.html`), so portal edits reload inside it. `vite build`
+writes both pages to `packages/workbench/dist/` with relative URLs, and the
+`build_wasm` workflow uploads that directory as the `voter-preview` artifact beside
+`sequent-election-config-wasm`. The story `embedded-voter-preview--vote` shows a
+screen inside the chrome, and `yarn --cwd packages/workbench test:smoke tests/embed.spec.ts`
+drives the messages from a framing page.
+
 ### Real-backend scenarios
 
 When a story cannot answer the question, `step-dev scenario` brings a synthetic election
