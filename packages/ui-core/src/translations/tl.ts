@@ -563,6 +563,12 @@ const tagalogTranslation: TranslationType = {
                     "missing-prompts": {
                         lead: "Kulang ang mga mensahe ng tawag",
                         text: "Kulang ang mga mensahe ng tawag — walang teksto sa '{{language}}' ang {{prompts}}, kaya tinatanggihan ng sistema ng telepono ang bawat tawag hanggang magkaroon.",
+                        // Filipino's plural rule files most counts under "one" (2, 3,
+                        // 5, 21...), so this form has to read for several prompts too:
+                        // it is the general sentence again, not a singular one.
+                        lead_one: "Kulang ang mga mensahe ng tawag",
+                        text_one:
+                            "Kulang ang mga mensahe ng tawag — walang teksto sa '{{language}}' ang {{prompts}}, kaya tinatanggihan ng sistema ng telepono ang bawat tawag hanggang magkaroon.",
                     },
                 },
                 labels: {

@@ -155,6 +155,23 @@ export const IVR_PIN_SCRIPT: IvrScript = {
     timeout: [],
 }
 
+/**
+ * A language menu, whose keys the Lambda lists in no particular order: "2,1".
+ */
+export const IVR_MENU_SCRIPT: IvrScript = {
+    start: [
+        {
+            type: "ExpectInput",
+            prompt: prompt("Press 1 for English, 2 for Spanish"),
+            valid_inputs: "2,1",
+            max_digits: 1,
+            timeout: 5,
+        },
+    ],
+    input: (value) => [{type: "Disconnect", prompt: prompt(`Language ${value} chosen`)}],
+    timeout: [],
+}
+
 let current: {script: IvrScript; session: IvrSession} | undefined
 
 /**

@@ -5,8 +5,8 @@ import {keypadHint, type IvrExpectedInput} from "@sequentech/ui-essentials"
 import type {TFunction} from "i18next"
 
 /**
- * The emulator keypad's hint, in the admin's language: which keys the prompt accepts,
- * or that any digits will do when the IVR lists none (a PIN).
+ * The emulator keypad's hint, in the admin's language: which keys the prompt accepts
+ * ("Press 1 or 2"), or that any digits will do when the IVR lists none (a PIN).
  */
 export const ivrKeypadHint = (
     t: TFunction,
@@ -15,4 +15,5 @@ export const ivrKeypadHint = (
     keypadHint(expected, {
         listed: (values) => t("electionEventScreen.ivr.emulator.inputPlaceholder", values),
         anyKeys: (values) => t("electionEventScreen.ivr.emulator.inputPlaceholderAnyKeys", values),
+        or: t("electionEventScreen.ivr.emulator.inputPlaceholderOr"),
     })

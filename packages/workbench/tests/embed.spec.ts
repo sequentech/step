@@ -239,7 +239,7 @@ test("a framing page places a call against the emulator it serves", async ({page
         .toMatchObject({type: "calling", status: "ExpectingInput"})
 
     const keypad = frame.getByRole("textbox", {name: "Keys to press"})
-    await expect(keypad).toHaveAttribute("placeholder", "Up to 1 of 1, within 5s")
+    await expect(keypad).toHaveAttribute("placeholder", "Press 1, within 5s")
     await keypad.fill("1")
     await frame.getByRole("button", {name: "Press"}).click()
     await expect(frame.getByText("Enter your PIN.")).toBeVisible()

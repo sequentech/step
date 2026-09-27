@@ -234,6 +234,65 @@ describe("problemSentence", () => {
     })
 })
 
+describe("a problem about several things", () => {
+    // The Call Emulator said "greeting have no words in 'es'": the core counts the
+    // prompts, and the sentence has to agree with that count in every language.
+    const missingPrompts = (prompts: string[]): Problem =>
+        problem({
+            code: "MissingField",
+            path: "ivr.prompts",
+            message: "the core's English",
+            id: "ivr.missing-prompts",
+            details: {language: "es", prompts: prompts.join(", "), count: String(prompts.length)},
+        })
+
+    it("hands the count over as a number, which is what picks a plural form", () => {
+        const seen: Record<string, unknown>[] = []
+        problemSentence(
+            (_key, options) => {
+                seen.push(options)
+                return "x"
+            },
+            missingPrompts(["greeting"])
+        )
+        expect(seen[0]).toMatchObject({count: 1, prompts: "greeting"})
+    })
+
+    it("speaks of one prompt in the singular and of two in the plural, in English", async () => {
+        const t = (await withCatalogue("en")).t
+        expect(problemSentence(t, missingPrompts(["greeting"]))).toEqual({
+            lead: "Call prompt missing",
+            rest: " — greeting has no words in 'es', and the telephone system refuses every call until it does.",
+            text: "Call prompt missing — greeting has no words in 'es', and the telephone system refuses every call until it does.",
+        })
+        expect(problemSentence(t, missingPrompts(["greeting", "declaration_text"])).text).toBe(
+            "Call prompts missing — greeting, declaration_text have no words in 'es', and the telephone system refuses every call until they do."
+        )
+    })
+
+    it("and in Spanish", async () => {
+        const t = (await withCatalogue("es")).t
+        expect(problemSentence(t, missingPrompts(["greeting"])).text).toBe(
+            "Falta un mensaje de la llamada — greeting no tiene texto en «es», y el sistema telefónico rechaza todas las llamadas hasta que lo tenga."
+        )
+        expect(problemSentence(t, missingPrompts(["greeting", "declaration_text"])).text).toBe(
+            "Faltan mensajes de la llamada — greeting, declaration_text no tienen texto en «es», y el sistema telefónico rechaza todas las llamadas hasta que lo tengan."
+        )
+    })
+
+    it("leaves a count that is not a number as the core sent it", () => {
+        const seen: Record<string, unknown>[] = []
+        problemSentence(
+            (_key, options) => {
+                seen.push(options)
+                return "x"
+            },
+            problem({id: "any.thing", details: {count: "several"}})
+        )
+        expect(seen[0]).toMatchObject({count: "several"})
+    })
+})
+
 describe("readProblems", () => {
     it("reads the problems a server sent", () => {
         expect(readProblems([problem()])).toEqual([problem()])

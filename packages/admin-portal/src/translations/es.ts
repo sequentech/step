@@ -779,8 +779,8 @@ const spanishTranslation: TranslationType = {
                     endSession: "Finalizar la sesión",
                     noStylesFound:
                         "No se encontraron estilos de boleta publicados que coincidan con sus selecciones",
-                    inputPlaceholder:
-                        "Introduzca su entrada (máximo de dígitos={{maxDigits}}, entradas válidas={{validInputs}}, tiempo de espera={{timeout}} s)",
+                    inputPlaceholder: "Pulse {{keys}} (tiempo de espera={{timeout}} s)",
+                    inputPlaceholderOr: "o",
                     inputPlaceholderAnyKeys:
                         "Introduzca hasta {{maxDigits}} dígitos (cualquier dígito, tiempo de espera={{timeout}} s)",
                     blacklistCaller: "Bloquear a la persona que llama",

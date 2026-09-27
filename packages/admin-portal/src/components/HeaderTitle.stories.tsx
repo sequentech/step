@@ -43,3 +43,22 @@ export const PlainTextIsShownAsIs: Story = {
         await expect(canvas.getByText("Synthetic subtitle")).toBeVisible()
     },
 }
+
+/**
+ * In the portal's own font. The portal's page loads Roboto (`public/roboto`); a
+ * Storybook that did not fell back to whatever the machine had, DejaVu Sans on Linux,
+ * so every screenshot and visual check was of a portal nobody sees.
+ */
+export const InThePortalsFont: Story = {
+    play: async ({canvasElement, args}) => {
+        const title = within(canvasElement).getByText(i18n.t(args.title))
+        await expect(getComputedStyle(title).fontFamily).toMatch(/^"?Roboto\b/)
+        for (const weight of [400, 500]) {
+            const faces = await document.fonts.load(`${weight} 16px Roboto`, "Admin")
+            await expect(
+                faces.map((face) => face.status),
+                `Roboto ${weight} is loaded`
+            ).toContain("loaded")
+        }
+    },
+}

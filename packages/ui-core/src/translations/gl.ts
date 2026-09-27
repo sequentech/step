@@ -565,6 +565,9 @@ const galegoTranslation: TranslationType = {
                     "missing-prompts": {
                         lead: "Faltan mensaxes da chamada",
                         text: "Faltan mensaxes da chamada — {{prompts}} non teñen texto en «{{language}}», e o sistema telefónico rexeita todas as chamadas ata que o teñan.",
+                        lead_one: "Falta unha mensaxe da chamada",
+                        text_one:
+                            "Falta unha mensaxe da chamada — {{prompts}} non ten texto en «{{language}}», e o sistema telefónico rexeita todas as chamadas ata que o teña.",
                     },
                 },
                 labels: {

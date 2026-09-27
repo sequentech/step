@@ -774,8 +774,8 @@ const basqueTranslation: TranslationType = {
                     endSession: "Amaitu saioa",
                     noStylesFound:
                         "Ez da aurkitu zure hautapenekin bat datorren argitaratutako boto-paper estilorik",
-                    inputPlaceholder:
-                        "Idatzi sarrera (gehienezko digitu kopurua={{maxDigits}}, baliozko sarrerak={{validInputs}}, denbora-muga={{timeout}} s)",
+                    inputPlaceholder: "Sakatu {{keys}} (denbora-muga={{timeout}} s)",
+                    inputPlaceholderOr: "edo",
                     inputPlaceholderAnyKeys:
                         "Idatzi gehienez {{maxDigits}} digitu (edozein digitu, denbora-muga={{timeout}} s)",
                     blacklistCaller: "Blokeatu deitzailea",

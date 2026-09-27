@@ -19,6 +19,7 @@ import type {IvrEmulatorApi} from "@/services/IvrEmulator"
 import {IvrEmulator} from "./IvrEmulator"
 import {
     BALLOT_EML,
+    IVR_MENU_SCRIPT,
     IVR_PIN_SCRIPT,
     IVR_SCRIPT,
     ballotStyleRecord,
@@ -35,6 +36,8 @@ interface Scenario {
     failure?: string
     /** Plays the PIN call, which accepts any digits, instead of the voter ID one. */
     pin?: boolean
+    /** Plays a language menu, which names its keys, instead of the voter ID call. */
+    menu?: boolean
 }
 
 let graphql: ReturnType<typeof graphqlBoundary>
@@ -68,7 +71,7 @@ const meta = {
     parameters: {widgets: ["ConfigForm", "ConfigFormBody"]},
     beforeEach: async ({args}) => {
         emulator = ivrEmulatorApi({
-            ...(args.pin ? IVR_PIN_SCRIPT : IVR_SCRIPT),
+            ...(args.pin ? IVR_PIN_SCRIPT : args.menu ? IVR_MENU_SCRIPT : IVR_SCRIPT),
             failure: args.failure,
         })
         data = resourceBoundary({
@@ -162,9 +165,7 @@ export const CallSession: Story = {
         const canvas = within(canvasElement)
         await startCall(canvasElement)
         await expect(await transcript(canvasElement)).toBeVisible()
-        const input = await canvas.findByPlaceholderText(
-            "Enter your input (max digits=3, valid inputs=0-9, timeout=10s)"
-        )
+        const input = await canvas.findByPlaceholderText("Press 0-9 (timeout=10s)")
         await waitFor(() => expect(input).toBeEnabled())
         expect(emulator.session.configs).toEqual([
             {
@@ -218,6 +219,21 @@ export const AnyDigitsPrompt: Story = {
         await userEvent.click(canvas.getByRole("button", {name: "Send DTMF input"}))
         await expect(await canvas.findByText("PIN accepted")).toBeVisible()
         expect(emulator.session.inputs).toEqual(["12345678"])
+    },
+}
+
+export const KeyMenuPrompt: Story = {
+    args: {menu: true},
+    parameters: {widgets: []},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await startCall(canvasElement)
+        // The Lambda sends the menu's keys as "2,1"; the hint names them in order.
+        const input = await canvas.findByPlaceholderText("Press 1 or 2 (timeout=5s)")
+        await waitFor(() => expect(input).toBeEnabled())
+        await userEvent.type(input, "2")
+        await userEvent.click(canvas.getByRole("button", {name: "Send DTMF input"}))
+        await expect(await canvas.findByText("Language 2 chosen")).toBeVisible()
     },
 }
 

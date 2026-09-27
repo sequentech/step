@@ -561,6 +561,9 @@ const basqueTranslation: TranslationType = {
                     "missing-prompts": {
                         lead: "Deiaren mezuak falta dira",
                         text: "Deiaren mezuak falta dira — {{prompts}} ez dute testurik «{{language}}» hizkuntzan, eta sistema telefonikoak dei guztiak baztertzen ditu izan arte.",
+                        lead_one: "Deiaren mezu bat falta da",
+                        text_one:
+                            "Deiaren mezu bat falta da — {{prompts}} ez du testurik «{{language}}» hizkuntzan, eta sistema telefonikoak dei guztiak baztertzen ditu izan arte.",
                     },
                 },
                 labels: {

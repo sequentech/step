@@ -561,6 +561,9 @@ const englishTranslation = {
                     "missing-prompts": {
                         lead: "Call prompts missing",
                         text: "Call prompts missing — {{prompts}} have no words in '{{language}}', and the telephone system refuses every call until they do.",
+                        lead_one: "Call prompt missing",
+                        text_one:
+                            "Call prompt missing — {{prompts}} has no words in '{{language}}', and the telephone system refuses every call until it does.",
                     },
                 },
                 labels: {

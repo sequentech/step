@@ -67,13 +67,20 @@ export interface ShowRequest {
 export interface CallLabels {
     /** The keypad's accessible name. */
     input?: string
-    /** The keypad's placeholder: `{{maxDigits}}`, `{{validInputs}}` and `{{timeout}}` are filled in. */
+    /**
+     * The keypad's placeholder when the prompt names its keys: `{{keys}}` is filled in as
+     * a list ("1 or 2", joined by `or`), `{{maxDigits}}` and `{{timeout}}` as numbers.
+     * `{{validInputs}}` is the keys as the Lambda sent them ("2,1"), what it was in
+     * version 2 before `{{keys}}`, so a placeholder written then still reads the same.
+     */
     placeholder?: string
     /**
      * The keypad's placeholder when any digits will do, such as for a PIN, which the Lambda
      * says by listing no valid inputs: `{{maxDigits}}` and `{{timeout}}` are filled in.
      */
     placeholderAnyKeys?: string
+    /** The word before the last of the keys a prompt names: "1, 2 or 3". */
+    or?: string
     /** The button that lets the caller's patience run out. */
     timeout?: string
     /** The button that presses the keys. */
@@ -88,6 +95,7 @@ export const CALL_LABEL_KEYS: readonly (keyof CallLabels)[] = [
     "input",
     "placeholder",
     "placeholderAnyKeys",
+    "or",
     "timeout",
     "send",
     "disconnected",
@@ -272,15 +280,18 @@ export const fillLabel = (template: string, values: Record<string, string | numb
 
 /**
  * What the keypad says while the call waits for keys, in a framing tool's words:
- * `placeholderAnyKeys` when the Lambda lists no keys because any digits will do.
+ * `placeholderAnyKeys` when the Lambda lists no keys because any digits will do, and
+ * its `or` between the last two of the keys a prompt names.
  */
 export const keypadHint = (
-    labels: Required<Pick<CallLabels, "placeholder" | "placeholderAnyKeys">>,
+    labels: Required<Pick<CallLabels, "placeholder" | "placeholderAnyKeys">> &
+        Pick<CallLabels, "or">,
     expected: {valid_inputs: string; max_digits: number; timeout: number}
 ): string =>
     sharedKeypadHint(expected, {
         listed: (values) => fillLabel(labels.placeholder, values),
         anyKeys: (values) => fillLabel(labels.placeholderAnyKeys, values),
+        or: labels.or,
     })
 
 /**

@@ -562,6 +562,9 @@ const catalanTranslation: TranslationType = {
                     "missing-prompts": {
                         lead: "Falten missatges de la trucada",
                         text: "Falten missatges de la trucada — {{prompts}} no tenen text en «{{language}}», i el sistema telefònic rebutja totes les trucades fins que en tinguin.",
+                        lead_one: "Falta un missatge de la trucada",
+                        text_one:
+                            "Falta un missatge de la trucada — {{prompts}} no té text en «{{language}}», i el sistema telefònic rebutja totes les trucades fins que en tingui.",
                     },
                 },
                 labels: {

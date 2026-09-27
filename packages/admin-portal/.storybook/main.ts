@@ -58,6 +58,9 @@ const muiDeepImports = [
 const adminConfig = {
     ...config,
     staticDirs: ["../public", {from: braidWasm, to: "/braid-wasm"}],
+    // The portal's font, linked as its page links it (public/index.html). Without it
+    // every story is drawn in whatever sans-serif the machine has: DejaVu Sans on Linux.
+    previewHead: (head = "") => `${head}<link rel="stylesheet" href="roboto.css" />`,
     viteFinal: async (viteConfig, options) =>
         mergeConfig(await config.viteFinal!(viteConfig, options), {
             plugins: [adminGraphqlSchema()],

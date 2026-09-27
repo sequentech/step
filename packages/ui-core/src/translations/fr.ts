@@ -565,6 +565,9 @@ const frenchTranslation: TranslationType = {
                     "missing-prompts": {
                         lead: "Messages d'appel manquants",
                         text: "Messages d'appel manquants — {{prompts}} n'ont pas de texte en « {{language}} », et le système téléphonique refuse tous les appels tant qu'ils n'en ont pas.",
+                        lead_one: "Message d'appel manquant",
+                        text_one:
+                            "Message d'appel manquant — {{prompts}} n'a pas de texte en « {{language}} », et le système téléphonique refuse tous les appels tant qu'il n'en a pas.",
                     },
                 },
                 labels: {

@@ -564,6 +564,9 @@ const spanishTranslation: TranslationType = {
                     "missing-prompts": {
                         lead: "Faltan mensajes de la llamada",
                         text: "Faltan mensajes de la llamada — {{prompts}} no tienen texto en «{{language}}», y el sistema telefónico rechaza todas las llamadas hasta que lo tengan.",
+                        lead_one: "Falta un mensaje de la llamada",
+                        text_one:
+                            "Falta un mensaje de la llamada — {{prompts}} no tiene texto en «{{language}}», y el sistema telefónico rechaza todas las llamadas hasta que lo tenga.",
                     },
                 },
                 labels: {

@@ -562,6 +562,9 @@ const dutchTranslation: TranslationType = {
                     "missing-prompts": {
                         lead: "Gespreksteksten ontbreken",
                         text: "Gespreksteksten ontbreken — {{prompts}} hebben geen tekst in '{{language}}', en het telefoonsysteem weigert elk gesprek tot die er is.",
+                        lead_one: "Gesprekstekst ontbreekt",
+                        text_one:
+                            "Gesprekstekst ontbreekt — {{prompts}} heeft geen tekst in '{{language}}', en het telefoonsysteem weigert elk gesprek tot die er is.",
                     },
                 },
                 labels: {

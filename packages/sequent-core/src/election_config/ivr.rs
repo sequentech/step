@@ -48,21 +48,29 @@ impl MissingPrompts {
     /// The problem both validators raise, pointing at `path`.
     ///
     /// Built here, once, because the plan and the bundle raise the same complaint
-    /// in two vocabularies and one catalogue entry translates both.
+    /// in two vocabularies and one catalogue entry translates both. `count` is
+    /// the number of prompts, which the catalogue picks its plural form by: one
+    /// greeting "has" no words, two prompts "have" none.
     pub fn problem(&self, path: &str) -> Problem {
         let prompts = self.prompt_keys.join(", ");
+        let (has, does) = if self.prompt_keys.len() == 1 {
+            ("has", "it does")
+        } else {
+            ("have", "they do")
+        };
         Problem::error(
             Code::MissingField,
             path,
             format!(
-                "{prompts} have no words in '{}', and the telephone system \
-                 refuses every call until they do",
+                "{prompts} {has} no words in '{}', and the telephone system \
+                 refuses every call until {does}",
                 self.language
             ),
         )
         .id("ivr.missing-prompts")
         .detail("language", &self.language)
         .detail("prompts", prompts)
+        .detail("count", self.prompt_keys.len())
     }
 }
 

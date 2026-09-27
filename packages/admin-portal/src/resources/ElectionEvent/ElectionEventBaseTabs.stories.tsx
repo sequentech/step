@@ -84,9 +84,16 @@ const tabLabels = (canvasElement: HTMLElement) =>
         .getAllByRole("tab")
         .map((tab) => tab.textContent)
 
-/** The first tab, the event dashboard, waits for its statistics. */
+/**
+ * The first tab, the event dashboard, waits for its statistics.
+ *
+ * The dashboard is a lazy chunk, and the file's first story fetches it cold, alongside
+ * the portal's Roboto faces: that takes longer than Testing Library's one second.
+ */
 async function dashboardLoading(canvasElement: HTMLElement) {
-    await expect(await within(canvasElement).findByRole("progressbar")).toBeVisible()
+    await expect(
+        await within(canvasElement).findByRole("progressbar", {}, {timeout: 5000})
+    ).toBeVisible()
     await waitFor(() =>
         expect(graphql.calls).toContainEqual(
             expect.objectContaining({
