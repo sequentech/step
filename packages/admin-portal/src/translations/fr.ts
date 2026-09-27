@@ -773,6 +773,7 @@ const frenchTranslation: TranslationType = {
                             'L\'identifiant d\'électeur et le code PIN valides sont "123" et "123".',
                     },
                     sendDtmf: "Envoyer une entrée DTMF",
+                    keypadInput: "Saisie au clavier",
                     sendTimeout: "Envoyer l'expiration du délai",
                     disconnected: "Déconnecté",
                     startSession: "Démarrer une nouvelle session",

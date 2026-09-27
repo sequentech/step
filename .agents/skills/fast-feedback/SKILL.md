@@ -32,6 +32,7 @@ check is not a passing test. `validate` includes slower checks; inspect its
 | Edit | First useful feedback |
 | --- | --- |
 | Portal or shared UI | Fixture-backed screen story or `packages/workbench`; consuming dev servers compile shared source directly |
+| Voter preview framed by another tool (Election Architect) | `packages/workbench` dev server's `embed.html`; the framing tool points at it, see the guide's **Embedded voter preview** |
 | Ballot verifier | `yarn --cwd packages/ballot-verifier start:vite` selects the measured opt-in Vite path; use its documented journey matrix when changing bundling or refresh behavior |
 | One story | `step-dev test <package> --story <story-id>`; `--watch` keeps the browser runner active |
 | Admin widget | `yarn --cwd packages/admin-portal stories:inventory <source file>` prints its section, story IDs and focused test command |

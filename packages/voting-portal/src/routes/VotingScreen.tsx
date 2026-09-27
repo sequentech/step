@@ -7,7 +7,13 @@ import {selectBallotStyleByElectionId} from "../store/ballotStyles/ballotStylesS
 import {useAppDispatch, useAppSelector} from "../store/hooks"
 import {store} from "../store/store"
 import {Box} from "@mui/material"
-import {PageLimit, Icon, IconButton, theme, Dialog, VisuallyHidden} from "@sequentech/ui-essentials"
+import {
+    BallotActions,
+    BallotScreenLayout,
+    Dialog,
+    IconButton,
+    VisuallyHidden,
+} from "@sequentech/ui-essentials"
 import {
     check_voting_error_dialog_bool,
     check_voting_not_allowed_next_bool,
@@ -23,11 +29,8 @@ import {
     areAllContestsAcclaimed,
     isAcclaimedContest,
 } from "@sequentech/ui-core"
-import {styled} from "@mui/material/styles"
-import Typography from "@mui/material/Typography"
-import {faCircleQuestion, faAngleLeft, faAngleRight} from "@fortawesome/free-solid-svg-icons"
+import {faCircleQuestion} from "@fortawesome/free-solid-svg-icons"
 import {useTranslation} from "react-i18next"
-import Button from "@mui/material/Button"
 import {redirect, useLocation, useNavigate, useParams, useSubmit} from "react-router-dom"
 import {
     selectBallotSelectionByElectionId,
@@ -37,7 +40,7 @@ import {
 import {clearDeclinedToVoteForElection, clearIsVoted, setIsVoted} from "../store/extra/extraSlice"
 import {TenantEventType} from ".."
 import {provideBallotService} from "../services/BallotService"
-import {Question} from "../components/Question/Question"
+import {Question} from "@sequentech/ui-essentials"
 import {CircularProgress} from "@mui/material"
 import {selectElectionById} from "../store/elections/electionsSlice"
 import {useRootBackLink} from "../hooks/root-back-link"
@@ -49,37 +52,11 @@ import {IDecodedVoteContest} from "@sequentech/ui-core"
 import {sortContestList} from "@sequentech/ui-core"
 import {useEncryptBallotForReview} from "../hooks/useEncryptBallotForReview"
 
-const StyledTitle = styled(Typography)<{component?: React.ElementType}>`
-    margin-top: 25.5px;
-    display: flex;
-    flex-direction: row;
-    gap: 16px;
-    font-size: 36px;
-    justify-content: center;
-`
-
-const ActionsContainer = styled(Box)`
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    justify-content: space-between;
-    width: 100%;
-    margin-bottom: 20px;
-    margin-top: 10px;
-    gap: 2px;
-`
-
-const StyledButton = styled(Button)`
-    display flex;
-    padding: 5px;
-
-    span {
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        padding: 5px;
-    }
-` as typeof Button
+// `StyledTitle`, `ActionsContainer` and `StyledButton` were here. The heading is
+// `BallotScreenLayout` in `ui-essentials` now and the row of buttons is
+// `BallotActions`, so the Election Architect's Ballot Preview draws this screen's
+// tree — class names included — rather than a second one that a client's
+// stylesheet would not fit.
 
 interface ActionButtonProps {
     handleNext: () => void
@@ -125,57 +102,19 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
     }
 
     return (
-        <>
-            <StyledButton
-                className="clear-selection-button"
-                sx={{
-                    display: {sm: "none"},
-                    width: "100%",
-                }}
-                variant="secondary"
-                onClick={() => (handleClearCustom ? handleClearCustom() : handleClear())}
-            >
-                <Box className="clear-selection-label">{t("votingScreen.clearButton")}</Box>
-            </StyledButton>
-
-            <ActionsContainer className="actions-container">
-                <StyledButton
-                    className="back-button"
-                    sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}
-                    onClick={() => {
-                        handlePrev()
-                        if (!pageIndex || pageIndex <= 0) {
-                            navigate(exitLink)
-                        }
-                    }}
-                >
-                    <Icon className="back-button-icon" icon={faAngleLeft} size="sm" />
-                    <Box className="back-button-label">{t("votingScreen.backButton")}</Box>
-                </StyledButton>
-
-                <StyledButton
-                    className="clear-selection-button"
-                    sx={{
-                        display: {xs: "none", sm: "block"},
-                        width: {xs: "100%", sm: "200px"},
-                    }}
-                    variant="secondary"
-                    onClick={() => (handleClearCustom ? handleClearCustom() : handleClear())}
-                >
-                    <Box className="clear-selection-label">{t("votingScreen.clearButton")}</Box>
-                </StyledButton>
-
-                <StyledButton
-                    className="next-button"
-                    sx={{width: {xs: "100%", sm: "200px"}}}
-                    onClick={() => handleNext()}
-                    disabled={disableNext}
-                >
-                    <Box className="next-button-label">{t("votingScreen.reviewButton")}</Box>
-                    <Icon className="next-button-icon" icon={faAngleRight} size="sm" />
-                </StyledButton>
-            </ActionsContainer>
-        </>
+        // Back navigates from its click handler rather than through a link
+        // around the button, so the control is a single keyboard stop.
+        <BallotActions
+            onBack={() => {
+                handlePrev()
+                if (!pageIndex || pageIndex <= 0) {
+                    navigate(exitLink)
+                }
+            }}
+            onClear={() => (handleClearCustom ? handleClearCustom() : handleClear())}
+            onNext={() => handleNext()}
+            disableNext={disableNext}
+        />
     )
 }
 
@@ -520,49 +459,40 @@ const VotingScreen: React.FC = () => {
     }
 
     return (
-        <PageLimit maxWidth="lg" className="voting-screen screen">
-            <Box marginTop="48px" className="stepper-box">
-                <Stepper selected={1} />
-            </Box>
-            <StyledTitle variant="h4" component="h1" className="title-container screen-title">
-                <Box className="selected-election-title">
-                    {translateFromPresentation(election, "name", i18n.language, {
-                        defaultLanguageCode,
-                    }) ?? "-"}
-                </Box>
-                <IconButton
-                    className="title-question"
-                    buttonClassName="screen-help-button"
-                    icon={faCircleQuestion}
-                    sx={{fontSize: "unset", lineHeight: "unset", paddingBottom: "2px"}}
-                    fontSize="16px"
-                    onClick={() => setOpenBallotHelp(true)}
-                    ariaLabel={t("a11y.helpAbout", {
-                        topic: t("votingScreen.ballotHelpDialog.title"),
-                    })}
-                />
-                <Dialog
-                    className="screen-help-dialog voting-help-dialog"
-                    handleClose={() => setOpenBallotHelp(false)}
-                    open={openBallotHelp}
-                    title={t("votingScreen.ballotHelpDialog.title")}
-                    ok={t("votingScreen.ballotHelpDialog.ok")}
-                    variant="info"
-                >
-                    {stringToHtml(t("votingScreen.ballotHelpDialog.content"))}
-                </Dialog>
-            </StyledTitle>
-            {electionDescription ? (
-                <Typography
-                    className="description screen-description"
-                    variant="body2"
-                    component="div"
-                    sx={{color: theme.palette.customGrey.main}}
-                >
-                    {stringToHtml(electionDescription)}
-                </Typography>
-            ) : null}
-
+        <BallotScreenLayout
+            steps={<Stepper selected={1} />}
+            title={
+                translateFromPresentation(election, "name", i18n.language, {
+                    defaultLanguageCode,
+                }) ?? "-"
+            }
+            titleAdornment={
+                <>
+                    <IconButton
+                        className="title-question"
+                        buttonClassName="screen-help-button"
+                        icon={faCircleQuestion}
+                        sx={{fontSize: "unset", lineHeight: "unset", paddingBottom: "2px"}}
+                        fontSize="16px"
+                        onClick={() => setOpenBallotHelp(true)}
+                        ariaLabel={t("a11y.helpAbout", {
+                            topic: t("votingScreen.ballotHelpDialog.title"),
+                        })}
+                    />
+                    <Dialog
+                        className="screen-help-dialog voting-help-dialog"
+                        handleClose={() => setOpenBallotHelp(false)}
+                        open={openBallotHelp}
+                        title={t("votingScreen.ballotHelpDialog.title")}
+                        ok={t("votingScreen.ballotHelpDialog.ok")}
+                        variant="info"
+                    >
+                        {stringToHtml(t("votingScreen.ballotHelpDialog.content"))}
+                    </Dialog>
+                </>
+            }
+            description={electionDescription ? stringToHtml(electionDescription) : undefined}
+        >
             <ContestPagination
                 ballotStyle={ballotStyle}
                 contests={contestsPerPage}
@@ -622,7 +552,7 @@ const VotingScreen: React.FC = () => {
                     )}
                 </Dialog>
             )}
-        </PageLimit>
+        </BallotScreenLayout>
     )
 }
 

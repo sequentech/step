@@ -987,6 +987,21 @@ class RepositoryModelTest(unittest.TestCase):
             {"jest:voting-portal", "vitest:workbench", "wasm-freshness"} <= chosen
         )
 
+    def test_election_config_selects_gates_builder_and_wasm_package(self):
+        _, chosen = self.select("packages/sequent-core/src/election_config/mod.rs")
+        self.assertTrue(
+            {
+                "cargo-test:sequent-core",
+                "feature-gates:sequent-core",
+                "wasm-build:election-config",
+                "cargo-test:step-cli",
+            }
+            <= chosen
+        )
+        _, chosen = self.select(".devcontainer/scripts/rebuild-election-config-wasm.sh")
+        self.assertIn("wasm-build:election-config", chosen)
+        self.assertNotIn("cargo-test:sequent-core", chosen)
+
     def test_workbench_stories_run_in_the_voting_portal_storybook(self):
         _, chosen = self.select("packages/workbench/src/components/PolicyPanel.tsx")
         self.assertIn("stories:voting-portal", chosen)

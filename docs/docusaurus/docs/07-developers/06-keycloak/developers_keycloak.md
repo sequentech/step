@@ -170,7 +170,8 @@ the initial jar after changing Keycloakify configuration or upgrading it.
 The context bridge carries the two login presentation policies, the OTP courier
 wire value and an explicit set of server-resolved messages, including realm
 localization overrides. It does not expose the realm attribute map. Standard
-username/password login and the custom message OTP page render in React.
+username/password login, the username-first page (`login-username.ftl`, with
+identity-provider buttons) and the custom message OTP page render in React.
 Their header keeps the native language selector and the inherited theme's
 `systemVersion`/`systemHash` values (`APP_VERSION`/`APP_HASH`), with server-resolved
 labels. The build information wraps on narrow screens.
@@ -216,3 +217,32 @@ session after the edits. Run it in a dedicated checkout so simultaneous edits
 cannot conflict with source restoration. SMS delivery, one-time-link redemption,
 CAPTCHA and external identity providers need their own configured integration environments;
 synthetic stories cover their presentation only where supplied.
+
+### Election Architect realm
+
+`.devcontainer/keycloak/import/election-architect.json` is the Election Architect
+realm: a confidential `election-architect` client for its oauth2-proxy gate, the
+client role `access` granted by the group `/architect-access`, and a
+`delivery-orchestrator` service account that grants and revokes that group
+through the admin API. Its browser flow asks for the email address
+(`login-username.ftl`), then sends a message-OTP email code; a conditional step
+denies users without the role. A `google` identity provider is included but
+disabled; it only links to existing users. The `sequent-ui-architect` theme
+(`themes.json`) is the admin theme with the Election Architect header and title.
+The realm file keeps `sequent.admin-portal` as its login theme so it imports on
+any Keycloak, including production images without the opt-in themes; the
+Architect's `npm run dev` and both test suites switch it to `sequent-ui-architect`
+when the server has that theme (`keycloak prepare` + `keycloak mount`).
+The gate, the Delivery contract and the one-command local loop are documented in
+beyond's `packages/election-architect/gateway/README.md`.
+
+```sh
+cd packages/keycloak-ui
+yarn test:story 'LoginUsername.stories.tsx'
+# Real Keycloak with the built themes (prepare --runtime built):
+KEYCLOAK_UI_URL=http://127.0.0.1:8090 yarn test:real tests/architect-realm.spec.ts
+```
+
+The real test creates a disposable copy of the realm with a random test-mode
+code and covers the username-first page, email-code sign-in, a wrong code,
+denial without the role, an unknown address and Spanish.

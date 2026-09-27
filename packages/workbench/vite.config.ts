@@ -9,6 +9,7 @@ import {fileURLToPath} from "node:url"
 import {defineConfig, type Plugin} from "vite"
 import react from "@vitejs/plugin-react"
 import {sequentCoreViteAlias} from "../ui-core/sequent-core-dev.cjs"
+import {VOTER_WORDING_FILE, voterWordingKeys} from "./src/voterWording"
 
 const packages = fileURLToPath(new URL("..", import.meta.url))
 const sourceEntry = (workspace: string) => join(packages, workspace, "src/index.tsx")
@@ -54,6 +55,21 @@ function sequentCoreBuild(sequentCore: string): Plugin {
     }
 }
 
+/** Writes the voter preview's wording keys beside `embed.html`; see `voterWording.ts`. */
+function voterWording(): Plugin {
+    return {
+        name: "workbench-voter-wording",
+        apply: "build",
+        generateBundle() {
+            this.emitFile({
+                type: "asset",
+                fileName: VOTER_WORDING_FILE,
+                source: `${JSON.stringify({keys: voterWordingKeys()}, null, 2)}\n`,
+            })
+        },
+    }
+}
+
 const port = Number(process.env.WORKBENCH_PORT ?? 5173)
 
 export default defineConfig(({command}) => {
@@ -73,7 +89,10 @@ export default defineConfig(({command}) => {
     )
 
     return {
-        plugins: [react(), sequentCoreBuild(sequentCore)],
+        // Relative in builds, so the output can be served below any path, e.g. by the
+        // Election Architect, which frames `embed.html`.
+        base: command === "build" ? "./" : "/",
+        plugins: [react(), sequentCoreBuild(sequentCore), voterWording()],
         envPrefix: "WORKBENCH_",
         resolve: {
             dedupe: ["react", "react-dom"],
@@ -98,6 +117,16 @@ export default defineConfig(({command}) => {
             watch: {ignored: ["!**/node_modules/sequent-core/**"]},
         },
         preview: {host: "127.0.0.1", port, strictPort: true},
-        build: {sourcemap: true, chunkSizeWarningLimit: 8000},
+        build: {
+            sourcemap: true,
+            chunkSizeWarningLimit: 8000,
+            // The workbench, and the voter preview other tools embed (see embed.tsx).
+            rollupOptions: {
+                input: {
+                    main: fileURLToPath(new URL("index.html", import.meta.url)),
+                    embed: fileURLToPath(new URL("embed.html", import.meta.url)),
+                },
+            },
+        },
     }
 })

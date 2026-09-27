@@ -22,7 +22,11 @@ import {
     type EncryptForReview,
 } from "./session"
 
-jest.mock("@sequentech/ui-essentials", () => ({Loader: () => null}))
+jest.mock("@sequentech/ui-essentials", () => ({
+    // ElectionConfigService re-exports the shared presentation helpers.
+    ...jest.requireActual("../../../ui-essentials/src/ballot/presentation"),
+    Loader: () => null,
+}))
 // sequent-core decides this; the tests only need to tell the two contest kinds apart.
 jest.mock("../services/BallotService", () => ({
     provideBallotService: () => ({

@@ -20,6 +20,10 @@ import type {PreviewSession} from "./session"
 import {VoterPreview} from "./VoterPreview"
 
 jest.mock("@sequentech/ui-essentials", () => ({
+    // ElectionConfigService re-exports the shared presentation helpers.
+    ...jest.requireActual("../../../ui-essentials/src/ballot/presentation"),
+    ...jest.requireActual("../../../ui-essentials/src/ballot/engine"),
+    ...jest.requireActual("../../../ui-essentials/src/ballot/selection"),
     Loader: () => <div role="progressbar" />,
     theme: jest.requireActual("../../../ui-essentials/src/services/theme").default,
 }))
@@ -38,12 +42,13 @@ jest.mock("../hooks/useEncryptBallotForReview", () => ({
 jest.mock("../services/BallotService", () => ({
     provideBallotService: () => ({isPreferential: () => false}),
 }))
+const mockI18n = {language: "en", changeLanguage: jest.fn()}
 jest.mock("react-i18next", () => ({
-    useTranslation: () => ({t: (key: string) => key}),
+    useTranslation: () => ({t: (key: string) => key, i18n: mockI18n}),
 }))
 
 function Probe() {
-    const {globalSettings} = useContext(SettingsContext)
+    const {globalSettings, defaultLanguageTouched} = useContext(SettingsContext)
     const auth = useContext(AuthContext)
     const elections = useAppSelector((state) => Object.keys(state.elections))
     const alice = useAppSelector(
@@ -54,6 +59,7 @@ function Probe() {
             <output aria-label="probe">
                 {JSON.stringify({
                     disableAuth: globalSettings.DISABLE_AUTH,
+                    languageTouched: defaultLanguageTouched,
                     kiosk: auth.isKiosk(),
                     elections,
                     alice,
@@ -71,7 +77,10 @@ const session = (id: ScenarioId, screen = PreviewScreen.START): PreviewSession =
     screen,
 })
 
-beforeEach(() => mockEncrypt.mockReset().mockReturnValue(true))
+beforeEach(() => {
+    mockEncrypt.mockReset().mockReturnValue(true)
+    mockI18n.changeLanguage.mockReset()
+})
 
 test("screens render once the snapshot is in the production store", async () => {
     render(
@@ -81,6 +90,7 @@ test("screens render once the snapshot is in the production store", async () => 
     )
     expect(await probe()).toEqual({
         disableAuth: true,
+        languageTouched: false,
         kiosk: false,
         elections: [IDS.election],
         alice: -1,
@@ -156,6 +166,34 @@ test("a snapshot the portal rejects is reported instead of the screens", async (
             "errors.configuration.multipleExplicitInvalidCandidates"
     )
     expect(screen.queryByLabelText("probe")).toBeNull()
+})
+
+test("the host hears why a document could not be loaded", async () => {
+    const snapshot: ScenarioSnapshot = scenarioSnapshot(ScenarioId.SIMPLE_PLURALITY)
+    const [contest] = snapshot.preview.ballot_styles[0].contests
+    for (const candidate of contest.candidates as JsonObject[])
+        candidate.presentation = {is_explicit_invalid: true}
+    const onLoadError = jest.fn()
+    render(
+        <VoterPreview session={{snapshot, screen: PreviewScreen.VOTE}} onLoadError={onLoadError}>
+            <Probe />
+        </VoterPreview>
+    )
+    await screen.findByRole("alert")
+    expect(onLoadError).toHaveBeenCalledTimes(1)
+    expect(String(onLoadError.mock.calls[0][0])).toMatch(
+        /multipleExplicitInvalidCandidates|invalid/i
+    )
+})
+
+test("an explicit language is applied and wins over the event's default", async () => {
+    render(
+        <VoterPreview session={session(ScenarioId.SIMPLE_PLURALITY)} language="es">
+            <Probe />
+        </VoterPreview>
+    )
+    expect(await probe()).toMatchObject({languageTouched: true})
+    expect(mockI18n.changeLanguage).toHaveBeenCalledWith("es")
 })
 
 test("a screen that cannot be prepared is reported", async () => {

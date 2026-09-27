@@ -583,11 +583,39 @@ kind = "test"
 runner = "cargo"
 cost = "fast"
 cwd = "packages"
-command = "cargo test --locked -p sequent-core --features default_features,keycloak"
-focus = ["cargo", "test", "--locked", "-p", "sequent-core", "--features", "default_features,keycloak"]
+# Every election_config gate, or its builder, preview and archive suites never run.
+command = "cargo test --locked -p sequent-core --features keycloak,default_features,election_config_xlsx,election_config_templates,election_config_archive"
+focus = ["cargo", "test", "--locked", "-p", "sequent-core", "--features", "keycloak,default_features,election_config_xlsx,election_config_templates,election_config_archive"]
 workflows = ["tests.yml"]
 actions = ["setup-rust-tests", "setup-rust-cache"]
 paths = ["scripts/dev/rust_cache.py"]
+
+# The library must compile for each feature set a consumer asks for; a workspace
+# build unifies features and hides a mis-gated module or re-export.
+[[checks]]
+id = "feature-gates:sequent-core"
+units = ["sequent-core"]
+kind = "build"
+runner = "cargo"
+cost = "fast"
+cwd = "packages"
+command = "cargo check --locked -p sequent-core --lib && for features in default_features keycloak,default_features election_config_templates election_config_archive election_config_xlsx election_config_archive,election_config_xlsx wasmtest,default_features; do cargo check --locked -p sequent-core --lib --features \"$features\" || exit 1; done"
+workflows = ["tests.yml"]
+actions = ["setup-rust-tests", "setup-rust-cache"]
+paths = ["scripts/dev/rust_cache.py"]
+
+# The election-config WASM package (bundle schema, validator, workbook builder
+# for the Election Architect) is built from sequent-core with its own features.
+[[checks]]
+id = "wasm-build:election-config"
+units = ["sequent-core"]
+kind = "build"
+runner = "shell"
+cost = "slow"
+cwd = "packages/sequent-core"
+command = "../../.devcontainer/scripts/rebuild-election-config-wasm.sh"
+paths = [".devcontainer/scripts/rebuild-election-config-wasm.sh", ".devcontainer/scripts/wasm32-env-without-nix.sh"]
+workflows = ["build_wasm.yml"]
 
 [[checks]]
 id = "cargo-test:b4"

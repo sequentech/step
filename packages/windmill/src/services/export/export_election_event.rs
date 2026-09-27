@@ -28,13 +28,14 @@ use crate::types::documents::EDocuments;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::{Client as DbClient, Transaction};
 use futures::try_join;
+use sequent_core::election_config::emit::{plain_csv, MULTI_VALUE_SEPARATOR, REPORT_COLUMNS};
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::services::keycloak::KeycloakAdminClient;
 use sequent_core::services::s3;
 use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::temp_path::generate_temp_file;
 use sequent_core::types::hasura::core::{
-    Candidate, Contest, DocumentAnnotations, Election, KeysCeremony,
+    Candidate, Contest, DocumentAnnotations, Election, KeysCeremony, SupportMaterial,
 };
 use sequent_core::util::version::{DEV_APP_VERSION, ENV_VAR_APP_VERSION};
 use std::collections::HashMap;
@@ -144,6 +145,19 @@ pub async fn read_export_data(
         vec![]
     };
 
+    // The rows for the documents that travel. Without these an export was
+    // one-way: import it back and the tab is empty because nothing points at the
+    // uploads. A row goes exactly when its file does; see
+    // `export_support_materials`.
+    let export_support_materials = export_support_materials(
+        &transaction,
+        &tenant_id,
+        &election_event_id,
+        export_config.s3_files,
+        export_config.contains_voter_secrets,
+    )
+    .await?;
+
     let version =
         std::env::var(ENV_VAR_APP_VERSION).unwrap_or_else(|_| DEV_APP_VERSION.to_string());
 
@@ -162,6 +176,7 @@ pub async fn read_export_data(
         reports: export_reports,
         keys_ceremonies: Some(export_keys_ceremonies),
         applications: Some(export_applications),
+        support_materials: Some(export_support_materials),
         version,
     };
 
@@ -169,6 +184,56 @@ pub async fn read_export_data(
         process_event_images(&transaction, tenant_id, elections, contests, candidates).await?;
 
     Ok((import_election_event_schema, images_files_path))
+}
+
+/// The support material rows of the event, for the archive's JSON.
+///
+/// A row travels exactly when its document's file does, because import pairs
+/// the two through the replacement map:
+///
+/// * A file without its row fails the import in `process_s3_file`, since the
+///   file's document id is then missing from the map. So hidden materials'
+///   rows are included: their files are exported like any other.
+/// * A row without its file imports as a material pointing at a document that
+///   was never created, and nothing reports it. So a row whose document the
+///   archive leaves out is left out with it: every row with a document when the
+///   archive carries no `export_S3_files/` (`s3_files` off), and a row whose
+///   document is a voter-secret one in an export without voter secrets.
+///
+/// Both sides use `get_exportable_document_ids`, the set `process_export_zip`
+/// hands to `get_files_from_s3`.
+#[instrument(err, skip(transaction))]
+pub async fn export_support_materials(
+    transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    s3_files: bool,
+    include_voter_secrets: bool,
+) -> Result<Vec<SupportMaterial>> {
+    let exportable = if s3_files {
+        get_exportable_document_ids(
+            transaction,
+            tenant_id,
+            election_event_id,
+            include_voter_secrets,
+        )
+        .await
+        .context("Error retrieving the exportable documents for support materials")?
+    } else {
+        Default::default()
+    };
+    let materials =
+        crate::postgres::document::get_support_materials(transaction, tenant_id, election_event_id)
+            .await
+            .context("Error retrieving support materials for export")?;
+    // A material with no document has no file to lose, so it always travels.
+    Ok(materials
+        .into_iter()
+        .filter(|material| match material.document_id.as_deref() {
+            None => true,
+            Some(id) => exportable.contains(&id.to_ascii_lowercase()),
+        })
+        .collect())
 }
 
 #[instrument(err, skip(password))]
@@ -474,18 +539,12 @@ pub async fn process_export_zip(
         let temp_reports_file = NamedTempFile::new()
             .map_err(|e| anyhow!("Error creating temporary reports file: {e:?}"))?;
         {
-            let mut wtr = csv::Writer::from_writer(&temp_reports_file);
-            wtr.write_record(&[
-                "ID",
-                "Election ID",
-                "Report Type",
-                "Template Alias",
-                "Cron Config",
-                "Encryption Policy",
-                "Password",
-                "Permission Labels",
-            ])
-            .map_err(|e| anyhow!("Error writing CSV header: {e:?}"))?;
+            // Written through the shared emitter. The header used to read "ID",
+            // "Election ID", … — harmless, because `process_reports_file` skips it
+            // and reads by index, but it meant an export and a generated bundle
+            // differed on sight for no reason. REPORT_COLUMNS is the one name for
+            // this file's shape.
+            let mut rows: Vec<Vec<String>> = Vec::new();
             for report in reports_data {
                 let password = get_password(
                     &hasura_transaction,
@@ -496,7 +555,7 @@ pub async fn process_export_zip(
                 .await?
                 .unwrap_or("".to_string());
 
-                wtr.write_record(&[
+                rows.push(vec![
                     report.id.to_string(),
                     report.election_id.unwrap_or_default().to_string(),
                     report.report_type.to_string(),
@@ -505,12 +564,15 @@ pub async fn process_export_zip(
                         .map_err(|e| anyhow!("Error serializing cron config: {e:?}"))?,
                     report.encryption_policy.to_string(),
                     password,
-                    report.permission_label.unwrap_or_default().join("|"),
-                ])
-                .map_err(|e| anyhow!("Error writing CSV record: {e:?}"))?;
+                    report
+                        .permission_label
+                        .unwrap_or_default()
+                        .join(MULTI_VALUE_SEPARATOR),
+                ]);
             }
-            wtr.flush()
-                .map_err(|e| anyhow!("Error flushing CSV writer: {e:?}"))?;
+
+            std::fs::write(temp_reports_file.path(), plain_csv(REPORT_COLUMNS, &rows))
+                .map_err(|e| anyhow!("Error writing reports CSV: {e:?}"))?;
         }
         let mut reports_file = File::open(temp_reports_file.path())
             .map_err(|e| anyhow!("Error opening temporary reports file: {e:?}"))?;

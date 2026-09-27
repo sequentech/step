@@ -33,12 +33,25 @@ export interface PreviewTarget {
     electionId?: string
 }
 
-/** Where a snapshot's screens live: its event and the first election of its area. */
-export function previewTarget(snapshot: ScenarioSnapshot): PreviewTarget {
-    const style = snapshot.preview.ballot_styles.find(({area_id}) => area_id === snapshot.areaId)
+/**
+ * What a preview renders: a publication preview document, the voter's area and channel.
+ * Scenario snapshots are sources; so is a document another tool sends to the embed.
+ */
+export type PreviewSource = Pick<
+    ScenarioSnapshot,
+    "tenantId" | "areaId" | "channel" | "preview"
+> & {
+    /** The election whose screens open; by default the area's first. */
+    electionId?: string
+}
+
+/** Where a source's screens live: its event and its election, or its area's first. */
+export function previewTarget(source: PreviewSource): PreviewTarget {
+    const styles = source.preview.ballot_styles.filter(({area_id}) => area_id === source.areaId)
+    const style = styles.find(({election_id}) => election_id === source.electionId) ?? styles.at(0)
     return {
-        tenantId: snapshot.tenantId,
-        eventId: snapshot.preview.election_event.id,
+        tenantId: source.tenantId,
+        eventId: source.preview.election_event.id,
         electionId: style?.election_id,
     }
 }
@@ -54,6 +67,15 @@ export function previewScreenPath(target: PreviewTarget, screen: PreviewScreen) 
         ":electionId",
         target.electionId ?? ""
     )}`
+}
+
+/** The production URL of a session's screen, or the chooser when its area has no election. */
+export function previewSessionPath(source: PreviewSource, screen: PreviewScreen) {
+    const target = previewTarget(source)
+    return (
+        previewScreenPath(target, screen) ??
+        `/tenant/${target.tenantId}/event/${target.eventId}/${SCREEN_ROUTES[PreviewScreen.CHOOSER]}`
+    )
 }
 
 /** The screen a production pathname shows, if it is one of the preview screens. */

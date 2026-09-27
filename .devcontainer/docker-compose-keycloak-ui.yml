@@ -19,3 +19,10 @@ services:
         bind:
           create_host_path: false
           selinux: z
+      - type: bind
+        source: ${LOCAL_WORKSPACE_FOLDER:-..}/.cache/keycloak-ui/themes/sequent-ui-architect
+        target: /opt/keycloak/themes/sequent-ui-architect
+        read_only: true
+        bind:
+          create_host_path: false
+          selinux: z

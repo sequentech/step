@@ -35,6 +35,8 @@ export interface CreateFlowOptions {
     createFailure?: boolean
     /** The import check's error for the uploaded file, if it rejects it. */
     importError?: string
+    /** The named problems the import check sends beside `importError`. */
+    importProblems?: unknown[]
 }
 
 export interface CreateFlow {
@@ -51,6 +53,7 @@ export function createFlow({
     reads = "records",
     createFailure = false,
     importError,
+    importProblems,
 }: CreateFlowOptions = {}): CreateFlow {
     const data = resourceBoundary(
         {sequent_backend_tenant: [tenantRecord], sequent_backend_election_event: events},
@@ -80,6 +83,7 @@ export function createFlow({
                                   id: null,
                                   message: null,
                                   error: importError,
+                                  problems: importProblems ?? null,
                                   task_execution: null,
                               },
                           },

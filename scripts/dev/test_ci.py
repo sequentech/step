@@ -112,6 +112,24 @@ class PlanTests(unittest.TestCase):
         self.assertIn("sequent-core", [row["service"] for row in plan["rust"]])
         self.assertEqual(plan["builds"], [])
 
+    def test_election_config_selects_feature_gates_and_every_gate_test(self):
+        plan = self.plan("packages/sequent-core/src/election_config/validate.rs")
+        self.assertTrue(plan["jobs"]["feature-gates"])
+        rust = {row["service"]: row["extra"] for row in plan["rust"]}
+        self.assertIn("step-cli", rust)
+        for feature in (
+            "election_config_xlsx",
+            "election_config_templates",
+            "election_config_archive",
+        ):
+            self.assertIn(feature, rust["sequent-core"])
+        self.assertFalse(plan["jobs"]["frontend-ui"])
+
+    def test_step_cli_builder_does_not_check_core_gates(self):
+        plan = self.plan("packages/step-cli/src/commands/build_election_event.rs")
+        self.assertEqual([row["service"] for row in plan["rust"]], ["step-cli"])
+        self.assertFalse(plan["jobs"]["feature-gates"])
+
     def test_packaged_wasm_change_selects_consumers(self):
         plan = self.plan("packages/ui-core/rust/sequent-core-0.1.0.tgz")
         self.assertTrue(plan["jobs"]["wasm-freshness"])

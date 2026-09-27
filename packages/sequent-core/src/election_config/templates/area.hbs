@@ -1,0 +1,23 @@
+{{!--
+SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+SPDX-License-Identifier: AGPL-3.0-only
+
+Base area.  parent_id is resolved from the workbook's parent.external_id column
+and merged in; a top-level area leaves it null.
+--}}
+{
+    "id": "{{id}}",
+    "tenant_id": "{{tenant_id}}",
+    "election_event_id": "{{election_event_id}}",
+    "created_at": "{{created_at}}",
+    "last_updated_at": "{{created_at}}",
+    "labels": null,
+    "annotations": null,
+    "name": "",
+    "description": "",
+    "type": null,
+    "parent_id": null,
+    "presentation": {
+        "allow_early_voting": "no_early_voting"
+    }
+}

@@ -1,0 +1,137 @@
+[
+  {
+    "name": "sound",
+    "why": "The base, unchanged. If this ever reports anything, the rest of the suite is measuring the wrong thing.",
+    "patch": {},
+    "expect": {"errors": [], "warnings": []}
+  },
+  {
+    "name": "contest-names-no-election",
+    "why": "A contest whose election_id is not in the bundle. The commonest authoring mistake, and the importer would fail on it mid-transaction.",
+    "patch": {
+      "contests": [
+        {
+          "id": "c1000000-0000-5000-8000-000000000000",
+          "tenant_id": "11111111-1111-4111-8111-111111111111",
+          "election_event_id": "e0000000-0000-5000-8000-000000000000",
+          "election_id": "e9000000-0000-5000-8000-000000000000",
+          "external_id": "president",
+          "min_votes": 0,
+          "max_votes": 1,
+          "winning_candidates_num": 1,
+          "voting_type": "non-preferential",
+          "counting_algorithm": "plurality-at-large"
+        }
+      ]
+    },
+    "expect": {"errors": ["dangling_reference"], "warnings": []}
+  },
+  {
+    "name": "two-elections-one-id",
+    "why": "Two entities sharing an id. One silently overwrites the other on import, and the event ends up missing an election nobody notices.",
+    "patch": {
+      "elections": [
+        {
+          "id": "e1000000-0000-5000-8000-000000000000",
+          "tenant_id": "11111111-1111-4111-8111-111111111111",
+          "election_event_id": "e0000000-0000-5000-8000-000000000000",
+          "external_id": "officers"
+        },
+        {
+          "id": "e1000000-0000-5000-8000-000000000000",
+          "tenant_id": "11111111-1111-4111-8111-111111111111",
+          "election_event_id": "e0000000-0000-5000-8000-000000000000",
+          "external_id": "delegates"
+        }
+      ]
+    },
+    "expect": {"errors": ["duplicate_id"], "warnings": []}
+  },
+  {
+    "name": "areas-in-a-loop",
+    "why": "Two areas each other's parent. Walking the tree to work out a voter's ballot would not terminate.",
+    "patch": {
+      "areas": [
+        {
+          "id": "a1000000-0000-5000-8000-000000000000",
+          "tenant_id": "11111111-1111-4111-8111-111111111111",
+          "election_event_id": "e0000000-0000-5000-8000-000000000000",
+          "name": "North Region",
+          "parent_id": "a2000000-0000-5000-8000-000000000000"
+        },
+        {
+          "id": "a2000000-0000-5000-8000-000000000000",
+          "tenant_id": "11111111-1111-4111-8111-111111111111",
+          "election_event_id": "e0000000-0000-5000-8000-000000000000",
+          "name": "North Local 1",
+          "parent_id": "a1000000-0000-5000-8000-000000000000"
+        }
+      ]
+    },
+    "expect": {"errors": ["area_cycle"], "warnings": []}
+  },
+  {
+    "name": "more-winners-than-candidates",
+    "why": "A contest electing five from a field of two. It imports and then cannot be tallied.",
+    "patch": {
+      "contests": [
+        {
+          "id": "c1000000-0000-5000-8000-000000000000",
+          "tenant_id": "11111111-1111-4111-8111-111111111111",
+          "election_event_id": "e0000000-0000-5000-8000-000000000000",
+          "election_id": "e1000000-0000-5000-8000-000000000000",
+          "external_id": "president",
+          "min_votes": 0,
+          "max_votes": 1,
+          "winning_candidates_num": 5,
+          "voting_type": "non-preferential",
+          "counting_algorithm": "plurality-at-large"
+        }
+      ]
+    },
+    "expect": {"errors": ["contest_arithmetic"], "warnings": []}
+  },
+  {
+    "name": "tally-disagrees-with-voting-type",
+    "why": "A preferential ballot counted by a plurality algorithm. Both values are individually valid, which is why nothing else catches it.",
+    "patch": {
+      "contests": [
+        {
+          "id": "c1000000-0000-5000-8000-000000000000",
+          "tenant_id": "11111111-1111-4111-8111-111111111111",
+          "election_event_id": "e0000000-0000-5000-8000-000000000000",
+          "election_id": "e1000000-0000-5000-8000-000000000000",
+          "external_id": "president",
+          "min_votes": 0,
+          "max_votes": 1,
+          "winning_candidates_num": 1,
+          "voting_type": "preferential",
+          "counting_algorithm": "plurality-at-large"
+        }
+      ]
+    },
+    "expect": {"errors": ["tally_mismatch"], "warnings": []}
+  },
+  {
+    "name": "nothing-on-any-ballot",
+    "why": "No area/contest links at all. A warning, not an error: an event still being configured looks exactly like this, and its export has to round trip for disaster recovery.",
+    "patch": {"area_contests": []},
+    "expect": {"errors": [], "warnings": ["ballot_coverage"]}
+  },
+  {
+    "name": "election-hidden-by-a-permission-label",
+    "why": "The one that cost a real import. A labelled election is invisible to every administrator without that label, so the event imports cleanly and the Elections list is empty.",
+    "patch": {
+      "elections": [
+        {
+          "id": "e1000000-0000-5000-8000-000000000000",
+          "tenant_id": "11111111-1111-4111-8111-111111111111",
+          "election_event_id": "e0000000-0000-5000-8000-000000000000",
+          "external_id": "officers",
+          "permission_label": "statewide-officers"
+        }
+      ]
+    },
+    "expect": {"errors": [], "warnings": ["permission_label"]}
+  }
+]

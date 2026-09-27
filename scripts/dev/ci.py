@@ -38,6 +38,12 @@ PORTALS = ("voting-portal", "results-portal", "ballot-verifier", "admin-portal")
 # Browser runners split these catalogues so that each stays well inside the
 # job timeout; admin-portal has about 250 story files.
 STORY_SHARDS = {"admin-portal": 3}
+# Every sequent-core feature gate whose tests only run when named: the
+# election_config builder, preview and archive suites.
+SEQUENT_CORE_FEATURES = (
+    "keycloak,default_features,election_config_xlsx,"
+    "election_config_templates,election_config_archive"
+)
 PYTHON = (
     "python:scripts-dev",
     "python:scripts-coverage",
@@ -69,7 +75,7 @@ def matrices(selection: Selection) -> dict[str, object]:
     rust = [
         {
             "service": package,
-            "extra": "--features keycloak,default_features"
+            "extra": f"--features {SEQUENT_CORE_FEATURES}"
             if package == "sequent-core"
             else "",
         }
@@ -132,6 +138,7 @@ def matrices(selection: Selection) -> dict[str, object]:
         ),
     }
     jobs = {
+        "feature-gates": "feature-gates:sequent-core" in selected,
         "run-tests": bool(rust),
         "run-windmill-tests": "cargo-test:windmill" in selected,
         "run-frontend-tests": bool(node),

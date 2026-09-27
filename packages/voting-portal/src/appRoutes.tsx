@@ -12,6 +12,7 @@ import {action as castBallotAction} from "./routes/ReviewScreen"
 import TenantEvent from "./routes/TenantEvent"
 import PublishedBallot from "./routes/PublishedBallot"
 import PreviewPublicationEvent from "./routes/PreviewPublicationEvent"
+import PreviewFromFile from "./routes/PreviewFromFile"
 import ElectionSelectionScreen from "./routes/ElectionSelectionScreen"
 import LoginScreen from "./routes/LoginScreen"
 import RegisterScreen from "./routes/RegisterScreen"
@@ -133,6 +134,12 @@ export const appRoutes: RouteObject[] = [
         element: <App />,
         errorElement: <ErrorPage />,
         children: [
+            {
+                // Before the path-parameter route, so `file` is not read as
+                // a tenant id.
+                path: "/preview/file",
+                element: <PreviewFromFile />,
+            },
             {
                 path: "/preview/:tenantId/:documentId/:areaId/:publicationId",
                 element: <PreviewPublicationEvent />,

@@ -763,6 +763,7 @@ const englishTranslation = {
                         credentials: 'The valid voter id and pin are "123" and "123".',
                     },
                     sendDtmf: "Send DTMF input",
+                    keypadInput: "Keypad input",
                     sendTimeout: "Send timeout",
                     disconnected: "Disconnected",
                     startSession: "Start new session",

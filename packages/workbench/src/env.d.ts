@@ -12,3 +12,8 @@ declare module "virtual:workbench/sequent-core" {
     const info: import("./sequentCore").SequentCoreInfo
     export default info
 }
+
+declare module "virtual:problem-translations" {
+    const catalogues: Record<string, {problems: Record<string, unknown>}>
+    export default catalogues
+}

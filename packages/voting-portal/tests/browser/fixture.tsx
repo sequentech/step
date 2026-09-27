@@ -10,7 +10,8 @@ import i18next from "i18next"
 import {I18nextProvider} from "react-i18next"
 import {ECollapsibleLists, initCore, type BallotSelection} from "@sequentech/ui-core"
 import theme from "../../../ui-essentials/src/services/theme"
-import {Question} from "../../src/components/Question/Question"
+import {Question} from "../../../ui-essentials/src/ballot/Question"
+import {BallotSelectionAdapter} from "../../src/components/BallotSelectionAdapter"
 import {ELECTION_WITH_INVALID} from "../../src/fixtures/election"
 import {store} from "../../src/store/store"
 import {resetBallotSelection} from "../../src/store/ballotSelections/ballotSelectionsSlice"
@@ -81,13 +82,15 @@ async function start() {
                     <ThemeProvider theme={theme}>
                         <main>
                             <h1>Voting Portal browser integration</h1>
-                            <Question
-                                ballotStyle={style}
-                                question={question}
-                                isReview={false}
-                                setDecodedContests={() => {}}
-                                errorSelectionState={[]}
-                            />
+                            <BallotSelectionAdapter>
+                                <Question
+                                    ballotStyle={style}
+                                    question={question}
+                                    isReview={false}
+                                    setDecodedContests={() => {}}
+                                    errorSelectionState={[]}
+                                />
+                            </BallotSelectionAdapter>
                         </main>
                     </ThemeProvider>
                 </MemoryRouter>

@@ -263,6 +263,53 @@ pub async fn get_support_material_documents(
     Ok(Some(documents))
 }
 
+/// Every support material row of an election event, hidden ones included.
+#[instrument(err, skip(hasura_transaction))]
+pub async fn get_support_materials(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+) -> Result<Vec<SupportMaterial>> {
+    let tenant_uuid =
+        parse_uuid_v4(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
+    let election_event_uuid = parse_uuid_v4(election_event_id)
+        .with_context(|| "Error parsing election_event_id as UUID")?;
+
+    let rows: Vec<Row> = hasura_transaction
+        .query(
+            r#"
+            SELECT
+                id, created_at, last_updated_at, kind, data, tenant_id,
+                election_event_id, labels, annotations, document_id, is_hidden
+            FROM "sequent_backend".support_material
+            WHERE tenant_id = $1 AND election_event_id = $2
+            ORDER BY id;
+            "#,
+            &[&tenant_uuid, &election_event_uuid],
+        )
+        .await
+        .map_err(|err| anyhow!("Error running the get_support_materials query: {err}"))?;
+
+    rows.into_iter()
+        .map(|row| -> Result<SupportMaterial> {
+            Ok(SupportMaterial {
+                id: row.try_get::<_, Uuid>("id")?.to_string(),
+                created_at: row.try_get("created_at")?,
+                last_updated_at: row.try_get("last_updated_at")?,
+                kind: row.try_get("kind")?,
+                data: row.try_get("data")?,
+                tenant_id: row.try_get::<_, Uuid>("tenant_id")?.to_string(),
+                election_event_id: row.try_get::<_, Uuid>("election_event_id")?.to_string(),
+                labels: row.try_get("labels")?,
+                annotations: row.try_get("annotations")?,
+                document_id: row.try_get("document_id")?,
+                is_hidden: row.try_get("is_hidden")?,
+            })
+        })
+        .collect::<Result<Vec<_>>>()
+        .with_context(|| "Error converting rows into support materials")
+}
+
 #[instrument(err, skip(hasura_transaction))]
 pub async fn insert_document(
     hasura_transaction: &Transaction<'_>,
@@ -379,4 +426,85 @@ pub async fn insert_document_with_annotations(
         .get(0)
         .map(|val| val.clone())
         .ok_or(anyhow!("Row not inserted"))
+}
+
+/// Insert the support materials a bundle carries.
+///
+/// Their *files* have always imported — `export_S3_files/` members become
+/// `document` rows through `process_s3_file` — and without these rows those
+/// uploads are orphans: the documents exist, the tab is empty, and nothing says
+/// why. See `engineering/how-a-support-material-travels-in-a-bundle` in beyond.
+///
+/// Ids, tenant and event have already been remapped by `replace_ids`, so they are
+/// written as given. `document_id` is deliberately **not** a foreign-key insert
+/// here: the document row is created later, when the archive member is processed,
+/// and the column carries the identifier the replacement map guarantees will exist.
+#[instrument(err, skip(hasura_transaction, materials))]
+pub async fn insert_support_materials(
+    hasura_transaction: &Transaction<'_>,
+    materials: &[SupportMaterial],
+) -> Result<()> {
+    if materials.is_empty() {
+        return Ok(());
+    }
+
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                INSERT INTO
+                    sequent_backend.support_material
+                (
+                    id,
+                    tenant_id,
+                    election_event_id,
+                    document_id,
+                    kind,
+                    data,
+                    labels,
+                    annotations,
+                    is_hidden,
+                    created_at,
+                    last_updated_at
+                )
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW());
+            "#,
+        )
+        .await
+        .with_context(|| "Error preparing the insert_support_materials query")?;
+
+    for material in materials {
+        let id = parse_uuid_v4(&material.id)
+            .with_context(|| format!("Error parsing support material id {}", material.id))?;
+        let tenant_id = parse_uuid_v4(&material.tenant_id)
+            .with_context(|| "Error parsing support material tenant_id")?;
+        let election_event_id = parse_uuid_v4(&material.election_event_id)
+            .with_context(|| "Error parsing support material election_event_id")?;
+        // The column is `text`, so the validated identifier is bound as a string.
+        let document_id = material
+            .document_id
+            .as_deref()
+            .map(|id| parse_uuid_v4(id).map(|uuid| uuid.to_string()))
+            .transpose()
+            .with_context(|| "Error parsing support material document_id")?;
+
+        hasura_transaction
+            .execute(
+                &statement,
+                &[
+                    &id,
+                    &tenant_id,
+                    &election_event_id,
+                    &document_id,
+                    &material.kind,
+                    &material.data,
+                    &material.labels,
+                    &material.annotations,
+                    &material.is_hidden.unwrap_or(false),
+                ],
+            )
+            .await
+            .with_context(|| format!("Error inserting support material {}", material.id))?;
+    }
+
+    Ok(())
 }

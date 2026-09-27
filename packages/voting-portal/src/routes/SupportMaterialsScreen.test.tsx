@@ -28,6 +28,10 @@ jest.mock("react-i18next", () => ({
     useTranslation: () => ({t: (key: string) => key, i18n: {language: "en"}}),
 }))
 jest.mock("@sequentech/ui-essentials", () => ({
+    // ElectionConfigService re-exports the shared presentation helpers.
+    ...jest.requireActual("../../../ui-essentials/src/ballot/presentation"),
+    ...jest.requireActual("../../../ui-essentials/src/ballot/SupportMaterialsLayout"),
+    ...jest.requireActual("../../../ui-essentials/src/ballot/ElectionListLayout"),
     SelectElection: ({
         isActive,
         isOpen,

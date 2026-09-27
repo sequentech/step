@@ -71,10 +71,11 @@ EDITS: dict[str, EditSpec] = {
         anchor='<Version version={appVersion ?? {main: "0.0.0"}} />',
         template="<span>{marker}</span>",
     ),
-    # The voting portal's first authenticated screen.
+    # The voting portal's first authenticated screen. Its title is drawn by the
+    # shared ElectionListLayout; the help button beside it is the portal's own.
     "voting-screen": EditSpec(
         path="packages/voting-portal/src/routes/ElectionSelectionScreen.tsx",
-        anchor='{t("electionSelectionScreen.title")}',
+        anchor="<IconButton",
         template="<span>{marker}</span>",
     ),
 }

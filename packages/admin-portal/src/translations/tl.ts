@@ -770,6 +770,7 @@ const tagalogTranslation: TranslationType = {
                         credentials: 'Ang valid na voter ID at PIN ay "123" at "123".',
                     },
                     sendDtmf: "Magpadala ng DTMF input",
+                    keypadInput: "Input sa keypad",
                     sendTimeout: "Magpadala ng timeout",
                     disconnected: "Nadiskonekta",
                     startSession: "Magsimula ng bagong session",

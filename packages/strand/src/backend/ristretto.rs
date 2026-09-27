@@ -800,4 +800,93 @@ mod tests {
         let ctx = RistrettoCtx;
         test_cp_borsh_generic(&ctx);
     }
+
+    /// Ristretto is a prime-order group written additively, so the reductions
+    /// are identities and the multiplicative names map onto point addition and
+    /// scalar multiplication. These laws are what the generic protocols rely
+    /// on; each one is checked through the trait the protocols call.
+    #[test]
+    fn test_group_laws_through_the_traits() {
+        let ctx = RistrettoCtx;
+        let mut rng = ctx.get_rng();
+        let a = ctx.rnd(&mut rng);
+        let b = ctx.rnd(&mut rng);
+        let x = ctx.rnd_exp(&mut rng);
+        let y = ctx.rnd_exp(&mut rng);
+        let modulus = ctx.generator().clone();
+        let one_e = <RistrettoPointS as Element<RistrettoCtx>>::mul_identity();
+        let one_x = <ScalarS as Exponent<RistrettoCtx>>::mul_identity();
+        let zero_x = <ScalarS as Exponent<RistrettoCtx>>::add_identity();
+
+        // Two independent draws differ; equal ones would mean a broken rng.
+        assert_ne!(a, b);
+        assert_ne!(x, y);
+
+        // Reductions are identities in a prime-order group.
+        assert_eq!(Ctx::modulo(&ctx, &a), a);
+        assert_eq!(ctx.exp_modulo(&x), x);
+        assert_eq!(Element::modulo(&a, &modulus), a);
+        assert_eq!(a.modp(&ctx), a);
+        assert_eq!(Exponent::modulo(&x, &x), x);
+        assert_eq!(x.modq(&ctx), x);
+
+        // Element "multiplication" and its inverse.
+        assert_eq!(Element::mul(&a, &one_e), a);
+        assert_eq!(Element::mul(&a, &Element::inv(&a, &modulus)), one_e);
+        assert_eq!(a.invp(&ctx), Element::inv(&a, &modulus));
+        assert_eq!(Element::mul(&Element::div(&a, &b, &modulus), &b), a);
+        assert_eq!(a.divp(&b, &ctx), Element::div(&a, &b, &modulus));
+
+        // Exponentiation agrees with the context and with the generator table.
+        assert_eq!(a.mod_pow(&x, &modulus), ctx.emod_pow(&a, &x));
+        assert_eq!(ctx.generator().mod_pow(&x, &modulus), ctx.gmod_pow(&x));
+        assert_eq!(a.mod_pow(&one_x, &modulus), a);
+        // (a^x)^y = a^(xy)
+        assert_eq!(
+            a.mod_pow(&x, &modulus).mod_pow(&y, &modulus),
+            a.mod_pow(&Exponent::mul(&x, &y), &modulus)
+        );
+
+        // Scalar field arithmetic.
+        assert_eq!(Exponent::add(&x, &zero_x), x);
+        assert_eq!(Exponent::sub(&x, &x), zero_x);
+        assert_eq!(x.sub_mod(&y, &ctx), Exponent::sub(&x, &y));
+        assert_eq!(ctx.exp_sub_mod(&x, &y), Exponent::sub(&x, &y));
+        assert_eq!(Exponent::add(&Exponent::sub(&x, &y), &y), x);
+        assert_eq!(Exponent::mul(&x, &Exponent::inv(&x, &x)), one_x);
+        assert_eq!(x.invq(&ctx), Exponent::inv(&x, &x));
+        assert_eq!(Exponent::mul(&Exponent::div(&x, &y, &y), &y), x);
+        assert_eq!(x.divq(&y, &ctx), Exponent::div(&x, &y, &y));
+    }
+
+    #[test]
+    fn test_rejects_malformed_bytes() {
+        let ctx = RistrettoCtx;
+        // Wrong length for a compressed point or a scalar.
+        assert!(ctx.element_from_bytes(&[0u8; 31]).is_err());
+        assert!(ctx.exp_from_bytes(&[0u8; 33]).is_err());
+        // Right length, but not a valid encoding.
+        assert!(ctx.element_from_bytes(&[0xffu8; 32]).is_err());
+        assert!(ctx.exp_from_bytes(&[0xffu8; 32]).is_err());
+        // Borsh decoding performs the same membership checks.
+        assert!(RistrettoPointS::strand_deserialize(&[0xffu8; 32]).is_err());
+        assert!(ScalarS::strand_deserialize(&[0xffu8; 32]).is_err());
+    }
+
+    #[test]
+    fn test_decrypt_exp_requires_two_ciphertexts() {
+        let ctx = RistrettoCtx;
+        let exp = ctx.rnd_exp(&mut ctx.get_rng());
+        let sk = PrivateKey::gen(&ctx);
+        let bytes = ctx.encrypt_exp(&exp, sk.get_pk()).unwrap();
+        assert_eq!(ctx.decrypt_exp(&bytes, sk).unwrap(), exp);
+
+        let sk = PrivateKey::gen(&ctx);
+        let plaintext = ctx.rnd_plaintext(&mut ctx.get_rng());
+        let one = vec![sk.get_pk().encrypt(&ctx.encode(&plaintext).unwrap())];
+        let error = ctx
+            .decrypt_exp(&one.strand_serialize().unwrap(), sk)
+            .unwrap_err();
+        assert!(error.to_string().contains("length 2"), "{error}");
+    }
 }

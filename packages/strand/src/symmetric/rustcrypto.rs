@@ -27,12 +27,13 @@
 
 use borsh::{BorshDeserialize, BorshSerialize};
 use chacha20poly1305::{
-    aead::{Aead, AeadCore, KeyInit},
+    aead::{Aead, Generate, Key, KeyInit},
     consts::{U12, U32},
-    ChaCha20Poly1305,
+    ChaCha20Poly1305, Nonce,
 };
 use hybrid_array::Array;
 
+use crate::rng::StrandRng;
 use crate::util::StrandError;
 
 pub type SymmetricKey = Array<u8, U32>;
@@ -55,8 +56,12 @@ impl EncryptionData {
 }
 
 pub fn gen_key() -> Array<u8, U32> {
-    let key = chacha20poly1305::ChaCha20Poly1305::generate_key().unwrap();
-    key
+    // `generate_key` took no argument and returned a `Result` while
+    // chacha20poly1305 was at `0.11.0-rc.2`; the released 0.11 takes the rng and
+    // is infallible. Handed `StrandRng` rather than the crate's ambient
+    // `getrandom` so this stays on strand's single source of randomness — the
+    // same `OsRng`, reached the way the rest of this crate reaches it.
+    Key::<ChaCha20Poly1305>::generate_from_rng(&mut StrandRng)
 }
 pub fn encrypt(
     key: Array<u8, U32>,
@@ -65,7 +70,11 @@ pub fn encrypt(
     // https://docs.rs/chacha20poly1305/latest/chacha20poly1305/trait.AeadCore.html#method.generate_nonce
     // 4,294,967,296 messages with random nonces can be encrypted under a given
     // key
-    let nonce = ChaCha20Poly1305::generate_nonce().unwrap();
+    // `ChaCha20Poly1305::generate_nonce()` is gone in 0.11; a nonce is generated
+    // through `Generate`, which is the trait the released crate gives every
+    // randomly-produced value. Same rng, same size — `AeadCore` still says what
+    // that size is.
+    let nonce = Nonce::generate_from_rng(&mut StrandRng);
     let cipher = ChaCha20Poly1305::new(&key);
     let encrypted = cipher
         .encrypt(&nonce, data)

@@ -3,17 +3,16 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import {getPublishedSupportMaterialsPolicy} from "../services/PublishedBallots"
-import {Alert, Box, Button, Checkbox, FormControlLabel, Typography} from "@mui/material"
+import {Alert, Box, Button, Checkbox, FormControlLabel} from "@mui/material"
 import React, {useContext, useEffect, useMemo, useState} from "react"
 import {useTranslation} from "react-i18next"
-import {PageLimit, theme} from "@sequentech/ui-essentials"
+import {SupportMaterialsLayout} from "@sequentech/ui-essentials"
 import {
     stringToHtml,
     translate,
     translateFromPresentation,
     ESupportMaterialsPolicy,
 } from "@sequentech/ui-core"
-import {styled} from "@mui/material/styles"
 import {TenantEventType} from ".."
 import {useAppDispatch, useAppSelector} from "../store/hooks"
 import {selectFirstBallotStyle} from "../store/ballotStyles/ballotStylesSlice"
@@ -38,25 +37,6 @@ import {GET_DOCUMENT} from "../queries/GetDocument"
 import {setDocument} from "../store/documents/documentsSlice"
 import {ACKNOWLEDGE_SUPPORT_MATERIALS} from "../queries/AcknowledgeSupportMaterials"
 import {GET_SUPPORT_MATERIALS_ACKNOWLEDGMENT} from "../queries/GetSupportMaterialsAcknowledgment"
-
-const StyledTitle = styled(Typography)`
-    margin-top: 25.5px;
-    display: flex;
-    flex-direction: row;
-    gap: 16px;
-    font-size: 24px;
-    font-weight: 500;
-    line-height: 27px;
-    margin-top: 20px;
-    margin-bottom: 16px;
-`
-
-const ElectionContainer = styled(Box)`
-    display: flex;
-    flex-direction: column;
-    gap: 30px;
-    margin-bottom: 30px;
-`
 
 interface ElectionWrapperProps {
     material: Sequent_Backend_Support_Material
@@ -196,51 +176,30 @@ const SupportMaterialsScreen: React.FC = () => {
     }
 
     return (
-        <PageLimit className="support-materials-screen screen" maxWidth="lg">
-            <Box className="stepper-box" marginTop="48px">
-                <Stepper selected={0} />
-            </Box>
-            <Box
-                className="support-materials-header"
-                sx={{
-                    display: "flex",
-                    flexDirection: "row",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    minHeight: "100px",
-                }}
-            >
-                <Box className="support-materials-heading">
-                    <StyledTitle className="screen-title" variant="h1">
-                        <Box className="screen-title-text">
-                            {materialsTitles &&
-                                (translateFromPresentation(
-                                    materialsTitles,
-                                    "materialsTitle",
-                                    i18n.language,
-                                    {defaultLanguageCode}
-                                ) ??
-                                    "-")}
-                        </Box>
-                    </StyledTitle>
-                    <Typography
-                        className="screen-description"
-                        variant="body1"
-                        component="div"
-                        sx={{color: theme.palette.customGrey.contrastText}}
-                    >
-                        {stringToHtml(
-                            materialsTitles
-                                ? (translateFromPresentation(
-                                      materialsTitles,
-                                      "materialsSubtitle",
-                                      i18n.language,
-                                      {defaultLanguageCode}
-                                  ) ?? "-")
-                                : ""
-                        )}
-                    </Typography>
-                </Box>
+        // The arrangement is `SupportMaterialsLayout`, in `ui-essentials`, so the
+        // Election Architect's preview shows this tab rather than a drawing of
+        // it. The Back control and the mandatory acknowledgement stay here
+        // because only this screen knows where back is and what to record.
+        <SupportMaterialsLayout
+            steps={<Stepper selected={0} />}
+            title={
+                materialsTitles
+                    ? (translateFromPresentation(materialsTitles, "materialsTitle", i18n.language, {
+                          defaultLanguageCode,
+                      }) ?? "-")
+                    : ""
+            }
+            subtitle={stringToHtml(
+                materialsTitles
+                    ? (translateFromPresentation(
+                          materialsTitles,
+                          "materialsSubtitle",
+                          i18n.language,
+                          {defaultLanguageCode}
+                      ) ?? "-")
+                    : ""
+            )}
+            back={
                 <Button
                     className="back-button"
                     startIcon={<ChevronLeftIcon className="back-button-icon" />}
@@ -248,16 +207,15 @@ const SupportMaterialsScreen: React.FC = () => {
                 >
                     {t("materials.common.back")}
                 </Button>
-            </Box>
-            <ElectionContainer className="support-materials-list">
-                {materialsList?.map((material: ISupportMaterial) => (
-                    <ElectionWrapper
-                        material={material as Sequent_Backend_Support_Material}
-                        key={material.id}
-                        onViewed={() => setViewedIds((prev) => new Set(prev).add(material.id))}
-                    />
-                ))}
-            </ElectionContainer>
+            }
+        >
+            {materialsList?.map((material: ISupportMaterial) => (
+                <ElectionWrapper
+                    material={material as Sequent_Backend_Support_Material}
+                    key={material.id}
+                    onViewed={() => setViewedIds((prev) => new Set(prev).add(material.id))}
+                />
+            ))}
             {isMandatory ? (
                 <Box className="materials-acknowledgement" sx={{marginTop: "20px"}}>
                     {acknowledgeError ? (
@@ -295,7 +253,7 @@ const SupportMaterialsScreen: React.FC = () => {
                     </Box>
                 </Box>
             ) : null}
-        </PageLimit>
+        </SupportMaterialsLayout>
     )
 }
 

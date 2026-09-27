@@ -771,6 +771,7 @@ const galegoTranslation: TranslationType = {
                             'O identificador de votante e o PIN válidos son "123" e "123".',
                     },
                     sendDtmf: "Enviar entrada DTMF",
+                    keypadInput: "Entrada do teclado",
                     sendTimeout: "Enviar tempo de espera",
                     disconnected: "Desconectado",
                     startSession: "Iniciar unha nova sesión",
