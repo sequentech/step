@@ -55,6 +55,13 @@ function applyUuidFilter(filter: Record<string, unknown>, field: string): void {
     }
 }
 
+const BOOLEAN_OPERATORS = ["_and", "_or", "_not"]
+
+const isRawQuery = (value: unknown): boolean =>
+    typeof value === "object" &&
+    value !== null &&
+    (value as {format?: unknown}).format === "hasura-raw-query"
+
 export const customBuildQuery =
     (introspectionResults: any) => (raFetchType: any, resourceName: any, params: any) => {
         let sort: ParamsSort | undefined | null = params.sort
@@ -69,6 +76,9 @@ export const customBuildQuery =
             let validFilters = COLUMNS_MAP[resourceName]
             if (validFilters) {
                 Object.keys(params.filter).forEach((f) => {
+                    // A boolean expression the portal builds itself, such as
+                    // the name search's `_or`, reaches Hasura unchanged.
+                    if (BOOLEAN_OPERATORS.includes(f) && isRawQuery(params.filter[f])) return
                     // ra-data-hasura reads `column@operator` keys, such as
                     // `name@_ilike`, and comma-joins several of them; each
                     // must name one of the table's columns.
