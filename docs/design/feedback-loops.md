@@ -397,8 +397,8 @@ received Lite reviews after runner timeouts. CodeRabbit reviewed phases 2 and 3;
   settings, defaults, mode and reproducibility. Admin tests pass (47 suites,
   362 tests, one run); two production builds with different synthetic private
   values have identical bytes in all 309 output files.
-- **Agent discovery**: `AGENTS.md` and the Claude entry point share the
-  `fast-feedback` skill, the developer guide and `step-dev` commands. Explicit
+- **Agent discovery**: `AGENTS.md` points to the `fast-feedback` skill, the
+  developer guide and `step-dev` commands. Explicit
   CLI help exits successfully, and shared UI edits no longer instruct agents to
   rebuild production libraries.
 
