@@ -112,6 +112,23 @@ fn a_language_the_call_cannot_speak_asks_for_nothing() {
 }
 
 #[test]
+fn a_three_letter_code_is_not_spoken_because_the_call_reads_it_as_unknown() {
+    // ivr-core parses languages with strum's `en`/`fr`/`es` only; `spa` is its
+    // `Language::Unknown`, skipped and never asked for prompts. Normalizing it here
+    // would refuse events the call accepts. The plan reports it as unspoken instead.
+    assert!(missing_in_annotations(
+        Some(FLOW),
+        Some(ENGLISH_ONLY),
+        &strings(&["en", "spa"]),
+    )
+    .is_empty());
+    assert_eq!(
+        unspoken_languages(&strings(&["eng", "spa", "es"])),
+        strings(&["eng", "spa"])
+    );
+}
+
+#[test]
 fn no_languages_means_english() {
     let missing =
         missing_prompts(&strings(&["greeting"]), &Prompts::new(), &Vec::new());
