@@ -11,7 +11,8 @@ title: Build, test and lint
 [software architecture reference](../../05-reference/03-software-architecture/intro.md)
 describes the components. For the edit, preview and focused-test loop use
 [Fast feedback loops](./fast-feedback.md); this page lists the underlying
-per-stack commands.
+per-stack commands. Run `scripts/dev/step-dev` from the repository root; each
+block below states its own working directory.
 
 ## Packages
 
@@ -59,9 +60,10 @@ A single command can run the same steps non-interactively:
 `devenv shell -- bash -c 'cd packages && CARGO_TARGET_DIR="$PWD/rust-local-target" cargo test -p <crate>'`.
 
 In `backend` and `full` modes Harvest, Windmill and beat already rebuild on
-change: run `scripts/dev/step-dev mode status` and read the checkout's service
-container logs before starting another compiler.
-`scripts/dev/step-dev test <crate> <test-name>` runs one focused test in the checkout's target directory.
+change: from the repository root, run `scripts/dev/step-dev mode status` and
+read the checkout's service container logs before starting another compiler.
+`scripts/dev/step-dev test <crate> <test-name>`, also from the root, runs one
+focused test in the checkout's target directory.
 
 ## TypeScript
 
@@ -82,8 +84,8 @@ those packages only for production builds and journeys.
 
 ### sequent-core WASM
 
-`scripts/dev/step-dev wasm` rebuilds the development artifact incrementally
-without reinstalling dependencies. `scripts/dev/step-dev wasm --status` reports
+From the repository root, `scripts/dev/step-dev wasm` rebuilds the development
+artifact incrementally without reinstalling dependencies. `scripts/dev/step-dev wasm --status` reports
 whether that published development build still matches the current sources;
 `python3 -m scripts.dev.wasm --check-package` (the `wasm-freshness` check)
 verifies the committed package archives. See
@@ -92,7 +94,7 @@ verifies the committed package archives. See
 ### GraphQL
 
 Portal queries live in each portal's `src/queries/`. After a query or schema
-change regenerate the types with `yarn generate:voting-portal`,
+change regenerate the types from `packages/` with `yarn generate:voting-portal`,
 `yarn generate:admin-portal`, `yarn generate:ballot-verifier` or
 `yarn generate:results-portal`. The VS Code task `update.graphql` refreshes
 `packages/admin-portal/graphql.schema.json`; Windmill's queries under
@@ -104,7 +106,7 @@ Change the Hasura schema and metadata through `hasura console`, never the web
 UI, so the console records migrations under `hasura/`:
 
 ```sh
-cd hasura
+cd hasura    # from the repository root
 hasura console --endpoint "http://graphql-engine:8080" --admin-secret "admin"
 ```
 
