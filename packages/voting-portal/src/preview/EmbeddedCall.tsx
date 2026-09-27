@@ -92,16 +92,28 @@ export const EmbeddedCall: React.FC<EmbeddedCallProps> = ({
         <ThemeProvider theme={theme}>
             <Box className="embedded-call" sx={{p: 2}}>
                 {loaded.state === "loading" ? (
-                    <Typography role="status" color="text.secondary">
+                    <Typography
+                        className="embedded-call-connecting"
+                        role="status"
+                        color="text.secondary"
+                    >
                         {labels.connecting}
                     </Typography>
                 ) : null}
                 {loaded.state === "absent" ? (
-                    <Typography role="status" color="text.secondary">
+                    <Typography
+                        className="embedded-call-absent"
+                        role="status"
+                        color="text.secondary"
+                    >
                         No telephone emulator is served at {request.emulatorUrl}.
                     </Typography>
                 ) : null}
-                {loaded.state === "broken" ? <Alert severity="error">{loaded.why}</Alert> : null}
+                {loaded.state === "broken" ? (
+                    <Alert className="embedded-call-broken" severity="error">
+                        {loaded.why}
+                    </Alert>
+                ) : null}
                 {api ? (
                     <IvrCall
                         start={() => new api.IvrEmulatorDriver(request.config)}
