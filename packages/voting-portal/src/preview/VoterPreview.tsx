@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {useLayoutEffect, useMemo, useState} from "react"
+import React, {useEffect, useLayoutEffect, useMemo, useState} from "react"
 import {Provider} from "react-redux"
 import {ApolloProvider} from "@apollo/client/react"
 import {Alert, AlertTitle, ThemeProvider} from "@mui/material"
@@ -22,6 +22,10 @@ export interface VoterPreviewProps extends React.PropsWithChildren {
     session: PreviewSession
     /** Receives the portal's logout calls, such as when no vote remains. */
     onLogout?: (redirectUrl?: string) => void
+    /** A voting portal language that wins over the event's default language. */
+    language?: string
+    /** Receives the reason the portal could not load the session's document. */
+    onLoadError?: (error: unknown) => void
 }
 
 const LoadError: React.FC<{error: unknown}> = ({error}) => {
@@ -40,10 +44,9 @@ const LoadError: React.FC<{error: unknown}> = ({error}) => {
     )
 }
 
-const SessionGate: React.FC<{session: PreviewSession} & React.PropsWithChildren> = ({
-    session,
-    children,
-}) => {
+const SessionGate: React.FC<
+    {session: PreviewSession; onLoadError?: (error: unknown) => void} & React.PropsWithChildren
+> = ({session, onLoadError, children}) => {
     const {encryptAndStoreBallot} = useEncryptBallotForReview()
     const [loaded, setLoaded] = useState<{session: PreviewSession; error?: unknown}>()
 
@@ -55,7 +58,9 @@ const SessionGate: React.FC<{session: PreviewSession} & React.PropsWithChildren>
             setLoaded({session})
         } catch (error) {
             setLoaded({session, error})
+            onLoadError?.(error)
         }
+        // The callback is read at load time only, so a new one does not reload the session.
     }, [session, encryptAndStoreBallot])
 
     if (loaded?.session !== session) return <Loader />
@@ -69,9 +74,24 @@ const SessionGate: React.FC<{session: PreviewSession} & React.PropsWithChildren>
  * that rejects every operation, the production WASM gate and Redux store. The snapshot
  * enters the store through the production preview loader; nothing is fetched.
  */
-export const VoterPreview: React.FC<VoterPreviewProps> = ({session, onLogout, children}) => {
+export const VoterPreview: React.FC<VoterPreviewProps> = ({
+    session,
+    onLogout,
+    language,
+    onLoadError,
+    children,
+}) => {
     const [client] = useState(createPreviewApolloClient)
-    const [defaultLanguageTouched, setDefaultLanguageTouched] = useState(false)
+    const {i18n} = useTranslation()
+    // An explicit language counts as the voter's choice, as a `lang` parameter does.
+    const [defaultLanguageTouched, setDefaultLanguageTouched] = useState(language !== undefined)
+
+    useEffect(() => {
+        if (language === undefined) return
+        setDefaultLanguageTouched(true)
+        if (i18n.language !== language) void i18n.changeLanguage(language)
+    }, [language, i18n])
+
     const settings = useMemo(
         () => ({
             loaded: true,
@@ -95,7 +115,9 @@ export const VoterPreview: React.FC<VoterPreviewProps> = ({session, onLogout, ch
                         <Provider store={store}>
                             <BallotSelectionAdapter>
                                 <WasmWrapper>
-                                    <SessionGate session={session}>{children}</SessionGate>
+                                    <SessionGate session={session} onLoadError={onLoadError}>
+                                        {children}
+                                    </SessionGate>
                                 </WasmWrapper>
                             </BallotSelectionAdapter>
                         </Provider>

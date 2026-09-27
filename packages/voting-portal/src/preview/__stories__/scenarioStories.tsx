@@ -12,6 +12,7 @@ import {
 } from "@sequentech/ui-test-kit/fixtures/scenarios"
 import type {VoterPreviewParameters} from "../../../.storybook/withVoterPreview"
 import {electionRoutes, tenantEventRoutes} from "../../appRoutes"
+import {PortalChrome} from "../../components/PortalChrome"
 import {ErrorPage} from "../../routes/ErrorPage"
 import {
     EVENT_ROUTE,
@@ -28,6 +29,8 @@ interface ScreenOptions {
     /** The screen prepared in the store; by default the rendered one. */
     prepared?: PreviewScreen
     snapshot?: VoterPreviewParameters["snapshot"]
+    /** Draws the portal chrome around the screen, as production and the embed do. */
+    chrome?: boolean
     play?: Play
 }
 
@@ -54,7 +57,7 @@ function productionRoute(screen: PreviewScreen) {
 export function screenStory(
     scenario: ScenarioId,
     screen: PreviewScreen,
-    {prepared = screen, snapshot, play}: ScreenOptions = {}
+    {prepared = screen, snapshot, chrome = false, play}: ScreenOptions = {}
 ): StoryObj {
     const {element, ...route} = productionRoute(screen)
     const base = scenarioSnapshot(scenario)
@@ -70,7 +73,12 @@ export function screenStory(
             },
         },
         loaders: [() => initCore()],
-        render: () => <main className="preview-screen-story">{element}</main>,
+        render: () =>
+            chrome ? (
+                <PortalChrome>{element}</PortalChrome>
+            ) : (
+                <main className="preview-screen-story">{element}</main>
+            ),
         play,
     }
 }

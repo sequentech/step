@@ -73,6 +73,9 @@ export default defineConfig(({command}) => {
     )
 
     return {
+        // Relative in builds, so the output can be served below any path, e.g. by the
+        // Election Architect, which frames `embed.html`.
+        base: command === "build" ? "./" : "/",
         plugins: [react(), sequentCoreBuild(sequentCore)],
         envPrefix: "WORKBENCH_",
         resolve: {
@@ -98,6 +101,16 @@ export default defineConfig(({command}) => {
             watch: {ignored: ["!**/node_modules/sequent-core/**"]},
         },
         preview: {host: "127.0.0.1", port, strictPort: true},
-        build: {sourcemap: true, chunkSizeWarningLimit: 8000},
+        build: {
+            sourcemap: true,
+            chunkSizeWarningLimit: 8000,
+            // The workbench, and the voter preview other tools embed (see embed.tsx).
+            rollupOptions: {
+                input: {
+                    main: fileURLToPath(new URL("index.html", import.meta.url)),
+                    embed: fileURLToPath(new URL("embed.html", import.meta.url)),
+                },
+            },
+        },
     }
 })
