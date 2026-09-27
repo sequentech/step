@@ -19,6 +19,7 @@ import type {IvrEmulatorApi} from "@/services/IvrEmulator"
 import {IvrEmulator} from "./IvrEmulator"
 import {
     BALLOT_EML,
+    IVR_PIN_SCRIPT,
     IVR_SCRIPT,
     ballotStyleRecord,
     ivrEmulatorApi,
@@ -32,6 +33,8 @@ interface Scenario {
     apiStatus: IvrApiStatus
     /** Makes the emulated call fail with this message. */
     failure?: string
+    /** Plays the PIN call, which accepts any digits, instead of the voter ID one. */
+    pin?: boolean
 }
 
 let graphql: ReturnType<typeof graphqlBoundary>
@@ -64,7 +67,10 @@ const meta = {
     argTypes: {apiStatus: {control: "inline-radio", options: Object.values(IvrApiStatus)}},
     parameters: {widgets: ["ConfigForm", "ConfigFormBody"]},
     beforeEach: async ({args}) => {
-        emulator = ivrEmulatorApi({...IVR_SCRIPT, failure: args.failure})
+        emulator = ivrEmulatorApi({
+            ...(args.pin ? IVR_PIN_SCRIPT : IVR_SCRIPT),
+            failure: args.failure,
+        })
         data = resourceBoundary({
             sequent_backend_area: areaRecords(),
             sequent_backend_election: [
@@ -184,6 +190,34 @@ export const CallSession: Story = {
         await expect(canvas.getByTitle("es-ES, story-voice")).toHaveTextContent("ES")
         expect(emulator.session.inputs).toEqual(["123"])
         await waitFor(() => expect(emulator.session.freed).toBe(1))
+    },
+}
+
+export const AnyDigitsPrompt: Story = {
+    args: {pin: true},
+    parameters: {widgets: []},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await startCall(canvasElement)
+        // The Lambda lists no valid inputs when any digits will do; the hint says so
+        // rather than "valid inputs=" followed by nothing.
+        const input = await canvas.findByPlaceholderText(
+            "Enter up to 8 digits (any digits, timeout=10s)"
+        )
+        await expect(input).toHaveAttribute("maxLength", "8")
+        expect(canvasElement.querySelector("input[placeholder*='valid inputs=']")).toBeNull()
+        // The transcript shows the prompt's words, never its SSML.
+        const line = await canvas.findByTestId("ivr-call-prompt")
+        await expect(line).toHaveTextContent(
+            "Enter your PIN ⏸ 500ms then press hash. ES O marque su PIN"
+        )
+        expect(line.textContent).not.toMatch(/<|speak|break|xml:lang/)
+        await expect(within(line).getByText("O marque su PIN")).toHaveAttribute("lang", "es-ES")
+        await waitFor(() => expect(input).toBeEnabled())
+        await userEvent.type(input, "12345678")
+        await userEvent.click(canvas.getByRole("button", {name: "Send DTMF input"}))
+        await expect(await canvas.findByText("PIN accepted")).toBeVisible()
+        expect(emulator.session.inputs).toEqual(["12345678"])
     },
 }
 
