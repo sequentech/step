@@ -21,6 +21,7 @@ import {v4} from "uuid"
 import {useGetOne, useNotify, useRefresh, RaRecord, useGetList} from "react-admin"
 import {useTranslation} from "react-i18next"
 import {IElectionEventPresentation, ITenantSettings, isNull} from "@sequentech/ui-core"
+import {readProblems, type Problem} from "@sequentech/ui-essentials"
 import {useNavigate} from "react-router-dom"
 import {NewResourceContext} from "@/providers/NewResourceProvider"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
@@ -91,6 +92,8 @@ const CreateElectionEventContext = createContext<{
     handleImportElectionEvent: any
     handleSubmit: any
     errors: any
+    /** Why the last import was refused, named, when the backend said. */
+    problems: Problem[] | null
     isLoading: boolean
     newId: any
     tenantId: any
@@ -107,6 +110,7 @@ const CreateElectionEventContext = createContext<{
     openImportDrawer: console.log,
     closeImportDrawer: console.log,
     errors: null,
+    problems: null,
     isLoading: false,
     newId: false,
     tenantId: "",
@@ -151,6 +155,7 @@ export const CreateElectionEventProvider = ({children}: any) => {
 
     const openImportDrawer = () => {
         setErrors(null)
+        setProblems(null)
         toggleImportDrawer(true)
     }
 
@@ -247,6 +252,7 @@ export const CreateElectionEventProvider = ({children}: any) => {
     }
 
     const [errors, setErrors] = useState<string | null>(null)
+    const [problems, setProblems] = useState<Problem[] | null>(null)
     const [importElectionEvent] = useMutation<ImportElectionEventMutation>(IMPORT_ELECTION_EVENT)
 
     // const closeImportDrawer = () => {
@@ -256,6 +262,7 @@ export const CreateElectionEventProvider = ({children}: any) => {
 
     const uploadCallback = async (documentId: string, password: string = "") => {
         setErrors(null)
+        setProblems(null)
         let {data: importData, errors} = await importElectionEvent({
             variables: {
                 tenantId,
@@ -267,6 +274,7 @@ export const CreateElectionEventProvider = ({children}: any) => {
 
         if (importData?.import_election_event?.error) {
             setErrors(importData.import_election_event.error)
+            setProblems(readProblems(importData.import_election_event.problems) ?? null)
             throw new Error(importData?.import_election_event?.error)
         }
     }
@@ -279,6 +287,7 @@ export const CreateElectionEventProvider = ({children}: any) => {
         closeImportDrawer()
         setIsLoading(false)
         setErrors(null)
+        setProblems(null)
 
         const currWidget = addWidget(ETasksExecution.IMPORT_ELECTION_EVENT, undefined)
 
@@ -293,6 +302,7 @@ export const CreateElectionEventProvider = ({children}: any) => {
             })
             if (data?.import_election_event?.error) {
                 setErrors(data.import_election_event.error)
+                setProblems(readProblems(data.import_election_event.problems) ?? null)
                 updateWidgetFail(currWidget.identifier)
                 return
             }
@@ -328,6 +338,7 @@ export const CreateElectionEventProvider = ({children}: any) => {
                 handleImportElectionEvent,
                 handleSubmit,
                 errors,
+                problems,
                 isLoading,
                 newId,
                 tenantId,

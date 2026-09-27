@@ -37,6 +37,16 @@ jest.mock("@/components/styles/FormStyles", () => ({
 jest.mock(
     "@sequentech/ui-essentials",
     () => ({
+        // The shared list is tested in ui-essentials; here only which of the two
+        // explanations the screen chooses.
+        ProblemList: ({report}: {report: {problems: Array<{id?: string}>}}) =>
+            require("react").createElement(
+                "ul",
+                {"aria-label": "Problems"},
+                report.problems.map((problem, index) =>
+                    require("react").createElement("li", {key: index}, problem.id)
+                )
+            ),
         DropFile: ({handleFiles}: {handleFiles: (files: FileList | null) => Promise<void>}) =>
             require("react").createElement("input", {
                 "aria-label": "Import file",
@@ -313,4 +323,38 @@ it("invalidates a previous document as soon as a replacement encrypted file is s
     expect(importButton).toBeDisabled()
     expect(mockGetUploadUrl).toHaveBeenCalledTimes(1)
     expect(callbacks.doImport).not.toHaveBeenCalled()
+})
+
+it("shows the backend's error text when it named no problems", () => {
+    render(
+        <ImportScreen
+            doImport={jest.fn()}
+            doCancel={jest.fn()}
+            errors="Error checking import: something broke"
+            problems={null}
+        />
+    )
+    expect(screen.getByText("Error checking import: something broke")).toBeInTheDocument()
+    expect(screen.queryByRole("list", {name: "Problems"})).not.toBeInTheDocument()
+})
+
+it("names each problem instead of repeating the English paragraph", () => {
+    render(
+        <ImportScreen
+            doImport={jest.fn()}
+            doCancel={jest.fn()}
+            errors="The election event bundle cannot be imported; 1 problem found:"
+            problems={[
+                {
+                    severity: "error",
+                    code: "unreadable",
+                    path: "file",
+                    message: "the file is not a readable election event",
+                    id: "import.not-json",
+                },
+            ]}
+        />
+    )
+    expect(screen.getByRole("list", {name: "Problems"})).toHaveTextContent("import.not-json")
+    expect(screen.queryByText(/cannot be imported/)).not.toBeInTheDocument()
 })

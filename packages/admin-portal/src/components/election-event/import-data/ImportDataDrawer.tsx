@@ -8,8 +8,8 @@ import ElectionHeader from "@/components/ElectionHeader"
 import {useTranslation} from "react-i18next"
 import {Box, Drawer} from "@mui/material"
 import {ImportScreen} from "./ImportScreen"
+import type {Problem} from "@sequentech/ui-essentials"
 import {useCreateElectionEventStore} from "@/providers/CreateElectionEventContextProvider"
-import {log} from "console"
 
 interface ImportVotersTabsProps {
     open?: boolean | null
@@ -21,6 +21,7 @@ interface ImportVotersTabsProps {
     disableImport?: boolean
     uploadCallback?: (documentId: string) => Promise<void> | null
     errors?: string | null
+    problems?: Problem[] | null
 }
 
 export const ImportDataDrawer: React.FC<ImportVotersTabsProps> = ({
@@ -33,6 +34,7 @@ export const ImportDataDrawer: React.FC<ImportVotersTabsProps> = ({
     disableImport,
     uploadCallback = null,
     errors,
+    problems,
 }) => {
     const {t} = useTranslation()
 
@@ -42,6 +44,7 @@ export const ImportDataDrawer: React.FC<ImportVotersTabsProps> = ({
         handleImportElectionEvent,
         uploadCallback: doUploadCallback,
         errors: importErrors,
+        problems: importProblems,
     } = useCreateElectionEventStore()
 
     return (
@@ -70,6 +73,7 @@ export const ImportDataDrawer: React.FC<ImportVotersTabsProps> = ({
                                 disableImport={disableImport || !!importErrors}
                                 uploadCallback={uploadCallback ? uploadCallback : doUploadCallback}
                                 errors={errors || importErrors}
+                                problems={errors ? problems : problems || importProblems}
                             />
                         </>
                     </DrawerStyles.Wrapper>

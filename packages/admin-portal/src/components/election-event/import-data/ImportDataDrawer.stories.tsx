@@ -28,6 +28,8 @@ interface Scenario {
     mode: "provider" | "props"
     /** The provider's import check rejects the uploaded file with this error. */
     importError?: string
+    /** The named problems the import check sends with `importError`. */
+    importProblems?: unknown[]
     /** An error the page passes to the drawer. */
     errors?: string | null
     doImport: (documentId: string, sha256: string, password?: string) => Promise<void>
@@ -101,7 +103,7 @@ const meta = {
     argTypes: {mode: {control: "inline-radio", options: ["provider", "props"]}},
     parameters: drawerDefects,
     beforeEach: async ({args}) => {
-        flow = createFlow({importError: args.importError})
+        flow = createFlow({importError: args.importError, importProblems: args.importProblems})
         await flow.graphql.ready
     },
     render: (args, {globals}) => <Fixture key={JSON.stringify(globals)} {...args} />,
@@ -167,6 +169,49 @@ export const RejectedFile: Story = {
         await expect(await screen.findByText("Unsupported election event file")).toBeVisible()
         await expect(screen.getByRole("button", {name: "Import"})).toBeDisabled()
         expect(operations()).toEqual(["GetUploadUrl", "ImportElectionEvent"])
+    },
+}
+
+/**
+ * A bundle the import check refuses, and says why: each named problem in the
+ * administrator's language rather than the backend's English paragraph.
+ */
+export const RejectedBundleExplained: Story = {
+    args: {
+        importError:
+            "The election event bundle cannot be imported; 2 problems found:\n  contests[0].election_id: ...",
+        importProblems: [
+            {
+                severity: "error",
+                code: "dangling_reference",
+                path: "contests[0].election_id",
+                message: "contest 'president' belongs to an election that is not in this file",
+                id: "contest.election-missing",
+                external_id: "president",
+            },
+            {
+                severity: "error",
+                code: "incompatible_version",
+                path: "version",
+                message:
+                    "the file was exported by version 8.1.0, which version 9.2.0 cannot import",
+                id: "import.version-incompatible",
+                details: {found: "8.1.0", current: "9.2.0"},
+            },
+        ],
+    },
+    play: async () => {
+        const root = await drawer("Import Election Event")
+        const screen = within(root)
+        await chooseImportFile(root)
+        const problems = await screen.findByTestId("import-problems")
+        await expect(within(problems).getByText("2 errors")).toBeVisible()
+        await expect(within(problems).getAllByTestId("problem")).toHaveLength(2)
+        await expect(within(problems).getByText(/8\.1\.0/)).toBeVisible()
+        await expect(within(problems).getByText("president")).toBeVisible()
+        // The English paragraph is replaced, not repeated underneath.
+        await expect(screen.queryByText(/cannot be imported; 2 problems/)).toBeNull()
+        await expect(screen.getByRole("button", {name: "Import"})).toBeDisabled()
     },
 }
 
