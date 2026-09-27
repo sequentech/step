@@ -65,6 +65,12 @@ jobs:
             context: packages
             file: packages/windmill/Dockerfile.prod
 
+          - service: hasura
+            # Build context is the hasura project dir (migrations/metadata live here),
+            # not repo root — Dockerfile COPYs are relative to this path.
+            context: hasura
+            file: packages/Dockerfile.hasura
+
           - service: immudb-init
             context: packages
             file: packages/Dockerfile.immudb-init.prod
