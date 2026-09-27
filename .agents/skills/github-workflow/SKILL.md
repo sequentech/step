@@ -32,9 +32,10 @@ not edit release notes.
 ## Reviews
 
 For every finding, including summary-only and collapsed ones: verify it against
-the current source; fix it or decide no change; reply in its thread with the
-outcome, commit and validation; resolve only settled threads; read the result
-back. Check for an existing reply before retrying a failed post.
+the current source; fix it or decide no change; reply with the outcome, commit
+and validation in the finding's thread, or on the PR for summary-only findings;
+resolve only settled threads; read the result back. Check for an existing
+reply before retrying a failed post.
 
 ## Issues
 

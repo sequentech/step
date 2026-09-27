@@ -83,8 +83,10 @@ those packages only for production builds and journeys.
 ### sequent-core WASM
 
 `scripts/dev/step-dev wasm` rebuilds the development artifact incrementally
-without reinstalling dependencies, and `scripts/dev/step-dev wasm --status` reports whether
-the committed package matches its sources. See
+without reinstalling dependencies. `scripts/dev/step-dev wasm --status` reports
+whether that published development build still matches the current sources;
+`python3 -m scripts.dev.wasm --check-package` (the `wasm-freshness` check)
+verifies the committed package archives. See
 [Incremental WASM](./fast-feedback.md#incremental-wasm).
 
 ### GraphQL
