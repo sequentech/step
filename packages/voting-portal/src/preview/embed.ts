@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
 
+import {DEMO_PUBLIC_KEY} from "@sequentech/ui-test-kit/fixtures"
 import {
     previewIssues,
     ScenarioChannel,
@@ -16,6 +17,12 @@ import {isPreviewScreen, PREVIEW_SCREENS, PreviewScreen, type PreviewSource} fro
  */
 export const EMBED_PROTOCOL = "sequent.voter-preview"
 export const EMBED_VERSION = 1
+
+/**
+ * The key the election-config core writes before a key ceremony: eight zero bytes,
+ * deliberately not a key, so nothing can be encrypted to it.
+ */
+export const NOT_A_KEY = "AAAAAAAAAAA="
 
 /** The tenant of a document whose event names none; nothing is fetched with it. */
 export const EMBED_TENANT = "preview"
@@ -116,6 +123,30 @@ export function readShowMessage(data: unknown): ShowRequest | undefined {
     }
 }
 
+/**
+ * The document, with the demo key where it has the core's stand-in.
+ *
+ * Review and confirmation show an encrypted ballot, and a document from before the key
+ * ceremony (the Election Architect's) has nothing to encrypt to. The embed never sends
+ * a ballot anywhere, so it encrypts to the demo key and says so: the key is `is_demo`,
+ * which the portal's screens mark. Any other key is left as it is.
+ */
+function withDemoKey(document: PreviewDocument): PreviewDocument {
+    const standIn = (style: PreviewDocument["ballot_styles"][number]) => {
+        const key = style.public_key
+        return isObject(key) && key.public_key === NOT_A_KEY
+    }
+    if (!document.ballot_styles.some(standIn)) return document
+    return {
+        ...document,
+        ballot_styles: document.ballot_styles.map((style) =>
+            standIn(style)
+                ? {...style, public_key: {public_key: DEMO_PUBLIC_KEY, is_demo: true}}
+                : style
+        ),
+    }
+}
+
 /** What the preview renders for a request. */
 export function embeddedSource({
     document,
@@ -129,6 +160,6 @@ export function embeddedSource({
         areaId,
         electionId,
         channel: channel ?? ScenarioChannel.ONLINE,
-        preview: document,
+        preview: withDemoKey(document),
     }
 }

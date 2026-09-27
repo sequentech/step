@@ -6,12 +6,13 @@ import {
     ScenarioId,
     scenarioSnapshot,
 } from "@sequentech/ui-test-kit/fixtures/scenarios"
-import {IDS} from "@sequentech/ui-test-kit/fixtures"
+import {DEMO_PUBLIC_KEY, IDS} from "@sequentech/ui-test-kit/fixtures"
 import {
     EMBED_PROTOCOL,
     EMBED_VERSION,
     EmbedMessageError,
     EmbedMessageType,
+    NOT_A_KEY,
     embedMessage,
     embeddedSource,
     readShowMessage,
@@ -122,4 +123,27 @@ test("replies carry the protocol and version", () => {
         screen: PreviewScreen.REVIEW,
         path: "/p",
     })
+})
+
+test("a document from before its key ceremony is previewed with the demo key", () => {
+    // The Election Architect's core writes a stand-in that is deliberately not a key,
+    // so nothing can be encrypted to it. The embed never sends a ballot anywhere, and
+    // review and confirmation need one encrypted, so it shows them as a demo.
+    const {document} = show()
+    const [style] = document.ballot_styles
+    const stand_in = {...style, public_key: {public_key: NOT_A_KEY, is_demo: true}}
+    const request = readShowMessage(show({document: {...document, ballot_styles: [stand_in]}}))!
+
+    const source = embeddedSource(request)
+    expect(source.preview.ballot_styles[0]?.public_key).toEqual({
+        public_key: DEMO_PUBLIC_KEY,
+        is_demo: true,
+    })
+    // A real key is left alone, and the request's own document is not changed.
+    expect(request.document.ballot_styles[0]?.public_key).toEqual({
+        public_key: NOT_A_KEY,
+        is_demo: true,
+    })
+    const plain = readShowMessage(show())!
+    expect(embeddedSource(plain).preview).toBe(plain.document)
 })

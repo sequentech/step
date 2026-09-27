@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 export const FIXED_TIME = "2026-01-15T12:00:00.000Z"
+/** The demo election key the fixtures encrypt to; a demo key, not a ceremony's. */
+export const DEMO_PUBLIC_KEY = "ajR/I9RqyOwbpsVRucSNOgXVLCvLpfQxCgPoXGQ2RF4"
 export const IDS = {
     tenant: "10000000-0000-4000-8000-000000000001",
     event: "20000000-0000-4000-8000-000000000001",
@@ -50,7 +52,7 @@ export function electionFixture({demo = false, gold = false, finishUrl = ""} = {
         area_id: IDS.area,
         description: "Community Council",
         area_presentation: {allow_early_voting: "no_early_voting"},
-        public_key: {public_key: "ajR/I9RqyOwbpsVRucSNOgXVLCvLpfQxCgPoXGQ2RF4", is_demo: demo},
+        public_key: {public_key: DEMO_PUBLIC_KEY, is_demo: demo},
         election_event_presentation: eventPresentation,
         election_presentation: electionPresentation,
         contests: [
