@@ -704,7 +704,7 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = () => {
                     <WizardStyles.CeremonyStatus
                         sx={{
                             backgroundColor: signaturesStatusColor(),
-                            color: theme.palette.background.default,
+                            color: theme.palette.common.black,
                             textTransform: "uppercase",
                         }}
                         label={String(
@@ -747,7 +747,7 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = () => {
                     <WizardStyles.CeremonyStatus
                         sx={{
                             backgroundColor: serversStatusColor(),
-                            color: theme.palette.background.default,
+                            color: theme.palette.common.black,
                             textTransform: "uppercase",
                         }}
                         label={String(

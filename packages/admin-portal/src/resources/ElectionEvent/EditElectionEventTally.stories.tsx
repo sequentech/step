@@ -124,12 +124,6 @@ export const TrusteeCeremony: Story = {
 export const TransmissionPackage: Story = {
     args: {view: "transmission"},
     globals: {permissions: EStoryPermissions.ADMIN},
-    parameters: {
-        expectedFailure: {
-            reason: "The wizard's signature status chip has white text on the warning and success palette colours.",
-            a11y: ["color-contrast"],
-        },
-    },
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
         await expect(
