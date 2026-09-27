@@ -39,6 +39,8 @@ export default function Template(props: TemplateProps<KcContext, I18n>) {
     const {msgStr, currentLanguage, enabledLanguages} = i18n
     const {realm, message, isAppInitiatedAction, properties} = kcContext
     const voting = kcContext.themeName === "sequent-ui-voting"
+    // A product name, the same in every language.
+    const architect = kcContext.themeName === "sequent-ui-architect"
     // Keycloakify derives direction from the language when older contexts do
     // not include locale.rtl; preserve that resolved value.
     const direction =
@@ -73,9 +75,15 @@ export default function Template(props: TemplateProps<KcContext, I18n>) {
                     <Box component="header" className="auth-header">
                         <Box className="auth-brand">
                             <img src={logo} alt="Sequent" width={170} height={32} />
-                            <span className="auth-brand-context" lang={copy.languageTag}>
-                                {voting ? copy.votingPortal : copy.adminPortal}
-                            </span>
+                            {architect ? (
+                                <span className="auth-brand-context" lang="en">
+                                    Election Architect
+                                </span>
+                            ) : (
+                                <span className="auth-brand-context" lang={copy.languageTag}>
+                                    {voting ? copy.votingPortal : copy.adminPortal}
+                                </span>
+                            )}
                         </Box>
                         <Box className="auth-header-tools">
                             {(properties.systemVersion || properties.systemHash) && (

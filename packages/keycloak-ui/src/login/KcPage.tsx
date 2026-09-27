@@ -10,6 +10,7 @@ import {useI18n} from "./i18n"
 import Template from "./Template"
 
 const Login = lazy(() => import("./pages/Login"))
+const LoginUsername = lazy(() => import("./pages/LoginUsername"))
 const MessageOtpLogin = lazy(() => import("./pages/MessageOtpLogin"))
 const UserProfileFormFields = lazy(() => import("keycloakify/login/UserProfileFormFields"))
 
@@ -26,6 +27,16 @@ export default function KcPage(props: {kcContext: KcContext}) {
                     case "login.ftl":
                         return (
                             <Login
+                                kcContext={kcContext}
+                                i18n={i18n}
+                                Template={Template}
+                                doUseDefaultCss={false}
+                                classes={classes}
+                            />
+                        )
+                    case "login-username.ftl":
+                        return (
+                            <LoginUsername
                                 kcContext={kcContext}
                                 i18n={i18n}
                                 Template={Template}
