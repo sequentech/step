@@ -61,7 +61,11 @@ export default function LoginUsername(
                         </Alert>
                     )}
                     <Box>
-                        <Typography component="label" htmlFor="username" className="auth-field-label">
+                        <Typography
+                            component="label"
+                            htmlFor="username"
+                            className="auth-field-label"
+                        >
                             {usernameLabel}
                         </Typography>
                         <TextField
@@ -96,7 +100,12 @@ export default function LoginUsername(
                 </Box>
             )}
             {providers.length > 0 && (
-                <Box component="nav" id="kc-social-providers" className="auth-providers" aria-labelledby="kc-social-providers-title">
+                <Box
+                    component="nav"
+                    id="kc-social-providers"
+                    className="auth-providers"
+                    aria-labelledby="kc-social-providers-title"
+                >
                     <Typography id="kc-social-providers-title" className="auth-providers-title">
                         {msg("identity-provider-login-label")}
                     </Typography>
