@@ -141,33 +141,39 @@ const fetchAndLoad = async (
     return ivrModule
 }
 
-let initPromise: Promise<IvrEmulatorApi> | null = null
+/** One load per emulator address: a page that names two emulators gets both. */
+const loads = new Map<string, Promise<IvrEmulatorApi>>()
 
 /**
- * Fetch and start the emulator, once per page.
+ * Fetch and start the emulator, once per page and address.
  *
  * Memoised because it is called from a component that mounts whenever somebody
  * opens the panel, and starting a second copy of a multi-megabyte WebAssembly
- * module is a page that pauses for no reason a reader can see. A failed attempt
- * clears the memo, so opening the panel again after a deploy retries rather than
- * repeating the first answer forever.
+ * module is a page that pauses for no reason a reader can see. Keyed by the base
+ * URL, so a page asked for a different emulator (the embedded voter preview is
+ * told which one by the tool framing it) loads that one rather than being handed
+ * the first. A failed attempt clears its entry, so opening the panel again after a
+ * deploy retries rather than repeating the first answer forever.
  */
 export const loadIvrEmulator = (
     baseUrl: string,
     importModule: ImportModule = defaultImport
 ): Promise<IvrEmulatorApi> => {
-    initPromise ??= fetchAndLoad(baseUrl, importModule).catch((e: unknown) => {
-        // Allow retry
-        initPromise = null
+    let load = loads.get(baseUrl)
+    if (load === undefined) {
+        load = fetchAndLoad(baseUrl, importModule).catch((e: unknown) => {
+            // Allow retry
+            loads.delete(baseUrl)
 
-        console.error("Failed to init the emulator", e)
-        throw e
-    })
-
-    return initPromise
+            console.error("Failed to init the emulator", e)
+            throw e
+        })
+        loads.set(baseUrl, load)
+    }
+    return load
 }
 
 /** Only for tests, which would otherwise see whatever the last one loaded. */
 export const forgetIvrEmulator = (): void => {
-    initPromise = null
+    loads.clear()
 }
