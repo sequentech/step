@@ -323,14 +323,12 @@ test("opens a version's source import on the election event's imports tab", asyn
     const row = await openTallySheets(page, portal)
     const versions = await openVersions(page, row)
     await versions.pending.getByRole("button", {name: "Open import", exact: true}).click()
-    await expect(page).toHaveURL(
-        new RegExp(
-            `/sequent_backend_election_event/${EVENT_ID}\\?.*tallySheetImportId=${IMPORT_ID}`
-        ),
-        {timeout: 2000}
-    )
+    // The event page reads `tallySheetImportId` and then drops it from the URL,
+    // so the parameter is only there for a moment: assert what it opened instead.
+    await expect(page).toHaveURL(new RegExp(`/sequent_backend_election_event/${EVENT_ID}(\\?|$)`))
     await expect(page.getByText("Import status", {exact: false})).toHaveCount(0)
     await expect(page.getByRole("presentation").getByText(IMPORT_ID, {exact: true})).toBeVisible()
+    await expect(page).not.toHaveURL(/tallySheetImportId=/)
 })
 
 test("reports a failed tally sheet review", async ({page, portal}) => {
