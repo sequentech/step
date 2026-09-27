@@ -64,8 +64,10 @@ export interface CallLabels {
     /** The keypad's accessible name. */
     input?: string
     /**
-     * The keypad's placeholder when the prompt names its keys: `{{validInputs}}` is filled
-     * in as a list ("1 or 2", joined by `or`), `{{maxDigits}}` and `{{timeout}}` as numbers.
+     * The keypad's placeholder when the prompt names its keys: `{{keys}}` is filled in as
+     * a list ("1 or 2", joined by `or`), `{{maxDigits}}` and `{{timeout}}` as numbers.
+     * `{{validInputs}}` is the keys as the Lambda sent them ("2,1"), what it was in
+     * version 2 before `{{keys}}`, so a placeholder written then still reads the same.
      */
     placeholder?: string
     /**
@@ -310,10 +312,11 @@ export const keypadHint = (
         Pick<CallLabels, "or">,
     expected: {valid_inputs: string; max_digits: number; timeout: number}
 ): string => {
-    const validInputs = keyList(expected.valid_inputs, labels.or ?? "or")
-    return fillLabel(validInputs ? labels.placeholder : labels.placeholderAnyKeys, {
+    const keys = keyList(expected.valid_inputs, labels.or ?? "or")
+    return fillLabel(keys ? labels.placeholder : labels.placeholderAnyKeys, {
         maxDigits: expected.max_digits,
-        validInputs,
+        keys,
+        validInputs: expected.valid_inputs,
         timeout: expected.timeout,
     })
 }

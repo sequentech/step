@@ -69,7 +69,7 @@ test("speaks the framing tool's words, the keypad's name included", async () => 
     placed({
         labels: {
             input: "Teclas",
-            placeholder: "Pulse {{validInputs}} en {{timeout}} s",
+            placeholder: "Pulse {{keys}} en {{timeout}} s",
             send: "Pulsar",
             timeout: "Esperar",
             disconnected: "Fin",
@@ -111,7 +111,7 @@ test("a framing tool's words for any digits are used too", async () => {
     placed(
         {
             labels: {
-                placeholder: "Pulse {{validInputs}} en {{timeout}} s",
+                placeholder: "Pulse {{keys}} en {{timeout}} s",
                 placeholderAnyKeys: "Hasta {{maxDigits}} dígitos en {{timeout}} s",
             },
         },

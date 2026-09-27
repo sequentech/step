@@ -227,7 +227,7 @@ test("a label's placeholders are filled in, and unknown ones left alone", () => 
 
 describe("keypadHint", () => {
     const labels = {
-        placeholder: "Press {{validInputs}}, within {{timeout}}s",
+        placeholder: "Press {{keys}}, within {{timeout}}s",
         placeholderAnyKeys: "Up to {{maxDigits}} digits, within {{timeout}}s",
         or: "or",
     }
@@ -266,7 +266,7 @@ describe("keypadHint", () => {
 
     test("a framing tool's own words are used for both, its 'or' included", () => {
         const spanish = {
-            placeholder: "Pulse {{validInputs}}, en {{timeout}} s",
+            placeholder: "Pulse {{keys}}, en {{timeout}} s",
             placeholderAnyKeys: "Hasta {{maxDigits}} dígitos en {{timeout}} s",
             or: "o",
         }
@@ -275,6 +275,15 @@ describe("keypadHint", () => {
         )
         expect(keypadHint(spanish, {valid_inputs: "2,1", max_digits: 1, timeout: 10})).toBe(
             "Pulse 1 o 2, en 10 s"
+        )
+    })
+
+    test("an older framing tool's placeholder still gets the Lambda's own list", () => {
+        // EMBED_VERSION 2 documented `{{validInputs}}` as the keys as the Lambda sent
+        // them; the sentence is `{{keys}}`, so a parent written against that still reads.
+        const older = {...labels, placeholder: "Up to {{maxDigits}} of {{validInputs}}"}
+        expect(keypadHint(older, {valid_inputs: "2,1", max_digits: 1, timeout: 5})).toBe(
+            "Up to 1 of 2,1"
         )
     })
 

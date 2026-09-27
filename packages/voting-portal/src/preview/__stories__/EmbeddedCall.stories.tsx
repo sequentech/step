@@ -56,7 +56,7 @@ export const Translated: Story = {
             ...meta.args.request,
             labels: {
                 input: "Teclas",
-                placeholder: "Pulse {{validInputs}} en {{timeout}} s",
+                placeholder: "Pulse {{keys}} en {{timeout}} s",
                 or: "o",
                 timeout: "Esperar",
                 send: "Pulsar",
