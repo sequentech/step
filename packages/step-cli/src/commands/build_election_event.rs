@@ -414,6 +414,359 @@ fn problem_error(problem: Problem) -> anyhow::Error {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use sequent_core::election_config::paths::Cell;
+    use sequent_core::election_config::render::BUILTIN_TEMPLATES;
+    use sequent_core::election_config::xlsx_write::write_xlsx;
+    use sequent_core::election_config::{Sheet, Workbook};
+    use std::io::Write;
+
+    const TENANT: &str = "90505c8a-23a9-4cdf-a26b-4e19f6a097d5";
+
+    fn text(value: &str) -> Cell {
+        Cell::text(value)
+    }
+
+    /// One election, one contest with two candidates, two areas: the smallest
+    /// workbook that builds cleanly, plus any extra sheets a test adds.
+    fn workbook(extra: Vec<(&str, Vec<Vec<Cell>>)>) -> Vec<u8> {
+        let mut sheets = vec![
+            (
+                "ElectionEvent",
+                vec![
+                    vec![text("external_id"), text("presentation.i18n.en.name")],
+                    vec![text("union-2027"), text("Union Election 2027")],
+                ],
+            ),
+            (
+                "Elections",
+                vec![
+                    vec![text("external_id"), text("presentation.i18n.en.name")],
+                    vec![text("statewide"), text("Statewide Officers")],
+                ],
+            ),
+            (
+                "Contests",
+                vec![
+                    vec![
+                        text("external_id"),
+                        text("election.external_id"),
+                        text("presentation.i18n.en.name"),
+                        text("max_votes"),
+                    ],
+                    vec![
+                        text("president"),
+                        text("statewide"),
+                        text("President"),
+                        Cell::Int(1),
+                    ],
+                ],
+            ),
+            (
+                "Candidates",
+                vec![
+                    vec![
+                        text("external_id"),
+                        text("contest.external_id"),
+                        text("presentation.i18n.en.name"),
+                    ],
+                    vec![text("alice"), text("president"), text("Alice")],
+                    vec![text("bob"), text("president"), text("Bob")],
+                ],
+            ),
+            (
+                "Areas",
+                vec![
+                    vec![text("external_id"), text("name")],
+                    vec![text("area-north"), text("North")],
+                    vec![text("area-south"), text("South")],
+                ],
+            ),
+            (
+                "AreaContests",
+                vec![
+                    vec![text("area.external_id"), text("contest.external_id")],
+                    vec![text("area-north"), text("president")],
+                    vec![text("area-south"), text("president")],
+                ],
+            ),
+        ];
+        for (name, grid) in extra {
+            sheets.retain(|(existing, _)| *existing != name);
+            sheets.push((name, grid));
+        }
+        let workbook = Workbook::new(
+            sheets
+                .into_iter()
+                .map(|(name, grid)| Sheet::from_grid(name, &grid).unwrap())
+                .collect(),
+        )
+        .unwrap();
+        write_xlsx(&workbook).unwrap()
+    }
+
+    /// A blank parameter builds, with a warning.
+    fn with_warning() -> Vec<u8> {
+        workbook(vec![(
+            "Parameters",
+            vec![
+                vec![text("type"), text("key"), text("value")],
+                vec![text("settings"), text("saml_idp_metadata_url"), Cell::Blank],
+            ],
+        )])
+    }
+
+    struct Fixture {
+        root: tempfile::TempDir,
+        command: BuildElectionEvent,
+    }
+
+    impl Fixture {
+        fn new(bytes: &[u8]) -> Self {
+            let root = tempfile::tempdir().unwrap();
+            let path = root.path().join("event.xlsx");
+            fs::write(&path, bytes).unwrap();
+            let command = BuildElectionEvent {
+                workbook: path,
+                out: root.path().join("out"),
+                tenant_id: Some(TENANT.to_string()),
+                base_export: None,
+                templates_dir: None,
+                auth_preset: None,
+                slug: Some("event".to_string()),
+                strict: false,
+                check_only: false,
+                created_at: None,
+            };
+            Fixture { root, command }
+        }
+
+        fn directory(&self) -> PathBuf {
+            self.root.path().join("out").join("event")
+        }
+
+        fn error(&self) -> String {
+            format!("{:#}", self.command.build().expect_err("the build fails"))
+        }
+
+        fn file(&self, name: &str, bytes: &[u8]) -> PathBuf {
+            let path = self.root.path().join(name);
+            fs::write(&path, bytes).unwrap();
+            path
+        }
+    }
+
+    fn zip_of(members: &[(&str, &[u8])]) -> Vec<u8> {
+        let mut cursor = std::io::Cursor::new(Vec::new());
+        {
+            let mut zip = zip::ZipWriter::new(&mut cursor);
+            for (name, bytes) in members {
+                zip.start_file(*name, zip::write::SimpleFileOptions::default())
+                    .unwrap();
+                zip.write_all(bytes).unwrap();
+            }
+            zip.finish().unwrap();
+        }
+        cursor.into_inner()
+    }
+
+    #[test]
+    fn a_sound_workbook_writes_the_archive_and_replaces_a_stale_directory() {
+        let fixture = Fixture::new(&workbook(vec![]));
+        let stale = fixture.directory().join("stale.json");
+        fs::create_dir_all(fixture.directory()).unwrap();
+        fs::write(&stale, b"left over").unwrap();
+
+        fixture.command.build().unwrap();
+
+        assert!(!stale.exists(), "a stale member would be uploaded");
+        let archive = fs::read(fixture.directory().join("event.zip")).unwrap();
+        let mut zip = zip::ZipArchive::new(std::io::Cursor::new(archive)).unwrap();
+        let names: Vec<String> = zip.file_names().map(str::to_string).collect();
+        let export = names
+            .iter()
+            .find(|name| name.starts_with("export_election_event"))
+            .unwrap_or_else(|| panic!("{names:?}"));
+        let document: serde_json::Value =
+            serde_json::from_reader(zip.by_name(export).unwrap()).unwrap();
+        assert_eq!(document["tenant_id"], TENANT);
+        // Every importable member is also written loose beside the archive.
+        for name in &names {
+            assert!(fixture.directory().join(name).is_file(), "{name}");
+        }
+    }
+
+    #[test]
+    fn check_only_validates_and_writes_nothing() {
+        let mut fixture = Fixture::new(&workbook(vec![]));
+        fixture.command.check_only = true;
+
+        fixture.command.build().unwrap();
+
+        assert!(!fixture.root.path().join("out").exists());
+    }
+
+    #[test]
+    fn strict_refuses_a_workbook_with_warnings_before_writing() {
+        let mut fixture = Fixture::new(&with_warning());
+        fixture.command.build().unwrap();
+        fs::remove_dir_all(fixture.root.path().join("out")).unwrap();
+
+        fixture.command.strict = true;
+        let error = fixture.error();
+
+        assert!(error.contains("--strict"), "{error}");
+        assert!(!fixture.root.path().join("out").exists());
+    }
+
+    #[test]
+    fn a_dangling_reference_is_reported_and_leaves_no_output() {
+        let fixture = Fixture::new(&workbook(vec![(
+            "Candidates",
+            vec![
+                vec![
+                    text("external_id"),
+                    text("contest.external_id"),
+                    text("presentation.i18n.en.name"),
+                ],
+                vec![text("alice"), text("no-such-contest"), text("Alice")],
+            ],
+        )]));
+
+        let error = fixture.error();
+
+        assert!(error.contains("problem(s) in"), "{error}");
+        assert!(error.contains("event.xlsx"), "{error}");
+        assert!(!fixture.root.path().join("out").exists());
+    }
+
+    #[test]
+    fn an_unknown_auth_preset_is_refused_before_the_workbook_is_read() {
+        let mut fixture = Fixture::new(b"never read");
+        fixture.command.workbook = fixture.root.path().join("missing.xlsx");
+        fixture.command.auth_preset = Some("carrier-pigeon".to_string());
+
+        let error = fixture.error();
+
+        assert!(error.contains("'carrier-pigeon' is not an authentication preset"));
+        assert!(error.contains(presets::NONE), "{error}");
+    }
+
+    #[test]
+    fn the_none_preset_is_accepted_in_any_case() {
+        let mut fixture = Fixture::new(&workbook(vec![]));
+        fixture.command.auth_preset = Some(presets::NONE.to_uppercase());
+        fixture.command.check_only = true;
+
+        fixture.command.build().unwrap();
+    }
+
+    #[test]
+    fn an_unreadable_or_invalid_workbook_is_an_error() {
+        let mut fixture = Fixture::new(b"not a spreadsheet");
+        let error = fixture.error();
+        assert!(error.starts_with("error: "), "{error}");
+
+        fixture.command.workbook = fixture.root.path().join("missing.xlsx");
+        let error = fixture.error();
+        assert!(error.contains("could not read"), "{error}");
+    }
+
+    #[test]
+    fn templates_come_from_the_directory_and_a_missing_one_is_refused() {
+        let mut fixture = Fixture::new(&workbook(vec![]));
+        fixture.command.check_only = true;
+        fixture.command.templates_dir = Some(fixture.root.path().join("absent"));
+        let error = fixture.error();
+        assert!(error.contains("templates directory not found"), "{error}");
+
+        // A known name overrides the builtin; any other .hbs or file is ignored.
+        let directory = fixture.root.path().join("templates");
+        fs::create_dir(&directory).unwrap();
+        let (_, area) = BUILTIN_TEMPLATES
+            .iter()
+            .find(|(name, _)| *name == "area")
+            .unwrap();
+        fs::write(directory.join("area.hbs"), area).unwrap();
+        fs::write(directory.join("aera.hbs"), "{{typo}}").unwrap();
+        fs::write(directory.join("README.md"), "notes").unwrap();
+        fixture.command.templates_dir = Some(directory.clone());
+        let templates = fixture.command.templates().unwrap();
+        assert_eq!(templates.overridden(), ["area"]);
+        fixture.command.build().unwrap();
+
+        // A template that does not compile is reported rather than skipped.
+        fs::write(directory.join("area.hbs"), "{{#if}}").unwrap();
+        let error = fixture.error();
+        assert!(error.contains("area"), "{error}");
+    }
+
+    #[test]
+    fn a_base_export_is_read_from_json_or_from_an_export_zip() {
+        let fixture = Fixture::new(&workbook(vec![]));
+        fixture.command.build().unwrap();
+        let export_name = fs::read_dir(fixture.directory())
+            .unwrap()
+            .map(|entry| entry.unwrap().file_name().into_string().unwrap())
+            .find(|name| name.starts_with("export_election_event"))
+            .unwrap();
+        let export = fs::read(fixture.directory().join(&export_name)).unwrap();
+        let expected: serde_json::Value = serde_json::from_slice(&export).unwrap();
+
+        let mut command = Fixture::new(&workbook(vec![]));
+        command.command.base_export = Some(command.file("base.json", &export));
+        assert_eq!(
+            command.command.base_export().unwrap(),
+            Some(expected.clone())
+        );
+
+        // Inside a zip it is found by name, even under a directory, and an
+        // upper-case extension is still a zip.
+        let nested = format!("export/{export_name}");
+        let zip = zip_of(&[("README.txt", b"hello"), (&nested, &export)]);
+        command.command.base_export = Some(command.file("base.ZIP", &zip));
+        assert_eq!(command.command.base_export().unwrap(), Some(expected));
+
+        // And a build on top of it succeeds.
+        command.command.check_only = true;
+        command.command.build().unwrap();
+    }
+
+    #[test]
+    fn a_base_export_that_is_not_one_is_refused() {
+        let mut fixture = Fixture::new(&workbook(vec![]));
+        let cases: Vec<(&str, Vec<u8>, &str)> = vec![
+            ("base.json", b"{not json".to_vec(), "is not valid JSON"),
+            ("base.zip", b"not a zip".to_vec(), "is not a zip"),
+            (
+                "other.zip",
+                zip_of(&[("voters.csv", b"a,b")]),
+                "has no export_election_event",
+            ),
+            (
+                "broken.zip",
+                zip_of(&[("export_election_event-1.json", b"{")]),
+                "export_election_event-1.json is not valid JSON",
+            ),
+        ];
+        for (name, bytes, expected) in cases {
+            fixture.command.base_export = Some(fixture.file(name, &bytes));
+            let error = format!("{:#}", fixture.command.base_export().unwrap_err());
+            assert!(error.contains(expected), "{name}: {error}");
+        }
+
+        fixture.command.base_export = Some(fixture.root.path().join("missing.json"));
+        let error = fixture.error();
+        assert!(error.contains("could not read"), "{error}");
+    }
+
+    #[test]
+    fn a_problem_error_carries_its_severity_path_and_message() {
+        use sequent_core::election_config::Code;
+        let error = problem_error(Problem::error(Code::InvalidValue, "a.b", "broken"));
+        assert_eq!(error.to_string(), "error: a.b: broken");
+        let warning = problem_error(Problem::warning(Code::InvalidValue, "c", "odd"));
+        assert_eq!(warning.to_string(), "warning: c: odd");
+    }
 
     /// A nested member gets its directory.
     #[test]

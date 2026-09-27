@@ -316,10 +316,10 @@ mod tests {
         })
     }
 
-    fn compile(document: &serde_json::Value) -> (tempfile::TempDir, PathBuf) {
+    fn command(document: &[u8]) -> (tempfile::TempDir, CompilePlan) {
         let root = tempfile::tempdir().unwrap();
         let path = root.path().join("blueprint.json");
-        fs::write(&path, serde_json::to_vec(document).unwrap()).unwrap();
+        fs::write(&path, document).unwrap();
         let command = CompilePlan {
             plan: path,
             out: root.path().join("out"),
@@ -332,9 +332,170 @@ mod tests {
             check_only: false,
             preview: false,
         };
+        (root, command)
+    }
+
+    fn compile(document: &serde_json::Value) -> (tempfile::TempDir, PathBuf) {
+        let (root, command) = command(&serde_json::to_vec(document).unwrap());
         command.compile().expect("the plan compiles");
         let directory = root.path().join("out").join("event");
         (root, directory)
+    }
+
+    fn current() -> Vec<u8> {
+        serde_json::to_vec(&plan(
+            sequent_core::election_config::architect::BLUEPRINT_VERSION,
+        ))
+        .unwrap()
+    }
+
+    fn failure(command: &CompilePlan) -> String {
+        format!("{:#}", command.compile().expect_err("the command fails"))
+    }
+
+    fn file(root: &tempfile::TempDir, name: &str, bytes: &[u8]) -> PathBuf {
+        let path = root.path().join(name);
+        fs::write(&path, bytes).unwrap();
+        path
+    }
+
+    #[test]
+    fn a_plan_compiles_into_an_archive_and_replaces_a_stale_directory() {
+        let (root, command) = command(&current());
+        let directory = root.path().join("out").join("event");
+        fs::create_dir_all(&directory).unwrap();
+        fs::write(directory.join("stale.json"), b"left over").unwrap();
+
+        command.compile().unwrap();
+
+        let names = written(&directory);
+        assert!(!names.contains(&"stale.json".to_string()), "{names:?}");
+        assert!(names.contains(&"event.zip".to_string()), "{names:?}");
+        assert!(
+            !names.contains(&"ballot-preview.json".to_string()),
+            "a preview is only written when asked for"
+        );
+    }
+
+    #[test]
+    fn preview_writes_one_sorted_document_the_portal_can_open() {
+        let (root, mut command) = command(&current());
+        command.preview = true;
+
+        command.compile().unwrap();
+
+        let path = root.path().join("out/event/ballot-preview.json");
+        let text = fs::read_to_string(path).unwrap();
+        assert!(text.ends_with('\n'));
+        let document: serde_json::Value = serde_json::from_str(&text).unwrap();
+        // One area, one election: one ballot, carrying the plan's candidates.
+        assert_eq!(document["ballot_styles"].as_array().unwrap().len(), 1);
+        assert!(text.contains("Alice") && text.contains("Bob"), "{text}");
+    }
+
+    #[test]
+    fn check_only_compiles_and_previews_but_writes_nothing() {
+        let (root, mut command) = command(&current());
+        command.check_only = true;
+        command.preview = true;
+
+        command.compile().unwrap();
+
+        assert!(!root.path().join("out").exists());
+    }
+
+    #[test]
+    fn strict_refuses_a_plan_with_warnings_before_writing() {
+        // The plan names no contact, which is a warning rather than an error.
+        let (root, mut command) = command(&current());
+        command.strict = true;
+
+        let error = failure(&command);
+
+        assert!(error.contains("--strict"), "{error}");
+        assert!(!root.path().join("out").exists());
+    }
+
+    #[test]
+    fn a_plan_that_does_not_validate_is_reported_and_leaves_no_output() {
+        let mut document = plan(sequent_core::election_config::architect::BLUEPRINT_VERSION);
+        document["trustee_threshold"] = serde_json::json!(0);
+        let (root, command) = command(&serde_json::to_vec(&document).unwrap());
+
+        let error = failure(&command);
+
+        assert!(error.contains("problem(s) in"), "{error}");
+        assert!(error.contains("blueprint.json"), "{error}");
+        assert!(!root.path().join("out").exists());
+    }
+
+    #[test]
+    fn a_file_that_is_not_a_plan_or_is_missing_is_an_error() {
+        let (root, mut command) = command(b"these are not the plans");
+        let error = failure(&command);
+        assert!(error.contains("is not an election plan"), "{error}");
+
+        command.plan = root.path().join("missing.json");
+        let error = failure(&command);
+        assert!(error.contains("could not read"), "{error}");
+    }
+
+    #[test]
+    fn a_profile_is_read_before_compiling_and_a_bad_one_is_refused() {
+        let (root, mut command) = command(&current());
+        command.check_only = true;
+
+        command.profile = Some(file(
+            &root,
+            "profile.json",
+            sequent_core::election_config::profile::DEFAULT_PROFILE_JSON.as_bytes(),
+        ));
+        assert!(command.profile().unwrap().is_some());
+        command.compile().unwrap();
+
+        command.profile = Some(file(&root, "broken.json", b"[1, 2"));
+        let error = failure(&command);
+        assert!(error.contains("is not a client profile"), "{error}");
+
+        command.profile = Some(root.path().join("missing.json"));
+        let error = failure(&command);
+        assert!(error.contains("could not read"), "{error}");
+    }
+
+    #[test]
+    fn a_base_export_is_inherited_and_invalid_json_is_refused() {
+        let (_first, directory) = compile(&plan(
+            sequent_core::election_config::architect::BLUEPRINT_VERSION,
+        ));
+        let export = written(&directory)
+            .into_iter()
+            .find(|name| name.starts_with("export_election_event") && name.ends_with(".json"))
+            .expect("an export member");
+        let bytes = fs::read(directory.join(export)).unwrap();
+
+        let (root, mut command) = command(&current());
+        command.check_only = true;
+        command.base_export = Some(file(&root, "base.json", &bytes));
+        assert_eq!(
+            command.base_export().unwrap(),
+            Some(serde_json::from_slice(&bytes).unwrap())
+        );
+        command.compile().unwrap();
+
+        command.base_export = Some(file(&root, "broken.json", b"{"));
+        let error = failure(&command);
+        assert!(error.contains("is not valid JSON"), "{error}");
+
+        command.base_export = Some(root.path().join("missing.json"));
+        let error = failure(&command);
+        assert!(error.contains("could not read"), "{error}");
+    }
+
+    #[test]
+    fn a_problem_error_carries_its_path_and_message() {
+        use sequent_core::election_config::Code;
+        let error = problem_error(Problem::error(Code::InvalidValue, "a.b", "broken"));
+        assert_eq!(error.to_string(), "a.b — broken");
     }
 
     fn written(directory: &std::path::Path) -> Vec<String> {
