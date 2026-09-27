@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Fast feedback loops | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-3373/docs/developers/development-environment/fast-feedback"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Fast feedback loops | Sequent Online Voting"><meta data-rh="true" name="description" content="--&gt;"><meta data-rh="true" property="og:description" content="--&gt;"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-3373/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3373/docs/developers/development-environment/fast-feedback"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3373/docs/developers/development-environment/fast-feedback" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3373/docs/developers/development-environment/fast-feedback" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Fast feedback loops","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-3373/docs/developers/development-environment/fast-feedback"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-3373/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/pr-preview/pr-3373/assets/js/runtime~main.a86e7942.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-3373/assets/js/runtime~main.56b4bc22.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-3373/assets/js/main.f1ea981f.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -183,6 +183,11 @@ writes both pages to <code>packages/workbench/dist/</code> with relative URLs, a
 <code>build_wasm</code> workflow uploads that directory as the <code>voter-preview</code> artifact beside
 <code>sequent-election-config-wasm</code>, with <code>voter-wording-keys.json</code>: every wording key the
 portal draws a string for, which the Election Architect checks its overrides against.
+<code>yarn build</code> also writes <code>dist/problem-list/</code>: <code>ui-essentials</code>&#x27; <code>ProblemList</code> and
+<code>ui-core</code>&#x27;s <code>problems.*</code> sentences as one ES module (<code>src/problemList.ts</code>, built by
+<code>vite.problem-list.config.ts</code> with React, MUI and i18next left to the host, declarations
+by <code>tsconfig.problem-list.json</code>). The Election Architect imports it to show an import&#x27;s
+problems as the Admin Portal does, and gets it with the voter preview.
 The story <code>embedded-voter-preview--vote</code> shows a screen inside the chrome, the
 <code>embedded-voter-preview-telephone-call--*</code> stories a call over a stand-in emulator
 (<code>preview/fakeIvrEmulator.ts</code>), and
