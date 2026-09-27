@@ -10,7 +10,32 @@ const DOCUMENT_ID = "33333333-3333-4333-8333-333333333333"
 const TASK_ID = "44444444-4444-4444-8444-444444444444"
 const CHECKSUM = "ab".repeat(32)
 const CONTENT = Buffer.from('{"elections":[]}')
-function eventWorkflow(portal: PortalServices, kind: "create" | "import", validationError = false) {
+/** Two named problems, as harvest's import check and a failed task's annotations carry them. */
+const PROBLEMS = [
+    {
+        severity: "error",
+        code: "dangling_reference",
+        path: "contests[0].election_id",
+        message: "contest 'president' belongs to an election that is not in this file",
+        id: "contest.election-missing",
+        external_id: "president",
+    },
+    {
+        severity: "error",
+        code: "incompatible_version",
+        path: "version",
+        message: "the file was exported by version 8.1.0, which version 9.2.0 cannot import",
+        id: "file.version-incompatible",
+        details: {found: "8.1.0", current: "9.2.0"},
+    },
+]
+
+function eventWorkflow(
+    portal: PortalServices,
+    kind: "create" | "import",
+    validationError = false,
+    problems: unknown[] | null = null
+) {
     let phase = "IN_PROGRESS"
     let started = false
     let eventId = IDS.event as string
@@ -44,7 +69,7 @@ function eventWorkflow(portal: PortalServices, kind: "create" | "import", valida
         start_at: FIXED_TIME,
         end_at: phase === "IN_PROGRESS" ? null : FIXED_TIME,
         executed_by_user: IDS.voter,
-        annotations: {},
+        annotations: phase === "FAILED" && problems ? {problems} : {},
         labels: {},
         logs: [
             {
@@ -94,6 +119,7 @@ function eventWorkflow(portal: PortalServices, kind: "create" | "import", valida
                     import_election_event: {
                         id: null,
                         error: validationError ? "Synthetic archive validation failed" : null,
+                        problems: validationError ? problems : null,
                         message: "Checked",
                         task_execution: null,
                     },
@@ -393,4 +419,31 @@ test("rejects invalid archive validation before an import task starts", async ({
     await expect(drawer.getByRole("button", {name: "Import", exact: true})).toBeDisabled()
     expect(portal.graphql.callsTo("ImportElectionEvent")).toHaveLength(1)
     expect(portal.graphql.callsTo("GetTaskById")).toHaveLength(0)
+})
+test("explains a refused archive one named problem at a time", async ({page, portal}) => {
+    const workflow = eventWorkflow(portal, "import", true, PROBLEMS)
+    const drawer = await selectArchive(page, portal, workflow.url, false)
+    const problems = drawer.getByTestId("import-problems")
+    await expect(problems.getByText("2 errors", {exact: true})).toBeVisible()
+    await expect(problems.getByTestId("problem")).toHaveCount(2)
+    await expect(problems.getByTestId("problem").nth(1)).toContainText(
+        "the file comes from version 8.1.0, which version 9.2.0 cannot import"
+    )
+    await expect(problems.getByText("president", {exact: true})).toBeVisible()
+    // The backend's English paragraph is replaced by the list, not repeated.
+    await expect(drawer.getByText("Synthetic archive validation failed")).toHaveCount(0)
+    await expect(drawer.getByRole("button", {name: "Import", exact: true})).toBeDisabled()
+    expect(portal.graphql.callsTo("GetTaskById")).toHaveLength(0)
+})
+test("explains a failed import task's named problems above its log", async ({page, portal}) => {
+    const workflow = eventWorkflow(portal, "import", false, PROBLEMS)
+    const drawer = await selectArchive(page, portal, workflow.url, false)
+    await drawer.getByRole("button", {name: "Import", exact: true}).click()
+    await expect.poll(() => portal.graphql.callsTo("GetTaskById").length).toBeGreaterThan(0)
+    workflow.complete("FAILED")
+    await page.clock.runFor(250)
+    const problems = page.getByTestId("widget-problems")
+    await expect(problems.getByText("2 errors", {exact: true})).toBeVisible()
+    await expect(problems.getByTestId("problem").first()).toContainText("president")
+    await expect(page.getByText("Synthetic event task failed", {exact: true})).toBeVisible()
 })

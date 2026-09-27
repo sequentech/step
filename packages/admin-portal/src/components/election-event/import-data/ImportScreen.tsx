@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import {Box, styled, Button, TextField, InputLabel} from "@mui/material"
-import {DropFile, Dialog} from "@sequentech/ui-essentials"
+import {DropFile, Dialog, ProblemList, type Problem} from "@sequentech/ui-essentials"
 import {FormStyles} from "@/components/styles/FormStyles"
 import React, {useEffect, useRef, memo, useState} from "react"
 import {useTranslation} from "react-i18next"
@@ -17,6 +17,12 @@ interface ImportScreenProps {
     uploadCallback?: (documentId: string, password?: string, shaField?: string) => Promise<void>
     doCancel: () => void
     errors: string | null
+    /**
+     * Why the file was refused, one named problem each, when the backend could
+     * say. Shown instead of `errors`, which is the same thing as one English
+     * paragraph.
+     */
+    problems?: Problem[] | null
     disableImport?: boolean
     refresh?: string
 }
@@ -40,7 +46,7 @@ const PasswordInputStyle = styled(FormStyles.PasswordInput)`
 
 export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenProps>> = memo(
     (props: ImportScreenProps): React.JSX.Element => {
-        const {doCancel, uploadCallback, doImport, disableImport, refresh, errors} = props
+        const {doCancel, uploadCallback, doImport, disableImport, refresh, errors, problems} = props
         const {t} = useTranslation()
         const notify = useNotify()
         const [loading, setLoading] = useState<boolean>(false)
@@ -180,7 +186,11 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
 
                 <FormStyles.StatusBox>
                     {isWorking() ? <FormStyles.ShowProgress /> : null}
-                    {errors ? (
+                    {problems && problems.length > 0 ? (
+                        <Box sx={{width: "100%"}} data-testid="import-problems">
+                            <ProblemList report={{problems}} />
+                        </Box>
+                    ) : errors ? (
                         <FormStyles.ErrorMessage variant="body2">{errors}</FormStyles.ErrorMessage>
                     ) : null}
                 </FormStyles.StatusBox>

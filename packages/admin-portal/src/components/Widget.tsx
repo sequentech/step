@@ -33,6 +33,7 @@ import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 import CloseIcon from "@mui/icons-material/Close"
 import {Visibility} from "@mui/icons-material"
 import {ETaskExecutionStatus} from "@sequentech/ui-core"
+import {ProblemList, readProblems} from "@sequentech/ui-essentials"
 import {ETasksExecution} from "@/types/tasksExecution"
 import {StatusChip} from "./StatusChip"
 import {IKeysCeremonyLog as ITaskLog} from "@/services/KeyCeremony"
@@ -168,6 +169,12 @@ export const Widget: React.FC<WidgetProps> = ({
     }
 
     const lastTask = taskData?.sequent_backend_tasks_execution?.[0]
+    // A refused import says why, one named problem at a time, in the
+    // administrator's language — the log line under it is the same in English.
+    const problems =
+        taskDataStatus === ETaskExecutionStatus.FAILED
+            ? readProblems(lastTask?.annotations?.problems)
+            : undefined
 
     return (
         <>
@@ -219,6 +226,11 @@ export const Widget: React.FC<WidgetProps> = ({
                         className="accordion-details"
                         sx={{display: "flex", flexDirection: "column", padding: "8px 16px"}}
                     >
+                        {problems ? (
+                            <Box sx={{mb: 1}} data-testid="widget-problems">
+                                <ProblemList report={{problems}} />
+                            </Box>
+                        ) : null}
                         <LogsBox className="logs-box">
                             <LogTypography className="logs-title">{t("widget.logs")}</LogTypography>
                             <Divider />

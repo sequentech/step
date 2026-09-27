@@ -4,8 +4,9 @@
 
 use crate::postgres::maintenance::vacuum_analyze_direct;
 use crate::services::electoral_log::ElectoralLogAdminContext;
+use crate::services::import::rejection::problems_of;
 use crate::services::providers::transactions_provider::provide_hasura_transaction;
-use crate::services::tasks_execution::{update_complete, update_fail};
+use crate::services::tasks_execution::{update_complete, update_fail, update_fail_with_problems};
 use crate::{
     services::import::import_election_event::{self as import_election_event_service},
     types::error::Result,
@@ -68,7 +69,12 @@ pub async fn import_election_event(
                 "Error process election event document: {}",
                 error.to_string()
             );
-            let _ = update_fail(&task_execution, &err_str).await;
+            let _ = match problems_of(error) {
+                Some(problems) => {
+                    update_fail_with_problems(&task_execution, &err_str, &problems).await
+                }
+                None => update_fail(&task_execution, &err_str).await,
+            };
             Err(err_str.into())
         }
     }

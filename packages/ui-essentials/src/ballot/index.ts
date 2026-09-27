@@ -123,3 +123,9 @@ export {default as WarnBox} from "../components/WarnBox/WarnBox"
 // show that screen with the component a voter meets rather than a drawing of it.
 export {default as SelectElection} from "../components/SelectElection/SelectElection"
 export {theme} from "../services/theme"
+
+// Not the ballot, but the other thing the Election Architect shows the way the
+// platform does: the problems an import finds. The Admin Portal renders the same
+// list for its own imports, so a complaint reads — and is translated — the same
+// in both.
+export * from "../components/ProblemList"

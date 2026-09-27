@@ -159,3 +159,7 @@ export type {BallotSelectionPort, ContestSelection, VoteChoice} from "./ballot/s
 export type {IBallotStyle as IBallotStyleRow} from "./ballot/types"
 export * from "./ballot/presentation"
 export {IInvalidPlaintextErrorType} from "./ballot/errors"
+
+// What an import or a validation found, and how to say it. Shared with the
+// Election Architect through the ballot entry, `ballot/index.ts`, too.
+export * from "./components/ProblemList"
