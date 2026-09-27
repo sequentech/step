@@ -511,26 +511,6 @@ const dutchTranslation: TranslationType = {
                     },
                 },
                 file: {
-                    "duplicate-name": {
-                        lead: "Bestandsnaam twee keer gebruikt",
-                        text: "Bestandsnaam twee keer gebruikt — '{{file}}' verwijst naar twee verschillende dingen. Bestanden worden op naam meegestuurd, dus het ene zou stilzwijgend het andere worden.",
-                    },
-                    "missing": {
-                        lead: "Bestand ontbreekt",
-                        text: "Bestand ontbreekt — '{{file}}' wordt genoemd en niets hier bevat het. Een lege archiefvermelding laat de import mislukken in plaats van een bestand kwijt te raken.",
-                    },
-                    "unused": {
-                        lead: "Bestand niet gebruikt",
-                        text: "Bestand niet gebruikt — '{{file}}' is aangeleverd en niets noemt het, dus het zou met de levering meegaan en aan niemand worden getoond.",
-                    },
-                },
-                identifier: {
-                    duplicate: {
-                        lead: "Identificatie twee keer gebruikt",
-                        text: "Identificatie twee keer gebruikt — '{{identifier}}' wordt al gebruikt door {{first}}. Identificaties zijn uniek binnen het hele verkiezingsevenement, dus de tweede vervangt de eerste in plaats van te worden toegevoegd.",
-                    },
-                },
-                import: {
                     "cannot-decrypt": {
                         lead: "Kon niet ontsleutelen",
                         text: "Kon niet ontsleutelen — het bestand is versleuteld en ging niet open. Controleer het wachtwoord.",
@@ -538,6 +518,14 @@ const dutchTranslation: TranslationType = {
                     "checksum-mismatch": {
                         lead: "Niet het verwachte bestand",
                         text: "Niet het verwachte bestand — de SHA-256 komt niet overeen met de opgegeven waarde, dus het is niet het bedoelde bestand. Controleer de checksum of upload het bestand opnieuw.",
+                    },
+                    "duplicate-name": {
+                        lead: "Bestandsnaam twee keer gebruikt",
+                        text: "Bestandsnaam twee keer gebruikt — '{{file}}' verwijst naar twee verschillende dingen. Bestanden worden op naam meegestuurd, dus het ene zou stilzwijgend het andere worden.",
+                    },
+                    "missing": {
+                        lead: "Bestand ontbreekt",
+                        text: "Bestand ontbreekt — '{{file}}' wordt genoemd en niets hier bevat het. Een lege archiefvermelding laat de import mislukken in plaats van een bestand kwijt te raken.",
                     },
                     "not-a-bundle": {
                         lead: "Geen export van een verkiezingsevenement",
@@ -551,9 +539,19 @@ const dutchTranslation: TranslationType = {
                         lead: "Archief onleesbaar",
                         text: "Archief onleesbaar — {{reason}}",
                     },
+                    "unused": {
+                        lead: "Bestand niet gebruikt",
+                        text: "Bestand niet gebruikt — '{{file}}' is aangeleverd en niets noemt het, dus het zou met de levering meegaan en aan niemand worden getoond.",
+                    },
                     "version-incompatible": {
                         lead: "Geëxporteerd door een andere versie",
                         text: "Geëxporteerd door een andere versie — het bestand komt van versie {{found}}, die versie {{current}} niet kan importeren.",
+                    },
+                },
+                identifier: {
+                    duplicate: {
+                        lead: "Identificatie twee keer gebruikt",
+                        text: "Identificatie twee keer gebruikt — '{{identifier}}' wordt al gebruikt door {{first}}. Identificaties zijn uniek binnen het hele verkiezingsevenement, dus de tweede vervangt de eerste in plaats van te worden toegevoegd.",
                     },
                 },
                 labels: {

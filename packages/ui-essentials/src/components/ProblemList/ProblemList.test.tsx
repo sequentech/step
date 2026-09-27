@@ -205,10 +205,10 @@ describe("problemSentence", () => {
         const i18n = await withCatalogue("en")
         const sentence = problemSentence(
             (key, options) => i18n.t(key, options),
-            problem({id: "import.cannot-decrypt"})
+            problem({id: "file.cannot-decrypt"})
         )
         expect(sentence.lead).toBe(
-            english.translations.problems.messages.import["cannot-decrypt"].lead
+            english.translations.problems.messages.file["cannot-decrypt"].lead
         )
         expect(sentence.lead + sentence.rest).toBe(sentence.text)
     })

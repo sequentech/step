@@ -195,7 +195,7 @@ export const RejectedBundleExplained: Story = {
                 path: "version",
                 message:
                     "the file was exported by version 8.1.0, which version 9.2.0 cannot import",
-                id: "import.version-incompatible",
+                id: "file.version-incompatible",
                 details: {found: "8.1.0", current: "9.2.0"},
             },
         ],

@@ -510,26 +510,6 @@ const basqueTranslation: TranslationType = {
                     },
                 },
                 file: {
-                    "duplicate-name": {
-                        lead: "Fitxategi-izena bi aldiz",
-                        text: 'Fitxategi-izena bi aldiz — "{{file}}" izenak bi gauza desberdin izendatzen ditu. Fitxategiak izenaren arabera bidaiatzen dute, beraz, batek bestea ordezkatuko luke isilean.',
-                    },
-                    "missing": {
-                        lead: "Fitxategia falta da",
-                        text: 'Fitxategia falta da — "{{file}}" aipatzen da eta hemen ez dago ezer hura duenik. Artxiboko sarrera huts batek inportazioa huts eginarazten du, fitxategi bat galdu beharrean.',
-                    },
-                    "unused": {
-                        lead: "Erabili gabeko fitxategia",
-                        text: 'Erabili gabeko fitxategia — "{{file}}" eman da eta ezerk ez du aipatzen, beraz, entregan bidaiatuko luke eta inori ez litzaioke erakutsiko.',
-                    },
-                },
-                identifier: {
-                    duplicate: {
-                        lead: "Identifikatzailea bi aldiz",
-                        text: 'Identifikatzailea bi aldiz — "{{identifier}}" {{first}}(e)k erabiltzen du dagoeneko. Identifikatzaileak bakarrak dira hauteskunde-gertaera osoan, beraz, bigarrenak lehena ordezkatzen du, gehitu beharrean.',
-                    },
-                },
-                import: {
                     "cannot-decrypt": {
                         lead: "Ezin izan da deszifratu",
                         text: "Ezin izan da deszifratu — fitxategia zifratuta dago eta ez da ireki. Egiaztatu pasahitza.",
@@ -537,6 +517,14 @@ const basqueTranslation: TranslationType = {
                     "checksum-mismatch": {
                         lead: "Ez da espero zen fitxategia",
                         text: "Ez da espero zen fitxategia — bere SHA-256 ez dator bat emandakoarekin, beraz, ez da nahi zen fitxategia. Egiaztatu kontrol-batura edo igo fitxategia berriro.",
+                    },
+                    "duplicate-name": {
+                        lead: "Fitxategi-izena bi aldiz",
+                        text: 'Fitxategi-izena bi aldiz — "{{file}}" izenak bi gauza desberdin izendatzen ditu. Fitxategiak izenaren arabera bidaiatzen dute, beraz, batek bestea ordezkatuko luke isilean.',
+                    },
+                    "missing": {
+                        lead: "Fitxategia falta da",
+                        text: 'Fitxategia falta da — "{{file}}" aipatzen da eta hemen ez dago ezer hura duenik. Artxiboko sarrera huts batek inportazioa huts eginarazten du, fitxategi bat galdu beharrean.',
                     },
                     "not-a-bundle": {
                         lead: "Ez da hauteskunde-gertaera baten esportazioa",
@@ -550,9 +538,19 @@ const basqueTranslation: TranslationType = {
                         lead: "Artxiboa ezin da irakurri",
                         text: "Artxiboa ezin da irakurri — {{reason}}",
                     },
+                    "unused": {
+                        lead: "Erabili gabeko fitxategia",
+                        text: 'Erabili gabeko fitxategia — "{{file}}" eman da eta ezerk ez du aipatzen, beraz, entregan bidaiatuko luke eta inori ez litzaioke erakutsiko.',
+                    },
                     "version-incompatible": {
                         lead: "Beste bertsio batekin esportatua",
                         text: "Beste bertsio batekin esportatua — fitxategia {{found}} bertsiotik dator, eta {{current}} bertsioak ezin du inportatu.",
+                    },
+                },
+                identifier: {
+                    duplicate: {
+                        lead: "Identifikatzailea bi aldiz",
+                        text: 'Identifikatzailea bi aldiz — "{{identifier}}" {{first}}(e)k erabiltzen du dagoeneko. Identifikatzaileak bakarrak dira hauteskunde-gertaera osoan, beraz, bigarrenak lehena ordezkatzen du, gehitu beharrean.',
                     },
                 },
                 labels: {

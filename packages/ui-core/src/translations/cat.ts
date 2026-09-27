@@ -511,26 +511,6 @@ const catalanTranslation: TranslationType = {
                     },
                 },
                 file: {
-                    "duplicate-name": {
-                        lead: "Nom de fitxer repetit",
-                        text: "Nom de fitxer repetit — «{{file}}» anomena dues coses diferents. Els fitxers viatgen identificats pel nom, així que un substituiria l'altre en silenci.",
-                    },
-                    "missing": {
-                        lead: "Falta un fitxer",
-                        text: "Falta un fitxer — s'esmenta «{{file}}» i aquí no hi ha res que el contingui. Una entrada d'arxiu buida fa fallar la importació en lloc de perdre un fitxer.",
-                    },
-                    "unused": {
-                        lead: "Fitxer no utilitzat",
-                        text: "Fitxer no utilitzat — s'ha proporcionat «{{file}}» i res no l'esmenta, així que viatjaria a l'entrega i no es mostraria a ningú.",
-                    },
-                },
-                identifier: {
-                    duplicate: {
-                        lead: "Identificador repetit",
-                        text: "Identificador repetit — «{{identifier}}» ja l'utilitza {{first}}. Els identificadors són únics en tot l'esdeveniment electoral, així que el segon substitueix el primer en lloc d'afegir-se.",
-                    },
-                },
-                import: {
                     "cannot-decrypt": {
                         lead: "No s'ha pogut desxifrar",
                         text: "No s'ha pogut desxifrar — el fitxer està xifrat i no s'ha obert. Comproveu la contrasenya.",
@@ -538,6 +518,14 @@ const catalanTranslation: TranslationType = {
                     "checksum-mismatch": {
                         lead: "No és el fitxer esperat",
                         text: "No és el fitxer esperat — el seu SHA-256 no coincideix amb l'indicat, així que no és el fitxer que es volia. Comproveu la suma de verificació o torneu a pujar el fitxer.",
+                    },
+                    "duplicate-name": {
+                        lead: "Nom de fitxer repetit",
+                        text: "Nom de fitxer repetit — «{{file}}» anomena dues coses diferents. Els fitxers viatgen identificats pel nom, així que un substituiria l'altre en silenci.",
+                    },
+                    "missing": {
+                        lead: "Falta un fitxer",
+                        text: "Falta un fitxer — s'esmenta «{{file}}» i aquí no hi ha res que el contingui. Una entrada d'arxiu buida fa fallar la importació en lloc de perdre un fitxer.",
                     },
                     "not-a-bundle": {
                         lead: "No és una exportació d'esdeveniment electoral",
@@ -551,9 +539,19 @@ const catalanTranslation: TranslationType = {
                         lead: "Arxiu il·legible",
                         text: "Arxiu il·legible — {{reason}}",
                     },
+                    "unused": {
+                        lead: "Fitxer no utilitzat",
+                        text: "Fitxer no utilitzat — s'ha proporcionat «{{file}}» i res no l'esmenta, així que viatjaria a l'entrega i no es mostraria a ningú.",
+                    },
                     "version-incompatible": {
                         lead: "Exportat amb una altra versió",
                         text: "Exportat amb una altra versió — el fitxer ve de la versió {{found}}, que la versió {{current}} no pot importar.",
+                    },
+                },
+                identifier: {
+                    duplicate: {
+                        lead: "Identificador repetit",
+                        text: "Identificador repetit — «{{identifier}}» ja l'utilitza {{first}}. Els identificadors són únics en tot l'esdeveniment electoral, així que el segon substitueix el primer en lloc d'afegir-se.",
                     },
                 },
                 labels: {

@@ -512,26 +512,6 @@ const tagalogTranslation: TranslationType = {
                     },
                 },
                 file: {
-                    "duplicate-name": {
-                        lead: "Dalawang beses ginamit ang pangalan ng file",
-                        text: "Dalawang beses ginamit ang pangalan ng file — tumutukoy ang '{{file}}' sa dalawang magkaibang bagay. Ipinapasa ang mga file ayon sa pangalan, kaya tahimik na magiging isa ang dalawa.",
-                    },
-                    "missing": {
-                        lead: "Nawawala ang file",
-                        text: "Nawawala ang file — binanggit ang '{{file}}' at walang anumang narito na naglalaman nito. Pinapabigo ng walang lamang entry sa archive ang import sa halip na mawalan ng file.",
-                    },
-                    "unused": {
-                        lead: "Hindi ginamit ang file",
-                        text: "Hindi ginamit ang file — ibinigay ang '{{file}}' at walang bumabanggit dito, kaya isasama ito sa delivery at hindi ipapakita kaninuman.",
-                    },
-                },
-                identifier: {
-                    duplicate: {
-                        lead: "Dalawang beses ginamit ang identifier",
-                        text: "Dalawang beses ginamit ang identifier — ginagamit na ng {{first}} ang '{{identifier}}'. Natatangi ang mga identifier sa buong election event, kaya papalitan ng pangalawa ang una sa halip na maidagdag.",
-                    },
-                },
-                import: {
                     "cannot-decrypt": {
                         lead: "Hindi ma-decrypt",
                         text: "Hindi ma-decrypt — naka-encrypt ang file at hindi ito nabuksan. Tingnan ang password.",
@@ -539,6 +519,14 @@ const tagalogTranslation: TranslationType = {
                     "checksum-mismatch": {
                         lead: "Hindi ito ang inaasahang file",
                         text: "Hindi ito ang inaasahang file — hindi tugma ang SHA-256 nito sa ibinigay, kaya hindi ito ang file na tinutukoy. Tingnan ang checksum o i-upload ulit ang file.",
+                    },
+                    "duplicate-name": {
+                        lead: "Dalawang beses ginamit ang pangalan ng file",
+                        text: "Dalawang beses ginamit ang pangalan ng file — tumutukoy ang '{{file}}' sa dalawang magkaibang bagay. Ipinapasa ang mga file ayon sa pangalan, kaya tahimik na magiging isa ang dalawa.",
+                    },
+                    "missing": {
+                        lead: "Nawawala ang file",
+                        text: "Nawawala ang file — binanggit ang '{{file}}' at walang anumang narito na naglalaman nito. Pinapabigo ng walang lamang entry sa archive ang import sa halip na mawalan ng file.",
                     },
                     "not-a-bundle": {
                         lead: "Hindi export ng election event",
@@ -552,9 +540,19 @@ const tagalogTranslation: TranslationType = {
                         lead: "Hindi mabasa ang archive",
                         text: "Hindi mabasa ang archive — {{reason}}",
                     },
+                    "unused": {
+                        lead: "Hindi ginamit ang file",
+                        text: "Hindi ginamit ang file — ibinigay ang '{{file}}' at walang bumabanggit dito, kaya isasama ito sa delivery at hindi ipapakita kaninuman.",
+                    },
                     "version-incompatible": {
                         lead: "Na-export ng ibang bersyon",
                         text: "Na-export ng ibang bersyon — galing ang file sa bersyon {{found}}, na hindi maiimport ng bersyon {{current}}.",
+                    },
+                },
+                identifier: {
+                    duplicate: {
+                        lead: "Dalawang beses ginamit ang identifier",
+                        text: "Dalawang beses ginamit ang identifier — ginagamit na ng {{first}} ang '{{identifier}}'. Natatangi ang mga identifier sa buong election event, kaya papalitan ng pangalawa ang una sa halip na maidagdag.",
                     },
                 },
                 labels: {

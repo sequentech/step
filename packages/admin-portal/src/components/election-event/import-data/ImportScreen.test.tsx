@@ -350,11 +350,11 @@ it("names each problem instead of repeating the English paragraph", () => {
                     code: "unreadable",
                     path: "file",
                     message: "the file is not a readable election event",
-                    id: "import.not-json",
+                    id: "file.not-json",
                 },
             ]}
         />
     )
-    expect(screen.getByRole("list", {name: "Problems"})).toHaveTextContent("import.not-json")
+    expect(screen.getByRole("list", {name: "Problems"})).toHaveTextContent("file.not-json")
     expect(screen.queryByText(/cannot be imported/)).not.toBeInTheDocument()
 })

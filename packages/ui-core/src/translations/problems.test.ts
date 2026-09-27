@@ -85,7 +85,7 @@ describe("problem catalog", () => {
     it("finds the core's problem names", () => {
         // A guard on the scan itself: an empty set would pass everything below.
         expect(raised.size).toBeGreaterThan(100)
-        expect(raised).toContain("import.not-json")
+        expect(raised).toContain("file.not-json")
         expect(raised).toContain("voters.vote-weight-out-of-range")
     })
 

@@ -25,7 +25,7 @@ const PROBLEMS = [
         code: "incompatible_version",
         path: "version",
         message: "the file was exported by version 8.1.0, which version 9.2.0 cannot import",
-        id: "import.version-incompatible",
+        id: "file.version-incompatible",
         details: {found: "8.1.0", current: "9.2.0"},
     },
 ]
@@ -426,9 +426,7 @@ test("explains a refused archive one named problem at a time", async ({page, por
     const problems = drawer.getByTestId("import-problems")
     await expect(problems.getByText("2 errors", {exact: true})).toBeVisible()
     await expect(problems.getByTestId("problem")).toHaveCount(2)
-    await expect(problems.getByTestId("problem").nth(1)).toContainText(
-        "exported by version 8.1.0"
-    )
+    await expect(problems.getByTestId("problem").nth(1)).toContainText("exported by version 8.1.0")
     await expect(problems.getByText("president", {exact: true})).toBeVisible()
     // The backend's English paragraph is replaced by the list, not repeated.
     await expect(drawer.getByText("Synthetic archive validation failed")).toHaveCount(0)

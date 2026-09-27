@@ -1750,7 +1750,7 @@ mod tests {
             .contains("Failed to parse import data as JSON"));
         let problems = crate::services::import::rejection::problems_of(&error)
             .expect("an unreadable file carries its problem");
-        assert_eq!(problems[0].id.as_deref(), Some("import.not-json"));
+        assert_eq!(problems[0].id.as_deref(), Some("file.not-json"));
     }
 
     /// And a bundle with no fatal problems gets through this gate.

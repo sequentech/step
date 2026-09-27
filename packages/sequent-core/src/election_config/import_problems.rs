@@ -30,7 +30,7 @@ pub fn not_json(reason: impl std::fmt::Display) -> Problem {
         FILE,
         format!("the file is not a readable election event: {reason}"),
     )
-    .id("import.not-json")
+    .id("file.not-json")
     .detail("reason", reason)
 }
 
@@ -41,7 +41,7 @@ pub fn not_a_bundle(reason: impl std::fmt::Display) -> Problem {
         FILE,
         format!("the file is not an election event export: {reason}"),
     )
-    .id("import.not-a-bundle")
+    .id("file.not-a-bundle")
     .detail("reason", reason)
 }
 
@@ -52,7 +52,7 @@ pub fn unreadable_archive(reason: impl std::fmt::Display) -> Problem {
         FILE,
         format!("the archive could not be read: {reason}"),
     )
-    .id("import.unreadable-archive")
+    .id("file.unreadable-archive")
     .detail("reason", reason)
 }
 
@@ -63,7 +63,7 @@ pub fn cannot_decrypt() -> Problem {
         FILE,
         "the file could not be decrypted; check the password",
     )
-    .id("import.cannot-decrypt")
+    .id("file.cannot-decrypt")
 }
 
 /// Exported by a version of the platform this one cannot import.
@@ -76,7 +76,7 @@ pub fn incompatible_version(found: &str, current: &str) -> Problem {
              cannot import"
         ),
     )
-    .id("import.version-incompatible")
+    .id("file.version-incompatible")
     .detail("found", found)
     .detail("current", current)
 }
@@ -91,7 +91,7 @@ pub fn checksum_mismatch(expected: &str, actual: &str) -> Problem {
              so it is not the file that was meant"
         ),
     )
-    .id("import.checksum-mismatch")
+    .id("file.checksum-mismatch")
     .detail("expected", expected)
     .detail("actual", actual)
 }

@@ -514,26 +514,6 @@ const frenchTranslation: TranslationType = {
                     },
                 },
                 file: {
-                    "duplicate-name": {
-                        lead: "Nom de fichier utilisé deux fois",
-                        text: "Nom de fichier utilisé deux fois — '{{file}}' désigne deux choses différentes. Les fichiers sont transmis par nom, donc l'un deviendrait silencieusement l'autre.",
-                    },
-                    "missing": {
-                        lead: "Fichier manquant",
-                        text: "Fichier manquant — '{{file}}' est nommé et rien ici ne le contient. Une entrée d'archive vide fait échouer l'importation plutôt que de perdre un fichier.",
-                    },
-                    "unused": {
-                        lead: "Fichier non utilisé",
-                        text: "Fichier non utilisé — '{{file}}' a été fourni et rien ne le nomme, donc il serait transmis avec la livraison et montré à personne.",
-                    },
-                },
-                identifier: {
-                    duplicate: {
-                        lead: "Identifiant utilisé deux fois",
-                        text: "Identifiant utilisé deux fois — '{{identifier}}' est déjà utilisé par {{first}}. Les identifiants sont uniques dans tout l'événement électoral, donc le second remplace le premier au lieu d'être ajouté.",
-                    },
-                },
-                import: {
                     "cannot-decrypt": {
                         lead: "Déchiffrement impossible",
                         text: "Déchiffrement impossible — le fichier est chiffré et ne s'est pas ouvert. Vérifiez le mot de passe.",
@@ -541,6 +521,14 @@ const frenchTranslation: TranslationType = {
                     "checksum-mismatch": {
                         lead: "Pas le fichier attendu",
                         text: "Pas le fichier attendu — son SHA-256 ne correspond pas à celui fourni, donc ce n'est pas le fichier prévu. Vérifiez la somme de contrôle ou téléversez à nouveau le fichier.",
+                    },
+                    "duplicate-name": {
+                        lead: "Nom de fichier utilisé deux fois",
+                        text: "Nom de fichier utilisé deux fois — '{{file}}' désigne deux choses différentes. Les fichiers sont transmis par nom, donc l'un deviendrait silencieusement l'autre.",
+                    },
+                    "missing": {
+                        lead: "Fichier manquant",
+                        text: "Fichier manquant — '{{file}}' est nommé et rien ici ne le contient. Une entrée d'archive vide fait échouer l'importation plutôt que de perdre un fichier.",
                     },
                     "not-a-bundle": {
                         lead: "Pas un export d'événement électoral",
@@ -554,9 +542,19 @@ const frenchTranslation: TranslationType = {
                         lead: "Archive illisible",
                         text: "Archive illisible — {{reason}}",
                     },
+                    "unused": {
+                        lead: "Fichier non utilisé",
+                        text: "Fichier non utilisé — '{{file}}' a été fourni et rien ne le nomme, donc il serait transmis avec la livraison et montré à personne.",
+                    },
                     "version-incompatible": {
                         lead: "Exporté par une autre version",
                         text: "Exporté par une autre version — le fichier provient de la version {{found}}, que la version {{current}} ne peut pas importer.",
+                    },
+                },
+                identifier: {
+                    duplicate: {
+                        lead: "Identifiant utilisé deux fois",
+                        text: "Identifiant utilisé deux fois — '{{identifier}}' est déjà utilisé par {{first}}. Les identifiants sont uniques dans tout l'événement électoral, donc le second remplace le premier au lieu d'être ajouté.",
                     },
                 },
                 labels: {

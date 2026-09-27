@@ -510,26 +510,6 @@ const englishTranslation = {
                     },
                 },
                 file: {
-                    "duplicate-name": {
-                        lead: "File name used twice",
-                        text: "File name used twice — '{{file}}' names two different things. Files travel keyed by name, so one would silently become the other.",
-                    },
-                    "missing": {
-                        lead: "File missing",
-                        text: "File missing — '{{file}}' is named and nothing here holds it. An empty archive entry fails the import rather than losing a file.",
-                    },
-                    "unused": {
-                        lead: "File not used",
-                        text: "File not used — '{{file}}' was supplied and nothing names it, so it would travel in the delivery and be shown to nobody.",
-                    },
-                },
-                identifier: {
-                    duplicate: {
-                        lead: "Identifier used twice",
-                        text: "Identifier used twice — '{{identifier}}' is already used by {{first}}. Identifiers are unique across the whole election event, so the second replaces the first instead of being added.",
-                    },
-                },
-                import: {
                     "cannot-decrypt": {
                         lead: "Could not decrypt",
                         text: "Could not decrypt — the file is encrypted and did not open. Check the password.",
@@ -537,6 +517,14 @@ const englishTranslation = {
                     "checksum-mismatch": {
                         lead: "Not the expected file",
                         text: "Not the expected file — its SHA-256 does not match the one given, so it is not the file that was meant. Check the checksum or upload the file again.",
+                    },
+                    "duplicate-name": {
+                        lead: "File name used twice",
+                        text: "File name used twice — '{{file}}' names two different things. Files travel keyed by name, so one would silently become the other.",
+                    },
+                    "missing": {
+                        lead: "File missing",
+                        text: "File missing — '{{file}}' is named and nothing here holds it. An empty archive entry fails the import rather than losing a file.",
                     },
                     "not-a-bundle": {
                         lead: "Not an election event export",
@@ -550,9 +538,19 @@ const englishTranslation = {
                         lead: "Archive unreadable",
                         text: "Archive unreadable — {{reason}}",
                     },
+                    "unused": {
+                        lead: "File not used",
+                        text: "File not used — '{{file}}' was supplied and nothing names it, so it would travel in the delivery and be shown to nobody.",
+                    },
                     "version-incompatible": {
                         lead: "Exported by another version",
                         text: "Exported by another version — the file comes from version {{found}}, which version {{current}} cannot import.",
+                    },
+                },
+                identifier: {
+                    duplicate: {
+                        lead: "Identifier used twice",
+                        text: "Identifier used twice — '{{identifier}}' is already used by {{first}}. Identifiers are unique across the whole election event, so the second replaces the first instead of being added.",
                     },
                 },
                 labels: {
