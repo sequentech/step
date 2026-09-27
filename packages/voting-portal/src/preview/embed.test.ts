@@ -192,6 +192,15 @@ test("a call of another version is refused", () => {
     ])
 })
 
+test("a call without a version or an emulator says what is missing", () => {
+    expect(callIssuesOf(call({version: undefined}))).toEqual([
+        `version: expected ${EMBED_VERSION}, found nothing`,
+    ])
+    expect(callIssuesOf(call({emulatorUrl: undefined}))).toEqual([
+        "emulatorUrl: expected an absolute http(s) URL, found nothing",
+    ])
+})
+
 test("every problem of a call is reported together", () => {
     const issues = callIssuesOf(
         call({
