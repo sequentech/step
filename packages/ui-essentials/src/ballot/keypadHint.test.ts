@@ -2,13 +2,12 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import {keypadHint} from "./keypadHint"
+import {keypadHint, type KeypadHintWording} from "./keypadHint"
 
-const say = {
-    listed: ({maxDigits, validInputs, timeout}: Record<string, string | number>) =>
+const say: KeypadHintWording = {
+    listed: ({maxDigits, validInputs, timeout}) =>
         `Up to ${maxDigits} of ${validInputs}, within ${timeout}s`,
-    anyKeys: ({maxDigits, timeout}: Record<string, string | number>) =>
-        `Up to ${maxDigits} digits, within ${timeout}s`,
+    anyKeys: ({maxDigits, timeout}) => `Up to ${maxDigits} digits, within ${timeout}s`,
 }
 
 describe("keypadHint", () => {

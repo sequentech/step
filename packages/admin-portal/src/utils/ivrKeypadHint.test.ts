@@ -18,7 +18,14 @@ describe("ivrKeypadHint", () => {
     const t = ((key: string, values: Record<string, string | number>) => {
         const template = key
             .split(".")
-            .reduce<any>((node, part) => node?.[part], en.translations) as string
+            .reduce<unknown>(
+                (node, part) =>
+                    typeof node === "object" && node !== null
+                        ? (node as Record<string, unknown>)[part]
+                        : undefined,
+                en.translations
+            )
+        if (typeof template !== "string") throw new Error(`No English wording for ${key}`)
         return template.replace(/\{\{(\w+)\}\}/g, (_, name: string) => String(values[name]))
     }) as unknown as TFunction
 
