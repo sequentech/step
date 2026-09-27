@@ -39,6 +39,42 @@ export const Default: Story = {
     },
 }
 
+/**
+ * Keycloak leaves a theme property it cannot resolve as its own `${...}` text, and a realm
+ * served by an older sequent-theme jar still has no default for the build details. Neither
+ * a raw reference nor an empty value is worth a label in the header.
+ */
+export const BuildInfoUnavailable: Story = {
+    args: {
+        kcContext: {
+            properties: {systemVersion: "${env.APP_VERSION}", systemHash: ""},
+        },
+    },
+    play: async ({canvasElement}) => {
+        await within(canvasElement).findByRole("heading", {level: 1})
+        const header = within(within(canvasElement).getByRole("banner"))
+        await expect(canvasElement.ownerDocument.body.textContent).not.toContain("${")
+        await expect(header.queryByText("Version:")).toBeNull()
+        await expect(header.queryByText("Hash:")).toBeNull()
+        await expect(header.getByRole("combobox", {name: "Languages"})).toBeVisible()
+    },
+}
+
+export const BuildHashOnly: Story = {
+    args: {
+        kcContext: {
+            properties: {systemVersion: "${env.APP_VERSION}", systemHash: "abc123"},
+        },
+    },
+    play: async ({canvasElement}) => {
+        await within(canvasElement).findByRole("heading", {level: 1})
+        const header = within(within(canvasElement).getByRole("banner"))
+        await expect(canvasElement.ownerDocument.body.textContent).not.toContain("${")
+        await expect(header.queryByText("Version:")).toBeNull()
+        await expect(header.getByText("abc123")).toBeVisible()
+    },
+}
+
 export const InvalidCredentials: Story = {
     args: {
         kcContext: {

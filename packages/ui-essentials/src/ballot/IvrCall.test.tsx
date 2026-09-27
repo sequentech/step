@@ -95,13 +95,48 @@ describe("a call in progress", () => {
         expect(screen.getByText("Goodbye")).toBeInTheDocument()
     })
 
-    it("strips the root SSML tag and keeps what is inside it", async () => {
+    it("shows the words of the SSML, with its pauses marked rather than its markup", async () => {
         // The pauses are why: somebody reading a transcript to work out why a
         // prompt sounds rushed needs to see the breaks the Lambda inserted.
         const driver = new FakeDriver([hangUp('Press one<break time="500ms"/>or two')])
         render(<IvrCall start={() => driver} />)
 
-        await screen.findByText('Press one<break time="500ms"/>or two')
+        const line = await screen.findByTestId("ivr-call-prompt")
+        expect(line).toHaveTextContent(/^Press one.*500ms.*or two$/)
+        expect(line.textContent).not.toMatch(/<|>/)
+        expect(screen.getByTitle("Pause, 500ms")).toBeInTheDocument()
+    })
+
+    it("marks a part in another language instead of showing its SSML tags", async () => {
+        const bilingual = {
+            prompt_text:
+                '<speak><lang xml:lang="en-US">For English, press 1</lang>, ' +
+                '<lang xml:lang="es-ES">Para Español, pulse 2</lang></speak>',
+            language: "es-ES",
+            voice_id: "Lucia",
+        }
+        const driver = new FakeDriver([{type: "Disconnect", prompt: bilingual}])
+        render(<IvrCall start={() => driver} />)
+
+        const line = await screen.findByTestId("ivr-call-prompt")
+        expect(line.textContent).not.toMatch(/<|>|xml:lang/)
+        expect(line).toHaveTextContent("EN For English, press 1, Para Español, pulse 2")
+        // Only the part in another language than the line's gets a badge.
+        expect(screen.getByTitle("en-US")).toHaveTextContent("EN")
+        expect(screen.queryByTitle("es-ES")).toBeNull()
+        expect(screen.getByText("For English, press 1")).toHaveAttribute("lang", "en-US")
+        expect(screen.getByText("Para Español, pulse 2")).toHaveAttribute("lang", "es-ES")
+    })
+
+    it("never turns a prompt's markup into page elements", async () => {
+        const driver = new FakeDriver([
+            hangUp('Hi<img src="x" onerror="window.hacked=1"/><script>window.hacked=1</script>'),
+        ])
+        const {container} = render(<IvrCall start={() => driver} />)
+
+        await screen.findByTestId("ivr-call-prompt")
+        expect(container.querySelector("img, script")).toBeNull()
+        expect((window as unknown as {hacked?: number}).hacked).toBeUndefined()
     })
 
     it("labels each line with the language, and names the voice on hover", async () => {

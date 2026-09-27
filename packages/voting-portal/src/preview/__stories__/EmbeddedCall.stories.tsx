@@ -6,7 +6,12 @@ import {expect, fn, userEvent, within} from "storybook/test"
 import {IvrEmulatorError} from "@sequentech/ui-essentials"
 import {EmbedMessageType} from "../embed"
 import {EmbeddedCall} from "../EmbeddedCall"
-import {fakeCallConfig, fakeIvrEmulator} from "../fakeIvrEmulator"
+import {
+    fakeCallConfig,
+    fakeIvrEmulator,
+    FakeLanguageMenuIvrDriver,
+    FakePinIvrDriver,
+} from "../fakeIvrEmulator"
 
 /**
  * The telephone call `workbench/embed.html` places for a framing tool such as the Election
@@ -61,6 +66,41 @@ export const Translated: Story = {
     play: async ({canvasElement}) => {
         const keypad = await within(canvasElement).findByRole("textbox", {name: "Teclas"})
         await expect(keypad).toHaveAttribute("placeholder", "Hasta 1 de 1 en 10 s")
+    },
+}
+
+/**
+ * A prompt that takes any digits, such as a PIN: the Lambda lists no keys for it, and the
+ * hint says how many digits rather than "of" nothing.
+ */
+export const AnyDigits: Story = {
+    args: {load: async () => ({IvrEmulatorDriver: FakePinIvrDriver})},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await expect(await canvas.findByText("Enter your 8-digit PIN.")).toBeVisible()
+        const keypad = canvas.getByRole("textbox", {name: "Keys to press"})
+        await expect(keypad).toHaveAttribute("placeholder", "Up to 8 digits, within 5s")
+        await userEvent.type(keypad, "12345678")
+        await userEvent.click(canvas.getByRole("button", {name: "Press these keys"}))
+        await expect(await canvas.findByText("Press 1 to hear your ballot.")).toBeVisible()
+        await expect(keypad).toHaveAttribute("placeholder", "Up to 1 of 1, within 10s")
+    },
+}
+
+/**
+ * A language menu in two languages, which the Lambda speaks as SSML `<lang>` parts: the
+ * transcript shows the words, with a badge for the part in another language, and none
+ * of the markup.
+ */
+export const LanguageMenu: Story = {
+    args: {load: async () => ({IvrEmulatorDriver: FakeLanguageMenuIvrDriver})},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        const english = await canvas.findByText("For English, press 1")
+        await expect(english).toHaveAttribute("lang", "en-US")
+        await expect(canvas.getByText("Para español, pulse 2")).toHaveAttribute("lang", "es-ES")
+        await expect(canvas.getByTitle("en-US")).toHaveTextContent("EN")
+        await expect(canvasElement.textContent).not.toMatch(/<lang|xml:lang|<\/?speak/)
     },
 }
 

@@ -13,6 +13,7 @@ import Typography from "@mui/material/Typography"
 import React, {useEffect, useMemo, useRef, useState} from "react"
 
 import {theme} from "../services/theme"
+import {ssmlSegments} from "./ssml"
 
 /**
  * One thing said down the line, as the emulator reports it.
@@ -97,14 +98,12 @@ export interface IIvrCallProps {
  * spending a column on it.
  */
 export const IvrPromptLine: React.FC<{prompt: IvrPrompt}> = ({prompt}) => {
-    // The Lambda wraps every prompt in SSML. Stripping only the root tag is
-    // deliberate: what is left says `<break time="500ms"/>` where the call pauses,
-    // and somebody reading a transcript to work out why a prompt sounds rushed
-    // needs to see that.
-    const body = useMemo(
-        () => prompt.prompt_text.replace(/^<speak>/, "").replace(/<\/speak>$/, ""),
-        [prompt]
-    )
+    // The Lambda speaks SSML. The transcript shows its words, never its markup:
+    // a part in another language (`<lang xml:lang>`) gets a badge, and a pause
+    // (`<break>`) a marker, because somebody reading a transcript to work out why
+    // a prompt sounds rushed needs to see where the Lambda put them.
+    const segments = useMemo(() => ssmlSegments(prompt.prompt_text), [prompt])
+    const primary = (lang: string) => lang.split("-")[0].toLowerCase()
 
     return (
         <Box sx={{display: "grid", gridTemplateColumns: "3ch minmax(0, 1fr)", columnGap: 1}}>
@@ -114,7 +113,53 @@ export const IvrPromptLine: React.FC<{prompt: IvrPrompt}> = ({prompt}) => {
             >
                 {prompt.language.slice(0, 2).toUpperCase()}
             </Box>
-            <Box sx={{minWidth: 0, whiteSpace: "pre-wrap", overflowWrap: "anywhere"}}>{body}</Box>
+            <Box
+                data-testid="ivr-call-prompt"
+                sx={{minWidth: 0, whiteSpace: "pre-wrap", overflowWrap: "anywhere"}}
+            >
+                {segments.map((segment, index) => {
+                    if (segment.kind === "break") {
+                        return (
+                            <Box
+                                key={index}
+                                component="span"
+                                title={segment.time ? `Pause, ${segment.time}` : "Pause"}
+                                sx={{color: "text.secondary", fontSize: "0.85em"}}
+                            >
+                                {` ⏸${segment.time ? ` ${segment.time}` : ""} `}
+                            </Box>
+                        )
+                    }
+                    if (!segment.lang) {
+                        return <React.Fragment key={index}>{segment.text}</React.Fragment>
+                    }
+                    const foreign = primary(segment.lang) !== primary(prompt.language)
+                    return (
+                        <React.Fragment key={index}>
+                            {foreign ? (
+                                <>
+                                    <Box
+                                        component="span"
+                                        title={segment.lang}
+                                        sx={{
+                                            fontSize: "0.75em",
+                                            fontWeight: 600,
+                                            px: 0.5,
+                                            borderRadius: 0.5,
+                                            border: 1,
+                                            borderColor: "divider",
+                                            color: "text.secondary",
+                                        }}
+                                    >
+                                        {primary(segment.lang).toUpperCase()}
+                                    </Box>{" "}
+                                </>
+                            ) : null}
+                            <span lang={segment.lang}>{segment.text}</span>
+                        </React.Fragment>
+                    )
+                })}
+            </Box>
         </Box>
     )
 }

@@ -13,7 +13,7 @@ import {
 } from "@sequentech/ui-essentials"
 import {
     EmbedMessageType,
-    fillLabel,
+    keypadHint,
     type CallLabels,
     type CallRequest,
     type EmbedReply,
@@ -23,6 +23,7 @@ import {
 export const DEFAULT_CALL_LABELS: Required<CallLabels> = {
     input: "Keys to press",
     placeholder: "Up to {{maxDigits}} of {{validInputs}}, within {{timeout}}s",
+    placeholderAnyKeys: "Up to {{maxDigits}} digits, within {{timeout}}s",
     timeout: "Say nothing",
     send: "Press these keys",
     disconnected: "The call ended.",
@@ -125,13 +126,7 @@ export const EmbeddedCall: React.FC<EmbeddedCallProps> = ({
                         start={() => new api.IvrEmulatorDriver(request.config)}
                         onStatusChange={onStatusChange}
                         onError={onError}
-                        placeholder={(expected) =>
-                            fillLabel(labels.placeholder, {
-                                maxDigits: expected.max_digits,
-                                validInputs: expected.valid_inputs,
-                                timeout: expected.timeout,
-                            })
-                        }
+                        placeholder={(expected) => keypadHint(labels, expected)}
                         inputLabel={labels.input}
                         timeoutLabel={labels.timeout}
                         sendLabel={labels.send}

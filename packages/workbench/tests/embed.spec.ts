@@ -38,11 +38,18 @@ export class IvrEmulatorDriver {
     constructor(config) {
         this.queue = [
             {type: "Prompt", prompt: says("Welcome, caller " + config.caller_number + ".")},
+            {type: "Prompt", prompt: says('<lang xml:lang="es-ES">Hola</lang>, <lang xml:lang="en-US">hello</lang>.')},
             {type: "ExpectInput", prompt: says("Press 1."), valid_inputs: "1", max_digits: 1, timeout: 5},
         ]
     }
     async execute() { return this.queue.shift() ?? {type: "Noop"} }
-    send_input(input) { this.queue.push({type: "Disconnect", prompt: says("You pressed " + input + ".")}) }
+    send_input(input) {
+        // A PIN next: the Lambda lists no valid inputs when any digits will do.
+        this.queue.push(this.pin
+            ? {type: "Disconnect", prompt: says("You pressed " + input + ".")}
+            : {type: "ExpectInput", prompt: says("Enter your PIN."), valid_inputs: "", max_digits: 8, timeout: 5})
+        this.pin = true
+    }
     send_timeout() {}
     free() {}
 }`
@@ -223,13 +230,23 @@ test("a framing page places a call against the emulator it serves", async ({page
     await send(page, call())
     const frame = page.frameLocator("#preview")
     await expect(frame.getByText("Welcome, caller +1234567890.")).toBeVisible()
+    // SSML is shown as its words: a badge for the other language, and no tags.
+    const greeting = frame.getByTestId("ivr-call-prompt").filter({hasText: "Hola"})
+    await expect(greeting).toHaveText("ES Hola, hello.")
+    await expect(greeting.getByText("Hola")).toHaveAttribute("lang", "es-ES")
     await expect
         .poll(() => lastReply(page))
         .toMatchObject({type: "calling", status: "ExpectingInput"})
 
-    await frame.getByRole("textbox", {name: "Keys to press"}).fill("1")
+    const keypad = frame.getByRole("textbox", {name: "Keys to press"})
+    await expect(keypad).toHaveAttribute("placeholder", "Up to 1 of 1, within 5s")
+    await keypad.fill("1")
     await frame.getByRole("button", {name: "Press"}).click()
-    await expect(frame.getByText("You pressed 1.")).toBeVisible()
+    await expect(frame.getByText("Enter your PIN.")).toBeVisible()
+    await expect(keypad).toHaveAttribute("placeholder", "Up to 8 digits, within 5s")
+    await keypad.fill("12345678")
+    await frame.getByRole("button", {name: "Press"}).click()
+    await expect(frame.getByText("You pressed 12345678.")).toBeVisible()
     await expect
         .poll(() => lastReply(page))
         .toMatchObject({type: "calling", status: "Disconnected"})

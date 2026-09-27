@@ -16,6 +16,7 @@ import {
     embedMessage,
     embeddedSource,
     fillLabel,
+    keypadHint,
     readCallMessage,
     readShowMessage,
 } from "./embed"
@@ -222,4 +223,39 @@ test("a label's placeholders are filled in, and unknown ones left alone", () => 
             timeout: 5,
         })
     ).toBe("Up to 2 of 0-9 in 5s {{other}}")
+})
+
+describe("keypadHint", () => {
+    const labels = {
+        placeholder: "Up to {{maxDigits}} of {{validInputs}}, within {{timeout}}s",
+        placeholderAnyKeys: "Up to {{maxDigits}} digits, within {{timeout}}s",
+    }
+
+    test("names the keys a prompt accepts", () => {
+        expect(keypadHint(labels, {valid_inputs: "1,2,0", max_digits: 1, timeout: 5})).toBe(
+            "Up to 1 of 1,2,0, within 5s"
+        )
+    })
+
+    test("says any digits will do when the Lambda lists no keys", () => {
+        // The Lambda's wire format: no valid inputs means any key, up to max_digits (a PIN).
+        for (const valid_inputs of ["", "  "]) {
+            const hint = keypadHint(labels, {valid_inputs, max_digits: 8, timeout: 5})
+            expect(hint).toBe("Up to 8 digits, within 5s")
+            expect(hint).not.toMatch(/ of ,|\{\{/)
+        }
+    })
+
+    test("a framing tool's own words are used for both", () => {
+        const spanish = {
+            placeholder: "Hasta {{maxDigits}} de {{validInputs}} en {{timeout}} s",
+            placeholderAnyKeys: "Hasta {{maxDigits}} dígitos en {{timeout}} s",
+        }
+        expect(keypadHint(spanish, {valid_inputs: "", max_digits: 4, timeout: 10})).toBe(
+            "Hasta 4 dígitos en 10 s"
+        )
+        expect(keypadHint(spanish, {valid_inputs: "1", max_digits: 1, timeout: 10})).toBe(
+            "Hasta 1 de 1 en 10 s"
+        )
+    })
 })

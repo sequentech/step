@@ -65,6 +65,11 @@ export interface CallLabels {
     input?: string
     /** The keypad's placeholder: `{{maxDigits}}`, `{{validInputs}}` and `{{timeout}}` are filled in. */
     placeholder?: string
+    /**
+     * The keypad's placeholder when any digits will do, such as for a PIN, which the Lambda
+     * says by listing no valid inputs: `{{maxDigits}}` and `{{timeout}}` are filled in.
+     */
+    placeholderAnyKeys?: string
     /** The button that lets the caller's patience run out. */
     timeout?: string
     /** The button that presses the keys. */
@@ -78,6 +83,7 @@ export interface CallLabels {
 export const CALL_LABEL_KEYS: readonly (keyof CallLabels)[] = [
     "input",
     "placeholder",
+    "placeholderAnyKeys",
     "timeout",
     "send",
     "disconnected",
@@ -259,6 +265,24 @@ export const fillLabel = (template: string, values: Record<string, string | numb
     template.replace(/\{\{\s*(\w+)\s*\}\}/g, (whole, name: string) =>
         name in values ? String(values[name]) : whole
     )
+
+/**
+ * What the keypad says while the call waits for keys.
+ *
+ * The Lambda lists the keys a prompt accepts, or none when any digits will do (a PIN, up
+ * to `max_digits`); filling the list into "Up to 8 of …" then leaves "Up to 8 of ,".
+ */
+export const keypadHint = (
+    labels: Required<Pick<CallLabels, "placeholder" | "placeholderAnyKeys">>,
+    expected: {valid_inputs: string; max_digits: number; timeout: number}
+): string => {
+    const validInputs = expected.valid_inputs.trim()
+    return fillLabel(validInputs ? labels.placeholder : labels.placeholderAnyKeys, {
+        maxDigits: expected.max_digits,
+        validInputs,
+        timeout: expected.timeout,
+    })
+}
 
 /**
  * The document, with the demo key where it has the core's stand-in.
