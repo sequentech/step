@@ -91,9 +91,12 @@ export type {
 
 // The ballot a voter marks, and the port a host implements to hold their marks.
 //
-// The voting portal renders these over its redux store. Other tools, such as the
-// Election Architect, do not import them: they frame the portal's own screens through
-// the workbench's embedded voter preview (`voting-portal/src/preview/embed.ts`).
+// One implementation, two consumers: the voting portal renders these over its
+// redux store, and the Election Architect's preview renders the same components
+// over local state. Previously the wizard drew byte-identical *copies* of the
+// candidate row, kept honest by a parity checker, and could not draw a contest at
+// all — so a preview could differ from the ballot, which for an election is not a
+// cosmetic problem.
 export {SupportMaterialsLayout, SupportMaterialCard} from "./ballot/SupportMaterialsLayout"
 export type {
     ISupportMaterialsLayoutProps,
@@ -156,3 +159,7 @@ export type {BallotSelectionPort, ContestSelection, VoteChoice} from "./ballot/s
 export type {IBallotStyle as IBallotStyleRow} from "./ballot/types"
 export * from "./ballot/presentation"
 export {IInvalidPlaintextErrorType} from "./ballot/errors"
+
+// What an import or a validation found, and how to say it. Shared with the
+// Election Architect through the ballot entry, `ballot/index.ts`, too.
+export * from "./components/ProblemList"

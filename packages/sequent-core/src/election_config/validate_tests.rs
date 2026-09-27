@@ -1531,3 +1531,86 @@ fn a_grandchild_area_inherits_the_contest_linked_two_levels_up() {
         "{report}"
     );
 }
+
+/// Every id named in a source file, in order.
+fn ids_in(source: &str) -> Vec<&str> {
+    let mut names = Vec::new();
+    let mut rest = source;
+    while let Some(at) = rest.find(".id(\"") {
+        rest = &rest[at + 5..];
+        let end = rest.find('"').expect("an id is a string literal");
+        names.push(&rest[..end]);
+        rest = &rest[end..];
+    }
+    names
+}
+
+/// A bundle problem with no name shows English to a Spanish administrator.
+///
+/// Read off the source rather than off a report, for the reason
+/// `every_named_problem_has_its_own_name` gives: no fixture triggers every
+/// check, and the check that goes unnamed is the one somebody adds next.
+#[test]
+fn every_bundle_check_is_named() {
+    let source = include_str!("validate.rs");
+    // The production half only: the module's own tests construct problems too.
+    let source = source.split("#[cfg(test)]").next().unwrap_or(source);
+    let raised = source.matches("Problem::error(").count()
+        + source.matches("Problem::warning(").count();
+    assert_eq!(
+        ids_in(source).len(),
+        raised,
+        "a Problem in validate.rs has no .id(...)"
+    );
+}
+
+/// One catalogue translates them all, so no two sentences may share a name —
+/// across the plan checks, the bundle checks and the importer's own.
+#[test]
+fn no_two_problems_anywhere_share_a_name() {
+    let mut names: Vec<&str> = Vec::new();
+    for source in [
+        include_str!("validate.rs"),
+        include_str!("architect.rs"),
+        include_str!("build.rs"),
+        include_str!("open.rs"),
+        include_str!("import_problems.rs"),
+        include_str!("profile.rs"),
+        include_str!("sheet.rs"),
+        include_str!("xlsx.rs"),
+        include_str!("plan_from_workbook.rs"),
+        include_str!("plan_from_event.rs"),
+    ] {
+        names.extend(ids_in(source));
+    }
+    let mut sorted = names.clone();
+    sorted.sort_unstable();
+    let mut duplicated: Vec<&str> = sorted
+        .windows(2)
+        .filter(|pair| pair[0] == pair[1])
+        .map(|pair| pair[0])
+        .collect();
+    duplicated.dedup();
+    assert_eq!(
+        duplicated,
+        Vec::<&str>::new(),
+        "two problems share one name"
+    );
+}
+
+/// The specifics a translation interpolates travel beside the English.
+#[test]
+fn a_bundle_problem_carries_its_specifics() {
+    let mut bundle = sound();
+    bundle.contests[0].min_votes = Some(3);
+    bundle.contests[0].max_votes = Some(1);
+    let report = validate(&bundle);
+    let problem = report
+        .problems
+        .iter()
+        .find(|problem| problem.id.as_deref() == Some("contest.min-above-max"))
+        .unwrap_or_else(|| panic!("no min-above-max in {report}"));
+    assert_eq!(problem.details["min"], "3");
+    assert_eq!(problem.details["max"], "1");
+    assert_eq!(problem.code, Code::ContestArithmetic);
+}

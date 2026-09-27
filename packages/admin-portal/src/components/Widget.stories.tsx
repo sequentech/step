@@ -28,6 +28,8 @@ import {Widget} from "./Widget"
 type Props = React.ComponentProps<typeof Widget> & {
     /** What GetTaskById answers for `taskId`: the task in this status, or nothing yet. */
     execution: ETaskExecutionStatus | "pending"
+    /** The task's annotations, where a story needs more than the default. */
+    annotations?: Record<string, unknown>
 }
 
 let boundary: ReturnType<typeof graphqlBoundary>
@@ -60,7 +62,16 @@ const meta = {
                 GetTaskById: () =>
                     args.execution === "pending"
                         ? pending()
-                        : {data: {sequent_backend_tasks_execution: [taskRecord(args.execution)]}},
+                        : {
+                              data: {
+                                  sequent_backend_tasks_execution: [
+                                      taskRecord(
+                                          args.execution,
+                                          args.annotations ? {annotations: args.annotations} : {}
+                                      ),
+                                  ],
+                              },
+                          },
                 GetDocument: () => ({
                     data: {
                         sequent_backend_document: [{name: "council-event.zip", annotations: {}}],
@@ -73,7 +84,7 @@ const meta = {
         await boundary.ready
         return files.restore
     },
-    render: ({execution: _execution, ...props}) => (
+    render: ({execution: _execution, annotations: _annotations, ...props}) => (
         <AdminStoryProvider boundary={boundary} role={EStoryPermissions.ADMIN}>
             <Widget {...props} />
         </AdminStoryProvider>
@@ -154,6 +165,42 @@ export const TaskSucceeded: Story = {
         expect(canvas.queryByText("Task started")).toBeNull()
         await expect(canvas.getByRole("button", {name: "Download File"})).toBeEnabled()
         expect(files.downloads).toEqual([])
+    },
+}
+
+/**
+ * A voters file the import refused: the task's `annotations.problems` are shown
+ * above its log, one named problem each, in the administrator's language.
+ */
+export const FailedImportExplainsProblems: Story = {
+    args: {
+        taskId: TASK_ID,
+        type: ETasksExecution.IMPORT_USERS,
+        execution: ETaskExecutionStatus.FAILED,
+        annotations: {
+            problems: [
+                {
+                    severity: "error",
+                    code: "invalid_value",
+                    path: "row 4 column 'vote-weight'",
+                    message: "the vote weight 0 on row 4 must be between 1 and 100",
+                    id: "voters.vote-weight-out-of-range",
+                    details: {row: "4", value: "0", min: "1", max: "100"},
+                },
+            ],
+        },
+    },
+    parameters: widgetDefects(...summaryDefects, "scrollable-region-focusable"),
+    play: async ({canvasElement, args}) => {
+        const canvas = within(canvasElement)
+        await expect(await canvas.findByText("FAILED")).toBeVisible()
+        await waitFor(() => expect(args.onFailure).toHaveBeenCalled())
+        const problems = await canvas.findByTestId("widget-problems")
+        await waitFor(() => expect(problems).toBeVisible())
+        await expect(within(problems).getByText("1 error")).toBeVisible()
+        await expect(within(problems).getByTestId("problem")).toHaveTextContent(
+            /0 on row 4 must be between 1 and 100/
+        )
     },
 }
 

@@ -24,7 +24,7 @@ PACKAGE = Path("packages/keycloak-ui")
 THEMES = Path(".cache/keycloak-ui/themes")
 SOURCE = Path("packages/keycloak-extensions/sequent-theme/src/main/resources/theme")
 OVERLAY = "docker-compose-keycloak-ui.yml"
-REACT_PAGES = ("login.ftl", "message-otp.login.ftl")
+REACT_PAGES = ("login.ftl", "login-username.ftl", "message-otp.login.ftl")
 HOT_CLIENT = '<script type="module" src="/@vite/client"></script>'
 HOT_SCRIPTS = (
     """<script type="module">
@@ -198,8 +198,10 @@ def mount_command(checkout: Checkout, docker_host: str) -> list[str]:
         raise ValueError(
             "Initialize this checkout's .devcontainer/.env before mounting themes"
         )
-    if not (checkout.root / THEMES / "sequent-ui-admin/login/login.ftl").is_file():
-        raise ValueError("Run step-dev keycloak prepare before mounting themes")
+    themes = json.loads((checkout.root / PACKAGE / "themes.json").read_text())
+    for theme in themes:
+        if not (checkout.root / THEMES / theme / "login/login.ftl").is_file():
+            raise ValueError("Run step-dev keycloak prepare before mounting themes")
     command = [
         "docker",
         "--host",

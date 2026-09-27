@@ -170,6 +170,23 @@
 .sequent-auth[dir="rtl"] .auth-submit svg {
     transform: rotate(180deg);
 }
+.sequent-auth .auth-providers {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    border-top: 1px solid #e3eaee;
+    margin-top: 28px;
+    padding-top: 22px;
+}
+.sequent-auth .auth-providers-title {
+    color: #5b6e7b;
+    font-size: 0.875rem;
+    text-align: center;
+}
+.sequent-auth a.auth-provider {
+    min-height: 48px;
+    text-decoration: none;
+}
 .sequent-auth .auth-feedback {
     margin-bottom: 24px;
 }

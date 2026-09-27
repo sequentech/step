@@ -1,0 +1,361 @@
+{
+  "realm": "election-architect",
+  "displayName": "Election Architect",
+  "enabled": true,
+  "loginTheme": "sequent.admin-portal",
+  "emailTheme": "sequent.admin-portal",
+  "internationalizationEnabled": true,
+  "supportedLocales": [
+    "en",
+    "es"
+  ],
+  "defaultLocale": "en",
+  "localizationTexts": {
+    "en": {
+      "loginAccountTitle": "Sign in to Election Architect"
+    },
+    "es": {
+      "loginAccountTitle": "Iniciar sesión en Election Architect"
+    }
+  },
+  "registrationAllowed": false,
+  "registrationEmailAsUsername": true,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": false,
+  "rememberMe": false,
+  "editUsernameAllowed": false,
+  "verifyEmail": false,
+  "bruteForceProtected": true,
+  "permanentLockout": false,
+  "failureFactor": 10,
+  "waitIncrementSeconds": 60,
+  "maxFailureWaitSeconds": 900,
+  "quickLoginCheckMilliSeconds": 1000,
+  "minimumQuickLoginWaitSeconds": 60,
+  "maxDeltaTimeSeconds": 43200,
+  "ssoSessionIdleTimeout": 43200,
+  "ssoSessionMaxLifespan": 43200,
+  "accessTokenLifespan": 300,
+  "browserFlow": "architect browser",
+  "roles": {
+    "client": {
+      "election-architect": [
+        {
+          "name": "access",
+          "description": "May use Election Architect. Delivery Orchestrator grants it through the architect-access group."
+        }
+      ]
+    }
+  },
+  "groups": [
+    {
+      "name": "architect-access",
+      "path": "/architect-access",
+      "clientRoles": {
+        "election-architect": [
+          "access"
+        ]
+      }
+    }
+  ],
+  "clients": [
+    {
+      "clientId": "election-architect",
+      "name": "Election Architect",
+      "description": "The oauth2-proxy gate in front of the Election Architect bundle.",
+      "enabled": true,
+      "publicClient": false,
+      "clientAuthenticatorType": "client-secret",
+      "protocol": "openid-connect",
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "frontchannelLogout": false,
+      "fullScopeAllowed": false,
+      "rootUrl": "https://architect.sequent.sh",
+      "baseUrl": "/",
+      "redirectUris": [
+        "https://architect.sequent.sh/oauth2/callback",
+        "http://127.0.0.1:8031/oauth2/callback"
+      ],
+      "webOrigins": [],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "access.token.lifespan": "60",
+        "post.logout.redirect.uris": "https://architect.sequent.sh/*##http://127.0.0.1:8031/*"
+      }
+    },
+    {
+      "clientId": "delivery-orchestrator",
+      "name": "Delivery Orchestrator",
+      "description": "Service account that grants and revokes Election Architect access.",
+      "enabled": true,
+      "publicClient": false,
+      "clientAuthenticatorType": "client-secret",
+      "protocol": "openid-connect",
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "redirectUris": [],
+      "webOrigins": []
+    }
+  ],
+  "users": [
+    {
+      "username": "service-account-delivery-orchestrator",
+      "enabled": true,
+      "serviceAccountClientId": "delivery-orchestrator",
+      "clientRoles": {
+        "realm-management": [
+          "view-users",
+          "manage-users",
+          "query-groups"
+        ]
+      }
+    },
+    {
+      "username": "trainee@example.test",
+      "email": "trainee@example.test",
+      "emailVerified": true,
+      "enabled": true,
+      "firstName": "Synthetic",
+      "lastName": "Trainee",
+      "groups": [
+        "/architect-access"
+      ]
+    }
+  ],
+  "identityProviders": [
+    {
+      "alias": "google",
+      "displayName": "Google",
+      "providerId": "google",
+      "enabled": false,
+      "trustEmail": true,
+      "storeToken": false,
+      "linkOnly": false,
+      "hideOnLogin": false,
+      "firstBrokerLoginFlowAlias": "architect first broker login",
+      "postBrokerLoginFlowAlias": "architect post broker login",
+      "config": {
+        "clientId": "configure-per-deployment",
+        "clientSecret": "configure-per-deployment",
+        "defaultScope": "openid email profile",
+        "syncMode": "IMPORT",
+        "prompt": "select_account"
+      }
+    }
+  ],
+  "authenticationFlows": [
+    {
+      "alias": "architect browser",
+      "description": "Email code or Google sign-in, then Election Architect admission.",
+      "providerId": "basic-flow",
+      "topLevel": true,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "requirement": "REQUIRED",
+          "priority": 10,
+          "userSetupAllowed": false,
+          "authenticatorFlow": true,
+          "flowAlias": "architect sign in"
+        },
+        {
+          "requirement": "CONDITIONAL",
+          "priority": 20,
+          "userSetupAllowed": false,
+          "authenticatorFlow": true,
+          "flowAlias": "architect admission"
+        }
+      ]
+    },
+    {
+      "alias": "architect sign in",
+      "description": "An existing session, a requested identity provider, or an email code.",
+      "providerId": "basic-flow",
+      "topLevel": false,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "requirement": "ALTERNATIVE",
+          "priority": 10,
+          "userSetupAllowed": false,
+          "authenticator": "auth-cookie",
+          "authenticatorFlow": false
+        },
+        {
+          "requirement": "ALTERNATIVE",
+          "priority": 20,
+          "userSetupAllowed": false,
+          "authenticator": "identity-provider-redirector",
+          "authenticatorFlow": false
+        },
+        {
+          "requirement": "ALTERNATIVE",
+          "priority": 30,
+          "userSetupAllowed": false,
+          "authenticatorFlow": true,
+          "flowAlias": "architect email code"
+        }
+      ]
+    },
+    {
+      "alias": "architect email code",
+      "description": "Email address first, then a code sent to it.",
+      "providerId": "basic-flow",
+      "topLevel": false,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "requirement": "REQUIRED",
+          "priority": 10,
+          "userSetupAllowed": false,
+          "authenticator": "auth-username-form",
+          "authenticatorFlow": false
+        },
+        {
+          "requirement": "REQUIRED",
+          "priority": 20,
+          "userSetupAllowed": false,
+          "authenticator": "message-otp-authenticator",
+          "authenticatorFlow": false,
+          "authenticatorConfig": "architect email code"
+        }
+      ]
+    },
+    {
+      "alias": "architect admission",
+      "description": "Deny users without the election-architect access role.",
+      "providerId": "basic-flow",
+      "topLevel": false,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "requirement": "REQUIRED",
+          "priority": 10,
+          "userSetupAllowed": false,
+          "authenticator": "conditional-user-role",
+          "authenticatorFlow": false,
+          "authenticatorConfig": "architect without access"
+        },
+        {
+          "requirement": "REQUIRED",
+          "priority": 20,
+          "userSetupAllowed": false,
+          "authenticator": "deny-access-authenticator",
+          "authenticatorFlow": false
+        }
+      ]
+    },
+    {
+      "alias": "architect first broker login",
+      "description": "Link an identity provider account only to an existing user; never create one.",
+      "providerId": "basic-flow",
+      "topLevel": true,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "requirement": "REQUIRED",
+          "priority": 10,
+          "userSetupAllowed": false,
+          "authenticator": "idp-detect-existing-broker-user",
+          "authenticatorFlow": false
+        },
+        {
+          "requirement": "REQUIRED",
+          "priority": 20,
+          "userSetupAllowed": false,
+          "authenticator": "idp-auto-link",
+          "authenticatorFlow": false
+        }
+      ]
+    },
+    {
+      "alias": "architect post broker login",
+      "description": "Admission after every identity provider sign-in.",
+      "providerId": "basic-flow",
+      "topLevel": true,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "requirement": "CONDITIONAL",
+          "priority": 10,
+          "userSetupAllowed": false,
+          "authenticatorFlow": true,
+          "flowAlias": "architect broker admission"
+        }
+      ]
+    },
+    {
+      "alias": "architect broker admission",
+      "description": "Deny users without the election-architect access role.",
+      "providerId": "basic-flow",
+      "topLevel": false,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "requirement": "REQUIRED",
+          "priority": 10,
+          "userSetupAllowed": false,
+          "authenticator": "conditional-user-role",
+          "authenticatorFlow": false,
+          "authenticatorConfig": "architect broker without access"
+        },
+        {
+          "requirement": "REQUIRED",
+          "priority": 20,
+          "userSetupAllowed": false,
+          "authenticator": "deny-access-authenticator",
+          "authenticatorFlow": false
+        }
+      ]
+    }
+  ],
+  "authenticatorConfig": [
+    {
+      "alias": "architect email code",
+      "config": {
+        "messageCourierAttribute": "EMAIL",
+        "length": "6",
+        "ttl": "600",
+        "resendCoudActivationTimer": "60",
+        "one-time-link": "false",
+        "deferredUserAttribute": "false",
+        "autoCreateCredentialAttribute": "true",
+        "test-mode": "false",
+        "test-mode-code": "",
+        "max-receiver-reuse": "1",
+        "senderId": "Sequent"
+      }
+    },
+    {
+      "alias": "architect without access",
+      "config": {
+        "condUserRole": "election-architect.access",
+        "negate": "true"
+      }
+    },
+    {
+      "alias": "architect broker without access",
+      "config": {
+        "condUserRole": "election-architect.access",
+        "negate": "true"
+      }
+    }
+  ],
+  "requiredActions": [
+    {
+      "alias": "VERIFY_PROFILE",
+      "name": "Verify Profile",
+      "providerId": "VERIFY_PROFILE",
+      "enabled": false,
+      "defaultAction": false,
+      "priority": 90,
+      "config": {}
+    }
+  ]
+}

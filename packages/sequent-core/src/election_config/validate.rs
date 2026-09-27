@@ -195,17 +195,23 @@ fn check_event_presentation(
         }
         match value.as_str() {
             Some(text) if allowed.contains(&text) => {}
-            other => report.push(Problem::error(
-                Code::InvalidValue,
-                format!("election_event.presentation.{key}"),
-                format!(
-                    "{} is not a valid {key}; expected one of {}",
-                    other
-                        .map(|v| format!("'{v}'"))
-                        .unwrap_or("a non-string".into()),
-                    allowed.join(", ")
-                ),
-            )),
+            other => report.push(
+                Problem::error(
+                    Code::InvalidValue,
+                    format!("election_event.presentation.{key}"),
+                    format!(
+                        "{} is not a valid {key}; expected one of {}",
+                        other
+                            .map(|v| format!("'{v}'"))
+                            .unwrap_or("a non-string".into()),
+                        allowed.join(", ")
+                    ),
+                )
+                .id("event.setting-unknown")
+                .detail("key", key)
+                .detail("value", other.unwrap_or(""))
+                .detail("allowed", allowed.join(", ")),
+            ),
         }
     }
 }
@@ -361,6 +367,7 @@ fn check_images(bundle: &ImportElectionEventSchema, report: &mut Report) {
                      platform afterwards"
                         .to_string(),
                 )
+                .id("candidate.picture-unrecorded")
                 .about(about),
             ),
             // The other way round is worse: nothing renders `image_document_id`,
@@ -373,6 +380,7 @@ fn check_images(bundle: &ImportElectionEventSchema, report: &mut Report) {
                      the picture would be uploaded and never shown"
                         .to_string(),
                 )
+                .id("candidate.picture-not-shown")
                 .about(about),
             ),
             (Some(document), Some(url)) => {
@@ -390,7 +398,7 @@ fn check_images(bundle: &ImportElectionEventSchema, report: &mut Report) {
                                  name the document '{document}' beside it — after \
                                  import the two would point at different files"
                             ),
-                        )
+                        ).id("candidate.picture-mismatch").detail("url", url).detail("document", document)
                         .about(about),
                     );
                 }
@@ -432,24 +440,32 @@ fn check_voting_channels(
     // they arranged something.
     for name in channels.keys() {
         if !VOTING_CHANNELS.contains(&name.as_str()) {
-            report.push(Problem::warning(
-                Code::InvalidValue,
-                format!("election_event.voting_channels.{name}"),
-                format!(
+            report.push(
+                Problem::warning(
+                    Code::InvalidValue,
+                    format!("election_event.voting_channels.{name}"),
+                    format!(
                     "nothing reads '{name}'; the ways of voting the platform \
                      acts on are {}",
                     VOTING_CHANNELS.join(", ")
                 ),
-            ));
+                )
+                .id("channels.unknown")
+                .detail("name", name)
+                .detail("allowed", VOTING_CHANNELS.join(", ")),
+            );
         }
     }
 
     if !VOTING_CHANNELS.iter().any(|name| on(name)) {
-        report.push(Problem::error(
-            Code::InvalidValue,
-            "election_event.voting_channels",
-            "no way of voting is open, so nobody can vote".to_string(),
-        ));
+        report.push(
+            Problem::error(
+                Code::InvalidValue,
+                "election_event.voting_channels",
+                "no way of voting is open, so nobody can vote".to_string(),
+            )
+            .id("channels.none-open"),
+        );
     }
 
     // -- early voting, which takes two halves ------------------------------
@@ -475,15 +491,20 @@ fn check_voting_channels(
                     .unwrap_or_else(|| format!("areas[{index}]")),
             ),
             None | Some(NO_EARLY_VOTING) => {}
-            Some(other) => report.push(Problem::error(
-                Code::InvalidValue,
-                format!("areas[{index}].presentation.allow_early_voting"),
-                format!(
+            Some(other) => report.push(
+                Problem::error(
+                    Code::InvalidValue,
+                    format!("areas[{index}].presentation.allow_early_voting"),
+                    format!(
                     "'{other}' is not a valid allow_early_voting; expected one \
                      of {}",
                     EARLY_VOTING_POLICIES.join(", ")
                 ),
-            )),
+                )
+                .id("area.early-voting-unknown")
+                .detail("value", other)
+                .detail("allowed", EARLY_VOTING_POLICIES.join(", ")),
+            ),
         }
     }
 
@@ -494,23 +515,28 @@ fn check_voting_channels(
             "early voting is open and no area allows it, so the early period \
              would have no voters in it"
                 .to_string(),
-        ));
+        ).id("channels.early-voting-no-area"));
     }
 
     // The reverse. The Admin Portal will not even show an area's early-voting
     // field while the event's channel is off, so a bundle in this state cannot
     // have been made there — and the area's setting does nothing.
     if !on("early_voting") && !allowing.is_empty() {
-        report.push(Problem::error(
-            Code::InvalidValue,
-            "election_event.voting_channels.early_voting",
-            format!(
-                "{} allow{} early voting and the event does not open that \
+        report.push(
+            Problem::error(
+                Code::InvalidValue,
+                "election_event.voting_channels.early_voting",
+                format!(
+                    "{} allow{} early voting and the event does not open that \
                  channel, so the setting does nothing",
-                allowing.join(", "),
-                if allowing.len() == 1 { "s" } else { "" }
-            ),
-        ));
+                    allowing.join(", "),
+                    if allowing.len() == 1 { "s" } else { "" }
+                ),
+            )
+            .id("channels.early-voting-closed")
+            .detail("areas", allowing.join(", "))
+            .detail("count", allowing.len()),
+        );
     }
 
     // -- the two channels whose other half is not in the bundle ------------
@@ -519,14 +545,17 @@ fn check_voting_channels(
     // environment, which this pass cannot see. Silence would be worse than a
     // warning somebody dismisses, because the failure is a voter who cannot vote.
     if on("kiosk") {
-        report.push(Problem::warning(
-            Code::InvalidValue,
-            "election_event.voting_channels.kiosk",
-            "kiosk voting needs an authentication client named after the \
+        report.push(
+            Problem::warning(
+                Code::InvalidValue,
+                "election_event.voting_channels.kiosk",
+                "kiosk voting needs an authentication client named after the \
              ordinary one with '-kiosk' on the end, which this bundle does not \
              create"
-                .to_string(),
-        ));
+                    .to_string(),
+            )
+            .id("channels.kiosk-client"),
+        );
     }
 
     if on("telephone") {
@@ -558,7 +587,7 @@ fn check_voting_channels(
                 "telephone voting is configured on the event's IVR tab after \
                  import; none of it is in this bundle"
                     .to_string(),
-            ));
+            ).id("channels.telephone-elsewhere"));
         }
     }
 
@@ -606,7 +635,7 @@ fn check_voting_channels(
                          it would not match",
                         differing.join(", ")
                     ),
-                )
+                ).id("election.channels-differ").detail("channels", differing.join(", "))
                 .about(election.external_id.as_deref()),
             );
         }
@@ -618,41 +647,57 @@ fn check_identity(bundle: &ImportElectionEventSchema, report: &mut Report) {
     // this is where the format check it lost comes back, as a readable problem
     // rather than an opaque serde error.
     if bundle.tenant_id.trim().is_empty() {
-        report.push(Problem::error(
-            Code::MissingField,
-            "tenant_id",
-            "the bundle has no tenant id",
-        ));
+        report.push(
+            Problem::error(
+                Code::MissingField,
+                "tenant_id",
+                "the bundle has no tenant id",
+            )
+            .id("bundle.no-tenant"),
+        );
     } else if !looks_like_uuid(&bundle.tenant_id) {
-        report.push(Problem::error(
-            Code::InvalidValue,
-            "tenant_id",
-            format!("'{}' is not a UUID", bundle.tenant_id),
-        ));
+        report.push(
+            Problem::error(
+                Code::InvalidValue,
+                "tenant_id",
+                format!("'{}' is not a UUID", bundle.tenant_id),
+            )
+            .id("bundle.tenant-not-uuid")
+            .detail("value", &bundle.tenant_id),
+        );
     }
 
     let event = &bundle.election_event;
     if event.id.trim().is_empty() {
-        report.push(Problem::error(
-            Code::MissingField,
-            "election_event.id",
-            "the election event has no id",
-        ));
+        report.push(
+            Problem::error(
+                Code::MissingField,
+                "election_event.id",
+                "the election event has no id",
+            )
+            .id("bundle.event-no-id"),
+        );
     }
     if event.encryption_protocol.trim().is_empty() {
-        report.push(Problem::error(
-            Code::MissingField,
-            "election_event.encryption_protocol",
-            "the election event has no encryption protocol",
-        ));
+        report.push(
+            Problem::error(
+                Code::MissingField,
+                "election_event.encryption_protocol",
+                "the election event has no encryption protocol",
+            )
+            .id("bundle.event-no-encryption"),
+        );
     }
 
     if bundle.elections.is_empty() {
-        report.push(Problem::error(
-            Code::MissingField,
-            "elections",
-            "an election event needs at least one election",
-        ));
+        report.push(
+            Problem::error(
+                Code::MissingField,
+                "elections",
+                "an election event needs at least one election",
+            )
+            .id("bundle.no-elections"),
+        );
     }
     // A warning rather than a refusal, for the reason the ballot-coverage rules below
     // are: the bundle is consistent and the platform imports it, it just means no
@@ -663,7 +708,7 @@ fn check_identity(bundle: &ImportElectionEventSchema, report: &mut Report) {
             Code::BallotCoverage,
             "areas",
             "the event has no areas, so no voter can be given a ballot until one exists",
-        ));
+        ).id("bundle.no-areas"));
     }
 }
 
@@ -683,6 +728,7 @@ fn check_references(bundle: &ImportElectionEventSchema, report: &mut Report) {
                     format!("contests[{index}].election_id"),
                     "points at an election that is not in the bundle",
                 )
+                .id("contest.election-missing")
                 .about(contest.external_id.as_deref()),
             );
         }
@@ -696,6 +742,7 @@ fn check_references(bundle: &ImportElectionEventSchema, report: &mut Report) {
                     format!("candidates[{index}].contest_id"),
                     "a candidate must belong to a contest",
                 )
+                .id("candidate.no-contest")
                 .about(candidate.external_id.as_deref()),
             ),
             Some(id) if !contest_ids.contains(id) => report.push(
@@ -704,6 +751,7 @@ fn check_references(bundle: &ImportElectionEventSchema, report: &mut Report) {
                     format!("candidates[{index}].contest_id"),
                     "points at a contest that is not in the bundle",
                 )
+                .id("candidate.contest-missing")
                 .about(candidate.external_id.as_deref()),
             ),
             Some(_) => {}
@@ -712,18 +760,24 @@ fn check_references(bundle: &ImportElectionEventSchema, report: &mut Report) {
 
     for (index, link) in bundle.area_contests.iter().enumerate() {
         if !area_ids.contains(link.area_id.as_str()) {
-            report.push(Problem::error(
-                Code::DanglingReference,
-                format!("area_contests[{index}].area_id"),
-                "points at an area that is not in the bundle",
-            ));
+            report.push(
+                Problem::error(
+                    Code::DanglingReference,
+                    format!("area_contests[{index}].area_id"),
+                    "points at an area that is not in the bundle",
+                )
+                .id("link.area-missing"),
+            );
         }
         if !contest_ids.contains(link.contest_id.as_str()) {
-            report.push(Problem::error(
-                Code::DanglingReference,
-                format!("area_contests[{index}].contest_id"),
-                "points at a contest that is not in the bundle",
-            ));
+            report.push(
+                Problem::error(
+                    Code::DanglingReference,
+                    format!("area_contests[{index}].contest_id"),
+                    "points at a contest that is not in the bundle",
+                )
+                .id("link.contest-missing"),
+            );
         }
     }
 }
@@ -741,11 +795,14 @@ fn check_area_tree(bundle: &ImportElectionEventSchema, report: &mut Report) {
         };
 
         if !parents.contains_key(parent) {
-            report.push(Problem::error(
-                Code::DanglingReference,
-                format!("areas[{index}].parent_id"),
-                "points at a parent area that is not in the bundle",
-            ));
+            report.push(
+                Problem::error(
+                    Code::DanglingReference,
+                    format!("areas[{index}].parent_id"),
+                    "points at a parent area that is not in the bundle",
+                )
+                .id("area.parent-missing"),
+            );
             continue;
         }
 
@@ -754,14 +811,18 @@ fn check_area_tree(bundle: &ImportElectionEventSchema, report: &mut Report) {
         let mut cursor = Some(parent);
         while let Some(current) = cursor {
             if !seen.insert(current) {
-                report.push(Problem::error(
-                    Code::AreaCycle,
-                    format!("areas[{index}].parent_id"),
-                    format!(
-                        "area '{}' is part of a parent cycle",
-                        area.name.as_deref().unwrap_or(&area.id)
-                    ),
-                ));
+                report.push(
+                    Problem::error(
+                        Code::AreaCycle,
+                        format!("areas[{index}].parent_id"),
+                        format!(
+                            "area '{}' is part of a parent cycle",
+                            area.name.as_deref().unwrap_or(&area.id)
+                        ),
+                    )
+                    .id("area.cycle")
+                    .detail("area", area.name.as_deref().unwrap_or(&area.id)),
+                );
                 break;
             }
             cursor = parents.get(current).copied().flatten();
@@ -817,7 +878,7 @@ fn check_contests(bundle: &ImportElectionEventSchema, report: &mut Report) {
                         Code::MissingField,
                         path(field),
                         format!("a contest needs {field}"),
-                    )
+                    ).id("contest.count-missing").detail("field", field)
                     .about(about),
                 ),
                 Some(number) if number < 0 => report.push(
@@ -825,7 +886,7 @@ fn check_contests(bundle: &ImportElectionEventSchema, report: &mut Report) {
                         Code::InvalidValue,
                         path(field),
                         format!("{field} is {number}, and a count cannot be negative"),
-                    )
+                    ).id("contest.count-negative").detail("field", field).detail("value", number)
                     .about(about),
                 ),
                 Some(_) => {}
@@ -840,6 +901,9 @@ fn check_contests(bundle: &ImportElectionEventSchema, report: &mut Report) {
                         path("min_votes"),
                         format!("min_votes {min} is above max_votes {max}"),
                     )
+                    .id("contest.min-above-max")
+                    .detail("min", min)
+                    .detail("max", max)
                     .about(about),
                 );
             }
@@ -860,6 +924,9 @@ fn check_contests(bundle: &ImportElectionEventSchema, report: &mut Report) {
                         VOTING_TYPES.join(", ")
                     ),
                 )
+                .id("contest.voting-type-unknown")
+                .detail("value", other.unwrap_or(""))
+                .detail("allowed", VOTING_TYPES.join(", "))
                 .about(about),
             ),
         }
@@ -882,7 +949,7 @@ fn check_contests(bundle: &ImportElectionEventSchema, report: &mut Report) {
                                 "a preferential contest counted by '{value}', which \
                                  ignores rankings"
                             ),
-                        )
+                        ).id("contest.ranked-counted-unranked").detail("algorithm", value)
                         .about(about),
                     ),
                     Some(NON_PREFERENTIAL) if preferential => report.push(
@@ -893,7 +960,7 @@ fn check_contests(bundle: &ImportElectionEventSchema, report: &mut Report) {
                                 "a non-preferential contest counted by '{value}', \
                                  which needs ranked ballots"
                             ),
-                        )
+                        ).id("contest.unranked-counted-ranked").detail("algorithm", value)
                         .about(about),
                     ),
                     _ => {}
@@ -911,6 +978,9 @@ fn check_contests(bundle: &ImportElectionEventSchema, report: &mut Report) {
                         COUNTING_ALGORITHMS.join(", ")
                     ),
                 )
+                .id("contest.algorithm-unknown")
+                .detail("value", other.unwrap_or(""))
+                .detail("allowed", COUNTING_ALGORITHMS.join(", "))
                 .about(about),
             ),
         }
@@ -940,6 +1010,7 @@ fn check_contests(bundle: &ImportElectionEventSchema, report: &mut Report) {
                     path("id"),
                     "the contest has no candidates, so nobody can vote in it",
                 )
+                .id("contest.no-candidates-in-bundle")
                 .about(about),
             );
         } else {
@@ -953,6 +1024,9 @@ fn check_contests(bundle: &ImportElectionEventSchema, report: &mut Report) {
                                 "elects {winners} of {available} candidates"
                             ),
                         )
+                        .id("contest.elects-more-than-available")
+                        .detail("winners", winners)
+                        .detail("available", available)
                         .about(about),
                     );
                 }
@@ -964,7 +1038,7 @@ fn check_contests(bundle: &ImportElectionEventSchema, report: &mut Report) {
                             Code::ContestArithmetic,
                             path("max_votes"),
                             format!("allows {max} selections among {available} candidates"),
-                        )
+                        ).id("contest.chooses-more-than-available").detail("max", max).detail("available", available)
                         .about(about),
                     );
                 }
@@ -1017,7 +1091,7 @@ fn check_write_ins(
                 "write-ins are allowed and the contest has no write-in slot, so \
                  a voter has nowhere to type a name"
                     .to_string(),
-            )
+            ).id("contest.write-ins-no-slot")
             .about(about),
         );
     }
@@ -1031,6 +1105,8 @@ fn check_write_ins(
                      allow write-ins, which puts unnamed options on the ballot"
                 ),
             )
+            .id("contest.write-in-slots-not-allowed")
+            .detail("count", write_ins)
             .about(about),
         );
     }
@@ -1072,6 +1148,9 @@ fn check_tie_breaking(
                     TIE_BREAKING_POLICIES.join(", ")
                 ),
             )
+            .id("contest.tie-breaking-unknown")
+            .detail("value", other.unwrap_or(""))
+            .detail("allowed", TIE_BREAKING_POLICIES.join(", "))
             .about(about),
         ),
     }
@@ -1110,6 +1189,8 @@ fn check_layout(
                     path("presentation.columns"),
                     format!("{columns} columns is not a layout"),
                 )
+                .id("contest.columns-invalid")
+                .detail("columns", columns)
                 .about(about),
             );
         } else if columns > 4 {
@@ -1121,7 +1202,7 @@ fn check_layout(
                         "{columns} columns will be unreadable on a phone, which \
                          is how most voters vote"
                     ),
-                )
+                ).id("contest.columns-too-many").detail("columns", columns)
                 .about(about),
             );
         }
@@ -1138,6 +1219,8 @@ fn check_layout(
                     path("presentation.max_selections_per_type"),
                     format!("{cap} is not a number of selections"),
                 )
+                .id("contest.cap-invalid")
+                .detail("cap", cap)
                 .about(about),
             );
         } else if cap > 0 && contest.max_votes.is_some_and(|max| cap > max) {
@@ -1153,6 +1236,9 @@ fn check_layout(
                         contest.max_votes.unwrap_or(0)
                     ),
                 )
+                .id("contest.cap-never-applies")
+                .detail("cap", cap)
+                .detail("max", contest.max_votes.unwrap_or(0))
                 .about(about),
             );
         }
@@ -1215,6 +1301,9 @@ fn check_presentation_policies(
                     path(&format!("presentation.{key}")),
                     format!("{key} should be text, and is {value}"),
                 )
+                .id("contest.policy-not-text")
+                .detail("key", key)
+                .detail("value", value)
                 .about(about),
             );
             continue;
@@ -1229,6 +1318,10 @@ fn check_presentation_policies(
                         allowed.join(", ")
                     ),
                 )
+                .id("contest.policy-unknown")
+                .detail("key", key)
+                .detail("value", text)
+                .detail("allowed", allowed.join(", "))
                 .about(about),
             );
         }
@@ -1298,6 +1391,7 @@ fn check_ballot_coverage(
                     format!("contests[{index}]"),
                     "appears on no area's ballot, so nobody can vote in it",
                 )
+                .id("contest.on-no-ballot")
                 .about(contest.external_id.as_deref()),
             );
         }
@@ -1319,7 +1413,7 @@ fn check_ballot_coverage(
                  ballot",
                 area.name.as_deref().unwrap_or(&area.id)
             ),
-        ));
+        ).id("area.empty-ballot").detail("area", area.name.as_deref().unwrap_or(&area.id)));
     }
 }
 
@@ -1361,6 +1455,8 @@ fn check_how_voting_works(
                         path("num_allowed_revotes"),
                         format!("{revotes} is not a number of votes"),
                     )
+                    .id("election.revotes-negative")
+                    .detail("value", revotes)
                     .about(about),
                 );
             }
@@ -1380,6 +1476,7 @@ fn check_how_voting_works(
                      attempt to replace it"
                         .to_string(),
                 )
+                .id("election.spoil-without-revote")
                 .about(about),
             );
         }
@@ -1420,6 +1517,10 @@ fn check_how_voting_works(
                             allowed.join(", ")
                         ),
                     )
+                    .id("election.setting-unknown")
+                    .detail("key", key)
+                    .detail("value", other.unwrap_or(""))
+                    .detail("allowed", allowed.join(", "))
                     .about(about),
                 ),
             }
@@ -1439,6 +1540,8 @@ fn check_how_voting_works(
                     path("presentation.grace_period_secs"),
                     format!("{} is not a length of time", seconds.unwrap_or(0)),
                 )
+                .id("election.grace-negative")
+                .detail("value", seconds.unwrap_or(0))
                 .about(about),
             );
         }
@@ -1453,7 +1556,7 @@ fn check_how_voting_works(
                     Code::InvalidValue,
                     path("presentation.grace_period_secs"),
                     "a grace period of no seconds is no grace period".to_string(),
-                )
+                ).id("election.grace-zero")
                 .about(about),
             ),
             (Some("no-grace-period") | None, Some(value)) if value > 0 => report
@@ -1465,7 +1568,7 @@ fn check_how_voting_works(
                             "{value} seconds of grace are set and no grace \
                              period is allowed, so voting closes on the deadline"
                         ),
-                    )
+                    ).id("election.grace-disallowed").detail("seconds", value)
                     .about(about),
                 ),
             _ => {}
@@ -1523,7 +1626,7 @@ fn check_permission_labels(
                  Portal will show them an empty list.",
                 labels.join(", ")
             ),
-        ));
+        ).id("labels.in-use").detail("labels", labels.join(", ")));
     }
 }
 
@@ -1558,11 +1661,17 @@ fn check_unique_ids(bundle: &ImportElectionEventSchema, report: &mut Report) {
     for (kind, ids) in &groups {
         for id in ids {
             if let Some(previous) = seen.insert(id, kind) {
-                report.push(Problem::error(
-                    Code::DuplicateId,
-                    *kind,
-                    format!("id {id} is also used by {previous}"),
-                ));
+                report.push(
+                    Problem::error(
+                        Code::DuplicateId,
+                        *kind,
+                        format!("id {id} is also used by {previous}"),
+                    )
+                    .id("bundle.duplicate-id")
+                    .detail("id", id)
+                    .detail("kind", kind)
+                    .detail("previous", previous),
+                );
             }
         }
     }

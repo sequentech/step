@@ -64,6 +64,16 @@ pub enum Code {
     /// Raised while reading a source document rather than while validating a
     /// bundle: the bundle cannot be built at all until the author picks one.
     ConflictingColumns,
+    /// The file could not be read as what it claims to be: not an archive, not
+    /// JSON, or missing the document it must contain.
+    ///
+    /// Raised by an importer before there is a bundle to validate, so its path
+    /// names the file rather than a field.
+    Unreadable,
+    /// The file was written by a version of the platform this one cannot read.
+    IncompatibleVersion,
+    /// The file is not the one its checksum describes.
+    IntegrityMismatch,
 }
 
 /// One thing wrong with a bundle.
@@ -238,6 +248,67 @@ pub struct Report {
     pub problems: Vec<Problem>,
 }
 
+/// An import refused because of what is in the file, with every reason why.
+///
+/// An error rather than a [`Report`] because it travels up an importer's
+/// `Result` chain like any other failure: the task that failed logs its
+/// [`Display`](fmt::Display) — the same English line the import always wrote —
+/// while whoever answers the operator looks for this one in the chain and hands
+/// the structured problems to a screen that can say them in the operator's
+/// language. Nothing that only prints the error has to know it exists.
+#[derive(Clone, PartialEq, Eq)]
+pub struct Rejected {
+    /// What was being imported, for the English summary: "election event
+    /// bundle", "voters file".
+    pub what: String,
+    pub report: Report,
+}
+
+impl Rejected {
+    pub fn new(what: impl Into<String>, report: Report) -> Self {
+        Rejected {
+            what: what.into(),
+            report,
+        }
+    }
+
+    /// Refuse a file for one reason.
+    pub fn one(what: impl Into<String>, problem: Problem) -> Self {
+        Rejected::new(
+            what,
+            Report {
+                problems: vec![problem],
+            },
+        )
+    }
+}
+
+impl fmt::Display for Rejected {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let count = self.report.errors().count().max(1);
+        let noun = if count == 1 { "problem" } else { "problems" };
+        write!(
+            formatter,
+            "The {} cannot be imported; {count} {noun} found:",
+            self.what
+        )?;
+        for problem in self.report.errors() {
+            write!(formatter, "\n  {problem}")?;
+        }
+        Ok(())
+    }
+}
+
+/// The same as `Display`, because an importer formats its errors with `{:?}`
+/// and a derived `Debug` would put a struct dump in front of an operator.
+impl fmt::Debug for Rejected {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Display::fmt(self, formatter)
+    }
+}
+
+impl std::error::Error for Rejected {}
+
 impl Report {
     pub fn push(&mut self, problem: Problem) {
         self.problems.push(problem);
@@ -376,6 +447,57 @@ mod tests {
         let problem = Problem::error(Code::MissingField, "p", "m");
         let json = serde_json::to_value(&problem).unwrap();
         assert!(json.get("at").is_none());
+    }
+
+    #[test]
+    fn a_rejection_reads_as_the_importer_always_wrote_it() {
+        // Every log line and every caller that only prints the error keeps the
+        // exact text it had before the problems became structured.
+        let mut report = Report::default();
+        report.push(Problem::warning(Code::MissingSchedule, "w", "ignored"));
+        report.push(Problem::error(
+            Code::DanglingReference,
+            "contests[0].election_id",
+            "points at an election that is not in the bundle",
+        ));
+        let rejected = Rejected::new("election event bundle", report);
+        assert_eq!(
+            rejected.to_string(),
+            "The election event bundle cannot be imported; 1 problem found:\n  \
+             error: contests[0].election_id: points at an election that is not in the bundle"
+        );
+        assert_eq!(format!("{rejected:?}"), rejected.to_string());
+    }
+
+    #[test]
+    fn a_file_refused_for_one_reason_says_so_in_the_singular() {
+        let rejected = Rejected::one(
+            "voters file",
+            Problem::error(
+                Code::Unreadable,
+                "row 3",
+                "row 3 could not be read",
+            ),
+        );
+        assert_eq!(rejected.report.problems.len(), 1);
+        assert_eq!(
+            rejected.to_string(),
+            "The voters file cannot be imported; 1 problem found:\n  \
+             error: row 3: row 3 could not be read"
+        );
+        let error: &dyn std::error::Error = &rejected;
+        assert!(error.source().is_none());
+    }
+
+    #[test]
+    fn the_new_codes_serialise_in_snake_case() {
+        for (code, name) in [
+            (Code::Unreadable, "unreadable"),
+            (Code::IncompatibleVersion, "incompatible_version"),
+            (Code::IntegrityMismatch, "integrity_mismatch"),
+        ] {
+            assert_eq!(serde_json::to_value(code).unwrap(), name);
+        }
     }
 
     #[test]
