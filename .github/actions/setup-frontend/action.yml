@@ -47,11 +47,13 @@ runs:
       # Postinstall scripts write outside node_modules (admin-portal copies
       # TinyMCE into public/), which the cache does not hold.
       run: |
+        # node rather than jq: the job containers do not all ship jq.
         for manifest in packages/*/package.json; do
-          if jq -e '.scripts.postinstall' "$manifest" >/dev/null; then
+          if node -e 'process.exit(require(process.argv[1]).scripts?.postinstall ? 0 : 1)' "./$manifest"; then
             yarn --cwd "$(dirname "$manifest")" run postinstall
           fi
         done
+        test -f packages/admin-portal/public/tinymce/tinymce.min.js
     - name: Cache dependencies within the event ref
       if: steps.integrity.outputs.valid != 'true'
       uses: actions/cache/save@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
