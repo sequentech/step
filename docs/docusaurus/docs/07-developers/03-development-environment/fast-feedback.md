@@ -427,6 +427,8 @@ Rust and tooling jobs run only selected package suites; selected stories still
 run interactions, accessibility, types and the catalog build. Production journeys
 reuse shared-library and portal builds from the same immutable run; every
 selected test reruns. The four admin journey shards use one production build.
+Admin-portal stories run in three shards; the first also type-checks the stories,
+checks the widget inventory and builds the catalogue.
 
 `Required feedback checks` rejects failed, cancelled, missing or unexpectedly
 skipped managed jobs. It covers `Tests` and its reusable frontend UI workflow;

@@ -35,6 +35,9 @@ STORIES = (
     "keycloak-ui",
 )
 PORTALS = ("voting-portal", "results-portal", "ballot-verifier", "admin-portal")
+# Browser runners split these catalogues so that each stays well inside the
+# job timeout; admin-portal has about 250 story files.
+STORY_SHARDS = {"admin-portal": 3}
 PYTHON = (
     "python:scripts-dev",
     "python:scripts-coverage",
@@ -96,6 +99,11 @@ def matrices(selection: Selection) -> dict[str, object]:
         if check.id in ("docs-build", "docs-graphql")
     ]
     stories = [package for package in STORIES if f"stories:{package}" in selected]
+    story_shards = [
+        {"package": package, "shard": shard, "shards": STORY_SHARDS.get(package, 1)}
+        for package in stories
+        for shard in range(1, STORY_SHARDS.get(package, 1) + 1)
+    ]
     portals = [package for package in PORTALS if f"journeys:{package}" in selected]
     builds = sorted(
         set(portals) | ({"voting-portal"} if "ballot-verifier" in portals else set())
@@ -138,6 +146,7 @@ def matrices(selection: Selection) -> dict[str, object]:
         "python": python,
         "docs": docs,
         "stories": stories,
+        "story_shards": story_shards,
         "builds": builds,
         "journeys": journeys,
         "jobs": jobs,
