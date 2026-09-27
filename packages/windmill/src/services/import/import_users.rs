@@ -9,6 +9,7 @@ use crate::services::electoral_log::{
     post_voter_secret_attribute_audit_with_transaction, ElectoralLogAdminContext,
     VoterSecretAttributeAction, VoterSecretAttributeAudit,
 };
+use crate::services::import::rejection::reject;
 use crate::services::sql_utils::{escape_sql_identifier, escape_sql_literal};
 use crate::services::voter_secret_attributes::{
     encrypt_attribute_values, get_secret_attribute_config,
@@ -23,6 +24,7 @@ use rand::prelude::*;
 use rand::{thread_rng, Rng};
 use regex::Regex;
 use ring::{digest, pbkdf2};
+use sequent_core::election_config::import_problems;
 use sequent_core::services::keycloak::{
     get_event_realm, get_tenant_realm, MULTIVALUE_USER_ATTRIBUTE_SEPARATOR,
 };
@@ -67,20 +69,34 @@ static PBKDF2_ALGORITHM: pbkdf2::Algorithm = pbkdf2::PBKDF2_HMAC_SHA256;
 const CREDENTIAL_LEN: usize = digest::SHA256_OUTPUT_LEN;
 pub type Credential = [u8; CREDENTIAL_LEN];
 
+/// What a voters import calls the file it refuses, in the English it logs.
+const VOTERS_FILE: &str = "voters file";
+
 /// Validates a non-empty `vote-weight` cell. The bulk import writes straight
 /// into Keycloak's tables, bypassing the realm user profile validators, so this
 /// is the only place a bad weight is caught before it reaches the tally.
 fn validate_vote_weight(value: &str, row: usize) -> Result<u64> {
     let weight: u64 = value.parse().map_err(|_| {
-        anyhow!(
-            "Invalid `{VOTE_WEIGHT_ATTR_NAME}` value {value:?} on row {row}: \
-             must be a whole number between 1 and {MAX_VOTE_WEIGHT}"
+        reject(
+            VOTERS_FILE,
+            import_problems::vote_weight_not_a_number(
+                row,
+                VOTE_WEIGHT_ATTR_NAME,
+                value,
+                MAX_VOTE_WEIGHT,
+            ),
         )
     })?;
     if !(MIN_VOTE_WEIGHT..=MAX_VOTE_WEIGHT).contains(&weight) {
-        return Err(anyhow!(
-            "Invalid `{VOTE_WEIGHT_ATTR_NAME}` value {value:?} on row {row}: \
-             must be between {MIN_VOTE_WEIGHT} and {MAX_VOTE_WEIGHT}"
+        return Err(reject(
+            VOTERS_FILE,
+            import_problems::vote_weight_out_of_range(
+                row,
+                VOTE_WEIGHT_ATTR_NAME,
+                value,
+                MIN_VOTE_WEIGHT,
+                MAX_VOTE_WEIGHT,
+            ),
         )
         .into());
     }
@@ -205,10 +221,9 @@ fn get_copy_from_query(
     for header in headers_vec.iter() {
         let normalised = header.replace(['_', '.', '-'], "");
         if normalised.eq_ignore_ascii_case(&vote_weight_key) && header != VOTE_WEIGHT_ATTR_NAME {
-            return Err(anyhow!(
-                "Column `{header}` is not recognised. The per-voter vote weight \
-                 column is spelled exactly `{VOTE_WEIGHT_ATTR_NAME}`, in lower \
-                 case and hyphenated"
+            return Err(reject(
+                VOTERS_FILE,
+                import_problems::vote_weight_misspelled(header, VOTE_WEIGHT_ATTR_NAME),
             ));
         }
     }
@@ -220,10 +235,14 @@ fn get_copy_from_query(
     for column_name in &processed_column_names {
         let sanitized = sanitize_db_key(column_name).to_lowercase();
         if seen.contains(&sanitized) {
-            return Err(anyhow!(
-                "Duplicate column `{column_name}` in the import file: two headers \
+            return Err(
+                reject(VOTERS_FILE, import_problems::duplicate_column(column_name)).context(
+                    format!(
+                        "Duplicate column `{column_name}` in the import file: two headers \
                  map to the same field"
-            ));
+                    ),
+                ),
+            );
         }
         seen.push(sanitized);
     }
@@ -678,9 +697,9 @@ pub async fn import_users_file(
     ) = match get_copy_from_query(&headers) {
         Ok(result) => result,
         Err(err) => {
-            return Err(Error::String(format!(
-                "Error obtaining copy_from query: {err}"
-            )));
+            // `context` keeps a rejection in the chain for the task to report.
+            let message = format!("Error obtaining copy_from query: {err}");
+            return Err(Error::Anyhow(err.context(message)));
         }
     };
 
@@ -751,7 +770,14 @@ pub async fn import_users_file(
         let record = match result {
             Ok(record) => record,
             Err(err) => {
-                return Err(Error::String(format!("Error reading CSV record: {err}")));
+                let message = format!("Error reading CSV record: {err}");
+                return Err(Error::Anyhow(
+                    reject(
+                        VOTERS_FILE,
+                        import_problems::unreadable_row(row_number, &err),
+                    )
+                    .context(message),
+                ));
             }
         };
         owned_data.clear();
@@ -952,6 +978,9 @@ mod tests {
                 error.to_string().contains("Duplicate column"),
                 "unexpected error for {headers:?}: {error}"
             );
+            let problems = crate::services::import::rejection::problems_of(&error)
+                .expect("a duplicate column is a reason the admin can act on");
+            assert_eq!(problems[0].id.as_deref(), Some("voters.duplicate-column"));
         }
     }
 
@@ -979,6 +1008,29 @@ mod tests {
                 message.contains("row 7"),
                 "error must name the row, got: {message}"
             );
+            let problems = crate::services::import::rejection::problems_in(&error)
+                .expect("a bad weight carries a problem the Admin Portal can say");
+            assert!(
+                problems[0]
+                    .id
+                    .as_deref()
+                    .is_some_and(|id| id.starts_with("voters.vote-weight-")),
+                "{problems:?}"
+            );
+            assert_eq!(problems[0].details["row"], "7");
         }
+    }
+
+    #[test]
+    fn a_misspelled_vote_weight_column_is_a_named_problem() {
+        let record = StringRecord::from(vec!["username", "vote_weight"]);
+        let error = get_copy_from_query(&record).expect_err("vote_weight must be refused");
+        let problems = crate::services::import::rejection::problems_of(&error)
+            .expect("a misspelled column carries a problem");
+        assert_eq!(
+            problems[0].id.as_deref(),
+            Some("voters.vote-weight-misspelled")
+        );
+        assert_eq!(problems[0].details["column"], "vote_weight");
     }
 }

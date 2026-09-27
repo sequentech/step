@@ -124,8 +124,10 @@ use sequent_core::util::temp_path::{generate_temp_file, get_file_size};
 //   keycloak_event_realm serde_json::Value, not RealmRepresentation. That type
 //                        comes from the keycloak crate, which pulls reqwest.
 //                        Deserialized into the typed form where it is used.
+use super::rejection::reject;
 use sequent_core::election_config;
 pub use sequent_core::election_config::ImportElectionEventSchema;
+use sequent_core::election_config::{import_problems, Rejected};
 
 #[instrument(err)]
 pub async fn upsert_b3_and_elog(
@@ -526,7 +528,10 @@ pub async fn get_document(
 
     temp_file = decrypt_document(object.password.clone(), temp_file)
         .await
-        .map_err(|err| anyhow!("error decrypting document {:?}", document.id))?;
+        .map_err(|_| {
+            reject("election event file", import_problems::cannot_decrypt())
+                .context(format!("error decrypting document {:?}", document.id))
+        })?;
 
     Ok((temp_file, document, document_type))
 }
@@ -571,8 +576,10 @@ pub async fn get_election_event_schema(
 ) -> Result<(ImportElectionEventSchema, HashMap<String, String>)> {
     // Catch a version missmatch early and return a clear error message about it, rather than having it fail later on
     // with a more obscure error when trying to deserialize data that is incompatible with the current version.
-    let raw: serde_json::Value = serde_json::from_str(data_str)
-        .map_err(|e| anyhow!("Failed to parse import data as JSON: {e}"))?;
+    let raw: serde_json::Value = serde_json::from_str(data_str).map_err(|e| {
+        reject("election event file", import_problems::not_json(&e))
+            .context(format!("Failed to parse import data as JSON: {e}"))
+    })?;
     let default_ver = HISTORICAL_DEFAULT_VERSION.to_string();
     let imported_version = raw
         .get(VERSION_KEY)
@@ -580,8 +587,21 @@ pub async fn get_election_event_schema(
         .unwrap_or(&default_ver);
     let current_version = std::env::var(ENV_VAR_APP_VERSION)
         .map_err(|_| anyhow!("Environment variable {ENV_VAR_APP_VERSION} should be set"))?;
-    check_version_compatibility(imported_version, &current_version)?;
-    let original_data: ImportElectionEventSchema = deserialize_str(data_str)?;
+    check_version_compatibility(imported_version, &current_version).map_err(|err| {
+        reject(
+            "election event file",
+            import_problems::incompatible_version(imported_version, &current_version),
+        )
+        .context(err.to_string())
+    })?;
+    let original_data: ImportElectionEventSchema = deserialize_str(data_str).map_err(|err| {
+        let message = err.to_string();
+        reject(
+            "election event file",
+            import_problems::not_a_bundle(&message),
+        )
+        .context(message)
+    })?;
     check_bundle(&original_data)?;
     replace_ids(data_str, &original_data, event_id, tenant_id.clone())
 }
@@ -608,16 +628,13 @@ fn check_bundle(data: &ImportElectionEventSchema) -> Result<()> {
     }
 
     if report.has_errors() {
-        let listing = report
-            .errors()
-            .map(|problem| format!("  {problem}"))
-            .collect::<Vec<_>>()
-            .join("\n");
-        let count = report.errors().count();
-        let noun = if count == 1 { "problem" } else { "problems" };
-        return Err(anyhow!(
-            "The election event bundle cannot be imported; {count} {noun} found:\n{listing}"
-        ));
+        // Carried whole, warnings included: the operator fixing the errors is
+        // the one who should hear about the rest too. `Rejected` prints the same
+        // line this always did, so the task log does not change.
+        return Err(anyhow::Error::new(Rejected::new(
+            "election event bundle",
+            report,
+        )));
     }
 
     Ok(())
@@ -1100,7 +1117,12 @@ pub async fn get_zip_entries(
         if document_type == "application/ezip" || matches_mime("zip", document_type) {
             tokio::task::spawn_blocking(move || -> Result<(Vec<(String, Vec<u8>)>, String)> {
                 let file = File::open(&temp_file_path)?;
-                let mut zip = ZipArchive::new(file)?;
+                let mut zip = ZipArchive::new(file).map_err(|err| {
+                    reject(
+                        "election event file",
+                        import_problems::unreadable_archive(&err),
+                    )
+                })?;
                 let mut entries: Vec<(String, Vec<u8>)> = Vec::new();
 
                 let mut election_event_schema: Option<String> = None;
@@ -1123,7 +1145,13 @@ pub async fn get_zip_entries(
                 if let Some(schema_str) = election_event_schema {
                     Ok((entries, schema_str))
                 } else {
-                    Err(anyhow!("No JSON file found in ZIP"))
+                    Err(reject(
+                        "election event file",
+                        import_problems::unreadable_archive(
+                            "no election event document (.json) was found in it",
+                        ),
+                    )
+                    .context("No JSON file found in ZIP"))
                 }
             })
             .await??
@@ -1175,7 +1203,10 @@ pub async fn process_document(
         Some(election_event_id.clone()),
     )
     .await
-    .map_err(|err| anyhow!("Failed to get document: {err}"))?;
+    .map_err(|err| {
+        let message = format!("Failed to get document: {err}");
+        err.context(message)
+    })?;
 
     let (zip_entries, file_election_event_schema) =
         get_zip_entries(temp_file_path, &document_type).await?;
@@ -1226,7 +1257,12 @@ pub async fn process_document(
         is_importing_keys,
     )
     .await
-    .map_err(|err| anyhow!("Error processing election event file: {err}"))?;
+    .map_err(|err| {
+        // `context`, not `anyhow!`, so a rejection further down stays in the
+        // chain for whoever reports the failure.
+        let message = format!("Error processing election event file: {err}");
+        err.context(message)
+    })?;
 
     // Zip file processing
     if document_type == "application/ezip" || matches_mime("zip", &document_type) {
@@ -1679,9 +1715,18 @@ mod tests {
         )
         .await;
 
-        let error = outcome
-            .expect_err("a contest pointing at a missing election should not import")
-            .to_string();
+        let error =
+            outcome.expect_err("a contest pointing at a missing election should not import");
+        // The structured reasons travel with it, for the Admin Portal to translate.
+        let problems = crate::services::import::rejection::problems_of(&error)
+            .expect("a rejected bundle carries its problems");
+        assert!(
+            problems
+                .iter()
+                .any(|problem| problem.id.as_deref() == Some("contest.election-missing")),
+            "{problems:?}"
+        );
+        let error = error.to_string();
         assert!(
             error.contains("cannot be imported"),
             "unexpected message: {error}"
@@ -1690,6 +1735,22 @@ mod tests {
             error.contains("contests[0].election_id"),
             "unexpected message: {error}"
         );
+    }
+
+    /// A file that is not JSON is refused with a reason the Admin Portal can say.
+    #[tokio::test]
+    async fn a_file_that_is_not_json_is_a_named_problem() {
+        std::env::set_var(ENV_VAR_APP_VERSION, DEV_APP_VERSION);
+
+        let error = get_election_event_schema("not json", None, TENANT.to_string())
+            .await
+            .expect_err("text that is not JSON should not import");
+        assert!(error
+            .to_string()
+            .contains("Failed to parse import data as JSON"));
+        let problems = crate::services::import::rejection::problems_of(&error)
+            .expect("an unreadable file carries its problem");
+        assert_eq!(problems[0].id.as_deref(), Some("import.not-json"));
     }
 
     /// And a bundle with no fatal problems gets through this gate.

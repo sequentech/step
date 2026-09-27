@@ -484,6 +484,41 @@ pub async fn update_fail(task: &TasksExecution, err_message: &str) -> Result<(),
     Ok(())
 }
 
+/// Fails a task and keeps the structured reasons beside the log line.
+///
+/// The log carries the English the task always wrote. `annotations.problems`
+/// carries the same failure as [`Problem`]s — a code, a path, a stable id and the
+/// specifics — so the Admin Portal can say it in the operator's language rather
+/// than print a backend string. Anything reading only the log sees no change.
+#[instrument(skip_all, err)]
+pub async fn update_fail_with_problems(
+    task: &TasksExecution,
+    err_message: &str,
+    problems: &[sequent_core::election_config::Problem],
+) -> Result<(), anyhow::Error> {
+    let new_logs = serde_json::to_value(append_general_log(
+        &task.logs,
+        &("Error: ".to_owned() + err_message),
+    ))?;
+
+    update_task_execution_status(
+        &task.tenant_id,
+        &task.id,
+        TasksExecutionStatus::FAILED,
+        Some(new_logs),
+        failure_annotations(problems)?,
+    )
+    .await
+    .context("Failed to update task execution record with failure status")
+}
+
+/// What a failed task stores for a screen to read: its problems, and no document.
+pub fn failure_annotations(
+    problems: &[sequent_core::election_config::Problem],
+) -> Result<serde_json::Value, serde_json::Error> {
+    Ok(serde_json::json!({ "problems": serde_json::to_value(problems)? }))
+}
+
 /// Fails an export only if it is still active. In particular, a replay that
 /// fails validation cannot regress SUCCESS or erase the document id.
 #[instrument(skip_all, err)]

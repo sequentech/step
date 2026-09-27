@@ -7,6 +7,7 @@ use anyhow::Result;
 use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
 use rocket::serde::json::Json;
+use sequent_core::election_config::{import_problems, Problem};
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::types::permissions::Permissions;
@@ -23,8 +24,11 @@ use windmill::services::electoral_log::ElectoralLogAdminContext;
 use windmill::services::import::import_election_event::{
     get_document, get_zip_entries,
 };
+use windmill::services::import::rejection::problems_of;
 use windmill::services::tasks_execution::*;
-use windmill::services::tasks_execution::{update_complete, update_fail};
+use windmill::services::tasks_execution::{
+    update_complete, update_fail, update_fail_with_problems,
+};
 use windmill::tasks::import_election_event;
 use windmill::tasks::insert_election_event::{self, CreateElectionEventInput};
 use windmill::types::tasks::ETasksExecution;
@@ -120,6 +124,48 @@ pub struct ImportElectionEventOutput {
     message: Option<String>,
     error: Option<String>,
     task_execution: Option<TasksExecution>,
+    /// Why the file was refused, when the importer knows: each problem with a
+    /// code, a path, a stable id and the specifics, so the Admin Portal can say
+    /// it in the operator's language. `error` still carries the English line for
+    /// anything that reads only that. Absent, not empty, when there are none.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    problems: Option<Vec<Problem>>,
+}
+
+/// A refusal: the task marked failed, and the reasons handed back.
+///
+/// The problems go into the task's annotations as well as the response, so the
+/// task list shows the same reasons as the dialog that started it.
+async fn refuse(
+    task_execution: TasksExecution,
+    id: Option<String>,
+    error: String,
+    problems: Option<Vec<Problem>>,
+) -> Json<ImportElectionEventOutput> {
+    let _res = match problems.as_deref() {
+        Some(problems) => {
+            update_fail_with_problems(&task_execution, &error, problems).await
+        }
+        None => update_fail(&task_execution, &error).await,
+    };
+    Json(ImportElectionEventOutput {
+        id,
+        message: None,
+        error: Some(error),
+        task_execution: Some(task_execution),
+        problems,
+    })
+}
+
+/// The English line for an import check that failed, and its problems if any.
+fn checked(error: &anyhow::Error) -> (String, Option<Vec<Problem>>) {
+    match problems_of(error) {
+        // Display, not Debug: the chain's own words, without a backtrace.
+        Some(problems) => {
+            (format!("Error checking import: {error}"), Some(problems))
+        }
+        None => (format!("Error checking import: {error:?}"), None),
+    }
 }
 
 #[instrument(skip(claims))]
@@ -185,16 +231,31 @@ pub async fn import_election_event_f(
                 (temp_file_path, document, document_type)
             }
             Err(err) => {
-                let _res = update_fail(
-                    &task_execution,
-                    &format!("Failed to get the document: {err:?}"),
-                )
-                .await;
+                // A wrong password is the usual reason, and the one worth saying.
+                let problems = problems_of(&err);
+                let _res = match problems.as_deref() {
+                    Some(problems) => {
+                        update_fail_with_problems(
+                            &task_execution,
+                            &format!("Failed to get the document: {err:?}"),
+                            problems,
+                        )
+                        .await
+                    }
+                    None => {
+                        update_fail(
+                            &task_execution,
+                            &format!("Failed to get the document: {err:?}"),
+                        )
+                        .await
+                    }
+                };
                 return Ok(Json(ImportElectionEventOutput {
                     id: None,
                     message: None,
                     error: Some(err.to_string()),
                     task_execution: Some(task_execution),
+                    problems,
                 }));
             }
         };
@@ -206,23 +267,31 @@ pub async fn import_election_event_f(
                     info!("Hash verified !");
                 }
                 Err(err) => {
-                    let err_str = if let HashFileVerifyError::HashMismatch(
-                        input_hash,
-                        gen_hash,
-                    ) = err
-                    {
-                        format!("Failed to verify the integrity: Hash of voters file: {gen_hash} does not match with the input hash: {input_hash}")
-                    } else {
-                        format!("Failed to verify the integrity: {err:?}")
-                    };
+                    let (err_str, problems) =
+                        if let HashFileVerifyError::HashMismatch(
+                            input_hash,
+                            gen_hash,
+                        ) = err
+                        {
+                            (
+                                format!("Failed to verify the integrity: Hash of voters file: {gen_hash} does not match with the input hash: {input_hash}"),
+                                Some(vec![import_problems::checksum_mismatch(
+                                    &input_hash,
+                                    &gen_hash,
+                                )]),
+                            )
+                        } else {
+                            (
+                                format!(
+                                    "Failed to verify the integrity: {err:?}"
+                                ),
+                                None,
+                            )
+                        };
                     info!("Failed to verify the integrity!");
-                    let _res = update_fail(&task_execution, &err_str).await;
-                    return Ok(Json(ImportElectionEventOutput {
-                        id: None,
-                        message: None,
-                        error: Some(err_str),
-                        task_execution: Some(task_execution),
-                    }));
+                    return Ok(
+                        refuse(task_execution, None, err_str, problems).await
+                    );
                 }
             }
         }
@@ -239,17 +308,8 @@ pub async fn import_election_event_f(
             (zip_entries, file_election_event_schema)
         }
         Err(err) => {
-            let _res = update_fail(
-                &task_execution,
-                &format!("Error checking import: {err:?}"),
-            )
-            .await;
-            return Ok(Json(ImportElectionEventOutput {
-                id: None,
-                message: None,
-                error: Some(format!("Error checking import: {:?}", err)),
-                task_execution: Some(task_execution),
-            }));
+            let (error, problems) = checked(&err);
+            return Ok(refuse(task_execution, None, error, problems).await);
         }
     };
 
@@ -266,17 +326,8 @@ pub async fn import_election_event_f(
             (election_event_schema, replacement_map)
         }
         Err(err) => {
-            let _res = update_fail(
-                &task_execution,
-                &format!("Error checking import: {err:?}"),
-            )
-            .await;
-            return Ok(Json(ImportElectionEventOutput {
-                id: None,
-                message: None,
-                error: Some(format!("Error checking import: {:?}", err)),
-                task_execution: Some(task_execution),
-            }));
+            let (error, problems) = checked(&err);
+            return Ok(refuse(task_execution, None, error, problems).await);
         }
     };
 
@@ -292,6 +343,7 @@ pub async fn import_election_event_f(
             message: Some("Import document checked".to_string()),
             error: None,
             task_execution: Some(task_execution),
+            problems: None,
         }));
     }
 
@@ -319,6 +371,7 @@ pub async fn import_election_event_f(
                 )),
                 error: Some(format!("Failed to verify the integrity: {err:?}")),
                 task_execution: Some(task_execution),
+                problems: None,
             }));
         }
     };
@@ -330,5 +383,6 @@ pub async fn import_election_event_f(
         message: Some("Task created: import_election_event".to_string()),
         error: None,
         task_execution: Some(task_execution),
+        problems: None,
     }))
 }
