@@ -591,11 +591,12 @@ test.describe("emulator", () => {
         language,
         voice_id,
     })
+    // The Lambda asks for a voter ID with `DtmfValidInputs::Anything`: no keys listed.
     const askVoterId = (text: string) =>
         ({
             type: "ExpectInput",
             prompt: say(text),
-            valid_inputs: "0123456789#",
+            valid_inputs: "",
             max_digits: 4,
             timeout: 10,
         }) as const
@@ -750,9 +751,7 @@ test.describe("emulator", () => {
             annotations: IVR_ANNOTATIONS,
         })
 
-        const input = page.getByPlaceholder(
-            "Enter your input (max digits=4, valid inputs=0123456789#, timeout=10s)"
-        )
+        const input = page.getByPlaceholder("Enter up to 4 digits (any digits, timeout=10s)")
         const sendDtmf = page.getByRole("button", {name: "Send DTMF input"})
         await expect(sendDtmf).toBeDisabled()
         await page.getByRole("button", {name: "Send timeout"}).click()
@@ -807,9 +806,7 @@ test.describe("emulator", () => {
         })
         await openIvr(page, portal, "Emulator")
         await startCall(page)
-        const input = page.getByPlaceholder(
-            "Enter your input (max digits=4, valid inputs=0123456789#, timeout=10s)"
-        )
+        const input = page.getByPlaceholder("Enter up to 4 digits (any digits, timeout=10s)")
         await input.fill("1")
         await page.getByRole("button", {name: "Send DTMF input"}).click()
         await expect(
