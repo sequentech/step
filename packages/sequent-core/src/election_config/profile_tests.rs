@@ -1048,3 +1048,71 @@ fn the_time_zone_is_a_control_a_profile_may_hide() {
         "a control was locked with no value to lock it to"
     );
 }
+
+// -- corners of reading a profile ------------------------------------------
+
+#[test]
+fn the_shipped_profile_parses_and_reads() {
+    let shipped = default_profile().expect("the shipped profile is JSON");
+    assert!(!shipped.id.is_empty());
+    profile_of(shipped);
+}
+
+#[test]
+fn a_bad_path_in_a_list_names_its_place_in_that_list() {
+    let report = refused(ClientProfile {
+        id: "acme".to_string(),
+        required: vec!["notes".to_string(), "elections[0].name".to_string()],
+        ..Default::default()
+    });
+    assert_eq!(report.problems.len(), 1, "{report}");
+    assert_eq!(report.problems[0].path, "required[1]");
+    assert!(says(&report, "reorders their ballot"));
+}
+
+#[test]
+fn a_bad_path_as_a_default_names_the_default() {
+    let report = refused(ClientProfile {
+        id: "acme".to_string(),
+        defaults: defaults(&[("elections[*].name", Value::from("x"))]),
+        ..Default::default()
+    });
+    assert!(report
+        .problems
+        .iter()
+        .any(|problem| problem.path == "defaults.elections[*].name"));
+}
+
+#[test]
+fn the_required_paths_are_handed_over_as_they_were_written() {
+    let profile = profile_of(ClientProfile {
+        id: "acme".to_string(),
+        required: vec![" notes ".to_string(), "elections[]".to_string()],
+        ..Default::default()
+    });
+    assert_eq!(profile.required_paths(), vec!["notes", "elections[]"]);
+}
+
+#[test]
+fn a_path_ending_in_every_element_needs_the_list_to_exist() {
+    let shape = shape_of_a_plan();
+    assert!(reaches_anything(
+        &PlanPath::parse("elections[]").unwrap(),
+        &shape
+    ));
+    assert!(!reaches_anything(
+        &PlanPath::parse("nowhere[]").unwrap(),
+        &shape
+    ));
+}
+
+#[test]
+fn a_path_through_something_that_is_not_an_object_reaches_nothing() {
+    let path = PlanPath::parse("external_id.inner").unwrap();
+    let mut document = serde_json::json!({"external_id": "union-2027"});
+    assert!(path.resolve(&mut document).is_empty());
+    assert_eq!(path.to_string(), "external_id.inner");
+
+    let every = PlanPath::parse("external_id[].inner").unwrap();
+    assert!(every.resolve(&mut document).is_empty(), "a text is no list");
+}

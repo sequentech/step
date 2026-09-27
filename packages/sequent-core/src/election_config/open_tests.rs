@@ -903,3 +903,120 @@ fn a_photograph_is_found_through_the_platforms_own_tempfile_prefix() {
     assert_eq!(image.file_name, "alice.png");
     assert_eq!(image.bytes, vec![0x89, b'P', b'N', b'G', 1, 2, 3]);
 }
+
+// -- zips put together by hand ----------------------------------------------
+
+/// A zip holding exactly these members.
+fn zip_of(members: &[(&str, &[u8])]) -> Vec<u8> {
+    let mut zip = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
+    for (name, bytes) in members {
+        zip.start_file::<_, ()>(
+            *name,
+            zip::write::SimpleFileOptions::default(),
+        )
+        .unwrap();
+        std::io::Write::write_all(&mut zip, bytes).unwrap();
+    }
+    zip.finish().unwrap().into_inner()
+}
+
+#[test]
+fn a_zipped_event_export_that_is_not_json_says_which_member() {
+    let bytes = zip_of(&[("export_election_event-1.json", b"{not json")]);
+    let refused = open(&bytes).expect_err("nothing to read");
+    assert!(says(&refused, "export_election_event-1.json"), "{refused}");
+    assert!(says(&refused, "not readable JSON"), "{refused}");
+}
+
+#[test]
+fn a_delivery_whose_plan_is_not_json_is_refused() {
+    let bytes = zip_of(&[(super::super::archive::PLAN_MEMBER, b"nope")]);
+    let refused = open(&bytes).expect_err("no plan to open");
+    assert!(says(&refused, "the plan in this zip could not be read"));
+}
+
+#[test]
+fn a_delivery_whose_plan_is_not_a_plan_is_refused() {
+    let bytes = zip_of(&[(super::super::archive::PLAN_MEMBER, b"[1, 2]")]);
+    assert!(open(&bytes).is_err());
+}
+
+#[test]
+fn a_delivery_brings_back_its_files_and_warns_about_an_empty_census() {
+    let plan = serde_json::to_vec(&sound()).unwrap();
+    let inner = zip_of(&[
+        ("export_voters-1.csv", b""),
+        ("images/document_abc_logo.png", &[1, 2, 3]),
+        ("export_S3_files/document_def_rules_of_the_vote.pdf", &[4]),
+        ("images/not-a-document.png", &[5]),
+    ]);
+    let bytes = zip_of(&[
+        (super::super::archive::PLAN_MEMBER, &plan),
+        (super::super::archive::IMPORTABLE_MEMBER, &inner),
+    ]);
+
+    let opened = open(&bytes).expect("a delivery opens");
+    assert_eq!(opened.source, Source::Delivery);
+    assert!(opened.sources.census.is_none(), "the census was empty");
+    assert!(
+        opened
+            .report
+            .problems
+            .iter()
+            .any(|problem| problem.id.as_deref()
+                == Some("census.unreadable-member")),
+        "{}",
+        opened.report
+    );
+    let names: Vec<&str> =
+        opened.sources.files.keys().map(String::as_str).collect();
+    assert_eq!(names, vec!["logo.png", "rules_of_the_vote.pdf"]);
+    assert_eq!(&*opened.sources.files["logo.png"], &[1, 2, 3]);
+}
+
+#[test]
+fn a_delivery_whose_nested_zip_is_not_a_zip_has_nothing_beside_the_plan() {
+    let plan = serde_json::to_vec(&sound()).unwrap();
+    let bytes = zip_of(&[
+        (super::super::archive::PLAN_MEMBER, &plan),
+        (super::super::archive::IMPORTABLE_MEMBER, b"not a zip"),
+    ]);
+    let opened = open(&bytes).expect("the plan still opens");
+    assert_eq!(opened.source, Source::Delivery);
+    assert!(opened.sources.census.is_none());
+    assert!(opened.sources.files.is_empty());
+}
+
+#[test]
+fn reading_members_out_of_something_that_is_not_a_zip_is_refused() {
+    let refused = members(b"not a zip").expect_err("not a zip");
+    assert!(says(&refused, "could not be opened"), "{refused}");
+    let refused = entry(b"not a zip", "any").expect_err("not a zip");
+    assert!(says(&refused, "could not be opened"), "{refused}");
+
+    let bytes = zip_of(&[("here.txt", b"x")]);
+    let refused = entry(&bytes, "elsewhere.txt").expect_err("no member");
+    assert!(
+        says(&refused, "`elsewhere.txt` could not be read"),
+        "{refused}"
+    );
+    assert_eq!(entry(&bytes, "here.txt").unwrap(), b"x");
+}
+
+#[test]
+fn a_plan_file_name_is_the_part_after_the_document_identifier() {
+    assert_eq!(
+        plan_file_name("images/document_abc_photo_of_ada.jpg").as_deref(),
+        Some("photo_of_ada.jpg")
+    );
+    assert_eq!(plan_file_name("images/photo.jpg"), None);
+    assert_eq!(plan_file_name("images/document_abc_"), None);
+    assert_eq!(plan_file_name("images/document_abc"), None);
+}
+
+#[test]
+fn one_problem_is_a_report_of_one() {
+    let report = one(Problem::error(Code::InvalidValue, "x", "y"));
+    assert_eq!(report.problems.len(), 1);
+    assert!(report.has_errors());
+}

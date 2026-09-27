@@ -530,4 +530,86 @@ mod tests {
         assert_eq!(escape_json_string("José-Muñoz"), "José-Muñoz");
         assert_eq!(escape_json_string("a\u{1}b"), "a\\u0001b");
     }
+    #[test]
+    fn carriage_returns_and_tabs_survive_as_escapes() {
+        assert_eq!(escape_json_string("a\rb\tc\\d"), "a\\rb\\tc\\\\d");
+    }
+
+    #[test]
+    fn the_json_helper_with_nothing_to_encode_writes_null() {
+        let templates =
+            TemplateSet::with_overrides(&[("area", r#"{"a": {{json}}}"#)])
+                .unwrap();
+        let area = templates.render_json("area", &json!({})).unwrap();
+        assert_eq!(area["a"], Value::Null);
+    }
+
+    #[test]
+    fn the_default_helper_writes_a_number_as_its_text_and_nothing_as_empty() {
+        let templates = TemplateSet::with_overrides(&[(
+            "area",
+            r#"{"seats": "{{default seats "0"}}", "none": "{{default missing}}"}"#,
+        )])
+        .unwrap();
+        let area = templates
+            .render_json("area", &json!({"seats": 42}))
+            .unwrap();
+        assert_eq!(area["seats"], json!("42"));
+        assert_eq!(area["none"], json!(""));
+    }
+
+    #[test]
+    fn a_template_set_debugs_as_the_templates_it_replaced() {
+        let templates = TemplateSet::with_overrides(&[("area", "{}")]).unwrap();
+        let debug = format!("{templates:?}");
+        assert!(debug.starts_with("TemplateSet"), "{debug}");
+        assert!(debug.contains("\"area\""), "{debug}");
+        assert!(TemplateSet::builtin().unwrap().overridden().is_empty());
+    }
+
+    #[test]
+    fn rendering_a_template_nobody_registered_names_it() {
+        let templates = TemplateSet::builtin().unwrap();
+        let problem = templates.render("nowhere", &context()).unwrap_err();
+        assert_eq!(problem.path, "templates.nowhere");
+        assert!(problem.message.contains("could not be rendered"));
+        assert!(templates.render_json("nowhere", &context()).is_err());
+    }
+
+    #[test]
+    fn a_template_rendering_a_scalar_says_which_kind() {
+        for (source, kind) in [
+            ("null", "null"),
+            ("true", "boolean"),
+            ("3", "number"),
+            (r#""text""#, "string"),
+        ] {
+            let templates =
+                TemplateSet::with_overrides(&[("area", source)]).unwrap();
+            let problem =
+                templates.render_json("area", &context()).unwrap_err();
+            assert!(
+                problem.message.contains(&format!("rendered a {kind},")),
+                "{source}: {}",
+                problem.message
+            );
+        }
+    }
+
+    #[test]
+    fn an_excerpt_without_a_line_shows_the_start_of_the_text() {
+        let text = (1..=30)
+            .map(|n| format!("line {n}"))
+            .collect::<Vec<_>>()
+            .join("\n");
+        let shown = excerpt(&text, None);
+        assert_eq!(shown.lines().count(), 20);
+        assert!(shown.starts_with("     1 | line 1"), "{shown}");
+        assert_eq!(excerpt(&text, Some(0)), shown);
+        assert_eq!(excerpt("", Some(3)), "");
+
+        let near = excerpt(&text, Some(1));
+        assert!(near.starts_with(">    1 | line 1"), "{near}");
+        assert_eq!(near.lines().count(), 3);
+    }
 }
