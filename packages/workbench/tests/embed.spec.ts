@@ -38,6 +38,7 @@ export class IvrEmulatorDriver {
     constructor(config) {
         this.queue = [
             {type: "Prompt", prompt: says("Welcome, caller " + config.caller_number + ".")},
+            {type: "Prompt", prompt: says('<lang xml:lang="es-ES">Hola</lang>, <lang xml:lang="en-US">hello</lang>.')},
             {type: "ExpectInput", prompt: says("Press 1."), valid_inputs: "1", max_digits: 1, timeout: 5},
         ]
     }
@@ -229,6 +230,10 @@ test("a framing page places a call against the emulator it serves", async ({page
     await send(page, call())
     const frame = page.frameLocator("#preview")
     await expect(frame.getByText("Welcome, caller +1234567890.")).toBeVisible()
+    // SSML is shown as its words: a badge for the other language, and no tags.
+    const greeting = frame.getByTestId("ivr-call-prompt").filter({hasText: "Hola"})
+    await expect(greeting).toHaveText("ES Hola, hello.")
+    await expect(greeting.getByText("Hola")).toHaveAttribute("lang", "es-ES")
     await expect
         .poll(() => lastReply(page))
         .toMatchObject({type: "calling", status: "ExpectingInput"})

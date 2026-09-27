@@ -6,7 +6,12 @@ import {expect, fn, userEvent, within} from "storybook/test"
 import {IvrEmulatorError} from "@sequentech/ui-essentials"
 import {EmbedMessageType} from "../embed"
 import {EmbeddedCall} from "../EmbeddedCall"
-import {fakeCallConfig, fakeIvrEmulator, FakePinIvrDriver} from "../fakeIvrEmulator"
+import {
+    fakeCallConfig,
+    fakeIvrEmulator,
+    FakeLanguageMenuIvrDriver,
+    FakePinIvrDriver,
+} from "../fakeIvrEmulator"
 
 /**
  * The telephone call `workbench/embed.html` places for a framing tool such as the Election
@@ -79,6 +84,23 @@ export const AnyDigits: Story = {
         await userEvent.click(canvas.getByRole("button", {name: "Press these keys"}))
         await expect(await canvas.findByText("Press 1 to hear your ballot.")).toBeVisible()
         await expect(keypad).toHaveAttribute("placeholder", "Up to 1 of 1, within 10s")
+    },
+}
+
+/**
+ * A language menu in two languages, which the Lambda speaks as SSML `<lang>` parts: the
+ * transcript shows the words, with a badge for the part in another language, and none
+ * of the markup.
+ */
+export const LanguageMenu: Story = {
+    args: {load: async () => ({IvrEmulatorDriver: FakeLanguageMenuIvrDriver})},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        const english = await canvas.findByText("For English, press 1")
+        await expect(english).toHaveAttribute("lang", "en-US")
+        await expect(canvas.getByText("Para español, pulse 2")).toHaveAttribute("lang", "es-ES")
+        await expect(canvas.getByTitle("en-US")).toHaveTextContent("EN")
+        await expect(canvasElement.textContent).not.toMatch(/<lang|xml:lang|<\/?speak/)
     },
 }
 

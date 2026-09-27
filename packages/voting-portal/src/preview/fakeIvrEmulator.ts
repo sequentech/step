@@ -97,6 +97,32 @@ export class FakePinIvrDriver extends FakeIvrDriver {
     }
 }
 
+/**
+ * The same call behind a language menu, spoken in both languages as the Lambda does:
+ * SSML `<lang>` parts in one Spanish prompt.
+ */
+export class FakeLanguageMenuIvrDriver extends FakeIvrDriver {
+    private menu = true
+
+    async execute(): Promise<IvrAction> {
+        if (!this.menu) return super.execute()
+        this.menu = false
+        return {
+            type: "ExpectInput",
+            prompt: {
+                prompt_text:
+                    '<speak><lang xml:lang="en-US">For English, press 1</lang>, ' +
+                    '<lang xml:lang="es-ES">Para español, pulse 2</lang></speak>',
+                language: "es-ES",
+                voice_id: "Lucia",
+            },
+            valid_inputs: "1,2",
+            max_digits: 1,
+            timeout: 5,
+        }
+    }
+}
+
 export const fakeIvrEmulator: IvrEmulatorApi = {IvrEmulatorDriver: FakeIvrDriver}
 
 /** A configuration the fake accepts: one ballot style, a caller, nothing blacklisted. */
