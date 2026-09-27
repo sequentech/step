@@ -778,8 +778,8 @@ const dutchTranslation: TranslationType = {
                     endSession: "Sessie beëindigen",
                     noStylesFound:
                         "Geen gepubliceerde stembiljetstijlen gevonden die overeenkomen met uw selecties",
-                    inputPlaceholder:
-                        "Voer uw invoer in (maximaal aantal cijfers={{maxDigits}}, geldige invoer={{validInputs}}, time-out={{timeout}} sec.)",
+                    inputPlaceholder: "Druk op {{keys}} (time-out={{timeout}} sec.)",
+                    inputPlaceholderOr: "of",
                     inputPlaceholderAnyKeys:
                         "Voer maximaal {{maxDigits}} cijfers in (willekeurige cijfers, time-out={{timeout}} sec.)",
                     blacklistCaller: "Beller blokkeren",

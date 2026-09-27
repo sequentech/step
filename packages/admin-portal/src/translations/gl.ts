@@ -778,8 +778,8 @@ const galegoTranslation: TranslationType = {
                     endSession: "Finalizar a sesión",
                     noStylesFound:
                         "Non se atoparon estilos de papeleta publicados que coincidan coas súas seleccións",
-                    inputPlaceholder:
-                        "Introduza a súa entrada (máximo de díxitos={{maxDigits}}, entradas válidas={{validInputs}}, tempo de espera={{timeout}} s)",
+                    inputPlaceholder: "Prema {{keys}} (tempo de espera={{timeout}} s)",
+                    inputPlaceholderOr: "ou",
                     inputPlaceholderAnyKeys:
                         "Introduza ata {{maxDigits}} díxitos (calquera díxito, tempo de espera={{timeout}} s)",
                     blacklistCaller: "Bloquear a persoa que chama",

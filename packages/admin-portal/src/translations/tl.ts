@@ -777,8 +777,8 @@ const tagalogTranslation: TranslationType = {
                     endSession: "Tapusin ang session",
                     noStylesFound:
                         "Walang nakitang na-publish na mga ballot style na tumutugma sa iyong mga pinili",
-                    inputPlaceholder:
-                        "Ilagay ang iyong input (max na digit={{maxDigits}}, mga valid na input={{validInputs}}, timeout={{timeout}} s)",
+                    inputPlaceholder: "Pindutin ang {{keys}} (timeout={{timeout}} s)",
+                    inputPlaceholderOr: "o",
                     inputPlaceholderAnyKeys:
                         "Maglagay ng hanggang {{maxDigits}} digit (anumang digit, timeout={{timeout}} s)",
                     blacklistCaller: "I-block ang tumatawag",

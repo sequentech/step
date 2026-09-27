@@ -29,9 +29,13 @@ describe("ivrKeypadHint", () => {
         return template.replace(/\{\{(\w+)\}\}/g, (_, name: string) => String(values[name]))
     }) as unknown as TFunction
 
-    it("names the keys a prompt accepts", () => {
-        expect(ivrKeypadHint(t, {valid_inputs: "0-9", max_digits: 3, timeout: 10})).toBe(
-            "Enter your input (max digits=3, valid inputs=0-9, timeout=10s)"
+    it("names the keys a prompt accepts, in order, as a sentence", () => {
+        // The Lambda's language menu sends "2,1"; the hint said "valid inputs=2,1".
+        expect(ivrKeypadHint(t, {valid_inputs: "2,1", max_digits: 1, timeout: 10})).toBe(
+            "Press 1 or 2 (timeout=10s)"
+        )
+        expect(ivrKeypadHint(t, {valid_inputs: "1,2,0", max_digits: 1, timeout: 5})).toBe(
+            "Press 0, 1 or 2 (timeout=5s)"
         )
     })
 
@@ -51,6 +55,27 @@ describe("ivrKeypadHint", () => {
             expect(wording).toContain("{{timeout}}")
             expect(wording).not.toContain("{{validInputs}}")
         }
-        expect(emulator.inputPlaceholder).toContain("{{validInputs}}")
+    })
+
+    it("names the keys and says 'or' in every language", () => {
+        for (const lang of ["cat", "en", "es", "eu", "fr", "gl", "nl", "tl"]) {
+            // eslint-disable-next-line @typescript-eslint/no-require-imports
+            const translations = require(`../translations/${lang}`).default
+            const {inputPlaceholder, inputPlaceholderOr} =
+                translations.translations.electionEventScreen.ivr.emulator
+            expect({lang, inputPlaceholder}).toEqual({
+                lang,
+                inputPlaceholder: expect.stringContaining("{{keys}}"),
+            })
+            expect({lang, inputPlaceholder}).toEqual({
+                lang,
+                inputPlaceholder: expect.not.stringContaining("{{validInputs}}"),
+            })
+            expect({lang, inputPlaceholderOr}).toEqual({
+                lang,
+                inputPlaceholderOr: expect.stringMatching(/^\S+$/),
+            })
+        }
+        expect(emulator.inputPlaceholderOr).toBe("or")
     })
 })

@@ -769,8 +769,8 @@ const englishTranslation = {
                     startSession: "Start new session",
                     endSession: "End the session",
                     noStylesFound: "No published ballot styles found matching your selections",
-                    inputPlaceholder:
-                        "Enter your input (max digits={{maxDigits}}, valid inputs={{validInputs}}, timeout={{timeout}}s)",
+                    inputPlaceholder: "Press {{keys}} (timeout={{timeout}}s)",
+                    inputPlaceholderOr: "or",
                     inputPlaceholderAnyKeys:
                         "Enter up to {{maxDigits}} digits (any digits, timeout={{timeout}}s)",
                     blacklistCaller: "Blocklist the caller",

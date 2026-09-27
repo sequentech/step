@@ -779,8 +779,8 @@ const frenchTranslation: TranslationType = {
                     startSession: "Démarrer une nouvelle session",
                     endSession: "Terminer la session",
                     noStylesFound: "Aucun style de bulletin publié ne correspond à vos sélections",
-                    inputPlaceholder:
-                        "Saisissez votre entrée (nombre maximal de chiffres={{maxDigits}}, entrées valides={{validInputs}}, délai d'expiration={{timeout}} s)",
+                    inputPlaceholder: "Appuyez sur {{keys}} (délai d'expiration={{timeout}} s)",
+                    inputPlaceholderOr: "ou",
                     inputPlaceholderAnyKeys:
                         "Saisissez jusqu'à {{maxDigits}} chiffres (n'importe quels chiffres, délai d'expiration={{timeout}} s)",
                     blacklistCaller: "Bloquer l'appelant",
