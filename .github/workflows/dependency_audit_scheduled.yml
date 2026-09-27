@@ -40,7 +40,7 @@ jobs:
           - release/9.0
     steps:
       - name: Check out ${{ matrix.branch }}
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: ${{ matrix.branch }}
           persist-credentials: false
