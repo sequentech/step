@@ -730,6 +730,7 @@ type OptionalImportEvent {
   error: String
   id: String
   message: String
+  problems: jsonb
   task_execution: tasks_execution_type
 }
 
