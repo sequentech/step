@@ -554,6 +554,16 @@ const dutchTranslation: TranslationType = {
                         text: "Identificatie twee keer gebruikt — '{{identifier}}' wordt al gebruikt door {{first}}. Identificaties zijn uniek binnen het hele verkiezingsevenement, dus de tweede vervangt de eerste in plaats van te worden toegevoegd.",
                     },
                 },
+                ivr: {
+                    "language-not-spoken": {
+                        lead: "Taal niet beschikbaar per telefoon",
+                        text: "Taal niet beschikbaar per telefoon — het gesprek spreekt alleen Engels, Frans en Spaans, dus bellers krijgen {{languages}} niet aangeboden.",
+                    },
+                    "missing-prompts": {
+                        lead: "Gespreksteksten ontbreken",
+                        text: "Gespreksteksten ontbreken — {{prompts}} hebben geen tekst in '{{language}}', en het telefoonsysteem weigert elk gesprek tot die er is.",
+                    },
+                },
                 labels: {
                     "in-use": {
                         lead: "Rechtenlabels in gebruik",

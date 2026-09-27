@@ -554,6 +554,16 @@ const catalanTranslation: TranslationType = {
                         text: "Identificador repetit — «{{identifier}}» ja l'utilitza {{first}}. Els identificadors són únics en tot l'esdeveniment electoral, així que el segon substitueix el primer en lloc d'afegir-se.",
                     },
                 },
+                ivr: {
+                    "language-not-spoken": {
+                        lead: "Idioma no disponible per telèfon",
+                        text: "Idioma no disponible per telèfon — la trucada només parla anglès, francès i castellà, així que no s'ofereix {{languages}} a qui truca.",
+                    },
+                    "missing-prompts": {
+                        lead: "Falten missatges de la trucada",
+                        text: "Falten missatges de la trucada — {{prompts}} no tenen text en «{{language}}», i el sistema telefònic rebutja totes les trucades fins que en tinguin.",
+                    },
+                },
                 labels: {
                     "in-use": {
                         lead: "Etiquetes de permís en ús",

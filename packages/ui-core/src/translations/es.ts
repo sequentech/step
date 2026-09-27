@@ -556,6 +556,16 @@ const spanishTranslation: TranslationType = {
                         text: "Identificador repetido — «{{identifier}}» ya lo usa {{first}}. Los identificadores son únicos en todo el evento electoral, así que el segundo reemplaza al primero en vez de añadirse.",
                     },
                 },
+                ivr: {
+                    "language-not-spoken": {
+                        lead: "Idioma no disponible por teléfono",
+                        text: "Idioma no disponible por teléfono — la llamada solo habla inglés, francés y español, así que no se ofrece {{languages}} a quien llama.",
+                    },
+                    "missing-prompts": {
+                        lead: "Faltan mensajes de la llamada",
+                        text: "Faltan mensajes de la llamada — {{prompts}} no tienen texto en «{{language}}», y el sistema telefónico rechaza todas las llamadas hasta que lo tengan.",
+                    },
+                },
                 labels: {
                     "in-use": {
                         lead: "Etiquetas de permiso en uso",
