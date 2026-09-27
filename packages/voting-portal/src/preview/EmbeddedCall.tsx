@@ -86,6 +86,12 @@ export const EmbeddedCall: React.FC<EmbeddedCallProps> = ({
         (status: IvrCallStatus) => reply({type: EmbedMessageType.CALLING, status}),
         [reply]
     )
+    // The emulator threw mid-call: without this the framing tool would be left at
+    // `Running`, waiting for a status that never comes.
+    const onError = useCallback(
+        (message: string) => reply({type: EmbedMessageType.FAILED, issues: [message]}),
+        [reply]
+    )
 
     const api = loaded.state === "ready" ? loaded.api : undefined
     return (
@@ -118,6 +124,7 @@ export const EmbeddedCall: React.FC<EmbeddedCallProps> = ({
                     <IvrCall
                         start={() => new api.IvrEmulatorDriver(request.config)}
                         onStatusChange={onStatusChange}
+                        onError={onError}
                         placeholder={(expected) =>
                             fillLabel(labels.placeholder, {
                                 maxDigits: expected.max_digits,

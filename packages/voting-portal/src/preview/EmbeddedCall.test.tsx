@@ -94,8 +94,13 @@ test("keeps the keypad named after a call that fails without a prompt to answer"
         },
     }
     jest.spyOn(console, "error").mockImplementation(() => undefined)
-    placed({}, async () => failing)
+    const {replies} = placed({}, async () => failing)
     expect(await screen.findByRole("alert")).toHaveTextContent("the Lambda panicked")
+    // The framing tool hears it too, rather than waiting on `Running` for good.
+    expect(replies.at(-1)).toEqual({
+        type: EmbedMessageType.FAILED,
+        issues: ["Error: the Lambda panicked"],
+    })
     const keypad = screen.getByRole("textbox", {name: "Keys to press"})
     expect(keypad).toBeDisabled()
     expect(keypad).not.toHaveAttribute("placeholder")

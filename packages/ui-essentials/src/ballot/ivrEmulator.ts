@@ -159,16 +159,19 @@ export const loadIvrEmulator = (
     baseUrl: string,
     importModule: ImportModule = defaultImport
 ): Promise<IvrEmulatorApi> => {
-    let load = loads.get(baseUrl)
+    // Keyed by the files it fetches, not the text it was given: `?v=2` and a
+    // fragment are dropped from those, so they are the same emulator.
+    const key = resolveUrls(baseUrl).jsUrl.href
+    let load = loads.get(key)
     if (load === undefined) {
         load = fetchAndLoad(baseUrl, importModule).catch((e: unknown) => {
             // Allow retry
-            loads.delete(baseUrl)
+            loads.delete(key)
 
             console.error("Failed to init the emulator", e)
             throw e
         })
-        loads.set(baseUrl, load)
+        loads.set(key, load)
     }
     return load
 }

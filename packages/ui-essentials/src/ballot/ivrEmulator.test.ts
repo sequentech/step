@@ -117,6 +117,18 @@ describe("loading the emulator", () => {
         expect(b.IvrEmulatorDriver).toBe(other.IvrEmulatorDriver)
     })
 
+    it("loads an emulator once, whatever query or fragment its address carries", async () => {
+        // The files fetched drop both, so they are the same emulator.
+        globalThis.fetch = jest.fn(ok) as unknown as typeof fetch
+        const imported = jest.fn(async () => shim)
+
+        await loadIvrEmulator("https://a.example/wasm/emu?v=1", imported)
+        await loadIvrEmulator("https://a.example/wasm/emu#call", imported)
+        await loadIvrEmulator("https://a.example/wasm/emu", imported)
+
+        expect(imported).toHaveBeenCalledTimes(1)
+    })
+
     it("lets a failed load be tried again", async () => {
         // Opening the panel after a deploy should retry, not repeat the first
         // answer for as long as the tab stays open.
