@@ -5,6 +5,7 @@ import {resolve} from "node:path"
 import {type DocumentNode, type OperationDefinitionNode} from "graphql"
 import {introspectSchema} from "ra-data-graphql/dist/cjs/introspection"
 import {customBuildQuery} from "./customBuildQuery"
+import {electionSearchFilter} from "../services/ElectionSearch"
 
 const EVENT = "20000000-0000-4000-8000-000000000001"
 const ELECTION = "30000000-0000-4000-8000-000000000001"
@@ -91,6 +92,35 @@ describe("resource list variables", () => {
         expect(built.variables.where).toEqual({
             _and: [{name: {_ilike: "%Nor%"}}, {election_event_id: {_eq: EVENT}}],
         })
+    })
+
+    it.each(["sequent_backend_election", "sequent_backend_contest"])(
+        "keeps the name search's boolean expression on %s",
+        (resource) => {
+            const built = list(resource, {
+                sort: undefined,
+                filter: {election_event_id: EVENT, ...electionSearchFilter("Mayor")},
+            })
+            expect(built.variables.where).toEqual({
+                _and: [
+                    {election_event_id: {_eq: EVENT}},
+                    {
+                        _or: [
+                            {external_id: {_ilike: "%Mayor%"}},
+                            {presentation: {_cast: {String: {_ilike: "%Mayor%"}}}},
+                        ],
+                    },
+                ],
+            })
+        }
+    )
+
+    it("drops a boolean expression that is not a raw Hasura query", () => {
+        const built = list("sequent_backend_election", {
+            sort: undefined,
+            filter: {election_event_id: EVENT, _or: "Mayor"},
+        })
+        expect(built.variables.where).toEqual({_and: [{election_event_id: {_eq: EVENT}}]})
     })
 
     it("keeps a sort on a whitelisted column", () => {
