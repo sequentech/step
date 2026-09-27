@@ -262,14 +262,14 @@ jobs:
       tag: ${{ needs.release.outputs.VERSION }}
       push: true
 
-  # build-and-push-root-account:
-  #   if: ${{ github.event.inputs.infra_only == 'false' }}
-  #   uses: ./.github/workflows/reusable_build_push_root.yml
-  #   needs: release
-  #   secrets: inherit
-  #   with:
-  #     tag: ${{ needs.release.outputs.VERSION }}
-  #     push: true
+  build-and-push-root-account:
+    if: ${{ github.event.inputs.infra_only == 'false' }}
+    uses: ./.github/workflows/reusable_build_push_root.yml
+    needs: release
+    secrets: inherit
+    with:
+      tag: ${{ needs.release.outputs.VERSION }}
+      push: true
 
   trigger-beyond-release:
     needs: [release]
@@ -287,7 +287,7 @@ jobs:
         wait-for-completion: true
 
   trigger-deployer:
-    needs: [release, create-release-branch, trigger-beyond-release, build-and-push]
+    needs: [release, create-release-branch, trigger-beyond-release, build-and-push, build-and-push-root-account]
     if: >-
       ${{ always() && needs.release.result == 'success' &&
           needs.create-release-branch.result == 'success' &&
