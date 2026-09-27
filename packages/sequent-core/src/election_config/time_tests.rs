@@ -211,3 +211,84 @@ fn an_absurd_offset_is_reported_rather_than_overflowing() {
     assert!(stamp.instant().is_err());
     assert!(stamp.to_rfc3339().is_err());
 }
+
+// -- reading a time back from a spreadsheet --------------------------------
+
+/// The inverse of `to_rfc3339`: the instant and the offset come back, the zone's
+/// name does not, because RFC 3339 has nowhere to carry one.
+#[test]
+fn a_time_written_for_the_scheduler_reads_back_as_the_same_instant() {
+    let written =
+        Timestamp::new("2027-03-01T09:00", "America/Los_Angeles", LA_SUMMER);
+    let text = written.to_rfc3339().expect("writes");
+
+    let read = Timestamp::from_rfc3339(&text).expect("reads");
+
+    assert_eq!(read.local, "2027-03-01T09:00");
+    assert_eq!(read.offset_minutes, LA_SUMMER);
+    assert_eq!(read.zone, "", "the zone's name is not in the text");
+    assert_eq!(read.instant().unwrap(), written.instant().unwrap());
+}
+
+#[test]
+fn a_time_read_back_tolerates_the_whitespace_a_cell_carries() {
+    let read = Timestamp::from_rfc3339("  2027-03-01T09:30:00+05:30 \n")
+        .expect("reads");
+    assert_eq!(read.local, "2027-03-01T09:30");
+    assert_eq!(read.offset_minutes, 330);
+}
+
+#[test]
+fn a_time_with_no_offset_cannot_be_read_back() {
+    // An offset-less value is exactly the one the platform cannot fire, so it
+    // is refused here too rather than guessed at.
+    for text in ["2027-03-01T09:00", "not a date", ""] {
+        let refused = Timestamp::from_rfc3339(text).expect_err(text);
+        assert_eq!(refused.severity, Severity::Error);
+        assert!(refused.message.contains("offset"), "{}", refused.message);
+    }
+}
+
+// -- how a time is shown to a person ----------------------------------------
+
+#[test]
+fn a_time_is_shown_with_its_zone() {
+    let stamp =
+        Timestamp::new("2027-03-01T09:00", "America/Los_Angeles", LA_SUMMER);
+    assert_eq!(stamp.to_string(), "2027-03-01T09:00 (America/Los_Angeles)");
+}
+
+#[test]
+fn a_time_with_no_zone_is_shown_as_the_utc_it_is_read_as() {
+    assert_eq!(
+        Timestamp::utc("2027-03-01T09:00").to_string(),
+        "2027-03-01T09:00 (UTC)"
+    );
+    // Blank is no zone too, however many spaces it has.
+    assert_eq!(
+        Timestamp::new("2027-03-01T09:00", "   ", 0).to_string(),
+        "2027-03-01T09:00 (UTC)"
+    );
+}
+
+#[test]
+fn something_that_is_neither_a_string_nor_an_object_is_refused_with_the_shape_expected(
+) {
+    let refused = serde_json::from_str::<Timestamp>("42").unwrap_err();
+    assert!(refused.to_string().contains("a date and time"), "{refused}");
+}
+
+#[test]
+fn an_object_with_no_wall_clock_is_refused() {
+    let refused =
+        serde_json::from_str::<Timestamp>(r#"{"zone": "UTC"}"#).unwrap_err();
+    assert!(refused.to_string().contains("local"), "{refused}");
+}
+
+#[test]
+fn a_blank_time_has_no_instant() {
+    let blank = Timestamp::utc("   ");
+    assert!(blank.is_empty());
+    assert!(blank.instant().is_err());
+    assert!(blank.to_rfc3339().is_err());
+}

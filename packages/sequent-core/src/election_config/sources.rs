@@ -860,4 +860,122 @@ mod tests {
             ["ada", "grace"]
         );
     }
+
+    fn sheet(
+        headers: &[&str],
+        rows: Vec<Vec<(&str, serde_json::Value)>>,
+    ) -> Arc<crate::election_config::sheet::Sheet> {
+        Arc::new(crate::election_config::sheet::Sheet {
+            name: "Voters".to_owned(),
+            key: "voters".to_owned(),
+            headers: headers.iter().map(|each| (*each).to_owned()).collect(),
+            rows: rows
+                .into_iter()
+                .enumerate()
+                .map(|(offset, cells)| crate::election_config::sheet::Row {
+                    sheet: "Voters".to_owned(),
+                    number: offset + 2,
+                    cells: cells
+                        .into_iter()
+                        .map(|(header, value)| (header.to_owned(), value))
+                        .collect(),
+                })
+                .collect(),
+        })
+    }
+
+    #[test]
+    fn a_census_from_a_sheet_reads_in_batches_and_rewinds() {
+        // The third impl, held to the same contract as the other two.
+        let source = SheetCensus::new(
+            sheet(
+                &["username", "area.external_id"],
+                vec![
+                    vec![
+                        ("username", serde_json::json!("ada")),
+                        ("area.external_id", serde_json::json!("north")),
+                    ],
+                    vec![("username", serde_json::json!("grace"))],
+                    vec![("username", serde_json::json!("alan"))],
+                ],
+            ),
+            BTreeMap::new(),
+        );
+        behaves(&source, &["ada", "grace", "alan"]);
+    }
+
+    #[test]
+    fn a_sheet_census_skips_blank_headers_and_reads_cells_as_text() {
+        // A blank header keeps column positions lined up in the sheet but is not
+        // a census column; a number typed into a username cell is a username,
+        // and an empty cell is an empty value rather than `null`.
+        let source = SheetCensus::new(
+            sheet(
+                &["username", "", "area_name", "seniority", "note"],
+                vec![vec![
+                    ("username", serde_json::json!(1001)),
+                    ("area_name", serde_json::json!("North Local")),
+                    ("seniority", serde_json::json!(true)),
+                    ("note", serde_json::Value::Null),
+                ]],
+            ),
+            [("North Local".to_owned(), "north".to_owned())]
+                .into_iter()
+                .collect(),
+        );
+
+        assert_eq!(
+            source.columns(),
+            ["username", "area_name", "seniority", "note"]
+        );
+        let read = source.next_batch(10).expect("reads");
+        assert_eq!(read.len(), 1);
+        assert_eq!(read[0].username, "1001");
+        assert_eq!(read[0].area_external_id, "north");
+        assert_eq!(
+            read[0].extra.get("seniority").map(String::as_str),
+            Some("true")
+        );
+        // A blank cell is not a value: it rides nowhere.
+        assert!(read[0].extra.get("note").is_none());
+    }
+
+    #[test]
+    fn an_empty_sheet_census_is_done_before_it_starts() {
+        let source =
+            SheetCensus::new(sheet(&["username"], vec![]), BTreeMap::new());
+        assert!(source.next_batch(5).expect("reads").is_empty());
+        source.rewind().expect("rewinds");
+        assert!(source.next_batch(5).expect("reads").is_empty());
+    }
+
+    #[test]
+    fn a_cell_is_read_as_the_text_it_means() {
+        assert_eq!(cell_text(&serde_json::json!("ada")), "ada");
+        assert_eq!(cell_text(&serde_json::Value::Null), "");
+        assert_eq!(cell_text(&serde_json::json!(42)), "42");
+        assert_eq!(cell_text(&serde_json::json!(1.5)), "1.5");
+        assert_eq!(cell_text(&serde_json::json!(false)), "false");
+    }
+
+    #[test]
+    fn debugging_sources_names_the_files_and_counts_the_columns_only() {
+        // Never the rows: a panic message must not print a census.
+        let sources = Sources {
+            census: Some(Arc::new(VecCensus::new(vec![voter(
+                "secret-voter",
+                "north",
+            )]))),
+            files: [("logo.png".to_owned(), Arc::from(vec![1u8, 2, 3]))]
+                .into_iter()
+                .collect(),
+        };
+        let printed = format!("{sources:?}");
+        assert!(printed.contains("logo.png"), "{printed}");
+        assert!(printed.contains("Some(5)"), "{printed}");
+        assert!(!printed.contains("secret-voter"), "{printed}");
+
+        let empty = format!("{:?}", Sources::default());
+        assert!(empty.contains("census: None"), "{empty}");
+    }
 }

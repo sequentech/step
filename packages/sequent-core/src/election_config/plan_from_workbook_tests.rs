@@ -930,3 +930,701 @@ fn a_voters_numeric_and_boolean_columns_come_back_as_text() {
     );
     assert_eq!(back[0].extra.get("note").map(String::as_str), Some("hello"));
 }
+
+// -- cells as somebody typed them rather than as the writer wrote them ---------
+
+/// A row holding exactly these cells, bypassing the coercion a sheet applies, so
+/// a test can put a value in a cell the way a hand-edited file might.
+fn row_of(sheet: &str, number: usize, cells: &[(&str, Value)]) -> Row {
+    Row {
+        sheet: sheet.to_string(),
+        number,
+        cells: cells
+            .iter()
+            .map(|(header, value)| ((*header).to_string(), value.clone()))
+            .collect(),
+    }
+}
+
+/// A sheet of those rows, keyed the way `Workbook::rows` looks it up.
+fn sheet_of(name: &str, rows: Vec<Vec<(&str, Value)>>) -> Sheet {
+    Sheet {
+        name: name.to_string(),
+        key: crate::election_config::sheet::normalise_sheet_name(name),
+        headers: Vec::new(),
+        rows: rows
+            .iter()
+            .enumerate()
+            .map(|(offset, cells)| row_of(name, offset + 2, cells))
+            .collect(),
+    }
+}
+
+/// The smallest workbook that reads: one event, plus whatever sheets a test adds.
+fn minimal(mut sheets: Vec<Sheet>) -> Workbook {
+    if !sheets.iter().any(|sheet| sheet.key == "electionevent") {
+        sheets.insert(
+            0,
+            sheet_of(
+                "ElectionEvent",
+                vec![vec![("external_id", serde_json::json!("ev"))]],
+            ),
+        );
+    }
+    Workbook::new(sheets).expect("distinct sheets")
+}
+
+fn errors_of(workbook: &Workbook) -> Vec<Problem> {
+    plan_from_workbook(workbook)
+        .expect_err("this workbook has an error in it")
+        .problems
+        .into_iter()
+        .filter(|problem| {
+            problem.severity == crate::election_config::problem::Severity::Error
+        })
+        .collect()
+}
+
+fn warnings_of(read: &ReadPlan) -> Vec<&Problem> {
+    read.report.warnings().collect()
+}
+
+#[test]
+fn a_yes_or_no_typed_in_words_reads_as_one() {
+    use serde_json::json;
+    let row = row_of(
+        "Elections",
+        2,
+        &[
+            ("a", json!("yes")),
+            ("b", json!(" X ")),
+            ("c", json!("1")),
+            ("d", json!("No")),
+            ("e", json!("0")),
+            ("f", json!("maybe")),
+            ("g", json!(0)),
+            ("h", json!(2)),
+            ("i", json!(true)),
+            ("j", json!(["yes"])),
+        ],
+    );
+    assert_eq!(flag(&row, "a"), Some(true));
+    assert_eq!(flag(&row, "b"), Some(true));
+    assert_eq!(flag(&row, "c"), Some(true));
+    assert_eq!(flag(&row, "d"), Some(false));
+    assert_eq!(flag(&row, "e"), Some(false));
+    // Neither: the caller's default decides rather than a guess here.
+    assert_eq!(flag(&row, "f"), None);
+    assert_eq!(flag(&row, "g"), Some(false));
+    assert_eq!(flag(&row, "h"), Some(true));
+    assert_eq!(flag(&row, "i"), Some(true));
+    assert_eq!(flag(&row, "j"), None);
+    assert_eq!(flag(&row, "absent"), None);
+}
+
+#[test]
+fn a_whole_number_typed_as_text_is_still_a_number() {
+    use serde_json::json;
+    let row = row_of(
+        "Contests",
+        2,
+        &[
+            ("text", json!(" 3 ")),
+            ("number", json!(4)),
+            ("words", json!("three")),
+            ("fraction", json!(1.5)),
+            ("flag", json!(true)),
+        ],
+    );
+    assert_eq!(whole(&row, "text"), Some(3));
+    assert_eq!(whole(&row, "number"), Some(4));
+    assert_eq!(whole(&row, "words"), None);
+    assert_eq!(whole(&row, "fraction"), None);
+    assert_eq!(whole(&row, "flag"), None);
+    assert_eq!(whole(&row, "absent"), None);
+}
+
+#[test]
+fn text_is_read_from_whatever_a_cell_holds() {
+    use serde_json::json;
+    let row = row_of(
+        "ElectionEvent",
+        2,
+        &[("name", json!("  padded  ")), ("threshold", json!(3))],
+    );
+    assert_eq!(text(&row, "name"), "padded");
+    assert_eq!(text(&row, "threshold"), "3");
+    assert_eq!(text(&row, "absent"), "");
+}
+
+#[test]
+fn early_voting_reads_the_platforms_words_or_a_yes_or_no() {
+    use serde_json::json;
+    const COLUMN: &str = "presentation.allow_early_voting";
+    let with = |value: Value| row_of("Areas", 2, &[(COLUMN, value)]);
+
+    assert!(early_voting(&with(json!(
+        crate::election_config::validate::ALLOW_EARLY_VOTING
+    ))));
+    assert!(!early_voting(&with(json!(
+        crate::election_config::validate::NO_EARLY_VOTING
+    ))));
+    assert!(early_voting(&with(json!("yes"))));
+    assert!(early_voting(&with(json!(true))));
+    assert!(!early_voting(&with(json!("no"))));
+    // Something that is neither is the closed channel, not an open one.
+    assert!(!early_voting(&with(json!("perhaps"))));
+    assert!(!early_voting(&row_of("Areas", 2, &[])));
+}
+
+#[test]
+fn a_translation_is_gathered_from_its_columns_only() {
+    use serde_json::json;
+    let row = row_of(
+        "Elections",
+        2,
+        &[
+            ("presentation.i18n.en.name", json!("Officers")),
+            ("presentation.i18n.es.name", json!("Cargos")),
+            // Blank text is no translation.
+            ("presentation.i18n.fr.name", json!("   ")),
+            // Not text: not a translation either.
+            ("presentation.i18n.de.name", json!(3)),
+            // Another field in the same language.
+            ("presentation.i18n.en.description", json!("Every officer")),
+            // No field after the language.
+            ("presentation.i18n.it", json!("nome")),
+            // A different prefix altogether.
+            ("other.i18n.en.name", json!("Wrong")),
+        ],
+    );
+    let name = translated(&row, "presentation", "name");
+    assert_eq!(
+        name.by_language,
+        [
+            ("en".to_string(), "Officers".to_string()),
+            ("es".to_string(), "Cargos".to_string()),
+        ]
+        .into_iter()
+        .collect()
+    );
+    assert_eq!(
+        translated(&row, "presentation", "description")
+            .by_language
+            .get("en")
+            .map(String::as_str),
+        Some("Every officer")
+    );
+}
+
+#[test]
+fn a_spoken_prompt_reads_from_a_json_string_and_ignores_what_is_not_one() {
+    use serde_json::json;
+    let column = crate::election_config::build::IVR_I18N_COLUMN;
+    let prompt = |value: Value| {
+        ivr_prompt_of(&row_of("Contests", 2, &[(column, value)]))
+    };
+
+    let read = prompt(json!(
+        r#" {"en": {"prompt": " Press one "}, "es": {"prompt": "  "}, "fr": {"other": "x"}} "#
+    ));
+    assert_eq!(
+        read.by_language,
+        [("en".to_string(), "Press one".to_string())]
+            .into_iter()
+            .collect()
+    );
+
+    assert!(prompt(json!("{not json")).by_language.is_empty());
+    assert!(prompt(json!("[1, 2]")).by_language.is_empty());
+    assert!(prompt(json!(["en"])).by_language.is_empty());
+    assert!(ivr_prompt_of(&row_of("Contests", 2, &[]))
+        .by_language
+        .is_empty());
+}
+
+#[test]
+fn a_telephone_configuration_written_as_text_is_read_and_a_broken_part_dropped()
+{
+    use serde_json::json;
+    let config = crate::election_config::build::IVR_CONFIG_COLUMN;
+    let prompts = crate::election_config::build::IVR_PROMPTS_COLUMN;
+
+    // The config as a JSON string with an unreadable retry-limit map: the flow
+    // and the assistance line survive, the limits are dropped.
+    let read = read_ivr(&row_of(
+        "ElectionEvent",
+        2,
+        &[
+            (
+                config,
+                json!(r#"{"retry_limits": {"pin": "many"}, "assistance_phone": "+1 555 0100"}"#),
+            ),
+            (prompts, Value::Null),
+        ],
+    ))
+    .expect("the assistance line is a telephone configuration");
+    assert_eq!(read.assistance_phone, "+1 555 0100");
+    assert!(read.retry_limits.is_empty());
+    assert!(read.prompts.is_empty());
+    assert!(read.flow.is_empty());
+
+    // Unparseable text everywhere is no configuration at all.
+    assert!(read_ivr(&row_of(
+        "ElectionEvent",
+        2,
+        &[(config, json!("{oops")), (prompts, json!("not json"))],
+    ))
+    .is_none());
+
+    // A null config and valid prompts written as text.
+    let read = read_ivr(&row_of(
+        "ElectionEvent",
+        2,
+        &[
+            (config, Value::Null),
+            (prompts, json!(r#"{"en": {"welcome": "Hello"}}"#)),
+        ],
+    ))
+    .expect("prompts alone are a configuration");
+    assert_eq!(read.prompts["en"]["welcome"], "Hello");
+}
+
+// -- what each sheet refuses -------------------------------------------------
+
+#[test]
+fn an_event_sheet_with_two_rows_reads_the_first_and_says_so() {
+    use serde_json::json;
+    let workbook = minimal(vec![sheet_of(
+        "ElectionEvent",
+        vec![
+            vec![
+                ("external_id", json!("first")),
+                // One language written as plain text rather than a list.
+                (
+                    "presentation.language_conf.enabled_language_codes",
+                    json!(" es "),
+                ),
+                ("voting_channels.online", json!("no")),
+                ("voting_channels.kiosk", json!("yes")),
+                ("voting_channels.telephone", json!("x")),
+                ("voting_channels.early_voting", json!(1)),
+                ("presentation.logo_url", json!("https://example.org/l.png")),
+                ("presentation.skip_election_list", json!(true)),
+                ("presentation.materials.activated", json!("no")),
+            ],
+            vec![("external_id", json!("second"))],
+        ],
+    )]);
+
+    let read =
+        plan_from_workbook(&workbook).expect("a second row is a warning");
+    assert_eq!(read.plan.external_id, "first");
+    assert_eq!(read.plan.languages, ["es"]);
+    assert!(!read.plan.voting_channels.online);
+    assert!(read.plan.voting_channels.kiosk);
+    assert!(read.plan.voting_channels.telephone);
+    assert!(read.plan.voting_channels.early_voting);
+    assert_eq!(
+        read.plan.logo_url.as_deref(),
+        Some("https://example.org/l.png")
+    );
+    assert_eq!(read.plan.skip_election_list, Some(true));
+    assert_eq!(read.plan.materials_activated, Some(false));
+    assert!(read.plan.ivr.is_none());
+
+    let warnings = warnings_of(&read);
+    assert!(
+        warnings
+            .iter()
+            .any(|problem| problem.message.contains("only the first")),
+        "{warnings:?}"
+    );
+    assert_eq!(warnings[0].at.as_ref().unwrap().row, Some(3));
+}
+
+#[test]
+fn an_event_with_no_identifier_is_refused() {
+    let workbook = minimal(vec![sheet_of(
+        "ElectionEvent",
+        vec![vec![(
+            "presentation.language_conf.enabled_language_codes",
+            serde_json::json!("   "),
+        )]],
+    )]);
+    let errors = errors_of(&workbook);
+    assert!(errors.iter().any(|problem| {
+        problem.code == Code::MissingField
+            && problem.at.as_ref().and_then(|at| at.column.as_deref())
+                == Some("external_id")
+    }));
+}
+
+#[test]
+fn a_row_with_no_identifier_is_refused_on_every_sheet_that_needs_one() {
+    use serde_json::json;
+    let workbook = minimal(vec![
+        sheet_of(
+            "Areas",
+            vec![
+                vec![("external_id", json!("north")), ("name", json!("North"))],
+                vec![("name", json!("Nameless"))],
+            ],
+        ),
+        sheet_of(
+            "Elections",
+            vec![
+                vec![("external_id", json!("officers"))],
+                vec![("presentation.i18n.en.name", json!("No id"))],
+                vec![("external_id", json!("officers"))],
+            ],
+        ),
+        sheet_of(
+            "Contests",
+            vec![
+                vec![
+                    ("external_id", json!("president")),
+                    ("election.external_id", json!("officers")),
+                ],
+                vec![("election.external_id", json!("officers"))],
+            ],
+        ),
+        sheet_of(
+            "Candidates",
+            vec![
+                vec![
+                    ("external_id", json!("alice")),
+                    ("contest.external_id", json!("president")),
+                ],
+                vec![("contest.external_id", json!("president"))],
+                vec![
+                    ("external_id", json!("ghost")),
+                    ("contest.external_id", json!("vice-president")),
+                ],
+            ],
+        ),
+        sheet_of(
+            "AreaContests",
+            vec![
+                vec![
+                    ("contest.external_id", json!("president")),
+                    ("area.external_id", json!("north")),
+                ],
+                vec![
+                    ("contest.external_id", json!("treasurer")),
+                    ("area.external_id", json!("north")),
+                ],
+                vec![
+                    ("contest.external_id", json!("president")),
+                    ("area.external_id", json!("atlantis")),
+                ],
+            ],
+        ),
+        sheet_of(
+            "Voters",
+            vec![
+                vec![("username", json!("ada"))],
+                vec![("email", json!("nobody@example.org"))],
+            ],
+        ),
+    ]);
+
+    let errors = errors_of(&workbook);
+    let at = |sheet: &str, row: usize, column: &str| {
+        errors.iter().any(|problem| {
+            problem.at.as_ref().is_some_and(|at| {
+                at.sheet == sheet
+                    && at.row == Some(row)
+                    && at.column.as_deref() == Some(column)
+            })
+        })
+    };
+
+    assert!(at("Areas", 3, "external_id"), "{errors:#?}");
+    assert!(at("Elections", 3, "external_id"), "{errors:#?}");
+    assert!(
+        errors
+            .iter()
+            .any(|problem| problem.code == Code::DuplicateId
+                && problem.message.contains("officers")),
+        "{errors:#?}"
+    );
+    assert!(at("Contests", 3, "external_id"), "{errors:#?}");
+    assert!(at("Candidates", 3, "external_id"), "{errors:#?}");
+    assert!(at("Candidates", 4, "contest.external_id"), "{errors:#?}");
+    assert!(at("AreaContests", 3, "contest.external_id"), "{errors:#?}");
+    assert!(at("AreaContests", 4, "area.external_id"), "{errors:#?}");
+    assert!(at("Voters", 3, "username"), "{errors:#?}");
+    assert_eq!(errors.len(), 9, "{errors:#?}");
+}
+
+#[test]
+fn a_voter_with_no_area_at_all_has_a_blank_one_and_a_null_cell_is_no_attribute()
+{
+    use serde_json::json;
+    let workbook = minimal(vec![sheet_of(
+        "Voters",
+        vec![vec![
+            ("username", json!("ada")),
+            ("area_name", json!("   ")),
+            ("member_id", json!(1001)),
+            ("retired", Value::Null),
+            ("branch", json!("west")),
+        ]],
+    )]);
+    let voters = read_voters(&workbook);
+    assert_eq!(voters[0].area_external_id, "");
+    assert_eq!(
+        voters[0].extra.get("member_id").map(String::as_str),
+        Some("1001")
+    );
+    assert_eq!(
+        voters[0].extra.get("branch").map(String::as_str),
+        Some("west")
+    );
+    assert!(!voters[0].extra.contains_key("retired"));
+}
+
+#[test]
+fn a_support_material_keeps_its_name_and_says_its_bytes_are_gone() {
+    use serde_json::json;
+    let workbook = minimal(vec![sheet_of(
+        "Materials",
+        vec![
+            vec![
+                ("external_id", json!("guide")),
+                ("presentation.i18n.en.title", json!("Voter guide")),
+                ("kind", json!("PDF")),
+                ("file", json!("guide.pdf")),
+                ("is_hidden", json!("yes")),
+            ],
+            vec![("external_id", json!("link")), ("kind", json!("URL"))],
+        ],
+    )]);
+
+    let read = plan_from_workbook(&workbook).expect("a warning, not an error");
+    let materials = &read.plan.materials;
+    assert_eq!(materials.len(), 2);
+    assert_eq!(materials[0].external_id, "guide");
+    assert_eq!(materials[0].file_name, "guide.pdf");
+    assert_eq!(materials[0].kind, "PDF");
+    assert!(materials[0].is_hidden);
+    assert!(materials[0].bytes.is_empty());
+    assert_eq!(
+        materials[0].title.by_language.get("en").map(String::as_str),
+        Some("Voter guide")
+    );
+    assert!(!materials[1].is_hidden);
+    assert_eq!(materials[1].file_name, "");
+
+    let warnings = warnings_of(&read);
+    assert_eq!(warnings.len(), 1, "only the one with a file: {warnings:?}");
+    assert!(warnings[0].message.contains("guide.pdf"));
+}
+
+#[test]
+fn a_schedule_typed_by_hand_is_read_and_an_unknown_event_kept_with_a_warning() {
+    use serde_json::json;
+    let workbook = minimal(vec![
+        sheet_of(
+            "ScheduledEvents",
+            vec![
+                // A wall clock with no offset: the fallback, read as UTC.
+                vec![
+                    ("event_type", json!("START_VOTING_PERIOD")),
+                    ("scheduled_datetime", json!("2027-03-01T09:00")),
+                ],
+                vec![
+                    ("event_type", json!("END_VOTING_PERIOD")),
+                    ("scheduled_datetime", json!("2027-03-05T17:00:00-08:00")),
+                ],
+                // No date: nothing to read, and nothing to say.
+                vec![("event_type", json!("START_VOTING_PERIOD"))],
+                vec![
+                    ("event_type", json!("SEND_REMINDER")),
+                    ("scheduled_datetime", json!("2027-03-02T09:00:00Z")),
+                ],
+            ],
+        ),
+        sheet_of(
+            "Milestones",
+            vec![vec![
+                ("event", json!("Nominations close")),
+                ("date", json!("2027-02-01")),
+            ]],
+        ),
+    ]);
+
+    let read = plan_from_workbook(&workbook).expect("warnings only");
+    let schedule = &read.plan.schedule;
+    let opens = schedule.voting_opens.as_ref().expect("opens");
+    assert_eq!(opens.local, "2027-03-01T09:00");
+    assert_eq!(opens.offset_minutes, 0);
+    let closes = schedule.voting_closes.as_ref().expect("closes");
+    assert_eq!(closes.local, "2027-03-05T17:00");
+    assert_eq!(closes.offset_minutes, -480);
+    assert_eq!(schedule.milestones.len(), 1);
+    assert_eq!(schedule.milestones[0].event, "Nominations close");
+
+    let warnings = warnings_of(&read);
+    assert_eq!(warnings.len(), 1, "{warnings:?}");
+    assert!(warnings[0].message.contains("SEND_REMINDER"));
+}
+
+#[test]
+fn a_ceremony_sheet_reads_its_keys_and_refuses_what_it_cannot_mean() {
+    use serde_json::json;
+    let pair =
+        |key: &str, value: Value| vec![("key", json!(key)), ("value", value)];
+
+    let refused = errors_of(&minimal(vec![sheet_of(
+        "Ceremony",
+        vec![
+            pair("threshold", json!("several")),
+            pair("policy", json!("whenever")),
+        ],
+    )]));
+    assert!(refused
+        .iter()
+        .any(|problem| problem.message.contains("'several' is not a number")));
+    assert!(refused
+        .iter()
+        .any(|problem| problem.message.contains("'whenever' is not a way")));
+    assert!(refused.iter().all(|problem| problem
+        .at
+        .as_ref()
+        .unwrap()
+        .column
+        .as_deref()
+        == Some("value")));
+
+    let read = plan_from_workbook(&minimal(vec![
+        sheet_of(
+            "ScheduledEvents",
+            vec![vec![
+                ("event_type", json!("START_VOTING_PERIOD")),
+                ("scheduled_datetime", json!("2027-03-01T09:00:00-08:00")),
+            ]],
+        ),
+        sheet_of(
+            "Ceremony",
+            vec![
+                pair("threshold", json!(2)),
+                pair("policy", json!("manual-ceremonies")),
+                pair("key_ceremony", json!("2027-02-25T10:00")),
+                pair("key_ceremony.zone", json!("America/Los_Angeles")),
+                pair("key_ceremony.offset_minutes", json!(-480)),
+                pair("tally_ceremony", json!("2027-03-06T10:00")),
+                pair("tally_ceremony.offset_minutes", json!("soon")),
+                pair("voting_opens.zone", json!("America/Los_Angeles")),
+                // A zone for a window that was never set patches nothing.
+                pair("voting_closes.zone", json!("America/Los_Angeles")),
+                // A blank key is not a key.
+                vec![("value", json!("orphan"))],
+            ],
+        ),
+    ]))
+    .expect("all of that reads");
+
+    assert_eq!(read.plan.trustee_threshold, 2);
+    assert_eq!(
+        read.plan.ceremony_policy,
+        CeremoniesPolicy::MANUAL_CEREMONIES
+    );
+    let key = read.plan.schedule.key_ceremony.as_ref().expect("key");
+    assert_eq!(key.zone, "America/Los_Angeles");
+    assert_eq!(key.offset_minutes, -480);
+    let tally = read.plan.schedule.tally_ceremony.as_ref().expect("tally");
+    assert_eq!(tally.zone, "");
+    assert_eq!(tally.offset_minutes, 0, "an unreadable offset is UTC");
+    assert_eq!(
+        read.plan.schedule.voting_opens.as_ref().unwrap().zone,
+        "America/Los_Angeles"
+    );
+    assert!(read.plan.schedule.voting_closes.is_none());
+
+    let automated = plan_from_workbook(&minimal(vec![sheet_of(
+        "Ceremony",
+        vec![pair("policy", json!("automated-ceremonies"))],
+    )]))
+    .expect("reads");
+    assert_eq!(
+        automated.plan.ceremony_policy,
+        CeremoniesPolicy::AUTOMATED_CEREMONIES
+    );
+}
+
+#[test]
+fn a_message_of_an_unknown_kind_is_refused_and_an_unreadable_schedule_dropped()
+{
+    use serde_json::json;
+    let refused = errors_of(&minimal(vec![sheet_of(
+        "Messages",
+        vec![vec![("kind", json!("carrier-pigeon"))]],
+    )]));
+    assert_eq!(refused.len(), 1);
+    assert!(refused[0].message.contains("carrier-pigeon"));
+    assert_eq!(
+        refused[0].at.as_ref().unwrap().column.as_deref(),
+        Some("kind")
+    );
+
+    let read = plan_from_workbook(&minimal(vec![sheet_of(
+        "Messages",
+        vec![
+            vec![
+                ("kind", json!("invitation-to-vote")),
+                ("schedule", json!("every so often")),
+                ("presentation.i18n.en.subject", json!("Vote")),
+            ],
+            vec![("kind", json!("get-out-the-vote"))],
+        ],
+    )]))
+    .expect("a warning only");
+    assert_eq!(read.plan.messages.len(), 2);
+    assert_eq!(read.plan.messages[0].kind, MessageKind::InvitationToVote);
+    assert_eq!(read.plan.messages[0].schedule, MessageSchedule::default());
+    assert_eq!(
+        read.plan.messages[0]
+            .subject
+            .by_language
+            .get("en")
+            .map(String::as_str),
+        Some("Vote")
+    );
+    assert_eq!(read.plan.messages[1].kind, MessageKind::GetOutTheVote);
+    let warnings = warnings_of(&read);
+    assert_eq!(warnings.len(), 1);
+    assert_eq!(
+        warnings[0].at.as_ref().unwrap().column.as_deref(),
+        Some("schedule")
+    );
+}
+
+#[test]
+fn the_plan_only_sheets_are_read_from_a_bare_workbook() {
+    use serde_json::json;
+    let read = plan_from_workbook(&minimal(vec![
+        sheet_of(
+            "Contacts",
+            vec![vec![
+                ("name", json!("Dana")),
+                ("role", json!("Officer")),
+                ("email", json!("dana@example.org")),
+            ]],
+        ),
+        sheet_of(
+            "Trustees",
+            vec![vec![
+                ("name", json!("Ada")),
+                ("email", json!("ada@example.org")),
+            ]],
+        ),
+        sheet_of("Notes", vec![vec![("notes", json!("Book the hall."))]]),
+    ]))
+    .expect("reads");
+    assert_eq!(read.plan.contacts[0].role, "Officer");
+    assert_eq!(read.plan.trustees[0].email, "ada@example.org");
+    assert_eq!(read.plan.notes, "Book the hall.");
+    assert!(read.sources.census.is_none(), "no Voters sheet, no census");
+}
