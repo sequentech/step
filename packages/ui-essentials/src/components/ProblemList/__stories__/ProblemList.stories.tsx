@@ -14,7 +14,7 @@ import type {Problem} from "../types"
  * English.
  */
 const meta: Meta<typeof ProblemList> = {
-    title: "problems/ProblemList",
+    title: "components/ProblemList",
     component: ProblemList,
     parameters: {
         backgrounds: {default: "white"},

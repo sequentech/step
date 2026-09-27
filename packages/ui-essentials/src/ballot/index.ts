@@ -128,4 +128,4 @@ export {theme} from "../services/theme"
 // platform does: the problems an import finds. The Admin Portal renders the same
 // list for its own imports, so a complaint reads — and is translated — the same
 // in both.
-export * from "../problems"
+export * from "../components/ProblemList"

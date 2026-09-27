@@ -162,4 +162,4 @@ export {IInvalidPlaintextErrorType} from "./ballot/errors"
 
 // What an import or a validation found, and how to say it. Shared with the
 // Election Architect through the ballot entry, `ballot/index.ts`, too.
-export * from "./problems"
+export * from "./components/ProblemList"
