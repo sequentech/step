@@ -7,7 +7,7 @@ import userEvent from "@testing-library/user-event"
 import {IvrEmulatorError, type IvrEmulatorApi} from "@sequentech/ui-essentials"
 import {EmbedMessageType, type CallRequest, type EmbedReply} from "./embed"
 import {DEFAULT_CALL_LABELS, EmbeddedCall} from "./EmbeddedCall"
-import {fakeCallConfig, FakeIvrDriver} from "./fakeIvrEmulator"
+import {fakeCallConfig, FakeIvrDriver, FakePinIvrDriver} from "./fakeIvrEmulator"
 
 const EMULATOR = "https://architect.example/wasm/ivr_emulator_wasm"
 
@@ -81,6 +81,35 @@ test("speaks the framing tool's words, the keypad's name included", async () => 
     await userEvent.type(keypad, "1")
     await userEvent.click(screen.getByRole("button", {name: "Pulsar"}))
     await screen.findByText("Fin")
+})
+
+test("a prompt that takes any digits says so rather than listing no keys", async () => {
+    // The Lambda sends no valid inputs for a PIN: any digits, up to max_digits.
+    placed({}, async () => ({IvrEmulatorDriver: FakePinIvrDriver}))
+    const keypad = await screen.findByRole("textbox", {name: "Keys to press"})
+    await screen.findByText("Enter your 8-digit PIN.")
+    expect(keypad).toHaveAttribute("placeholder", "Up to 8 digits, within 5s")
+    await userEvent.type(keypad, "12345678")
+    await userEvent.click(screen.getByRole("button", {name: "Press these keys"}))
+    await screen.findByText("Press 1 to hear your ballot.")
+    expect(keypad).toHaveAttribute("placeholder", "Up to 1 of 1, within 10s")
+})
+
+test("a framing tool's words for any digits are used too", async () => {
+    placed(
+        {
+            labels: {
+                placeholder: "Hasta {{maxDigits}} de {{validInputs}} en {{timeout}} s",
+                placeholderAnyKeys: "Hasta {{maxDigits}} dígitos en {{timeout}} s",
+            },
+        },
+        async () => ({IvrEmulatorDriver: FakePinIvrDriver})
+    )
+    await screen.findByText("Enter your 8-digit PIN.")
+    expect(screen.getByRole("textbox", {name: "Keys to press"})).toHaveAttribute(
+        "placeholder",
+        "Hasta 8 dígitos en 5 s"
+    )
 })
 
 test("keeps the keypad named after a call that fails without a prompt to answer", async () => {

@@ -65,6 +65,32 @@ export class FakeIvrDriver implements IvrCallDriver {
     }
 }
 
+/**
+ * The same call behind a PIN, which the Lambda asks for by listing no valid inputs: any
+ * digits, up to `max_digits`.
+ */
+export class FakePinIvrDriver extends FakeIvrDriver {
+    private pin: "asking" | "asked" | "given" = "asking"
+
+    async execute(): Promise<IvrAction> {
+        if (this.pin !== "asking") return super.execute()
+        this.pin = "asked"
+        return {
+            type: "ExpectInput",
+            prompt: says("Enter your 8-digit PIN."),
+            valid_inputs: "",
+            max_digits: 8,
+            timeout: 5,
+        }
+    }
+
+    send_input(input: string): void {
+        // Any PIN will do; the call goes on to the ordinary greeting.
+        if (this.pin === "given") super.send_input(input)
+        else this.pin = "given"
+    }
+}
+
 export const fakeIvrEmulator: IvrEmulatorApi = {IvrEmulatorDriver: FakeIvrDriver}
 
 /** A configuration the fake accepts: one ballot style, a caller, nothing blacklisted. */

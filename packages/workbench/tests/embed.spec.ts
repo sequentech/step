@@ -42,7 +42,13 @@ export class IvrEmulatorDriver {
         ]
     }
     async execute() { return this.queue.shift() ?? {type: "Noop"} }
-    send_input(input) { this.queue.push({type: "Disconnect", prompt: says("You pressed " + input + ".")}) }
+    send_input(input) {
+        // A PIN next: the Lambda lists no valid inputs when any digits will do.
+        this.queue.push(this.pin
+            ? {type: "Disconnect", prompt: says("You pressed " + input + ".")}
+            : {type: "ExpectInput", prompt: says("Enter your PIN."), valid_inputs: "", max_digits: 8, timeout: 5})
+        this.pin = true
+    }
     send_timeout() {}
     free() {}
 }`
@@ -227,9 +233,15 @@ test("a framing page places a call against the emulator it serves", async ({page
         .poll(() => lastReply(page))
         .toMatchObject({type: "calling", status: "ExpectingInput"})
 
-    await frame.getByRole("textbox", {name: "Keys to press"}).fill("1")
+    const keypad = frame.getByRole("textbox", {name: "Keys to press"})
+    await expect(keypad).toHaveAttribute("placeholder", "Up to 1 of 1, within 5s")
+    await keypad.fill("1")
     await frame.getByRole("button", {name: "Press"}).click()
-    await expect(frame.getByText("You pressed 1.")).toBeVisible()
+    await expect(frame.getByText("Enter your PIN.")).toBeVisible()
+    await expect(keypad).toHaveAttribute("placeholder", "Up to 8 digits, within 5s")
+    await keypad.fill("12345678")
+    await frame.getByRole("button", {name: "Press"}).click()
+    await expect(frame.getByText("You pressed 12345678.")).toBeVisible()
     await expect
         .poll(() => lastReply(page))
         .toMatchObject({type: "calling", status: "Disconnected"})

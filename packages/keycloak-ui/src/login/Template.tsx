@@ -14,6 +14,7 @@ import logo from "./assets/sequent-white.svg"
 import {GlobeIcon, MessageIcon, ShieldIcon} from "./icons"
 import {authTheme} from "./theme"
 import {getAuthCopy} from "./authCopy"
+import {buildDetail} from "./buildDetail"
 import {messageLanguage, type I18n} from "./i18n"
 import type {KcContext} from "./KcContext"
 import "./auth.css"
@@ -38,6 +39,8 @@ export default function Template(props: TemplateProps<KcContext, I18n>) {
     } = props
     const {msgStr, currentLanguage, enabledLanguages} = i18n
     const {realm, message, isAppInitiatedAction, properties} = kcContext
+    const systemVersion = buildDetail(properties.systemVersion)
+    const systemHash = buildDetail(properties.systemHash)
     const voting = kcContext.themeName === "sequent-ui-voting"
     // A product name, the same in every language.
     const architect = kcContext.themeName === "sequent-ui-architect"
@@ -86,9 +89,9 @@ export default function Template(props: TemplateProps<KcContext, I18n>) {
                             )}
                         </Box>
                         <Box className="auth-header-tools">
-                            {(properties.systemVersion || properties.systemHash) && (
+                            {(systemVersion || systemHash) && (
                                 <dl className="auth-build">
-                                    {properties.systemVersion && (
+                                    {systemVersion && (
                                         <div>
                                             <dt
                                                 lang={messageLanguage(
@@ -99,10 +102,10 @@ export default function Template(props: TemplateProps<KcContext, I18n>) {
                                             >
                                                 {msgStr("system.version")}
                                             </dt>
-                                            <dd dir="ltr">{properties.systemVersion}</dd>
+                                            <dd dir="ltr">{systemVersion}</dd>
                                         </div>
                                     )}
-                                    {properties.systemHash && (
+                                    {systemHash && (
                                         <div>
                                             <dt
                                                 lang={messageLanguage(
@@ -113,7 +116,7 @@ export default function Template(props: TemplateProps<KcContext, I18n>) {
                                             >
                                                 {msgStr("system.hash")}
                                             </dt>
-                                            <dd dir="ltr">{properties.systemHash}</dd>
+                                            <dd dir="ltr">{systemHash}</dd>
                                         </div>
                                     )}
                                 </dl>

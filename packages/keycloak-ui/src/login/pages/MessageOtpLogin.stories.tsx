@@ -38,6 +38,21 @@ export const Email: Story = {
     },
 }
 
+/** The code page shares the login header: unresolved build details are left out. */
+export const BuildInfoUnavailable: Story = {
+    args: {
+        kcContext: {
+            properties: {systemVersion: "${env.APP_VERSION}", systemHash: "${env.APP_HASH}"},
+        },
+    },
+    play: async ({canvasElement}) => {
+        await within(canvasElement).findByRole("heading", {level: 1})
+        const header = within(within(canvasElement).getByRole("banner"))
+        await expect(canvasElement.ownerDocument.body.textContent).not.toContain("${")
+        await expect(header.queryByRole("term")).toBeNull()
+    },
+}
+
 export const Sms: Story = {
     args: {kcContext: {courier: MessageCourier.Sms}},
     play: async ({canvasElement}) => {
