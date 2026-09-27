@@ -8,15 +8,19 @@ import {tenantEventRoutes} from "../appRoutes"
 import {PortalChrome} from "../components/PortalChrome"
 import {ErrorPage} from "../routes/ErrorPage"
 import TenantEvent from "../routes/TenantEvent"
+import type {IvrEmulatorApi} from "@sequentech/ui-essentials"
 import {
     embeddedSource,
     embedMessage,
     EmbedMessageError,
     EmbedMessageType,
+    readCallMessage,
     readShowMessage,
+    type CallRequest,
     type EmbedReply,
     type ShowRequest,
 } from "./embed"
+import {EmbeddedCall} from "./EmbeddedCall"
 import {EVENT_ROUTE, previewScreenAt, previewSessionPath} from "./screens"
 import type {PreviewSession} from "./session"
 import {VoterPreview} from "./VoterPreview"
@@ -73,13 +77,28 @@ const EmbeddedScreens: React.FC<{session: PreviewSession; reply: Reply}> = ({ses
     return <RouterProvider router={router} />
 }
 
-interface Shown {
-    /** Counts requests, so each one mounts its own router. */
+type Requested =
+    | {kind: "show"; request: ShowRequest; session: PreviewSession}
+    | {kind: "call"; request: CallRequest}
+
+type Shown = Requested & {
+    /** Counts requests, so each one mounts its own router, or places its own call. */
     sequence: number
-    request: ShowRequest
-    session: PreviewSession
     /** Replies go to the origin of the window that sent the request, and nowhere else. */
     origin: string
+}
+
+/** What a message asks for, or nothing when it is not a request of this protocol. */
+function readRequest(data: unknown): Requested | undefined {
+    const show = readShowMessage(data)
+    if (show)
+        return {
+            kind: "show",
+            request: show,
+            session: {snapshot: embeddedSource(show), screen: show.screen},
+        }
+    const call = readCallMessage(data)
+    return call && {kind: "call", request: call}
 }
 
 const reasonOf = (error: unknown) =>
@@ -90,14 +109,20 @@ const reasonOf = (error: unknown) =>
 export interface EmbeddedPreviewProps {
     /** The window allowed to send documents; the parent of the frame by default. */
     host?: Window
+    /** Fetches and starts the IVR emulator a `call` names; see `EmbeddedCall`. */
+    loadEmulator?: (url: string) => Promise<IvrEmulatorApi>
 }
 
 /**
  * The voter preview for another tool's document. The framing window sends a publication
  * preview document with `show` (see `embed.ts`), and the embed renders the portal's
  * production screens for it, as the publication preview does, inside the portal chrome.
+ * Or it sends `call`, and the embed places a telephone call against the IVR emulator.
  */
-export const EmbeddedPreview: React.FC<EmbeddedPreviewProps> = ({host = window.parent}) => {
+export const EmbeddedPreview: React.FC<EmbeddedPreviewProps> = ({
+    host = window.parent,
+    loadEmulator,
+}) => {
     const [shown, setShown] = useState<Shown>()
     const [issues, setIssues] = useState<string[]>()
 
@@ -111,14 +136,13 @@ export const EmbeddedPreview: React.FC<EmbeddedPreviewProps> = ({host = window.p
         const onMessage = (event: MessageEvent) => {
             if (event.source !== host) return
             try {
-                const request = readShowMessage(event.data)
-                if (!request) return
+                const requested = readRequest(event.data)
+                if (!requested) return
                 setIssues(undefined)
                 setShown((previous) => ({
+                    ...requested,
                     sequence: (previous?.sequence ?? 0) + 1,
-                    request,
                     origin: event.origin,
-                    session: {snapshot: embeddedSource(request), screen: request.screen},
                 }))
             } catch (error) {
                 const reasons = reasonOf(error)
@@ -171,6 +195,15 @@ export const EmbeddedPreview: React.FC<EmbeddedPreviewProps> = ({host = window.p
             >
                 Waiting for a ballot to preview
             </Typography>
+        )
+    if (shown.kind === "call")
+        return (
+            <EmbeddedCall
+                key={shown.sequence}
+                request={shown.request}
+                reply={reply}
+                load={loadEmulator}
+            />
         )
     // Keyed by request: VoterPreview holds whether the voter chose a language, which
     // must not carry over into the next document.

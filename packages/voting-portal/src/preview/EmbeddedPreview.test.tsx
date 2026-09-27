@@ -7,6 +7,7 @@ import {ScenarioId, scenarioSnapshot} from "@sequentech/ui-test-kit/fixtures/sce
 import {IDS} from "@sequentech/ui-test-kit/fixtures"
 import {EMBED_PROTOCOL, EMBED_VERSION, EmbedMessageType, embedMessage} from "./embed"
 import {EmbeddedPreview} from "./EmbeddedPreview"
+import {fakeCallConfig, fakeIvrEmulator} from "./fakeIvrEmulator"
 import {PreviewScreen} from "./screens"
 import type {VoterPreviewProps} from "./VoterPreview"
 
@@ -180,4 +181,49 @@ test("reports a document the portal cannot load", async () => {
     expect(received.at(-1)?.message).toEqual(
         embedMessage({type: EmbedMessageType.FAILED, issues: ["two invalid candidates"]})
     )
+})
+
+const callMessage = (fields: Record<string, unknown> = {}) =>
+    embedMessage({
+        type: EmbedMessageType.CALL,
+        config: fakeCallConfig(),
+        emulatorUrl: "https://architect.example/wasm/ivr_emulator_wasm",
+        ...fields,
+    } as Parameters<typeof embedMessage>[0])
+
+test("places a call, reporting its status to the sender's origin", async () => {
+    const {host, received, send} = parent()
+    const loadEmulator = jest.fn(async () => fakeIvrEmulator)
+    render(<EmbeddedPreview host={host} loadEmulator={loadEmulator} />)
+    send(callMessage({labels: {input: "Teclas"}}))
+
+    expect(await screen.findByRole("textbox", {name: "Teclas"})).toBeEnabled()
+    expect(loadEmulator).toHaveBeenCalledWith("https://architect.example/wasm/ivr_emulator_wasm")
+    expect(mockVoterPreview).not.toHaveBeenCalled()
+    expect(received.at(-1)).toEqual({
+        message: embedMessage({type: EmbedMessageType.CALLING, status: "ExpectingInput"}),
+        origin: "https://architect.example",
+    })
+})
+
+test("a document after a call opens the voter's screens, and a call after them the call", async () => {
+    const {host, send} = parent()
+    render(<EmbeddedPreview host={host} loadEmulator={async () => fakeIvrEmulator} />)
+    send(callMessage())
+    await screen.findByText("Press 1 to hear your ballot.")
+    send(showMessage())
+    await screen.findByRole("link", {name: "Next"})
+    expect(screen.queryByText("Press 1 to hear your ballot.")).toBeNull()
+    send(callMessage())
+    await screen.findByText("Press 1 to hear your ballot.")
+    expect(screen.queryByRole("link", {name: "Next"})).toBeNull()
+})
+
+test("refuses a malformed call, saying why", () => {
+    const {host, received, send} = parent()
+    render(<EmbeddedPreview host={host} loadEmulator={async () => fakeIvrEmulator} />)
+    send(callMessage({emulatorUrl: "/relative"}))
+    const issues = ['emulatorUrl: expected an absolute http(s) URL, found "/relative"']
+    expect(received.at(-1)?.message).toEqual(embedMessage({type: EmbedMessageType.FAILED, issues}))
+    expect(screen.getByRole("alert")).toHaveTextContent(issues[0])
 })

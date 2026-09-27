@@ -6,7 +6,7 @@ import {ScenarioId, scenarioSnapshot} from "@sequentech/ui-test-kit/fixtures/sce
 import {IDS} from "@sequentech/ui-test-kit/fixtures"
 
 const PROTOCOL = "sequent.voter-preview"
-const VERSION = 1
+const VERSION = 2
 const HOST = "/embed-host.html"
 
 /**
@@ -25,6 +25,29 @@ const HOST_PAGE = `<!doctype html>
 </script>
 </body></html>`
 
+/**
+ * A stand-in for the IVR emulator, served by the "framing tool" from another origin as the
+ * Election Architect serves the real one: wasm-bindgen's shim and its binary.
+ */
+const EMULATOR = "http://architect.test/wasm/ivr_emulator_wasm"
+const EMULATOR_SHIM = `
+const says = (text) => ({prompt_text: "<speak>" + text + "</speak>", language: "en-US", voice_id: "Joanna"})
+export default async function initWasm() {}
+export function init() {}
+export class IvrEmulatorDriver {
+    constructor(config) {
+        this.queue = [
+            {type: "Prompt", prompt: says("Welcome, caller " + config.caller_number + ".")},
+            {type: "ExpectInput", prompt: says("Press 1."), valid_inputs: "1", max_digits: 1, timeout: 5},
+        ]
+    }
+    async execute() { return this.queue.shift() ?? {type: "Noop"} }
+    send_input(input) { this.queue.push({type: "Disconnect", prompt: says("You pressed " + input + ".")}) }
+    send_timeout() {}
+    free() {}
+}`
+const CORS = {"access-control-allow-origin": "*"}
+
 /** Only the workbench origin may be reached, and no page may throw. */
 const test = base.extend<{violations: string[]}>({
     violations: async ({context, baseURL}, use) => {
@@ -32,6 +55,16 @@ const test = base.extend<{violations: string[]}>({
         const violations: string[] = []
         await context.route("**/*", async (route) => {
             const url = new URL(route.request().url())
+            if (url.href === `${EMULATOR}.js`)
+                return route.fulfill({
+                    contentType: "text/javascript",
+                    headers: CORS,
+                    body: EMULATOR_SHIM,
+                })
+            if (url.href === `${EMULATOR}_bg.wasm`)
+                return route.fulfill({contentType: "application/wasm", headers: CORS, body: ""})
+            if (url.origin === new URL(EMULATOR).origin)
+                return route.fulfill({status: 404, headers: CORS, body: "not here"})
             if (url.origin !== origin) {
                 violations.push(`${route.request().method()} ${url.href}`)
                 return route.abort("blockedbyclient")
@@ -147,5 +180,70 @@ test("a document the portal rejects is reported to the framing page", async ({pa
     await expect.poll(() => lastReply(page)).toMatchObject({type: "failed"})
     await expect(page.frameLocator("#preview").getByRole("alert")).toContainText(
         "The portal could not load this snapshot"
+    )
+})
+
+test("the demo watermark is the bundled banner, not one at the host's root", async ({page}) => {
+    await openHost(page)
+    await send(page, show())
+    const watermark = page.frameLocator("#preview").locator(".watermark-background")
+    await expect(watermark).toBeAttached()
+    const image = await watermark.evaluate(
+        (element) => getComputedStyle(element, "::before").backgroundImage
+    )
+    const url = /^url\("?(.*?)"?\)$/.exec(image)?.[1]
+    expect(url, `the watermark's background, ${image}`).toBeTruthy()
+    expect(new URL(url!).pathname).not.toBe("/demo-banner.png")
+    const response = await page.request.get(url!)
+    expect(response.ok()).toBe(true)
+    expect(response.headers()["content-type"]).toContain("image/png")
+})
+
+const call = (fields: Record<string, unknown> = {}) => ({
+    protocol: PROTOCOL,
+    version: VERSION,
+    type: "call",
+    emulatorUrl: EMULATOR,
+    config: {
+        caller_number: "+1234567890",
+        contact_id: "00000000-0000-4000-8000-000000000001",
+        tenant_id: IDS.tenant,
+        election_event_id: IDS.event,
+        election_event: JSON.stringify({id: IDS.event}),
+        ballot_styles: [JSON.stringify({id: "style"})],
+        open_elections: [IDS.election],
+        blacklisted_numbers: [],
+    },
+    labels: {input: "Keys to press", send: "Press"},
+    ...fields,
+})
+
+test("a framing page places a call against the emulator it serves", async ({page}) => {
+    await openHost(page)
+    await send(page, call())
+    const frame = page.frameLocator("#preview")
+    await expect(frame.getByText("Welcome, caller +1234567890.")).toBeVisible()
+    await expect
+        .poll(() => lastReply(page))
+        .toMatchObject({type: "calling", status: "ExpectingInput"})
+
+    await frame.getByRole("textbox", {name: "Keys to press"}).fill("1")
+    await frame.getByRole("button", {name: "Press"}).click()
+    await expect(frame.getByText("You pressed 1.")).toBeVisible()
+    await expect
+        .poll(() => lastReply(page))
+        .toMatchObject({type: "calling", status: "Disconnected"})
+
+    // The voter's screens are still one request away.
+    await send(page, show())
+    await expect(frame.getByRole("checkbox", {name: /Alice Example/})).toBeVisible()
+})
+
+test("a call to an emulator that is not served says it is absent", async ({page}) => {
+    await openHost(page)
+    await send(page, call({emulatorUrl: "http://architect.test/nowhere/ivr_emulator_wasm"}))
+    await expect.poll(() => lastReply(page)).toMatchObject({type: "calling", status: "absent"})
+    await expect(page.frameLocator("#preview").getByRole("status")).toContainText(
+        "No telephone emulator is served at"
     )
 })
