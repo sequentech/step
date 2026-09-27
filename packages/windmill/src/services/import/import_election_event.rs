@@ -526,12 +526,11 @@ pub async fn get_document(
         .media_type
         .unwrap_or("application/ezip".to_string());
 
+    // Only the cipher's own failure is named `file.cannot-decrypt`; a temp file
+    // that cannot be written keeps its real cause.
     temp_file = decrypt_document(object.password.clone(), temp_file)
         .await
-        .map_err(|_| {
-            reject("election event file", import_problems::cannot_decrypt())
-                .context(format!("error decrypting document {:?}", document.id))
-        })?;
+        .with_context(|| format!("error decrypting document {:?}", document.id))?;
 
     Ok((temp_file, document, document_type))
 }
@@ -552,7 +551,8 @@ pub async fn decrypt_document(
             &decrypted_path.as_path().to_string_lossy().to_string(),
             &password,
         )
-        .map_err(|err| anyhow!("Error generating decrypted file"))?;
+        .map_err(|_| reject("election event file", import_problems::cannot_decrypt()))
+        .context("Error generating decrypted file")?;
 
         // Create a new NamedTempFile for the decrypted content
         let mut temp_file = NamedTempFile::new()?;
@@ -1117,28 +1117,35 @@ pub async fn get_zip_entries(
         if document_type == "application/ezip" || matches_mime("zip", document_type) {
             tokio::task::spawn_blocking(move || -> Result<(Vec<(String, Vec<u8>)>, String)> {
                 let file = File::open(&temp_file_path)?;
-                let mut zip = ZipArchive::new(file).map_err(|err| {
+                // Any failure reading the archive's members is the archive being
+                // unreadable, and says why.
+                let unreadable = |err: &dyn std::fmt::Display| {
                     reject(
                         "election event file",
-                        import_problems::unreadable_archive(&err),
+                        import_problems::unreadable_archive(err),
                     )
-                })?;
+                };
+                let mut zip = ZipArchive::new(file).map_err(|err| unreadable(&err))?;
                 let mut entries: Vec<(String, Vec<u8>)> = Vec::new();
 
                 let mut election_event_schema: Option<String> = None;
                 for i in 0..zip.len() {
-                    let mut file = zip.by_index(i)?;
+                    let mut file = zip.by_index(i).map_err(|err| unreadable(&err))?;
                     let file_name = file.name().to_string();
                     if file_name.contains(EDocuments::ELECTION_EVENT.to_file_name())
                         && file_name.ends_with(".json")
                     {
                         // Regular JSON document processing
                         let mut file_str = String::new();
-                        file.read_to_string(&mut file_str)?;
+                        file.read_to_string(&mut file_str)
+                            .map_err(|err| unreadable(&err))
+                            .with_context(|| format!("reading {file_name}"))?;
                         election_event_schema = Some(file_str);
                     } else {
                         let mut file_contents = Vec::new();
-                        file.read_to_end(&mut file_contents)?;
+                        file.read_to_end(&mut file_contents)
+                            .map_err(|err| unreadable(&err))
+                            .with_context(|| format!("reading {file_name}"))?;
                         entries.push((file_name, file_contents));
                     }
                 }
@@ -1159,7 +1166,14 @@ pub async fn get_zip_entries(
             // Regular JSON document processing
             let mut file = File::open(temp_file_path)?;
             let mut data_str = String::new();
-            file.read_to_string(&mut data_str)?;
+            // Bytes that are not text are not a JSON election event either.
+            file.read_to_string(&mut data_str).map_err(|err| {
+                if err.kind() == std::io::ErrorKind::InvalidData {
+                    reject("election event file", import_problems::not_json(&err))
+                } else {
+                    anyhow::Error::new(err)
+                }
+            })?;
             (vec![], data_str)
         };
 
@@ -1772,5 +1786,93 @@ mod tests {
                 .expect("a bundle with no fatal problems should get past validation");
 
         assert!(!ids.is_empty());
+    }
+
+    fn problem_id(error: &anyhow::Error) -> Option<String> {
+        crate::services::import::rejection::problems_of(error)
+            .and_then(|problems| problems.first().and_then(|problem| problem.id.clone()))
+    }
+
+    fn a_file_holding(bytes: &[u8]) -> NamedTempFile {
+        let mut file = NamedTempFile::new().expect("a temp file");
+        file.write_all(bytes).expect("the bytes are written");
+        file
+    }
+
+    fn a_zip_of(members: &[(&str, &[u8])]) -> NamedTempFile {
+        let mut buffer = std::io::Cursor::new(Vec::new());
+        {
+            let mut zip = zip::ZipWriter::new(&mut buffer);
+            for (name, bytes) in members {
+                zip.start_file(*name, zip::write::SimpleFileOptions::default())
+                    .expect("a member starts");
+                zip.write_all(bytes).expect("a member is written");
+            }
+            zip.finish().expect("the archive closes");
+        }
+        a_file_holding(buffer.get_ref())
+    }
+
+    /// Bytes that are not a zip, a zip with no election event in it, and a member
+    /// that is not text are all the archive being unreadable, and say so by name.
+    #[tokio::test]
+    async fn an_archive_that_cannot_be_read_is_a_named_problem() {
+        let schema = format!("{}.json", EDocuments::ELECTION_EVENT.to_file_name());
+        for (case, file) in [
+            ("not a zip", a_file_holding(b"not a zip")),
+            ("no election event", a_zip_of(&[("notes.txt", b"hello")])),
+            (
+                "not text",
+                a_zip_of(&[(schema.as_str(), &[0xff, 0xfe, 0xfd])]),
+            ),
+        ] {
+            let error = get_zip_entries(file, "application/zip")
+                .await
+                .expect_err(case);
+            assert_eq!(
+                problem_id(&error).as_deref(),
+                Some("file.unreadable-archive"),
+                "{case}: {error:?}"
+            );
+        }
+    }
+
+    /// A plain file that is not text cannot be a JSON election event.
+    #[tokio::test]
+    async fn a_plain_file_that_is_not_text_is_not_json() {
+        let error = get_zip_entries(a_file_holding(&[0xff, 0xfe, 0xfd]), "application/json")
+            .await
+            .expect_err("bytes that are not text should not read as JSON");
+        assert_eq!(problem_id(&error).as_deref(), Some("file.not-json"));
+    }
+
+    /// A zip with its election event in it reads, the event apart from the rest.
+    #[tokio::test]
+    async fn a_readable_archive_gives_its_event_and_members() {
+        let schema = format!("{}.json", EDocuments::ELECTION_EVENT.to_file_name());
+        let file = a_zip_of(&[(schema.as_str(), b"{}"), ("notes.txt", b"hello")]);
+        let (entries, event) = get_zip_entries(file, "application/zip")
+            .await
+            .expect("a readable archive reads");
+        assert_eq!(event, "{}");
+        assert_eq!(entries, vec![("notes.txt".to_string(), b"hello".to_vec())]);
+    }
+
+    /// A file that does not decrypt with the password given names the password.
+    #[tokio::test]
+    async fn a_file_that_does_not_decrypt_is_a_named_problem() {
+        let error = decrypt_document(Some("wrong".to_string()), a_file_holding(b"plain"))
+            .await
+            .expect_err("a file that was never encrypted does not decrypt");
+        assert_eq!(problem_id(&error).as_deref(), Some("file.cannot-decrypt"));
+    }
+
+    /// With no password there is nothing to decrypt, and the file is untouched.
+    #[tokio::test]
+    async fn no_password_leaves_the_file_as_it_is() {
+        let file = decrypt_document(None, a_file_holding(b"plain"))
+            .await
+            .expect("no password, no decryption");
+        assert_eq!(fs::read(file.path()).unwrap(), b"plain");
     }
 }

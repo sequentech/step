@@ -357,6 +357,22 @@ mod secret_export_tests {
             "document-id",
         ));
     }
+
+    #[test]
+    fn a_failed_task_keeps_its_problems_and_no_document() {
+        use sequent_core::election_config::import_problems;
+
+        let problem = import_problems::checksum_mismatch("expected", "actual");
+        let annotations = failure_annotations(&[problem]).unwrap();
+
+        assert_eq!(annotations["problems"][0]["id"], "file.checksum-mismatch");
+        assert_eq!(annotations["problems"][0]["details"]["actual"], "actual");
+        assert!(annotations.get("document_id").is_none());
+        assert_eq!(
+            failure_annotations(&[]).unwrap(),
+            serde_json::json!({ "problems": [] })
+        );
+    }
 }
 
 // TODO filter also by tenant-id and document-id

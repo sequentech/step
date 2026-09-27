@@ -155,9 +155,10 @@ impl Refusal {
     /// An import check that failed, with its problems if any.
     fn of_check(error: &anyhow::Error) -> Self {
         let (line, problems) = match problems_of(error) {
-            // Display, not Debug: the chain's own words, without a backtrace.
+            // The whole chain, `a: b: c`, so the listing of what the bundle
+            // lacks survives the context around it; no backtrace.
             Some(problems) => {
-                (format!("Error checking import: {error}"), Some(problems))
+                (format!("Error checking import: {error:#}"), Some(problems))
             }
             None => (format!("Error checking import: {error:?}"), None),
         };
@@ -441,8 +442,18 @@ mod tests {
 
     #[test]
     fn a_failed_check_says_so_in_plain_words() {
-        let explained = Refusal::of_check(&reject("the file", mismatch()));
+        let explained = Refusal::of_check(
+            &reject("the file", mismatch()).context("Failed to validate"),
+        );
         assert!(explained.error.starts_with("Error checking import: "));
+        // The rejection's own listing survives the context wrapped around it.
+        assert!(
+            explained.error.contains("Failed to validate: ")
+                && explained.error.contains("not the expected that was given"),
+            "{}",
+            explained.error
+        );
+        assert!(!explained.error.contains("Stack backtrace"));
         assert_eq!(explained.log, explained.error);
         assert_eq!(explained.problems, Some(vec![mismatch()]));
 

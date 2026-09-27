@@ -104,8 +104,20 @@ it("keeps a confirmed empty checksum optional and reports a backend integrity fa
         variables: {tenantId: "tenant-a", documentId: "document-a", sha256: "", password: ""},
     })
     expect(result.current.errors).toBe("Checksum mismatch")
-    expect(mockFailed).toHaveBeenCalledWith("widget-a")
+    // The refused task is followed, not just marked, so the widget can load the
+    // problems it was failed with.
+    expect(mockTask).toHaveBeenCalledWith("widget-a", "task-a")
+    expect(mockFailed).not.toHaveBeenCalled()
     expect(mockCreated).not.toHaveBeenCalled()
+})
+it("marks the widget failed when a refusal names no task to follow", async () => {
+    mockImport.mockResolvedValueOnce({
+        data: {import_election_event: {id: null, error: "Checksum mismatch", task_execution: null}},
+    })
+    const {result} = renderHook(useCreateElectionEventStore, {wrapper: CreateElectionEventProvider})
+    await act(async () => result.current.handleImportElectionEvent("document-a", "", ""))
+    expect(result.current.errors).toBe("Checksum mismatch")
+    expect(mockFailed).toHaveBeenCalledWith("widget-a")
     expect(mockTask).not.toHaveBeenCalled()
 })
 it("checks the uploaded archive before starting a task without treating validation as import", async () => {

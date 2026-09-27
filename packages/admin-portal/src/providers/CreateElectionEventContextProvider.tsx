@@ -303,7 +303,15 @@ export const CreateElectionEventProvider = ({children}: any) => {
             if (data?.import_election_event?.error) {
                 setErrors(data.import_election_event.error)
                 setProblems(readProblems(data.import_election_event.problems) ?? null)
-                updateWidgetFail(currWidget.identifier)
+                // A refusal still leaves a failed task, with its problems in the
+                // annotations: follow it so the widget can say them after the
+                // drawer has closed.
+                const failedTaskId = data.import_election_event.task_execution?.id
+                if (failedTaskId) {
+                    setWidgetTaskId(currWidget.identifier, failedTaskId)
+                } else {
+                    updateWidgetFail(currWidget.identifier)
+                }
                 return
             }
 
