@@ -5501,3 +5501,535 @@ fn the_lift_only_happens_once() {
     let read = read_plan(document).expect("it opens");
     assert!(read.sources.census.is_none());
 }
+
+// -- the migrations, one branch at a time -----------------------------------
+
+/// Version 1's own mapping, including the parts of it that were wrong, for every
+/// word it knew.
+#[test]
+fn a_version_one_policy_maps_every_word_it_knew() {
+    let mut allowed = serde_json::json!({
+        "version": 1,
+        "policies": {
+            "over_vote": "allowed",
+            "under_vote": "allowed",
+            "blank_vote": "allowed",
+            "invalid_vote": "allowed"
+        }
+    });
+    migrate_v1(&mut allowed);
+    assert_eq!(allowed["version"], 2);
+    assert!(allowed.get("policies").is_none(), "the old key is gone");
+    let policies = &allowed["defaults"]["policies"];
+    for key in ["over_vote", "under_vote", "blank_vote", "invalid_vote"] {
+        assert_eq!(policies[key], "allowed", "{key}");
+    }
+
+    let mut restricted = serde_json::json!({
+        "version": 1,
+        "policies": {
+            "over_vote": "restricted",
+            "under_vote": "restricted",
+            "blank_vote": "restricted",
+            "invalid_vote": "restricted"
+        }
+    });
+    migrate_v1(&mut restricted);
+    let policies = &restricted["defaults"]["policies"];
+    assert_eq!(policies["over_vote"], "not-allowed-with-msg-and-disable");
+    assert_eq!(policies["under_vote"], "warn-only-in-review");
+    assert_eq!(policies["blank_vote"], "not-allowed");
+    assert_eq!(policies["invalid_vote"], "not-allowed");
+
+    // No policies at all is "warn" everywhere.
+    let mut silent = serde_json::json!({"version": 1});
+    migrate_v1(&mut silent);
+    let policies = &silent["defaults"]["policies"];
+    assert_eq!(policies["over_vote"], "allowed-with-msg");
+    assert_eq!(policies["under_vote"], "warn");
+    assert_eq!(policies["blank_vote"], "warn");
+}
+
+#[test]
+fn a_migration_leaves_alone_what_it_does_not_own() {
+    // Not an object: nothing to migrate, and nothing to panic over.
+    for migrate in [migrate_v1, migrate_v2] {
+        let mut list = serde_json::json!([1, 2, 3]);
+        migrate(&mut list);
+        assert_eq!(list, serde_json::json!([1, 2, 3]));
+    }
+    let mut list = serde_json::json!("a plan?");
+    assert!(migrate_v3(&mut list).is_empty());
+
+    // Another version: each migration only rewrites its own.
+    let mut later = serde_json::json!({"version": 5, "policies": {"x": 1}});
+    migrate_v1(&mut later);
+    migrate_v2(&mut later);
+    assert_eq!(
+        later,
+        serde_json::json!({"version": 5, "policies": {"x": 1}})
+    );
+}
+
+#[test]
+fn a_version_two_census_skips_rows_it_cannot_resolve_without_losing_them() {
+    let mut document = serde_json::json!({
+        "version": 2,
+        "areas": [
+            {"external_id": "north", "name": "North Local"},
+            {"external_id": "unnamed", "name": ""}
+        ],
+        "voters": [
+            "not a row",
+            {"username": "no-area"},
+            {"username": "blank", "area_name": "   "},
+            {"username": "named", "area_name": " North Local "},
+            {"username": "stray", "area_name": "Atlantis"}
+        ]
+    });
+    migrate_v2(&mut document);
+
+    assert_eq!(document["version"], 3);
+    let voters = document["voters"].as_array().unwrap();
+    assert_eq!(voters[0], "not a row");
+    assert!(voters[1].get("area_external_id").is_none());
+    // Blank is removed and not replaced: there was nothing to resolve.
+    assert!(voters[2].get("area_name").is_none());
+    assert!(voters[2].get("area_external_id").is_none());
+    assert_eq!(voters[3]["area_external_id"], "north");
+    assert_eq!(voters[4]["area_external_id"], "Atlantis");
+}
+
+#[test]
+fn a_document_that_is_not_a_plan_is_refused_with_its_reason() {
+    let Err(refused) = read_plan_value(serde_json::json!({
+        "version": BLUEPRINT_VERSION,
+        "external_id": ["not", "text"]
+    })) else {
+        panic!("an identifier that is a list is not a plan");
+    };
+    assert_eq!(refused.id.as_deref(), Some("plan.unreadable"));
+    assert!(
+        refused.message.contains("cannot be read"),
+        "{}",
+        refused.message
+    );
+    assert_eq!(refused.severity, Severity::Error);
+}
+
+// -- small parts of the vocabulary ---------------------------------------
+
+#[test]
+fn a_channel_set_knows_whether_anything_is_open() {
+    let none = VotingChannelSet {
+        online: false,
+        kiosk: false,
+        telephone: false,
+        early_voting: false,
+    };
+    assert!(!none.any());
+    assert!(VotingChannelSet::default().any());
+    for open in 0..4 {
+        let set = VotingChannelSet {
+            online: open == 0,
+            kiosk: open == 1,
+            telephone: open == 2,
+            early_voting: open == 3,
+        };
+        assert!(set.any(), "{set:?}");
+    }
+}
+
+#[test]
+fn a_channel_set_read_from_nothing_is_online_only() {
+    let read: VotingChannelSet = serde_json::from_str("{}").unwrap();
+    assert_eq!(read, VotingChannelSet::default());
+    assert!(read.online);
+}
+
+#[test]
+fn every_message_kind_has_the_alias_the_template_table_uses() {
+    assert_eq!(MessageKind::InvitationToVote.alias(), "invitation-to-vote");
+    assert_eq!(MessageKind::GetOutTheVote.alias(), "get-out-the-vote");
+    // And the alias is the serialised name, so the two cannot drift.
+    for kind in [MessageKind::InvitationToVote, MessageKind::GetOutTheVote] {
+        assert_eq!(
+            serde_json::to_value(kind).unwrap(),
+            serde_json::json!(kind.alias())
+        );
+    }
+}
+
+#[test]
+fn a_material_and_a_logo_do_not_share_an_identifier_with_anything_else() {
+    let ids = IdFactory::new("union-2027").unwrap();
+    let material = material_document_id(&ids, "guide");
+    assert_eq!(material, material_document_id(&ids, "guide"), "stable");
+    assert_ne!(material, material_document_id(&ids, "other"));
+    assert_ne!(material, logo_document_id(&ids, "guide"));
+}
+
+#[test]
+fn a_plan_with_no_identifier_has_no_files_to_name() {
+    let mut plan = sound();
+    plan.external_id = String::new();
+    plan.materials = vec![PlannedMaterial {
+        external_id: "guide".to_string(),
+        file_name: "guide.pdf".to_string(),
+        bytes: vec![1, 2, 3],
+        ..Default::default()
+    }];
+    assert!(plan_materials(&plan, &Sources::default()).is_empty());
+    assert!(plan_images(&plan, &Sources::default()).is_empty());
+}
+
+#[test]
+fn a_materials_own_bytes_travel_when_the_sources_have_none() {
+    let mut plan = sound();
+    plan.materials = vec![
+        PlannedMaterial {
+            external_id: "guide".to_string(),
+            file_name: "guide.pdf".to_string(),
+            bytes: vec![1, 2, 3],
+            ..Default::default()
+        },
+        // Nothing behind it anywhere: not a file.
+        PlannedMaterial {
+            external_id: "empty".to_string(),
+            file_name: "empty.pdf".to_string(),
+            ..Default::default()
+        },
+    ];
+    let files = plan_materials(&plan, &Sources::default());
+    assert_eq!(files.len(), 1);
+    assert_eq!(files[0].file_name, "guide.pdf");
+    assert_eq!(files[0].bytes, vec![1, 2, 3]);
+}
+
+// -- what validation refuses ---------------------------------------------
+
+#[test]
+fn a_material_named_and_not_carried_is_refused_by_its_own_name() {
+    let mut plan = sound();
+    plan.materials = vec![
+        PlannedMaterial {
+            external_id: String::new(),
+            file_name: "anonymous.pdf".to_string(),
+            ..Default::default()
+        },
+        PlannedMaterial {
+            external_id: "guide".to_string(),
+            file_name: "guide.pdf".to_string(),
+            ..Default::default()
+        },
+        // No file named: nothing to hold.
+        PlannedMaterial {
+            external_id: "link".to_string(),
+            ..Default::default()
+        },
+    ];
+    let report = checked(&plan);
+    let missing: Vec<&Problem> = report
+        .problems
+        .iter()
+        .filter(|problem| problem.id.as_deref() == Some("file.missing"))
+        .collect();
+    assert_eq!(missing.len(), 2, "{report}");
+    assert_eq!(missing[0].path, "materials[0].file_name");
+    assert!(missing[0].message.contains("'anonymous.pdf'"));
+    assert!(missing[1].message.contains("support material 'guide'"));
+}
+
+#[test]
+fn a_photograph_with_no_file_name_is_not_a_file() {
+    let mut plan = sound();
+    plan.elections[0].contests[0].candidates[0].image = Some(CandidateImage {
+        file_name: String::new(),
+        bytes: Vec::new(),
+    });
+    let report = checked(&plan);
+    assert!(
+        !report
+            .problems
+            .iter()
+            .any(|problem| problem.path.contains("image")),
+        "{report}"
+    );
+}
+
+#[test]
+fn an_unreadable_time_stops_the_schedule_being_checked_further() {
+    let mut plan = sound();
+    plan.schedule.voting_opens =
+        Some(Timestamp::new("next tuesday", "America/Phoenix", -420));
+    let report = checked(&plan);
+    assert!(
+        report
+            .problems
+            .iter()
+            .any(|problem| problem.path == "schedule.voting_opens"
+                && problem.severity == Severity::Error),
+        "{report}"
+    );
+    // Nothing about the window's order: that cannot be judged from a time that
+    // is not one.
+    assert!(
+        !report
+            .problems
+            .iter()
+            .any(|problem| problem.code == Code::MissingSchedule),
+        "{report}"
+    );
+}
+
+#[test]
+fn an_area_with_no_identifier_is_refused() {
+    let mut plan = sound();
+    plan.areas = vec![PlannedArea {
+        external_id: "  ".to_string(),
+        name: "North".to_string(),
+        ..Default::default()
+    }];
+    let report = checked(&plan);
+    let refused = report
+        .problems
+        .iter()
+        .find(|problem| problem.id.as_deref() == Some("area.no-identifier"))
+        .unwrap_or_else(|| panic!("no refusal in:\n{report}"));
+    assert_eq!(refused.path, "areas[0]");
+    assert_eq!(refused.code, Code::MissingField);
+}
+
+/// A census that fails the way a file that vanished mid-build would.
+struct Broken {
+    columns: Vec<String>,
+    on_rewind: bool,
+}
+
+impl crate::election_config::sources::CensusSource for Broken {
+    fn columns(&self) -> &[String] {
+        &self.columns
+    }
+
+    fn rewind(&self) -> Result<(), String> {
+        if self.on_rewind {
+            Err("the file went away before it was opened".to_string())
+        } else {
+            Ok(())
+        }
+    }
+
+    fn next_batch(&self, _: usize) -> Result<Vec<PlannedVoter>, String> {
+        Err("the file went away while it was being read".to_string())
+    }
+}
+
+#[test]
+fn a_census_that_cannot_be_read_says_so_rather_than_passing_as_empty() {
+    for on_rewind in [true, false] {
+        let plan = sound();
+        let sources = Sources {
+            census: Some(std::sync::Arc::new(Broken {
+                columns: vec!["username".to_string()],
+                on_rewind,
+            })),
+            ..Sources::default()
+        };
+        let report = validate_plan(&plan, &sources);
+        let refused = report
+            .problems
+            .iter()
+            .find(|problem| problem.id.as_deref() == Some("census.unreadable"))
+            .unwrap_or_else(|| panic!("no refusal in:\n{report}"));
+        assert_eq!(refused.path, "voters");
+        assert!(refused.message.contains("the file went away"));
+        assert!(report.has_errors());
+    }
+}
+
+#[test]
+fn a_contest_that_offers_or_elects_nobody_is_refused() {
+    let mut plan = sound();
+    plan.elections[0].contests[0].max_votes = 0;
+    plan.elections[0].contests[0].winners = 0;
+    let report = checked(&plan);
+    let ids: Vec<&str> = report
+        .problems
+        .iter()
+        .filter_map(|problem| problem.id.as_deref())
+        .collect();
+    assert!(ids.contains(&"contest.max-votes-below-one"), "{report}");
+    assert!(ids.contains(&"contest.elects-nobody"), "{report}");
+}
+
+#[test]
+fn a_contest_that_offers_more_choices_than_candidates_names_both_numbers() {
+    let mut plan = sound();
+    plan.elections[0].contests[0].max_votes = 5;
+    let report = checked(&plan);
+    let refused = report
+        .problems
+        .iter()
+        .find(|problem| {
+            problem.id.as_deref() == Some("contest.chooses-more-than-offered")
+        })
+        .unwrap_or_else(|| panic!("no refusal in:\n{report}"));
+    assert!(refused.message.contains("up to 5"));
+    assert!(refused.message.contains("only 2"));
+}
+
+// -- what a plan writes --------------------------------------------------
+
+#[test]
+fn an_elections_permission_label_is_written_when_it_has_one() {
+    let mut plan = sound();
+    plan.elections[0].permission_label = "officers-only".to_string();
+    let workbook = workbook_of(&plan).expect("writes");
+    let row = &workbook.rows("elections")[0];
+    assert_eq!(row.text("permission_label"), Some("officers-only"));
+
+    // And none is a blank cell, not an empty label.
+    let workbook = workbook_of(&sound()).expect("writes");
+    assert!(workbook.rows("elections")[0]
+        .get("permission_label")
+        .is_none());
+}
+
+#[test]
+fn a_write_in_slot_lines_up_with_the_spoken_prompt_column() {
+    let mut plan = sound();
+    let contest = &mut plan.elections[0].contests[0];
+    contest.allow_writeins = true;
+    contest.write_in_slots = 1;
+    contest.candidates[0].ivr_prompt = Translated::new("Press one for Alice");
+    let workbook = workbook_of(&plan).expect("a ragged sheet would refuse");
+    let rows = workbook.rows("candidates");
+    let slot = rows
+        .iter()
+        .find(|row| row.text("external_id") == Some("president-write-in-1"))
+        .expect("the slot is a row");
+    assert!(slot
+        .get(crate::election_config::build::IVR_I18N_COLUMN)
+        .is_none());
+    let alice = rows
+        .iter()
+        .find(|row| row.text("external_id") == Some("alice"))
+        .unwrap();
+    assert!(alice
+        .get(crate::election_config::build::IVR_I18N_COLUMN)
+        .is_some());
+}
+
+#[test]
+fn a_census_with_nobody_in_it_writes_no_voters_tab() {
+    let plan = sound();
+    let sources = Sources {
+        census: Some(std::sync::Arc::new(VecCensus::new(Vec::new()))),
+        ..Sources::default()
+    };
+    let workbook = to_workbook(&plan, &sources).expect("writes");
+    assert!(!workbook.has("voters"));
+}
+
+#[test]
+fn sign_in_wording_under_a_blank_locale_or_key_is_not_written() {
+    let mut plan = sound();
+    plan.keycloak_messages = [
+        (
+            "en".to_string(),
+            [
+                ("loginTitle".to_string(), "Welcome".to_string()),
+                ("  ".to_string(), "orphan".to_string()),
+            ]
+            .into_iter()
+            .collect(),
+        ),
+        (
+            " ".to_string(),
+            [("loginTitle".to_string(), "nobody".to_string())]
+                .into_iter()
+                .collect(),
+        ),
+    ]
+    .into_iter()
+    .collect();
+    let rows = keycloak_message_rows(&plan);
+    assert_eq!(
+        rows,
+        vec![(
+            "keycloak_event_realm.localizationTexts.en.loginTitle".to_string(),
+            "Welcome".to_string()
+        )]
+    );
+}
+
+/// A plan opened from a workbook whose Parameters sheet has no `key` column.
+fn with_unusable_parameters() -> Blueprint {
+    let mut plan = sound();
+    plan.keycloak_messages = [(
+        "en".to_string(),
+        [("loginTitle".to_string(), "Welcome".to_string())]
+            .into_iter()
+            .collect(),
+    )]
+    .into_iter()
+    .collect();
+    plan.platform = vec![sheet::Sheet::from_grid(
+        "Parameters",
+        &[
+            vec![Cell::text("name"), Cell::text("setting")],
+            vec![Cell::text("x"), Cell::text("y")],
+        ],
+    )
+    .unwrap()];
+    plan
+}
+
+#[test]
+fn sign_in_wording_with_nowhere_to_go_is_refused_rather_than_dropped() {
+    let refused = workbook_of(&with_unusable_parameters())
+        .expect_err("the wording has no column to land in");
+    assert_eq!(refused.path, "keycloak_messages");
+    assert!(refused.message.contains("`key` and `value`"));
+}
+
+#[test]
+fn a_plan_that_cannot_be_written_does_not_compile() {
+    let templates = TemplateSet::builtin().unwrap();
+    let report = compile_plan(Compile {
+        plan: &with_unusable_parameters(),
+        templates: &templates,
+        options: &BuildOptions::default(),
+        profile: None,
+        sources: None,
+    })
+    .expect_err("the workbook could not be written");
+    assert_eq!(report.problems.len(), 1, "{report}");
+    assert_eq!(report.problems[0].path, "keycloak_messages");
+}
+
+#[test]
+fn a_profiles_own_warnings_reach_the_compiled_report() {
+    let templates = TemplateSet::builtin().unwrap();
+    let mut profile =
+        Profile::read(&crate::election_config::profile::ClientProfile {
+            id: "acme".to_string(),
+            ..Default::default()
+        })
+        .expect("an empty profile reads");
+    profile.warnings.push(Problem::warning(
+        Code::InvalidValue,
+        "profile",
+        "a note from the profile",
+    ));
+
+    let compiled = compile_plan(Compile {
+        plan: &sound(),
+        templates: &templates,
+        options: &BuildOptions::default(),
+        profile: Some(&profile),
+        sources: None,
+    })
+    .expect("a sound plan compiles under an empty profile");
+    assert!(says(&compiled.report, "a note from the profile"));
+}
