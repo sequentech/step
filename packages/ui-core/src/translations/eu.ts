@@ -553,6 +553,16 @@ const basqueTranslation: TranslationType = {
                         text: 'Identifikatzailea bi aldiz — "{{identifier}}" {{first}}(e)k erabiltzen du dagoeneko. Identifikatzaileak bakarrak dira hauteskunde-gertaera osoan, beraz, bigarrenak lehena ordezkatzen du, gehitu beharrean.',
                     },
                 },
+                ivr: {
+                    "language-not-spoken": {
+                        lead: "Hizkuntza ez dago telefonoz eskuragarri",
+                        text: "Hizkuntza ez dago telefonoz eskuragarri — deiak ingelesez, frantsesez eta gaztelaniaz baino ez du hitz egiten, beraz {{languages}} ez zaie deitzaileei eskaintzen.",
+                    },
+                    "missing-prompts": {
+                        lead: "Deiaren mezuak falta dira",
+                        text: "Deiaren mezuak falta dira — {{prompts}} ez dute testurik «{{language}}» hizkuntzan, eta sistema telefonikoak dei guztiak baztertzen ditu izan arte.",
+                    },
+                },
                 labels: {
                     "in-use": {
                         lead: "Baimen-etiketak erabilita",

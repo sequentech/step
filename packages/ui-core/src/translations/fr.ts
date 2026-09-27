@@ -557,6 +557,16 @@ const frenchTranslation: TranslationType = {
                         text: "Identifiant utilisé deux fois — '{{identifier}}' est déjà utilisé par {{first}}. Les identifiants sont uniques dans tout l'événement électoral, donc le second remplace le premier au lieu d'être ajouté.",
                     },
                 },
+                ivr: {
+                    "language-not-spoken": {
+                        lead: "Langue non disponible par téléphone",
+                        text: "Langue non disponible par téléphone — l'appel ne parle qu'anglais, français et espagnol, donc {{languages}} n'est pas proposé aux appelants.",
+                    },
+                    "missing-prompts": {
+                        lead: "Messages d'appel manquants",
+                        text: "Messages d'appel manquants — {{prompts}} n'ont pas de texte en « {{language}} », et le système téléphonique refuse tous les appels tant qu'ils n'en ont pas.",
+                    },
+                },
                 labels: {
                     "in-use": {
                         lead: "Étiquettes d'autorisation utilisées",

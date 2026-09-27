@@ -157,6 +157,7 @@ pub fn validate(bundle: &ImportElectionEventSchema) -> Report {
     check_ballot_coverage(bundle, &mut report);
     check_how_voting_works(bundle, &mut report);
     check_voting_channels(bundle, &mut report);
+    check_ivr_prompts(bundle, &mut report);
     check_images(bundle, &mut report);
     check_support_materials(bundle, &mut report);
     check_event_presentation(bundle, &mut report);
@@ -164,6 +165,55 @@ pub fn validate(bundle: &ImportElectionEventSchema) -> Report {
     check_unique_ids(bundle, &mut report);
 
     report
+}
+
+/// Whether the telephone call the event describes can be placed at all.
+///
+/// The IVR checks this at the start of every call and refuses the call when an
+/// announcement has no words in one of the event's spoken languages. Refusing the
+/// import instead means the failure reaches the person who can fix it, rather than
+/// a voter on election day. The rule is [`super::ivr`]'s; the Election Architect
+/// asks the same question of a plan.
+fn check_ivr_prompts(bundle: &ImportElectionEventSchema, report: &mut Report) {
+    let event = &bundle.election_event;
+    let telephone = event
+        .voting_channels
+        .as_ref()
+        .and_then(|channels| channels.get("telephone"))
+        .and_then(serde_json::Value::as_bool)
+        == Some(true);
+    if !telephone {
+        return;
+    }
+    let annotation = |key: &str| {
+        event
+            .annotations
+            .as_ref()
+            .and_then(|annotations| annotations.get(key))
+            .and_then(serde_json::Value::as_str)
+    };
+    let languages: Vec<String> = event
+        .presentation
+        .as_ref()
+        .and_then(|presentation| presentation.get("language_conf"))
+        .and_then(|conf| conf.get("enabled_language_codes"))
+        .and_then(serde_json::Value::as_array)
+        .map(|codes| {
+            codes
+                .iter()
+                .filter_map(serde_json::Value::as_str)
+                .map(str::to_string)
+                .collect()
+        })
+        .unwrap_or_default();
+
+    for missing in super::ivr::missing_in_annotations(
+        annotation("ivr:config"),
+        annotation("ivr:prompts"),
+        &languages,
+    ) {
+        report.push(missing.problem("election_event.annotations.ivr:prompts"));
+    }
 }
 
 /// The event-level presentation values that reach a voter.

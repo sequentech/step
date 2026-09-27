@@ -557,6 +557,16 @@ const galegoTranslation: TranslationType = {
                         text: "Identificador repetido — «{{identifier}}» xa o usa {{first}}. Os identificadores son únicos en todo o evento electoral, así que o segundo substitúe o primeiro en vez de engadirse.",
                     },
                 },
+                ivr: {
+                    "language-not-spoken": {
+                        lead: "Idioma non dispoñible por teléfono",
+                        text: "Idioma non dispoñible por teléfono — a chamada só fala inglés, francés e español, así que non se ofrece {{languages}} a quen chama.",
+                    },
+                    "missing-prompts": {
+                        lead: "Faltan mensaxes da chamada",
+                        text: "Faltan mensaxes da chamada — {{prompts}} non teñen texto en «{{language}}», e o sistema telefónico rexeita todas as chamadas ata que o teñan.",
+                    },
+                },
                 labels: {
                     "in-use": {
                         lead: "Etiquetas de permiso en uso",

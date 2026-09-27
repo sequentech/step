@@ -553,6 +553,16 @@ const englishTranslation = {
                         text: "Identifier used twice — '{{identifier}}' is already used by {{first}}. Identifiers are unique across the whole election event, so the second replaces the first instead of being added.",
                     },
                 },
+                ivr: {
+                    "language-not-spoken": {
+                        lead: "Language not spoken by phone",
+                        text: "Language not spoken by phone — the telephone call speaks only English, French and Spanish, so callers are not offered {{languages}}.",
+                    },
+                    "missing-prompts": {
+                        lead: "Call prompts missing",
+                        text: "Call prompts missing — {{prompts}} have no words in '{{language}}', and the telephone system refuses every call until they do.",
+                    },
+                },
                 labels: {
                     "in-use": {
                         lead: "Permission labels in use",

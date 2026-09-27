@@ -6033,3 +6033,162 @@ fn a_profiles_own_warnings_reach_the_compiled_report() {
     .expect("a sound plan compiles under an empty profile");
     assert!(says(&compiled.report, "a note from the profile"));
 }
+
+// -- the telephone call's words, per language --------------------------------
+
+/// A telephone plan whose words are English only, offered in `languages`.
+///
+/// The Election Architect's own default flow: three announcements, each naming a
+/// prompt the call cannot start without.
+fn telephone_in(languages: &[&str]) -> Blueprint {
+    let mut plan = sound();
+    plan.languages = languages.iter().map(|each| (*each).to_string()).collect();
+    plan.voting_channels.telephone = true;
+    let announce = |name: &str, key: &str| IvrPhase {
+        phase: "announcement".to_string(),
+        name: name.to_string(),
+        prompt_key: key.to_string(),
+        ..Default::default()
+    };
+    plan.ivr = Some(PlannedIvr {
+        flow: vec![
+            announce("welcome", "greeting"),
+            IvrPhase {
+                phase: "language_select".to_string(),
+                ..Default::default()
+            },
+            announce("declaration", "declaration_text"),
+            announce("pre_voting_statement", "pre_voting_statement"),
+        ],
+        prompts: [(
+            "en".to_string(),
+            [
+                ("greeting", "Welcome."),
+                ("declaration_text", "Press {continue_input}."),
+                ("pre_voting_statement", "Your vote counts once submitted."),
+            ]
+            .into_iter()
+            .map(|(key, text)| (key.to_string(), text.to_string()))
+            .collect(),
+        )]
+        .into_iter()
+        .collect(),
+        ..Default::default()
+    });
+    plan
+}
+
+fn with_id<'a>(report: &'a Report, id: &str) -> Vec<&'a Problem> {
+    report
+        .problems
+        .iter()
+        .filter(|problem| problem.id.as_deref() == Some(id))
+        .collect()
+}
+
+#[test]
+fn a_spoken_language_without_the_calls_words_is_an_error_on_the_telephone_step()
+{
+    // The Call Emulator's bug. Ticking Spanish left the prompts English-only, the
+    // wizard said "Nothing to fix on this step", and every call ended in "Something
+    // has gone wrong" because the IVR refuses a language it has no greeting for.
+    let report = checked(&telephone_in(&["en", "es"]));
+    let missing = with_id(&report, "ivr.missing-prompts");
+    assert_eq!(missing.len(), 1, "{report}");
+    let problem = missing[0];
+    assert_eq!(problem.severity, super::super::problem::Severity::Error);
+    // `ivr.prompts` routes to the Telephone Voting step, where the words are typed.
+    assert_eq!(problem.path, "ivr.prompts");
+    assert_eq!(
+        problem.details.get("language").map(String::as_str),
+        Some("es")
+    );
+    assert_eq!(
+        problem.details.get("prompts").map(String::as_str),
+        Some("greeting, declaration_text, pre_voting_statement")
+    );
+}
+
+#[test]
+fn french_is_held_to_the_same_rule_and_english_alone_is_clean() {
+    let report = checked(&telephone_in(&["fr", "en"]));
+    let missing = with_id(&report, "ivr.missing-prompts");
+    assert_eq!(missing.len(), 1, "{report}");
+    assert_eq!(
+        missing[0].details.get("language").map(String::as_str),
+        Some("fr")
+    );
+
+    let english = checked(&telephone_in(&["en"]));
+    assert!(
+        with_id(&english, "ivr.missing-prompts").is_empty(),
+        "{english}"
+    );
+}
+
+#[test]
+fn words_in_every_spoken_language_satisfy_the_call() {
+    let mut plan = telephone_in(&["en", "es"]);
+    let ivr = plan.ivr.as_mut().unwrap();
+    let english = ivr.prompts["en"].clone();
+    ivr.prompts.insert("es".to_string(), english);
+    let report = checked(&plan);
+    assert!(
+        with_id(&report, "ivr.missing-prompts").is_empty(),
+        "{report}"
+    );
+}
+
+#[test]
+fn a_language_the_call_cannot_speak_is_a_warning_not_a_missing_prompt() {
+    // The IVR speaks English, French and Spanish and skips the rest, so a Tagalog
+    // voter who phones is offered none of those three in Tagalog. Worth saying, not
+    // worth refusing: the web ballot is still in Tagalog.
+    let report = checked(&telephone_in(&["en", "tl", "eu"]));
+    assert!(
+        with_id(&report, "ivr.missing-prompts").is_empty(),
+        "{report}"
+    );
+    let unspoken = with_id(&report, "ivr.language-not-spoken");
+    assert_eq!(unspoken.len(), 1, "{report}");
+    assert_eq!(
+        unspoken[0].severity,
+        super::super::problem::Severity::Warning
+    );
+    assert_eq!(
+        unspoken[0].details.get("languages").map(String::as_str),
+        Some("tl, eu")
+    );
+}
+
+#[test]
+fn a_plan_without_the_telephone_channel_is_not_asked_for_its_words() {
+    let mut plan = telephone_in(&["en", "es", "tl"]);
+    plan.voting_channels.telephone = false;
+    let report = checked(&plan);
+    assert!(
+        with_id(&report, "ivr.missing-prompts").is_empty(),
+        "{report}"
+    );
+    assert!(
+        with_id(&report, "ivr.language-not-spoken").is_empty(),
+        "{report}"
+    );
+}
+
+#[test]
+fn the_bundle_carries_the_same_refusal_for_the_importer() {
+    // The importer runs `validate`, not `validate_plan`, so the rule has to hold
+    // on the built event too — or a bundle the IVR cannot speak imports cleanly.
+    let report = validated(&telephone_in(&["en", "es"]));
+    let missing = with_id(&report, "ivr.missing-prompts");
+    assert_eq!(missing.len(), 1, "{report}");
+    assert!(report.has_errors());
+    assert_eq!(
+        missing[0].details.get("language").map(String::as_str),
+        Some("es")
+    );
+
+    let clean = validated(&telephone_in(&["en"]));
+    assert!(with_id(&clean, "ivr.missing-prompts").is_empty(), "{clean}");
+}
