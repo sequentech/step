@@ -41,6 +41,10 @@ class PlanTests(unittest.TestCase):
         self.assertEqual(plan["builds"], ["results-portal"])
         self.assertEqual(plan["stories"], ["results-portal"])
         self.assertEqual(
+            plan["story_shards"],
+            [{"package": "results-portal", "shard": 1, "shards": 1}],
+        )
+        self.assertEqual(
             plan["journeys"], [{"package": "results-portal", "shard": 1, "shards": 1}]
         )
         self.assertFalse(plan["jobs"]["run-tests"])
@@ -49,6 +53,15 @@ class PlanTests(unittest.TestCase):
         plan = self.plan("packages/ui-core/src/index.ts")
         self.assertEqual(len(plan["builds"]), 4)
         self.assertEqual(len(plan["stories"]), 6)
+        self.assertEqual(
+            [
+                (row["shard"], row["shards"])
+                for row in plan["story_shards"]
+                if row["package"] == "admin-portal"
+            ],
+            [(1, 3), (2, 3), (3, 3)],
+        )
+        self.assertEqual(len(plan["story_shards"]), 8)
         self.assertEqual(len(plan["journeys"]), 7)
         self.assertTrue(plan["ui_jobs"]["workbench"])
         self.assertFalse(plan["jobs"]["run-tests"])
