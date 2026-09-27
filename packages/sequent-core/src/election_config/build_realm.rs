@@ -1068,6 +1068,52 @@ mod tests {
     }
 
     #[test]
+    fn a_flow_with_no_executions_is_skipped_rather_than_refused() {
+        let mut realm = match json!({
+            "authenticationFlows": [
+                {"alias": "empty"},
+                {"authenticationExecutions": [
+                    {"authenticator": "a"},
+                    "not an execution",
+                ]},
+            ]
+        }) {
+            Value::Object(realm) => realm,
+            _ => unreachable!(),
+        };
+        bind_authenticator_config(&mut realm, "a", "b");
+        let flows = realm["authenticationFlows"].as_array().unwrap();
+        assert!(flows[0].get("authenticationExecutions").is_none());
+        assert_eq!(
+            flows[1]["authenticationExecutions"][0]["authenticatorConfig"],
+            json!("b")
+        );
+    }
+
+    #[test]
+    fn a_label_cell_may_hold_one_label_or_several() {
+        assert_eq!(labels_of(None), Vec::<String>::new());
+        assert_eq!(labels_of(Some(&Value::Null)), Vec::<String>::new());
+        assert_eq!(labels_of(Some(&json!("  "))), Vec::<String>::new());
+        assert_eq!(labels_of(Some(&json!(" board "))), vec!["board"]);
+        assert_eq!(labels_of(Some(&json!(7))), vec!["7"]);
+        assert_eq!(labels_of(Some(&json!(["a", " ", " b "]))), vec!["a", "b"]);
+    }
+
+    #[test]
+    fn aliases_are_read_only_where_they_are_text() {
+        assert_eq!(
+            aliases_of(
+                Some(&json!([{"alias": "x"}, {"alias": 3}, {}, "y"])),
+                "alias"
+            ),
+            vec!["x"]
+        );
+        assert!(aliases_of(Some(&json!({"alias": "x"})), "alias").is_empty());
+        assert!(aliases_of(None, "alias").is_empty());
+    }
+
+    #[test]
     fn binding_a_realm_with_no_flows_does_nothing_rather_than_panicking() {
         let mut realm = Map::new();
         bind_authenticator_config(&mut realm, "a", "b");

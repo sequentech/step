@@ -2789,3 +2789,566 @@ fn a_workbook_that_says_nothing_about_revotes_allows_one_vote() {
 
     assert_eq!(bundle.export["elections"][0]["num_allowed_revotes"], 1);
 }
+
+// -- the realm, where the base export is not the shape a preset assumes ------
+
+/// `base_realm()` with its user-profile component replaced (or removed, for `None`).
+fn realm_with_profile(component: Option<Value>) -> Value {
+    let mut realm = base_realm();
+    match component {
+        Some(component) => {
+            realm["components"]
+                ["org.keycloak.userprofile.UserProfileProvider"] =
+                json!([component]);
+        }
+        None => {
+            realm.as_object_mut().unwrap().remove("components");
+        }
+    }
+    realm
+}
+
+/// The sound document with a census carrying one column of the client's own.
+fn with_census_column() -> Workbook {
+    with_sheet(
+        "Voters",
+        vec![
+            vec![
+                text("username"),
+                text("area.external_id"),
+                text("seniority"),
+            ],
+            vec![text("ada"), text("area-north"), text("1998")],
+        ],
+    )
+}
+
+/// The sound document asking for the date-of-birth preset, which patches the
+/// realm's user profile.
+fn with_dob_preset() -> Workbook {
+    with_sheet(
+        "Parameters",
+        vec![
+            vec![text("type"), text("key"), text("value")],
+            vec![
+                text("settings"),
+                text("auth_type"),
+                text("voter_link_plus_dob"),
+            ],
+        ],
+    )
+}
+
+fn over(workbook: &Workbook, realm: Value) -> Result<Bundle, Report> {
+    let templates = TemplateSet::builtin().unwrap();
+    build(
+        workbook,
+        &templates,
+        &BuildOptions {
+            base_export: Some(json!({"keycloak_event_realm": realm})),
+            ..BuildOptions::default()
+        },
+        &Sources::default(),
+    )
+}
+
+fn warned(bundle: &Bundle, fragment: &str) -> bool {
+    bundle
+        .warnings
+        .warnings()
+        .any(|problem| problem.message.contains(fragment))
+}
+
+fn declared_profile(bundle: &Bundle) -> Value {
+    let raw = &bundle.export["keycloak_event_realm"]["components"]
+        ["org.keycloak.userprofile.UserProfileProvider"][0]["config"]
+        ["kc.user.profile.config"];
+    let text = match raw {
+        Value::Array(items) => items[0].as_str().unwrap().to_string(),
+        Value::String(text) => text.clone(),
+        other => panic!("not a profile: {other}"),
+    };
+    serde_json::from_str(&text).unwrap()
+}
+
+#[test]
+fn a_census_column_with_no_user_profile_to_declare_it_in_is_named() {
+    let bundle = over(&with_census_column(), realm_with_profile(None))
+        .expect("a warning, not a refusal");
+    assert!(
+        warned(&bundle, "no user profile component, so the census's own columns (seniority)"),
+        "{:?}",
+        bundle.warnings
+    );
+}
+
+#[test]
+fn a_census_column_is_declared_in_a_profile_written_as_bare_text() {
+    let bundle = over(
+        &with_census_column(),
+        realm_with_profile(Some(json!({"config": {
+            "kc.user.profile.config": r#"{"attributes":[{"name":"username"}]}"#
+        }}))),
+    )
+    .expect("builds");
+    let profile = declared_profile(&bundle);
+    let names: Vec<&str> = profile["attributes"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|attribute| attribute["name"].as_str().unwrap())
+        .collect();
+    assert_eq!(names, ["username", "seniority"]);
+}
+
+#[test]
+fn a_census_column_already_declared_is_not_declared_twice() {
+    let bundle = over(
+        &with_census_column(),
+        realm_with_profile(Some(json!({"config": {
+            "kc.user.profile.config": [
+                r#"{"attributes":[{"name":"username"},{"name":"seniority","displayName":"Years"}]}"#
+            ]
+        }}))),
+    )
+    .expect("builds");
+    let profile = declared_profile(&bundle);
+    let attributes = profile["attributes"].as_array().unwrap();
+    assert_eq!(attributes.len(), 2);
+    assert_eq!(
+        attributes[1]["displayName"],
+        json!("Years"),
+        "left as it was"
+    );
+}
+
+#[test]
+fn an_unreadable_profile_is_left_alone_by_the_census() {
+    // `patch_user_profile` is the one that reports it; with no preset nothing
+    // does, and the census does not invent a profile.
+    for config in [json!("{not json"), json!(7)] {
+        let bundle = over(
+            &with_census_column(),
+            realm_with_profile(Some(json!({"config": {
+                "kc.user.profile.config": config.clone()
+            }}))),
+        )
+        .expect("builds");
+        assert_eq!(
+            bundle.export["keycloak_event_realm"]["components"]
+                ["org.keycloak.userprofile.UserProfileProvider"][0]["config"]
+                ["kc.user.profile.config"],
+            config
+        );
+    }
+}
+
+#[test]
+fn a_preset_with_no_user_profile_to_patch_says_so() {
+    let bundle = over(&with_dob_preset(), realm_with_profile(None))
+        .expect("a warning, not a refusal");
+    assert!(
+        warned(&bundle, "could not set which login fields are typeable"),
+        "{:?}",
+        bundle.warnings
+    );
+}
+
+#[test]
+fn a_preset_over_an_empty_profile_component_says_so() {
+    for config in [json!({}), json!({"kc.user.profile.config": 3})] {
+        let bundle = over(
+            &with_dob_preset(),
+            realm_with_profile(Some(json!({ "config": config }))),
+        )
+        .expect("a warning, not a refusal");
+        assert!(
+            warned(&bundle, "user profile component is empty"),
+            "{:?}",
+            bundle.warnings
+        );
+    }
+}
+
+#[test]
+fn a_preset_over_a_profile_that_is_not_json_refuses_the_build() {
+    let report = over(
+        &with_dob_preset(),
+        realm_with_profile(Some(json!({"config": {
+            "kc.user.profile.config": "{not json"
+        }}))),
+    )
+    .expect_err("the preset cannot be applied to a profile nobody can read");
+    assert!(has_error_saying(&report, "not readable JSON"));
+}
+
+#[test]
+fn a_preset_over_a_profile_with_no_attributes_says_so() {
+    let bundle = over(
+        &with_dob_preset(),
+        realm_with_profile(Some(json!({"config": {
+            "kc.user.profile.config": r#"{"groups": []}"#
+        }}))),
+    )
+    .expect("a warning, not a refusal");
+    assert!(
+        warned(&bundle, "lists no attributes"),
+        "{:?}",
+        bundle.warnings
+    );
+}
+
+#[test]
+fn a_preset_named_by_the_caller_wins_and_an_unknown_one_is_refused_there() {
+    let templates = TemplateSet::builtin().unwrap();
+    let bundle = build(
+        &sound(),
+        &templates,
+        &BuildOptions {
+            auth_preset: Some("  otp_email_or_sms ".to_string()),
+            ..BuildOptions::default()
+        },
+        &Sources::default(),
+    )
+    .expect("builds");
+    assert_eq!(bundle.auth_preset, Some("otp_email_or_sms"));
+
+    let report = build(
+        &sound(),
+        &templates,
+        &BuildOptions {
+            auth_preset: Some("carrier-pigeon".to_string()),
+            ..BuildOptions::default()
+        },
+        &Sources::default(),
+    )
+    .expect_err("no such preset");
+    let problem = report
+        .problems
+        .iter()
+        .find(|problem| problem.message.contains("'carrier-pigeon'"))
+        .expect("the preset is named");
+    assert_eq!(problem.at.as_ref().unwrap().sheet, "auth preset option");
+}
+
+#[test]
+fn realm_parameters_that_contradict_each_other_are_refused() {
+    for prefix in ["keycloak_event_realm", "keycloak_admin_realm"] {
+        let report = refused(&with_sheet(
+            "Parameters",
+            vec![
+                vec![text("type"), text("key"), text("value")],
+                vec![
+                    text("settings"),
+                    text(&format!("{prefix}.displayName")),
+                    text("Union"),
+                ],
+                vec![
+                    text("settings"),
+                    text(&format!("{prefix}.displayName.en")),
+                    text("Union"),
+                ],
+            ],
+        ));
+        assert!(report.has_errors(), "{prefix}: {report}");
+    }
+}
+
+#[test]
+fn a_permission_label_on_many_elections_lists_the_first_four() {
+    let mut rows = vec![vec![
+        text("external_id"),
+        text("presentation.i18n.en.name"),
+        text("permission_label"),
+    ]];
+    for n in 1..=6 {
+        rows.push(vec![
+            text(&format!("e{n}")),
+            text(&format!("Election {n}")),
+            text("board"),
+        ]);
+    }
+    // The sound contest points at `statewide`, so that one stays: seven in all.
+    rows.push(vec![text("statewide"), text("Statewide"), text("board")]);
+
+    let bundle = built(&with_sheet("Elections", rows));
+    assert!(
+        warned(
+            &bundle,
+            "and 3 more, and this document grants no permission labels"
+        ),
+        "{:?}",
+        bundle.warnings
+    );
+}
+
+#[test]
+fn a_base_exports_many_inherited_settings_are_listed_with_a_count() {
+    let english: serde_json::Map<String, Value> = (1..=8)
+        .map(|n| (format!("copy_{n}"), json!(format!("Text {n}"))))
+        .collect();
+    let mut presentation: serde_json::Map<String, Value> = (1..=10)
+        .map(|n| (format!("setting_{n}"), json!(n)))
+        .collect();
+    presentation.insert("i18n".to_string(), json!({"en": english}));
+    // Empty values are not settings anybody inherits.
+    presentation.insert("blank".to_string(), json!(""));
+    presentation.insert("nothing".to_string(), Value::Null);
+    presentation.insert("empty_map".to_string(), json!({}));
+    presentation.insert("empty_list".to_string(), json!([]));
+
+    let bundle = with_options(
+        &sound(),
+        BuildOptions {
+            base_export: Some(json!({
+                "election_event": {"presentation": presentation},
+            })),
+            ..BuildOptions::default()
+        },
+    );
+    assert!(
+        warned(&bundle, "and 2 more. Use a reference event"),
+        "{:?}",
+        bundle.warnings
+    );
+    assert!(warned(&bundle, " and 2 more"), "{:?}", bundle.warnings);
+    assert!(
+        !bundle
+            .warnings
+            .warnings()
+            .any(|problem| problem.message.contains("empty_map")
+                || problem.message.contains("blank")),
+        "{:?}",
+        bundle.warnings
+    );
+}
+
+// -- smaller refusals and pass-throughs in the builder -----------------------
+
+#[test]
+fn a_support_material_with_no_identifier_is_refused() {
+    let report = refused(&with_sheet(
+        "Materials",
+        vec![
+            vec![text("external_id"), text("kind"), text("file")],
+            vec![Cell::Blank, text("PDF"), text("guide.pdf")],
+        ],
+    ));
+    assert!(
+        report
+            .problems
+            .iter()
+            .any(|problem| problem.id.as_deref()
+                == Some("material.no-identifier")),
+        "{report}"
+    );
+}
+
+#[test]
+fn a_spoken_prompt_reaches_the_candidate_as_a_string_and_an_empty_one_does_not()
+{
+    let bundle = built(&with_sheet(
+        "Candidates",
+        vec![
+            vec![
+                text("external_id"),
+                text("contest.external_id"),
+                text("presentation.i18n.en.name"),
+                text(IVR_I18N_COLUMN),
+                text("annotations.note"),
+            ],
+            vec![
+                text("alice"),
+                text("president"),
+                text("Alice"),
+                text(r#"{"en": {"prompt": "Press one"}}"#),
+                text("kept"),
+            ],
+            vec![
+                text("bob"),
+                text("president"),
+                text("Bob"),
+                text("  Press two  "),
+                Cell::Blank,
+            ],
+            vec![
+                text("carol"),
+                text("president"),
+                text("Carol"),
+                text("{}"),
+                Cell::Blank,
+            ],
+        ],
+    ));
+    let candidates = bundle.export["candidates"].as_array().unwrap();
+    let by_id = |id: &str| {
+        candidates
+            .iter()
+            .find(|candidate| candidate["external_id"] == json!(id))
+            .unwrap()
+    };
+
+    let alice = &by_id("alice")["annotations"];
+    let prompt: Value =
+        serde_json::from_str(alice["ivr:i18n"].as_str().unwrap()).unwrap();
+    assert_eq!(prompt["en"]["prompt"], json!("Press one"));
+    assert_eq!(
+        alice["note"],
+        json!("kept"),
+        "the row's own annotations stay"
+    );
+    assert_eq!(by_id("bob")["annotations"]["ivr:i18n"], json!("Press two"));
+    assert!(by_id("carol")
+        .get("annotations")
+        .and_then(|annotations| annotations.get("ivr:i18n"))
+        .is_none());
+}
+
+#[test]
+fn a_parameter_nothing_reads_is_carried_as_text_whatever_it_was() {
+    let bundle = built(&with_sheet(
+        "Parameters",
+        vec![
+            vec![text("type"), text("key"), text("value")],
+            vec![Cell::Blank, text("seats_per_table"), Cell::Int(42)],
+        ],
+    ));
+    assert_eq!(
+        bundle.export["election_event"]["annotations"]
+            ["janitor.param.event.seats_per_table"],
+        json!("42")
+    );
+}
+
+#[test]
+fn the_tenant_comes_from_the_parameters_or_else_the_base_export() {
+    let from_sheet = built(&with_sheet(
+        "Parameters",
+        vec![
+            vec![text("type"), text("key"), text("value")],
+            vec![
+                text("settings"),
+                text("tenant_id"),
+                text("22222222-2222-4222-8222-222222222222"),
+            ],
+        ],
+    ));
+    assert_eq!(from_sheet.tenant_id, "22222222-2222-4222-8222-222222222222");
+
+    let from_base = with_options(
+        &sound(),
+        BuildOptions {
+            base_export: Some(json!({
+                "tenant_id": "33333333-3333-4333-8333-333333333333"
+            })),
+            ..BuildOptions::default()
+        },
+    );
+    assert_eq!(from_base.tenant_id, "33333333-3333-4333-8333-333333333333");
+
+    // A blank one in the base is no answer.
+    let derived = with_options(
+        &sound(),
+        BuildOptions {
+            base_export: Some(json!({"tenant_id": ""})),
+            ..BuildOptions::default()
+        },
+    );
+    assert_eq!(derived.tenant_id, built(&sound()).tenant_id);
+}
+
+#[test]
+fn event_parameters_that_contradict_each_other_are_refused() {
+    let report = refused(&with_sheet(
+        "Parameters",
+        vec![
+            vec![text("type"), text("key"), text("value")],
+            vec![
+                text("settings"),
+                text("election_event.presentation.theme"),
+                text("dark"),
+            ],
+            vec![
+                text("settings"),
+                text("election_event.presentation.theme.name"),
+                text("dark"),
+            ],
+        ],
+    ));
+    assert!(report.has_errors(), "{report}");
+}
+
+#[test]
+fn the_events_telephone_columns_join_the_annotations_it_already_has() {
+    let mut sheets: Vec<Sheet> = sound()
+        .sheets()
+        .iter()
+        .filter(|sheet| sheet.name != "ElectionEvent")
+        .cloned()
+        .collect();
+    sheets.push(
+        Sheet::from_grid(
+            "ElectionEvent",
+            &[
+                vec![
+                    text("external_id"),
+                    text("presentation.i18n.en.name"),
+                    text("annotations.owner"),
+                    text(IVR_PHONE_COLUMN),
+                    text(IVR_PROMPTS_COLUMN),
+                    text(IVR_CONFIG_COLUMN),
+                ],
+                vec![
+                    text("union-2027"),
+                    text("Union Election 2027"),
+                    text("returning-officer"),
+                    text(" +1 555 0100 "),
+                    text("null"),
+                    text(r#"{"assistance_phone": "+1 555 0199"}"#),
+                ],
+            ],
+        )
+        .unwrap(),
+    );
+    let bundle = built(&Workbook::new(sheets).unwrap());
+    let annotations = &bundle.export["election_event"]["annotations"];
+    assert_eq!(annotations["owner"], json!("returning-officer"));
+    assert_eq!(annotations["ivr:phone-number"], json!("+1 555 0100"));
+    assert!(
+        annotations.get("ivr:prompts").is_none(),
+        "null is no prompts"
+    );
+    let config: Value =
+        serde_json::from_str(annotations["ivr:config"].as_str().unwrap())
+            .unwrap();
+    assert_eq!(config["assistance_phone"], json!("+1 555 0199"));
+}
+
+#[test]
+fn an_area_with_no_identifier_is_refused_and_the_rest_still_read() {
+    let report = refused(&with_sheet(
+        "Areas",
+        vec![
+            vec![text("external_id"), text("name")],
+            vec![text("area-north"), text("North")],
+            vec![text("area-south"), text("South")],
+            vec![Cell::Blank, text("Nowhere")],
+        ],
+    ));
+    let problem = report
+        .problems
+        .iter()
+        .find(|problem| {
+            problem.message.contains("an area needs an external_id")
+        })
+        .unwrap_or_else(|| panic!("{report}"));
+    assert_eq!(problem.at.as_ref().unwrap().row, Some(4));
+}
+
+#[test]
+fn a_reference_cell_holding_null_is_no_reference() {
+    assert_eq!(value_as_text(&Value::Null), "");
+    assert_eq!(value_as_text(&json!("x")), "x");
+    assert_eq!(value_as_text(&json!(1001)), "1001");
+    assert_eq!(value_as_text(&json!(true)), "true");
+}
