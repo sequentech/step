@@ -89,6 +89,12 @@ export class FakePinIvrDriver extends FakeIvrDriver {
         if (this.pin === "given") super.send_input(input)
         else this.pin = "given"
     }
+
+    send_timeout(): void {
+        // Silence at the PIN asks for it again, as the real flow does.
+        if (this.pin === "given") super.send_timeout()
+        else this.pin = "asking"
+    }
 }
 
 export const fakeIvrEmulator: IvrEmulatorApi = {IvrEmulatorDriver: FakeIvrDriver}

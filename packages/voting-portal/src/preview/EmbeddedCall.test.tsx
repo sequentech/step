@@ -95,6 +95,18 @@ test("a prompt that takes any digits says so rather than listing no keys", async
     expect(keypad).toHaveAttribute("placeholder", "Up to 1 of 1, within 10s")
 })
 
+test("silence at the PIN asks for it again", async () => {
+    placed({}, async () => ({IvrEmulatorDriver: FakePinIvrDriver}))
+    await screen.findByText("Enter your 8-digit PIN.")
+    await userEvent.click(screen.getByRole("button", {name: "Say nothing"}))
+    await waitFor(() => expect(screen.getAllByText("Enter your 8-digit PIN.")).toHaveLength(2))
+    expect(screen.queryByText("Press 1 to hear your ballot.")).toBeNull()
+    expect(screen.getByRole("textbox", {name: "Keys to press"})).toHaveAttribute(
+        "placeholder",
+        "Up to 8 digits, within 5s"
+    )
+})
+
 test("a framing tool's words for any digits are used too", async () => {
     placed(
         {
