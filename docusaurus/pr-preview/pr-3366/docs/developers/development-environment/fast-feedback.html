@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Fast feedback loops | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-3366/docs/developers/development-environment/fast-feedback"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Fast feedback loops | Sequent Online Voting"><meta data-rh="true" name="description" content="--&gt;"><meta data-rh="true" property="og:description" content="--&gt;"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-3366/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3366/docs/developers/development-environment/fast-feedback"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3366/docs/developers/development-environment/fast-feedback" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3366/docs/developers/development-environment/fast-feedback" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Fast feedback loops","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-3366/docs/developers/development-environment/fast-feedback"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-3366/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/pr-preview/pr-3366/assets/js/runtime~main.907bdf94.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-3366/assets/js/runtime~main.0162f8f1.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-3366/assets/js/main.68bbb634.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -168,18 +168,31 @@ shown when the portal loader rejects a snapshot.</p>
 such as beyond&#x27;s Election Architect. <code>EmbeddedPreview</code> in
 <code>packages/voting-portal/src/preview/</code> renders the production event routes inside the
 portal chrome (<code>components/PortalChrome.tsx</code>: header, footer, watermark and the
-event&#x27;s stylesheet) in the publication preview&#x27;s demo mode. The framing window talks
-to it with <code>postMessage</code> (<code>preview/embed.ts</code>, protocol <code>sequent.voter-preview</code>,
-version 1):</p>
-<table><thead><tr><th>Message</th><th>Direction</th><th>Fields</th></tr></thead><tbody><tr><td><code>ready</code></td><td>embed to parent</td><td>sent on load; the parent then sends <code>show</code></td></tr><tr><td><code>show</code></td><td>parent to embed</td><td><code>document</code> (a publication preview document), <code>areaId</code>, <code>screen</code>, optional <code>electionId</code>, <code>language</code> and <code>channel</code>; opens a new voter session</td></tr><tr><td><code>shown</code></td><td>embed to parent</td><td><code>screen</code> (when it is a preview screen) and <code>path</code>, after <code>show</code> and after each navigation by the voter</td></tr><tr><td><code>failed</code></td><td>embed to parent</td><td><code>issues</code>, for a malformed <code>show</code> or a document the portal loader rejects</td></tr></tbody></table>
+event&#x27;s stylesheet) in the publication preview&#x27;s demo mode. It also places telephone
+calls: <code>EmbeddedCall</code> runs the IVR emulator the framing tool serves through
+<code>ui-essentials</code>&#x27; <code>IvrCall</code>, the component the Admin Portal&#x27;s emulator uses. The framing
+window talks to it with <code>postMessage</code> (<code>preview/embed.ts</code>, protocol
+<code>sequent.voter-preview</code>, version 2):</p>
+<table><thead><tr><th>Message</th><th>Direction</th><th>Fields</th></tr></thead><tbody><tr><td><code>ready</code></td><td>embed to parent</td><td>sent on load; the parent then sends <code>show</code> or <code>call</code></td></tr><tr><td><code>show</code></td><td>parent to embed</td><td><code>document</code> (a publication preview document), <code>areaId</code>, <code>screen</code>, optional <code>electionId</code>, <code>language</code> and <code>channel</code>; opens a new voter session</td></tr><tr><td><code>shown</code></td><td>embed to parent</td><td><code>screen</code> (when it is a preview screen) and <code>path</code>, after <code>show</code> and after each navigation by the voter</td></tr><tr><td><code>call</code></td><td>parent to embed</td><td><code>config</code> (what the IVR Lambda is given: the event, the open ballot styles, the caller), <code>emulatorUrl</code> (absolute base URL of the wasm-bindgen output) and optional <code>labels</code> in the parent&#x27;s language; places a new call</td></tr><tr><td><code>calling</code></td><td>embed to parent</td><td><code>status</code>: <code>loading</code>, then <code>IvrCall</code>&#x27;s <code>Running</code>, <code>ExpectingInput</code> or <code>Disconnected</code>, or <code>absent</code> when nothing is served at <code>emulatorUrl</code></td></tr><tr><td><code>failed</code></td><td>embed to parent</td><td><code>issues</code>, for a malformed request, a document the portal loader rejects, or an emulator that does not start</td></tr></tbody></table>
 <p>The embed only reads messages from its parent window and replies to that window&#x27;s
-origin. During development a framing tool points at the dev server
+origin. Its network guard admits same-origin reads and the two emulator files a <code>call</code>
+names, which may live at the framing tool&#x27;s origin. The demo watermark is bundled, so
+it also shows when the embed is served below another path. During development a framing tool points at the dev server
 (<code>http://127.0.0.1:5173/embed.html</code>), so portal edits reload inside it. <code>vite build</code>
 writes both pages to <code>packages/workbench/dist/</code> with relative URLs, and the
 <code>build_wasm</code> workflow uploads that directory as the <code>voter-preview</code> artifact beside
-<code>sequent-election-config-wasm</code>. The story <code>embedded-voter-preview--vote</code> shows a
-screen inside the chrome, and <code>yarn --cwd packages/workbench test:smoke tests/embed.spec.ts</code>
-drives the messages from a framing page.</p>
+<code>sequent-election-config-wasm</code>, with <code>voter-wording-keys.json</code>: every wording key the
+portal draws a string for, which the Election Architect checks its overrides against.
+<code>yarn build</code> also writes <code>dist/problem-list/</code>: <code>ui-essentials</code>&#x27; <code>ProblemList</code> and
+<code>ui-core</code>&#x27;s <code>problems.*</code> sentences as one ES module (<code>src/problemList.ts</code>, built by
+<code>vite.problem-list.config.ts</code> with React, MUI and i18next left to the host, declarations
+by <code>tsconfig.problem-list.json</code>). The Election Architect imports it to show an import&#x27;s
+problems as the Admin Portal does, and gets it with the voter preview.
+The story <code>embedded-voter-preview--vote</code> shows a screen inside the chrome, the
+<code>embedded-voter-preview-telephone-call--*</code> stories a call over a stand-in emulator
+(<code>preview/fakeIvrEmulator.ts</code>), and
+<code>yarn --cwd packages/workbench test:smoke tests/embed.spec.ts</code> drives the messages
+from a framing page.</p>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="real-backend-scenarios">Real-backend scenarios<a href="#real-backend-scenarios" class="hash-link" aria-label="Direct link to Real-backend scenarios" title="Direct link to Real-backend scenarios" translate="no">​</a></h3>
 <p>When a story cannot answer the question, <code>step-dev scenario</code> brings a synthetic election
 event of its own to a named state on the checkout&#x27;s running stack (<code>mode up backend</code> or
