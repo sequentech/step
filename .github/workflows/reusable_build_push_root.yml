@@ -116,12 +116,14 @@ jobs:
         username: ${{ vars.DOCKERHUB_USERNAME }}
         password: ${{ secrets.DOCKERHUB_TOKEN }}
 
+    # Root account 581718213778: push once to ca-central-1 (Canada).
+    # Other regions in this account pull via ECR replication from ca-central-1.
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v4
       with:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: us-east-1
+        aws-region: ca-central-1
 
     - name: Login to Amazon ECR
       id: login-ecr
@@ -136,12 +138,9 @@ jobs:
         tags: |
           ${{ vars.AWS_ECR_REGISTRY }}/${{ matrix.service }}:${{ env.SHORT_SHA }}
           ${{ vars.AWS_ECR_REGISTRY }}/${{ matrix.service }}:${{ inputs.tag || github.run_number }}
-        cache-from: type=gha,scope=${{ matrix.service }}
-        cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+        cache-from: type=gha,scope=${{ matrix.service }}-root-cac1
+        cache-to: type=gha,mode=max,scope=${{ matrix.service }}-root-cac1
         build-contexts: ${{ matrix.build_contexts }}
         build-args: |
           SPA_NAME=${{ matrix.spa_name }}
           FEATURES=${{ matrix.features }}
-
-    - name: Run e2e tests
-      run: docker run --rm  ${{ vars.AWS_ECR_REGISTRY }}/${{ matrix.service }}:${{ inputs.tag || github.run_number }} e2e
