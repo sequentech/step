@@ -29,11 +29,15 @@ use serde::Serialize;
 
 /// Columns the platform derives or regenerates, so a value in the file is dropped.
 ///
-/// Mirrors `VOTER_LEADING_COLUMNS` in `build_tables.rs` for the ones a census file
-/// should not be dictating: an `id` the importer assigns, the elections a voter is
-/// authorised for, and the two flags the platform sets itself.
-const DERIVED: &[&str] =
-    &["id", "authorized-election-ids", "enabled", "email_verified"];
+/// Only the two a census file should not be dictating: an `id` the importer
+/// assigns, and the elections a voter is authorised for.
+///
+/// **`enabled` and `email_verified` are not among them.** They are account state
+/// the census owns: `build_tables` reads both from the row, defaulting only when
+/// the column is absent, and the Census screen offers them as account columns.
+/// Dropping them here turned a suspended member (`enabled=false`) back into an
+/// active one with nothing but an "Ignoring" note to say so.
+const DERIVED: &[&str] = &["id", "authorized-election-ids"];
 
 /// Only census identity, contact and area fields from a SMART TD list are kept.
 /// Membership, payroll, birth dates and addresses are deliberately not attributes.
@@ -432,12 +436,49 @@ mod tests {
         let reader =
             CensusCsv::new("username,id,enabled,email\nada,7,true,a@b.org\n")
                 .expect("header");
-        assert_eq!(reader.header().columns, vec!["username", "email"]);
+        assert_eq!(
+            reader.header().columns,
+            vec!["username", "enabled", "email"]
+        );
         assert_eq!(reader.header().notes.len(), 1);
-        assert!(reader.header().notes[0].contains("id, enabled"));
+        assert!(reader.header().notes[0].contains("Ignoring id"));
 
         let rows = all("username,id,enabled,email\nada,7,true,a@b.org\n");
-        assert_eq!(rows[0], vec!["ada".to_owned(), "a@b.org".to_owned()]);
+        assert_eq!(
+            rows[0],
+            vec!["ada".to_owned(), "true".to_owned(), "a@b.org".to_owned()]
+        );
+    }
+
+    #[test]
+    fn keeps_the_account_state_a_census_owns() {
+        // Regression: `enabled` and `email_verified` used to be dropped as
+        // "derived", so a census marking a member suspended (`enabled=false`)
+        // imported them as active, with only an "Ignoring" note to say so.
+        // `build_tables` reads both from the row; only `id` and the authorised
+        // elections are the platform's to fill in.
+        let text = "username,id,enabled,email_verified,authorized-election-ids,email\n\
+                    ada,7,false,false,x,a@b.org\n";
+        let reader = CensusCsv::new(text).expect("header");
+        assert_eq!(
+            reader.header().columns,
+            vec!["username", "enabled", "email_verified", "email"]
+        );
+        assert_eq!(reader.header().notes.len(), 1);
+        let note = &reader.header().notes[0];
+        assert!(note.contains("id, authorized-election-ids"), "{note}");
+        assert!(!note.contains("enabled"), "{note}");
+        assert!(!note.contains("email_verified"), "{note}");
+
+        assert_eq!(
+            all(text)[0],
+            vec![
+                "ada".to_owned(),
+                "false".to_owned(),
+                "false".to_owned(),
+                "a@b.org".to_owned()
+            ]
+        );
     }
 
     #[test]

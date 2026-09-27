@@ -855,7 +855,7 @@ fn voters_from_csv(
     //
     // So a column the recipe would have written is dropped on the way in and
     // derived again on the way out — the same rule `census_csv::DERIVED` follows
-    // for `id` and the two flags the platform sets itself. A password a client
+    // for `id` and the authorised elections the platform fills in. A password a client
     // *typed* is untouched, because a plan with no recipe drops nothing.
     let ours = plan.passwords.as_ref().is_some_and(|recipe| recipe.ready());
 

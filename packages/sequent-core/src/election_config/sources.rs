@@ -671,15 +671,20 @@ mod tests {
     fn the_columns_never_include_the_ones_the_platform_regenerates() {
         // `CensusCsv` drops them and says so; this asserts the trait inherits that
         // rather than re-deriving the header from raw text. A realm that declared
-        // `id` or `enabled` as a user attribute would be a realm fighting the
-        // platform's own fields.
+        // `id` as a user attribute would be a realm fighting the platform's own
+        // fields.
         let source = CsvCensus::new(
             "username,id,enabled,email_verified,authorized-election-ids,branch\nada,1,true,true,x,west\n",
             BTreeMap::new(),
         )
         .expect("reads");
 
-        assert_eq!(source.columns(), ["username", "branch"]);
+        // `enabled` and `email_verified` are account state the census owns, so
+        // they survive; only `id` and the authorised elections are dropped.
+        assert_eq!(
+            source.columns(),
+            ["username", "enabled", "email_verified", "branch"]
+        );
         assert!(!source.notes().is_empty(), "and it says why");
 
         source.rewind().expect("opens");
