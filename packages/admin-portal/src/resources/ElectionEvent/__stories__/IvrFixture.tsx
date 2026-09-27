@@ -130,6 +130,31 @@ export const IVR_SCRIPT: IvrScript = {
     ],
 }
 
+/**
+ * A call that asks for a PIN, which any digits answer: the Lambda then lists no
+ * valid inputs. Its prompts are SSML with a pause and a part in another language,
+ * as the Lambda writes them.
+ */
+export const IVR_PIN_SCRIPT: IvrScript = {
+    start: [
+        {
+            type: "ExpectInput",
+            prompt: {
+                prompt_text:
+                    '<speak>Enter your PIN<break time="500ms"/>then press hash. ' +
+                    '<lang xml:lang="es-ES">O marque su PIN</lang></speak>',
+                language: "en-US",
+                voice_id: "story-voice",
+            },
+            valid_inputs: "",
+            max_digits: 8,
+            timeout: 10,
+        },
+    ],
+    input: () => [{type: "Disconnect", prompt: prompt("PIN accepted")}],
+    timeout: [],
+}
+
 let current: {script: IvrScript; session: IvrSession} | undefined
 
 /**

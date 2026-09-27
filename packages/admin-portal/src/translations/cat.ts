@@ -782,6 +782,8 @@ const catalanTranslation: TranslationType = {
                         "No s'ha trobat cap estil de papereta publicat que coincideixi amb les vostres seleccions",
                     inputPlaceholder:
                         "Introduïu la vostra entrada (màxim de dígits={{maxDigits}}, entrades vàlides={{validInputs}}, temps d'espera={{timeout}} s)",
+                    inputPlaceholderAnyKeys:
+                        "Introduïu fins a {{maxDigits}} dígits (qualsevol dígit, temps d'espera={{timeout}} s)",
                     blacklistCaller: "Bloqueja la persona que truca",
                     elections: "Eleccions",
                     area: "Àrea",

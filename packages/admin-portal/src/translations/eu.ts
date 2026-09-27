@@ -776,6 +776,8 @@ const basqueTranslation: TranslationType = {
                         "Ez da aurkitu zure hautapenekin bat datorren argitaratutako boto-paper estilorik",
                     inputPlaceholder:
                         "Idatzi sarrera (gehienezko digitu kopurua={{maxDigits}}, baliozko sarrerak={{validInputs}}, denbora-muga={{timeout}} s)",
+                    inputPlaceholderAnyKeys:
+                        "Idatzi gehienez {{maxDigits}} digitu (edozein digitu, denbora-muga={{timeout}} s)",
                     blacklistCaller: "Blokeatu deitzailea",
                     elections: "Hauteskundeak",
                     area: "Eremua",

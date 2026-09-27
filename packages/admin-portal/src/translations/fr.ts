@@ -781,6 +781,8 @@ const frenchTranslation: TranslationType = {
                     noStylesFound: "Aucun style de bulletin publié ne correspond à vos sélections",
                     inputPlaceholder:
                         "Saisissez votre entrée (nombre maximal de chiffres={{maxDigits}}, entrées valides={{validInputs}}, délai d'expiration={{timeout}} s)",
+                    inputPlaceholderAnyKeys:
+                        "Saisissez jusqu'à {{maxDigits}} chiffres (n'importe quels chiffres, délai d'expiration={{timeout}} s)",
                     blacklistCaller: "Bloquer l'appelant",
                     elections: "Élections",
                     area: "Zone",

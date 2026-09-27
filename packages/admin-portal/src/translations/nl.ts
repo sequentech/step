@@ -780,6 +780,8 @@ const dutchTranslation: TranslationType = {
                         "Geen gepubliceerde stembiljetstijlen gevonden die overeenkomen met uw selecties",
                     inputPlaceholder:
                         "Voer uw invoer in (maximaal aantal cijfers={{maxDigits}}, geldige invoer={{validInputs}}, time-out={{timeout}} sec.)",
+                    inputPlaceholderAnyKeys:
+                        "Voer maximaal {{maxDigits}} cijfers in (willekeurige cijfers, time-out={{timeout}} sec.)",
                     blacklistCaller: "Beller blokkeren",
                     elections: "Verkiezingen",
                     area: "Gebied",

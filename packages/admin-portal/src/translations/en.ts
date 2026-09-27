@@ -771,6 +771,8 @@ const englishTranslation = {
                     noStylesFound: "No published ballot styles found matching your selections",
                     inputPlaceholder:
                         "Enter your input (max digits={{maxDigits}}, valid inputs={{validInputs}}, timeout={{timeout}}s)",
+                    inputPlaceholderAnyKeys:
+                        "Enter up to {{maxDigits}} digits (any digits, timeout={{timeout}}s)",
                     blacklistCaller: "Blocklist the caller",
                     elections: "Elections",
                     area: "Area",

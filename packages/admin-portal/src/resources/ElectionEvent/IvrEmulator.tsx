@@ -20,6 +20,7 @@ import SelectArea from "@/components/area/SelectArea"
 import {useFormContext, useWatch} from "react-hook-form"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 import {FormStyles} from "@/components/styles/FormStyles"
+import {ivrKeypadHint} from "@/utils/ivrKeypadHint"
 
 const CALLER_NUMBER = "+1234567890"
 
@@ -257,13 +258,7 @@ export const IvrEmulator: React.FC = () => {
                                     onStatusChange={(status) =>
                                         emulatorStatus && setEmulatorStatus(status)
                                     }
-                                    placeholder={(expected) =>
-                                        t("electionEventScreen.ivr.emulator.inputPlaceholder", {
-                                            maxDigits: expected.max_digits,
-                                            validInputs: expected.valid_inputs,
-                                            timeout: expected.timeout,
-                                        })
-                                    }
+                                    placeholder={(expected) => ivrKeypadHint(t, expected)}
                                     inputLabel={t("electionEventScreen.ivr.emulator.keypadInput")}
                                     timeoutLabel={t("electionEventScreen.ivr.emulator.sendTimeout")}
                                     sendLabel={t("electionEventScreen.ivr.emulator.sendDtmf")}

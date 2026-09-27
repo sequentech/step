@@ -1,7 +1,11 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import type {IvrCallStatus, IvrEmulatorConfig} from "@sequentech/ui-essentials"
+import {
+    keypadHint as sharedKeypadHint,
+    type IvrCallStatus,
+    type IvrEmulatorConfig,
+} from "@sequentech/ui-essentials"
 import {DEMO_PUBLIC_KEY} from "@sequentech/ui-test-kit/fixtures"
 import {
     previewIssues,
@@ -274,52 +278,21 @@ export const fillLabel = (template: string, values: Record<string, string | numb
         name in values ? String(values[name]) : whole
     )
 
-/** Digits by their value (`0`, `1`, `01`, `10`), then the keypad's symbols (`*`, `#`). */
-const byKey = (a: string, b: string): number => {
-    const digits = /^\d+$/
-    if (digits.test(a) !== digits.test(b)) return digits.test(a) ? -1 : 1
-    return digits.test(a) ? Number(a) - Number(b) || a.localeCompare(b) : a.localeCompare(b)
-}
-
 /**
- * The keys a prompt accepts, as somebody would say them: "0, 1 or 2".
- *
- * The Lambda sends them comma-separated in no particular order ("2,1" for a language
- * menu), each padded to the prompt's length ("01,00,03").
- */
-export const keyList = (validInputs: string, or: string): string => {
-    const keys = [
-        ...new Set(
-            validInputs
-                .split(",")
-                .map((key) => key.trim())
-                .filter(Boolean)
-        ),
-    ].sort(byKey)
-    const last = keys.pop()
-    if (last === undefined) return ""
-    return keys.length ? `${keys.join(", ")} ${or} ${last}` : last
-}
-
-/**
- * What the keypad says while the call waits for keys.
- *
- * The Lambda lists the keys a prompt accepts, or none when any digits will do (a PIN, up
- * to `max_digits`); filling the list into "Up to 8 of …" then leaves "Up to 8 of ,".
+ * What the keypad says while the call waits for keys, in a framing tool's words:
+ * `placeholderAnyKeys` when the Lambda lists no keys because any digits will do, and
+ * its `or` between the last two of the keys a prompt names.
  */
 export const keypadHint = (
     labels: Required<Pick<CallLabels, "placeholder" | "placeholderAnyKeys">> &
         Pick<CallLabels, "or">,
     expected: {valid_inputs: string; max_digits: number; timeout: number}
-): string => {
-    const keys = keyList(expected.valid_inputs, labels.or ?? "or")
-    return fillLabel(keys ? labels.placeholder : labels.placeholderAnyKeys, {
-        maxDigits: expected.max_digits,
-        keys,
-        validInputs: expected.valid_inputs,
-        timeout: expected.timeout,
+): string =>
+    sharedKeypadHint(expected, {
+        listed: (values) => fillLabel(labels.placeholder, values),
+        anyKeys: (values) => fillLabel(labels.placeholderAnyKeys, values),
+        or: labels.or,
     })
-}
 
 /**
  * The document, with the demo key where it has the core's stand-in.
