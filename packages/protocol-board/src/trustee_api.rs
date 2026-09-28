@@ -87,7 +87,10 @@ mod tests {
     use serde_json::json;
 
     const DKG_NAME: &str = "dkg_d9792af071b849528aac94bc0fead5f7";
-    const TALLY_NAME: &str = "tally_1";
+    /// The platform mints no tally board names yet, so the tally rows here
+    /// carry a DKG board name; a row's kind comes from its lineage, not its
+    /// name.
+    const TALLY_NAME: &str = "dkg_0f6a3b2c9d8e4f10a1b2c3d4e5f60718";
 
     fn row(name: &str, parent_id: Option<&str>) -> ProtocolBoard {
         ProtocolBoard {
@@ -148,7 +151,7 @@ mod tests {
     }
 
     #[test]
-    fn a_name_the_board_service_would_refuse_is_an_error() {
+    fn a_name_the_platform_does_not_mint_is_an_error() {
         let error = refusal(&row("../dkg", None), None);
         assert!(error.contains("../dkg"), "{error}");
 
@@ -201,7 +204,7 @@ mod tests {
     }
 
     #[test]
-    fn a_report_about_a_name_the_board_service_would_refuse_is_not_read() {
+    fn a_report_about_a_name_the_platform_does_not_mint_is_not_read() {
         let report = json!({
             "board": "../dkg",
             "kind": "HALTED",

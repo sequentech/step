@@ -6,16 +6,13 @@
 
 use std::fmt;
 
-use anyhow::{bail, Result};
+use anyhow::{Context as _, Result};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 /// Board names of a keys ceremony's distributed key generation start with
 /// this.
 const DKG_BOARD_PREFIX: &str = "dkg_";
-
-/// The longest board name the board service accepts, in bytes.
-const MAX_BOARD_NAME_BYTES: usize = 255;
 
 /// The name of one board on the board service.
 #[derive(
@@ -33,28 +30,17 @@ impl BoardName {
         ))
     }
 
-    /// A board name as the board service accepts it: not empty, at most 255
-    /// bytes, and nothing but alphanumerics, `-` and `_`.
+    /// A name `for_dkg` would have minted. The trustee turns board names
+    /// into file names and URL path segments, so names read from rows or
+    /// JSON are held to the platform's own naming.
     pub fn parse(name: &str) -> Result<BoardName> {
-        if name.is_empty() {
-            bail!("a board name cannot be empty");
-        }
-        if name.len() > MAX_BOARD_NAME_BYTES {
-            bail!(
-                "board name {name:?} is longer than {MAX_BOARD_NAME_BYTES} \
-                 bytes"
-            );
-        }
-        if !name
-            .chars()
-            .all(|c| c.is_alphanumeric() || c == '-' || c == '_')
-        {
-            bail!(
-                "board name {name:?} holds characters other than \
-                 alphanumerics, '-' and '_'"
-            );
-        }
-        Ok(BoardName(name.to_string()))
+        name.strip_prefix(DKG_BOARD_PREFIX)
+            .and_then(|id| Uuid::parse_str(id).ok())
+            .map(|id| BoardName::for_dkg(&id))
+            .filter(|board| board.as_str() == name)
+            .with_context(|| {
+                format!("{name:?} is not a board name the platform mints")
+            })
     }
 
     pub fn as_str(&self) -> &str {
@@ -110,38 +96,35 @@ mod tests {
     }
 
     #[test]
-    fn a_board_name_is_what_the_board_service_accepts() {
-        // The board service counts the length in bytes, not in characters.
-        let longest = "a".repeat(255);
-        let longest_accented = "é".repeat(127);
-        for accepted in [
-            "dkg-1_tally",
-            "a",
-            longest.as_str(),
-            longest_accented.as_str(),
-            "tallyÑ2",
-        ] {
-            assert_eq!(BoardName::parse(accepted).unwrap().as_str(), accepted);
+    fn a_minted_board_name_parses_back_to_itself() {
+        for id in [Uuid::nil(), Uuid::from_u128(u128::MAX), Uuid::new_v4()] {
+            let dkg = BoardName::for_dkg(&id);
+            assert_eq!(BoardName::parse(dkg.as_str()).unwrap(), dkg);
         }
+    }
 
-        let too_long = "a".repeat(256);
-        let too_long_accented = "é".repeat(128);
+    #[test]
+    fn only_a_minted_board_name_parses() {
+        let id =
+            Uuid::parse_str("d9792af0-71b8-4952-8aac-94bc0fead5f7").unwrap();
+        let simple = id.as_simple().to_string();
         for refused in [
-            "",
-            too_long.as_str(),
-            too_long_accented.as_str(),
-            "a/b",
-            "a b",
-            "a.b",
-            "../x",
-            "dkg\n",
-            "a%2Fb",
+            String::new(),
+            DKG_BOARD_PREFIX.to_string(),
+            simple.clone(),
+            format!("tally_{simple}"),
+            format!("DKG_{simple}"),
+            format!("dkg_{}", id.hyphenated()),
+            format!("dkg_{}", id.braced()),
+            format!("dkg_{}", simple.to_uppercase()),
+            format!("dkg_{}", &simple[1..]),
+            format!("dkg_{simple}0"),
+            format!("dkg_{simple}\n"),
+            format!("dkg_{simple}/../x"),
+            "../x".to_string(),
         ] {
-            assert!(BoardName::parse(refused).is_err(), "{refused:?}");
+            assert!(BoardName::parse(&refused).is_err(), "{refused:?}");
         }
-
-        let dkg = BoardName::for_dkg(&Uuid::new_v4());
-        assert_eq!(BoardName::parse(dkg.as_str()).unwrap(), dkg);
     }
 
     #[test]
