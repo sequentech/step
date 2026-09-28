@@ -5,6 +5,7 @@
 mod aws_secret_manager;
 mod env_var_master_secret;
 mod hashicorp_vault;
+mod strand_layout_shim;
 pub mod vault;
 
 pub use vault::*;

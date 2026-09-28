@@ -6,14 +6,12 @@ use crate::postgres::secret::{get_secret_by_id, get_secret_by_key, insert_secret
 use crate::services::electoral_log::ElectoralLog;
 use crate::services::vault::{
     aws_secret_manager::AwsSecretManager, env_var_master_secret::EnvVarMasterSecret,
-    hashicorp_vault::HashiCorpVault,
+    hashicorp_vault::HashiCorpVault, strand_layout_shim,
 };
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
-use cryptography::utils::serialization::{Deserializable, Serializable};
-use cryptography::utils::symm::{
-    decrypt, encrypt, gen_key, sk_from_bytes, EncryptionData, SymmetricKey,
-};
+use cryptography::utils::serialization::Serializable;
+use cryptography::utils::symm::{decrypt, encrypt, gen_key, sk_from_bytes, SymmetricKey};
 use deadpool_postgres::Transaction;
 use std::str::FromStr;
 use strand::signature::{StrandSignaturePk, StrandSignatureSk};
@@ -147,8 +145,8 @@ pub async fn save_secret_and_return(
 }
 
 async fn decrypt_stored_secret(secret: &Secret) -> Result<String> {
-    let encrypted_data = EncryptionData::deser(&secret.value)
-        .map_err(|err| anyhow!("Error deserializing encrypted data: {err}"))?;
+    let encrypted_data = strand_layout_shim::read_stored(&secret.value)
+        .context("Error deserializing encrypted data")?;
     let master_secret = get_master_secret().await?;
     let decrypted_bytes = decrypt(&master_secret, &encrypted_data)
         .map_err(|err| anyhow!("Error decrypting secret: {err}"))?;
