@@ -387,6 +387,7 @@ public final class MultiAttributeCredentialResolver {
     // attributes lock each other out of their own accounts whenever they log in at the same time.
     // With more than one candidate, screen them against the stored lockout state instead and
     // consult the protector only for the account that actually authenticates - see resolved().
+    // src/test/integration/concurrent-shared-dob-login.py checks this against a running Keycloak.
     boolean shared = enabledCandidates.size() > 1;
     Map<UserModel, LockoutState> lockoutStates =
         enabledCandidates.stream()

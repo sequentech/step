@@ -592,7 +592,8 @@ class MultiAttributePasswordAuthenticatorTest {
   /**
    * Mirrors Keycloak's default DefaultBlockingBruteForceProtector: a request holds every account it
    * asks about until it ends, and other requests asking about a held account see it as temporarily
-   * disabled.
+   * disabled. src/test/integration/concurrent-shared-dob-login.py runs the same scenario against
+   * the real protector with concurrent logins.
    */
   private static final class ClaimingProtector {
     private final Map<String, String> claims = new HashMap<>();
