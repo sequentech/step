@@ -43,7 +43,8 @@ services:
   minio:
     profiles: ["full", "base"]
     container_name: minio
-    image: quay.io/minio/minio
+    # Use the release tag for offline docker save/load; digest-only archives lose the image name.
+    image: docker.io/pgsty/silo:RELEASE.2026-09-16T00-00-00Z
     platform: linux/amd64
     ports:
       - "9000:9000"
@@ -69,7 +70,6 @@ services:
     platform: linux/amd64
     ports:
       - "9002:9002"
-    #image: quay.io/minio/mc
     depends_on:
       - minio
 
