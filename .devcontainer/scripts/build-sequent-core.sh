@@ -13,6 +13,10 @@ export CFLAGS_wasm32_unknown_unknown="${CFLAGS_wasm32_unknown_unknown:-} -O3 -ff
 
 TARGET_DIR=/workspaces/step/packages/sequent-core
 cd "$TARGET_DIR"
+
+# The shared packages/target dir is owned by root (service containers build
+# into it), so build into the package-local target dir instead.
+export CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$TARGET_DIR/rust-local-target}"
 which rustc
 rustc --version
 which cargo
