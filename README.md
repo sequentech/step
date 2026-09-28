@@ -238,28 +238,19 @@ code in `packages/windmill/src/hasura/`. Otherwise the build might fail.
 
 ## Creating Trustees
 
-By default the trustees in this repo are configured to use a predefined configuration/
-set of keys. This is useful for development because these trustees are also added to
-the hasura/postgres database. This configuration is set using the `TRUSTEE_CONFIG`
-environment paramenter in the docker-compose.yml file.
+The dev trustees use the checked-in keys files `packages/trustee/dev/trustee1.toml`
+and `trustee2.toml`, whose public keys are listed on the
+[Trustee](docs/docusaurus/docs/07-developers/09-braid/trustee.md) docs page.
 
-However if you want the trustees to generate their own unique public/private keys and
-configuration this is is what you need to do:
-
-First unset the `TRUSTEE_CONFIG` environment variable or set it to a file path that
-doesn't exist. Then, when the trustee docker container is up, get the keys from the trustee:
+To give a trustee new keys, create a keys file from `packages/`:
 
 ```bash
-docker exec -it trustee1 cat /opt/braid/trustee.toml | grep pk
+cargo run -p trustee -- generate --trustee-config <path>
 ```
 
-Which will give a result similar to:
-
-```bash
-signing_key_pk = "YqYrRVXmPhBsWwwCgsOfw15RwUqZP9EhwmxuHKU5E8k"
-```
-
-Then add the trustee in the admin portal with the key, in this case `YqYrRVXmPhBsWwwCgsOfw15RwUqZP9EhwmxuHKU5E8k`.
+It prints the two public keys, `public_key` and `share_encryption_public_key`,
+to register for the trustee under **Settings → Trustees** in the admin portal.
+Then point the trustee's `TRUSTEE_CONFIG_PATH` at the new file.
 
 ## Running Trustees
 

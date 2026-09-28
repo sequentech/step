@@ -61,3 +61,6 @@ packages/ballot-verifier/logs
 
 # ignore artifacts for airgapped environments
 airgapped-artifacts
+
+# trustee session stores, where the dev compose services mount them
+packages/trustee/message_store/

@@ -658,72 +658,101 @@ services:
       retries: 25
       start_period: 30s
 
+  # The new core's trustees (packages/trustee), in the opt-in `wbraid` profile
+  # with b4v6. B4_URL is set here because the one in .env still names the old b4.
   trustee1:
-    profiles: ["full"]
+    profiles: ["wbraid"]
     stdin_open: true
+    image: sequentech.local/cargo-packages
     container_name: trustee1
-    image: sequentech.local/braid
-    volumes:
-      - trustee1_data:/opt/braid
-    # TODO: be able to reuse the `sequentech.local/cargo-packages` image
-    build:
-      context: ../packages/
-      dockerfile: ./braid/Dockerfile
-    environment:
-        TRUSTEE_NAME: trustee1
-        TRUSTEE_CONFIG_PATH: ${TRUSTEE1_CONFIG}
-        IGNORE_BOARDS: ${IGNORE_BOARDS}
-        SECRETS_BACKEND: ${SECRETS_BACKEND}
-        VAULT_SERVER_URL: ${VAULT_SERVER_URL}
-        VAULT_TOKEN: ${VAULT_TOKEN}
-        B4_URL: ${B4_URL}
+    # make sure to depend on the `harvest` container to ensure
+    # that the `sequentech.local/cargo-packages` image is locally build, so
+    # that we can reuse it:
     depends_on:
-      - immudb
-      - b4
+      harvest:
+        condition: service_started
+      b4v6:
+        condition: service_healthy
+    volumes_from:
+      - devcontainer
+    volumes:
+      - trustee1_data:/workspaces/step/packages/trustee/message_store
+    working_dir: /workspaces/step/packages/trustee
+    entrypoint: ["/usr/local/bin/entrypoint.sh"]
+    command: [
+      "cargo",
+      "watch",
+      "--why",
+      # ignoring rust-local-target/ since it's used for local builds and
+      # otherwise triggers a rebuild all the time (probably rust analyzer)
+      "--ignore",
+      "rust-local-target/",
+      # the session stores are written every cycle
+      "--ignore",
+      "message_store/",
+      "-x",
+      "run -- start"
+    ]
+    environment:
+      RUSTFLAGS: ${RUSTFLAGS}
+      CARGO_TERM_COLOR: ${CARGO_TERM_COLOR}
+      LOG_LEVEL: ${LOG_LEVEL}
+      TRUSTEE_NAME: trustee1
+      B4_URL: http://b4v6:3005
+      TRUSTEE_CONFIG_PATH: /workspaces/step/packages/trustee/dev/trustee1.toml
+      TRUSTEE_PASSWORD: ${TRUSTEE1_PASSWORD}
+      TRUSTEE_HARVEST_URL: http://harvest:${HARVEST_PORT}
+      TRUSTEE_KEYCLOAK_URL: ${KEYCLOAK_URL}
+      TRUSTEE_KEYCLOAK_REALM: tenant-${TENANT_ID}
+      TRUSTEE_KEYCLOAK_CLIENT_ID: ${TRUSTEE_KEYCLOAK_CLIENT_ID}
+      TRUSTEE_KEYCLOAK_CLIENT_SECRET: ${TRUSTEE_KEYCLOAK_CLIENT_SECRET}
 
   trustee2:
-    profiles: ["full"]
+    profiles: ["wbraid"]
     stdin_open: true
-    image: sequentech.local/braid
+    image: sequentech.local/cargo-packages
     container_name: trustee2
-    volumes:
-      - trustee2_data:/opt/braid
-    # depending on the `trustee1` container to ensure that the
-    # `sequentech.local/braid` image is locally build, so that we can reuse
-    # it:
+    # make sure to depend on the `harvest` container to ensure
+    # that the `sequentech.local/cargo-packages` image is locally build, so
+    # that we can reuse it:
     depends_on:
-      - trustee1
-      - immudb
+      harvest:
+        condition: service_started
+      b4v6:
+        condition: service_healthy
+    volumes_from:
+      - devcontainer
+    volumes:
+      - trustee2_data:/workspaces/step/packages/trustee/message_store
+    working_dir: /workspaces/step/packages/trustee
+    entrypoint: ["/usr/local/bin/entrypoint.sh"]
+    command: [
+      "cargo",
+      "watch",
+      "--why",
+      # ignoring rust-local-target/ since it's used for local builds and
+      # otherwise triggers a rebuild all the time (probably rust analyzer)
+      "--ignore",
+      "rust-local-target/",
+      # the session stores are written every cycle
+      "--ignore",
+      "message_store/",
+      "-x",
+      "run -- start"
+    ]
     environment:
-        TRUSTEE_NAME: trustee2
-        TRUSTEE_CONFIG_PATH: ${TRUSTEE2_CONFIG}
-        IGNORE_BOARDS: ${IGNORE_BOARDS}
-        SECRETS_BACKEND: ${SECRETS_BACKEND}
-        VAULT_SERVER_URL: ${VAULT_SERVER_URL}
-        VAULT_TOKEN: ${VAULT_TOKEN}
-        B4_URL: ${B4_URL}
-
-  # trustee3:
-  #   profiles: ["full"]
-  #   stdin_open: true
-  #   image: sequentech.local/braid
-  #   container_name: trustee3
-  #   volumes:
-  #     - trustee3_data:/opt/braid
-  #   # depending on the `trustee1` container to ensure that the
-  #   # `sequentech.local/braid` image is locally build, so that we can reuse
-  #   # it:
-  #   depends_on:
-  #     - trustee1
-  #     - immudb
-  #   environment:
-  #       TRUSTEE_NAME: trustee3
-  #       TRUSTEE_CONFIG_PATH: ${TRUSTEE3_CONFIG}
-  #       IGNORE_BOARDS: ${IGNORE_BOARDS}
-  #       SECRETS_BACKEND: ${SECRETS_BACKEND}
-  #       VAULT_SERVER_URL: ${VAULT_SERVER_URL}
-  #       VAULT_TOKEN: ${VAULT_TOKEN}
-  #       B4_URL: ${B4_URL}
+      RUSTFLAGS: ${RUSTFLAGS}
+      CARGO_TERM_COLOR: ${CARGO_TERM_COLOR}
+      LOG_LEVEL: ${LOG_LEVEL}
+      TRUSTEE_NAME: trustee2
+      B4_URL: http://b4v6:3005
+      TRUSTEE_CONFIG_PATH: /workspaces/step/packages/trustee/dev/trustee2.toml
+      TRUSTEE_PASSWORD: ${TRUSTEE2_PASSWORD}
+      TRUSTEE_HARVEST_URL: http://harvest:${HARVEST_PORT}
+      TRUSTEE_KEYCLOAK_URL: ${KEYCLOAK_URL}
+      TRUSTEE_KEYCLOAK_REALM: tenant-${TENANT_ID}
+      TRUSTEE_KEYCLOAK_CLIENT_ID: ${TRUSTEE_KEYCLOAK_CLIENT_ID}
+      TRUSTEE_KEYCLOAK_CLIENT_SECRET: ${TRUSTEE_KEYCLOAK_CLIENT_SECRET}
 
   rabbitmq:
     profiles: ["full", "base"]
@@ -1078,7 +1107,6 @@ volumes:
   minio_storage:
   trustee1_data:
   trustee2_data:
-  trustee3_data:
   protocol_manager_data:
   b4_db_logs:
   b4_db_data:
