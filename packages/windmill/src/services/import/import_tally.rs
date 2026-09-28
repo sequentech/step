@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use crate::services::ceremonies::auditable_ballots::remap_auditable_ballots_document;
 use crate::{
     postgres::{
         results_area_contest::insert_many_results_area_contests,
@@ -418,7 +419,8 @@ async fn process_tally_session_contest_file(
         let last_updated_at = get_opt_date(&record, 7).await?;
 
         let labels = get_opt_json_value_item(&record, 8).await?;
-        let annotations = get_opt_json_value_item(&record, 9).await?;
+        let mut annotations = get_opt_json_value_item(&record, 9).await?;
+        remap_auditable_ballots_document(&mut annotations, &replacement_map);
         let tally_session_id = get_replaced_id(&record, 10, &replacement_map).await?;
 
         let election_id = get_replaced_id(&record, 11, &replacement_map).await?;

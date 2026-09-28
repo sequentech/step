@@ -4,6 +4,7 @@
 
 use crate::postgres::area::get_areas;
 use crate::postgres::election_event::get_election_event_by_id;
+use crate::postgres::keycloak_realm::find_realm_id;
 use crate::services::cast_votes::{get_users_with_vote_info, CastVoteStatus};
 use crate::services::database::PgConfig;
 use anyhow::{anyhow, Context, Result};
@@ -686,27 +687,27 @@ fn service_account_exclusion(alias: &str) -> String {
     format!("{alias}.service_account_client_link IS NULL")
 }
 
-/// Base parameters shared by every voter-scoped query: realm and optional id allowlist.
-/// This is the single source of truth for where `filter.realm`/`filter.user_ids` land in the
-/// `params` slice, so `voter_scope_clause` and the query's own filter clauses can reference
-/// their positions without hardcoding or re-deriving them independently.
+/// Base parameters shared by voter queries: resolved realm ID and optional user ID allowlist.
+/// Resolving the ID first lets PostgreSQL use per-realm population statistics,
+/// which a join on realm.name cannot provide for large, unevenly sized realms.
+/// Keep parameter positions shared between the listing and count queries.
 struct VoterScopeParams<'a> {
     params: Vec<&'a (dyn ToSql + Sync)>,
-    realm_param: i32,
+    realm_id_param: i32,
     user_ids_param: i32,
     next_param_number: i32,
 }
 
-/// Takes `realm`/`user_ids` by reference (rather than `&ListUsersFilter`) so callers keep
+/// Takes `realm_id`/`user_ids` by reference (rather than `&ListUsersFilter`) so callers keep
 /// borrowing only those two fields — a whole-struct borrow here would conflict with the
 /// later partial moves out of other `filter` fields (e.g. `filter.sort`).
 fn voter_scope_params<'a>(
-    realm: &'a String,
+    realm_id: &'a String,
     user_ids: &'a Option<Vec<String>>,
 ) -> VoterScopeParams<'a> {
     VoterScopeParams {
-        params: vec![realm, user_ids],
-        realm_param: 1,
+        params: vec![realm_id, user_ids],
+        realm_id_param: 1,
         user_ids_param: 2,
         next_param_number: 3,
     }
@@ -715,12 +716,12 @@ fn voter_scope_params<'a>(
 /// WHERE-clause head shared by the voter count and voter listing queries: scope to the realm,
 /// drop service accounts, then apply the caller's filters. `filters_clause` is the caller's
 /// already-composed column filters, which carries its own trailing boolean operator when set.
-/// `realm_param`/`user_ids_param` must be the positions returned by `voter_scope_params` for
+/// `realm_id_param`/`user_ids_param` must be the positions returned by `voter_scope_params` for
 /// the same `params` vec, so the placeholders here always match where the values were pushed.
-fn voter_scope_clause(filters_clause: &str, realm_param: i32, user_ids_param: i32) -> String {
+fn voter_scope_clause(filters_clause: &str, realm_id_param: i32, user_ids_param: i32) -> String {
     let no_service_accounts = service_account_exclusion("u");
     format!(
-        r#"ra.name = ${realm_param} AND
+        r#"u.realm_id = ${realm_id_param} AND
             {no_service_accounts} AND
             {filters_clause}
             (u.id = ANY(${user_ids_param}) OR ${user_ids_param} IS NULL)"#
@@ -781,13 +782,15 @@ pub async fn count_keycloak_users(
     keycloak_transaction: &Transaction<'_>,
     filter: ListUsersFilter,
 ) -> Result<i32> {
-    // Start by setting up the base parameters: realm and user_ids.
+    let Some(realm_id) = find_realm_id(keycloak_transaction, &filter.realm).await? else {
+        return Ok(0);
+    };
     let VoterScopeParams {
         mut params,
-        realm_param,
+        realm_id_param,
         user_ids_param,
         mut next_param_number,
-    } = voter_scope_params(&filter.realm, &filter.user_ids);
+    } = voter_scope_params(&realm_id, &filter.user_ids);
 
     // Build filter clauses for basic fields.
     let mut filters_clause = String::new();
@@ -893,12 +896,11 @@ pub async fn count_keycloak_users(
     };
 
     // Build the count query using only the necessary filtering clauses.
-    let scope_clause = voter_scope_clause(&filters_clause, realm_param, user_ids_param);
+    let scope_clause = voter_scope_clause(&filters_clause, realm_id_param, user_ids_param);
     let count_query = format!(
         r#"
         SELECT COUNT(*) AS total_count
         FROM user_entity AS u
-        INNER JOIN realm AS ra ON ra.id = u.realm_id
         {area_ids_join_clause}
         {authorized_alias_join_clause}
         WHERE
@@ -936,12 +938,16 @@ pub async fn list_users(
         std::cmp::min(low_sql_limit, filter.limit.unwrap_or(default_sql_limit)).into();
     let query_offset: i64 = filter.offset.unwrap_or(0).into();
 
+    let Some(realm_id) = find_realm_id(keycloak_transaction, &filter.realm).await? else {
+        return Ok((Vec::new(), 0));
+    };
+
     let VoterScopeParams {
         mut params,
-        realm_param,
+        realm_id_param,
         user_ids_param,
         mut next_param_number,
-    } = voter_scope_params(&filter.realm, &filter.user_ids);
+    } = voter_scope_params(&realm_id, &filter.user_ids);
 
     let mut filters_clause = "".to_string();
     let mut filter_params: Vec<String> = vec![];
@@ -1066,7 +1072,7 @@ pub async fn list_users(
 
     debug!("parameters count: {}", next_param_number - 1);
     debug!("params {:?}", params);
-    let scope_clause = voter_scope_clause(&filters_clause, realm_param, user_ids_param);
+    let scope_clause = voter_scope_clause(&filters_clause, realm_id_param, user_ids_param);
     let statement_str = format!(
         r#"
         WITH limited_users AS MATERIALIZED (
@@ -1082,8 +1088,6 @@ pub async fn list_users(
                 u.created_timestamp
             FROM
                 user_entity AS u
-            INNER JOIN
-                realm AS ra ON ra.id = u.realm_id
             {area_ids_join_clause}
             {authorized_alias_join_clause}
             WHERE
@@ -1142,8 +1146,6 @@ pub async fn list_users(
         COUNT(*) as total_count
     FROM
         user_entity AS u
-    INNER JOIN
-        realm AS ra ON ra.id = u.realm_id
     {area_ids_join_clause}
     {authorized_alias_join_clause}
     WHERE
@@ -1959,8 +1961,89 @@ mod tests {
         let filters_clause = format!(r#"("email" = $3){}"#, SqlBooleanOperator::And);
         let clause = voter_scope_clause(&filters_clause, 1, 2);
 
-        assert!(clause.contains("ra.name = $1"));
+        assert!(clause.contains("u.realm_id = $1"));
         assert!(clause.contains(r#"("email" = $3) AND"#));
         assert!(clause.contains("(u.id = ANY($2) OR $2 IS NULL)"));
+    }
+
+    #[tokio::test]
+    #[ignore = "requires a development Keycloak database configured through KEYCLOAK_DB__*"]
+    async fn voter_listing_and_count_keep_realm_isolation_and_missing_realm_behavior() -> Result<()>
+    {
+        let pool = crate::services::database::generate_keycloak_pool().await?;
+        let mut client = pool.get().await?;
+        let transaction = client.transaction().await?;
+        transaction
+            .batch_execute(
+                r#"
+                CREATE TEMP TABLE realm (LIKE public.realm INCLUDING ALL) ON COMMIT DROP;
+                CREATE TEMP TABLE user_entity (LIKE public.user_entity INCLUDING ALL) ON COMMIT DROP;
+                CREATE TEMP TABLE user_attribute (LIKE public.user_attribute INCLUDING ALL) ON COMMIT DROP;
+                INSERT INTO realm (id, name) VALUES ('realm-a', 'event-a'), ('realm-b', 'event-b');
+                INSERT INTO user_entity (id, realm_id, username, enabled, email_verified, service_account_client_link)
+                VALUES ('voter-a', 'realm-a', 'alice', true, false, NULL),
+                       ('voter-b', 'realm-a', 'bob', false, false, NULL),
+                       ('service', 'realm-a', 'service-account', true, false, 'client'),
+                       ('other-realm', 'realm-b', 'alice', true, false, NULL);
+                INSERT INTO user_attribute (id, user_id, name, value)
+                VALUES ('attr-a', 'voter-a', 'test-field', 'example');
+                "#,
+            )
+            .await?;
+
+        // No event filter: the Hasura transaction is unused, so both arguments
+        // can safely share this transaction and its temporary Keycloak tables.
+        let mut filter = ListUsersFilter::new("10000000-0000-4000-8000-000000000001", "event-a");
+        filter.limit = Some(1);
+        let (users, count) = list_users(&transaction, &transaction, filter.clone()).await?;
+        assert_eq!(count, 2);
+        assert_eq!(users.len(), 1);
+        assert_eq!(users[0].id.as_deref(), Some("voter-a"));
+        assert_eq!(
+            users[0].attributes.as_ref().unwrap()["test-field"],
+            vec!["example"]
+        );
+        assert_eq!(
+            count_keycloak_users(&transaction, &transaction, filter.clone()).await?,
+            count
+        );
+
+        filter.offset = Some(1);
+        let (users, count) = list_users(&transaction, &transaction, filter.clone()).await?;
+        assert_eq!(count, 2);
+        assert_eq!(users[0].id.as_deref(), Some("voter-b"));
+
+        filter.offset = None;
+        filter.enabled = Some(true);
+        filter.user_ids = Some(vec![
+            "voter-a".into(),
+            "other-realm".into(),
+            "service".into(),
+        ]);
+        let (users, count) = list_users(&transaction, &transaction, filter.clone()).await?;
+        assert_eq!(count, 1);
+        assert_eq!(users.len(), 1);
+        assert_eq!(users[0].id.as_deref(), Some("voter-a"));
+        assert_eq!(
+            count_keycloak_users(&transaction, &transaction, filter.clone()).await?,
+            count
+        );
+
+        filter.realm = "missing-realm".into();
+        let (users, count) = list_users(&transaction, &transaction, filter.clone()).await?;
+        assert!(users.is_empty());
+        assert_eq!(count, 0);
+        assert_eq!(
+            count_keycloak_users(&transaction, &transaction, filter).await?,
+            0
+        );
+        assert!(crate::postgres::keycloak_realm::get_realm_id(
+            &transaction,
+            "missing-realm".into()
+        )
+        .await
+        .is_err());
+        transaction.rollback().await?;
+        Ok(())
     }
 }

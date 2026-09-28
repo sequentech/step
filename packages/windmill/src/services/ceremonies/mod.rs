@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+pub mod auditable_ballots;
 pub mod encrypter;
 pub mod insert_ballots;
 pub mod keys_ceremony;
@@ -13,4 +14,5 @@ pub mod tally_ceremony;
 pub mod tally_progress;
 pub mod tally_resolution;
 pub mod tally_session_error;
+pub mod tally_validation;
 pub mod velvet_tally;
