@@ -1,0 +1,8 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+#
+# The keys of the development trustee trustee2. Checked in for the dev
+# environment only.
+signing_key = "nNG8T2K7tcAIVl/Mn7QZJfzQ8dJZGIWlBETwUuwdQgQ="
+share_encryption_key = "gKXSuClliNVk2uuZc1pfNp74DqPiEEcd5wApI/8r5gQ="

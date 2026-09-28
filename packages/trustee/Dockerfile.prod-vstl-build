@@ -1,0 +1,11 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+FROM trustee-build-dependencies
+
+COPY --from=trustee-compile /app/target/release/trustee /usr/bin/trustee
+COPY --from=trustee-compile /app/trustee/scripts/trustee.sh /usr/bin/trustee.sh
+RUN mkdir -p /opt/braid/
+
+CMD ["/usr/bin/trustee.sh"]

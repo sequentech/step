@@ -1,14 +1,12 @@
-# SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
 FROM debian:bookworm
-# Some shared libraries (extra-runtime-dependencies) may need to be installed:
-# Installing also AWS CLI and Vault CLI for trustee configuration
+# AWS CLI and Vault CLI for the secrets backends of trustee.sh
 # Set the default Vault version (put 'latest' for automatic substitution)
 ARG VAULT_VERSION=1.15.5
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libssl3 \
     ca-certificates \
     curl \
     unzip \
