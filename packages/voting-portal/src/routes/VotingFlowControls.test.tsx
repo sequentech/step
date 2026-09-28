@@ -84,7 +84,8 @@ jest.mock("../store/hooks", () => ({
 }))
 jest.mock("../providers/AuthContextProvider", () => ({
     AuthContext: jest.requireActual<typeof React>("react").createContext({
-        logout: jest.fn(),
+        logout: (...args: unknown[]) => mockLogout(...args),
+        isKiosk: () => mockIsKiosk,
         isGoldUser: () => mockIsGoldUser,
         reauthWithGold: (url: string) => mockReauthWithGold(url),
     }),
@@ -131,6 +132,8 @@ jest.mock("@apollo/client/react", () => ({
 }))
 
 const mockDispatch = jest.fn()
+const mockLogout = jest.fn()
+let mockIsKiosk = false
 const mockReauthWithGold = jest.fn()
 const mockInsertCastVote = jest.fn()
 let mockIsGoldUser = false
@@ -250,6 +253,7 @@ beforeEach(() => {
     mockReauthWithGold.mockResolvedValue(undefined)
     mockIsGoldUser = false
     mockDisableAuth = true
+    mockIsKiosk = false
     mockElectionQueryData = undefined
     sessionStorage.clear()
     setUpState()

@@ -576,6 +576,7 @@ const ConfirmationScreen: React.FC = () => {
                                 />
                             </DecorativeIconBox>
                             <BallotIdLink
+                                data-testid="ballot-id"
                                 className="ballot-id-value ballot-id-value-desktop"
                                 href={!isDemo ? ballotTrackerUrl : undefined}
                                 target={!isDemo && !isKiosk() ? "_blank" : undefined}
@@ -585,6 +586,7 @@ const ConfirmationScreen: React.FC = () => {
                                 {ballotId.current}
                             </BallotIdLink>
                             <BallotIdLink
+                                data-testid="ballot-id"
                                 className="ballot-id-value ballot-id-value-mobile"
                                 href={!isDemo ? ballotTrackerUrl : undefined}
                                 target={!isDemo && !isKiosk() ? "_blank" : undefined}
