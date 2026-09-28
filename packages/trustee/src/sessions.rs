@@ -11,13 +11,16 @@
 //! this process, and its halt is reported until the platform has recorded it.
 //! Each board's session keeps a store, which the trustee never deletes: braid
 //! checks the board against it after a restart, and the store of a DKG board
-//! outlives its ceremony, for the tallies over its key.
+//! outlives its ceremony, for the tallies over its key. A tally board's session
+//! reads the board together with its parent DKG board, which braid checks
+//! against what this trustee's own session over the parent committed to, as
+//! that session's store kept it.
 
 use std::collections::BTreeMap;
 use std::fs;
 use std::path::PathBuf;
 
-use anyhow::{anyhow, Context as _, Result};
+use anyhow::{anyhow, bail, Context as _, Result};
 use protocol_board::{
     BoardName, Ctx, ProtocolBoardKind, TrusteeBoard, TrusteeReport,
     TrusteeReportKind, TrusteeSecrets,
@@ -26,6 +29,7 @@ use tracing::{error, info, warn};
 use wbraid::board::persistence::Persistence;
 use wbraid::board::transport::Transport;
 use wbraid::board::BoardClient;
+use wbraid::messages::predicate::Predicate;
 use wbraid::native::http_transport::HttpTransport;
 use wbraid::native::persistence::SqlitePersistence;
 use wbraid::session::Session;
@@ -258,27 +262,14 @@ impl<A: BoardAccess> SessionSet<A> {
         board: &TrusteeBoard,
         last_outage: Option<&str>,
     ) -> BoardEntry<A> {
-        match board.kind {
-            ProtocolBoardKind::DKG => {
-                self.open_dkg(&board.name, last_outage).await
-            }
+        let name = &board.name;
+        let connected = match board.kind {
+            ProtocolBoardKind::DKG => self.connect(name).await,
             ProtocolBoardKind::TALLY => {
-                warn!(
-                    board = %board.name,
-                    parent = ?board.parent.as_ref().map(BoardName::as_str),
-                    "tally boards are not run yet: skipped while listed"
-                );
-                BoardEntry::Skipped
+                self.connect_union(name, board.parent.as_ref()).await
             }
-        }
-    }
-
-    async fn open_dkg(
-        &self,
-        name: &BoardName,
-        last_outage: Option<&str>,
-    ) -> BoardEntry<A> {
-        match self.connect(name).await {
+        };
+        match connected {
             Ok(Some(session)) => {
                 info!(board = %name, "session opened");
                 BoardEntry::Open {
@@ -314,8 +305,8 @@ impl<A: BoardAccess> SessionSet<A> {
         }
     }
 
-    /// The session over a board, or `None` when the board's Configuration does
-    /// not name this trustee.
+    /// The session over a DKG board, or `None` when the board's Configuration
+    /// does not name this trustee.
     async fn connect(
         &self,
         name: &BoardName,
@@ -325,6 +316,60 @@ impl<A: BoardAccess> SessionSet<A> {
         let client = BoardClient::<Ctx, _, _>::connect(transport, store)
             .await
             .context("connecting to the board")?;
+        self.join(client)
+    }
+
+    /// The session over a tally board read together with its parent DKG
+    /// board, or `None` when the parent's Configuration does not name this
+    /// trustee.
+    async fn connect_union(
+        &self,
+        name: &BoardName,
+        parent: Option<&BoardName>,
+    ) -> Result<Option<BoardSession<A>>> {
+        let parent = parent.with_context(|| {
+            format!("tally board {name} is listed without its parent board")
+        })?;
+        let seed = self.seed(parent).await?;
+        let store = self.access.store(name)?;
+        let client = BoardClient::<Ctx, _, _>::connect_union(
+            OutageTagged::new(self.access.transport(name)),
+            OutageTagged::new(self.access.transport(parent)),
+            store,
+            seed,
+        )
+        .await
+        .with_context(|| {
+            format!("connecting to the board and its parent board {parent}")
+        })?;
+        self.join(client)
+    }
+
+    /// What this trustee's session over a DKG board committed to, as that
+    /// session's store kept it: what braid checks the board against when one
+    /// of its tally boards is read together with it. An empty store means this
+    /// trustee has no record of that key generation, and the board is then
+    /// never taken on trust.
+    async fn seed(&self, parent: &BoardName) -> Result<Vec<Predicate>> {
+        let seed =
+            self.access.store(parent)?.load().await.with_context(|| {
+                format!("reading the session store of board {parent}")
+            })?;
+        if seed.is_empty() {
+            bail!(
+                "the session store of parent board {parent} is empty: this \
+                 trustee has no record of its key generation"
+            );
+        }
+        Ok(seed)
+    }
+
+    /// This trustee's session over a connected board, or `None` when the
+    /// board's Configuration does not name this trustee.
+    fn join(
+        &self,
+        client: BoardClient<Ctx, OutageTagged<A::Transport>, A::Persistence>,
+    ) -> Result<Option<BoardSession<A>>> {
         if !self.secrets.is_listed_in(client.configuration()) {
             return Ok(None);
         }

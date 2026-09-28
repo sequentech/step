@@ -87,10 +87,7 @@ mod tests {
     use serde_json::json;
 
     const DKG_NAME: &str = "dkg_d9792af071b849528aac94bc0fead5f7";
-    /// The platform mints no tally board names yet, so the tally rows here
-    /// carry a DKG board name; a row's kind comes from its lineage, not its
-    /// name.
-    const TALLY_NAME: &str = "dkg_0f6a3b2c9d8e4f10a1b2c3d4e5f60718";
+    const TALLY_NAME: &str = "tally_0f6a3b2c9d8e4f10a1b2c3d4e5f60718_3";
 
     fn row(name: &str, parent_id: Option<&str>) -> ProtocolBoard {
         ProtocolBoard {
@@ -102,6 +99,8 @@ mod tests {
             name: name.to_string(),
             manager_message: vec![1, 2, 3],
             created_at: None,
+            tally_session_id: parent_id.map(|_| "tally-session-id".to_string()),
+            batch: parent_id.map(|_| 3),
         }
     }
 
