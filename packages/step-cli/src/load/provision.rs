@@ -6,7 +6,7 @@
 //! clients print diagnostics. Neither those logs nor administrator tokens reach workers.
 use super::{
     census,
-    config::{Settings, UploadMode},
+    config::{Login, Settings, UploadMode},
     files,
     input::{self, Event, Input},
 };
@@ -86,6 +86,16 @@ pub fn fixture(mut event: Value, settings: &Settings) -> Result<Value> {
     event["area_contests"] = json!([link]);
     event["contests"] = json!([contest]);
     event["elections"] = json!([election]);
+    // The elections mapper authorizes a voter by election UUID when the election has no
+    // external ID, but the tally then counts only voters with no authorized elections at
+    // all. Give the synthetic election an external ID so census, login and tally agree.
+    if event["elections"][0]["external_id"]
+        .as_str()
+        .is_none_or(str::is_empty)
+    {
+        event["elections"][0]["external_id"] =
+            json!(format!("load-{}", uuid::Uuid::new_v4().simple()));
+    }
     event["candidates"] = json!(candidates);
     for key in ["election_event", "elections", "contests", "candidates"] {
         let items: Vec<&mut Value> = if key == "election_event" {
@@ -107,6 +117,9 @@ pub fn fixture(mut event: Value, settings: &Settings) -> Result<Value> {
             }
         }
     }
+    for (key, value) in &settings.preparation.annotations {
+        event["election_event"]["annotations"][key] = json!(value);
+    }
     event["contests"][0]["min_votes"] = json!(1);
     event["contests"][0]["max_votes"] = json!(1);
     let alias = format!("Synthetic load {}", uuid::Uuid::new_v4());
@@ -119,13 +132,27 @@ pub fn fixture(mut event: Value, settings: &Settings) -> Result<Value> {
         "hashAlgorithm(pbkdf2-sha256) and hashIterations({})",
         settings.workload.hash_iterations
     ));
+    let login = &settings.workload.login;
+    let mut authenticators = 0;
     if let Some(configs) = realm["authenticatorConfig"].as_array_mut() {
         for config in configs {
             if config["config"].get("matchAttributes").is_some() {
-                config["config"]["matchAttributes"] = json!("username");
+                authenticators += 1;
+                if login.username() {
+                    config["config"]["matchAttributes"] = json!("username");
+                } else {
+                    // The authenticator splits multivalued settings on `##`.
+                    config["config"]["matchAttributes"] = json!(login.match_attributes.join("##"));
+                    config["config"]["maxCandidates"] = json!(login.max_candidates.to_string());
+                    config["config"]["matchPolicy"] = json!(login.match_policy);
+                }
             }
         }
     }
+    ensure!(
+        login.username() || authenticators > 0,
+        "login.match_attributes needs a template realm with a multi-attribute authenticator"
+    );
     if let Some(localizations) = realm["localizationTexts"].as_object_mut() {
         for messages in localizations.values_mut() {
             messages["loginCustomCss"] = json!("");
@@ -135,14 +162,43 @@ pub fn fixture(mut event: Value, settings: &Settings) -> Result<Value> {
         .as_array_mut()
         .context("Fixture needs Keycloak clients")?
     {
-        if client["clientId"] == settings.workload.client_id {
-            client["rootUrl"] = json!(origin);
-            client["baseUrl"] = json!(origin);
-            client["redirectUris"] = json!([format!("{origin}/*")]);
-            client["webOrigins"] = json!([origin]);
+        let kiosk = format!("{}-kiosk", settings.workload.client_id);
+        let target = if client["clientId"] == settings.workload.client_id {
+            Some(origin)
+        } else if client["clientId"] == kiosk.as_str() {
+            settings
+                .target
+                .kiosk_url
+                .as_deref()
+                .map(|url| url.trim_end_matches('/'))
+        } else {
+            None
+        };
+        if let Some(target) = target {
+            client["rootUrl"] = json!(target);
+            client["baseUrl"] = json!(target);
+            client["redirectUris"] = json!([format!("{target}/*")]);
+            client["webOrigins"] = json!([target]);
         }
     }
     Ok(event)
+}
+
+/// A reused event keeps the realm authenticator it was created with, and collision
+/// groups span runs, so a new voter range must keep the prior login settings.
+pub fn same_login(prior: &Value, settings: &Settings) -> Result<()> {
+    let recorded = &prior["settings"]["workload"]["login"];
+    let recorded: Login = if recorded.is_null() {
+        Login::default()
+    } else {
+        serde_json::from_value(recorded.clone()).context("Existing event login is invalid")?
+    };
+    ensure!(
+        recorded == settings.workload.login,
+        "workload.login must match the existing event's login settings: {}",
+        serde_json::to_string(&recorded)?
+    );
+    Ok(())
 }
 
 /// Import one CSV at a time, publishing checkpoints only after confirmed server completion.
@@ -217,6 +273,7 @@ pub fn setup(settings_path: &Path, base: &Path, output: &Path, assets: &Path) ->
             prior["tenant_id"] == settings.target.tenant_id,
             "Existing event belongs to another tenant"
         );
+        same_login(&prior, &settings)?;
         let mut event: Event = serde_json::from_value(prior)?;
         let imported = export_event(&settings, &event.election_event_id, output)?;
         event.election_external_id = imported["elections"]
