@@ -23,7 +23,6 @@ use crate::services::celery_app::get_celery_app;
 use crate::services::ceremonies::insert_ballots::{
     get_elections_end_dates, insert_ballots_messages,
 };
-use crate::services::legacy_board::get_keys_ceremony_board;
 use crate::services::ceremonies::results::populate_results_tables;
 use crate::services::ceremonies::serialize_logs::{
     append_tally_finished, append_tally_updated, generate_logs, print_messages, sort_logs,
@@ -44,8 +43,9 @@ use crate::services::election::get_election_event_elections;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::election_event_status::get_election_event_status;
 use crate::services::electoral_log::ElectoralLog;
-use crate::services::pg_lock::PgLock;
 use crate::services::legacy_board;
+use crate::services::legacy_board::get_keys_ceremony_board;
+use crate::services::pg_lock::PgLock;
 use crate::services::reports::electoral_results::ElectoralResults;
 use crate::services::reports::initialization::InitializationTemplate;
 use crate::services::reports::template_renderer::{

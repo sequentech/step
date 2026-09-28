@@ -1,8 +1,8 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use super::jwks::remove_realm_jwks;
 use super::electoral_log_board::get_election_board;
+use super::jwks::remove_realm_jwks;
 use super::legacy_board::get_b3_pgsql_client;
 use crate::postgres::election::get_elections;
 use crate::services::electoral_log_board::get_event_board;
