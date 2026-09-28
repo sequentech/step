@@ -1,0 +1,26 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+[package]
+name = "id-capture"
+version = "0.1.0"
+authors = ["Sequent Tech Inc <legal@sequentech.io>"]
+license = "AGPL-3.0-only"
+edition = "2021"
+publish = false
+description = "In-browser frame analysis for the guided identity document and face capture"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+serde = { workspace = true }
+serde-wasm-bindgen = "0.6.5"
+thiserror = "2.0"
+tract-onnx = { version = "0.23.8", default-features = false, features = ["getrandom-js"] }
+# Pinned to the wasm-bindgen CLI shipped by the devenv
+wasm-bindgen = "=0.2.128"
+
+[lints]
+workspace = true
