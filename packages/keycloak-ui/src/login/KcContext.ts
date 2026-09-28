@@ -33,6 +33,25 @@ export type KcContextExtension = {
     }
 }
 
+export enum ScanovateSide {
+    Front = "FRONT",
+    Back = "BACK",
+}
+
+export type ScanovateCaptureSettings = {
+    documentType: string
+    sides: ScanovateSide[]
+    videoSeconds: number
+    attemptsLeft: number
+    maxAttempts: number
+}
+
+export type ScanovateStoredAttribute = {
+    key: string
+    value: string
+    type: string
+}
+
 // context.ftl serializes the authenticator's Java enum as its wire value.
 export type KcContextExtensionPerPage = {
     "message-otp.login.ftl": {
@@ -43,6 +62,19 @@ export type KcContextExtensionPerPage = {
         resendTimer?: string
         ttl?: string
         codeLength?: string
+    }
+    "scanovate-capture.ftl": {
+        scanovate: ScanovateCaptureSettings
+    }
+    "scanovate-error.ftl": {
+        error: string
+        canRetry: boolean
+        code_id: string
+        attemptsLeft?: number
+    }
+    "scanovate-confirmation.ftl": {
+        storedAttributes: ScanovateStoredAttribute[]
+        documentType?: string
     }
 }
 

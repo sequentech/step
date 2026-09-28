@@ -357,3 +357,670 @@
         transition: none !important;
     }
 }
+
+/* Identity verification */
+.sequent-auth .auth-layout.auth-wide {
+    max-width: 1080px;
+}
+.sequent-auth .auth-progress {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+    margin: -8px 0 28px;
+}
+.sequent-auth .auth-progress span {
+    height: 6px;
+    border-radius: 3px;
+    background: #e3eaee;
+}
+.sequent-auth .auth-progress span.done {
+    background: #0d796a;
+}
+.sequent-auth .auth-progress span.current {
+    background: #43e3a1;
+}
+.sequent-auth .auth-symbol.warning {
+    background: #fdf1e3;
+    color: #a2560b;
+}
+.sequent-auth .auth-lead {
+    margin: -12px 0 26px;
+    color: #5b6e7b;
+    font-size: 1rem;
+    line-height: 1.65;
+}
+.sequent-auth .auth-steps {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    margin: 0 0 24px;
+    padding: 0;
+    list-style: none;
+}
+.sequent-auth .auth-steps li {
+    display: grid;
+    grid-template-columns: 44px 1fr;
+    gap: 14px;
+    align-items: start;
+}
+.sequent-auth .auth-steps .num {
+    display: grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    background: #eef4f6;
+    color: #173449;
+}
+.sequent-auth .auth-steps .num svg {
+    width: 24px;
+    height: 24px;
+}
+.sequent-auth .auth-steps strong {
+    display: block;
+    font-size: 1rem;
+    line-height: 1.4;
+}
+.sequent-auth .auth-steps span {
+    display: block;
+    color: #5b6e7b;
+    font-size: 0.9375rem;
+    line-height: 1.5;
+}
+.sequent-auth .auth-panel {
+    margin: 0 0 24px;
+    padding: 16px 18px;
+    border-radius: 14px;
+    background: #f4f7f8;
+}
+.sequent-auth .auth-panel-title {
+    margin: 0 0 10px;
+    font-size: 0.875rem;
+    font-weight: 900;
+}
+.sequent-auth .auth-check,
+.capture-dialog .auth-check {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+.sequent-auth .auth-check li,
+.capture-dialog .auth-check li {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    font-size: 0.9375rem;
+    line-height: 1.5;
+}
+.sequent-auth .auth-check svg,
+.capture-dialog .auth-check svg {
+    flex: none;
+    width: 20px;
+    height: 20px;
+    margin-top: 1px;
+    color: #0d796a;
+}
+.sequent-auth .auth-privacy {
+    display: flex;
+    gap: 10px;
+    margin: 0 0 24px;
+    color: #5b6e7b;
+    font-size: 0.875rem;
+    line-height: 1.55;
+}
+.sequent-auth .auth-privacy svg {
+    flex: none;
+    width: 20px;
+    height: 20px;
+    margin-top: 1px;
+}
+.sequent-auth .auth-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+.sequent-auth .auth-choice-note {
+    margin: -4px 0 0;
+    color: #5b6e7b;
+    font-size: 0.8125rem;
+    text-align: center;
+}
+.sequent-auth .auth-reference {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 24px;
+    padding: 14px 16px;
+    border: 1px dashed #b9c8cf;
+    border-radius: 12px;
+    color: #5b6e7b;
+    font-size: 0.875rem;
+    line-height: 1.5;
+}
+.sequent-auth .auth-reference code {
+    color: #173449;
+    font-family: SFMono-Regular, Consolas, "Liberation Mono", monospace;
+    font-size: 1rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    word-break: break-all;
+    user-select: all;
+}
+.sequent-auth .auth-reference-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+}
+.sequent-auth .auth-reference-actions button {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 44px;
+    padding: 6px 14px;
+    border: 1px solid #c7d3da;
+    border-radius: 8px;
+    background: white;
+    color: #086b5e;
+    font: inherit;
+    font-size: 0.875rem;
+    font-weight: 700;
+    cursor: pointer;
+}
+.sequent-auth .auth-reference-actions button svg {
+    width: 16px;
+    height: 16px;
+}
+.sequent-auth .auth-summary {
+    margin: 0 0 18px;
+    border: 1px solid #e3eaee;
+    border-radius: 14px;
+    overflow: hidden;
+}
+.sequent-auth .auth-summary div {
+    display: grid;
+    grid-template-columns: minmax(120px, 38%) 1fr;
+    gap: 12px;
+    padding: 13px 16px;
+    border-top: 1px solid #e3eaee;
+}
+.sequent-auth .auth-summary div:first-child {
+    border-top: 0;
+}
+.sequent-auth .auth-summary dt {
+    color: #5b6e7b;
+    font-size: 0.875rem;
+    line-height: 1.5;
+}
+.sequent-auth .auth-summary dd {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 700;
+    line-height: 1.5;
+}
+.sequent-auth .auth-timeline {
+    display: flex;
+    flex-direction: column;
+    margin: 0 0 8px;
+    padding: 0;
+    list-style: none;
+}
+.sequent-auth .auth-timeline li {
+    position: relative;
+    display: grid;
+    grid-template-columns: 28px 1fr;
+    gap: 14px;
+    padding-bottom: 20px;
+}
+.sequent-auth .auth-timeline li:not(:last-child)::before {
+    content: "";
+    position: absolute;
+    inset-inline-start: 13px;
+    top: 28px;
+    bottom: 2px;
+    width: 2px;
+    background: #e3eaee;
+}
+.sequent-auth .auth-timeline .mark {
+    display: grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 2px solid #c7d3da;
+    background: white;
+}
+.sequent-auth .auth-timeline .mark svg {
+    width: 16px;
+    height: 16px;
+}
+.sequent-auth .auth-timeline li.done .mark {
+    border-color: #0d796a;
+    background: #0d796a;
+    color: white;
+}
+.sequent-auth .auth-timeline li.current .mark {
+    border-color: #0d796a;
+    box-shadow:
+        inset 0 0 0 5px white,
+        inset 0 0 0 12px #43e3a1;
+}
+.sequent-auth .auth-timeline strong {
+    display: block;
+    font-size: 1rem;
+    line-height: 1.5;
+}
+.sequent-auth .spin {
+    display: inline-block;
+    flex: none;
+    width: 22px;
+    height: 22px;
+    border: 3px solid #cfe7df;
+    border-top-color: #0d796a;
+    border-radius: 50%;
+    animation: auth-spin 0.9s linear infinite;
+}
+@keyframes auth-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Camera: full screen on phones, a split panel on larger screens. */
+.sequent-auth .auth-fullscreen {
+    min-height: 100vh;
+    min-height: 100svh;
+}
+.sequent-auth .capture {
+    position: relative;
+    width: 100%;
+    height: 100vh;
+    height: 100svh;
+    min-height: 540px;
+    overflow: hidden;
+    background: #0b2231;
+    color: white;
+}
+.sequent-auth .capture-stage {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    background: #0b2231;
+}
+.sequent-auth .capture-video {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+.sequent-auth .capture-video.mirrored {
+    transform: scaleX(-1);
+}
+.sequent-auth .capture-overlay {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+}
+.sequent-auth .capture-ring {
+    transition: stroke-dasharray 0.2s linear;
+}
+.sequent-auth .capture-topbar {
+    position: absolute;
+    inset: 0 0 auto;
+    z-index: 3;
+    display: grid;
+    grid-template-columns: 48px 1fr 48px;
+    align-items: center;
+    padding: 14px 12px 10px;
+    background: linear-gradient(#0b2231e6, #0b223100);
+}
+.sequent-auth .capture-topbar button {
+    display: grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    border: 0;
+    border-radius: 50%;
+    background: #ffffff1f;
+    color: white;
+    cursor: pointer;
+}
+.sequent-auth .capture-topbar button svg {
+    width: 22px;
+    height: 22px;
+}
+.sequent-auth .capture-topbar button:focus-visible,
+.sequent-auth .capture-shutter:focus-visible {
+    outline-color: #43e3a1;
+    box-shadow: 0 0 0 2px #0b2231;
+}
+.sequent-auth .capture-title {
+    min-width: 0;
+    text-align: center;
+}
+.sequent-auth .capture-title h1 {
+    margin: 0;
+    font-size: 1.0625rem;
+    font-weight: 900;
+    letter-spacing: -0.01em;
+    line-height: 1.4;
+}
+.sequent-auth .capture-title span {
+    display: block;
+    color: #c6dce2;
+    font-size: 0.8125rem;
+}
+.sequent-auth .capture-dots {
+    display: flex;
+    justify-content: center;
+    gap: 6px;
+    margin-top: 8px;
+}
+.sequent-auth .capture-dots i {
+    width: 22px;
+    height: 4px;
+    border-radius: 2px;
+    background: #ffffff40;
+}
+.sequent-auth .capture-dots i.done {
+    background: #43e3a1;
+}
+.sequent-auth .capture-dots i.current {
+    background: white;
+}
+.sequent-auth .capture-pill {
+    position: absolute;
+    left: 50%;
+    z-index: 3;
+    transform: translateX(-50%);
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    width: max-content;
+    max-width: calc(100% - 40px);
+    padding: 10px 16px;
+    border-radius: 999px;
+    background: white;
+    color: #173449;
+    font-size: 0.9375rem;
+    font-weight: 700;
+    line-height: 1.3;
+    box-shadow: 0 10px 30px #00000040;
+    transition:
+        background-color 0.2s,
+        color 0.2s;
+}
+.sequent-auth .capture-pill.ok {
+    background: #43e3a1;
+    color: #0b2231;
+}
+.sequent-auth .capture-pill svg {
+    flex: none;
+    width: 20px;
+    height: 20px;
+}
+.sequent-auth .capture-rec {
+    position: absolute;
+    left: 50%;
+    z-index: 3;
+    transform: translateX(-50%);
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    border-radius: 999px;
+    background: #0b2231b3;
+    color: white;
+    font-size: 0.875rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+.sequent-auth .capture-rec i {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #ff5a5a;
+}
+.sequent-auth .capture-flash {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    background: #43e3a1;
+    opacity: 0;
+    pointer-events: none;
+    animation: capture-flash 0.7s ease-out;
+}
+@keyframes capture-flash {
+    from {
+        opacity: 0.55;
+    }
+    to {
+        opacity: 0;
+    }
+}
+.sequent-auth .capture-sheet {
+    position: absolute;
+    inset: auto 0 0;
+    z-index: 3;
+    padding: 22px 22px 26px;
+    border-radius: 22px 22px 0 0;
+    background: white;
+    color: #173449;
+}
+.sequent-auth .capture-sheet h2 {
+    margin: 0 0 6px;
+    font-size: 1.25rem;
+    font-weight: 900;
+    letter-spacing: -0.02em;
+    line-height: 1.3;
+}
+.sequent-auth .capture-sheet p {
+    margin: 0;
+    color: #5b6e7b;
+    font-size: 0.9375rem;
+    line-height: 1.55;
+}
+.sequent-auth .capture-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-top: 18px;
+}
+.sequent-auth .capture-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+.sequent-auth .capture-chips li {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    border-radius: 999px;
+    background: #e5f3ed;
+    color: #237c62;
+    font-size: 0.8125rem;
+    font-weight: 700;
+}
+.sequent-auth .capture-chips svg {
+    width: 16px;
+    height: 16px;
+}
+.sequent-auth .capture-shutter {
+    flex: none;
+    width: 68px;
+    height: 68px;
+    border: 4px solid #0d796a;
+    border-radius: 50%;
+    background: white;
+    box-shadow:
+        inset 0 0 0 5px white,
+        inset 0 0 0 40px #0d796a;
+    cursor: pointer;
+    transition:
+        border-color 0.2s,
+        box-shadow 0.2s;
+}
+.sequent-auth .capture-shutter:disabled {
+    border-color: #c7d3da;
+    box-shadow:
+        inset 0 0 0 5px white,
+        inset 0 0 0 40px #dce5e9;
+    cursor: not-allowed;
+}
+.sequent-auth .capture-secure {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    margin-top: 16px;
+    color: #6b7c87;
+    font-size: 0.75rem;
+}
+.sequent-auth .capture-secure svg {
+    width: 14px;
+    height: 14px;
+}
+.sequent-auth .capture-announcer {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+}
+.sequent-auth .desk-capture {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 340px;
+    overflow: hidden;
+    border-radius: 22px;
+    background: white;
+    box-shadow: 0 24px 70px #061b2a40;
+}
+.sequent-auth .desk-cam {
+    position: relative;
+    min-height: 526px;
+    background: #0b2231;
+}
+.sequent-auth .desk-side {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 32px 28px;
+    color: #173449;
+}
+.sequent-auth .desk-side .auth-eyebrow,
+.sequent-auth .desk-side .auth-title {
+    margin: 0;
+}
+.sequent-auth .desk-instructions h2 {
+    margin: 0 0 4px;
+    font-size: 1rem;
+    font-weight: 700;
+    line-height: 1.5;
+}
+.sequent-auth .desk-instructions p {
+    margin: 0;
+    color: #5b6e7b;
+    font-size: 0.9375rem;
+    line-height: 1.65;
+}
+.sequent-auth .desk-steps {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+.sequent-auth .desk-steps li {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: #5b6e7b;
+    font-size: 0.9375rem;
+}
+.sequent-auth .desk-steps li svg {
+    flex: none;
+    width: 20px;
+    height: 20px;
+    color: #0d796a;
+}
+.sequent-auth .desk-steps li.done {
+    color: #173449;
+}
+.sequent-auth .desk-steps li.current {
+    color: #173449;
+    font-weight: 700;
+}
+.sequent-auth .desk-steps .spin {
+    width: 18px;
+    height: 18px;
+}
+.sequent-auth .desk-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: auto;
+}
+.sequent-auth .desk-secondary {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+}
+.sequent-auth .desk-secondary .MuiButton-root {
+    min-height: 44px;
+    padding-block: 8px;
+}
+.capture-dialog .MuiDialog-paper {
+    border-radius: 22px;
+    color: #173449;
+}
+.capture-dialog .MuiDialogTitle-root {
+    font-weight: 900;
+    letter-spacing: -0.02em;
+}
+.capture-dialog .MuiDialogContent-root p {
+    margin: 0;
+    color: #5b6e7b;
+    line-height: 1.6;
+}
+.capture-dialog .MuiDialogActions-root {
+    gap: 8px;
+    padding: 8px 24px 24px;
+}
+@media (max-width: 720px) {
+    .capture-dialog .MuiDialog-container {
+        align-items: flex-end;
+    }
+    .capture-dialog .MuiDialog-paper {
+        width: 100%;
+        max-width: none;
+        margin: 0;
+        border-radius: 22px 22px 0 0;
+    }
+}
+@media (max-width: 520px) {
+    .sequent-auth .auth-summary div {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 2px;
+    }
+}
+@media (prefers-reduced-motion: reduce) {
+    .sequent-auth .capture-flash {
+        animation: none;
+        opacity: 0.3;
+    }
+    .sequent-auth .spin {
+        animation-duration: 3s;
+    }
+}
