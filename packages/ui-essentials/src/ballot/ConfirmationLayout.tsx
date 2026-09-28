@@ -125,6 +125,8 @@ export interface IConfirmationLayoutProps {
      * `onBallotIdClick` is given, and plain text otherwise.
      */
     ballotIdHref?: string
+    /** Null keeps navigation in the current tab. */
+    ballotIdTarget?: React.HTMLAttributeAnchorTarget | null
     onBallotIdClick?: React.MouseEventHandler
     onBallotIdHelp?: () => void
 
@@ -162,6 +164,7 @@ export const ConfirmationLayout: React.FC<IConfirmationLayoutProps> = ({
     ballotId,
     ballotIdOnPhone,
     ballotIdHref,
+    ballotIdTarget = "_blank",
     onBallotIdClick,
     onBallotIdHelp,
     qrValue,
@@ -269,7 +272,9 @@ export const ConfirmationLayout: React.FC<IConfirmationLayoutProps> = ({
                                 data-testid="ballot-id"
                                 className="ballot-id-value ballot-id-value-desktop"
                                 href={ballotIdHref}
-                                target={ballotIdHref === undefined ? undefined : "_blank"}
+                                target={
+                                    ballotIdHref === undefined ? undefined : (ballotIdTarget ?? undefined)
+                                }
                                 sx={{display: {xs: "none", sm: "block"}}}
                                 onClick={onBallotIdClick}
                             >
@@ -280,7 +285,9 @@ export const ConfirmationLayout: React.FC<IConfirmationLayoutProps> = ({
                                 data-testid="ballot-id"
                                 className="ballot-id-value ballot-id-value-mobile"
                                 href={ballotIdHref}
-                                target={ballotIdHref === undefined ? undefined : "_blank"}
+                                target={
+                                    ballotIdHref === undefined ? undefined : (ballotIdTarget ?? undefined)
+                                }
                                 sx={{display: {xs: "block", sm: "none"}}}
                                 onClick={onBallotIdClick}
                             >

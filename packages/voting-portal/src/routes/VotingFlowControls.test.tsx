@@ -100,7 +100,8 @@ jest.mock("../store/hooks", () => ({
 }))
 jest.mock("../providers/AuthContextProvider", () => ({
     AuthContext: jest.requireActual<typeof React>("react").createContext({
-        logout: jest.fn(),
+        logout: (...args: unknown[]) => mockLogout(...args),
+        isKiosk: () => mockIsKiosk,
         isGoldUser: () => mockIsGoldUser,
         reauthWithGold: (url: string) => mockReauthWithGold(url),
     }),
@@ -148,6 +149,8 @@ jest.mock("@apollo/client/react", () => ({
 }))
 
 const mockDispatch = jest.fn()
+const mockLogout = jest.fn()
+let mockIsKiosk = false
 const mockReauthWithGold = jest.fn()
 const mockInsertCastVote = jest.fn()
 const routeAction = jest.fn(() => null)
@@ -281,12 +284,61 @@ beforeEach(() => {
     mockIsGoldUser = false
     mockEmptyHashTranslation = false
     mockDisableAuth = true
+    mockIsKiosk = false
     mockElectionQueryData = undefined
     sessionStorage.clear()
     setUpState()
 })
 
 afterEach(() => sessionStorage.clear())
+
+describe("contest external-ID CSS hooks", () => {
+    it.each(["vote", "review"])(
+        "preserves legacy classes and sanitizes external IDs on %s",
+        (path) => {
+            const contests = mockState.ballotStyles["election-1"].ballot_eml.contests
+            const externalIds = ["1001", " A /B_2- ", undefined, null, "", " / ", "x".repeat(50)]
+            mockState.ballotStyles["election-1"].ballot_eml.contests = externalIds.map(
+                (external_id, index) => ({
+                    ...contests[0],
+                    id: `imported-${index}`,
+                    external_id,
+                    presentation: {pagination_policy: "all"},
+                })
+            )
+            const {container} = renderRoute(
+                path === "vote" ? <VotingScreen /> : <ReviewScreen />,
+                path
+            )
+            const wrappers = container.querySelectorAll(".contest-container")
+            expect(wrappers).toHaveLength(externalIds.length)
+            const expected = ["c-1001", "c-AB_2-", "", "", "", "", `c-${"x".repeat(38)}`]
+            wrappers.forEach((wrapper, index) => {
+                expect(wrapper).toHaveClass(`contest-${index}`)
+                expect(
+                    Array.from(wrapper.classList).filter((name) => name.startsWith("c-"))
+                ).toEqual(expected[index] ? [expected[index]] : [])
+            })
+        }
+    )
+
+    it("keeps external IDs across voting pages and reordered review contests", async () => {
+        const contests = mockState.ballotStyles["election-1"].ballot_eml.contests
+        Object.assign(contests[0], {external_id: "1001"})
+        Object.assign(contests[1], {external_id: "1002"})
+        const vote = renderRoute(<VotingScreen />, "vote")
+        expect(vote.container.querySelector(".contest-0")).toHaveClass("c-1001")
+        await userEvent
+            .setup()
+            .click(screen.getByRole("button", {name: "votingScreen.reviewButton"}))
+        expect(vote.container.querySelector(".contest-0")).toHaveClass("c-1002")
+        vote.unmount()
+        contests.reverse()
+        const review = renderRoute(<ReviewScreen />, "review")
+        expect(review.container.querySelector(".contest-0")).toHaveClass("c-1002")
+        expect(review.container.querySelector(".contest-1")).toHaveClass("c-1001")
+    })
+})
 
 describe("selection-screen Back", () => {
     it.each(["{Enter}", " "])(
@@ -336,6 +388,50 @@ describe("selection-screen Back", () => {
             expect(mockDispatch).toHaveBeenCalledWith(clearIsVoted())
         }
     )
+})
+
+describe("Confirmation ballot locator links", () => {
+    it.each([
+        [true, "?kiosk"],
+        [false, ""],
+    ] as const)("preserves the authenticated voting mode: kiosk=%s", async (kiosk, search) => {
+        setUpState({storedConfirmation: true})
+        mockState.confirmationScreenData["election-1"] = {ballotId: BALLOT_ID, isDemo: false}
+        mockIsKiosk = kiosk
+        mockInsertCastVote.mockResolvedValue({data: {create_ballot_receipt: {id: "receipt-1"}}})
+        const {router} = renderRoute(<ConfirmationScreen />, "confirmation")
+
+        const locatorUrl = `${window.location.origin}${ELECTION_PATH}/ballot-locator/${BALLOT_ID}${search}`
+        for (const link of screen.getAllByTestId("ballot-id")) {
+            expect(link).toHaveAttribute("href", locatorUrl)
+            if (kiosk) {
+                expect(link).not.toHaveAttribute("target")
+            } else {
+                expect(link).toHaveAttribute("target", "_blank")
+            }
+        }
+        await userEvent
+            .setup()
+            .click(screen.getByRole("button", {name: "confirmationScreen.printButton"}))
+        expect(mockInsertCastVote).toHaveBeenCalledWith({
+            variables: {
+                ballot_id: BALLOT_ID,
+                ballot_tracker_url: locatorUrl,
+                election_event_id: "event-1",
+                tenant_id: "tenant-1",
+                election_id: "election-1",
+            },
+        })
+        if (kiosk) {
+            for (const link of screen.getAllByTestId("ballot-id")) {
+                await userEvent.setup().click(link)
+                expect(router.state.location.pathname + router.state.location.search).toBe(
+                    `${ELECTION_PATH}/ballot-locator/${BALLOT_ID}${search}`
+                )
+                expect(mockLogout).not.toHaveBeenCalled()
+            }
+        }
+    })
 })
 
 describe("Ballot ID copy visibility", () => {
