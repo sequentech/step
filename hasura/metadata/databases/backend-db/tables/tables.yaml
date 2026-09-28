@@ -18,6 +18,7 @@
 - "!include sequent_backend_notification.yaml"
 - "!include sequent_backend_phone_blacklist.yaml"
 - "!include sequent_backend_preview.yaml"
+- "!include sequent_backend_protocol_board.yaml"
 - "!include sequent_backend_report.yaml"
 - "!include sequent_backend_results_area_contest.yaml"
 - "!include sequent_backend_results_area_contest_candidate.yaml"

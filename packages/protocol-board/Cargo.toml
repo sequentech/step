@@ -1,0 +1,33 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+[package]
+name = "protocol-board"
+version = "0.1.0"
+edition = "2021"
+license = "AGPL-3.0-only"
+
+[lib]
+name = "protocol_board"
+path = "src/lib.rs"
+
+[dependencies]
+wbraid = { workspace = true }
+vsc = { workspace = true }
+# Only `types`, which needs no features.
+sequent-core = { path = "../sequent-core", default-features = false }
+
+anyhow = { workspace = true }
+base64 = "0.22"
+hex = "0.4"
+uuid = "1.5"
+# `spawn_blocking` and the current runtime handle, for the board I/O bridge.
+tokio = { version = "1.40", features = ["rt"] }
+tracing = "0.1"
+
+[dev-dependencies]
+tokio = { version = "1.40", features = ["rt", "rt-multi-thread", "macros"] }
+uuid = { version = "1.5", features = ["v4"] }
+
+[lints.rust]
+unsafe_code = "forbid"

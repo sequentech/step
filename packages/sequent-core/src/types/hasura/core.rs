@@ -18,7 +18,8 @@ use crate::{
     types::{
         ceremonies::{
             AutomaticRecountPolicy, CeremoniesPolicy,
-            KeysCeremonyExecutionStatus, KeysCeremonyStatus, TallyRunReason,
+            KeysCeremonyExecutionStatus, KeysCeremonySettings,
+            KeysCeremonyStatus, TallyRunReason,
         },
         participation::VotesByChannel,
         tally_sheets::{AreaContestResults, TallySheetStatus},
@@ -477,15 +478,17 @@ impl KeysCeremony {
             .map_err(|err| anyhow!("{:?}", err))
     }
 
+    /// The ceremony's settings document. Settings that cannot be read fall
+    /// back to the defaults.
+    pub fn settings(&self) -> KeysCeremonySettings {
+        self.settings
+            .clone()
+            .and_then(|value| deserialize_value(value).ok())
+            .unwrap_or_default()
+    }
+
     pub fn policy(&self) -> CeremoniesPolicy {
-        let settings = self.settings.as_ref().unwrap_or(&Value::Null);
-        settings
-            .get("policy")
-            .and_then(|value: &Value| value.as_str())
-            .map(|s| s.to_string())
-            .unwrap_or_else(|| CeremoniesPolicy::MANUAL_CEREMONIES.to_string())
-            .parse::<CeremoniesPolicy>()
-            .unwrap_or(CeremoniesPolicy::MANUAL_CEREMONIES)
+        self.settings().policy
     }
 }
 
@@ -623,13 +626,36 @@ pub struct TasksExecution {
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
 pub struct Trustee {
     pub id: String,
+    /// Ed25519 verifying key the trustee signs board messages with, base64 of
+    /// the raw 32 key bytes.
     pub public_key: Option<String>,
+    /// ElGamal public key the other trustees encrypt this trustee's DKG shares
+    /// to, base64 of the canonical group element bytes.
+    pub share_encryption_public_key: Option<String>,
     pub name: Option<String>,
     pub created_at: Option<DateTime<Local>>,
     pub last_updated_at: Option<DateTime<Local>>,
     pub labels: Option<Value>,
     pub annotations: Option<Value>,
     pub tenant_id: String,
+}
+
+/// A protocol board the board service of the crypto core.
+/// It could be meant for dkg, or tallying.
+#[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
+pub struct ProtocolBoard {
+    pub id: String,
+    pub tenant_id: String,
+    pub election_event_id: String,
+    pub parent_id: Option<String>,
+    pub keys_ceremony_id: String,
+    /// The board name on the board service.
+    pub name: String,
+    /// The canonical bytes of the message sent by the protocol manager when
+    /// the ceremony was created. It is what gets published by the platform.
+    /// `Configuration` for dkg, `Ballots` for tally.
+    pub manager_message: Vec<u8>,
+    pub created_at: Option<DateTime<Local>>,
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]

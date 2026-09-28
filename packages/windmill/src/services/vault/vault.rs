@@ -10,11 +10,13 @@ use crate::services::vault::{
 };
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
+use cryptography::utils::serialization::{Deserializable, Serializable};
+use cryptography::utils::symm::{
+    decrypt, encrypt, gen_key, sk_from_bytes, EncryptionData, SymmetricKey,
+};
 use deadpool_postgres::Transaction;
 use std::str::FromStr;
-use strand::serialization::{StrandDeserialize, StrandSerialize};
 use strand::signature::{StrandSignaturePk, StrandSignatureSk};
-use strand::symm::{decrypt, encrypt, gen_key, EncryptionData, SymmetricKey};
 use strum_macros::{Display, EnumString};
 use tokio;
 use tokio::sync::OnceCell;
@@ -50,11 +52,12 @@ async fn initialize_master_secret() -> Result<SymmetricKey> {
 
     match vault.read_secret(MASTER_SECRET_KEY_NAME.to_string()).await {
         Ok(Some(secret)) => {
-            let bytes = hex::decode(secret).expect("Failed to decode master secret");
-            Ok(SymmetricKey::from_slice(&bytes).to_owned())
+            let bytes = hex::decode(secret).context("Failed to decode master secret")?;
+            sk_from_bytes(&bytes).map_err(|err| anyhow!("Invalid master secret: {err}"))
         }
         Ok(None) => {
-            let new_key = gen_key();
+            let new_key =
+                gen_key().map_err(|err| anyhow!("Failed to generate master secret: {err}"))?;
             let hex_key = hex::encode(new_key.as_slice());
             vault
                 .save_secret(MASTER_SECRET_KEY_NAME.to_string(), hex_key.clone())
@@ -128,11 +131,9 @@ pub async fn save_secret_and_return(
         return Err(anyhow!("Unexpected: key already exists"));
     }
     let master_secret = get_master_secret().await?;
-    let encrypted_data =
-        encrypt(master_secret, value.as_bytes()).context("Error encrypting secret")?;
-    let encrypted_bytes = encrypted_data
-        .strand_serialize()
-        .context("Error serializing encrypted data")?;
+    let encrypted_data = encrypt(master_secret, value.as_bytes())
+        .map_err(|err| anyhow!("Error encrypting secret: {err}"))?;
+    let encrypted_bytes = encrypted_data.ser();
 
     insert_secret(
         hasura_transaction,
@@ -146,11 +147,11 @@ pub async fn save_secret_and_return(
 }
 
 async fn decrypt_stored_secret(secret: &Secret) -> Result<String> {
-    let encrypted_data = EncryptionData::strand_deserialize(&secret.value)
-        .context("Error deserializing encrypted data")?;
+    let encrypted_data = EncryptionData::deser(&secret.value)
+        .map_err(|err| anyhow!("Error deserializing encrypted data: {err}"))?;
     let master_secret = get_master_secret().await?;
-    let decrypted_bytes =
-        decrypt(&master_secret, &encrypted_data).context("Error decrypting secret")?;
+    let decrypted_bytes = decrypt(&master_secret, &encrypted_data)
+        .map_err(|err| anyhow!("Error decrypting secret: {err}"))?;
     String::from_utf8(decrypted_bytes).context("Error converting decrypted bytes to string")
 }
 

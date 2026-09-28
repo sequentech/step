@@ -13,6 +13,7 @@ members = [
     "strand",
     "immu-board",
     "immudb-rs",
+    "protocol-board",
     "sequent-core",
     "velvet",
     "windmill",
@@ -25,12 +26,17 @@ members = [
     "plugins/*"
 ]
 
+exclude = [
+    "wbraid"
+]
+
 [workspace.dependencies]
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 tokio = { version = "1.40", features = ["full"] }
 anyhow = "1.0"
-
+wbraid = { package = "braid", path = "wbraid/crates/braid" }
+vsc = { path = "wbraid/crates/vsc" }
 
 [patch.crates-io]
 celery = { git = "https://github.com/Findeton/rusty-celery.git", rev = "b4145925aaaf742b7ba54499fff45313bcadfca1" }

@@ -1,11 +1,12 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use super::electoral_log_board::get_election_board;
 use super::jwks::remove_realm_jwks;
-use super::protocol_manager::{get_b3_pgsql_client, get_election_board};
+use super::legacy_board::get_b3_pgsql_client;
 use crate::postgres::election::get_elections;
-use crate::services::protocol_manager::get_event_board;
-use crate::services::protocol_manager::get_immudb_client;
+use crate::services::electoral_log_board::get_event_board;
+use crate::services::electoral_log_board::get_immudb_client;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::Transaction;

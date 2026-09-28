@@ -62,7 +62,7 @@ fn sanitize_filename(name: &str) -> String {
 }
 
 /// Constructs the immudb board name from tenant_id and election_event_id.
-/// Replicates logic from `packages/windmill/src/services/protocol_manager.rs`.
+/// Replicates logic from `packages/windmill/src/services/electoral_log_board.rs`.
 fn get_event_board_name(tenant_id: &str, election_event_id: &str) -> String {
     let tenant: String = tenant_id
         .to_string()
@@ -77,7 +77,7 @@ fn get_event_board_name(tenant_id: &str, election_event_id: &str) -> String {
 }
 
 /// Establishes a connection to immudb using the provided configuration.
-/// Replicates logic from `packages/windmill/src/services/protocol_manager.rs`.
+/// Replicates logic from `packages/windmill/src/services/electoral_log_board.rs`.
 async fn connect_immudb(config: &Config) -> Result<Client> {
     let mut client = Client::new(
         &config.immudb_url,

@@ -28,11 +28,16 @@ pub enum KeysCeremonyExecutionStatus {
                          * been added to the board */
     IN_PROGRESS, /* config message has been added to the board and trustees
                   * are working */
-    SUCCESS,   // successful completion
+    SUCCESS, // successful completion
+    /// Terminal failure: the board serves another Configuration, or carries
+    /// content no joint public key can be taken from, etc. A failed ceremony
+    /// is never resumed; the administrator creates a new one, which gets a
+    /// new board.
+    FAILED,
     CANCELLED, // cancelation
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct Log {
     pub created_date: String,
     pub log_text: String,
@@ -43,23 +48,77 @@ pub struct Log {
 )]
 pub enum TrusteeStatus {
     WAITING,
+    /// Posted its DKG dealing (`Shares`) on the board, which is also how a
+    /// trustee accepts the board's Configuration.
+    SHARES_POSTED,
+    /// Posted its derivation of the joint public key (`PublicKey`).
     KEY_GENERATED,
+    /// Downloaded its key bundle.
     KEY_RETRIEVED,
+    /// Re-uploaded its key bundle and it matched the board.
     KEY_CHECKED,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct Trustee {
     pub name: String,
     pub status: TrusteeStatus,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+/// Why a keys ceremony ended in [`KeysCeremonyExecutionStatus::FAILED`].
+///
+/// Both mean a bug or tampering rather than something an administrator can
+/// fix; the failure's detail carries the error as it was reported.
+#[derive(
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    Copy,
+    EnumString,
+)]
+pub enum KeysCeremonyFailureReason {
+    /// The board serves a Configuration other than the one recorded for this
+    /// ceremony.
+    BOARD_CONFIGURATION_MISMATCH,
+    /// The board carries something the platform cannot use: e.g. braid refused
+    /// what it read, or no joint public key can be taken from it.
+    INVALID_BOARD_CONTENT,
+}
+
+/// What ended a keys ceremony, kept so the failure survives the task that saw
+/// it and can be shown to the administrator.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+pub struct KeysCeremonyFailure {
+    pub reason: KeysCeremonyFailureReason,
+    /// The error behind the reason, as it was reported.
+    pub detail: String,
+    pub failed_at: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct KeysCeremonyStatus {
     pub stop_date: Option<String>,
+    /// The joint ElGamal public key `y`, as base64 of its canonical bytes.
     pub public_key: Option<String>,
+    /// Hash of the `PublicKey` board message that carried `y`, hex encoded.
+    /// Every tally of this key names it.
+    pub public_key_hash: Option<String>,
+    /// Set together with [`KeysCeremonyExecutionStatus::FAILED`].
+    pub failure: Option<KeysCeremonyFailure>,
     pub logs: Vec<Log>,
     pub trustees: Vec<Trustee>,
+}
+
+/// The `keys_ceremony.settings` document.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Default)]
+pub struct KeysCeremonySettings {
+    /// Whether the ceremony needs the trustees' custody steps to complete.
+    #[serde(default)]
+    pub policy: CeremoniesPolicy,
 }
 
 #[derive(

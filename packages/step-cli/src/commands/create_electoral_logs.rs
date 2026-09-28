@@ -19,7 +19,7 @@ use fake::Fake;
 use immudb_rs::{sql_value::Value as ImmudbValue, Client as ImmudbClient, NamedParam, SqlValue};
 use std::env;
 use strand::signature::{StrandSignature, StrandSignaturePk};
-use windmill::services::protocol_manager::get_event_board;
+use windmill::services::electoral_log_board::get_event_board;
 use windmill::services::providers::transactions_provider::provide_immudb_transaction;
 
 #[derive(Args)]

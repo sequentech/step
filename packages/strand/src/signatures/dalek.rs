@@ -31,15 +31,12 @@
 
 use base64::{engine::general_purpose, Engine as _};
 use borsh::{BorshDeserialize, BorshSerialize};
-use ed25519_dalek::pkcs8::DecodePrivateKey;
-use ed25519_dalek::pkcs8::DecodePublicKey;
-use ed25519_dalek::pkcs8::EncodePrivateKey;
-use ed25519_dalek::pkcs8::EncodePublicKey;
 use ed25519_dalek::Signature;
 use ed25519_dalek::Signer;
 use ed25519_dalek::SigningKey;
 use ed25519_dalek::Verifier;
 use ed25519_dalek::VerifyingKey;
+use rand::RngCore as _;
 use serde::de::{self, Visitor};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::hash::Hash;
@@ -83,6 +80,40 @@ impl StrandSignature {
     }
 }
 
+// Ed25519 keys have a fixed length, so their DER encodings (RFC 8410) are a
+// constant header followed by the 32 raw key bytes. Encoding by prefix keeps
+// the wire format identical to what the `pkcs8` crate produced while avoiding
+// a dependency on it.
+
+/// `SubjectPublicKeyInfo { algorithm: id-Ed25519, subjectPublicKey: BIT STRING }`
+/// up to the 32 key bytes.
+const ED25519_SPKI_DER_PREFIX: &[u8] = &[
+    0x30, 0x2a, 0x30, 0x05, 0x06, 0x03, 0x2b, 0x65, 0x70, 0x03, 0x21, 0x00,
+];
+
+/// `OneAsymmetricKey { version: v1(0), algorithm: id-Ed25519, privateKey:
+/// OCTET STRING { CurvePrivateKey OCTET STRING } }` up to the 32 seed bytes.
+const ED25519_PKCS8_V1_DER_PREFIX: &[u8] = &[
+    0x30, 0x2e, 0x02, 0x01, 0x00, 0x30, 0x05, 0x06, 0x03, 0x2b, 0x65, 0x70,
+    0x04, 0x22, 0x04, 0x20,
+];
+
+/// Splits `prefix` off `bytes` and returns the 32 raw key bytes that follow.
+fn strip_der_prefix(
+    bytes: &[u8],
+    prefix: &[u8],
+    structure: &str,
+) -> Result<[u8; 32], StrandError> {
+    let malformed = || {
+        StrandError::Generic(format!(
+            "malformed Ed25519 {structure} DER: expected {} bytes",
+            prefix.len() + 32
+        ))
+    };
+    let raw = bytes.strip_prefix(prefix).ok_or_else(malformed)?;
+    <[u8; 32]>::try_from(raw).map_err(|_| malformed())
+}
+
 /// An ed25519-dalek backed signature verification key.
 // Clone: Allows Configuration to be Clonable in Braid
 #[derive(Clone)]
@@ -106,20 +137,19 @@ impl StrandSignaturePk {
 
     /// Returns a spki der representation.
     pub fn to_der(&self) -> Result<Vec<u8>, StrandError> {
-        let doc = self
-            .0
-            .to_public_key_der()
-            .map_err(|e| StrandError::Generic(e.to_string()))?;
-
-        Ok(doc.as_bytes().to_vec())
+        let mut der = ED25519_SPKI_DER_PREFIX.to_vec();
+        der.extend_from_slice(&self.0.to_bytes());
+        Ok(der)
     }
 
     /// Parses a spki der representation.
     pub fn from_der(bytes: &[u8]) -> Result<StrandSignaturePk, StrandError> {
-        let sk = VerifyingKey::from_public_key_der(&bytes)
-            .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?;
-
-        Ok(StrandSignaturePk(sk))
+        let raw = strip_der_prefix(
+            bytes,
+            ED25519_SPKI_DER_PREFIX,
+            "SubjectPublicKeyInfo",
+        )?;
+        Self::from_bytes(raw)
     }
 
     /// Returns a base64 encoded spki der representation.
@@ -154,9 +184,9 @@ pub struct StrandSignatureSk(SigningKey);
 impl StrandSignatureSk {
     /// Generates a key using randomness from rng::StrandRng.
     pub fn generate() -> Result<StrandSignatureSk, StrandError> {
-        let mut rng = StrandRng;
-        let sk = SigningKey::generate(&mut rng);
-        Ok(StrandSignatureSk(sk))
+        let mut seed = [0u8; 32];
+        StrandRng.fill_bytes(&mut seed);
+        Ok(StrandSignatureSk(SigningKey::from_bytes(&seed)))
     }
     /// Signs the message returning a signature.
     ///
@@ -170,23 +200,16 @@ impl StrandSignatureSk {
     pub fn to_der(&self) -> Result<Vec<u8>, StrandError> {
         // We want to force pkcs#8 v1.0 which does not include the public key
         // Otherwise this causes problems with rcgen::KeyPair::from_der
-        let kpb = ed25519_dalek::pkcs8::KeypairBytes {
-            secret_key: self.0.to_bytes(),
-            public_key: None,
-        };
-        let doc = kpb
-            .to_pkcs8_der()
-            .map_err(|e| StrandError::Generic(e.to_string()))?;
-
-        Ok(doc.as_bytes().to_vec())
+        let mut der = ED25519_PKCS8_V1_DER_PREFIX.to_vec();
+        der.extend_from_slice(&self.0.to_bytes());
+        Ok(der)
     }
 
-    /// Parses a pkcs#8 v1 or v2 der representation.
+    /// Parses a pkcs#8 v1 der representation.
     pub fn from_der(bytes: &[u8]) -> Result<StrandSignatureSk, StrandError> {
-        let sk = SigningKey::from_pkcs8_der(&bytes)
-            .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?;
-
-        Ok(StrandSignatureSk(sk))
+        let raw =
+            strip_der_prefix(bytes, ED25519_PKCS8_V1_DER_PREFIX, "PKCS#8 v1")?;
+        Ok(StrandSignatureSk(SigningKey::from_bytes(&raw)))
     }
 
     /// Returns a base64 encoded pkcs#8 v1 der representation.
@@ -386,10 +409,8 @@ pub(crate) mod tests {
     pub fn test_signature() {
         let msg = b"ok";
         let msg2 = b"not_ok";
-        let mut rng = StrandRng;
-
         let (vk_bytes, sig_bytes) = {
-            let sk = StrandSignatureSk(SigningKey::generate(&mut rng));
+            let sk = StrandSignatureSk::generate().unwrap();
             let sk_b = sk.to_der().unwrap();
             let sk_d = StrandSignatureSk::from_der(&sk_b).unwrap();
 
@@ -447,10 +468,8 @@ pub(crate) mod tests {
     fn test_string_serialization() {
         let message = b"ok";
         let other_message = b"not_ok";
-        let mut rng = StrandRng;
-
         let (public_key_string, signature_string) = {
-            let signing_key = StrandSignatureSk(SigningKey::generate(&mut rng));
+            let signing_key = StrandSignatureSk::generate().unwrap();
             let signing_key_string: String =
                 signing_key.to_der_b64_string().unwrap();
             let signing_key_deserialized: StrandSignatureSk =

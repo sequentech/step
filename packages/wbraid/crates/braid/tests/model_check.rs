@@ -217,7 +217,8 @@ impl BraidModel {
             W,
             share_enc_keys,
             PhantomData,
-        );
+        )
+        .expect("invalid configuration");
         let configuration_hash =
             ConfigurationHash::from_configuration(&configuration).expect("configuration hash");
 

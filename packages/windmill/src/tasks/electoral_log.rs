@@ -9,7 +9,7 @@ use crate::services::database::get_keycloak_pool;
 use crate::services::database::PgConfig;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::electoral_log::ElectoralLog;
-use crate::services::protocol_manager::get_board_client;
+use crate::services::electoral_log_board::get_board_client;
 use crate::services::users::get_user_area_id;
 use crate::types::error::{Error, Result};
 use anyhow::{anyhow, Context};

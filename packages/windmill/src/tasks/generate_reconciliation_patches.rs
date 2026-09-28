@@ -34,6 +34,7 @@ use crate::services::consolidation::eml_generator::ValidateAnnotations;
 use crate::services::database::{get_hasura_pool, get_keycloak_pool};
 use crate::services::documents::{get_document_as_temp_file, upload_and_return_document};
 use crate::services::electoral_log::ElectoralLog;
+use crate::services::electoral_log_board::get_event_board;
 use crate::services::external::reconciliation::csv::{
     split_meta_and_csv, ReconciliationRowBatches,
 };
@@ -46,7 +47,6 @@ use crate::services::external::reconciliation::patch::{
     ExternalPatchCsvWriter,
 };
 use crate::services::external::types::ReconciliationPatchSource;
-use crate::services::protocol_manager::get_event_board;
 use crate::services::serialize_tasks_logs::append_general_log;
 use crate::services::tally_sheet_import::hash::hash_bytes;
 use crate::services::tasks_execution::{update, update_complete, update_fail};

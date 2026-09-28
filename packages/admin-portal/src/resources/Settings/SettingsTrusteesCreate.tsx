@@ -65,6 +65,7 @@ export const SettingsTrusteesCreate: React.FC<CreateProps> = (props) => {
                 </PageHeaderStyles.Title>
                 <TextInput source="name" />
                 <TextInput source="public_key" />
+                <TextInput source="share_encryption_public_key" />
 
                 <Hidden>
                     <ReferenceInput source="tenant_id" reference="sequent_backend_tenant">

@@ -1,0 +1,62 @@
+table:
+    name: protocol_board
+    schema: sequent_backend
+insert_permissions:
+    - comment: ""
+      permission:
+          check: {}
+          columns:
+              - id
+              - tenant_id
+              - election_event_id
+              - parent_id
+              - keys_ceremony_id
+              - name
+              - manager_message
+              - created_at
+      role: service-account
+select_permissions:
+    - comment: ""
+      permission:
+          allow_aggregations: true
+          columns:
+              - id
+              - tenant_id
+              - election_event_id
+              - parent_id
+              - keys_ceremony_id
+              - name
+              - created_at
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: admin-user
+    - comment: ""
+      permission:
+          allow_aggregations: true
+          columns:
+              - id
+              - tenant_id
+              - election_event_id
+              - parent_id
+              - keys_ceremony_id
+              - name
+              - created_at
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: admin-ceremony
+    - comment: ""
+      permission:
+          allow_aggregations: true
+          columns:
+              - id
+              - tenant_id
+              - election_event_id
+              - parent_id
+              - keys_ceremony_id
+              - name
+              - manager_message
+              - created_at
+          filter: {}
+      role: service-account
