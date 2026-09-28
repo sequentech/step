@@ -37,6 +37,7 @@ import {
     EElectionEventContestEncryptionPolicy,
     IHashableBallot,
     areAllContestsAcclaimed,
+    getContestClassName,
 } from "@sequentech/ui-core"
 import {styled} from "@mui/material/styles"
 import Typography from "@mui/material/Typography"
@@ -957,7 +958,10 @@ export const ReviewScreen: React.FC = () => {
                 )}
             </Typography>
             {contests.map((question, index) => (
-                <Box key={question.id} className={`contest-container contest-${index}`}>
+                <Box
+                    key={question.id}
+                    className={`contest-container contest-${index} ${getContestClassName(question.external_id)}`.trim()}
+                >
                     <Question
                         ballotStyle={ballotStyle}
                         question={question}

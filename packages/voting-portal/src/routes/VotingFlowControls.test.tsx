@@ -268,6 +268,54 @@ beforeEach(() => {
 
 afterEach(() => sessionStorage.clear())
 
+describe("contest external-ID CSS hooks", () => {
+    it.each(["vote", "review"])(
+        "preserves legacy classes and sanitizes external IDs on %s",
+        (path) => {
+            const contests = mockState.ballotStyles["election-1"].ballot_eml.contests
+            const externalIds = ["1001", " A /B_2- ", undefined, null, "", " / ", "x".repeat(50)]
+            mockState.ballotStyles["election-1"].ballot_eml.contests = externalIds.map(
+                (external_id, index) => ({
+                    ...contests[0],
+                    id: `imported-${index}`,
+                    external_id,
+                    presentation: {pagination_policy: "all"},
+                })
+            )
+            const {container} = renderRoute(
+                path === "vote" ? <VotingScreen /> : <ReviewScreen />,
+                path
+            )
+            const wrappers = container.querySelectorAll(".contest-container")
+            expect(wrappers).toHaveLength(externalIds.length)
+            const expected = ["c-1001", "c-AB_2-", "", "", "", "", `c-${"x".repeat(38)}`]
+            wrappers.forEach((wrapper, index) => {
+                expect(wrapper).toHaveClass(`contest-${index}`)
+                expect(
+                    Array.from(wrapper.classList).filter((name) => name.startsWith("c-"))
+                ).toEqual(expected[index] ? [expected[index]] : [])
+            })
+        }
+    )
+
+    it("keeps external IDs across voting pages and reordered review contests", async () => {
+        const contests = mockState.ballotStyles["election-1"].ballot_eml.contests
+        Object.assign(contests[0], {external_id: "1001"})
+        Object.assign(contests[1], {external_id: "1002"})
+        const vote = renderRoute(<VotingScreen />, "vote")
+        expect(vote.container.querySelector(".contest-0")).toHaveClass("c-1001")
+        await userEvent
+            .setup()
+            .click(screen.getByRole("button", {name: "votingScreen.reviewButton"}))
+        expect(vote.container.querySelector(".contest-0")).toHaveClass("c-1002")
+        vote.unmount()
+        contests.reverse()
+        const review = renderRoute(<ReviewScreen />, "review")
+        expect(review.container.querySelector(".contest-0")).toHaveClass("c-1002")
+        expect(review.container.querySelector(".contest-1")).toHaveClass("c-1001")
+    })
+})
+
 describe("selection-screen Back", () => {
     it.each(["{Enter}", " "])(
         "returns to the previous contest with %s without leaving the ballot",
