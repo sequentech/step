@@ -13,11 +13,13 @@ use protocol_board::{
     PlatformEvent, SignedConfiguration, Timestamps,
 };
 use sequent_core::services::date::{get_now_utc_unix_ms, ISO8601};
-use sequent_core::types::ceremonies::CeremoniesPolicy;
+use sequent_core::types::ceremonies::KeysCeremonyExecutionStatus;
 use tracing::instrument;
 use uuid::Uuid;
 
-use crate::postgres::keys_ceremony::update_keys_ceremony_status;
+use crate::postgres::keys_ceremony::{
+    get_keys_ceremony_by_id_for_update, update_keys_ceremony_status,
+};
 use crate::postgres::protocol_board::get_dkg_board_by_keys_ceremony;
 use crate::services::vault;
 
@@ -67,22 +69,38 @@ pub async fn load_dkg_board(
 
 /// Apply one event to a ceremony and commit what it decided.
 ///
+/// The ceremony is loaded again under a row lock: windmill's beat and a
+/// trustee's report both write it, and which event prevails is a rule of the
+/// transition, not of write order, so every transition must run on the latest
+/// committed state.
+///
 /// A no-op transition commits nothing, this lets a task run on every
 /// beat without touching the database when the board has not
 /// moved.
-#[instrument(err, skip(hasura_transaction, state, event))]
+#[instrument(err, skip(hasura_transaction, event))]
 pub async fn apply_event(
     hasura_transaction: Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
     keys_ceremony_id: &str,
-    state: &CeremonyState,
-    policy: CeremoniesPolicy,
     event: PlatformEvent,
-) -> Result<()> {
-    let next = transition(state, policy, event, &ceremony_now());
-    if next == *state {
-        return Ok(());
+) -> Result<KeysCeremonyExecutionStatus> {
+    let keys_ceremony = get_keys_ceremony_by_id_for_update(
+        &hasura_transaction,
+        tenant_id,
+        election_event_id,
+        keys_ceremony_id,
+    )
+    .await?;
+    let unreadable = || format!("keys ceremony {keys_ceremony_id} has an unreadable status");
+    let state = CeremonyState::new(
+        keys_ceremony.execution_status().with_context(unreadable)?,
+        keys_ceremony.status().with_context(unreadable)?,
+    );
+
+    let next = transition(&state, keys_ceremony.policy(), event, &ceremony_now());
+    if next == state {
+        return Ok(next.execution);
     }
 
     update_keys_ceremony_status(
@@ -99,7 +117,7 @@ pub async fn apply_event(
         .commit()
         .await
         .with_context(|| "error committing transaction")?;
-    Ok(())
+    Ok(next.execution)
 }
 
 pub fn manager_key_vault_path(board: &BoardName) -> String {
