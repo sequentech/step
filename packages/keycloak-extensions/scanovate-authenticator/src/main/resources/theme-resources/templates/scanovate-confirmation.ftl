@@ -80,8 +80,8 @@ SPDX-License-Identifier: AGPL-3.0-only
                 <div class="scanovate-data-card">
                     <#list storedAttributes as attribute>
                         <div class="scanovate-data-row">
-                            <div class="scanovate-data-label">${msg(attribute.key())}</div>
-                            <div class="scanovate-data-value">${attribute.value()}</div>
+                            <div class="scanovate-data-label">${msg(attribute.key)}</div>
+                            <div class="scanovate-data-value">${attribute.value}</div>
                         </div>
                     </#list>
                 </div>

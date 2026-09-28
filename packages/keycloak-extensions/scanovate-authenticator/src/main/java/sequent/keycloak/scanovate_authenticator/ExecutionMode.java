@@ -14,7 +14,12 @@ public enum ExecutionMode {
    * Results are fetched right after creating the session, without redirecting the voter. Only
    * meaningful against a mock server that completes sessions instantly, e.g. for load testing.
    */
-  AUTO_COMPLETE("auto-complete");
+  AUTO_COMPLETE("auto-complete"),
+  /**
+   * The voter captures their document, selfie and video in Keycloak's own page, guided in the
+   * browser, and Keycloak uploads them to B-Trust. Needs the sequent-ui login theme.
+   */
+  EMBEDDED("embedded");
 
   private final String value;
 

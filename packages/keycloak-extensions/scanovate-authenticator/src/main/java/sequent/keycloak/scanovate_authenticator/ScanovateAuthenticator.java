@@ -19,6 +19,7 @@ import java.util.function.Function;
 import lombok.extern.jbosslog.JBossLog;
 import org.keycloak.authentication.AuthenticationFlowContext;
 import org.keycloak.authentication.Authenticator;
+import org.keycloak.forms.login.LoginFormsProvider;
 import org.keycloak.models.AuthenticationExecutionModel;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
@@ -31,7 +32,9 @@ import sequent.keycloak.voter_enrollment.Utils;
  *
  * <p>The voter is redirected to a B-Trust flow and, when they come back, the results are fetched
  * server to server, validated against the configured rules, and the extracted attributes are stored
- * as auth notes for the voter to confirm.
+ * as auth notes for the voter to confirm. In the embedded mode the voter captures the media in
+ * Keycloak's own page instead, and Keycloak uploads it to the B-Trust session before fetching the
+ * results.
  */
 @JBossLog
 public class ScanovateAuthenticator implements Authenticator {
@@ -42,10 +45,17 @@ public class ScanovateAuthenticator implements Authenticator {
   static final String USER_STATUS_VERIFIED = "VERIFIED";
   static final String CONFIRMATION_FORM = "scanovate-confirmation.ftl";
   static final String ERROR_FORM = "scanovate-error.ftl";
+  static final String CAPTURE_FORM = "scanovate-capture.ftl";
   static final String FTL_ERROR = "error";
   static final String FTL_CODE_ID = "code_id";
   static final String FTL_CAN_RETRY = "canRetry";
   static final String FTL_STORED_ATTRIBUTES = "storedAttributes";
+  static final String FTL_DOCUMENT_TYPE = "documentType";
+  static final String FTL_ATTEMPTS_LEFT = "attemptsLeft";
+  static final String FTL_MAX_ATTEMPTS = "maxAttempts";
+  static final String FTL_SCANOVATE = "scanovate";
+  static final String FTL_SIDES = "sides";
+  static final String FTL_VIDEO_SECONDS = "videoSeconds";
   static final String EVENT_ERROR = "scanovate_verification_failed";
   static final String EVENT_DETAIL_ERROR = "scanovate_error";
   static final String EVENT_DETAIL_PROCESS_ID = "scanovate_process_id";
@@ -99,6 +109,10 @@ public class ScanovateAuthenticator implements Authenticator {
       processReturn(context);
       return;
     }
+    if (processId != null && isEmbedded(config)) {
+      showPendingCapture(context);
+      return;
+    }
 
     startVerification(context);
   }
@@ -115,13 +129,19 @@ public class ScanovateAuthenticator implements Authenticator {
     }
     switch (formAction.get()) {
       case CONFIRM -> confirm(context);
-      case RETRY -> retry(context);
+      case RETRY -> startVerification(context);
+      case CAPTURE -> capture(context);
     }
   }
 
   private void startVerification(AuthenticationFlowContext context) {
     Map<String, String> config = config(context);
     AuthenticationSessionModel authSession = context.getAuthenticationSession();
+    if (attempts(context) >= maxAttempts(config)) {
+      log.warn("startVerification: maximum attempts reached, not starting a new session");
+      showError(context, ScanovateError.MAX_RETRIES, false);
+      return;
+    }
     clearVerification(context);
 
     int flowId;
@@ -129,14 +149,15 @@ public class ScanovateAuthenticator implements Authenticator {
     SaveOption saveOption;
     Map<String, String> params;
     URI redirectUrl;
+    Optional<CaptureSettings> captureSettings;
     try {
       flowId = Integer.parseInt(config.getOrDefault(ScanovateAuthenticatorFactory.FLOW_ID, ""));
       mode =
-          ExecutionMode.fromValue(
-                  config.getOrDefault(
-                      ScanovateAuthenticatorFactory.EXECUTION_MODE,
-                      ExecutionMode.INTERACTIVE.value()))
-              .orElseThrow(() -> new ScanovateException("Invalid execution mode"));
+          executionMode(config).orElseThrow(() -> new ScanovateException("Invalid execution mode"));
+      captureSettings =
+          mode == ExecutionMode.EMBEDDED
+              ? Optional.of(CaptureSettings.fromConfig(config, documentType(config, authSession)))
+              : Optional.empty();
       saveOption =
           SaveOption.fromValue(config.get(ScanovateAuthenticatorFactory.SAVE_OPTION))
               .orElseThrow(() -> new ScanovateException("Invalid save option"));
@@ -175,7 +196,83 @@ public class ScanovateAuthenticator implements Authenticator {
     switch (mode) {
       case INTERACTIVE -> context.challenge(Response.seeOther(URI.create(link.url())).build());
       case AUTO_COMPLETE -> processReturn(context);
+      case EMBEDDED ->
+          captureSettings.ifPresent(settings -> showCapture(context, settings, Optional.empty()));
     }
+  }
+
+  private void showPendingCapture(AuthenticationFlowContext context) {
+    Map<String, String> config = config(context);
+    CaptureSettings settings;
+    try {
+      settings =
+          CaptureSettings.fromConfig(
+              config, documentType(config, context.getAuthenticationSession()));
+    } catch (ScanovateException e) {
+      log.error("showPendingCapture: invalid capture configuration", e);
+      showError(context, ScanovateError.INTERNAL, false);
+      return;
+    }
+    showCapture(context, settings, Optional.empty());
+  }
+
+  private void showCapture(
+      AuthenticationFlowContext context, CaptureSettings settings, Optional<String> errorKey) {
+    Map<String, String> config = config(context);
+    int maxAttempts = maxAttempts(config);
+    Map<String, Object> capture = new LinkedHashMap<>();
+    capture.put(
+        FTL_DOCUMENT_TYPE,
+        documentTypeName(documentType(config, context.getAuthenticationSession())));
+    capture.put(FTL_SIDES, settings.sides().stream().map(DocumentSide::name).toList());
+    capture.put(FTL_VIDEO_SECONDS, settings.videoSeconds());
+    capture.put(FTL_ATTEMPTS_LEFT, attemptsLeft(context, maxAttempts));
+    capture.put(FTL_MAX_ATTEMPTS, maxAttempts);
+
+    LoginFormsProvider form = context.form().setAttribute(FTL_SCANOVATE, capture);
+    errorKey.ifPresent(form::setError);
+    context.challenge(form.createForm(CAPTURE_FORM));
+  }
+
+  private void capture(AuthenticationFlowContext context) {
+    Map<String, String> config = config(context);
+    AuthenticationSessionModel authSession = context.getAuthenticationSession();
+    String processId = authSession.getAuthNote(PROCESS_ID_NOTE);
+    if (processId == null || !isEmbedded(config)) {
+      log.warn("capture: no embedded capture in progress, starting a new session");
+      startVerification(context);
+      return;
+    }
+
+    CaptureSettings settings;
+    try {
+      settings = CaptureSettings.fromConfig(config, documentType(config, authSession));
+    } catch (ScanovateException e) {
+      log.error("capture: invalid capture configuration", e);
+      showError(context, ScanovateError.INTERNAL, false);
+      return;
+    }
+
+    CaptureMedia media;
+    try {
+      media =
+          CaptureMedia.fromParts(context.getHttpRequest().getMultiPartFormParameters(), settings);
+    } catch (InvalidCaptureException e) {
+      log.warnv("capture: rejected the capture for {0}: {1}", processId, e.getMessage());
+      showCapture(context, settings, Optional.of(ScanovateError.CAPTURE_INVALID.messageKey()));
+      return;
+    }
+
+    try {
+      ScanovateClient client = clientFactory.apply(config);
+      client.uploadMedia(client.fetchAccessToken(), processId, media);
+    } catch (IOException e) {
+      log.error("capture: could not upload the capture to B-Trust", e);
+      showError(context, ScanovateError.INTERNAL, true);
+      return;
+    }
+    log.infov("capture: uploaded the capture for {0}", processId);
+    processReturn(context);
   }
 
   private void processReturn(AuthenticationFlowContext context) {
@@ -210,11 +307,7 @@ public class ScanovateAuthenticator implements Authenticator {
       return;
     }
 
-    String docType =
-        authSession.getAuthNote(
-            config.getOrDefault(
-                ScanovateAuthenticatorFactory.DOC_ID_TYPE,
-                ScanovateAuthenticatorFactory.DEFAULT_DOC_ID_TYPE));
+    String docType = documentType(config, authSession);
     List<StoredAttribute> storedAttributes;
     try {
       Optional<JsonNode> validationRules =
@@ -254,7 +347,10 @@ public class ScanovateAuthenticator implements Authenticator {
     context.challenge(
         context
             .form()
-            .setAttribute(FTL_STORED_ATTRIBUTES, storedAttributes)
+            .setAttribute(
+                FTL_STORED_ATTRIBUTES,
+                storedAttributes.stream().map(StoredAttribute::toTemplateModel).toList())
+            .setAttribute(FTL_DOCUMENT_TYPE, documentTypeName(docType))
             .createForm(CONFIRMATION_FORM));
   }
 
@@ -266,15 +362,6 @@ public class ScanovateAuthenticator implements Authenticator {
       return;
     }
     succeed(context);
-  }
-
-  private void retry(AuthenticationFlowContext context) {
-    int maxAttempts = maxAttempts(config(context));
-    if (attempts(context) >= maxAttempts) {
-      showError(context, ScanovateError.MAX_RETRIES, false);
-      return;
-    }
-    startVerification(context);
   }
 
   private void succeed(AuthenticationFlowContext context) {
@@ -309,6 +396,7 @@ public class ScanovateAuthenticator implements Authenticator {
             .form()
             .setAttribute(FTL_ERROR, messageKey)
             .setAttribute(FTL_CAN_RETRY, canRetry)
+            .setAttribute(FTL_ATTEMPTS_LEFT, attemptsLeft(context, maxAttempts(config(context))))
             .setAttribute(
                 FTL_CODE_ID, context.getAuthenticationSession().getParentSession().getId())
             .createForm(ERROR_FORM));
@@ -322,6 +410,33 @@ public class ScanovateAuthenticator implements Authenticator {
 
   private int attempts(AuthenticationFlowContext context) {
     return parseInt(context.getAuthenticationSession().getAuthNote(ATTEMPTS_NOTE), 0);
+  }
+
+  private int attemptsLeft(AuthenticationFlowContext context, int maxAttempts) {
+    return Math.max(0, maxAttempts - attempts(context));
+  }
+
+  private static Optional<ExecutionMode> executionMode(Map<String, String> config) {
+    return ExecutionMode.fromValue(
+        config.getOrDefault(
+            ScanovateAuthenticatorFactory.EXECUTION_MODE, ExecutionMode.INTERACTIVE.value()));
+  }
+
+  private static boolean isEmbedded(Map<String, String> config) {
+    return executionMode(config).filter(ExecutionMode.EMBEDDED::equals).isPresent();
+  }
+
+  /** The document type chosen by the voter, or null if the flow did not ask for it. */
+  private static String documentType(
+      Map<String, String> config, AuthenticationSessionModel authSession) {
+    return authSession.getAuthNote(
+        config.getOrDefault(
+            ScanovateAuthenticatorFactory.DOC_ID_TYPE,
+            ScanovateAuthenticatorFactory.DEFAULT_DOC_ID_TYPE));
+  }
+
+  private static String documentTypeName(String docType) {
+    return docType == null ? AttributeRules.DEFAULT_DOC_TYPE : docType;
   }
 
   private static int maxAttempts(Map<String, String> config) {

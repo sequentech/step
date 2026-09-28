@@ -69,11 +69,125 @@ Some design decisions to be aware of:
   without validation rules reject the verification instead of skipping checks.
 - **Confirmation is guarded.** The confirmation page only completes the step if
   a verification succeeded in the same authentication session.
+- **Attempts are enforced on every new session.** Once the failed attempts of
+  the authentication session reach `max-attempts`, no new B-Trust session is
+  created, whether through **Retry**, a page refresh, a forged confirmation or
+  a capture posted without a session: the voter gets `scanovateMaxRetriesError`
+  without a retry button.
 
 On success the auth note named by `user-status`
 (`sequent.read-only.id-card-number-validated` by default) is set to `VERIFIED`.
 Later flow steps rely on it, e.g. the `already-validated` conditional and
 `lookup-and-update-user`, which copies it into the user.
+
+## Embedded capture
+
+With `execution-mode` set to `embedded`, the voter doesn't leave Keycloak. The
+capture page of the `sequent-ui` login theme guides them through the photos of
+the front (and, if the document has one, the back) of their ID, a selfie and a
+short video holding the ID. Each camera frame is analysed in the browser, so the
+voter gets live guidance and photos are taken automatically once the frame is
+good. Keycloak then uploads the capture to the B-Trust session and processes the
+results exactly as in the `interactive` mode.
+
+```mermaid
+sequenceDiagram
+    participant V as Voter browser
+    participant K as Keycloak (scanovate-authenticator)
+    participant B as B-Trust API
+    K->>B: POST /auth/token
+    K->>B: POST /flow/v3/link
+    B-->>K: flow URL with the process id (the URL is not used)
+    K->>V: scanovate-capture.ftl (document type, sides, video length, attempts)
+    V->>V: guided capture: front, back, selfie, video
+    V->>K: POST login actions URL, multipart/form-data (action=capture, front, back, face, video)
+    K->>K: check parts, formats and sizes
+    alt invalid capture
+        K->>V: capture page again with scanovateCaptureInvalidError (not an attempt)
+    else valid capture
+        K->>B: POST /auth/token
+        K->>B: POST /api/v3/mobile_interaction/{processId}/media (proposed)
+        K->>B: POST /auth/token
+        K->>B: GET /api/v3/mobile_interaction/{processId}/token
+        K->>B: GET /api/v3/mobile_interaction/v2/{sessionToken}/results_with_image_names
+        K->>K: validate rules, store attributes
+        K->>V: confirmation or error page
+    end
+```
+
+:::warning Proposed endpoint
+B-Trust v3.8.2 doesn't document a way to submit media captured outside its own
+flow UI. The upload endpoint below is a proposal pending Scanovate's
+confirmation. It's implemented by the e2e mock server, so the mode can be
+developed and tested, but don't use `embedded` against B-Trust until Scanovate
+confirms the endpoint. `interactive` stays the default.
+:::
+
+`POST {base-url}/api/v3/mobile_interaction/{processId}/media`, with
+`Authorization: Bearer <access token>` and a `multipart/form-data` body with
+these parts:
+
+| Part | Content |
+| --- | --- |
+| `front_image` | JPEG photo of the front of the document. |
+| `back_image` | JPEG photo of the back of the document. Only for documents with a back side. |
+| `face_image` | JPEG selfie. |
+| `scan_video` | WebM or MP4 video of the voter holding the document. |
+
+The expected response is `{"success": true, "errorCode": 0}`. Like the other
+calls, it's retried with exponential backoff on network and server errors, and
+any other response is an internal error that the voter can retry. It doesn't
+count as a failed verification.
+
+Some design decisions to be aware of:
+
+- **Needs the `sequent-ui` login theme.** The capture page is part of the
+  React login theme (`packages/keycloak-ui`). The authenticator also ships a
+  FreeMarker `scanovate-capture.ftl`, but it only tells the voter that the step
+  needs that theme (`scanovateCaptureThemeRequired`). Only use `embedded` in
+  realms whose login theme is `sequent-ui`.
+- **Browser checks are guidance only.** The quality checks run in the browser
+  (framing, blur, glare, face position, ...) only help the voter take good
+  photos. The server never trusts them: it only checks that the expected parts
+  are there, once each, that they are JPEG (`FF D8 FF`), WebM (`1A 45 DF A3`) or
+  MP4 (`ftyp` at offset 4) judging by their content, not by the content type
+  the browser sends, and that they fit the size limits. B-Trust does the actual
+  verification, and its results go through the same rules as in the
+  `interactive` mode.
+- **Invalid captures are not attempts.** A capture that fails these checks
+  shows the capture page again with `scanovateCaptureInvalidError`, keeping the
+  same B-Trust session. Only verifications rejected by B-Trust or by the rules
+  count towards `max-attempts`.
+- **Refresh.** Reloading the capture page renders it again for the same
+  B-Trust session. A capture posted without a session in progress starts a new
+  one.
+- **Request size.** Captures are kept small instead of raising Keycloak's
+  limits. Keycloak (Quarkus) rejects request bodies larger than
+  `quarkus.http.limits.max-body-size`, 10 MiB (10240K) by default, before they
+  reach the authenticator. Keycloak 26.6, the development container and
+  `packages/Dockerfile.keycloak` all keep that default. The capture page
+  encodes the photos as JPEG of at most 1920 px and the video at about
+  1.5 Mbps (about 1 MiB for the default 5 seconds), and the size limits are set
+  so that the worst case fits: 3 photos of up to 2 MiB (`max-image-bytes`) and a
+  video of up to 3 MiB (`max-video-bytes`) add up to 9 MiB, leaving room for
+  the multipart overhead. If you raise `max-image-bytes`, `max-video-bytes` or
+  `video-seconds`, keep that total under the body limit.
+- **Reverse proxies.** Any reverse proxy in front of Keycloak must accept
+  request bodies of at least 10 MiB on the login actions path
+  (`/realms/{realm}/login-actions/`), e.g. with nginx
+  `client_max_body_size 10m;` in that `location`, since its default is 1 MiB.
+  Otherwise the proxy rejects the capture with `413` before it reaches
+  Keycloak.
+- **File parts.** Quarkus only treats multipart parts with a file name as files.
+  The capture page must send each photo and the video with a file name (as
+  `FormData.append(name, blob)` does), otherwise the part is read as a text
+  field and rejected.
+
+The capture page receives a `scanovate` attribute with `documentType`, `sides`
+(`FRONT`, and `BACK` if the document has one), `videoSeconds`, `attemptsLeft`
+and `maxAttempts`. The error page also receives `attemptsLeft`, and the
+confirmation page receives `storedAttributes` as a list of `{key, value, type}`
+and `documentType`.
 
 ## Configuration
 
@@ -85,7 +199,7 @@ steps that collect the document number and type, and configure it:
 | `base-url` | B-Trust API base URL. | |
 | `client-id` / `client-secret` | OAuth credentials provided by Scanovate. | |
 | `flow-id` | Numeric id of the B-Trust flow, configured in the B-Trust Flow Builder. | |
-| `execution-mode` | `interactive` redirects the voter. `auto-complete` fetches results right away and is only for mock servers. | `interactive` |
+| `execution-mode` | `interactive` redirects the voter. `embedded` captures the media in Keycloak's own page and uploads it (see [Embedded capture](#embedded-capture)). `auto-complete` fetches results right away and is only for mock servers. | `interactive` |
 | `save-option` | Empty (account default), `save` or `do_not_save`. | empty |
 | `link-params` | JSON mapping B-Trust flow parameters to auth notes, e.g. `{"country": "country"}`. | `{}` |
 | `doc-id` | Auth note with the document number, sent as `id_number`. | `sequent.read-only.id-card-number` |
@@ -95,6 +209,22 @@ steps that collect the document number and type, and configure it:
 | `attributes-to-store` | Values to store and show for confirmation, see below. | first name, last name, date of birth |
 | `max-retries` | Attempts per B-Trust API call, with exponential backoff from 1 second. | `3` |
 | `max-attempts` | Failed verifications allowed before the voter is rejected. | `3` |
+| `capture-sides` | `embedded` only. JSON keyed by document type (the value of the `doc-id-type` auth note), with a `default` key for any other type, listing the sides to capture: `["front"]` or `["front", "back"]`. Document types without an entry capture both sides. | `{"default": ["front", "back"]}` |
+| `video-seconds` | `embedded` only. Length of the video holding the document, in seconds. | `5` |
+| `max-image-bytes` | `embedded` only. Maximum size of each photo. 3 photos and the video must fit in Keycloak's 10 MiB body limit. | `2097152` (2 MiB) |
+| `max-video-bytes` | `embedded` only. Maximum size of the video. | `3145728` (3 MiB) |
+
+A malformed `capture-sides` (not an object, an empty or unknown side, a
+repeated side, or no front) or a non-positive number in the other `embedded`
+settings rejects the verification with `scanovateInternalError`, like the other
+settings. For example, to capture only the data page of passports:
+
+```json
+{
+  "philippinePassport": ["front"],
+  "default": ["front", "back"]
+}
+```
 
 ### Rules
 
@@ -158,8 +288,10 @@ results for each accepted document type and check every `attributePath`.
 The following message keys are provided in English and Tagalog:
 `scanovateInternalError`, `scanovateVerificationFailedError`,
 `scanovateDocumentAuthenticationError`, `scanovateMaxTrialsError`,
-`scanovateAttributesError`, `scanovateScoringError` and
-`scanovateMaxRetriesError`.
+`scanovateAttributesError`, `scanovateScoringError`,
+`scanovateMaxRetriesError` and, for the `embedded` mode,
+`scanovateCaptureInvalidError`, `scanovateCaptureTitle` and
+`scanovateCaptureThemeRequired`.
 
 ### COMELEC janitor
 
@@ -212,8 +344,9 @@ B-Trust scores go from 0.0 to 1.0, unlike Inetum's 0 to 100. The old
 ### Unit tests
 
 The authenticator has unit tests for result interpretation, the rules engine,
-the API client (request shapes, retries and backoff) and the authentication
-flow (redirect, return, confirmation, retries and configuration errors):
+the API client (request shapes, multipart encoding, retries and backoff), the
+capture checks and the authentication flow (redirect, return, embedded capture,
+confirmation, retries and configuration errors):
 
 ```bash
 cd packages/keycloak-extensions
@@ -241,6 +374,7 @@ B-Trust endpoints used by the authenticator:
 | `GET /flow/complete?process_id=&outcome=` | Redirects to `redirect_url?processId=...&token=...`. |
 | `GET /api/v3/mobile_interaction/{session}/token` | Returns a session token. |
 | `GET /api/v3/mobile_interaction/v2/{token}/results_with_image_names` | Returns OCR, liveness, face match and document liveness results. |
+| `POST /api/v3/mobile_interaction/{session}/media` | Proposed endpoint for the `embedded` mode. Requires a bearer token (`401` otherwise) and the `front_image`, `face_image` and `scan_video` parts (`400` otherwise), with `back_image` optional, and marks the session as having media. The results then list the uploaded back image. The outcome is still the one selected with `mock_outcome`. |
 
 If the `country` flow parameter is sent and voters were loaded with
 `POST /upload-csv`, the OCR data comes from a random voter of that country.
@@ -353,7 +487,18 @@ B-Trust, see [Testing against B-Trust](#testing-against-b-trust).
      `400 Bad Request`.
    - Submit the confirmation form (`action=confirm`) from a session that never
      completed a verification. It must not complete the step.
-5. Check the Keycloak logs (`docker logs keycloak`) for
+   - After `max-attempts` failures, refresh the page. It must show
+     `scanovateMaxRetriesError` again, and the Keycloak log must not show a new
+     `startVerification: created B-Trust session` entry.
+5. Embedded mode, in a realm using the `sequent-ui` login theme: set
+   `execution-mode` to `embedded` and enroll again. Check that the capture page
+   asks for the back only for document types listed with both sides in
+   `capture-sides`, that reloading it keeps the same B-Trust session, and that
+   a capture with a missing or non-JPEG photo shows
+   `scanovateCaptureInvalidError` without using up an attempt.
+   With the default `link-params`, the mock completes with `success`; map a
+   `mock_outcome` auth note to try the failure outcomes.
+6. Check the Keycloak logs (`docker logs keycloak`) for
    `ScanovateAuthenticator` entries, and the Keycloak events for
    `scanovate_verification_failed` errors carrying `scanovate_error` and
    `scanovate_process_id` details.
