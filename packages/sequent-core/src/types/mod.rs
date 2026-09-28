@@ -11,6 +11,7 @@ pub mod keycloak;
 #[cfg(feature = "default_features")]
 pub mod participation;
 pub mod permissions;
+pub mod protocol_board;
 pub mod results;
 #[cfg(feature = "default_features")]
 pub mod scheduled_event;

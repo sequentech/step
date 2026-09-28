@@ -2,7 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-//! The board reading, checked against real braid trustees.
+//! The board reading and the trustees' keys files, checked against real braid
+//! trustees.
 //!
 //! These run the actual protocol: braid trustees with their own keys, over a
 //! shared in-memory board, against a Configuration this crate built and signed
@@ -35,9 +36,10 @@ use wbraid::trustee::Trustee;
 
 use crate::board::read_dkg;
 use crate::committee::fixtures::{committee_of, trustees, TrusteeFixture};
-use crate::committee::Committee;
+use crate::committee::{Committee, RawTrusteeRecord};
 use crate::configuration::DkgBoard;
 use crate::encoding::{generate_manager, HashHex};
+use crate::secrets::TrusteeSecrets;
 use crate::view::{DkgStatus, DkgView};
 use crate::{Ctx, Element};
 
@@ -56,7 +58,12 @@ impl Ceremony {
     /// A committee of `count` trustees with the given threshold, on a board
     /// that already carries the stored Configuration message.
     fn new(count: usize, threshold: usize) -> Ceremony {
-        let fixtures = trustees(count);
+        Ceremony::of(trustees(count), threshold)
+    }
+
+    /// The committee of these trustees, in this order, on a board that already
+    /// carries the stored Configuration message.
+    fn of(fixtures: Vec<TrusteeFixture>, threshold: usize) -> Ceremony {
         let committee = committee_of(&fixtures);
         let dkg = DkgBoard::new(
             &Uuid::new_v4(),
@@ -383,4 +390,68 @@ fn the_platform_orders_the_committee_the_way_braid_numbers_senders() {
             member.name
         );
     }
+}
+
+#[tokio::test]
+async fn a_trustee_runs_on_the_keys_file_its_registration_was_printed_from() {
+    // What `trustee generate` writes, read back as `trustee start` reads it,
+    // and registered by an administrator from the public keys it prints.
+    let generated = TrusteeSecrets::generate().to_toml().unwrap();
+    let secrets = TrusteeSecrets::parse(&generated).unwrap();
+    let registered = secrets.public_keys().unwrap();
+    let (signing_key, share_encryption) = secrets.clone().into_parts();
+
+    let mut fixtures = trustees(3);
+    fixtures[1] = TrusteeFixture {
+        input: RawTrusteeRecord {
+            name: "trustee2".to_string(),
+            signing_public_key: Some(registered.signing_public_key),
+            share_encryption_public_key: Some(
+                registered.share_encryption_public_key,
+            ),
+        },
+        signing_key,
+        share_encryption,
+    };
+    let ceremony = Ceremony::of(fixtures, 2);
+
+    let configuration = ceremony.configuration();
+    assert!(secrets.is_listed_in(&configuration));
+    assert!(!TrusteeSecrets::generate().is_listed_in(&configuration));
+    // braid lists a trustee by its signing key: this trustee's share-encryption
+    // secret under another trustee's signing key is not listed.
+    let mut mixed: toml::Table = toml::from_str(&generated).unwrap();
+    let other: toml::Table =
+        toml::from_str(&TrusteeSecrets::generate().to_toml().unwrap()).unwrap();
+    mixed.insert("signing_key".to_string(), other["signing_key"].clone());
+    assert!(!TrusteeSecrets::parse(&toml::to_string(&mixed).unwrap())
+        .unwrap()
+        .is_listed_in(&configuration));
+
+    // braid's trustee takes the parts and deals at the position the committee
+    // gave the registration.
+    let mut sessions = ceremony.sessions().await;
+    sessions[1].advance().await.unwrap();
+    assert_eq!(
+        ceremony.view().await.trustee_statuses,
+        vec![
+            TrusteeStatus::WAITING,
+            TrusteeStatus::SHARES_POSTED,
+            TrusteeStatus::WAITING
+        ]
+    );
+
+    // It can only derive the joint key by decrypting the shares dealt to the
+    // share-encryption public key it printed.
+    ceremony.round(&mut sessions).await;
+    ceremony.round(&mut sessions).await;
+    let finished = ceremony.view().await;
+    assert_eq!(
+        finished.trustee_statuses,
+        vec![TrusteeStatus::KEY_GENERATED; 3]
+    );
+    assert!(
+        matches!(finished.status, DkgStatus::Completed { .. }),
+        "{finished:?}"
+    );
 }

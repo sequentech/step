@@ -2,25 +2,33 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-//! What a keys ceremony becomes when the board says something.
+//! What a keys ceremony becomes when the board, or a trustee, says something.
 //!
 //! Every rule the ceremony has lives in [`transition`]; it doesn't read nor
 //! write anything, just takes input state and return the new state. The calling
 //! task should load the ceremony, call this, and save what comes back.
 //!
-//! Two properties hold:
+//! Few properties hold:
 //!
-//! - **Terminal states absorb.** `SUCCESS`, `FAILED` and `CANCELLED` ignore
-//!   every event. A failure is never worked around: the administrator
-//!   creates a new ceremony, which gets a new board.
+//! - **Terminal states absorb.** `FAILED` and `CANCELLED` ignore every event,
+//!   and `SUCCESS` every event but a trustee's halt. A failure is never worked
+//!   around: the administrator creates a new ceremony, which gets a new board.
 //! - **Applying the same event twice changes nothing the second time.**
-//!   Tasks are retried and boards are polled repeatedly, so a rule that fired
-//!   twice would double a log line or reopen a decision.
+//!   Tasks are retried, boards are polled repeatedly and trustees repeat their
+//!   reports, so a rule that fired twice would double a log line or reopen a
+//!   decision.
+//! - **A halt beats success.** Any trustee's halt is the ceremony's halt. A
+//!   trustee halts on its own view of the board, which the platform may have
+//!   read as complete an instant earlier; what tells the two apart is a rewrite,
+//!   a withholding or an equivocation, which is what the halt exists to catch.
+//!   So a halt reported after `SUCCESS` still fails the ceremony, and only the
+//!   first report is recorded.
 //!
-//! A trustee's phase only ever moves forward. The board reports the protocol
-//! phases (e.g., waiting, shares posted, key generated) while the custody steps
-//! that follow are reported by the trustees themselves, and a board poll
-//! arriving afterwards must not pull them back.
+//! A trustee's phase only ever moves forward, and a halt is its last. The board
+//! reports the protocol phases (e.g., waiting, shares posted, key generated)
+//! while the custody steps that follow, and a halt, are reported by the
+//! trustees themselves, and a board poll arriving afterwards will not pull them
+//! back.
 
 use sequent_core::types::ceremonies::{
     CeremoniesPolicy, KeysCeremonyExecutionStatus, KeysCeremonyFailure,
@@ -75,13 +83,20 @@ pub fn initial_trustees(committee: &Committee) -> Vec<Trustee> {
         .collect()
 }
 
-/// Something the platform did out about a ceremony's board.
+/// Something the platform did or learnt about a ceremony's board.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PlatformEvent {
     /// The ceremony's Configuration was posted on the board.
     Published { board: BoardName },
     /// The board was read.
     ReadBoard(DkgView),
+    /// A trustee reported that it halted its session over the board.
+    TrusteeHalted {
+        /// The trustee's name, as the ceremony lists it.
+        trustee: String,
+        /// braid's error, as the trustee reported it.
+        detail: String,
+    },
 }
 
 /// Apply one event to a ceremony.
@@ -95,11 +110,17 @@ pub fn transition(
 
     match state.execution {
         // Before the ceremony starts there is no board to observe, and once it
-        // has ended nothing reopens it.
+        // has failed or been cancelled nothing reopens it.
         KeysCeremonyExecutionStatus::USER_CONFIGURATION
-        | KeysCeremonyExecutionStatus::SUCCESS
         | KeysCeremonyExecutionStatus::FAILED
         | KeysCeremonyExecutionStatus::CANCELLED => {}
+
+        KeysCeremonyExecutionStatus::SUCCESS => match event {
+            PlatformEvent::TrusteeHalted { trustee, detail } => {
+                halt(&mut next, &trustee, detail, now)
+            }
+            PlatformEvent::Published { .. } | PlatformEvent::ReadBoard(_) => {}
+        },
 
         KeysCeremonyExecutionStatus::STARTED => match event {
             PlatformEvent::Published { board } => {
@@ -116,6 +137,8 @@ pub fn transition(
             // Nothing has been published, so a reading of a board says nothing
             // about this ceremony.
             PlatformEvent::ReadBoard(_) => {}
+            // No trustee is given a board before its Configuration is posted.
+            PlatformEvent::TrusteeHalted { .. } => {}
         },
 
         KeysCeremonyExecutionStatus::IN_PROGRESS => match event {
@@ -169,6 +192,9 @@ pub fn transition(
                     }
                 }
             }
+            PlatformEvent::TrusteeHalted { trustee, detail } => {
+                halt(&mut next, &trustee, detail, now)
+            }
         },
     }
 
@@ -180,6 +206,36 @@ fn log(status: &mut KeysCeremonyStatus, now: &Timestamps, log_text: String) {
         created_date: now.iso8601.clone(),
         log_text,
     });
+}
+
+/// A trustee halted: it is marked halted and the ceremony fails. A trustee
+/// the ceremony does not list changes nothing.
+fn halt(
+    next: &mut CeremonyState,
+    trustee: &str,
+    detail: String,
+    now: &Timestamps,
+) {
+    let Some(halted) = next
+        .status
+        .trustees
+        .iter_mut()
+        .find(|listed| listed.name == trustee)
+    else {
+        return;
+    };
+    halted.status = TrusteeStatus::HALTED;
+    log(
+        &mut next.status,
+        now,
+        format!("Trustee {trustee} is now {}", TrusteeStatus::HALTED),
+    );
+    fail(
+        next,
+        KeysCeremonyFailureReason::TRUSTEE_HALTED,
+        format!("{trustee}: {detail}"),
+        now,
+    );
 }
 
 fn fail(
@@ -203,7 +259,8 @@ fn fail(
 }
 
 /// How far along a trustee status is. The board only ever reports the first
-/// three; the custody steps come from the trustees.
+/// three; the custody steps and a halt come from the trustees, and nothing
+/// follows a halt.
 fn progress(status: &TrusteeStatus) -> u8 {
     match status {
         TrusteeStatus::WAITING => 0,
@@ -211,6 +268,7 @@ fn progress(status: &TrusteeStatus) -> u8 {
         TrusteeStatus::KEY_GENERATED => 2,
         TrusteeStatus::KEY_RETRIEVED => 3,
         TrusteeStatus::KEY_CHECKED => 4,
+        TrusteeStatus::HALTED => 5,
     }
 }
 
@@ -228,6 +286,16 @@ mod tests {
         Timestamps {
             iso8601: ISO.to_string(),
             unix_ms: UNIX_MS.to_string(),
+        }
+    }
+
+    const LATER_ISO: &str = "2026-09-22T10:05:00Z";
+    const LATER_UNIX_MS: &str = "1790064300000";
+
+    fn later() -> Timestamps {
+        Timestamps {
+            iso8601: LATER_ISO.to_string(),
+            unix_ms: LATER_UNIX_MS.to_string(),
         }
     }
 
@@ -300,7 +368,18 @@ mod tests {
         )
     }
 
-    fn every_event() -> Vec<PlatformEvent> {
+    const HALT_DETAIL: &str = "the board was rewritten";
+
+    fn halted(trustee: &str) -> PlatformEvent {
+        PlatformEvent::TrusteeHalted {
+            trustee: trustee.to_string(),
+            detail: HALT_DETAIL.to_string(),
+        }
+    }
+
+    /// Every event but a trustee's halt: what the platform does with the
+    /// board itself.
+    fn board_events() -> Vec<PlatformEvent> {
         vec![
             published(),
             dealing(),
@@ -308,6 +387,12 @@ mod tests {
             unusable(KeysCeremonyFailureReason::BOARD_CONFIGURATION_MISMATCH),
             unusable(KeysCeremonyFailureReason::INVALID_BOARD_CONTENT),
         ]
+    }
+
+    fn every_event() -> Vec<PlatformEvent> {
+        let mut events = board_events();
+        events.push(halted("trustee1"));
+        events
     }
 
     const POLICIES: [CeremoniesPolicy; 2] = [
@@ -321,6 +406,17 @@ mod tests {
         event: PlatformEvent,
     ) -> CeremonyState {
         transition(state, policy, event, &now())
+    }
+
+    /// An automated ceremony whose key the platform has taken.
+    fn succeeded() -> CeremonyState {
+        let state = apply(
+            &in_progress(),
+            CeremoniesPolicy::AUTOMATED_CEREMONIES,
+            completed(),
+        );
+        assert_eq!(state.execution, KeysCeremonyExecutionStatus::SUCCESS);
+        state
     }
 
     #[test]
@@ -376,22 +472,25 @@ mod tests {
         assert!(second.status.logs[1].log_text.contains("trustee2"));
     }
 
-    /// The phases a trustee passes through, in the order it passes them.
+    /// The phases a trustee passes through, in the order it passes them; a
+    /// halt ends them.
     ///
     /// Written out here rather than derived from [`progress`] so that the two
     /// are independent statements of the same order.
-    const PHASES_IN_ORDER: [TrusteeStatus; 5] = [
+    const PHASES_IN_ORDER: [TrusteeStatus; 6] = [
         TrusteeStatus::WAITING,
         TrusteeStatus::SHARES_POSTED,
         TrusteeStatus::KEY_GENERATED,
         TrusteeStatus::KEY_RETRIEVED,
         TrusteeStatus::KEY_CHECKED,
+        TrusteeStatus::HALTED,
     ];
 
     #[test]
     fn a_board_reading_only_ever_moves_a_trustee_forward() {
-        // The custody steps are reported by the trustees, not by the board, so
-        // a later poll still showing KEY_GENERATED must leave them alone.
+        // The custody steps and a halt are reported by the trustees, not by
+        // the board, so a later poll still showing KEY_GENERATED must leave
+        // them alone.
         for (position, current) in PHASES_IN_ORDER.iter().enumerate() {
             for (other, observed) in PHASES_IN_ORDER.iter().enumerate() {
                 let mut state = in_progress();
@@ -488,10 +587,9 @@ mod tests {
     }
 
     #[test]
-    fn terminal_states_absorb_every_observation() {
+    fn terminal_states_absorb_every_event_but_success_takes_a_halt() {
         for execution in [
             KeysCeremonyExecutionStatus::USER_CONFIGURATION,
-            KeysCeremonyExecutionStatus::SUCCESS,
             KeysCeremonyExecutionStatus::FAILED,
             KeysCeremonyExecutionStatus::CANCELLED,
         ] {
@@ -507,11 +605,143 @@ mod tests {
                 }
             }
         }
+
+        let success = succeeded();
+        for policy in POLICIES {
+            for event in board_events() {
+                assert_eq!(
+                    apply(&success, policy.clone(), event.clone()),
+                    success,
+                    "{event:?}"
+                );
+            }
+            assert_eq!(
+                apply(&success, policy.clone(), halted("trustee1")).execution,
+                KeysCeremonyExecutionStatus::FAILED
+            );
+        }
+    }
+
+    #[test]
+    fn a_halt_marks_the_trustee_and_fails_the_ceremony_even_after_success() {
+        let dealt = apply(
+            &in_progress(),
+            CeremoniesPolicy::MANUAL_CEREMONIES,
+            dealing(),
+        );
+        for state in [dealt, succeeded()] {
+            for policy in POLICIES {
+                let next = transition(
+                    &state,
+                    policy.clone(),
+                    halted("trustee2"),
+                    &later(),
+                );
+
+                assert_eq!(
+                    next.execution,
+                    KeysCeremonyExecutionStatus::FAILED,
+                    "{:?}",
+                    state.execution
+                );
+                assert_eq!(
+                    next.status.trustees[1].status,
+                    TrusteeStatus::HALTED
+                );
+                assert_eq!(next.status.trustees[0], state.status.trustees[0]);
+                assert_eq!(
+                    next.status.failure,
+                    Some(KeysCeremonyFailure {
+                        reason: KeysCeremonyFailureReason::TRUSTEE_HALTED,
+                        detail: format!("trustee2: {HALT_DETAIL}"),
+                        failed_at: LATER_ISO.to_string(),
+                    })
+                );
+                assert_eq!(
+                    next.status.stop_date,
+                    Some(LATER_UNIX_MS.to_string())
+                );
+                // The key the platform took, if any, stays on the record.
+                assert_eq!(next.status.public_key, state.status.public_key);
+            }
+        }
+    }
+
+    #[test]
+    fn a_halt_changes_nothing_before_the_board_is_given_or_once_ended() {
+        let failed = apply(
+            &in_progress(),
+            CeremoniesPolicy::MANUAL_CEREMONIES,
+            unusable(KeysCeremonyFailureReason::INVALID_BOARD_CONTENT),
+        );
+        let mut cancelled = in_progress();
+        cancelled.execution = KeysCeremonyExecutionStatus::CANCELLED;
+        for state in [started(), failed, cancelled] {
+            for policy in POLICIES {
+                assert_eq!(
+                    apply(&state, policy.clone(), halted("trustee2")),
+                    state,
+                    "{:?}",
+                    state.execution
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn only_the_first_halt_is_recorded() {
+        let first = apply(
+            &in_progress(),
+            CeremoniesPolicy::AUTOMATED_CEREMONIES,
+            halted("trustee2"),
+        );
+        let second = apply(
+            &first,
+            CeremoniesPolicy::AUTOMATED_CEREMONIES,
+            halted("trustee1"),
+        );
+        assert_eq!(second, first);
+        assert_eq!(second.status.trustees[0].status, TrusteeStatus::WAITING);
+    }
+
+    #[test]
+    fn a_board_reading_after_a_halt_changes_nothing() {
+        let halted_state = apply(
+            &in_progress(),
+            CeremoniesPolicy::AUTOMATED_CEREMONIES,
+            halted("trustee1"),
+        );
+        assert_eq!(
+            halted_state.status.trustees[0].status,
+            TrusteeStatus::HALTED
+        );
+        for policy in POLICIES {
+            for event in board_events() {
+                assert_eq!(
+                    apply(&halted_state, policy.clone(), event),
+                    halted_state
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn a_halt_naming_a_trustee_the_ceremony_does_not_list_changes_nothing() {
+        for state in [in_progress(), succeeded()] {
+            for policy in POLICIES {
+                assert_eq!(
+                    apply(&state, policy.clone(), halted("trustee3")),
+                    state,
+                    "{:?}",
+                    state.execution
+                );
+            }
+        }
     }
 
     #[test]
     fn applying_the_same_event_twice_changes_nothing_the_second_time() {
-        for start in [started(), in_progress()] {
+        for start in [started(), in_progress(), succeeded()] {
             for policy in POLICIES {
                 for event in every_event() {
                     let once = apply(&start, policy.clone(), event.clone());
@@ -536,6 +766,10 @@ mod tests {
             (dealing(), 2),
             // Two trustees move and the key is taken.
             (completed(), 5),
+            // A trustee halts and the ceremony fails.
+            (halted("trustee2"), 7),
+            // Recorded already.
+            (halted("trustee2"), 7),
         ] {
             state = apply(
                 &state,
@@ -549,6 +783,6 @@ mod tests {
                 .iter()
                 .all(|line| line.created_date == ISO));
         }
-        assert_eq!(state.execution, KeysCeremonyExecutionStatus::SUCCESS);
+        assert_eq!(state.execution, KeysCeremonyExecutionStatus::FAILED);
     }
 }
