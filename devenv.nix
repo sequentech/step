@@ -98,8 +98,8 @@ in
 
     # For frontend
     yarn
-    nodejs_20
-    nodePackages.graphqurl
+    nodejs_22
+    graphqurl
 
     # For protocol buffers
     protobuf
