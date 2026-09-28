@@ -52,12 +52,8 @@ async fn poll_once<A: BoardAccess>(
 ) {
     for report in sessions.pending_reports() {
         match platform.report(&report).await {
-            Ok(answer) => {
-                info!(
-                    board = %report.board,
-                    ceremony = %answer.ceremony,
-                    "the platform recorded the halt"
-                );
+            Ok(()) => {
+                info!(board = %report.board, "the platform recorded the halt");
                 sessions.settle(&report.board);
             }
             Err(err) => {

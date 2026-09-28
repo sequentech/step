@@ -13,7 +13,6 @@ use protocol_board::{
     PlatformEvent, SignedConfiguration, Timestamps,
 };
 use sequent_core::services::date::{get_now_utc_unix_ms, ISO8601};
-use sequent_core::types::ceremonies::KeysCeremonyExecutionStatus;
 use tracing::instrument;
 use uuid::Uuid;
 
@@ -84,7 +83,7 @@ pub async fn apply_event(
     election_event_id: &str,
     keys_ceremony_id: &str,
     event: PlatformEvent,
-) -> Result<KeysCeremonyExecutionStatus> {
+) -> Result<()> {
     let keys_ceremony = get_keys_ceremony_by_id_for_update(
         &hasura_transaction,
         tenant_id,
@@ -100,7 +99,7 @@ pub async fn apply_event(
 
     let next = transition(&state, keys_ceremony.policy(), event, &ceremony_now());
     if next == state {
-        return Ok(next.execution);
+        return Ok(());
     }
 
     update_keys_ceremony_status(
@@ -117,7 +116,7 @@ pub async fn apply_event(
         .commit()
         .await
         .with_context(|| "error committing transaction")?;
-    Ok(next.execution)
+    Ok(())
 }
 
 pub fn manager_key_vault_path(board: &BoardName) -> String {

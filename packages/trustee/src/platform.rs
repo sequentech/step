@@ -8,9 +8,7 @@
 use std::time::Duration;
 
 use anyhow::{bail, Context as _, Result};
-use protocol_board::{
-    TrusteeBoard, TrusteeBoardsResponse, TrusteeReport, TrusteeReportResponse,
-};
+use protocol_board::{TrusteeBoard, TrusteeBoardsResponse, TrusteeReport};
 use serde::de::DeserializeOwned;
 
 use crate::login::{Credentials, TokenSource};
@@ -54,14 +52,13 @@ impl PlatformClient {
         Ok(answer.boards)
     }
 
-    /// Report a halt; the answer is the state of the board's ceremony once the
-    /// platform applied the report.
+    /// Report a halt.
     pub(crate) async fn report(
         &mut self,
         report: &TrusteeReport,
-    ) -> Result<TrusteeReportResponse> {
+    ) -> Result<()> {
         let token = self.tokens.access_token().await?;
-        call(
+        send(
             self.http
                 .post(&self.report_url)
                 .bearer_auth(token)
@@ -70,7 +67,8 @@ impl PlatformClient {
         .await
         .with_context(|| {
             format!("POST {} for board {}", self.report_url, report.board)
-        })
+        })?;
+        Ok(())
     }
 }
 
@@ -78,10 +76,20 @@ impl PlatformClient {
 pub(crate) async fn call<T: DeserializeOwned>(
     request: reqwest::RequestBuilder,
 ) -> Result<T> {
+    send(request)
+        .await?
+        .json()
+        .await
+        .context("reading the answer")
+}
+
+/// Send a request. An answer that is not a success is an error with its
+/// status and its body.
+async fn send(request: reqwest::RequestBuilder) -> Result<reqwest::Response> {
     let response = request.send().await?;
     let status = response.status();
     if status.is_success() {
-        return response.json().await.context("reading the answer");
+        return Ok(response);
     }
     match response.text().await {
         Ok(body) => bail!("HTTP {status}: {body}"),

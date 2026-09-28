@@ -8,7 +8,6 @@
 //! and sends the same types.
 
 use anyhow::{bail, Context as _, Result};
-use sequent_core::types::ceremonies::KeysCeremonyExecutionStatus;
 use sequent_core::types::protocol_board::{ProtocolBoard, ProtocolBoardKind};
 use serde::{Deserialize, Serialize};
 use strum_macros::{Display, EnumString};
@@ -80,13 +79,6 @@ pub struct TrusteeReport {
     pub kind: TrusteeReportKind,
     /// braid's error, as the trustee logged it.
     pub detail: String,
-}
-
-/// The platform's answer to a report: the state the board's ceremony is in
-/// once the report was applied.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct TrusteeReportResponse {
-    pub ceremony: KeysCeremonyExecutionStatus,
 }
 
 #[cfg(test)]
@@ -205,17 +197,6 @@ mod tests {
         assert_eq!(
             serde_json::from_value::<TrusteeReport>(report_json).unwrap(),
             report
-        );
-
-        let answer = TrusteeReportResponse {
-            ceremony: KeysCeremonyExecutionStatus::FAILED,
-        };
-        let answer_json = json!({ "ceremony": "FAILED" });
-        assert_eq!(serde_json::to_value(&answer).unwrap(), answer_json);
-        assert_eq!(
-            serde_json::from_value::<TrusteeReportResponse>(answer_json)
-                .unwrap(),
-            answer
         );
     }
 

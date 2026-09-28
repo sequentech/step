@@ -4,9 +4,7 @@
 
 use crate::services::authorization::authorize;
 use deadpool_postgres::Client as DbClient;
-use protocol_board::{
-    TrusteeBoardsResponse, TrusteeReport, TrusteeReportResponse,
-};
+use protocol_board::{TrusteeBoardsResponse, TrusteeReport};
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::services::jwt::JwtClaims;
@@ -50,14 +48,13 @@ pub async fn list_trustee_boards(
     Ok(Json(boards))
 }
 
-/// The calling trustee's report about one of its boards, answered with the
-/// state the board's ceremony is in once the report was applied.
+/// The calling trustee's report about one of its boards.
 #[instrument(skip(claims))]
 #[post("/trustee/boards/report", format = "json", data = "<body>")]
 pub async fn report_trustee_board(
     body: Json<TrusteeReport>,
     claims: JwtClaims,
-) -> Result<Json<TrusteeReportResponse>, (Status, String)> {
+) -> Result<(), (Status, String)> {
     authorize(
         &claims,
         true,
@@ -76,14 +73,12 @@ pub async fn report_trustee_board(
         .await
         .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
 
-    let answer = trustee_boards::report(
+    trustee_boards::report(
         hasura_transaction,
         &tenant_id,
         claims.trustee.as_deref(),
         body.into_inner(),
     )
     .await
-    .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
-
-    Ok(Json(answer))
+    .map_err(|e| (Status::InternalServerError, format!("{e:?}")))
 }

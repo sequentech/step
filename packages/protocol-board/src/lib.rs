@@ -64,6 +64,5 @@ pub use secrets::{TrusteePublicKeys, TrusteeSecrets};
 pub use sequent_core::types::protocol_board::ProtocolBoardKind;
 pub use trustee_api::{
     TrusteeBoard, TrusteeBoardsResponse, TrusteeReport, TrusteeReportKind,
-    TrusteeReportResponse,
 };
 pub use view::{DkgStatus, DkgView};

@@ -8,13 +8,10 @@
 
 use anyhow::{anyhow, bail, Context, Result};
 use deadpool_postgres::Transaction;
-use protocol_board::{
-    PlatformEvent, TrusteeBoardsResponse, TrusteeReport, TrusteeReportKind, TrusteeReportResponse,
-};
-use sequent_core::types::ceremonies::KeysCeremonyExecutionStatus;
+use protocol_board::{PlatformEvent, TrusteeBoardsResponse, TrusteeReport, TrusteeReportKind};
 use sequent_core::types::hasura::core::{ProtocolBoard, Trustee};
 use sequent_core::types::protocol_board::ProtocolBoardKind;
-use tracing::{info, instrument, warn};
+use tracing::{instrument, warn};
 
 use crate::postgres::keys_ceremony::get_keys_ceremony_by_id;
 use crate::postgres::protocol_board::{get_trustee_board, get_trustee_boards};
@@ -46,41 +43,34 @@ pub async fn list_boards(
     Ok(TrusteeBoardsResponse { boards })
 }
 
-/// Apply the caller's report about one of its boards, answering the state the
-/// board's ceremony is in afterwards.
+/// Apply the caller's report about one of its boards.
 #[instrument(err, skip(hasura_transaction))]
 pub async fn report(
     hasura_transaction: Transaction<'_>,
     tenant_id: &str,
     trustee_claim: Option<&str>,
     report: TrusteeReport,
-) -> Result<TrusteeReportResponse> {
+) -> Result<()> {
     let (name, trustee) = caller(&hasura_transaction, tenant_id, trustee_claim).await?;
     let board_name = &report.board;
     let board = get_trustee_board(&hasura_transaction, tenant_id, &trustee.id, board_name)
         .await?
         .ok_or_else(|| anyhow!("board {board_name} is not one of trustee {name}'s boards"))?;
 
-    let ceremony = match (report.kind, board.kind()) {
+    match (report.kind, board.kind()) {
         (TrusteeReportKind::HALTED, ProtocolBoardKind::DKG) => {
             warn!(
                 "trustee {name} halted on board {board_name}: {}",
                 report.detail
             );
-            record_halt(hasura_transaction, tenant_id, name, &board, report.detail).await?
+            record_halt(hasura_transaction, tenant_id, name, &board, report.detail).await
         }
         // What a halt does to a tally session is not defined yet, and it must
         // never reach the keys ceremony of the tally's parent board.
         (TrusteeReportKind::HALTED, ProtocolBoardKind::TALLY) => {
             bail!("tally board {board_name}: its halts are not recorded yet")
         }
-    };
-
-    info!(
-        "keys ceremony {} of board {board_name} is {ceremony} after the report of trustee {name}",
-        board.keys_ceremony_id
-    );
-    Ok(TrusteeReportResponse { ceremony })
+    }
 }
 
 /// Apply trustee `name`'s halt on DKG board `board` to the board's keys
@@ -91,7 +81,7 @@ async fn record_halt(
     name: &str,
     board: &ProtocolBoard,
     detail: String,
-) -> Result<KeysCeremonyExecutionStatus> {
+) -> Result<()> {
     let keys_ceremony_id = &board.keys_ceremony_id;
     let keys_ceremony = get_keys_ceremony_by_id(
         &hasura_transaction,
