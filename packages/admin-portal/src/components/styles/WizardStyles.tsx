@@ -9,6 +9,7 @@ import {SaveButton, Toolbar, DeleteButton} from "react-admin"
 import {AccordionDetails, Box, Chip, Typography, CircularProgress, Paper} from "@mui/material"
 import Button from "@mui/material/Button"
 import DoneOutlineIcon from "@mui/icons-material/DoneOutline"
+import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline"
 import {ElectionHeaderStyles} from "@/components/styles/ElectionHeaderStyles"
 import {ReactNode} from "react"
 
@@ -74,6 +75,9 @@ export const WizardStyles = {
     `,
     DoneIcon: styled(DoneOutlineIcon)`
         color: ${({theme}) => theme.palette.brandSuccess};
+    `,
+    HaltedIcon: styled(ErrorOutlineIcon)`
+        color: ${({theme}) => theme.palette.errorColor};
     `,
 
     AccordionTitle: styled(ElectionHeaderStyles.Title)`
