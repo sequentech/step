@@ -98,6 +98,7 @@ export interface IElectionStatistics {
 
 export interface IContest {
     id: string
+    external_id?: string | null
     tenant_id: string
     election_event_id: string
     election_id: string
