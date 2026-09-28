@@ -372,11 +372,6 @@ button#resend-otp-btn:hover {
     font-size: 16px;
 }
 
-.identity-verification-error-form .retry-link {
-    display: block;
-    margin: 20px 0;
-}
-
 .button-version-parent {
     font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
     color: black;
