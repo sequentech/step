@@ -11,10 +11,12 @@ import java.net.URI;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import lombok.extern.jbosslog.JBossLog;
 import sequent.keycloak.scanovate_authenticator.HttpTransport.HttpResult;
+import sequent.keycloak.scanovate_authenticator.HttpTransport.MultipartPart;
 
 /**
  * Client for the B-Trust (Scanovate) identity verification API.
@@ -22,6 +24,9 @@ import sequent.keycloak.scanovate_authenticator.HttpTransport.HttpResult;
  * <p>Implements the flow described in the B-Trust v3.8.2 Identity Verification Tech Specs: obtain
  * an OAuth token, create a one-time session link, and once the voter has completed the flow,
  * exchange the process id for a session token and fetch the results.
+ *
+ * <p>The media upload used by the embedded mode ({@link #uploadMedia}) is not part of v3.8.2: it is
+ * a proposed endpoint, pending Scanovate's confirmation.
  */
 @JBossLog
 public class ScanovateClient {
@@ -30,6 +35,7 @@ public class ScanovateClient {
   static final String MOBILE_INTERACTION_PATH = "/api/v3/mobile_interaction/";
   static final String SESSION_TOKEN_SUFFIX = "/token";
   static final String FAST_RESULTS_SUFFIX = "/results_with_image_names";
+  static final String MEDIA_SUFFIX = "/media";
   static final String PROCESS_ID_QUERY_PARAM = "process_id";
   static final long BASE_RETRY_DELAY_MS = 1_000;
 
@@ -91,15 +97,38 @@ public class ScanovateClient {
     }
 
     JsonNode response = post(FLOW_LINK_PATH, bearer(accessToken), body);
-    if (!response.path("success").asBoolean(false) || response.path("errorCode").asInt(-1) != 0) {
-      throw new IOException(
-          String.format(
-              "%s failed: errorCode=%s data=%.200s",
-              FLOW_LINK_PATH, response.path("errorCode").asText(), response.path("data").asText()));
-    }
+    requireSuccess(response, FLOW_LINK_PATH);
     String url = requiredText(response, "data", FLOW_LINK_PATH);
     String processId = queryParam(url, PROCESS_ID_QUERY_PARAM).orElse(request.identifierId());
     return new SessionLink(url, processId);
+  }
+
+  /**
+   * {@code POST /api/v3/mobile_interaction/{session}/media}: uploads the files captured in the
+   * voter's browser to the session, as {@code multipart/form-data} with the parts {@code
+   * front_image}, {@code back_image} (only for documents with a back side), {@code face_image} and
+   * {@code scan_video}. The response is {@code {"success": true, "errorCode": 0}}.
+   *
+   * <p><b>Proposed endpoint, pending Scanovate's confirmation.</b> B-Trust v3.8.2 does not document
+   * how to submit media captured outside its own flow UI; the e2e mock server implements this
+   * proposal.
+   */
+  public void uploadMedia(String accessToken, String processId, CaptureMedia media)
+      throws IOException {
+    String path = MOBILE_INTERACTION_PATH + encodePathSegment(processId) + MEDIA_SUFFIX;
+    List<MultipartPart> parts =
+        media.files().entrySet().stream()
+            .map(
+                file ->
+                    new MultipartPart(
+                        file.getKey().uploadPart(),
+                        file.getKey().uploadPart() + "." + file.getValue().format().extension(),
+                        file.getValue().format().contentType(),
+                        file.getValue().content()))
+            .toList();
+    JsonNode response =
+        execute(path, () -> transport.postMultipart(baseUrl + path, bearer(accessToken), parts));
+    requireSuccess(response, path);
   }
 
   /** {@code GET /api/v3/mobile_interaction/{session}/token}. */
@@ -181,6 +210,15 @@ public class ScanovateClient {
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       throw new IOException("Interrupted while waiting to retry", e);
+    }
+  }
+
+  private static void requireSuccess(JsonNode response, String path) throws IOException {
+    if (!response.path("success").asBoolean(false) || response.path("errorCode").asInt(-1) != 0) {
+      throw new IOException(
+          String.format(
+              "%s failed: errorCode=%s data=%.200s",
+              path, response.path("errorCode").asText(), response.path("data").asText()));
     }
   }
 

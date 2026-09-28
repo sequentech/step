@@ -5,9 +5,16 @@
 //! Mock of the Scanovate B-Trust identity verification API (v3.8.2), used
 //! by the `scanovate-authenticator` Keycloak extension in development and
 //! load tests.
+//!
+//! It also implements `POST /api/v3/mobile_interaction/{session}/media`, the
+//! endpoint proposed to Scanovate for the authenticator's `embedded` mode,
+//! which is not part of v3.8.2.
 
 use chrono::{Months, NaiveDate, Utc};
+use rocket::form::Form;
+use rocket::fs::TempFile;
 use rocket::http::Status;
+use rocket::request::{FromRequest, Outcome, Request};
 use rocket::response::content::RawHtml;
 use rocket::response::status::Custom;
 use rocket::response::Redirect;
@@ -78,6 +85,12 @@ impl FromStr for MockOutcome {
     }
 }
 
+/// Media uploaded to a session through the proposed media endpoint.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct UploadedMedia {
+    back_image: bool,
+}
+
 #[derive(Debug, Clone)]
 struct MockSession {
     flow_id: i64,
@@ -85,6 +98,7 @@ struct MockSession {
     redirect_url: Option<String>,
     country: Option<String>,
     outcome: MockOutcome,
+    media: Option<UploadedMedia>,
 }
 
 /// Sessions created through `/flow/v3/link`, indexed by process id.
@@ -102,17 +116,72 @@ impl MockSessions {
         }
     }
 
-    fn set_outcome(&self, process_id: &str, outcome: MockOutcome) -> bool {
+    fn update(&self, process_id: &str, update: impl FnOnce(&mut MockSession)) -> bool {
         match self.0.lock() {
             Ok(mut sessions) => match sessions.get_mut(process_id) {
                 Some(session) => {
-                    session.outcome = outcome;
+                    update(session);
                     true
                 }
                 None => false,
             },
             Err(_) => false,
         }
+    }
+
+    fn set_outcome(&self, process_id: &str, outcome: MockOutcome) -> bool {
+        self.update(process_id, |session| session.outcome = outcome)
+    }
+
+    fn set_media(&self, process_id: &str, media: UploadedMedia) -> bool {
+        self.update(process_id, |session| session.media = Some(media))
+    }
+}
+
+/// Request guard requiring an `Authorization: Bearer <token>` header. The
+/// token itself is not checked, as the mock hands out random ones.
+pub struct BearerToken;
+
+#[rocket::async_trait]
+impl<'r> FromRequest<'r> for BearerToken {
+    type Error = ();
+
+    async fn from_request(request: &'r Request<'_>) -> Outcome<Self, Self::Error> {
+        match request
+            .headers()
+            .get_one("Authorization")
+            .and_then(|value| value.strip_prefix("Bearer "))
+        {
+            Some(token) if !token.trim().is_empty() => Outcome::Success(BearerToken),
+            _ => Outcome::Error((Status::Unauthorized, ())),
+        }
+    }
+}
+
+/// Multipart parts of the proposed media endpoint.
+#[derive(FromForm)]
+pub struct MediaUpload<'r> {
+    front_image: Option<TempFile<'r>>,
+    back_image: Option<TempFile<'r>>,
+    face_image: Option<TempFile<'r>>,
+    scan_video: Option<TempFile<'r>>,
+}
+
+fn is_present(file: &Option<TempFile<'_>>) -> bool {
+    file.as_ref().is_some_and(|file| file.len() > 0)
+}
+
+impl MediaUpload<'_> {
+    fn missing_parts(&self) -> Vec<&'static str> {
+        [
+            ("front_image", is_present(&self.front_image)),
+            ("face_image", is_present(&self.face_image)),
+            ("scan_video", is_present(&self.scan_video)),
+        ]
+        .into_iter()
+        .filter(|(_, present)| !present)
+        .map(|(name, _)| name)
+        .collect()
     }
 }
 
@@ -174,6 +243,7 @@ pub async fn flow_link(request: Json<LinkRequest>, sessions: &State<MockSessions
             redirect_url: request.redirect_url,
             country: params.get(COUNTRY_PARAM).cloned(),
             outcome,
+            media: None,
         },
     );
 
@@ -242,6 +312,37 @@ pub async fn flow_complete(
     )))
 }
 
+/// Proposed endpoint (not in B-Trust v3.8.2) receiving the media captured by
+/// Keycloak's embedded mode. The outcome of the session is still the one
+/// selected through `mock_outcome`.
+#[post("/api/v3/mobile_interaction/<session>/media", data = "<media>")]
+pub async fn upload_media(
+    session: String,
+    _token: BearerToken,
+    media: Form<MediaUpload<'_>>,
+    sessions: &State<MockSessions>,
+) -> Result<Json<Value>, Custom<Json<Value>>> {
+    sessions.get(&session).ok_or_else(|| not_found(&session))?;
+    let missing = media.missing_parts();
+    if !missing.is_empty() {
+        return Err(Custom(
+            Status::BadRequest,
+            Json(json!({
+                "success": false,
+                "errorCode": 1,
+                "data": format!("missing parts: {}", missing.join(", "))
+            })),
+        ));
+    }
+    let uploaded = UploadedMedia {
+        back_image: is_present(&media.back_image),
+    };
+    if !sessions.set_media(&session, uploaded) {
+        return Err(not_found(&session));
+    }
+    Ok(Json(json!({ "success": true, "errorCode": 0 })))
+}
+
 #[get("/api/v3/mobile_interaction/<session>/token")]
 pub async fn session_token(
     session: String,
@@ -306,7 +407,7 @@ fn mock_results(process_id: &str, session: &MockSession, user: Option<User>) -> 
     let issue = today.checked_sub_months(Months::new(12)).unwrap_or(today);
     let expiry = today.checked_add_months(Months::new(48)).unwrap_or(today);
 
-    let ocr = json!({
+    let mut ocr = json!({
         "process": "ocr",
         "success": session.outcome != MockOutcome::DocumentAuthenticationFailed,
         "count": 1,
@@ -346,6 +447,9 @@ fn mock_results(process_id: &str, session: &MockSession, user: Option<User>) -> 
         "scanVideo": format!("{process_id}/ocr/scan_video.webm"),
         "scanDuration": 12000
     });
+    if session.media.is_some_and(|media| media.back_image) {
+        ocr["backImage"] = json!(format!("{process_id}/ocr/back_image.jpg"));
+    }
     let liveness_passed = session.outcome != MockOutcome::LivenessFailed;
     let liveness = json!({
         "process": "liveness_plus",
@@ -416,6 +520,7 @@ mod tests {
             redirect_url: None,
             country: None,
             outcome,
+            media: None,
         }
     }
 
@@ -479,6 +584,24 @@ mod tests {
         let results = mock_results("proc", &session(MockOutcome::LowBiometricScore), None);
         assert_eq!(results["data"]["success"], true);
         assert_eq!(results["data"]["resultsList"][2]["score"], 0.21);
+    }
+
+    #[test]
+    fn uploaded_back_image_is_listed_in_the_results() {
+        let mut with_back = session(MockOutcome::Success);
+        with_back.media = Some(UploadedMedia { back_image: true });
+        let results = mock_results("proc", &with_back, None);
+        assert_eq!(
+            results["data"]["resultsList"][0]["backImage"],
+            "proc/ocr/back_image.jpg"
+        );
+
+        let mut front_only = session(MockOutcome::Success);
+        front_only.media = Some(UploadedMedia { back_image: false });
+        let results = mock_results("proc", &front_only, None);
+        assert!(results["data"]["resultsList"][0].get("backImage").is_none());
+        let results = mock_results("proc", &session(MockOutcome::Success), None);
+        assert!(results["data"]["resultsList"][0].get("backImage").is_none());
     }
 
     #[test]

@@ -4,6 +4,7 @@
 import {i18nBuilder} from "keycloakify/login"
 import type {ThemeName} from "../kc.gen"
 import type {KcContext} from "./KcContext"
+import {scanovateEnglish, scanovateSpanish} from "./scanovate/messages"
 
 const englishMessages = {
     loginAccountTitle: {
@@ -40,6 +41,7 @@ const englishMessages = {
     "messageOtp.otl.resend.timer": "Resend link in {0} seconds",
     otpDigit: "Digit {0} of {1}",
     otpCodeLabel: "Verification code",
+    ...scanovateEnglish,
 } as const
 
 // Keycloakify resolves messages in the browser: keys that the server-side
@@ -85,22 +87,20 @@ const {useI18n, ofTypeI18n} = i18nBuilder
             "messageOtp.otl.resend.timer": "Reenviar enlace en {0} segundos",
             otpDigit: "Dígito {0} de {1}",
             otpCodeLabel: "Código de verificación",
+            ...scanovateSpanish,
         },
     })
     .build()
 
 type I18n = typeof ofTypeI18n
+type MessageKey = keyof typeof englishMessages
 
-export {useI18n, type I18n}
+export {useI18n, type I18n, type MessageKey}
 
 // Keycloakify falls back to our English custom messages outside en/es. Server
 // translations take precedence; identify only exact English defaults, never
 // guess the language of a realm's custom text.
-export function messageLanguage(
-    kcContext: KcContext,
-    i18n: I18n,
-    key: keyof typeof englishMessages
-): string {
+export function messageLanguage(kcContext: KcContext, i18n: I18n, key: MessageKey): string {
     const current = i18n.currentLanguage.languageTag
     const server = kcContext["x-keycloakify"].messages[key]
     if (server === undefined) {
@@ -117,4 +117,18 @@ export function messageLanguage(
         return "en"
     }
     return current
+}
+
+export function isMessageKey(key: string): key is MessageKey {
+    return Object.prototype.hasOwnProperty.call(englishMessages, key)
+}
+
+// For keys chosen at run time: a document type, a stored attribute or a server error.
+export function dynamicMessageLanguage(kcContext: KcContext, i18n: I18n, key: string): string {
+    if (isMessageKey(key)) {
+        return messageLanguage(kcContext, i18n, key)
+    }
+    return kcContext["x-keycloakify"].messages[key] === undefined
+        ? "en"
+        : i18n.currentLanguage.languageTag
 }

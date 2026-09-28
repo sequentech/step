@@ -33,12 +33,21 @@ public class ScanovateAuthenticatorFactory implements AuthenticatorFactory {
   public static final String ATTRIBUTES_TO_STORE = "attributes-to-store";
   public static final String MAX_RETRIES = "max-retries";
   public static final String MAX_ATTEMPTS = "max-attempts";
+  public static final String CAPTURE_SIDES = "capture-sides";
+  public static final String VIDEO_SECONDS = "video-seconds";
+  public static final String MAX_IMAGE_BYTES = "max-image-bytes";
+  public static final String MAX_VIDEO_BYTES = "max-video-bytes";
 
   public static final String DEFAULT_DOC_ID = "sequent.read-only.id-card-number";
   public static final String DEFAULT_DOC_ID_TYPE = "sequent.read-only.id-card-type";
   public static final String DEFAULT_USER_STATUS = "sequent.read-only.id-card-number-validated";
   public static final int DEFAULT_MAX_RETRIES = 3;
   public static final int DEFAULT_MAX_ATTEMPTS = 3;
+  public static final int DEFAULT_VIDEO_SECONDS = 5;
+  public static final int DEFAULT_MAX_IMAGE_BYTES = 2 * 1024 * 1024;
+  public static final int DEFAULT_MAX_VIDEO_BYTES = 3 * 1024 * 1024;
+
+  static final String DEFAULT_CAPTURE_SIDES = "{\"default\": [\"front\", \"back\"]}";
 
   static final String DEFAULT_ATTRIBUTES_TO_VALIDATE =
       """
@@ -188,9 +197,11 @@ public class ScanovateAuthenticatorFactory implements AuthenticatorFactory {
         .name(EXECUTION_MODE)
         .label("Execution mode")
         .helpText(
-            "interactive redirects the voter to B-Trust. auto-complete fetches the results right"
-                + " away without redirecting the voter, and is only meant to be used against a"
-                + " mock server.")
+            "interactive redirects the voter to B-Trust. embedded captures the document, selfie"
+                + " and video in Keycloak's own page, guided in the browser, and uploads them to"
+                + " B-Trust through an endpoint pending Scanovate's confirmation; it needs the"
+                + " sequent-ui login theme. auto-complete fetches the results right away without"
+                + " redirecting the voter, and is only meant to be used against a mock server.")
         .type(ProviderConfigProperty.LIST_TYPE)
         .options(Arrays.stream(ExecutionMode.values()).map(ExecutionMode::value).toList())
         .defaultValue(ExecutionMode.INTERACTIVE.value())
@@ -272,6 +283,46 @@ public class ScanovateAuthenticatorFactory implements AuthenticatorFactory {
         .helpText("Failed verifications allowed before the voter is rejected.")
         .type(ProviderConfigProperty.STRING_TYPE)
         .defaultValue(String.valueOf(DEFAULT_MAX_ATTEMPTS))
+        .add()
+        .property()
+        .name(CAPTURE_SIDES)
+        .label("Document sides to capture")
+        .helpText(
+            "Embedded mode only. JSON object keyed by document type (the value of the document"
+                + " type auth note), or \"default\" for any other document type, listing the"
+                + " sides to capture: [\"front\"] or [\"front\", \"back\"]. Document types"
+                + " without an entry capture both sides.")
+        .type(ProviderConfigProperty.TEXT_TYPE)
+        .defaultValue(DEFAULT_CAPTURE_SIDES)
+        .add()
+        .property()
+        .name(VIDEO_SECONDS)
+        .label("Video length")
+        .helpText("Embedded mode only. Seconds of video recorded while the voter holds the ID.")
+        .type(ProviderConfigProperty.STRING_TYPE)
+        .defaultValue(String.valueOf(DEFAULT_VIDEO_SECONDS))
+        .add()
+        .property()
+        .name(MAX_IMAGE_BYTES)
+        .label("Maximum image size")
+        .helpText(
+            "Embedded mode only. Maximum size in bytes of each captured image (2 MiB by"
+                + " default). Three images and the video must fit together in Keycloak's HTTP"
+                + " body limit (quarkus.http.limits.max-body-size, 10 MiB by default) and in the"
+                + " limit of any reverse proxy in front of Keycloak.")
+        .type(ProviderConfigProperty.STRING_TYPE)
+        .defaultValue(String.valueOf(DEFAULT_MAX_IMAGE_BYTES))
+        .add()
+        .property()
+        .name(MAX_VIDEO_BYTES)
+        .label("Maximum video size")
+        .helpText(
+            "Embedded mode only. Maximum size in bytes of the captured video (3 MiB by"
+                + " default). Three images and the video must fit together in Keycloak's HTTP"
+                + " body limit (quarkus.http.limits.max-body-size, 10 MiB by default) and in the"
+                + " limit of any reverse proxy in front of Keycloak.")
+        .type(ProviderConfigProperty.STRING_TYPE)
+        .defaultValue(String.valueOf(DEFAULT_MAX_VIDEO_BYTES))
         .add()
         .build();
   }

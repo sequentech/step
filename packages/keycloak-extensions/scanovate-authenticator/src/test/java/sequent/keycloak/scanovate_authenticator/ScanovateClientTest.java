@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 package sequent.keycloak.scanovate_authenticator;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -13,6 +14,7 @@ import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
+import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -20,7 +22,12 @@ import org.junit.jupiter.api.Test;
 class ScanovateClientTest {
   private static final String BASE_URL = "https://btrust.example.com/";
 
-  record Call(String method, String url, Map<String, String> headers, String body) {}
+  record Call(
+      String method,
+      String url,
+      Map<String, String> headers,
+      String body,
+      List<HttpTransport.MultipartPart> parts) {}
 
   static class FakeTransport implements HttpTransport {
     final List<Call> calls = new ArrayList<>();
@@ -38,13 +45,20 @@ class ScanovateClientTest {
 
     @Override
     public HttpResult get(String url, Map<String, String> headers) throws IOException {
-      return next(new Call("GET", url, headers, null));
+      return next(new Call("GET", url, headers, null, null));
     }
 
     @Override
     public HttpResult postJson(String url, Map<String, String> headers, String body)
         throws IOException {
-      return next(new Call("POST", url, headers, body));
+      return next(new Call("POST", url, headers, body, null));
+    }
+
+    @Override
+    public HttpResult postMultipart(
+        String url, Map<String, String> headers, List<HttpTransport.MultipartPart> parts)
+        throws IOException {
+      return next(new Call("POST", url, headers, null, parts));
     }
 
     private HttpResult next(Call call) throws IOException {
@@ -233,5 +247,88 @@ class ScanovateClientTest {
   void malformedJsonIsReportedAsIoError() {
     FakeTransport transport = new FakeTransport().reply(200, "<html>oops</html>");
     assertThrows(IOException.class, () -> client(transport).fetchResults("session-jwt"));
+  }
+
+  private static CaptureMedia media(boolean withBack) {
+    EnumMap<MediaKind, CaptureMedia.MediaFile> files = new EnumMap<>(MediaKind.class);
+    files.put(MediaKind.FRONT_IMAGE, new CaptureMedia.MediaFile(MediaFormat.JPEG, new byte[] {1}));
+    if (withBack) {
+      files.put(MediaKind.BACK_IMAGE, new CaptureMedia.MediaFile(MediaFormat.JPEG, new byte[] {2}));
+    }
+    files.put(MediaKind.FACE_IMAGE, new CaptureMedia.MediaFile(MediaFormat.JPEG, new byte[] {3}));
+    files.put(MediaKind.SCAN_VIDEO, new CaptureMedia.MediaFile(MediaFormat.MP4, new byte[] {4}));
+    return new CaptureMedia(files);
+  }
+
+  @Test
+  void uploadMediaPostsTheCaptureAsMultipart() throws IOException {
+    FakeTransport transport =
+        new FakeTransport().reply(200, "{\"success\": true, \"errorCode\": 0}");
+
+    client(transport).uploadMedia("jwt", "proc-1", media(true));
+
+    Call call = transport.calls.get(0);
+    assertEquals("POST", call.method());
+    assertEquals("https://btrust.example.com/api/v3/mobile_interaction/proc-1/media", call.url());
+    assertEquals("Bearer jwt", call.headers().get("Authorization"));
+    List<HttpTransport.MultipartPart> parts = call.parts();
+    assertEquals(
+        List.of("front_image", "back_image", "face_image", "scan_video"),
+        parts.stream().map(HttpTransport.MultipartPart::name).toList());
+    assertEquals(
+        List.of("front_image.jpg", "back_image.jpg", "face_image.jpg", "scan_video.mp4"),
+        parts.stream().map(HttpTransport.MultipartPart::filename).toList());
+    assertEquals(
+        List.of("image/jpeg", "image/jpeg", "image/jpeg", "video/mp4"),
+        parts.stream().map(HttpTransport.MultipartPart::contentType).toList());
+    assertArrayEquals(new byte[] {2}, parts.get(1).content());
+  }
+
+  @Test
+  void uploadMediaOmitsTheBackOfSingleSidedDocuments() throws IOException {
+    FakeTransport transport =
+        new FakeTransport().reply(200, "{\"success\": true, \"errorCode\": 0}");
+
+    client(transport).uploadMedia("jwt", "proc-1", media(false));
+
+    assertEquals(
+        List.of("front_image", "face_image", "scan_video"),
+        transport.calls.get(0).parts().stream().map(HttpTransport.MultipartPart::name).toList());
+  }
+
+  @Test
+  void uploadMediaIsRetriedOnServerErrors() throws IOException {
+    FakeTransport transport =
+        new FakeTransport()
+            .reply(502, "bad gateway")
+            .reply(200, "{\"success\": true, \"errorCode\": 0}");
+
+    client(transport).uploadMedia("jwt", "proc-1", media(true));
+
+    assertEquals(2, transport.calls.size());
+    assertEquals(List.of(1_000L), sleeps);
+  }
+
+  @Test
+  void uploadMediaFailureIsReported() {
+    for (String body :
+        List.of(
+            "{\"success\": false, \"errorCode\": 1, \"data\": \"Session not found\"}",
+            "{\"success\": true, \"errorCode\": 3}",
+            "{}")) {
+      FakeTransport transport = new FakeTransport().reply(200, body);
+      assertThrows(
+          IOException.class,
+          () -> client(transport).uploadMedia("jwt", "proc-1", media(true)),
+          body);
+    }
+  }
+
+  @Test
+  void uploadMediaRejectionIsNotRetried() {
+    FakeTransport transport = new FakeTransport().reply(413, "too large");
+    assertThrows(
+        IOException.class, () -> client(transport).uploadMedia("jwt", "proc-1", media(true)));
+    assertEquals(1, transport.calls.size());
   }
 }

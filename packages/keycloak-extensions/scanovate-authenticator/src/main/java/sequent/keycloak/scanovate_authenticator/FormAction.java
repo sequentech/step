@@ -6,10 +6,11 @@ package sequent.keycloak.scanovate_authenticator;
 import java.util.Arrays;
 import java.util.Optional;
 
-/** Actions submitted from the confirmation and error pages. */
+/** Actions submitted from the capture, confirmation and error pages. */
 public enum FormAction {
   CONFIRM("confirm"),
-  RETRY("retry");
+  RETRY("retry"),
+  CAPTURE("capture");
 
   private final String value;
 

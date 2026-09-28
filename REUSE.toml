@@ -132,3 +132,23 @@ path = [
 precedence = "aggregate"
 SPDX-FileCopyrightText = ["", "2025 Free & Fair"]
 SPDX-License-Identifier = "Apache-2.0"
+
+[[annotations]]
+path = [
+	"packages/keycloak-ui/src/login/scanovate/capture-wasm/index.js",
+	"packages/keycloak-ui/src/login/scanovate/capture-wasm/index.d.ts",
+	"packages/keycloak-ui/src/login/scanovate/capture-wasm/index_bg.wasm",
+	"packages/keycloak-ui/src/login/scanovate/capture-wasm/index_bg.wasm.d.ts"
+]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2026 Sequent Tech Inc <legal@sequentech.io>"
+SPDX-License-Identifier = "AGPL-3.0-only"
+
+[[annotations]]
+path = [
+	"packages/id-capture/models/face_detection_yunet_2023mar.onnx",
+	"packages/keycloak-ui/src/login/scanovate/capture-wasm/face_detection_yunet.onnx"
+]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2020 Shiqi Yu <shiqi.yu@gmail.com>"
+SPDX-License-Identifier = "MIT"
