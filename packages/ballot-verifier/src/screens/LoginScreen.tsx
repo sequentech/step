@@ -7,18 +7,20 @@ import {AuthContext} from "../providers/AuthContextProvider"
 import {useNavigate} from "react-router-dom"
 import {CircularProgress} from "@mui/material"
 import {TenantEventContext} from "../providers/TenantEventContext"
+import {SettingsContext} from "../providers/SettingsContextProvider"
 
 export const LoginScreen: React.FC = () => {
     const authContext = useContext(AuthContext)
+    const {globalSettings} = useContext(SettingsContext)
     const {tenantId, eventId} = useContext(TenantEventContext)
     const navigate = useNavigate()
 
     useEffect(() => {
-        if (authContext.isAuthenticated) {
+        if (globalSettings.DISABLE_AUTH || authContext.isAuthenticated) {
             console.log(`navigate to: /start`)
-            navigate(`/tenant/${tenantId}/event/${eventId}/start`)
+            navigate(`/tenant/${tenantId}/event/${eventId}/start`, {replace: true})
         }
-    }, [authContext.isAuthenticated, navigate])
+    }, [authContext.isAuthenticated, globalSettings.DISABLE_AUTH, tenantId, eventId, navigate])
 
     return (
         <Box>

@@ -76,6 +76,7 @@ const LanguageMenu: React.FC<{
                 data-testid="lang-button-test"
                 aria-controls={open ? "lang-menu" : undefined}
                 aria-haspopup="true"
+                aria-label={t("language")}
                 aria-expanded={open ? "true" : undefined}
                 onClick={handleClick}
                 isactive={String(open)}

@@ -6,8 +6,8 @@ use crate::services::documents::upload_and_return_document;
 use crate::services::providers::transactions_provider::provide_hasura_transaction;
 use anyhow::Context;
 use anyhow::{anyhow, Result};
-use csv::Writer;
 use deadpool_postgres::{Client as DbClient, Transaction};
+use sequent_core::election_config::emit::{json_csv, JsonField, SCHEDULED_EVENT_COLUMNS};
 use sequent_core::types::scheduled_event::ScheduledEvent;
 use sequent_core::util::temp_path::write_into_named_temp_file;
 use tempfile::{NamedTempFile, TempPath};
@@ -27,6 +27,37 @@ pub async fn read_export_data(
     Ok(scheduled_events)
 }
 
+/// One row of `export_scheduled_events-<id>.csv`, in the order the importer reads.
+///
+/// Named field by field on purpose. The order is [`SCHEDULED_EVENT_COLUMNS`], and
+/// stating each one here is what makes a mismatch a compile-time or test failure
+/// instead of a payload silently read as a task id.
+fn scheduled_event_row(event: &ScheduledEvent) -> Result<Vec<JsonField>> {
+    /// An `Option<T>` as a field: absent is a SQL NULL, written bare.
+    fn optional<T: serde::Serialize>(value: &Option<T>) -> Result<JsonField> {
+        match value {
+            None => Ok(JsonField::Null),
+            Some(value) => JsonField::json(value)
+                .map_err(|e| anyhow!("Error serializing scheduled event field: {e:?}")),
+        }
+    }
+
+    Ok(vec![
+        JsonField::string(event.id.clone()),
+        optional(&event.tenant_id)?,
+        optional(&event.election_event_id)?,
+        optional(&event.created_at)?,
+        optional(&event.stopped_at)?,
+        optional(&event.archived_at)?,
+        optional(&event.labels)?,
+        optional(&event.annotations)?,
+        optional(&event.event_processor)?,
+        optional(&event.cron_config)?,
+        optional(&event.event_payload)?,
+        optional(&event.task_id)?,
+    ])
+}
+
 #[instrument(err, skip(transaction))]
 pub async fn write_export_document(
     data: Vec<ScheduledEvent>,
@@ -36,49 +67,29 @@ pub async fn write_export_document(
     election_event_id: &str,
     to_upload: bool,
 ) -> Result<(TempPath)> {
-    let headers = if let Some(example_event) = data.get(0) {
-        serde_json::to_value(example_event)?
-            .as_object()
-            .ok_or_else(|| anyhow!("Failed to convert ScheduledEvent to JSON object for headers"))?
-            .keys()
-            .cloned()
-            .collect::<Vec<String>>()
-    } else {
-        vec![
-            "id".to_string(),
-            "tenant_id".to_string(),
-            "election_event_id".to_string(),
-            "created_at".to_string(),
-            "stopped_at".to_string(),
-            "archived_at".to_string(),
-            "labels".to_string(),
-            "annotations".to_string(),
-            "event_processor".to_string(),
-            "cron_config".to_string(),
-            "event_payload".to_string(),
-            "task_id".to_string(),
-        ]
-    };
-
     let name = format!("scheduled_events-{}", election_event_id);
 
-    let mut writer = Writer::from_writer(vec![]);
-    writer.write_record(&headers)?;
+    // Written through the shared emitter, which is also what `step-cli` and the
+    // browser-side tools use, so an export and a generated bundle are the same
+    // shape rather than two implementations that happen to agree.
+    //
+    // This used to derive both the header and each row from
+    // `serde_json::to_value(event).as_object()`, taking `.keys()` and `.values()`.
+    // That worked, but only because three unstated things lined up: the
+    // `preserve_order` feature is enabled somewhere in the dependency graph, so a
+    // `serde_json::Map` iterates in insertion order rather than alphabetically;
+    // insertion order is `ScheduledEvent`'s field order; and that order happens to
+    // match what the importer reads. `import_scheduled_events.rs` takes the
+    // payload from `record.get(10)` — under alphabetical ordering index 10 is
+    // `task_id` and the payload is at 5, so every exported event would import with
+    // its payload read as a task name. Reordering the struct, or losing
+    // `preserve_order` from the graph, would have done that silently.
+    let rows: Vec<Vec<JsonField>> = data
+        .iter()
+        .map(scheduled_event_row)
+        .collect::<Result<Vec<_>>>()?;
 
-    for scheduled_event in data.clone() {
-        let values: Vec<String> = serde_json::to_value(scheduled_event)?
-            .as_object()
-            .ok_or_else(|| anyhow!("Failed to convert ScheduledEvent to JSON object"))?
-            .values()
-            .map(|value| value.to_string())
-            .collect();
-
-        writer.write_record(&values)?;
-    }
-
-    let data_bytes = writer
-        .into_inner()
-        .map_err(|e| anyhow!("Error converting writer into inner: {e:?}"))?;
+    let data_bytes = json_csv(SCHEDULED_EVENT_COLUMNS, &rows).into_bytes();
 
     // Write the serialized data into a temporary file
     let (temp_path, temp_path_string, file_size) =

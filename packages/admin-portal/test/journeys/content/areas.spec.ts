@@ -11,11 +11,8 @@ import {test, expect, TENANT_ID} from "../fixtures"
 import {
     BASE_ROLES,
     CONTENT_IDS,
-    answerInvalid,
     areaRow,
-    catchRejections,
     contestRow,
-    dropUnusedVariables,
     eventPage,
     eventRow,
     expectRole,
@@ -41,7 +38,6 @@ const NEW_AREA_ID = "40000000-0000-4000-8000-000000000009"
 const DOCUMENT_ID = CONTENT_IDS.document
 
 const SCHEMA = resolve(dirname(fileURLToPath(import.meta.url)), "../../../graphql.schema.json")
-const MISSING_AREA_ID = 'expecting a value for non-nullable variable: "areaId"'
 
 const DEFAULT_AREAS = [
     areaRow(),
@@ -50,8 +46,7 @@ const DEFAULT_AREAS = [
 
 function areas(portal: PortalServices, initial = DEFAULT_AREAS, event = eventRow()) {
     eventPage(portal, event)
-    // Pinned below: UPSERT_AREA declares $presentation without using it.
-    dropUnusedVariables(portal, "UpsertArea", ["presentation"])
+
     const rows = table(portal, "sequent_backend_area", initial)
     const contests = [
         contestRow({presentation: names("Mayor")}),
@@ -115,13 +110,7 @@ test.describe("area administrator", () => {
         portal,
     }) => {
         const rows = areas(portal)
-        // Pinned below: the create drawer queries area contests without an area id.
-        answerInvalid(
-            portal,
-            "sequent_backend_area_extended",
-            (variables) => variables.areaId === undefined,
-            MISSING_AREA_ID
-        )
+
         await openAreas(page, portal)
         await page.getByRole("button", {name: "Add", exact: true}).click()
         const drawer = page.getByRole("dialog")
@@ -157,6 +146,28 @@ test.describe("area administrator", () => {
                 {election_event_id: {_eq: IDS.event}},
             ],
         })
+    })
+
+    test("creates an area directly after choosing its election event", async ({page, portal}) => {
+        areas(portal)
+        await page.goto(`${portal.origin}/sequent_backend_area/create?lang=en`)
+        await page.getByRole("textbox", {name: "Name", exact: true}).fill("East")
+        await page.getByRole("button", {name: "Save", exact: true}).click()
+        expect(portal.graphql.callsTo("UpsertArea")).toEqual([])
+        await page.getByRole("combobox", {name: /Election Event/}).click()
+        await page.getByRole("option", {name: "Council", exact: true}).click()
+        await page.getByRole("button", {name: "Save", exact: true}).click()
+        await expect(notification(page, "Area created")).toBeVisible()
+        expect(portal.graphql.callsTo("UpsertArea").map(({variables}) => variables)).toEqual([
+            {
+                name: "East",
+                tenantId: TENANT_ID,
+                electionEventId: IDS.event,
+                areaContestsIds: [],
+                allow_early_voting: "no_early_voting",
+            },
+        ])
+        expect(portal.graphql.callsTo("sequent_backend_area_extended")).toEqual([])
     })
 
     test("edits an area keeping its contests, then deletes another after confirmation", async ({
@@ -315,7 +326,8 @@ test.describe("area administrator", () => {
 
     test("notifies a failed area import", async ({page, portal}) => {
         areas(portal)
-        const rejections = await catchRejections(page, "Synthetic invalid CSV")
+        const rejections: string[] = []
+        page.on("pageerror", (error) => rejections.push(error.message))
         const url = portal.s3.presign("documents/areas.csv", "areas-upload")
         portal.s3.override((request) => request.method === "PUT", {status: 200}, 1)
         portal.graphql.on("GetUploadUrl", () => ({
@@ -347,25 +359,23 @@ test.describe("area administrator", () => {
             electionEventId: IDS.event,
             sha256: "",
         })
-        test.fail(true, "handleImportAreas lets Apollo's rejection escape (Area/ListArea.tsx:192)")
+
         await expect(notification(page, "Error importing Areas")).toBeVisible({timeout: 3000})
-        expect(await rejections()).toEqual([])
+        expect(rejections).toEqual([])
     })
 
     test("sends an UpsertArea document that passes GraphQL validation", async ({page, portal}) => {
         areas(portal)
-        const documents = dropUnusedVariables(portal, "UpsertArea", ["presentation"])
+
         await openAreas(page, portal)
         await iconButton(page.getByRole("row").filter({hasText: "North"}), "edit-area-icon").click()
         const drawer = page.getByRole("dialog")
         await drawer.getByRole("textbox", {name: "Description", exact: true}).fill("Renamed")
         await drawer.getByRole("button", {name: "Save", exact: true}).click()
         await expect(notification(page, "Area updated")).toBeVisible()
+        const documents = portal.graphql.callsTo("UpsertArea").map((call) => call.query)
         expect(documents).toHaveLength(1)
-        test.fail(
-            true,
-            "UPSERT_AREA declares $presentation but never uses it (queries/UpsertArea.ts:11)"
-        )
+
         expect(
             validate(loadClientSchema(SCHEMA), parse(documents[0])).map((error) => error.message)
         ).toEqual([])
@@ -376,22 +386,14 @@ test.describe("area administrator", () => {
         portal,
     }) => {
         areas(portal)
-        const invalid = answerInvalid(
-            portal,
-            "sequent_backend_area_extended",
-            (variables) => variables.areaId === undefined,
-            MISSING_AREA_ID
-        )
+
         await openAreas(page, portal)
         await page.getByRole("button", {name: "Add", exact: true}).click()
         await expect(
             page.getByRole("dialog").getByRole("textbox", {name: "Name", exact: true})
         ).toBeVisible()
-        test.fail(
-            true,
-            "UpsertArea runs GET_AREAS_EXTENDED with an undefined areaId (Area/UpsertArea.tsx:51)"
-        )
-        expect(invalid).toEqual([])
+
+        expect(portal.graphql.callsTo("sequent_backend_area_extended")).toEqual([])
     })
 })
 
@@ -400,25 +402,22 @@ test.describe("area contest search", () => {
 
     test("filters the contest choices by the typed text", async ({page, portal}) => {
         areas(portal)
-        answerInvalid(
-            portal,
-            "sequent_backend_area_extended",
-            (variables) => variables.areaId === undefined,
-            MISSING_AREA_ID
-        )
+
         await openAreas(page, portal)
         await page.getByRole("button", {name: "Add", exact: true}).click()
         await page.getByRole("dialog").getByRole("combobox", {name: "Area contest"}).fill("Coun")
         await page.clock.runFor(500)
-        test.fail(
-            true,
-            "customBuildQuery drops the name@_ilike,alias@_ilike filter (queries/customBuildQuery.ts:65)"
-        )
-        expect(
-            portal.graphql
-                .callsTo("sequent_backend_contest")
-                .some((call) => JSON.stringify(call.variables).includes("Coun"))
-        ).toBe(true)
+
+        const search = portal.graphql
+            .callsTo("sequent_backend_contest")
+            .find((call) => JSON.stringify(call.variables).includes("Coun"))
+        expect(search?.variables.where).toEqual({
+            _and: [
+                {presentation: {_cast: {String: {_ilike: "%Coun%"}}}},
+                {tenant_id: {_eq: TENANT_ID}},
+                {election_event_id: {_eq: IDS.event}},
+            ],
+        })
         await expect(page.getByRole("option", {name: "Council seats", exact: true})).toBeVisible()
         await expect(page.getByRole("option", {name: "Mayor", exact: true})).toHaveCount(0)
     })
@@ -443,12 +442,7 @@ test.describe("event without areas", () => {
 
     test("offers to create the first area from the empty state", async ({page, portal}) => {
         areas(portal, [])
-        answerInvalid(
-            portal,
-            "sequent_backend_area_extended",
-            (variables) => variables.areaId === undefined,
-            MISSING_AREA_ID
-        )
+
         await openEventTab(page, portal, "Areas")
         await expect(page.getByText("No Areas yet.", {exact: true})).toBeVisible()
         await page.getByRole("button", {name: "Create Area"}).click()

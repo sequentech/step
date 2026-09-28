@@ -5,6 +5,10 @@ import {TranslationType} from "./en"
 
 const basqueTranslation: TranslationType = {
     translations: {
+        startup: {
+            error: "Ezin izan da bozketa-ataria abiarazi. Saiatu berriro.",
+            retry: "Saiatu berriro",
+        },
         common: {
             goBack: "Itzuli",
             showMore: "Erakutsi Gehiago",

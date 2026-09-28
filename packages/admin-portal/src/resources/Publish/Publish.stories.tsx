@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import React, {useContext} from "react"
-import type {Meta, StoryObj} from "@storybook/react"
+import type {StoryObj} from "@storybook/react"
+import type {WidgetMeta} from "@/__stories__/widgetStory"
 import {expect, userEvent, waitFor, within} from "storybook/test"
 import {RecordContextProvider, type RaRecord} from "react-admin"
 import {
@@ -89,8 +90,8 @@ function Fixture({election}: Scenario) {
 }
 
 const meta = {
-    title: "Admin/Publication lifecycle",
-    component: Fixture,
+    title: "Admin/Publish/Publish",
+    component: Publish,
     args: {
         election: false,
         large: false,
@@ -226,9 +227,10 @@ const meta = {
             sessionStorage.removeItem("pendingPublishAction")
         }
     },
-} satisfies Meta<typeof Fixture>
+    render: (args) => <Fixture {...args} />,
+} satisfies WidgetMeta<Scenario>
 export default meta
-type Story = StoryObj<typeof meta>
+type Story = StoryObj<Scenario>
 
 async function generate(canvasElement: HTMLElement) {
     const canvas = within(canvasElement)

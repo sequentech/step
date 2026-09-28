@@ -29,9 +29,7 @@ public class TwilioVerifySenderProvider implements SmsSenderProvider {
   public static final String SID_AUTH_NOTE = new String("SID_TWILIO");
 
   TwilioVerifySenderProvider() {
-    log.infov(
-        "**TwilioVerifySenderProvider::\n\t- ACCOUNT_SID={0}\n\t- AUTH_TOKEN={1}\n\t - SERVICE_SID={2}",
-        ACCOUNT_SID, AUTH_TOKEN, SERVICE_SID);
+    log.info("Initializing Twilio Verify SMS provider");
     Twilio.init(ACCOUNT_SID, AUTH_TOKEN);
   }
 
@@ -54,9 +52,7 @@ public class TwilioVerifySenderProvider implements SmsSenderProvider {
             .format(attributes.toArray());
 
     if (!messageKey.equals(Utils.SEND_CODE_SMS_I18N_KEY)) {
-      log.infov(
-          "**NOT Sending Twilio Verify SMS (not an OTP)**:\n\t- phoneNumber={0}\n\t- message={1}",
-          phoneNumber, formattedMessage);
+      log.infov("Skipping non-OTP Twilio Verify SMS to {0}", phoneNumber);
       return formattedMessage;
     }
 
@@ -67,16 +63,13 @@ public class TwilioVerifySenderProvider implements SmsSenderProvider {
     }
 
     String otpCode = attributes.get(1);
-    log.infov(
-        "**Sending Twilio Verify SMS**:\n\t- phoneNumber={0}\n\t- OTP={1}", phoneNumber, otpCode);
+    log.infov("Sending Twilio Verify SMS to {0}", phoneNumber);
 
     Verification verification =
         Verification.creator(SERVICE_SID, phoneNumber, "sms").setCustomCode(otpCode).create();
     String sid = verification.getSid();
     authSession.setAuthNote(SID_AUTH_NOTE, sid);
-    log.infov(
-        "**SENT Twilio Verify SMS**:\n\t- phoneNumber={0}\n\t- OTP={1}\n\t\n\t- sid={2}",
-        phoneNumber, otpCode, sid);
+    log.infov("Sent Twilio Verify SMS to {0}, sid={1}", phoneNumber, sid);
 
     return formattedMessage;
   }

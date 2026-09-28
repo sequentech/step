@@ -113,7 +113,7 @@ const ApprovalsList = (props: ApprovalsListProps) => {
 
     useEffect(() => {
         if (props.defaultFilters) {
-            setFilters({...filterValues, status: localStorage.getItem(STATUS_FILTER_KEY)}, {})
+            setFilters({...filterValues, status: props.defaultFilters}, {})
         }
     }, [props.defaultFilters])
 

@@ -13,3 +13,5 @@ export {
     default as WarnBox,
     EWarnBoxAnnouncement,
 } from "../../../ui-essentials/src/components/WarnBox/WarnBox"
+export {BallotEngineProvider} from "../../../ui-essentials/src/ballot/engine"
+export {BallotSelectionProvider} from "../../../ui-essentials/src/ballot/selection"

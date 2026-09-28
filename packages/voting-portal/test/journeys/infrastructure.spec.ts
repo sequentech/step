@@ -30,15 +30,13 @@ for (const fault of ["settings", "wasm", "token"]) {
         if (fault === "token")
             await expect.poll(() => portal.oidc.tokenRequests.at(-1)?.status).toBe(500)
         else await expect.poll(() => failures).toBe(1)
-        await expect(
-            fault === "token" ? page.getByRole("progressbar").first() : page.getByRole("status")
-        ).toBeVisible()
         await expect(page.getByRole("button", {name: /click to vote/i})).toHaveCount(0)
         expect(portal.graphql.callsTo("GetVoterStatus")).toHaveLength(bootstrapCalls)
-        test.fail(
-            true,
-            `${fault} bootstrap failure has no recovery UI; the error/retry UX needs a product decision`
-        )
-        await expect(page.getByRole("alert")).toBeVisible({timeout: 1000})
+        await expect(page.getByRole("alert")).toBeVisible()
+        await expect(page.getByRole("button", {name: "Try again", exact: true})).toBeVisible()
+        if (fault === "token") portal.oidc.tokenFailure = undefined
+        else await page.unroute(fault === "settings" ? "**/global-settings.json" : "**/*.wasm")
+        await page.getByRole("button", {name: "Try again", exact: true}).click()
+        await expect(page.getByRole("button", {name: /click to vote/i})).toBeEnabled()
     })
 }

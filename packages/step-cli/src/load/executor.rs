@@ -60,7 +60,7 @@ fn identity() -> (u32, u32) {
 /// Render an indexed Job with no automatic retries or per-voter Kubernetes objects.
 pub fn job(settings: &Settings, name: &str, workers: usize, uid: u32, gid: u32) -> Value {
     json!({"apiVersion":"batch/v1","kind":"Job","metadata":{"name":name},"spec":{
-        "completionMode":"Indexed","completions":workers,"parallelism":workers,"backoffLimit":0,
+        "completionMode":"Indexed","completions":workers,"parallelism":workers,"backoffLimitPerIndex":0,"maxFailedIndexes":workers,
         "template":{"spec":{"restartPolicy":"Never","securityContext":{"runAsUser":uid,"runAsGroup":gid,"fsGroup":gid},
             "containers":[{"name":"worker","image":settings.execution.image,
                 "command":["/usr/local/bin/step-load-worker","/load","--workers",workers.to_string()],
@@ -88,6 +88,56 @@ fn kubectl(settings: &Settings, args: &[&str], manifest: Option<&Value>) -> Resu
         ensure!(command.status()?.success(), "kubectl operation failed");
     }
     Ok(())
+}
+
+/// Wait for a terminal condition after all indexes settle, including failed indexes.
+fn wait_for_job(settings: &Settings, name: &str) -> Result<()> {
+    use std::time::{Duration, Instant};
+    let timeout = super::config::duration(&settings.execution.wait_timeout)
+        .context("Invalid Kubernetes wait timeout")?;
+    let deadline = Instant::now()
+        .checked_add(timeout)
+        .context("Kubernetes wait timeout too large")?;
+    loop {
+        let remaining = deadline.saturating_duration_since(Instant::now());
+        ensure!(
+            !remaining.is_zero(),
+            "Timed out waiting for Kubernetes worker job {name}"
+        );
+        let output = Command::new("kubectl")
+            .args([
+                "--namespace",
+                &settings.execution.namespace,
+                "get",
+                &format!("job/{name}"),
+                "-o",
+                "json",
+                "--request-timeout",
+                &format!("{}ms", remaining.as_millis().max(1)),
+            ])
+            .output()
+            .context("Cannot read Kubernetes worker job")?;
+        ensure!(
+            output.status.success(),
+            "Cannot read Kubernetes worker job {name}"
+        );
+        let job: Value = serde_json::from_slice(&output.stdout)?;
+        if let Some(conditions) = job["status"]["conditions"].as_array() {
+            for condition in conditions
+                .iter()
+                .filter(|condition| condition["status"] == "True")
+            {
+                match condition["type"].as_str() {
+                    Some("Failed") => anyhow::bail!("Kubernetes worker job failed: {name}"),
+                    Some("Complete") => return Ok(()),
+                    _ => {}
+                }
+            }
+        }
+        std::thread::sleep(
+            Duration::from_secs(1).min(deadline.saturating_duration_since(Instant::now())),
+        );
+    }
 }
 
 /// Preserve resources after failure and collect partial results before returning.
@@ -139,17 +189,7 @@ fn kubernetes(directory: &Path, settings: &Settings, workers: usize) -> Result<(
         let job = job(settings, &name, workers, uid, gid);
         files::save(&directory.join("job.json"), &job)?;
         kubectl(settings, &["create", "-f", "-"], Some(&job))?;
-        let wait = kubectl(
-            settings,
-            &[
-                "wait",
-                &format!("job/{name}"),
-                "--for=condition=Complete",
-                "--timeout",
-                &settings.execution.wait_timeout,
-            ],
-            None,
-        );
+        let wait = wait_for_job(settings, &name);
         let collect = kubectl(
             settings,
             &[

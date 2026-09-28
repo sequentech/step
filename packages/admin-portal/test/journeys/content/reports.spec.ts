@@ -276,10 +276,7 @@ test.describe("report administrator", () => {
         await openReports(page, portal)
         await page.getByRole("button", {name: "Add", exact: true}).click()
         await expect(page.getByRole("dialog").filter({hasText: "Create Report"})).toBeVisible()
-        test.fail(
-            true,
-            "ListActions and ListReports each render a create drawer bound to openCreateReport (Reports/ListReports.tsx:475,542)"
-        )
+
         await expect(page.getByRole("dialog", {includeHidden: true})).toHaveCount(1, {
             timeout: 1000,
         })
@@ -360,10 +357,7 @@ test.describe("report administrator", () => {
         await page.getByRole("option", {name: "Council election", exact: true}).click()
         await drawer.getByRole("button", {name: "Save", exact: true}).click()
         await expect(notification(page, "Report updated successfully")).toBeVisible()
-        test.fail(
-            true,
-            "FormContent clears template_alias whenever the loaded report type is set (Reports/EditReportForm.tsx:630)"
-        )
+
         expect(updates[0]?.set).toMatchObject({template_alias: "init-report"})
     })
 

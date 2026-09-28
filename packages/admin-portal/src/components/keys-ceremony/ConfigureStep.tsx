@@ -55,6 +55,7 @@ import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 import {IPermissions} from "@/types/keycloak"
 import {Clear} from "@mui/icons-material"
 import {CreateKeysError} from "@/types/ceremonies"
+import {electionSearchFilter} from "@/services/ElectionSearch"
 
 const ITEM_HEIGHT = 48
 const ITEM_PADDING_TOP = 8
@@ -300,13 +301,6 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
         electionId: null,
     })
 
-    const electionFilterToQuery = (searchText: string) => {
-        if (!searchText || searchText.length == 0) {
-            return {name: ""}
-        }
-        return {"name@_ilike,alias@_ilike": searchText.trim()}
-    }
-
     // validates threshold is within the limits
     const thresholdValidator = (value: string): ValidationErrorMessage | null => {
         const thresholdInput = Number(value)
@@ -470,12 +464,12 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
                                 },
                             }}
                             perPage={50}
-                            sort={{field: "alias", order: "ASC"}}
+                            sort={{field: "external_id", order: "ASC"}}
                         >
                             <AutocompleteInput
                                 className="election-selector"
                                 optionText={aliasRenderer}
-                                filterToQuery={electionFilterToQuery}
+                                filterToQuery={electionSearchFilter}
                                 debounce={100}
                                 emptyText={t("keysGeneration.configureStep.allElections")}
                             />

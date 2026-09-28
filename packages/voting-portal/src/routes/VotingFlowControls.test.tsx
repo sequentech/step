@@ -57,41 +57,43 @@ jest.mock("@sequentech/ui-core", () => ({
     hashBallot: () => "0123456789abcdef".repeat(4),
     hashMultiBallot: () => "0123456789abcdef".repeat(4),
 }))
-jest.mock(
-    "@sequentech/ui-essentials",
-    () => ({
-        PageLimit: jest.requireActual("../../../ui-essentials/src/components/PageLimit/PageLimit")
-            .default,
-        Icon: jest.requireActual("../../../ui-essentials/src/components/Icon/Icon").default,
-        IconButton: jest.requireActual(
-            "../../../ui-essentials/src/components/IconButton/IconButton"
-        ).default,
-        DecorativeIconBox: jest.requireActual(
-            "../../../ui-essentials/src/components/Icon/DecorativeIconBox"
-        ).default,
-        VisuallyHidden: jest.requireActual(
-            "../../../ui-essentials/src/components/VisuallyHidden/VisuallyHidden"
-        ).default,
-        ...jest.requireActual(
-            "../../../ui-essentials/src/components/ConfirmationActions/ConfirmationActions"
-        ),
-        BallotHash: jest.requireActual(
-            "../../../ui-essentials/src/components/BallotHash/BallotHash"
-        ).default,
-        BallotHashCopyButton: jest.requireActual(
-            "../../../ui-essentials/src/components/BallotHash/BallotHash"
-        ).BallotHashCopyButton,
-        theme: jest.requireActual("../../../ui-essentials/src/services/theme").default,
-        Dialog: () => null,
-        WarnBox: jest.requireActual("../../../ui-essentials/src/components/WarnBox/WarnBox")
-            .default,
-        EWarnBoxAnnouncement: jest.requireActual(
-            "../../../ui-essentials/src/components/WarnBox/WarnBox"
-        ).EWarnBoxAnnouncement,
-        QRCode: jest.requireActual("../../../ui-essentials/src/components/QRCode/QRCode").default,
-    }),
-    {virtual: true}
-)
+jest.mock("@sequentech/ui-essentials", () => ({
+    // ElectionConfigService re-exports the shared presentation helpers.
+    ...jest.requireActual("../../../ui-essentials/src/ballot/presentation"),
+    PageLimit: jest.requireActual("../../../ui-essentials/src/components/PageLimit/PageLimit")
+        .default,
+    Icon: jest.requireActual("../../../ui-essentials/src/components/Icon/Icon").default,
+    IconButton: jest.requireActual("../../../ui-essentials/src/components/IconButton/IconButton")
+        .default,
+    DecorativeIconBox: jest.requireActual(
+        "../../../ui-essentials/src/components/Icon/DecorativeIconBox"
+    ).default,
+    VisuallyHidden: jest.requireActual(
+        "../../../ui-essentials/src/components/VisuallyHidden/VisuallyHidden"
+    ).default,
+    ...jest.requireActual("../../../ui-essentials/src/components/ActionsRow/ActionsRow"),
+    ...jest.requireActual("../../../ui-essentials/src/ballot/BallotScreenLayout"),
+    ...jest.requireActual("../../../ui-essentials/src/ballot/BallotActions"),
+    ...jest.requireActual("../../../ui-essentials/src/ballot/ReviewLayout"),
+    ...jest.requireActual("../../../ui-essentials/src/ballot/ReviewActions"),
+    ...jest.requireActual("../../../ui-essentials/src/ballot/ConfirmationLayout"),
+    ...jest.requireActual("../../../ui-essentials/src/ballot/ConfirmationActions"),
+    Question: ({question}: {question: IContest}) => <h2>{question.name}</h2>,
+    BallotHash: jest.requireActual("../../../ui-essentials/src/components/BallotHash/BallotHash")
+        .default,
+    BallotHashCopyButton: jest.requireActual(
+        "../../../ui-essentials/src/components/BallotHash/BallotHash"
+    ).BallotHashCopyButton,
+    theme: jest.requireActual("../../../ui-essentials/src/services/theme").default,
+    // Only which dialog is open, so a test can see one open without its content.
+    Dialog: ({open, className}: {open: boolean; className?: string}) =>
+        open ? <div className={className} data-testid="open-dialog" /> : null,
+    WarnBox: jest.requireActual("../../../ui-essentials/src/components/WarnBox/WarnBox").default,
+    EWarnBoxAnnouncement: jest.requireActual(
+        "../../../ui-essentials/src/components/WarnBox/WarnBox"
+    ).EWarnBoxAnnouncement,
+    QRCode: jest.requireActual("../../../ui-essentials/src/components/QRCode/QRCode").default,
+}))
 jest.mock("../store/hooks", () => ({
     useAppSelector: (selector: (state: RootState) => unknown) => selector(mockState),
     useAppDispatch: () => mockDispatch,
@@ -131,7 +133,8 @@ jest.mock("../hooks/root-back-link", () => ({
 jest.mock("../hooks/public-document-url", () => ({
     useGetPublicDocumentUrl: () => ({getDocumentUrl: jest.fn()}),
 }))
-jest.mock("../components/Question/Question", () => ({
+// The layouts render the shared Question by relative import.
+jest.mock("../../../ui-essentials/src/ballot/Question", () => ({
     Question: ({question}: {question: IContest}) => <h2>{question.name}</h2>,
 }))
 jest.mock("../components/Stepper", () => ({__esModule: true, default: () => null}))
@@ -721,3 +724,27 @@ it.each([
         expect(invalid.router.state.location.pathname).toBe(`${ELECTION_PATH}/vote`)
     }
 )
+
+describe("the demo ballot ID", () => {
+    it("opens its explanation from the keyboard", async () => {
+        // A demo has no tracker to link to, so the identifier explains that when
+        // activated. As an anchor without `href` it was out of the tab order and
+        // only a mouse could open the dialog.
+        setUpState({storedConfirmation: true})
+        mockState.confirmationScreenData["election-1"] = {
+            ballotId: BALLOT_ID,
+            isDemo: true,
+            auditButtonCfg: EVotingPortalAuditButtonCfg.SHOW,
+        }
+        const user = userEvent.setup()
+        const {container} = renderRoute(<ConfirmationScreen />, "confirmation")
+
+        const wide = container.querySelector<HTMLElement>(".ballot-id-value-desktop")!
+        expect(wide.tagName).toBe("BUTTON")
+        expect(wide).not.toHaveAttribute("href")
+        wide.focus()
+        await user.keyboard("{Enter}")
+
+        expect(await screen.findByTestId("open-dialog")).toHaveClass("demo-ballot-url-dialog")
+    })
+})

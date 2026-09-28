@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import {Box, styled, Button, TextField, InputLabel} from "@mui/material"
-import {DropFile, Dialog} from "@sequentech/ui-essentials"
+import {DropFile, Dialog, ProblemList, type Problem} from "@sequentech/ui-essentials"
 import {FormStyles} from "@/components/styles/FormStyles"
 import React, {useEffect, useRef, memo, useState} from "react"
 import {useTranslation} from "react-i18next"
@@ -17,6 +17,12 @@ interface ImportScreenProps {
     uploadCallback?: (documentId: string, password?: string, shaField?: string) => Promise<void>
     doCancel: () => void
     errors: string | null
+    /**
+     * Why the file was refused, one named problem each, when the backend could
+     * say. Shown instead of `errors`, which is the same thing as one English
+     * paragraph.
+     */
+    problems?: Problem[] | null
     disableImport?: boolean
     refresh?: string
 }
@@ -40,7 +46,7 @@ const PasswordInputStyle = styled(FormStyles.PasswordInput)`
 
 export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenProps>> = memo(
     (props: ImportScreenProps): React.JSX.Element => {
-        const {doCancel, uploadCallback, doImport, disableImport, refresh, errors} = props
+        const {doCancel, uploadCallback, doImport, disableImport, refresh, errors, problems} = props
         const {t} = useTranslation()
         const notify = useNotify()
         const [loading, setLoading] = useState<boolean>(false)
@@ -49,7 +55,6 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
         const [isUploading, setIsUploading] = React.useState<boolean>(false)
         const [documentId, setDocumentId] = React.useState<string | null>(null)
         const [getUploadUrl] = useMutation<GetUploadUrlMutation>(GET_UPLOAD_URL)
-        const [isEncrypted, setIsEncrypted] = useState<boolean>(false)
         const [passwordDialogOpen, setPasswordDialogOpen] = useState<boolean>(false)
         const passwordInputRef = useRef<HTMLInputElement>(null)
         const [password, setPassword] = useState<string>("")
@@ -80,23 +85,24 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
             if (!response.ok) {
                 throw new Error("File upload failed")
             }
-            setIsUploading(false)
         }
 
-        const uploadFileToS3 = async (theFile: File) => {
+        const uploadFileToS3 = async (theFile: File, uploadPassword: string) => {
+            setIsUploading(true)
             try {
                 // Get the Upload URL
                 let {data} = await getUploadUrl({
                     variables: {
                         name: theFile.name,
-                        media_type: isEncrypted ? "application/ezip" : theFile.type,
+                        media_type: theFile.name.endsWith(".ezip")
+                            ? "application/ezip"
+                            : theFile.type,
                         size: theFile.size,
                         is_public: false,
                     },
                 })
 
                 if (!data?.get_upload_url?.url) {
-                    setIsUploading(false)
                     notify(t("electionEventScreen.import.fileUploadError"), {type: "error"})
                     return
                 }
@@ -105,32 +111,36 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
                 setDocumentId(data.get_upload_url.document_id)
                 if (uploadCallback) {
                     console.log("uploadCallback call")
-                    await uploadCallback?.(data.get_upload_url.document_id, password, shaField)
+                    await uploadCallback?.(
+                        data.get_upload_url.document_id,
+                        uploadPassword,
+                        shaField
+                    )
                 }
                 notify(t("electionEventScreen.import.fileUploadSuccess"), {type: "success"})
             } catch (_error) {
                 setDocumentId(null)
-                setIsUploading(false)
                 notify(t("electionEventScreen.import.fileUploadError"), {type: "error"})
+            } finally {
+                setIsUploading(false)
             }
         }
 
         const handleFiles = async (files: FileList | null) => {
+            if (loading || isUploading || passwordDialogOpen) return
             setDocumentId(null)
             // https://fullstackdojo.medium.com/s3-upload-with-presigned-url-react-and-nodejs-b77f348d54cc
             setPassword("")
             const theFile = files?.[0]
             setTheFile(theFile)
             const isEncrypted = theFile?.name.endsWith(".ezip") || false
-            setIsEncrypted(isEncrypted)
             if (isEncrypted) {
                 setPasswordDialogOpen(true)
                 return
             }
 
             if (theFile) {
-                setIsUploading(true)
-                await uploadFileToS3(theFile)
+                await uploadFileToS3(theFile, "")
             } else {
                 setIsUploading(false)
                 notify(t("electionEventScreen.import.fileUploadError"), {type: "error"})
@@ -142,7 +152,7 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
             if (!theFile || !value) {
                 return
             }
-            await uploadFileToS3(theFile)
+            await uploadFileToS3(theFile, password)
         }
 
         const onImportButtonClick = async () => {
@@ -170,11 +180,17 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
                     }
                 />
 
-                <DropFile handleFiles={async (files) => handleFiles(files)} />
+                <Box component="fieldset" disabled={isWorking()} sx={{border: 0, m: 0, p: 0}}>
+                    <DropFile handleFiles={async (files) => handleFiles(files)} />
+                </Box>
 
                 <FormStyles.StatusBox>
                     {isWorking() ? <FormStyles.ShowProgress /> : null}
-                    {errors ? (
+                    {problems && problems.length > 0 ? (
+                        <Box sx={{width: "100%"}} data-testid="import-problems">
+                            <ProblemList report={{problems}} />
+                        </Box>
+                    ) : errors ? (
                         <FormStyles.ErrorMessage variant="body2">{errors}</FormStyles.ErrorMessage>
                     ) : null}
                 </FormStyles.StatusBox>

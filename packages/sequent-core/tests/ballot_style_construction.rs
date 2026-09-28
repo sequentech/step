@@ -74,6 +74,8 @@ fn build(
         serde_json::from_value(input["candidates"].clone())?,
         StringifiedPeriodDates::default(),
         public_key,
+        // Read the fallback from DEMO_PUBLIC_KEY, as windmill does.
+        None,
     )
 }
 

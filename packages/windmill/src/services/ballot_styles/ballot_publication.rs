@@ -251,15 +251,16 @@ async fn get_election_ids_for_publication(
 }
 
 #[instrument(err)]
-pub async fn add_ballot_publication(
+pub async fn prepare_ballot_publication(
     hasura_transaction: &Transaction<'_>,
     tenant_id: String,
     election_event_id: String,
     election_id: Option<String>,
     user_id: String,
-    executer_name: &str,
-) -> Result<(String, TasksExecution)> {
-    let celery_app = get_celery_app().await;
+) -> Result<BallotPublication> {
+    // A queued worker takes this same lock before reading the publication.
+    // Hold it until commit while allowing the task ledger's foreign-key insert.
+    lock_publication_event(hasura_transaction, &tenant_id, &election_event_id).await?;
 
     let election_ids = get_election_ids_for_publication(
         hasura_transaction,
@@ -269,7 +270,7 @@ pub async fn add_ballot_publication(
     )
     .await?;
 
-    let ballot_publication = insert_ballot_publication(
+    insert_ballot_publication(
         hasura_transaction,
         &tenant_id.clone(),
         &election_event_id.clone(),
@@ -278,7 +279,27 @@ pub async fn add_ballot_publication(
         election_id.clone(),
     )
     .await?
-    .with_context(|| "can't find inserted ballot publication")?;
+    .with_context(|| "can't find inserted ballot publication")
+}
+
+#[instrument(err)]
+pub async fn add_ballot_publication(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: String,
+    election_event_id: String,
+    election_id: Option<String>,
+    user_id: String,
+    executer_name: &str,
+) -> Result<(String, TasksExecution)> {
+    let celery_app = get_celery_app().await;
+    let ballot_publication = prepare_ballot_publication(
+        hasura_transaction,
+        tenant_id.clone(),
+        election_event_id.clone(),
+        election_id,
+        user_id,
+    )
+    .await?;
 
     let task_execution = post_task_execution(
         &tenant_id,

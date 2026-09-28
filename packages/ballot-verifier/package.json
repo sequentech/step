@@ -27,7 +27,7 @@
     "web-vitals": "^5.1.0"
   },
   "scripts": {
-    "start": "PORT=3001 NODE_OPTIONS='--openssl-legacy-provider --max-old-space-size=4096' webpack serve --config webpack.config.cjs  --mode development",
+    "start": "NODE_OPTIONS='--openssl-legacy-provider --max-old-space-size=4096' webpack serve --config webpack.config.cjs  --mode development",
     "build": "DISABLE_ESLINT_PLUGIN=false NODE_OPTIONS='--openssl-legacy-provider --max-old-space-size=4096' webpack --config webpack.config.cjs --mode production",
     "test": "jest --config jest.config.cjs",
     "eject": "react-scripts eject",
@@ -38,11 +38,15 @@
     "storybook": "storybook dev -p 6010 --no-open",
     "build-storybook": "storybook build",
     "test:stories": "vitest run --project=storybook",
+    "test:story": "node ../test-support/storybook/test-story.mjs",
     "dev": "tsc --watch",
     "serve": "NODE_OPTIONS=--openssl-legacy-provider webpack serve",
     "generate": "NODE_OPTIONS=--openssl-legacy-provider ADMIN_SECRET=\"${ADMIN_SECRET:-admin}\" graphql-codegen --config codegen.ts",
     "test:journeys": "playwright test --config playwright.journeys.config.ts",
-    "test:types": "tsc -p tsconfig.tests.json"
+    "test:types": "tsc -p tsconfig.tests.json",
+    "start:vite": "vite --config vite.config.ts",
+    "build:vite": "vite build --config vite.config.ts",
+    "preview:vite": "vite preview --config vite.config.ts"
   },
   "proxy": "https://i.imgur.com",
   "browserslist": {
@@ -101,6 +105,7 @@
     "webpack-cli": "6.0.1",
     "webpack-dev-server": "5.2.6",
     "@playwright/test": "1.62.1",
-    "@sequentech/ui-test-kit": "*"
+    "@sequentech/ui-test-kit": "*",
+    "@vitejs/plugin-react": "^5.1.0"
   }
 }

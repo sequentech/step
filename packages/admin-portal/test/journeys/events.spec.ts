@@ -10,7 +10,32 @@ const DOCUMENT_ID = "33333333-3333-4333-8333-333333333333"
 const TASK_ID = "44444444-4444-4444-8444-444444444444"
 const CHECKSUM = "ab".repeat(32)
 const CONTENT = Buffer.from('{"elections":[]}')
-function eventWorkflow(portal: PortalServices, kind: "create" | "import", validationError = false) {
+/** Two named problems, as harvest's import check and a failed task's annotations carry them. */
+const PROBLEMS = [
+    {
+        severity: "error",
+        code: "dangling_reference",
+        path: "contests[0].election_id",
+        message: "contest 'president' belongs to an election that is not in this file",
+        id: "contest.election-missing",
+        external_id: "president",
+    },
+    {
+        severity: "error",
+        code: "incompatible_version",
+        path: "version",
+        message: "the file was exported by version 8.1.0, which version 9.2.0 cannot import",
+        id: "file.version-incompatible",
+        details: {found: "8.1.0", current: "9.2.0"},
+    },
+]
+
+function eventWorkflow(
+    portal: PortalServices,
+    kind: "create" | "import",
+    validationError = false,
+    problems: unknown[] | null = null
+) {
     let phase = "IN_PROGRESS"
     let started = false
     let eventId = IDS.event as string
@@ -44,7 +69,7 @@ function eventWorkflow(portal: PortalServices, kind: "create" | "import", valida
         start_at: FIXED_TIME,
         end_at: phase === "IN_PROGRESS" ? null : FIXED_TIME,
         executed_by_user: IDS.voter,
-        annotations: {},
+        annotations: phase === "FAILED" && problems ? {problems} : {},
         labels: {},
         logs: [
             {
@@ -94,6 +119,7 @@ function eventWorkflow(portal: PortalServices, kind: "create" | "import", valida
                     import_election_event: {
                         id: null,
                         error: validationError ? "Synthetic archive validation failed" : null,
+                        problems: validationError ? problems : null,
                         message: "Checked",
                         task_execution: null,
                     },
@@ -136,7 +162,13 @@ async function boot(page: Page, portal: PortalServices) {
     await page.goto(`${portal.origin}/?lang=en`)
     await expect(page.getByText("No Election Event yet", {exact: true})).toBeVisible()
 }
-async function selectArchive(page: Page, portal: PortalServices, url: string, encrypted: boolean) {
+async function selectArchive(
+    page: Page,
+    portal: PortalServices,
+    url: string,
+    encrypted: boolean,
+    whileUploading?: () => Promise<void>
+) {
     await boot(page, portal)
     await page.getByRole("button", {name: "Import", exact: true}).click()
     const drawer = page.getByRole("dialog")
@@ -157,6 +189,7 @@ async function selectArchive(page: Page, portal: PortalServices, url: string, en
         await password.getByRole("button", {name: "Ok", exact: true}).click()
     }
     const request = await upload
+    await whileUploading?.()
     expect(request.postDataBuffer()).toEqual(CONTENT)
     expect(request.headers()["content-type"]).toBe(
         encrypted ? "application/ezip" : "application/json"
@@ -236,7 +269,61 @@ for (const encrypted of [false, true])
         portal,
     }) => {
         const workflow = eventWorkflow(portal, "import")
-        const drawer = await selectArchive(page, portal, workflow.url, encrypted)
+        let releaseUpload!: () => void
+        const heldUpload = new Promise<void>((resolve) => {
+            releaseUpload = resolve
+        })
+        if (encrypted) {
+            await page.route(workflow.url, async (route) => {
+                await heldUpload
+                await route.fallback()
+            })
+        }
+        const drawer = await selectArchive(
+            page,
+            portal,
+            workflow.url,
+            encrypted,
+            encrypted
+                ? async () => {
+                      try {
+                          const uploading = page.getByRole("dialog").filter({
+                              has: page.getByRole("textbox", {
+                                  name: "Integrity Check (SHA-256)",
+                              }),
+                          })
+                          await expect(uploading.getByRole("progressbar")).toBeVisible()
+                          await expect(
+                              uploading.getByRole("textbox", {name: "Integrity Check (SHA-256)"})
+                          ).toBeDisabled()
+                          await expect(uploading.locator('input[type="file"]')).toBeDisabled()
+                          await expect(
+                              uploading.getByRole("button", {name: "Cancel", exact: true})
+                          ).toBeDisabled()
+                          const transfer = await page.evaluateHandle(() => {
+                              const data = new DataTransfer()
+                              data.items.add(
+                                  new File(["replacement"], "replacement.json", {
+                                      type: "application/json",
+                                  })
+                              )
+                              return data
+                          })
+                          try {
+                              await uploading
+                                  .locator(".drop-file-dropzone")
+                                  .dispatchEvent("drop", {dataTransfer: transfer})
+                          } finally {
+                              await transfer.dispose()
+                          }
+                          expect(portal.graphql.callsTo("GetUploadUrl")).toHaveLength(1)
+                          expect(portal.graphql.callsTo("ImportElectionEvent")).toEqual([])
+                      } finally {
+                          releaseUpload()
+                      }
+                  }
+                : undefined
+        )
         await expect(drawer.getByRole("button", {name: "Import", exact: true})).toBeEnabled()
         await drawer.getByRole("button", {name: "Import", exact: true}).click()
         await expect.poll(() => portal.graphql.callsTo("ImportElectionEvent").length).toBe(2)
@@ -254,6 +341,65 @@ for (const encrypted of [false, true])
         )
         await expect(page.getByText("Imported council", {exact: true}).first()).toBeVisible()
     })
+test("imports a plain archive after cancelling an encrypted archive without reusing its password or MIME type", async ({
+    page,
+    portal,
+}) => {
+    const workflow = eventWorkflow(portal, "import")
+    await boot(page, portal)
+    await page.getByRole("button", {name: "Import", exact: true}).click()
+    const drawer = page.getByRole("dialog").filter({
+        has: page.getByRole("textbox", {name: "Integrity Check (SHA-256)"}),
+    })
+    await drawer.getByRole("textbox", {name: "Integrity Check (SHA-256)"}).fill(CHECKSUM)
+    await drawer.locator('input[type="file"]').setInputFiles({
+        name: "cancelled.ezip",
+        mimeType: "application/ezip",
+        buffer: CONTENT,
+    })
+    const passwordDialog = page.getByRole("dialog", {name: "Decryption Password", exact: true})
+    await passwordDialog.locator('input[type="password"]').fill("cancelled archive password")
+    await passwordDialog.press("Escape")
+    await expect(passwordDialog).toBeHidden()
+    expect(portal.graphql.callsTo("GetUploadUrl")).toEqual([])
+    expect(portal.graphql.callsTo("ImportElectionEvent")).toEqual([])
+
+    const upload = page.waitForRequest(
+        (request) => request.url() === workflow.url && request.method() === "PUT"
+    )
+    await drawer.locator('input[type="file"]').setInputFiles({
+        name: "event.json",
+        mimeType: "application/json",
+        buffer: CONTENT,
+    })
+    const request = await upload
+    expect(request.postDataBuffer()).toEqual(CONTENT)
+    expect(request.headers()["content-type"]).toBe("application/json")
+    await expect.poll(() => portal.graphql.callsTo("ImportElectionEvent").length).toBe(1)
+    expect({
+        upload: portal.graphql.callsTo("GetUploadUrl").map(({variables}) => variables),
+        validation: portal.graphql.callsTo("ImportElectionEvent").map(({variables}) => variables),
+    }).toEqual({
+        upload: [{name: "event.json", media_type: "application/json", size: 16, is_public: false}],
+        validation: [{tenantId: TENANT_ID, documentId: DOCUMENT_ID, checkOnly: true, password: ""}],
+    })
+    await expect(drawer.getByRole("button", {name: "Import", exact: true})).toBeEnabled()
+    await drawer.getByRole("button", {name: "Import", exact: true}).click()
+    await expect.poll(() => portal.graphql.callsTo("ImportElectionEvent").length).toBe(2)
+    expect(portal.graphql.callsTo("ImportElectionEvent")[1].variables).toEqual({
+        tenantId: TENANT_ID,
+        documentId: DOCUMENT_ID,
+        password: "",
+        sha256: CHECKSUM,
+    })
+    await expect.poll(() => portal.graphql.callsTo("GetTaskById").length).toBeGreaterThan(0)
+    workflow.complete("SUCCESS")
+    await page.clock.runFor(250)
+    await expect(page).toHaveURL(
+        new RegExp(`/sequent_backend_election_event/${workflow.eventId()}`)
+    )
+    await expect(page.getByText("Imported council", {exact: true}).first()).toBeVisible()
+})
 test("shows failed import task logs without navigating to an event", async ({page, portal}) => {
     const workflow = eventWorkflow(portal, "import")
     const drawer = await selectArchive(page, portal, workflow.url, false)
@@ -273,4 +419,31 @@ test("rejects invalid archive validation before an import task starts", async ({
     await expect(drawer.getByRole("button", {name: "Import", exact: true})).toBeDisabled()
     expect(portal.graphql.callsTo("ImportElectionEvent")).toHaveLength(1)
     expect(portal.graphql.callsTo("GetTaskById")).toHaveLength(0)
+})
+test("explains a refused archive one named problem at a time", async ({page, portal}) => {
+    const workflow = eventWorkflow(portal, "import", true, PROBLEMS)
+    const drawer = await selectArchive(page, portal, workflow.url, false)
+    const problems = drawer.getByTestId("import-problems")
+    await expect(problems.getByText("2 errors", {exact: true})).toBeVisible()
+    await expect(problems.getByTestId("problem")).toHaveCount(2)
+    await expect(problems.getByTestId("problem").nth(1)).toContainText(
+        "the file comes from version 8.1.0, which version 9.2.0 cannot import"
+    )
+    await expect(problems.getByText("president", {exact: true})).toBeVisible()
+    // The backend's English paragraph is replaced by the list, not repeated.
+    await expect(drawer.getByText("Synthetic archive validation failed")).toHaveCount(0)
+    await expect(drawer.getByRole("button", {name: "Import", exact: true})).toBeDisabled()
+    expect(portal.graphql.callsTo("GetTaskById")).toHaveLength(0)
+})
+test("explains a failed import task's named problems above its log", async ({page, portal}) => {
+    const workflow = eventWorkflow(portal, "import", false, PROBLEMS)
+    const drawer = await selectArchive(page, portal, workflow.url, false)
+    await drawer.getByRole("button", {name: "Import", exact: true}).click()
+    await expect.poll(() => portal.graphql.callsTo("GetTaskById").length).toBeGreaterThan(0)
+    workflow.complete("FAILED")
+    await page.clock.runFor(250)
+    const problems = page.getByTestId("widget-problems")
+    await expect(problems.getByText("2 errors", {exact: true})).toBeVisible()
+    await expect(problems.getByTestId("problem").first()).toContainText("president")
+    await expect(page.getByText("Synthetic event task failed", {exact: true})).toBeVisible()
 })

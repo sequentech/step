@@ -216,7 +216,7 @@ public class Utils {
     if (mapConfig == null
         || !mapConfig.containsKey(configKey)
         || mapConfig.get(configKey).strip().length() == 0) {
-      log.infov("getMultivalueString(): NullOrNotFound mapConfig={0}", mapConfig);
+      log.infov("getMultivalueString(): missing configuration for {0}", configKey);
       return defaultValue;
     }
 
@@ -363,7 +363,7 @@ public class Utils {
         textBody = maskCode(textBody, code);
         communicationsLog(context, textBody);
       } catch (EmailException error) {
-        log.debug("sendCode(): Exception sending email", error);
+        log.debug("sendCode(): Exception sending email");
         throw error;
       }
     } else {
@@ -373,7 +373,22 @@ public class Utils {
 
   /* Masks the auth code from the content body with stars */
   protected String maskCode(String content, String code) {
-    return content.replaceAll(code, "*".repeat(code.length()));
+    String masked = "*".repeat(code.length());
+    String result = content.replace(code, masked).replace(code.replace("&", "&amp;"), masked);
+    String query = URI.create(code).getRawQuery();
+    if (query != null) {
+      // Template sanitizers can normalize the surrounding URL without changing its token.
+      for (String parameter : query.split("&")) {
+        String prefix = Constants.KEY + "=";
+        if (parameter.startsWith(prefix)) {
+          String token = parameter.substring(prefix.length());
+          if (!token.isEmpty()) {
+            result = result.replace(token, "*".repeat(token.length()));
+          }
+        }
+      }
+    }
+    return result;
   }
 
   void communicationsLog(Object context, String body) {
@@ -412,7 +427,7 @@ public class Utils {
 
     Map<String, String> mapConfig = config.getConfig();
     if (mapConfig == null || !mapConfig.containsKey(Utils.TEL_USER_ATTRIBUTE)) {
-      log.infov("getEmail(): NullOrNotFound mapConfig={0}", mapConfig);
+      log.info("getMobile(): missing telephone attribute configuration");
       return user.getFirstAttribute(MessageOTPAuthenticator.MOBILE_NUMBER_FIELD);
     }
     String telUserAttribute = mapConfig.get(Utils.TEL_USER_ATTRIBUTE);
@@ -432,9 +447,7 @@ public class Utils {
   }
 
   UriBuilder actionTokenBuilder(URI baseUri, String tokenString, String clientId) {
-    log.infof(
-        "actionTokenBuilder(): baseUri: %s, tokenString: %s, clientId: %s",
-        baseUri, tokenString, clientId);
+    log.infof("actionTokenBuilder(): baseUri: %s, clientId: %s", baseUri, clientId);
     return Urls.realmBase(baseUri)
         .path(RealmsResource.class, "getLoginActionsService")
         .path(LoginActionsService.class, "executeActionToken")
@@ -1216,6 +1229,9 @@ public class Utils {
     UserModel user = context.getUser();
     List<UPAttribute> realmsAttributesList = getRealmUserProfileAttributes(context.getSession());
     for (UPAttribute attribute : realmsAttributesList) {
+      if (CODE.equals(attribute.getName())) {
+        continue;
+      }
       String authNoteValue = authSession.getAuthNote(attribute.getName());
       context.getEvent().detail(attribute.getName(), authNoteValue);
     }

@@ -201,12 +201,19 @@ const CreateEvent: FC<CreateEventProps> = ({
                 variables,
             })
             setIsLoading(false)
-            setIsOpenDrawer(false)
-            refresh()
             if (data?.manage_election_dates?.error_msg || errors) {
                 notify(t("eventsScreen.messages.createError"), {type: "error"})
             } else {
-                notify(t("eventsScreen.messages.editSuccess"), {type: "success"})
+                setIsOpenDrawer(false)
+                refresh()
+                notify(
+                    t(
+                        isEditEvent
+                            ? "eventsScreen.messages.editSuccess"
+                            : "eventsScreen.messages.createSuccess"
+                    ),
+                    {type: "success"}
+                )
             }
         } catch (error) {
             setIsLoading(false)

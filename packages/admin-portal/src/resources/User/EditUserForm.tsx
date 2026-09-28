@@ -333,7 +333,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
         canEditVotersEmailTlf,
         canReadVoterSecretAttributes,
         canWriteVoterSecretAttributes,
-    } = useUsersPermissions()
+    } = useUsersPermissions(electionEventId)
     const [tenantId] = useTenantStore()
     const refresh = useRefresh()
     const notify = useNotify()
@@ -533,7 +533,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
         "sequent_backend_election",
         {
             pagination: {page: 1, perPage: 300},
-            sort: {field: "name", order: "DESC"},
+            sort: {field: "external_id", order: "DESC"},
             filter: {
                 tenant_id: tenantId,
                 election_event_id: electionEventId,
@@ -549,12 +549,12 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
     // or if current admin user has the permission canEditVotersWhoVoted
 
     const hasVoted = useMemo(() => {
-        return voterCastVotes ? voterCastVotes?.length > 0 : false
-    }, [voterCastVotes])
+        return voterCastVotes ? voterCastVotes.length > 0 : Boolean(electionEventId)
+    }, [voterCastVotes, electionEventId])
 
     const enabledByVoteNum = useMemo(() => {
         return canEditVotersWhoVoted || (canEditVoters && !hasVoted)
-    }, [canEditVotersWhoVoted, hasVoted])
+    }, [canEditVoters, canEditVotersWhoVoted, hasVoted])
 
     const handleSelectedRolesOnCreate = useCallback(
         (id: string) => {
@@ -1121,15 +1121,6 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
 
     const aliasRenderer = useAliasRenderer()
 
-    const searched = useRef("")
-
-    const electionFilterToQuery = (searchText: string) => {
-        if (searchText && searchText.length > 0) {
-            searched.current = searchText.trim()
-        }
-        return {"name@_ilike,alias@_ilike": searched.current}
-    }
-
     const formattedElections = electionsList?.map((e) => {
         return {
             external_id: e.external_id ?? "",
@@ -1165,7 +1156,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                             stored={stored}
                             editable={
                                 canWriteVoterSecretAttributes &&
-                                (createMode || canEditVoters) &&
+                                (createMode || enabledByVoteNum) &&
                                 !saving
                             }
                             multivalued={Boolean(attr.multivalued)}
@@ -1230,7 +1221,6 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                                                     !(
                                                         createMode ||
                                                         !electionEventId ||
-                                                        canEditVoters ||
                                                         enabledByVoteNum
                                                     )
                                                 }
@@ -1242,12 +1232,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                                             />
                                         )}
                                         disabled={
-                                            !(
-                                                createMode ||
-                                                !electionEventId ||
-                                                canEditVoters ||
-                                                enabledByVoteNum
-                                            )
+                                            !(createMode || !electionEventId || enabledByVoteNum)
                                         }
                                     />
                                 </FormControl>
@@ -1277,7 +1262,6 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                                                         !(
                                                             createMode ||
                                                             !electionEventId ||
-                                                            canEditVoters ||
                                                             enabledByVoteNum ||
                                                             (!hasVoted &&
                                                                 attr.name === "emailAndOrMobile" &&
@@ -1308,14 +1292,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                             value={value}
                             onCommit={handleDateChange(attr.name)}
                             required={isRequired}
-                            disabled={
-                                !(
-                                    createMode ||
-                                    !electionEventId ||
-                                    canEditVoters ||
-                                    enabledByVoteNum
-                                )
-                            }
+                            disabled={!(createMode || !electionEventId || enabledByVoteNum)}
                         />
                     )
                 } else if (attr.name.toLowerCase().includes("area")) {
@@ -1332,7 +1309,6 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                                 !(
                                     createMode ||
                                     !electionEventId ||
-                                    canEditVoters ||
                                     enabledByVoteNum ||
                                     (!hasVoted && canEditVotersEmailTlf)
                                 )
@@ -1366,14 +1342,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                                 optionValue={"external_id"}
                                 optionText={"name"}
                                 onChange={handleArraySelectChange}
-                                disabled={
-                                    !(
-                                        createMode ||
-                                        !electionEventId ||
-                                        canEditVoters ||
-                                        enabledByVoteNum
-                                    )
-                                }
+                                disabled={!(createMode || !electionEventId || enabledByVoteNum)}
                             />
                         </>
                     )
@@ -1385,12 +1354,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                             defaultValue={permissionLabels}
                             onChange={handlePermissionLabelChanged}
                             choices={choices}
-                            disabled={
-                                !createMode &&
-                                !electionEventId &&
-                                !canEditVoters &&
-                                !enabledByVoteNum
-                            }
+                            disabled={!(createMode || !electionEventId || enabledByVoteNum)}
                         />
                     )
                 }
@@ -1420,7 +1384,6 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                                     !(
                                         createMode ||
                                         !electionEventId ||
-                                        canEditVoters ||
                                         enabledByVoteNum ||
                                         (!hasVoted &&
                                             attr.name === "email" &&
@@ -1461,7 +1424,6 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                                     !(
                                         createMode ||
                                         !electionEventId ||
-                                        canEditVoters ||
                                         enabledByVoteNum ||
                                         (!hasVoted &&
                                             attr.name === "email" &&
@@ -1490,6 +1452,10 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
             canReadVoterSecretAttributes,
             canWriteVoterSecretAttributes,
             canEditVoters,
+            canEditVotersEmailTlf,
+            enabledByVoteNum,
+            hasVoted,
+            electionEventId,
             createMode,
         ]
     )
@@ -1630,12 +1596,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                                 control={
                                     <Checkbox
                                         disabled={
-                                            !(
-                                                createMode ||
-                                                !electionEventId ||
-                                                canEditVoters ||
-                                                enabledByVoteNum
-                                            )
+                                            !(createMode || !electionEventId || enabledByVoteNum)
                                         }
                                         checked={user?.enabled || false}
                                         onChange={(event: any) => {
@@ -1664,12 +1625,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                                         label={String(t("usersAndRolesScreen.users.fields.area"))}
                                         isRequired={true}
                                         disabled={
-                                            !(
-                                                createMode ||
-                                                !electionEventId ||
-                                                canEditVoters ||
-                                                enabledByVoteNum
-                                            )
+                                            !(createMode || !electionEventId || enabledByVoteNum)
                                         }
                                         customStyle={{
                                             "& legend": {
@@ -1700,7 +1656,6 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                                                 !(
                                                     createMode ||
                                                     !electionEventId ||
-                                                    canEditVoters ||
                                                     enabledByVoteNum
                                                 )
                                             }
@@ -1726,7 +1681,6 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                                                 !(
                                                     createMode ||
                                                     !electionEventId ||
-                                                    canEditVoters ||
                                                     enabledByVoteNum
                                                 )
                                             }
@@ -1763,7 +1717,6 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                                                 !(
                                                     createMode ||
                                                     !electionEventId ||
-                                                    canEditVoters ||
                                                     enabledByVoteNum
                                                 )
                                             }

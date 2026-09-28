@@ -100,7 +100,7 @@ export const ShowTallySheet: React.FC<ShowTallySheetProps> = (props) => {
     }, [contest.presentation])
 
     useEffect(() => {
-        const tallySaved: string | null = localStorage.getItem("tallySheet")
+        const tallySaved: string | null = localStorage.getItem("tallySheetData")
 
         if ((tallySheet || tallySaved) && candidates) {
             const tallySheetTemp:

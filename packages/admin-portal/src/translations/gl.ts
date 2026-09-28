@@ -771,14 +771,17 @@ const galegoTranslation: TranslationType = {
                             'O identificador de votante e o PIN válidos son "123" e "123".',
                     },
                     sendDtmf: "Enviar entrada DTMF",
+                    keypadInput: "Entrada do teclado",
                     sendTimeout: "Enviar tempo de espera",
                     disconnected: "Desconectado",
                     startSession: "Iniciar unha nova sesión",
                     endSession: "Finalizar a sesión",
                     noStylesFound:
                         "Non se atoparon estilos de papeleta publicados que coincidan coas súas seleccións",
-                    inputPlaceholder:
-                        "Introduza a súa entrada (máximo de díxitos={{maxDigits}}, entradas válidas={{validInputs}}, tempo de espera={{timeout}} s)",
+                    inputPlaceholder: "Prema {{keys}} (tempo de espera={{timeout}} s)",
+                    inputPlaceholderOr: "ou",
+                    inputPlaceholderAnyKeys:
+                        "Introduza ata {{maxDigits}} díxitos (calquera díxito, tempo de espera={{timeout}} s)",
                     blacklistCaller: "Bloquear a persoa que chama",
                     elections: "Eleccións",
                     area: "Área",
@@ -2799,6 +2802,8 @@ const galegoTranslation: TranslationType = {
                 verified_by: "Aprobado Por",
             },
             approvalRequest: "Solicitud de Aprobación",
+            taskInformation: "Información da Tarefa",
+            ok: "Aceptar",
             title: "Votantes",
             subtitle: "Atopar votantes coincidentes",
             approve: {

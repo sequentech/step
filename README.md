@@ -111,10 +111,10 @@ For detailed developer documentation including advanced setup, architecture deta
 ## Docker services logs
 
 We have configured the use of [direnv] and [devenv] in this dev container, and
-doing so in the `devenv.nix` file we configured the
-`COMPOSE_PROJECT_NAME=step_devcontainer` env variable for
-convenience and some utility packages automatically installed like `ack` or
-`docker`.
+doing so the `devenv.nix` file loads the `COMPOSE_PROJECT_NAME` env variable
+from `.devcontainer/.env` (`step_devcontainer` for a checkout in a folder named
+`step`) for convenience and some utility packages automatically installed like
+`ack` or `docker`.
 
 Given that, you can then for example watch the log output of the frontend docker
 compose service with:

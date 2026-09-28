@@ -3,6 +3,7 @@
 
 import React from "react"
 import {Provider} from "react-redux"
+import {BallotSelectionAdapter} from "../../components/BallotSelectionAdapter"
 import {ApolloClient, ApolloLink, InMemoryCache} from "@apollo/client"
 import {ApolloProvider} from "@apollo/client/react"
 import type {Meta, StoryObj} from "@storybook/react-vite"
@@ -103,7 +104,9 @@ const meta = {
     render: ({audit}) => (
         <ApolloProvider client={client}>
             <Provider store={store}>
-                <main>{audit ? <AuditScreen /> : <ReviewScreen />}</main>
+                <BallotSelectionAdapter>
+                    <main>{audit ? <AuditScreen /> : <ReviewScreen />}</main>
+                </BallotSelectionAdapter>
             </Provider>
         </ApolloProvider>
     ),

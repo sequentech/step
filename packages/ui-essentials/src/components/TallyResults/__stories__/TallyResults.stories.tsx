@@ -58,10 +58,6 @@ const meta: Meta<typeof ResultsAndParticipation> = {
     title: "components/TallyResults/ResultsAndParticipation",
     component: ResultsAndParticipation,
     parameters: {
-        expectedFailure: {
-            reason: "Participation summary renders an empty column header.",
-            a11y: ["empty-table-header"],
-        },
         backgrounds: {
             default: "white",
         },

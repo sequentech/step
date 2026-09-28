@@ -767,14 +767,17 @@ const basqueTranslation: TranslationType = {
                         credentials: 'Baliozko hautesle-IDa eta PINa "123" eta "123" dira.',
                     },
                     sendDtmf: "Bidali DTMF sarrera",
+                    keypadInput: "Teklatuaren sarrera",
                     sendTimeout: "Bidali denbora-muga",
                     disconnected: "Deskonektatuta",
                     startSession: "Hasi saio berria",
                     endSession: "Amaitu saioa",
                     noStylesFound:
                         "Ez da aurkitu zure hautapenekin bat datorren argitaratutako boto-paper estilorik",
-                    inputPlaceholder:
-                        "Idatzi sarrera (gehienezko digitu kopurua={{maxDigits}}, baliozko sarrerak={{validInputs}}, denbora-muga={{timeout}} s)",
+                    inputPlaceholder: "Sakatu {{keys}} (denbora-muga={{timeout}} s)",
+                    inputPlaceholderOr: "edo",
+                    inputPlaceholderAnyKeys:
+                        "Idatzi gehienez {{maxDigits}} digitu (edozein digitu, denbora-muga={{timeout}} s)",
                     blacklistCaller: "Blokeatu deitzailea",
                     elections: "Hauteskundeak",
                     area: "Eremua",
@@ -2789,6 +2792,8 @@ const basqueTranslation: TranslationType = {
                 verified_by: "Egiaztatua:",
             },
             approvalRequest: "Onespen Eskaria",
+            taskInformation: "Ataza Informazioa",
+            ok: "Ados",
             title: "Bozkatzaileak",
             subtitle: "Aurkitu bat datozen bozkatzaileak",
             approve: {

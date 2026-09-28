@@ -771,14 +771,17 @@ const dutchTranslation: TranslationType = {
                         credentials: 'De geldige kiezer-ID en pincode zijn "123" en "123".',
                     },
                     sendDtmf: "DTMF-invoer verzenden",
+                    keypadInput: "Toetsenbordinvoer",
                     sendTimeout: "Time-out verzenden",
                     disconnected: "Verbinding verbroken",
                     startSession: "Nieuwe sessie starten",
                     endSession: "Sessie beëindigen",
                     noStylesFound:
                         "Geen gepubliceerde stembiljetstijlen gevonden die overeenkomen met uw selecties",
-                    inputPlaceholder:
-                        "Voer uw invoer in (maximaal aantal cijfers={{maxDigits}}, geldige invoer={{validInputs}}, time-out={{timeout}} sec.)",
+                    inputPlaceholder: "Druk op {{keys}} (time-out={{timeout}} sec.)",
+                    inputPlaceholderOr: "of",
+                    inputPlaceholderAnyKeys:
+                        "Voer maximaal {{maxDigits}} cijfers in (willekeurige cijfers, time-out={{timeout}} sec.)",
                     blacklistCaller: "Beller blokkeren",
                     elections: "Verkiezingen",
                     area: "Gebied",
@@ -2797,6 +2800,8 @@ const dutchTranslation: TranslationType = {
                 verified_by: "Geverifieerd door",
             },
             approvalRequest: "Goedkeuringsverzoek",
+            taskInformation: "Taakinformatie",
+            ok: "Ok",
             title: "Kiezers",
             subtitle: "Overeenkomende kiezers zoeken",
             approve: {

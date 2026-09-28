@@ -5,6 +5,10 @@ import {TranslationType} from "./en"
 
 const spanishTranslation: TranslationType = {
     translations: {
+        startup: {
+            error: "No se pudo iniciar el portal de votación. Inténtelo de nuevo.",
+            retry: "Intentar de nuevo",
+        },
         common: {
             goBack: "Regresar",
             showMore: "Mostrar más",

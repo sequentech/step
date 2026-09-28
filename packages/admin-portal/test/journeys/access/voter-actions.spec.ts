@@ -255,14 +255,6 @@ test.describe("voter operator with every row action", () => {
                 {message: "Synthetic voter deletion refused", extensions: {code: "Unauthorized"}},
             ],
         }))
-        // Today the refusal escapes as an unhandled rejection; tolerate exactly that one so the
-        // missing notification below is what fails.
-        await page.addInitScript(() =>
-            window.addEventListener("unhandledrejection", (event) => {
-                if (String(event.reason?.message) === "Synthetic voter deletion refused")
-                    event.preventDefault()
-            })
-        )
         await openVoters(page, portal)
         await rowAction(page, "Delete")
         await page.getByRole("dialog").getByRole("button", {name: "Delete", exact: true}).click()
@@ -273,7 +265,7 @@ test.describe("voter operator with every row action", () => {
             userId: ALICE_ID,
         })
         expectRole(portal, "DeleteUser", "admin-user")
-        test.fail(true, "ListUsers awaits DeleteUser without catching Apollo's rejection")
+
         await expect(page.getByText("Error deleting voter", {exact: true})).toBeVisible({
             timeout: 2000,
         })

@@ -16,7 +16,8 @@ import {
     ECollapsibleLists,
 } from "@sequentech/ui-core"
 import {electionFixture} from "@sequentech/ui-test-kit/fixtures"
-import {Question} from "../Question"
+import {Question} from "@sequentech/ui-essentials"
+import {BallotSelectionAdapter} from "../../BallotSelectionAdapter"
 import {clearVoterSession, store} from "../../../store/store"
 import {useAppSelector} from "../../../store/hooks"
 import {
@@ -150,13 +151,15 @@ const meta = {
     ],
     render: (args, {loaded}) => (
         <Provider store={store}>
-            <main>
-                <h1>Voting ballot</h1>
-                <QuestionView
-                    scenario={args.scenario}
-                    ballotStyle={loaded.ballotStyle as IBallotStyle}
-                />
-            </main>
+            <BallotSelectionAdapter>
+                <main>
+                    <h1>Voting ballot</h1>
+                    <QuestionView
+                        scenario={args.scenario}
+                        ballotStyle={loaded.ballotStyle as IBallotStyle}
+                    />
+                </main>
+            </BallotSelectionAdapter>
         </Provider>
     ),
 } satisfies Meta<{scenario: Scenario}>

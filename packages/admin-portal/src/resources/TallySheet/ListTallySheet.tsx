@@ -208,23 +208,24 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
     }
 
     const confirmReviewAction = async (newStatus: EStatus) => {
-        const {data, errors} = await reviewTallySheet({
-            variables: {
-                electionEventId: election.election_event_id,
-                tallySheetId: tallySheetId,
-                newStatus,
-            },
-        })
-        // if (data && !data?.publish_tally_sheet?.tally_sheet_id) {
-        //     console.log("(unpublished) tally sheet not found, probably it's already published")
-        // }
-        if (errors) {
-            // add error notification
+        try {
+            const {errors} = await reviewTallySheet({
+                variables: {
+                    electionEventId: election.election_event_id,
+                    tallySheetId,
+                    newStatus,
+                },
+            })
+            if (errors?.length) {
+                notify(t("tallysheet.message.reviewError"), {type: "error"})
+            } else {
+                notify(t("tallysheet.message.reviewSuccess"), {type: "success"})
+            }
+        } catch {
             notify(t("tallysheet.message.reviewError"), {type: "error"})
-        } else {
-            notify(t("tallysheet.message.reviewSuccess"), {type: "success"})
+        } finally {
+            setTallySheetId(undefined)
         }
-        setTallySheetId(undefined)
     }
 
     const actions: (record: Sequent_Backend_Tally_Sheet) => Action[] = (record) => [

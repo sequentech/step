@@ -5,6 +5,10 @@ import {TranslationType} from "./en"
 
 const tagalogTranslation: TranslationType = {
     translations: {
+        startup: {
+            error: "Hindi masimulan ang portal ng pagboto. Pakisubukang muli.",
+            retry: "Subukang muli",
+        },
         common: {
             goBack: "Bumalik",
             showMore: "Lakihan ang nakikita",

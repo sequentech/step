@@ -33,8 +33,7 @@ import {
 } from "@mui/icons-material"
 import {useInterval} from "react-use"
 
-// Import the WASM package (already in your dependencies)
-import init, {initThreadPool, WasmSession, WasmVerifier} from "braid-wasm"
+import {loadBraid} from "@/services/Braid"
 
 let trustee: any = null
 
@@ -61,6 +60,9 @@ interface Action {
     added: number
     posted: number
 }
+
+// The wasm session rejects with plain strings rather than Errors.
+const errorReason = (e: unknown) => (e instanceof Error ? e.message : String(e))
 
 export const TrusteeDashboard = () => {
     const [config, setConfig] = useState<Config>({
@@ -100,11 +102,10 @@ export const TrusteeDashboard = () => {
     useEffect(() => {
         async function load() {
             try {
-                await init({})
-                await initThreadPool(navigator.hardwareConcurrency || 4)
+                await loadBraid()
                 log("braid-wasm loaded and thread pool initialized")
-            } catch (e: any) {
-                log(`WASM init failed: ${e.message}`, "error")
+            } catch (e) {
+                log(`WASM init failed: ${errorReason(e)}`, "error")
             }
         }
         load()
@@ -143,11 +144,12 @@ export const TrusteeDashboard = () => {
         }
 
         try {
+            const {WasmSession} = await loadBraid()
             trustee = new WasmSession(JSON.stringify(config))
             setInitialized(true)
             log(`Trustee initialized: ${config.name}`)
-        } catch (e: any) {
-            log(`Init failed: ${e.message}`, "error")
+        } catch (e) {
+            log(`Init failed: ${errorReason(e)}`, "error")
         }
     }
 
@@ -158,8 +160,8 @@ export const TrusteeDashboard = () => {
             const list = await trustee.fetch_boards()
             setBoards(list)
             log(`Found ${list.length} board(s)`)
-        } catch (e: any) {
-            log(`Fetch failed: ${e.message}`, "error")
+        } catch (e) {
+            log(`Fetch failed: ${errorReason(e)}`, "error")
         } finally {
             setLoading(false)
         }
@@ -182,8 +184,8 @@ export const TrusteeDashboard = () => {
             updateState()
             updateBoard()
             updateStorageInfo()
-        } catch (e: any) {
-            log(`Connect failed: ${e.message}`, "error")
+        } catch (e) {
+            log(`Connect failed: ${errorReason(e)}`, "error")
         }
     }
 
@@ -202,8 +204,8 @@ export const TrusteeDashboard = () => {
         try {
             const summary = await trustee.get_board_summary()
             setBoardSummary(summary)
-        } catch (e: any) {
-            log(`Board update failed: ${e.message}`, "error")
+        } catch (e) {
+            log(`Board update failed: ${errorReason(e)}`, "error")
         }
     }
 
@@ -212,8 +214,8 @@ export const TrusteeDashboard = () => {
         try {
             const info = await trustee.get_storage_info()
             setStorageInfo(info)
-        } catch (e: any) {
-            log(`Storage info update failed: ${e.message}`, "error")
+        } catch (e) {
+            log(`Storage info update failed: ${errorReason(e)}`, "error")
         }
     }
 
@@ -243,8 +245,8 @@ export const TrusteeDashboard = () => {
                     ...prev.slice(0, 99),
                 ])
             }
-        } catch (e: any) {
-            log(`Step error: ${e.message}`, "error")
+        } catch (e) {
+            log(`Step error: ${errorReason(e)}`, "error")
         } finally {
             setLoading(false)
         }

@@ -772,14 +772,17 @@ const spanishTranslation: TranslationType = {
                             'El identificador de votante y el PIN válidos son "123" y "123".',
                     },
                     sendDtmf: "Enviar entrada DTMF",
+                    keypadInput: "Entrada del teclado",
                     sendTimeout: "Enviar tiempo de espera",
                     disconnected: "Desconectado",
                     startSession: "Iniciar nueva sesión",
                     endSession: "Finalizar la sesión",
                     noStylesFound:
                         "No se encontraron estilos de boleta publicados que coincidan con sus selecciones",
-                    inputPlaceholder:
-                        "Introduzca su entrada (máximo de dígitos={{maxDigits}}, entradas válidas={{validInputs}}, tiempo de espera={{timeout}} s)",
+                    inputPlaceholder: "Pulse {{keys}} (tiempo de espera={{timeout}} s)",
+                    inputPlaceholderOr: "o",
+                    inputPlaceholderAnyKeys:
+                        "Introduzca hasta {{maxDigits}} dígitos (cualquier dígito, tiempo de espera={{timeout}} s)",
                     blacklistCaller: "Bloquear a la persona que llama",
                     elections: "Elecciones",
                     area: "Área",
@@ -2801,6 +2804,8 @@ const spanishTranslation: TranslationType = {
                 verified_by: "Aprobado Por",
             },
             approvalRequest: "Solicitud de Aprobación",
+            taskInformation: "Información de la tarea",
+            ok: "Aceptar",
             title: "Votantes",
             subtitle: "Buscar votantes coincidentes",
             approve: {

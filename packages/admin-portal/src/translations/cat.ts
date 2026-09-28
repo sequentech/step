@@ -773,14 +773,17 @@ const catalanTranslation: TranslationType = {
                             'L\'identificador de votant i el PIN vàlids són "123" i "123".',
                     },
                     sendDtmf: "Envia una entrada DTMF",
+                    keypadInput: "Entrada del teclat",
                     sendTimeout: "Envia el temps d'espera",
                     disconnected: "Desconnectat",
                     startSession: "Inicia una sessió nova",
                     endSession: "Finalitza la sessió",
                     noStylesFound:
                         "No s'ha trobat cap estil de papereta publicat que coincideixi amb les vostres seleccions",
-                    inputPlaceholder:
-                        "Introduïu la vostra entrada (màxim de dígits={{maxDigits}}, entrades vàlides={{validInputs}}, temps d'espera={{timeout}} s)",
+                    inputPlaceholder: "Premeu {{keys}} (temps d'espera={{timeout}} s)",
+                    inputPlaceholderOr: "o",
+                    inputPlaceholderAnyKeys:
+                        "Introduïu fins a {{maxDigits}} dígits (qualsevol dígit, temps d'espera={{timeout}} s)",
                     blacklistCaller: "Bloqueja la persona que truca",
                     elections: "Eleccions",
                     area: "Àrea",
@@ -2811,6 +2814,8 @@ const catalanTranslation: TranslationType = {
                 verified_by: "Verificat Per",
             },
             approvalRequest: "Sol·licitud d'Aprovació",
+            taskInformation: "Informació de la tasca",
+            ok: "D'acord",
             title: "Votants",
             subtitle: "Cercar votants coincidents",
             approve: {

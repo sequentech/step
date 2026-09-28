@@ -86,12 +86,14 @@ def main():
 
     # 4) election_id -> (alias, cluster_precinct_id)
     election_map = {}
+    authorization_keys = {}
     for el in elections:
         e_id = el.get('id')
         alias = el.get('alias', 'Unknown')
         ann = el.get('annotations', {}) or {}
         cluster_prec = ann.get('clustered_precint_id', 'Unknown')
         election_map[e_id] = (alias, cluster_prec)
+        authorization_keys[e_id] = el.get("external_id") or e_id
 
     # 5) Keycloak country/embassy dictionary
     #
@@ -172,12 +174,16 @@ def main():
                 # --------------------------------------------------------------
                 contest_ids = area_contest_map.get(a_id, [])
                 alias_list = []
+                election_keys = []
                 cluster_prec_list = []
 
                 for cid in contest_ids:
                     e_id = contest_election_map.get(cid, 'Unknown')
                     alias, cluster_prec = election_map.get(e_id, ('Unknown', 'Unknown'))
                     alias_list.append(alias)
+                    key = authorization_keys.get(e_id, e_id)
+                    if key not in election_keys:
+                        election_keys.append(key)
                     cluster_prec_list.append(cluster_prec)
 
                 # Deduplicate aliases
@@ -196,14 +202,14 @@ def main():
                         seen_cp.add(cp)
                         dedup_cluster_precs.append(cp)
 
-                # The "expected" authorized-election-ids = '|'.join(dedup_aliases)
-                expected_aliases_str = '|'.join(dedup_aliases) if dedup_aliases else 'Unknown'
+                # Match the Keycloak external-ID mapper, not the display aliases.
+                expected_keys = '|'.join(election_keys) if election_keys else 'Unknown'
                 row_auth_ids = row.get('authorized-election-ids', '').strip()
 
-                if row_auth_ids != expected_aliases_str:
+                if row_auth_ids != expected_keys:
                     msg = (
                         f"Mismatch authorized-election-ids: got '{row_auth_ids}', "
-                        f"expected '{expected_aliases_str}'"
+                        f"expected '{expected_keys}'"
                     )
                     errors.append((row_index, 'authorized-election-ids', msg))
 

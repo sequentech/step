@@ -5,6 +5,10 @@ import {TranslationType} from "./en"
 
 const frenchTranslation: TranslationType = {
     translations: {
+        startup: {
+            error: "Le portail de vote n’a pas pu démarrer. Veuillez réessayer.",
+            retry: "Réessayer",
+        },
         common: {
             goBack: "Retour",
             showMore: "Afficher plus",

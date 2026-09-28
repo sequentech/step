@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import React, {useRef, useState} from "react"
-import type {Meta, StoryObj} from "@storybook/react"
+import type {StoryObj} from "@storybook/react"
+import type {WidgetMeta} from "@/__stories__/widgetStory"
 import {expect, fn, userEvent, waitFor, within} from "storybook/test"
 import {Button} from "@mui/material"
 import type {RaRecord} from "react-admin"
@@ -73,8 +74,8 @@ function Fixture({draft}: Scenario) {
 }
 
 const meta = {
-    title: "Admin/Tally sheet",
-    component: Fixture,
+    title: "Admin/Tally sheet/EditTallySheet",
+    component: EditTallySheet,
     args: {
         draft: false,
         omitBlank: false,
@@ -172,9 +173,10 @@ const meta = {
             localStorage.removeItem("tallySheetData")
         }
     },
-} satisfies Meta<typeof Fixture>
+    render: (args) => <Fixture {...args} />,
+} satisfies WidgetMeta<Scenario>
 export default meta
-type Story = StoryObj<typeof meta>
+type Story = StoryObj<Scenario>
 
 async function ready(canvasElement: HTMLElement) {
     const canvas = within(canvasElement)

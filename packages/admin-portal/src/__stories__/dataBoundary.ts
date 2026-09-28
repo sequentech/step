@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {testDataProvider, type DataProvider} from "react-admin"
+import {registerBoundary} from "./storyNetwork"
 
 export function dataBoundary(handlers: Partial<DataProvider>) {
     const calls: {method: string; args: unknown[]}[] = []
@@ -21,5 +22,5 @@ export function dataBoundary(handlers: Partial<DataProvider>) {
             }
         },
     })
-    return {provider, calls, unexpected}
+    return registerBoundary({provider, calls, unexpected})
 }

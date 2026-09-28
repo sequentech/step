@@ -22,13 +22,57 @@ const types: Record<string, string> = {
 }
 
 const roots = new Map<string, string>()
+export interface StaticServerWorker {
+    parallelIndex: number
+    config: {workers: number}
+}
+
+/** Divide configured ports between Playwright parallel slots without a fixed block size. */
+export function createPortAllocator(base: number, limit = 65535) {
+    if (!Number.isInteger(base) || base < 0 || base > 65535)
+        throw new Error("STEP_UI_TEST_PORT_BASE must be an integer from 0 to 65535")
+    if (!Number.isInteger(limit) || limit < 1 || limit > 65535 || limit < base)
+        throw new Error(
+            "STEP_UI_TEST_PORT_LIMIT must be an integer from 1 to 65535 and at least the base"
+        )
+    let next = 0
+    return (worker?: StaticServerWorker) => {
+        if (base === 0) return 0
+        const index = worker?.parallelIndex ?? 0
+        const workers = worker?.config.workers ?? 1
+        if (
+            !Number.isInteger(workers) ||
+            workers < 1 ||
+            !Number.isInteger(index) ||
+            index < 0 ||
+            index >= workers
+        )
+            throw new Error(
+                "Static server requires a valid Playwright parallelIndex and worker count"
+            )
+        const port = base + index + next * workers
+        if (port > limit)
+            throw new Error(
+                `Static server port range ${base}-${limit} is exhausted for worker ${index}`
+            )
+        next += 1
+        return port
+    }
+}
+
+const portBase = Number(process.env.STEP_UI_TEST_PORT_BASE ?? 0)
+const allocatePort = createPortAllocator(
+    portBase,
+    Number(process.env.STEP_UI_TEST_PORT_LIMIT ?? 65535)
+)
 /** The directory behind each open origin, so coverage can map script URLs back to files. */
 export const servedRoots: ReadonlyMap<string, string> = roots
 
-/** Owns its ephemeral listening socket until close; never probes then rebinds a free port. */
+/** Owns its listening socket until close; never probes then rebinds a free port. */
 export async function serveDist(
     directory: string,
-    overrides: ReadonlyMap<string, string> = new Map()
+    overrides: ReadonlyMap<string, string> = new Map(),
+    worker?: StaticServerWorker
 ) {
     const root = await realpath(directory)
     await stat(resolve(root, "index.html"))
@@ -73,7 +117,10 @@ export async function serveDist(
     })
     await new Promise<void>((resolve, reject) => {
         server.once("error", reject)
-        server.listen(0, "127.0.0.1", resolve)
+        if (portBase !== 0 && process.env.TEST_PARALLEL_INDEX !== undefined && !worker)
+            throw new Error("Configured Playwright static servers require workerInfo")
+        const port = allocatePort(worker)
+        server.listen(port, "127.0.0.1", resolve)
     })
     const origin = `http://127.0.0.1:${(server.address() as AddressInfo).port}`
     roots.set(origin, root)

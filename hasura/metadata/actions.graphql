@@ -1535,6 +1535,7 @@ type OptionalImportEvent {
     message: String
     error: String
     task_execution: tasks_execution_type
+    problems: jsonb
 }
 
 type ManageElectionDatesOutput {

@@ -27,21 +27,21 @@ Istanbul coverage reports are uploaded from `test-results/`.
 Place typed `*.stories.tsx` beside components, or under their `__stories__`
 directory. Use `storybook/test` assertions and spies, query accessible names, and
 assert rendered outcomes and callback values. The shared preview supplies the
-theme, deterministic English translations and an in-memory router. Configure
+theme, the toolbar locale's translations (English by default) and an in-memory router. Configure
 `parameters.router` for route parameters and initial history. Screen stories can
 provide the real route `action` and its `parentPath` so relative redirects resolve
 as they do in the application. The router also accepts a `loader` and
-`errorElement` for actual route error boundaries. Browser contexts
+`errorElement` for actual route error boundaries, and a `layout` component that
+renders the story route through its `<Outlet />`, such as the application shell. Browser contexts
 use an English locale and UTC. Mock external services; initialize real WASM in a
 story loader when the component needs it. Voting ballot stories also reset the
 Redux voter session before loading each fixture; see `Question/__stories__` and
 `routes/__stories__` for ballot rules, pagination, declaration and decline flows. Tests block unexpected network requests;
 only local module, image, font and WASM assets may reach the server.
 
-Admin stories cover event uploads, keys ceremony thresholds and publication controls.
-Their provider supplies the production admin theme, tenant and recorded Apollo responses;
-assert mutation variables, permission headers, callbacks and visible errors. Run
-`yarn --cwd packages/admin-portal typecheck:stories` to check these fixtures and stories.
+Every admin widget has its own section; see [Admin widget catalog](#admin-widget-catalog).
+Assert mutation variables, permission headers, callbacks and visible errors. Run
+`yarn --cwd packages/admin-portal typecheck:stories` to check admin fixtures and stories.
 
 Stories are excluded from production type builds and the existing Jest coverage
 profile. Storybook coverage is reported separately from that gate. Shared test
@@ -63,11 +63,48 @@ yarn --cwd packages/ui-test-kit test
 yarn --cwd packages/voting-portal test:journeys
 ```
 
+Portal journeys and `ui-test-kit` contracts use the Chromium version pinned by
+Playwright, including its OS libraries. They do not use
+`CHROMIUM_EXECUTABLE_PATH`; that override is for Storybook. On a supported OS,
+`yarn --cwd packages/voting-portal playwright install --with-deps chromium`
+installs both. In a Nix/devenv environment, run the built journeys in the same
+pinned image as CI instead, from the repository root:
+
+```sh
+docker run --rm --init --ipc=host --user "$(id -u):$(id -g)" \
+  -v "$PWD:/workspace" -w /workspace/packages/voting-portal \
+  mcr.microsoft.com/playwright:v1.62.1-noble \
+  node ../node_modules/@playwright/test/cli.js test --config playwright.journeys.config.ts
+```
+
+Replace the package for another portal after building its production output.
+For `ui-test-kit`, use its `playwright.config.ts`. `step-dev test` checks the
+suite's actual browser with a bounded launch/close before preparing or running
+tests; it does not install browsers or OS dependencies. Workbench smoke tests
+also support their own `WORKBENCH_TEST_CHROME_PATH` override.
+
 Add journeys under `packages/voting-portal/test/journeys/`, importing its `test`
 fixture for a fresh browser context, clock and service mocks. The shared
 `packages/ui-test-kit` validates GraphQL against the portal schema, checks OIDC
 PKCE and owns ephemeral static-server ports. Register every service response;
-unexpected requests fail teardown. Audit assertions decode downloaded ballots
+unexpected requests fail teardown. With no `STEP_UI_TEST_PORT_BASE` (or a value of
+`0`), the kernel assigns each server an ephemeral port. To use an assigned range,
+set `STEP_UI_TEST_PORT_BASE` and optionally `STEP_UI_TEST_PORT_LIMIT` (inclusive;
+default `65535`). This command stays inside the assigned range:
+
+```sh
+STEP_UI_TEST_PORT_BASE=44000 STEP_UI_TEST_PORT_LIMIT=44999 yarn --cwd packages/voting-portal test:journeys
+```
+
+Playwright fixtures pass their `workerInfo` to `serveDist` as
+the third argument: parallel slot 0 uses base, base + workers, and so on; slot 1
+uses base + 1, base + 1 + workers, and so on. Retries reuse their parallel slot.
+Standalone callers and a one-worker run retain consecutive ports starting at the
+base. Exhaustion and occupied ports fail explicitly; the server never probes a
+port and rebinds it or silently leaves the selected range. Assign disjoint ranges
+to concurrent Playwright invocations.
+
+Audit assertions decode downloaded ballots
 with the vendored WASM in Node. CI uploads traces, screenshots and JUnit results
 from `test-results/`. Known accessibility failures are marked only after the
 journey and the exact known rule/target have been checked.
@@ -101,11 +138,152 @@ Use literal expected counts and scoped publications. A rejected publication or
 artifact should settle without repeating authentication; include a valid control
 and assert that a route change uses the new event's token.
 
-The ballot verifier's `test:journeys` runs against its production build and the voting portal's production build. Run `yarn build:ui-core`, `yarn build:ui-essentials`, `yarn build:ballot-verifier`, and `yarn build:voting-portal` from `packages`, then `yarn --cwd ballot-verifier test:types` and `yarn --cwd ballot-verifier test:journeys`. Its Node fixture encrypts and signs real single- and multiple-contest ballots; the cross-portal case imports the exact voting-portal audit download. Invalid inputs first pass a valid control, then change only the signature, JSON, or supplied ballot ID. Confirmation stories and the production scan pin the existing candidate-list accessibility violation as expected failures, so fixing it requires removing the marker.
+The ballot verifier's `test:journeys` runs against its production build and the voting portal's production build. Run `yarn build:ui-core`, `yarn build:ui-essentials`, `yarn build:ballot-verifier`, and `yarn build:voting-portal` from `packages`, then `yarn --cwd ballot-verifier test:types` and `yarn --cwd ballot-verifier test:journeys`. Its Node fixture encrypts and signs real single- and multiple-contest ballots; the cross-portal case imports the exact voting-portal audit download. Invalid inputs first pass a valid control, then change only the signature, JSON, or supplied ballot ID. Confirmation stories and the production scan require semantic candidate lists, including blank selections and grouped contest choices. Authentication-disabled journeys complete verification without private service requests.
+
+The verifier's opt-in Vite build runs the same journeys. After preparing the
+shared packages and voting portal above, use:
+
+```sh
+yarn --cwd packages/ballot-verifier build:vite
+BALLOT_VERIFIER_JOURNEY_DIST=dist-vite yarn --cwd packages/ballot-verifier test:journeys
+```
+
+To check development behavior, start `yarn --cwd packages/ballot-verifier start:vite`
+in another terminal, then run:
+
+```sh
+BALLOT_VERIFIER_JOURNEY_URL=http://127.0.0.1:3001 yarn --cwd packages/ballot-verifier test:journeys
+```
+
+This adds a regression journey that edits and restores a leaf component, shared
+Header and core translation, checking React state and the browser error ledger.
+Run it against an idle checkout so it owns those temporary edits. With the pinned
+Playwright image, pass the selected variable with Docker `-e`; development tests
+also need the server's network namespace (`--network container:<devcontainer>`,
+or `--network host` for a server on the Linux host) and a writable checkout mount.
+Production journeys remain strict; only the explicitly selected development
+origin's Vite HMR websocket is allowed. Webpack remains the default/release/CI
+path; this configuration has not been validated for other portals' assets or
+bootstrap lifecycles.
 
 Admin production journeys use `yarn --cwd packages/admin-portal test:journeys` after building the shared UI packages and admin portal. `test:types` checks their fixtures; `typecheck:stories` checks admin stories. The fixture answers the known React-admin telemetry request locally and rejects every other unexpected service request. Tally and policy stories use strict data-provider and Apollo boundaries; form submission assertions check serialized policy values.
 
 Admin journeys verify event creation/import, voter changes with confirmation and restricted permissions, session refresh/logout/tenant selection, and publication generation through voting closure. Story form assertions check each saved policy value. Shared story fixtures allow only the exact Vite/Vitest runner sockets; caught application WebSocket attempts and asset writes still fail teardown.
+
+## Screen stories and toolbar globals
+
+Screen stories render a complete screen with its real providers behind explicit
+service boundaries, without login or backend. Admin screens answer Apollo operations
+and React-admin calls with `graphqlBoundary` and `dataBoundary`; results and
+verifier screens answer `fetch` from the `ui-test-kit` S3 mock and GraphQL
+handlers through `routeFetch` (`@sequentech/ui-test-kit/adapters/fetch`), which
+records any other request as a violation. Each screen exports the `EStoryDataState`
+stories it distinguishes (`.storybook/screens.ts` in UI Essentials), so every state
+has a stable link:
+
+| Screen | Populated story | Other stories |
+| --- | --- | --- |
+| Admin keys ceremony | `http://localhost:6008/?path=/story/screens-admin-keys-ceremony--populated` | `--loading`, `--empty`, `--load-error`, `--trustee-invitation`, `--custom-branding` |
+| Admin tally ceremony | `http://localhost:6008/?path=/story/screens-admin-tally-ceremony--populated` | `--loading`, `--empty`, `--tally-completed`, `--service-failure-allows-retry` |
+| Results publication | `http://localhost:6009/?path=/story/screens-results-publication--populated` | `--loading`, `--empty`, `--load-error`, `--custom-branding` |
+| Ballot verification | `http://localhost:6010/?path=/story/screens-verifier-ballot-verification--populated` | `--loading`, `--empty`, `--load-error`, `--custom-branding` |
+
+The typed toolbar globals live in `.storybook/globals.tsx`; each Storybook lists
+only those its screens map. `locale` offers the eight ui-core languages; `tenant`
+(admin, results, verifier) is the Sequent logo, no logo or a synthetic logo and
+CSS, applied through the screen's presentation, manifest or tenant CSS;
+`permissions` (admin) signs in a group of the default tenant realm template
+(`admin`, `admin-light`, `admin-lockdown`, `trustee`) or one without roles;
+`workflow` (admin) is the election event step, from a running keys ceremony to
+published results, which screens map to ceremony, election and tally status
+(default: voting closed). Populated stories follow the toolbar and other stories
+pin what they need with `globals`; links accept
+`&globals=workflow:tally;permissions:trustee;locale:es;tenant:custom`. Fixtures
+read `readStoryGlobals(context.globals)` or `useStoryGlobals()`, and unknown values
+fall back to the defaults. Replay interactions after a toolbar change with Remount.
+
+`yarn --cwd packages/ui-essentials storybook` also shows the portal Storybooks
+that run on ports 6007–6010 (composed IDs are prefixed, e.g.
+`http://localhost:6006/?path=/story/admin-portal_screens-admin-tally-ceremony--populated`).
+Set `STORYBOOK_VOTING_PORTAL_URL`, `STORYBOOK_ADMIN_PORTAL_URL`,
+`STORYBOOK_RESULTS_PORTAL_URL` or `STORYBOOK_BALLOT_VERIFIER_URL` for other
+addresses, or to an empty value to leave a portal out; `yarn storybook -p <port>`
+moves a Storybook. A portal started later appears when the browser window regains
+focus; static builds do not compose. Toolbar globals apply to the Storybook that
+serves the story, so vary a portal's screens on its own port.
+
+Run the test of one story, of every story of a title ID or story file, or of a
+copied Storybook URL:
+
+```sh
+yarn --cwd packages/admin-portal test:story screens-admin-tally-ceremony--populated
+yarn --cwd packages/admin-portal test:story src/resources/Tally/TallyCeremony.stories.tsx --watch
+```
+
+It prints the selected files, story IDs and Vitest command. Coverage stays off
+unless `--coverage` is passed; other `--option=value` arguments go to Vitest. Story
+tests launch devenv's Chromium when `CHROMIUM_EXECUTABLE_PATH` is set, as in the
+devcontainer; elsewhere install Playwright's Chromium as shown above.
+
+## Admin widget catalog
+
+Each authored admin component has a Storybook section titled
+`Admin/<Feature>/<Component>`, where the feature is its directory under `src/resources`
+or `src/components` (`Components` for the shared components directly in
+`src/components`, `Screens` for `src/screens`); the complete screens above keep their
+`Screens/Admin/...` sections. A component defined inside a module without being exported
+is shown by a story of that module's exported widget, which names it in
+`parameters: {widgets: ["ExportDialog"]}`. Styled primitives, context providers and
+components that render nothing are listed, with the reason, in
+`packages/admin-portal/.storybook/widgets.mjs`.
+
+```sh
+yarn --cwd packages/admin-portal stories:inventory                      # widgets per feature and those without a story
+yarn --cwd packages/admin-portal stories:inventory src/resources/Area/ListArea.tsx
+yarn --cwd packages/admin-portal stories:inventory --markdown           # source-to-story table
+yarn --cwd packages/admin-portal stories:inventory --check              # fails on a missing or misnamed section
+yarn --cwd packages/admin-portal test:story admin-area-listarea--delete-area-after-confirmation
+```
+
+The admin-portal stories job in CI runs `stories:inventory --check`, so a new
+widget needs its section in the same change. The inventory reads `parameters.widgets` from
+each story, not from the section's `meta`, and a story may only name components that its
+section's module defines.
+
+With a source file, component name or feature, the inventory prints each widget's
+section, story IDs, direct links and focused test command. Story IDs follow the title
+and the export name: `http://localhost:6008/?path=/story/admin-area-listarea--populated`
+opens a story and `?path=/docs/admin-area-listarea--docs` the section's documentation.
+Section files sit beside their component as `<Module>.stories.tsx`; set `component` to the
+imported production widget, never to a fixture wrapper.
+
+Stories compose the helpers in `packages/admin-portal/src/__stories__/`:
+
+- `AdminStoryProvider` renders react-admin with an empty in-memory preference store, the
+  admin theme and translations, and signs in the story's role group (`role`), an explicit
+  role list (`roles`) or other session values (`auth`). Its settings disable polling and
+  point every service at the reserved `.invalid` domain.
+- `graphqlBoundary(handlers, {schema: true})` answers Apollo operations by name and
+  executes each reply against `graphql.schema.json`, so fixtures are type checked and
+  trimmed; `await boundary.ready` in `beforeEach`. A handler that throws is a network
+  error and one returning `pending()` keeps its query loading.
+- `resourceBoundary(records, {reads})` answers react-admin reads from synthetic rows with
+  Hasura-style filters, sorting and pagination, and records writes in `writes`; `reads`
+  selects answered, loading or failing reads for all or some resources.
+- `storyFetch(routes)` answers other `fetch` requests, such as presigned uploads, and
+  records them; `openedWindows()` lists addresses passed to `window.open`.
+- `fixtures.ts` holds typed synthetic records (tenant, event, election, contest,
+  candidates, areas, trustees, keys ceremony and tally session) that follow the
+  `workflow` global.
+
+Around every story, in the Storybook UI as in the test runner, the admin preview
+refuses `fetch`, `XMLHttpRequest`, `WebSocket`, `EventSource` and beacon requests that
+leave the Storybook server unless a story answers them, fails a story whose boundaries
+saw an unexpected operation, and fails a story that never rendered its section's
+component or a widget named in `parameters.widgets`. Give each widget the states it
+supports: populated, empty, loading, failing, read-only or disabled, permission
+variants and interactions whose play function asserts both the visible result and the
+boundary call.
 
 ## Admin coverage before a refactor
 
@@ -134,14 +312,15 @@ summary percentages. Compare each file's uncovered lines and wire contracts
 before changing its implementation. A missing layer is explicitly marked and
 does not establish that the combined coverage is complete.
 
-CI runs admin journeys in four shards with two workers each and publishes the
+CI runs admin stories in three shards and admin journeys in four shards with two
+workers each, and publishes the
 area and per-file tables in the safety-net job summary. The
 `admin-portal-safety-net` artifact contains `coverage-union.json` and
 `coverage-union.md`, including uncovered line ranges. Locally these files are
 under `packages/admin-portal/test-results/safety-net/`. To combine downloaded
 artifacts, pass repeated `--layer jest=<path>`, `--layer stories=<path>` and
 `--layer journeys=<path>` options; directories are searched for raw line reports
-and journey shards are united before the layer comparison.
+and story and journey shards are united before the layer comparison.
 
 CI step summaries list passes, expected failures (JUnit `fail`/`expected-failure` properties),
 failures, skips and coverage as covered/total (percent): Istanbul for stories; for journeys, the

@@ -717,7 +717,7 @@ pub struct AuthState {
 
 **Flow phases (typed dispatch).** The flow is a list of typed phases, not
 a list of `{ phase: String, config: HashMap<String, Value> }` pairs —
-per CLAUDE.md's "policies use enums, not magic strings" rule. An
+per the contributing guide's "policies are enums" rule. An
 exhaustive match in the dispatcher gives compile-time coverage, and the
 admin portal can render form fields from each variant's shape. A typo in
 a config key fails at deserialization time, not mid-call.
@@ -3166,7 +3166,7 @@ To include `VotingStatusChannel::TELEPHONE` cases.
 
 **File:** `packages/sequent-core/src/services/authorization.rs` (the `azp` match inside `authorize_voter_election`)
 
-Per CLAUDE.md ("policies use enums, not magic strings") the `azp` match should not be keyed off ad-hoc string literals. Introduce an `AzpClient` enum in `sequent-core` that owns the canonical set of Keycloak client ids, annotated with the same `strum` derives already used elsewhere in `sequent-core` (see `VotingStatusChannel` in `ballot.rs` for the reference pattern: `EnumString`, `IntoStaticStr`, etc.). `FromStr` parses the string claim; the match on the enum is then exhaustive and compiler-checked.
+Per the contributing guide's coding standards (policies are enums, not magic strings) the `azp` match should not be keyed off ad-hoc string literals. Introduce an `AzpClient` enum in `sequent-core` that owns the canonical set of Keycloak client ids, annotated with the same `strum` derives already used elsewhere in `sequent-core` (see `VotingStatusChannel` in `ballot.rs` for the reference pattern: `EnumString`, `IntoStaticStr`, etc.). `FromStr` parses the string claim; the match on the enum is then exhaustive and compiler-checked.
 
 ```rust
 // packages/sequent-core/src/types/auth.rs (new)
@@ -3480,7 +3480,7 @@ impl Default for ElectionEventStatus {
 
 ### C.7 Possible Refactor: Generalize Voting Status Per Channel
 
-The per-channel fan-out in C.3–C.6 (adding a fourth parallel `telephone_voting_status` + `telephone_voting_period_dates` pair) is structurally identical to what already happened for KIOSK and EARLY_VOTING. Each new channel doubles a pair of fields and adds a match arm everywhere. This doesn't compose — per [CLAUDE.md](/CLAUDE.md) "Product Design Philosophy," channels should scale as data, not as struct fields.
+The per-channel fan-out in C.3–C.6 (adding a fourth parallel `telephone_voting_status` + `telephone_voting_period_dates` pair) is structurally identical to what already happened for KIOSK and EARLY_VOTING. Each new channel doubles a pair of fields and adds a match arm everywhere. This doesn't compose — per the [product design rules](../00-contributing.md#product-design-rules), channels should scale as data, not as struct fields.
 
 The refactor collapses the parallel fields into a single map keyed by channel:
 
@@ -3520,7 +3520,7 @@ With this shape, adding TELEPHONE (or any future channel) is a single enum varia
 - **admin-portal**: the election-status UI, the scheduled-event editor, and anything that reads `election_event.status.voting_status` directly. After the refactor, these all go through `channels[CHANNEL]`.
 - **voting-portal**: any gating UI that checks `voting_status` to decide whether the "Vote" button is active.
 - **GraphQL codegen**: `yarn generate:voting-portal` / `yarn generate:admin-portal` must be re-run.
-- **Migration**: a one-shot data migration reads the three-field shape and writes the map shape. Export bundles need a version bump so older bundles can still be imported (read old shape → write new). This is the same backwards-compatibility concern called out in [CLAUDE.md](/CLAUDE.md) "Code Quality Standards."
+- **Migration**: a one-shot data migration reads the three-field shape and writes the map shape. Export bundles need a version bump so older bundles can still be imported (read old shape → write new). This is the same backwards-compatibility concern called out in the [product design rules](../00-contributing.md#product-design-rules).
 
 **Recommended sequencing**: ship TELEPHONE using the C.3–C.6 parallel-field pattern (adds exactly one more channel to a pattern the codebase already tolerates), then do the map refactor as its own meta-issue. The IVR MVP does not block on it, but the refactor is worth doing before a *fifth* channel is ever added.
 

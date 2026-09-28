@@ -33,6 +33,7 @@ type Scenario =
     | "exhausted"
 import {decode_auditable_multi_ballot_js, type IDecodedVoteContest} from "sequent-core"
 import {AuthContext} from "../../providers/AuthContextProvider"
+import {BallotSelectionAdapter} from "../../components/BallotSelectionAdapter"
 import {addCastVotes, CastVoteStatus} from "../../store/castVotes/castVotesSlice"
 import {ErrorPage} from "../ErrorPage"
 
@@ -163,9 +164,11 @@ const meta = {
     ],
     render: () => (
         <Provider store={store}>
-            <main>
-                <Screen />
-            </main>
+            <BallotSelectionAdapter>
+                <main>
+                    <Screen />
+                </main>
+            </BallotSelectionAdapter>
         </Provider>
     ),
 } satisfies Meta<{scenario: Scenario}>

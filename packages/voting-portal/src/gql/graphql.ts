@@ -810,6 +810,7 @@ export type OptionalImportEvent = {
   error?: Maybe<Scalars['String']['output']>;
   id?: Maybe<Scalars['String']['output']>;
   message?: Maybe<Scalars['String']['output']>;
+  problems?: Maybe<Scalars['jsonb']['output']>;
   task_execution?: Maybe<Tasks_Execution_Type>;
 };
 

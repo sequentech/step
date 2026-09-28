@@ -70,6 +70,27 @@ use crate::tasks::set_public_key::set_public_key;
 use crate::tasks::update_election_event_ballot_styles::update_election_event_ballot_styles;
 use crate::tasks::voter_information_letter::generate_voter_information_letter;
 
+/// Audit event/batch queues are consumed only by the durable dispatcher. Keep
+/// existing deployment queue arguments compatible without Celery acknowledging
+/// audit failures before persistence. Caller validates duplicate input first.
+pub fn durable_electoral_log_consumer_queues(queues: Vec<String>, slug: &str) -> Vec<String> {
+    let event = Queue::ElectoralLogEvent.queue_name(slug);
+    let batch = Queue::ElectoralLogBatch.queue_name(slug);
+    let beat = Queue::ElectoralLogBeat.queue_name(slug);
+    let mut selected = Vec::new();
+    for queue in queues {
+        let queue = if queue == event || queue == batch {
+            beat.clone()
+        } else {
+            queue
+        };
+        if !selected.contains(&queue) {
+            selected.push(queue);
+        }
+    }
+    selected
+}
+
 #[derive(AsRefStr, Debug)]
 pub enum Queue {
     #[strum(serialize = "beat")]

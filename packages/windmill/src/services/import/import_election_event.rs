@@ -124,8 +124,10 @@ use sequent_core::util::temp_path::{generate_temp_file, get_file_size};
 //   keycloak_event_realm serde_json::Value, not RealmRepresentation. That type
 //                        comes from the keycloak crate, which pulls reqwest.
 //                        Deserialized into the typed form where it is used.
+use super::rejection::reject;
 use sequent_core::election_config;
 pub use sequent_core::election_config::ImportElectionEventSchema;
+use sequent_core::election_config::{import_problems, Rejected};
 
 #[instrument(err)]
 pub async fn upsert_b3_and_elog(
@@ -524,9 +526,11 @@ pub async fn get_document(
         .media_type
         .unwrap_or("application/ezip".to_string());
 
+    // Only the cipher's own failure is named `file.cannot-decrypt`; a temp file
+    // that cannot be written keeps its real cause.
     temp_file = decrypt_document(object.password.clone(), temp_file)
         .await
-        .map_err(|err| anyhow!("error decrypting document {:?}", document.id))?;
+        .with_context(|| format!("error decrypting document {:?}", document.id))?;
 
     Ok((temp_file, document, document_type))
 }
@@ -547,7 +551,8 @@ pub async fn decrypt_document(
             &decrypted_path.as_path().to_string_lossy().to_string(),
             &password,
         )
-        .map_err(|err| anyhow!("Error generating decrypted file"))?;
+        .map_err(|_| reject("election event file", import_problems::cannot_decrypt()))
+        .context("Error generating decrypted file")?;
 
         // Create a new NamedTempFile for the decrypted content
         let mut temp_file = NamedTempFile::new()?;
@@ -571,8 +576,10 @@ pub async fn get_election_event_schema(
 ) -> Result<(ImportElectionEventSchema, HashMap<String, String>)> {
     // Catch a version missmatch early and return a clear error message about it, rather than having it fail later on
     // with a more obscure error when trying to deserialize data that is incompatible with the current version.
-    let raw: serde_json::Value = serde_json::from_str(data_str)
-        .map_err(|e| anyhow!("Failed to parse import data as JSON: {e}"))?;
+    let raw: serde_json::Value = serde_json::from_str(data_str).map_err(|e| {
+        reject("election event file", import_problems::not_json(&e))
+            .context(format!("Failed to parse import data as JSON: {e}"))
+    })?;
     let default_ver = HISTORICAL_DEFAULT_VERSION.to_string();
     let imported_version = raw
         .get(VERSION_KEY)
@@ -580,8 +587,21 @@ pub async fn get_election_event_schema(
         .unwrap_or(&default_ver);
     let current_version = std::env::var(ENV_VAR_APP_VERSION)
         .map_err(|_| anyhow!("Environment variable {ENV_VAR_APP_VERSION} should be set"))?;
-    check_version_compatibility(imported_version, &current_version)?;
-    let original_data: ImportElectionEventSchema = deserialize_str(data_str)?;
+    check_version_compatibility(imported_version, &current_version).map_err(|err| {
+        reject(
+            "election event file",
+            import_problems::incompatible_version(imported_version, &current_version),
+        )
+        .context(err.to_string())
+    })?;
+    let original_data: ImportElectionEventSchema = deserialize_str(data_str).map_err(|err| {
+        let message = err.to_string();
+        reject(
+            "election event file",
+            import_problems::not_a_bundle(&message),
+        )
+        .context(message)
+    })?;
     check_bundle(&original_data)?;
     replace_ids(data_str, &original_data, event_id, tenant_id.clone())
 }
@@ -608,16 +628,13 @@ fn check_bundle(data: &ImportElectionEventSchema) -> Result<()> {
     }
 
     if report.has_errors() {
-        let listing = report
-            .errors()
-            .map(|problem| format!("  {problem}"))
-            .collect::<Vec<_>>()
-            .join("\n");
-        let count = report.errors().count();
-        let noun = if count == 1 { "problem" } else { "problems" };
-        return Err(anyhow!(
-            "The election event bundle cannot be imported; {count} {noun} found:\n{listing}"
-        ));
+        // Carried whole, warnings included: the operator fixing the errors is
+        // the one who should hear about the rest too. `Rejected` prints the same
+        // line this always did, so the task log does not change.
+        return Err(anyhow::Error::new(Rejected::new(
+            "election event bundle",
+            report,
+        )));
     }
 
     Ok(())
@@ -818,6 +835,14 @@ pub async fn process_election_event_file(
         insert_applications(hasura_transaction, &applications)
             .await
             .with_context(|| "Error inserting applications")?;
+    }
+
+    // Before the archive members are walked, so the row exists by the time
+    // `process_s3_file` creates the document it points at.
+    if let Some(materials) = data.support_materials.clone() {
+        crate::postgres::document::insert_support_materials(hasura_transaction, &materials)
+            .await
+            .with_context(|| "Error inserting support materials")?;
     }
 
     Ok((data, replacement_map))
@@ -1092,30 +1117,48 @@ pub async fn get_zip_entries(
         if document_type == "application/ezip" || matches_mime("zip", document_type) {
             tokio::task::spawn_blocking(move || -> Result<(Vec<(String, Vec<u8>)>, String)> {
                 let file = File::open(&temp_file_path)?;
-                let mut zip = ZipArchive::new(file)?;
+                // Any failure reading the archive's members is the archive being
+                // unreadable, and says why.
+                let unreadable = |err: &dyn std::fmt::Display| {
+                    reject(
+                        "election event file",
+                        import_problems::unreadable_archive(err),
+                    )
+                };
+                let mut zip = ZipArchive::new(file).map_err(|err| unreadable(&err))?;
                 let mut entries: Vec<(String, Vec<u8>)> = Vec::new();
 
                 let mut election_event_schema: Option<String> = None;
                 for i in 0..zip.len() {
-                    let mut file = zip.by_index(i)?;
+                    let mut file = zip.by_index(i).map_err(|err| unreadable(&err))?;
                     let file_name = file.name().to_string();
                     if file_name.contains(EDocuments::ELECTION_EVENT.to_file_name())
                         && file_name.ends_with(".json")
                     {
                         // Regular JSON document processing
                         let mut file_str = String::new();
-                        file.read_to_string(&mut file_str)?;
+                        file.read_to_string(&mut file_str)
+                            .map_err(|err| unreadable(&err))
+                            .with_context(|| format!("reading {file_name}"))?;
                         election_event_schema = Some(file_str);
                     } else {
                         let mut file_contents = Vec::new();
-                        file.read_to_end(&mut file_contents)?;
+                        file.read_to_end(&mut file_contents)
+                            .map_err(|err| unreadable(&err))
+                            .with_context(|| format!("reading {file_name}"))?;
                         entries.push((file_name, file_contents));
                     }
                 }
                 if let Some(schema_str) = election_event_schema {
                     Ok((entries, schema_str))
                 } else {
-                    Err(anyhow!("No JSON file found in ZIP"))
+                    Err(reject(
+                        "election event file",
+                        import_problems::unreadable_archive(
+                            "no election event document (.json) was found in it",
+                        ),
+                    )
+                    .context("No JSON file found in ZIP"))
                 }
             })
             .await??
@@ -1123,7 +1166,14 @@ pub async fn get_zip_entries(
             // Regular JSON document processing
             let mut file = File::open(temp_file_path)?;
             let mut data_str = String::new();
-            file.read_to_string(&mut data_str)?;
+            // Bytes that are not text are not a JSON election event either.
+            file.read_to_string(&mut data_str).map_err(|err| {
+                if err.kind() == std::io::ErrorKind::InvalidData {
+                    reject("election event file", import_problems::not_json(&err))
+                } else {
+                    anyhow::Error::new(err)
+                }
+            })?;
             (vec![], data_str)
         };
 
@@ -1167,7 +1217,10 @@ pub async fn process_document(
         Some(election_event_id.clone()),
     )
     .await
-    .map_err(|err| anyhow!("Failed to get document: {err}"))?;
+    .map_err(|err| {
+        let message = format!("Failed to get document: {err}");
+        err.context(message)
+    })?;
 
     let (zip_entries, file_election_event_schema) =
         get_zip_entries(temp_file_path, &document_type).await?;
@@ -1218,7 +1271,12 @@ pub async fn process_document(
         is_importing_keys,
     )
     .await
-    .map_err(|err| anyhow!("Error processing election event file: {err}"))?;
+    .map_err(|err| {
+        // `context`, not `anyhow!`, so a rejection further down stays in the
+        // chain for whoever reports the failure.
+        let message = format!("Error processing election event file: {err}");
+        err.context(message)
+    })?;
 
     // Zip file processing
     if document_type == "application/ezip" || matches_mime("zip", &document_type) {
@@ -1671,9 +1729,18 @@ mod tests {
         )
         .await;
 
-        let error = outcome
-            .expect_err("a contest pointing at a missing election should not import")
-            .to_string();
+        let error =
+            outcome.expect_err("a contest pointing at a missing election should not import");
+        // The structured reasons travel with it, for the Admin Portal to translate.
+        let problems = crate::services::import::rejection::problems_of(&error)
+            .expect("a rejected bundle carries its problems");
+        assert!(
+            problems
+                .iter()
+                .any(|problem| problem.id.as_deref() == Some("contest.election-missing")),
+            "{problems:?}"
+        );
+        let error = error.to_string();
         assert!(
             error.contains("cannot be imported"),
             "unexpected message: {error}"
@@ -1682,6 +1749,22 @@ mod tests {
             error.contains("contests[0].election_id"),
             "unexpected message: {error}"
         );
+    }
+
+    /// A file that is not JSON is refused with a reason the Admin Portal can say.
+    #[tokio::test]
+    async fn a_file_that_is_not_json_is_a_named_problem() {
+        std::env::set_var(ENV_VAR_APP_VERSION, DEV_APP_VERSION);
+
+        let error = get_election_event_schema("not json", None, TENANT.to_string())
+            .await
+            .expect_err("text that is not JSON should not import");
+        assert!(error
+            .to_string()
+            .contains("Failed to parse import data as JSON"));
+        let problems = crate::services::import::rejection::problems_of(&error)
+            .expect("an unreadable file carries its problem");
+        assert_eq!(problems[0].id.as_deref(), Some("file.not-json"));
     }
 
     /// And a bundle with no fatal problems gets through this gate.
@@ -1703,5 +1786,93 @@ mod tests {
                 .expect("a bundle with no fatal problems should get past validation");
 
         assert!(!ids.is_empty());
+    }
+
+    fn problem_id(error: &anyhow::Error) -> Option<String> {
+        crate::services::import::rejection::problems_of(error)
+            .and_then(|problems| problems.first().and_then(|problem| problem.id.clone()))
+    }
+
+    fn a_file_holding(bytes: &[u8]) -> NamedTempFile {
+        let mut file = NamedTempFile::new().expect("a temp file");
+        file.write_all(bytes).expect("the bytes are written");
+        file
+    }
+
+    fn a_zip_of(members: &[(&str, &[u8])]) -> NamedTempFile {
+        let mut buffer = std::io::Cursor::new(Vec::new());
+        {
+            let mut zip = zip::ZipWriter::new(&mut buffer);
+            for (name, bytes) in members {
+                zip.start_file(*name, zip::write::SimpleFileOptions::default())
+                    .expect("a member starts");
+                zip.write_all(bytes).expect("a member is written");
+            }
+            zip.finish().expect("the archive closes");
+        }
+        a_file_holding(buffer.get_ref())
+    }
+
+    /// Bytes that are not a zip, a zip with no election event in it, and a member
+    /// that is not text are all the archive being unreadable, and say so by name.
+    #[tokio::test]
+    async fn an_archive_that_cannot_be_read_is_a_named_problem() {
+        let schema = format!("{}.json", EDocuments::ELECTION_EVENT.to_file_name());
+        for (case, file) in [
+            ("not a zip", a_file_holding(b"not a zip")),
+            ("no election event", a_zip_of(&[("notes.txt", b"hello")])),
+            (
+                "not text",
+                a_zip_of(&[(schema.as_str(), &[0xff, 0xfe, 0xfd])]),
+            ),
+        ] {
+            let error = get_zip_entries(file, "application/zip")
+                .await
+                .expect_err(case);
+            assert_eq!(
+                problem_id(&error).as_deref(),
+                Some("file.unreadable-archive"),
+                "{case}: {error:?}"
+            );
+        }
+    }
+
+    /// A plain file that is not text cannot be a JSON election event.
+    #[tokio::test]
+    async fn a_plain_file_that_is_not_text_is_not_json() {
+        let error = get_zip_entries(a_file_holding(&[0xff, 0xfe, 0xfd]), "application/json")
+            .await
+            .expect_err("bytes that are not text should not read as JSON");
+        assert_eq!(problem_id(&error).as_deref(), Some("file.not-json"));
+    }
+
+    /// A zip with its election event in it reads, the event apart from the rest.
+    #[tokio::test]
+    async fn a_readable_archive_gives_its_event_and_members() {
+        let schema = format!("{}.json", EDocuments::ELECTION_EVENT.to_file_name());
+        let file = a_zip_of(&[(schema.as_str(), b"{}"), ("notes.txt", b"hello")]);
+        let (entries, event) = get_zip_entries(file, "application/zip")
+            .await
+            .expect("a readable archive reads");
+        assert_eq!(event, "{}");
+        assert_eq!(entries, vec![("notes.txt".to_string(), b"hello".to_vec())]);
+    }
+
+    /// A file that does not decrypt with the password given names the password.
+    #[tokio::test]
+    async fn a_file_that_does_not_decrypt_is_a_named_problem() {
+        let error = decrypt_document(Some("wrong".to_string()), a_file_holding(b"plain"))
+            .await
+            .expect_err("a file that was never encrypted does not decrypt");
+        assert_eq!(problem_id(&error).as_deref(), Some("file.cannot-decrypt"));
+    }
+
+    /// With no password there is nothing to decrypt, and the file is untouched.
+    #[tokio::test]
+    async fn no_password_leaves_the_file_as_it_is() {
+        let file = decrypt_document(None, a_file_holding(b"plain"))
+            .await
+            .expect("no password, no decryption");
+        assert_eq!(fs::read(file.path()).unwrap(), b"plain");
     }
 }

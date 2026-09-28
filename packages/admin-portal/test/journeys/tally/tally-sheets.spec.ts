@@ -274,6 +274,17 @@ test("reviews ballot box versions: shows one, approves the pending one and downl
         documentId: "b5000000-0000-4000-8000-000000000001",
     })
 
+    const laterDownloads: string[] = []
+    page.on("download", (download) => laterDownloads.push(download.url()))
+    portal.graphql.once("FetchDocument", () => ({errors: [{message: "source document expired"}]}))
+    await versions.pending.locator('span[aria-label="Source file"] button').click()
+    await expect(page.getByText("source document expired", {exact: true})).toBeVisible()
+    expect(portal.graphql.callsTo("FetchDocument").map(({variables}) => variables)).toEqual([
+        {electionEventId: EVENT_ID, documentId: "b5000000-0000-4000-8000-000000000001"},
+        {electionEventId: EVENT_ID, documentId: "b5000000-0000-4000-8000-000000000001"},
+    ])
+    expect(laterDownloads).toEqual([])
+
     await rowAction(versions.pending, "Disapprove").click()
     const dialog = page.getByRole("dialog")
     await expect(dialog).toContainText("Are you sure to disapprove this Tally Sheet?")
@@ -312,15 +323,12 @@ test("opens a version's source import on the election event's imports tab", asyn
     const row = await openTallySheets(page, portal)
     const versions = await openVersions(page, row)
     await versions.pending.getByRole("button", {name: "Open import", exact: true}).click()
-    test.fail(true, "Open import keeps the election path, which has no tally sheet imports tab")
-    await expect(page).toHaveURL(
-        new RegExp(
-            `/sequent_backend_election_event/${EVENT_ID}\\?.*tallySheetImportId=${IMPORT_ID}`
-        ),
-        {timeout: 2000}
-    )
+    // The event page reads `tallySheetImportId` and then drops it from the URL,
+    // so the parameter is only there for a moment: assert what it opened instead.
+    await expect(page).toHaveURL(new RegExp(`/sequent_backend_election_event/${EVENT_ID}(\\?|$)`))
     await expect(page.getByText("Import status", {exact: false})).toHaveCount(0)
     await expect(page.getByRole("presentation").getByText(IMPORT_ID, {exact: true})).toBeVisible()
+    await expect(page).not.toHaveURL(/tallySheetImportId=/)
 })
 
 test("reports a failed tally sheet review", async ({page, portal}) => {
@@ -338,7 +346,6 @@ test("reports a failed tally sheet review", async ({page, portal}) => {
         tallySheetId: SHEET_V2,
         newStatus: "DISAPPROVED",
     })
-    test.fail(true, "a ReviewTallySheet error rejects unhandled instead of notifying the failure")
     await expect(page.getByText("Error reviewing tally sheet", {exact: true})).toBeVisible({
         timeout: 3000,
     })

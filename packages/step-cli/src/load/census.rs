@@ -36,6 +36,12 @@ pub fn generate(input: &Input, output: &Path) -> Result<()> {
     let hash = STANDARD.encode(digest);
     let salt = STANDARD.encode(salt);
     let rounds = rounds.to_string();
+    let authorized_election_id = input
+        .event
+        .election_external_id
+        .as_deref()
+        .filter(|id| !id.is_empty())
+        .unwrap_or(&input.event.election_id);
     for shard in 0..input.shards() {
         let (first, count) = input.bounds(shard)?;
         let mut csv =
@@ -57,7 +63,7 @@ pub fn generate(input: &Input, output: &Path) -> Result<()> {
                 &input.event.area_name,
                 &format!("{username}@example.invalid"),
                 "true",
-                &input.event.election_id,
+                authorized_election_id,
                 &hash,
                 &salt,
                 &rounds,

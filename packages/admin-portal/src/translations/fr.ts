@@ -773,13 +773,16 @@ const frenchTranslation: TranslationType = {
                             'L\'identifiant d\'électeur et le code PIN valides sont "123" et "123".',
                     },
                     sendDtmf: "Envoyer une entrée DTMF",
+                    keypadInput: "Saisie au clavier",
                     sendTimeout: "Envoyer l'expiration du délai",
                     disconnected: "Déconnecté",
                     startSession: "Démarrer une nouvelle session",
                     endSession: "Terminer la session",
                     noStylesFound: "Aucun style de bulletin publié ne correspond à vos sélections",
-                    inputPlaceholder:
-                        "Saisissez votre entrée (nombre maximal de chiffres={{maxDigits}}, entrées valides={{validInputs}}, délai d'expiration={{timeout}} s)",
+                    inputPlaceholder: "Appuyez sur {{keys}} (délai d'expiration={{timeout}} s)",
+                    inputPlaceholderOr: "ou",
+                    inputPlaceholderAnyKeys:
+                        "Saisissez jusqu'à {{maxDigits}} chiffres (n'importe quels chiffres, délai d'expiration={{timeout}} s)",
                     blacklistCaller: "Bloquer l'appelant",
                     elections: "Élections",
                     area: "Zone",
@@ -2817,6 +2820,8 @@ const frenchTranslation: TranslationType = {
                 verified_by: "Vérifié Par",
             },
             approvalRequest: "Informations d'approbation",
+            taskInformation: "Informations sur la tâche",
+            ok: "D'accord",
             title: "Électeurs",
             subtitle: "Rechercher des électeurs correspondants",
             approve: {

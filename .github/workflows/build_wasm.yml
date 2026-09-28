@@ -11,6 +11,13 @@ on:
   release:
     types: [published]
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   build_wasm:
     runs-on: ubuntu-24.04
@@ -33,8 +40,8 @@ jobs:
             hash2=$(grep "file:./ballot-verifier/rust/sequent-core-" yarn.lock | awk -F# '{printf $2}' | tr -d '"')
             hash3=$(grep "file:./voting-portal/rust/sequent-core-" yarn.lock | awk -F# '{printf $2}' | tr -d '"')
             echo "Hashes: |$hash| |$hash1| |$hash2| |$hash3|"
-            if ([ -n "$hash" ] && [ -n "$hash1" ] && [ -n "$hash2" ] && [ -n "$hash3" ]); then
-              if ([ "$hash" == "$hash1" ] && [ "$hash" == "$hash2" ] && [ "$hash" == "$hash3" ]); then
+            if [ -n "$hash" ] && [ -n "$hash1" ] && [ -n "$hash2" ] && [ -n "$hash3" ]; then
+              if [ "$hash" == "$hash1" ] && [ "$hash" == "$hash2" ] && [ "$hash" == "$hash3" ]; then
                 echo "The hashes are equal"
               else
                 echo "The hashes are not equal"
@@ -48,6 +55,10 @@ jobs:
             echo "Error: one or both files do not exist"
             exit 1
           fi
+
+      - name: Check that the committed package was built from the current sources
+        working-directory: packages/sequent-core
+        run: nix develop --command bash -c 'cd ../.. && python3 -m scripts.dev.wasm --check-package'
 
       - name: Print tool versions
         working-directory: packages/sequent-core
@@ -63,9 +74,37 @@ jobs:
         run: |
           nix develop --command bash -c '
             set -euo pipefail
-            wasm-pack build --mode no-install --out-name index --release --target web --features=wasmtest,default_features
+            # `--locked` for the reason spelled out in
+            # `.devcontainer/scripts/rebuild-election-config-wasm.sh`: re-resolving
+            # picks `getrandom 0.4.3`, which does not build for wasm at all.
+            wasm-pack build --mode no-install --out-name index --release --target web --features=wasmtest,default_features -- --locked
             wasm-pack -v pack .
           '
+
+      # A second package from the same crate, for the election-configuration SPAs.
+      # The four front ends above build without these features on purpose: they get
+      # the bundle schema and the validator, and no spreadsheet parser, template
+      # engine or zip writer.
+      #
+      # Built here even though nothing vendors it yet, because this is the only
+      # place that compiles those features for wasm32. `zip`'s default features pull
+      # bzip2, zstd and lzma, which have no wasm32 target — restricting it to
+      # deflate is what makes this build possible, and a CI step is what keeps it
+      # that way when someone adds the next dependency.
+      - name: Check that the election-config WASM package builds
+        working-directory: packages/sequent-core
+        run: |
+          nix develop --command bash -c '
+            set -euo pipefail
+            ../../.devcontainer/scripts/rebuild-election-config-wasm.sh
+          '
+
+      - name: Upload the election-config WASM package
+        uses: actions/upload-artifact@v4
+        with:
+          name: sequent-election-config-wasm
+          path: packages/sequent-core/pkg-election-config/sequent-election-config-0.1.0.tgz
+          if-no-files-found: error
 
       # Note: Commented out because this doesn't work, probably because the paths in the devcontainer and the GitHub Action runner are different, so the hash of the built package doesn't match the hash in yarn.lock.
       # Keeping the commented-out code here for now in case we want to revisit this approach in the future
@@ -103,3 +142,18 @@ jobs:
       - name: Build ui-essentials
         working-directory: packages
         run: yarn build:ui-essentials
+
+      # The voter preview other tools frame, e.g. beyond's Election Architect, which
+      # takes it from the same run as the election-config WASM (`yarn vendor-core`).
+      # Built from source like the workbench it belongs to; `embed.html` is its entry,
+      # and `problem-list/` the problem list the same tools import.
+      - name: Build the voter preview
+        working-directory: packages
+        run: yarn --cwd workbench build
+
+      - name: Upload the voter preview
+        uses: actions/upload-artifact@v4
+        with:
+          name: voter-preview
+          path: packages/workbench/dist
+          if-no-files-found: error

@@ -9,9 +9,15 @@ import {I18nextProvider} from "react-i18next"
 import {i18n, initializeLanguages} from "@sequentech/ui-core"
 import theme from "../src/services/theme"
 import {withMemoryRouter} from "./withMemoryRouter"
+import {
+    DEFAULT_STORY_GLOBALS,
+    readStoryGlobals,
+    storyGlobalTypes,
+    withStoryGlobals,
+} from "./globals"
 
 // An explicit language keeps the browser language detector out of the stories.
-initializeLanguages({}, "en")
+initializeLanguages({}, DEFAULT_STORY_GLOBALS.locale)
 
 const withTheme: Decorator = (Story) => (
     <ThemeProvider theme={theme}>
@@ -20,7 +26,7 @@ const withTheme: Decorator = (Story) => (
 )
 
 const withI18n: Decorator = (Story, {globals}) => {
-    const locale: string = globals.locale ?? "en"
+    const {locale} = readStoryGlobals(globals)
 
     useEffect(() => {
         void i18n.changeLanguage(locale)
@@ -34,10 +40,12 @@ const withI18n: Decorator = (Story, {globals}) => {
 }
 
 const preview: Preview = {
-    decorators: [withI18n, withTheme, withMemoryRouter],
+    // The router is innermost so that a route layout also renders inside the
+    // theme, the translations and the story globals.
+    decorators: [withMemoryRouter, withI18n, withTheme, withStoryGlobals],
     // Stories may change the language; each one starts from the toolbar locale.
     beforeEach: async ({globals}) => {
-        await i18n.changeLanguage(globals.locale ?? "en")
+        await i18n.changeLanguage(readStoryGlobals(globals).locale)
     },
     parameters: {
         a11y: {test: "error"},
@@ -49,19 +57,8 @@ const preview: Preview = {
         },
         viewport: {options: INITIAL_VIEWPORTS},
     },
-    globalTypes: {
-        locale: {
-            description: "Internationalization locale",
-            toolbar: {
-                icon: "globe",
-                items: [
-                    {value: "en", title: "English"},
-                    {value: "es", title: "Spanish"},
-                ],
-            },
-        },
-    },
-    initialGlobals: {locale: "en"},
+    globalTypes: {locale: storyGlobalTypes.locale},
+    initialGlobals: {...DEFAULT_STORY_GLOBALS},
     tags: ["autodocs"],
 }
 

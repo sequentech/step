@@ -162,7 +162,6 @@ test.describe("with trustee write and export permissions", () => {
     })
 
     test("marks a rejected trustee export task as failed", async ({page, portal}) => {
-        // Defect: Widget copies its `status` prop into state once, so updateWidgetFail never shows FAILED.
         mockTrustees(portal, [trustee()])
         let rejectExport = () => {}
         const exportReady = new Promise<void>((resolve) => (rejectExport = resolve))
@@ -176,23 +175,21 @@ test.describe("with trustee write and export permissions", () => {
         await expect(page.getByText("IN_PROGRESS", {exact: true})).toBeVisible()
         rejectExport()
         await expect(page.getByRole("button", {name: "Export", exact: true})).toBeEnabled()
-        test.fail(true, "The task widget does not reflect its updated failure status")
+
         await expect(page.getByText("FAILED", {exact: true})).toBeVisible({timeout: 2_000})
     })
 
     test("names the empty-state create button for assistive technology", async ({page, portal}) => {
-        // Defect: the button wraps a nested icon button, which leaves it without an accessible name.
         mockTrustees(portal)
         await openSettings(page, portal, "TRUSTEES")
         await expect(page.getByText("No Trustees yet.", {exact: true})).toBeVisible()
-        test.fail(true, "The empty-state trustee create button has no accessible name")
+
         await expect(page.getByRole("button", {name: "Create Trustee", exact: true})).toBeVisible({
             timeout: 2_000,
         })
     })
 
     test("tells the user when creating a trustee fails", async ({page, portal}) => {
-        // Defect: the create drawer's onError only refreshes and closes, so the failure is silent.
         mockTrustees(portal, [trustee()])
         portal.graphql.on("insert_sequent_backend_trustee", () => ({
             errors: [{message: "Duplicate trustee public key"}],
@@ -205,7 +202,7 @@ test.describe("with trustee write and export permissions", () => {
         await expect
             .poll(() => portal.graphql.callsTo("insert_sequent_backend_trustee"))
             .toHaveLength(1)
-        test.fail(true, "Trustee creation failures close the drawer without an error notification")
+
         await expect(page.getByText("Duplicate trustee public key")).toBeVisible({timeout: 2_000})
     })
 })

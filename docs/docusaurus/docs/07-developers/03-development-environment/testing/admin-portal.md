@@ -31,6 +31,13 @@ statements, functions and branches separately with the actual PR base. UI browse
 interactions, Keycloak redirects, GraphQL services and the real cryptographic WASM
 boundary remain separate integration scopes.
 
+The trustee startup journey uses the real vendored Braid WASM and browser worker
+pool. The admin build copies that package to `dist/braid-wasm/` without bundling
+its ES modules: the rayon helper must resolve its own browser URL. Serve those
+assets with the application and keep the cross-origin isolation headers required
+for shared WebAssembly memory. Its journey fixture permits only the same-origin
+rayon helper GET; unexpected service requests remain failures.
+
 ## Event and settings workflows
 
 Production event and settings journeys live in `test/journeys/events/` and
@@ -44,10 +51,12 @@ yarn --cwd packages/admin-portal test:types
 ```
 
 These journeys assert rendered outcomes and complete GraphQL variables or upload
-bodies. Keep known-defect markers immediately before the failing assertion, after
-verifying the setup and request. A captured promise rejection must match the
-specific documented defect; unrelated requests and page exceptions still fail
-the fixture. Password-policy boundaries belong in the Node Jest validator tests.
+bodies. Invalid password and results policies must show an error without leaking
+a rejected promise or saving the event. Custom URL prefixes must survive
+unrelated form edits.
+Export failures before a task ID is returned must update the visible task status.
+Unexpected requests and page exceptions fail the fixture. Password-policy
+boundaries belong in the Node Jest validator tests.
 
 ## Access workflows
 
@@ -64,6 +73,8 @@ yarn workspace admin-portal test:journeys 'test/journeys/access/[^/]+\.spec\.ts$
 
 Assert the full variables for each write, the permission role, and the visible
 result. Upload checks include the exact presigned URL and bytes. After a write,
-wait for its refreshed list data before opening another row action. Defect tests
-must establish their setup before marking only the affected assertion as an
-expected failure; unrelated service requests and browser errors still fail them.
+wait for its refreshed list data before opening another row action. Tenant-user
+and voter permissions are tested independently, including voters who already
+cast a ballot. Selection-checkbox stories keep accessibility checks enabled;
+labels must name the input, not its decorative wrapper. Route smokes reject all
+console errors, page errors and unexpected service requests.

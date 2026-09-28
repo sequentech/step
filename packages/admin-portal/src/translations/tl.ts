@@ -770,14 +770,17 @@ const tagalogTranslation: TranslationType = {
                         credentials: 'Ang valid na voter ID at PIN ay "123" at "123".',
                     },
                     sendDtmf: "Magpadala ng DTMF input",
+                    keypadInput: "Input sa keypad",
                     sendTimeout: "Magpadala ng timeout",
                     disconnected: "Nadiskonekta",
                     startSession: "Magsimula ng bagong session",
                     endSession: "Tapusin ang session",
                     noStylesFound:
                         "Walang nakitang na-publish na mga ballot style na tumutugma sa iyong mga pinili",
-                    inputPlaceholder:
-                        "Ilagay ang iyong input (max na digit={{maxDigits}}, mga valid na input={{validInputs}}, timeout={{timeout}} s)",
+                    inputPlaceholder: "Pindutin ang {{keys}} (timeout={{timeout}} s)",
+                    inputPlaceholderOr: "o",
+                    inputPlaceholderAnyKeys:
+                        "Maglagay ng hanggang {{maxDigits}} digit (anumang digit, timeout={{timeout}} s)",
                     blacklistCaller: "I-block ang tumatawag",
                     elections: "Mga halalan",
                     area: "Lugar",
@@ -2808,6 +2811,8 @@ const tagalogTranslation: TranslationType = {
                 verified_by: "Napatunayan Noong",
             },
             approvalRequest: "Kahilingan para sa Pag-apruba",
+            taskInformation: "Impormasyon ng Gawain",
+            ok: "Sige",
             title: "Mga Botante",
             subtitle: "Maghanap ng mga tumutugmang botante",
             approve: {

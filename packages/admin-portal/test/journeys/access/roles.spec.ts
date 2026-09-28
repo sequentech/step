@@ -149,10 +149,7 @@ test.describe("role administrator", () => {
         await drawer.getByRole("button", {name: "Save", exact: true}).click()
         await expect.poll(() => portal.graphql.callsTo("CreateRole").length).toBe(1)
         await expect(drawer).toHaveCount(0)
-        test.fail(
-            true,
-            "CreateRole's catch notifies the missing key usersAndRolesScreen.voters.roles.createError"
-        )
+
         await expect(page.getByText("Error creating role", {exact: true})).toBeVisible({
             timeout: 2000,
         })

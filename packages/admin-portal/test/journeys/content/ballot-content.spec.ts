@@ -15,7 +15,6 @@ import {
     eventRow,
     everyLanguage,
     expectRole,
-    answerInvalid,
     names,
     notification,
     table,
@@ -151,15 +150,6 @@ test.describe("ballot content editor", () => {
         })
         await expect(page.getByRole("tab", {name: "Data", exact: true})).toBeVisible()
 
-        // Hasura rejects string Int variables; leave every other request field checked normally.
-        answerInvalid(
-            portal,
-            "insert_sequent_backend_contest",
-            (variables) =>
-                typeof (variables.objects as Row).min_votes === "string" ||
-                typeof (variables.objects as Row).max_votes === "string",
-            'expected a 32-bit integer for type "Int", but found a string'
-        )
         await open(page, portal, createPath)
         await page.getByRole("textbox", {name: "Name"}).fill("Referendum")
         await page.getByRole("textbox", {name: "Description"}).fill("Yes or no")
@@ -172,12 +162,8 @@ test.describe("ballot content editor", () => {
         const insert = request.postDataJSON().variables
         const {min_votes, max_votes, ...otherFields} = insert.objects
         expect({...insert, objects: otherFields}).toEqual({objects: expectedFields})
-        // answerInvalid intercepts before the recorder, so inspect this request's actual header.
         expect(request.headers()["x-hasura-role"]).toBe("contest-create")
-        test.fail(
-            true,
-            'CreateContest sends the default vote limits as strings (Contest/CreateContest.tsx:103-104: defaultValue="0"/"1")'
-        )
+
         expect({min_votes, max_votes}).toEqual({min_votes: 0, max_votes: 1})
     })
 

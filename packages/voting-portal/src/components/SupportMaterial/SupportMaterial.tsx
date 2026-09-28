@@ -2,81 +2,18 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import {Box, Button, Typography, TypographyProps} from "@mui/material"
-import React, {useContext} from "react"
-import {styled} from "@mui/material/styles"
+import {Box, Button} from "@mui/material"
+import React from "react"
 import {useTranslation} from "react-i18next"
-import {Dialog, theme} from "@sequentech/ui-essentials"
+import {Dialog, SupportMaterialCard} from "@sequentech/ui-essentials"
 import {downloadBlob} from "@sequentech/ui-core"
-import VisibilityIcon from "@mui/icons-material/Visibility"
+import DescriptionIcon from "@mui/icons-material/Description"
 import {GET_DOCUMENT} from "../../queries/GetDocument"
 import {useQuery} from "@apollo/client/react"
-import VideoFileIcon from "@mui/icons-material/VideoFile"
-import AudioFileIcon from "@mui/icons-material/AudioFile"
-import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf"
-import ImageIcon from "@mui/icons-material/Image"
-import DescriptionIcon from "@mui/icons-material/Description"
 import {useGetPublicDocumentUrl} from "../../hooks/public-document-url"
 import {SettingsContext} from "../../providers/SettingsContextProvider"
 import {useAppSelector} from "../../store/hooks"
-import {stringToHtml} from "@sequentech/ui-core"
 import {selectDocumentById} from "../../store/documents/documentsSlice"
-
-const BorderBox = styled(Box)`
-    display: flex;
-    flex-direction: row;
-    border: 2px solid ${theme.palette.brandSuccess};
-    background-color: ${theme.palette.lightBackground};
-    display: flex;
-    flex-direction: row;
-    padding: 19px 38px;
-    align-items: center;
-    gap: 21px;
-    color: ${({theme}) => theme.palette.black};
-
-    @media (max-width: ${({theme}) => theme.breakpoints.values.md}px) {
-        position: relative;
-        flex-direction: column;
-        padding: 27px 18px;
-    }
-`
-
-const TextContainer = styled(Box)`
-    flex-grow: 2;
-    text-align: left;
-    @media (max-width: ${({theme}) => theme.breakpoints.values.md}px) {
-        display: flex;
-        flex-direction: row;
-        justify-content: space-between;
-        width: 100%;
-    }
-`
-
-const StyledButton = styled(Button)`
-    padding: 10px 24px;
-    min-width: unset;
-`
-
-const StyledTitle = styled(Typography)`
-    font-size: 24px;
-    line-height: 20px;
-    margin-top: 0;
-    margin-bottom: 10px;
-    font-weight: bold;
-    @media (max-width: ${({theme}) => theme.breakpoints.values.md}px) {
-        margin-bottom: 0;
-    }
-`
-
-const StyledSubTitle = styled(Typography)<TypographyProps>`
-    font-size: 18px;
-    line-height: 20px;
-    margin-top: 0;
-    margin-bottom: 10px;
-    @media (max-width: ${({theme}) => theme.breakpoints.values.md}px) {
-        margin-bottom: 0;
-    }
-`
 
 export interface SupportMaterialProps {
     title: string
@@ -124,56 +61,17 @@ export const SupportMaterial: React.FC<SupportMaterialProps> = ({
 
     return (
         <>
-            <BorderBox className="support-material">
-                <Box className="support-material-summary">
-                    {kind.includes("image") ? (
-                        <ImageIcon
-                            className="support-material-image-icon"
-                            sx={{fontSize: "42px", marginRight: "16px"}}
-                        />
-                    ) : kind.includes("pdf") ? (
-                        <PictureAsPdfIcon
-                            className="support-material-pdf-icon"
-                            sx={{fontSize: "42px", marginRight: "16px"}}
-                        />
-                    ) : kind.includes("video") ? (
-                        <VideoFileIcon
-                            className="support-material-video-icon"
-                            sx={{fontSize: "42px", marginRight: "16px"}}
-                        />
-                    ) : kind.includes("audio") ? (
-                        <AudioFileIcon
-                            className="support-material-audio-icon"
-                            sx={{fontSize: "42px", marginRight: "16px"}}
-                        />
-                    ) : (
-                        <DescriptionIcon
-                            className="support-material-document-icon"
-                            sx={{fontSize: "42px", marginRight: "16px"}}
-                        />
-                    )}
-                </Box>
-                <TextContainer className="support-material-text">
-                    <StyledTitle className="support-material-title">{title}</StyledTitle>
-                    <StyledSubTitle className="support-material-subtitle" component="div">
-                        {stringToHtml(subtitle || "")}
-                    </StyledSubTitle>
-                </TextContainer>
-                <Box
-                    className="support-material-actions"
-                    sx={{display: "flex", alignItems: "center"}}
-                >
-                    <StyledButton
-                        className="support-material-preview-button"
-                        sx={{marginRight: "16px"}}
-                        variant="secondary"
-                        onClick={() => handleOpenDialog("video")}
-                        aria-label={t("a11y.previewMaterial", {title})}
-                    >
-                        <VisibilityIcon className="support-material-preview-icon" />
-                    </StyledButton>
-                </Box>
-            </BorderBox>
+            {/* The row itself is `SupportMaterialCard` in `ui-essentials`, so the
+                Election Architect's preview shows the same card. What stays here
+                is what needs the store and the document URL: the preview dialog
+                below, and the click that opens it. */}
+            <SupportMaterialCard
+                title={title}
+                subtitle={subtitle}
+                kind={kind}
+                onOpen={() => handleOpenDialog("video")}
+                openLabel={t("a11y.previewMaterial", {title})}
+            />
 
             <Dialog
                 className="support-material-preview-dialog"

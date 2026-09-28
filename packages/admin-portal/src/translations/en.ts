@@ -763,13 +763,16 @@ const englishTranslation = {
                         credentials: 'The valid voter id and pin are "123" and "123".',
                     },
                     sendDtmf: "Send DTMF input",
+                    keypadInput: "Keypad input",
                     sendTimeout: "Send timeout",
                     disconnected: "Disconnected",
                     startSession: "Start new session",
                     endSession: "End the session",
                     noStylesFound: "No published ballot styles found matching your selections",
-                    inputPlaceholder:
-                        "Enter your input (max digits={{maxDigits}}, valid inputs={{validInputs}}, timeout={{timeout}}s)",
+                    inputPlaceholder: "Press {{keys}} (timeout={{timeout}}s)",
+                    inputPlaceholderOr: "or",
+                    inputPlaceholderAnyKeys:
+                        "Enter up to {{maxDigits}} digits (any digits, timeout={{timeout}}s)",
                     blacklistCaller: "Blocklist the caller",
                     elections: "Elections",
                     area: "Area",
@@ -2772,6 +2775,8 @@ const englishTranslation = {
                 verified_by: "Verified By",
             },
             approvalRequest: "Approval Request",
+            taskInformation: "Task Information",
+            ok: "Ok",
             title: "Voters",
             subtitle: "Find matching voters",
             approve: {

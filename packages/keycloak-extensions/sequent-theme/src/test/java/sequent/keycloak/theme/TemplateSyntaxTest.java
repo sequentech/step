@@ -25,9 +25,11 @@ import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.junit.jupiter.api.Test;
+import org.keycloak.common.util.StringPropertyReplacer;
 
 class TemplateSyntaxTest {
 
@@ -719,6 +721,43 @@ class TemplateSyntaxTest {
       assertTrue(tag.contains("aria-hidden=\"true\""), "img without aria-hidden");
     }
     assertTrue(count > 0, "expected the locale selector icons");
+  }
+
+  @Test
+  void buildInfoPropertiesResolveToNothingWhenTheEnvironmentLacksThem() throws IOException {
+    // Keycloak substitutes theme.properties through StringPropertyReplacer, which leaves a
+    // reference it cannot resolve as it is: without a default every theme that inherits
+    // sequent.admin-portal (the sequent-ui-* React themes included) shows `${env.APP_VERSION}`.
+    Properties properties = new Properties();
+    try (Reader reader =
+        Files.newBufferedReader(
+            THEME_ROOT.resolve("sequent.admin-portal/login/theme.properties"))) {
+      properties.load(reader);
+    }
+    for (String key : List.of("systemVersion", "systemHash")) {
+      String value = properties.getProperty(key);
+      assertTrue(value != null && value.contains("${env."), key + " should read the environment");
+      assertEquals("", StringPropertyReplacer.replaceProperties(value, name -> null), key);
+      assertEquals(
+          "1.2.3",
+          StringPropertyReplacer.replaceProperties(
+              value, name -> name.startsWith("env.") ? "1.2.3" : null),
+          key);
+    }
+  }
+
+  @Test
+  void loginHeaderHidesBuildInfoThatIsMissing() throws IOException, TemplateException {
+    Map<String, Object> model = baseModel();
+    model.put("properties", Map.of("systemVersion", "", "systemHash", ""));
+    String html = renderLogin("sequent.admin-portal", model);
+    assertFalse(html.contains("version-version"), "an empty version should not be labelled");
+    assertFalse(html.contains("version-hash"), "an empty hash should not be labelled");
+
+    model.put("properties", Map.of("systemVersion", "1.2.3", "systemHash", "abc123"));
+    html = renderLogin("sequent.admin-portal", model);
+    assertTrue(html.contains("<span class=\"value\">1.2.3</span>"));
+    assertTrue(html.contains("<span class=\"value\">abc123</span>"));
   }
 
   @Test

@@ -5,6 +5,10 @@ import {TranslationType} from "./en"
 
 const dutchTranslation: TranslationType = {
     translations: {
+        startup: {
+            error: "Het stemportaal kon niet worden gestart. Probeer het opnieuw.",
+            retry: "Opnieuw proberen",
+        },
         common: {
             goBack: "Ga terug",
             showMore: "Toon meer",

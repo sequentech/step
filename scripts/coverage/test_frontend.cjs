@@ -20,7 +20,7 @@ function run(executable, args, cwd) {
   if (result.error) throw result.error;
   return result;
 }
-function fixture(name, cases) {
+function fixture(name, cases, support = {}) {
   const checkout = path.join(temporary, name);
   const source = path.join(checkout, "packages/fixture/src");
   fs.mkdirSync(source, { recursive: true });
@@ -54,6 +54,13 @@ function fixture(name, cases) {
   );
   config.testMatch = ["<rootDir>/src/**/*.test.js"];
   config.collectCoverageFrom = ["src/**/*.js", "!src/**/*.test.js"];
+  // Test support only one revision has: files outside src/ plus the mapper
+  // and setup entries that point at them.
+  for (const [file, content] of Object.entries(support.files || {})) {
+    fs.mkdirSync(path.dirname(path.join(checkout, file)), { recursive: true });
+    fs.writeFileSync(path.join(checkout, file), content);
+  }
+  Object.assign(config, support.config || {});
   fs.writeFileSync(
     path.join(source, "../jest.config.cjs"),
     "module.exports = " + JSON.stringify(config),
@@ -125,6 +132,41 @@ try {
     }
     console.log(`${name}: ${status}`);
   }
+  // A candidate may map a module to a stub, or add shared setup, that an older
+  // base never had (the voting-portal base once failed on the head's
+  // sequent-core stub). The base borrows the candidate's file and is measured.
+  const needsStub =
+    "const stub = require('fixture-stub');\n" +
+    "test('stub', () => expect(stub.ready && global.fixtureSetup).toBe(true));\n";
+  const olderBase = fixture("older-base", needsStub + yes + no);
+  const withSupport = fixture("with-support", needsStub + yes + no, {
+    files: {
+      "packages/fixture/testing/stub.js": "exports.ready = true;\n",
+      "packages/fixture/testing/setup.js": "global.fixtureSetup = true;\n",
+    },
+    config: {
+      moduleNameMapper: { "^fixture-stub$": "<rootDir>/testing/stub.js" },
+      setupFilesAfterEnv: ["<rootDir>/testing/setup.js"],
+    },
+  });
+  const supportOutput = path.join(temporary, "reports-support");
+  const supported = run(
+    "python3",
+    [
+      path.join(withSupport, "scripts/coverage/ci.py"),
+      "frontend",
+      "fixture",
+      "--base",
+      olderBase,
+      "--head",
+      withSupport,
+      "--output",
+      supportOutput,
+    ],
+    withSupport,
+  );
+  assert.equal(supported.status, 0, supported.stdout + supported.stderr);
+  console.log("older base without test support: pass");
 } finally {
   fs.rmSync(temporary, { recursive: true, force: true });
 }

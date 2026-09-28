@@ -89,14 +89,6 @@ for (const resource of resources) {
     }) => {
         const fileName = resource.name === "candidate" ? "ballotimage.png" : originalName
         const {key, imageUrl, uploadUrl} = ballot(portal, fileName)
-        // Handle only the known transient URL; all other service requests remain strict.
-        const malformedUrl = portal.s3.url(
-            "public",
-            `tenant-${TENANT_ID}/document-${DOCUMENT_ID}/undefined`
-        )
-        await page.route(malformedUrl, async (route) => {
-            await route.fulfill({status: 404, body: "Missing document filename"})
-        })
         await page.goto(`${portal.origin}/sequent_backend_${resource.name}/${resource.id}?lang=en`)
         await page.getByRole("button", {name: "Image", exact: true}).click()
         const uploaded = page.waitForRequest(
@@ -157,7 +149,6 @@ for (const resource of resources) {
             )
             await expect(page.getByRole("img", {name: key, exact: true})).toHaveCount(0)
         }
-        // Delayed-metadata regressions below pin these transient malformed requests.
     })
 }
 
@@ -166,14 +157,11 @@ for (const resource of resources) {
         page,
         portal,
     }) => {
-        const {uploadUrl} = ballot(
+        const {uploadUrl, key, imageUrl} = ballot(
             portal,
             resource.name === "candidate" ? "ballotimage.png" : originalName
         )
         const malformedKey = `tenant-${TENANT_ID}/document-${DOCUMENT_ID}/undefined`
-        await page.route(portal.s3.url("public", malformedKey), (route) =>
-            route.fulfill({status: 404, body: "Missing document filename"})
-        )
         let releaseMetadata!: () => void
         const heldMetadata = new Promise<void>((resolve) => {
             releaseMetadata = resolve
@@ -208,15 +196,16 @@ for (const resource of resources) {
                 )
                 .toBe(1)
             await expect.poll(() => metadataWaiting).toBe(true)
-            test.fail(
-                true,
-                `${resource.name} image form renders an /undefined image URL while its document metadata is pending`
-            )
+
             await expect(page.getByRole("img", {name: malformedKey, exact: true})).toHaveCount(0, {
                 timeout: 2000,
             })
         } finally {
             releaseMetadata()
         }
+        await expect(page.getByRole("img", {name: key, exact: true})).toHaveAttribute(
+            "src",
+            decodeURI(imageUrl)
+        )
     })
 }

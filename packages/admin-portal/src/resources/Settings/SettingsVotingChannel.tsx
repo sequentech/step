@@ -35,7 +35,7 @@ export const SettingsVotingChannels: React.FC<void> = () => {
     })
 
     const [voting, setVoting] = useState<any>({
-        online: record?.voting_channels?.online || true,
+        online: record?.voting_channels?.online ?? true,
         kiosk: record?.voting_channels?.kiosk || false,
         telephone: record?.voting_channels?.telephone || false,
     })
@@ -63,9 +63,9 @@ export const SettingsVotingChannels: React.FC<void> = () => {
 
     useEffect(() => {
         console.log(record)
-        if (record.voting_channels) {
+        if (record?.voting_channels) {
             setVoting({
-                online: record?.voting_channels?.online || true,
+                online: record?.voting_channels?.online ?? true,
                 kiosk: record?.voting_channels?.kiosk || false,
                 telephone: record?.voting_channels?.telephone || false,
             })

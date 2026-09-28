@@ -208,13 +208,6 @@ test("blocks voting and enrollment from the chosen countries", async ({page, por
 })
 
 test("tells the user when the country list cannot be saved", async ({page, portal}) => {
-    // Defect: Apollo rejects on GraphQL errors, so SettingsCountries never reaches its error notification.
-    // Keeps the pinned rejection from also failing the fixture's page error check.
-    await page.addInitScript(() =>
-        window.addEventListener("unhandledrejection", (event) => {
-            if (String(event.reason?.message) === "Keycloak unavailable") event.preventDefault()
-        })
-    )
     const tenant = mockTenant(portal)
     portal.graphql.on("limitAccessByCountries", () => ({
         errors: [{message: "Keycloak unavailable"}],
@@ -224,10 +217,7 @@ test("tells the user when the country list cannot be saved", async ({page, porta
     await page.getByRole("option", {name: "Spain", exact: true}).click()
     await page.getByRole("button", {name: "Save", exact: true}).click()
     await expect.poll(() => portal.graphql.callsTo("limitAccessByCountries")).toHaveLength(1)
+    await expect(page.getByText("Error saving the country list", {exact: true})).toBeVisible()
     await page.clock.runFor(10_000)
     expect(tenant.updates()).toEqual([])
-    test.fail(true, "A failed country restriction mutation never reaches the error notification")
-    await expect(page.getByText("Error saving the country list", {exact: true})).toBeVisible({
-        timeout: 2_000,
-    })
 })

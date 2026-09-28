@@ -10,10 +10,6 @@ const meta: Meta<typeof ReviewChangesTable> = {
     title: "components/ReviewChangesTable",
     component: ReviewChangesTable,
     parameters: {
-        expectedFailure: {
-            reason: "Changed lines use colors below the minimum text contrast.",
-            a11y: ["color-contrast"],
-        },
         backgrounds: {
             default: "white",
         },

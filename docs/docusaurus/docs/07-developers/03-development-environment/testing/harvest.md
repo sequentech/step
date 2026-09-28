@@ -118,6 +118,15 @@ state. Cast-vote tests additionally pin each typed error's HTTP response and the
 retry boundary. Complete-permission controls for routes that still use globals
 stop at their first backend; they do not claim full service workflows.
 
+Ballot-generation tests assert the committed publication's election scope and
+the complete queued task payload. Injected ledger and broker failures verify
+that publication rows roll back, no task is queued after a rejected ledger
+write, and broker rejection records the existing task failure when possible.
+The producer and worker share the event's `FOR NO KEY UPDATE` lock, so queued
+generation waits for commit or rollback while the task ledger can insert its
+foreign-key reference. Windmill's `postgres_publication_adapters.rs` tests this
+handoff through the production preparation helper on separate database connections.
+
 The failed-cast diagnostic runs in a fresh child process with an explicit Rocket
 log level and no tracing subscriber. Rocket changes the process-wide log level
 while initializing clients, and tracing's log fallback stops after a subscriber

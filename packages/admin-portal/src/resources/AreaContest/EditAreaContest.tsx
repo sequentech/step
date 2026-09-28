@@ -3,11 +3,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import {Typography} from "@mui/material"
 import React from "react"
-import {Edit, ReferenceField, SimpleForm, TextField} from "react-admin"
+import {Edit, FunctionField, ReferenceField, SimpleForm, TextField} from "react-admin"
 import {ListAreaContest} from "./ListAreaContest"
 import {JsonInput} from "react-admin-json-view"
+import {usePresentationName} from "../../hooks/usePresentationName"
 
 const AreaContestForm: React.FC = () => {
+    const presentationName = usePresentationName()
     return (
         <SimpleForm>
             <Typography variant="h4">Area</Typography>
@@ -19,7 +21,7 @@ const AreaContestForm: React.FC = () => {
                 reference="sequent_backend_election_event"
                 source="election_event_id"
             >
-                <TextField source="name" />
+                <FunctionField render={presentationName} />
             </ReferenceField>
             <Typography variant="h5">Area</Typography>
             <ReferenceField label="Area" reference="sequent_backend_area" source="area_id">
@@ -27,7 +29,7 @@ const AreaContestForm: React.FC = () => {
             </ReferenceField>
             <Typography variant="h5">Contest</Typography>
             <ReferenceField label="Contest" reference="sequent_backend_contest" source="contest_id">
-                <TextField source="name" />
+                <FunctionField render={presentationName} />
             </ReferenceField>
             <JsonInput
                 source="labels"

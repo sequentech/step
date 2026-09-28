@@ -14,6 +14,8 @@ const ESLintPlugin = require("eslint-webpack-plugin")
 const {ProgressPlugin} = require("webpack")
 const HtmlWebpackPlugin = require("html-webpack-plugin")
 const CopyWebpackPlugin = require("copy-webpack-plugin")
+const {withPortalDevelopment} = require("../ui-essentials/webpack.portal.cjs")
+const {sequentCoreWebpackAlias} = require("../ui-core/sequent-core-dev.cjs")
 
 class InterpolateHtmlPlugin {
     // Replaces %VARIABLE% with the corresponding variable from the replacements object
@@ -40,7 +42,7 @@ class InterpolateHtmlPlugin {
 }
 
 module.exports = function (env, argv) {
-    return {
+    return withPortalDevelopment(__dirname, {
         mode: argv.mode,
         entry: path.resolve(__dirname, "src/index.tsx"),
         output: {
@@ -83,6 +85,7 @@ module.exports = function (env, argv) {
             alias: {
                 "@root": path.resolve(__dirname, "src"),
                 "@": path.resolve(__dirname, "src"),
+                ...sequentCoreWebpackAlias(argv.mode),
             },
             extensions: [".js", ".jsx", ".ts", ".tsx"],
         },
@@ -112,6 +115,13 @@ module.exports = function (env, argv) {
             new CopyWebpackPlugin({
                 patterns: [
                     {
+                        // The rayon helper self-fetches import.meta.url. Preserve
+                        // this no-bundler package as browser-served ES modules.
+                        from: path.dirname(require.resolve("braid-wasm/package.json")),
+                        to: "braid-wasm",
+                        globOptions: {ignore: ["**/*.d.ts", "**/package.json"]},
+                    },
+                    {
                         from: path.resolve(__dirname, "public"), // Source folder
                         to: path.resolve(__dirname, "dist"), // Destination folder
                         globOptions: {
@@ -129,7 +139,14 @@ module.exports = function (env, argv) {
                 extensions: [".js", ".jsx", ".ts", ".tsx"],
             }),
             new webpack.DefinePlugin({
-                "process.env": JSON.stringify(process.env),
+                "process.env.PUBLIC_URL": JSON.stringify(process.env.PUBLIC_URL ?? ""),
+                "process.env.MAX_DIFF_LINES": JSON.stringify(process.env.MAX_DIFF_LINES),
+                "process.env.SECONDS_TO_SHOW_COUNTDOWN": JSON.stringify(
+                    process.env.SECONDS_TO_SHOW_COUNTDOWN
+                ),
+                "process.env.SECONDS_TO_SHOW_ALERT": JSON.stringify(
+                    process.env.SECONDS_TO_SHOW_ALERT
+                ),
             }),
         ],
         devServer: {
@@ -144,7 +161,7 @@ module.exports = function (env, argv) {
                 },
             ],
             compress: true, // Enable gzip compression
-            port: 3002, // Run on port 3002
+            port: 3002,
             open: true, // Automatically open the browser
             historyApiFallback: true,
             headers: {
@@ -155,5 +172,5 @@ module.exports = function (env, argv) {
                 "Cross-Origin-Resource-Policy": "cross-origin",
             },
         },
-    }
+    })
 }

@@ -37,6 +37,11 @@ class CoverageRunnerTests(unittest.TestCase):
         self.source.parent.mkdir(parents=True)
         self.source.write_text("pub fn encode() {}\n")
         (self.workspace / "Cargo.lock").write_text("version = 4\n")
+        self.manifest = self.workspace / "sequent-core" / "Cargo.toml"
+        self.manifest.write_text(
+            '[package]\nname = "sequent-core"\n'
+            "[features]\ndefault_features = []\nkeycloak = []\n"
+        )
         (self.root / "rust-toolchain.toml").write_text(
             '[toolchain]\nchannel = "1.96.0"\n'
         )
@@ -469,6 +474,84 @@ HASURA_DB__HOST = "127.0.0.1"
             ["src/load_tests.rs", "src/ports.rs"],
         )
         self.assertEqual(summary["excluded_files"], {})
+
+    def comparison_base_features(self, features: str) -> tuple[list[str], dict]:
+        """Run a comparison base whose head profile requests these features."""
+        self.config.write_text(
+            self.config.read_text().replace(
+                '["default_features", "keycloak"]', features
+            )
+        )
+        requested = []
+
+        def tool(command: list[str], log: Path, environment: dict[str, str]) -> str:
+            if "--tests" in command:
+                requested.append(command[command.index("--features") + 1])
+                return self.test_log
+            return self.tool_output(command, log, environment)
+
+        with patch.object(run, "execute", side_effect=tool):
+            code = run.measure("sequent-core", True, True, comparison_base=True)
+        self.assertEqual(code, 0)
+        summary = json.loads(
+            next(self.root.glob("coverage/sequent-core/*/summary.json")).read_text()
+        )
+        return requested, summary
+
+    def test_a_comparison_base_is_built_without_features_it_predates(self):
+        requested, summary = self.comparison_base_features(
+            '["default_features", "keycloak", "election_config_xlsx"]'
+        )
+        self.assertEqual(requested, ["default_features,keycloak"])
+        # The recorded profile stays the head's so the two runs stay comparable.
+        self.assertEqual(
+            summary["features"],
+            ["default_features", "keycloak", "election_config_xlsx"],
+        )
+        self.assertEqual(summary["features_absent_from_base"], ["election_config_xlsx"])
+        self.assertIn(
+            "built without: `election_config_xlsx`",
+            run.markdown_summary("sequent-core", summary),
+        )
+
+    def test_optional_dependencies_and_dependency_features_are_not_absent(self):
+        self.manifest.write_text(
+            self.manifest.read_text()
+            + "[dependencies]\n"
+            + 'rug = { version = "1", optional = true }\n'
+            + "[target.'cfg(unix)'.dependencies]\n"
+            + 'zip = { version = "2", optional = true }\n'
+            + 'serde = "1"\n'
+        )
+        requested, summary = self.comparison_base_features(
+            '["default_features", "keycloak", "rug", "zip", "strand/rayon", "serde"]'
+        )
+        self.assertEqual(requested, ["default_features,keycloak,rug,zip,strand/rayon"])
+        # A required dependency is not a feature Cargo would accept.
+        self.assertEqual(summary["features_absent_from_base"], ["serde"])
+
+    def test_a_head_run_requests_every_profile_feature(self):
+        self.config.write_text(
+            self.config.read_text().replace(
+                '["default_features", "keycloak"]',
+                '["default_features", "keycloak", "election_config_xlsx"]',
+            )
+        )
+        requested = []
+
+        def tool(command: list[str], log: Path, environment: dict[str, str]) -> str:
+            if "--tests" in command:
+                requested.append(command[command.index("--features") + 1])
+                return self.test_log
+            return self.tool_output(command, log, environment)
+
+        with patch.object(run, "execute", side_effect=tool):
+            self.assertEqual(run.measure("sequent-core", True, True), 0)
+        self.assertEqual(requested, ["default_features,keycloak,election_config_xlsx"])
+        summary = json.loads(
+            next(self.root.glob("coverage/sequent-core/*/summary.json")).read_text()
+        )
+        self.assertNotIn("features_absent_from_base", summary)
 
     def test_policy_entries_for_missing_files_fail_outside_a_comparison_base(self):
         self.newer_policy_files()

@@ -2,7 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useContext} from "react"
-import type {Meta, StoryObj} from "@storybook/react"
+import type {StoryObj} from "@storybook/react"
+import type {WidgetMeta} from "@/__stories__/widgetStory"
 import {expect, fn, userEvent, waitFor, within} from "storybook/test"
 import {RecordContextProvider, ResourceContextProvider, type RaRecord} from "react-admin"
 import {
@@ -58,8 +59,8 @@ function Fixture({canWrite}: Scenario) {
     )
 }
 const meta = {
-    title: "Admin/Create event language policy",
-    component: Fixture,
+    title: "Admin/Election event/CreateElectionList",
+    component: CreateElectionList,
     args: {
         settings: {
             language_conf: {enabled_language_codes: ["es", "en"], default_language_code: "es"},
@@ -124,9 +125,9 @@ const meta = {
         }
     },
     render: (args) => <Fixture {...args} />,
-} satisfies Meta<Scenario>
+} satisfies WidgetMeta<Scenario>
 export default meta
-type Story = StoryObj<typeof meta>
+type Story = StoryObj<Scenario>
 async function submit(canvasElement: HTMLElement) {
     const canvas = within(canvasElement)
     await userEvent.type(await canvas.findByRole("textbox", {name: "Name"}), "Council event")

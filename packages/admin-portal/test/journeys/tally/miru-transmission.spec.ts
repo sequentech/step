@@ -478,10 +478,6 @@ for (const failure of ["action error", "gateway error"] as const) {
         expect(portal.graphql.callsTo("SendTransmissionPackage")[0].headers["x-hasura-role"]).toBe(
             "miru-send"
         )
-        test.fail(
-            true,
-            "MiruExportWizard's rejected-mutation catch notifies without clearing transmissionLoading"
-        )
         await expect(send.getByRole("progressbar")).toHaveCount(0, {timeout: 2000})
     })
 }
@@ -562,10 +558,6 @@ test("shows a failed task when transmission report generation is rejected", asyn
             .callsTo("FetchDocument")
             .filter((call) => call.variables.documentId === REPORT_DOCUMENT_ID)
     ).toEqual([])
-    test.fail(
-        true,
-        "Widget caches its initial IN_PROGRESS status and ignores updateWidgetFail before a task id exists (Widget.tsx:109)"
-    )
     await expect(
         page.getByRole("heading", {name: "Task: Generate Transmission Report FAILED", exact: true})
     ).toBeVisible({timeout: 2000})
@@ -600,10 +592,6 @@ test.describe("an assigned trustee without action privileges", () => {
             "generate_transmission_report",
         ])
             expect(portal.graphql.callsTo(operation)).toEqual([])
-        test.fail(
-            true,
-            "MiruExportWizard.tsx:655 shows signature upload for assigned trustees without checking miru-sign"
-        )
         await expect(page.getByLabel("Drop Input File")).toHaveCount(0, {timeout: 2000})
     })
 })

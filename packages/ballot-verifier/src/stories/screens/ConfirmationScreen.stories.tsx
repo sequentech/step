@@ -43,7 +43,7 @@ const confirmation = (): IConfirmationBallot => ({
     decoded_questions: [decoded("council")],
 })
 const meta = {
-    title: "screens/ConfirmationScreen",
+    title: "Screens/Verifier/Confirmation screen",
     component: ConfirmationScreen,
     args: {confirmationBallot: confirmation(), ballotId: hash},
     parameters: {
@@ -71,12 +71,7 @@ const meta = {
 export default meta
 type Story = StoryObj<typeof meta>
 
-const candidateListFailure = {
-    expectedFailure: {
-        reason: "PlaintextVoteContest renders candidate li elements under a div instead of a list.",
-        a11y: ["listitem"],
-    },
-}
+const candidateListFailure = {}
 export const Primary: Story = {
     parameters: candidateListFailure,
     play: async ({canvasElement}) => {

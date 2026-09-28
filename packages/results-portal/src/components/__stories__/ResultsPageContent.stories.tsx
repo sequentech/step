@@ -19,12 +19,7 @@ const meta = {
             </main>
         ),
     ],
-    parameters: {
-        expectedFailure: {
-            reason: "The shared participation summary renders an empty column header.",
-            a11y: ["empty-table-header"],
-        },
-    },
+    parameters: {},
 } satisfies Meta<typeof ResultsPageContent>
 export default meta
 type Story = StoryObj<typeof meta>

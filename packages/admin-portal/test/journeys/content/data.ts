@@ -4,7 +4,6 @@ import type {Locator, Page} from "@playwright/test"
 import type {PortalServices} from "@sequentech/ui-test-kit/adapters/playwright"
 import type {GraphQLCall, GraphQLReply} from "@sequentech/ui-test-kit/mocks/graphql"
 import {FIXED_TIME, IDS} from "@sequentech/ui-test-kit/fixtures"
-import {Kind, parse, print, visit} from "graphql"
 import {expect, TENANT_ID} from "../fixtures"
 
 export type Row = Record<string, unknown>
@@ -181,6 +180,8 @@ function compare(value: unknown, operators: Operators): boolean {
                 return (value == null) === expected
             case "_contains":
                 return contains(value, expected)
+            case "_cast":
+                return compare(JSON.stringify(value), (expected as {String: Operators}).String)
             case "_gt":
                 return String(value) > String(expected)
             case "_gte":
@@ -319,84 +320,6 @@ export const notification = (page: Page, text: string) =>
 export async function expireNotification(page: Page) {
     await page.mouse.move(0, 0)
     await page.clock.runFor(5000)
-}
-
-/**
- * Answers a known-invalid operation the way Hasura does, so a journey can go on
- * past a pinned product defect. Returns the intercepted calls.
- */
-export function answerInvalid(
-    portal: PortalServices,
-    operationName: string,
-    isInvalid: (variables: Row) => boolean,
-    message: string
-) {
-    const intercepted: Row[] = []
-    const handle = portal.graphql.handle.bind(portal.graphql)
-    portal.graphql.handle = async (request) => {
-        const body = request.body ? (JSON.parse(request.body) as Row) : {}
-        const variables = (body.variables ?? {}) as Row
-        if (body.operationName === operationName && isInvalid(variables)) {
-            intercepted.push(variables)
-            return {
-                status: 200,
-                headers: {"content-type": "application/json"},
-                body: JSON.stringify({
-                    errors: [{message, extensions: {code: "validation-failed", path: "$"}}],
-                }),
-            }
-        }
-        return handle(request)
-    }
-    return intercepted
-}
-
-/**
- * Lets a journey go on past an operation that declares variables it never uses:
- * GraphQL validation rejects the document, Hasura tolerates it. Only the named
- * definitions are dropped before the strict mock validates; the original
- * documents are returned so a pinned test can check them.
- */
-export function dropUnusedVariables(
-    portal: PortalServices,
-    operationName: string,
-    unused: string[]
-) {
-    const originals: string[] = []
-    const handle = portal.graphql.handle.bind(portal.graphql)
-    portal.graphql.handle = async (request) => {
-        const body = request.body ? (JSON.parse(request.body) as Row) : {}
-        if (body.operationName !== operationName || typeof body.query !== "string")
-            return handle(request)
-        originals.push(body.query)
-        const query = print(
-            visit(parse(body.query), {
-                [Kind.VARIABLE_DEFINITION]: (node) =>
-                    unused.includes(node.variable.name.value) ? null : undefined,
-            })
-        )
-        return handle({...request, body: JSON.stringify({...body, query})})
-    }
-    return originals
-}
-
-/**
- * Handles the page's unhandled rejections whose message contains `message`, so a
- * pinned defect does not reach the page-error log. Returns the handled messages.
- */
-export async function catchRejections(page: Page, message: string) {
-    await page.addInitScript((expected) => {
-        const pinned = window as unknown as {pinnedRejections: string[]}
-        pinned.pinnedRejections = []
-        window.addEventListener("unhandledrejection", (event) => {
-            const reason = String(event.reason?.message ?? event.reason)
-            if (!reason.includes(expected)) return
-            event.preventDefault()
-            pinned.pinnedRejections.push(reason)
-        })
-    }, message)
-    return () =>
-        page.evaluate(() => (window as unknown as {pinnedRejections: string[]}).pinnedRejections)
 }
 
 /**

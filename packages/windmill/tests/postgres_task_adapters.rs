@@ -27,6 +27,7 @@ use windmill::postgres::reports::{Report, ReportCronConfig, ReportType};
 use windmill::postgres::{
     document, lock, render_report, reports, scheduled_event, tasks_execution,
 };
+use windmill::services::export::export_election_event;
 use windmill::services::reports::template_renderer::EReportEncryption;
 use windmill::tasks::render_report::{FormatType, RenderTemplateBody};
 
@@ -2353,6 +2354,157 @@ async fn get_support_material_documents_is_an_empty_list_without_materials() {
         .unwrap();
 
     assert_eq!(pairs, Some(vec![]));
+    tx.rollback().await.unwrap();
+}
+
+fn support_material(
+    w: &World,
+    n: u32,
+    document: Option<u32>,
+    is_hidden: Option<bool>,
+) -> SupportMaterial {
+    SupportMaterial {
+        id: w.id(n),
+        created_at: at(H10),
+        last_updated_at: at(NEXT_DAY),
+        kind: "PDF".into(),
+        data: json!({"title": "Guide"}),
+        tenant_id: w.tenant.clone(),
+        election_event_id: w.event.clone(),
+        labels: json!({"label": 1}),
+        annotations: json!({"note": 1}),
+        document_id: document.map(|d| w.id(d)),
+        is_hidden,
+    }
+}
+
+// `support_material.document_id` is a `text` column: binding it as a UUID made
+// PostgreSQL reject every imported archive that carried support materials.
+#[tokio::test]
+async fn insert_support_materials_stores_the_document_id_as_text() {
+    let mut client = schema::pool().await.get().await.unwrap();
+    let tx = client.transaction().await.unwrap();
+    let w = World::new(&tx, ids!()).await;
+
+    document::insert_support_materials(
+        &tx,
+        &[
+            support_material(&w, 20, Some(10), Some(true)),
+            support_material(&w, 21, None, None),
+        ],
+    )
+    .await
+    .unwrap();
+
+    let rows = tx
+        .query(
+            "SELECT id::text, document_id, is_hidden FROM sequent_backend.support_material
+             WHERE tenant_id = $1::text::uuid ORDER BY id",
+            &[&w.tenant],
+        )
+        .await
+        .unwrap();
+    let rows: Vec<(String, Option<String>, Option<bool>)> = rows
+        .iter()
+        .map(|row| (row.get(0), row.get(1), row.get(2)))
+        .collect();
+    assert_eq!(
+        rows,
+        vec![
+            (w.id(20), Some(w.id(10)), Some(true)),
+            // A material without a visibility is written visible.
+            (w.id(21), None, Some(false)),
+        ]
+    );
+    tx.rollback().await.unwrap();
+}
+
+#[tokio::test]
+async fn insert_support_materials_rejects_a_document_id_that_is_not_a_uuid() {
+    let mut client = schema::pool().await.get().await.unwrap();
+    let tx = client.transaction().await.unwrap();
+    let w = World::new(&tx, ids!()).await;
+    let mut material = support_material(&w, 20, None, None);
+    material.document_id = Some("not-a-uuid".into());
+
+    let error = document::insert_support_materials(&tx, &[material])
+        .await
+        .unwrap_err();
+
+    assert!(format!("{error:#}").contains("document_id"), "{error:#}");
+    tx.rollback().await.unwrap();
+}
+
+// Import pairs each `export_S3_files/` member with its support material row
+// through the replacement map. A file without its row fails the import ("Error
+// finding document UUID in replacement map"), so hidden materials' rows travel
+// with their files. A row without its file imports pointing at a document that
+// never exists, so a row travels only when its document's file does.
+#[tokio::test]
+async fn export_support_materials_follow_the_exported_files() {
+    let mut client = schema::pool().await.get().await.unwrap();
+    let tx = client.transaction().await.unwrap();
+    let w = World::new(&tx, ids!()).await;
+    let (tenant, event) = (w.tenant.as_str(), w.event.as_str());
+    let voter_secrets = serde_json::to_value(DocumentAnnotations::voter_secret_export()).unwrap();
+    for n in [10, 11, 12, 13] {
+        document_row(&tx, tenant, Some(event), &w.id(n), None).await;
+    }
+    document_row(&tx, tenant, Some(event), &w.id(14), Some(voter_secrets)).await;
+    support_material_row(&tx, [tenant, event, &w.id(20), &w.id(10)], Some(false)).await;
+    support_material_row(&tx, [tenant, event, &w.id(21), &w.id(11)], Some(true)).await;
+    support_material_row(&tx, [tenant, event, &w.id(22), &w.id(12)], None).await;
+    // Another event's material stays out.
+    support_material_row(
+        &tx,
+        [tenant, &w.other_event, &w.id(23), &w.id(13)],
+        Some(false),
+    )
+    .await;
+    // Its document is a voter-secret one, so it leaves the archive without
+    // voter secrets.
+    support_material_row(&tx, [tenant, event, &w.id(24), &w.id(14)], Some(false)).await;
+    // No document at all: nothing to lose, so it always travels.
+    tx.execute(
+        "INSERT INTO sequent_backend.support_material
+             (id, tenant_id, election_event_id, kind, data, labels, annotations,
+              is_hidden, created_at, last_updated_at)
+         VALUES ($1::text::uuid, $2::text::uuid, $3::text::uuid, 'PDF',
+                 '{\"title\": \"Guide\"}', '{\"label\": 1}', '{\"note\": 1}', false,
+                 '2026-01-01T10:00:00Z', '2026-01-02T10:00:00Z')",
+        &[&w.id(25), &tenant, &event],
+    )
+    .await
+    .unwrap();
+
+    let export = |s3_files, voter_secrets| {
+        export_election_event::export_support_materials(&tx, tenant, event, s3_files, voter_secrets)
+    };
+
+    assert_eq!(
+        export(true, true).await.unwrap(),
+        vec![
+            support_material(&w, 20, Some(10), Some(false)),
+            support_material(&w, 21, Some(11), Some(true)),
+            support_material(&w, 22, Some(12), None),
+            support_material(&w, 24, Some(14), Some(false)),
+            support_material(&w, 25, None, Some(false)),
+        ]
+    );
+    assert_eq!(
+        export(true, false).await.unwrap(),
+        vec![
+            support_material(&w, 20, Some(10), Some(false)),
+            support_material(&w, 21, Some(11), Some(true)),
+            support_material(&w, 22, Some(12), None),
+            support_material(&w, 25, None, Some(false)),
+        ]
+    );
+    // No `export_S3_files/` in the archive, so no row that needs one.
+    assert_eq!(
+        export(false, true).await.unwrap(),
+        vec![support_material(&w, 25, None, Some(false))]
+    );
     tx.rollback().await.unwrap();
 }
 

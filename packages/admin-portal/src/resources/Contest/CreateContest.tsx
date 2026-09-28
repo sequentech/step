@@ -100,8 +100,8 @@ export const CreateContest: React.FC = () => {
                     <BooleanInput source="is_acclaimed" />
                     <BooleanInput source="presentation.allow_writeins" defaultValue={true} />
                     <BooleanInput source="is_active" defaultValue={true} />
-                    <NumberInput source="min_votes" defaultValue="0" />
-                    <NumberInput source="max_votes" defaultValue="1" />
+                    <NumberInput source="min_votes" defaultValue={0} />
+                    <NumberInput source="max_votes" defaultValue={1} />
                     <NumberInput source="winning_candidates_num" defaultValue={1} />
                     <SelectInput
                         source="counting_algorithm"

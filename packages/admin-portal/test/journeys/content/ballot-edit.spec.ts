@@ -115,7 +115,7 @@ test.describe("with candidate write but no contest write permission", () => {
         )
         await page.getByRole("textbox", {name: "Name", exact: true}).fill("Alice Updated")
         expect(portal.graphql.callsTo("update_sequent_backend_candidate")).toEqual([])
-        test.fail(true, "CandidateDataForm gates Save on contest-write instead of candidate-write")
+
         await expect(page.getByRole("button", {name: "Save", exact: true})).toBeVisible({
             timeout: 2000,
         })

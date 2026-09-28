@@ -157,10 +157,7 @@ test.describe("schedule administrator", () => {
         await drawer.getByLabel("Start Date and Time (UTC)").fill("2026-02-01T09:00")
         await drawer.getByRole("button", {name: "Save", exact: true}).click()
         await expect.poll(() => portal.graphql.callsTo("ManageElectionDates").length).toBe(1)
-        test.fail(
-            true,
-            "CreateEvent notifies editSuccess for new schedules (ScheduledEvents/CreateScheduledEvent.tsx:209)"
-        )
+
         await expect(notification(page, "Scheduled Event created successfully")).toBeVisible({
             timeout: 3000,
         })
@@ -173,10 +170,7 @@ test.describe("schedule administrator", () => {
         await expect(
             page.getByRole("dialog").filter({hasText: "Create Scheduled Event"})
         ).toBeVisible()
-        test.fail(
-            true,
-            "ListActions and ListScheduledEvents each render a create drawer bound to openCreateEvent (ScheduledEvents/ListScheduledEvent.tsx:322,387)"
-        )
+
         await expect(page.getByRole("dialog", {includeHidden: true})).toHaveCount(1, {
             timeout: 1000,
         })

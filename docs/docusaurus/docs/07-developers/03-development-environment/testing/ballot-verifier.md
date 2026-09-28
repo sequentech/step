@@ -20,7 +20,9 @@ provider contracts, it renders the import and confirmation screens and the event
 routes (`/tenant/:tenantId/event/:eventId/{login,start,confirmation}`), with App
 mounted in the provider tree of `src/index.tsx`. Assertions use roles, labels and
 visible text. App tests live in `src/App.routing.test.tsx`; `src/App.test.tsx` is
-an obsolete scaffold outside the profile.
+an obsolete scaffold outside the profile. With authentication disabled, root and
+direct login links reach the appropriate event's import step, and verification
+continues to confirmation without Keycloak or private GraphQL requests.
 
 Test doubles live in `src/__mocks__`:
 
@@ -52,3 +54,13 @@ generated runtime helpers. Tests, declarations, test doubles, Storybook fixtures
 and test setup are excluded consistently from counters and exports. CI compares
 lines, statements, functions and branches separately against the actual PR base
 using the same unit profile and each revision's own tests.
+
+With authentication disabled, event routes may fetch their public
+`election_event_config.json` to apply the event language policy and scoped
+translations. This optional request never authenticates, queries private Hasura
+data or blocks importing a local ballot when metadata is unavailable. The App
+routing tests use actual configuration/translation services and verify these
+boundaries. Direct login redirects replace their browser-history entry so Back
+can leave the verifier instead of entering a redirect loop. Production browser
+journeys verify a real signed ballot with both available and missing public
+metadata, while asserting the exact public request and absence of private calls.

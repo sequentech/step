@@ -628,8 +628,6 @@ const FormContent: React.FC<CreateReportProps> = ({
 
     useEffect(() => {
         if (reportType) {
-            setTemplateAlias(null)
-            setValue("template_alias", null)
             setValue("report_type", reportType)
         }
     }, [reportType, setValue])
