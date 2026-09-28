@@ -94,7 +94,7 @@ pub async fn get_dkg_board_by_keys_ceremony(
                 WHERE
                     tenant_id = $1 AND
                     election_event_id = $2 AND
-                    parent_id = NULL AND
+                    parent_id IS NULL AND
                     keys_ceremony_id = $3;
             "#,
         )

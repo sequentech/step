@@ -22,7 +22,6 @@ CREATE TABLE "sequent_backend"."protocol_board"
     "created_at"        timestamptz NOT NULL DEFAULT now(),
     PRIMARY KEY ("id"),
     UNIQUE ("name"),
-    UNIQUE ("keys_ceremony_id"),
     FOREIGN KEY ("tenant_id")
         REFERENCES "sequent_backend"."tenant" ("id")
         ON UPDATE RESTRICT ON DELETE RESTRICT,
