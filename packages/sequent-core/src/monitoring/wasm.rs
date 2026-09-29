@@ -26,16 +26,17 @@ export interface MonitoringReport {
 }
 "#;
 
-/// Checks `yaml` as a monitoring document of `kind` (`widget`, `dashboard`,
-/// `theme` or `settings`), alone or, given the event's documents as JSON in
-/// `config_set_json`, against them.
+/// Checks `yaml` as the monitoring document of `kind` (`widget`,
+/// `dashboard`, `theme` or `settings`) stored under `key`, alone or, given
+/// the event's documents as JSON in `config_set_json`, against them.
 #[wasm_bindgen(js_name = validateMonitoringConfig)]
 pub fn validate_monitoring_config_js(
     kind: &str,
+    key: &str,
     yaml: &str,
     config_set_json: &str,
 ) -> Result<JsValue, JsValue> {
-    let report = check_document(kind, yaml, config_set_json);
+    let report = check_document(kind, key, yaml, config_set_json);
     serde_wasm_bindgen::to_value(&report)
         .map_err(|error| JsValue::from_str(&error.to_string()))
 }

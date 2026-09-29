@@ -3,9 +3,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import * as SequentCore from "sequent-core"
-import {createLocalValidator} from "./localValidator"
+import {createLocalValidator, type ILocalValidatorOptions} from "./localValidator"
 import type {EMonitoringConfigKind} from "./types"
 
 /** The local validator backed by the portal's sequent-core WebAssembly module. */
-export const sequentCoreValidator = (kind: EMonitoringConfigKind, configSet?: unknown) =>
-    createLocalValidator(SequentCore, kind, configSet)
+export const sequentCoreValidator = (
+    kind: EMonitoringConfigKind,
+    options?: ILocalValidatorOptions
+) => createLocalValidator(SequentCore, kind, options)

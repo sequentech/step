@@ -17,10 +17,16 @@ use crate::monitoring::policy::{
 use crate::monitoring::problem::{Code, Problem, Report};
 use std::str::FromStr;
 
-/// Checks `yaml` as a document of `kind` (`widget`, `dashboard`, `theme` or
-/// `settings`). `config_set_json` is the event's [`ConfigSet`] as JSON, or
-/// empty to check the document alone.
-pub fn check_document(kind: &str, yaml: &str, config_set_json: &str) -> Report {
+/// Checks `yaml` as the document of `kind` (`widget`, `dashboard`, `theme`
+/// or `settings`) stored, or to be stored, under `key`. `config_set_json`
+/// is the event's [`ConfigSet`] as JSON, or empty to check the document
+/// alone.
+pub fn check_document(
+    kind: &str,
+    key: &str,
+    yaml: &str,
+    config_set_json: &str,
+) -> Report {
     let Ok(kind) = ConfigKind::from_str(kind) else {
         let mut report = Report::default();
         report.push(Problem::error(
@@ -31,12 +37,12 @@ pub fn check_document(kind: &str, yaml: &str, config_set_json: &str) -> Report {
         return report;
     };
     if config_set_json.trim().is_empty() {
-        return check_with(kind, yaml, None);
+        return check_with(kind, key, yaml, None);
     }
     match serde_json::from_str::<ConfigSet>(config_set_json) {
-        Ok(set) => check_with(kind, yaml, Some(set)),
+        Ok(set) => check_with(kind, key, yaml, Some(set)),
         Err(why) => {
-            let mut report = check_with(kind, yaml, None);
+            let mut report = check_with(kind, key, yaml, None);
             report.push(Problem::warning(
                 Code::Unreadable,
                 "",
@@ -49,34 +55,43 @@ pub fn check_document(kind: &str, yaml: &str, config_set_json: &str) -> Report {
     }
 }
 
-/// The document's own checks; with a set, the document replaces its stored
-/// copy there and the checks across documents run too.
-fn check_with(kind: ConfigKind, yaml: &str, set: Option<ConfigSet>) -> Report {
+/// The document's own checks; with a set, the draft takes the place of the
+/// document stored under `key` (even when the draft changed its id, which
+/// the checks then report) and the checks across documents run too.
+fn check_with(
+    kind: ConfigKind,
+    key: &str,
+    yaml: &str,
+    set: Option<ConfigSet>,
+) -> Report {
     let (mut report, placed) = match kind {
         ConfigKind::Widget => {
             let parsed = parse_widget(yaml);
             let placed = set.zip(parsed.value).map(|(mut set, widget)| {
-                let own = format!("widgets.{}", widget.id);
-                set.widgets.insert(widget.id.clone(), widget);
-                (set, own)
+                let key = key_or(key, &widget.id);
+                set.widgets.shift_remove(&key);
+                set.widgets.insert(key.clone(), widget);
+                (set, format!("widgets.{key}"))
             });
             (parsed.report, placed)
         }
         ConfigKind::Dashboard => {
             let parsed = parse_dashboard(yaml);
             let placed = set.zip(parsed.value).map(|(mut set, dashboard)| {
-                let own = format!("dashboards.{}", dashboard.id);
-                set.dashboards.insert(dashboard.id.clone(), dashboard);
-                (set, own)
+                let key = key_or(key, &dashboard.id);
+                set.dashboards.shift_remove(&key);
+                set.dashboards.insert(key.clone(), dashboard);
+                (set, format!("dashboards.{key}"))
             });
             (parsed.report, placed)
         }
         ConfigKind::Theme => {
             let parsed = parse_theme(yaml);
             let placed = set.zip(parsed.value).map(|(mut set, theme)| {
-                let own = format!("themes.{}", theme.id);
-                set.themes.insert(theme.id.clone(), theme);
-                (set, own)
+                let key = key_or(key, &theme.id);
+                set.themes.shift_remove(&key);
+                set.themes.insert(key.clone(), theme);
+                (set, format!("themes.{key}"))
             });
             (parsed.report, placed)
         }
@@ -88,6 +103,12 @@ fn check_with(kind: ConfigKind, yaml: &str, set: Option<ConfigSet>) -> Report {
         report.extend(own_problems(validate_set(&set), &own));
     }
     report
+}
+
+/// The key the draft is checked under: the one it was opened as, or its own
+/// id for a document not stored yet.
+fn key_or(key: &str, id: &str) -> String {
+    if key.is_empty() { id } else { key }.to_string()
 }
 
 /// The problems of the document at `own` (`widgets.<id>`), with paths made

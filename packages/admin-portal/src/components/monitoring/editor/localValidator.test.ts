@@ -10,20 +10,21 @@ describe("createLocalValidator", () => {
         expect(createLocalValidator({}, EMonitoringConfigKind.WIDGET)("id: a")).toBeNull()
     })
 
-    it("passes the kind, the text and the event's documents to the export", () => {
+    it("passes the kind, the key, the text and the event's documents to the export", () => {
         const validateMonitoringConfig = jest.fn(() => ({
             problems: [{severity: "warning", code: "unused_selector", path: "", message: "m"}],
         }))
         const validate = createLocalValidator(
             {validateMonitoringConfig},
             EMonitoringConfigKind.DASHBOARD,
-            {widgets: {}}
+            {key: "overview", configSet: {widgets: {}}}
         )
         expect(validate("id: a")).toEqual([
             expect.objectContaining({severity: EMonitoringProblemSeverity.WARNING}),
         ])
         expect(validateMonitoringConfig).toHaveBeenCalledWith(
             "dashboard",
+            "overview",
             "id: a",
             '{"widgets":{}}'
         )
@@ -32,6 +33,6 @@ describe("createLocalValidator", () => {
     it("sends an empty set when there are no other documents", () => {
         const validateMonitoringConfig = jest.fn(() => ({problems: []}))
         createLocalValidator({validateMonitoringConfig}, EMonitoringConfigKind.THEME)("id: t")
-        expect(validateMonitoringConfig).toHaveBeenCalledWith("theme", "id: t", "")
+        expect(validateMonitoringConfig).toHaveBeenCalledWith("theme", "", "id: t", "")
     })
 })
