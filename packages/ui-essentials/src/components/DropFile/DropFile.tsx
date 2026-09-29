@@ -20,13 +20,13 @@ const DropFile: React.FC<DropFileProps> = ({handleFiles, accept, formatLabel}) =
     const {t} = useTranslation()
     const inputRef = useRef<HTMLInputElement | null>(null)
 
-    // triggers the input when the button is clicked
-    // const onButtonClick = () => {
-    //     inputRef.current?.click()
-    // }
-
     return (
-        <CustomDropFile handleFiles={handleFiles} accept={accept} ref={inputRef}>
+        <CustomDropFile
+            errorMessage={t("dragNDrop.importError")}
+            handleFiles={handleFiles}
+            accept={accept}
+            ref={inputRef}
+        >
             <div
                 className="drop-file-container"
                 // variant="responsive"

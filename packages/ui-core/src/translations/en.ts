@@ -152,6 +152,7 @@ const englishTranslation = {
             firstLine: "Drag & drop files or",
             browse: "Browse",
             format: "Supported format: txt",
+            importError: "Could not import this file. Please try again.",
         },
         selectElection: {
             electionWebsite: "Ballot Website",

@@ -156,6 +156,7 @@ const frenchTranslation: TranslationType = {
             firstLine: "Glisser-déposer des fichiers ou",
             browse: "Charger un fichier",
             format: "Formats supportés : txt",
+            importError: "Impossible d’importer ce fichier. Veuillez réessayer.",
         },
         selectElection: {
             electionWebsite: "Site web électoral",

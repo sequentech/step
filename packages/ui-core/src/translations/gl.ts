@@ -156,6 +156,7 @@ const galegoTranslation: TranslationType = {
             firstLine: "Arrastra e solta arquivos ou",
             browse: "Explorar",
             format: "Formato soportado: txt",
+            importError: "Non se puido importar este ficheiro. Téntao de novo.",
         },
         selectElection: {
             electionWebsite: "Sitio Web da Papeleta",
