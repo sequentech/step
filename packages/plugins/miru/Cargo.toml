@@ -26,3 +26,6 @@ path = "./wit/world.wit"
 "plugins-manager:transactions-manager" = { path = "../../sequent-core/src/plugins_wit/transaction/transaction-world.wit" }
 "plugins-manager:common" = { path = "../../sequent-core/src/plugins_wit/plugin/plugin-world.wit" }
 "plugins-manager:jwt" = { path = "../../sequent-core/src/plugins_wit/jwt/jwt-world.wit" }
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+wasmtime = { version = "44.0.3", default-features = false, features = ["component-model", "cranelift", "runtime", "std"] }
+wasmtime-wasi = "44.0.3"
