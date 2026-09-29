@@ -668,6 +668,14 @@ services:
       DOC_RENDERER_BACKEND: ${DOC_RENDERER_BACKEND}
       ENV_SLUG: ${ENV_SLUG}
       APP_VERSION: ${APP_VERSION}
+      # The monitoring renderer (packages/monitoring-renderer), reached on
+      # the internal monitoring-renderer network only.
+      HARVEST_MONITORING_RENDERER_URL: ${HARVEST_MONITORING_RENDERER_URL:-http://monitoring-renderer:8080}
+      HARVEST_MONITORING_RENDERER_TOKEN: ${MONITORING_RENDERER_TOKEN}
+      HARVEST_MONITORING_RENDERER_TIMEOUT_MS: ${HARVEST_MONITORING_RENDERER_TIMEOUT_MS:-5000}
+    networks:
+      - default
+      - monitoring-renderer
 
     #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
     #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
@@ -678,6 +686,34 @@ services:
       interval: 5s
       timeout: 10s
       retries: 25
+      start_period: 30s
+
+  # Draws monitoring widgets with dbt Charts. Internal only: no published
+  # ports, on a network with no route out, shared with harvest alone.
+  monitoring-renderer:
+    profiles: ["full", "base"]
+    image: sequentech.local/monitoring-renderer
+    container_name: ${DEVCONTAINER_NAME_PREFIX:-}monitoring-renderer
+    build:
+      context: ../packages/monitoring-renderer
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      RENDERER_TOKEN: ${MONITORING_RENDERER_TOKEN}
+      RENDERER_CONCURRENCY: ${MONITORING_RENDERER_CONCURRENCY:-2}
+    networks:
+      - monitoring-renderer
+    healthcheck:
+      test: ["CMD", "python", "-c", "import sys, urllib.request; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8080/ready', timeout=4).status == 200 else 1)"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
       start_period: 30s
 
   trustee1:
@@ -1104,6 +1140,11 @@ services:
       B4_BIND: ${B4_BIND}
       AWS_S3_UPLOAD_EXPIRATION_SECS: ${AWS_S3_UPLOAD_EXPIRATION_SECS}
       AWS_S3_FETCH_EXPIRATION_SECS: ${AWS_S3_FETCH_EXPIRATION_SECS}
+
+networks:
+  # Harvest and the monitoring renderer only; no route out.
+  monitoring-renderer:
+    internal: true
 
 volumes:
   db_data:

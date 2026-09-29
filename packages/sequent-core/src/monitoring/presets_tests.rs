@@ -1265,3 +1265,53 @@ fn a_chosen_scope_narrows_each_widget_or_it_says_why_not() {
         }
     }
 }
+
+// -- layout ----------------------------------------------------------------
+
+/// The widest a widget is placed on any dashboard of its preset.
+fn widest_placement(preset: &Preset, widget: &str) -> Option<u8> {
+    preset
+        .set
+        .dashboards
+        .values()
+        .flat_map(|dashboard| &dashboard.layout)
+        .filter(|item| item.widget == widget)
+        .map(|item| item.width)
+        .max()
+}
+
+#[test]
+fn a_half_width_widget_has_room_for_each_chart_in_a_row() {
+    // Half of a laptop screen is drawn about 400 px wide: three KPIs cut
+    // their labels, and a chart beside another cuts its legend.
+    for preset in all_presets() {
+        for (key, widget) in &preset.set.widgets {
+            if widest_placement(&preset, key).is_none_or(|width| width > 6) {
+                continue;
+            }
+            let charts = &widget.chart["charts"];
+            let rows = widget.chart["rows"].as_sequence().cloned().unwrap_or_default();
+            for row in rows {
+                let cols: Vec<String> = match row.get("cols") {
+                    Some(cols) => cols
+                        .as_sequence()
+                        .into_iter()
+                        .flatten()
+                        .filter_map(|col| col.as_str().map(str::to_owned))
+                        .collect(),
+                    None => row.as_str().map(str::to_owned).into_iter().collect(),
+                };
+                let kpis = cols
+                    .iter()
+                    .filter(|col| charts[col.as_str()]["type"].as_str() == Some("kpi"))
+                    .count();
+                assert!(
+                    cols.len() <= 2 && (kpis == cols.len() || cols.len() == 1),
+                    "{}: widget {key} is placed at half width or less, but a row \
+                     has {cols:?}: at most two KPIs, or one chart, per row",
+                    preset.manifest.id
+                );
+            }
+        }
+    }
+}

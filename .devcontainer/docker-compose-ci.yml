@@ -187,6 +187,9 @@ services:
       configure-minio:
         condition: service_completed_successfully
 
+  monitoring-renderer:
+    container_name: !reset null
+
   windmill:
     image: ${STEP_E2E_RUNTIME_IMAGE:-step-backend-e2e-cargo-packages:local}
     container_name: !reset null

@@ -85,12 +85,8 @@
     }
   },
   "rows": [
-    {
-      "cols": [
-        "opened",
-        "states"
-      ]
-    }
+    "opened",
+    "states"
   ],
   "style": {
     "accent": "#0f766e",

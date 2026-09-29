@@ -84,10 +84,10 @@
     {
       "cols": [
         "voted",
-        "share",
-        "verified"
+        "share"
       ]
-    }
+    },
+    "verified"
   ],
   "style": {
     "accent": "#0f766e",
