@@ -262,6 +262,9 @@ const CandidatesList: React.FC<CandidatesListProps> = ({
                             <Checkbox
                                 className="candidates-list-checkbox"
                                 checked={checked}
+                                // Selection belongs to onChange. Letting this
+                                // click reach the list also invokes setChecked.
+                                onClick={(event) => event.stopPropagation()}
                                 onChange={handleChange}
                                 disabled={shouldDisable}
                                 slotProps={{

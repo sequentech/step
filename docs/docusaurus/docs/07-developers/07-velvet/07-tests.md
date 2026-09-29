@@ -186,3 +186,8 @@ rust-lldb target/debug/deps/velvet-<hash>
 ```
 
 *Further documentation to be added.*
+
+## Boundary tests and coverage
+
+See the [Velvet boundary test guide](test-coverage.md) for isolated fixtures,
+contract tests, coverage commands and measured gaps.

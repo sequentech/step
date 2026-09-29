@@ -31,6 +31,8 @@ differences in the issue; do not import unrelated changes from another version.
 - Name tests for behavior; comment on the invariant or failure being isolated.
   Prefer simple fixtures and direct assertions. Fail-fast setup, including Rust
   `unwrap`/`expect`/indexing, is appropriate where test policy permits it.
+- Match production compiler/target settings when emitted behavior matters. Observe
+  the boundary where failure occurs; later cleanup or state updates can hide it.
 - For a bug, demonstrate the failing regression before the smallest production
   fix. Do not refactor or alter runtime settings merely for coverage.
 
