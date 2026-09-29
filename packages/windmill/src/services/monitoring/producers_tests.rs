@@ -4,7 +4,12 @@
 
 use super::*;
 use chrono::TimeZone;
+use indexmap::IndexMap;
+use sequent_core::monitoring::compute::{evaluate, event_days};
+use sequent_core::monitoring::config::{DynamicOptions, Widget};
 use sequent_core::monitoring::presets;
+use sequent_core::monitoring::resolve::{resolve_widget, DynamicOptionValues};
+use serde_json::json;
 
 fn settings() -> Settings {
     presets::load("comelec")
@@ -24,7 +29,7 @@ fn post(n: u128, name: &str, region: Option<&str>, poll: PostState) -> Post {
     Post {
         id: id(n),
         name: name.to_string(),
-        region: region.map(str::to_string),
+        regions: region.map(str::to_string).into_iter().collect(),
         poll,
         counting: PostState::NotTallied,
     }
@@ -52,9 +57,9 @@ fn set(elections: &[u128]) -> ElectionSet {
     }
 }
 
-fn facts(settings: &Settings, voters: Vec<VoterRow>) -> EventFacts<'_> {
+fn facts(settings: &Settings, voters: Vec<VoterRow>) -> EventFacts {
     EventFacts {
-        settings,
+        settings: settings.clone(),
         zone: Tz::UTC,
         posts: vec![
             post(1, "Madrid", Some("Europe"), PostState::Opened),
@@ -63,6 +68,7 @@ fn facts(settings: &Settings, voters: Vec<VoterRow>) -> EventFacts<'_> {
         ],
         voters,
         area_elections: HashMap::new(),
+        area_regions: HashMap::new(),
         logins: Vec::new(),
     }
 }
@@ -384,4 +390,311 @@ fn a_poll_state_reads_the_status_and_the_initialization_report() {
         PostState::Initialized
     );
     assert_eq!(poll_state(None, false), PostState::NotInitialized);
+}
+
+#[test]
+fn a_post_is_open_while_any_of_its_channels_is() {
+    let status = |value: serde_json::Value| voting_status(Some(&value));
+    assert_eq!(
+        status(json!({"voting_status": "CLOSED", "kiosk_voting_status": "OPEN"})),
+        "OPEN"
+    );
+    assert_eq!(
+        status(json!({"voting_status": "NOT_STARTED", "early_voting_status": "OPEN"})),
+        "OPEN"
+    );
+    assert_eq!(
+        status(json!({"voting_status": "CLOSED", "telephone_voting_status": "PAUSED"})),
+        "PAUSED"
+    );
+    assert_eq!(
+        status(json!({"voting_status": "NOT_STARTED", "kiosk_voting_status": "CLOSED"})),
+        "CLOSED"
+    );
+    assert_eq!(
+        status(json!({"voting_status": "NOT_STARTED", "kiosk_voting_status": "NOT_STARTED"})),
+        "NOT_STARTED"
+    );
+    assert_eq!(voting_status(None), "NOT_STARTED");
+}
+
+#[test]
+fn a_post_in_two_regions_is_counted_in_each() {
+    let settings = settings();
+    let mut facts = facts(&settings, Vec::new());
+    facts.posts[0].regions = ["Europe", "Iberia"].map(String::from).into();
+    let figures = produce(&facts, &[set(&[1, 2, 3])]);
+    let poll = scopes(&figures, DataSourceId::PollStatus);
+    assert_eq!(poll["region=Iberia"].totals[&Measure::Posts], 1);
+    assert_eq!(poll["region=Europe"].totals[&Measure::Posts], 2);
+    let regions = &poll["event"].groups["region"];
+    assert_eq!(
+        regions
+            .iter()
+            .map(|row| (row.key.as_str(), row.counts[&Measure::Posts]))
+            .collect::<Vec<_>>(),
+        vec![("Asia", 1), ("Europe", 2), ("Iberia", 1)],
+        "Madrid in both of its regions, so the groups add up to more than the Posts"
+    );
+    assert_eq!(
+        poll["region=Iberia"].groups["region"]
+            .iter()
+            .map(|row| row.key.as_str())
+            .collect::<Vec<_>>(),
+        vec!["Iberia"],
+        "a region's own group only"
+    );
+    assert_eq!(
+        poll["region=Iberia"].posts[0].region.as_deref(),
+        Some("Iberia")
+    );
+}
+
+fn login(event_type: &str, registered: bool, area_id: Option<Uuid>, attempts: u64) -> LoginRow {
+    LoginRow {
+        bucket_start: at(1, 10, 15),
+        event_type: event_type.into(),
+        registered,
+        area_id,
+        attempts,
+    }
+}
+
+#[test]
+fn a_sign_in_is_in_its_area_s_region_when_regions_come_from_areas() {
+    let settings = presets::load("campus")
+        .unwrap()
+        .unwrap()
+        .set
+        .settings
+        .unwrap();
+    assert!(settings.scope.region.area_annotation.is_some());
+    let mut facts = facts(&settings, Vec::new());
+    let (north, south) = (id(100), id(101));
+    facts.posts[0].regions = ["North"].map(String::from).into();
+    facts.posts[1].regions = ["North", "South"].map(String::from).into();
+    facts.area_elections.insert(north, vec![id(1), id(2)]);
+    facts.area_elections.insert(south, vec![id(2)]);
+    facts.area_regions.insert(north, "North".into());
+    facts.area_regions.insert(south, "South".into());
+    facts.logins = vec![login("LOGIN", true, Some(north), 3)];
+    let figures = produce(&facts, &[set(&[1, 2, 3])]);
+    let access = scopes(&figures, DataSourceId::AccessSecurity);
+    assert_eq!(access["region=North"].totals[&Measure::Logins], 3);
+    assert!(
+        !access.contains_key("region=South"),
+        "Rome is also in the South, the voter's area is not"
+    );
+    assert_eq!(
+        access["event"].groups["region"]
+            .iter()
+            .map(|row| row.key.as_str())
+            .collect::<Vec<_>>(),
+        vec!["North"]
+    );
+}
+
+#[test]
+fn a_voter_s_sign_in_from_no_post_counts_for_the_full_set_only() {
+    let settings = settings();
+    let mut facts = facts(&settings, Vec::new());
+    let nowhere = id(100);
+    facts.area_elections.insert(nowhere, Vec::new());
+    facts.logins = vec![
+        login("LOGIN", true, None, 2),
+        login("LOGIN", true, Some(nowhere), 4),
+        login("LOGIN", true, Some(id(999)), 8),
+    ];
+    let full = produce(&facts, &[set(&[1, 2, 3])]);
+    assert_eq!(
+        scopes(&full, DataSourceId::AccessSecurity)["event"].totals[&Measure::Logins],
+        14
+    );
+    let restricted = produce(&facts, &[set(&[3])]);
+    assert_eq!(
+        scopes(&restricted, DataSourceId::AccessSecurity)["event"].totals[&Measure::Logins],
+        0,
+        "a restricted set sees none of them"
+    );
+}
+
+// -- every widget of every preset reads what the producers write -----------
+
+/// Every set of selector values a viewer can pick, hidden selectors left out.
+fn combinations(widget: &Widget, days: &[String]) -> Vec<IndexMap<String, String>> {
+    let mut combinations = vec![IndexMap::new()];
+    for (name, selector) in &widget.selectors {
+        let options: Vec<String> = match selector.options_from {
+            Some(DynamicOptions::EventDays) => days.to_vec(),
+            None => selector.options.keys().cloned().collect(),
+        };
+        combinations = combinations
+            .into_iter()
+            .flat_map(|chosen: IndexMap<String, String>| {
+                let shown = selector.when.as_ref().map_or(true, |when| {
+                    chosen
+                        .get(&when.selector)
+                        .is_some_and(|value| when.one_of.contains(value))
+                });
+                if !shown || options.is_empty() {
+                    return vec![chosen];
+                }
+                options
+                    .iter()
+                    .map(|option| {
+                        let mut chosen = chosen.clone();
+                        chosen.insert(name.clone(), option.clone());
+                        chosen
+                    })
+                    .collect()
+            })
+            .collect();
+    }
+    combinations
+}
+
+/// A voter of `election` with a value of every dimension the settings name.
+fn preset_voter(settings: &Settings, voter_id: &str, election: u128) -> VoterRow {
+    let mut row = voter(voter_id, election, "Europe", Some("Spain"));
+    row.dims = settings
+        .dimensions
+        .iter()
+        .map(|(name, mapping)| {
+            let value = mapping
+                .age_bands
+                .first()
+                .map(|band| band.label.clone())
+                .or_else(|| mapping.labels.keys().next().cloned())
+                .unwrap_or_else(|| "some".to_string());
+            (name.clone(), value)
+        })
+        .collect();
+    row
+}
+
+/// Evaluates every query of every widget over the payload `payload_of`
+/// gives its source; returns how many it evaluated.
+fn evaluate_all(
+    what: &str,
+    settings: &Settings,
+    widgets: &indexmap::IndexMap<String, Widget>,
+    payload_of: &dyn Fn(DataSourceId) -> ScopePayload,
+    failures: &mut Vec<String>,
+) -> usize {
+    let mut evaluated = 0;
+    for (key, widget) in widgets {
+        if widget.source.spec().producer != Producer::Available {
+            continue;
+        }
+        let payload = payload_of(widget.source);
+        let dynamic = DynamicOptionValues {
+            event_days: event_days(&payload),
+        };
+        for requested in combinations(widget, &dynamic.event_days) {
+            let resolved = match resolve_widget(widget, &IndexMap::new(), &requested, &dynamic) {
+                Ok(resolved) => resolved,
+                Err(report) => {
+                    failures.push(format!("{what} {key} {requested:?}: resolve: {report}"));
+                    continue;
+                }
+            };
+            for (name, query) in &resolved.queries {
+                match evaluate(widget.source, query, &payload, Some(settings)) {
+                    Ok(_) => evaluated += 1,
+                    Err(report) => {
+                        failures.push(format!("{what} {key}.{name} {requested:?}: {report}"))
+                    }
+                }
+            }
+        }
+    }
+    evaluated
+}
+
+#[test]
+fn every_query_of_every_preset_evaluates_over_what_the_producers_write() {
+    let mut failures = Vec::new();
+    let mut evaluated = 0;
+    for shipped in presets::PRESETS {
+        let preset = shipped.load().unwrap();
+        let settings = preset.set.settings.clone().unwrap();
+        let widgets = &preset.set.widgets;
+        let preset_id = preset.manifest.id.clone();
+
+        // No rejection and no sign-in: groups nobody is in are still counted.
+        let mut ana = preset_voter(&settings, "ana", 1);
+        ana.first_voted_at = Some(at(1, 10, 0));
+        ana.enrollment = Some(Enrollment::Accepted);
+        ana.enrollment_decided_at = Some(at(1, 9, 0));
+        let mut ben = preset_voter(&settings, "ben", 3);
+        ben.enrollment = Some(Enrollment::Pending);
+        let counted = facts(&settings, vec![ana, ben]);
+        let figures = produce(&counted, &[set(&[1, 2, 3])]);
+        for scope in ["event".to_string(), format!("post={}", id(1))] {
+            evaluated += evaluate_all(
+                &format!("{preset_id} at {scope}"),
+                &settings,
+                widgets,
+                &|source| {
+                    scopes(&figures, source)
+                        .get(&scope)
+                        .cloned()
+                        .unwrap_or_else(|| empty_payload(source, &settings))
+                },
+                &mut failures,
+            );
+        }
+
+        // Nothing at all: what the reader builds for a scope nobody is in,
+        // and the event scope of a set with nobody.
+        evaluated += evaluate_all(
+            &format!("{preset_id} empty"),
+            &settings,
+            widgets,
+            &|source| empty_payload(source, &settings),
+            &mut failures,
+        );
+        let mut nobody = facts(&settings, Vec::new());
+        nobody.posts.clear();
+        let figures = produce(&nobody, &[set(&[1, 2, 3])]);
+        evaluated += evaluate_all(
+            &format!("{preset_id} with nobody"),
+            &settings,
+            widgets,
+            &|source| {
+                scopes(&figures, source)
+                    .get("event")
+                    .cloned()
+                    .unwrap_or_else(|| empty_payload(source, &settings))
+            },
+            &mut failures,
+        );
+    }
+    assert!(failures.is_empty(), "{}", failures.join("\n"));
+    assert!(evaluated > 100, "only {evaluated} queries evaluated");
+}
+
+#[test]
+fn an_empty_scope_has_every_group_and_the_cube() {
+    let settings = settings();
+    let turnout = empty_payload(DataSourceId::VoterTurnout, &settings);
+    assert_eq!(
+        turnout
+            .groups
+            .keys()
+            .map(String::as_str)
+            .collect::<Vec<_>>(),
+        vec!["country", "post", "region"]
+    );
+    assert_eq!(
+        turnout.cube.as_ref().unwrap().dimensions,
+        vec!["sex", "age_band", "status"]
+    );
+    assert!(empty_payload(DataSourceId::EnrollmentDecisions, &settings)
+        .groups
+        .contains_key("reason"));
+    assert_eq!(
+        empty_payload(DataSourceId::AccessSecurity, &settings).notices,
+        vec![Notice::UnregisteredAttemptsExcluded]
+    );
 }

@@ -115,6 +115,10 @@ pub enum Queue {
     ElectoralLogBatch,
     #[strum(serialize = "electoral_log_event_queue")]
     ElectoralLogEvent,
+    /// The monitoring snapshot passes: long, CPU-bound counts that must not
+    /// hold up the reports voters wait for.
+    #[strum(serialize = "monitoring_queue")]
+    Monitoring,
 }
 
 impl Queue {
@@ -397,7 +401,7 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
             process_electoral_log_events_batch::NAME => &Queue::ElectoralLogBatch.queue_name(&slug),
             electoral_log_batch_dispatcher::NAME => &Queue::ElectoralLogBeat.queue_name(&slug),
             refresh_monitoring_snapshots::NAME => &Queue::Beat.queue_name(&slug),
-            refresh_monitoring_event_snapshot::NAME => &Queue::Reports.queue_name(&slug),
+            refresh_monitoring_event_snapshot::NAME => &Queue::Monitoring.queue_name(&slug),
             export_monitoring_data::NAME => &Queue::Reports.queue_name(&slug),
             execute_plugin_task::NAME => &Queue::Short.queue_name(&slug),
             prepare_publication_preview::NAME => &Queue::Beat.queue_name(&slug),

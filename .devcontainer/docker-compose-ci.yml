@@ -205,6 +205,7 @@ services:
       - import_export_queue
       - electoral_log_batch_queue
       - electoral_log_beat_queue
+      - monitoring_queue
       - --prefetch-count
       - "1"
     volumes:
