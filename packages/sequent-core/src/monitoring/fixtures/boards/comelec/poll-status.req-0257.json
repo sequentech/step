@@ -12,7 +12,7 @@
       "value": "denominator"
     },
     "reached": {
-      "label": "Posts that reached the milestone",
+      "label": "Posts at the milestone",
       "query": "milestone",
       "style": {
         "value": {
@@ -183,12 +183,8 @@
         "in_scope"
       ]
     },
-    {
-      "cols": [
-        "states",
-        "regions"
-      ]
-    }
+    "states",
+    "regions"
   ],
   "style": {
     "accent": "#1d4ed8",
