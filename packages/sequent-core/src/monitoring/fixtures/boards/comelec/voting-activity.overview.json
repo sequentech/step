@@ -5,6 +5,9 @@
         {
           "axis_y": {
             "position": "right",
+            "ticks": {
+              "step": 1
+            },
             "title": "Running total"
           },
           "label": "Running total",
@@ -18,6 +21,11 @@
         "order": "asc"
       },
       "style": {
+        "axis_y": {
+          "ticks": {
+            "step": 1
+          }
+        },
         "number_format": "number",
         "orientation": "vertical"
       },
