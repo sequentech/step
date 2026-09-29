@@ -162,6 +162,37 @@ impl ScopeKey {
     }
 }
 
+impl ScopeKey {
+    /// The key [`ScopeKey::canonical`] wrote; `None` for text it could not
+    /// have written.
+    pub fn from_canonical(text: &str) -> Option<ScopeKey> {
+        let key = if text == "event" {
+            ScopeKey::event()
+        } else {
+            let mut key = ScopeKey::default();
+            for part in text.split('&') {
+                let (name, value) = part.split_once('=')?;
+                if value.is_empty() {
+                    return None;
+                }
+                let value = Some(decode(value)?);
+                let slot = match name {
+                    "region" => &mut key.region,
+                    "post" => &mut key.post,
+                    "country" => &mut key.country,
+                    _ => return None,
+                };
+                if slot.is_some() {
+                    return None;
+                }
+                *slot = value;
+            }
+            key
+        };
+        (key.canonical() == text).then_some(key)
+    }
+}
+
 /// The key of a set of elections a viewer may see: the first 16 hex digits
 /// of the SHA-256 of their ids, lowercase, ascending and comma-separated,
 /// each id once. Election ids are UUIDs, whose lowercase text sorts as their
@@ -222,6 +253,23 @@ fn encode(value: &str) -> String {
         }
     }
     encoded
+}
+
+fn decode(value: &str) -> Option<String> {
+    let bytes = value.as_bytes();
+    let mut decoded = Vec::with_capacity(bytes.len());
+    let mut index = 0;
+    while index < bytes.len() {
+        if bytes[index] == b'%' {
+            let hex = value.get(index + 1..index + 3)?;
+            decoded.push(u8::from_str_radix(hex, 16).ok()?);
+            index += 3;
+        } else {
+            decoded.push(bytes[index]);
+            index += 1;
+        }
+    }
+    String::from_utf8(decoded).ok()
 }
 
 #[cfg(test)]
