@@ -3128,6 +3128,8 @@ const spanishTranslation: TranslationType = {
                     copyFailed:
                         "El portapapeles no está disponible; seleccione el YAML y cópielo a mano.",
                     keepEditing: "Seguir editando",
+                    removed:
+                        "El documento se eliminó mientras usted editaba. Siga editando para guardarlo de nuevo.",
                 },
                 dashboard: {
                     editing: "Editando el panel",
@@ -3155,6 +3157,9 @@ const spanishTranslation: TranslationType = {
                     resetToPreset: "Restablecer al preajuste",
                     actions: "Acciones de {{title}}",
                     discardBody: "Tus cambios en este panel no se han guardado.",
+                    duplicateInvalid: "La copia no se guardó: {{problem}}",
+                    layoutMalformed:
+                        "Algunos elementos del diseño no son un widget con un ancho. Corrígelos en la pestaña YAML para reordenar los widgets.",
                 },
                 catalog: {
                     title: "Añadir widget",
@@ -3171,6 +3176,7 @@ const spanishTranslation: TranslationType = {
                     appliesTo_other: "se aplica a {{count}} widgets",
                     apply: "Aplicar tema",
                     saved: "Tema guardado como revisión {{revision}}",
+                    discardBody: "Los cambios en este tema no se han guardado.",
                 },
                 reset: {
                     title: "Restablecer al preajuste",
@@ -3191,6 +3197,21 @@ const spanishTranslation: TranslationType = {
                     validated: "El documento es válido.",
                     invalid: "El documento tiene problemas: consulta las comprobaciones.",
                     requestFailed: "La solicitud falló: {{reason}}",
+                    savedWithWarnings_one: "{{count}} advertencia: consulta las comprobaciones.",
+                    savedWithWarnings_other: "{{count}} advertencias: consulta las comprobaciones.",
+                },
+                errors: {
+                    checksUnavailable:
+                        "El motor de gráficos no pudo comprobar el cambio, así que no se guardó. Inténtalo de nuevo en un momento.",
+                    busy: "Se están guardando otros cambios de este evento. Inténtalo de nuevo en un momento.",
+                    lockedDown:
+                        "El evento está bloqueado; su configuración de monitorización no puede cambiar.",
+                    forbiddenScope:
+                        "No puedes ver cifras de la región, el puesto o el país elegidos.",
+                },
+                duplicate: {
+                    done: "Se añadió {{id}}, una copia del widget, al panel.",
+                    failed: "No se pudo duplicar el widget: {{reason}}",
                 },
             },
         },

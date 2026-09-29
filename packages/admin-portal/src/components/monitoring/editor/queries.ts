@@ -3,17 +3,20 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 /**
- * The editor's Hasura actions, written by hand against the monitoring
- * contract until Harvest's actions are in the schema and codegen types them.
- * Nested structures (problems, previews, author) are `jsonb` in the action
- * output types, so the editor reads them through {@link normalizeProblems}
- * rather than trusting a shape.
+ * The editor's Hasura actions, as Harvest declares them (actions.graphql):
+ * ids are `uuid`, reads are queries and writes mutations, and each output is
+ * a typed object whose fields are selected here; only definitions and
+ * tables are `jsonb`.
+ *
+ * The operations are named `MonitoringEditor*`: the view's documents for
+ * the same actions (`@/queries/Monitoring*`) select less, and codegen needs
+ * every operation name to be unique.
  */
 
 import {gql} from "@apollo/client"
 
-export const MONITORING_VALIDATE_CONFIG = gql`
-    mutation MonitoringValidateConfig(
+export const MONITORING_EDITOR_VALIDATE_CONFIG = gql`
+    query MonitoringEditorValidateConfig(
         $election_event_id: uuid!
         $kind: String!
         $key: String!
@@ -26,14 +29,37 @@ export const MONITORING_VALIDATE_CONFIG = gql`
             yaml: $yaml
         ) {
             result
-            problems
-            preview
+            problems {
+                severity
+                code
+                path
+                message
+                engine_code
+            }
+            preview {
+                state
+                reason
+                svg
+                table
+                notices
+                diagnostics {
+                    severity
+                    code
+                    path
+                    message
+                    engine_code
+                }
+                ignored_selectors
+                render_ms
+                snapshot_revision
+                as_of
+            }
         }
     }
 `
 
-export const MONITORING_SAVE_CONFIG = gql`
-    mutation MonitoringSaveConfig(
+export const MONITORING_EDITOR_SAVE_CONFIG = gql`
+    mutation MonitoringEditorSaveConfig(
         $election_event_id: uuid!
         $kind: String!
         $key: String!
@@ -51,12 +77,19 @@ export const MONITORING_SAVE_CONFIG = gql`
         ) {
             revision
             generation
+            warnings {
+                severity
+                code
+                path
+                message
+                engine_code
+            }
         }
     }
 `
 
-export const MONITORING_RENDER_WIDGET_DRAFT = gql`
-    mutation MonitoringRenderWidgetDraft(
+export const MONITORING_EDITOR_RENDER_WIDGET = gql`
+    query MonitoringEditorRenderWidget(
         $election_event_id: uuid!
         $election_id: uuid
         $dashboard_id: String!
@@ -85,7 +118,13 @@ export const MONITORING_RENDER_WIDGET_DRAFT = gql`
             svg
             table
             notices
-            diagnostics
+            diagnostics {
+                severity
+                code
+                path
+                message
+                engine_code
+            }
             ignored_selectors
             render_ms
             snapshot_revision
@@ -94,8 +133,8 @@ export const MONITORING_RENDER_WIDGET_DRAFT = gql`
     }
 `
 
-export const MONITORING_GET_CONFIG = gql`
-    query MonitoringGetConfig(
+export const MONITORING_EDITOR_GET_CONFIG = gql`
+    query MonitoringEditorGetConfig(
         $election_event_id: uuid!
         $kind: String!
         $key: String!
@@ -110,32 +149,57 @@ export const MONITORING_GET_CONFIG = gql`
             yaml
             revision
             origin
-            author
+            author {
+                id
+                name
+            }
             created_at
         }
     }
 `
 
-export const MONITORING_LIST_CONFIG = gql`
-    query MonitoringListConfig($election_event_id: uuid!) {
+export const MONITORING_EDITOR_LIST_CONFIG = gql`
+    query MonitoringEditorListConfig($election_event_id: uuid!) {
         monitoringListConfig(election_event_id: $election_event_id) {
-            documents
+            documents {
+                kind
+                key
+                revision
+                origin
+                author {
+                    id
+                    name
+                }
+                created_at
+            }
         }
     }
 `
 
-export const MONITORING_LIST_PRESETS = gql`
-    query MonitoringListPresets($election_event_id: uuid!) {
+export const MONITORING_EDITOR_LIST_PRESETS = gql`
+    query MonitoringEditorListPresets($election_event_id: uuid!) {
         monitoringListPresets(election_event_id: $election_event_id) {
-            presets
+            presets {
+                id
+                version
+                title
+                description
+            }
         }
     }
 `
 
-export const MONITORING_RESET_TO_PRESET = gql`
-    mutation MonitoringResetToPreset($election_event_id: uuid!, $preset_id: String!) {
+export const MONITORING_EDITOR_RESET_TO_PRESET = gql`
+    mutation MonitoringEditorResetToPreset($election_event_id: uuid!, $preset_id: String!) {
         monitoringResetToPreset(election_event_id: $election_event_id, preset_id: $preset_id) {
             generation
+            warnings {
+                severity
+                code
+                path
+                message
+                engine_code
+            }
         }
     }
 `

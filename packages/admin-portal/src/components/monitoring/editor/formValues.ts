@@ -8,7 +8,7 @@
  * through `yamlPatch`.
  */
 
-import type {IMonitoringWidgetDefinition} from "./types"
+import type {IMonitoringLayoutItem, IMonitoringWidgetDefinition} from "./types"
 import {EMonitoringScopeSelector} from "./types"
 
 /** `{selector: breakdown}` → `"breakdown"`; anything else is a literal. */
@@ -71,4 +71,32 @@ export const freshName = (prefix: string, names: ReadonlyArray<string>): string 
 export const humanize = (id: string): string => {
     const words = id.replace(/[_-]+/g, " ").trim()
     return words ? words[0].toUpperCase() + words.slice(1) : id
+}
+
+/** A layout item and its position in the YAML's `layout` sequence. */
+export interface ILayoutEntry {
+    item: IMonitoringLayoutItem
+    /** Index into the raw `layout`, which every patch addresses. */
+    index: number
+}
+
+/**
+ * The dashboard's layout items the form can show, each with its index in
+ * the YAML. `malformed` when some item is not `{widget, width}`: the form
+ * leaves it out, so its neighbours' positions no longer follow one another.
+ */
+export const layoutEntries = (value: unknown): {entries: ILayoutEntry[]; malformed: boolean} => {
+    const layout =
+        value && typeof value === "object" && !Array.isArray(value)
+            ? (value as {layout?: unknown}).layout
+            : undefined
+    if (!Array.isArray(layout)) return {entries: [], malformed: layout !== undefined}
+    const entries = layout.flatMap((item: unknown, index): ILayoutEntry[] =>
+        item &&
+        typeof item === "object" &&
+        typeof (item as IMonitoringLayoutItem).widget === "string"
+            ? [{item: item as IMonitoringLayoutItem, index}]
+            : []
+    )
+    return {entries, malformed: entries.length !== layout.length}
 }

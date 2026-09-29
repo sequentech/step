@@ -3124,6 +3124,8 @@ const galegoTranslation: TranslationType = {
                     copyFailed:
                         "O portapapeis non está dispoñible; seleccione o YAML e cópieo a man.",
                     keepEditing: "Seguir editando",
+                    removed:
+                        "O documento eliminouse mentres vostede editaba. Siga editando para gardalo de novo.",
                 },
                 dashboard: {
                     editing: "Editando o panel",
@@ -3151,6 +3153,9 @@ const galegoTranslation: TranslationType = {
                     resetToPreset: "Restablecer ao axuste predefinido",
                     actions: "Accións de {{title}}",
                     discardBody: "Os teus cambios neste panel non se gardaron.",
+                    duplicateInvalid: "A copia non se gardou: {{problem}}",
+                    layoutMalformed:
+                        "Algúns elementos do deseño non son un widget cun ancho. Corríxeos na lapela YAML para reordenar os widgets.",
                 },
                 catalog: {
                     title: "Engadir widget",
@@ -3167,6 +3172,7 @@ const galegoTranslation: TranslationType = {
                     appliesTo_other: "aplícase a {{count}} widgets",
                     apply: "Aplicar tema",
                     saved: "Tema gardado como revisión {{revision}}",
+                    discardBody: "Os cambios neste tema non se gardaron.",
                 },
                 reset: {
                     title: "Restablecer ao axuste predefinido",
@@ -3187,6 +3193,20 @@ const galegoTranslation: TranslationType = {
                     validated: "O documento é válido.",
                     invalid: "O documento ten problemas: consulta as comprobacións.",
                     requestFailed: "A solicitude fallou: {{reason}}",
+                    savedWithWarnings_one: "{{count}} aviso: consulta as comprobacións.",
+                    savedWithWarnings_other: "{{count}} avisos: consulta as comprobacións.",
+                },
+                errors: {
+                    checksUnavailable:
+                        "O motor de gráficos non puido comprobar o cambio, así que non se gardou. Téntao de novo nun momento.",
+                    busy: "Estanse a gardar outros cambios deste evento. Téntao de novo nun momento.",
+                    lockedDown:
+                        "O evento está bloqueado; a súa configuración de monitorización non pode cambiar.",
+                    forbiddenScope: "Non podes ver cifras da rexión, o posto ou o país escollidos.",
+                },
+                duplicate: {
+                    done: "Engadiuse {{id}}, unha copia do widget, ao panel.",
+                    failed: "Non se puido duplicar o widget: {{reason}}",
                 },
             },
         },

@@ -12,7 +12,11 @@
  *   to guess what the author meant.
  * - Local checks (sequent-core in the browser) run on every change.
  * - The live preview is rendered at most once per pause in typing, and a
- *   reply that arrives after a newer request was sent is thrown away.
+ *   reply that arrives after a newer request was sent, or after the text
+ *   changed, is thrown away.
+ * - The server's problems are about the text it was sent. Without a live
+ *   preview to replace them, an edit drops them rather than let them block
+ *   Save for text they no longer describe.
  */
 
 import {
@@ -102,7 +106,10 @@ export class YamlDraftController {
 
     setText(text: string) {
         if (text === this.state.text) return
-        this.state = this.derive(text, this.state.baseline, this.state.serverProblems, this.state)
+        // A render in flight is about the text before this edit.
+        this.issued += 1
+        const serverProblems = this.options.renderPreview ? this.state.serverProblems : []
+        this.state = this.derive(text, this.state.baseline, serverProblems, this.state)
         this.emit()
         this.schedulePreview()
     }
@@ -127,18 +134,23 @@ export class YamlDraftController {
     reset(text: string) {
         this.clearTimer()
         this.issued += 1
-        this.state = this.derive(text, text, [], this.state)
+        this.state = this.derive(text, text, [], {previewStatus: EPreviewStatus.IDLE})
         this.emit()
         this.schedulePreview()
     }
 
-    /** Marks the current text as saved without replacing it. */
-    markSaved() {
-        this.state = {...this.state, baseline: this.state.text, dirty: false}
+    /**
+     * Marks `sentText`, the text a save carried, as saved. What was typed
+     * while the save was on its way stays unsaved.
+     */
+    markSaved(sentText: string) {
+        this.state = {...this.state, baseline: sentText, dirty: this.state.text !== sentText}
         this.emit()
     }
 
-    setServerProblems(problems: unknown) {
+    /** The server's problems with `forText` (the current text when omitted); dropped if it changed. */
+    setServerProblems(problems: unknown, forText: string = this.state.text) {
+        if (forText !== this.state.text) return
         this.state = this.derive(
             this.state.text,
             this.state.baseline,
@@ -148,10 +160,14 @@ export class YamlDraftController {
         this.emit()
     }
 
-    /** Takes a preview from elsewhere (Validate returns one), as the newest. */
-    acceptPreview(preview: IMonitoringRenderResponse) {
+    /**
+     * Takes a preview of `forText` from elsewhere (Validate returns one), as
+     * the newest, unless the text changed since; a render already scheduled
+     * for a newer edit still runs.
+     */
+    acceptPreview(preview: IMonitoringRenderResponse, forText: string = this.state.text) {
+        if (forText !== this.state.text) return
         this.issued += 1
-        this.clearTimer()
         this.applyPreview(preview)
     }
 
@@ -178,13 +194,25 @@ export class YamlDraftController {
 
     private async render(): Promise<void> {
         const renderPreview = this.options.renderPreview
-        if (!renderPreview || this.state.parsed.status !== EYamlParseStatus.OK) return
+        if (!renderPreview) return
+        if (this.state.parsed.status !== EYamlParseStatus.OK) {
+            // The render that was in flight, if any, was discarded by the edit.
+            if (this.state.previewStatus === EPreviewStatus.RENDERING) {
+                this.state = {
+                    ...this.state,
+                    previewStatus: this.state.preview ? EPreviewStatus.READY : EPreviewStatus.IDLE,
+                }
+                this.emit()
+            }
+            return
+        }
         this.issued += 1
         const request = this.issued
+        const text = this.state.text
         this.state = {...this.state, previewStatus: EPreviewStatus.RENDERING}
         this.emit()
         try {
-            const preview = await renderPreview(this.state.text)
+            const preview = await renderPreview(text)
             if (request !== this.issued) return
             this.applyPreview(preview)
         } catch (error) {

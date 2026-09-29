@@ -7,12 +7,9 @@ import {useTranslation} from "react-i18next"
 import {
     Alert,
     Box,
-    Button,
     CircularProgress,
     Dialog,
-    DialogActions,
     DialogContent,
-    DialogContentText,
     DialogTitle,
     Tab,
     Tabs,
@@ -34,6 +31,7 @@ import {MonitoringPreviewPane} from "./MonitoringPreviewPane"
 import {MonitoringDataQueryForm} from "./MonitoringDataQueryForm"
 import {MonitoringSelectorsForm} from "./MonitoringSelectorsForm"
 import {MonitoringConflictDialog} from "./MonitoringConflictDialog"
+import {MonitoringDiscardDialog} from "./MonitoringDiscardDialog"
 import {asWidget} from "./formValues"
 import {
     EDocumentLoad,
@@ -304,39 +302,21 @@ export const MonitoringConfigureWidgetDialog: React.FC<MonitoringConfigureWidget
                     onSave={() => void stored.save()}
                 />
             </Box>
-            <Dialog
+            <MonitoringDiscardDialog
                 open={confirmDiscard}
-                onClose={() => setConfirmDiscard(false)}
-                aria-labelledby="monitoring-discard-title"
-            >
-                <DialogTitle id="monitoring-discard-title">
-                    {t("monitoring.editor.configureWidget.discardTitle")}
-                </DialogTitle>
-                <DialogContent>
-                    <DialogContentText>
-                        {t("monitoring.editor.configureWidget.discardBody")}
-                    </DialogContentText>
-                </DialogContent>
-                <DialogActions>
-                    <Button onClick={() => setConfirmDiscard(false)}>
-                        {t("monitoring.editor.configureWidget.keepEditing")}
-                    </Button>
-                    <Button
-                        color="error"
-                        onClick={() => {
-                            setConfirmDiscard(false)
-                            onClose()
-                        }}
-                    >
-                        {t("monitoring.editor.configureWidget.discard")}
-                    </Button>
-                </DialogActions>
-            </Dialog>
+                body={t("monitoring.editor.configureWidget.discardBody")}
+                onKeepEditing={() => setConfirmDiscard(false)}
+                onDiscard={() => {
+                    setConfirmDiscard(false)
+                    onClose()
+                }}
+            />
             {conflict ? (
                 <MonitoringConflictDialog
                     open
                     mine={draft.text}
                     theirs={conflict.theirs}
+                    theirsError={conflict.theirsError}
                     currentRevision={conflict.currentRevision}
                     author={conflict.author}
                     time={conflict.time}

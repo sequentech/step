@@ -11,9 +11,7 @@ import {
     Checkbox,
     CircularProgress,
     Dialog,
-    DialogActions,
     DialogContent,
-    DialogContentText,
     DialogTitle,
     FormControl,
     FormControlLabel,
@@ -45,7 +43,6 @@ import {
     EMonitoringSaveStatus,
     MONITORING_GRID_COLUMNS,
     type IMonitoringDashboardDefinition,
-    type IMonitoringLayoutItem,
 } from "./types"
 import {useYamlDraft} from "./useYamlDraft"
 import {EFormAccess, type TLocalValidate} from "./yamlDraft"
@@ -53,6 +50,7 @@ import {MonitoringYamlEditor, type IMonitoringYamlEditorHandle} from "./Monitori
 import {MonitoringDiagnosticsList} from "./MonitoringDiagnosticsList"
 import {MonitoringPreviewFooter} from "./MonitoringPreviewFooter"
 import {MonitoringConflictDialog} from "./MonitoringConflictDialog"
+import {MonitoringDiscardDialog} from "./MonitoringDiscardDialog"
 import {MonitoringWidgetCatalogDialog} from "./MonitoringWidgetCatalogDialog"
 import {MonitoringThemeEditorDialog} from "./MonitoringThemeEditorDialog"
 import {MonitoringResetToPresetDialog} from "./MonitoringResetToPresetDialog"
@@ -62,7 +60,7 @@ import {
     loadWidgetCatalog,
     type IWidgetCatalogEntry,
 } from "./catalog"
-import {SCOPE_SELECTORS, copyId, stringList} from "./formValues"
+import {SCOPE_SELECTORS, copyId, layoutEntries, stringList} from "./formValues"
 import {
     EDocumentLoad,
     EMessageTone,
@@ -107,16 +105,6 @@ const asDashboard = (value: unknown): Partial<IMonitoringDashboardDefinition> =>
         ? (value as Partial<IMonitoringDashboardDefinition>)
         : {}
 
-const layoutItems = (value: unknown): IMonitoringLayoutItem[] => {
-    const layout = asDashboard(value).layout
-    return Array.isArray(layout)
-        ? layout.filter(
-              (item): item is IMonitoringLayoutItem =>
-                  Boolean(item) && typeof item === "object" && typeof item.widget === "string"
-          )
-        : []
-}
-
 const reason = (error: unknown) => (error instanceof Error ? error.message : String(error))
 
 /**
@@ -145,6 +133,7 @@ export const MonitoringDashboardEditor: React.FC<MonitoringDashboardEditorProps>
     const [theming, setTheming] = useState<{key: string; count: number} | null>(null)
     const [resetting, setResetting] = useState(false)
     const [confirmDiscard, setConfirmDiscard] = useState(false)
+    const [duplicating, setDuplicating] = useState(false)
     const [menu, setMenu] = useState<{anchor: HTMLElement; index: number} | null>(null)
     const [dragging, setDragging] = useState<number | null>(null)
     /** The item being dragged, read at drop time, before any re-render. */
@@ -194,8 +183,13 @@ export const MonitoringDashboardEditor: React.FC<MonitoringDashboardEditorProps>
     }, [open, api, t])
 
     const dashboard = asDashboard(draft.value)
-    const layout = layoutItems(draft.value)
+    /** Every patch addresses an item by its index in the YAML, which `entries` keeps. */
+    const {entries, malformed} = layoutEntries(draft.value)
+    const layout = entries.map((entry) => entry.item)
+    const layoutLength = Array.isArray(dashboard.layout) ? dashboard.layout.length : 0
     const readOnly = draft.formAccess !== EFormAccess.EDITABLE
+    /** Reordering around items the form cannot show would move them unseen. */
+    const reorderOff = readOnly || malformed
     const ready = stored.load === EDocumentLoad.READY
     const theme = typeof dashboard.theme === "string" ? dashboard.theme : DEFAULT_THEME
     const selectors = stringList(dashboard.selectors)
@@ -217,24 +211,31 @@ export const MonitoringDashboardEditor: React.FC<MonitoringDashboardEditorProps>
 
     const add = (widgetId: string) => {
         patch((text) =>
-            insertIn(text, LAYOUT, layout.length, {widget: widgetId, width: NEW_WIDGET_WIDTH})
+            insertIn(text, LAYOUT, layoutLength, {widget: widgetId, width: NEW_WIDGET_WIDTH})
         )
         setAdding(false)
     }
 
+    /**
+     * Saves a copy of the widget at `index` under a new id and puts it after
+     * the original. The draft may change while the requests run, so the
+     * original is looked up again, by id, before the copy goes in.
+     */
     const duplicate = async (index: number) => {
-        const item = layout[index]
-        if (!item) return
+        const item = entries.find((entry) => entry.index === index)?.item
+        if (!item || duplicating) return
         const taken = new Set([
             ...(catalog ?? []).map((entry) => entry.id),
             ...layout.map((entry) => entry.widget),
         ])
         const id = copyId(item.widget, taken)
+        setDuplicating(true)
         try {
             const source = await api.getConfig({
                 kind: EMonitoringConfigKind.WIDGET,
                 key: item.widget,
             })
+            if (source.yaml === null) throw new Error(item.widget)
             const yaml = setIn(source.yaml, ["id"], id)
             const outcome = await api.saveConfig({
                 kind: EMonitoringConfigKind.WIDGET,
@@ -243,16 +244,28 @@ export const MonitoringDashboardEditor: React.FC<MonitoringDashboardEditorProps>
                 change: EMonitoringSaveChange.UPSERT,
             })
             if (outcome.status !== EMonitoringSaveStatus.SAVED) {
+                // The problems are the copy's, not this dashboard's: say them, do not list them here.
+                const problem =
+                    outcome.status === EMonitoringSaveStatus.INVALID
+                        ? outcome.problems[0]?.message
+                        : undefined
                 setMessage({
                     tone: EMessageTone.ERROR,
-                    text: t("monitoring.editor.dashboard.refused"),
+                    text: problem
+                        ? t("monitoring.editor.dashboard.duplicateInvalid", {problem})
+                        : t("monitoring.editor.dashboard.refused"),
                 })
-                if (outcome.status === EMonitoringSaveStatus.INVALID) {
-                    controller.setServerProblems(outcome.problems)
-                }
                 return
             }
-            patch((text) => insertIn(text, LAYOUT, index + 1, {...item, widget: id}))
+            const now = layoutEntries(controller.getState().value).entries
+            const original =
+                now.find((entry) => entry.index === index && entry.item.widget === item.widget) ??
+                now.find((entry) => entry.item.widget === item.widget)
+            if (original) {
+                patch((text) =>
+                    insertIn(text, LAYOUT, original.index + 1, {...original.item, widget: id})
+                )
+            }
             setCatalog((entries) => {
                 if (!entries) return entries
                 const original = entries.find((entry) => entry.id === item.widget)
@@ -275,6 +288,8 @@ export const MonitoringDashboardEditor: React.FC<MonitoringDashboardEditorProps>
                 tone: EMessageTone.ERROR,
                 text: t("monitoring.editor.dashboard.requestFailed", {reason: reason(error)}),
             })
+        } finally {
+            setDuplicating(false)
         }
     }
 
@@ -306,7 +321,7 @@ export const MonitoringDashboardEditor: React.FC<MonitoringDashboardEditorProps>
         setOver(null)
     }
 
-    const menuItem = menu ? layout[menu.index] : undefined
+    const menuItem = menu ? entries.find((entry) => entry.index === menu.index)?.item : undefined
 
     return (
         <Dialog
@@ -368,6 +383,11 @@ export const MonitoringDashboardEditor: React.FC<MonitoringDashboardEditorProps>
                                         {readOnly ? (
                                             <Alert severity="warning">
                                                 {t("monitoring.editor.yaml.readOnly")}
+                                            </Alert>
+                                        ) : null}
+                                        {!readOnly && malformed ? (
+                                            <Alert severity="warning">
+                                                {t("monitoring.editor.dashboard.layoutMalformed")}
                                             </Alert>
                                         ) : null}
                                         <TextField
@@ -481,7 +501,7 @@ export const MonitoringDashboardEditor: React.FC<MonitoringDashboardEditorProps>
                                                 gap: 1,
                                             }}
                                         >
-                                            {layout.map((item, index) => {
+                                            {entries.map(({item, index}, position) => {
                                                 const title = titleOf(item.widget)
                                                 return (
                                                     <Paper
@@ -489,7 +509,7 @@ export const MonitoringDashboardEditor: React.FC<MonitoringDashboardEditorProps>
                                                         component="li"
                                                         variant="outlined"
                                                         aria-label={title}
-                                                        draggable={!readOnly}
+                                                        draggable={!reorderOff}
                                                         onDragStart={(event: React.DragEvent) => {
                                                             event.dataTransfer.effectAllowed =
                                                                 "move"
@@ -538,7 +558,7 @@ export const MonitoringDashboardEditor: React.FC<MonitoringDashboardEditorProps>
                                                                     {title}
                                                                 )}
                                                                 sx={{
-                                                                    cursor: readOnly
+                                                                    cursor: reorderOff
                                                                         ? "default"
                                                                         : "move",
                                                                     color: "text.secondary",
@@ -611,7 +631,7 @@ export const MonitoringDashboardEditor: React.FC<MonitoringDashboardEditorProps>
                                                         </FormControl>
                                                         <IconButton
                                                             aria-label={`${t("monitoring.editor.dashboard.moveUp")}: ${title}`}
-                                                            disabled={readOnly || index === 0}
+                                                            disabled={reorderOff || position === 0}
                                                             onClick={() => move(index, index - 1)}
                                                         >
                                                             <ArrowUpwardIcon fontSize="small" />
@@ -619,8 +639,8 @@ export const MonitoringDashboardEditor: React.FC<MonitoringDashboardEditorProps>
                                                         <IconButton
                                                             aria-label={`${t("monitoring.editor.dashboard.moveDown")}: ${title}`}
                                                             disabled={
-                                                                readOnly ||
-                                                                index === layout.length - 1
+                                                                reorderOff ||
+                                                                position === entries.length - 1
                                                             }
                                                             onClick={() => move(index, index + 1)}
                                                         >
@@ -719,7 +739,7 @@ export const MonitoringDashboardEditor: React.FC<MonitoringDashboardEditorProps>
                     </MenuItem>
                 ) : null}
                 <MenuItem
-                    disabled={readOnly}
+                    disabled={readOnly || duplicating}
                     onClick={() => {
                         if (menu) void duplicate(menu.index)
                         setMenu(null)
@@ -767,39 +787,21 @@ export const MonitoringDashboardEditor: React.FC<MonitoringDashboardEditorProps>
                     onReset={() => onReset?.()}
                 />
             ) : null}
-            <Dialog
+            <MonitoringDiscardDialog
                 open={confirmDiscard}
-                onClose={() => setConfirmDiscard(false)}
-                aria-labelledby="monitoring-dashboard-discard-title"
-            >
-                <DialogTitle id="monitoring-dashboard-discard-title">
-                    {t("monitoring.editor.configureWidget.discardTitle")}
-                </DialogTitle>
-                <DialogContent>
-                    <DialogContentText>
-                        {t("monitoring.editor.dashboard.discardBody")}
-                    </DialogContentText>
-                </DialogContent>
-                <DialogActions>
-                    <Button onClick={() => setConfirmDiscard(false)}>
-                        {t("monitoring.editor.configureWidget.keepEditing")}
-                    </Button>
-                    <Button
-                        color="error"
-                        onClick={() => {
-                            setConfirmDiscard(false)
-                            onClose()
-                        }}
-                    >
-                        {t("monitoring.editor.configureWidget.discard")}
-                    </Button>
-                </DialogActions>
-            </Dialog>
+                body={t("monitoring.editor.dashboard.discardBody")}
+                onKeepEditing={() => setConfirmDiscard(false)}
+                onDiscard={() => {
+                    setConfirmDiscard(false)
+                    onClose()
+                }}
+            />
             {stored.conflict ? (
                 <MonitoringConflictDialog
                     open
                     mine={draft.text}
                     theirs={stored.conflict.theirs}
+                    theirsError={stored.conflict.theirsError}
                     currentRevision={stored.conflict.currentRevision}
                     author={stored.conflict.author}
                     time={stored.conflict.time}

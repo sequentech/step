@@ -3126,6 +3126,8 @@ const dutchTranslation: TranslationType = {
                     copyFailed:
                         "Het klembord is niet beschikbaar; selecteer de YAML en kopieer hem handmatig.",
                     keepEditing: "Verder bewerken",
+                    removed:
+                        "Het document is verwijderd terwijl je aan het bewerken was. Bewerk verder om het opnieuw op te slaan.",
                 },
                 dashboard: {
                     editing: "Dashboard bewerken",
@@ -3153,6 +3155,9 @@ const dutchTranslation: TranslationType = {
                     resetToPreset: "Terugzetten naar voorinstelling",
                     actions: "Acties voor {{title}}",
                     discardBody: "Je wijzigingen aan dit dashboard zijn niet opgeslagen.",
+                    duplicateInvalid: "De kopie is niet opgeslagen: {{problem}}",
+                    layoutMalformed:
+                        "Sommige lay-outitems zijn geen widget met een breedte. Herstel ze op het YAML-tabblad om de widgets te herschikken.",
                 },
                 catalog: {
                     title: "Widget toevoegen",
@@ -3170,6 +3175,7 @@ const dutchTranslation: TranslationType = {
                     appliesTo_other: "geldt voor {{count}} widgets",
                     apply: "Thema toepassen",
                     saved: "Thema opgeslagen als revisie {{revision}}",
+                    discardBody: "Je wijzigingen aan dit thema zijn niet opgeslagen.",
                 },
                 reset: {
                     title: "Terugzetten naar voorinstelling",
@@ -3190,6 +3196,21 @@ const dutchTranslation: TranslationType = {
                     validated: "Het document is geldig.",
                     invalid: "Het document bevat problemen: zie de controles.",
                     requestFailed: "Het verzoek is mislukt: {{reason}}",
+                    savedWithWarnings_one: "{{count}} waarschuwing: zie de controles.",
+                    savedWithWarnings_other: "{{count}} waarschuwingen: zie de controles.",
+                },
+                errors: {
+                    checksUnavailable:
+                        "De grafiekengine kon de wijziging niet controleren, dus die is niet opgeslagen. Probeer het zo meteen opnieuw.",
+                    busy: "Andere wijzigingen aan dit evenement worden opgeslagen. Probeer het zo meteen opnieuw.",
+                    lockedDown:
+                        "Het evenement is vergrendeld; de monitoringconfiguratie kan niet meer veranderen.",
+                    forbiddenScope:
+                        "Je mag de cijfers van de gekozen regio, functie of het gekozen land niet zien.",
+                },
+                duplicate: {
+                    done: "{{id}}, een kopie van de widget, is aan het dashboard toegevoegd.",
+                    failed: "De widget kon niet worden gedupliceerd: {{reason}}",
                 },
             },
         },

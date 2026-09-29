@@ -7,6 +7,7 @@ import {
     followedSelectors,
     freshName,
     humanize,
+    layoutEntries,
     selectorRef,
     toggleFollowed,
 } from "./formValues"
@@ -51,5 +52,24 @@ describe("names", () => {
     it("humanizes identifiers", () => {
         expect(humanize("pre_enrolled")).toBe("Pre enrolled")
         expect(humanize("")).toBe("")
+    })
+})
+
+describe("layoutEntries", () => {
+    it("keeps each item's index in the YAML when a malformed item is left out", () => {
+        const {entries, malformed} = layoutEntries({
+            layout: [{widget: "a", width: 6}, "oops", {width: 3}, {widget: "b", width: 6}],
+        })
+        expect(entries).toEqual([
+            {item: {widget: "a", width: 6}, index: 0},
+            {item: {widget: "b", width: 6}, index: 3},
+        ])
+        expect(malformed).toBe(true)
+    })
+
+    it("is well formed for a layout of widgets, or none", () => {
+        expect(layoutEntries({layout: [{widget: "a", width: 6}]}).malformed).toBe(false)
+        expect(layoutEntries({title: "x"})).toEqual({entries: [], malformed: false})
+        expect(layoutEntries({layout: "x"}).malformed).toBe(true)
     })
 })

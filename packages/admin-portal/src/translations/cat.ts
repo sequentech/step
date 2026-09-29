@@ -3138,6 +3138,8 @@ const catalanTranslation: TranslationType = {
                     copyFailed:
                         "El porta-retalls no està disponible; seleccioneu el YAML i copieu-lo a mà.",
                     keepEditing: "Continua editant",
+                    removed:
+                        "El document s'ha eliminat mentre editàveu. Continueu editant per tornar-lo a desar.",
                 },
                 dashboard: {
                     editing: "Editant el tauler",
@@ -3165,6 +3167,9 @@ const catalanTranslation: TranslationType = {
                     resetToPreset: "Restableix al valor predefinit",
                     actions: "Accions de {{title}}",
                     discardBody: "Els teus canvis en aquest tauler no s'han desat.",
+                    duplicateInvalid: "La còpia no s'ha desat: {{problem}}",
+                    layoutMalformed:
+                        "Alguns elements del disseny no són un widget amb una amplada. Corregeix-los a la pestanya YAML per reordenar els widgets.",
                 },
                 catalog: {
                     title: "Afegeix un widget",
@@ -3181,6 +3186,7 @@ const catalanTranslation: TranslationType = {
                     appliesTo_other: "s'aplica a {{count}} widgets",
                     apply: "Aplica el tema",
                     saved: "Tema desat com a revisió {{revision}}",
+                    discardBody: "Els canvis en aquest tema no s'han desat.",
                 },
                 reset: {
                     title: "Restableix al valor predefinit",
@@ -3201,6 +3207,20 @@ const catalanTranslation: TranslationType = {
                     validated: "El document és vàlid.",
                     invalid: "El document té problemes: consulta les comprovacions.",
                     requestFailed: "La sol·licitud ha fallat: {{reason}}",
+                    savedWithWarnings_one: "{{count}} avís: consulta les comprovacions.",
+                    savedWithWarnings_other: "{{count}} avisos: consulta les comprovacions.",
+                },
+                errors: {
+                    checksUnavailable:
+                        "El motor de gràfics no ha pogut comprovar el canvi, així que no s'ha desat. Torna-ho a provar d'aquí a un moment.",
+                    busy: "S'estan desant altres canvis d'aquest esdeveniment. Torna-ho a provar d'aquí a un moment.",
+                    lockedDown:
+                        "L'esdeveniment està bloquejat; la seva configuració de monitoratge no pot canviar.",
+                    forbiddenScope: "No pots veure xifres de la regió, el lloc o el país triats.",
+                },
+                duplicate: {
+                    done: "S'ha afegit {{id}}, una còpia del widget, al tauler.",
+                    failed: "No s'ha pogut duplicar el widget: {{reason}}",
                 },
             },
         },

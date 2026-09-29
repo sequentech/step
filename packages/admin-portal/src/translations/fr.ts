@@ -3147,6 +3147,8 @@ const frenchTranslation: TranslationType = {
                     copyFailed:
                         "Le presse-papiers est indisponible ; sélectionnez le YAML et copiez-le à la main.",
                     keepEditing: "Continuer à modifier",
+                    removed:
+                        "Le document a été supprimé pendant que vous le modifiiez. Continuez à modifier pour l'enregistrer à nouveau.",
                 },
                 dashboard: {
                     editing: "Modification du tableau de bord",
@@ -3176,6 +3178,9 @@ const frenchTranslation: TranslationType = {
                     actions: "Actions pour {{title}}",
                     discardBody:
                         "Vos modifications de ce tableau de bord n'ont pas été enregistrées.",
+                    duplicateInvalid: "La copie n'a pas été enregistrée : {{problem}}",
+                    layoutMalformed:
+                        "Certains éléments de la disposition ne sont pas un widget avec une largeur. Corrigez-les dans l'onglet YAML pour réordonner les widgets.",
                 },
                 catalog: {
                     title: "Ajouter un widget",
@@ -3192,6 +3197,7 @@ const frenchTranslation: TranslationType = {
                     appliesTo_other: "s'applique à {{count}} widgets",
                     apply: "Appliquer le thème",
                     saved: "Thème enregistré en tant que révision {{revision}}",
+                    discardBody: "Vos modifications de ce thème n'ont pas été enregistrées.",
                 },
                 reset: {
                     title: "Rétablir le préréglage",
@@ -3212,6 +3218,21 @@ const frenchTranslation: TranslationType = {
                     validated: "Le document est valide.",
                     invalid: "Le document comporte des problèmes : voir les vérifications.",
                     requestFailed: "La requête a échoué : {{reason}}",
+                    savedWithWarnings_one: "{{count}} avertissement : voir les vérifications.",
+                    savedWithWarnings_other: "{{count}} avertissements : voir les vérifications.",
+                },
+                errors: {
+                    checksUnavailable:
+                        "Le moteur de graphiques n'a pas pu vérifier la modification, qui n'a donc pas été enregistrée. Réessayez dans un instant.",
+                    busy: "D'autres modifications de cet événement sont en cours d'enregistrement. Réessayez dans un instant.",
+                    lockedDown:
+                        "L'événement est verrouillé ; sa configuration de supervision ne peut pas changer.",
+                    forbiddenScope:
+                        "Vous ne pouvez pas voir les chiffres de la région, du poste ou du pays choisis.",
+                },
+                duplicate: {
+                    done: "{{id}}, une copie du widget, a été ajouté au tableau de bord.",
+                    failed: "Le widget n'a pas pu être dupliqué : {{reason}}",
                 },
             },
         },

@@ -3116,6 +3116,8 @@ const basqueTranslation: TranslationType = {
                     copied: "Zure YAMLa arbelean dago.",
                     copyFailed: "Arbela ez dago erabilgarri; hautatu YAMLa eta kopiatu eskuz.",
                     keepEditing: "Jarraitu editatzen",
+                    removed:
+                        "Dokumentua ezabatu egin da zu editatzen ari zinen bitartean. Jarraitu editatzen berriro gordetzeko.",
                 },
                 dashboard: {
                     editing: "Panela editatzen",
@@ -3143,6 +3145,9 @@ const basqueTranslation: TranslationType = {
                     resetToPreset: "Berrezarri aurrezarpenera",
                     actions: "{{title}} elementuaren ekintzak",
                     discardBody: "Panel honetan egindako aldaketak ez dira gorde.",
+                    duplicateInvalid: "Kopia ez da gorde: {{problem}}",
+                    layoutMalformed:
+                        "Diseinuko elementu batzuk ez dira zabalera duen widget bat. Konpondu YAML fitxan widgetak berrantolatzeko.",
                 },
                 catalog: {
                     title: "Gehitu widgeta",
@@ -3159,6 +3164,7 @@ const basqueTranslation: TranslationType = {
                     appliesTo_other: "{{count}} widgeti aplikatzen zaie",
                     apply: "Aplikatu gaia",
                     saved: "Gaia {{revision}}. berrikuspen gisa gorde da",
+                    discardBody: "Gai honetan egindako aldaketak ez dira gorde.",
                 },
                 reset: {
                     title: "Berrezarri aurrezarpenera",
@@ -3179,6 +3185,21 @@ const basqueTranslation: TranslationType = {
                     validated: "Dokumentua baliozkoa da.",
                     invalid: "Dokumentuak arazoak ditu: ikusi egiaztapenak.",
                     requestFailed: "Eskaerak huts egin du: {{reason}}",
+                    savedWithWarnings_one: "Ohar {{count}}: ikusi egiaztapenak.",
+                    savedWithWarnings_other: "{{count}} ohar: ikusi egiaztapenak.",
+                },
+                errors: {
+                    checksUnavailable:
+                        "Grafikoen motorrak ezin izan du aldaketa egiaztatu, eta ez da gorde. Saiatu berriro une batean.",
+                    busy: "Gertaera honen beste aldaketa batzuk gordetzen ari dira. Saiatu berriro une batean.",
+                    lockedDown:
+                        "Gertaera blokeatuta dago; bere monitorizazio-konfigurazioa ezin da aldatu.",
+                    forbiddenScope:
+                        "Ezin dituzu ikusi aukeratutako eskualdeko, postuko edo herrialdeko zifrak.",
+                },
+                duplicate: {
+                    done: "{{id}} gehitu da panelera, widgetaren kopia bat.",
+                    failed: "Ezin izan da widgeta bikoiztu: {{reason}}",
                 },
             },
         },

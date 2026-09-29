@@ -169,6 +169,7 @@ export const fakeEditorApi = (
             status: EMonitoringSaveStatus.SAVED,
             revision: 8,
             generation: 3,
+            warnings: [],
         })
     ),
     renderWidget: fn(async () => RENDERED),

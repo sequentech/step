@@ -130,10 +130,17 @@ export enum EMonitoringSaveStatus {
 }
 
 export type TMonitoringSaveOutcome =
-    | {status: EMonitoringSaveStatus.SAVED; revision: number; generation: number}
+    | {
+          status: EMonitoringSaveStatus.SAVED
+          revision: number
+          generation: number
+          /** What the save let through but the author should know, such as a chart warning. */
+          warnings: IMonitoringProblem[]
+      }
     | {
           status: EMonitoringSaveStatus.CONFLICT
-          current_revision: number
+          /** `null` when the document was removed meanwhile. */
+          current_revision: number | null
           author?: IMonitoringAuthor | null
           time?: string | null
       }
@@ -142,7 +149,8 @@ export type TMonitoringSaveOutcome =
 export interface IMonitoringConfigDocument {
     kind: EMonitoringConfigKind
     key: string
-    yaml: string
+    /** `null` when the revision read is the document's removal. */
+    yaml: string | null
     revision: number
     origin?: string | null
     author?: IMonitoringAuthor | null
@@ -162,6 +170,7 @@ export interface IMonitoringPreset {
     id: string
     version: string | number
     title: string
+    description?: string | null
 }
 
 /** A data source as `get-dashboard` describes it: what a query may ask of it. */

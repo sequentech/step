@@ -196,6 +196,72 @@ describe("YamlDraftController", () => {
         )
     })
 
+    it("a save marks the text it sent as saved, not what was typed meanwhile", () => {
+        const draft = new YamlDraftController({text: TEXT})
+        const sent = `${TEXT}height: 1\n`
+        draft.setText(sent)
+        draft.setText(`${TEXT}height: 12\n`)
+        draft.markSaved(sent)
+        expect(draft.getState()).toEqual(expect.objectContaining({baseline: sent, dirty: true}))
+        draft.setText(sent)
+        expect(draft.getState().dirty).toBe(false)
+    })
+
+    it("without a preview, an edit drops the server's problems, which were about the old text", () => {
+        const draft = new YamlDraftController({text: TEXT})
+        draft.setServerProblems([{severity: "ERROR", code: "x", path: "", message: "old"}])
+        expect(draft.getState().serverProblems).toHaveLength(1)
+        draft.setText(`${TEXT}height: 1\n`)
+        expect(draft.getState().serverProblems).toEqual([])
+        expect(draft.getState().diagnostics).toEqual([])
+    })
+
+    it("ignores problems or a preview about text that has changed since", () => {
+        const draft = new YamlDraftController({text: TEXT})
+        const checked = draft.getState().text
+        draft.setText(`${TEXT}height: 1\n`)
+        draft.setServerProblems([{severity: "ERROR", code: "x", path: "", message: "old"}], checked)
+        draft.acceptPreview(rendered(9), checked)
+        expect(draft.getState().serverProblems).toEqual([])
+        expect(draft.getState().preview).toBeUndefined()
+    })
+
+    it("a preview from Validate does not cancel the render of a newer edit", async () => {
+        const render = jest.fn(async () => rendered(2))
+        const draft = new YamlDraftController({text: TEXT, renderPreview: render})
+        draft.setText(`${TEXT}height: 1\n`)
+        draft.acceptPreview(rendered(1), `${TEXT}height: 1\n`)
+        expect(draft.getState().preview?.render_ms).toBe(1)
+        jest.advanceTimersByTime(PREVIEW_DEBOUNCE_MS)
+        expect(render).toHaveBeenCalledTimes(1)
+        await flush()
+        expect(draft.getState().preview?.render_ms).toBe(2)
+    })
+
+    it("an edit discards the render in flight for the text before it", async () => {
+        const {render, pending} = controlledRender()
+        const draft = new YamlDraftController({text: TEXT, renderPreview: render})
+        const flight = draft.previewNow()
+        draft.setText(`${TEXT}height: 1\n`)
+        pending[0].resolve(rendered(1))
+        await flight
+        expect(draft.getState().preview).toBeUndefined()
+    })
+
+    it("a reset clears the preview of the previous document", async () => {
+        const draft = new YamlDraftController({text: TEXT, renderPreview: async () => rendered(4)})
+        await draft.previewNow()
+        expect(draft.getState().preview).toBeDefined()
+        draft.reset("id: other\n")
+        expect(draft.getState()).toEqual(
+            expect.objectContaining({
+                preview: undefined,
+                previewError: undefined,
+                previewStatus: EPreviewStatus.IDLE,
+            })
+        )
+    })
+
     it("notifies subscribers until they unsubscribe", () => {
         const draft = new YamlDraftController({text: TEXT})
         const listener = jest.fn()

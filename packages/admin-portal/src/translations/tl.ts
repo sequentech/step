@@ -3136,6 +3136,8 @@ const tagalogTranslation: TranslationType = {
                     copyFailed:
                         "Hindi available ang clipboard; piliin ang YAML at kopyahin ito nang mano-mano.",
                     keepEditing: "Ituloy ang pag-edit",
+                    removed:
+                        "Inalis ang dokumento habang nag-e-edit ka. Magpatuloy sa pag-edit para i-save itong muli.",
                 },
                 dashboard: {
                     editing: "Ine-edit ang dashboard",
@@ -3163,6 +3165,9 @@ const tagalogTranslation: TranslationType = {
                     resetToPreset: "I-reset sa preset",
                     actions: "Mga aksyon para sa {{title}}",
                     discardBody: "Hindi pa naisi-save ang iyong mga pagbabago sa dashboard na ito.",
+                    duplicateInvalid: "Hindi na-save ang kopya: {{problem}}",
+                    layoutMalformed:
+                        "May mga item sa layout na hindi widget na may lapad. Ayusin ang mga ito sa YAML tab para maisaayos muli ang mga widget.",
                 },
                 catalog: {
                     title: "Magdagdag ng widget",
@@ -3180,6 +3185,7 @@ const tagalogTranslation: TranslationType = {
                     appliesTo_other: "nalalapat sa {{count}} widget",
                     apply: "Ilapat ang tema",
                     saved: "Na-save ang tema bilang rebisyon {{revision}}",
+                    discardBody: "Hindi pa na-save ang mga pagbabago mo sa temang ito.",
                 },
                 reset: {
                     title: "I-reset sa preset",
@@ -3200,6 +3206,21 @@ const tagalogTranslation: TranslationType = {
                     validated: "Wasto ang dokumento.",
                     invalid: "May mga problema ang dokumento: tingnan ang mga pagsusuri.",
                     requestFailed: "Nabigo ang kahilingan: {{reason}}",
+                    savedWithWarnings_one: "{{count}} babala: tingnan ang mga pagsusuri.",
+                    savedWithWarnings_other: "{{count}} babala: tingnan ang mga pagsusuri.",
+                },
+                errors: {
+                    checksUnavailable:
+                        "Hindi masuri ng chart engine ang pagbabago, kaya hindi ito na-save. Subukang muli mamaya.",
+                    busy: "May iba pang pagbabago sa event na ito na sine-save. Subukang muli mamaya.",
+                    lockedDown:
+                        "Naka-lock down ang event; hindi na mababago ang configuration ng monitoring nito.",
+                    forbiddenScope:
+                        "Hindi mo maaaring makita ang mga bilang para sa napiling rehiyon, posisyon o bansa.",
+                },
+                duplicate: {
+                    done: "Idinagdag sa dashboard ang {{id}}, isang kopya ng widget.",
+                    failed: "Hindi ma-duplicate ang widget: {{reason}}",
                 },
             },
         },

@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {useCallback, useMemo, useRef} from "react"
+import React, {useCallback, useMemo, useRef, useState} from "react"
 import {useTranslation} from "react-i18next"
 import {
     Alert,
@@ -23,6 +23,7 @@ import {MonitoringDiagnosticsList} from "./MonitoringDiagnosticsList"
 import {MonitoringPreviewFooter} from "./MonitoringPreviewFooter"
 import {MonitoringPreviewPane} from "./MonitoringPreviewPane"
 import {MonitoringConflictDialog} from "./MonitoringConflictDialog"
+import {MonitoringDiscardDialog} from "./MonitoringDiscardDialog"
 import {
     EDocumentLoad,
     authorName,
@@ -68,6 +69,7 @@ export const MonitoringThemeEditorDialog: React.FC<MonitoringThemeEditorDialogPr
 }) => {
     const {t, i18n} = useTranslation()
     const editor = useRef<IMonitoringYamlEditorHandle>(null)
+    const [confirmDiscard, setConfirmDiscard] = useState(false)
     const renderPreview = useCallback<TRenderPreview>(
         (text) =>
             api.renderWidget({
@@ -100,11 +102,16 @@ export const MonitoringThemeEditorDialog: React.FC<MonitoringThemeEditorDialogPr
     const ready = stored.load === EDocumentLoad.READY
     const reveal = (diagnostic: IEditorDiagnostic) =>
         editor.current?.reveal(diagnostic.from, diagnostic.to)
+    /** Backdrop, Escape and Cancel all ask first when there are unsaved changes. */
+    const cancel = () => {
+        if (draft.dirty) setConfirmDiscard(true)
+        else onClose()
+    }
 
     return (
         <Dialog
             open={open}
-            onClose={onClose}
+            onClose={cancel}
             maxWidth="lg"
             fullWidth
             aria-labelledby="monitoring-theme-title"
@@ -184,16 +191,26 @@ export const MonitoringThemeEditorDialog: React.FC<MonitoringThemeEditorDialogPr
                     saveLabel={t("monitoring.editor.theme.apply")}
                     hasPreview={Boolean(preview)}
                     saveBlocked={!ready || !draft.dirty}
-                    onCancel={onClose}
+                    onCancel={cancel}
                     onValidate={ready ? stored.validate : undefined}
                     onSave={() => void stored.save()}
                 />
             </Box>
+            <MonitoringDiscardDialog
+                open={confirmDiscard}
+                body={t("monitoring.editor.theme.discardBody")}
+                onKeepEditing={() => setConfirmDiscard(false)}
+                onDiscard={() => {
+                    setConfirmDiscard(false)
+                    onClose()
+                }}
+            />
             {stored.conflict ? (
                 <MonitoringConflictDialog
                     open
                     mine={draft.text}
                     theirs={stored.conflict.theirs}
+                    theirsError={stored.conflict.theirsError}
                     currentRevision={stored.conflict.currentRevision}
                     author={stored.conflict.author}
                     time={stored.conflict.time}

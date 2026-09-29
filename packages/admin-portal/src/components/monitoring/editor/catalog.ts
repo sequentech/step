@@ -24,7 +24,7 @@ export interface IWidgetCatalogGroup {
     entries: IWidgetCatalogEntry[]
 }
 
-/** Every widget document of the event; one that does not parse is left out. */
+/** Every widget document of the event; one that does not parse, or was removed, is left out. */
 export const loadWidgetCatalog = async (
     api: IMonitoringEditorApi
 ): Promise<IWidgetCatalogEntry[]> => {
@@ -34,6 +34,7 @@ export const loadWidgetCatalog = async (
         widgets.map((entry) => api.getConfig({kind: EMonitoringConfigKind.WIDGET, key: entry.key}))
     )
     return loaded.flatMap((document) => {
+        if (document.yaml === null) return []
         const parsed = parseYamlText(document.yaml)
         if (parsed.status !== EYamlParseStatus.OK) return []
         const widget = asWidget(parsed.value)
@@ -97,6 +98,7 @@ export const countThemeWidgets = async (
         )
     )
     const values = loaded.flatMap((document) => {
+        if (document.yaml === null) return []
         const parsed = parseYamlText(document.yaml)
         return parsed.status === EYamlParseStatus.OK ? [parsed.value] : []
     })

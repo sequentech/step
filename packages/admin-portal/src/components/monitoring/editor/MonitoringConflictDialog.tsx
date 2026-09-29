@@ -30,7 +30,10 @@ export interface MonitoringConflictDialogProps {
     mine: string
     /** The YAML of the revision saved meanwhile; `undefined` while it loads. */
     theirs?: string
-    currentRevision: number
+    /** Why `theirs` could not be fetched; Reload tries again. */
+    theirsError?: string
+    /** `null` when the document was removed meanwhile. */
+    currentRevision: number | null
     author?: IMonitoringAuthor | null
     time?: string | null
     /** Replaces the draft with the saved revision. */
@@ -58,6 +61,7 @@ export const MonitoringConflictDialog: React.FC<MonitoringConflictDialogProps> =
     open,
     mine,
     theirs,
+    theirsError,
     currentRevision,
     author,
     time,
@@ -95,13 +99,15 @@ export const MonitoringConflictDialog: React.FC<MonitoringConflictDialogProps> =
             </DialogTitle>
             <DialogContent sx={{display: "flex", flexDirection: "column", gap: 2}}>
                 <DialogContentText>
-                    {user && date
-                        ? t("monitoring.editor.conflict.body", {
-                              user,
-                              revision: currentRevision,
-                              date,
-                          })
-                        : t("monitoring.editor.conflict.bodyShort", {revision: currentRevision})}
+                    {currentRevision === null
+                        ? t("monitoring.editor.conflict.removed")
+                        : user && date
+                          ? t("monitoring.editor.conflict.body", {
+                                user,
+                                revision: currentRevision,
+                                date,
+                            })
+                          : t("monitoring.editor.conflict.bodyShort", {revision: currentRevision})}
                 </DialogContentText>
                 {clipboard === EClipboardResult.COPIED ? (
                     <Alert severity="success">{t("monitoring.editor.conflict.copied")}</Alert>
@@ -109,7 +115,9 @@ export const MonitoringConflictDialog: React.FC<MonitoringConflictDialogProps> =
                 {clipboard === EClipboardResult.FAILED ? (
                     <Alert severity="warning">{t("monitoring.editor.conflict.copyFailed")}</Alert>
                 ) : null}
-                {theirs === undefined ? (
+                {theirs === undefined && theirsError ? (
+                    <Alert severity="error">{theirsError}</Alert>
+                ) : theirs === undefined ? (
                     <Box sx={{display: "flex", justifyContent: "center", py: 4}}>
                         <CircularProgress aria-label={t("monitoring.editor.conflict.saved")} />
                     </Box>
@@ -125,7 +133,7 @@ export const MonitoringConflictDialog: React.FC<MonitoringConflictDialogProps> =
             </DialogContent>
             <DialogActions>
                 <Button onClick={copy}>{t("monitoring.editor.conflict.copy")}</Button>
-                <Button onClick={onReload} disabled={theirs === undefined}>
+                <Button onClick={onReload} disabled={theirs === undefined && !theirsError}>
                     {t("monitoring.editor.conflict.reload")}
                 </Button>
                 <Button variant="contained" onClick={onKeepEditing}>

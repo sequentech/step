@@ -57,6 +57,15 @@ describe("parseYamlText", () => {
     it("treats an empty text as an empty document, not an error", () => {
         expect(parseYamlText("").status).toBe(EYamlParseStatus.OK)
     })
+
+    it("reports a document that cannot be turned into data as a syntax problem", () => {
+        const ten = (name: string) => `[${Array(10).fill(`*${name}`).join(", ")}]`
+        const bomb = `a: &a [x, x, x, x, x, x, x, x, x, x]\nb: &b ${ten("a")}\nc: &c ${ten("b")}\nd: ${ten("c")}\n`
+        const parsed = parseYamlText(bomb)
+        expect(parsed.status).toBe(EYamlParseStatus.SYNTAX_ERROR)
+        if (parsed.status !== EYamlParseStatus.SYNTAX_ERROR) return
+        expect(parsed.errors[0]).toEqual(expect.objectContaining({line: 1, from: 0}))
+    })
 })
 
 describe("parsePath", () => {
@@ -189,5 +198,13 @@ describe("renameKey", () => {
 
     it("refuses to overwrite an existing key", () => {
         expect(renameKey(WIDGET, ["selectors"], "measure", "breakdown")).toBe(WIDGET)
+    })
+
+    it("finds a key YAML reads as a number or a boolean", () => {
+        const text = "labels:\n  1: One\n  true: Yes\n"
+        expect(renameKey(text, ["labels"], "1", "first")).toBe(
+            "labels:\n  first: One\n  true: Yes\n"
+        )
+        expect(renameKey(text, ["labels"], "true", "yes")).toBe("labels:\n  1: One\n  yes: Yes\n")
     })
 })

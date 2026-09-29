@@ -3097,6 +3097,8 @@ const englishTranslation = {
                     copyFailed:
                         "The clipboard is unavailable; select the YAML and copy it by hand.",
                     keepEditing: "Keep editing",
+                    removed:
+                        "The document was removed while you were editing. Keep editing to save it again.",
                 },
                 dashboard: {
                     editing: "Editing dashboard",
@@ -3124,6 +3126,9 @@ const englishTranslation = {
                     resetToPreset: "Reset to preset",
                     actions: "Actions for {{title}}",
                     discardBody: "Your changes to this dashboard have not been saved.",
+                    duplicateInvalid: "The copy was not saved: {{problem}}",
+                    layoutMalformed:
+                        "Some layout items are not a widget with a width. Fix them in the YAML tab to reorder the widgets.",
                 },
                 catalog: {
                     title: "Add widget",
@@ -3140,6 +3145,7 @@ const englishTranslation = {
                     appliesTo_other: "applies to {{count}} widgets",
                     apply: "Apply theme",
                     saved: "Theme saved as revision {{revision}}",
+                    discardBody: "Your changes to this theme have not been saved.",
                 },
                 reset: {
                     title: "Reset to preset",
@@ -3159,6 +3165,21 @@ const englishTranslation = {
                     validated: "The document is valid.",
                     invalid: "The document has problems: see the checks.",
                     requestFailed: "The request failed: {{reason}}",
+                    savedWithWarnings_one: "{{count}} warning: see the checks.",
+                    savedWithWarnings_other: "{{count}} warnings: see the checks.",
+                },
+                errors: {
+                    checksUnavailable:
+                        "The chart engine could not check the change, so it was not saved. Try again in a moment.",
+                    busy: "Other changes to this event are being saved. Try again in a moment.",
+                    lockedDown:
+                        "The event is locked down; its monitoring configuration cannot change.",
+                    forbiddenScope:
+                        "You cannot see figures for the chosen region, Post or country.",
+                },
+                duplicate: {
+                    done: "Added {{id}}, a copy of the widget, to the dashboard.",
+                    failed: "The widget could not be duplicated: {{reason}}",
                 },
             },
         },

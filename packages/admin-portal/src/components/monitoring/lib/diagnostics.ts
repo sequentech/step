@@ -13,6 +13,8 @@ import {isMap, isScalar, isSeq, parseDocument, type Node} from "yaml"
 import {EMonitoringProblemSeverity, type IMonitoringProblem} from "../editor/types"
 import {EYamlParseStatus, parsePath, type TYamlParseResult} from "./yamlPatch"
 
+export {normalizeProblems} from "./problems"
+
 export enum EDiagnosticOrigin {
     /** The text is not YAML. */
     SYNTAX = "SYNTAX",
@@ -29,33 +31,6 @@ export interface IEditorDiagnostic extends IMonitoringProblem {
     to: number
     /** 1-based line of `from`. */
     line: number
-}
-
-const SEVERITIES: Record<string, EMonitoringProblemSeverity> = {
-    error: EMonitoringProblemSeverity.ERROR,
-    warning: EMonitoringProblemSeverity.WARNING,
-}
-
-/** Problems as they arrive, from WASM (`"error"`) or Harvest (`"ERROR"`), in one shape. */
-export const normalizeProblems = (raw: unknown): IMonitoringProblem[] => {
-    if (!Array.isArray(raw)) return []
-    return raw.flatMap((entry): IMonitoringProblem[] => {
-        if (!entry || typeof entry !== "object") return []
-        const record = entry as Record<string, unknown>
-        const text = (value: unknown) => (typeof value === "string" ? value : "")
-        return [
-            {
-                severity:
-                    SEVERITIES[text(record.severity).toLowerCase()] ??
-                    EMonitoringProblemSeverity.ERROR,
-                code: text(record.code),
-                path: text(record.path),
-                message: text(record.message),
-                engine_code:
-                    typeof record.engine_code === "string" ? record.engine_code : undefined,
-            },
-        ]
-    })
 }
 
 /** Paths from checks across documents start with the set they are in: `widgets.<key>.`. */

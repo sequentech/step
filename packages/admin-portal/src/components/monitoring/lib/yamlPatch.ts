@@ -64,7 +64,23 @@ export const parseYamlText = (text: string): TYamlParseResult => {
             }),
         }
     }
-    return {status: EYamlParseStatus.OK, document, value: document.toJS()}
+    try {
+        return {status: EYamlParseStatus.OK, document, value: document.toJS()}
+    } catch (error) {
+        // Well-formed YAML can still fail to become data (an alias bomb).
+        return {
+            status: EYamlParseStatus.SYNTAX_ERROR,
+            errors: [
+                {
+                    message: error instanceof Error ? error.message : String(error),
+                    line: 1,
+                    column: 1,
+                    from: 0,
+                    to: 0,
+                },
+            ],
+        }
+    }
 }
 
 /**
@@ -191,7 +207,8 @@ export const renameKey = (text: string, path: TYamlPath, from: string, to: strin
     if (!isMap(node) || from === to || !to || node.has(to)) return text
     const pair = node.items.find((item) => {
         const key = isScalar(item.key) ? item.key.value : item.key
-        return key === from
+        // `1:` and `true:` are a number and a boolean to YAML, and a string to the form.
+        return String(key) === from
     })
     if (!pair) return text
     if (isScalar(pair.key)) {

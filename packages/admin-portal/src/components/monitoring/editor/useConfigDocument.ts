@@ -2,9 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import {useCallback, useEffect, useState} from "react"
+import {useCallback, useEffect, useRef, useState} from "react"
 import {useTranslation} from "react-i18next"
-import type {IMonitoringEditorApi} from "./api"
+import {monitoringErrorMessage, type IMonitoringEditorApi} from "./api"
 import {
     EMonitoringConfigKind,
     EMonitoringSaveChange,
@@ -24,6 +24,7 @@ export enum EDocumentLoad {
 
 export enum EMessageTone {
     SUCCESS = "success",
+    WARNING = "warning",
     ERROR = "error",
 }
 
@@ -39,11 +40,16 @@ export interface IDocumentRevision {
 }
 
 export interface IDocumentConflict {
-    currentRevision: number
+    /** The revision Harvest reported; `null` when the document was removed meanwhile. */
+    currentRevision: number | null
     author?: IMonitoringAuthor | null
     time?: string | null
-    /** The saved revision's YAML, once fetched. */
+    /** The saved revision's YAML, once fetched; empty for a removal. */
     theirs?: string
+    /** The revision fetched with `theirs`: what keeping the draft replaces. */
+    theirsRevision?: number | null
+    /** Why `theirs` could not be fetched. */
+    theirsError?: string
 }
 
 /** Translation keys of what the document's dialog says, e.g. `monitoring.editor.theme.saved`. */
@@ -84,6 +90,9 @@ export const useConfigDocument = ({
     onSaved,
 }: IConfigDocumentOptions) => {
     const {t} = useTranslation()
+    /** Read at call time: a new `t` (another language) must not load the document again. */
+    const tRef = useRef(t)
+    tRef.current = t
     const [load, setLoad] = useState(EDocumentLoad.LOADING)
     const [loadError, setLoadError] = useState("")
     const [revision, setRevision] = useState<IDocumentRevision>({revision: null})
@@ -94,17 +103,21 @@ export const useConfigDocument = ({
     const [conflict, setConflict] = useState<IDocumentConflict | null>(null)
 
     const failed = useCallback(
-        (error: unknown) =>
+        (error: unknown) => {
+            const explained = monitoringErrorMessage(error)
             setMessage({
                 tone: EMessageTone.ERROR,
-                text: t(messages.requestFailed, {reason: reason(error)}),
-            }),
-        [t, messages.requestFailed]
+                text: explained
+                    ? tRef.current(explained)
+                    : tRef.current(messages.requestFailed, {reason: reason(error)}),
+            })
+        },
+        [messages.requestFailed]
     )
 
     const adopt = useCallback(
         (document: IMonitoringConfigDocument) => {
-            controller.reset(document.yaml)
+            controller.reset(document.yaml ?? "")
             setRevision({
                 revision: document.revision,
                 author: document.author,
@@ -128,22 +141,23 @@ export const useConfigDocument = ({
             },
             (error) => {
                 if (!current) return
-                setLoadError(t(messages.loadFailed, {reason: reason(error)}))
+                setLoadError(tRef.current(messages.loadFailed, {reason: reason(error)}))
                 setLoad(EDocumentLoad.FAILED)
             }
         )
         return () => {
             current = false
         }
-    }, [open, api, kind, key, adopt, t, messages.loadFailed])
+    }, [open, api, kind, key, adopt, messages.loadFailed])
 
     const validate = async () => {
         setBusy(EEditorBusy.VALIDATING)
         setMessage(null)
+        const sent = controller.getState().text
         try {
-            const response = await api.validateConfig({kind, key, yaml: controller.getState().text})
-            if (response.preview) controller.acceptPreview(response.preview)
-            controller.setServerProblems(response.problems)
+            const response = await api.validateConfig({kind, key, yaml: sent})
+            if (response.preview) controller.acceptPreview(response.preview, sent)
+            controller.setServerProblems(response.problems, sent)
             setMessage(
                 response.result === EMonitoringValidationResult.VALID
                     ? {tone: EMessageTone.SUCCESS, text: t(messages.validated)}
@@ -159,22 +173,31 @@ export const useConfigDocument = ({
     const save = async (): Promise<boolean> => {
         setBusy(EEditorBusy.SAVING)
         setMessage(null)
+        const sent = controller.getState().text
         try {
             const outcome = await api.saveConfig({
                 kind,
                 key,
-                yaml: controller.getState().text,
+                yaml: sent,
                 expected_revision: expected,
                 change: EMonitoringSaveChange.UPSERT,
             })
             if (outcome.status === EMonitoringSaveStatus.SAVED) {
-                controller.markSaved()
+                controller.markSaved(sent)
                 setRevision({revision: outcome.revision, createdAt: new Date().toISOString()})
                 setExpected(outcome.revision)
-                setMessage({
-                    tone: EMessageTone.SUCCESS,
-                    text: t(messages.saved, {revision: outcome.revision}),
-                })
+                const saved = t(messages.saved, {revision: outcome.revision})
+                if (outcome.warnings.length) {
+                    controller.setServerProblems(outcome.warnings, sent)
+                    setMessage({
+                        tone: EMessageTone.WARNING,
+                        text: `${saved} ${t("monitoring.editor.document.savedWithWarnings", {
+                            count: outcome.warnings.length,
+                        })}`,
+                    })
+                } else {
+                    setMessage({tone: EMessageTone.SUCCESS, text: saved})
+                }
                 onSaved?.(outcome.revision)
                 return true
             }
@@ -187,13 +210,31 @@ export const useConfigDocument = ({
                 api.getConfig({kind, key}).then(
                     (document) =>
                         setConflict((previous) =>
-                            previous ? {...previous, theirs: document.yaml} : previous
+                            previous
+                                ? {
+                                      ...previous,
+                                      theirs: document.yaml ?? "",
+                                      theirsRevision:
+                                          document.yaml === null ? null : document.revision,
+                                      theirsError: undefined,
+                                  }
+                                : previous
                         ),
-                    failed
+                    (error) =>
+                        setConflict((previous) =>
+                            previous
+                                ? {
+                                      ...previous,
+                                      theirsError: tRef.current(messages.requestFailed, {
+                                          reason: reason(error),
+                                      }),
+                                  }
+                                : previous
+                        )
                 )
                 return false
             }
-            controller.setServerProblems(outcome.problems)
+            controller.setServerProblems(outcome.problems, sent)
             setMessage({tone: EMessageTone.ERROR, text: t(messages.refused)})
             return false
         } catch (error) {
@@ -214,9 +255,20 @@ export const useConfigDocument = ({
         }
     }
 
-    /** Keeps the draft: the author has seen the newer revision, so the next save replaces it. */
+    /**
+     * Keeps the draft: the author has seen the newer revision, so the next
+     * save replaces it. The revision fetched is the one they saw; without
+     * it, the one Harvest reported (`null`: the document is gone, and the
+     * save creates it again).
+     */
     const keepEditing = () => {
-        if (conflict) setExpected(conflict.currentRevision)
+        if (conflict) {
+            setExpected(
+                conflict.theirsRevision !== undefined
+                    ? conflict.theirsRevision
+                    : conflict.currentRevision
+            )
+        }
         setConflict(null)
     }
 
