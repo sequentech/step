@@ -54,6 +54,10 @@ pub mod scope;
 /// Turning selector values into the concrete queries a widget runs.
 pub mod resolve;
 
+/// What the snapshot job keeps of each voter: facts derived as the settings
+/// say.
+pub mod voter;
+
 /// The governed data sources: their counting units, measures, dimensions and
 /// query templates. Adding one is a code change, by design.
 pub mod sources;

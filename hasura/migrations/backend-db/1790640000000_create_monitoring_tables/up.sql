@@ -993,6 +993,8 @@ CREATE TABLE sequent_backend.monitoring_voter (
     enrollment_state text
         CHECK (enrollment_state IN ('PENDING', 'ACCEPTED', 'REJECTED')),
     enrollment_reason text CHECK (enrollment_reason <> ''),
+    -- When the latest application was accepted or rejected.
+    enrollment_decided_at timestamptz,
     pre_enrolled_at timestamptz,
     credentials_at timestamptz,
     test_voted_at timestamptz,
@@ -1005,6 +1007,8 @@ CREATE TABLE sequent_backend.monitoring_voter (
     PRIMARY KEY (tenant_id, election_event_id, election_id, voter_id),
     CONSTRAINT monitoring_voter_reason_is_for_rejection
         CHECK (enrollment_reason IS NULL OR enrollment_state IS NOT DISTINCT FROM 'REJECTED'),
+    CONSTRAINT monitoring_voter_decided_when_decided
+        CHECK (enrollment_decided_at IS NULL OR enrollment_state IN ('ACCEPTED', 'REJECTED')),
     CONSTRAINT monitoring_voter_of_its_event
         FOREIGN KEY (tenant_id, election_event_id)
         REFERENCES sequent_backend.monitoring_event (tenant_id, election_event_id)

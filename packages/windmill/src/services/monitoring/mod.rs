@@ -13,3 +13,7 @@ pub mod config_store;
 
 /// Sign-in attempts counted from the electoral log's Keycloak events.
 pub mod login_counter;
+
+/// `monitoring_voter`: what each voter counts as, refreshed from Keycloak,
+/// their applications and their votes.
+pub mod projection;
