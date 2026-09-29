@@ -269,7 +269,6 @@ const dutchTranslation: TranslationType = {
                 CREATE_TRANSMISSION_PACKAGE: "Transmissiepakket Aanmaken",
                 EXPORT_BALLOT_PUBLICATION: "Publicatie Stembiljet Exporteren",
                 EXPORT_ACTIVITY_LOGS_REPORT: "Activiteitenlogboek Rapport Exporteren",
-                EXPORT_MONITORING_DATA: "Monitoringgegevens exporteren",
                 GENERATE_REPORT: "Rapport Genereren",
                 GENERATE_TRANSMISSION_REPORT: "Transmissierapport Genereren",
                 EXPORT_TRUSTEES: "Trustees Exporteren",

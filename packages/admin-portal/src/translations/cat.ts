@@ -236,7 +236,6 @@ const catalanTranslation: TranslationType = {
                 CREATE_TRANSMISSION_PACKAGE: "Crear paquet de transmissió",
                 EXPORT_BALLOT_PUBLICATION: "Exporta Publicació de Butlleta",
                 EXPORT_ACTIVITY_LOGS_REPORT: "Exportar Informe de Registres d'Activitat",
-                EXPORT_MONITORING_DATA: "Exportar dades de monitoratge",
                 GENERATE_REPORT: "Generar informe",
                 GENERATE_TRANSMISSION_REPORT: "Generar informe de transmissió",
                 EXPORT_TRUSTEES: "Exportar Autoritats",

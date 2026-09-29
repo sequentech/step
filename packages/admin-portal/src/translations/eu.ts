@@ -269,7 +269,6 @@ const basqueTranslation: TranslationType = {
                 CREATE_TRANSMISSION_PACKAGE: "Sortu Transmisio Paketea",
                 EXPORT_BALLOT_PUBLICATION: "Esportatu Bozketa Argitalpena",
                 EXPORT_ACTIVITY_LOGS_REPORT: "Esportatu Jarduera Egunkarien Txostena",
-                EXPORT_MONITORING_DATA: "Esportatu monitorizazio-datuak",
                 GENERATE_REPORT: "Sortu Txostena",
                 GENERATE_TRANSMISSION_REPORT: "Sortu Transmisio Txostena",
                 EXPORT_TRUSTEES: "Esportatu Fideikomisarioak",
