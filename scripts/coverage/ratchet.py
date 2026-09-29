@@ -81,6 +81,8 @@ def compare_rust(base: dict[str, Any], head: dict[str, Any]) -> dict[str, Any]:
     for field in ("profile", "features", "tools", "config_sha256"):
         if field not in base or base[field] != head.get(field):
             raise CoverageError(f"Incompatible Rust measurements: {field}")
+    if base.get("consumer_packages", []) != head.get("consumer_packages", []):
+        raise CoverageError("Incompatible Rust measurements: consumer_packages")
     for field in ("excluded_files", "scope_exceptions"):
         if base.get(field, {}) != head.get(field, {}):
             raise CoverageError(f"Incompatible Rust measurements: {field}")

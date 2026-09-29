@@ -129,6 +129,35 @@ DOC_RENDERER_BACKEND = "inplace"
 "src/pipes/mod.rs" = "Module declarations and re-exports only."
 "src/config/config.rs" = "Struct declarations and derives without handwritten executable methods. LLVM attributes no line regions to this file; configuration deserialization is exercised through CLI tests."
 "src/config/generate_reports.rs" = "Struct/enum declarations, derives and a constant without handwritten executable methods. This native compiler export attributes no line regions to this file."
+
+[profiles.wrap-map-err]
+package = "wrap-map-err"
+consumer_packages = ["windmill"]
+features = []
+limitations = [
+    "Macro parser/expansion tests plus existing Windmill tests and compiled Celery consumers; no source exclusions.",
+    "Windmill supplies a real baseline for the original zero-test macro package; its two existing ignored service cases remain visible.",
+    "LLVM combines runtime unit-test counters with compiler-time macro expansion counters from the compiled consumer fixtures.",
+    "Branch coverage, arbitrary aliases not named Result and the full Windmill/Celery task integration are separate scopes.",
+]
+issue = "https://github.com/sequentech/meta/issues/13302"
+
+[profiles.wrap-map-err.scope_exceptions]
+
+[profiles.wrap-map-err.test_environment]
+KEYCLOAK_DB__HOST = "127.0.0.1"
+KEYCLOAK_DB__PORT = "3322"
+KEYCLOAK_DB__USER = "test"
+KEYCLOAK_DB__PASSWORD = "test"
+KEYCLOAK_DB__DBNAME = "test"
+HASURA_DB__HOST = "127.0.0.1"
+HASURA_DB__PORT = "3322"
+HASURA_DB__USER = "test"
+HASURA_DB__PASSWORD = "test"
+HASURA_DB__DBNAME = "test"
+LOW_SQL_LIMIT = "1000"
+DEFAULT_SQL_LIMIT = "20"
+DEFAULT_SQL_BATCH_SIZE = "1000"
 [profiles.strand-native]
 package = "strand"
 features = ["num_bigint", "rayon"]
