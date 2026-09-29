@@ -13,3 +13,8 @@ by Josh Benaloh.
 ## Storybook
 
 To run storybook, execute `yarn storybook`, then open `localhost:6006`. 
+
+## Unit tests
+
+See the [testing guide](../../docs/docusaurus/docs/07-developers/03-development-environment/testing/ballot-verifier.md)
+for commands, fixtures and coverage scope.

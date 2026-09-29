@@ -20,7 +20,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        package: [ui-core, voting-portal, ui-essentials, results-portal]
+        package: [ui-core, voting-portal, ui-essentials, results-portal, ballot-verifier]
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
