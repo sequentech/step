@@ -5,9 +5,11 @@
 use clap::Args;
 
 use crate::utils::trustees::{
-    check_private_key::CheckPrivateKey, get_private_key::GetPrivateKey,
-    store_private_key::download_private_key,
+    check_private_key::CheckPrivateKey,
+    get_private_key::GetPrivateKey,
+    store_private_key::{download_private_key, read_stored_private_key, store_event_private_key},
 };
+use windmill::services::ceremonies::keys_ceremony::PrivateKeyDownloadUnavailable;
 
 #[derive(Args)]
 #[command(about = "Complete Key Ceremony", long_about = None)]
@@ -41,10 +43,29 @@ pub fn complete_ceremony(
     election_event_id: &str,
     key_ceremony_id: &str,
 ) -> Result<String, Box<dyn std::error::Error>> {
-    let private_key = GetPrivateKey::get_trustee_private_key(&election_event_id, &key_ceremony_id)?;
+    let (private_key, path) =
+        match GetPrivateKey::get_trustee_private_key(&election_event_id, &key_ceremony_id) {
+            // Store the key before checking it, as a checked key can't be
+            // downloaded again
+            Ok(private_key) => {
+                let path =
+                    download_private_key(&election_event_id, &key_ceremony_id, &private_key)?;
+                (private_key, path)
+            }
+            // A previous run already checked the key, so check the stored copy
+            Err(error) if error.is::<PrivateKeyDownloadUnavailable>() => read_stored_private_key(
+                &election_event_id,
+                &key_ceremony_id,
+            )
+            .map_err(|read_error| {
+                format!("{error}, and the stored private key could not be read: {read_error}")
+            })?,
+            Err(error) => return Err(error),
+        };
     let checked = CheckPrivateKey::check(&election_event_id, &key_ceremony_id, &private_key)?;
     if checked {
-        let path = download_private_key(&election_event_id, &private_key)?;
+        // confirm-key-tally reads the checked key of the election event
+        store_event_private_key(&election_event_id, &private_key)?;
         let path_str = path.to_str().unwrap_or_default();
         Ok(path_str.to_string())
     } else {

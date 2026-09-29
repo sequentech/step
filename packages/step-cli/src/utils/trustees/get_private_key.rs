@@ -7,6 +7,10 @@ use std::error::Error;
 use crate::{types::hasura_types::*, utils::read_config::read_config};
 use graphql_client::{GraphQLQuery, Response};
 use serde_json::Value;
+use windmill::services::ceremonies::keys_ceremony::PrivateKeyDownloadUnavailable;
+
+// The code Harvest answers with once the key can no longer be downloaded
+const PRIVATE_KEY_DOWNLOAD_UNAVAILABLE_CODE: &str = "PrivateKeyDownloadUnavailable";
 
 #[derive(GraphQLQuery)]
 #[graphql(
@@ -44,6 +48,13 @@ impl GetPrivateKey {
                 Box::<dyn Error>::from(format!("Error parsing JSON response: {:?}", err))
             })?;
             if let Some(errors) = json.get("errors").and_then(Value::as_array) {
+                if errors.iter().any(|e| {
+                    e.pointer("/extensions/code").and_then(Value::as_str)
+                        == Some(PRIVATE_KEY_DOWNLOAD_UNAVAILABLE_CODE)
+                }) {
+                    return Err(Box::new(PrivateKeyDownloadUnavailable));
+                }
+
                 let error_statuses: Vec<String> = errors
                     .iter()
                     .filter_map(|e| {
