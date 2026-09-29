@@ -299,6 +299,10 @@ pub enum PostState {
     Opened,
     Paused,
     Closed,
+    NotTested,
+    /// Final testing passed; not yet locked down.
+    Tested,
+    LockedDown,
     NotTallied,
     Tallied,
     Transmitted,
@@ -314,6 +318,9 @@ impl PostState {
             PostState::Opened => "Opened",
             PostState::Paused => "Paused",
             PostState::Closed => "Closed",
+            PostState::NotTested => "Not tested",
+            PostState::Tested => "Tested",
+            PostState::LockedDown => "Locked down",
             PostState::NotTallied => "Not tallied",
             PostState::Tallied => "Tallied",
             PostState::Transmitted => "Transmitted",
@@ -358,6 +365,11 @@ impl DataSourceId {
                 PostState::Opened,
                 PostState::Paused,
                 PostState::Closed,
+            ],
+            FinalTestingLockdown => &[
+                PostState::NotTested,
+                PostState::Tested,
+                PostState::LockedDown,
             ],
             CountingTransmission => &[
                 PostState::NotTallied,
@@ -433,7 +445,7 @@ impl DataSourceId {
             ),
             VotingEnrollmentActivity => (
                 CountingUnit::FirstEventPerVoter,
-                &[M::PreEnrolled, M::CredentialsIssued, M::Voted],
+                &[M::Approved, M::Voted],
                 &[T::Summary, T::Timeseries, T::ByMeasure],
                 SCOPE,
                 VoterDimensions::NotApplicable,
@@ -498,3 +510,7 @@ impl SourceSpec {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "sources_tests.rs"]
+mod sources_tests;

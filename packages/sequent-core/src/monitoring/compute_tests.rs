@@ -388,10 +388,10 @@ fn activity_payload() -> ScopePayload {
     let hour = |start: &str, voted| Bucket {
         start: start.into(),
         day: start[..10].into(),
-        counts: counts(&[(Voted, voted), (PreEnrolled, 0)]),
+        counts: counts(&[(Voted, voted), (Approved, 0)]),
     };
     ScopePayload {
-        totals: counts(&[(Voted, 9), (PreEnrolled, 0)]),
+        totals: counts(&[(Voted, 9), (Approved, 0)]),
         series: vec![
             hour("2026-05-03T22:00:00", 2),
             hour("2026-05-03T23:00:00", 3),
@@ -450,7 +450,7 @@ fn the_days_on_offer_are_the_days_with_activity() {
     payload.series.push(Bucket {
         start: "2026-05-05T00:00:00".into(),
         day: "2026-05-05".into(),
-        counts: counts(&[(Voted, 0), (PreEnrolled, 0)]),
+        counts: counts(&[(Voted, 0), (Approved, 0)]),
     });
     assert_eq!(event_days(&payload), ["2026-05-03", "2026-05-04"]);
 }
