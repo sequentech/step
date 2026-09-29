@@ -16,6 +16,7 @@ DROP FUNCTION IF EXISTS sequent_backend.monitoring_snapshot_state_moves_forward(
 DROP TABLE IF EXISTS sequent_backend.monitoring_snapshot_run;
 DROP FUNCTION IF EXISTS sequent_backend.monitoring_snapshot_run_is_final();
 DROP FUNCTION IF EXISTS sequent_backend.monitoring_snapshot_run_completes_in_order();
+DROP FUNCTION IF EXISTS sequent_backend.monitoring_snapshot_run_records_who_finished();
 DROP SEQUENCE IF EXISTS sequent_backend.monitoring_snapshot_revision;
 DROP TABLE IF EXISTS sequent_backend.monitoring_election_set;
 DROP FUNCTION IF EXISTS sequent_backend.monitoring_uuids_ascend(uuid[]);

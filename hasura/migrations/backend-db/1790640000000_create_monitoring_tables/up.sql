@@ -386,8 +386,12 @@ CREATE SEQUENCE sequent_backend.monitoring_snapshot_revision;
 -- own so a failed pass can still be marked FAILED. Once complete or failed a
 -- run is final, but for `checked_at`, which only moves on. Runs complete in
 -- revision order (see monitoring_snapshot_state.last_complete_revision), so
--- a pass that fell behind a later one can no longer complete. A run left
--- RUNNING by a crash is marked FAILED by a later pass.
+-- a pass that fell behind a later one can no longer complete: the job takes
+-- the event's lock before it records its run, and a pass that finds a newer
+-- complete run marks its own FAILED as superseded. A run left RUNNING by a
+-- crash is marked FAILED by a later pass. One transaction writes everything
+-- a pass counted and finishes its run; what another transaction writes for
+-- the run is refused at its commit.
 CREATE TABLE sequent_backend.monitoring_snapshot_run (
     tenant_id uuid NOT NULL,
     election_event_id uuid NOT NULL,
@@ -404,11 +408,16 @@ CREATE TABLE sequent_backend.monitoring_snapshot_run (
     settings_revision integer CHECK (settings_revision > 0),
     config_generation bigint CHECK (config_generation >= 0),
     error text,
+    -- The transaction that completed or failed the run, set by
+    -- monitoring_snapshot_run_records_who_finished.
+    finished_xact xid8,
     PRIMARY KEY (tenant_id, election_event_id, revision),
     CONSTRAINT monitoring_snapshot_run_status_key
         UNIQUE (tenant_id, election_event_id, revision, status),
     CONSTRAINT monitoring_snapshot_run_running_is_open
         CHECK (status <> 'RUNNING' OR (finished_at IS NULL AND error IS NULL)),
+    CONSTRAINT monitoring_snapshot_run_finished_by_a_transaction
+        CHECK ((status = 'RUNNING') = (finished_xact IS NULL)),
     CONSTRAINT monitoring_snapshot_run_complete_is_counted
         CHECK (
             status <> 'COMPLETE'
@@ -432,10 +441,12 @@ RETURNS trigger AS $$
 BEGIN
     IF OLD.status <> 'RUNNING' AND (
         NEW.tenant_id, NEW.election_event_id, NEW.revision, NEW.status, NEW.started_at,
-        NEW.finished_at, NEW.as_of, NEW.settings_revision, NEW.config_generation, NEW.error
+        NEW.finished_at, NEW.as_of, NEW.settings_revision, NEW.config_generation, NEW.error,
+        NEW.finished_xact
     ) IS DISTINCT FROM (
         OLD.tenant_id, OLD.election_event_id, OLD.revision, OLD.status, OLD.started_at,
-        OLD.finished_at, OLD.as_of, OLD.settings_revision, OLD.config_generation, OLD.error
+        OLD.finished_at, OLD.as_of, OLD.settings_revision, OLD.config_generation, OLD.error,
+        OLD.finished_xact
     ) THEN
         RAISE EXCEPTION 'snapshot run % is final', OLD.revision
             USING ERRCODE = 'integrity_constraint_violation',
@@ -455,6 +466,28 @@ $$ LANGUAGE plpgsql;
 CREATE TRIGGER monitoring_snapshot_run_is_final
     BEFORE UPDATE ON sequent_backend.monitoring_snapshot_run
     FOR EACH ROW EXECUTE FUNCTION sequent_backend.monitoring_snapshot_run_is_final();
+
+-- Whatever a statement says, `finished_xact` names the transaction that took
+-- the run out of RUNNING, and never changes after.
+CREATE FUNCTION sequent_backend.monitoring_snapshot_run_records_who_finished()
+RETURNS trigger AS $$
+BEGIN
+    IF NEW.status = 'RUNNING' THEN
+        NEW.finished_xact := NULL;
+    ELSIF TG_OP = 'INSERT' OR OLD.status = 'RUNNING' THEN
+        NEW.finished_xact := pg_current_xact_id();
+    ELSE
+        NEW.finished_xact := OLD.finished_xact;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Named to fire before monitoring_snapshot_run_is_final, which then sees
+-- what this kept.
+CREATE TRIGGER monitoring_snapshot_run_finish_is_recorded
+    BEFORE INSERT OR UPDATE ON sequent_backend.monitoring_snapshot_run
+    FOR EACH ROW EXECUTE FUNCTION sequent_backend.monitoring_snapshot_run_records_who_finished();
 
 -- What the snapshot job keeps for an event: the run viewers are shown and
 -- where each incremental pass stopped. Its own row, so the job never waits
@@ -482,7 +515,10 @@ CREATE TABLE sequent_backend.monitoring_snapshot_state (
     CONSTRAINT monitoring_snapshot_state_shows_what_completed
         CHECK (
             live_snapshot_revision IS NULL
-            OR live_snapshot_revision <= last_complete_revision
+            OR (
+                last_complete_revision IS NOT NULL
+                AND live_snapshot_revision <= last_complete_revision
+            )
         ),
     CONSTRAINT monitoring_snapshot_state_of_its_event
         FOREIGN KEY (tenant_id, election_event_id)
@@ -589,8 +625,8 @@ CREATE TRIGGER monitoring_snapshot_run_completes_in_order
 -- before is gone, never partly there.
 
 -- Whether each source was counted in a run, for each set of elections.
--- Written by the pass of a RUNNING run, which has finished, complete or
--- failed, by commit; then kept until the run is pruned.
+-- Written by the pass of a RUNNING run, whose transaction has finished the
+-- run, complete or failed, by commit; then kept until the run is pruned.
 CREATE TABLE sequent_backend.monitoring_snapshot_source (
     tenant_id uuid NOT NULL,
     election_event_id uuid NOT NULL,
@@ -668,17 +704,18 @@ CREATE TRIGGER monitoring_snapshot_source_is_kept
 CREATE FUNCTION sequent_backend.monitoring_snapshot_source_finishes_its_run()
 RETURNS trigger AS $$
 BEGIN
+    -- A row deleted since, with its run or its event, is not kept.
     IF EXISTS (
         SELECT 1 FROM sequent_backend.monitoring_snapshot_source
         WHERE tenant_id = NEW.tenant_id AND election_event_id = NEW.election_event_id
           AND revision = NEW.revision AND source = NEW.source
           AND election_set_key = NEW.election_set_key
-    ) AND EXISTS (
+    ) AND NOT EXISTS (
         SELECT 1 FROM sequent_backend.monitoring_snapshot_run
         WHERE tenant_id = NEW.tenant_id AND election_event_id = NEW.election_event_id
-          AND revision = NEW.revision AND status = 'RUNNING'
+          AND revision = NEW.revision AND finished_xact = pg_current_xact_id()
     ) THEN
-        RAISE EXCEPTION 'snapshot run % is still running when what it counted is kept', NEW.revision
+        RAISE EXCEPTION 'snapshot run % was not finished by the pass that counted it', NEW.revision
             USING ERRCODE = 'integrity_constraint_violation',
                   CONSTRAINT = 'monitoring_snapshot_source_finishes_its_run';
     END IF;
@@ -686,7 +723,8 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Checked at commit: the pass that wrote the row has completed or failed.
+-- Checked at commit: the transaction that wrote the row completed or failed
+-- its run.
 CREATE CONSTRAINT TRIGGER monitoring_snapshot_source_finishes_its_run
     AFTER INSERT ON sequent_backend.monitoring_snapshot_source
     DEFERRABLE INITIALLY DEFERRED
@@ -849,8 +887,9 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- At commit the run that wrote a row is complete: figures of a failed or
--- abandoned pass never become what later passes carry forward.
+-- At commit the transaction that wrote a row has completed its run: figures
+-- of a failed or abandoned pass never become what later passes carry
+-- forward, and no other transaction adds to a run once it completed.
 CREATE FUNCTION sequent_backend.monitoring_snapshot_figure_completes_its_run()
 RETURNS trigger AS $$
 BEGIN
@@ -867,9 +906,9 @@ BEGIN
         SELECT 1 FROM sequent_backend.monitoring_snapshot_run
         WHERE tenant_id = NEW.tenant_id AND election_event_id = NEW.election_event_id
           AND revision = CASE WHEN TG_OP = 'INSERT' THEN NEW.from_revision ELSE NEW.to_revision END
-          AND status = 'COMPLETE'
+          AND status = 'COMPLETE' AND finished_xact = pg_current_xact_id()
     ) THEN
-        RAISE EXCEPTION 'snapshot figures commit with their run complete'
+        RAISE EXCEPTION 'snapshot figures commit in the transaction that completed their run'
             USING ERRCODE = 'integrity_constraint_violation',
                   CONSTRAINT = 'monitoring_snapshot_figure_completes_its_run';
     END IF;
