@@ -1217,3 +1217,14 @@ layout: [{widget: poll, width: 12}]
     // Posts have no country; the specification's dashboard applies all three.
     assert_eq!(unused, ["dashboards.polls.selectors[2]"]);
 }
+
+#[test]
+fn a_whole_number_tick_step_is_accepted_as_the_least_gap_between_ticks() {
+    // Without a time unit dbt Charts emits it as Vega-Lite's tickMinStep,
+    // which only thins ticks: counts of voters then never show 0.5.
+    let yaml = minimal_with(
+        "value: voted}",
+        "value: voted, style: {axis_y: {ticks: {step: 1}}}}",
+    );
+    assert_accepted(&widget_report(&yaml));
+}

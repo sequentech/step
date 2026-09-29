@@ -34,10 +34,10 @@ chart:
       y_label: Approvals
       # In time order, which the labels alone are not when clocks go back.
       sort: {by: bucket_utc, order: asc}
-      style: {orientation: vertical, number_format: number}
+      style: {orientation: vertical, number_format: number, axis_y: {ticks: {step: 1}}}
       layers:
         - type: line
           y: approved_cumulative
           label: Running total
-          axis_y: {position: right, title: Running total}
+          axis_y: {position: right, title: Running total, ticks: {step: 1}}
   rows: [activity]
