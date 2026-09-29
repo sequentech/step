@@ -209,5 +209,7 @@ export const getOperationRole = (operation: GraphQLRequest, isTrustee = false): 
         return IPermissions.ADMIN_USER
     }
     let OperationMap = isTrustee ? TrusteeOperationMap : AdminOperationMap
-    return OperationMap[operationName] ?? IPermissions.ADMIN_USER
+    return Object.prototype.hasOwnProperty.call(OperationMap, operationName)
+        ? OperationMap[operationName]
+        : IPermissions.ADMIN_USER
 }
