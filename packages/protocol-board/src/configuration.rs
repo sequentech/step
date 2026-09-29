@@ -28,7 +28,7 @@ use crate::{BoardManager, Ctx};
 /// The number of group elements one ballot ciphertext carries. The ballot
 /// codec packs a ballot into a single element, so every board the platform
 /// creates is one element wide.
-const CIPHERTEXT_WIDTH: usize = 1;
+pub(crate) const CIPHERTEXT_WIDTH: usize = 1;
 
 /// A keys ceremony's DKG board: its name and the Configuration it serves,
 /// both decided when the ceremony is created.
@@ -79,6 +79,17 @@ impl DkgBoard {
             _private: (),
         }
     }
+
+    /// How many trustees a tally of this board's key needs: the size of every
+    /// tally quorum.
+    pub fn threshold(&self) -> usize {
+        self.configuration.threshold
+    }
+
+    /// The Configuration the board serves, as its readers accept it.
+    pub(crate) fn configuration(&self) -> Result<Configuration<Ctx>> {
+        self.configuration.message.verify_configuration()
+    }
 }
 
 /// A `Configuration` message as the protocol manager signed it: what the
@@ -87,6 +98,7 @@ impl DkgBoard {
 pub struct SignedConfiguration {
     message: ProtocolMessage<Ctx>,
     hash: HashHex,
+    threshold: usize,
 }
 
 impl SignedConfiguration {
@@ -105,7 +117,11 @@ impl SignedConfiguration {
         let hash = HashHex::of(
             &ConfigurationHash::from_configuration(&configuration)?.0,
         );
-        Ok(SignedConfiguration { message, hash })
+        Ok(SignedConfiguration {
+            message,
+            hash,
+            threshold: configuration.threshold,
+        })
     }
 
     /// The message's canonical bytes, which is what the database stores.
@@ -164,6 +180,19 @@ mod tests {
 
         assert!(dkg_board(2, 2).is_ok());
         assert!(dkg_board(MAX_TRUSTEES, MAX_TRUSTEES).is_ok());
+    }
+
+    #[test]
+    fn a_board_reads_its_threshold_from_the_configuration_it_serves() {
+        for (trustee_count, threshold) in [(3, 2), (3, 3), (5, 4)] {
+            let board = dkg_board(trustee_count, threshold).unwrap();
+            let stored = DkgBoard::from_signed_configuration(
+                &Uuid::new_v4(),
+                SignedConfiguration::parse(&board.configuration.to_bytes())
+                    .unwrap(),
+            );
+            assert_eq!(stored.threshold(), threshold);
+        }
     }
 
     #[test]

@@ -11,6 +11,8 @@ insert_permissions:
               - election_event_id
               - parent_id
               - keys_ceremony_id
+              - tally_session_id
+              - batch
               - name
               - manager_message
               - created_at
@@ -25,6 +27,8 @@ select_permissions:
               - election_event_id
               - parent_id
               - keys_ceremony_id
+              - tally_session_id
+              - batch
               - name
               - created_at
           filter:
@@ -40,6 +44,8 @@ select_permissions:
               - election_event_id
               - parent_id
               - keys_ceremony_id
+              - tally_session_id
+              - batch
               - name
               - created_at
           filter:
@@ -55,6 +61,8 @@ select_permissions:
               - election_event_id
               - parent_id
               - keys_ceremony_id
+              - tally_session_id
+              - batch
               - name
               - manager_message
               - created_at

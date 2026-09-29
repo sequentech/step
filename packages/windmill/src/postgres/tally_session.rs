@@ -291,6 +291,46 @@ pub async fn get_tally_session_by_id(
         .ok_or(anyhow!("Tally Session {tally_session_id} not found"))
 }
 
+/// The tally session, with its row locked until the surrounding transaction
+/// completes.
+#[instrument(err, skip(hasura_transaction))]
+pub async fn get_tally_session_by_id_for_update(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    tally_session_id: &str,
+) -> Result<TallySession> {
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                SELECT
+                    *
+                FROM
+                    sequent_backend.tally_session
+                WHERE
+                    tenant_id = $1 AND
+                    election_event_id = $2 AND
+                    id = $3
+                FOR UPDATE;
+            "#,
+        )
+        .await?;
+
+    let row = hasura_transaction
+        .query_opt(
+            &statement,
+            &[
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
+                &parse_uuid_v4(tally_session_id)?,
+            ],
+        )
+        .await?
+        .ok_or_else(|| anyhow!("Tally Session {tally_session_id} not found"))?;
+
+    row.try_into().map(|res: TallySessionWrapper| res.0)
+}
+
 /// Locks the tally-session row until the surrounding transaction completes.
 /// Recount creation and post-tally finalization use this short-lived lock to
 /// serialize changes to the execution-history head without holding the

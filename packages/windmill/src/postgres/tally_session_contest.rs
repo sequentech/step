@@ -2,7 +2,6 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use anyhow::{anyhow, Context, Result};
-use b4::messages::newtypes::BatchNumber;
 use chrono::{DateTime, Local};
 use deadpool_postgres::{Client as DbClient, Transaction};
 use sequent_core::services::uuid_validation::parse_uuid_v4;
@@ -89,11 +88,13 @@ pub async fn insert_tally_session_contest(
     election_event_id: &str,
     area_id: &str,
     contest_id: Option<String>,
-    session_id: BatchNumber,
+    session_id: i64,
     tally_session_id: &str,
     election_id: &str,
 ) -> Result<TallySessionContest> {
     let contest_uuid = contest_id.map(|val| parse_uuid_v4(&val)).transpose()?;
+    let session_id = i32::try_from(session_id)
+        .with_context(|| format!("batch number {session_id} is out of range"))?;
 
     let statement = hasura_transaction
         .prepare(
@@ -123,7 +124,7 @@ pub async fn insert_tally_session_contest(
                 &parse_uuid_v4(election_event_id)?,
                 &parse_uuid_v4(area_id)?,
                 &contest_uuid,
-                &(session_id as i32),
+                &session_id,
                 &parse_uuid_v4(tally_session_id)?,
                 &parse_uuid_v4(election_id)?,
             ],
@@ -150,7 +151,7 @@ pub async fn get_tally_session_highest_batch(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
-) -> Result<BatchNumber> {
+) -> Result<i64> {
     let statement = hasura_transaction
         .prepare(
             r#"
@@ -177,13 +178,13 @@ pub async fn get_tally_session_highest_batch(
         .await
         .map_err(|err| anyhow!("Error inserting row: {}", err))?;
 
-    let values: Vec<BatchNumber> = rows
+    let values: Vec<i64> = rows
         .into_iter()
-        .map(|row| -> Result<BatchNumber> {
+        .map(|row| -> Result<i64> {
             let session_id: i32 = row.try_get("session_id")?;
-            Ok(session_id as BatchNumber)
+            Ok(i64::from(session_id))
         })
-        .collect::<Result<Vec<BatchNumber>>>()?;
+        .collect::<Result<Vec<i64>>>()?;
 
     let Some(value) = values.first() else {
         return Ok(0);
@@ -196,7 +197,7 @@ pub async fn get_tally_session_highest_batch(
     // earlier run whatever policy either was created under; the gaps this
     // leaves in unweighted elections are harmless, as batch numbers are only
     // ever looked up exactly.
-    Ok(value + VOTE_WEIGHT_BATCHES as BatchNumber)
+    Ok(value + i64::from(VOTE_WEIGHT_BATCHES))
 }
 
 #[instrument(skip(hasura_transaction), err)]

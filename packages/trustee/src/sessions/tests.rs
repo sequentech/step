@@ -3,14 +3,15 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 //! Session sets over in-memory boards, with real braid trustees registered from
-//! their keys files, a real Configuration built by the platform's own code, and
-//! the SQLite stores the trustee runs with.
+//! their keys files, a real Configuration and real `Ballots` messages built by
+//! the platform's own code, and the SQLite stores the trustee runs with.
 //!
 //! braid's own suite proves the protocol: equivocation halts, the anti-rewrite
-//! gate, the mailbox. These tests cover what the trustee adds around it: which
-//! boards get a session, which errors halt it and which are retried, how long a
-//! session and a halt live, what a halt leaves to report, and that a session's
-//! store is the one found again after a restart.
+//! gate, the mailbox, the mix and the decryption. These tests cover what the
+//! trustee adds around it: which boards get a session, what a tally board's
+//! session is read with and checked against, which errors halt a session and
+//! which are retried, how long a session and a halt live, what a halt leaves to
+//! report, and that a session's store is the one found again after a restart.
 
 use std::cell::{Cell, RefCell};
 use std::collections::BTreeMap;
@@ -21,10 +22,14 @@ use std::sync::Arc;
 
 use anyhow::{bail, Result};
 use async_trait::async_trait;
+use cryptography::cryptosystem::{elgamal, naoryung};
+use cryptography::groups::Ristretto255Group;
 use cryptography::utils::serialization::{Deserializable, Serializable};
 use protocol_board::{
-    generate_manager, BoardName, Committee, Ctx, DkgBoard, ProtocolBoardKind,
-    RawTrusteeRecord, TrusteeBoard, TrusteeReportKind, TrusteeSecrets,
+    generate_manager, BallotCiphertext, BoardManager, BoardName, Committee,
+    Ctx, DkgBoard, ElementPayload, HashHex, ProtocolBoardKind, Quorum,
+    RawTrusteeRecord, TallyBoard, TrusteeBoard, TrusteeReportKind,
+    TrusteeSecrets,
 };
 use tempfile::TempDir;
 use uuid::Uuid;
@@ -33,14 +38,23 @@ use wbraid::board::transport::{
     MemoryBoard, MemoryTransport, StagedRef, Transport,
 };
 use wbraid::board::BoardClient;
+use wbraid::messages::artifact::{DkgPublicKey, Plaintexts};
+use wbraid::messages::newtypes::hash_bytes;
 use wbraid::messages::wire::{MessageType, ProtocolMessage};
 use wbraid::native::persistence::SqlitePersistence;
 use wbraid::session::Session;
-use wbraid::trustee::Trustee;
+use wbraid::trustee::{ballot_encryption_context, Trustee};
 
 use super::{BoardAccess, SessionSet, SessionStores};
 
 const THRESHOLD: usize = 2;
+
+/// Rounds after which trustees that are still posting are given up on.
+const MAX_ROUNDS: usize = 20;
+
+/// The tally session and the board row of the tally boards made here.
+const TALLY_SESSION: u128 = 100;
+const TALLY_ROW: u128 = 101;
 
 /// The board service's boards by name, shared by every trustee.
 type Boards = Rc<RefCell<BTreeMap<BoardName, Arc<MemoryBoard<Ctx>>>>>;
@@ -149,9 +163,18 @@ impl Member {
     }
 }
 
+/// What the platform keeps of a DKG board it created.
+struct PlatformDkg {
+    board: DkgBoard,
+    manager: BoardManager,
+    /// The committee's names, in Configuration order.
+    committee: Vec<String>,
+}
+
 struct Harness {
     _directory: TempDir,
     boards: Boards,
+    dkgs: RefCell<BTreeMap<BoardName, PlatformDkg>>,
     members: Vec<Member>,
 }
 
@@ -173,6 +196,7 @@ impl Harness {
         Harness {
             _directory: directory,
             boards: Boards::default(),
+            dkgs: RefCell::default(),
             members,
         }
     }
@@ -184,24 +208,105 @@ impl Harness {
             .iter()
             .map(|&member| self.members[member].record())
             .collect::<Vec<_>>();
+        let manager = generate_manager();
         let dkg = DkgBoard::new(
             &Uuid::from_u128(id),
-            &generate_manager(),
+            &manager,
             &Committee::new(&records).unwrap(),
             THRESHOLD,
         )
         .unwrap();
-        let board = MemoryBoard::<Ctx>::new();
-        board.push(
-            ProtocolMessage::<Ctx>::deser(&dkg.configuration.to_bytes())
-                .unwrap(),
+        let name = dkg.name.clone();
+        self.register(&name, &dkg.configuration.to_bytes());
+        let committee = records.into_iter().map(|record| record.name).collect();
+        self.dkgs.borrow_mut().insert(
+            name.clone(),
+            PlatformDkg {
+                board: dkg,
+                manager,
+                committee,
+            },
         );
-        self.boards.borrow_mut().insert(dkg.name.clone(), board);
-        dkg.name
+        name
+    }
+
+    /// A new tally board over a DKG board whose key has been generated,
+    /// serving the platform's `Ballots` message: `payloads` encrypted under
+    /// the joint key as a voter's client encrypts them (PROTOCOL.md §5.2), for
+    /// `quorum` to mix and decrypt, in this order.
+    fn tally_board(
+        &self,
+        parent: &BoardName,
+        quorum: &[usize],
+        payloads: &[ElementPayload],
+    ) -> BoardName {
+        let dkgs = self.dkgs.borrow();
+        let dkg = &dkgs[parent];
+        let served = self.memory(parent).snapshot();
+        let public_key = served
+            .iter()
+            .find(|message| message.message_type == MessageType::PublicKey)
+            .and_then(|message| message.body.as_ref())
+            .unwrap();
+        let joint_key = DkgPublicKey::<Ctx>::deser(public_key).unwrap().pk;
+        let configuration = configuration_of(&self.memory(parent))
+            .verify_configuration()
+            .unwrap();
+        let context =
+            ballot_encryption_context::<Ctx>(configuration.id, &joint_key);
+        let key = naoryung::PublicKey::augment(
+            &elgamal::PublicKey::new(joint_key),
+            &context,
+        )
+        .unwrap();
+        let ballots = payloads
+            .iter()
+            .map(|payload| {
+                let element =
+                    Ristretto255Group::encode_30_bytes(payload).unwrap();
+                BallotCiphertext::new(
+                    vec!["contest".to_string()],
+                    key.encrypt(&[element], &context).unwrap(),
+                )
+            })
+            .collect();
+        let chosen = quorum
+            .iter()
+            .map(|&member| self.members[member].name.clone())
+            .collect::<Vec<_>>();
+        let tally = TallyBoard::new(
+            &Uuid::from_u128(TALLY_ROW),
+            &Uuid::from_u128(TALLY_SESSION),
+            1,
+            &dkg.board,
+            &recorded_hash(public_key),
+            &Quorum::of_names(&dkg.board, &dkg.committee, &chosen).unwrap(),
+            &dkg.manager,
+            ballots,
+        )
+        .unwrap();
+        self.register(&tally.name, &tally.input.to_bytes());
+        tally.name
+    }
+
+    /// A new board serving one stored message.
+    fn register(&self, name: &BoardName, stored: &[u8]) {
+        let board = MemoryBoard::<Ctx>::new();
+        board.push(ProtocolMessage::<Ctx>::deser(stored).unwrap());
+        self.boards.borrow_mut().insert(name.clone(), board);
     }
 
     fn memory(&self, board: &BoardName) -> Arc<MemoryBoard<Ctx>> {
         Arc::clone(&self.boards.borrow()[board])
+    }
+
+    /// How many messages the board service holds, over every board.
+    fn posted(&self) -> usize {
+        self.boards
+            .borrow()
+            .values()
+            .map(|board| board.snapshot().len())
+            .sum()
     }
 
     /// The member's session set as `trustee start` builds it.
@@ -251,6 +356,28 @@ impl Harness {
         assert_eq!(messages, 1 + 2 * self.members.len());
     }
 
+    /// What the `Plaintexts` a member posted on a tally board decode to, in
+    /// order.
+    fn decrypted(
+        &self,
+        board: &BoardName,
+        member: usize,
+    ) -> Vec<ElementPayload> {
+        let sent = self.sent(board, member, MessageType::Plaintexts);
+        assert_eq!(sent.len(), 1, "{}", self.members[member].name);
+        let body = sent[0].body.as_ref().unwrap();
+        let mut payloads = Plaintexts::<Ctx, 1>::deser(body)
+            .unwrap()
+            .0
+            .iter()
+            .map(|[element]| {
+                Ristretto255Group::decode_30_bytes(element).unwrap()
+            })
+            .collect::<Vec<_>>();
+        payloads.sort();
+        payloads
+    }
+
     /// The member's only dealing on the board is the first message it ever
     /// staged.
     fn assert_first_staged_dealing_published(
@@ -296,6 +423,23 @@ impl Harness {
             .find(|message| message.message_type == MessageType::Shares)
             .unwrap()
     }
+
+    /// The board service serves the board with the member's dealing replaced
+    /// by another one: a rewrite of what it served before.
+    async fn replace_dealing(&self, board: &BoardName, member: usize) {
+        let replacement = self.another_dealing(board, member).await;
+        let rewritten = MemoryBoard::<Ctx>::new();
+        for message in self.memory(board).snapshot() {
+            let replaced = message.message_type == MessageType::Shares
+                && message.sender.name == self.members[member].name;
+            rewritten.push(if replaced {
+                replacement.clone()
+            } else {
+                message
+            });
+        }
+        self.boards.borrow_mut().insert(board.clone(), rewritten);
+    }
 }
 
 fn configuration_of(board: &MemoryBoard<Ctx>) -> ProtocolMessage<Ctx> {
@@ -314,6 +458,30 @@ fn dkg(board: &BoardName) -> TrusteeBoard {
     }
 }
 
+fn tally(board: &BoardName, parent: &BoardName) -> TrusteeBoard {
+    TrusteeBoard {
+        name: board.clone(),
+        kind: ProtocolBoardKind::TALLY,
+        parent: Some(parent.clone()),
+    }
+}
+
+/// A public key's hash as the keys ceremony records it.
+fn recorded_hash(public_key: &[u8]) -> HashHex {
+    let hex = hash_bytes(public_key)
+        .iter()
+        .map(|byte| format!("{byte:02x}"))
+        .collect::<String>();
+    HashHex::parse(&hex).unwrap()
+}
+
+/// A payload starting with these bytes, zero-padded.
+fn payload(bytes: &[u8]) -> ElementPayload {
+    let mut payload = [0; 30];
+    payload[..bytes.len()].copy_from_slice(bytes);
+    payload
+}
+
 /// One cycle of every set, in order, after a list that answered: what the
 /// daemon runs once its reports are sent.
 async fn round(sets: &mut [SessionSet<TestBoards>], list: &[TrusteeBoard]) {
@@ -321,6 +489,33 @@ async fn round(sets: &mut [SessionSet<TestBoards>], list: &[TrusteeBoard]) {
         set.reconcile(list).await;
         set.advance().await;
     }
+}
+
+/// Rounds until one in which no trustee posted anything: every session has
+/// done all it could.
+async fn rounds_until_quiet(
+    harness: &Harness,
+    sets: &mut [SessionSet<TestBoards>],
+    list: &[TrusteeBoard],
+) {
+    for _ in 0..MAX_ROUNDS {
+        let posted = harness.posted();
+        round(sets, list).await;
+        if harness.posted() == posted {
+            return;
+        }
+    }
+    panic!("the trustees were still posting after {MAX_ROUNDS} rounds");
+}
+
+/// Rounds over a DKG board until its key is generated.
+async fn generate_key(
+    harness: &Harness,
+    sets: &mut [SessionSet<TestBoards>],
+    board: &BoardName,
+) {
+    rounds_until_quiet(harness, sets, &[dkg(board)]).await;
+    harness.assert_key_generated(board);
 }
 
 /// The boards a set has a halt to report on.
@@ -340,6 +535,15 @@ fn assert_nothing_halted(sets: &[SessionSet<TestBoards>]) {
     for set in sets {
         assert!(halted(set).is_empty(), "{:?}", set.pending_reports());
     }
+}
+
+/// The set's only halt is on `board`, where braid found a message it had
+/// committed to no longer served.
+fn assert_halted_on_a_rewrite(set: &SessionSet<TestBoards>, board: &BoardName) {
+    let reports = set.pending_reports();
+    assert_eq!(halted(set), vec![board.clone()]);
+    let detail = &reports[0].detail;
+    assert!(detail.contains("anti-rewrite violation"), "{detail}");
 }
 
 /// Beyond braid: the sets open one session per listed board, give braid each
@@ -458,28 +662,14 @@ async fn a_board_rewritten_across_restarts_halts_the_trustee_after_each() {
     round(&mut sets, &list).await;
     drop(sets);
 
-    let replacement = harness.another_dealing(&board, 0).await;
-    let rewritten = MemoryBoard::<Ctx>::new();
-    for message in harness.memory(&board).snapshot() {
-        let replaced = message.message_type == MessageType::Shares
-            && message.sender.name == harness.members[0].name;
-        rewritten.push(if replaced {
-            replacement.clone()
-        } else {
-            message
-        });
-    }
-    harness.boards.borrow_mut().insert(board.clone(), rewritten);
+    harness.replace_dealing(&board, 0).await;
 
     for _ in 0..2 {
         let mut restarted = harness.start(2);
         restarted.reconcile(&list).await;
         restarted.advance().await;
 
-        let reports = restarted.pending_reports();
-        assert_eq!(halted(&restarted), vec![board.clone()]);
-        let detail = &reports[0].detail;
-        assert!(detail.contains("anti-rewrite violation"), "{detail}");
+        assert_halted_on_a_rewrite(&restarted, &board);
         assert!(harness.sent(&board, 2, MessageType::PublicKey).is_empty());
     }
 }
@@ -563,28 +753,118 @@ async fn an_unlisted_board_is_left_alone_and_keeps_its_store() {
     assert_nothing_halted(&sets);
 }
 
-/// Beyond braid: a tally board gets no session, no store and no report, even
-/// over a Configuration that names the trustee.
+/// Beyond braid: a listed tally board gets a session over the board and its
+/// parent, seeded from the trustee's own store of the parent's key generation:
+/// the quorum mixes and decrypts the platform's ballots back to the payloads
+/// they were encrypted from, and nothing is written to the parent.
 #[tokio::test]
-async fn a_tally_board_is_skipped() {
+async fn a_tally_board_is_decrypted_in_sessions_over_it_and_its_parent() {
     let harness = Harness::new(3);
     let parent = harness.board(1, &[0, 1, 2]);
-    let tally = harness.board(2, &[0, 1, 2]);
-    let list = [TrusteeBoard {
-        name: tally.clone(),
-        kind: ProtocolBoardKind::TALLY,
-        parent: Some(parent),
-    }];
     let mut sets = harness.start_all();
+    generate_key(&harness, &mut sets, &parent).await;
 
-    for _ in 0..2 {
-        round(&mut sets, &list).await;
+    let mut payloads = vec![
+        payload(b"testing encryption"),
+        payload(&[0xde, 0xad, 0xbe, 0xef]),
+        payload(&[0xca, 0xfe, 0xba, 0xbe]),
+    ];
+    let board = harness.tally_board(&parent, &[2, 0], &payloads);
+    rounds_until_quiet(&harness, &mut sets, &[tally(&board, &parent)]).await;
+
+    payloads.sort();
+    for member in [2, 0] {
+        assert_eq!(harness.decrypted(&board, member), payloads);
     }
-    assert_eq!(harness.memory(&tally).snapshot().len(), 1);
+    harness.assert_key_generated(&parent);
     assert_nothing_halted(&sets);
-    for member in &harness.members {
-        assert!(!member.store_file(&tally).exists());
+}
+
+/// Beyond braid: a tally board is never run over a parent the trustee has no
+/// record of: a member that lost its store of the parent's key generation, and
+/// a listing that names no parent, halt the board's session before anything
+/// is posted, and have the halt to report.
+#[tokio::test]
+async fn a_tally_board_whose_parent_the_trustee_has_no_record_of_halts() {
+    let harness = Harness::new(3);
+    let parent = harness.board(1, &[0, 1, 2]);
+    let mut sets = harness.start_all();
+    generate_key(&harness, &mut sets, &parent).await;
+    drop(sets);
+    let board = harness.tally_board(&parent, &[0, 1], &[payload(b"lost")]);
+
+    fs::remove_file(harness.members[0].store_file(&parent)).unwrap();
+    let mut forgetful = harness.start(0);
+    forgetful.reconcile(&[tally(&board, &parent)]).await;
+    forgetful.advance().await;
+    let reports = forgetful.pending_reports();
+    assert_eq!(halted(&forgetful), vec![board.clone()]);
+    let detail = &reports[0].detail;
+    assert!(detail.contains(parent.as_str()), "{detail}");
+
+    let orphan = TrusteeBoard {
+        name: board.clone(),
+        kind: ProtocolBoardKind::TALLY,
+        parent: None,
+    };
+    let mut orphaned = harness.start(1);
+    orphaned.reconcile(&[orphan]).await;
+    orphaned.advance().await;
+    assert_eq!(halted(&orphaned), vec![board.clone()]);
+
+    assert_eq!(harness.memory(&board).snapshot().len(), 1);
+}
+
+/// Beyond braid: a tally board's parent is checked against the trustee's own
+/// store of its key generation, not against what the board service serves
+/// now: a parent that replaced a dealing halts every session over the tally
+/// board before anything is mixed, and a restarted trustee halts again.
+#[tokio::test]
+async fn a_rewritten_parent_halts_the_tally_board_also_after_a_restart() {
+    let harness = Harness::new(3);
+    let parent = harness.board(1, &[0, 1, 2]);
+    let mut sets = harness.start_all();
+    generate_key(&harness, &mut sets, &parent).await;
+    let board = harness.tally_board(&parent, &[0, 1], &[payload(b"rewrite")]);
+    harness.replace_dealing(&parent, 0).await;
+    let list = [tally(&board, &parent)];
+
+    round(&mut sets, &list).await;
+    for set in &sets {
+        assert_halted_on_a_rewrite(set, &board);
     }
+    drop(sets);
+
+    let mut restarted = harness.start(0);
+    restarted.reconcile(&list).await;
+    restarted.advance().await;
+    assert_halted_on_a_rewrite(&restarted, &board);
+    assert_eq!(harness.memory(&board).snapshot().len(), 1);
+}
+
+/// Beyond braid: a tally board the list no longer names has its session
+/// closed and keeps its store and its parent's; listed again, its session is
+/// resumed from them and the tally completes.
+#[tokio::test]
+async fn an_unlisted_tally_board_keeps_both_stores_and_is_resumed_from_them() {
+    let harness = Harness::new(3);
+    let parent = harness.board(1, &[0, 1, 2]);
+    let mut sets = harness.start_all();
+    generate_key(&harness, &mut sets, &parent).await;
+    let payloads = [payload(b"resumed")];
+    let board = harness.tally_board(&parent, &[0, 1], &payloads);
+    let list = [tally(&board, &parent)];
+    round(&mut sets, &list).await;
+
+    round(&mut sets[..1], &[]).await;
+    assert!(kept(&sets[0]).is_empty());
+    for store in [&board, &parent] {
+        assert!(harness.members[0].store_file(store).exists());
+    }
+
+    rounds_until_quiet(&harness, &mut sets, &list).await;
+    assert_eq!(harness.decrypted(&board, 0), payloads);
+    assert_nothing_halted(&sets);
 }
 
 /// Beyond braid: a listed board whose Configuration does not name the

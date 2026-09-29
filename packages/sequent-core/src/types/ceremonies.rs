@@ -146,6 +146,12 @@ pub enum TallyExecutionStatus {
     IN_PROGRESS,
     AWAITING_INPUT,
     SUCCESS,
+    /// Terminal failure: a tally board's parent serves another
+    /// Configuration, a board carries content the platform cannot use, or a
+    /// trustee halted its session over a board, which fails even a successful
+    /// tally. A failed tally session is never resumed; the administrator
+    /// creates a new one, which gets new boards.
+    FAILED,
     CANCELLED,
 }
 
@@ -195,9 +201,11 @@ pub enum TallyTrusteeStatus {
     #[default]
     WAITING,
     KEY_RESTORED,
+    /// Halted its session over one of the tally's boards and reported it.
+    HALTED,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default, PartialEq)]
 pub struct TallyTrustee {
     pub name: String,
     pub status: TallyTrusteeStatus,
@@ -223,19 +231,103 @@ pub enum TallyElectionStatus {
     ERROR,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default, PartialEq)]
 pub struct TallyElection {
     pub election_id: String,
     pub status: TallyElectionStatus,
     pub progress: f64,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+/// Why a tally session ended in [`TallyExecutionStatus::FAILED`].
+///
+/// None of them is repaired in place: the administrator creates a new tally
+/// session. The failure's detail carries the error as it was reported.
+#[derive(
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    Copy,
+    EnumString,
+)]
+pub enum TallyFailureReason {
+    /// A tally board's parent serves a Configuration other than the one
+    /// recorded for the keys ceremony.
+    BOARD_CONFIGURATION_MISMATCH,
+    /// A tally board carries something the platform cannot use: e.g. braid
+    /// refused what it read, a `Ballots` message other than the board's own,
+    /// or plaintexts the trustees do not agree on.
+    INVALID_BOARD_CONTENT,
+    /// A trustee halted its session over a tally board and reported it; the
+    /// detail names the trustee and carries braid's error.
+    TRUSTEE_HALTED,
+}
+
+/// What ended a tally session, kept so the failure survives the task that saw
+/// it and can be shown to the administrator.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+pub struct TallyFailure {
+    pub reason: TallyFailureReason,
+    /// The error behind the reason, as it was reported.
+    pub detail: String,
+    pub failed_at: String,
+}
+
+/// How far one tally board has got, as the platform last read it. A board's
+/// phase only ever moves forward.
+#[derive(
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    Copy,
+    EnumString,
+)]
+pub enum TallyBoardPhase {
+    /// The board's `Ballots` message is not on the board yet.
+    BALLOTS_PENDING,
+    /// The `Ballots` message is on the board and no quorum member has mixed.
+    BALLOTS_POSTED,
+    /// A quorum member has posted a mix.
+    MIXING,
+    /// A quorum member has posted its partial decryptions.
+    DECRYPTING,
+    /// The quorum agrees on the plaintexts.
+    DECRYPTED,
+}
+
+/// One tally board of a session: one contest area's weight batch.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+pub struct TallyBoardStatus {
+    /// The board name on the board service.
+    pub name: String,
+    pub election_id: String,
+    pub area_id: String,
+    /// `None` when the board carries whole ballots rather than one contest.
+    pub contest_id: Option<String>,
+    pub batch: i64,
+    pub phase: TallyBoardPhase,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default, PartialEq)]
 pub struct TallyCeremonyStatus {
     pub stop_date: Option<String>,
     pub logs: Vec<Log>,
     pub trustees: Vec<TallyTrustee>,
     pub elections_status: Vec<TallyElection>,
+    /// The session's tally boards. `None` until the ballots have been
+    /// extracted, `Some` and empty for a session with nothing to decrypt.
+    #[serde(default)]
+    pub boards: Option<Vec<TallyBoardStatus>>,
+    /// Set together with [`TallyExecutionStatus::FAILED`].
+    #[serde(default)]
+    pub failure: Option<TallyFailure>,
 }
 
 #[derive(

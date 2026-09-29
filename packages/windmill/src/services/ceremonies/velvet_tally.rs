@@ -54,7 +54,6 @@ use std::collections::HashMap;
 use std::fs::{self, File, OpenOptions};
 use std::io::Write;
 use std::path::{Path, PathBuf};
-use strand::{backend::ristretto::RistrettoCtx, context::Ctx};
 use tempfile::{NamedTempFile, TempPath};
 use tokio::runtime::Handle;
 use tokio::task;
@@ -73,7 +72,7 @@ use velvet::pipes::pipe_name::PipeName;
 
 #[derive(Debug, Clone)]
 pub struct AreaContestDataType {
-    pub plaintexts: Vec<<RistrettoCtx as Ctx>::P>,
+    pub plaintexts: Vec<[u8; 30]>,
     pub contest: Contest,
     pub ballot_style: BallotStyle,
     pub eligible_voters: u64,
@@ -84,7 +83,7 @@ pub struct AreaContestDataType {
 
 #[instrument(skip_all)]
 fn decode_plaintexts_to_biguints(
-    plaintexts: &Vec<<RistrettoCtx as Ctx>::P>,
+    plaintexts: &[[u8; 30]],
     contest: &Contest,
 ) -> Vec<String> {
     plaintexts

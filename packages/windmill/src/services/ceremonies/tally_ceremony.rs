@@ -28,7 +28,6 @@ use crate::services::election_event_status::get_election_status;
 use crate::services::electoral_log::ElectoralLog;
 use crate::services::electoral_log_board::get_event_board;
 use anyhow::{anyhow, Context, Result};
-use b4::messages::newtypes::BatchNumber;
 use deadpool_postgres::Transaction;
 use futures::try_join;
 use sequent_core::ballot::{
@@ -198,6 +197,8 @@ fn generate_initial_tally_status(
                 progress: 0.0,
             })
             .collect(),
+        boards: None,
+        failure: None,
     }
 }
 
@@ -214,7 +215,7 @@ pub async fn insert_tally_session_contests(
     // at its `session_id`. Only `VOTERS_WEIGHTED_VOTING` fills more than the
     // first, but the stride is unconditional so that a session created under
     // one policy can never allocate a batch inside a run created under another.
-    let mut batch: BatchNumber =
+    let mut batch: i64 =
         get_tally_session_highest_batch(hasura_transaction, tenant_id, election_event_id).await?;
 
     for (election_id, area_id, contest_id) in required_decryption_sets(
@@ -232,7 +233,7 @@ pub async fn insert_tally_session_contests(
             &election_id,
         )
         .await?;
-        batch += VOTE_WEIGHT_BATCHES as BatchNumber;
+        batch += i64::from(VOTE_WEIGHT_BATCHES);
     }
     Ok(())
 }
@@ -651,6 +652,7 @@ pub async fn update_tally_ceremony(
             TallyExecutionStatus::CANCELLED,
         ],
         TallyExecutionStatus::SUCCESS => vec![],
+        TallyExecutionStatus::FAILED => vec![],
         TallyExecutionStatus::CANCELLED => vec![],
     };
 

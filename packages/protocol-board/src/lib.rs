@@ -7,12 +7,14 @@
 //! service).
 //!
 //! braid gives the protocol: a committee of trustees runs a distributed key
-//! generation on a board.
-//! This crate implements what the *platform* decides around it as the board's
-//! protocol manager; how boards are named, how keys are written down in the
-//! database and in a trustee's keys file, which trustees make up a committee,
-//! and what a ceremony's state becomes when the board says a trustee has
-//! published its shares, or a trustee reports a halt, etc.
+//! generation on a board, then mixes and decrypts every tally of that key on
+//! child boards.
+//! This crate implements what the *platform* decides around it as the boards'
+//! protocol manager; how boards are named, how keys and ballots are written
+//! down in the database and in a trustee's keys file, which trustees make up a
+//! committee or a tally's quorum, and what a ceremony's or a tally session's
+//! state becomes when a board says a trustee has published its shares or its
+//! plaintexts, or a trustee reports a halt, etc.
 //!
 //! Everything but `board` is pure: no network, no database.
 //!
@@ -23,6 +25,7 @@
 //! board names, key encodings and keys file, so nothing about a board is
 //! decided twice in two places.
 
+mod ballot;
 mod board;
 mod ceremony;
 mod committee;
@@ -30,6 +33,9 @@ mod configuration;
 mod encoding;
 mod ids;
 mod secrets;
+mod tally;
+mod tally_board;
+mod tally_view;
 mod trustee_api;
 mod view;
 
@@ -52,16 +58,26 @@ pub(crate) type Signer = <Scheme as SignatureScheme<Rng>>::Signer;
 /// that participant.
 pub type BoardManager = wbraid::protocol_manager::ProtocolManager<Ctx>;
 
+pub use ballot::BallotCiphertext;
 pub use board::BoardHandle;
 pub use ceremony::{
     initial_trustees, transition, CeremonyState, PlatformEvent, Timestamps,
 };
 pub use committee::{Committee, RawTrusteeRecord};
 pub use configuration::{DkgBoard, SignedConfiguration};
-pub use encoding::{encode_manager_key, generate_manager, HashHex};
+pub use encoding::{
+    encode_manager_key, generate_manager, parse_manager_key, ElementPayload,
+    HashHex,
+};
 pub use ids::BoardName;
 pub use secrets::{TrusteePublicKeys, TrusteeSecrets};
 pub use sequent_core::types::protocol_board::ProtocolBoardKind;
+pub use tally::{
+    transition as tally_transition, TallyBoardReading, TallyBoardRef,
+    TallyEvent, TallySessionState,
+};
+pub use tally_board::{Quorum, SignedBallots, TallyBoard};
+pub use tally_view::TallyView;
 pub use trustee_api::{
     TrusteeBoard, TrusteeBoardsResponse, TrusteeReport, TrusteeReportKind,
 };

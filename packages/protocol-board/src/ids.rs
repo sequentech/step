@@ -14,6 +14,12 @@ use uuid::Uuid;
 /// this.
 const DKG_BOARD_PREFIX: &str = "dkg_";
 
+/// Board names of a tally session's boards start with this.
+const TALLY_BOARD_PREFIX: &str = "tally_";
+
+/// Separates a tally board name's session from its batch.
+const TALLY_BATCH_SEPARATOR: char = '_';
+
 /// The name of one board on the board service.
 #[derive(
     Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize,
@@ -30,17 +36,41 @@ impl BoardName {
         ))
     }
 
-    /// A name `for_dkg` would have minted. The trustee turns board names
-    /// into file names and URL path segments, so names read from rows or
-    /// JSON are held to the platform's own naming.
+    /// The board of one weight batch of a tally session.
+    pub fn for_tally(tally_session_id: &Uuid, batch: i64) -> BoardName {
+        BoardName(format!(
+            "{TALLY_BOARD_PREFIX}{}{TALLY_BATCH_SEPARATOR}{batch}",
+            tally_session_id.as_simple()
+        ))
+    }
+
+    /// A name `for_dkg` or `for_tally` would have minted. The trustee turns
+    /// board names into file names and URL path segments, so names read from
+    /// rows or JSON are held to the platform's own naming.
     pub fn parse(name: &str) -> Result<BoardName> {
-        name.strip_prefix(DKG_BOARD_PREFIX)
-            .and_then(|id| Uuid::parse_str(id).ok())
-            .map(|id| BoardName::for_dkg(&id))
+        BoardName::remint_dkg(name)
+            .or_else(|| BoardName::remint_tally(name))
             .filter(|board| board.as_str() == name)
             .with_context(|| {
                 format!("{name:?} is not a board name the platform mints")
             })
+    }
+
+    /// The DKG board name built from what `name` claims to carry.
+    fn remint_dkg(name: &str) -> Option<BoardName> {
+        let id = Uuid::parse_str(name.strip_prefix(DKG_BOARD_PREFIX)?).ok()?;
+        Some(BoardName::for_dkg(&id))
+    }
+
+    /// The tally board name built from what `name` claims to carry.
+    fn remint_tally(name: &str) -> Option<BoardName> {
+        let (id, batch) = name
+            .strip_prefix(TALLY_BOARD_PREFIX)?
+            .split_once(TALLY_BATCH_SEPARATOR)?;
+        Some(BoardName::for_tally(
+            &Uuid::parse_str(id).ok()?,
+            batch.parse().ok()?,
+        ))
     }
 
     pub fn as_str(&self) -> &str {
@@ -75,6 +105,14 @@ pub(crate) fn configuration_id(keys_ceremony_id: &Uuid) -> u128 {
     keys_ceremony_id.as_u128()
 }
 
+/// The `tally_id` a tally board's `Ballots` message declares: the board row's
+/// UUID read as a big-endian 128-bit number. Row ids are unique across
+/// sessions, batches and re-runs, which is what keeps the proof transcripts of
+/// sibling tallies over one key apart.
+pub(crate) fn tally_id(board_row_id: &Uuid) -> u128 {
+    board_row_id.as_u128()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -90,9 +128,26 @@ mod tests {
     }
 
     #[test]
+    fn tally_board_name_joins_the_dashless_session_uuid_and_the_batch() {
+        let id =
+            Uuid::parse_str("d9792af0-71b8-4952-8aac-94bc0fead5f7").unwrap();
+        assert_eq!(
+            BoardName::for_tally(&id, 42).as_str(),
+            "tally_d9792af071b849528aac94bc0fead5f7_42"
+        );
+    }
+
+    #[test]
     fn a_configuration_id_names_its_ceremony() {
         let id = Uuid::new_v4();
         assert_eq!(Uuid::from_u128(configuration_id(&id)), id);
+    }
+
+    #[test]
+    fn a_tally_id_names_its_board_row() {
+        let id = Uuid::new_v4();
+        assert_eq!(Uuid::from_u128(tally_id(&id)), id);
+        assert_ne!(tally_id(&id), tally_id(&Uuid::new_v4()));
     }
 
     #[test]
@@ -100,7 +155,25 @@ mod tests {
         for id in [Uuid::nil(), Uuid::from_u128(u128::MAX), Uuid::new_v4()] {
             let dkg = BoardName::for_dkg(&id);
             assert_eq!(BoardName::parse(dkg.as_str()).unwrap(), dkg);
+            for batch in [0, 1, 10, i64::MAX, -1, i64::MIN] {
+                let tally = BoardName::for_tally(&id, batch);
+                assert_eq!(BoardName::parse(tally.as_str()).unwrap(), tally);
+            }
         }
+    }
+
+    #[test]
+    fn a_session_and_a_batch_name_one_tally_board() {
+        let id = Uuid::new_v4();
+        assert_ne!(BoardName::for_tally(&id, 1), BoardName::for_tally(&id, 2));
+        assert_ne!(
+            BoardName::for_tally(&id, 1),
+            BoardName::for_tally(&Uuid::new_v4(), 1)
+        );
+        assert_ne!(
+            BoardName::for_tally(&id, 1).as_str(),
+            BoardName::for_dkg(&id).as_str()
+        );
     }
 
     #[test]
@@ -122,6 +195,22 @@ mod tests {
             format!("dkg_{simple}\n"),
             format!("dkg_{simple}/../x"),
             "../x".to_string(),
+            format!("dkg_{simple}_1"),
+            format!("tally_{simple}_"),
+            format!("tally__{simple}"),
+            format!("tally_{simple}_+1"),
+            format!("tally_{simple}_01"),
+            format!("tally_{simple}_-0"),
+            format!("tally_{simple}_1_2"),
+            format!("tally_{simple}_1 "),
+            format!("tally_{simple}_1\n"),
+            format!("tally_{simple}_one"),
+            format!("tally_{simple}_99999999999999999999"),
+            format!("tally_{}_1", id.hyphenated()),
+            format!("tally_{}_1", simple.to_uppercase()),
+            format!("tally_{}_1", &simple[1..]),
+            format!("TALLY_{simple}_1"),
+            format!("tally_{simple}_1/../x"),
         ] {
             assert!(BoardName::parse(&refused).is_err(), "{refused:?}");
         }
