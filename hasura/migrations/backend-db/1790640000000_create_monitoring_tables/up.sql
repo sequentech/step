@@ -71,7 +71,8 @@ CREATE TABLE sequent_backend.monitoring_event (
     -- The preset the configuration was last reset to.
     preset_id text CHECK (preset_id ~ '^[a-z0-9][a-z0-9_-]{0,63}$'),
     preset_version integer CHECK (preset_version > 0),
-    -- Raised by every saved change, reset and mode switch, so a snapshot and
+    -- Raised by every saved change, reset and mode switch (the mode and
+    -- preset change only in the transaction that raised it), so a snapshot and
     -- an export say which configuration they were counted for. Only those
     -- write this row: it is what queues them behind one another, and the
     -- snapshot job keeps its own row in monitoring_snapshot_state.
@@ -138,6 +139,18 @@ BEGIN
         NEW.config_generation_xact := pg_current_xact_id();
     ELSE
         NEW.config_generation_xact := OLD.config_generation_xact;
+    END IF;
+    -- A change checked against a generation writes only if the generation
+    -- has not moved on since, so the mode and preset change only in the
+    -- transaction that raised it.
+    IF TG_OP = 'UPDATE'
+       AND (NEW.dashboard_mode, NEW.preset_id, NEW.preset_version)
+           IS DISTINCT FROM (OLD.dashboard_mode, OLD.preset_id, OLD.preset_version)
+       AND NEW.config_generation_xact IS DISTINCT FROM pg_current_xact_id()
+    THEN
+        RAISE EXCEPTION 'the dashboard mode and preset change with the configuration generation'
+            USING ERRCODE = 'integrity_constraint_violation',
+                  CONSTRAINT = 'monitoring_event_changes_with_its_generation';
     END IF;
     RETURN NEW;
 END;
