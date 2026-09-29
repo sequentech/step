@@ -1,0 +1,10 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# A university's student-council election: a different vocabulary, different
+# dimensions and different widgets, on the same data sources and code.
+id: campus
+version: 1
+title: Campus elections
+description: Participation by faculty and role, and the day's operations, for a university election.

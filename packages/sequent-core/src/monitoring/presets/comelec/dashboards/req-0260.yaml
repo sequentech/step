@@ -1,0 +1,14 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+id: req-0260
+title: Voted vs pre-enrolled
+requirements: [SW-F-0260, SW-F-0372]
+order: 2
+selectors: [region, post, country]
+layout:
+  - {widget: turnout-summary, width: 12}
+  - {widget: turnout-by-group, width: 6, values: {measure: voted_pre}}
+  - {widget: voting-activity, width: 6, values: {grain: day}}
+  - {widget: turnout-by-post, width: 12, values: {measure: voted_pre}}

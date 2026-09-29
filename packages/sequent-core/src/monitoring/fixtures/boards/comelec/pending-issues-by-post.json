@@ -1,0 +1,137 @@
+{
+  "charts": {
+    "posts": {
+      "query": "data",
+      "sort": {
+        "by": "position",
+        "order": "asc"
+      },
+      "style": {
+        "marks": {
+          "bar": {
+            "labels": {
+              "format": "integer",
+              "visible": true
+            }
+          }
+        },
+        "number_format": "integer",
+        "orientation": "horizontal"
+      },
+      "type": "bar",
+      "x": "group",
+      "y": "pending_issues",
+      "y_label": "Open issues"
+    }
+  },
+  "queries": {
+    "data": {
+      "columns": [
+        "group",
+        "group_key",
+        "position",
+        "pending_issues",
+        "issues"
+      ],
+      "values": [
+        [
+          "Madrid",
+          "post-madrid",
+          1,
+          0,
+          0
+        ],
+        [
+          "Tokyo",
+          "post-tokyo",
+          2,
+          0,
+          0
+        ],
+        [
+          "Dubai",
+          "post-dubai",
+          3,
+          0,
+          0
+        ],
+        [
+          "Riyadh",
+          "post-riyadh",
+          4,
+          0,
+          0
+        ]
+      ]
+    }
+  },
+  "rows": [
+    "posts"
+  ],
+  "style": {
+    "accent": "#1d4ed8",
+    "charts": {
+      "axis": {
+        "title": {
+          "font": {
+            "case": "none"
+          }
+        }
+      },
+      "callout": {
+        "title": {
+          "font": {
+            "case": "none"
+          }
+        }
+      },
+      "category_colors": {
+        "group": {
+          "values": {
+            "Unknown": "dbt-grays.muted"
+          }
+        }
+      },
+      "kpi": {
+        "label": {
+          "font": {
+            "case": "none"
+          }
+        }
+      },
+      "legend": {
+        "title": {
+          "font": {
+            "case": "none"
+          }
+        }
+      },
+      "support_table": {
+        "label": {
+          "font": {
+            "case": "none"
+          }
+        }
+      },
+      "table": {
+        "header": {
+          "font": {
+            "case": "none"
+          }
+        }
+      }
+    },
+    "footer": {
+      "visible": false
+    },
+    "timestamp": {
+      "visible": false
+    },
+    "title": {
+      "font": {
+        "case": "none"
+      }
+    }
+  },
+  "theme": "clarity"
+}

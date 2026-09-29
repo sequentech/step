@@ -1,0 +1,29 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# Pre-enrolled voters who cast a vote in a test election. The denominator is
+# pre-enrolled voters (D1).
+id: test-voting
+title: Test voting
+source: test_voting
+requirements: [SW-F-0253, SW-F-0367]
+queries:
+  totals: {template: summary, measures: [pre_enrolled, test_voted]}
+  share: {template: summary, ratio: [test_voted, pre_enrolled]}
+height: 180
+chart:
+  charts:
+    tested:
+      type: kpi
+      query: totals
+      value: test_voted
+      label: Test voted
+      style: {value: {format: integer}}
+    share:
+      type: kpi
+      query: share
+      value: pct_label
+      label: Of pre-enrolled voters
+      support: {value: denominator, label: pre-enrolled, format: integer}
+  rows: [{cols: [tested, share]}]

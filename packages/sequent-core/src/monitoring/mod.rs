@@ -30,11 +30,19 @@ pub mod payload;
 /// What the platform refuses in configuration, and every reason why.
 pub mod policy;
 
+/// The settings, themes, widgets and dashboards shipped for a kind of
+/// deployment, as YAML documents compiled in.
+pub mod presets;
+
 /// What validation reports.
 pub mod problem;
 
 /// The dbt Charts board sent to the renderer for one widget.
 pub mod render_request;
+
+/// Made-up payloads in the shape each producer writes, for previews and
+/// tests before any snapshot exists.
+pub mod sample;
 
 /// Which slice of the event a widget shows, and the key it is stored under.
 pub mod scope;

@@ -1,0 +1,12 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+id: req-0251
+title: Voting credentials
+requirements: [SW-F-0251]
+order: 12
+selectors: [region, post, country]
+layout:
+  - {widget: credentials-issued, width: 12}
+  - {widget: credentials-by-post, width: 12}

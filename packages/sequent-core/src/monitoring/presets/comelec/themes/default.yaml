@@ -1,0 +1,25 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# Applied to every COMELEC dashboard: a quiet base, one accent, and Unknown
+# always in grey so it never reads as a group of its own.
+id: default
+title: COMELEC
+base: clarity
+style:
+  accent: "#1d4ed8"
+  # Labels are shown as the preset writes them: the engine's title case is
+  # English-only and would recase names and other languages.
+  title: {font: {case: none}}
+  charts:
+    axis: {title: {font: {case: none}}}
+    legend: {title: {font: {case: none}}}
+    table: {header: {font: {case: none}}}
+    kpi: {label: {font: {case: none}}}
+    support_table: {label: {font: {case: none}}}
+    callout: {title: {font: {case: none}}}
+    category_colors:
+      group:
+        values:
+          Unknown: dbt-grays.muted

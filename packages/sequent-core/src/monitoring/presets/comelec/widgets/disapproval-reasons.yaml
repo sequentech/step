@@ -1,0 +1,37 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+id: disapproval-reasons
+title: Disapproval reasons
+source: enrollment_decisions
+requirements: [SW-F-0250]
+selectors:
+  top:
+    label: Show
+    options: {"5": Top 5, "10": Top 10, all: All reasons}
+    default: "10"
+    maps: {"5": 5, "10": 10, all: null}
+query:
+  template: by_group
+  group_by: reason
+  measures: [disapproved]
+  ratio: [disapproved, applications]
+  sort: {by: value, order: desc}
+  limit: {selector: top}
+height: 340
+chart:
+  charts:
+    reasons:
+      type: bar
+      query: data
+      x: group
+      y: disapproved
+      # The query's order, Unknown last; unsorted, a bar orders by value.
+      sort: {by: position, order: asc}
+      y_label: Disapproved applicants
+      style:
+        orientation: horizontal
+        number_format: integer
+        marks: {bar: {labels: {visible: true, format: integer}}}
+  rows: [reasons]

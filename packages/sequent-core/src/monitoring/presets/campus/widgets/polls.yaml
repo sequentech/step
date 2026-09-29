@@ -1,0 +1,32 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# Which polling stations are open.
+id: polls
+title: Polling stations
+source: poll_status
+queries:
+  opened: {template: summary, ratio: [opened, posts]}
+  states:
+    template: by_group
+    group_by: state
+    measures: [posts]
+    labels: {not_initialized: Not ready, initialized: Ready, opened: Open, paused: Paused, closed: Closed}
+height: 300
+chart:
+  charts:
+    opened:
+      type: kpi
+      query: opened
+      value: pct_label
+      label: Stations opened
+      support: {value: numerator, label: stations, format: integer}
+    # A campus has a handful of stations: a donut shows each state's count.
+    states:
+      type: donut
+      query: states
+      theta: posts
+      color: group
+      title: Stations by state
+  rows: [{cols: [opened, states]}]

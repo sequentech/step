@@ -1,0 +1,184 @@
+{
+  "charts": {
+    "posts": {
+      "query": "data",
+      "style": {
+        "columns": {
+          "denominator": {
+            "visible": false
+          },
+          "group": {
+            "label": "Post"
+          },
+          "group_key": {
+            "visible": false
+          },
+          "numerator": {
+            "visible": false
+          },
+          "pct": {
+            "visible": false
+          },
+          "pct_label": {
+            "align": "right",
+            "label": "Turnout"
+          },
+          "position": {
+            "visible": false
+          },
+          "pre_enrolled": {
+            "align": "right",
+            "format": "integer",
+            "label": "Pre-enrolled"
+          },
+          "registered": {
+            "align": "right",
+            "format": "integer",
+            "label": "Registered"
+          },
+          "voted": {
+            "align": "right",
+            "format": "integer",
+            "label": "Voted"
+          }
+        }
+      },
+      "type": "table"
+    }
+  },
+  "queries": {
+    "data": {
+      "columns": [
+        "group",
+        "group_key",
+        "position",
+        "registered",
+        "pre_enrolled",
+        "voted",
+        "numerator",
+        "denominator",
+        "pct",
+        "pct_label"
+      ],
+      "values": [
+        [
+          "Tokyo",
+          "post-tokyo",
+          1,
+          334,
+          114,
+          67,
+          114,
+          334,
+          0.3413173652694611,
+          "34.1%"
+        ],
+        [
+          "Riyadh",
+          "post-riyadh",
+          2,
+          167,
+          57,
+          33,
+          57,
+          167,
+          0.3413173652694611,
+          "34.1%"
+        ],
+        [
+          "Madrid",
+          "post-madrid",
+          3,
+          417,
+          142,
+          83,
+          142,
+          417,
+          0.3405275779376499,
+          "34.1%"
+        ],
+        [
+          "Dubai",
+          "post-dubai",
+          4,
+          250,
+          85,
+          50,
+          85,
+          250,
+          0.34,
+          "34.0%"
+        ]
+      ]
+    }
+  },
+  "rows": [
+    "posts"
+  ],
+  "style": {
+    "accent": "#1d4ed8",
+    "charts": {
+      "axis": {
+        "title": {
+          "font": {
+            "case": "none"
+          }
+        }
+      },
+      "callout": {
+        "title": {
+          "font": {
+            "case": "none"
+          }
+        }
+      },
+      "category_colors": {
+        "group": {
+          "values": {
+            "Unknown": "dbt-grays.muted"
+          }
+        }
+      },
+      "kpi": {
+        "label": {
+          "font": {
+            "case": "none"
+          }
+        }
+      },
+      "legend": {
+        "title": {
+          "font": {
+            "case": "none"
+          }
+        }
+      },
+      "support_table": {
+        "label": {
+          "font": {
+            "case": "none"
+          }
+        }
+      },
+      "table": {
+        "header": {
+          "font": {
+            "case": "none"
+          }
+        }
+      }
+    },
+    "footer": {
+      "visible": false
+    },
+    "timestamp": {
+      "visible": false
+    },
+    "title": {
+      "font": {
+        "case": "none"
+      }
+    }
+  },
+  "theme": "clarity"
+}

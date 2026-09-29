@@ -1,0 +1,12 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+id: req-0269
+title: Helpdesk
+requirements: [SW-F-0269]
+order: 32
+selectors: [region, post, country]
+layout:
+  - {widget: helpdesk-issues, width: 12}
+  - {widget: pending-issues-by-post, width: 12}

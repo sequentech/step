@@ -1,0 +1,216 @@
+{
+  "charts": {
+    "pre_enrolled": {
+      "label": "Pre-enrolled",
+      "query": "totals",
+      "style": {
+        "value": {
+          "format": "integer"
+        }
+      },
+      "type": "kpi",
+      "value": "pre_enrolled"
+    },
+    "pre_reg": {
+      "label": "Pre-enrolled of registered",
+      "query": "pre_reg",
+      "support": {
+        "format": "integer",
+        "label": "registered",
+        "value": "denominator"
+      },
+      "type": "kpi",
+      "value": "pct_label"
+    },
+    "registered": {
+      "label": "Registered",
+      "query": "totals",
+      "style": {
+        "value": {
+          "format": "integer"
+        }
+      },
+      "type": "kpi",
+      "value": "registered"
+    },
+    "voted": {
+      "label": "Voted",
+      "query": "totals",
+      "style": {
+        "value": {
+          "format": "integer"
+        }
+      },
+      "type": "kpi",
+      "value": "voted"
+    },
+    "voted_pre": {
+      "label": "Voted of pre-enrolled",
+      "query": "voted_pre",
+      "support": {
+        "format": "integer",
+        "label": "pre-enrolled",
+        "value": "denominator"
+      },
+      "type": "kpi",
+      "value": "pct_label"
+    },
+    "voted_reg": {
+      "label": "Voted of registered",
+      "query": "voted_reg",
+      "support": {
+        "format": "integer",
+        "label": "registered",
+        "value": "denominator"
+      },
+      "type": "kpi",
+      "value": "pct_label"
+    }
+  },
+  "queries": {
+    "pre_reg": {
+      "columns": [
+        "numerator",
+        "denominator",
+        "pct",
+        "pct_label"
+      ],
+      "values": [
+        [
+          400,
+          1170,
+          0.3418803418803419,
+          "34.2%"
+        ]
+      ]
+    },
+    "totals": {
+      "columns": [
+        "registered",
+        "pre_enrolled",
+        "voted"
+      ],
+      "values": [
+        [
+          1170,
+          400,
+          235
+        ]
+      ]
+    },
+    "voted_pre": {
+      "columns": [
+        "numerator",
+        "denominator",
+        "pct",
+        "pct_label"
+      ],
+      "values": [
+        [
+          235,
+          400,
+          0.5875,
+          "58.8%"
+        ]
+      ]
+    },
+    "voted_reg": {
+      "columns": [
+        "numerator",
+        "denominator",
+        "pct",
+        "pct_label"
+      ],
+      "values": [
+        [
+          235,
+          1170,
+          0.20085470085470086,
+          "20.1%"
+        ]
+      ]
+    }
+  },
+  "rows": [
+    {
+      "cols": [
+        "registered",
+        "pre_enrolled",
+        "voted"
+      ]
+    },
+    {
+      "cols": [
+        "voted_reg",
+        "voted_pre",
+        "pre_reg"
+      ]
+    }
+  ],
+  "style": {
+    "accent": "#1d4ed8",
+    "charts": {
+      "axis": {
+        "title": {
+          "font": {
+            "case": "none"
+          }
+        }
+      },
+      "callout": {
+        "title": {
+          "font": {
+            "case": "none"
+          }
+        }
+      },
+      "category_colors": {
+        "group": {
+          "values": {
+            "Unknown": "dbt-grays.muted"
+          }
+        }
+      },
+      "kpi": {
+        "label": {
+          "font": {
+            "case": "none"
+          }
+        }
+      },
+      "legend": {
+        "title": {
+          "font": {
+            "case": "none"
+          }
+        }
+      },
+      "support_table": {
+        "label": {
+          "font": {
+            "case": "none"
+          }
+        }
+      },
+      "table": {
+        "header": {
+          "font": {
+            "case": "none"
+          }
+        }
+      }
+    },
+    "footer": {
+      "visible": false
+    },
+    "timestamp": {
+      "visible": false
+    },
+    "title": {
+      "font": {
+        "case": "none"
+      }
+    }
+  },
+  "theme": "clarity"
+}

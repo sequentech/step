@@ -1,0 +1,243 @@
+{
+  "charts": {
+    "applications": {
+      "label": "Applications",
+      "query": "totals",
+      "style": {
+        "value": {
+          "format": "integer"
+        }
+      },
+      "type": "kpi",
+      "value": "applications"
+    },
+    "approved": {
+      "label": "Approved",
+      "query": "totals",
+      "style": {
+        "value": {
+          "format": "integer"
+        }
+      },
+      "type": "kpi",
+      "value": "approved"
+    },
+    "disapproved": {
+      "label": "Disapproved",
+      "query": "totals",
+      "style": {
+        "value": {
+          "format": "integer"
+        }
+      },
+      "type": "kpi",
+      "value": "disapproved"
+    },
+    "outcomes": {
+      "color": "label",
+      "query": "outcomes",
+      "theta": "value",
+      "title": "Latest decision",
+      "total": {
+        "visible": false
+      },
+      "type": "donut"
+    },
+    "pending": {
+      "label": "Pending",
+      "query": "totals",
+      "style": {
+        "value": {
+          "format": "integer"
+        }
+      },
+      "type": "kpi",
+      "value": "pending"
+    },
+    "reasons": {
+      "query": "reasons",
+      "style": {
+        "columns": {
+          "disapproved": {
+            "align": "right",
+            "format": "integer",
+            "label": "Disapproved"
+          },
+          "group": {
+            "label": "Reason"
+          },
+          "group_key": {
+            "visible": false
+          },
+          "position": {
+            "visible": false
+          }
+        }
+      },
+      "title": "Top disapproval reasons",
+      "type": "table"
+    }
+  },
+  "queries": {
+    "outcomes": {
+      "columns": [
+        "measure",
+        "label",
+        "position",
+        "value"
+      ],
+      "values": [
+        [
+          "approved",
+          "Approved",
+          1,
+          680
+        ],
+        [
+          "disapproved",
+          "Disapproved",
+          2,
+          44
+        ],
+        [
+          "pending",
+          "Pending",
+          3,
+          44
+        ]
+      ]
+    },
+    "reasons": {
+      "columns": [
+        "group",
+        "group_key",
+        "position",
+        "disapproved"
+      ],
+      "values": [
+        [
+          "Document unreadable",
+          "document-unreadable",
+          1,
+          15
+        ],
+        [
+          "Details do not match",
+          "details-mismatch",
+          2,
+          9
+        ],
+        [
+          "Not eligible",
+          "not-eligible",
+          3,
+          3
+        ],
+        [
+          "Unknown",
+          "__unknown__",
+          4,
+          3
+        ]
+      ]
+    },
+    "totals": {
+      "columns": [
+        "applications",
+        "approved",
+        "disapproved",
+        "pending"
+      ],
+      "values": [
+        [
+          780,
+          680,
+          44,
+          44
+        ]
+      ]
+    }
+  },
+  "rows": [
+    {
+      "cols": [
+        "applications",
+        "approved",
+        "disapproved",
+        "pending"
+      ]
+    },
+    {
+      "cols": [
+        "outcomes",
+        "reasons"
+      ]
+    }
+  ],
+  "style": {
+    "accent": "#1d4ed8",
+    "charts": {
+      "axis": {
+        "title": {
+          "font": {
+            "case": "none"
+          }
+        }
+      },
+      "callout": {
+        "title": {
+          "font": {
+            "case": "none"
+          }
+        }
+      },
+      "category_colors": {
+        "group": {
+          "values": {
+            "Unknown": "dbt-grays.muted"
+          }
+        }
+      },
+      "kpi": {
+        "label": {
+          "font": {
+            "case": "none"
+          }
+        }
+      },
+      "legend": {
+        "title": {
+          "font": {
+            "case": "none"
+          }
+        }
+      },
+      "support_table": {
+        "label": {
+          "font": {
+            "case": "none"
+          }
+        }
+      },
+      "table": {
+        "header": {
+          "font": {
+            "case": "none"
+          }
+        }
+      }
+    },
+    "footer": {
+      "visible": false
+    },
+    "timestamp": {
+      "visible": false
+    },
+    "title": {
+      "font": {
+        "case": "none"
+      }
+    }
+  },
+  "theme": "clarity"
+}

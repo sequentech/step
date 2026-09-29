@@ -1,0 +1,245 @@
+{
+  "charts": {
+    "failed": {
+      "label": "Transmission failed",
+      "query": "failed",
+      "style": {
+        "value": {
+          "format": "integer"
+        }
+      },
+      "type": "kpi",
+      "value": "transmission_failed"
+    },
+    "posts": {
+      "conditional_formatting": {
+        "state_label": {
+          "when": [
+            {
+              "background": "negative.bg",
+              "eq": "Transmission failed"
+            }
+          ]
+        }
+      },
+      "query": "posts",
+      "style": {
+        "columns": {
+          "position": {
+            "visible": false
+          },
+          "post": {
+            "label": "Post"
+          },
+          "post_id": {
+            "visible": false
+          },
+          "posts": {
+            "visible": false
+          },
+          "region": {
+            "label": "Region"
+          },
+          "state": {
+            "visible": false
+          },
+          "state_label": {
+            "label": "Status"
+          }
+        }
+      },
+      "type": "table"
+    },
+    "tallied": {
+      "label": "Counted",
+      "query": "tallied",
+      "support": {
+        "format": "integer",
+        "label": "Posts",
+        "value": "numerator"
+      },
+      "type": "kpi",
+      "value": "pct_label"
+    },
+    "transmitted": {
+      "label": "Transmitted",
+      "query": "transmitted",
+      "support": {
+        "format": "integer",
+        "label": "Posts",
+        "value": "numerator"
+      },
+      "type": "kpi",
+      "value": "pct_label"
+    }
+  },
+  "queries": {
+    "failed": {
+      "columns": [
+        "transmission_failed"
+      ],
+      "values": [
+        [
+          1
+        ]
+      ]
+    },
+    "posts": {
+      "columns": [
+        "post",
+        "post_id",
+        "region",
+        "state",
+        "state_label",
+        "position",
+        "posts"
+      ],
+      "values": [
+        [
+          "Dubai",
+          "post-dubai",
+          "Middle East",
+          "transmission_failed",
+          "Transmission failed",
+          1,
+          1
+        ],
+        [
+          "Madrid",
+          "post-madrid",
+          "Europe",
+          "tallied",
+          "Tallied",
+          2,
+          1
+        ],
+        [
+          "Riyadh",
+          "post-riyadh",
+          "Unknown",
+          "not_tallied",
+          "Not tallied",
+          3,
+          1
+        ],
+        [
+          "Tokyo",
+          "post-tokyo",
+          "Asia Pacific",
+          "transmitted",
+          "Transmitted",
+          4,
+          1
+        ]
+      ]
+    },
+    "tallied": {
+      "columns": [
+        "numerator",
+        "denominator",
+        "pct",
+        "pct_label"
+      ],
+      "values": [
+        [
+          3,
+          4,
+          0.75,
+          "75.0%"
+        ]
+      ]
+    },
+    "transmitted": {
+      "columns": [
+        "numerator",
+        "denominator",
+        "pct",
+        "pct_label"
+      ],
+      "values": [
+        [
+          1,
+          4,
+          0.25,
+          "25.0%"
+        ]
+      ]
+    }
+  },
+  "rows": [
+    {
+      "cols": [
+        "tallied",
+        "transmitted",
+        "failed"
+      ]
+    },
+    "posts"
+  ],
+  "style": {
+    "accent": "#1d4ed8",
+    "charts": {
+      "axis": {
+        "title": {
+          "font": {
+            "case": "none"
+          }
+        }
+      },
+      "callout": {
+        "title": {
+          "font": {
+            "case": "none"
+          }
+        }
+      },
+      "category_colors": {
+        "group": {
+          "values": {
+            "Unknown": "dbt-grays.muted"
+          }
+        }
+      },
+      "kpi": {
+        "label": {
+          "font": {
+            "case": "none"
+          }
+        }
+      },
+      "legend": {
+        "title": {
+          "font": {
+            "case": "none"
+          }
+        }
+      },
+      "support_table": {
+        "label": {
+          "font": {
+            "case": "none"
+          }
+        }
+      },
+      "table": {
+        "header": {
+          "font": {
+            "case": "none"
+          }
+        }
+      }
+    },
+    "footer": {
+      "visible": false
+    },
+    "timestamp": {
+      "visible": false
+    },
+    "title": {
+      "font": {
+        "case": "none"
+      }
+    }
+  },
+  "theme": "clarity"
+}

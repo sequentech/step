@@ -1,0 +1,55 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# Posts that have counted and transmitted their results, and those whose
+# transmission failed.
+id: counting-transmission
+title: Counting and transmission
+source: counting_transmission
+requirements: [SW-F-0263, SW-F-0264, SW-F-0265]
+queries:
+  tallied: {template: summary, ratio: [tallied, posts]}
+  transmitted: {template: summary, ratio: [transmitted, posts]}
+  failed: {template: summary, measures: [transmission_failed]}
+  posts: {template: by_post, measures: [posts], sort: {by: label, order: asc}}
+height: 380
+chart:
+  charts:
+    tallied:
+      type: kpi
+      query: tallied
+      value: pct_label
+      label: Counted
+      support: {value: numerator, label: Posts, format: integer}
+    transmitted:
+      type: kpi
+      query: transmitted
+      value: pct_label
+      label: Transmitted
+      support: {value: numerator, label: Posts, format: integer}
+    failed:
+      type: kpi
+      query: failed
+      value: transmission_failed
+      label: Transmission failed
+      style: {value: {format: integer}}
+    posts:
+      type: table
+      query: posts
+      style:
+        columns:
+          post: {label: Post}
+          post_id: {visible: false}
+          position: {visible: false}
+          region: {label: Region}
+          state: {visible: false}
+          state_label: {label: Status}
+          posts: {visible: false}
+      conditional_formatting:
+        state_label:
+          when:
+            - {eq: Transmission failed, background: negative.bg}
+  rows:
+    - {cols: [tallied, transmitted, failed]}
+    - posts

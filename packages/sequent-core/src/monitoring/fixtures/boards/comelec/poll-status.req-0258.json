@@ -1,0 +1,230 @@
+{
+  "charts": {
+    "reached": {
+      "label": "Posts that reached the milestone",
+      "query": "milestone",
+      "support": {
+        "format": "integer",
+        "label": "Posts",
+        "value": "numerator"
+      },
+      "type": "kpi",
+      "value": "pct_label"
+    },
+    "regions": {
+      "query": "regions",
+      "sort": {
+        "by": "position",
+        "order": "asc"
+      },
+      "style": {
+        "marks": {
+          "bar": {
+            "labels": {
+              "format": "percent",
+              "visible": true
+            }
+          }
+        },
+        "number_format": "percent",
+        "orientation": "horizontal"
+      },
+      "title": "By region",
+      "type": "bar",
+      "x": "group",
+      "y": "pct"
+    },
+    "states": {
+      "color": "group",
+      "query": "states",
+      "theta": "posts",
+      "title": "Posts by current state",
+      "total": {
+        "visible": false
+      },
+      "type": "donut"
+    }
+  },
+  "queries": {
+    "milestone": {
+      "columns": [
+        "numerator",
+        "denominator",
+        "pct",
+        "pct_label"
+      ],
+      "values": [
+        [
+          1,
+          4,
+          0.25,
+          "25.0%"
+        ]
+      ]
+    },
+    "regions": {
+      "columns": [
+        "group",
+        "group_key",
+        "position",
+        "numerator",
+        "denominator",
+        "pct",
+        "pct_label"
+      ],
+      "values": [
+        [
+          "Europe",
+          "Europe",
+          1,
+          0,
+          1,
+          0.0,
+          "0.0%"
+        ],
+        [
+          "Asia Pacific",
+          "Asia Pacific",
+          2,
+          0,
+          1,
+          0.0,
+          "0.0%"
+        ],
+        [
+          "Middle East",
+          "Middle East",
+          3,
+          0,
+          1,
+          0.0,
+          "0.0%"
+        ],
+        [
+          "Unknown",
+          "__unknown__",
+          4,
+          1,
+          1,
+          1.0,
+          "100.0%"
+        ]
+      ]
+    },
+    "states": {
+      "columns": [
+        "group",
+        "group_key",
+        "position",
+        "posts"
+      ],
+      "values": [
+        [
+          "Not initialized",
+          "not_initialized",
+          1,
+          0
+        ],
+        [
+          "Initialized",
+          "initialized",
+          2,
+          1
+        ],
+        [
+          "Opened",
+          "opened",
+          3,
+          1
+        ],
+        [
+          "Paused",
+          "paused",
+          4,
+          1
+        ],
+        [
+          "Closed",
+          "closed",
+          5,
+          1
+        ]
+      ]
+    }
+  },
+  "rows": [
+    "reached",
+    {
+      "cols": [
+        "states",
+        "regions"
+      ]
+    }
+  ],
+  "style": {
+    "accent": "#1d4ed8",
+    "charts": {
+      "axis": {
+        "title": {
+          "font": {
+            "case": "none"
+          }
+        }
+      },
+      "callout": {
+        "title": {
+          "font": {
+            "case": "none"
+          }
+        }
+      },
+      "category_colors": {
+        "group": {
+          "values": {
+            "Unknown": "dbt-grays.muted"
+          }
+        }
+      },
+      "kpi": {
+        "label": {
+          "font": {
+            "case": "none"
+          }
+        }
+      },
+      "legend": {
+        "title": {
+          "font": {
+            "case": "none"
+          }
+        }
+      },
+      "support_table": {
+        "label": {
+          "font": {
+            "case": "none"
+          }
+        }
+      },
+      "table": {
+        "header": {
+          "font": {
+            "case": "none"
+          }
+        }
+      }
+    },
+    "footer": {
+      "visible": false
+    },
+    "timestamp": {
+      "visible": false
+    },
+    "title": {
+      "font": {
+        "case": "none"
+      }
+    }
+  },
+  "theme": "clarity"
+}

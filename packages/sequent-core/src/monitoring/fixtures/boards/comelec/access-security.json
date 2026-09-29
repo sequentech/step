@@ -1,0 +1,144 @@
+{
+  "charts": {
+    "failures": {
+      "label": "Failed sign-ins per successful one",
+      "query": "failures",
+      "support": {
+        "format": "integer",
+        "label": "failed",
+        "value": "numerator"
+      },
+      "type": "kpi",
+      "value": "pct_label"
+    },
+    "logins": {
+      "label": "Successful sign-ins",
+      "query": "totals",
+      "style": {
+        "value": {
+          "format": "integer"
+        }
+      },
+      "type": "kpi",
+      "value": "logins"
+    },
+    "resets": {
+      "label": "Password resets",
+      "query": "totals",
+      "style": {
+        "value": {
+          "format": "integer"
+        }
+      },
+      "type": "kpi",
+      "value": "password_resets"
+    }
+  },
+  "queries": {
+    "failures": {
+      "columns": [
+        "numerator",
+        "denominator",
+        "pct",
+        "pct_label"
+      ],
+      "values": [
+        [
+          144,
+          2120,
+          0.06792452830188679,
+          "6.8%"
+        ]
+      ]
+    },
+    "totals": {
+      "columns": [
+        "logins",
+        "login_failures",
+        "password_resets"
+      ],
+      "values": [
+        [
+          2120,
+          144,
+          22
+        ]
+      ]
+    }
+  },
+  "rows": [
+    {
+      "cols": [
+        "logins",
+        "failures",
+        "resets"
+      ]
+    }
+  ],
+  "style": {
+    "accent": "#1d4ed8",
+    "charts": {
+      "axis": {
+        "title": {
+          "font": {
+            "case": "none"
+          }
+        }
+      },
+      "callout": {
+        "title": {
+          "font": {
+            "case": "none"
+          }
+        }
+      },
+      "category_colors": {
+        "group": {
+          "values": {
+            "Unknown": "dbt-grays.muted"
+          }
+        }
+      },
+      "kpi": {
+        "label": {
+          "font": {
+            "case": "none"
+          }
+        }
+      },
+      "legend": {
+        "title": {
+          "font": {
+            "case": "none"
+          }
+        }
+      },
+      "support_table": {
+        "label": {
+          "font": {
+            "case": "none"
+          }
+        }
+      },
+      "table": {
+        "header": {
+          "font": {
+            "case": "none"
+          }
+        }
+      }
+    },
+    "footer": {
+      "visible": false
+    },
+    "timestamp": {
+      "visible": false
+    },
+    "title": {
+      "font": {
+        "case": "none"
+      }
+    }
+  },
+  "theme": "clarity"
+}

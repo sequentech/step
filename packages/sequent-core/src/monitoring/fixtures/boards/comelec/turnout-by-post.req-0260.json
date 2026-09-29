@@ -1,0 +1,184 @@
+{
+  "charts": {
+    "posts": {
+      "query": "data",
+      "style": {
+        "columns": {
+          "denominator": {
+            "visible": false
+          },
+          "group": {
+            "label": "Post"
+          },
+          "group_key": {
+            "visible": false
+          },
+          "numerator": {
+            "visible": false
+          },
+          "pct": {
+            "visible": false
+          },
+          "pct_label": {
+            "align": "right",
+            "label": "Turnout"
+          },
+          "position": {
+            "visible": false
+          },
+          "pre_enrolled": {
+            "align": "right",
+            "format": "integer",
+            "label": "Pre-enrolled"
+          },
+          "registered": {
+            "align": "right",
+            "format": "integer",
+            "label": "Registered"
+          },
+          "voted": {
+            "align": "right",
+            "format": "integer",
+            "label": "Voted"
+          }
+        }
+      },
+      "type": "table"
+    }
+  },
+  "queries": {
+    "data": {
+      "columns": [
+        "group",
+        "group_key",
+        "position",
+        "registered",
+        "pre_enrolled",
+        "voted",
+        "numerator",
+        "denominator",
+        "pct",
+        "pct_label"
+      ],
+      "values": [
+        [
+          "Dubai",
+          "post-dubai",
+          1,
+          250,
+          85,
+          50,
+          50,
+          85,
+          0.5882352941176471,
+          "58.8%"
+        ],
+        [
+          "Tokyo",
+          "post-tokyo",
+          2,
+          334,
+          114,
+          67,
+          67,
+          114,
+          0.5877192982456141,
+          "58.8%"
+        ],
+        [
+          "Madrid",
+          "post-madrid",
+          3,
+          417,
+          142,
+          83,
+          83,
+          142,
+          0.5845070422535211,
+          "58.5%"
+        ],
+        [
+          "Riyadh",
+          "post-riyadh",
+          4,
+          167,
+          57,
+          33,
+          33,
+          57,
+          0.5789473684210527,
+          "57.9%"
+        ]
+      ]
+    }
+  },
+  "rows": [
+    "posts"
+  ],
+  "style": {
+    "accent": "#1d4ed8",
+    "charts": {
+      "axis": {
+        "title": {
+          "font": {
+            "case": "none"
+          }
+        }
+      },
+      "callout": {
+        "title": {
+          "font": {
+            "case": "none"
+          }
+        }
+      },
+      "category_colors": {
+        "group": {
+          "values": {
+            "Unknown": "dbt-grays.muted"
+          }
+        }
+      },
+      "kpi": {
+        "label": {
+          "font": {
+            "case": "none"
+          }
+        }
+      },
+      "legend": {
+        "title": {
+          "font": {
+            "case": "none"
+          }
+        }
+      },
+      "support_table": {
+        "label": {
+          "font": {
+            "case": "none"
+          }
+        }
+      },
+      "table": {
+        "header": {
+          "font": {
+            "case": "none"
+          }
+        }
+      }
+    },
+    "footer": {
+      "visible": false
+    },
+    "timestamp": {
+      "visible": false
+    },
+    "title": {
+      "font": {
+        "case": "none"
+      }
+    }
+  },
+  "theme": "clarity"
+}

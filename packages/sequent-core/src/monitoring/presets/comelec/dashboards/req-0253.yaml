@@ -1,0 +1,12 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+id: req-0253
+title: Test voting
+requirements: [SW-F-0253, SW-F-0367]
+order: 5
+selectors: [region, post, country]
+layout:
+  - {widget: test-voting, width: 12}
+  - {widget: test-voting-by-group, width: 12}

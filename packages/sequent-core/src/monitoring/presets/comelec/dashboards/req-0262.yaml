@@ -1,0 +1,11 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+id: req-0262
+title: Status by Post
+requirements: [SW-F-0262]
+order: 24
+selectors: [region, post, country]
+layout:
+  - {widget: status-by-post, width: 12}

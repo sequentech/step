@@ -1,0 +1,31 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# Posts with the most open helpdesk issues.
+id: pending-issues-by-post
+title: Pending issues by Post
+source: helpdesk
+requirements: [SW-F-0269]
+query:
+  template: by_group
+  group_by: post
+  measures: [pending_issues, issues]
+  sort: {by: value, order: desc}
+  limit: 10
+height: 340
+chart:
+  charts:
+    posts:
+      type: bar
+      query: data
+      x: group
+      y: pending_issues
+      # The query's order, Unknown last; unsorted, a bar orders by value.
+      sort: {by: position, order: asc}
+      y_label: Open issues
+      style:
+        orientation: horizontal
+        number_format: integer
+        marks: {bar: {labels: {visible: true, format: integer}}}
+  rows: [posts]

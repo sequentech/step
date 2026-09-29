@@ -1,0 +1,67 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# Each applicant's latest decision, and the most frequent reasons for
+# disapproval.
+id: enrollment-decisions
+title: Enrollment decisions
+source: enrollment_decisions
+requirements: [SW-F-0249, SW-F-0366]
+queries:
+  totals: {template: summary, measures: [applications, approved, disapproved, pending]}
+  outcomes:
+    template: by_measure
+    measures: [approved, disapproved, pending]
+  reasons:
+    template: by_group
+    group_by: reason
+    measures: [disapproved]
+    sort: {by: value, order: desc}
+    limit: 5
+height: 420
+chart:
+  charts:
+    applications:
+      type: kpi
+      query: totals
+      value: applications
+      label: Applications
+      style: {value: {format: integer}}
+    approved:
+      type: kpi
+      query: totals
+      value: approved
+      label: Approved
+      style: {value: {format: integer}}
+    disapproved:
+      type: kpi
+      query: totals
+      value: disapproved
+      label: Disapproved
+      style: {value: {format: integer}}
+    pending:
+      type: kpi
+      query: totals
+      value: pending
+      label: Pending
+      style: {value: {format: integer}}
+    outcomes:
+      type: donut
+      query: outcomes
+      theta: value
+      color: label
+      title: Latest decision
+    reasons:
+      type: table
+      query: reasons
+      title: Top disapproval reasons
+      style:
+        columns:
+          group: {label: Reason}
+          group_key: {visible: false}
+          position: {visible: false}
+          disapproved: {label: Disapproved, format: integer, align: right}
+  rows:
+    - {cols: [applications, approved, disapproved, pending]}
+    - {cols: [outcomes, reasons]}

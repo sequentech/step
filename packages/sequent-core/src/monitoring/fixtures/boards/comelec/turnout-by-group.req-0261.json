@@ -1,0 +1,156 @@
+{
+  "charts": {
+    "bars": {
+      "query": "data",
+      "sort": {
+        "by": "position",
+        "order": "asc"
+      },
+      "style": {
+        "marks": {
+          "bar": {
+            "labels": {
+              "format": "percent",
+              "visible": true
+            }
+          }
+        },
+        "number_format": "percent",
+        "orientation": "horizontal"
+      },
+      "type": "bar",
+      "x": "group",
+      "y": "pct",
+      "y_label": "Share"
+    }
+  },
+  "queries": {
+    "data": {
+      "columns": [
+        "group",
+        "group_key",
+        "position",
+        "numerator",
+        "denominator",
+        "pct",
+        "pct_label"
+      ],
+      "values": [
+        [
+          "18-24",
+          "18-24",
+          1,
+          81,
+          234,
+          0.34615384615384615,
+          "34.6%"
+        ],
+        [
+          "25-39",
+          "25-39",
+          2,
+          49,
+          180,
+          0.2722222222222222,
+          "27.2%"
+        ],
+        [
+          "40-59",
+          "40-59",
+          3,
+          113,
+          261,
+          0.4329501915708812,
+          "43.3%"
+        ],
+        [
+          "60+",
+          "60+",
+          4,
+          68,
+          207,
+          0.3285024154589372,
+          "32.9%"
+        ],
+        [
+          "Unknown",
+          "__unknown__",
+          5,
+          89,
+          288,
+          0.3090277777777778,
+          "30.9%"
+        ]
+      ]
+    }
+  },
+  "rows": [
+    "bars"
+  ],
+  "style": {
+    "accent": "#1d4ed8",
+    "charts": {
+      "axis": {
+        "title": {
+          "font": {
+            "case": "none"
+          }
+        }
+      },
+      "callout": {
+        "title": {
+          "font": {
+            "case": "none"
+          }
+        }
+      },
+      "category_colors": {
+        "group": {
+          "values": {
+            "Unknown": "dbt-grays.muted"
+          }
+        }
+      },
+      "kpi": {
+        "label": {
+          "font": {
+            "case": "none"
+          }
+        }
+      },
+      "legend": {
+        "title": {
+          "font": {
+            "case": "none"
+          }
+        }
+      },
+      "support_table": {
+        "label": {
+          "font": {
+            "case": "none"
+          }
+        }
+      },
+      "table": {
+        "header": {
+          "font": {
+            "case": "none"
+          }
+        }
+      }
+    },
+    "footer": {
+      "visible": false
+    },
+    "timestamp": {
+      "visible": false
+    },
+    "title": {
+      "font": {
+        "case": "none"
+      }
+    }
+  },
+  "theme": "clarity"
+}

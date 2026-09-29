@@ -1,0 +1,152 @@
+{
+  "charts": {
+    "reasons": {
+      "query": "data",
+      "sort": {
+        "by": "position",
+        "order": "asc"
+      },
+      "style": {
+        "marks": {
+          "bar": {
+            "labels": {
+              "format": "integer",
+              "visible": true
+            }
+          }
+        },
+        "number_format": "integer",
+        "orientation": "horizontal"
+      },
+      "type": "bar",
+      "x": "group",
+      "y": "disapproved",
+      "y_label": "Disapproved applicants"
+    }
+  },
+  "queries": {
+    "data": {
+      "columns": [
+        "group",
+        "group_key",
+        "position",
+        "disapproved",
+        "numerator",
+        "denominator",
+        "pct",
+        "pct_label"
+      ],
+      "values": [
+        [
+          "Document unreadable",
+          "document-unreadable",
+          1,
+          15,
+          15,
+          278,
+          0.0539568345323741,
+          "5.4%"
+        ],
+        [
+          "Details do not match",
+          "details-mismatch",
+          2,
+          9,
+          9,
+          167,
+          0.05389221556886228,
+          "5.4%"
+        ],
+        [
+          "Not eligible",
+          "not-eligible",
+          3,
+          3,
+          3,
+          55,
+          0.05454545454545454,
+          "5.5%"
+        ],
+        [
+          "Unknown",
+          "__unknown__",
+          4,
+          3,
+          3,
+          55,
+          0.05454545454545454,
+          "5.5%"
+        ]
+      ]
+    }
+  },
+  "rows": [
+    "reasons"
+  ],
+  "style": {
+    "accent": "#1d4ed8",
+    "charts": {
+      "axis": {
+        "title": {
+          "font": {
+            "case": "none"
+          }
+        }
+      },
+      "callout": {
+        "title": {
+          "font": {
+            "case": "none"
+          }
+        }
+      },
+      "category_colors": {
+        "group": {
+          "values": {
+            "Unknown": "dbt-grays.muted"
+          }
+        }
+      },
+      "kpi": {
+        "label": {
+          "font": {
+            "case": "none"
+          }
+        }
+      },
+      "legend": {
+        "title": {
+          "font": {
+            "case": "none"
+          }
+        }
+      },
+      "support_table": {
+        "label": {
+          "font": {
+            "case": "none"
+          }
+        }
+      },
+      "table": {
+        "header": {
+          "font": {
+            "case": "none"
+          }
+        }
+      }
+    },
+    "footer": {
+      "visible": false
+    },
+    "timestamp": {
+      "visible": false
+    },
+    "title": {
+      "font": {
+        "case": "none"
+      }
+    }
+  },
+  "theme": "clarity"
+}

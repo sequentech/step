@@ -1,0 +1,33 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+id: test-voting-by-group
+title: Test voting by group
+source: test_voting
+requirements: [SW-F-0367]
+selectors:
+  breakdown:
+    label: Breakdown
+    options: {sex: Sex, age_band: Age, status: Status abroad, post: Post}
+    default: post
+query:
+  template: by_group
+  group_by: {selector: breakdown}
+  ratio: [test_voted, pre_enrolled]
+height: 320
+chart:
+  charts:
+    bars:
+      type: bar
+      query: data
+      x: group
+      y: pct
+      # The query's order, Unknown last; unsorted, a bar orders by value.
+      sort: {by: position, order: asc}
+      y_label: Test voted of pre-enrolled
+      style:
+        orientation: horizontal
+        number_format: percent
+        marks: {bar: {labels: {visible: true, format: percent}}}
+  rows: [bars]

@@ -1,0 +1,23 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+id: default
+title: Calm
+base: paper
+style:
+  accent: "#0f766e"
+  # Labels are shown as the preset writes them: the engine's title case is
+  # English-only and would recase names and other languages.
+  title: {font: {case: none}}
+  charts:
+    axis: {title: {font: {case: none}}}
+    legend: {title: {font: {case: none}}}
+    table: {header: {font: {case: none}}}
+    kpi: {label: {font: {case: none}}}
+    support_table: {label: {font: {case: none}}}
+    callout: {title: {font: {case: none}}}
+    category_colors:
+      group:
+        values:
+          Not stated: dbt-grays.muted

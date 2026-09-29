@@ -1,0 +1,43 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# Attacks the platform detected, over time.
+id: attack-detections
+title: Attack detections
+source: attack_detections
+requirements: [SW-F-0283]
+selectors:
+  grain:
+    label: Interval
+    control: toggle
+    options: {hour: Hourly, day: Daily}
+    default: day
+  day:
+    label: Day
+    options_from: event_days
+    when: {selector: grain, in: [hour]}
+queries:
+  total: {template: summary, measures: [detections]}
+  series:
+    template: timeseries
+    measures: [detections]
+    grain: {selector: grain}
+    day: {selector: day}
+height: 320
+chart:
+  charts:
+    total:
+      type: kpi
+      query: total
+      value: detections
+      label: Detections
+      style: {value: {format: integer}}
+    series:
+      type: bar
+      query: series
+      x: bucket_label
+      y: detections
+      y_label: Detections
+      style: {number_format: integer}
+  rows: [total, series]

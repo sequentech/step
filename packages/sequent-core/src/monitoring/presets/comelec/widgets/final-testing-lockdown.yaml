@@ -1,0 +1,44 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# Posts that passed final testing, and Posts locked down, over the Posts in
+# scope.
+id: final-testing-lockdown
+title: Final testing and lockdown
+source: final_testing_lockdown
+requirements: [SW-F-0254, SW-F-0255]
+queries:
+  tested: {template: summary, ratio: [tested, posts]}
+  locked: {template: summary, ratio: [locked_down, posts]}
+  posts: {template: by_post, measures: [posts], sort: {by: label, order: asc}}
+height: 360
+chart:
+  charts:
+    tested:
+      type: kpi
+      query: tested
+      value: pct_label
+      label: Final testing done
+      support: {value: numerator, label: Posts, format: integer}
+    locked:
+      type: kpi
+      query: locked
+      value: pct_label
+      label: Locked down
+      support: {value: numerator, label: Posts, format: integer}
+    posts:
+      type: table
+      query: posts
+      style:
+        columns:
+          post: {label: Post}
+          post_id: {visible: false}
+          position: {visible: false}
+          region: {label: Region}
+          state: {visible: false}
+          state_label: {label: Status}
+          posts: {visible: false}
+  rows:
+    - {cols: [tested, locked]}
+    - posts

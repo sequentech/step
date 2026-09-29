@@ -1,0 +1,24 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# The monitoring dashboards shipped for the Philippine overseas vote: an
+# overview and one dashboard per monitoring record.
+id: comelec
+version: 1
+title: COMELEC overseas voting
+description: An overview and a dashboard for each monitoring record of the overseas voting package.
+export_requirements: [SW-F-0270]
+owned_elsewhere:
+  - requirements: [SW-F-0248, SW-F-0272, SW-F-0273]
+    subject: Communications logs
+    owner: DEV-COMMUNICATIONS
+  - requirements: [SW-F-0266]
+    subject: Other reports
+    owner: DEV-REPORTS
+  - requirements: [SW-F-0278]
+    subject: Anomaly detection, designed in VOTE-SECOPS
+    owner: DEV-PLATFORM-SECURITY
+  - requirements: [SW-F-0374]
+    subject: CSV and SQL export of the audit logs; dashboard export covers dashboard data
+    owner: DEV-AUDIT-LOGS

@@ -313,6 +313,31 @@ pub enum PostState {
 }
 
 impl PostState {
+    /// Whether a Post in this state counts towards `measure`: the one place
+    /// a milestone is defined. A milestone stays reached as the Post moves
+    /// on — a closed Post was opened — while a pause or a failed
+    /// transmission counts only while it lasts.
+    pub fn has_reached(self, measure: Measure) -> bool {
+        use PostState::*;
+        match measure {
+            Measure::Posts => true,
+            Measure::Initialized => {
+                matches!(self, Initialized | Opened | Paused | Closed)
+            }
+            Measure::Opened => matches!(self, Opened | Paused | Closed),
+            Measure::Paused => self == Paused,
+            Measure::Closed => self == Closed,
+            Measure::Tested => matches!(self, Tested | LockedDown),
+            Measure::LockedDown => self == LockedDown,
+            Measure::Tallied => {
+                matches!(self, Tallied | Transmitted | TransmissionFailed)
+            }
+            Measure::Transmitted => self == Transmitted,
+            Measure::TransmissionFailed => self == TransmissionFailed,
+            _ => false,
+        }
+    }
+
     /// Shown unless a query relabels it.
     pub fn default_label(self) -> &'static str {
         match self {

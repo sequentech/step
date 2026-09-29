@@ -1,0 +1,12 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+id: operations
+title: Operations
+order: 1
+selectors: [region, post]
+layout:
+  - {widget: polls, width: 6}
+  - {widget: sign-in-problems, width: 6}
+  - {widget: participation-by-faculty, width: 12, values: {breakdown: region}}

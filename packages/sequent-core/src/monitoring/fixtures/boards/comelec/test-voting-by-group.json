@@ -1,0 +1,147 @@
+{
+  "charts": {
+    "bars": {
+      "query": "data",
+      "sort": {
+        "by": "position",
+        "order": "asc"
+      },
+      "style": {
+        "marks": {
+          "bar": {
+            "labels": {
+              "format": "percent",
+              "visible": true
+            }
+          }
+        },
+        "number_format": "percent",
+        "orientation": "horizontal"
+      },
+      "type": "bar",
+      "x": "group",
+      "y": "pct",
+      "y_label": "Test voted of pre-enrolled"
+    }
+  },
+  "queries": {
+    "data": {
+      "columns": [
+        "group",
+        "group_key",
+        "position",
+        "numerator",
+        "denominator",
+        "pct",
+        "pct_label"
+      ],
+      "values": [
+        [
+          "Madrid",
+          "post-madrid",
+          1,
+          12,
+          270,
+          0.044444444444444446,
+          "4.4%"
+        ],
+        [
+          "Tokyo",
+          "post-tokyo",
+          2,
+          10,
+          216,
+          0.046296296296296294,
+          "4.6%"
+        ],
+        [
+          "Dubai",
+          "post-dubai",
+          3,
+          7,
+          162,
+          0.043209876543209874,
+          "4.3%"
+        ],
+        [
+          "Riyadh",
+          "post-riyadh",
+          4,
+          5,
+          108,
+          0.046296296296296294,
+          "4.6%"
+        ]
+      ]
+    }
+  },
+  "rows": [
+    "bars"
+  ],
+  "style": {
+    "accent": "#1d4ed8",
+    "charts": {
+      "axis": {
+        "title": {
+          "font": {
+            "case": "none"
+          }
+        }
+      },
+      "callout": {
+        "title": {
+          "font": {
+            "case": "none"
+          }
+        }
+      },
+      "category_colors": {
+        "group": {
+          "values": {
+            "Unknown": "dbt-grays.muted"
+          }
+        }
+      },
+      "kpi": {
+        "label": {
+          "font": {
+            "case": "none"
+          }
+        }
+      },
+      "legend": {
+        "title": {
+          "font": {
+            "case": "none"
+          }
+        }
+      },
+      "support_table": {
+        "label": {
+          "font": {
+            "case": "none"
+          }
+        }
+      },
+      "table": {
+        "header": {
+          "font": {
+            "case": "none"
+          }
+        }
+      }
+    },
+    "footer": {
+      "visible": false
+    },
+    "timestamp": {
+      "visible": false
+    },
+    "title": {
+      "font": {
+        "case": "none"
+      }
+    }
+  },
+  "theme": "clarity"
+}

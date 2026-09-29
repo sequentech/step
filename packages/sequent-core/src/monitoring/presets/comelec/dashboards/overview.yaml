@@ -1,0 +1,18 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# The event at a glance: turnout, where Posts stand, activity and sign-ins.
+id: overview
+title: Overview
+requirements: [SW-F-0247, SW-F-0279, SW-F-0365]
+order: 0
+selectors: [region, post, country]
+layout:
+  - {widget: turnout-summary, width: 12}
+  - {widget: poll-status, width: 6}
+  - {widget: counting-transmission, width: 6}
+  - {widget: voting-activity, width: 6, values: {grain: day}}
+  - {widget: enrollment-decisions, width: 6}
+  - {widget: access-security, width: 6}
+  - {widget: helpdesk-issues, width: 6}

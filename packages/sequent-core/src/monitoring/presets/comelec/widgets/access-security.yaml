@@ -1,0 +1,35 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# Sign-in attempts by outcome, and password resets. Counted in attempts, not
+# voters.
+id: access-security
+title: Access and security
+source: access_security
+requirements: [SW-F-0252, SW-F-0268]
+queries:
+  totals: {template: summary, measures: [logins, login_failures, password_resets]}
+  failures: {template: summary, ratio: [login_failures, logins]}
+height: 180
+chart:
+  charts:
+    logins:
+      type: kpi
+      query: totals
+      value: logins
+      label: Successful sign-ins
+      style: {value: {format: integer}}
+    failures:
+      type: kpi
+      query: failures
+      value: pct_label
+      label: Failed sign-ins per successful one
+      support: {value: numerator, label: failed, format: integer}
+    resets:
+      type: kpi
+      query: totals
+      value: password_resets
+      label: Password resets
+      style: {value: {format: integer}}
+  rows: [{cols: [logins, failures, resets]}]

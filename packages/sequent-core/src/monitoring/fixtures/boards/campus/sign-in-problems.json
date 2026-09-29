@@ -1,0 +1,120 @@
+{
+  "charts": {
+    "problems": {
+      "query": "data",
+      "sort": {
+        "by": "position",
+        "order": "asc"
+      },
+      "style": {
+        "marks": {
+          "bar": {
+            "labels": {
+              "format": "integer",
+              "visible": true
+            }
+          }
+        },
+        "number_format": "integer",
+        "orientation": "horizontal"
+      },
+      "type": "bar",
+      "x": "label",
+      "y": "value",
+      "y_label": "Attempts"
+    }
+  },
+  "queries": {
+    "data": {
+      "columns": [
+        "measure",
+        "label",
+        "position",
+        "value"
+      ],
+      "values": [
+        [
+          "login_failures",
+          "Wrong password",
+          1,
+          144
+        ],
+        [
+          "password_resets",
+          "Password reset",
+          2,
+          22
+        ]
+      ]
+    }
+  },
+  "rows": [
+    "problems"
+  ],
+  "style": {
+    "accent": "#0f766e",
+    "charts": {
+      "axis": {
+        "title": {
+          "font": {
+            "case": "none"
+          }
+        }
+      },
+      "callout": {
+        "title": {
+          "font": {
+            "case": "none"
+          }
+        }
+      },
+      "category_colors": {
+        "group": {
+          "values": {
+            "Not stated": "dbt-grays.muted"
+          }
+        }
+      },
+      "kpi": {
+        "label": {
+          "font": {
+            "case": "none"
+          }
+        }
+      },
+      "legend": {
+        "title": {
+          "font": {
+            "case": "none"
+          }
+        }
+      },
+      "support_table": {
+        "label": {
+          "font": {
+            "case": "none"
+          }
+        }
+      },
+      "table": {
+        "header": {
+          "font": {
+            "case": "none"
+          }
+        }
+      }
+    },
+    "footer": {
+      "visible": false
+    },
+    "timestamp": {
+      "visible": false
+    },
+    "title": {
+      "font": {
+        "case": "none"
+      }
+    }
+  },
+  "theme": "paper"
+}

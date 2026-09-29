@@ -1,0 +1,50 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# How many Posts in scope have reached a milestone, how they stand now, and
+# the milestone by region. The denominator is always the Posts in scope.
+id: poll-status
+title: Poll status
+source: poll_status
+requirements: [SW-F-0256, SW-F-0257, SW-F-0258, SW-F-0368, SW-F-0369, SW-F-0370]
+selectors:
+  milestone:
+    label: Milestone
+    options: {initialized: Initialized, opened: Opened, closed: Closed}
+    default: opened
+    maps: {initialized: [initialized, posts], opened: [opened, posts], closed: [closed, posts]}
+queries:
+  milestone: {template: summary, ratio: {selector: milestone}}
+  states: {template: by_group, group_by: state, measures: [posts]}
+  regions: {template: by_group, group_by: region, ratio: {selector: milestone}}
+height: 340
+chart:
+  charts:
+    reached:
+      type: kpi
+      query: milestone
+      value: pct_label
+      label: Posts that reached the milestone
+      support: {value: numerator, label: Posts, format: integer}
+    states:
+      type: donut
+      query: states
+      theta: posts
+      color: group
+      title: Posts by current state
+    regions:
+      type: bar
+      query: regions
+      x: group
+      y: pct
+      # The query's order, Unknown last; unsorted, a bar orders by value.
+      sort: {by: position, order: asc}
+      title: By region
+      style:
+        orientation: horizontal
+        number_format: percent
+        marks: {bar: {labels: {visible: true, format: percent}}}
+  rows:
+    - reached
+    - {cols: [states, regions]}

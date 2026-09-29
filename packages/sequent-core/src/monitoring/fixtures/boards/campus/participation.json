@@ -1,0 +1,158 @@
+{
+  "charts": {
+    "share": {
+      "label": "Of the electorate",
+      "query": "share",
+      "support": {
+        "format": "integer",
+        "label": "electors",
+        "value": "denominator"
+      },
+      "type": "kpi",
+      "value": "pct_label"
+    },
+    "verified": {
+      "label": "Of verified electors",
+      "query": "verified",
+      "support": {
+        "format": "integer",
+        "label": "verified",
+        "value": "denominator"
+      },
+      "type": "kpi",
+      "value": "pct_label"
+    },
+    "voted": {
+      "label": "Ballots cast",
+      "query": "totals",
+      "style": {
+        "value": {
+          "format": "integer"
+        }
+      },
+      "type": "kpi",
+      "value": "voted"
+    }
+  },
+  "queries": {
+    "share": {
+      "columns": [
+        "numerator",
+        "denominator",
+        "pct",
+        "pct_label"
+      ],
+      "values": [
+        [
+          336,
+          1200,
+          0.28,
+          "28.0%"
+        ]
+      ]
+    },
+    "totals": {
+      "columns": [
+        "registered",
+        "voted"
+      ],
+      "values": [
+        [
+          1200,
+          336
+        ]
+      ]
+    },
+    "verified": {
+      "columns": [
+        "numerator",
+        "denominator",
+        "pct",
+        "pct_label"
+      ],
+      "values": [
+        [
+          336,
+          563,
+          0.5968028419182948,
+          "59.7%"
+        ]
+      ]
+    }
+  },
+  "rows": [
+    {
+      "cols": [
+        "voted",
+        "share",
+        "verified"
+      ]
+    }
+  ],
+  "style": {
+    "accent": "#0f766e",
+    "charts": {
+      "axis": {
+        "title": {
+          "font": {
+            "case": "none"
+          }
+        }
+      },
+      "callout": {
+        "title": {
+          "font": {
+            "case": "none"
+          }
+        }
+      },
+      "category_colors": {
+        "group": {
+          "values": {
+            "Not stated": "dbt-grays.muted"
+          }
+        }
+      },
+      "kpi": {
+        "label": {
+          "font": {
+            "case": "none"
+          }
+        }
+      },
+      "legend": {
+        "title": {
+          "font": {
+            "case": "none"
+          }
+        }
+      },
+      "support_table": {
+        "label": {
+          "font": {
+            "case": "none"
+          }
+        }
+      },
+      "table": {
+        "header": {
+          "font": {
+            "case": "none"
+          }
+        }
+      }
+    },
+    "footer": {
+      "visible": false
+    },
+    "timestamp": {
+      "visible": false
+    },
+    "title": {
+      "font": {
+        "case": "none"
+      }
+    }
+  },
+  "theme": "paper"
+}

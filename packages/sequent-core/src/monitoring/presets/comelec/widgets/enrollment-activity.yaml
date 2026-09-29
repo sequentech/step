@@ -1,0 +1,41 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# Voters approved per hour or per day, each voter counted at their first one, with the
+# running total. The day picker shows only for hourly.
+id: enrollment-activity
+title: Enrollment activity
+source: voting_enrollment_activity
+requirements: [SW-F-0282]
+selectors:
+  grain:
+    label: Interval
+    control: toggle
+    options: {hour: Hourly, day: Daily}
+    default: hour
+  day:
+    label: Day
+    options_from: event_days
+    when: {selector: grain, in: [hour]}
+query:
+  template: timeseries
+  measures: [approved]
+  grain: {selector: grain}
+  day: {selector: day}
+height: 320
+chart:
+  charts:
+    activity:
+      type: bar
+      query: data
+      x: bucket_label
+      y: approved
+      y_label: Approvals
+      style: {number_format: integer}
+      layers:
+        - type: line
+          y: approved_cumulative
+          label: Running total
+          axis_y: {position: right, title: Running total}
+  rows: [activity]

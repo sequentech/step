@@ -1,0 +1,11 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+id: req-0250
+title: Disapproval reasons
+requirements: [SW-F-0250]
+order: 11
+selectors: [region, post, country]
+layout:
+  - {widget: disapproval-reasons, width: 12}

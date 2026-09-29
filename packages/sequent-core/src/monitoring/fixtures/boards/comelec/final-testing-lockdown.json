@@ -1,0 +1,213 @@
+{
+  "charts": {
+    "locked": {
+      "label": "Locked down",
+      "query": "locked",
+      "support": {
+        "format": "integer",
+        "label": "Posts",
+        "value": "numerator"
+      },
+      "type": "kpi",
+      "value": "pct_label"
+    },
+    "posts": {
+      "query": "posts",
+      "style": {
+        "columns": {
+          "position": {
+            "visible": false
+          },
+          "post": {
+            "label": "Post"
+          },
+          "post_id": {
+            "visible": false
+          },
+          "posts": {
+            "visible": false
+          },
+          "region": {
+            "label": "Region"
+          },
+          "state": {
+            "visible": false
+          },
+          "state_label": {
+            "label": "Status"
+          }
+        }
+      },
+      "type": "table"
+    },
+    "tested": {
+      "label": "Final testing done",
+      "query": "tested",
+      "support": {
+        "format": "integer",
+        "label": "Posts",
+        "value": "numerator"
+      },
+      "type": "kpi",
+      "value": "pct_label"
+    }
+  },
+  "queries": {
+    "locked": {
+      "columns": [
+        "numerator",
+        "denominator",
+        "pct",
+        "pct_label"
+      ],
+      "values": [
+        [
+          1,
+          4,
+          0.25,
+          "25.0%"
+        ]
+      ]
+    },
+    "posts": {
+      "columns": [
+        "post",
+        "post_id",
+        "region",
+        "state",
+        "state_label",
+        "position",
+        "posts"
+      ],
+      "values": [
+        [
+          "Dubai",
+          "post-dubai",
+          "Middle East",
+          "not_tested",
+          "Not tested",
+          1,
+          1
+        ],
+        [
+          "Madrid",
+          "post-madrid",
+          "Europe",
+          "tested",
+          "Tested",
+          2,
+          1
+        ],
+        [
+          "Riyadh",
+          "post-riyadh",
+          "Unknown",
+          "tested",
+          "Tested",
+          3,
+          1
+        ],
+        [
+          "Tokyo",
+          "post-tokyo",
+          "Asia Pacific",
+          "locked_down",
+          "Locked down",
+          4,
+          1
+        ]
+      ]
+    },
+    "tested": {
+      "columns": [
+        "numerator",
+        "denominator",
+        "pct",
+        "pct_label"
+      ],
+      "values": [
+        [
+          3,
+          4,
+          0.75,
+          "75.0%"
+        ]
+      ]
+    }
+  },
+  "rows": [
+    {
+      "cols": [
+        "tested",
+        "locked"
+      ]
+    },
+    "posts"
+  ],
+  "style": {
+    "accent": "#1d4ed8",
+    "charts": {
+      "axis": {
+        "title": {
+          "font": {
+            "case": "none"
+          }
+        }
+      },
+      "callout": {
+        "title": {
+          "font": {
+            "case": "none"
+          }
+        }
+      },
+      "category_colors": {
+        "group": {
+          "values": {
+            "Unknown": "dbt-grays.muted"
+          }
+        }
+      },
+      "kpi": {
+        "label": {
+          "font": {
+            "case": "none"
+          }
+        }
+      },
+      "legend": {
+        "title": {
+          "font": {
+            "case": "none"
+          }
+        }
+      },
+      "support_table": {
+        "label": {
+          "font": {
+            "case": "none"
+          }
+        }
+      },
+      "table": {
+        "header": {
+          "font": {
+            "case": "none"
+          }
+        }
+      }
+    },
+    "footer": {
+      "visible": false
+    },
+    "timestamp": {
+      "visible": false
+    },
+    "title": {
+      "font": {
+        "case": "none"
+      }
+    }
+  },
+  "theme": "clarity"
+}

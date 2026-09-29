@@ -1,0 +1,12 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+id: req-0249
+title: Enrollment decisions
+requirements: [SW-F-0249, SW-F-0366]
+order: 10
+selectors: [region, post, country]
+layout:
+  - {widget: enrollment-decisions, width: 12}
+  - {widget: disapproval-reasons, width: 12, values: {top: "5"}}

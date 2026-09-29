@@ -1,0 +1,28 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# Issues reported to the helpdesk and those still open.
+id: helpdesk-issues
+title: Helpdesk issues
+source: helpdesk
+requirements: [SW-F-0269]
+queries:
+  totals: {template: summary, measures: [issues, pending_issues]}
+  open: {template: summary, ratio: [pending_issues, issues]}
+height: 180
+chart:
+  charts:
+    issues:
+      type: kpi
+      query: totals
+      value: issues
+      label: Issues reported
+      style: {value: {format: integer}}
+    open:
+      type: kpi
+      query: open
+      value: pct_label
+      label: Still open
+      support: {value: numerator, label: open, format: integer}
+  rows: [{cols: [issues, open]}]

@@ -1,0 +1,132 @@
+{
+  "charts": {
+    "series": {
+      "query": "series",
+      "style": {
+        "number_format": "integer"
+      },
+      "type": "bar",
+      "x": "bucket_label",
+      "y": "detections",
+      "y_label": "Detections"
+    },
+    "total": {
+      "label": "Detections",
+      "query": "total",
+      "style": {
+        "value": {
+          "format": "integer"
+        }
+      },
+      "type": "kpi",
+      "value": "detections"
+    }
+  },
+  "queries": {
+    "series": {
+      "columns": [
+        "bucket_start",
+        "bucket_label",
+        "bucket_utc",
+        "detections",
+        "detections_cumulative"
+      ],
+      "values": [
+        [
+          "2026-05-04T00:00:00",
+          "2026-05-04",
+          "2026-05-04T00:00:00Z",
+          0,
+          0
+        ],
+        [
+          "2026-05-05T00:00:00",
+          "2026-05-05",
+          "2026-05-05T00:00:00Z",
+          0,
+          0
+        ]
+      ]
+    },
+    "total": {
+      "columns": [
+        "detections"
+      ],
+      "values": [
+        [
+          0
+        ]
+      ]
+    }
+  },
+  "rows": [
+    "total",
+    "series"
+  ],
+  "style": {
+    "accent": "#1d4ed8",
+    "charts": {
+      "axis": {
+        "title": {
+          "font": {
+            "case": "none"
+          }
+        }
+      },
+      "callout": {
+        "title": {
+          "font": {
+            "case": "none"
+          }
+        }
+      },
+      "category_colors": {
+        "group": {
+          "values": {
+            "Unknown": "dbt-grays.muted"
+          }
+        }
+      },
+      "kpi": {
+        "label": {
+          "font": {
+            "case": "none"
+          }
+        }
+      },
+      "legend": {
+        "title": {
+          "font": {
+            "case": "none"
+          }
+        }
+      },
+      "support_table": {
+        "label": {
+          "font": {
+            "case": "none"
+          }
+        }
+      },
+      "table": {
+        "header": {
+          "font": {
+            "case": "none"
+          }
+        }
+      }
+    },
+    "footer": {
+      "visible": false
+    },
+    "timestamp": {
+      "visible": false
+    },
+    "title": {
+      "font": {
+        "case": "none"
+      }
+    }
+  },
+  "theme": "clarity"
+}
