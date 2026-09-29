@@ -1016,9 +1016,10 @@ async fn insert(client: &mut Client, board_name: &str, messages: &[B3MessageRow]
         let created = crate::system_time_from_timestamp(message.created).ok_or(anyhow!(
             "Could not extract system time from 'created' value"
         ))?;
-        let statement_timestamp = crate::system_time_from_timestamp(message.created).ok_or(
-            anyhow!("Could not extract system time from 'statement_timestamp' value"),
-        )?;
+        let statement_timestamp = crate::system_time_from_timestamp(message.statement_timestamp)
+            .ok_or(anyhow!(
+                "Could not extract system time from 'statement_timestamp' value"
+            ))?;
         let timestamp_i64 = message.created as i64;
 
         transaction
@@ -1188,9 +1189,10 @@ cfg_if::cfg_if! { if #[cfg(feature = "sqlcopy")] {
             let created = crate::system_time_from_timestamp(message.created).ok_or(anyhow!(
                 "Could not extract system time from 'created' value"
             ))?;
-            let statement_timestamp = crate::system_time_from_timestamp(message.created).ok_or(
-                anyhow!("Could not extract system time from 'statement_timestamp' value"),
-            )?;
+            let statement_timestamp =
+                crate::system_time_from_timestamp(message.statement_timestamp).ok_or(anyhow!(
+                    "Could not extract system time from 'statement_timestamp' value"
+                ))?;
 
             ts.push((created, statement_timestamp));
         }
