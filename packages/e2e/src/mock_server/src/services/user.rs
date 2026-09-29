@@ -151,7 +151,7 @@ pub fn random_user_by_country(country: &str) -> Result<Option<User>> {
         })
     })?;
 
-    let users: Vec<_> = rows.filter_map(|r| r.ok()).collect();
+    let users: Vec<_> = rows.collect::<rusqlite::Result<_>>()?;
     if users.is_empty() {
         Ok(None)
     } else {
