@@ -10,8 +10,7 @@ use regex::Regex;
 use sequent_core::serialization::deserialize_with_path::deserialize_str;
 use sequent_core::services::date::ISO8601;
 use sequent_core::types::scheduled_event::{
-    generate_manage_date_task_name, CronConfig, EventProcessors, ManageElectionDatePayload,
-    ScheduledEvent,
+    generate_manage_date_task_name, CronConfig, EventProcessors, ScheduledEvent,
 };
 use serde_json::Value as JsonValue;
 use std::collections::HashMap;
@@ -76,14 +75,15 @@ pub async fn process_record(
     replacement_map: HashMap<String, String>,
 ) -> Result<()> {
     info!("record: {:?}", record);
-    let old_election_id = record
+    let mut event_payload: JsonValue = record
         .get(10)
-        .map(|v| deserialize_str::<JsonValue>(v))
+        .map(deserialize_str)
         .transpose()?
-        .and_then(|json| {
-            json.get("election_id")
-                .and_then(|id| id.as_str().map(String::from))
-        });
+        .unwrap_or_else(|| serde_json::json!({}));
+    let old_election_id = event_payload
+        .get("election_id")
+        .and_then(|id| id.as_str())
+        .map(String::from);
 
     let election_id = if let Some(old_election_id) = old_election_id {
         Some(
@@ -122,10 +122,16 @@ pub async fn process_record(
         .map(|val| deserialize_str(val))
         .transpose()
         .context("Error deserializing cron_config")?;
-    let event_payload = ManageElectionDatePayload {
-        election_id: election_id.clone(),
-    };
-    let event_payload = Some(serde_json::to_value(event_payload)?);
+    if event_payload.is_null() {
+        event_payload = serde_json::json!({});
+    }
+    if let Some(payload) = event_payload.as_object_mut() {
+        payload.insert(
+            "election_id".to_string(),
+            serde_json::to_value(&election_id)?,
+        );
+    }
+    let event_payload = Some(event_payload);
     let task_id = match &event_processor {
         Some(event_processor) => Some(generate_manage_date_task_name(
             tenant_id,

@@ -803,6 +803,10 @@ const frenchTranslation: TranslationType = {
                 statusLabel: "État",
                 waitingKeys: "En attente de la Génération de Clés..",
                 started: "Commencée à",
+                actions: {
+                    participate: "Participer à la cérémonie des clés",
+                    view: "Voir la cérémonie des clés",
+                },
                 breadCrumbs: {
                     configure: "Configurer",
                     ceremony: "Cérémonie",
@@ -1557,6 +1561,8 @@ const frenchTranslation: TranslationType = {
                 createError: "Erreur lors de la création de l'Événement Planifié",
                 editSuccess: "Événement Planifié modifié avec succès",
                 editError: "Erreur lors de la modification de l'Événement Planifié",
+                onlineWithEarlyVoting:
+                    "Une planification de début ne peut pas ouvrir à la fois le vote en ligne et le vote anticipé : le vote anticipé doit commencer avant le vote en ligne.",
             },
             eventType: {
                 label: "Type",
@@ -2062,8 +2068,12 @@ const frenchTranslation: TranslationType = {
                 subtitle:
                     "Pour continuer, veuillez télécharger et sauvegarder votre Clé Privée Cryptée sur au moins deux appareils différents :",
                 downloadButton: "Télécharger votre Clé Privée Cryptée",
-                errorDownloading: "Erreur de téléchargement : {{error}}",
+                downloaded: "Clé Privée Cryptée téléchargée avec succès.",
                 errorEmptyKey: "Erreur de téléchargement, fichier vide",
+                unexpectedError: "La clé privée n'a pas pu être téléchargée. Veuillez réessayer.",
+                alreadyVerified: "Votre clé privée a déjà été téléchargée et vérifiée.",
+                unavailable:
+                    "Le téléchargement de la clé privée n'est plus disponible car la cérémonie a progressé.",
                 confirmdDialog: {
                     ok: "Confirmer les copies de sauvegarde et Continuer",
                     cancel: "Revenir",
@@ -2078,6 +2088,7 @@ const frenchTranslation: TranslationType = {
             },
             checkStep: {
                 title: "Vérifiez vos Copies de Sauvegarde de votre Clé Privée Cryptée",
+                verifyButton: "Vérifier la clé",
                 subtitle:
                     "Chargez la Copie de Sauvegarde de votre Clé Privée Cryptée pour vérifier qu'elle est correcte. Vous pouvez essayer autant de fois que nécessaire, depuis vos différentes copies de sauvegarde :",
                 errorUploading:
@@ -2085,7 +2096,6 @@ const frenchTranslation: TranslationType = {
                 errorEmptyFile: "Fichier vide ou non trouvé",
                 verified: "Copie de sauvegarde vérifiée avec succès.",
                 alreadyRestored: "Votre clé avait déjà été restaurée.",
-                downloaded: "Clé Privée Cryptée générée avec succès.",
             },
         },
         miruExport: {
@@ -2245,6 +2255,14 @@ const frenchTranslation: TranslationType = {
             generalInfoTitle: "Informations Générales",
             trusteeTallyTitle: "Trustee",
             trusteeTallySubTitle: "État d'importation du fragment de clé",
+            eligibility: {
+                selectElection: "Sélectionnez au moins une élection.",
+                publishElection:
+                    "Publiez chaque élection sélectionnée avant de créer son dépouillement.",
+                tallyDisallowed: "Le dépouillement est désactivé pour une élection sélectionnée.",
+                endVoting:
+                    "Terminez le vote de chaque élection sélectionnée et arrêtez ses canaux actifs avant de créer le dépouillement.",
+            },
             createTallySuccess: "Comptage créé",
             createTallyError: "Erreur lors de la création du comptage",
             startTallySuccess: "Comptage commencé",

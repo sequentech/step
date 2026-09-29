@@ -17,6 +17,7 @@ use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::services::database::get_hasura_pool;
 use crate::services::documents::upload_and_return_public_event_document;
 use crate::services::election_dates::get_election_dates;
+use crate::services::external::utils::remove_datafix_annotations;
 use crate::types::error::{Error, Result};
 use anyhow::{anyhow, Context, Result as AnyhowResult};
 use chrono::Duration;
@@ -173,11 +174,14 @@ pub async fn create_ballot_style_postgres(
         let election_dates =
             get_election_dates(election, scheduled_events.clone()).unwrap_or_default();
 
+        let mut voter_election_event = election_event.clone();
+        remove_datafix_annotations(voter_election_event.annotations.as_mut());
+
         let ballot_style_id = Uuid::new_v4();
         let election_dto = sequent_core::ballot_style::create_ballot_style(
             ballot_style_id.clone().to_string(),
             area.clone(),
-            election_event.clone(),
+            voter_election_event,
             election.clone(),
             contests.clone(),
             &all_election_event_contests,

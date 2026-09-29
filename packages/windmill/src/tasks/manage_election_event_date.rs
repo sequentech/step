@@ -4,7 +4,7 @@
 
 use crate::postgres::scheduled_event::*;
 use crate::services::database::get_hasura_pool;
-use crate::services::election_event_status::update_event_voting_status;
+use crate::services::election_event_status::update_scheduled_event_voting_status;
 use crate::services::pg_lock::PgLock;
 use crate::types::error::{Error, Result};
 use anyhow::{anyhow, Result as AnyhowResult};
@@ -54,14 +54,20 @@ pub async fn manage_election_event_date_wrapped(
             return Ok(());
         }
     };
-    update_event_voting_status(
+    let payload: ManageElectionDatePayload = serde_json::from_value(
+        scheduled_manage_date
+            .event_payload
+            .clone()
+            .unwrap_or_else(|| serde_json::json!({})),
+    )?;
+    update_scheduled_event_voting_status(
         &hasura_transaction,
         &tenant_id,
         None,
         None,
         &election_event_id,
         &voting_status,
-        &Some(vec![VotingStatusChannel::ONLINE]),
+        &Some(payload.channels()),
     )
     .await?;
 
