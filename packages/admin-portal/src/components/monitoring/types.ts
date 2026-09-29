@@ -89,6 +89,15 @@ export enum EWidgetRenderState {
     INVALID = "INVALID",
 }
 
+/** Why the portal itself could not show a widget, beside the server's states. */
+export enum EWidgetFailure {
+    REQUEST_FAILED = "REQUEST_FAILED",
+}
+
+export type MonitoringUnavailableState =
+    | Exclude<EWidgetRenderState, EWidgetRenderState.RENDERED>
+    | EWidgetFailure
+
 export enum EColorScheme {
     LIGHT = "LIGHT",
     DARK = "DARK",
@@ -254,8 +263,6 @@ export interface MonitoringGetDashboardResponse {
     pinned_post?: string | null
     sources: Record<string, MonitoringSourceInfo>
     snapshot?: MonitoringSnapshot | null
-    /** Option lists that come from the data, such as the event's days. */
-    dynamic_options?: {event_days?: string[]} | null
 }
 
 export interface MonitoringProblem {
@@ -385,4 +392,82 @@ export interface MonitoringState {
     /** Viewer's picks per widget id, then selector name. */
     widgetValues: Record<string, Record<string, string>>
     mode: EMonitoringViewMode
+}
+
+// ---------------------------------------------------------------------
+// GraphQL operation results (Hasura actions over the Harvest routes)
+// ---------------------------------------------------------------------
+
+export interface MonitoringListDashboardsQuery {
+    monitoringListDashboards: MonitoringListDashboardsResponse
+}
+
+export interface MonitoringListDashboardsVariables {
+    electionEventId: string
+    electionId?: string | null
+}
+
+export interface MonitoringGetDashboardQuery {
+    monitoringGetDashboard: MonitoringGetDashboardResponse
+}
+
+export interface MonitoringGetDashboardVariables extends MonitoringListDashboardsVariables {
+    dashboardId: string
+}
+
+export interface MonitoringRenderWidgetQuery {
+    monitoringRenderWidget: MonitoringRenderWidgetResponse
+}
+
+export interface MonitoringRenderWidgetVariables extends MonitoringGetDashboardVariables {
+    widgetId: string
+    scope: MonitoringScope
+    selectorValues: Record<string, string>
+    snapshotRevision?: number | null
+    width: number
+    colorScheme: EColorScheme
+    locale: string
+    draft?: {widget_yaml?: string; theme_yaml?: string} | null
+}
+
+export interface MonitoringExportMutation {
+    monitoringExport: MonitoringExportResponse
+}
+
+export interface MonitoringExportVariables extends MonitoringGetDashboardVariables {
+    widgetId?: string | null
+    scope: MonitoringScope
+    selectorValues: Record<string, string>
+    snapshotRevision: number
+    format: EMonitoringExportFormat
+    from?: string | null
+    to?: string | null
+}
+
+export interface MonitoringValidateConfigQuery {
+    monitoringValidateConfig: MonitoringValidateConfigResponse
+}
+
+export interface MonitoringSaveConfigMutation {
+    monitoringSaveConfig: MonitoringSaveConfigResponse
+}
+
+export interface MonitoringResetToPresetMutation {
+    monitoringResetToPreset: {generation: number}
+}
+
+export interface MonitoringListPresetsQuery {
+    monitoringListPresets: {presets: MonitoringPreset[]}
+}
+
+export interface MonitoringSetModeMutation {
+    monitoringSetMode: {generation: number}
+}
+
+export interface MonitoringListConfigQuery {
+    monitoringListConfig: {documents: MonitoringConfigDocument[]}
+}
+
+export interface MonitoringGetConfigQuery {
+    monitoringGetConfig: MonitoringGetConfigResponse
 }
