@@ -65,7 +65,7 @@
       "type": "table"
     },
     "reached": {
-      "label": "Posts that reached the milestone",
+      "label": "Posts at the milestone",
       "query": "milestone",
       "style": {
         "value": {
@@ -233,10 +233,10 @@
     {
       "cols": [
         "reached",
-        "in_scope",
-        "failed"
+        "in_scope"
       ]
     },
+    "failed",
     "posts"
   ],
   "style": {

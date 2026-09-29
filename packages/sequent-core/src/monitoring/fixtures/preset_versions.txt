@@ -3,5 +3,5 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 # preset version digest
-campus 1 4a9dbd21d66516c8
-comelec 1 1a6adfb19070564b
+campus 2 9beeb85c3b2690bd
+comelec 2 ff61ed4a9fd3c934
