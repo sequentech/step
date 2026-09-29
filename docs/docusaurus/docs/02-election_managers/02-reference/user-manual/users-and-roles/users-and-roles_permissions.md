@@ -65,3 +65,6 @@ template grant both to the `admin` group and only `monitoring-view` to `admin-li
 that stores the tenant template in S3 (`KEYCLOAK_TENANT_REALM_CONFIG_S3_KEY`) must upload the updated
 template before new tenants get them. Existing realms are not changed; grant the permissions to the
 intended roles by hand.
+
+See [Monitoring](../../02-election-event/02-election_management_election-event_monitoring.md) for what
+each permission shows and allows.
