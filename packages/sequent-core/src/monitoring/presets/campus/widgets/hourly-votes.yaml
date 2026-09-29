@@ -27,7 +27,7 @@ chart:
       y_label: In the hour
       # In time order, which the labels alone are not when clocks go back.
       sort: {by: bucket_utc, order: asc}
-      style: {orientation: vertical, number_format: number}
+      style: {orientation: vertical, number_format: number, axis_y: {ticks: {step: 1}}}
       layers:
         - type: line
           y: voted_cumulative

@@ -16,6 +16,9 @@
       "query": "data",
       "style": {
         "axis_y": {
+          "ticks": {
+            "step": 1
+          },
           "title": {
             "visible": false
           }
