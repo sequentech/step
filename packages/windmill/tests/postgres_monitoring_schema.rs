@@ -8,26 +8,26 @@
 mod schema;
 
 use sequent_core::monitoring::config::ConfigKind;
+use sequent_core::monitoring::scope::election_set_key;
 use sequent_core::monitoring::sources::DataSourceId;
 use sha2::{Digest, Sha256};
 use std::collections::BTreeSet;
 use std::time::Duration;
 use strum::IntoEnumIterator;
 use tokio_postgres::types::ToSql;
-use tokio_postgres::Transaction;
+use tokio_postgres::{IsolationLevel, Transaction};
 use uuid::Uuid;
 use windmill::postgres::election_event::delete_election_event;
 
-const TABLES: [&str; 12] = [
+const TABLES: [&str; 11] = [
     "monitoring_event",
     "monitoring_config",
     "monitoring_config_head",
     "monitoring_election_set",
     "monitoring_snapshot_run",
     "monitoring_snapshot_source",
-    "monitoring_snapshot_manifest",
-    "monitoring_snapshot_manifest_scope",
     "monitoring_snapshot_payload",
+    "monitoring_snapshot_figure",
     "monitoring_voter",
     "monitoring_login_counter",
     "monitoring_login_counter_receipt",
@@ -48,12 +48,13 @@ fn sha256(text: &str) -> String {
     hex::encode(Sha256::digest(text.as_bytes()))
 }
 
-/// The key of a set of elections, as the snapshot job derives it.
+/// A payload digest, as the snapshot tables store it.
+fn digest(text: &str) -> Vec<u8> {
+    Sha256::digest(text.as_bytes()).to_vec()
+}
+
 fn set_key(ids: &[Uuid]) -> String {
-    let mut ids = ids.to_vec();
-    ids.sort();
-    let joined: Vec<String> = ids.iter().map(Uuid::to_string).collect();
-    sha256(&joined.join(","))[..16].to_owned()
+    election_set_key(ids.iter().map(Uuid::to_string))
 }
 
 /// A tenant with an election event on the configurable dashboard.
@@ -100,16 +101,16 @@ async fn election(tx: &Transaction<'_>, s: Scope, id: Uuid) {
 }
 
 /// Runs `sql` in a savepoint: the rows it touched, or the constraint that
-/// refused it. Anything other than an integrity constraint (SQLSTATE class
-/// 23) fails the test, so a mistyped statement cannot pass as a refusal.
+/// refused it. Deferred constraints are checked before the savepoint ends,
+/// as the snapshot job's pruning does. Anything other than an integrity
+/// constraint (SQLSTATE class 23) fails the test, so a mistyped statement
+/// cannot pass as a refusal.
 async fn attempt(
     tx: &mut Transaction<'_>,
     sql: &str,
     params: &[&(dyn ToSql + Sync)],
 ) -> Result<u64, String> {
     let savepoint = tx.savepoint("attempt").await.unwrap();
-    // Deferred constraints are checked here too, not at a commit that never
-    // comes.
     let result = match savepoint.execute(sql, params).await {
         Ok(rows) => savepoint
             .batch_execute("SET CONSTRAINTS ALL IMMEDIATE")
@@ -151,20 +152,16 @@ fn refused_by(result: Result<u64, String>, constraint: &str, why: &str) {
     assert_eq!(result, Err(constraint.to_owned()), "{why}");
 }
 
+async fn count(tx: &Transaction<'_>, sql: &str, params: &[&(dyn ToSql + Sync)]) -> i64 {
+    tx.query_one(sql, params).await.unwrap().get(0)
+}
+
 async fn row_counts(tx: &Transaction<'_>, event: Uuid) -> Vec<(&'static str, i64)> {
     let mut counts = Vec::new();
     for table in TABLES {
-        let rows: i64 = tx
-            .query_one(
-                &format!(
-                    "SELECT count(*) FROM sequent_backend.{table} WHERE election_event_id = $1"
-                ),
-                &[&event],
-            )
-            .await
-            .unwrap()
-            .get(0);
-        counts.push((table, rows));
+        let sql =
+            format!("SELECT count(*) FROM sequent_backend.{table} WHERE election_event_id = $1");
+        counts.push((table, count(tx, &sql, &[&event]).await));
     }
     counts
 }
@@ -178,9 +175,15 @@ struct Revision<'a> {
     yaml: Option<&'a str>,
     sha256: Option<String>,
     origin: &'a str,
-    preset: Option<(&'a str, i32)>,
-    author: Option<&'a str>,
+    preset_id: Option<&'a str>,
+    preset_version: Option<i32>,
+    author: &'a str,
 }
+
+const REVISION: &str = "INSERT INTO sequent_backend.monitoring_config
+        (tenant_id, election_event_id, kind, key, revision, change, yaml, sha256,
+         origin, preset_id, preset_version, author_id)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)";
 
 impl<'a> Revision<'a> {
     fn edit(key: &'a str, revision: i32, yaml: &'a str) -> Self {
@@ -192,8 +195,9 @@ impl<'a> Revision<'a> {
             yaml: Some(yaml),
             sha256: Some(sha256(yaml)),
             origin: "EDITOR",
-            preset: None,
-            author: Some("admin-1"),
+            preset_id: None,
+            preset_version: None,
+            author: "admin-1",
         }
     }
 
@@ -206,30 +210,49 @@ impl<'a> Revision<'a> {
         }
     }
 
+    fn reset(key: &'a str, revision: i32, yaml: &'a str) -> Self {
+        Revision {
+            origin: "PRESET",
+            preset_id: Some("comelec"),
+            preset_version: Some(1),
+            ..Revision::edit(key, revision, yaml)
+        }
+    }
+
+    /// Writes the revision and moves its head to it, as a save does.
+    async fn save(&self, tx: &mut Transaction<'_>, s: Scope) -> Result<u64, String> {
+        let sql = format!(
+            "WITH revision AS ({REVISION}
+                 RETURNING tenant_id, election_event_id, kind, key, revision)
+             INSERT INTO sequent_backend.monitoring_config_head
+                 (tenant_id, election_event_id, kind, key, revision)
+             SELECT * FROM revision
+             ON CONFLICT (tenant_id, election_event_id, kind, key)
+             DO UPDATE SET revision = EXCLUDED.revision"
+        );
+        attempt(tx, &sql, &self.params(&s)).await
+    }
+
+    /// Writes the revision alone.
     async fn write(&self, tx: &mut Transaction<'_>, s: Scope) -> Result<u64, String> {
-        let (preset_id, preset_version) = self.preset.unzip();
-        attempt(
-            tx,
-            "INSERT INTO sequent_backend.monitoring_config
-                 (tenant_id, election_event_id, kind, key, revision, change, yaml, sha256,
-                  origin, preset_id, preset_version, author_id)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)",
-            &[
-                &s.tenant,
-                &s.event,
-                &self.kind,
-                &self.key,
-                &self.revision,
-                &self.change,
-                &self.yaml,
-                &self.sha256,
-                &self.origin,
-                &preset_id,
-                &preset_version,
-                &self.author,
-            ],
-        )
-        .await
+        attempt(tx, REVISION, &self.params(&s)).await
+    }
+
+    fn params<'p>(&'p self, s: &'p Scope) -> [&'p (dyn ToSql + Sync); 12] {
+        [
+            &s.tenant,
+            &s.event,
+            &self.kind,
+            &self.key,
+            &self.revision,
+            &self.change,
+            &self.yaml,
+            &self.sha256,
+            &self.origin,
+            &self.preset_id,
+            &self.preset_version,
+            &self.author,
+        ]
     }
 }
 
@@ -291,6 +314,17 @@ async fn an_event_is_on_the_standard_dashboard_until_it_is_configured() {
         "monitoring_event_watermarks_check",
         "watermarks that are not an object",
     );
+    refused_by(
+        attempt(
+            &mut tx,
+            "DELETE FROM sequent_backend.monitoring_event
+             WHERE tenant_id = $1 AND election_event_id = $2",
+            &[&s.tenant, &s.event],
+        )
+        .await,
+        "monitoring_event_is_kept",
+        "back to the standard dashboard by deleting the history",
+    );
 
     tx.execute(
         "UPDATE sequent_backend.monitoring_event SET updated_at = '2000-01-01T00:00:00Z'
@@ -301,8 +335,9 @@ async fn an_event_is_on_the_standard_dashboard_until_it_is_configured() {
     .unwrap();
     let touched: bool = tx
         .query_one(
-            "SELECT updated_at = now() FROM sequent_backend.monitoring_event
-             WHERE tenant_id = $1 AND election_event_id = $2",
+            "UPDATE sequent_backend.monitoring_event SET dashboard_mode = 'LEGACY'
+             WHERE tenant_id = $1 AND election_event_id = $2
+             RETURNING updated_at = now()",
             &[&s.tenant, &s.event],
         )
         .await
@@ -320,53 +355,124 @@ async fn a_monitoring_row_belongs_to_an_event_of_its_own_tenant() {
     let theirs = id(line!(), 3);
     election(&tx, other, theirs).await;
 
-    refused_by(
-        attempt(
-            &mut tx,
+    let cases: [(&str, &[&(dyn ToSql + Sync)], &str); 4] = [
+        (
             "INSERT INTO sequent_backend.monitoring_event (tenant_id, election_event_id)
              VALUES ($1, $2)",
             &[&mine.tenant, &other.event],
-        )
-        .await,
-        "monitoring_event_of_its_tenant",
-        "another tenant's event",
-    );
-    refused_by(
-        attempt(
-            &mut tx,
+            "monitoring_event_of_its_tenant",
+        ),
+        (
             "INSERT INTO sequent_backend.monitoring_login_counter
                  (tenant_id, election_event_id, bucket_start, event_type, registration, attempts)
              VALUES ($1, $2, '2026-05-04T10:15:00Z', 'LOGIN', 'REGISTERED', 1)",
             &[&mine.tenant, &other.event],
-        )
-        .await,
-        "monitoring_login_counter_of_its_tenant",
-        "sign-ins counted for another tenant's event",
-    );
-    refused_by(
-        attempt(
-            &mut tx,
+            "monitoring_login_counter_of_its_tenant",
+        ),
+        (
             "INSERT INTO sequent_backend.monitoring_login_counter_receipt
                  (delivery_id, tenant_id, election_event_id)
              VALUES (repeat('a', 64), $1, $2)",
             &[&mine.tenant, &other.event],
-        )
-        .await,
-        "monitoring_login_counter_receipt_of_its_tenant",
-        "a receipt for another tenant's event",
-    );
-    refused_by(
-        attempt(
-            &mut tx,
+            "monitoring_login_counter_receipt_of_its_tenant",
+        ),
+        (
             "INSERT INTO sequent_backend.monitoring_voter
                  (tenant_id, election_event_id, election_id, voter_id, attributes_hash, settings_revision)
              VALUES ($1, $2, $3, 'v1', 'h', 1)",
             &[&mine.tenant, &mine.event, &theirs],
-        )
-        .await,
-        "monitoring_voter_of_an_election_of_the_event",
-        "a voter of another event's election",
+            "monitoring_voter_of_an_election_of_the_event",
+        ),
+    ];
+    for (statement, params, constraint) in cases {
+        refused_by(
+            attempt(&mut tx, statement, params).await,
+            constraint,
+            statement,
+        );
+    }
+}
+
+#[tokio::test]
+async fn configuration_and_figures_need_their_event_configured() {
+    let mut client = schema::pool().await.get().await.unwrap();
+    let mut tx = client.transaction().await.unwrap();
+    let s = bare_scope(&tx, line!()).await;
+    let post = id(line!(), 3);
+    election(&tx, s, post).await;
+    let (key, figures) = (set_key(&[post]), digest("figures"));
+
+    refused_by(
+        Revision::edit("w", 1, "id: w\n").save(&mut tx, s).await,
+        "monitoring_config_of_its_event",
+        "a revision",
     );
+    let cases: [(&str, &[&(dyn ToSql + Sync)], &str); 8] = [
+        (
+            "INSERT INTO sequent_backend.monitoring_config_head
+                 (tenant_id, election_event_id, kind, key, revision)
+             VALUES ($1, $2, 'widget', 'w', 1)",
+            &[&s.tenant, &s.event],
+            "monitoring_config_head_of_its_event",
+        ),
+        (
+            "INSERT INTO sequent_backend.monitoring_election_set
+                 (tenant_id, election_event_id, election_set_key, election_ids)
+             VALUES ($1, $2, $3, ARRAY[$4::uuid])",
+            &[&s.tenant, &s.event, &key, &post],
+            "monitoring_election_set_of_its_event",
+        ),
+        (
+            "INSERT INTO sequent_backend.monitoring_snapshot_run
+                 (tenant_id, election_event_id, status)
+             VALUES ($1, $2, 'RUNNING')",
+            &[&s.tenant, &s.event],
+            "monitoring_snapshot_run_of_its_event",
+        ),
+        (
+            "INSERT INTO sequent_backend.monitoring_snapshot_source
+                 (tenant_id, election_event_id, revision, source, election_set_key, producer_status)
+             VALUES ($1, $2, 1, 'voter_turnout', $3, 'CONNECTED')",
+            &[&s.tenant, &s.event, &key],
+            "monitoring_snapshot_source_of_its_run",
+        ),
+        (
+            "INSERT INTO sequent_backend.monitoring_snapshot_payload
+                 (tenant_id, election_event_id, sha256, payload)
+             VALUES ($1, $2, $3, '{}')",
+            &[&s.tenant, &s.event, &figures],
+            "monitoring_snapshot_payload_of_its_event",
+        ),
+        (
+            "INSERT INTO sequent_backend.monitoring_snapshot_figure
+                 (tenant_id, election_event_id, source, election_set_key, scope_key,
+                  from_revision, payload_sha256)
+             VALUES ($1, $2, 'voter_turnout', $3, 'event', 1, $4)",
+            &[&s.tenant, &s.event, &key, &figures],
+            "monitoring_snapshot_figure_of_its_event",
+        ),
+        (
+            "INSERT INTO sequent_backend.monitoring_voter
+                 (tenant_id, election_event_id, election_id, voter_id, attributes_hash, settings_revision)
+             VALUES ($1, $2, $3, 'v1', 'h', 1)",
+            &[&s.tenant, &s.event, &post],
+            "monitoring_voter_of_its_event",
+        ),
+        (
+            "INSERT INTO sequent_backend.monitoring_snapshot_run
+                 (tenant_id, election_event_id, revision, status)
+             VALUES ($1, $2, 0, 'RUNNING')",
+            &[&s.tenant, &s.event],
+            "monitoring_snapshot_run_revision_check",
+        ),
+    ];
+    for (statement, params, constraint) in cases {
+        refused_by(
+            attempt(&mut tx, statement, params).await,
+            constraint,
+            statement,
+        );
+    }
 }
 
 #[tokio::test]
@@ -381,20 +487,18 @@ async fn a_revision_is_a_change_of_a_known_kind_and_origin() {
             kind: &kind,
             ..Revision::edit("k", 1, "id: k\n")
         };
-        assert_eq!(revision.write(&mut tx, s).await, Ok(1), "{kind}");
+        assert_eq!(revision.save(&mut tx, s).await, Ok(1), "{kind}");
     }
-    let reset = Revision {
-        key: "from-preset",
-        origin: "PRESET",
-        preset: Some(("comelec", 1)),
-        ..Revision::edit("-", 1, "id: from-preset\n")
-    };
-    assert_eq!(reset.write(&mut tx, s).await, Ok(1));
-    assert_eq!(Revision::removal("gone", 2).write(&mut tx, s).await, Ok(1));
-    let multibyte = "title: Participación · 投票\n";
     assert_eq!(
-        Revision::edit("unicode", 1, multibyte)
-            .write(&mut tx, s)
+        Revision::reset("from-preset", 1, "id: from-preset\n")
+            .save(&mut tx, s)
+            .await,
+        Ok(1)
+    );
+    assert_eq!(Revision::removal("gone", 1).save(&mut tx, s).await, Ok(1));
+    assert_eq!(
+        Revision::edit("unicode", 1, "title: Participación · 投票\n")
+            .save(&mut tx, s)
             .await,
         Ok(1),
         "the digest is of the UTF-8 text"
@@ -485,27 +589,35 @@ async fn a_revision_is_a_change_of_a_known_kind_and_origin() {
         ),
         (
             Revision {
-                preset: Some(("comelec", 1)),
-                ..Revision::edit("x", 1, yaml)
+                origin: "EDITOR",
+                ..Revision::reset("x", 1, yaml)
             },
             "monitoring_config_preset_follows_origin",
             "an editor revision that names a preset",
         ),
         (
             Revision {
-                author: None,
-                ..Revision::edit("x", 1, yaml)
+                preset_version: None,
+                ..Revision::reset("x", 1, yaml)
             },
-            "monitoring_config_editor_is_named",
-            "an edit without its author",
+            "monitoring_config_preset_named_with_version",
+            "a preset without its version",
         ),
         (
             Revision {
-                author: Some(""),
+                author: "",
                 ..Revision::edit("x", 1, yaml)
             },
-            "monitoring_config_editor_is_named",
+            "monitoring_config_author_is_named",
             "an edit by a blank author",
+        ),
+        (
+            Revision {
+                author: "",
+                ..Revision::reset("x", 1, yaml)
+            },
+            "monitoring_config_author_is_named",
+            "a reset by a blank author",
         ),
         (
             Revision::edit("x", 0, yaml),
@@ -519,15 +631,26 @@ async fn a_revision_is_a_change_of_a_known_kind_and_origin() {
         ),
     ];
     for (revision, constraint, why) in cases {
-        refused_by(revision.write(&mut tx, s).await, constraint, why);
+        refused_by(revision.save(&mut tx, s).await, constraint, why);
     }
     for key in ["Turnout", "-lead", "has space", "", &"a".repeat(65)] {
         refused_by(
-            Revision::edit(key, 1, yaml).write(&mut tx, s).await,
+            Revision::edit(key, 1, yaml).save(&mut tx, s).await,
             "monitoring_config_key_check",
             key,
         );
     }
+    // A revision nobody made the head would take the number of the next save.
+    refused_by(
+        Revision::edit("k", 5, yaml).write(&mut tx, s).await,
+        "monitoring_config_revision_is_the_head",
+        "a revision past the head",
+    );
+    refused_by(
+        Revision::edit("new", 1, yaml).write(&mut tx, s).await,
+        "monitoring_config_revision_is_the_head",
+        "a new document without a head",
+    );
 }
 
 #[tokio::test]
@@ -536,20 +659,12 @@ async fn a_revision_is_never_changed_or_removed_but_with_its_event() {
     let mut tx = client.transaction().await.unwrap();
     let s = scope(&tx, line!()).await;
     Revision::edit("w", 1, "id: w\n")
-        .write(&mut tx, s)
+        .save(&mut tx, s)
         .await
         .unwrap();
-    tx.execute(
-        "INSERT INTO sequent_backend.monitoring_config_head
-             (tenant_id, election_event_id, kind, key, revision)
-         VALUES ($1, $2, 'widget', 'w', 1)",
-        &[&s.tenant, &s.event],
-    )
-    .await
-    .unwrap();
     for (statement, why) in [
         (
-            "UPDATE sequent_backend.monitoring_config SET yaml = 'id: x' WHERE election_event_id = $1",
+            "UPDATE sequent_backend.monitoring_config SET author_name = 'x' WHERE election_event_id = $1",
             "a logged revision rewritten",
         ),
         (
@@ -563,21 +678,47 @@ async fn a_revision_is_never_changed_or_removed_but_with_its_event() {
             why,
         );
     }
-    let heads: i64 = tx
-        .query_one(
-            "SELECT count(*) FROM sequent_backend.monitoring_config_head WHERE election_event_id = $1",
-            &[&s.event],
-        )
-        .await
-        .unwrap()
-        .get(0);
+    // Nor from inside another table's trigger.
+    tx.batch_execute(&format!(
+        "CREATE TEMP TABLE poke (x int);
+         CREATE FUNCTION pg_temp.poke() RETURNS trigger AS $$
+         BEGIN
+             DELETE FROM sequent_backend.monitoring_config WHERE election_event_id = '{}';
+             RETURN NULL;
+         END;
+         $$ LANGUAGE plpgsql;
+         CREATE TRIGGER poke AFTER INSERT ON pg_temp.poke
+             FOR EACH ROW EXECUTE FUNCTION pg_temp.poke();",
+        s.event
+    ))
+    .await
+    .unwrap();
+    refused_by(
+        attempt(&mut tx, "INSERT INTO pg_temp.poke VALUES (1)", &[]).await,
+        "monitoring_config_is_append_only",
+        "a deletion from a trigger",
+    );
+    // TRUNCATE takes the whole table at once; its guard is a statement
+    // trigger, checked here rather than by locking the shared table.
+    let guarded = count(
+        &tx,
+        "SELECT count(*) FROM pg_trigger
+         WHERE tgrelid = 'sequent_backend.monitoring_config'::regclass
+           AND tgname = 'monitoring_config_is_not_truncated'
+           AND tgtype & 32 <> 0 AND tgtype & 2 <> 0 AND tgenabled = 'O'",
+        &[],
+    )
+    .await;
+    assert_eq!(guarded, 1, "TRUNCATE is refused before it runs");
+    let heads = count(
+        &tx,
+        "SELECT count(*) FROM sequent_backend.monitoring_config_head WHERE election_event_id = $1",
+        &[&s.event],
+    )
+    .await;
     assert_eq!(heads, 1);
 
     // The head's updated_at follows each move.
-    Revision::edit("w", 2, "id: w\ntitle: T\n")
-        .write(&mut tx, s)
-        .await
-        .unwrap();
     tx.execute(
         "UPDATE sequent_backend.monitoring_config_head SET updated_at = '2000-01-01T00:00:00Z'
          WHERE election_event_id = $1",
@@ -585,16 +726,18 @@ async fn a_revision_is_never_changed_or_removed_but_with_its_event() {
     )
     .await
     .unwrap();
-    let moved: bool = tx
-        .query_one(
-            "UPDATE sequent_backend.monitoring_config_head SET revision = 2
-             WHERE election_event_id = $1 RETURNING updated_at = now()",
-            &[&s.event],
-        )
+    Revision::edit("w", 2, "id: w\ntitle: T\n")
+        .save(&mut tx, s)
         .await
-        .unwrap()
-        .get(0);
-    assert!(moved);
+        .unwrap();
+    let moved = count(
+        &tx,
+        "SELECT count(*) FROM sequent_backend.monitoring_config_head
+         WHERE election_event_id = $1 AND revision = 2 AND updated_at = now()",
+        &[&s.event],
+    )
+    .await;
+    assert_eq!(moved, 1);
     refused_by(
         attempt(
             &mut tx,
@@ -615,67 +758,38 @@ async fn of_two_saves_from_one_revision_the_second_moves_nothing() {
     let mut first = pool.get().await.unwrap();
     let mut second = pool.get().await.unwrap();
     let s = {
-        let setup = first.transaction().await.unwrap();
+        let mut setup = first.transaction().await.unwrap();
         let s = scope(&setup, line!()).await;
-        setup
-            .execute(
-                "INSERT INTO sequent_backend.monitoring_config
-                     (tenant_id, election_event_id, kind, key, revision, change, yaml, sha256,
-                      origin, author_id)
-                 VALUES ($1, $2, 'widget', 'w', 1, 'UPSERT', 'id: w', $3, 'EDITOR', 'admin-1')",
-                &[&s.tenant, &s.event, &sha256("id: w")],
-            )
-            .await
-            .unwrap();
-        setup
-            .execute(
-                "INSERT INTO sequent_backend.monitoring_config_head
-                     (tenant_id, election_event_id, kind, key, revision)
-                 VALUES ($1, $2, 'widget', 'w', 1)",
-                &[&s.tenant, &s.event],
-            )
+        Revision::edit("w", 1, "id: w\n")
+            .save(&mut setup, s)
             .await
             .unwrap();
         setup.commit().await.unwrap();
         s
     };
-    let advance = "UPDATE sequent_backend.monitoring_config_head SET revision = 2
+    // The protocol the head's table describes.
+    let bump =
+        "UPDATE sequent_backend.monitoring_event SET config_generation = config_generation + 1
+                WHERE tenant_id = $1 AND election_event_id = $2";
+    let advance = "UPDATE sequent_backend.monitoring_config_head SET revision = revision + 1
                    WHERE tenant_id = $1 AND election_event_id = $2
-                     AND kind = 'widget' AND key = 'w' AND revision = 1";
-    let revise = "INSERT INTO sequent_backend.monitoring_config
-                      (tenant_id, election_event_id, kind, key, revision, change, yaml, sha256,
-                       origin, author_id)
-                  VALUES ($1, $2, 'widget', $3, $4, 'UPSERT', $5, $6, 'EDITOR', $7)";
+                     AND kind = 'widget' AND key = $3 AND revision = $4";
     let create = "INSERT INTO sequent_backend.monitoring_config_head
                       (tenant_id, election_event_id, kind, key, revision)
-                  VALUES ($1, $2, 'widget', 'new', 1) ON CONFLICT DO NOTHING";
+                  SELECT $1, $2, 'widget', $3, 1 WHERE $4::int = 0
+                  ON CONFLICT DO NOTHING";
 
-    for (statement, key, revision) in [(advance, "w", 2_i32), (create, "new", 1)] {
-        let a = first.transaction().await.unwrap();
+    for (moves, key, expected) in [(advance, "w", 1_i32), (create, "new", 0)] {
+        let mut a = first.transaction().await.unwrap();
         let b = second.transaction().await.unwrap();
-        // The head moves first; the revision it names follows.
-        assert_eq!(
-            a.execute(statement, &[&s.tenant, &s.event]).await.unwrap(),
-            1
-        );
+        let params: [&(dyn ToSql + Sync); 4] = [&s.tenant, &s.event, &key, &expected];
+        a.execute(bump, &params[..2]).await.unwrap();
+        assert_eq!(a.execute(moves, &params).await.unwrap(), 1);
         let yaml = format!("id: {key}\ntitle: A\n");
-        a.execute(
-            revise,
-            &[
-                &s.tenant,
-                &s.event,
-                &key,
-                &revision,
-                &yaml,
-                &sha256(&yaml),
-                &"admin-a",
-            ],
-        )
-        .await
-        .unwrap();
-        let params: [&(dyn ToSql + Sync); 2] = [&s.tenant, &s.event];
+        let revision = Revision::edit(key, expected + 1, &yaml);
+        a.execute(REVISION, &revision.params(&s)).await.unwrap();
         let moved = {
-            let waiting = b.execute(statement, &params);
+            let waiting = b.execute(bump, &params[..2]);
             tokio::pin!(waiting);
             assert!(
                 tokio::time::timeout(Duration::from_millis(300), &mut waiting)
@@ -684,16 +798,46 @@ async fn of_two_saves_from_one_revision_the_second_moves_nothing() {
                 "the second save waits for the first"
             );
             a.commit().await.unwrap();
-            waiting.await.unwrap()
+            waiting.await.unwrap();
+            b.execute(moves, &params).await.unwrap()
         };
-        assert_eq!(moved, 0, "and then moves nothing: a conflict");
+        assert_eq!(moved, 0, "and then moves nothing: a conflict to report");
         b.rollback().await.unwrap();
     }
+
+    // Under REPEATABLE READ the second save fails instead, which is why
+    // saves run under READ COMMITTED.
+    let a = first.transaction().await.unwrap();
+    let b = second
+        .build_transaction()
+        .isolation_level(IsolationLevel::RepeatableRead)
+        .start()
+        .await
+        .unwrap();
+    b.batch_execute("SELECT 1").await.unwrap();
+    let params: [&(dyn ToSql + Sync); 4] = [&s.tenant, &s.event, &"w", &2_i32];
+    a.execute(bump, &params[..2]).await.unwrap();
+    a.execute(advance, &params).await.unwrap();
+    let revision = Revision::edit("w", 3, "id: w\ntitle: B\n");
+    a.execute(REVISION, &revision.params(&s)).await.unwrap();
+    let error = {
+        let waiting = b.execute(bump, &params[..2]);
+        tokio::pin!(waiting);
+        assert!(
+            tokio::time::timeout(Duration::from_millis(300), &mut waiting)
+                .await
+                .is_err()
+        );
+        a.commit().await.unwrap();
+        waiting.await.unwrap_err()
+    };
+    assert_eq!(error.as_db_error().unwrap().code().code(), "40001");
+    b.rollback().await.unwrap();
 
     // A head that names a revision nobody wrote is refused at commit.
     let lost = first.transaction().await.unwrap();
     lost.execute(
-        "UPDATE sequent_backend.monitoring_config_head SET revision = 3
+        "UPDATE sequent_backend.monitoring_config_head SET revision = 9
          WHERE tenant_id = $1 AND election_event_id = $2 AND key = 'w'",
         &[&s.tenant, &s.event],
     )
@@ -702,7 +846,7 @@ async fn of_two_saves_from_one_revision_the_second_moves_nothing() {
     let error = lost.commit().await.unwrap_err();
     assert_eq!(refusal(&error), "monitoring_config_head_names_a_revision");
 
-    // Deleting the event removes the committed rows, deferred check included.
+    // Deleting the event removes the committed rows, deferred checks included.
     let cleanup = first.transaction().await.unwrap();
     delete_election_event(&cleanup, &s.tenant.to_string(), &s.event.to_string())
         .await
@@ -715,7 +859,7 @@ async fn of_two_saves_from_one_revision_the_second_moves_nothing() {
 }
 
 #[tokio::test]
-async fn viewers_are_shown_only_a_complete_run_and_it_is_kept() {
+async fn viewers_are_shown_only_a_complete_run_and_it_is_final() {
     let mut client = schema::pool().await.get().await.unwrap();
     let mut tx = client.transaction().await.unwrap();
     let s = scope(&tx, line!()).await;
@@ -741,23 +885,15 @@ async fn viewers_are_shown_only_a_complete_run_and_it_is_kept() {
                WHERE tenant_id = $1 AND election_event_id = $2 AND revision = $3";
     let at = Some("2026-05-04T10:15:00Z");
     let none: Option<&str> = None;
-    let (revision, generation) = (Some(1_i32), Some(0_i64));
-    let (no_revision, no_generation): (Option<i32>, Option<i64>) = (None, None);
-    let cases: [(
-        &str,
-        Option<&str>,
-        Option<&str>,
-        Option<&str>,
-        Option<i32>,
-        Option<i64>,
-        &str,
-    ); 7] = [
+    let (settings, generation) = (Some(1_i32), Some(0_i64));
+    let (no_settings, no_generation): (Option<i32>, Option<i64>) = (None, None);
+    let cases = [
         (
             "PAUSED",
             at,
             none,
             at,
-            revision,
+            settings,
             generation,
             "monitoring_snapshot_run_status_check",
         ),
@@ -766,7 +902,7 @@ async fn viewers_are_shown_only_a_complete_run_and_it_is_kept() {
             at,
             none,
             none,
-            no_revision,
+            no_settings,
             no_generation,
             "monitoring_snapshot_run_running_is_open",
         ),
@@ -775,7 +911,7 @@ async fn viewers_are_shown_only_a_complete_run_and_it_is_kept() {
             none,
             Some("x"),
             none,
-            no_revision,
+            no_settings,
             no_generation,
             "monitoring_snapshot_run_running_is_open",
         ),
@@ -784,7 +920,7 @@ async fn viewers_are_shown_only_a_complete_run_and_it_is_kept() {
             at,
             none,
             none,
-            revision,
+            settings,
             generation,
             "monitoring_snapshot_run_complete_is_counted",
         ),
@@ -793,7 +929,7 @@ async fn viewers_are_shown_only_a_complete_run_and_it_is_kept() {
             at,
             none,
             at,
-            no_revision,
+            no_settings,
             generation,
             "monitoring_snapshot_run_complete_is_counted",
         ),
@@ -802,8 +938,17 @@ async fn viewers_are_shown_only_a_complete_run_and_it_is_kept() {
             at,
             none,
             at,
-            revision,
+            settings,
             no_generation,
+            "monitoring_snapshot_run_complete_is_counted",
+        ),
+        (
+            "COMPLETE",
+            at,
+            Some("x"),
+            at,
+            settings,
+            generation,
             "monitoring_snapshot_run_complete_is_counted",
         ),
         (
@@ -811,7 +956,16 @@ async fn viewers_are_shown_only_a_complete_run_and_it_is_kept() {
             at,
             Some(""),
             none,
-            no_revision,
+            no_settings,
+            no_generation,
+            "monitoring_snapshot_run_failure_says_why",
+        ),
+        (
+            "FAILED",
+            none,
+            Some("x"),
+            none,
+            no_settings,
             no_generation,
             "monitoring_snapshot_run_failure_says_why",
         ),
@@ -834,55 +988,77 @@ async fn viewers_are_shown_only_a_complete_run_and_it_is_kept() {
 
     let show = "UPDATE sequent_backend.monitoring_event SET live_snapshot_revision = $3
                 WHERE tenant_id = $1 AND election_event_id = $2";
-    for revision in [first, second] {
-        refused_by(
-            attempt(&mut tx, show, &[&s.tenant, &s.event, &revision]).await,
-            "monitoring_event_shows_a_complete_run",
-            "a running run, or another event's",
+    refused_by(
+        attempt(&mut tx, show, &[&s.tenant, &s.event, &first]).await,
+        "monitoring_event_shows_a_complete_run",
+        "a running run",
+    );
+    for (scope, revision) in [(s, first), (later, second)] {
+        assert_eq!(
+            attempt(
+                &mut tx,
+                run,
+                &[
+                    &scope.tenant,
+                    &scope.event,
+                    &revision,
+                    &"COMPLETE",
+                    &at,
+                    &none,
+                    &at,
+                    &settings,
+                    &generation
+                ],
+            )
+            .await,
+            Ok(1)
         );
     }
-    assert_eq!(
-        attempt(
-            &mut tx,
-            run,
-            &[
-                &s.tenant,
-                &s.event,
-                &first,
-                &"COMPLETE",
-                &at,
-                &none,
-                &at,
-                &revision,
-                &generation
-            ],
-        )
-        .await,
-        Ok(1)
+    refused_by(
+        attempt(&mut tx, show, &[&s.tenant, &s.event, &second]).await,
+        "monitoring_event_shows_a_complete_run",
+        "another event's complete run",
     );
     assert_eq!(
         attempt(&mut tx, show, &[&s.tenant, &s.event, &first]).await,
         Ok(1)
     );
-    refused_by(
+
+    for (change, why) in [
+        (
+            "status = 'FAILED', error = 'late'",
+            "the shown run marked failed",
+        ),
+        (
+            "as_of = as_of - interval '1 hour'",
+            "its figures dated otherwise",
+        ),
+        ("config_generation = 7", "its configuration changed"),
+    ] {
+        refused_by(
+            attempt(
+                &mut tx,
+                &format!(
+                    "UPDATE sequent_backend.monitoring_snapshot_run SET {change}
+                     WHERE tenant_id = $1 AND election_event_id = $2 AND revision = $3"
+                ),
+                &[&s.tenant, &s.event, &first],
+            )
+            .await,
+            "monitoring_snapshot_run_is_final",
+            why,
+        );
+    }
+    assert_eq!(
         attempt(
             &mut tx,
-            run,
-            &[
-                &s.tenant,
-                &s.event,
-                &first,
-                &"FAILED",
-                &at,
-                &Some("late"),
-                &at,
-                &revision,
-                &generation,
-            ],
+            "UPDATE sequent_backend.monitoring_snapshot_run SET checked_at = now()
+             WHERE tenant_id = $1 AND election_event_id = $2 AND revision = $3",
+            &[&s.tenant, &s.event, &first],
         )
         .await,
-        "monitoring_event_shows_a_complete_run",
-        "the shown run marked failed",
+        Ok(1),
+        "a later pass that found nothing new says so"
     );
     refused_by(
         attempt(
@@ -898,241 +1074,384 @@ async fn viewers_are_shown_only_a_complete_run_and_it_is_kept() {
 }
 
 #[tokio::test]
-async fn a_snapshot_names_its_figures_by_content_and_keeps_what_it_names() {
+async fn a_set_of_elections_is_recorded_under_the_key_of_its_ids() {
     let mut client = schema::pool().await.get().await.unwrap();
     let mut tx = client.transaction().await.unwrap();
     let s = scope(&tx, line!()).await;
     let (a, b) = (id(line!(), 3), id(line!(), 4));
-
     let set = "INSERT INTO sequent_backend.monitoring_election_set
                    (tenant_id, election_event_id, election_set_key, election_ids)
                VALUES ($1, $2, $3, $4)";
-    let key = set_key(&[b, a]);
-    for (ids, constraint, why) in [
+    let both = set_key(&[b, a]);
+    for (key, ids, constraint, why) in [
         (
+            set_key(&[a]),
             vec![a, b],
             "monitoring_election_set_key_is_of_ids",
             "a key of other elections",
         ),
         (
+            both.clone(),
             vec![b, a],
             "monitoring_election_set_ids_ascend",
             "ids out of order",
         ),
         (
+            set_key(&[a]),
             vec![a, a],
             "monitoring_election_set_ids_ascend",
             "an id twice",
         ),
-        (vec![], "monitoring_election_set_ids_ascend", "no elections"),
     ] {
-        let key = if why == "a key of other elections" {
-            set_key(&[a])
-        } else {
-            key.clone()
-        };
         refused_by(
             attempt(&mut tx, set, &[&s.tenant, &s.event, &key, &ids]).await,
             constraint,
             why,
         );
     }
-    let with_null = "INSERT INTO sequent_backend.monitoring_election_set
-                         (tenant_id, election_event_id, election_set_key, election_ids)
-                     VALUES ($1, $2, $3, ARRAY[$4, NULL]::uuid[])";
     refused_by(
-        attempt(&mut tx, with_null, &[&s.tenant, &s.event, &key, &a]).await,
+        attempt(
+            &mut tx,
+            "INSERT INTO sequent_backend.monitoring_election_set
+                 (tenant_id, election_event_id, election_set_key, election_ids)
+             VALUES ($1, $2, $3, ARRAY[$4, NULL]::uuid[])",
+            &[&s.tenant, &s.event, &both, &a],
+        )
+        .await,
         "monitoring_election_set_ids_ascend",
         "a missing id",
     );
-    assert_eq!(
-        attempt(&mut tx, set, &[&s.tenant, &s.event, &key, &vec![a, b]]).await,
-        Ok(1),
-        "the key the snapshot job derives"
+    refused_by(
+        attempt(
+            &mut tx,
+            "INSERT INTO sequent_backend.monitoring_election_set
+                 (tenant_id, election_event_id, election_set_key, election_ids)
+             VALUES ($1, $2, $3, ARRAY[[$4, $5]]::uuid[])",
+            &[&s.tenant, &s.event, &both, &a, &b],
+        )
+        .await,
+        "monitoring_election_set_ids_ascend",
+        "a nested list",
     );
+    let nothing: Vec<Uuid> = Vec::new();
+    for (key, ids) in [(both, vec![a, b]), (set_key(&nothing), nothing.clone())] {
+        assert_eq!(
+            attempt(&mut tx, set, &[&s.tenant, &s.event, &key, &ids]).await,
+            Ok(1),
+            "the key sequent-core derives, the empty set included"
+        );
+    }
+}
+
+#[tokio::test]
+async fn a_scope_shows_one_stored_payload_over_a_range_of_runs() {
+    let mut client = schema::pool().await.get().await.unwrap();
+    let mut tx = client.transaction().await.unwrap();
+    let s = scope(&tx, line!()).await;
+    let post = id(line!(), 3);
+    let key = set_key(&[post]);
+    tx.execute(
+        "INSERT INTO sequent_backend.monitoring_election_set
+             (tenant_id, election_event_id, election_set_key, election_ids)
+         VALUES ($1, $2, $3, ARRAY[$4::uuid])",
+        &[&s.tenant, &s.event, &key, &post],
+    )
+    .await
+    .unwrap();
 
     let payload = "INSERT INTO sequent_backend.monitoring_snapshot_payload
                        (tenant_id, election_event_id, sha256, payload)
-                   VALUES ($1, $2, $3, '{}'::jsonb)";
-    let figures = sha256("figures");
-    assert_eq!(
-        attempt(&mut tx, payload, &[&s.tenant, &s.event, &figures]).await,
-        Ok(1)
-    );
-    refused_by(
-        attempt(&mut tx, payload, &[&s.tenant, &s.event, &figures]).await,
-        "monitoring_snapshot_payload_pkey",
-        "the same figures stored twice",
-    );
-    refused_by(
-        attempt(&mut tx, payload, &[&s.tenant, &s.event, &"not-a-digest"]).await,
-        "monitoring_snapshot_payload_sha256_check",
-        "a payload not named by its digest",
-    );
-
-    let manifest = "INSERT INTO sequent_backend.monitoring_snapshot_manifest
-                        (tenant_id, election_event_id, sha256, source, producer_status, reason)
-                    VALUES ($1, $2, $3, $4, $5, $6)";
-    let no_reason: Option<&str> = None;
-    for source in DataSourceId::iter() {
-        let source = source.to_string();
+                   VALUES ($1, $2, $3, $4)";
+    let object = serde_json::json!({"rows": []});
+    let (early, late) = (digest("early"), digest("late"));
+    for sha in [&early, &late] {
         assert_eq!(
-            attempt(
-                &mut tx,
-                manifest,
-                &[
-                    &s.tenant,
-                    &s.event,
-                    &sha256(&source),
-                    &source,
-                    &"CONNECTED",
-                    &no_reason
-                ],
-            )
-            .await,
-            Ok(1),
-            "{source}"
+            attempt(&mut tx, payload, &[&s.tenant, &s.event, sha, &object]).await,
+            Ok(1)
         );
     }
-    let other = sha256("other");
-    for (source, status, reason, constraint, why) in [
+    let short = early[..16].to_vec();
+    for (sha, value, constraint, why) in [
         (
-            "weather",
-            "CONNECTED",
-            None,
-            "monitoring_snapshot_manifest_source_check",
-            "an unknown source",
+            &early,
+            &object,
+            "monitoring_snapshot_payload_pkey",
+            "the same figures stored twice",
         ),
         (
-            "helpdesk",
-            "BROKEN",
-            None,
-            "monitoring_snapshot_manifest_producer_status_check",
-            "an unknown status",
+            &short,
+            &object,
+            "monitoring_snapshot_payload_sha256_check",
+            "not a SHA-256",
         ),
         (
-            "helpdesk",
-            "NOT_CONNECTED",
-            None,
-            "monitoring_snapshot_manifest_not_connected_says_why",
-            "no reason",
-        ),
-        (
-            "helpdesk",
-            "NOT_CONNECTED",
-            Some(""),
-            "monitoring_snapshot_manifest_not_connected_says_why",
-            "a blank reason",
-        ),
-        (
-            "helpdesk",
-            "CONNECTED",
-            Some("why"),
-            "monitoring_snapshot_manifest_not_connected_says_why",
-            "a reason while connected",
+            &digest("list"),
+            &serde_json::json!([]),
+            "monitoring_snapshot_payload_payload_check",
+            "figures that are not an object",
         ),
     ] {
         refused_by(
+            attempt(&mut tx, payload, &[&s.tenant, &s.event, sha, value]).await,
+            constraint,
+            why,
+        );
+    }
+    refused_by(
+        attempt(
+            &mut tx,
+            "UPDATE sequent_backend.monitoring_snapshot_payload SET payload = '{\"rows\": [1]}'
+             WHERE election_event_id = $1",
+            &[&s.event],
+        )
+        .await,
+        "monitoring_snapshot_payload_is_immutable",
+        "figures changed under their hash",
+    );
+
+    let figure = "INSERT INTO sequent_backend.monitoring_snapshot_figure
+                      (tenant_id, election_event_id, source, election_set_key, scope_key,
+                       from_revision, to_revision, payload_sha256)
+                  VALUES ($1, $2, $3, $4, $5, $6, $7, $8)";
+    let open: Option<i64> = None;
+    let write = |source: &'static str,
+                 scope_key: &'static str,
+                 from: i64,
+                 to: Option<i64>,
+                 sha: Vec<u8>,
+                 set: String| { (source, scope_key, from, to, sha, set) };
+    assert_eq!(
+        attempt(
+            &mut tx,
+            figure,
+            &[
+                &s.tenant,
+                &s.event,
+                &"voter_turnout",
+                &key,
+                &"post=e1",
+                &10_i64,
+                &open,
+                &early
+            ]
+        )
+        .await,
+        Ok(1)
+    );
+    let refusals = [
+        (
+            write(
+                "voter_turnout",
+                "post=e1",
+                12,
+                None,
+                early.clone(),
+                key.clone(),
+            ),
+            "monitoring_snapshot_figure_is_disjoint",
+            "a second showing row",
+        ),
+        (
+            write(
+                "voter_turnout",
+                "post=e1",
+                5,
+                None,
+                early.clone(),
+                key.clone(),
+            ),
+            "monitoring_snapshot_figure_is_disjoint",
+            "an earlier row still showing",
+        ),
+        (
+            write(
+                "voter_turnout",
+                "post=e1",
+                5,
+                Some(11),
+                early.clone(),
+                key.clone(),
+            ),
+            "monitoring_snapshot_figure_is_disjoint",
+            "an earlier row reaching into it",
+        ),
+        (
+            write(
+                "voter_turnout",
+                "post=e2",
+                5,
+                Some(5),
+                early.clone(),
+                key.clone(),
+            ),
+            "monitoring_snapshot_figure_range_is_forward",
+            "an empty range",
+        ),
+        (
+            write("weather", "event", 1, None, early.clone(), key.clone()),
+            "monitoring_snapshot_figure_source_check",
+            "an unknown source",
+        ),
+        (
+            write(
+                "voter_turnout",
+                "Post=e1",
+                1,
+                None,
+                early.clone(),
+                key.clone(),
+            ),
+            "monitoring_snapshot_figure_scope_key_check",
+            "a scope key out of form",
+        ),
+        (
+            write(
+                "voter_turnout",
+                "country=ES&post=e1",
+                1,
+                None,
+                early.clone(),
+                key.clone(),
+            ),
+            "monitoring_snapshot_figure_scope_key_check",
+            "scope parts out of order",
+        ),
+        (
+            write(
+                "voter_turnout",
+                "event",
+                1,
+                None,
+                digest("never stored"),
+                key.clone(),
+            ),
+            "monitoring_snapshot_figure_payload_exists",
+            "figures never stored",
+        ),
+        (
+            write(
+                "voter_turnout",
+                "event",
+                1,
+                None,
+                early.clone(),
+                set_key(&[]),
+            ),
+            "monitoring_snapshot_figure_set_is_recorded",
+            "a set nobody recorded",
+        ),
+        (
+            write(
+                "voter_turnout",
+                "event",
+                1,
+                None,
+                short.clone(),
+                key.clone(),
+            ),
+            "monitoring_snapshot_figure_payload_sha256_check",
+            "not a SHA-256",
+        ),
+    ];
+    for ((source, scope_key, from, to, sha, set), constraint, why) in refusals {
+        refused_by(
             attempt(
                 &mut tx,
-                manifest,
-                &[&s.tenant, &s.event, &other, &source, &status, &reason],
+                figure,
+                &[
+                    &s.tenant, &s.event, &source, &set, &scope_key, &from, &to, &sha,
+                ],
             )
             .await,
             constraint,
             why,
         );
     }
-
-    let scope_row = "INSERT INTO sequent_backend.monitoring_snapshot_manifest_scope
-                         (tenant_id, election_event_id, manifest_sha256, scope_key, payload_sha256)
-                     VALUES ($1, $2, $3, $4, $5)";
-    let turnout = sha256("voter_turnout");
-    for scope_key in ["", "post=e1"] {
-        assert_eq!(
-            attempt(
-                &mut tx,
-                scope_row,
-                &[&s.tenant, &s.event, &turnout, &scope_key, &figures]
-            )
-            .await,
-            Ok(1)
-        );
-    }
-    refused_by(
-        attempt(
-            &mut tx,
-            scope_row,
-            &[&s.tenant, &s.event, &turnout, &"region=r", &other],
-        )
-        .await,
-        "monitoring_snapshot_manifest_scope_payload_exists",
-        "a scope whose figures were never stored",
-    );
-
-    let run: i64 = tx
-        .query_one(
-            "INSERT INTO sequent_backend.monitoring_snapshot_run
-                 (tenant_id, election_event_id, status)
-             VALUES ($1, $2, 'RUNNING') RETURNING revision",
-            &[&s.tenant, &s.event],
-        )
-        .await
-        .unwrap()
-        .get(0);
-    let source_row = "INSERT INTO sequent_backend.monitoring_snapshot_source
-                          (tenant_id, election_event_id, revision, source, election_set_key, manifest_sha256)
-                      VALUES ($1, $2, $3, $4, $5, $6)";
-    refused_by(
-        attempt(
-            &mut tx,
-            source_row,
-            &[&s.tenant, &s.event, &run, &"poll_status", &key, &turnout],
-        )
-        .await,
-        "monitoring_snapshot_source_manifest_of_the_source",
-        "one source's manifest filed under another",
-    );
-    refused_by(
-        attempt(
-            &mut tx,
-            source_row,
-            &[
-                &s.tenant,
-                &s.event,
-                &run,
-                &"voter_turnout",
-                &set_key(&[a]),
-                &turnout,
-            ],
-        )
-        .await,
-        "monitoring_snapshot_source_set_is_recorded",
-        "figures for a set nobody recorded",
+    // A pass at revision 20 closes the row and opens the next, in that order.
+    let close = "UPDATE sequent_backend.monitoring_snapshot_figure SET to_revision = $3
+                 WHERE election_event_id = $1 AND scope_key = 'post=e1' AND from_revision = $2";
+    assert_eq!(
+        attempt(&mut tx, close, &[&s.event, &10_i64, &20_i64]).await,
+        Ok(1)
     );
     assert_eq!(
         attempt(
             &mut tx,
-            source_row,
-            &[&s.tenant, &s.event, &run, &"voter_turnout", &key, &turnout]
+            figure,
+            &[
+                &s.tenant,
+                &s.event,
+                &"voter_turnout",
+                &key,
+                &"post=e1",
+                &20_i64,
+                &open,
+                &late
+            ]
         )
         .await,
         Ok(1)
     );
+    for (change, why) in [
+        ("to_revision = NULL", "a closed row reopened"),
+        ("to_revision = 25", "a closed row closed again later"),
+        ("payload_sha256 = payload_sha256", "a row rewritten"),
+    ] {
+        refused_by(
+            attempt(
+                &mut tx,
+                &format!(
+                    "UPDATE sequent_backend.monitoring_snapshot_figure SET {change}
+                     WHERE election_event_id = $1 AND from_revision = 10"
+                ),
+                &[&s.event],
+            )
+            .await,
+            "monitoring_snapshot_figure_only_closes",
+            why,
+        );
+    }
+    assert_eq!(
+        attempt(&mut tx, close, &[&s.event, &20_i64, &30_i64]).await,
+        Ok(1)
+    );
+    refused_by(
+        attempt(&mut tx, close, &[&s.event, &20_i64, &31_i64]).await,
+        "monitoring_snapshot_figure_only_closes",
+        "closed twice",
+    );
 
-    // Pruning cannot take what a run or manifest still names.
+    // Each revision reads the payload its range holds.
+    let read = "SELECT payload_sha256 FROM sequent_backend.monitoring_snapshot_figure
+                WHERE tenant_id = $1 AND election_event_id = $2 AND source = 'voter_turnout'
+                  AND election_set_key = $3 AND scope_key = 'post=e1' AND from_revision <= $4
+                  AND (to_revision IS NULL OR to_revision > $4)
+                ORDER BY from_revision DESC LIMIT 1";
+    for (revision, expected) in [
+        (10_i64, Some(&early)),
+        (19, Some(&early)),
+        (20, Some(&late)),
+        (29, Some(&late)),
+        (30, None),
+        (9, None),
+    ] {
+        let shown: Option<Vec<u8>> = tx
+            .query_opt(read, &[&s.tenant, &s.event, &key, &revision])
+            .await
+            .unwrap()
+            .map(|row| row.get(0));
+        assert_eq!(shown.as_ref(), expected, "revision {revision}");
+    }
+
+    // Pruning cannot take what a figure still names.
     for (statement, constraint) in [
         (
             "DELETE FROM sequent_backend.monitoring_snapshot_payload WHERE election_event_id = $1",
-            "monitoring_snapshot_manifest_scope_payload_exists",
-        ),
-        (
-            "DELETE FROM sequent_backend.monitoring_snapshot_manifest WHERE election_event_id = $1",
-            "monitoring_snapshot_source_manifest_of_the_source",
+            "monitoring_snapshot_figure_payload_exists",
         ),
         (
             "DELETE FROM sequent_backend.monitoring_election_set WHERE election_event_id = $1",
-            "monitoring_snapshot_source_set_is_recorded",
+            "monitoring_snapshot_figure_set_is_recorded",
         ),
     ] {
         refused_by(
@@ -1141,31 +1460,271 @@ async fn a_snapshot_names_its_figures_by_content_and_keeps_what_it_names() {
             statement,
         );
     }
-    // Once the run goes, so may the rest, in that order.
-    for (statement, rows) in [
-        (
-            "DELETE FROM sequent_backend.monitoring_snapshot_run WHERE election_event_id = $1",
-            1,
-        ),
-        (
-            "DELETE FROM sequent_backend.monitoring_snapshot_manifest WHERE election_event_id = $1",
-            11,
-        ),
-        (
-            "DELETE FROM sequent_backend.monitoring_snapshot_payload WHERE election_event_id = $1",
-            1,
-        ),
-        (
-            "DELETE FROM sequent_backend.monitoring_election_set WHERE election_event_id = $1",
-            1,
-        ),
-    ] {
+    // Keeping revisions from 25: the rows closed by then go, then the
+    // payloads no row names any more.
+    let freed: Vec<Vec<u8>> = tx
+        .query(
+            "DELETE FROM sequent_backend.monitoring_snapshot_figure
+             WHERE tenant_id = $1 AND election_event_id = $2 AND to_revision <= 25
+             RETURNING payload_sha256",
+            &[&s.tenant, &s.event],
+        )
+        .await
+        .unwrap()
+        .iter()
+        .map(|row| row.get(0))
+        .collect();
+    assert_eq!(freed, [early.clone()]);
+    assert_eq!(
+        attempt(
+            &mut tx,
+            "DELETE FROM sequent_backend.monitoring_snapshot_payload AS payload
+             WHERE tenant_id = $1 AND election_event_id = $2 AND sha256 = ANY($3)
+               AND NOT EXISTS (
+                   SELECT 1 FROM sequent_backend.monitoring_snapshot_figure AS figure
+                   WHERE figure.tenant_id = payload.tenant_id
+                     AND figure.election_event_id = payload.election_event_id
+                     AND figure.payload_sha256 = payload.sha256
+               )",
+            &[&s.tenant, &s.event, &freed],
+        )
+        .await,
+        Ok(1)
+    );
+}
+
+#[tokio::test]
+async fn a_run_records_whether_each_source_was_counted() {
+    let mut client = schema::pool().await.get().await.unwrap();
+    let mut tx = client.transaction().await.unwrap();
+    let s = scope(&tx, line!()).await;
+    let key = set_key(&Vec::<Uuid>::new());
+    tx.execute(
+        "INSERT INTO sequent_backend.monitoring_election_set
+             (tenant_id, election_event_id, election_set_key, election_ids)
+         VALUES ($1, $2, $3, '{}')",
+        &[&s.tenant, &s.event, &key],
+    )
+    .await
+    .unwrap();
+    let revision: i64 = tx
+        .query_one(
+            "INSERT INTO sequent_backend.monitoring_snapshot_run (tenant_id, election_event_id, status)
+             VALUES ($1, $2, 'RUNNING') RETURNING revision",
+            &[&s.tenant, &s.event],
+        )
+        .await
+        .unwrap()
+        .get(0);
+    let source = "INSERT INTO sequent_backend.monitoring_snapshot_source
+                      (tenant_id, election_event_id, revision, source, election_set_key,
+                       producer_status, reason)
+                  VALUES ($1, $2, $3, $4, $5, $6, $7)";
+    let no_reason: Option<&str> = None;
+    for id in DataSourceId::iter().filter(|id| *id != DataSourceId::Helpdesk) {
+        let id = id.to_string();
         assert_eq!(
-            attempt(&mut tx, statement, &[&s.event]).await,
-            Ok(rows),
-            "{statement}"
+            attempt(
+                &mut tx,
+                source,
+                &[
+                    &s.tenant,
+                    &s.event,
+                    &revision,
+                    &id,
+                    &key,
+                    &"CONNECTED",
+                    &no_reason
+                ]
+            )
+            .await,
+            Ok(1),
+            "{id}"
         );
     }
+    let missing = set_key(&[id(line!(), 3)]);
+    for (id, set, status, reason, constraint) in [
+        (
+            "weather",
+            &key,
+            "CONNECTED",
+            None,
+            "monitoring_snapshot_source_source_check",
+        ),
+        (
+            "helpdesk",
+            &key,
+            "BROKEN",
+            None,
+            "monitoring_snapshot_source_producer_status_check",
+        ),
+        (
+            "helpdesk",
+            &key,
+            "NOT_CONNECTED",
+            None,
+            "monitoring_snapshot_source_not_connected_says_why",
+        ),
+        (
+            "helpdesk",
+            &key,
+            "NOT_CONNECTED",
+            Some(""),
+            "monitoring_snapshot_source_not_connected_says_why",
+        ),
+        (
+            "helpdesk",
+            &key,
+            "CONNECTED",
+            Some("why"),
+            "monitoring_snapshot_source_not_connected_says_why",
+        ),
+        (
+            "helpdesk",
+            &missing,
+            "CONNECTED",
+            None,
+            "monitoring_snapshot_source_set_is_recorded",
+        ),
+        (
+            "voter_turnout",
+            &key,
+            "CONNECTED",
+            None,
+            "monitoring_snapshot_source_pkey",
+        ),
+    ] {
+        refused_by(
+            attempt(
+                &mut tx,
+                source,
+                &[&s.tenant, &s.event, &revision, &id, set, &status, &reason],
+            )
+            .await,
+            constraint,
+            constraint,
+        );
+    }
+    assert_eq!(
+        attempt(
+            &mut tx,
+            source,
+            &[
+                &s.tenant,
+                &s.event,
+                &revision,
+                &"helpdesk",
+                &key,
+                &"NOT_CONNECTED",
+                &Some("No producer yet")
+            ],
+        )
+        .await,
+        Ok(1)
+    );
+    refused_by(
+        attempt(
+            &mut tx,
+            "UPDATE sequent_backend.monitoring_snapshot_source SET producer_status = 'CONNECTED', reason = NULL
+             WHERE election_event_id = $1 AND source = 'helpdesk'",
+            &[&s.event],
+        )
+        .await,
+        "monitoring_snapshot_source_is_immutable",
+        "a run's record rewritten",
+    );
+    refused_by(
+        attempt(
+            &mut tx,
+            "DELETE FROM sequent_backend.monitoring_election_set WHERE election_event_id = $1",
+            &[&s.event],
+        )
+        .await,
+        "monitoring_snapshot_source_set_is_recorded",
+        "a set a run names, pruned",
+    );
+    // With its run, a run's record goes.
+    let gone = attempt(
+        &mut tx,
+        "DELETE FROM sequent_backend.monitoring_snapshot_run WHERE election_event_id = $1",
+        &[&s.event],
+    )
+    .await;
+    assert_eq!(gone, Ok(1));
+    let left = count(
+        &tx,
+        "SELECT count(*) FROM sequent_backend.monitoring_snapshot_source WHERE election_event_id = $1",
+        &[&s.event],
+    )
+    .await;
+    assert_eq!(left, 0);
+}
+
+#[tokio::test]
+async fn pruning_out_of_order_fails_at_commit_unless_checked_at_once() {
+    let pool = schema::pool().await;
+    let mut client = pool.get().await.unwrap();
+    let s = {
+        let setup = client.transaction().await.unwrap();
+        let s = scope(&setup, line!()).await;
+        let (key, figures) = (set_key(&Vec::<Uuid>::new()), digest("figures"));
+        let statements: [(&str, &[&(dyn ToSql + Sync)]); 3] = [
+            (
+                "INSERT INTO sequent_backend.monitoring_election_set
+                     (tenant_id, election_event_id, election_set_key, election_ids)
+                 VALUES ($1, $2, $3, '{}')",
+                &[&s.tenant, &s.event, &key],
+            ),
+            (
+                "INSERT INTO sequent_backend.monitoring_snapshot_payload
+                     (tenant_id, election_event_id, sha256, payload)
+                 VALUES ($1, $2, $3, '{}')",
+                &[&s.tenant, &s.event, &figures],
+            ),
+            (
+                "INSERT INTO sequent_backend.monitoring_snapshot_figure
+                     (tenant_id, election_event_id, source, election_set_key, scope_key,
+                      from_revision, to_revision, payload_sha256)
+                 VALUES ($1, $2, 'voter_turnout', $3, 'event', 1, 2, $4)",
+                &[&s.tenant, &s.event, &key, &figures],
+            ),
+        ];
+        for (statement, params) in statements {
+            setup.execute(statement, params).await.unwrap();
+        }
+        setup.commit().await.unwrap();
+        s
+    };
+    let payloads =
+        "DELETE FROM sequent_backend.monitoring_snapshot_payload WHERE election_event_id = $1";
+    let figures =
+        "DELETE FROM sequent_backend.monitoring_snapshot_figure WHERE election_event_id = $1";
+
+    // Deferred: the statement succeeds and the whole transaction is lost.
+    let late = client.transaction().await.unwrap();
+    assert_eq!(late.execute(payloads, &[&s.event]).await.unwrap(), 1);
+    let error = late.commit().await.unwrap_err();
+    assert_eq!(refusal(&error), "monitoring_snapshot_figure_payload_exists");
+    // Checked at once, as the job prunes: the statement that errs fails.
+    let at_once = client.transaction().await.unwrap();
+    at_once
+        .batch_execute("SET CONSTRAINTS ALL IMMEDIATE")
+        .await
+        .unwrap();
+    let error = at_once.execute(payloads, &[&s.event]).await.unwrap_err();
+    assert_eq!(refusal(&error), "monitoring_snapshot_figure_payload_exists");
+    at_once.rollback().await.unwrap();
+    // Both in one transaction, in either order, commit.
+    let both = client.transaction().await.unwrap();
+    both.execute(payloads, &[&s.event]).await.unwrap();
+    both.execute(figures, &[&s.event]).await.unwrap();
+    both.commit().await.unwrap();
+
+    let cleanup = client.transaction().await.unwrap();
+    delete_election_event(&cleanup, &s.tenant.to_string(), &s.event.to_string())
+        .await
+        .unwrap();
+    cleanup.commit().await.unwrap();
 }
 
 /// The values a CHECK constraint lists.
@@ -1195,10 +1754,12 @@ async fn the_tables_list_exactly_the_kinds_and_sources_the_code_has() {
     let sources: BTreeSet<String> = DataSourceId::iter()
         .map(|source| source.to_string())
         .collect();
-    assert_eq!(
-        listed(&tx, "monitoring_snapshot_manifest_source_check").await,
-        sources
-    );
+    for constraint in [
+        "monitoring_snapshot_source_source_check",
+        "monitoring_snapshot_figure_source_check",
+    ] {
+        assert_eq!(listed(&tx, constraint).await, sources, "{constraint}");
+    }
 }
 
 #[tokio::test]
@@ -1215,16 +1776,7 @@ async fn a_voter_row_holds_derived_values_only_and_goes_with_its_election() {
     let object = serde_json::json!({"age_band": "18-24"});
     let array = serde_json::json!(["18-24"]);
     let none: Option<&str> = None;
-    let cases: [(
-        &str,
-        Option<&str>,
-        &serde_json::Value,
-        Option<&str>,
-        Option<&str>,
-        &str,
-        i32,
-        &str,
-    ); 9] = [
+    let cases = [
         (
             "",
             none,
@@ -1376,14 +1928,12 @@ async fn a_voter_row_holds_derived_values_only_and_goes_with_its_election() {
     )
     .await
     .unwrap();
-    let voters: i64 = tx
-        .query_one(
-            "SELECT count(*) FROM sequent_backend.monitoring_voter WHERE election_event_id = $1",
-            &[&s.event],
-        )
-        .await
-        .unwrap()
-        .get(0);
+    let voters = count(
+        &tx,
+        "SELECT count(*) FROM sequent_backend.monitoring_voter WHERE election_event_id = $1",
+        &[&s.event],
+    )
+    .await;
     assert_eq!(voters, 0, "a removed Post takes its voters' rows with it");
 }
 
@@ -1393,15 +1943,16 @@ async fn login_attempts_are_counted_in_quarter_hours_once_per_delivery() {
     let mut tx = client.transaction().await.unwrap();
     // Counted before the event is configured.
     let s = bare_scope(&tx, line!()).await;
-    let count = "INSERT INTO sequent_backend.monitoring_login_counter
-                     (tenant_id, election_event_id, bucket_start, event_type, registration, area_id, attempts)
-                 VALUES ($1, $2, $3::text::timestamptz, $4, $5, $6, $7)";
+    let count_one = "INSERT INTO sequent_backend.monitoring_login_counter
+                         (tenant_id, election_event_id, bucket_start, event_type, registration, area_id, attempts)
+                     VALUES ($1, $2, $3::text::timestamptz, $4, $5, $6, $7)";
     let no_area: Option<Uuid> = None;
+    let nil = Some(Uuid::nil());
     let bucket = "2026-05-04T10:15:00Z";
     assert_eq!(
         attempt(
             &mut tx,
-            count,
+            count_one,
             &[
                 &s.tenant,
                 &s.event,
@@ -1415,11 +1966,12 @@ async fn login_attempts_are_counted_in_quarter_hours_once_per_delivery() {
         .await,
         Ok(1)
     );
-    for (bucket, event_type, registration, attempts, constraint, why) in [
+    let cases = [
         (
             "2026-05-04T10:20:00Z",
             "LOGIN",
             "REGISTERED",
+            no_area,
             1_i64,
             "monitoring_login_counter_bucket_start_check",
             "off the quarter hour",
@@ -1428,6 +1980,7 @@ async fn login_attempts_are_counted_in_quarter_hours_once_per_delivery() {
             "2026-05-04T10:15:30Z",
             "LOGIN",
             "REGISTERED",
+            no_area,
             1,
             "monitoring_login_counter_bucket_start_check",
             "with seconds",
@@ -1436,14 +1989,25 @@ async fn login_attempts_are_counted_in_quarter_hours_once_per_delivery() {
             "2026-05-04T10:15:00.000001Z",
             "LOGIN",
             "REGISTERED",
+            no_area,
             1,
             "monitoring_login_counter_bucket_start_check",
             "with microseconds",
         ),
         (
+            "infinity",
+            "LOGIN",
+            "REGISTERED",
+            no_area,
+            1,
+            "monitoring_login_counter_bucket_start_check",
+            "no time at all",
+        ),
+        (
             "2026-05-04T10:30:00Z",
             "LOGIN",
             "GUEST",
+            no_area,
             1,
             "monitoring_login_counter_registration_check",
             "an unknown registration",
@@ -1452,6 +2016,7 @@ async fn login_attempts_are_counted_in_quarter_hours_once_per_delivery() {
             "2026-05-04T10:30:00Z",
             "null",
             "REGISTERED",
+            no_area,
             1,
             "monitoring_login_counter_event_type_check",
             "the listener's missing type",
@@ -1460,30 +2025,42 @@ async fn login_attempts_are_counted_in_quarter_hours_once_per_delivery() {
             "2026-05-04T10:30:00Z",
             "LOGIN",
             "REGISTERED",
+            no_area,
             0,
             "monitoring_login_counter_attempts_check",
             "no attempts",
         ),
         (
+            "2026-05-04T10:30:00Z",
+            "LOGIN",
+            "REGISTERED",
+            nil,
+            1,
+            "monitoring_login_counter_area_id_check",
+            "the stand-in as an area",
+        ),
+        (
             bucket,
             "LOGIN",
             "REGISTERED",
+            no_area,
             1,
             "monitoring_login_counter_pkey",
             "the same bucket twice without an area",
         ),
-    ] {
+    ];
+    for (bucket, event_type, registration, area, attempts, constraint, why) in cases {
         refused_by(
             attempt(
                 &mut tx,
-                count,
+                count_one,
                 &[
                     &s.tenant,
                     &s.event,
                     &bucket,
                     &event_type,
                     &registration,
-                    &no_area,
+                    &area,
                     &attempts,
                 ],
             )
@@ -1496,7 +2073,7 @@ async fn login_attempts_are_counted_in_quarter_hours_once_per_delivery() {
     assert_eq!(
         attempt(
             &mut tx,
-            count,
+            count_one,
             &[
                 &s.tenant,
                 &s.event,
@@ -1566,12 +2143,11 @@ async fn every_monitoring_row_goes_with_its_event() {
     let post = id(line!(), 3);
     election(&tx, s, post).await;
     Revision::edit("w", 1, "id: w\n")
-        .write(&mut tx, s)
+        .save(&mut tx, s)
         .await
         .unwrap();
     let key = set_key(&[post]);
-    let figures = sha256("figures");
-    let manifest = sha256("manifest");
+    let figures = digest("figures");
     let revision: i64 = tx
         .query_one(
             "INSERT INTO sequent_backend.monitoring_snapshot_run
@@ -1582,12 +2158,7 @@ async fn every_monitoring_row_goes_with_its_event() {
         .await
         .unwrap()
         .get(0);
-    let statements: [(&str, &[&(dyn ToSql + Sync)]); 10] = [
-        (
-            "INSERT INTO sequent_backend.monitoring_config_head (tenant_id, election_event_id, kind, key, revision)
-             VALUES ($1, $2, 'widget', 'w', 1)",
-            &[&s.tenant, &s.event],
-        ),
+    let statements: [(&str, &[&(dyn ToSql + Sync)]); 8] = [
         (
             "INSERT INTO sequent_backend.monitoring_election_set
                  (tenant_id, election_event_id, election_set_key, election_ids)
@@ -1600,22 +2171,16 @@ async fn every_monitoring_row_goes_with_its_event() {
             &[&s.tenant, &s.event, &figures],
         ),
         (
-            "INSERT INTO sequent_backend.monitoring_snapshot_manifest
-                 (tenant_id, election_event_id, sha256, source, producer_status)
-             VALUES ($1, $2, $3, 'voter_turnout', 'CONNECTED')",
-            &[&s.tenant, &s.event, &manifest],
-        ),
-        (
-            "INSERT INTO sequent_backend.monitoring_snapshot_manifest_scope
-                 (tenant_id, election_event_id, manifest_sha256, scope_key, payload_sha256)
-             VALUES ($1, $2, $3, '', $4)",
-            &[&s.tenant, &s.event, &manifest, &figures],
-        ),
-        (
             "INSERT INTO sequent_backend.monitoring_snapshot_source
-                 (tenant_id, election_event_id, revision, source, election_set_key, manifest_sha256)
-             VALUES ($1, $2, $3, 'voter_turnout', $4, $5)",
-            &[&s.tenant, &s.event, &revision, &key, &manifest],
+                 (tenant_id, election_event_id, revision, source, election_set_key, producer_status)
+             VALUES ($1, $2, $3, 'voter_turnout', $4, 'CONNECTED')",
+            &[&s.tenant, &s.event, &revision, &key],
+        ),
+        (
+            "INSERT INTO sequent_backend.monitoring_snapshot_figure
+                 (tenant_id, election_event_id, source, election_set_key, scope_key, from_revision, payload_sha256)
+             VALUES ($1, $2, 'voter_turnout', $3, 'event', $4, $5)",
+            &[&s.tenant, &s.event, &key, &revision, &figures],
         ),
         (
             "UPDATE sequent_backend.monitoring_event SET live_snapshot_revision = $3

@@ -163,3 +163,24 @@ fn values_are_encoded_so_keys_cannot_collide() {
         "country=Espa%C3%B1a%20%2F%20Madrid"
     );
 }
+
+#[test]
+fn a_set_of_elections_is_keyed_by_its_ids_whatever_their_order_or_case() {
+    let key = election_set_key([
+        "B0EEBC99-9C0B-4EF8-BB6D-6BB9BD380A12",
+        "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11",
+    ]);
+    // SHA-256 of "a0eebc99-…-6bb9bd380a11,b0eebc99-…-6bb9bd380a12".
+    assert_eq!(key, "b060af5b18c65887");
+    assert_eq!(
+        election_set_key([
+            "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11",
+            "b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a12",
+            "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11",
+        ]),
+        key,
+        "an id listed twice is one election"
+    );
+    // A viewer allowed no election still has a set: the empty one.
+    assert_eq!(election_set_key(Vec::<String>::new()), "e3b0c44298fc1c14");
+}

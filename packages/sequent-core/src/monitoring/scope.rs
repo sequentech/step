@@ -16,6 +16,7 @@
 
 use super::config::{ScopeSelector, Widget};
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 
 /// What the dashboard selectors hold. `None` is "All …".
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -139,7 +140,7 @@ impl ScopeKey {
     }
 
     /// `event`, or `region=…`, `post=…`, `country=…` joined by `&`, values
-    /// percent-encoded. Stable: stored as a key in snapshot manifests.
+    /// percent-encoded. Stable: snapshot figures are stored under it.
     pub fn canonical(&self) -> String {
         let parts: Vec<String> = [
             ("region", &self.region),
@@ -159,6 +160,25 @@ impl ScopeKey {
             parts.join("&")
         }
     }
+}
+
+/// The key of a set of elections a viewer may see: the first 16 hex digits
+/// of the SHA-256 of their ids, lowercase, ascending and comma-separated,
+/// each id once. Election ids are UUIDs, whose lowercase text sorts as their
+/// bytes do, so the monitoring tables can check a stored key against its ids.
+pub fn election_set_key<I, S>(ids: I) -> String
+where
+    I: IntoIterator<Item = S>,
+    S: AsRef<str>,
+{
+    let mut ids: Vec<String> = ids
+        .into_iter()
+        .map(|id| id.as_ref().to_ascii_lowercase())
+        .collect();
+    ids.sort();
+    ids.dedup();
+    let digest = Sha256::digest(ids.join(",").as_bytes());
+    hex::encode(digest)[..16].to_string()
 }
 
 fn encode(value: &str) -> String {

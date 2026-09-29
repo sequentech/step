@@ -196,7 +196,7 @@ election_config_templates = ["default_features", "areas", "dep:handlebars"]
 election_config_archive = ["election_config_templates", "dep:zip"]
 # Monitoring dashboards: their configuration, its policy and its presets. Pure,
 # like election_config, so the Admin Portal can check an edit before saving it.
-monitoring = ["dep:serde_yaml", "dep:indexmap"]
+monitoring = ["dep:serde_yaml", "dep:indexmap", "dep:sha2"]
 
 sqlite = ["dep:tokio", "dep:rusqlite"]
 time = ["dep:time"]

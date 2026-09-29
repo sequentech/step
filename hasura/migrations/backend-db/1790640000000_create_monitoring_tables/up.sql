@@ -6,13 +6,24 @@
 -- through Harvest's permission-checked routes. Every row belongs to one
 -- election event of its own tenant and goes when the event goes.
 --
--- The CHECK lists of configuration kinds and data sources mirror
+-- The lists of configuration kinds and data sources mirror
 -- sequent_core::monitoring::{ConfigKind, DataSourceId}; a new variant needs a
 -- migration deployed before the code that writes it.
 
+-- Raises for the table and operation that fired it; attached to what must
+-- not change.
+CREATE FUNCTION sequent_backend.monitoring_refuse_change()
+RETURNS trigger AS $$
+BEGIN
+    RAISE EXCEPTION '% of % is not allowed', TG_OP, TG_TABLE_NAME
+        USING ERRCODE = 'integrity_constraint_violation',
+              CONSTRAINT = TG_ARGV[0];
+END;
+$$ LANGUAGE plpgsql;
+
 -- An event without a row keeps the standard dashboard. Going back to it is an
--- UPDATE to LEGACY, never a DELETE, which would take the configuration
--- history with it.
+-- UPDATE to LEGACY: the row, and the configuration history with it, is only
+-- deleted with its election event.
 CREATE TABLE sequent_backend.monitoring_event (
     tenant_id uuid NOT NULL,
     election_event_id uuid NOT NULL,
@@ -44,8 +55,29 @@ CREATE TABLE sequent_backend.monitoring_event (
         REFERENCES sequent_backend.election_event (tenant_id, id) ON DELETE CASCADE
 );
 
--- Every saved version of every document. Rows are never changed or removed
--- except with their event: a DELETE revision records a removed document.
+CREATE FUNCTION sequent_backend.monitoring_event_is_kept()
+RETURNS trigger AS $$
+BEGIN
+    -- Inside the election event's cascade the event is already gone.
+    IF EXISTS (
+        SELECT 1 FROM sequent_backend.election_event
+        WHERE tenant_id = OLD.tenant_id AND id = OLD.election_event_id
+    ) THEN
+        RAISE EXCEPTION 'monitoring rows are deleted with their election event'
+            USING ERRCODE = 'integrity_constraint_violation',
+                  CONSTRAINT = 'monitoring_event_is_kept';
+    END IF;
+    RETURN OLD;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER monitoring_event_is_kept
+    BEFORE DELETE ON sequent_backend.monitoring_event
+    FOR EACH ROW EXECUTE FUNCTION sequent_backend.monitoring_event_is_kept();
+
+-- Every saved version of every document. Rows are never changed, and are
+-- deleted only with their event: a DELETE revision records a removed
+-- document.
 CREATE TABLE sequent_backend.monitoring_config (
     tenant_id uuid NOT NULL,
     election_event_id uuid NOT NULL,
@@ -60,7 +92,8 @@ CREATE TABLE sequent_backend.monitoring_config (
     origin text NOT NULL CHECK (origin IN ('PRESET', 'EDITOR')),
     preset_id text CHECK (preset_id ~ '^[a-z0-9][a-z0-9_-]{0,63}$'),
     preset_version integer CHECK (preset_version > 0),
-    author_id text,
+    -- Who saved it or reset to the preset.
+    author_id text NOT NULL,
     author_name text,
     created_at timestamptz NOT NULL DEFAULT now(),
     PRIMARY KEY (tenant_id, election_event_id, kind, key, revision),
@@ -76,8 +109,7 @@ CREATE TABLE sequent_backend.monitoring_config (
         CHECK ((preset_id IS NULL) = (preset_version IS NULL)),
     CONSTRAINT monitoring_config_preset_follows_origin
         CHECK ((origin = 'PRESET') = (preset_id IS NOT NULL)),
-    CONSTRAINT monitoring_config_editor_is_named
-        CHECK (origin <> 'EDITOR' OR COALESCE(author_id, '') <> ''),
+    CONSTRAINT monitoring_config_author_is_named CHECK (author_id <> ''),
     CONSTRAINT monitoring_config_of_its_event
         FOREIGN KEY (tenant_id, election_event_id)
         REFERENCES sequent_backend.monitoring_event (tenant_id, election_event_id)
@@ -87,8 +119,12 @@ CREATE TABLE sequent_backend.monitoring_config (
 CREATE FUNCTION sequent_backend.monitoring_config_is_append_only()
 RETURNS trigger AS $$
 BEGIN
-    -- A cascade from the event runs inside the foreign key's own trigger.
-    IF TG_OP = 'DELETE' AND pg_trigger_depth() > 1 THEN
+    -- Inside the event's cascade the event row is already gone; any other
+    -- deletion, from a statement or another trigger, still sees it.
+    IF TG_OP = 'DELETE' AND NOT EXISTS (
+        SELECT 1 FROM sequent_backend.monitoring_event
+        WHERE tenant_id = OLD.tenant_id AND election_event_id = OLD.election_event_id
+    ) THEN
         RETURN OLD;
     END IF;
     RAISE EXCEPTION 'monitoring configuration revisions are append-only'
@@ -100,14 +136,23 @@ $$ LANGUAGE plpgsql;
 CREATE TRIGGER monitoring_config_is_append_only
     BEFORE UPDATE OR DELETE ON sequent_backend.monitoring_config
     FOR EACH ROW EXECUTE FUNCTION sequent_backend.monitoring_config_is_append_only();
+CREATE TRIGGER monitoring_config_is_not_truncated
+    BEFORE TRUNCATE ON sequent_backend.monitoring_config
+    FOR EACH STATEMENT
+    EXECUTE FUNCTION sequent_backend.monitoring_refuse_change('monitoring_config_is_append_only');
 
 -- The live revision of each document, a DELETE revision for a removed one.
--- A save moves it before writing the revision it names, which the deferred
--- foreign key allows:
---   UPDATE ... SET revision = <expected + 1> WHERE ... AND revision = <expected>
--- or, for a new document, INSERT ... (revision 1) ON CONFLICT DO NOTHING.
--- A concurrent save waits on the row and then matches nothing: touching no
--- row is the conflict to report, never an error.
+-- A save, under READ COMMITTED (a stricter isolation level fails the later
+-- save with a serialization error instead):
+--   1. UPDATE monitoring_event SET config_generation = config_generation + 1,
+--      which also queues saves and resets of one event behind each other;
+--   2. UPDATE the head SET revision = <expected + 1>
+--      WHERE ... AND revision = <expected>, or for a new document
+--      INSERT the head (revision 1) ON CONFLICT DO NOTHING;
+--   3. INSERT the revision the head now names.
+-- Touching no head row in step 2 is the conflict to report, never an error.
+-- The head's foreign key is checked at commit, so step 2 may come first, and
+-- a revision the head does not reach by then is refused.
 CREATE TABLE sequent_backend.monitoring_config_head (
     tenant_id uuid NOT NULL,
     election_event_id uuid NOT NULL,
@@ -127,6 +172,33 @@ CREATE TABLE sequent_backend.monitoring_config_head (
         DEFERRABLE INITIALLY DEFERRED
 );
 
+CREATE FUNCTION sequent_backend.monitoring_config_revision_is_the_head()
+RETURNS trigger AS $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM sequent_backend.monitoring_config
+        WHERE tenant_id = NEW.tenant_id AND election_event_id = NEW.election_event_id
+          AND kind = NEW.kind AND key = NEW.key AND revision = NEW.revision
+    ) AND NOT EXISTS (
+        SELECT 1 FROM sequent_backend.monitoring_config_head
+        WHERE tenant_id = NEW.tenant_id AND election_event_id = NEW.election_event_id
+          AND kind = NEW.kind AND key = NEW.key AND revision >= NEW.revision
+    ) THEN
+        RAISE EXCEPTION 'revision % of % % is not the head', NEW.revision, NEW.kind, NEW.key
+            USING ERRCODE = 'integrity_constraint_violation',
+                  CONSTRAINT = 'monitoring_config_revision_is_the_head';
+    END IF;
+    RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+-- A revision is written only as the new head, so a later save never finds
+-- its next revision number taken.
+CREATE CONSTRAINT TRIGGER monitoring_config_revision_is_the_head
+    AFTER INSERT ON sequent_backend.monitoring_config
+    DEFERRABLE INITIALLY DEFERRED
+    FOR EACH ROW EXECUTE FUNCTION sequent_backend.monitoring_config_revision_is_the_head();
+
 -- True when the ids are in strictly ascending order.
 CREATE FUNCTION sequent_backend.monitoring_uuids_ascend(ids uuid[])
 RETURNS boolean AS $$
@@ -135,21 +207,25 @@ RETURNS boolean AS $$
     WHERE i < array_upper(ids, 1)
 $$ LANGUAGE sql IMMUTABLE STRICT;
 
--- The sets of elections viewers may see, as their permission labels allow.
--- Harvest records a set a viewer asks for; the snapshot job counts for every
--- recorded set.
+-- The sets of elections viewers may see, as their permission labels allow;
+-- the empty set for a viewer allowed none. Harvest records a set a viewer
+-- asks for, refreshing `requested_at` at most every few minutes rather than
+-- on each render; the snapshot job counts for every recorded set, and stops
+-- when a set is no longer asked for. An election deleted later stays listed
+-- until then.
 CREATE TABLE sequent_backend.monitoring_election_set (
     tenant_id uuid NOT NULL,
     election_event_id uuid NOT NULL,
-    -- The first 16 hex digits of the SHA-256 of the ids, in ascending
-    -- order, lowercase and comma-separated.
+    -- sequent_core::monitoring::scope::election_set_key: the first 16 hex
+    -- digits of the SHA-256 of the ids, ascending, lowercase and
+    -- comma-separated.
     election_set_key text NOT NULL,
     election_ids uuid[] NOT NULL,
     requested_at timestamptz NOT NULL DEFAULT now(),
     PRIMARY KEY (tenant_id, election_event_id, election_set_key),
     CONSTRAINT monitoring_election_set_ids_ascend
         CHECK (
-            array_ndims(election_ids) IS NOT DISTINCT FROM 1
+            (cardinality(election_ids) = 0 OR array_ndims(election_ids) = 1)
             AND array_position(election_ids, NULL) IS NULL
             AND sequent_backend.monitoring_uuids_ascend(election_ids)
         ),
@@ -170,7 +246,9 @@ CREATE TABLE sequent_backend.monitoring_election_set (
 -- saw is never reused for other figures.
 CREATE SEQUENCE sequent_backend.monitoring_snapshot_revision;
 
--- One pass of the snapshot job.
+-- One pass of the snapshot job, recorded as RUNNING in a transaction of its
+-- own so a failed pass can still be marked FAILED. Once complete or failed a
+-- run is final, but for `checked_at`.
 CREATE TABLE sequent_backend.monitoring_snapshot_run (
     tenant_id uuid NOT NULL,
     election_event_id uuid NOT NULL,
@@ -208,21 +286,87 @@ CREATE TABLE sequent_backend.monitoring_snapshot_run (
         ON DELETE CASCADE
 );
 
--- Viewers are only shown a complete run, and that run can be neither pruned
--- nor changed while it is shown.
+CREATE FUNCTION sequent_backend.monitoring_snapshot_run_is_final()
+RETURNS trigger AS $$
+BEGIN
+    IF OLD.status <> 'RUNNING' AND (
+        NEW.tenant_id, NEW.election_event_id, NEW.revision, NEW.status, NEW.started_at,
+        NEW.finished_at, NEW.as_of, NEW.settings_revision, NEW.config_generation, NEW.error
+    ) IS DISTINCT FROM (
+        OLD.tenant_id, OLD.election_event_id, OLD.revision, OLD.status, OLD.started_at,
+        OLD.finished_at, OLD.as_of, OLD.settings_revision, OLD.config_generation, OLD.error
+    ) THEN
+        RAISE EXCEPTION 'snapshot run % is final', OLD.revision
+            USING ERRCODE = 'integrity_constraint_violation',
+                  CONSTRAINT = 'monitoring_snapshot_run_is_final';
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER monitoring_snapshot_run_is_final
+    BEFORE UPDATE ON sequent_backend.monitoring_snapshot_run
+    FOR EACH ROW EXECUTE FUNCTION sequent_backend.monitoring_snapshot_run_is_final();
+
+-- Viewers are only shown a complete run, which cannot be pruned while shown.
 ALTER TABLE sequent_backend.monitoring_event
     ADD CONSTRAINT monitoring_event_shows_a_complete_run
         FOREIGN KEY (tenant_id, election_event_id, live_snapshot_revision, live_snapshot_status)
         REFERENCES sequent_backend.monitoring_snapshot_run
             (tenant_id, election_event_id, revision, status);
 
--- Figures for one scope, stored once by content so an unchanged scope costs
--- a hash lookup rather than a new row.
+-- The snapshot tables' references to one another are checked at commit, so
+-- an event's cascade may remove both ends in either order. The snapshot job
+-- prunes in a transaction of its own that starts with
+-- SET CONSTRAINTS ALL IMMEDIATE, so a pruning mistake fails at the statement
+-- that made it and leaves the snapshot it wrote alone.
+
+-- Whether each source was counted in a run, for each set of elections.
+CREATE TABLE sequent_backend.monitoring_snapshot_source (
+    tenant_id uuid NOT NULL,
+    election_event_id uuid NOT NULL,
+    revision bigint NOT NULL,
+    source text NOT NULL CHECK (source IN (
+        'voter_turnout', 'test_voting', 'enrollment_decisions',
+        'voting_credentials', 'poll_status', 'final_testing_lockdown',
+        'counting_transmission', 'voting_enrollment_activity',
+        'access_security', 'attack_detections', 'helpdesk'
+    )),
+    election_set_key text NOT NULL,
+    producer_status text NOT NULL
+        CHECK (producer_status IN ('CONNECTED', 'NOT_CONNECTED')),
+    reason text,
+    PRIMARY KEY (tenant_id, election_event_id, revision, source, election_set_key),
+    CONSTRAINT monitoring_snapshot_source_not_connected_says_why
+        CHECK ((producer_status = 'NOT_CONNECTED') = (COALESCE(reason, '') <> '')),
+    CONSTRAINT monitoring_snapshot_source_of_its_run
+        FOREIGN KEY (tenant_id, election_event_id, revision)
+        REFERENCES sequent_backend.monitoring_snapshot_run
+            (tenant_id, election_event_id, revision)
+        ON DELETE CASCADE,
+    CONSTRAINT monitoring_snapshot_source_set_is_recorded
+        FOREIGN KEY (tenant_id, election_event_id, election_set_key)
+        REFERENCES sequent_backend.monitoring_election_set
+            (tenant_id, election_event_id, election_set_key)
+        DEFERRABLE INITIALLY DEFERRED
+);
+
+CREATE INDEX monitoring_snapshot_source_election_set
+    ON sequent_backend.monitoring_snapshot_source
+        (tenant_id, election_event_id, election_set_key);
+CREATE TRIGGER monitoring_snapshot_source_is_immutable
+    BEFORE UPDATE ON sequent_backend.monitoring_snapshot_source
+    FOR EACH ROW
+    EXECUTE FUNCTION sequent_backend.monitoring_refuse_change('monitoring_snapshot_source_is_immutable');
+
+-- Figures for one scope, stored once by the SHA-256 of their content, so
+-- Harvest may cache them by hash and an unchanged scope stores nothing new.
 CREATE TABLE sequent_backend.monitoring_snapshot_payload (
     tenant_id uuid NOT NULL,
     election_event_id uuid NOT NULL,
-    sha256 text NOT NULL CHECK (sha256 ~ '^[0-9a-f]{64}$'),
-    payload jsonb NOT NULL,
+    -- SHA-256, as bytes.
+    sha256 bytea NOT NULL CHECK (octet_length(sha256) = 32),
+    payload jsonb NOT NULL CHECK (jsonb_typeof(payload) = 'object'),
     created_at timestamptz NOT NULL DEFAULT now(),
     PRIMARY KEY (tenant_id, election_event_id, sha256),
     CONSTRAINT monitoring_snapshot_payload_of_its_event
@@ -231,99 +375,120 @@ CREATE TABLE sequent_backend.monitoring_snapshot_payload (
         ON DELETE CASCADE
 );
 
--- What one source produced for one set of elections, stored once by content
--- (the hash covers the source, status, reason and every scope's payload
--- hash), so a source that did not change costs no new rows. Immutable, so
--- Harvest may cache it by hash.
-CREATE TABLE sequent_backend.monitoring_snapshot_manifest (
+CREATE TRIGGER monitoring_snapshot_payload_is_immutable
+    BEFORE UPDATE ON sequent_backend.monitoring_snapshot_payload
+    FOR EACH ROW
+    EXECUTE FUNCTION sequent_backend.monitoring_refuse_change('monitoring_snapshot_payload_is_immutable');
+
+-- Which payload a scope showed, over the runs from `from_revision` up to but
+-- not including `to_revision` (still showing when NULL). A pass writes only
+-- the scopes that changed: it closes the old row at its revision and opens a
+-- new one. The figures of revision R are the rows whose range holds R, one
+-- index probe per scope; pruning to the oldest kept revision K deletes the
+-- rows closed at or before K, then the payloads no row names any more.
+CREATE TABLE sequent_backend.monitoring_snapshot_figure (
     tenant_id uuid NOT NULL,
     election_event_id uuid NOT NULL,
-    sha256 text NOT NULL CHECK (sha256 ~ '^[0-9a-f]{64}$'),
     source text NOT NULL CHECK (source IN (
         'voter_turnout', 'test_voting', 'enrollment_decisions',
         'voting_credentials', 'poll_status', 'final_testing_lockdown',
         'counting_transmission', 'voting_enrollment_activity',
         'access_security', 'attack_detections', 'helpdesk'
     )),
-    producer_status text NOT NULL
-        CHECK (producer_status IN ('CONNECTED', 'NOT_CONNECTED')),
-    reason text,
-    created_at timestamptz NOT NULL DEFAULT now(),
-    PRIMARY KEY (tenant_id, election_event_id, sha256),
-    CONSTRAINT monitoring_snapshot_manifest_source_key
-        UNIQUE (tenant_id, election_event_id, sha256, source),
-    CONSTRAINT monitoring_snapshot_manifest_not_connected_says_why
-        CHECK ((producer_status = 'NOT_CONNECTED') = (COALESCE(reason, '') <> '')),
-    CONSTRAINT monitoring_snapshot_manifest_of_its_event
+    election_set_key text NOT NULL,
+    -- `event`, or the canonical ScopeKey: `region=…`, `post=…` and
+    -- `country=…` in that order, joined by `&`, values percent-encoded.
+    scope_key text NOT NULL CHECK (scope_key ~ (
+        '^(event'
+        || '|region=[A-Za-z0-9._~%-]+(&post=[A-Za-z0-9._~%-]+)?(&country=[A-Za-z0-9._~%-]+)?'
+        || '|post=[A-Za-z0-9._~%-]+(&country=[A-Za-z0-9._~%-]+)?'
+        || '|country=[A-Za-z0-9._~%-]+)$'
+    )),
+    from_revision bigint NOT NULL CHECK (from_revision > 0),
+    to_revision bigint,
+    payload_sha256 bytea NOT NULL CHECK (octet_length(payload_sha256) = 32),
+    PRIMARY KEY (tenant_id, election_event_id, source, election_set_key, scope_key, from_revision),
+    CONSTRAINT monitoring_snapshot_figure_range_is_forward
+        CHECK (to_revision > from_revision),
+    CONSTRAINT monitoring_snapshot_figure_of_its_event
         FOREIGN KEY (tenant_id, election_event_id)
         REFERENCES sequent_backend.monitoring_event (tenant_id, election_event_id)
-        ON DELETE CASCADE
-);
-
--- The snapshot tables' references to one another are checked at commit, so
--- an event's cascade may remove both ends in either order. Pruning must
--- still remove runs before the manifests, sets and payloads they name, or
--- its commit fails.
-
--- A manifest's payload for each scope: `''` is the whole event, otherwise
--- the canonical ScopeKey (`region=…&post=…&country=…`).
-CREATE TABLE sequent_backend.monitoring_snapshot_manifest_scope (
-    tenant_id uuid NOT NULL,
-    election_event_id uuid NOT NULL,
-    manifest_sha256 text NOT NULL,
-    scope_key text NOT NULL,
-    payload_sha256 text NOT NULL,
-    PRIMARY KEY (tenant_id, election_event_id, manifest_sha256, scope_key),
-    CONSTRAINT monitoring_snapshot_manifest_scope_of_its_manifest
-        FOREIGN KEY (tenant_id, election_event_id, manifest_sha256)
-        REFERENCES sequent_backend.monitoring_snapshot_manifest
-            (tenant_id, election_event_id, sha256)
         ON DELETE CASCADE,
-    CONSTRAINT monitoring_snapshot_manifest_scope_payload_exists
+    CONSTRAINT monitoring_snapshot_figure_set_is_recorded
+        FOREIGN KEY (tenant_id, election_event_id, election_set_key)
+        REFERENCES sequent_backend.monitoring_election_set
+            (tenant_id, election_event_id, election_set_key)
+        DEFERRABLE INITIALLY DEFERRED,
+    CONSTRAINT monitoring_snapshot_figure_payload_exists
         FOREIGN KEY (tenant_id, election_event_id, payload_sha256)
         REFERENCES sequent_backend.monitoring_snapshot_payload
             (tenant_id, election_event_id, sha256)
         DEFERRABLE INITIALLY DEFERRED
 );
 
--- Pruning keeps every payload a manifest still names.
-CREATE INDEX monitoring_snapshot_manifest_scope_payload
-    ON sequent_backend.monitoring_snapshot_manifest_scope
-        (tenant_id, election_event_id, payload_sha256);
+-- One showing row per scope.
+CREATE UNIQUE INDEX monitoring_snapshot_figure_one_open
+    ON sequent_backend.monitoring_snapshot_figure
+        (tenant_id, election_event_id, source, election_set_key, scope_key)
+    WHERE to_revision IS NULL;
+-- Pruning by revision, and payloads still named.
+CREATE INDEX monitoring_snapshot_figure_closed
+    ON sequent_backend.monitoring_snapshot_figure (tenant_id, election_event_id, to_revision)
+    WHERE to_revision IS NOT NULL;
+CREATE INDEX monitoring_snapshot_figure_payload
+    ON sequent_backend.monitoring_snapshot_figure (tenant_id, election_event_id, payload_sha256);
+CREATE INDEX monitoring_snapshot_figure_election_set
+    ON sequent_backend.monitoring_snapshot_figure (tenant_id, election_event_id, election_set_key);
 
--- A run's manifest for each source and set of elections.
-CREATE TABLE sequent_backend.monitoring_snapshot_source (
-    tenant_id uuid NOT NULL,
-    election_event_id uuid NOT NULL,
-    revision bigint NOT NULL,
-    source text NOT NULL,
-    election_set_key text NOT NULL,
-    manifest_sha256 text NOT NULL,
-    PRIMARY KEY (tenant_id, election_event_id, revision, source, election_set_key),
-    CONSTRAINT monitoring_snapshot_source_of_its_run
-        FOREIGN KEY (tenant_id, election_event_id, revision)
-        REFERENCES sequent_backend.monitoring_snapshot_run
-            (tenant_id, election_event_id, revision)
-        ON DELETE CASCADE,
-    CONSTRAINT monitoring_snapshot_source_manifest_of_the_source
-        FOREIGN KEY (tenant_id, election_event_id, manifest_sha256, source)
-        REFERENCES sequent_backend.monitoring_snapshot_manifest
-            (tenant_id, election_event_id, sha256, source)
-        DEFERRABLE INITIALLY DEFERRED,
-    CONSTRAINT monitoring_snapshot_source_set_is_recorded
-        FOREIGN KEY (tenant_id, election_event_id, election_set_key)
-        REFERENCES sequent_backend.monitoring_election_set
-            (tenant_id, election_event_id, election_set_key)
-        DEFERRABLE INITIALLY DEFERRED
-);
+-- A figure row is only ever closed, and a scope's ranges never overlap: the
+-- row before a new one ends where it starts, and the row after it starts
+-- where it ends. Checking both neighbours keeps the whole history disjoint,
+-- since every row goes through this check.
+CREATE FUNCTION sequent_backend.monitoring_snapshot_figure_is_disjoint()
+RETURNS trigger AS $$
+DECLARE
+    previous_end bigint;
+    previous_open boolean;
+    next_start bigint;
+BEGIN
+    IF TG_OP = 'UPDATE' AND NOT (
+        OLD.to_revision IS NULL AND NEW.to_revision IS NOT NULL
+        AND (NEW.tenant_id, NEW.election_event_id, NEW.source, NEW.election_set_key,
+             NEW.scope_key, NEW.from_revision, NEW.payload_sha256)
+            IS NOT DISTINCT FROM
+            (OLD.tenant_id, OLD.election_event_id, OLD.source, OLD.election_set_key,
+             OLD.scope_key, OLD.from_revision, OLD.payload_sha256)
+    ) THEN
+        RAISE EXCEPTION 'a snapshot figure is only ever closed'
+            USING ERRCODE = 'integrity_constraint_violation',
+                  CONSTRAINT = 'monitoring_snapshot_figure_only_closes';
+    END IF;
+    SELECT to_revision, to_revision IS NULL INTO previous_end, previous_open
+    FROM sequent_backend.monitoring_snapshot_figure
+    WHERE tenant_id = NEW.tenant_id AND election_event_id = NEW.election_event_id
+      AND source = NEW.source AND election_set_key = NEW.election_set_key
+      AND scope_key = NEW.scope_key AND from_revision < NEW.from_revision
+    ORDER BY from_revision DESC LIMIT 1;
+    SELECT from_revision INTO next_start
+    FROM sequent_backend.monitoring_snapshot_figure
+    WHERE tenant_id = NEW.tenant_id AND election_event_id = NEW.election_event_id
+      AND source = NEW.source AND election_set_key = NEW.election_set_key
+      AND scope_key = NEW.scope_key AND from_revision > NEW.from_revision
+    ORDER BY from_revision ASC LIMIT 1;
+    IF previous_open OR previous_end > NEW.from_revision
+       OR (next_start IS NOT NULL AND (NEW.to_revision IS NULL OR NEW.to_revision > next_start))
+    THEN
+        RAISE EXCEPTION 'snapshot figures of one scope overlap'
+            USING ERRCODE = 'integrity_constraint_violation',
+                  CONSTRAINT = 'monitoring_snapshot_figure_is_disjoint';
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
 
--- Pruning keeps every manifest and election set a run still names.
-CREATE INDEX monitoring_snapshot_source_manifest
-    ON sequent_backend.monitoring_snapshot_source
-        (tenant_id, election_event_id, manifest_sha256);
-CREATE INDEX monitoring_snapshot_source_election_set
-    ON sequent_backend.monitoring_snapshot_source
-        (tenant_id, election_event_id, election_set_key);
+CREATE TRIGGER monitoring_snapshot_figure_is_disjoint
+    BEFORE INSERT OR UPDATE ON sequent_backend.monitoring_snapshot_figure
+    FOR EACH ROW EXECUTE FUNCTION sequent_backend.monitoring_snapshot_figure_is_disjoint();
 
 -- One row per voter and election (Post), kept up to date by the snapshot
 -- job. `dims` holds derived values only (an age band, never a birth date).
@@ -372,12 +537,15 @@ CREATE TABLE sequent_backend.monitoring_login_counter (
     tenant_id uuid NOT NULL,
     election_event_id uuid NOT NULL,
     bucket_start timestamptz NOT NULL
-        CHECK (date_bin('15 minutes', bucket_start, '2000-01-01T00:00:00Z') = bucket_start),
+        CHECK (
+            isfinite(bucket_start)
+            AND date_bin('15 minutes', bucket_start, '2000-01-01T00:00:00Z') = bucket_start
+        ),
     event_type text NOT NULL CHECK (event_type ~ '^[A-Z][A-Z0-9_]{0,63}$'),
     registration text NOT NULL CHECK (registration IN ('REGISTERED', 'UNREGISTERED')),
-    area_id uuid,
+    area_id uuid CHECK (area_id <> '00000000-0000-0000-0000-000000000000'),
     -- The key's stand-in for a missing area, so the natural key can be the
-    -- primary key.
+    -- primary key. Writers name it in ON CONFLICT (..., area_key).
     area_key uuid GENERATED ALWAYS AS (
         COALESCE(area_id, '00000000-0000-0000-0000-000000000000')
     ) STORED,
