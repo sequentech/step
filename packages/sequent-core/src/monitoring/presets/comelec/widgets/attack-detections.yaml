@@ -29,7 +29,7 @@ queries:
     group_by: category
     measures: [detections]
     sort: {by: value, order: desc}
-height: 400
+height: 560
 chart:
   charts:
     total:
@@ -61,4 +61,5 @@ chart:
         marks: {bar: {labels: {visible: true, format: number}}}
   rows:
     - total
-    - {cols: [series, categories]}
+    - series
+    - categories
