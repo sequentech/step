@@ -119,17 +119,18 @@ fn a_null_in_the_widget_style_leaves_the_theme_value() {
 #[test]
 fn a_list_in_the_widget_style_replaces_the_theme_list_whole() {
     let theme = parse_theme(
-        "id: t\nstyle:\n  color: {categorical: {palette: [\"#111111\", \"#222222\"]}}\n",
+        "id: t\nstyle:\n  charts: {color: {categorical: {palette: [\"#111111\", \"#222222\"]}}}\n",
     )
     .value
     .expect("theme");
     let mut widget = widget();
-    widget.chart["style"] =
-        serde_yaml::from_str("color: {categorical: {palette: [\"#333333\"]}}")
-            .unwrap();
+    widget.chart["style"] = serde_yaml::from_str(
+        "charts: {color: {categorical: {palette: [\"#333333\"]}}}",
+    )
+    .unwrap();
     let board = build_board(&widget, Some(&theme), &data());
     assert_eq!(
-        board["style"]["color"]["categorical"]["palette"],
+        board["style"]["charts"]["color"]["categorical"]["palette"],
         json!(["#333333"])
     );
 }

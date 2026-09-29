@@ -469,10 +469,10 @@
     chart:
       charts: {k: {type: kpi, query: data, value: voted}}
       grid: {columns: 2, items: [{item: "../x.charts.y", col: 0}]}
-- name: markdown text in a tab
+- name: tabs, which switch views by navigating
   kind: widget
   code: forbidden_key
-  path: chart.tabs.items[1].text
+  path: chart.tabs
   yaml: |
     id: w
     title: W
@@ -597,4 +597,261 @@
     title: "[Turnout](/admin/secrets)"
     source: voter_turnout
     query: {template: summary, measures: [voted]}
+    chart: {charts: {k: {type: kpi, query: data, value: voted}}, rows: [k]}
+- name: a colour breaking out of its attribute
+  kind: widget
+  code: forbidden_value
+  path: chart.charts.t.style.background
+  yaml: |
+    id: w
+    title: W
+    source: voter_turnout
+    query: {template: by_group, group_by: sex, measures: [voted]}
+    chart:
+      charts:
+        t: {type: table, query: data, style: {background: 'white" onmouseover="alert(1)" x="'}}
+      rows: [t]
+- name: a colour carrying a CSS declaration
+  kind: theme
+  code: forbidden_value
+  path: style.accent
+  yaml: |
+    id: t
+    style: {accent: "red; filter: blur(2px)"}
+- name: a palette entry that is not a colour
+  kind: theme
+  code: forbidden_value
+  path: style.charts.color.categorical.palette[1]
+  yaml: |
+    id: t
+    style: {charts: {color: {categorical: {palette: ["#ffffff", "red }"]}}}}
+- name: a category colour that is not a colour
+  kind: widget
+  code: forbidden_value
+  path: chart.style.charts.category_colors.group.values.Unknown
+  yaml: |
+    id: w
+    title: W
+    source: voter_turnout
+    query: {template: by_group, group_by: sex, measures: [voted]}
+    chart:
+      charts: {k: {type: bar, query: data, x: group, y: voted}}
+      rows: [k]
+      style: {charts: {category_colors: {group: {values: {Unknown: "grey stroke-width"}}}}}
+- name: a double quote in chart text
+  kind: widget
+  code: forbidden_value
+  path: chart.charts.k.subtitle
+  yaml: |
+    id: w
+    title: W
+    source: voter_turnout
+    query: {template: by_group, group_by: sex, measures: [voted]}
+    chart: {charts: {k: {type: bar, query: data, x: group, y: voted, subtitle: 'The "official" count'}}, rows: [k]}
+- name: a backslash escape in a number format
+  kind: widget
+  code: forbidden_value
+  path: chart.charts.k.style.value.format
+  yaml: |
+    id: w
+    title: W
+    source: voter_turnout
+    query: {template: summary, measures: [voted]}
+    chart: {charts: {k: {type: kpi, query: data, value: voted, style: {value: {format: '0\9'}}}}, rows: [k]}
+- name: a tick count the renderer would choke on
+  kind: widget
+  code: too_large
+  path: chart.charts.k.style.axis_y.ticks.count
+  yaml: |
+    id: w
+    title: W
+    source: voter_turnout
+    query: {template: by_group, group_by: sex, measures: [voted]}
+    chart: {charts: {k: {type: bar, query: data, x: group, y: voted, style: {axis_y: {ticks: {count: 50000000}}}}}, rows: [k]}
+- name: a size no screen has
+  kind: widget
+  code: too_large
+  path: chart.charts.k.height
+  yaml: |
+    id: w
+    title: W
+    source: voter_turnout
+    query: {template: by_group, group_by: sex, measures: [voted]}
+    chart: {charts: {k: {type: bar, query: data, x: group, y: voted, height: 1000000}}, rows: [k]}
+- name: a tick step, which the data's range turns into any number of ticks
+  kind: widget
+  code: forbidden_key
+  path: chart.charts.k.style.axis_y.ticks.step
+  yaml: |
+    id: w
+    title: W
+    source: voter_turnout
+    query: {template: by_group, group_by: sex, measures: [voted]}
+    chart: {charts: {k: {type: bar, query: data, x: group, y: voted, style: {axis_y: {ticks: {step: 1}}}}}, rows: [k]}
+- name: a chart defined as the title of a nested board
+  kind: widget
+  code: invalid_value
+  path: chart.rows[1].title
+  yaml: |
+    id: w
+    title: W
+    source: voter_turnout
+    query: {template: by_group, group_by: sex, measures: [voted]}
+    chart:
+      charts: {k: {type: bar, query: data, x: group, y: voted}}
+      rows: [k, {title: {type: bar, query: data, x: group, y: voted}}]
+- name: a nested board that places nothing
+  kind: widget
+  code: invalid_value
+  path: chart.rows[1]
+  yaml: |
+    id: w
+    title: W
+    source: voter_turnout
+    query: {template: by_group, group_by: sex, measures: [voted]}
+    chart:
+      charts: {k: {type: bar, query: data, x: group, y: voted}}
+      rows: [k, {style: {type: bar, query: data, x: group, y: voted}}]
+- name: details, which expand by navigating
+  kind: widget
+  code: forbidden_key
+  path: chart.rows[0].details
+  yaml: |
+    id: w
+    title: W
+    source: voter_turnout
+    query: {template: summary, measures: [voted]}
+    chart:
+      charts: {k: {type: kpi, query: data, value: voted}}
+      rows: [{details: {summary: More}, rows: [k]}]
+- name: digits typed in beside a value
+  kind: widget
+  code: forbidden_value
+  path: chart.charts.k.style.value.format.prefix
+  yaml: |
+    id: w
+    title: W
+    source: voter_turnout
+    query: {template: summary, measures: [voted]}
+    chart: {charts: {k: {type: kpi, query: data, value: voted, style: {value: {format: {prefix: "9"}}}}}, rows: [k]}
+- name: a glyph with digits
+  kind: widget
+  code: forbidden_value
+  path: chart.charts.k.style.glyph
+  yaml: |
+    id: w
+    title: W
+    source: voter_turnout
+    query: {template: summary, measures: [voted]}
+    chart: {charts: {k: {type: kpi, query: data, value: voted, style: {glyph: "+1"}}}, rows: [k]}
+- name: a donut total the renderer adds up
+  kind: widget
+  code: forbidden_value
+  path: chart.charts.k.total.visible
+  yaml: |
+    id: w
+    title: W
+    source: voter_turnout
+    query: {template: by_group, group_by: sex, measures: [voted]}
+    chart: {charts: {k: {type: donut, query: data, theta: voted, color: group, total: {visible: true}}}, rows: [k]}
+- name: a support table the renderer aggregates
+  kind: widget
+  code: forbidden_key
+  path: chart.charts.k.support_table[0].aggregate
+  yaml: |
+    id: w
+    title: W
+    source: voter_turnout
+    query: {template: by_group, group_by: sex, measures: [voted]}
+    chart: {charts: {k: {type: bar, query: data, x: group, y: voted, support_table: [{source: voted, aggregate: sum}]}}, rows: [k]}
+- name: the engine's footer
+  kind: theme
+  code: forbidden_key
+  path: style.footer
+  yaml: |
+    id: t
+    style: {footer: {visible: true}}
+- name: the engine's data freshness line
+  kind: theme
+  code: forbidden_key
+  path: style.timestamp
+  yaml: |
+    id: t
+    style: {timestamp: {visible: true}}
+- name: visibility left to the engine
+  kind: widget
+  code: forbidden_value
+  path: chart.rows[0].visible
+  yaml: |
+    id: w
+    title: W
+    source: voter_turnout
+    query: {template: summary, measures: [voted]}
+    chart:
+      charts: {k: {type: kpi, query: data, value: voted}}
+      rows: [{visible: auto, rows: [k]}]
+- name: a grid that is not a mapping
+  kind: widget
+  code: invalid_value
+  path: chart.grid
+  yaml: |
+    id: w
+    title: W
+    source: voter_turnout
+    query: {template: summary, measures: [voted]}
+    chart:
+      charts: {k: {type: kpi, query: data, value: voted}}
+      grid: [k]
+- name: grid items that are not a list
+  kind: widget
+  code: invalid_value
+  path: chart.grid.items
+  yaml: |
+    id: w
+    title: W
+    source: voter_turnout
+    query: {template: summary, measures: [voted]}
+    chart:
+      charts: {k: {type: kpi, query: data, value: voted}}
+      grid: {columns: 2, items: {a: k}}
+- name: a grid cell that is not a mapping
+  kind: widget
+  code: invalid_value
+  path: chart.grid.items[0]
+  yaml: |
+    id: w
+    title: W
+    source: voter_turnout
+    query: {template: summary, measures: [voted]}
+    chart:
+      charts: {k: {type: kpi, query: data, value: voted}}
+      grid: {columns: 2, items: [k]}
+- name: layout in a theme's style
+  kind: theme
+  code: forbidden_key
+  path: style.rows
+  yaml: |
+    id: t
+    style: {rows: [k]}
+- name: two keys that read the same
+  kind: widget
+  code: duplicate_id
+  path: selectors.top.options.10
+  yaml: |
+    id: w
+    title: W
+    source: voter_turnout
+    selectors:
+      top: {label: Show, options: {10: Top ten, "10": Also top ten}, default: "10"}
+    query: {template: by_group, group_by: sex, measures: [voted], limit: {selector: top}}
+    chart: {charts: {k: {type: bar, query: data, x: group, y: voted}}, rows: [k]}
+- name: a measure listed twice
+  kind: widget
+  code: duplicate_id
+  path: query.measures[1]
+  yaml: |
+    id: w
+    title: W
+    source: voter_turnout
+    query: {template: summary, measures: [voted, voted]}
     chart: {charts: {k: {type: kpi, query: data, value: voted}}, rows: [k]}
