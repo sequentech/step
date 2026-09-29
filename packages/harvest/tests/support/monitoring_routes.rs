@@ -316,3 +316,170 @@ async fn an_uncounted_set_of_elections_is_pending_and_requested() {
     );
     assert_eq!(services.monitoring_renderer.renders(), 0);
 }
+
+/// Counts the event the way the Windmill job does, from voter rows put
+/// straight into its projection.
+async fn count(services: &Services, event: &Event) {
+    use sequent_core::monitoring::config::ConfigKind;
+    use windmill::services::monitoring::config_store::{
+        get_live_config, EventRef,
+    };
+    use windmill::services::monitoring::snapshot::count_event;
+    let event = EventRef {
+        tenant_id: Uuid::parse_str(&event.tenant_id).unwrap(),
+        election_event_id: Uuid::parse_str(&event.election_event_id).unwrap(),
+    };
+    let mut client = services.hasura.get().await.unwrap();
+    let transaction = client.transaction().await.unwrap();
+    let live = get_live_config(&transaction, event).await.unwrap().unwrap();
+    transaction.commit().await.unwrap();
+    let settings_revision = live
+        .documents
+        .iter()
+        .find(|document| document.kind == ConfigKind::Settings)
+        .unwrap()
+        .revision;
+    count_event(
+        &mut client,
+        event,
+        live.assembled.set.settings.as_ref().unwrap(),
+        settings_revision,
+        live.generation,
+    )
+    .await
+    .unwrap();
+}
+
+async fn post_in(
+    services: &Services,
+    event: &Event,
+    name: &str,
+    region: &str,
+    label: &str,
+) -> String {
+    let id = labelled_election(services, event, label).await;
+    rows::execute(
+        &services.hasura,
+        "UPDATE sequent_backend.election
+         SET presentation = $2, annotations = $3 WHERE id = $1",
+        &[
+            &Uuid::parse_str(&id).unwrap(),
+            &json!({"i18n": {"en": {"name": name}}}),
+            &json!({"miru:geographical-region": region}),
+        ],
+    )
+    .await;
+    id
+}
+
+async fn voter_of(
+    services: &Services,
+    event: &Event,
+    election: &str,
+    voter: &str,
+    region: &str,
+    voted: bool,
+) {
+    rows::execute(
+        &services.hasura,
+        "INSERT INTO sequent_backend.monitoring_voter
+             (tenant_id, election_event_id, election_id, voter_id, region,
+              country, dims, first_voted_at, attributes_hash, settings_revision)
+         VALUES ($1, $2, $3, $4, $5, 'Philippines', '{}',
+                 CASE WHEN $6 THEN now() - interval '1 hour' END, 'h', 1)",
+        &[
+            &Uuid::parse_str(&event.tenant_id).unwrap(),
+            &Uuid::parse_str(&event.election_event_id).unwrap(),
+            &Uuid::parse_str(election).unwrap(),
+            &voter,
+            &region,
+            &voted,
+        ],
+    )
+    .await;
+}
+
+/// The value of `column` in the first row of a drawn widget's table.
+fn first(body: &Value, column: &str) -> Value {
+    let columns = body["table"]["columns"].as_array().unwrap();
+    let at = columns
+        .iter()
+        .position(|c| c["name"] == column || c == column)
+        .unwrap_or_else(|| panic!("no {column} in {body}"));
+    body["table"]["rows"][0][at].clone()
+}
+
+#[rocket::async_test]
+async fn the_figures_windmill_counted_are_drawn_for_exactly_the_viewers_elections(
+) {
+    let services = Services::on_test_database().await.with_live_snapshots();
+    let client = services.client().await;
+    let event = rows::event(&services.hasura).await;
+    let luzon = post_in(&services, &event, "Manila", "Luzon", "north").await;
+    let mindanao =
+        post_in(&services, &event, "Davao", "Mindanao", "south").await;
+    configure(&client, &event).await;
+    voter_of(&services, &event, &luzon, "v1", "Luzon", true).await;
+    voter_of(&services, &event, &luzon, "v2", "Luzon", false).await;
+    voter_of(&services, &event, &mindanao, "v3", "Mindanao", true).await;
+    count(&services, &event).await;
+
+    let (status, body) = render(
+        &client,
+        &viewer(&event),
+        &event,
+        "turnout-summary",
+        json!({}),
+    )
+    .await;
+    assert_eq!(status, Status::Ok, "{body}");
+    assert_eq!(body["state"], "RENDERED", "{body}");
+    assert_eq!(first(&body, "registered"), 3, "{body}");
+    assert_eq!(first(&body, "voted"), 2, "{body}");
+
+    let (status, body) = json(
+        post(
+            &client,
+            "/monitoring/get-dashboard",
+            &viewer(&event),
+            &json!({
+                "election_event_id": event.election_event_id,
+                "dashboard_id": "overview",
+            }),
+        )
+        .await,
+    )
+    .await;
+    assert_eq!(status, Status::Ok, "{body}");
+    let regions: Vec<_> = body["scope_options"]["regions"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|region| region["key"].as_str().unwrap().to_string())
+        .collect();
+    assert_eq!(regions, ["Luzon", "Mindanao"], "{body}");
+
+    let (status, body) = render(
+        &client,
+        &viewer(&event),
+        &event,
+        "turnout-summary",
+        json!({"scope": {"region": "Visayas"}}),
+    )
+    .await;
+    assert_eq!(status, Status::Forbidden, "{body}");
+
+    // A viewer of the north only: their set is not counted yet, so it is
+    // asked for, and the next pass counts it.
+    let northern = viewer(&event).permission_labels(&["north"]);
+    let (_, body) =
+        render(&client, &northern, &event, "turnout-summary", json!({})).await;
+    assert_eq!(body["state"], "SCOPE_PENDING", "{body}");
+    count(&services, &event).await;
+    let (status, body) =
+        render(&client, &northern, &event, "turnout-summary", json!({})).await;
+    assert_eq!(status, Status::Ok, "{body}");
+    assert_eq!(body["state"], "RENDERED", "{body}");
+    assert_eq!(first(&body, "registered"), 2, "{body}");
+    assert_eq!(first(&body, "voted"), 1, "{body}");
+}
