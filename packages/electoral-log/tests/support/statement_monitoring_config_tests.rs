@@ -131,3 +131,60 @@ fn a_reset_that_writes_no_document_still_names_the_preset() {
         "Monitoring configuration generation 5 (dashboard Legacy): reset to preset comelec version 3, no document changed."
     );
 }
+
+#[test]
+fn one_document_is_counted_as_one() {
+    let head = head(MonitoringConfigChangeDetails {
+        origin: MonitoringConfigOrigin::Preset,
+        preset: Some(MonitoringPresetRef {
+            id: MonitoringPresetIdString("campus".to_string()),
+            version: 1,
+        }),
+        mode: MonitoringDashboardMode::Configured,
+        generation: 2,
+        revisions: vec![
+            revision("widget", "a", 2, MonitoringConfigChangeAction::Upsert),
+            revision("dashboard", "c", 2, MonitoringConfigChangeAction::Delete),
+        ],
+    });
+
+    assert_eq!(
+        head.description,
+        "Monitoring configuration generation 2 (dashboard Configured): reset to preset campus version 1, 1 document saved and 1 removed."
+    );
+}
+
+#[test]
+fn the_origin_says_whether_a_change_is_a_reset() {
+    let reset_without_preset = head(MonitoringConfigChangeDetails {
+        origin: MonitoringConfigOrigin::Preset,
+        preset: None,
+        mode: MonitoringDashboardMode::Legacy,
+        generation: 3,
+        revisions: vec![revision(
+            "widget",
+            "a",
+            2,
+            MonitoringConfigChangeAction::Upsert,
+        )],
+    });
+    assert_eq!(
+        reset_without_preset.description,
+        "Monitoring configuration generation 3 (dashboard Legacy): reset to a preset, 1 document saved and 0 removed."
+    );
+
+    let edit_naming_a_preset = head(MonitoringConfigChangeDetails {
+        origin: MonitoringConfigOrigin::Editor,
+        preset: Some(MonitoringPresetRef {
+            id: MonitoringPresetIdString("campus".to_string()),
+            version: 1,
+        }),
+        mode: MonitoringDashboardMode::Legacy,
+        generation: 4,
+        revisions: Vec::new(),
+    });
+    assert_eq!(
+        edit_naming_a_preset.description,
+        "Monitoring configuration generation 4 (dashboard Legacy): Dashboard tab switched, no document changed."
+    );
+}

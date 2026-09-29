@@ -6,12 +6,15 @@
 //! change to it (a save of one document, a reset to a preset, a switch of
 //! the Dashboard tab) as one transaction.
 //!
-//! A change runs under READ COMMITTED and starts by raising the event's
-//! generation, which holds the event's row until it ends, so the changes of
-//! one event queue behind one another and each reads what the one before
-//! it left. It then moves the heads, writes the revisions, makes the checks
-//! the tables defer to commit, and has the electoral log record the change
-//! before it commits. Anything refused on the way writes nothing, and
+//! A change runs under READ COMMITTED and raises the event's generation
+//! before it reads anything it writes from (a reset first holds the
+//! election event, so it cannot be deleted meanwhile, and makes its
+//! monitoring row if there is none). Raising the generation holds the
+//! event's row until the change ends, so the changes of one event queue
+//! behind one another and each reads what the one before it left. It then
+//! moves the heads, writes the revisions, makes the checks the tables defer
+//! to commit, and has the electoral log record the change before it
+//! commits. Anything refused on the way writes nothing, and
 //! nothing reaches the log. A commit that fails after the log recorded the
 //! change leaves an entry for a generation the event never reached; the next
 //! change takes that generation again, and its entry says so.
@@ -28,9 +31,9 @@
 
 use crate::postgres::monitoring_config::{
     advance_head, check_deferred_constraints, create_head, create_monitoring_event,
-    get_event_and_heads, get_event_and_revisions_at, get_head, get_heads, get_revision,
-    get_revisions, insert_revision, lock_election_event, raise_generation, update_mode_and_preset,
-    MonitoringEvent, NewRevision,
+    election_event_exists, get_event_and_heads, get_event_and_revisions_at, get_head, get_heads,
+    get_revision, get_revisions, insert_revision, lock_election_event, raise_generation,
+    update_mode_and_preset, MonitoringEvent, NewRevision,
 };
 use anyhow::{anyhow, Context};
 use async_trait::async_trait;
@@ -84,7 +87,9 @@ pub struct LiveConfig {
     pub assembled: Assembled,
 }
 
-/// What an event was configured with once a generation was reached.
+/// What an event was configured with once a generation was reached: its
+/// documents only. The tables keep no history of the Dashboard tab's mode or
+/// of the preset, so neither is part of it.
 #[derive(Debug, Clone, PartialEq)]
 pub struct ConfigAtGeneration {
     pub generation: i64,
@@ -349,12 +354,15 @@ pub async fn get_config_at_generation(
     event: EventRef,
     generation: i64,
 ) -> anyhow::Result<Option<ConfigAtGeneration>> {
+    if generation < 0 {
+        return Ok(None);
+    }
     let Some((stored, revisions)) =
         get_event_and_revisions_at(transaction, event, generation).await?
     else {
         return Ok(None);
     };
-    if generation < 0 || generation > stored.generation {
+    if generation > stored.generation {
         return Ok(None);
     }
     let (documents, assembled) = live_documents(revisions);
@@ -472,7 +480,7 @@ enum Checked {
 
 /// Saves or removes one document.
 #[instrument(
-    err(Debug),
+    err(Debug, level = "warn"),
     skip(client, checks, audit, author, edit),
     fields(author = %author.id, kind = %edit.kind, key = edit.key, expected = ?edit.expected)
 )]
@@ -559,7 +567,12 @@ async fn check_save(
 
     let (_, live) = live_documents(heads);
     let checked = check_edit(&live.set, kind, key, change).map_err(SaveError::Invalid)?;
-    if stored.mode == DashboardMode::Configured && checked.set.dashboards.is_empty() {
+    // Dashboards that no longer pass are shown by no one already, so a save
+    // among them takes none away.
+    if stored.mode == DashboardMode::Configured
+        && !live.set.dashboards.is_empty()
+        && checked.set.dashboards.is_empty()
+    {
         return Err(SaveError::Invalid(last_dashboard()));
     }
     let engine = checks
@@ -601,9 +614,12 @@ async fn read(
         .start()
         .await
         .context("Failed to start reading the monitoring configuration")?;
-    let read = get_event_and_heads(&transaction, event).await;
-    rollback(transaction).await;
-    read
+    let read = get_event_and_heads(&transaction, event).await?;
+    transaction
+        .commit()
+        .await
+        .context("Failed to finish reading the monitoring configuration")?;
+    Ok(read)
 }
 
 /// Writes a checked save, unless the event moved on since it was checked:
@@ -625,10 +641,12 @@ async fn write_save(
     let Some(stored) = raise_generation(transaction, event).await? else {
         return Err(SaveError::NotConfigured);
     };
-    if stored.generation != checked.generation + 1 {
+    // The tab is switched only with the generation raised, so the mode is
+    // the checked one unless something else moved the event on: then the
+    // save is checked again.
+    if stored.generation != checked.generation + 1 || stored.mode != checked.mode {
         return Ok((None, Finish::Rollback));
     }
-    debug_assert_eq!(stored.mode, checked.mode);
     // Nothing changed since the checks read the head, so it is where they
     // found it.
     let revision = move_head(transaction, event, kind, key, checked.head.as_ref())
@@ -684,7 +702,7 @@ async fn write_save(
 /// Leaves the event with exactly the preset's documents, and the Dashboard
 /// tab in `mode`. An event without monitoring configuration gets it: this is
 /// how an event is first configured.
-#[instrument(err(Debug), skip(client, audit, author), fields(author = %author.id))]
+#[instrument(err(Debug, level = "warn"), skip(client, audit, author), fields(author = %author.id))]
 pub async fn reset_to_preset(
     client: &mut Client,
     audit: &dyn MonitoringConfigAudit,
@@ -711,7 +729,7 @@ pub async fn reset_to_preset(
         version: i32::try_from(preset.manifest.version)
             .context("The preset's version does not fit the monitoring tables")?,
     };
-    if !election_event_exists(client, event).await? {
+    if !election_event_exists(&*client, event).await? {
         return Err(ResetError::NotFound);
     }
     audit
@@ -721,16 +739,6 @@ pub async fn reset_to_preset(
     let transaction = begin(client).await?;
     let result = reset_in(&transaction, audit, event, author, &preset, version, mode).await;
     finish(transaction, result).await
-}
-
-async fn election_event_exists(client: &mut Client, event: EventRef) -> anyhow::Result<bool> {
-    let transaction = client
-        .transaction()
-        .await
-        .context("Failed to start reading the election event")?;
-    let exists = lock_election_event(&transaction, event).await;
-    rollback(transaction).await;
-    exists
 }
 
 async fn reset_in(
@@ -826,7 +834,7 @@ async fn reset_in(
 
 /// Switches the Dashboard tab between the standard dashboard and the
 /// configured ones. The configuration is kept either way.
-#[instrument(err(Debug), skip(client, audit, author), fields(author = %author.id))]
+#[instrument(err(Debug, level = "warn"), skip(client, audit, author), fields(author = %author.id))]
 pub async fn set_mode(
     client: &mut Client,
     audit: &dyn MonitoringConfigAudit,

@@ -9,7 +9,7 @@
 
 use anyhow::{Context, Result};
 use chrono::{DateTime, Utc};
-use deadpool_postgres::Transaction;
+use deadpool_postgres::{GenericClient, Transaction};
 use sequent_core::monitoring::config::ConfigKind;
 use sequent_core::monitoring::revision::{DashboardMode, DocumentChange, RevisionOrigin};
 use std::str::FromStr;
@@ -343,6 +343,19 @@ pub async fn get_event_and_revisions_at(
         .await
         .context("Failed to read the monitoring configuration at a generation")?;
     event_and_revisions(rows)
+}
+
+/// Whether the election event exists.
+#[instrument(err, skip(client))]
+pub async fn election_event_exists(client: &impl GenericClient, event: EventRef) -> Result<bool> {
+    Ok(client
+        .query_opt(
+            "SELECT 1 FROM sequent_backend.election_event WHERE tenant_id = $1 AND id = $2",
+            &[&event.tenant_id, &event.election_event_id],
+        )
+        .await
+        .context("Failed to read the election event")?
+        .is_some())
 }
 
 /// Whether the election event exists, holding it so it cannot be deleted

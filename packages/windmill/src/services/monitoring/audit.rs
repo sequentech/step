@@ -20,6 +20,7 @@ use electoral_log::messages::newtypes::{
     MonitoringPresetRef,
 };
 use sequent_core::monitoring::revision::{DashboardMode, DocumentChange, RevisionOrigin};
+use tracing::warn;
 
 /// The entry's details for a change.
 pub fn change_details(change: &RecordedChange) -> Result<MonitoringConfigChangeDetails> {
@@ -78,31 +79,45 @@ async fn board(transaction: &Transaction<'_>, event: EventRef) -> Result<String>
         .ok_or_else(|| anyhow!("The election event has no electoral-log board"))
 }
 
+async fn prepare_signing_key(client: &mut Client, event: EventRef, author: &Author) -> Result<()> {
+    let transaction = client
+        .transaction()
+        .await
+        .context("Failed to start preparing the electoral log")?;
+    let board = board(&transaction, event).await?;
+    vault::get_admin_user_signing_key(
+        &transaction,
+        &board,
+        &event.tenant_id.to_string(),
+        &author.id,
+        author.name.clone(),
+        None,
+        None,
+    )
+    .await?;
+    transaction
+        .commit()
+        .await
+        .context("Failed to keep the administrator's signing key")
+}
+
 #[async_trait]
 impl MonitoringConfigAudit for ElectoralLogConfigAudit {
     /// Makes the author's signing key, and posts its public key, unless they
     /// have one: in a transaction of its own, so a change that then rolls
     /// back does not take with it a key whose public half the log has.
+    ///
+    /// Two first changes by one author at once both find no key, and the
+    /// second to keep one is refused; it is then tried once more, and reads
+    /// the key the first kept.
     async fn prepare(&self, client: &mut Client, event: EventRef, author: &Author) -> Result<()> {
-        let transaction = client
-            .transaction()
-            .await
-            .context("Failed to start preparing the electoral log")?;
-        let board = board(&transaction, event).await?;
-        vault::get_admin_user_signing_key(
-            &transaction,
-            &board,
-            &event.tenant_id.to_string(),
-            &author.id,
-            author.name.clone(),
-            None,
-            None,
-        )
-        .await?;
-        transaction
-            .commit()
-            .await
-            .context("Failed to keep the administrator's signing key")
+        match prepare_signing_key(client, event, author).await {
+            Ok(()) => Ok(()),
+            Err(error) => {
+                warn!("Preparing the electoral log failed, trying once more: {error:?}");
+                prepare_signing_key(client, event, author).await
+            }
+        }
     }
 
     async fn record(&self, transaction: &Transaction<'_>, change: &RecordedChange) -> Result<()> {

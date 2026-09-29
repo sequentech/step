@@ -323,18 +323,24 @@ fn monitoring_config_description(details: &MonitoringConfigChangeDetails) -> Str
         .count();
     let counts = match details.revisions.len() {
         0 => "no document changed".to_string(),
-        written => format!(
-            "{} documents saved and {removed} removed",
-            written - removed
-        ),
+        written => {
+            let saved = written - removed;
+            let noun = if saved == 1 { "document" } else { "documents" };
+            format!("{saved} {noun} saved and {removed} removed")
+        }
     };
-    let changes = match (details.preset.as_ref(), details.revisions.as_slice()) {
-        (Some(preset), _) => format!(
+    let changes = match (
+        details.origin,
+        details.preset.as_ref(),
+        details.revisions.as_slice(),
+    ) {
+        (MonitoringConfigOrigin::Preset, Some(preset), _) => format!(
             "reset to preset {} version {}, {counts}",
             preset.id.0, preset.version
         ),
-        (None, []) => format!("Dashboard tab switched, {counts}"),
-        (None, [revision]) => format!(
+        (MonitoringConfigOrigin::Preset, None, _) => format!("reset to a preset, {counts}"),
+        (MonitoringConfigOrigin::Editor, _, []) => format!("Dashboard tab switched, {counts}"),
+        (MonitoringConfigOrigin::Editor, _, [revision]) => format!(
             "{} {} revision {} {}",
             revision.kind.0,
             revision.key.0,
@@ -344,7 +350,7 @@ fn monitoring_config_description(details: &MonitoringConfigChangeDetails) -> Str
                 MonitoringConfigChangeAction::Delete => "removed",
             }
         ),
-        (None, _) => counts,
+        (MonitoringConfigOrigin::Editor, _, _) => counts,
     };
     format!(
         "Monitoring configuration generation {} (dashboard {}): {changes}.",
