@@ -11,14 +11,14 @@ fn widget(source: &str, follows: Option<&str>) -> Widget {
     let follows = follows
         .map(|list| format!("follows: {list}\n"))
         .unwrap_or_default();
+    let measure = source
+        .parse::<crate::monitoring::sources::DataSourceId>()
+        .expect("source")
+        .spec()
+        .measures[0];
     let yaml = format!(
-        "id: w\ntitle: W\nsource: {source}\n{follows}query: {{template: summary, measures: [posts]}}\nchart: {{charts: {{k: {{type: kpi, query: data, value: posts}}}}, rows: [k]}}\n"
+        "id: w\ntitle: W\nsource: {source}\n{follows}query: {{template: summary, measures: [{measure}]}}\nchart: {{charts: {{k: {{type: kpi, query: data, value: {measure}}}}}, rows: [k]}}\n"
     );
-    let yaml = if source == "voter_turnout" {
-        yaml.replace("posts", "voted")
-    } else {
-        yaml
-    };
     let parsed = parse_widget(&yaml);
     parsed
         .value
@@ -40,7 +40,7 @@ fn selection(
 #[test]
 fn nothing_selected_is_the_whole_event() {
     let scope = selection(None, None, None)
-        .for_widget(&widget("voter_turnout", None), PostPinning::Selectable);
+        .for_widget(&widget("voter_turnout", None), &PostPinning::Selectable);
     assert_eq!(scope.key, ScopeKey::event());
     assert_eq!(scope.key.canonical(), "event");
     assert!(scope.ignored.is_empty());
@@ -49,7 +49,7 @@ fn nothing_selected_is_the_whole_event() {
 #[test]
 fn a_post_drops_the_region_it_lies_in() {
     let scope = selection(Some("NCR"), Some("e1"), Some("Spain"))
-        .for_widget(&widget("voter_turnout", None), PostPinning::Selectable);
+        .for_widget(&widget("voter_turnout", None), &PostPinning::Selectable);
     assert_eq!(scope.key.region, None);
     assert_eq!(scope.key.post.as_deref(), Some("e1"));
     assert_eq!(scope.key.canonical(), "post=e1&country=Spain");
@@ -59,7 +59,7 @@ fn a_post_drops_the_region_it_lies_in() {
 fn a_widget_ignores_the_selectors_it_does_not_follow() {
     let scope = selection(Some("NCR"), None, Some("Spain")).for_widget(
         &widget("voter_turnout", Some("[region]")),
-        PostPinning::Selectable,
+        &PostPinning::Selectable,
     );
     assert_eq!(scope.key.canonical(), "region=NCR");
     assert!(
@@ -69,7 +69,7 @@ fn a_widget_ignores_the_selectors_it_does_not_follow() {
 
     let whole = selection(Some("NCR"), Some("e1"), Some("Spain")).for_widget(
         &widget("voter_turnout", Some("[]")),
-        PostPinning::Selectable,
+        &PostPinning::Selectable,
     );
     assert_eq!(whole.key, ScopeKey::event());
 }
@@ -77,20 +77,66 @@ fn a_widget_ignores_the_selectors_it_does_not_follow() {
 #[test]
 fn a_source_that_counts_posts_cannot_be_narrowed_by_country() {
     let scope = selection(None, None, Some("Spain"))
-        .for_widget(&widget("poll_status", None), PostPinning::Selectable);
+        .for_widget(&widget("poll_status", None), &PostPinning::Selectable);
     assert_eq!(scope.key, ScopeKey::event());
     assert_eq!(scope.ignored, vec![ScopeSelector::Country]);
 }
 
 #[test]
 fn a_pinned_post_applies_even_to_a_widget_that_does_not_follow_it() {
-    let scope = selection(Some("NCR"), Some("e1"), Some("Spain")).for_widget(
+    let scope = selection(Some("NCR"), Some("e9"), Some("Spain")).for_widget(
         &widget("voter_turnout", Some("[country]")),
-        PostPinning::Pinned,
+        &PostPinning::Pinned("e1".into()),
     );
-    assert_eq!(scope.key.post.as_deref(), Some("e1"));
+    assert_eq!(
+        scope.key.post.as_deref(),
+        Some("e1"),
+        "the page's Post, not whatever the selector held"
+    );
     assert_eq!(scope.key.region, None);
     assert_eq!(scope.key.country.as_deref(), Some("Spain"));
+}
+
+#[test]
+fn a_pinned_post_is_ignored_by_a_source_without_posts_and_says_so() {
+    let scope = selection(None, None, None).for_widget(
+        &widget("attack_detections", None),
+        &PostPinning::Pinned("e1".into()),
+    );
+    assert_eq!(scope.key, ScopeKey::event());
+    assert_eq!(scope.ignored, vec![ScopeSelector::Post]);
+}
+
+#[test]
+fn an_empty_value_means_all() {
+    let scope = selection(Some(""), Some(""), Some(""))
+        .for_widget(&widget("voter_turnout", None), &PostPinning::Selectable);
+    assert_eq!(scope.key, ScopeKey::event());
+}
+
+#[test]
+fn a_country_within_a_region_is_its_own_scope() {
+    let scope = selection(Some("NCR"), None, Some("Spain"))
+        .for_widget(&widget("voter_turnout", None), &PostPinning::Selectable);
+    assert_eq!(scope.key.canonical(), "region=NCR&country=Spain");
+}
+
+#[test]
+fn access_security_cannot_be_narrowed_by_country() {
+    let scope = selection(Some("NCR"), None, Some("Spain"))
+        .for_widget(&widget("access_security", None), &PostPinning::Selectable);
+    assert_eq!(scope.key.canonical(), "region=NCR");
+    assert_eq!(scope.ignored, vec![ScopeSelector::Country]);
+}
+
+#[test]
+fn scope_keys_serialize_without_absent_parts() {
+    let key = ScopeKey {
+        region: None,
+        post: Some("e1".into()),
+        country: None,
+    };
+    assert_eq!(serde_json::to_string(&key).unwrap(), r#"{"post":"e1"}"#);
 }
 
 #[test]

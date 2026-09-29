@@ -93,3 +93,54 @@ fn non_string_keys_survive_as_text() {
         json!({"2024": "category[1]", "true": "category[2]"})
     );
 }
+
+fn paper() -> Theme {
+    parse_theme(
+        "id: t\nstyle:\n  background: dbt-grays.canvas\n  font: {color: dbt-grays.ink, size: 13}\n",
+    )
+    .value
+    .expect("theme")
+}
+
+#[test]
+fn a_null_in_the_widget_style_leaves_the_theme_value() {
+    let mut widget = widget();
+    widget.chart["style"] = serde_yaml::Value::Null;
+    let board = build_board(&widget, Some(&paper()), &data());
+    assert_eq!(board["style"]["background"], json!("dbt-grays.canvas"));
+
+    widget.chart["style"] =
+        serde_yaml::from_str("font: {color: null, size: 15}").unwrap();
+    let board = build_board(&widget, Some(&paper()), &data());
+    assert_eq!(board["style"]["font"]["color"], json!("dbt-grays.ink"));
+    assert_eq!(board["style"]["font"]["size"], json!(15));
+}
+
+#[test]
+fn a_list_in_the_widget_style_replaces_the_theme_list_whole() {
+    let theme = parse_theme(
+        "id: t\nstyle:\n  color: {categorical: {palette: [\"#111111\", \"#222222\"]}}\n",
+    )
+    .value
+    .expect("theme");
+    let mut widget = widget();
+    widget.chart["style"] =
+        serde_yaml::from_str("color: {categorical: {palette: [\"#333333\"]}}")
+            .unwrap();
+    let board = build_board(&widget, Some(&theme), &data());
+    assert_eq!(
+        board["style"]["color"]["categorical"]["palette"],
+        json!(["#333333"])
+    );
+}
+
+#[test]
+fn governed_rows_replace_any_queries_the_chart_carries() {
+    // The policy refuses `queries` in a chart; the builder does not rely on it.
+    let mut widget = widget();
+    widget.chart["queries"] =
+        serde_yaml::from_str("data: {sql: SELECT 1}").unwrap();
+    let board = build_board(&widget, None, &data());
+    assert_eq!(board["queries"]["data"]["columns"], json!(["group", "pct"]));
+    assert!(board["queries"]["data"].get("sql").is_none());
+}

@@ -1548,7 +1548,7 @@ fn check_query(
                 Some(format!("The {template} template takes no filters."))
             }
             _ if builtin_group => Some(
-                "Groups by region, Post, country or reason are counted on their own; they cannot be filtered by voter dimensions.".to_string(),
+                "Groups by region, Post, country, reason or state are counted on their own; they cannot be filtered by voter dimensions.".to_string(),
             ),
             _ => None,
         };
@@ -1853,6 +1853,9 @@ fn check_settings(settings: &Settings, report: &mut Report) {
         report,
     );
     require_text(&settings.pre_enrolled.equals, "pre_enrolled.equals", report);
+    if let Some(label) = &settings.unknown_label {
+        require_text(label, "unknown_label", report);
+    }
     for (name, mapping) in &settings.dimensions {
         let path = join("dimensions", name);
         require_name(name, &path, report);

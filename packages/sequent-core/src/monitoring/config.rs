@@ -532,6 +532,19 @@ pub struct Settings {
     /// The voter dimensions widgets may group by, keyed by the name they use.
     #[serde(default, skip_serializing_if = "IndexMap::is_empty")]
     pub dimensions: IndexMap<String, DimensionMapping>,
+
+    /// How a missing value is shown, in the preset's language. Absent:
+    /// "Unknown". Its key stays `__unknown__` whatever the label.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub unknown_label: Option<String>,
+}
+
+impl Settings {
+    pub fn unknown_label(&self) -> &str {
+        self.unknown_label
+            .as_deref()
+            .unwrap_or(super::payload::UNKNOWN_LABEL)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

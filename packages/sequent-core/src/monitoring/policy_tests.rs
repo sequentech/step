@@ -1030,3 +1030,36 @@ fn the_key_list_is_sorted_unique_and_every_rule_is_known() {
         "keep dbt_charts_keys.txt sorted, one line per key"
     );
 }
+
+#[test]
+fn posts_can_be_grouped_by_state_only_where_posts_are_counted() {
+    let poll = "
+id: w
+title: W
+source: poll_status
+query: {template: by_group, group_by: state, measures: [posts]}
+chart: {charts: {k: {type: donut, query: data, theta: posts, color: group}}, rows: [k]}
+";
+    assert_accepted(&widget_report(poll));
+    let turnout = minimal_with(
+        "{template: summary, measures: [voted]}",
+        "{template: by_group, group_by: state, measures: [voted]}",
+    );
+    assert_refused(
+        &widget_report(&turnout),
+        Code::UnsupportedBySource,
+        "query.group_by",
+    );
+}
+
+#[test]
+fn settings_may_name_the_unknown_group_but_not_leave_it_blank() {
+    assert_accepted(&settings_report(&format!(
+        "{SETTINGS}\nunknown_label: Hindi alam\n"
+    )));
+    assert_refused(
+        &settings_report(&format!("{SETTINGS}\nunknown_label: \" \"\n")),
+        Code::InvalidValue,
+        "unknown_label",
+    );
+}

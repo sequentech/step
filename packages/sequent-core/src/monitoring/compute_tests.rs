@@ -233,6 +233,7 @@ fn age_bands_keep_their_configured_order() {
         [
             json!("18-24"),
             json!("25-39"),
+            json!("40-59"),
             json!("60+"),
             json!("Unknown")
         ]
@@ -388,6 +389,7 @@ fn activity_payload() -> ScopePayload {
     let hour = |start: &str, voted| Bucket {
         start: start.into(),
         day: start[..10].into(),
+        utc_offset: "+08:00".into(),
         counts: counts(&[(Voted, voted), (Approved, 0)]),
     };
     ScopePayload {
@@ -410,7 +412,13 @@ fn daily_buckets_are_the_sum_of_their_hours_and_add_up_to_the_totals() {
     let result = run(VotingEnrollmentActivity, &daily, &activity_payload());
     assert_eq!(
         names(&result),
-        ["bucket_start", "bucket_label", "voted", "voted_cumulative"]
+        [
+            "bucket_start",
+            "bucket_label",
+            "bucket_utc",
+            "voted",
+            "voted_cumulative"
+        ]
     );
     assert_eq!(
         column(&result, "bucket_start"),
@@ -450,6 +458,7 @@ fn the_days_on_offer_are_the_days_with_activity() {
     payload.series.push(Bucket {
         start: "2026-05-05T00:00:00".into(),
         day: "2026-05-05".into(),
+        utc_offset: "+08:00".into(),
         counts: counts(&[(Voted, 0), (Approved, 0)]),
     });
     assert_eq!(event_days(&payload), ["2026-05-03", "2026-05-04"]);
@@ -553,4 +562,394 @@ fn percent_labels_round_half_away_from_zero_to_one_decimal() {
     assert_eq!(percent_label(532, 1000), "53.2%");
     assert_eq!(percent_label(1, 0), "—");
     assert_eq!(percent_label(5, 4), "125.0%");
+}
+
+// -- review fixes -----------------------------------------------------------
+
+#[test]
+fn a_filter_that_matches_no_voter_counts_zero_rather_than_nothing() {
+    // Nobody in this scope has the status "air".
+    let mut summary = query(QueryTemplate::Summary);
+    summary.measures = vec![Voted];
+    summary.ratio = Some(Ratio(Voted, Registered));
+    summary.filters = [("status".to_string(), vec!["air".to_string()])].into();
+    let result = run(VoterTurnout, &summary, &turnout_payload());
+    assert_eq!(column(&result, "voted"), [json!(0)]);
+    assert_eq!(column(&result, "pct"), [Value::Null]);
+    assert_eq!(column(&result, "pct_label"), [json!("—")]);
+
+    let mut outcomes = query(QueryTemplate::ByMeasure);
+    outcomes.measures = vec![Registered, Voted];
+    outcomes.filters = summary.filters.clone();
+    let result = run(VoterTurnout, &outcomes, &turnout_payload());
+    assert_eq!(column(&result, "value"), [json!(0), json!(0)]);
+}
+
+#[test]
+fn a_filter_still_refuses_a_measure_the_producer_did_not_count() {
+    let mut summary = query(QueryTemplate::Summary);
+    summary.measures = vec![PreEnrolled];
+    summary.filters = [("status".to_string(), vec!["air".to_string()])].into();
+    let mut payload = turnout_payload();
+    payload.totals.remove(&PreEnrolled);
+    let refused = evaluate(VoterTurnout, &summary, &payload, Some(&settings()))
+        .expect_err("pre_enrolled was not counted");
+    assert!(refused
+        .problems
+        .iter()
+        .any(|problem| problem.code == Code::NotCounted));
+}
+
+fn settings_with(extra: &str) -> Settings {
+    let parsed = parse_settings(&format!("{SETTINGS}\n{extra}"));
+    parsed
+        .value
+        .unwrap_or_else(|| panic!("refused:\n{}", parsed.report))
+}
+
+#[test]
+fn the_unknown_group_is_labelled_by_the_settings() {
+    let settings = settings_with("unknown_label: Desconocido");
+    let mut by_sex = query(QueryTemplate::ByGroup);
+    by_sex.group_by = Some("sex".into());
+    by_sex.measures = vec![Registered];
+    let result =
+        evaluate(VoterTurnout, &by_sex, &turnout_payload(), Some(&settings))
+            .expect("evaluates");
+    assert_eq!(column(&result, "group").last(), Some(&json!("Desconocido")));
+    assert_eq!(
+        column(&result, "group_key").last(),
+        Some(&json!(UNKNOWN_KEY)),
+        "the key stays, so colour pins and exports do not depend on wording"
+    );
+
+    let mut by_post = query(QueryTemplate::ByGroup);
+    by_post.group_by = Some("post".into());
+    by_post.measures = vec![Registered];
+    let result =
+        evaluate(VoterTurnout, &by_post, &turnout_payload(), Some(&settings))
+            .expect("evaluates");
+    assert_eq!(column(&result, "group").last(), Some(&json!("Desconocido")));
+}
+
+#[test]
+fn configured_values_without_voters_are_shown_as_zero() {
+    // Nobody here is 40-59, but the band is still a bar: bars do not shift
+    // between scopes and nobody wonders where the band went.
+    let mut by_age = query(QueryTemplate::ByGroup);
+    by_age.group_by = Some("age_band".into());
+    by_age.measures = vec![Voted];
+    by_age.ratio = Some(Ratio(Voted, Registered));
+    let result = run(VoterTurnout, &by_age, &turnout_payload());
+    assert_eq!(
+        column(&result, "group"),
+        [
+            json!("18-24"),
+            json!("25-39"),
+            json!("40-59"),
+            json!("60+"),
+            json!("Unknown")
+        ]
+    );
+    assert_eq!(column(&result, "voted")[2], json!(0));
+    assert_eq!(column(&result, "pct_label")[2], json!("—"));
+}
+
+#[test]
+fn a_cube_cell_of_the_wrong_shape_is_refused_not_a_crash() {
+    let mut payload = turnout_payload();
+    payload.cube.as_mut().unwrap().cells.push(CubeCell {
+        values: vec!["F".into()],
+        counts: counts(&[(Registered, 1), (PreEnrolled, 0), (Voted, 0)]),
+    });
+    let mut by_age = query(QueryTemplate::ByGroup);
+    by_age.group_by = Some("age_band".into());
+    by_age.measures = vec![Voted];
+    let refused = evaluate(VoterTurnout, &by_age, &payload, Some(&settings()))
+        .expect_err("malformed");
+    assert!(refused
+        .problems
+        .iter()
+        .any(|problem| problem.code == Code::MalformedSnapshot));
+
+    let mut summary = query(QueryTemplate::Summary);
+    summary.measures = vec![Voted];
+    summary.filters = [("sex".to_string(), vec!["F".to_string()])].into();
+    assert!(
+        evaluate(VoterTurnout, &summary, &payload, Some(&settings())).is_err()
+    );
+}
+
+#[test]
+fn regions_and_countries_take_their_labels_from_the_settings() {
+    let mut settings = settings();
+    settings.scope.region.labels =
+        [("NCR".to_string(), "National Capital Region".to_string())].into();
+    let payload = ScopePayload {
+        totals: counts(&[(Registered, 3)]),
+        groups: [(
+            "region".to_string(),
+            vec![
+                GroupRow {
+                    key: "NCR".into(),
+                    label: None,
+                    counts: counts(&[(Registered, 2)]),
+                },
+                GroupRow {
+                    key: "R3".into(),
+                    label: None,
+                    counts: counts(&[(Registered, 1)]),
+                },
+            ],
+        )]
+        .into(),
+        ..ScopePayload::default()
+    };
+    let mut by_region = query(QueryTemplate::ByGroup);
+    by_region.group_by = Some("region".into());
+    by_region.measures = vec![Registered];
+    let result = evaluate(VoterTurnout, &by_region, &payload, Some(&settings))
+        .expect("evaluates");
+    assert_eq!(
+        column(&result, "group"),
+        [json!("National Capital Region"), json!("R3")]
+    );
+}
+
+#[test]
+fn a_post_without_a_region_is_in_the_unknown_region() {
+    let mut payload = poll_payload();
+    payload.posts[1].region = None;
+    let result = run(PollStatus, &query(QueryTemplate::ByPost), &payload);
+    assert_eq!(
+        column(&result, "region"),
+        [json!("Europe"), json!("Unknown")]
+    );
+}
+
+#[test]
+fn post_lists_have_the_same_columns_whatever_the_data() {
+    let empty = ScopePayload {
+        totals: counts(&[(Posts, 0)]),
+        ..ScopePayload::default()
+    };
+    let result = run(PollStatus, &query(QueryTemplate::ByPost), &empty);
+    assert_eq!(
+        names(&result),
+        ["post", "post_id", "region", "state", "state_label"]
+    );
+    assert!(result.rows.is_empty());
+}
+
+#[test]
+fn labels_sort_as_people_read_them() {
+    let group = |key: &str| GroupRow {
+        key: key.into(),
+        label: None,
+        counts: counts(&[(Registered, 1)]),
+    };
+    let payload = ScopePayload {
+        totals: counts(&[(Registered, 3)]),
+        groups: [(
+            "region".to_string(),
+            vec![group("bicol"), group("Zamboanga"), group("Ilocos")],
+        )]
+        .into(),
+        ..ScopePayload::default()
+    };
+    let mut by_region = query(QueryTemplate::ByGroup);
+    by_region.group_by = Some("region".into());
+    by_region.measures = vec![Registered];
+    by_region.sort = Some(Sort {
+        by: SortKey::Label,
+        order: SortOrder::Asc,
+    });
+    let result = run(VoterTurnout, &by_region, &payload);
+    assert_eq!(
+        column(&result, "group"),
+        [json!("bicol"), json!("Ilocos"), json!("Zamboanga")]
+    );
+}
+
+#[test]
+fn a_template_the_source_lacks_is_refused() {
+    let refused = evaluate(
+        VotingEnrollmentActivity,
+        &query(QueryTemplate::ByPost),
+        &ScopePayload::default(),
+        Some(&settings()),
+    )
+    .expect_err("activity has no Post list");
+    assert!(refused
+        .problems
+        .iter()
+        .any(|problem| problem.code == Code::UnsupportedBySource));
+}
+
+#[test]
+fn a_parameter_the_template_does_not_read_is_refused_not_ignored() {
+    // A filter a template ignored would show the unfiltered figure as if it
+    // were filtered.
+    let mut series = query(QueryTemplate::Timeseries);
+    series.measures = vec![Voted];
+    series.grain = Some(TimeGrain::Day);
+    series.filters = [("sex".to_string(), vec!["F".to_string()])].into();
+    let mut summary = query(QueryTemplate::Summary);
+    summary.measures = vec![Voted];
+    summary.group_by = Some("sex".into());
+    let mut limited = query(QueryTemplate::Summary);
+    limited.measures = vec![Voted];
+    limited.limit = Some(3);
+    let mut grained = query(QueryTemplate::ByMeasure);
+    grained.measures = vec![Voted];
+    grained.grain = Some(TimeGrain::Hour);
+    for (template_query, parameter) in [
+        (series, "filters"),
+        (summary, "group_by"),
+        (limited, "limit"),
+        (grained, "grain"),
+    ] {
+        let refused = evaluate(
+            VoterTurnout,
+            &template_query,
+            &turnout_payload(),
+            Some(&settings()),
+        )
+        .expect_err(parameter);
+        assert!(
+            refused.problems.iter().any(|problem| {
+                problem.code == Code::TemplateParameter
+                    && problem.path == parameter
+            }),
+            "{parameter}: {refused}"
+        );
+    }
+}
+
+#[test]
+fn posts_can_be_counted_by_where_they_stand() {
+    let mut by_state = query(QueryTemplate::ByGroup);
+    by_state.group_by = Some("state".into());
+    by_state.measures = vec![Posts];
+    by_state.labels = [("opened".to_string(), "Open".to_string())].into();
+    let result = run(PollStatus, &by_state, &poll_payload());
+    // Every state, in the order Posts move through them; each Post once.
+    assert_eq!(
+        column(&result, "group_key"),
+        [
+            json!("not_initialized"),
+            json!("initialized"),
+            json!("opened"),
+            json!("paused"),
+            json!("closed")
+        ]
+    );
+    assert_eq!(column(&result, "group")[2], json!("Open"));
+    assert_eq!(
+        column(&result, "posts"),
+        [json!(0), json!(0), json!(1), json!(0), json!(1)]
+    );
+}
+
+#[test]
+fn percent_labels_never_claim_all_or_none_when_it_is_not() {
+    assert_eq!(percent_label(9995, 10000), "99.9%");
+    assert_eq!(percent_label(10000, 10000), "100.0%");
+    assert_eq!(percent_label(1, 100000), "0.1%");
+    assert_eq!(percent_label(0, 100000), "0.0%");
+    assert_eq!(percent_label(1, 16), "6.3%", "half way rounds up");
+}
+
+fn madrid_autumn() -> ScopePayload {
+    // 2026-10-25: clocks go back at 03:00 CEST to 02:00 CET, so 02:00 is
+    // lived twice.
+    let hour = |start: &str, offset: &str, voted| Bucket {
+        start: start.into(),
+        day: start[..10].into(),
+        utc_offset: offset.into(),
+        counts: counts(&[(Voted, voted), (Approved, 0)]),
+    };
+    ScopePayload {
+        totals: counts(&[(Voted, 6), (Approved, 0)]),
+        series: vec![
+            hour("2026-10-25T01:00:00", "+02:00", 1),
+            hour("2026-10-25T02:00:00", "+02:00", 2),
+            hour("2026-10-25T02:00:00", "+01:00", 3),
+            hour("2026-10-25T03:00:00", "+01:00", 0),
+        ],
+        ..ScopePayload::default()
+    }
+}
+
+#[test]
+fn the_hour_lived_twice_when_clocks_go_back_is_two_distinct_buckets() {
+    let mut hourly = query(QueryTemplate::Timeseries);
+    hourly.measures = vec![Voted];
+    hourly.grain = Some(TimeGrain::Hour);
+    hourly.day = Some("2026-10-25".into());
+    let result = run(VotingEnrollmentActivity, &hourly, &madrid_autumn());
+    assert_eq!(
+        column(&result, "bucket_label"),
+        [
+            json!("01:00"),
+            json!("02:00 (UTC+02:00)"),
+            json!("02:00 (UTC+01:00)"),
+            json!("03:00")
+        ]
+    );
+    assert_eq!(
+        column(&result, "bucket_utc"),
+        [
+            json!("2026-10-24T23:00:00Z"),
+            json!("2026-10-25T00:00:00Z"),
+            json!("2026-10-25T01:00:00Z"),
+            json!("2026-10-25T02:00:00Z")
+        ]
+    );
+
+    let mut daily = hourly.clone();
+    daily.grain = Some(TimeGrain::Day);
+    let result = run(VotingEnrollmentActivity, &daily, &madrid_autumn());
+    assert_eq!(column(&result, "voted"), [json!(6)]);
+    assert_eq!(
+        column(&result, "bucket_utc"),
+        [json!("2026-10-24T23:00:00Z")]
+    );
+}
+
+#[test]
+fn hours_across_days_are_labelled_with_their_day() {
+    let mut hourly = query(QueryTemplate::Timeseries);
+    hourly.measures = vec![Voted];
+    hourly.grain = Some(TimeGrain::Hour);
+    let result = run(VotingEnrollmentActivity, &hourly, &activity_payload());
+    assert_eq!(
+        column(&result, "bucket_label"),
+        [
+            json!("2026-05-03 22:00"),
+            json!("2026-05-03 23:00"),
+            json!("2026-05-04 00:00"),
+            json!("2026-05-04 01:00")
+        ]
+    );
+}
+
+#[test]
+fn a_bucket_with_an_unreadable_offset_is_refused() {
+    let mut payload = madrid_autumn();
+    payload.series[0].utc_offset = "CEST".into();
+    let mut hourly = query(QueryTemplate::Timeseries);
+    hourly.measures = vec![Voted];
+    hourly.grain = Some(TimeGrain::Hour);
+    let refused = evaluate(
+        VotingEnrollmentActivity,
+        &hourly,
+        &payload,
+        Some(&settings()),
+    )
+    .expect_err("offset");
+    assert!(refused
+        .problems
+        .iter()
+        .any(|problem| problem.code == Code::MalformedSnapshot));
 }

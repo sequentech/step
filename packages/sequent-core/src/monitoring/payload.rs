@@ -13,8 +13,13 @@
 //!
 //! Payloads are content-addressed, so they must serialize the same way every
 //! time: maps are ordered, and nothing here carries a clock.
+//!
+//! During a rolling deploy a newer snapshot job can write a measure, a Post
+//! state or a notice an older Harvest cannot name. Readers drop those rather
+//! than refuse the payload, so the figures they do know keep showing.
 
 use super::sources::{Measure, PostState};
+use serde::de::{DeserializeOwned, Deserializer};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use strum_macros::{Display, EnumIter, EnumString};
@@ -26,12 +31,13 @@ pub type Counts = BTreeMap<Measure, u64>;
 /// The key a missing dimension value is stored and returned under.
 pub const UNKNOWN_KEY: &str = "__unknown__";
 
-/// How a missing dimension value is shown.
+/// How a missing dimension value is shown when the settings name no label.
 pub const UNKNOWN_LABEL: &str = "Unknown";
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ScopePayload {
     /// The scope's totals.
+    #[serde(deserialize_with = "known_counts")]
     pub totals: Counts,
 
     /// Rows of a dimension that a voter can have more than one value of
@@ -56,7 +62,11 @@ pub struct ScopePayload {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub series: Vec<Bucket>,
 
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[serde(
+        default,
+        skip_serializing_if = "Vec::is_empty",
+        deserialize_with = "known_notices"
+    )]
     pub notices: Vec<Notice>,
 }
 
@@ -68,6 +78,7 @@ pub struct GroupRow {
     /// How to show it, when that differs from the key: a Post's name.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub label: Option<String>,
+    #[serde(deserialize_with = "known_counts")]
     pub counts: Counts,
 }
 
@@ -82,6 +93,7 @@ pub struct Cube {
 pub struct CubeCell {
     /// One value per dimension; [`UNKNOWN_KEY`] when the voter has none.
     pub values: Vec<String>,
+    #[serde(deserialize_with = "known_counts")]
     pub counts: Counts,
 }
 
@@ -93,10 +105,15 @@ pub struct PostRow {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub region: Option<String>,
     /// Where the Post stands, for sources that count Posts.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "known_state"
+    )]
     pub state: Option<PostState>,
     /// For a Post-counting source each measure is 1 or 0; for a voter source
     /// the Post's own distinct counts.
+    #[serde(deserialize_with = "known_counts")]
     pub counts: Counts,
 }
 
@@ -108,6 +125,11 @@ pub struct Bucket {
     pub start: String,
     /// The local day the hour belongs to, `YYYY-MM-DD`.
     pub day: String,
+    /// The zone's offset from UTC during this hour, `+HH:MM` or `-HH:MM`.
+    /// When clocks go back an hour is lived twice; the offset tells the two
+    /// apart.
+    pub utc_offset: String,
+    #[serde(deserialize_with = "known_counts")]
     pub counts: Counts,
 }
 
@@ -135,3 +157,46 @@ pub enum Notice {
     /// This scope's figures exclude them.
     UnregisteredAttemptsExcluded,
 }
+
+impl Cube {
+    /// Whether every cell has one value per dimension. A payload is read
+    /// from storage, so its shape is checked rather than trusted.
+    pub fn is_well_formed(&self) -> bool {
+        self.cells
+            .iter()
+            .all(|cell| cell.values.len() == self.dimensions.len())
+    }
+}
+
+/// Reads `T`, or `None` for a name this build does not know.
+fn known<T: DeserializeOwned>(name: &str) -> Option<T> {
+    serde_json::from_value(serde_json::Value::String(name.to_string())).ok()
+}
+
+fn known_counts<'de, D: Deserializer<'de>>(
+    deserializer: D,
+) -> Result<Counts, D::Error> {
+    let raw = BTreeMap::<String, u64>::deserialize(deserializer)?;
+    Ok(raw
+        .into_iter()
+        .filter_map(|(name, count)| Some((known(&name)?, count)))
+        .collect())
+}
+
+fn known_notices<'de, D: Deserializer<'de>>(
+    deserializer: D,
+) -> Result<Vec<Notice>, D::Error> {
+    let raw = Vec::<String>::deserialize(deserializer)?;
+    Ok(raw.iter().filter_map(|name| known(name)).collect())
+}
+
+fn known_state<'de, D: Deserializer<'de>>(
+    deserializer: D,
+) -> Result<Option<PostState>, D::Error> {
+    let raw = Option::<String>::deserialize(deserializer)?;
+    Ok(raw.as_deref().and_then(known))
+}
+
+#[cfg(test)]
+#[path = "payload_tests.rs"]
+mod payload_tests;
