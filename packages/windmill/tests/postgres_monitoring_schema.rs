@@ -534,31 +534,24 @@ async fn an_event_is_on_the_standard_dashboard_until_it_is_configured() {
 
     let mode = "UPDATE sequent_backend.monitoring_event SET dashboard_mode = $3
                 WHERE tenant_id = $1 AND election_event_id = $2";
-    assert_eq!(
-        attempt(&mut tx, mode, &[&s.tenant, &s.event, &"CONFIGURED"]).await,
-        Ok(1)
-    );
-    refused_by(
-        attempt(&mut tx, mode, &[&s.tenant, &s.event, &"SOMETIMES"]).await,
-        "monitoring_event_dashboard_mode_check",
-        "an unknown mode",
-    );
     let preset = "UPDATE sequent_backend.monitoring_event SET preset_id = $3, preset_version = $4
                   WHERE tenant_id = $1 AND election_event_id = $2";
-    let none: Option<i32> = None;
+    // A change reads the generation to know nothing changed since it
+    // looked: the mode and preset change only in a transaction that raised it.
     refused_by(
-        attempt(&mut tx, preset, &[&s.tenant, &s.event, &"comelec", &none]).await,
-        "monitoring_event_preset_named_with_version",
-        "a preset without its version",
+        attempt(&mut tx, mode, &[&s.tenant, &s.event, &"CONFIGURED"]).await,
+        "monitoring_event_changes_with_its_generation",
+        "a switch that raises no generation",
     );
-    assert_eq!(
+    refused_by(
         attempt(
             &mut tx,
             preset,
-            &[&s.tenant, &s.event, &"comelec", &Some(1)]
+            &[&s.tenant, &s.event, &"comelec", &Some(1)],
         )
         .await,
-        Ok(1)
+        "monitoring_event_changes_with_its_generation",
+        "a reset that raises no generation",
     );
     let raise = "UPDATE sequent_backend.monitoring_event SET config_generation = $3
                  WHERE tenant_id = $1 AND election_event_id = $2";
@@ -580,6 +573,31 @@ async fn an_event_is_on_the_standard_dashboard_until_it_is_configured() {
         attempt(&mut tx, raise, &[&s.tenant, &s.event, &0_i64]).await,
         "monitoring_event_generation_moves_by_one",
         "a generation taken back",
+    );
+    assert_eq!(
+        attempt(&mut tx, mode, &[&s.tenant, &s.event, &"CONFIGURED"]).await,
+        Ok(1),
+        "once raised, the same transaction switches"
+    );
+    refused_by(
+        attempt(&mut tx, mode, &[&s.tenant, &s.event, &"SOMETIMES"]).await,
+        "monitoring_event_dashboard_mode_check",
+        "an unknown mode",
+    );
+    let none: Option<i32> = None;
+    refused_by(
+        attempt(&mut tx, preset, &[&s.tenant, &s.event, &"comelec", &none]).await,
+        "monitoring_event_preset_named_with_version",
+        "a preset without its version",
+    );
+    assert_eq!(
+        attempt(
+            &mut tx,
+            preset,
+            &[&s.tenant, &s.event, &"comelec", &Some(1)]
+        )
+        .await,
+        Ok(1)
     );
     // Which transaction raised it is the trigger's to say.
     assert_eq!(
