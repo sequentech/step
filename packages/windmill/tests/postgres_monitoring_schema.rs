@@ -405,6 +405,29 @@ async fn without_waiting<F: Future>(future: F, what: &str) -> F::Output {
         .unwrap_or_else(|_| panic!("{what} waited for the other transaction"))
 }
 
+/// Waits until a statement of this database naming `table` waits for a
+/// lock; fails the test after five seconds.
+async fn until_waiting(pool: &deadpool_postgres::Pool, table: &str) {
+    let client = pool.get().await.unwrap();
+    for _ in 0..500 {
+        let waiting: i64 = client
+            .query_one(
+                "SELECT count(*) FROM pg_stat_activity
+                 WHERE datname = current_database() AND wait_event_type = 'Lock'
+                   AND query LIKE '%' || $1 || '%'",
+                &[&table],
+            )
+            .await
+            .unwrap()
+            .get(0);
+        if waiting > 0 {
+            return;
+        }
+        tokio::time::sleep(Duration::from_millis(10)).await;
+    }
+    panic!("nothing on {table} waited for a lock");
+}
+
 /// A configuration revision, as a save or a reset would write it.
 struct Revision<'a> {
     kind: &'a str,
@@ -2101,7 +2124,7 @@ async fn only_the_transaction_that_finishes_a_run_writes_what_it_counted() {
             tx.commit().await.map(|()| 1).map_err(refused)
         }
     });
-    tokio::time::sleep(Duration::from_millis(300)).await;
+    until_waiting(&pool, "monitoring_snapshot_run").await;
     assert!(!pass.is_finished(), "completing waits for the source row");
     let error = worker.commit().await.unwrap_err();
     assert_eq!(
@@ -2109,6 +2132,50 @@ async fn only_the_transaction_that_finishes_a_run_writes_what_it_counted() {
         "monitoring_snapshot_source_finishes_its_run"
     );
     assert_eq!(pass.await.unwrap(), Ok(1));
+    // With the pass's completion under way, not yet committed: the other
+    // transaction's figure passes its statement, its source row waits for the
+    // pass, and both are refused at commit.
+    let fourth: i64 = worker_client.query_one(start, &event).await.unwrap().get(0);
+    let pass = pass_client.transaction().await.unwrap();
+    end_run(&pass, s, fourth, "COMPLETE").await.unwrap();
+    let worker = worker_client.transaction().await.unwrap();
+    without_waiting(
+        open_figure(&worker, s, (key.as_str(), "region=south"), fourth, &sha),
+        "a figure of a run completing",
+    )
+    .await
+    .unwrap();
+    let source = tokio::spawn({
+        let pool = pool.clone();
+        let key = key.clone();
+        async move {
+            let mut client = pool.get().await.unwrap();
+            let tx = client.transaction().await.unwrap();
+            tx.execute(
+                "INSERT INTO sequent_backend.monitoring_snapshot_source
+                     (tenant_id, election_event_id, revision, source, election_set_key,
+                      producer_status)
+                 VALUES ($1, $2, $3, 'poll_status', $4, 'CONNECTED')",
+                &[&s.tenant, &s.event, &fourth, &key],
+            )
+            .await
+            .map_err(refused)?;
+            tx.commit().await.map_err(refused)
+        }
+    });
+    until_waiting(&pool, "monitoring_snapshot_source").await;
+    pass.commit().await.unwrap();
+    assert_eq!(
+        source.await.unwrap(),
+        Err("monitoring_snapshot_source_finishes_its_run".to_string())
+    );
+    let error = worker.commit().await.unwrap_err();
+    assert_eq!(
+        refusal(&error),
+        "monitoring_snapshot_figure_completes_its_run"
+    );
+    assert_eq!(figures_of(fourth).await, ["event"]);
+
     let check = worker_client.transaction().await.unwrap();
     assert_eq!(
         count(
@@ -2132,7 +2199,7 @@ async fn only_the_transaction_that_finishes_a_run_writes_what_it_counted() {
         .into_iter()
         .map(|row| (row.get(0), row.get(1)))
         .collect();
-    assert_eq!(finished, vec![("COMPLETE".to_string(), true); 3]);
+    assert_eq!(finished, vec![("COMPLETE".to_string(), true); 4]);
     let xact = "SELECT finished_xact::text FROM sequent_backend.monitoring_snapshot_run
                 WHERE election_event_id = $1 AND revision = $2";
     let recorded: String = check
@@ -2598,7 +2665,7 @@ async fn a_scope_shows_one_stored_payload_over_a_range_of_runs() {
         ),
         (
             "DELETE FROM sequent_backend.monitoring_snapshot_payload WHERE election_event_id = $1",
-            "monitoring_snapshot_figure_payload_exists",
+            "monitoring_snapshot_payload_is_kept",
         ),
         (
             "DELETE FROM sequent_backend.monitoring_election_set WHERE election_event_id = $1",
@@ -3098,25 +3165,40 @@ async fn pruning_out_of_order_fails_at_commit_unless_checked_at_once() {
         "DELETE FROM sequent_backend.monitoring_snapshot_payload WHERE election_event_id = $1";
     let figures =
         "DELETE FROM sequent_backend.monitoring_snapshot_figure WHERE election_event_id = $1";
+    let sets = "DELETE FROM sequent_backend.monitoring_election_set WHERE election_event_id = $1";
 
     // Deferred: the statement succeeds and the whole transaction is lost.
     let late = client.transaction().await.unwrap();
-    assert_eq!(late.execute(payloads, &[&s.event]).await.unwrap(), 1);
+    assert_eq!(late.execute(sets, &[&s.event]).await.unwrap(), 1);
     let error = late.commit().await.unwrap_err();
-    assert_eq!(refusal(&error), "monitoring_snapshot_figure_payload_exists");
+    assert_eq!(
+        refusal(&error),
+        "monitoring_snapshot_figure_set_is_recorded"
+    );
     // Checked at once, as the job prunes: the statement that errs fails.
     let at_once = client.transaction().await.unwrap();
     at_once
         .batch_execute("SET CONSTRAINTS ALL IMMEDIATE")
         .await
         .unwrap();
-    let error = at_once.execute(payloads, &[&s.event]).await.unwrap_err();
-    assert_eq!(refusal(&error), "monitoring_snapshot_figure_payload_exists");
+    let error = at_once.execute(sets, &[&s.event]).await.unwrap_err();
+    assert_eq!(
+        refusal(&error),
+        "monitoring_snapshot_figure_set_is_recorded"
+    );
     at_once.rollback().await.unwrap();
-    // Both in one transaction, in either order, commit.
+    // A payload a figure names is refused at once either way, so it cannot
+    // be deleted and stored again under its hash with other figures.
+    let replaced = client.transaction().await.unwrap();
+    let error = replaced.execute(payloads, &[&s.event]).await.unwrap_err();
+    assert_eq!(refusal(&error), "monitoring_snapshot_payload_is_kept");
+    replaced.rollback().await.unwrap();
+    // In order, in one transaction, it commits: the sets and the figures in
+    // either order, then the payloads.
     let both = client.transaction().await.unwrap();
-    both.execute(payloads, &[&s.event]).await.unwrap();
+    both.execute(sets, &[&s.event]).await.unwrap();
     both.execute(figures, &[&s.event]).await.unwrap();
+    both.execute(payloads, &[&s.event]).await.unwrap();
     both.commit().await.unwrap();
 
     let cleanup = client.transaction().await.unwrap();
