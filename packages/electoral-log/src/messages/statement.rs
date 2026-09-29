@@ -285,6 +285,12 @@ impl StatementHead {
                     ..default_head
                 }
             }
+            StatementBody::MonitoringConfigChanged(_, details) => StatementHead {
+                kind: StatementType::MonitoringConfigChanged,
+                event_type: StatementEventType::USER,
+                description: monitoring_config_description(details),
+                ..default_head
+            },
             StatementBody::ResultsPublicationAction(details) => {
                 let action = match details.action {
                     ResultsPublicationAction::Publish => "published",
@@ -307,6 +313,43 @@ impl StatementHead {
             }
         }
     }
+}
+
+fn monitoring_config_description(details: &MonitoringConfigChangeDetails) -> String {
+    let changes = match (details.preset.as_ref(), details.revisions.as_slice()) {
+        (_, []) => "no document changed".to_string(),
+        (None, [revision]) => format!(
+            "{} {} revision {} {}",
+            revision.kind.0,
+            revision.key.0,
+            revision.revision,
+            match revision.action {
+                MonitoringConfigChangeAction::Upsert => "saved",
+                MonitoringConfigChangeAction::Delete => "removed",
+            }
+        ),
+        (preset, revisions) => {
+            let removed = revisions
+                .iter()
+                .filter(|revision| revision.action == MonitoringConfigChangeAction::Delete)
+                .count();
+            let counts = format!(
+                "{} documents saved and {removed} removed",
+                revisions.len() - removed
+            );
+            match preset {
+                Some(preset) => format!(
+                    "reset to preset {} version {}, {counts}",
+                    preset.id.0, preset.version
+                ),
+                None => counts,
+            }
+        }
+    };
+    format!(
+        "Monitoring configuration generation {} (dashboard {}): {changes}.",
+        details.generation, details.mode
+    )
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Deserialize, Serialize, Debug)]
@@ -437,6 +480,9 @@ pub enum StatementBody {
         ExternalReconciliationInputHashString,
         ExternalReconciliationOutputHashString,
     ),
+    /// Records a change to an election event's monitoring dashboards
+    /// configuration. The digests bind each entry to the stored document.
+    MonitoringConfigChanged(EventIdString, MonitoringConfigChangeDetails),
 }
 
 // Note: When creating new variants, consider that the length limit STATEMENT_KIND_VARCHAR_LENGTH is 40.
@@ -471,6 +517,7 @@ pub enum StatementType {
     ResultsPublicationAction,
     ExternalApiRequest,
     ExternalReconciliation,
+    MonitoringConfigChanged,
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Display, Deserialize, Serialize, Debug, Clone)]
@@ -492,3 +539,7 @@ pub enum StatementLogType {
 #[cfg(test)]
 #[path = "../../tests/support/statement_results_publication_tests.rs"]
 mod results_publication_tests;
+
+#[cfg(test)]
+#[path = "../../tests/support/statement_monitoring_config_tests.rs"]
+mod monitoring_config_tests;
