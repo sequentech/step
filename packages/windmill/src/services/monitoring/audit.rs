@@ -1,0 +1,98 @@
+// SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
+//! The electoral log's entry for each monitoring configuration change,
+//! signed by the administrator who made it.
+
+use super::config_store::{MonitoringConfigAudit, RecordedChange};
+use crate::postgres::election_event::get_election_event_by_id;
+use crate::services::election_event_board::get_election_event_board;
+use crate::services::electoral_log::ElectoralLog;
+use anyhow::{anyhow, Context, Result};
+use async_trait::async_trait;
+use deadpool_postgres::Transaction;
+use electoral_log::messages::newtypes::{
+    MonitoringConfigChangeAction, MonitoringConfigChangeDetails, MonitoringConfigDigestString,
+    MonitoringConfigKeyString, MonitoringConfigKindString, MonitoringConfigOrigin,
+    MonitoringConfigRevisionRef, MonitoringDashboardMode, MonitoringPresetIdString,
+    MonitoringPresetRef,
+};
+use sequent_core::monitoring::revision::{DashboardMode, DocumentChange, RevisionOrigin};
+
+/// The entry's details for a change.
+pub fn change_details(change: &RecordedChange) -> Result<MonitoringConfigChangeDetails> {
+    Ok(MonitoringConfigChangeDetails {
+        origin: match change.origin {
+            RevisionOrigin::Editor => MonitoringConfigOrigin::Editor,
+            RevisionOrigin::Preset => MonitoringConfigOrigin::Preset,
+        },
+        preset: change
+            .preset
+            .as_ref()
+            .map(|preset| {
+                Ok::<_, anyhow::Error>(MonitoringPresetRef {
+                    id: MonitoringPresetIdString(preset.id.clone()),
+                    version: u32::try_from(preset.version)
+                        .context("A preset version is positive")?,
+                })
+            })
+            .transpose()?,
+        mode: match change.mode {
+            DashboardMode::Legacy => MonitoringDashboardMode::Legacy,
+            DashboardMode::Configured => MonitoringDashboardMode::Configured,
+        },
+        generation: u64::try_from(change.generation).context("A generation is not negative")?,
+        revisions: change
+            .revisions
+            .iter()
+            .map(|revision| {
+                Ok(MonitoringConfigRevisionRef {
+                    kind: MonitoringConfigKindString(revision.kind.to_string()),
+                    key: MonitoringConfigKeyString(revision.key.clone()),
+                    revision: u32::try_from(revision.revision).context("A revision is positive")?,
+                    action: match revision.change {
+                        DocumentChange::Upsert => MonitoringConfigChangeAction::Upsert,
+                        DocumentChange::Delete => MonitoringConfigChangeAction::Delete,
+                    },
+                    digest: revision.digest.clone().map(MonitoringConfigDigestString),
+                })
+            })
+            .collect::<Result<_>>()?,
+    })
+}
+
+/// Posts each change to the election event's electoral log.
+pub struct ElectoralLogConfigAudit;
+
+#[async_trait]
+impl MonitoringConfigAudit for ElectoralLogConfigAudit {
+    async fn record(&self, transaction: &Transaction<'_>, change: &RecordedChange) -> Result<()> {
+        let details = change_details(change)?;
+        let tenant_id = change.event.tenant_id.to_string();
+        let election_event_id = change.event.election_event_id.to_string();
+        let election_event =
+            get_election_event_by_id(transaction, &tenant_id, &election_event_id).await?;
+        let board = get_election_event_board(election_event.bulletin_board_reference)
+            .ok_or_else(|| anyhow!("The election event has no electoral-log board"))?;
+        let electoral_log = ElectoralLog::for_admin_user(
+            transaction,
+            &board,
+            &tenant_id,
+            &election_event_id,
+            &change.author.id,
+            change.author.name.clone(),
+            None,
+            None,
+        )
+        .await?;
+        electoral_log
+            .post_monitoring_config_changed(
+                election_event_id,
+                details,
+                Some(change.author.id.clone()),
+                change.author.name.clone(),
+            )
+            .await
+    }
+}

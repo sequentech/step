@@ -1010,6 +1010,26 @@ impl ElectoralLog {
         self.post(&message).await
     }
 
+    /// Posts a change to the election event's monitoring dashboards.
+    #[instrument(skip(self))]
+    pub async fn post_monitoring_config_changed(
+        &self,
+        event_id: String,
+        details: MonitoringConfigChangeDetails,
+        user_id: Option<String>,
+        username: Option<String>,
+    ) -> Result<()> {
+        let message = Message::monitoring_config_changed_message(
+            EventIdString(event_id),
+            details,
+            &self.sd,
+            user_id,
+            username,
+        )?;
+
+        self.post(&message).await
+    }
+
     #[instrument(skip(self))]
     pub async fn post_election_published(
         &self,
