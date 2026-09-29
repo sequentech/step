@@ -282,7 +282,6 @@ const englishTranslation = {
                 EXPORT_CERTIFICATE_AUTHORITIES: "Export Certificate Authorities",
                 PUBLISH_RESULTS_WEBSITE: "Publish Results Website",
                 VOTER_INFORMATION_LETTER: "Voter Information Letter",
-                EXPORT_MONITORING_DATA: "Export Monitoring Data",
             },
             documentAccess: {
                 title: "Document access",

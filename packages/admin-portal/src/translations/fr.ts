@@ -269,7 +269,6 @@ const frenchTranslation: TranslationType = {
                 CREATE_TRANSMISSION_PACKAGE: "Créer un paquet de transmission",
                 EXPORT_BALLOT_PUBLICATION: "Exporter Publication de Bulletin",
                 EXPORT_ACTIVITY_LOGS_REPORT: "Exporter le Rapport des Journaux d'Activité",
-                EXPORT_MONITORING_DATA: "Exporter les données de suivi",
                 GENERATE_REPORT: "Générer un rapport",
                 GENERATE_TRANSMISSION_REPORT: "Générer un rapport de transmission",
                 EXPORT_TRUSTEES: "Exporter les Autorités",
