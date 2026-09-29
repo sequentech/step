@@ -403,7 +403,16 @@ async fn collect_widget(
             })
         }
         ScopeRead::NotConnected { reason } => return Ok(WidgetData::NotConnected { reason }),
-        ScopeRead::Empty => empty_payload(source),
+        ScopeRead::Empty => match settings {
+            Some(settings) => empty_payload(source, settings),
+            // A pass counts only with settings, so a counted scope has them.
+            None => {
+                return Err(MonitoringExportError::Internal(anyhow!(
+                    "the configuration of '{}' has no settings",
+                    widget.id
+                )))
+            }
+        },
         ScopeRead::Payload { text, .. } => serde_json::from_str(&text).map_err(|error| {
             MonitoringExportError::Internal(anyhow!(
                 "the stored figures of '{}' do not read: {error}",
