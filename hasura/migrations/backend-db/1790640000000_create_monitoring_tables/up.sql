@@ -79,6 +79,9 @@ CREATE TABLE sequent_backend.monitoring_event (
     config_generation bigint NOT NULL DEFAULT 0 CHECK (config_generation >= 0),
     -- The transaction that last raised config_generation, kept by a trigger:
     -- a revision is written only by the change that raised the generation.
+    -- Meaningful only to the cluster that wrote it: after a dump is restored
+    -- elsewhere, one transaction may happen to have this id, and only a bug
+    -- in exactly that one could then write a revision without a raise.
     config_generation_xact xid8,
     created_at timestamptz NOT NULL DEFAULT now(),
     updated_at timestamptz NOT NULL DEFAULT now(),
@@ -409,7 +412,10 @@ CREATE TABLE sequent_backend.monitoring_snapshot_run (
     config_generation bigint CHECK (config_generation >= 0),
     error text,
     -- The transaction that completed or failed the run, set by
-    -- monitoring_snapshot_run_records_who_finished.
+    -- monitoring_snapshot_run_records_who_finished. Meaningful only to the
+    -- cluster that wrote it: a dump restored elsewhere starts transaction
+    -- ids afresh, which is harmless here, as rows are only written for a
+    -- RUNNING run and a finished run never runs again.
     finished_xact xid8,
     PRIMARY KEY (tenant_id, election_event_id, revision),
     CONSTRAINT monitoring_snapshot_run_status_key
@@ -750,6 +756,32 @@ CREATE TRIGGER monitoring_snapshot_payload_is_immutable
     BEFORE UPDATE ON sequent_backend.monitoring_snapshot_payload
     FOR EACH ROW
     EXECUTE FUNCTION sequent_backend.monitoring_refuse_change('monitoring_snapshot_payload_is_immutable');
+
+-- A payload a figure names is kept, so no DELETE and INSERT under the same
+-- hash changes what a revision shows; pruning deletes it once the figures
+-- naming it are gone. Inside the event's cascade the event row is gone.
+CREATE FUNCTION sequent_backend.monitoring_snapshot_payload_is_kept()
+RETURNS trigger AS $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM sequent_backend.monitoring_event
+        WHERE tenant_id = OLD.tenant_id AND election_event_id = OLD.election_event_id
+    ) AND EXISTS (
+        SELECT 1 FROM sequent_backend.monitoring_snapshot_figure
+        WHERE tenant_id = OLD.tenant_id AND election_event_id = OLD.election_event_id
+          AND payload_sha256 = OLD.sha256
+    ) THEN
+        RAISE EXCEPTION 'a snapshot figure names this payload'
+            USING ERRCODE = 'integrity_constraint_violation',
+                  CONSTRAINT = 'monitoring_snapshot_payload_is_kept';
+    END IF;
+    RETURN OLD;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER monitoring_snapshot_payload_is_kept
+    BEFORE DELETE ON sequent_backend.monitoring_snapshot_payload
+    FOR EACH ROW EXECUTE FUNCTION sequent_backend.monitoring_snapshot_payload_is_kept();
 
 -- Which payload a scope showed, over the runs from `from_revision` up to but
 -- not including `to_revision` (still showing when NULL). Only the pass of a

@@ -8,6 +8,7 @@ DROP TABLE IF EXISTS sequent_backend.monitoring_snapshot_figure;
 DROP FUNCTION IF EXISTS sequent_backend.monitoring_snapshot_figure_is_kept();
 DROP FUNCTION IF EXISTS sequent_backend.monitoring_snapshot_figure_completes_its_run();
 DROP TABLE IF EXISTS sequent_backend.monitoring_snapshot_payload;
+DROP FUNCTION IF EXISTS sequent_backend.monitoring_snapshot_payload_is_kept();
 DROP TABLE IF EXISTS sequent_backend.monitoring_snapshot_source;
 DROP FUNCTION IF EXISTS sequent_backend.monitoring_snapshot_source_is_kept();
 DROP FUNCTION IF EXISTS sequent_backend.monitoring_snapshot_source_finishes_its_run();
