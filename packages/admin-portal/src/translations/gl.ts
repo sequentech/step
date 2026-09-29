@@ -268,7 +268,6 @@ const galegoTranslation: TranslationType = {
                 CREATE_TRANSMISSION_PACKAGE: "Crear paquete de transmisión",
                 EXPORT_BALLOT_PUBLICATION: "Exportar Publicación de Boleta",
                 EXPORT_ACTIVITY_LOGS_REPORT: "Exportar Informe de Registros de Actividad",
-                EXPORT_MONITORING_DATA: "Exportar datos de monitorización",
                 GENERATE_REPORT: "Generar Reporte",
                 GENERATE_TRANSMISSION_REPORT: "Generar Informe de Transmisión",
                 EXPORT_TRUSTEES: "Exportar Autoridades",
