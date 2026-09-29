@@ -123,12 +123,8 @@
   },
   "rows": [
     "total",
-    {
-      "cols": [
-        "series",
-        "categories"
-      ]
-    }
+    "series",
+    "categories"
   ],
   "style": {
     "accent": "#1d4ed8",
