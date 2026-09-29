@@ -54,10 +54,10 @@
     {
       "cols": [
         "logins",
-        "failures",
-        "resets"
+        "failures"
       ]
-    }
+    },
+    "resets"
   ],
   "style": {
     "accent": "#1d4ed8",

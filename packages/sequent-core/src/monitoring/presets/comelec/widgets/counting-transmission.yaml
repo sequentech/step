@@ -19,14 +19,14 @@ queries:
   milestone: {template: summary, ratio: {selector: milestone}}
   failed: {template: summary, measures: [transmission_failed]}
   posts: {template: by_post, measures: [posts], sort: {by: label, order: asc}}
-height: 400
+height: 460
 chart:
   charts:
     reached:
       type: kpi
       query: milestone
       value: numerator
-      label: Posts that reached the milestone
+      label: Posts at the milestone
       style: {value: {format: integer}}
       support: {value: pct_label, label: of the Posts in scope}
     in_scope:
@@ -58,5 +58,6 @@ chart:
           when:
             - {eq: Transmission failed, background: negative.bg}
   rows:
-    - {cols: [reached, in_scope, failed]}
+    - {cols: [reached, in_scope]}
+    - failed
     - posts
