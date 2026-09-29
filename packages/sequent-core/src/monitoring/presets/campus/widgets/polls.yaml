@@ -13,7 +13,7 @@ queries:
     group_by: state
     measures: [posts]
     labels: {not_initialized: Not ready, initialized: Ready, opened: Open, paused: Paused, closed: Closed}
-height: 300
+height: 480
 chart:
   charts:
     opened:
@@ -30,4 +30,4 @@ chart:
       theta: posts
       color: group
       title: Stations by state
-  rows: [{cols: [opened, states]}]
+  rows: [opened, states]
