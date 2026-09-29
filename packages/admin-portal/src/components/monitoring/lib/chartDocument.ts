@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import DOMPurify, {type DOMPurify as Purifier} from "dompurify"
 import {EColorScheme, WIDTH_BUCKET_PX} from "../types"
+import {chartSize, type ChartSize} from "./chartSize"
 
 // A chart is drawn in `<iframe sandbox="" srcDoc>`: no script runs, and this
 // policy, first in the head, lets the document load nothing but inline styles
@@ -78,6 +79,8 @@ export function widthBucket(width: number): number {
 export interface ChartDocument {
     html: string
     hash: string
+    /** The sanitized chart's shape, which sizes the frame. */
+    size: ChartSize | null
 }
 
 export function chartDocument({
@@ -90,6 +93,7 @@ export function chartDocument({
     /** `@font-face` rules with data: URIs, built once for every frame. */
     fontCss?: string
 }): ChartDocument {
+    const clean = sanitizeSvg(svg)
     const scheme = colorScheme === EColorScheme.DARK ? "dark" : "light"
     const html =
         "<!doctype html><html><head>" +
@@ -102,7 +106,7 @@ export function chartDocument({
         "body { overflow-y: auto; overflow-x: hidden; }" +
         "svg { display: block; max-width: 100%; height: auto; }" +
         "</style></head><body>" +
-        sanitizeSvg(svg) +
+        clean +
         "</body></html>"
-    return {html, hash: hashString(html)}
+    return {html, hash: hashString(html), size: chartSize(clean)}
 }

@@ -87,6 +87,26 @@ describe("chartDocument", () => {
         expect(html).toContain("<rect")
     })
 
+    it("reads the chart's size from the sanitized root", () => {
+        const tall =
+            '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 607.7" width="400">' +
+            "<rect/></svg>"
+        expect(chartDocument({svg: tall, colorScheme: EColorScheme.LIGHT}).size).toEqual({
+            aspect: 607.7 / 400,
+            width: 400,
+        })
+        // What the sanitizer takes off the root does not hide the size.
+        const handled =
+            '<svg xmlns="http://www.w3.org/2000/svg" onload="alert(1)" viewBox="0 0 200 100">' +
+            "<rect/></svg>"
+        expect(chartDocument({svg: handled, colorScheme: EColorScheme.LIGHT}).size).toEqual({
+            aspect: 0.5,
+        })
+        expect(
+            chartDocument({svg: svg("<rect/>"), colorScheme: EColorScheme.LIGHT}).size
+        ).toBeNull()
+    })
+
     it("gives the frame the engine's font as a data: URI the policy allows", () => {
         expect(CHART_FONT_CSS).toMatch(
             /^@font-face\{font-family:'Inter Variable';src:url\(data:font\/woff;base64,[A-Za-z0-9+/=]+\)/
