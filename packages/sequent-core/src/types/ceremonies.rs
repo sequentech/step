@@ -29,10 +29,11 @@ pub enum KeysCeremonyExecutionStatus {
     IN_PROGRESS, /* config message has been added to the board and trustees
                   * are working */
     SUCCESS, // successful completion
-    /// Terminal failure: the board serves another Configuration, or carries
-    /// content no joint public key can be taken from, etc. A failed ceremony
-    /// is never resumed; the administrator creates a new one, which gets a
-    /// new board.
+    /// Terminal failure: the board serves another Configuration, carries
+    /// content no joint public key can be taken from, or a trustee halted its
+    /// session over it, which fails even a successful ceremony. A failed
+    /// ceremony is never resumed; the administrator creates a new one, which
+    /// gets a new board.
     FAILED,
     CANCELLED, // cancelation
 }
@@ -57,6 +58,8 @@ pub enum TrusteeStatus {
     KEY_RETRIEVED,
     /// Re-uploaded its key bundle and it matched the board.
     KEY_CHECKED,
+    /// Halted its session over the board and reported it.
+    HALTED,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
@@ -67,8 +70,8 @@ pub struct Trustee {
 
 /// Why a keys ceremony ended in [`KeysCeremonyExecutionStatus::FAILED`].
 ///
-/// Both mean a bug or tampering rather than something an administrator can
-/// fix; the failure's detail carries the error as it was reported.
+/// None of them is repaired in place: the administrator starts a new ceremony.
+/// The failure's detail carries the error as it was reported.
 #[derive(
     Display,
     Serialize,
@@ -87,6 +90,9 @@ pub enum KeysCeremonyFailureReason {
     /// The board carries something the platform cannot use: e.g. braid refused
     /// what it read, or no joint public key can be taken from it.
     INVALID_BOARD_CONTENT,
+    /// A trustee halted its session over the board and reported it; the
+    /// detail names the trustee and carries braid's error.
+    TRUSTEE_HALTED,
 }
 
 /// What ended a keys ceremony, kept so the failure survives the task that saw

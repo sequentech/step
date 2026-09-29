@@ -88,20 +88,62 @@ pub async fn get_keys_ceremony_by_id(
     election_event_id: &str,
     keys_ceremony_id: &str,
 ) -> Result<KeysCeremony> {
-    let statement = hasura_transaction
-        .prepare(
-            r#"
-                SELECT
-                    *
-                FROM
-                    sequent_backend.keys_ceremony
-                WHERE
-                    tenant_id = $1 AND
-                    election_event_id = $2 AND
-                    id = $3;
-            "#,
-        )
-        .await?;
+    query_keys_ceremony_by_id(
+        hasura_transaction,
+        r#"
+            SELECT
+                *
+            FROM
+                sequent_backend.keys_ceremony
+            WHERE
+                tenant_id = $1 AND
+                election_event_id = $2 AND
+                id = $3;
+        "#,
+        tenant_id,
+        election_event_id,
+        keys_ceremony_id,
+    )
+    .await
+}
+
+/// The keys ceremony, locked against other writers until
+/// `hasura_transaction` ends.
+#[instrument(err, skip_all)]
+pub async fn get_keys_ceremony_by_id_for_update(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    keys_ceremony_id: &str,
+) -> Result<KeysCeremony> {
+    query_keys_ceremony_by_id(
+        hasura_transaction,
+        r#"
+            SELECT
+                *
+            FROM
+                sequent_backend.keys_ceremony
+            WHERE
+                tenant_id = $1 AND
+                election_event_id = $2 AND
+                id = $3
+            FOR UPDATE;
+        "#,
+        tenant_id,
+        election_event_id,
+        keys_ceremony_id,
+    )
+    .await
+}
+
+async fn query_keys_ceremony_by_id(
+    hasura_transaction: &Transaction<'_>,
+    query: &str,
+    tenant_id: &str,
+    election_event_id: &str,
+    keys_ceremony_id: &str,
+) -> Result<KeysCeremony> {
+    let statement = hasura_transaction.prepare(query).await?;
 
     let rows: Vec<Row> = hasura_transaction
         .query(

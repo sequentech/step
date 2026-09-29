@@ -115,12 +115,6 @@ add-keycloak-data-to-tarball() {
     tar --append -C $tmpdir --file=$DELIVERABLE_TARBALL keycloak
 }
 
-add-trustees-data-to-tarball() {
-    tmpdir=$(mktemp -d)
-    cp -r $PROJECT_ROOT/.devcontainer/trustees-data $tmpdir/trustees-data
-    tar --append -C $tmpdir --file=$DELIVERABLE_TARBALL trustees-data
-}
-
 add-hasura-data-to-tarball() {
     tmpdir=$(mktemp -d)
     mkdir -p $tmpdir/hasura
@@ -168,7 +162,6 @@ add-dotenv-to-tarball
 add-minio-config-to-tarball
 add-keycloak-data-to-tarball
 add-docker-compose-to-tarball
-add-trustees-data-to-tarball
 add-hasura-data-to-tarball
 add-up-script-to-tarball
 add-database-init-to-tarball

@@ -56,9 +56,9 @@ jobs:
             context: packages
             file: packages/b3/Dockerfile.prod
 
-          - service: braid
+          - service: trustee
             context: packages
-            file: packages/braid/Dockerfile.prod
+            file: packages/trustee/Dockerfile.prod
 
           - service: windmill
             context: packages

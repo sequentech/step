@@ -1,15 +1,13 @@
 #!/bin/bash
 
-# SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
 set -e
-set -x
 
 # Set default values
 cd /opt/braid
-#bb_helper --cache-dir /tmp/cache -s "$IMMUDB_URL" -b defaultboard -u "$IMMUDB_USER" -p "$IMMUDB_PASSWORD" upsert-board-db -l debug
 TRUSTEE_CONFIG_PATH=${TRUSTEE_CONFIG_PATH:-"/opt/braid/trustee.toml"} # Skipping secretsService if TRUSTEE_CONFIG_PATH is set
 SECRETS_BACKEND=${SECRETS_BACKEND:-"Awssecretsmanager"} # Default to Awssecretsmanager if not set
 SECRETS_BACKEND_LOWER=$(echo "$SECRETS_BACKEND" | tr '[:upper:]' '[:lower:]')
@@ -19,8 +17,8 @@ if [ -z "$TRUSTEE_NAME" ] && [ ! -f "$TRUSTEE_CONFIG_PATH" ]; then
 fi
 
 # Check if the binary exists
-if ! command -v gen_trustee_config &> /dev/null; then
-    echo "Error: gen_trustee_config binary not found in PATH"
+if ! command -v trustee &> /dev/null; then
+    echo "Error: trustee binary not found in PATH"
     exit 1
 fi
 
@@ -81,7 +79,7 @@ handle_trustee_config() {
             "envvarmastersecret")
                 if [ -z "$TRUSTEE_CONFIG" ]; then
                     log "TRUSTEE_CONFIG empty, generating ephemeral config"
-                    config_content=$(gen_trustee_config)
+                    config_content=$(trustee generate)
                 else
                     config_content=$(echo -e "$TRUSTEE_CONFIG")
                 fi
@@ -106,7 +104,7 @@ handle_trustee_config() {
 
         if [ -z "$config_content" ]; then
             log "Config does not exist, generating..."
-            config_content=$(gen_trustee_config)
+            config_content=$(trustee generate)
             if [ "$SECRETS_BACKEND_LOWER" = "awssecretsmanager" ]; then
                 store_secret_aws "$SECRET_KEY_NAME" "$config_content"
             elif [ "$SECRETS_BACKEND_LOWER" = "hashicorpvault" ]; then
@@ -119,10 +117,9 @@ handle_trustee_config() {
         printf "%b" "$config_content" > "$TRUSTEE_CONFIG_PATH"
         log "Wrote config to $TRUSTEE_CONFIG_PATH"
     fi
-    grep key_pk "$TRUSTEE_CONFIG_PATH"
 }
 
 handle_trustee_config
 
 # Run trustee with the generated or fetched config
-trustee --b4-url "$B4_URL" --trustee-config "$TRUSTEE_CONFIG_PATH"
+exec trustee start --b4-url "$B4_URL" --trustee-config "$TRUSTEE_CONFIG_PATH"

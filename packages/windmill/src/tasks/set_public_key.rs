@@ -17,7 +17,7 @@ use crate::types::error::Result;
 use anyhow::{Context, Result as AnyhowResult};
 use celery::error::TaskError;
 use deadpool_postgres::{Client as DbClient, Transaction};
-use protocol_board::{CeremonyState, PlatformEvent};
+use protocol_board::PlatformEvent;
 use sequent_core::types::ceremonies::KeysCeremonyExecutionStatus;
 use tracing::{info, instrument, warn};
 
@@ -38,12 +38,12 @@ pub async fn set_public_key_impl(
     .await
     .with_context(|| "error finding keys ceremony")?;
 
-    let state = CeremonyState::new(keys_ceremony.execution_status()?, keys_ceremony.status()?);
-    if state.execution != KeysCeremonyExecutionStatus::IN_PROGRESS {
-        info!("Unexpected status {}", state.execution);
+    let execution_status = keys_ceremony.execution_status()?;
+    if execution_status != KeysCeremonyExecutionStatus::IN_PROGRESS {
+        info!("Unexpected status {execution_status}");
         return Ok(());
     }
-    if state.status.public_key.is_some() {
+    if keys_ceremony.status()?.public_key.is_some() {
         info!("Public key already set");
         return Ok(());
     }
@@ -73,11 +73,10 @@ pub async fn set_public_key_impl(
         &tenant_id,
         &election_event_id,
         &keys_ceremony_id,
-        &state,
-        keys_ceremony.policy(),
         PlatformEvent::ReadBoard(view),
     )
-    .await
+    .await?;
+    Ok(())
 }
 
 #[instrument(err)]

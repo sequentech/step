@@ -115,6 +115,8 @@ async fn rocket() -> _ {
                 routes::keys_ceremony::get_private_key,
                 routes::keys_ceremony::check_private_key,
                 routes::keys_ceremony::list_keys_ceremonies,
+                routes::trustee_boards::list_trustee_boards,
+                routes::trustee_boards::report_trustee_board,
                 routes::tally_ceremony::create_tally_ceremony,
                 routes::tally_ceremony::restore_private_key,
                 routes::tally_ceremony::submit_tally_resolution,

@@ -20,6 +20,7 @@ export enum IKeysCeremonyTrusteeStatus {
     KEY_GENERATED = "KEY_GENERATED",
     KEY_RETRIEVED = "KEY_RETRIEVED",
     KEY_CHECKED = "KEY_CHECKED",
+    HALTED = "HALTED",
 }
 
 export interface IKeysCeremonyTrustee {

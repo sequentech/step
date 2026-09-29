@@ -8,7 +8,9 @@
 
 use anyhow::{anyhow, Result};
 use deadpool_postgres::Transaction;
+use protocol_board::{BoardName, TrusteeBoard};
 use sequent_core::services::uuid_validation::parse_uuid_v4;
+use sequent_core::types::ceremonies::KeysCeremonyExecutionStatus;
 use sequent_core::types::hasura::core::ProtocolBoard;
 use tokio_postgres::row::Row;
 use tracing::instrument;
@@ -109,6 +111,111 @@ pub async fn get_dkg_board_by_keys_ceremony(
             ],
         )
         .await?;
+
+    rows.into_iter()
+        .next()
+        .map(|row| row.try_into().map(|res: ProtocolBoardWrapper| res.0))
+        .transpose()
+}
+
+/// The boards trustee `trustee_id` has work on, oldest first: the DKG boards
+/// of the keys ceremonies it is part of that are in progress.
+#[instrument(err, skip(hasura_transaction))]
+pub async fn get_trustee_boards(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    trustee_id: &str,
+) -> Result<Vec<TrusteeBoard>> {
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                SELECT
+                    board.*,
+                    parent.name AS parent_name
+                FROM
+                    sequent_backend.protocol_board AS board
+                JOIN
+                    sequent_backend.keys_ceremony AS keys_ceremony
+                ON
+                    keys_ceremony.id = board.keys_ceremony_id AND
+                    keys_ceremony.tenant_id = board.tenant_id AND
+                    keys_ceremony.election_event_id = board.election_event_id
+                LEFT JOIN
+                    sequent_backend.protocol_board AS parent
+                ON
+                    parent.id = board.parent_id
+                WHERE
+                    board.tenant_id = $1 AND
+                    board.parent_id IS NULL AND
+                    keys_ceremony.execution_status = $2 AND
+                    $3 = ANY(keys_ceremony.trustee_ids)
+                ORDER BY
+                    board.created_at,
+                    board.name;
+            "#,
+        )
+        .await?;
+    let rows: Vec<Row> = hasura_transaction
+        .query(
+            &statement,
+            &[
+                &parse_uuid_v4(tenant_id)?,
+                &KeysCeremonyExecutionStatus::IN_PROGRESS.to_string(),
+                &parse_uuid_v4(trustee_id)?,
+            ],
+        )
+        .await
+        .map_err(|err| anyhow!("Error listing the boards of trustee {trustee_id}: {err}"))?;
+
+    rows.into_iter()
+        .map(|row| -> Result<TrusteeBoard> {
+            let parent_name: Option<String> = row.try_get("parent_name")?;
+            let board = row.try_into().map(|res: ProtocolBoardWrapper| res.0)?;
+            TrusteeBoard::of(&board, parent_name.as_deref())
+        })
+        .collect()
+}
+
+/// Board `board`, if it belongs to a keys ceremony trustee `trustee_id` is
+/// part of, whatever the ceremony's state.
+#[instrument(err, skip(hasura_transaction))]
+pub async fn get_trustee_board(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    trustee_id: &str,
+    board: &BoardName,
+) -> Result<Option<ProtocolBoard>> {
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                SELECT
+                    board.*
+                FROM
+                    sequent_backend.protocol_board AS board
+                JOIN
+                    sequent_backend.keys_ceremony AS keys_ceremony
+                ON
+                    keys_ceremony.id = board.keys_ceremony_id AND
+                    keys_ceremony.tenant_id = board.tenant_id AND
+                    keys_ceremony.election_event_id = board.election_event_id
+                WHERE
+                    board.tenant_id = $1 AND
+                    board.name = $2 AND
+                    $3 = ANY(keys_ceremony.trustee_ids);
+            "#,
+        )
+        .await?;
+    let rows: Vec<Row> = hasura_transaction
+        .query(
+            &statement,
+            &[
+                &parse_uuid_v4(tenant_id)?,
+                &board.as_str(),
+                &parse_uuid_v4(trustee_id)?,
+            ],
+        )
+        .await
+        .map_err(|err| anyhow!("Error finding board {board} of trustee {trustee_id}: {err}"))?;
 
     rows.into_iter()
         .next()

@@ -48,6 +48,13 @@ export const statusColor: (status: EStatus) => string = (status) => {
     }
 }
 
+const trusteeStepIcon = (status: TStatus, pending: Array<TStatus>) => {
+    if (status === TStatus.HALTED) {
+        return <WizardStyles.HaltedIcon />
+    }
+    return pending.includes(status) ? <HourglassEmptyIcon /> : <WizardStyles.DoneIcon />
+}
+
 export interface CeremonyStepProps {
     message?: React.ReactNode
     currentCeremonyId: string
@@ -170,33 +177,24 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
                                                     {trustee.name}
                                                 </TableCell>
                                                 <TableCell align="center">
-                                                    {trustee.status === TStatus.WAITING ? (
-                                                        <HourglassEmptyIcon />
-                                                    ) : (
-                                                        <WizardStyles.DoneIcon />
-                                                    )}
+                                                    {trusteeStepIcon(trustee.status, [
+                                                        TStatus.WAITING,
+                                                    ])}
                                                 </TableCell>
                                                 {!isAutomaticCeremony && (
                                                     <>
                                                         <TableCell align="center">
-                                                            {trustee.status === TStatus.WAITING ||
-                                                            trustee.status ===
-                                                                TStatus.KEY_GENERATED ? (
-                                                                <HourglassEmptyIcon />
-                                                            ) : (
-                                                                <WizardStyles.DoneIcon />
-                                                            )}
+                                                            {trusteeStepIcon(trustee.status, [
+                                                                TStatus.WAITING,
+                                                                TStatus.KEY_GENERATED,
+                                                            ])}
                                                         </TableCell>
                                                         <TableCell align="center">
-                                                            {trustee.status === TStatus.WAITING ||
-                                                            trustee.status ===
-                                                                TStatus.KEY_GENERATED ||
-                                                            trustee.status ===
-                                                                TStatus.KEY_RETRIEVED ? (
-                                                                <HourglassEmptyIcon />
-                                                            ) : (
-                                                                <WizardStyles.DoneIcon />
-                                                            )}
+                                                            {trusteeStepIcon(trustee.status, [
+                                                                TStatus.WAITING,
+                                                                TStatus.KEY_GENERATED,
+                                                                TStatus.KEY_RETRIEVED,
+                                                            ])}
                                                         </TableCell>
                                                     </>
                                                 )}

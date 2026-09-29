@@ -26,6 +26,10 @@ use crate::{
     },
 };
 
+// Defined in an ungated module so that the protocol-board crate, which builds
+// without `default_features`, reads the same rows.
+pub use crate::types::protocol_board::ProtocolBoard;
+
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
 pub struct Preview {
     pub id: String,
@@ -638,24 +642,6 @@ pub struct Trustee {
     pub labels: Option<Value>,
     pub annotations: Option<Value>,
     pub tenant_id: String,
-}
-
-/// A protocol board the board service of the crypto core.
-/// It could be meant for dkg, or tallying.
-#[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
-pub struct ProtocolBoard {
-    pub id: String,
-    pub tenant_id: String,
-    pub election_event_id: String,
-    pub parent_id: Option<String>,
-    pub keys_ceremony_id: String,
-    /// The board name on the board service.
-    pub name: String,
-    /// The canonical bytes of the message sent by the protocol manager when
-    /// the ceremony was created. It is what gets published by the platform.
-    /// `Configuration` for dkg, `Ballots` for tally.
-    pub manager_message: Vec<u8>,
-    pub created_at: Option<DateTime<Local>>,
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]

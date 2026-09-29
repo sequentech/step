@@ -6,6 +6,8 @@
 
 use std::fmt;
 
+use anyhow::{Context as _, Result};
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 /// Board names of a keys ceremony's distributed key generation start with
@@ -13,7 +15,10 @@ use uuid::Uuid;
 const DKG_BOARD_PREFIX: &str = "dkg_";
 
 /// The name of one board on the board service.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(
+    Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize,
+)]
+#[serde(try_from = "String", into = "String")]
 pub struct BoardName(String);
 
 impl BoardName {
@@ -25,6 +30,19 @@ impl BoardName {
         ))
     }
 
+    /// A name `for_dkg` would have minted. The trustee turns board names
+    /// into file names and URL path segments, so names read from rows or
+    /// JSON are held to the platform's own naming.
+    pub fn parse(name: &str) -> Result<BoardName> {
+        name.strip_prefix(DKG_BOARD_PREFIX)
+            .and_then(|id| Uuid::parse_str(id).ok())
+            .map(|id| BoardName::for_dkg(&id))
+            .filter(|board| board.as_str() == name)
+            .with_context(|| {
+                format!("{name:?} is not a board name the platform mints")
+            })
+    }
+
     pub fn as_str(&self) -> &str {
         &self.0
     }
@@ -33,6 +51,20 @@ impl BoardName {
 impl fmt::Display for BoardName {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter.write_str(&self.0)
+    }
+}
+
+impl TryFrom<String> for BoardName {
+    type Error = anyhow::Error;
+
+    fn try_from(name: String) -> Result<BoardName> {
+        BoardName::parse(&name)
+    }
+}
+
+impl From<BoardName> for String {
+    fn from(name: BoardName) -> String {
+        name.0
     }
 }
 
@@ -61,5 +93,50 @@ mod tests {
     fn a_configuration_id_names_its_ceremony() {
         let id = Uuid::new_v4();
         assert_eq!(Uuid::from_u128(configuration_id(&id)), id);
+    }
+
+    #[test]
+    fn a_minted_board_name_parses_back_to_itself() {
+        for id in [Uuid::nil(), Uuid::from_u128(u128::MAX), Uuid::new_v4()] {
+            let dkg = BoardName::for_dkg(&id);
+            assert_eq!(BoardName::parse(dkg.as_str()).unwrap(), dkg);
+        }
+    }
+
+    #[test]
+    fn only_a_minted_board_name_parses() {
+        let id =
+            Uuid::parse_str("d9792af0-71b8-4952-8aac-94bc0fead5f7").unwrap();
+        let simple = id.as_simple().to_string();
+        for refused in [
+            String::new(),
+            DKG_BOARD_PREFIX.to_string(),
+            simple.clone(),
+            format!("tally_{simple}"),
+            format!("DKG_{simple}"),
+            format!("dkg_{}", id.hyphenated()),
+            format!("dkg_{}", id.braced()),
+            format!("dkg_{}", simple.to_uppercase()),
+            format!("dkg_{}", &simple[1..]),
+            format!("dkg_{simple}0"),
+            format!("dkg_{simple}\n"),
+            format!("dkg_{simple}/../x"),
+            "../x".to_string(),
+        ] {
+            assert!(BoardName::parse(&refused).is_err(), "{refused:?}");
+        }
+    }
+
+    #[test]
+    fn a_board_name_is_parsed_on_its_way_in_from_json() {
+        let dkg = BoardName::for_dkg(&Uuid::new_v4());
+        let json = serde_json::to_value(&dkg).unwrap();
+        assert_eq!(json, serde_json::json!(dkg.as_str()));
+        assert_eq!(serde_json::from_value::<BoardName>(json).unwrap(), dkg);
+
+        for refused in ["", "../x"] {
+            let json = serde_json::json!(refused);
+            assert!(serde_json::from_value::<BoardName>(json).is_err());
+        }
     }
 }
