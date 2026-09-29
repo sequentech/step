@@ -14,6 +14,7 @@ use tokio::time::Duration;
 use windmill::services::celery_app::{set_is_app_active, Queue};
 use windmill::services::probe::{setup_probe, AppName};
 use windmill::tasks::electoral_log::electoral_log_batch_dispatcher;
+use windmill::tasks::refresh_monitoring_snapshot::refresh_monitoring_snapshots;
 use windmill::tasks::review_boards::review_boards;
 use windmill::tasks::review_cast_votes::review_cast_votes;
 use windmill::tasks::scheduled_events::scheduled_events;
@@ -32,6 +33,8 @@ struct CeleryOpt {
     review_cast_votes_interval: u64,
     #[arg(short = 'e', long, default_value = "5")]
     electoral_log_interval: u64,
+    #[arg(short = 'm', long, default_value = "30")]
+    monitoring_snapshot_interval: u64,
 }
 
 #[tokio::main]
@@ -69,6 +72,11 @@ async fn main() -> Result<()> {
                 schedule = DeltaSchedule::new(Duration::from_secs(CeleryOpt::parse().electoral_log_interval)),
                 args = (),
             },
+            refresh_monitoring_snapshots::NAME => {
+                refresh_monitoring_snapshots,
+                schedule = DeltaSchedule::new(Duration::from_secs(CeleryOpt::parse().monitoring_snapshot_interval)),
+                args = (),
+            },
         ],
         task_routes = [
             review_boards::NAME => &Queue::Beat.queue_name(&slug),
@@ -76,6 +84,7 @@ async fn main() -> Result<()> {
             scheduled_reports::NAME => &Queue::Beat.queue_name(&slug),
             review_cast_votes::NAME => &Queue::Beat.queue_name(&slug),
             electoral_log_batch_dispatcher::NAME => &Queue::ElectoralLogBeat.queue_name(&slug),
+            refresh_monitoring_snapshots::NAME => &Queue::Beat.queue_name(&slug),
         ],
     ).await?;
 

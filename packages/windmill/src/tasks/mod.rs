@@ -49,6 +49,7 @@ pub mod prepare_publication_preview;
 pub mod process_board;
 pub mod process_cast_vote;
 pub mod publish_results_website;
+pub mod refresh_monitoring_snapshot;
 pub mod render_document_pdf;
 pub mod render_report;
 pub mod review_boards;
