@@ -3150,6 +3150,7 @@ const spanishTranslation: TranslationType = {
                     duplicated: "Duplicado como {{id}}",
                     resetToPreset: "Restablecer al preajuste",
                     actions: "Acciones de {{title}}",
+                    discardBody: "Tus cambios en este panel no se han guardado.",
                 },
                 catalog: {
                     title: "Añadir widget",
@@ -3180,6 +3181,13 @@ const spanishTranslation: TranslationType = {
                 },
                 lockedDown:
                     "El evento está bloqueado; su configuración de monitorización no puede cambiar.",
+                document: {
+                    loadFailed: "No se pudo cargar el documento: {{reason}}",
+                    refused: "No se guardó: corrige los problemas indicados.",
+                    validated: "El documento es válido.",
+                    invalid: "El documento tiene problemas: consulta las comprobaciones.",
+                    requestFailed: "La solicitud falló: {{reason}}",
+                },
             },
         },
     },

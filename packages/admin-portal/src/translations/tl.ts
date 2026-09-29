@@ -3159,6 +3159,7 @@ const tagalogTranslation: TranslationType = {
                     duplicated: "Na-duplicate bilang {{id}}",
                     resetToPreset: "I-reset sa preset",
                     actions: "Mga aksyon para sa {{title}}",
+                    discardBody: "Hindi pa naisi-save ang iyong mga pagbabago sa dashboard na ito.",
                 },
                 catalog: {
                     title: "Magdagdag ng widget",
@@ -3190,6 +3191,13 @@ const tagalogTranslation: TranslationType = {
                 },
                 lockedDown:
                     "Naka-lockdown ang event; hindi mababago ang monitoring configuration nito.",
+                document: {
+                    loadFailed: "Hindi ma-load ang dokumento: {{reason}}",
+                    refused: "Hindi na-save: ayusin ang mga nakalistang problema.",
+                    validated: "Wasto ang dokumento.",
+                    invalid: "May mga problema ang dokumento: tingnan ang mga pagsusuri.",
+                    requestFailed: "Nabigo ang kahilingan: {{reason}}",
+                },
             },
         },
     },

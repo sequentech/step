@@ -5,6 +5,7 @@
 import {
     deleteIn,
     getIn,
+    insertIn,
     moveIn,
     parsePath,
     parseYamlText,
@@ -159,6 +160,23 @@ describe("moveIn", () => {
     it("ignores an index outside the collection", () => {
         expect(moveIn(WIDGET, ["layout"], 5, 0)).toBe(WIDGET)
         expect(moveIn(WIDGET, ["layout"], 0, -1)).toBe(WIDGET)
+    })
+})
+
+describe("insertIn", () => {
+    it("inserts into a sequence at a position, in the sequence's own style", () => {
+        const next = insertIn(WIDGET, ["layout"], 1, {widget: "d", width: 6})
+        const layout = getIn(next, ["layout"]) as {widget: string}[]
+        expect(layout.map((item) => item.widget)).toEqual(["a", "d", "b", "c"])
+        expect(next).toContain("# the last one spans the grid")
+    })
+
+    it("appends past the end and creates a missing sequence", () => {
+        const appended = insertIn(WIDGET, ["layout"], 99, {widget: "z", width: 12})
+        expect((getIn(appended, ["layout"]) as {widget: string}[]).pop()?.widget).toBe("z")
+        expect(getIn(insertIn("id: d\n", ["layout"], 0, {widget: "a"}), ["layout"])).toEqual([
+            {widget: "a"},
+        ])
     })
 })
 

@@ -3138,6 +3138,7 @@ const basqueTranslation: TranslationType = {
                     duplicated: "{{id}} gisa bikoiztu da",
                     resetToPreset: "Berrezarri aurrezarpenera",
                     actions: "{{title}} elementuaren ekintzak",
+                    discardBody: "Panel honetan egindako aldaketak ez dira gorde.",
                 },
                 catalog: {
                     title: "Gehitu widgeta",
@@ -3168,6 +3169,13 @@ const basqueTranslation: TranslationType = {
                 },
                 lockedDown:
                     "Ekitaldia blokeatuta dago; haren monitorizazio-konfigurazioa ezin da aldatu.",
+                document: {
+                    loadFailed: "Ezin izan da dokumentua kargatu: {{reason}}",
+                    refused: "Ez da gorde: konpondu zerrendako arazoak.",
+                    validated: "Dokumentua baliozkoa da.",
+                    invalid: "Dokumentuak arazoak ditu: ikusi egiaztapenak.",
+                    requestFailed: "Eskaerak huts egin du: {{reason}}",
+                },
             },
         },
     },

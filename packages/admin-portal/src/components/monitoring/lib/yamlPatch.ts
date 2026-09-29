@@ -167,6 +167,23 @@ export const moveIn = (text: string, path: TYamlPath, from: number, to: number):
     return print(document)
 }
 
+/**
+ * Inserts `value` at `index` of the sequence at `path` (past the end appends),
+ * creating the sequence when it is missing. A flow sequence stays flow, a
+ * block one block, like the items already in it.
+ */
+export const insertIn = (text: string, path: TYamlPath, index: number, value: unknown): string => {
+    const document = documentOf(text)
+    const node = document.getIn(path, true)
+    if (node === undefined || node === null) return setIn(text, path, [value])
+    if (!isSeq(node)) return text
+    const item = document.createNode(value)
+    const first = node.items[0]
+    if (isCollection(item) && isCollection(first)) item.flow = first.flow
+    node.items.splice(Math.max(0, Math.min(index, node.items.length)), 0, item)
+    return print(document)
+}
+
 /** Renames key `from` of the mapping at `path` to `to`, keeping its position and value. */
 export const renameKey = (text: string, path: TYamlPath, from: string, to: string): string => {
     const document = documentOf(text)

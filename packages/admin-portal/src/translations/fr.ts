@@ -3169,6 +3169,8 @@ const frenchTranslation: TranslationType = {
                     duplicated: "Dupliqué sous {{id}}",
                     resetToPreset: "Rétablir le préréglage",
                     actions: "Actions pour {{title}}",
+                    discardBody:
+                        "Vos modifications de ce tableau de bord n'ont pas été enregistrées.",
                 },
                 catalog: {
                     title: "Ajouter un widget",
@@ -3199,6 +3201,13 @@ const frenchTranslation: TranslationType = {
                 },
                 lockedDown:
                     "L'événement est verrouillé ; sa configuration de supervision ne peut pas être modifiée.",
+                document: {
+                    loadFailed: "Le document n'a pas pu être chargé : {{reason}}",
+                    refused: "Non enregistré : corrigez les problèmes indiqués.",
+                    validated: "Le document est valide.",
+                    invalid: "Le document comporte des problèmes : voir les vérifications.",
+                    requestFailed: "La requête a échoué : {{reason}}",
+                },
             },
         },
     },

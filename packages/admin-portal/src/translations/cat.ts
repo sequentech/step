@@ -3161,6 +3161,7 @@ const catalanTranslation: TranslationType = {
                     duplicated: "Duplicat com a {{id}}",
                     resetToPreset: "Restableix al valor predefinit",
                     actions: "Accions de {{title}}",
+                    discardBody: "Els teus canvis en aquest tauler no s'han desat.",
                 },
                 catalog: {
                     title: "Afegeix un widget",
@@ -3191,6 +3192,13 @@ const catalanTranslation: TranslationType = {
                 },
                 lockedDown:
                     "L'esdeveniment està bloquejat; la seva configuració de monitoratge no es pot canviar.",
+                document: {
+                    loadFailed: "No s'ha pogut carregar el document: {{reason}}",
+                    refused: "No s'ha desat: corregeix els problemes indicats.",
+                    validated: "El document és vàlid.",
+                    invalid: "El document té problemes: consulta les comprovacions.",
+                    requestFailed: "La sol·licitud ha fallat: {{reason}}",
+                },
             },
         },
     },

@@ -194,3 +194,55 @@ export const fakeEditorApi = (
     resetToPreset: fn(async () => ({generation: 4})),
     ...overrides,
 })
+
+const ACTIVITY_YAML = `id: voting-activity
+title: Voting activity
+source: voting_enrollment_activity
+requirements: [SW-F-0372]
+query: {template: timeseries, measures: [voted]}
+chart: {charts: {line: {type: line, query: data, x: day, y: voted}}, rows: [line]}
+`
+
+const ATTACKS_YAML = `id: attack-log
+title: Attack detections
+source: attack_detections
+requirements: [SW-F-0301]
+query: {template: summary, measures: [detections]}
+chart: {charts: {kpi: {type: kpi, query: data, value: detections}}, rows: [kpi]}
+`
+
+/** The event's documents, by kind and key, as an editor story's `getConfig` answers. */
+export const EVENT_DOCUMENTS: Record<string, string> = {
+    "dashboard/req-0260": DASHBOARD_YAML,
+    "widget/turnout-summary": SUMMARY_YAML,
+    "widget/turnout-by-group": WIDGET_YAML,
+    "widget/voting-activity": ACTIVITY_YAML,
+    "widget/attack-log": ATTACKS_YAML,
+    "theme/default": THEME_YAML,
+    "theme/dark": THEME_YAML.replace("id: default", "id: dark"),
+}
+
+/** An editor API over {@link EVENT_DOCUMENTS}: a whole event's configuration. */
+export const eventEditorApi = (overrides: Partial<IMonitoringEditorApi> = {}) =>
+    fakeEditorApi({
+        listConfig: fn(async () =>
+            Object.keys(EVENT_DOCUMENTS).map((path) => {
+                const [kind, key] = path.split("/")
+                return {kind: kind as EMonitoringConfigKind, key, revision: 7}
+            })
+        ),
+        getConfig: fn(async ({kind, key}) => {
+            const yaml = EVENT_DOCUMENTS[`${kind}/${key}`]
+            if (yaml === undefined) throw new Error(`${kind} ${key} not found`)
+            return {
+                kind,
+                key,
+                yaml,
+                revision: 7,
+                origin: "EDITOR",
+                author: {id: "u-ana", name: "Ana Reyes"},
+                created_at: "2026-09-28T08:30:00Z",
+            }
+        }),
+        ...overrides,
+    })

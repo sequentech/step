@@ -3148,6 +3148,7 @@ const galegoTranslation: TranslationType = {
                     duplicated: "Duplicado como {{id}}",
                     resetToPreset: "Restablecer ao axuste predefinido",
                     actions: "Accións de {{title}}",
+                    discardBody: "Os teus cambios neste panel non se gardaron.",
                 },
                 catalog: {
                     title: "Engadir widget",
@@ -3178,6 +3179,13 @@ const galegoTranslation: TranslationType = {
                 },
                 lockedDown:
                     "O evento está bloqueado; a súa configuración de monitorización non pode cambiar.",
+                document: {
+                    loadFailed: "Non se puido cargar o documento: {{reason}}",
+                    refused: "Non se gardou: corrixe os problemas indicados.",
+                    validated: "O documento é válido.",
+                    invalid: "O documento ten problemas: consulta as comprobacións.",
+                    requestFailed: "A solicitude fallou: {{reason}}",
+                },
             },
         },
     },

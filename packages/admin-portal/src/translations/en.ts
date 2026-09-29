@@ -3120,6 +3120,7 @@ const englishTranslation = {
                     duplicated: "Duplicated as {{id}}",
                     resetToPreset: "Reset to preset",
                     actions: "Actions for {{title}}",
+                    discardBody: "Your changes to this dashboard have not been saved.",
                 },
                 catalog: {
                     title: "Add widget",
@@ -3149,6 +3150,13 @@ const englishTranslation = {
                     loading: "Loading presets…",
                 },
                 lockedDown: "The event is locked down; its monitoring configuration cannot change.",
+                document: {
+                    loadFailed: "The document could not be loaded: {{reason}}",
+                    refused: "Not saved: fix the problems listed.",
+                    validated: "The document is valid.",
+                    invalid: "The document has problems: see the checks.",
+                    requestFailed: "The request failed: {{reason}}",
+                },
             },
         },
     },

@@ -29,6 +29,8 @@ export interface MonitoringPreviewFooterProps {
     saveLabel: string
     /** Why Save is off, when it is; a save with errors would be refused anyway. */
     saveBlocked?: boolean
+    /** A document without a preview (a dashboard) says nothing about one. */
+    hasPreview?: boolean
     onCancel: () => void
     onValidate?: () => void
     onSave: () => void
@@ -57,18 +59,21 @@ export const MonitoringPreviewFooter: React.FC<MonitoringPreviewFooterProps> = (
     busy = EEditorBusy.IDLE,
     saveLabel,
     saveBlocked = false,
+    hasPreview = true,
     onCancel,
     onValidate,
     onSave,
 }) => {
     const {t, i18n} = useTranslation()
     const facts: Array<{key: string; text: string; tone?: "error" | "success"}> = []
-    facts.push({
-        key: "preview",
-        text: scopeLabel
-            ? `${t("monitoring.editor.footer.preview")} · ${scopeLabel}`
-            : t("monitoring.editor.footer.preview"),
-    })
+    if (hasPreview) {
+        facts.push({
+            key: "preview",
+            text: scopeLabel
+                ? `${t("monitoring.editor.footer.preview")} · ${scopeLabel}`
+                : t("monitoring.editor.footer.preview"),
+        })
+    }
     facts.push(
         errors > 0
             ? {
@@ -78,14 +83,14 @@ export const MonitoringPreviewFooter: React.FC<MonitoringPreviewFooterProps> = (
               }
             : {key: "valid", text: t("monitoring.editor.footer.valid"), tone: "success"}
     )
-    facts.push(
-        warnings > 0
-            ? {
-                  key: "warnings",
-                  text: t("monitoring.editor.footer.warnings", {count: warnings}),
-              }
-            : {key: "warnings", text: t("monitoring.editor.footer.noWarnings")}
-    )
+    if (warnings > 0) {
+        facts.push({
+            key: "warnings",
+            text: t("monitoring.editor.footer.warnings", {count: warnings}),
+        })
+    } else if (hasPreview) {
+        facts.push({key: "warnings", text: t("monitoring.editor.footer.noWarnings")})
+    }
     if (previewStatus === EPreviewStatus.RENDERING) {
         facts.push({key: "render", text: t("monitoring.editor.footer.rendering")})
     } else if (previewStatus === EPreviewStatus.FAILED) {
@@ -128,7 +133,11 @@ export const MonitoringPreviewFooter: React.FC<MonitoringPreviewFooterProps> = (
             <Box
                 role="status"
                 aria-live="polite"
-                aria-label={t("monitoring.editor.footer.preview")}
+                aria-label={
+                    hasPreview
+                        ? t("monitoring.editor.footer.preview")
+                        : t("monitoring.editor.diagnostics.title")
+                }
                 sx={{display: "flex", flexWrap: "wrap", gap: 0.5, alignItems: "center"}}
             >
                 {facts.map((fact, index) => (

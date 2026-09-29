@@ -12,21 +12,25 @@ import {sequentCoreValidator} from "./sequentCoreValidator"
 const MonitoringConfigureWidgetDialog = React.lazy(
     () => import("./MonitoringConfigureWidgetDialog")
 )
+const MonitoringDashboardEditor = React.lazy(() => import("./MonitoringDashboardEditor"))
 
 /**
  * The editor's entry points, shaped like the view's `MonitoringEditorActions`
- * so the dashboard's ⋯ menu can call them directly.
+ * so the dashboard's ⋯ menu and its Edit button can call them directly.
  */
 export interface IMonitoringEditorEntryPoints {
     onConfigureWidget: (widgetId: string) => void
+    onEditDashboard: (dashboardId: string) => void
 }
 
 export interface IMonitoringEditorOptions {
     api: IMonitoringEditorApi
     /** Where the widgets are being looked at: the dashboard shown, its scope and sources. */
     context: IMonitoringWidgetContext
-    localValidate?: TLocalValidate
-    onSaved?: () => void
+    /** Per kind; sequent-core's WebAssembly checks by default. */
+    localValidate?: Partial<Record<EMonitoringConfigKind, TLocalValidate>>
+    /** A document was saved or the event reset to a preset: reload the view. */
+    onChanged?: () => void
 }
 
 export interface IMonitoringEditor {
@@ -42,40 +46,69 @@ interface IOpenWidget {
     context?: Partial<IMonitoringWidgetContext>
 }
 
-/** Opens the editor's dialogs from the dashboard view. The dialog code loads on first use. */
+const validatorFor = (
+    kind: EMonitoringConfigKind,
+    given?: Partial<Record<EMonitoringConfigKind, TLocalValidate>>
+) => given?.[kind] ?? sequentCoreValidator(kind)
+
+/** Opens the editor's dialogs from the dashboard view. Their code loads on first use. */
 export const useMonitoringEditor = ({
     api,
     context,
     localValidate,
-    onSaved,
+    onChanged,
 }: IMonitoringEditorOptions): IMonitoringEditor => {
-    const [open, setOpen] = useState<IOpenWidget | null>(null)
-    const validate = useMemo(
-        () => localValidate ?? sequentCoreValidator(EMonitoringConfigKind.WIDGET),
+    const [widget, setWidget] = useState<IOpenWidget | null>(null)
+    const [dashboardId, setDashboardId] = useState<string | null>(null)
+    const validators = useMemo(
+        () => ({
+            widget: validatorFor(EMonitoringConfigKind.WIDGET, localValidate),
+            dashboard: validatorFor(EMonitoringConfigKind.DASHBOARD, localValidate),
+            theme: validatorFor(EMonitoringConfigKind.THEME, localValidate),
+        }),
         [localValidate]
     )
     const onConfigure = useCallback(
         (widgetId: string, override?: Partial<IMonitoringWidgetContext>) =>
-            setOpen({widgetId, context: override}),
+            setWidget({widgetId, context: override}),
         []
     )
     const actions = useMemo(
-        () => ({onConfigureWidget: (id: string) => onConfigure(id)}),
+        () => ({
+            onConfigureWidget: (id: string) => onConfigure(id),
+            onEditDashboard: (id: string) => setDashboardId(id),
+        }),
         [onConfigure]
     )
-    const element = open ? (
+    const changed = () => onChanged?.()
+    const element = (
         <Suspense fallback={null}>
-            <MonitoringConfigureWidgetDialog
-                open
-                api={api}
-                widgetId={open.widgetId}
-                localValidate={validate}
-                {...context}
-                {...open.context}
-                onClose={() => setOpen(null)}
-                onSaved={() => onSaved?.()}
-            />
+            {dashboardId ? (
+                <MonitoringDashboardEditor
+                    open
+                    api={api}
+                    dashboardId={dashboardId}
+                    localValidate={validators.dashboard}
+                    themeValidate={validators.theme}
+                    onConfigureWidget={(id) => onConfigure(id, {dashboardId})}
+                    onClose={() => setDashboardId(null)}
+                    onSaved={changed}
+                    onReset={changed}
+                />
+            ) : null}
+            {widget ? (
+                <MonitoringConfigureWidgetDialog
+                    open
+                    api={api}
+                    widgetId={widget.widgetId}
+                    localValidate={validators.widget}
+                    {...context}
+                    {...widget.context}
+                    onClose={() => setWidget(null)}
+                    onSaved={changed}
+                />
+            ) : null}
         </Suspense>
-    ) : null
+    )
     return {actions, onConfigure, element}
 }

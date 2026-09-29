@@ -3147,6 +3147,7 @@ const dutchTranslation: TranslationType = {
                     duplicated: "Gedupliceerd als {{id}}",
                     resetToPreset: "Terugzetten naar voorinstelling",
                     actions: "Acties voor {{title}}",
+                    discardBody: "Je wijzigingen aan dit dashboard zijn niet opgeslagen.",
                 },
                 catalog: {
                     title: "Widget toevoegen",
@@ -3178,6 +3179,13 @@ const dutchTranslation: TranslationType = {
                 },
                 lockedDown:
                     "Het evenement is vergrendeld; de monitoringconfiguratie kan niet worden gewijzigd.",
+                document: {
+                    loadFailed: "Het document kon niet worden geladen: {{reason}}",
+                    refused: "Niet opgeslagen: los de genoemde problemen op.",
+                    validated: "Het document is geldig.",
+                    invalid: "Het document bevat problemen: zie de controles.",
+                    requestFailed: "Het verzoek is mislukt: {{reason}}",
+                },
             },
         },
     },
