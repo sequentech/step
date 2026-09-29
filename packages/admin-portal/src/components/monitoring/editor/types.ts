@@ -244,3 +244,23 @@ export enum EMonitoringScopeSelector {
 }
 
 export const MONITORING_GRID_COLUMNS = 12
+
+/** What Duplicate, from the dashboard's widget menu, came to. */
+export enum EDuplicateResult {
+    /** The copy is saved and placed after the original. */
+    DONE = "DONE",
+    /** The copy was refused; nothing changed. */
+    NOT_SAVED = "NOT_SAVED",
+    /** The copy is saved, but the dashboard refused to take it. */
+    NOT_PLACED = "NOT_PLACED",
+}
+
+export type TDuplicateOutcome =
+    | {result: EDuplicateResult.DONE; id: string}
+    | {result: EDuplicateResult.NOT_SAVED; problem?: string}
+    | {
+          result: EDuplicateResult.NOT_PLACED
+          id: string
+          status: EMonitoringSaveStatus.CONFLICT | EMonitoringSaveStatus.INVALID
+          problem?: string
+      }

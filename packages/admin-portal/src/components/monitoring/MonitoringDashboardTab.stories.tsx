@@ -11,6 +11,9 @@ import {EStoryPermissions} from "../../../../ui-essentials/.storybook/globals"
 import {EMonitoringLock} from "./useMonitoringPermissions"
 import {MonitoringDashboardTab} from "./MonitoringDashboardTab"
 import {EMonitoringListScenario, POSTS, monitoringHandlers} from "./__stories__/MonitoringFixture"
+import type {IMonitoringEditorApi} from "./editor/api"
+import {EMonitoringConfigKind} from "./editor/types"
+import {THEME_YAML, WIDGET_YAML, fakeEditorApi} from "./editor/storyFixtures"
 
 interface Scenario {
     role: EStoryPermissions
@@ -18,13 +21,52 @@ interface Scenario {
     electionId?: string
     lock: EMonitoringLock
     onEditDashboard: (dashboardId: string) => void
+    /** Given, the tab wires in the editor over it instead of recording `onEditDashboard`. */
+    editorApi?: IMonitoringEditorApi
 }
 
 let graphql: ReturnType<typeof graphqlBoundary>
 
 const LEGACY = "Standard election event dashboard"
 
-function Fixture({role, electionId, lock, onEditDashboard}: Scenario) {
+/** Found, then visible once the dialog or notice has finished coming in. */
+const shown = async (found: Promise<HTMLElement>) => {
+    const element = await found
+    await waitFor(() => expect(element).toBeVisible())
+}
+
+/** The fixture's `overview` dashboard as the editor reads it. */
+const OVERVIEW_YAML = [
+    "id: overview",
+    "title: Monitoring overview",
+    "layout:",
+    ...[
+        "turnout-summary",
+        "turnout-by-group",
+        "voting-activity",
+        "poll-status",
+        "attack-detections",
+    ].map((widget, index) => `  - widget: ${widget}\n    width: ${index ? 6 : 12}`),
+    "",
+].join("\n")
+
+/** The editor over the fixture's event: its dashboard, and each widget as a copy of one. */
+const tabEditorApi = () =>
+    fakeEditorApi({
+        getConfig: fn(async ({kind, key}) => ({
+            kind,
+            key,
+            yaml:
+                kind === EMonitoringConfigKind.DASHBOARD
+                    ? OVERVIEW_YAML
+                    : kind === EMonitoringConfigKind.THEME
+                      ? THEME_YAML
+                      : WIDGET_YAML.replace("id: turnout-by-group", `id: ${key}`),
+            revision: 7,
+        })),
+    })
+
+function Fixture({role, electionId, lock, onEditDashboard, editorApi}: Scenario) {
     return (
         <AdminStoryProvider boundary={graphql} role={role}>
             <MonitoringDashboardTab
@@ -32,7 +74,8 @@ function Fixture({role, electionId, lock, onEditDashboard}: Scenario) {
                 electionId={electionId}
                 lock={lock}
                 legacy={<p>{LEGACY}</p>}
-                actions={{onEditDashboard}}
+                actions={editorApi ? undefined : {onEditDashboard}}
+                editorApi={editorApi}
             />
         </AdminStoryProvider>
     )
@@ -147,5 +190,74 @@ export const ElectionPage: Story = {
         expect(graphql.calls[0].variables).toEqual(
             expect.objectContaining({electionId: POSTS.madrid})
         )
+    },
+}
+
+/** Edit dashboard, with the editor wired in, opens the dashboard editor on the dashboard shown. */
+export const EditorEditsTheDashboardShown: Story = {
+    args: {editorApi: tabEditorApi()},
+    play: async ({canvasElement, args}) => {
+        const canvas = within(canvasElement)
+        const page = within(canvasElement.ownerDocument.body)
+        await userEvent.click(await canvas.findByRole("button", {name: "Edit dashboard"}))
+        await shown(page.findByRole("dialog", {name: "Editing dashboard · Monitoring overview"}))
+        expect(args.editorApi?.getConfig).toHaveBeenCalledWith(
+            expect.objectContaining({kind: EMonitoringConfigKind.DASHBOARD, key: "overview"})
+        )
+    },
+}
+
+/** Configure widget, from a widget's menu, previews the widget on the dashboard shown. */
+export const EditorConfiguresAWidget: Story = {
+    args: {editorApi: tabEditorApi()},
+    play: async ({canvasElement, args}) => {
+        const canvas = within(canvasElement)
+        const page = within(canvasElement.ownerDocument.body)
+        await userEvent.click(
+            await canvas.findByRole("button", {name: "Actions for Turnout by group"})
+        )
+        await userEvent.click(await page.findByRole("menuitem", {name: "Configure widget"}))
+        await shown(page.findByRole("dialog", {name: /Configure widget/}))
+        await waitFor(() =>
+            expect(args.editorApi?.renderWidget).toHaveBeenCalledWith(
+                expect.objectContaining({dashboard_id: "overview", widget_id: "turnout-by-group"})
+            )
+        )
+    },
+}
+
+/** Duplicate, from a widget's menu, saves a copy, places it after the widget and reloads the view. */
+export const EditorDuplicatesAWidget: Story = {
+    args: {editorApi: tabEditorApi()},
+    play: async ({canvasElement, args}) => {
+        const canvas = within(canvasElement)
+        const page = within(canvasElement.ownerDocument.body)
+        await userEvent.click(
+            await canvas.findByRole("button", {name: "Actions for Turnout by group"})
+        )
+        const loads = () =>
+            graphql.calls.filter(({name}) => name === "MonitoringGetDashboard").length
+        const before = loads()
+        await userEvent.click(await page.findByRole("menuitem", {name: "Duplicate"}))
+        await shown(
+            page.findByText("Added turnout-by-group-copy, a copy of the widget, to the dashboard.")
+        )
+        expect(args.editorApi?.saveConfig).toHaveBeenCalledWith(
+            expect.objectContaining({
+                kind: EMonitoringConfigKind.WIDGET,
+                key: "turnout-by-group-copy",
+            })
+        )
+        expect(args.editorApi?.saveConfig).toHaveBeenCalledWith(
+            expect.objectContaining({
+                kind: EMonitoringConfigKind.DASHBOARD,
+                key: "overview",
+                expected_revision: 7,
+                yaml: expect.stringContaining(
+                    "  - widget: turnout-by-group\n    width: 6\n  - widget: turnout-by-group-copy\n"
+                ),
+            })
+        )
+        await waitFor(() => expect(loads()).toBeGreaterThan(before))
     },
 }

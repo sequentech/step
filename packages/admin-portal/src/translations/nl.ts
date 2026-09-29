@@ -3211,6 +3211,8 @@ const dutchTranslation: TranslationType = {
                 duplicate: {
                     done: "{{id}}, een kopie van de widget, is aan het dashboard toegevoegd.",
                     failed: "De widget kon niet worden gedupliceerd: {{reason}}",
+                    notPlaced:
+                        "De kopie {{id}} is opgeslagen, maar het dashboard heeft haar niet opgenomen ({{reason}}). Voeg haar toe met Dashboard bewerken.",
                 },
             },
         },

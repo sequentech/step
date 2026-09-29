@@ -3200,6 +3200,8 @@ const basqueTranslation: TranslationType = {
                 duplicate: {
                     done: "{{id}} gehitu da panelera, widgetaren kopia bat.",
                     failed: "Ezin izan da widgeta bikoiztu: {{reason}}",
+                    notPlaced:
+                        "{{id}} kopia gorde da, baina panelak ez du hartu ({{reason}}). Gehitu Editatu panela erabiliz.",
                 },
             },
         },

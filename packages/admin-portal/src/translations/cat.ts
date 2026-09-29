@@ -3221,6 +3221,8 @@ const catalanTranslation: TranslationType = {
                 duplicate: {
                     done: "S'ha afegit {{id}}, una còpia del widget, al tauler.",
                     failed: "No s'ha pogut duplicar el widget: {{reason}}",
+                    notPlaced:
+                        "La còpia {{id}} s'ha desat, però el tauler no l'ha inclosa ({{reason}}). Afegiu-la amb Edita el tauler.",
                 },
             },
         },

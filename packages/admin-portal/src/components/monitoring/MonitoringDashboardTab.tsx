@@ -15,6 +15,8 @@ import {
 import {EMonitoringLock, useMonitoringPermissions} from "./useMonitoringPermissions"
 import {MonitoringProvider, type MonitoringEditorActions} from "./MonitoringProvider"
 import {MonitoringDashboard} from "./MonitoringDashboard"
+import type {IMonitoringEditorApi} from "./editor/api"
+import {useMonitoringTabEditor} from "./editor/useMonitoringTabEditor"
 
 export interface MonitoringDashboardTabProps {
     electionEventId?: string | null
@@ -23,7 +25,10 @@ export interface MonitoringDashboardTabProps {
     /** Today's dashboard, shown whenever monitoring is not. */
     legacy: ReactNode
     lock?: EMonitoringLock
+    /** Replaces the editor's entry points, which a viewer who may configure gets. */
     actions?: MonitoringEditorActions
+    /** The editor's requests; Harvest's actions by default, a fake in stories. */
+    editorApi?: IMonitoringEditorApi
 }
 
 /**
@@ -38,9 +43,16 @@ export function MonitoringDashboardTab({
     legacy,
     lock = EMonitoringLock.OPEN,
     actions,
+    editorApi,
 }: MonitoringDashboardTabProps) {
     const {t} = useTranslation()
     const {view, configure} = useMonitoringPermissions(lock)
+    const editor = useMonitoringTabEditor({
+        electionEventId: electionEventId ?? "",
+        electionId,
+        configure,
+        api: editorApi,
+    })
     const allowed = view === EMonitoringCapability.GRANTED && Boolean(electionEventId)
     const {data, loading, error} = useQuery<
         MonitoringListDashboardsQuery,
@@ -74,7 +86,7 @@ export function MonitoringDashboardTab({
     return (
         <MonitoringProvider
             storageKey={`monitoring:${electionEventId}:${electionId ?? ""}`}
-            actions={actions}
+            actions={actions ?? editor.actions}
         >
             <MonitoringDashboard
                 electionEventId={electionEventId as string}
@@ -82,6 +94,7 @@ export function MonitoringDashboardTab({
                 dashboards={list.dashboards}
                 configure={configure}
             />
+            {editor.element}
         </MonitoringProvider>
     )
 }

@@ -3233,6 +3233,8 @@ const frenchTranslation: TranslationType = {
                 duplicate: {
                     done: "{{id}}, une copie du widget, a été ajouté au tableau de bord.",
                     failed: "Le widget n'a pas pu être dupliqué : {{reason}}",
+                    notPlaced:
+                        "La copie {{id}} a été enregistrée, mais le tableau de bord ne l'a pas prise ({{reason}}). Ajoutez-la avec Modifier le tableau de bord.",
                 },
             },
         },

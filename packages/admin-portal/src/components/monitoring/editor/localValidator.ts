@@ -10,7 +10,7 @@
  * relies on the server's, which run the same policy.
  */
 
-import {normalizeProblems} from "@/components/monitoring/lib/diagnostics"
+import {normalizeProblems} from "@/components/monitoring/lib/problems"
 import type {TLocalValidate} from "./yamlDraft"
 import type {EMonitoringConfigKind} from "./types"
 

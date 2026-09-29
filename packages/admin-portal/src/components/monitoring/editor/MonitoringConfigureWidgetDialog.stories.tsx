@@ -9,6 +9,7 @@ import {AdminStoryProvider, graphqlBoundary} from "@/__stories__/AdminStoryProvi
 import type {IMonitoringEditorApi} from "./api"
 import {MonitoringConfigureWidgetDialog} from "./MonitoringConfigureWidgetDialog"
 import {sequentCoreValidator} from "./sequentCoreValidator"
+import type {TLocalValidate} from "./yamlDraft"
 import {
     EMonitoringConfigKind,
     EMonitoringSaveStatus,
@@ -35,7 +36,8 @@ const meta = {
         scopeLabel: "All authorized Posts",
         sources: SOURCES,
         api: fakeEditorApi(),
-        localValidate: (text: string) => (text.includes("sql:") ? [FORBIDDEN_KEY] : []),
+        localValidate: ((text: string) =>
+            text.includes("sql:") ? [FORBIDDEN_KEY] : []) as TLocalValidate,
         onClose: fn(),
         onSaved: fn(),
     },
@@ -115,6 +117,20 @@ export const EditAndSave: Story = {
 
 export const ConflictKeepEditing: Story = {
     parameters: withApi(() => ({
+        // Opened at revision 7; revision 9 is the one saved meanwhile.
+        getConfig: fn(async ({kind, key}) => ({kind, key, yaml: WIDGET_YAML, revision: 7}))
+            .mockResolvedValueOnce({
+                kind: EMonitoringConfigKind.WIDGET,
+                key: "turnout-by-group",
+                yaml: WIDGET_YAML,
+                revision: 7,
+            })
+            .mockResolvedValue({
+                kind: EMonitoringConfigKind.WIDGET,
+                key: "turnout-by-group",
+                yaml: WIDGET_YAML.replace("height: 240", "height: 300"),
+                revision: 9,
+            }),
         saveConfig: fn()
             .mockResolvedValueOnce({
                 status: EMonitoringSaveStatus.CONFLICT,
@@ -126,6 +142,7 @@ export const ConflictKeepEditing: Story = {
                 status: EMonitoringSaveStatus.SAVED,
                 revision: 10,
                 generation: 4,
+                warnings: [],
             } satisfies TMonitoringSaveOutcome),
     })),
     play: async ({canvasElement, args}) => {

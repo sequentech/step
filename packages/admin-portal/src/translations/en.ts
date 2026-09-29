@@ -3180,6 +3180,8 @@ const englishTranslation = {
                 duplicate: {
                     done: "Added {{id}}, a copy of the widget, to the dashboard.",
                     failed: "The widget could not be duplicated: {{reason}}",
+                    notPlaced:
+                        "The copy {{id}} was saved, but the dashboard did not take it ({{reason}}). Add it with Edit dashboard.",
                 },
             },
         },

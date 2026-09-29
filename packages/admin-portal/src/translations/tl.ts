@@ -3221,6 +3221,8 @@ const tagalogTranslation: TranslationType = {
                 duplicate: {
                     done: "Idinagdag sa dashboard ang {{id}}, isang kopya ng widget.",
                     failed: "Hindi ma-duplicate ang widget: {{reason}}",
+                    notPlaced:
+                        "Nai-save ang kopyang {{id}}, pero hindi ito tinanggap ng dashboard ({{reason}}). Idagdag ito gamit ang I-edit ang dashboard.",
                 },
             },
         },

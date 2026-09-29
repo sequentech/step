@@ -3207,6 +3207,8 @@ const galegoTranslation: TranslationType = {
                 duplicate: {
                     done: "Engadiuse {{id}}, unha copia do widget, ao panel.",
                     failed: "Non se puido duplicar o widget: {{reason}}",
+                    notPlaced:
+                        "A copia {{id}} gardouse, pero o panel non a incluíu ({{reason}}). Engádaa con Editar panel.",
                 },
             },
         },

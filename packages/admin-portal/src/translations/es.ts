@@ -3212,6 +3212,8 @@ const spanishTranslation: TranslationType = {
                 duplicate: {
                     done: "Se añadió {{id}}, una copia del widget, al panel.",
                     failed: "No se pudo duplicar el widget: {{reason}}",
+                    notPlaced:
+                        "La copia {{id}} se guardó, pero el panel no la incluyó ({{reason}}). Añádala con Editar panel.",
                 },
             },
         },
