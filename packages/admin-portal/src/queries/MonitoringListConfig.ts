@@ -4,8 +4,14 @@
 import {gql} from "@apollo/client"
 
 export const MONITORING_LIST_CONFIG = gql`
-    query MonitoringListConfig($electionEventId: uuid!) {
+    query MonitoringListConfig($electionEventId: String!) {
         monitoringListConfig(election_event_id: $electionEventId) {
+            mode
+            generation
+            preset {
+                id
+                version
+            }
             documents {
                 kind
                 key

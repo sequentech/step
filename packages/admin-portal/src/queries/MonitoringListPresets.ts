@@ -4,12 +4,13 @@
 import {gql} from "@apollo/client"
 
 export const MONITORING_LIST_PRESETS = gql`
-    query MonitoringListPresets($electionEventId: uuid!) {
+    query MonitoringListPresets($electionEventId: String!) {
         monitoringListPresets(election_event_id: $electionEventId) {
             presets {
                 id
                 version
                 title
+                description
             }
         }
     }

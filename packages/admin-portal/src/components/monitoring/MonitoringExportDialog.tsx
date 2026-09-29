@@ -87,7 +87,7 @@ export function MonitoringExportDialog({
                     to: exportBound(to),
                 },
             })
-            const taskId = data?.monitoringExport.task_execution.id
+            const taskId = data?.monitoringExport.task_execution?.id
             if (errors?.length || !taskId) {
                 updateWidgetFail(widget.identifier)
                 return

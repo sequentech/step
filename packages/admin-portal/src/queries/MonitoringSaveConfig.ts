@@ -5,7 +5,7 @@ import {gql} from "@apollo/client"
 
 export const MONITORING_SAVE_CONFIG = gql`
     mutation MonitoringSaveConfig(
-        $electionEventId: uuid!
+        $electionEventId: String!
         $kind: String!
         $key: String!
         $yaml: String
@@ -22,6 +22,13 @@ export const MONITORING_SAVE_CONFIG = gql`
         ) {
             revision
             generation
+            warnings {
+                severity
+                code
+                path
+                message
+                engine_code
+            }
         }
     }
 `

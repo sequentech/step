@@ -5,8 +5,8 @@ import {gql} from "@apollo/client"
 
 export const MONITORING_GET_DASHBOARD = gql`
     query MonitoringGetDashboard(
-        $electionEventId: uuid!
-        $electionId: uuid
+        $electionEventId: String!
+        $electionId: String
         $dashboardId: String!
     ) {
         monitoringGetDashboard(

@@ -4,9 +4,24 @@
 import {gql} from "@apollo/client"
 
 export const MONITORING_RESET_TO_PRESET = gql`
-    mutation MonitoringResetToPreset($electionEventId: uuid!, $presetId: String!) {
-        monitoringResetToPreset(election_event_id: $electionEventId, preset_id: $presetId) {
+    mutation MonitoringResetToPreset(
+        $electionEventId: String!
+        $presetId: String!
+        $mode: String
+    ) {
+        monitoringResetToPreset(
+            election_event_id: $electionEventId
+            preset_id: $presetId
+            mode: $mode
+        ) {
             generation
+            warnings {
+                severity
+                code
+                path
+                message
+                engine_code
+            }
         }
     }
 `

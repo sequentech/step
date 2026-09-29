@@ -270,6 +270,8 @@ export interface MonitoringProblem {
     code: string
     path: string
     message: string
+    /** The dbt Charts code (`ERR-…`, `WARN-…`) behind a chart problem. */
+    engine_code?: string | null
 }
 
 export interface MonitoringTableColumn {
@@ -336,7 +338,7 @@ export interface MonitoringExportRequest {
 
 export interface MonitoringExportResponse {
     document_id: string
-    task_execution: MonitoringTaskExecution
+    task_execution?: MonitoringTaskExecution | null
 }
 
 export interface MonitoringValidateConfigResponse {
@@ -348,6 +350,8 @@ export interface MonitoringValidateConfigResponse {
 export interface MonitoringSaveConfigResponse {
     revision: number
     generation: number
+    /** Problems that do not stop the save, such as a chart warning. */
+    warnings: MonitoringProblem[]
 }
 
 export interface MonitoringConfigAuthor {
@@ -362,22 +366,37 @@ export interface MonitoringConfigDocument {
     origin: string
     author?: MonitoringConfigAuthor | null
     created_at: string
-    sha256: string
+    sha256?: string | null
 }
 
-export interface MonitoringGetConfigResponse {
-    yaml: string
+export interface MonitoringConfigHistoryEntry {
     revision: number
+    change: string
     origin: string
     author?: MonitoringConfigAuthor | null
     created_at: string
-    history: Array<Omit<MonitoringConfigDocument, "kind" | "key" | "sha256">>
+    sha256?: string | null
+    generation: number
+}
+
+export interface MonitoringGetConfigResponse {
+    kind: EConfigKind
+    key: string
+    /** `null` when the revision read is a removal. */
+    yaml: string | null
+    revision: number
+    change: string
+    origin: string
+    author?: MonitoringConfigAuthor | null
+    created_at: string
+    history: MonitoringConfigHistoryEntry[]
 }
 
 export interface MonitoringPreset {
     id: string
-    version: string
+    version: number
     title: string
+    description?: string | null
 }
 
 // ---------------------------------------------------------------------
@@ -453,7 +472,7 @@ export interface MonitoringSaveConfigMutation {
 }
 
 export interface MonitoringResetToPresetMutation {
-    monitoringResetToPreset: {generation: number}
+    monitoringResetToPreset: {generation: number; warnings?: MonitoringProblem[] | null}
 }
 
 export interface MonitoringListPresetsQuery {
@@ -461,11 +480,16 @@ export interface MonitoringListPresetsQuery {
 }
 
 export interface MonitoringSetModeMutation {
-    monitoringSetMode: {generation: number}
+    monitoringSetMode: {mode: EMonitoringMode; generation: number}
 }
 
 export interface MonitoringListConfigQuery {
-    monitoringListConfig: {documents: MonitoringConfigDocument[]}
+    monitoringListConfig: {
+        mode: EMonitoringMode
+        generation: number
+        preset?: {id: string; version: number} | null
+        documents: MonitoringConfigDocument[]
+    }
 }
 
 export interface MonitoringGetConfigQuery {
