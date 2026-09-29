@@ -181,6 +181,16 @@ async fn end_run(
     .await
 }
 
+/// Shows viewers a complete run. Its completion made the state row.
+async fn show(tx: &Transaction<'_>, s: Scope, revision: i64) -> Result<u64, tokio_postgres::Error> {
+    tx.execute(
+        "UPDATE sequent_backend.monitoring_snapshot_state SET live_snapshot_revision = $3
+         WHERE tenant_id = $1 AND election_event_id = $2",
+        &[&s.tenant, &s.event, &revision],
+    )
+    .await
+}
+
 /// Closes a scope's showing row at the running pass `at`.
 async fn close_figure(
     tx: &Transaction<'_>,
@@ -584,7 +594,7 @@ async fn an_event_is_on_the_standard_dashboard_until_it_is_configured() {
             &[&s.tenant, &s.event, &fresh.event],
         )
         .await,
-        "monitoring_event_is_kept",
+        "monitoring_event_keeps_its_election_event",
         "a monitoring history moved to another event",
     );
     refused_by(
@@ -1486,9 +1496,11 @@ async fn viewers_are_shown_only_a_complete_run_and_it_is_final() {
         "a running run checked",
     );
 
+    // Recorded as completed, so only the foreign key can refuse.
     let state = "INSERT INTO sequent_backend.monitoring_snapshot_state
-                     (tenant_id, election_event_id, live_snapshot_revision, watermarks)
-                 VALUES ($1, $2, $3, $4)";
+                     (tenant_id, election_event_id, live_snapshot_revision, watermarks,
+                      last_complete_revision)
+                 VALUES ($1, $2, $3, $4, $3)";
     let (no_run, object): (Option<i64>, serde_json::Value) = (None, serde_json::json!({}));
     refused_by(
         attempt(
@@ -1538,11 +1550,6 @@ async fn viewers_are_shown_only_a_complete_run_and_it_is_final() {
     }
     let show = "UPDATE sequent_backend.monitoring_snapshot_state SET live_snapshot_revision = $3
                 WHERE tenant_id = $1 AND election_event_id = $2";
-    refused_by(
-        attempt(&mut tx, show, &[&s.tenant, &s.event, &second]).await,
-        "monitoring_snapshot_state_shows_a_complete_run",
-        "another event's complete run",
-    );
     assert_eq!(
         attempt(&mut tx, show, &[&s.tenant, &s.event, &first]).await,
         Ok(1)
@@ -1621,6 +1628,12 @@ async fn viewers_are_shown_only_a_complete_run_and_it_is_final() {
         .await,
         Ok(1)
     );
+    assert!(first < second && second < third);
+    refused_by(
+        attempt(&mut tx, show, &[&s.tenant, &s.event, &second]).await,
+        "monitoring_snapshot_state_shows_a_complete_run",
+        "another event's complete run",
+    );
     assert_eq!(
         attempt(&mut tx, show, &[&s.tenant, &s.event, &third]).await,
         Ok(1)
@@ -1677,6 +1690,261 @@ async fn viewers_are_shown_only_a_complete_run_and_it_is_final() {
         .unwrap()
         .get(0);
     assert!(touched, "updated_at follows every change");
+}
+
+#[tokio::test]
+async fn runs_complete_in_the_order_of_their_revisions() {
+    let mut client = schema::pool().await.get().await.unwrap();
+    let mut tx = client.transaction().await.unwrap();
+    let s = scope(&tx, line!()).await;
+    let last = "SELECT last_complete_revision FROM sequent_backend.monitoring_snapshot_state
+                WHERE tenant_id = $1 AND election_event_id = $2";
+    let (older, newer) = (start_run(&tx, s).await, start_run(&tx, s).await);
+    assert_eq!(end_run(&tx, s, newer, "COMPLETE").await.unwrap(), 1);
+    let recorded: Option<i64> = tx
+        .query_one(last, &[&s.tenant, &s.event])
+        .await
+        .unwrap()
+        .get(0);
+    assert_eq!(
+        recorded,
+        Some(newer),
+        "the first completion makes the state row"
+    );
+
+    let complete = "UPDATE sequent_backend.monitoring_snapshot_run
+                    SET status = 'COMPLETE', finished_at = now(), as_of = now(),
+                        settings_revision = 1, config_generation = 0
+                    WHERE tenant_id = $1 AND election_event_id = $2 AND revision = $3";
+    refused_by(
+        attempt(&mut tx, complete, &[&s.tenant, &s.event, &older]).await,
+        "monitoring_snapshot_run_completes_in_order",
+        "an older run completed after a newer one",
+    );
+    refused_by(
+        attempt(
+            &mut tx,
+            "INSERT INTO sequent_backend.monitoring_snapshot_run
+                 (tenant_id, election_event_id, revision, status, finished_at, as_of,
+                  settings_revision, config_generation)
+             VALUES ($1, $2, $3, 'COMPLETE', now(), now(), 1, 0)",
+            &[&s.tenant, &s.event, &(older - 1)],
+        )
+        .await,
+        "monitoring_snapshot_run_completes_in_order",
+        "a run inserted complete below the newest",
+    );
+    assert_eq!(
+        end_run(&tx, s, older, "FAILED").await.unwrap(),
+        1,
+        "a pass left behind is marked failed"
+    );
+    let latest = start_run(&tx, s).await;
+    assert_eq!(end_run(&tx, s, latest, "COMPLETE").await.unwrap(), 1);
+    let recorded: Option<i64> = tx
+        .query_one(last, &[&s.tenant, &s.event])
+        .await
+        .unwrap()
+        .get(0);
+    assert_eq!(recorded, Some(latest));
+
+    let set_last =
+        "UPDATE sequent_backend.monitoring_snapshot_state SET last_complete_revision = $3
+                    WHERE tenant_id = $1 AND election_event_id = $2";
+    for (value, why) in [(Some(newer), "moved back"), (None, "forgotten")] {
+        refused_by(
+            attempt(&mut tx, set_last, &[&s.tenant, &s.event, &value]).await,
+            "monitoring_snapshot_state_moves_forward",
+            why,
+        );
+    }
+    // With the triggers off, the state still cannot show a run past the
+    // newest it records as completed.
+    let savepoint = Transaction::savepoint(&mut tx, "replica").await.unwrap();
+    savepoint
+        .batch_execute("SET LOCAL session_replication_role = replica")
+        .await
+        .unwrap();
+    let error = savepoint
+        .execute(
+            "UPDATE sequent_backend.monitoring_snapshot_state
+             SET live_snapshot_revision = $3, last_complete_revision = $4
+             WHERE tenant_id = $1 AND election_event_id = $2",
+            &[&s.tenant, &s.event, &latest, &newer],
+        )
+        .await
+        .unwrap_err();
+    assert_eq!(
+        refusal(&error),
+        "monitoring_snapshot_state_shows_what_completed"
+    );
+    savepoint.rollback().await.unwrap();
+}
+
+#[tokio::test]
+async fn a_pass_that_fell_behind_a_later_one_can_no_longer_complete() {
+    let pool = schema::pool().await;
+    let (mut stale_client, mut later_client) =
+        (pool.get().await.unwrap(), pool.get().await.unwrap());
+    let (s, key, old, other, r1) = {
+        let setup = stale_client.transaction().await.unwrap();
+        let s = scope(&setup, line!()).await;
+        let key = election_set(&setup, s, &[]).await;
+        let (old, new, other) = (
+            payload(&setup, s, "old").await,
+            payload(&setup, s, "new").await,
+            payload(&setup, s, "from the stale pass").await,
+        );
+        let r1 = start_run(&setup, s).await;
+        for scope_key in ["event", "region=north"] {
+            open_figure(&setup, s, (key.as_str(), scope_key), r1, &old)
+                .await
+                .unwrap();
+        }
+        end_run(&setup, s, r1, "COMPLETE").await.unwrap();
+        assert_eq!(show(&setup, s, r1).await.unwrap(), 1);
+        setup.commit().await.unwrap();
+        let _ = new;
+        (s, key, old, other, r1)
+    };
+    let new = digest("new");
+    let shown = |revision: i64| {
+        let pool = pool.clone();
+        async move {
+            pool.get()
+                .await
+                .unwrap()
+                .query(
+                    "SELECT scope_key, payload_sha256 FROM sequent_backend.monitoring_snapshot_figure
+                     WHERE tenant_id = $1 AND election_event_id = $2
+                       AND int8range(from_revision, to_revision) @> $3::bigint
+                     ORDER BY scope_key",
+                    &[&s.tenant, &s.event, &revision],
+                )
+                .await
+                .unwrap()
+                .into_iter()
+                .map(|row| (row.get::<_, String>(0), row.get::<_, Vec<u8>>(1)))
+                .collect::<Vec<_>>()
+        }
+    };
+    let runs = |n: usize| {
+        let pool = pool.clone();
+        async move {
+            let client = pool.get().await.unwrap();
+            let mut revisions = Vec::new();
+            for _ in 0..n {
+                revisions.push(
+                    client
+                        .query_one(
+                            "INSERT INTO sequent_backend.monitoring_snapshot_run
+                                 (tenant_id, election_event_id, status)
+                             VALUES ($1, $2, 'RUNNING') RETURNING revision",
+                            &[&s.tenant, &s.event],
+                        )
+                        .await
+                        .unwrap()
+                        .get::<_, i64>(0),
+                );
+            }
+            revisions
+        }
+    };
+
+    // Under REPEATABLE READ, as the job counts: the stale pass took its
+    // snapshot before the later pass completed, and fails to serialize.
+    let started = runs(2).await;
+    let (stale_run, later_run) = (started[0], started[1]);
+    let stale = stale_client
+        .build_transaction()
+        .isolation_level(IsolationLevel::RepeatableRead)
+        .start()
+        .await
+        .unwrap();
+    stale.query_one("SELECT 1", &[]).await.unwrap();
+    let later = later_client
+        .build_transaction()
+        .isolation_level(IsolationLevel::RepeatableRead)
+        .start()
+        .await
+        .unwrap();
+    assert_eq!(
+        close_figure(&later, s, "event", later_run).await.unwrap(),
+        1
+    );
+    open_figure(&later, s, (key.as_str(), "event"), later_run, &new)
+        .await
+        .unwrap();
+    end_run(&later, s, later_run, "COMPLETE").await.unwrap();
+    assert_eq!(show(&later, s, later_run).await.unwrap(), 1);
+    later.commit().await.unwrap();
+    let before = shown(later_run).await;
+    assert_eq!(
+        before,
+        vec![
+            ("event".to_string(), new.clone()),
+            ("region=north".to_string(), old.clone())
+        ]
+    );
+    // The stale pass does not see the later run, so its figure writes pass;
+    // its completion does not.
+    assert_eq!(
+        close_figure(&stale, s, "region=north", stale_run)
+            .await
+            .unwrap(),
+        1
+    );
+    open_figure(&stale, s, (key.as_str(), "region=north"), stale_run, &other)
+        .await
+        .unwrap();
+    let error = end_run(&stale, s, stale_run, "COMPLETE").await.unwrap_err();
+    assert_eq!(
+        error.as_db_error().map(|db| db.code().code()),
+        Some("40001"),
+        "{error:?}"
+    );
+    stale.rollback().await.unwrap();
+    assert_eq!(
+        shown(later_run).await,
+        before,
+        "the shown run shows what it did"
+    );
+    assert_eq!(shown(r1).await.len(), 2);
+
+    // Under READ COMMITTED the stale completion waits for the later one,
+    // then is refused.
+    let started = runs(2).await;
+    let (stale_run, later_run) = (started[0], started[1]);
+    let later = later_client.transaction().await.unwrap();
+    end_run(&later, s, later_run, "COMPLETE").await.unwrap();
+    let waiting = {
+        let pool = pool.clone();
+        tokio::spawn(async move {
+            let mut client = pool.get().await.unwrap();
+            let tx = client.transaction().await.unwrap();
+            let result = end_run(&tx, s, stale_run, "COMPLETE")
+                .await
+                .map_err(refused);
+            tx.rollback().await.unwrap();
+            result
+        })
+    };
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    assert!(
+        !waiting.is_finished(),
+        "the stale completion waits for the later one"
+    );
+    later.commit().await.unwrap();
+    assert_eq!(
+        waiting.await.unwrap(),
+        Err("monitoring_snapshot_run_completes_in_order".to_string())
+    );
+
+    let cleanup = stale_client.transaction().await.unwrap();
+    delete_election_event(&cleanup, &s.tenant.to_string(), &s.event.to_string())
+        .await
+        .unwrap();
+    cleanup.commit().await.unwrap();
 }
 
 #[tokio::test]
@@ -1994,14 +2262,7 @@ async fn a_scope_shows_one_stored_payload_over_a_range_of_runs() {
         .await
         .unwrap();
     end_run(&tx, s, r2, "COMPLETE").await.unwrap();
-    tx.execute(
-        "INSERT INTO sequent_backend.monitoring_snapshot_state
-             (tenant_id, election_event_id, live_snapshot_revision)
-         VALUES ($1, $2, $3)",
-        &[&s.tenant, &s.event, &r2],
-    )
-    .await
-    .unwrap();
+    assert_eq!(show(&tx, s, r2).await.unwrap(), 1);
 
     for (change, why) in [
         ("to_revision = NULL", "a closed row reopened"),
@@ -2266,15 +2527,7 @@ async fn a_reader_of_a_run_sees_all_its_figures_or_none_while_it_is_pruned() {
             .await
             .unwrap();
         end_run(&setup, s, live, "COMPLETE").await.unwrap();
-        setup
-            .execute(
-                "INSERT INTO sequent_backend.monitoring_snapshot_state
-                     (tenant_id, election_event_id, live_snapshot_revision)
-                 VALUES ($1, $2, $3)",
-                &[&s.tenant, &s.event, &live],
-            )
-            .await
-            .unwrap();
+        assert_eq!(show(&setup, s, live).await.unwrap(), 1);
         setup.commit().await.unwrap();
         (s, old, live)
     };
@@ -2373,79 +2626,63 @@ async fn a_run_records_whether_each_source_was_counted() {
         .await
         .unwrap()
         .get(0);
+    let missing = set_key(&[id(line!(), 3)]);
     let source = "INSERT INTO sequent_backend.monitoring_snapshot_source
                       (tenant_id, election_event_id, revision, source, election_set_key,
                        producer_status, reason)
                   VALUES ($1, $2, $3, $4, $5, $6, $7)";
     let no_reason: Option<&str> = None;
+    // The pass writes as it counts; what it wrote is checked once it ends.
     for id in DataSourceId::iter().filter(|id| *id != DataSourceId::Helpdesk) {
         let id = id.to_string();
-        assert_eq!(
-            attempt(
-                &mut tx,
-                source,
-                &[
-                    &s.tenant,
-                    &s.event,
-                    &revision,
-                    &id,
-                    &key,
-                    &"CONNECTED",
-                    &no_reason
-                ]
-            )
-            .await,
-            Ok(1),
-            "{id}"
-        );
+        tx.execute(
+            source,
+            &[
+                &s.tenant,
+                &s.event,
+                &revision,
+                &id,
+                &key,
+                &"CONNECTED",
+                &no_reason,
+            ],
+        )
+        .await
+        .unwrap();
     }
-    let missing = set_key(&[id(line!(), 3)]);
-    for (id, set, status, reason, constraint) in [
+    for (id, status, reason, constraint) in [
         (
             "weather",
-            &key,
             "CONNECTED",
             None,
             "monitoring_snapshot_source_source_check",
         ),
         (
             "helpdesk",
-            &key,
             "BROKEN",
             None,
             "monitoring_snapshot_source_producer_status_check",
         ),
         (
             "helpdesk",
-            &key,
             "NOT_CONNECTED",
             None,
             "monitoring_snapshot_source_not_connected_says_why",
         ),
         (
             "helpdesk",
-            &key,
             "NOT_CONNECTED",
             Some(""),
             "monitoring_snapshot_source_not_connected_says_why",
         ),
         (
             "helpdesk",
-            &key,
             "CONNECTED",
             Some("why"),
             "monitoring_snapshot_source_not_connected_says_why",
         ),
         (
-            "helpdesk",
-            &missing,
-            "CONNECTED",
-            None,
-            "monitoring_snapshot_source_set_is_recorded",
-        ),
-        (
             "voter_turnout",
-            &key,
             "CONNECTED",
             None,
             "monitoring_snapshot_source_pkey",
@@ -2455,30 +2692,27 @@ async fn a_run_records_whether_each_source_was_counted() {
             attempt(
                 &mut tx,
                 source,
-                &[&s.tenant, &s.event, &revision, &id, set, &status, &reason],
+                &[&s.tenant, &s.event, &revision, &id, &key, &status, &reason],
             )
             .await,
             constraint,
             constraint,
         );
     }
-    assert_eq!(
-        attempt(
-            &mut tx,
-            source,
-            &[
-                &s.tenant,
-                &s.event,
-                &revision,
-                &"helpdesk",
-                &key,
-                &"NOT_CONNECTED",
-                &Some("No producer yet")
-            ],
-        )
-        .await,
-        Ok(1)
-    );
+    tx.execute(
+        source,
+        &[
+            &s.tenant,
+            &s.event,
+            &revision,
+            &"helpdesk",
+            &key,
+            &"NOT_CONNECTED",
+            &Some("No producer yet"),
+        ],
+    )
+    .await
+    .unwrap();
     refused_by(
         attempt(
             &mut tx,
@@ -2493,6 +2727,98 @@ async fn a_run_records_whether_each_source_was_counted() {
     refused_by(
         attempt(
             &mut tx,
+            "DELETE FROM sequent_backend.monitoring_snapshot_source
+             WHERE election_event_id = $1 AND source = 'helpdesk'",
+            &[&s.event],
+        )
+        .await,
+        "monitoring_snapshot_source_is_kept",
+        "a run's record removed but with its run",
+    );
+    end_run(&tx, s, revision, "COMPLETE").await.unwrap();
+    tx.batch_execute("SET CONSTRAINTS ALL IMMEDIATE; SET CONSTRAINTS ALL DEFERRED")
+        .await
+        .unwrap();
+    refused_by(
+        attempt(
+            &mut tx,
+            source,
+            &[
+                &s.tenant,
+                &s.event,
+                &revision,
+                &"helpdesk",
+                &key,
+                &"CONNECTED",
+                &no_reason,
+            ],
+        )
+        .await,
+        "monitoring_snapshot_source_of_a_running_pass",
+        "added to a complete run",
+    );
+
+    // A pass ends before what it wrote is kept; a failed one may still say
+    // what it counted, and is then as final as a complete one.
+    for (ending, set, outcome) in [
+        (
+            None,
+            &key,
+            Err("monitoring_snapshot_source_finishes_its_run"),
+        ),
+        (Some("FAILED"), &key, Ok(1)),
+        (
+            Some("COMPLETE"),
+            &missing,
+            Err("monitoring_snapshot_source_set_is_recorded"),
+        ),
+    ] {
+        let savepoint = Transaction::savepoint(&mut tx, "pass").await.unwrap();
+        let pass = start_run(&savepoint, s).await;
+        savepoint
+            .execute(
+                source,
+                &[
+                    &s.tenant,
+                    &s.event,
+                    &pass,
+                    &"voter_turnout",
+                    set,
+                    &"CONNECTED",
+                    &no_reason,
+                ],
+            )
+            .await
+            .unwrap();
+        if let Some(status) = ending {
+            end_run(&savepoint, s, pass, status).await.unwrap();
+        }
+        let settled = settle(savepoint, Ok(1)).await;
+        assert_eq!(settled, outcome.map_err(str::to_owned), "{ending:?}");
+        if ending == Some("FAILED") {
+            refused_by(
+                attempt(
+                    &mut tx,
+                    source,
+                    &[
+                        &s.tenant,
+                        &s.event,
+                        &pass,
+                        &"helpdesk",
+                        &key,
+                        &"CONNECTED",
+                        &no_reason,
+                    ],
+                )
+                .await,
+                "monitoring_snapshot_source_of_a_running_pass",
+                "added to a failed run",
+            );
+        }
+    }
+    refused_by(
+        attempt(
+            &mut tx,
             "DELETE FROM sequent_backend.monitoring_election_set WHERE election_event_id = $1",
             &[&s.event],
         )
@@ -2503,15 +2829,17 @@ async fn a_run_records_whether_each_source_was_counted() {
     // With its run, a run's record goes.
     let gone = attempt(
         &mut tx,
-        "DELETE FROM sequent_backend.monitoring_snapshot_run WHERE election_event_id = $1",
-        &[&s.event],
+        "DELETE FROM sequent_backend.monitoring_snapshot_run
+         WHERE election_event_id = $1 AND revision = $2",
+        &[&s.event, &revision],
     )
     .await;
     assert_eq!(gone, Ok(1));
     let left = count(
         &tx,
-        "SELECT count(*) FROM sequent_backend.monitoring_snapshot_source WHERE election_event_id = $1",
-        &[&s.event],
+        "SELECT count(*) FROM sequent_backend.monitoring_snapshot_source
+         WHERE election_event_id = $1 AND revision = $2",
+        &[&s.event, &revision],
     )
     .await;
     assert_eq!(left, 0);
@@ -3182,18 +3510,19 @@ async fn every_monitoring_row_goes_with_its_event() {
     open_figure(&tx, s, (key.as_str(), "event"), revision, &figures)
         .await
         .unwrap();
+    tx.execute(
+        "INSERT INTO sequent_backend.monitoring_snapshot_source
+             (tenant_id, election_event_id, revision, source, election_set_key, producer_status)
+         VALUES ($1, $2, $3, 'voter_turnout', $4, 'CONNECTED')",
+        &[&s.tenant, &s.event, &revision, &key],
+    )
+    .await
+    .unwrap();
     end_run(&tx, s, revision, "COMPLETE").await.unwrap();
-    let statements: [(&str, &[&(dyn ToSql + Sync)]); 5] = [
+    let statements: [(&str, &[&(dyn ToSql + Sync)]); 4] = [
         (
-            "INSERT INTO sequent_backend.monitoring_snapshot_source
-                 (tenant_id, election_event_id, revision, source, election_set_key, producer_status)
-             VALUES ($1, $2, $3, 'voter_turnout', $4, 'CONNECTED')",
-            &[&s.tenant, &s.event, &revision, &key],
-        ),
-        (
-            "INSERT INTO sequent_backend.monitoring_snapshot_state
-                 (tenant_id, election_event_id, live_snapshot_revision)
-             VALUES ($1, $2, $3)",
+            "UPDATE sequent_backend.monitoring_snapshot_state SET live_snapshot_revision = $3
+             WHERE tenant_id = $1 AND election_event_id = $2",
             &[&s.tenant, &s.event, &revision],
         ),
         (
