@@ -28,6 +28,7 @@ import confirmationScreenDataReducer, {
 } from "../store/castVotes/confirmationScreenDataSlice"
 import {BALLOT_DATA_KEY} from "../store/castVotes/sessionBallotData"
 import VotingScreen from "./VotingScreen"
+import StartScreen from "./StartScreen"
 import {ReviewScreen} from "./ReviewScreen"
 import ConfirmationScreen from "./ConfirmationScreen"
 import SupportMaterialsScreen from "./SupportMaterialsScreen"
@@ -838,4 +839,17 @@ it("keeps the current contest page throughout a refresh of the same published ba
     expect(mockInsertCastVote).not.toHaveBeenCalled()
     view.unmount()
     store.dispatch(clearVoterSession())
+})
+
+it("exposes the three instruction steps as a named ordered list", () => {
+    renderRoute(<StartScreen />, "start")
+    const instructions = screen.getByRole("list", {name: "startScreen.instructionsTitle"})
+    expect(instructions.tagName).toBe("OL")
+    const steps = within(instructions).getAllByRole("listitem")
+    expect(steps).toHaveLength(3)
+    steps.forEach((step, index) => {
+        expect(within(step).getByRole("heading", {level: 3})).toHaveTextContent(
+            `startScreen.step${index + 1}Title`
+        )
+    })
 })
