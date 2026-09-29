@@ -56,16 +56,17 @@ impl KeycloakAdminClient {
                 None,
                 None,
                 None,
-                search.clone(),
                 None,
+                search.clone(),
             )
             .await
             .map_err(|err| anyhow!("{:?}", err))?;
 
         let count = group_representations.len();
-        let start = offset.unwrap_or(0);
+        // A page beyond the current result set is empty, even after deletions.
+        let start = offset.unwrap_or(0).min(count);
         let end = match limit {
-            Some(num) => usize::min(count, start + num),
+            Some(num) => usize::min(count, start.saturating_add(num)),
             None => count,
         };
         let slized_group_representations = &group_representations[start..end];
