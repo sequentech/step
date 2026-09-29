@@ -2,7 +2,16 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useEffect, useMemo, useRef, useState} from "react"
-import {Box, Card, CardContent, Skeleton, Stack, Typography, useTheme} from "@mui/material"
+import {
+    Box,
+    Card,
+    CardContent,
+    LinearProgress,
+    Skeleton,
+    Stack,
+    Typography,
+    useTheme,
+} from "@mui/material"
 import {useQuery} from "@apollo/client"
 import {useTranslation} from "react-i18next"
 import {MONITORING_RENDER_WIDGET} from "@/queries/MonitoringRenderWidget"
@@ -22,6 +31,13 @@ import {
 } from "./types"
 import type {LayoutCell} from "./lib/layout"
 import {resolveSelectors, selectorValuesForRequest} from "./lib/selectors"
+import {CHART_FONT_CSS} from "./lib/chartFonts"
+import {
+    BUSY_RETRY_MS,
+    EMonitoringErrorCode,
+    monitoringErrorCode,
+    monitoringErrorMessage,
+} from "./lib/errors"
 import {useMonitoring} from "./MonitoringProvider"
 import {useBucketedWidth} from "./useBucketedWidth"
 import {MonitoringChartFrame} from "./MonitoringChartFrame"
@@ -41,8 +57,14 @@ export interface MonitoringWidgetContext {
     snapshot: MonitoringSnapshot | null
     sources: Record<string, MonitoringSourceInfo>
     timeZone: string
+    /** The options of a selector with `options_from: event_days`. */
+    eventDays: string[]
     /** Changes when the dashboard, theme or settings are saved, so charts are drawn again. */
     configVersion: string
+    /** Counts the dashboard's polls: a widget that failed asks again on each. */
+    pollCount: number
+    /** The update being exported is gone: the dashboard is asked for the current one. */
+    onSnapshotPruned?: () => void
     configure: EMonitoringCapability
 }
 
@@ -65,18 +87,19 @@ export function MonitoringWidgetCard({cell, context}: MonitoringWidgetCardProps)
     const body = useRef<HTMLDivElement>(null)
     const width = useBucketedWidth(body)
     const widget = cell.widget
-    const picks = widgetValues(cell.widgetId)
+    const picks = widgetValues(cell)
+    const eventDays = context.eventDays
 
     const selectors = useMemo(
-        () => (widget ? resolveSelectors(widget, cell.values, picks, {}) : []),
-        [widget, cell.values, picks]
+        () => (widget ? resolveSelectors(widget, cell.values, picks, {event_days: eventDays}) : []),
+        [widget, cell.values, picks, eventDays]
     )
     const selectorValues = useMemo(() => selectorValuesForRequest(selectors), [selectors])
     const source = widget ? context.sources[widget.source] : undefined
     const notConnected = source?.producer === EProducerState.NOT_CONNECTED
     const colorScheme = theme.palette.mode === "dark" ? EColorScheme.DARK : EColorScheme.LIGHT
 
-    const {data, previousData, error, refetch} = useQuery<
+    const {data, previousData, loading, error, refetch} = useQuery<
         MonitoringRenderWidgetQuery,
         MonitoringRenderWidgetVariables
     >(MONITORING_RENDER_WIDGET, {
@@ -92,9 +115,10 @@ export function MonitoringWidgetCard({cell, context}: MonitoringWidgetCardProps)
             colorScheme,
             locale: i18n.language,
         },
-        // A render is the same while the snapshot, scope and selectors are:
-        // polls do not draw a widget again unless one of them changed.
-        fetchPolicy: "cache-first",
+        // Polls do not draw a widget again unless the snapshot, scope or
+        // selectors changed, since the request stays the same. Renders are not
+        // cached: each snapshot revision would leave its SVGs in the cache.
+        fetchPolicy: "no-cache",
         skip: !widget || notConnected || width === null,
     })
 
@@ -108,7 +132,28 @@ export function MonitoringWidgetCard({cell, context}: MonitoringWidgetCardProps)
         void refetch().catch(() => undefined)
     }, [version, refetch])
 
-    const render = (data ?? previousData)?.monitoringRenderWidget
+    // A failed widget asks again on the dashboard's next poll; a busy one sooner.
+    const errorCode = error ? monitoringErrorCode(error) : undefined
+    const polled = useRef(context.pollCount)
+    useEffect(() => {
+        if (polled.current === context.pollCount) return
+        polled.current = context.pollCount
+        if (error) void refetch().catch(() => undefined)
+    }, [context.pollCount, error, refetch])
+    const busy = errorCode === EMonitoringErrorCode.BUSY ? error : undefined
+    useEffect(() => {
+        // Each busy answer waits, then asks again.
+        if (!busy) return
+        const timer = window.setTimeout(() => void refetch().catch(() => undefined), BUSY_RETRY_MS)
+        return () => window.clearTimeout(timer)
+    }, [busy, refetch])
+
+    // The previous chart only while the next one is on its way, marked as such;
+    // after a failure, the failure.
+    const updating = loading && !data && Boolean(previousData)
+    const render = error
+        ? undefined
+        : (data ?? (loading ? previousData : undefined))?.monitoringRenderWidget
     const title = widget?.title ?? cell.widgetId
     const height = widget?.height ?? DEFAULT_WIDGET_HEIGHT
     const sourceLabel = widget
@@ -139,9 +184,13 @@ export function MonitoringWidgetCard({cell, context}: MonitoringWidgetCardProps)
                 />
             )
         }
-        if (!render && error) {
+        if (error) {
             return (
-                <MonitoringWidgetUnavailable state={EWidgetFailure.REQUEST_FAILED} title={title} />
+                <MonitoringWidgetUnavailable
+                    state={EWidgetFailure.REQUEST_FAILED}
+                    problem={errorCode ? t(monitoringErrorMessage(error)) : undefined}
+                    title={title}
+                />
             )
         }
         if (!render) {
@@ -149,6 +198,7 @@ export function MonitoringWidgetCard({cell, context}: MonitoringWidgetCardProps)
                 <Skeleton
                     variant="rectangular"
                     height={height}
+                    role="progressbar"
                     aria-label={t("monitoring.widget.loading", {widget: title})}
                 />
             )
@@ -160,6 +210,7 @@ export function MonitoringWidgetCard({cell, context}: MonitoringWidgetCardProps)
                     title={t("monitoring.frame.title", {widget: title})}
                     height={height}
                     colorScheme={colorScheme}
+                    fontCss={CHART_FONT_CSS}
                 />
             )
         }
@@ -218,9 +269,21 @@ export function MonitoringWidgetCard({cell, context}: MonitoringWidgetCardProps)
                     <MonitoringWidgetSelectors
                         widgetId={cell.key}
                         selectors={selectors}
-                        onChange={(name, value) => setWidgetValue(cell.widgetId, name, value)}
+                        onChange={(name, value) => setWidgetValue(cell, name, value)}
                     />
-                    <Box ref={body}>{content()}</Box>
+                    <Box ref={body} aria-busy={updating || undefined}>
+                        {updating ? (
+                            <Stack spacing={0.5} role="status" sx={{mb: 1}}>
+                                <LinearProgress
+                                    aria-label={t("monitoring.widget.updating", {widget: title})}
+                                />
+                                <Typography variant="caption" color="text.secondary">
+                                    {t("monitoring.widget.updatingNote")}
+                                </Typography>
+                            </Stack>
+                        ) : null}
+                        <Box sx={updating ? {opacity: 0.5} : undefined}>{content()}</Box>
+                    </Box>
                     {render?.notices.map((notice) => (
                         <Typography key={notice} variant="caption" color="text.secondary">
                             {notice}
@@ -246,6 +309,7 @@ export function MonitoringWidgetCard({cell, context}: MonitoringWidgetCardProps)
                     scope={context.scopeLabel}
                     timeZone={context.timeZone}
                     initialFormat={EMonitoringExportFormat.CSV}
+                    onSnapshotPruned={context.onSnapshotPruned}
                     target={{
                         electionEventId: context.electionEventId,
                         electionId: context.electionId ?? null,

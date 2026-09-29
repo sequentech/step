@@ -14,6 +14,7 @@ import {
     MONITORING_SNAPSHOT,
     listDashboardsResponse,
     monitoringHandlers,
+    refusal,
     turnoutByGroup,
     type MonitoringHandlerOptions,
 } from "./__stories__/MonitoringFixture"
@@ -23,6 +24,8 @@ interface Scenario {
     onEditDashboard: (dashboardId: string) => void
     options?: MonitoringHandlerOptions
     failing?: boolean
+    /** Harvest's refusal of get-dashboard, as `extensions.code`. */
+    refusal?: string
 }
 
 let graphql: ReturnType<typeof graphqlBoundary>
@@ -49,11 +52,12 @@ const meta = {
         window.sessionStorage.clear()
         const handlers = monitoringHandlers(args.options)
         graphql = graphqlBoundary(
-            args.failing
+            args.failing || args.refusal
                 ? {
                       ...handlers,
                       MonitoringGetDashboard: () => {
-                          throw new Error("Synthetic monitoring outage")
+                          if (!args.refusal) throw new Error("Synthetic monitoring outage")
+                          return refusal(args.refusal)
                       },
                   }
                 : handlers,
@@ -80,6 +84,11 @@ export const Overview: Story = {
             )
         ).toBeVisible()
         await canvas.findByTitle("Poll status chart")
+        // Widget titles sit under the dashboard's.
+        await expect(
+            canvas.getByRole("heading", {level: 2, name: "Monitoring overview"})
+        ).toBeVisible()
+        await expect(canvas.getByRole("heading", {level: 3, name: "Poll status"})).toBeVisible()
         await expect(
             canvas.getByText("Not connected · no attack detection feed is connected")
         ).toBeVisible()
@@ -167,5 +176,45 @@ export const DashboardFailed: Story = {
             await canvas.findByText("The monitoring dashboard could not be loaded.")
         ).toBeVisible()
         await expect(canvas.getByRole("button", {name: "Retry"})).toBeVisible()
+    },
+}
+
+export const DashboardNotFound: Story = {
+    args: {refusal: "MONITORING_NOT_FOUND"},
+    play: async ({canvasElement}) => {
+        await expect(
+            await within(canvasElement).findByText(
+                /could not be loaded\. This dashboard or widget is no longer configured\./
+            )
+        ).toBeVisible()
+    },
+}
+
+export const ExportDashboardWithEachWidgetsPicks: Story = {
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await canvas.findByTitle("Turnout by group chart")
+        await userEvent.click(canvas.getByRole("combobox", {name: "Breakdown"}))
+        await userEvent.click(await within(document.body).findByRole("option", {name: "Sex"}))
+        await userEvent.click(canvas.getByRole("button", {name: "Export"}))
+        const dialog = within(await within(document.body).findByRole("dialog"))
+        await userEvent.click(dialog.getByRole("button", {name: "Export"}))
+        await waitFor(() =>
+            expect(graphql.calls.some(({name}) => name === "MonitoringExport")).toBe(true)
+        )
+        const exported = graphql.calls.find(({name}) => name === "MonitoringExport")!
+        expect(exported.variables).toEqual(
+            expect.objectContaining({
+                widgetId: null,
+                selectorValues: {},
+                widgetSelectorValues: {
+                    "turnout-summary": {},
+                    "turnout-by-group": {breakdown: "sex", measure: "voted_pre"},
+                    "voting-activity": {grain: "day"},
+                    "poll-status": {},
+                    "attack-detections": {},
+                },
+            })
+        )
     },
 }

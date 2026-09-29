@@ -2860,6 +2860,21 @@ const catalanTranslation: TranslationType = {
             dashboardFailed: "No s'ha pogut carregar el tauler de monitoratge.",
             dashboardInvalid: "Aquest tauler no es pot mostrar: {{problem}}",
             retry: "Torna-ho a provar",
+            errors: {
+                busy: "El servidor està ocupat. Es tornarà a provar d'aquí a uns segons.",
+                forbiddenScope: "No podeu veure aquesta regió, Post o país. Trieu-ne un altre.",
+                snapshotPruned:
+                    "L'actualització mostrada ja no es conserva. El tauler mostra ara l'última actualització: torneu a exportar per fer-la servir.",
+                checksUnavailable:
+                    "El servei de gràfics no està disponible ara. Torneu-ho a provar més tard.",
+                lockedDown:
+                    "L'esdeveniment electoral està bloquejat, així que això no es pot canviar.",
+                notFound:
+                    "Aquest tauler o giny ja no està configurat. Torneu a carregar la pàgina.",
+                badRequest:
+                    "No s'ha acceptat la sol·licitud. Torneu a carregar la pàgina i torneu-ho a provar.",
+                unknown: "Alguna cosa ha fallat. Torneu-ho a provar més tard.",
+            },
             header: {
                 dashboard: "Tauler",
                 widgets_one: "{{count}} giny",
@@ -2888,6 +2903,8 @@ const catalanTranslation: TranslationType = {
                 duplicate: "Duplicar",
                 loading: "Carregant {{widget}}",
                 missing: "El tauler anomena un giny que no existeix: {{id}}",
+                updating: "S'està actualitzant {{widget}}",
+                updatingNote: "S'està actualitzant: el gràfic mostrat és l'anterior.",
             },
             frame: {
                 title: "Gràfic de {{widget}}",
@@ -2942,7 +2959,7 @@ const catalanTranslation: TranslationType = {
                 from: "Des de",
                 to: "Fins a",
                 timeZoneHelp:
-                    "Les hores són en {{timeZone}}. L'activitat per hora i per dia va des de l'hora d'inici fins a l'hora de fi, sense incloure-la. L'estat i els totals, tal com es van registrar a cada hora de l'interval.",
+                    "Les hores són en {{timeZone}}. Els totals i els estats són els de l'actualització mostrada; l'activitat es limita a l'interval, des de l'hora d'inici fins a l'hora de fi, sense incloure-la.",
                 cancel: "Cancel·lar",
                 export: "Exportar",
                 invalidRange: "La fi ha de ser posterior a l'inici.",

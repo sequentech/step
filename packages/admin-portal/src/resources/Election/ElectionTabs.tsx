@@ -17,7 +17,7 @@ import {AuthContext} from "@/providers/AuthContextProvider"
 import ElectionHeader from "@/components/ElectionHeader"
 import DashboardElection from "@/components/dashboard/election/Dashboard"
 import {MonitoringDashboardTab} from "@/components/monitoring/MonitoringDashboardTab"
-import {EMonitoringLock} from "@/components/monitoring/useMonitoringPermissions"
+import {monitoringLock} from "@/components/monitoring/useMonitoringPermissions"
 import {Sequent_Backend_Election, Sequent_Backend_Election_Event} from "@/gql/graphql"
 import {Publish} from "../Publish/Publish"
 import {EditElectionData} from "./ElectionData"
@@ -46,10 +46,8 @@ const DashboardTab: React.FC = () => {
         {id: record?.election_event_id},
         {enabled: Boolean(record?.election_event_id)}
     )
-    const lock =
-        electionEvent?.presentation?.locked_down === EElectionEventLockedDown.LOCKED_DOWN
-            ? EMonitoringLock.LOCKED_DOWN
-            : EMonitoringLock.OPEN
+    // Unknown until the event has loaded, so configure actions do not flash.
+    const lock = monitoringLock(electionEvent)
     return (
         <Suspense fallback={<div>Loading Dashboard...</div>}>
             <MonitoringDashboardTab

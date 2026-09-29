@@ -2821,6 +2821,17 @@ const englishTranslation = {
             dashboardFailed: "The monitoring dashboard could not be loaded.",
             dashboardInvalid: "This dashboard cannot be shown: {{problem}}",
             retry: "Retry",
+            errors: {
+                busy: "The server is busy. It is tried again in a few seconds.",
+                forbiddenScope: "You may not see this region, Post or country. Choose another one.",
+                snapshotPruned:
+                    "The update shown is no longer kept. The dashboard now shows the latest update: export again to use it.",
+                checksUnavailable: "The chart service is not available right now. Try again later.",
+                lockedDown: "The election event is locked down, so this cannot be changed.",
+                notFound: "This dashboard or widget is no longer configured. Reload the page.",
+                badRequest: "The request was not accepted. Reload the page and try again.",
+                unknown: "Something went wrong. Try again later.",
+            },
             header: {
                 dashboard: "Dashboard",
                 widgets_one: "{{count}} widget",
@@ -2849,6 +2860,8 @@ const englishTranslation = {
                 duplicate: "Duplicate",
                 loading: "Loading {{widget}}",
                 missing: "The dashboard names a widget that does not exist: {{id}}",
+                updating: "Updating {{widget}}",
+                updatingNote: "Updating: the chart shown is the previous one.",
             },
             frame: {
                 title: "{{widget}} chart",
@@ -2902,7 +2915,7 @@ const englishTranslation = {
                 from: "From",
                 to: "To",
                 timeZoneHelp:
-                    "Times are in {{timeZone}}. Hourly and daily activity from the start time up to, but not including, the end time. Status and totals as recorded at each hour in the range.",
+                    "Times are in {{timeZone}}. Totals and statuses are as of the shown update; activity is limited to the range, from the start time up to, but not including, the end time.",
                 cancel: "Cancel",
                 export: "Export",
                 invalidRange: "The end must be after the start.",

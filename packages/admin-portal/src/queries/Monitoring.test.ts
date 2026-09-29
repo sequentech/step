@@ -1,7 +1,17 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import type {DocumentNode, FieldNode, OperationDefinitionNode} from "graphql"
+import {readFileSync} from "fs"
+import {resolve} from "path"
+import {
+    buildClientSchema,
+    validate,
+    type DocumentNode,
+    type FieldNode,
+    type GraphQLSchema,
+    type IntrospectionQuery,
+    type OperationDefinitionNode,
+} from "graphql"
 import {MONITORING_EXPORT} from "./MonitoringExport"
 import {MONITORING_GET_CONFIG} from "./MonitoringGetConfig"
 import {MONITORING_GET_DASHBOARD} from "./MonitoringGetDashboard"
@@ -63,6 +73,7 @@ const CONTRACT: Array<[DocumentNode, string, "query" | "mutation", string[]]> = 
             "widget_id",
             "scope",
             "selector_values",
+            "widget_selector_values",
             "snapshot_revision",
             "format",
             "from",
@@ -114,4 +125,32 @@ describe("monitoring operations", () => {
             expect(declared).toHaveLength(args.length)
         }
     )
+})
+
+describe("monitoring operations against the admin schema", () => {
+    let schema: GraphQLSchema
+    beforeAll(() => {
+        // The introspection file codegen writes from Hasura, which holds Harvest's actions.
+        const json = JSON.parse(
+            readFileSync(resolve(__dirname, "../../graphql.schema.json"), "utf8")
+        ) as IntrospectionQuery | {data: IntrospectionQuery}
+        schema = buildClientSchema("data" in json ? json.data : json)
+    })
+
+    it.each(CONTRACT)(
+        "validates %#: fields exist and variable types fit the arguments",
+        (document) => {
+            expect(validate(schema, document).map(({message}) => message)).toEqual([])
+        }
+    )
+
+    const selected = (document: DocumentNode) =>
+        (operation(document).selectionSet.selections[0] as FieldNode).selectionSet!.selections.map(
+            (selection) => (selection as FieldNode).name.value
+        )
+
+    it("reads what the view needs of Harvest's additions", () => {
+        expect(selected(MONITORING_GET_DASHBOARD)).toContain("event_days")
+        expect(selected(MONITORING_SET_MODE)).toEqual(["mode", "generation"])
+    })
 })

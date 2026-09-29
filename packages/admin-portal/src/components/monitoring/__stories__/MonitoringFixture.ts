@@ -6,11 +6,13 @@
 // GraphQL boundary handlers that answer the monitoring operations with them.
 // Every value is invented.
 import type {FetchResult, Operation} from "@apollo/client"
+import {GraphQLError} from "graphql"
 import {FIXED_TIME, STORY_IDS} from "@/__stories__/fixtures"
 import {pending} from "../../../../../ui-essentials/.storybook/screens"
 import {
     EColumnKind,
     EDataSource,
+    EDynamicOptions,
     EMonitoringMode,
     EProducerState,
     ESelectorControl,
@@ -27,6 +29,9 @@ import {
 } from "../types"
 
 export const MONITORING_SNAPSHOT = {revision: 41, as_of: FIXED_TIME, checked_at: FIXED_TIME}
+
+/** Days with activity, in the settings' time zone. */
+export const EVENT_DAYS = ["2026-01-14", "2026-01-15"]
 
 export const POSTS = {
     madrid: STORY_IDS.election,
@@ -84,6 +89,11 @@ export const votingActivity: MonitoringWidget = {
             options: {hour: "Hourly", day: "Daily"},
             default: "day",
             control: ESelectorControl.TOGGLE,
+        },
+        day: {
+            label: "Day",
+            options_from: EDynamicOptions.EVENT_DAYS,
+            when: {selector: "grain", in: ["hour"]},
         },
     },
     query: {template: "timeseries", grain: {selector: "grain"}, measures: ["voted"]},
@@ -236,6 +246,7 @@ export function getDashboardResponse({
             },
         },
         snapshot,
+        event_days: EVENT_DAYS,
     }
 }
 
@@ -358,6 +369,11 @@ export function monitoringHandlers(options: MonitoringHandlerOptions = {}) {
             },
         }),
     }
+}
+
+/** Harvest's refusal as Hasura passes it on: a GraphQL error with its code in `extensions`. */
+export function refusal(code: string): FetchResult {
+    return {errors: [new GraphQLError(`Refused: ${code}`, {extensions: {code}})]}
 }
 
 /**

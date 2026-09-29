@@ -11,6 +11,7 @@ export const MONITORING_EXPORT = gql`
         $widgetId: String
         $scope: jsonb!
         $selectorValues: jsonb!
+        $widgetSelectorValues: jsonb
         $snapshotRevision: Int!
         $format: String!
         $from: String
@@ -23,6 +24,7 @@ export const MONITORING_EXPORT = gql`
             widget_id: $widgetId
             scope: $scope
             selector_values: $selectorValues
+            widget_selector_values: $widgetSelectorValues
             snapshot_revision: $snapshotRevision
             format: $format
             from: $from

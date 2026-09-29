@@ -11,7 +11,7 @@ import {
     type MonitoringScopeOptions,
     type MonitoringSettingsView,
 } from "./types"
-import {selectorWords} from "./lib/scopeLabel"
+import {PINNED_BY_POST, selectorWords} from "./lib/scopeLabel"
 
 export interface MonitoringSelectorsProps {
     selectors: EScopeSelector[]
@@ -21,7 +21,7 @@ export interface MonitoringSelectorsProps {
     settings?: MonitoringSettingsView
     /** The viewer sees only the Posts their permission labels allow. */
     restricted: boolean
-    /** On an election's page its Post is fixed, and not offered. */
+    /** On an election's page its Post is fixed, and neither it nor its Region is offered. */
     pinnedPost?: string | null
 }
 
@@ -36,7 +36,7 @@ export function MonitoringSelectors({
     pinnedPost,
 }: MonitoringSelectorsProps) {
     const {t} = useTranslation()
-    const shown = selectors.filter((selector) => !(selector === EScopeSelector.POST && pinnedPost))
+    const shown = selectors.filter((selector) => !(pinnedPost && PINNED_BY_POST.has(selector)))
     if (!shown.length) return null
 
     const choicesOf = (selector: EScopeSelector): MonitoringScopeOption[] => {

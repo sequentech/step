@@ -1,10 +1,12 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React from "react"
+import React, {useState} from "react"
+import type {FetchResult, Operation} from "@apollo/client"
 import type {StoryObj} from "@storybook/react-vite"
 import {expect, fn, userEvent, waitFor, within} from "storybook/test"
-import {Box} from "@mui/material"
+import {Box, Button} from "@mui/material"
+import {pending} from "../../../../ui-essentials/.storybook/screens"
 import {AdminStoryProvider, graphqlBoundary} from "@/__stories__/AdminStoryProvider"
 import type {WidgetMeta} from "@/__stories__/widgetStory"
 import {STORY_IDS} from "@/__stories__/fixtures"
@@ -18,17 +20,36 @@ import {MonitoringProvider} from "./MonitoringProvider"
 import {MonitoringWidgetCard} from "./MonitoringWidgetCard"
 import type {LayoutCell} from "./lib/layout"
 import {
+    EVENT_DAYS,
     MONITORING_SNAPSHOT,
     WIDGETS,
     getDashboardResponse,
     monitoringHandlers,
     overviewDashboard,
+    refusal,
 } from "./__stories__/MonitoringFixture"
+
+/** How the renderer answers after the first chart. */
+enum ERenderScenario {
+    DRAWN = "DRAWN",
+    /** Every request fails. */
+    FAILING = "FAILING",
+    /** The first request fails, and the next ones are drawn. */
+    FAILS_ONCE = "FAILS_ONCE",
+    /** Nothing ever answers. */
+    PENDING = "PENDING",
+    /** The chart by sex never answers. */
+    SEX_PENDING = "SEX_PENDING",
+    /** The chart by sex fails. */
+    SEX_FAILS = "SEX_FAILS",
+    /** Harvest refuses the scope. */
+    FORBIDDEN_SCOPE = "FORBIDDEN_SCOPE",
+}
 
 interface Scenario {
     widgetId: string
     render?: Partial<MonitoringRenderWidgetResponse>
-    failing?: boolean
+    scenario?: ERenderScenario
     configure: EMonitoringCapability
     onConfigureWidget: (widgetId: string) => void
     onDuplicateWidget: (widgetId: string) => void
@@ -51,6 +72,7 @@ function cellOf(widgetId: string): LayoutCell {
 
 function Fixture({widgetId, configure, onConfigureWidget, onDuplicateWidget}: Scenario) {
     const response = getDashboardResponse()
+    const [pollCount, setPollCount] = useState(0)
     return (
         <AdminStoryProvider boundary={graphql}>
             <MonitoringProvider
@@ -58,6 +80,8 @@ function Fixture({widgetId, configure, onConfigureWidget, onDuplicateWidget}: Sc
                 actions={{onConfigureWidget, onDuplicateWidget}}
             >
                 <Box sx={{width: 560}}>
+                    {/* Stands for the dashboard's 30 s poll. */}
+                    <Button onClick={() => setPollCount((count) => count + 1)}>Poll</Button>
                     <MonitoringWidgetCard
                         cell={cellOf(widgetId)}
                         context={{
@@ -68,7 +92,9 @@ function Fixture({widgetId, configure, onConfigureWidget, onDuplicateWidget}: Sc
                             snapshot: MONITORING_SNAPSHOT,
                             sources: response.sources,
                             timeZone: response.settings.time_zone,
+                            eventDays: EVENT_DAYS,
                             configVersion: "3/1/1",
+                            pollCount,
                             configure,
                         }}
                     />
@@ -92,17 +118,32 @@ const meta = {
         const handlers = monitoringHandlers({
             renders: args.render ? {[args.widgetId]: args.render} : {},
         })
-        graphql = graphqlBoundary(
-            args.failing
-                ? {
-                      ...handlers,
-                      MonitoringRenderWidget: () => {
-                          throw new Error("Synthetic renderer outage")
-                      },
-                  }
-                : handlers,
-            {schema: true}
-        )
+        let requests = 0
+        const draw = handlers.MonitoringRenderWidget
+        const reply = (operation: Operation): FetchResult | Promise<FetchResult> => {
+            requests += 1
+            const bySex =
+                (operation.variables.selectorValues as Record<string, string>).breakdown === "sex"
+            switch (args.scenario ?? ERenderScenario.DRAWN) {
+                case ERenderScenario.FAILING:
+                    throw new Error("Synthetic renderer outage")
+                case ERenderScenario.FAILS_ONCE:
+                    if (requests === 1) throw new Error("Synthetic renderer outage")
+                    return draw(operation)
+                case ERenderScenario.PENDING:
+                    return pending()
+                case ERenderScenario.SEX_PENDING:
+                    return bySex ? pending() : draw(operation)
+                case ERenderScenario.SEX_FAILS:
+                    if (bySex) throw new Error("Synthetic renderer outage")
+                    return draw(operation)
+                case ERenderScenario.FORBIDDEN_SCOPE:
+                    return refusal("MONITORING_FORBIDDEN_SCOPE")
+                case ERenderScenario.DRAWN:
+                    return draw(operation)
+            }
+        }
+        graphql = graphqlBoundary({...handlers, MonitoringRenderWidget: reply}, {schema: true})
         await graphql.ready
     },
     render: (args) => <Fixture {...args} />,
@@ -125,7 +166,19 @@ const renders = () =>
 export const Rendered: Story = {
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
-        await expect(await canvas.findByTitle("Turnout by group chart")).toBeVisible()
+        const frame = await canvas.findByTitle("Turnout by group chart")
+        await expect(frame).toBeVisible()
+        // The engine's font travels with the chart, as a data: URI.
+        expect(frame.getAttribute("srcdoc")).toContain(
+            "@font-face{font-family:'Inter Variable';src:url(data:font/woff;base64,"
+        )
+        await expect(
+            canvas.getByRole("heading", {level: 3, name: "Turnout by group"})
+        ).toBeVisible()
+        // Renders are not kept in the Apollo cache, whose snapshots would pile up.
+        expect(JSON.stringify(graphql.client.cache.extract())).not.toContain(
+            "monitoringRenderWidget"
+        )
         await expect(canvas.getByText("Voter turnout · SW-F-0260 · SW-F-0372")).toBeVisible()
         // The dashboard's value for the widget, sent with the scope and snapshot.
         await expect(canvas.getByRole("combobox", {name: "Show"})).toHaveTextContent(
@@ -191,12 +244,100 @@ export const RenderFailedShowsTable: Story = {
     },
 }
 
+export const Loading: Story = {
+    args: {scenario: ERenderScenario.PENDING},
+    play: async ({canvasElement}) => {
+        await expect(
+            await within(canvasElement).findByRole("progressbar", {
+                name: "Loading Turnout by group",
+            })
+        ).toBeVisible()
+    },
+}
+
 export const RequestFailed: Story = {
-    args: {failing: true},
+    args: {scenario: ERenderScenario.FAILING},
     play: async ({canvasElement}) => {
         await expect(
             await within(canvasElement).findByText("This widget could not be loaded")
         ).toBeVisible()
+    },
+}
+
+export const RetriedOnNextPoll: Story = {
+    args: {scenario: ERenderScenario.FAILS_ONCE},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await canvas.findByText("This widget could not be loaded")
+        // The snapshot has not changed, but the dashboard's poll asks again.
+        await userEvent.click(canvas.getByRole("button", {name: "Poll"}))
+        await expect(await canvas.findByTitle("Turnout by group chart")).toBeVisible()
+    },
+}
+
+export const RefusedScope: Story = {
+    args: {scenario: ERenderScenario.FORBIDDEN_SCOPE},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await expect(await canvas.findByText("This widget could not be loaded")).toBeVisible()
+        await expect(
+            canvas.getByText("You may not see this region, Post or country. Choose another one.")
+        ).toBeVisible()
+    },
+}
+
+const pickSex = async (canvasElement: HTMLElement) => {
+    const canvas = within(canvasElement)
+    await canvas.findByTitle("Turnout by group chart")
+    await userEvent.click(canvas.getByRole("combobox", {name: "Breakdown"}))
+    await userEvent.click(await within(document.body).findByRole("option", {name: "Sex"}))
+}
+
+export const UpdatingKeepsPreviousChart: Story = {
+    args: {scenario: ERenderScenario.SEX_PENDING},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await pickSex(canvasElement)
+        await expect(
+            await canvas.findByText("Updating: the chart shown is the previous one.")
+        ).toBeVisible()
+        await expect(
+            canvas.getByRole("progressbar", {name: "Updating Turnout by group"})
+        ).toBeVisible()
+        await expect(canvas.getByTitle("Turnout by group chart")).toBeVisible()
+    },
+}
+
+export const FailedChangeShowsFailure: Story = {
+    args: {scenario: ERenderScenario.SEX_FAILS},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await pickSex(canvasElement)
+        await expect(await canvas.findByText("This widget could not be loaded")).toBeVisible()
+        // Not the chart of the previous choice, as if it were the new one.
+        expect(canvas.queryByTitle("Turnout by group chart")).toBeNull()
+    },
+}
+
+export const DayPicker: Story = {
+    args: {widgetId: "voting-activity"},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await canvas.findByTitle("Voting activity chart")
+        // A toggle shows its name, as a dropdown does.
+        await expect(canvas.getByText("Grain")).toBeVisible()
+        await userEvent.click(
+            within(canvas.getByRole("group", {name: "Grain"})).getByRole("button", {
+                name: "Hourly",
+            })
+        )
+        // Hourly asks for a day, offered from the event's days, the latest first chosen.
+        await expect(await canvas.findByRole("combobox", {name: "Day"})).toHaveTextContent(
+            EVENT_DAYS[1]
+        )
+        await waitFor(() =>
+            expect(renders().at(-1)?.selectorValues).toEqual({grain: "hour", day: EVENT_DAYS[1]})
+        )
     },
 }
 

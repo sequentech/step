@@ -13,16 +13,32 @@ export function formatInteger(value: unknown, locale: string): string {
     return isNumber(value) ? new Intl.NumberFormat(locale).format(value) : UNDEFINED_VALUE
 }
 
+/**
+ * A fraction as a percentage, rounded half away from zero, with
+ * `sequent_core::monitoring::compute::percent_label`'s rule: never all short of
+ * all, nor none above none. 9,996 of 10,000 Posts closed is 99.9%, not 100.0%.
+ */
+function percent(value: number, locale: string, minimumDigits: number, maximumDigits: number) {
+    const format = new Intl.NumberFormat(locale, {
+        style: "percent",
+        minimumFractionDigits: minimumDigits,
+        maximumFractionDigits: maximumDigits,
+    }).format
+    const text = format(value)
+    // The smallest step the text shows, as a fraction.
+    const step = 10 ** -(maximumDigits + 2)
+    if (value < 1 && text === format(1)) return format(1 - step)
+    if (value > 0 && text === format(0)) return format(step)
+    return text
+}
+
 /** A fraction as a percentage, `53.2%`, for KPIs. */
 export function formatRatio(value: unknown, locale: string, digits = 1): string {
-    return isNumber(value)
-        ? new Intl.NumberFormat(locale, {
-              style: "percent",
-              minimumFractionDigits: digits,
-              maximumFractionDigits: digits,
-          }).format(value)
-        : UNDEFINED_VALUE
+    return isNumber(value) ? percent(value, locale, digits, digits) : UNDEFINED_VALUE
 }
+
+/** Digits a table shows of a ratio: enough to tell 99.96% from 100%. */
+const TABLE_RATIO_DIGITS = 4
 
 /** `647K`, as on charts. */
 export function formatCompact(value: unknown, locale: string): string {
@@ -40,12 +56,7 @@ export function formatCell(value: unknown, kind: string, locale: string): string
         case EColumnKind.INTEGER:
             return formatInteger(value, locale)
         case EColumnKind.NUMBER:
-            return isNumber(value)
-                ? new Intl.NumberFormat(locale, {
-                      style: "percent",
-                      maximumFractionDigits: 2,
-                  }).format(value)
-                : UNDEFINED_VALUE
+            return isNumber(value) ? percent(value, locale, 0, TABLE_RATIO_DIGITS) : UNDEFINED_VALUE
         default:
             return typeof value === "string" ? value : JSON.stringify(value)
     }

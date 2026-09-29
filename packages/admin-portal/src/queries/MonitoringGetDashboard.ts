@@ -46,6 +46,7 @@ export const MONITORING_GET_DASHBOARD = gql`
                 as_of
                 checked_at
             }
+            event_days
         }
     }
 `

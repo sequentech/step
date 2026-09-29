@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useEffect, useMemo, useState} from "react"
+import React, {useCallback, useEffect, useMemo, useRef, useState} from "react"
 import {Alert, Box, Button, CircularProgress, Stack} from "@mui/material"
 import {useQuery} from "@apollo/client"
 import {useTranslation} from "react-i18next"
@@ -10,7 +10,6 @@ import {
     EMonitoringCapability,
     EMonitoringViewMode,
     EScopeSelector,
-    MONITORING_DEFAULT_REFRESH_MS,
     type MonitoringDashboardSummary,
     type MonitoringGetDashboardQuery,
     type MonitoringGetDashboardVariables,
@@ -18,10 +17,17 @@ import {
     type MonitoringScopeOptions,
 } from "./types"
 import {layoutCells} from "./lib/layout"
+import {
+    BUSY_RETRY_MS,
+    EMonitoringErrorCode,
+    monitoringErrorCode,
+    monitoringErrorMessage,
+} from "./lib/errors"
+import {dashboardSelectorValues} from "./lib/selectors"
 import {parseDashboard, parseWidgets} from "./lib/parseDefinitions"
-import {scopeLabel} from "./lib/scopeLabel"
+import {PINNED_BY_POST, scopeLabel} from "./lib/scopeLabel"
 import {useMonitoring} from "./MonitoringProvider"
-import {usePageVisible} from "./usePageVisible"
+import {useMonitoringPolling} from "./useMonitoringPolling"
 import {MonitoringHeader} from "./MonitoringHeader"
 import {MonitoringSelectors} from "./MonitoringSelectors"
 import {MonitoringWidgetGrid} from "./MonitoringWidgetGrid"
@@ -46,7 +52,7 @@ function effectiveScope(
     const scope: MonitoringScope = {}
     for (const selector of selectors) {
         const key = chosen[selector]
-        if (!key || (selector === EScopeSelector.POST && pinnedPost)) continue
+        if (!key || (pinnedPost && PINNED_BY_POST.has(selector))) continue
         if (!hasOption(options, selector, key)) continue
         scope[selector] = key
     }
@@ -70,7 +76,7 @@ export function MonitoringDashboard({
     configure,
 }: MonitoringDashboardProps) {
     const {t} = useTranslation()
-    const {state, selectDashboard, setScope, actions} = useMonitoring()
+    const {state, selectDashboard, setScope, actions, widgetValues} = useMonitoring()
     const [exporting, setExporting] = useState(false)
     const dashboardId = dashboards.some((dashboard) => dashboard.id === state.dashboardId)
         ? (state.dashboardId as string)
@@ -80,24 +86,43 @@ export function MonitoringDashboard({
         if (state.dashboardId !== dashboardId) selectDashboard(dashboardId)
     }, [state.dashboardId, dashboardId, selectDashboard])
 
-    const {data, error, refetch, startPolling, stopPolling} = useQuery<
+    const {data, error, refetch} = useQuery<
         MonitoringGetDashboardQuery,
         MonitoringGetDashboardVariables
     >(MONITORING_GET_DASHBOARD, {
         variables: {electionEventId, electionId: electionId ?? null, dashboardId},
     })
+    const reload = useCallback(() => void refetch().catch(() => undefined), [refetch])
 
-    // Every 30 s while the tab is shown and nobody is editing; charts are
-    // drawn again only when the snapshot the poll reports is a new one.
-    const visible = usePageVisible()
-    const polling = visible && state.mode === EMonitoringViewMode.VIEW
+    // Every 30 s while the tab is shown and nobody is editing, and at once when
+    // the tab is shown again. Charts are drawn again only when the snapshot the
+    // poll reports is a new one; a widget that failed asks again on each poll.
+    const [pollCount, setPollCount] = useState(0)
+    useMonitoringPolling({
+        active: state.mode === EMonitoringViewMode.VIEW,
+        onPoll: () => {
+            reload()
+            setPollCount((count) => count + 1)
+        },
+    })
+    // A poll that fails keeps this dashboard shown; the next one asks again.
+    const shown = useRef<{dashboardId: string; data: MonitoringGetDashboardQuery} | null>(null)
+    if (data) shown.current = {dashboardId, data}
+    const kept =
+        error && shown.current?.dashboardId === dashboardId ? shown.current.data : undefined
+
+    const busy =
+        !data && !kept && monitoringErrorCode(error) === EMonitoringErrorCode.BUSY
+            ? error
+            : undefined
     useEffect(() => {
-        if (!polling) return
-        startPolling(MONITORING_DEFAULT_REFRESH_MS)
-        return () => stopPolling()
-    }, [polling, startPolling, stopPolling])
+        // Each busy answer waits, then asks again.
+        if (!busy) return
+        const timer = window.setTimeout(reload, BUSY_RETRY_MS)
+        return () => window.clearTimeout(timer)
+    }, [busy, reload])
 
-    const response = data?.monitoringGetDashboard
+    const response = (data ?? kept)?.monitoringGetDashboard
     const parsed = useMemo(
         () =>
             response
@@ -115,16 +140,13 @@ export function MonitoringDashboard({
                 <Alert
                     severity="error"
                     action={
-                        <Button
-                            color="inherit"
-                            size="small"
-                            onClick={() => void refetch().catch(() => undefined)}
-                        >
+                        <Button color="inherit" size="small" onClick={reload}>
                             {t("monitoring.retry")}
                         </Button>
                     }
                 >
                     {t("monitoring.dashboardFailed")}
+                    {monitoringErrorCode(error) ? ` ${t(monitoringErrorMessage(error))}` : null}
                 </Alert>
             )
         }
@@ -163,6 +185,7 @@ export function MonitoringDashboard({
     })
     const cells = layoutCells(dashboard, parsed.widgets)
     const snapshot = response.snapshot ?? null
+    const eventDays = response.event_days ?? []
     const context: MonitoringWidgetContext = {
         electionEventId,
         electionId,
@@ -172,7 +195,10 @@ export function MonitoringDashboard({
         snapshot,
         sources: response.sources ?? {},
         timeZone: response.settings?.time_zone ?? "UTC",
+        eventDays,
         configVersion: `${response.dashboard_revision}/${response.theme?.revision ?? ""}/${response.settings_revision}`,
+        pollCount,
+        onSnapshotPruned: reload,
         configure,
     }
     const onEditDashboard =
@@ -183,6 +209,7 @@ export function MonitoringDashboard({
     return (
         <Stack spacing={2} sx={{py: 2}}>
             <MonitoringHeader
+                title={dashboard.title}
                 dashboards={dashboards}
                 dashboardId={dashboardId}
                 onSelectDashboard={selectDashboard}
@@ -210,6 +237,7 @@ export function MonitoringDashboard({
                     title={dashboard.title}
                     scope={label}
                     timeZone={context.timeZone}
+                    onSnapshotPruned={reload}
                     target={{
                         electionEventId,
                         electionId: electionId ?? null,
@@ -217,6 +245,11 @@ export function MonitoringDashboard({
                         widgetId: null,
                         scope,
                         selectorValues: {},
+                        widgetSelectorValues: dashboardSelectorValues(
+                            cells,
+                            (cell) => widgetValues(cell),
+                            {event_days: eventDays}
+                        ),
                         snapshotRevision: snapshot.revision,
                     }}
                 />

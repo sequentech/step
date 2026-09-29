@@ -25,6 +25,7 @@ import {
     type MonitoringScope,
 } from "./types"
 import {EExportRange, exportBound, exportRange} from "./lib/exportRange"
+import {EMonitoringErrorCode, monitoringErrorCode, monitoringErrorMessage} from "./lib/errors"
 
 /** What is exported: a dashboard, or one of its widgets, at the revision shown. */
 export interface MonitoringExportTarget {
@@ -34,6 +35,8 @@ export interface MonitoringExportTarget {
     widgetId?: string | null
     scope: MonitoringScope
     selectorValues: Record<string, string>
+    /** A dashboard export: each widget's values as the dashboard draws it, by widget id. */
+    widgetSelectorValues?: Record<string, Record<string, string>> | null
     snapshotRevision: number
 }
 
@@ -46,6 +49,8 @@ export interface MonitoringExportDialogProps {
     timeZone: string
     target: MonitoringExportTarget
     initialFormat?: EMonitoringExportFormat
+    /** The update shown is no longer kept: the dashboard asks for the current one. */
+    onSnapshotPruned?: () => void
 }
 
 /**
@@ -60,41 +65,55 @@ export function MonitoringExportDialog({
     timeZone,
     target,
     initialFormat = EMonitoringExportFormat.CSV,
+    onSnapshotPruned,
 }: MonitoringExportDialogProps) {
     const {t} = useTranslation()
     const [format, setFormat] = useState(initialFormat)
     const [from, setFrom] = useState("")
     const [to, setTo] = useState("")
+    const [sending, setSending] = useState(false)
+    const [failure, setFailure] = useState<string | undefined>()
     const [exportData] = useMutation<MonitoringExportMutation, MonitoringExportVariables>(
         MONITORING_EXPORT
     )
-    const [addWidget, setWidgetTaskId, updateWidgetFail] = useWidgetStore()
+    const [addWidget, setWidgetTaskId] = useWidgetStore()
 
     useEffect(() => {
-        if (open) setFormat(initialFormat)
+        if (!open) return
+        setFormat(initialFormat)
+        setFailure(undefined)
     }, [open, initialFormat])
 
-    const range = exportRange(from, to)
+    const range = exportRange(from, to, timeZone)
 
+    /** The dialog stays open until the export is started, so a refusal can be told. */
     const start = async () => {
-        const widget = addWidget(ETasksExecution.EXPORT_MONITORING_DATA, true)
+        setSending(true)
+        setFailure(undefined)
         try {
-            const {data, errors} = await exportData({
+            const {data} = await exportData({
                 variables: {
                     ...target,
                     format,
-                    from: exportBound(from),
-                    to: exportBound(to),
+                    from: exportBound(from, timeZone),
+                    to: exportBound(to, timeZone),
                 },
             })
-            const taskId = data?.monitoringExport.task_execution.id
-            if (errors?.length || !taskId) {
-                updateWidgetFail(widget.identifier)
+            const taskId = data?.monitoringExport.task_execution?.id
+            if (!taskId) {
+                setFailure(t("monitoring.errors.unknown"))
                 return
             }
+            const widget = addWidget(ETasksExecution.EXPORT_MONITORING_DATA, true)
             setWidgetTaskId(widget.identifier, taskId)
-        } catch {
-            updateWidgetFail(widget.identifier)
+            onClose()
+        } catch (error) {
+            if (monitoringErrorCode(error) === EMonitoringErrorCode.SNAPSHOT_PRUNED) {
+                onSnapshotPruned?.()
+            }
+            setFailure(t(monitoringErrorMessage(error)))
+        } finally {
+            setSending(false)
         }
     }
 
@@ -105,10 +124,11 @@ export function MonitoringExportDialog({
             title={t("monitoring.export.title")}
             ok={t("monitoring.export.export")}
             cancel={t("monitoring.export.cancel")}
-            okEnabled={() => range === EExportRange.VALID}
+            okEnabled={() => range === EExportRange.VALID && !sending}
+            errorMessage={failure}
             handleClose={(confirmed: boolean) => {
-                onClose()
                 if (confirmed) void start()
+                else onClose()
             }}
         >
             <Stack spacing={2} sx={{pt: 1}}>

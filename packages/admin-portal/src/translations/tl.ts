@@ -2857,6 +2857,20 @@ const tagalogTranslation: TranslationType = {
             dashboardFailed: "Hindi ma-load ang dashboard ng pagsubaybay.",
             dashboardInvalid: "Hindi maipakita ang dashboard na ito: {{problem}}",
             retry: "Subukan muli",
+            errors: {
+                busy: "Abala ang server. Susubukan muli sa loob ng ilang segundo.",
+                forbiddenScope:
+                    "Hindi mo maaaring makita ang rehiyon, Post o bansang ito. Pumili ng iba.",
+                snapshotPruned:
+                    "Hindi na itinatago ang ipinapakitang update. Ipinapakita na ngayon ng dashboard ang pinakabagong update: mag-export muli para gamitin ito.",
+                checksUnavailable:
+                    "Hindi available ngayon ang serbisyo ng chart. Subukan muli mamaya.",
+                lockedDown: "Naka-lock down ang election event, kaya hindi ito mababago.",
+                notFound:
+                    "Hindi na naka-configure ang dashboard o widget na ito. I-reload ang pahina.",
+                badRequest: "Hindi tinanggap ang kahilingan. I-reload ang pahina at subukan muli.",
+                unknown: "May nangyaring mali. Subukan muli mamaya.",
+            },
             header: {
                 dashboard: "Dashboard",
                 widgets_one: "{{count}} widget",
@@ -2885,6 +2899,8 @@ const tagalogTranslation: TranslationType = {
                 duplicate: "Doblehin",
                 loading: "Nilo-load ang {{widget}}",
                 missing: "May widget na wala sa dashboard: {{id}}",
+                updating: "Ina-update ang {{widget}}",
+                updatingNote: "Ina-update: ang ipinapakitang chart ay ang nauna.",
             },
             frame: {
                 title: "Tsart ng {{widget}}",
@@ -2939,7 +2955,7 @@ const tagalogTranslation: TranslationType = {
                 from: "Mula",
                 to: "Hanggang",
                 timeZoneHelp:
-                    "Ang mga oras ay nasa {{timeZone}}. Ang aktibidad bawat oras at bawat araw ay mula sa oras ng simula hanggang sa, ngunit hindi kasama, ang oras ng pagtatapos. Ang katayuan at mga kabuuan ay ayon sa naitala sa bawat oras ng saklaw.",
+                    "Ang mga oras ay nasa {{timeZone}}. Ang mga kabuuan at katayuan ay ayon sa ipinapakitang update; ang aktibidad ay limitado sa saklaw, mula sa oras ng simula hanggang sa, ngunit hindi kasama, ang oras ng pagtatapos.",
                 cancel: "Kanselahin",
                 export: "I-export",
                 invalidRange: "Dapat mas huli ang pagtatapos kaysa sa simula.",
