@@ -971,8 +971,40 @@ fn the_hour_lived_twice_when_clocks_go_back_is_two_distinct_buckets() {
     assert_eq!(column(&result, "voted"), [json!(6)]);
     assert_eq!(
         column(&result, "bucket_utc"),
-        [json!("2026-10-24T23:00:00Z")]
+        [json!("2026-10-24T22:00:00Z")]
     );
+}
+
+#[test]
+fn a_day_starts_at_its_local_midnight_even_when_its_first_hour_is_later() {
+    // Votes began at 04:00 in Manila: the day still starts at 00:00+08:00.
+    let hour = |start: &str, voted| Bucket {
+        start: start.into(),
+        day: start[..10].into(),
+        utc_offset: "+08:00".into(),
+        counts: counts(&[(Voted, voted), (Approved, 0)]),
+    };
+    let payload = ScopePayload {
+        totals: counts(&[(Voted, 3), (Approved, 0)]),
+        series: vec![
+            hour("2026-09-30T04:00:00", 2),
+            hour("2026-09-30T05:00:00", 1),
+        ],
+        ..ScopePayload::default()
+    };
+    let mut daily = query(QueryTemplate::Timeseries);
+    daily.measures = vec![Voted];
+    daily.grain = Some(TimeGrain::Day);
+    let result = run(VotingEnrollmentActivity, &daily, &payload);
+    assert_eq!(
+        column(&result, "bucket_start"),
+        [json!("2026-09-30T00:00:00")]
+    );
+    assert_eq!(
+        column(&result, "bucket_utc"),
+        [json!("2026-09-29T16:00:00Z")]
+    );
+    assert_eq!(column(&result, "voted"), [json!(3)]);
 }
 
 #[test]

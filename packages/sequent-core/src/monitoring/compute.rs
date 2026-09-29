@@ -244,6 +244,14 @@ fn utc_start(bucket: &Bucket) -> Option<NaiveDateTime> {
     Some(local - Duration::minutes(sign * (hours * 60 + minutes)))
 }
 
+/// How long after its local midnight an hour starts.
+fn since_midnight(bucket: &Bucket) -> Option<Duration> {
+    let local =
+        NaiveDateTime::parse_from_str(&bucket.start, "%Y-%m-%dT%H:%M:%S")
+            .ok()?;
+    Some(local - local.date().and_hms_opt(0, 0, 0)?)
+}
+
 /// A labelled row before it becomes cells: a group, a Post.
 struct Keyed {
     key: String,
@@ -751,9 +759,11 @@ impl Evaluation<'_> {
                 (TimeGrain::Day, Some(last)) if last.day == bucket.day => {
                     add(&mut last.counts, &bucket.counts)
                 }
+                // A day starts at its local midnight, at the offset of its
+                // first hour: the series may start later in the day.
                 (TimeGrain::Day, _) => buckets.push(Span {
                     start: format!("{}T00:00:00", bucket.day),
-                    utc,
+                    utc: utc - since_midnight(bucket)?,
                     day: bucket.day.clone(),
                     offset: None,
                     counts: bucket.counts.clone(),
