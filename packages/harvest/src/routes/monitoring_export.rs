@@ -5,11 +5,19 @@
 //! Exporting a dashboard's figures, or one widget's, as CSV or SQL: Harvest
 //! checks what the viewer may see and that the run is kept, then Windmill's
 //! `export_monitoring_data` task writes the document.
+//!
+//! `from` and `to` are instants: RFC 3339 with an offset, any offset; the
+//! portal turns the local times it shows into instants with the settings'
+//! time zone. A time without an offset names no instant and is refused.
+//! The dashboard and widget are looked up in the configuration the run was
+//! counted under, which is what the task reads.
 
 use crate::routes::monitoring::{authorize_monitoring, viewer_and_config};
 use crate::services::dependencies::HarvestServices;
-use crate::services::monitoring::{MonitoringError, MonitoringResult};
-use chrono::{DateTime, Utc};
+use crate::services::monitoring::{
+    check_selector_values, hasura_client, parse_instant, MonitoringError,
+    MonitoringResult,
+};
 use indexmap::IndexMap;
 use rocket::http::Status;
 use rocket::serde::json::Json;
@@ -22,6 +30,7 @@ use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
 use tracing::{error, instrument};
 use uuid::Uuid;
+use windmill::services::monitoring::config_store::get_config_at_generation;
 use windmill::services::monitoring::export::{
     MonitoringExportFormat, MonitoringExportRequest,
 };
@@ -39,12 +48,17 @@ pub struct ExportInput {
     scope: Option<ScopeSelection>,
     #[serde(default)]
     selector_values: Option<IndexMap<String, String>>,
+    /// Each widget's own picks, by widget id.
+    #[serde(default)]
+    widget_selector_values: Option<IndexMap<String, IndexMap<String, String>>>,
     snapshot_revision: i64,
     format: MonitoringExportFormat,
+    /// Read in the handler, so a time without an offset is answered as
+    /// such rather than as a body that does not parse.
     #[serde(default)]
-    from: Option<DateTime<Utc>>,
+    from: Option<String>,
     #[serde(default)]
-    to: Option<DateTime<Utc>>,
+    to: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -79,7 +93,9 @@ pub async fn export_monitoring(
             return Err(out_of_scope());
         }
     }
-    if let (Some(from), Some(to)) = (input.from, input.to) {
+    let from = parse_instant("from", input.from.as_deref())?;
+    let to = parse_instant("to", input.to.as_deref())?;
+    if let (Some(from), Some(to)) = (from, to) {
         if from >= to {
             let mut report = Report::default();
             report.push(Problem::error(
@@ -90,14 +106,53 @@ pub async fn export_monitoring(
             return Err(MonitoringError::invalid(&report));
         }
     }
-    let Some(live) = live else {
+    if live.is_none() {
         return Err(MonitoringError::not_found(
             "The event has no monitoring configuration.",
         ));
+    }
+
+    let snapshots = &services.monitoring_snapshots;
+    let kept = snapshots
+        .complete(viewer.event, input.snapshot_revision)
+        .await
+        .map_err(MonitoringError::internal)?;
+    let Some(kept) = kept else {
+        return Err(MonitoringError::new(
+            Status::Gone,
+            "MONITORING_SNAPSHOT_PRUNED",
+            "That snapshot is no longer kept; export the current one.",
+        ));
     };
-    let set = &live.assembled.set;
+    let config = {
+        let mut client = hasura_client(services).await?;
+        let transaction = client
+            .transaction()
+            .await
+            .map_err(MonitoringError::internal)?;
+        let config = get_config_at_generation(
+            &transaction,
+            viewer.event,
+            kept.config_generation,
+        )
+        .await
+        .map_err(MonitoringError::internal)?;
+        transaction
+            .commit()
+            .await
+            .map_err(MonitoringError::internal)?;
+        config
+    };
+    let Some(config) = config else {
+        return Err(MonitoringError::not_found(
+            "The configuration that snapshot was counted under is no longer kept.",
+        ));
+    };
+    let set = &config.assembled.set;
     let Some(dashboard) = set.dashboards.get(&input.dashboard_id) else {
-        return Err(MonitoringError::not_found("There is no such dashboard."));
+        return Err(MonitoringError::not_found(
+            "There is no such dashboard in that snapshot's configuration.",
+        ));
     };
     if let Some(widget_id) = &input.widget_id {
         if !dashboard
@@ -110,18 +165,37 @@ pub async fn export_monitoring(
             ));
         }
     }
-
-    let snapshots = &services.monitoring_snapshots;
-    let kept = snapshots
-        .complete(viewer.event, input.snapshot_revision)
-        .await
-        .map_err(MonitoringError::internal)?;
-    if kept.is_none() {
-        return Err(MonitoringError::new(
-            Status::Gone,
-            "MONITORING_SNAPSHOT_PRUNED",
-            "That snapshot is no longer kept; export the current one.",
-        ));
+    // Each widget's picks are its own: a selector it lacks, or an option it
+    // does not list, is refused now rather than failing the task.
+    let widget_selector_values =
+        input.widget_selector_values.clone().unwrap_or_default();
+    let mut report = Report::default();
+    for (widget_id, values) in &widget_selector_values {
+        let placed = dashboard
+            .layout
+            .iter()
+            .any(|item| &item.widget == widget_id);
+        if let Some(widget) = set.widgets.get(widget_id).filter(|_| placed) {
+            check_selector_values(widget, values, &mut report);
+        }
+    }
+    if let Some(widget) = input
+        .widget_id
+        .as_ref()
+        .and_then(|widget_id| set.widgets.get(widget_id))
+    {
+        check_selector_values(
+            widget,
+            input.selector_values.as_ref().unwrap_or(&IndexMap::new()),
+            &mut report,
+        );
+    }
+    if !report.is_accepted() {
+        return Err(MonitoringError {
+            message: "A selector value is not one of its widget's options."
+                .to_string(),
+            ..MonitoringError::invalid(&report)
+        });
     }
     let region = scope.region.as_ref().filter(|value| !value.is_empty());
     let country = scope.country.as_ref().filter(|value| !value.is_empty());
@@ -172,10 +246,11 @@ pub async fn export_monitoring(
         pinned_post: viewer.pinned.map(|pinned| pinned.to_string()),
         scope,
         selector_values: input.selector_values.unwrap_or_default(),
+        widget_selector_values,
         snapshot_revision: input.snapshot_revision,
         format: input.format,
-        from: input.from,
-        to: input.to,
+        from,
+        to,
         document_id: document_id.clone(),
     };
     let broker = services.tasks.connect().await;

@@ -18,7 +18,7 @@ use crate::services::dependencies::HarvestServices;
 use crate::services::monitoring::{
     author, event_ref, hasura_client, is_locked_down, live_config, problems,
     refuse_when_locked_down, MonitoringError, MonitoringResult, ProblemView,
-    RenderResponse, RenderState, TableView,
+    QueryTableView, RenderResponse, RenderState, TableView,
 };
 use crate::services::monitoring_checks::{
     check_boards, sample_board, RendererChecks,
@@ -212,6 +212,7 @@ async fn preview_widget(
     let widget = set.widgets.get(key)?;
     let board = sample_board(set, widget, DEFAULT_THEME, &IndexMap::new())?;
     let table = board.data.as_ref().map(TableView::from);
+    let tables = QueryTableView::all(&board.queries);
     let drawn = services
         .monitoring_renderer
         .render(RenderBoard {
@@ -245,6 +246,7 @@ async fn preview_widget(
         }
     };
     response.table = table;
+    response.tables = tables;
     Some(response)
 }
 

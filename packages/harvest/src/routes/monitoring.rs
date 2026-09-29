@@ -16,10 +16,10 @@ use crate::ports::monitoring_snapshots::{ScopeRead, SnapshotHead};
 use crate::services::authorization::authorize;
 use crate::services::dependencies::HarvestServices;
 use crate::services::monitoring::{
-    dashboard_theme_id, dimension_label, draft_revision, draft_theme,
-    draft_widget, draw_widget, election_region, hasura_client, live_config,
-    revision_of, viewer, Draft, DrawPlan, MonitoringError, MonitoringResult,
-    RenderResponse, SnapshotView, Viewer,
+    config_at_snapshot, dashboard_theme_id, dimension_label, draft_revision,
+    draft_theme, draft_widget, draw_widget, election_region, hasura_client,
+    live_config, revision_of, viewer, Draft, DrawPlan, MonitoringError,
+    MonitoringResult, RenderResponse, SnapshotConfig, SnapshotView, Viewer,
 };
 use indexmap::IndexMap;
 use rocket::http::Status;
@@ -582,12 +582,69 @@ pub async fn render_widget(
             "The event has no monitoring configuration.",
         ));
     };
-    let set = &live.assembled.set;
+    let snapshot = match input.snapshot_revision {
+        Some(revision) => {
+            let head = services
+                .monitoring_snapshots
+                .complete(viewer.event, revision)
+                .await
+                .map_err(MonitoringError::internal)?;
+            if head.is_none() {
+                return Err(MonitoringError::new(
+                    Status::Gone,
+                    "MONITORING_SNAPSHOT_PRUNED",
+                    "That snapshot is no longer kept.",
+                ));
+            }
+            head
+        }
+        None => services
+            .monitoring_snapshots
+            .live(viewer.event)
+            .await
+            .map_err(MonitoringError::internal)?,
+    };
+    // Drawn with the configuration the run was counted under, as an export
+    // of it is; a draft previews on the live configuration.
+    let config = if drafting {
+        SnapshotConfig::live(live)
+    } else {
+        let (dashboard_id, widget_id) = (&input.dashboard_id, &input.widget_id);
+        config_at_snapshot(
+            services,
+            viewer.event,
+            snapshot.as_ref(),
+            live,
+            |set: &ConfigSet| {
+                set.dashboards.contains_key(dashboard_id)
+                    && set.widgets.contains_key(widget_id)
+            },
+        )
+        .await?
+    };
+    let set = &config.set;
     let Some(dashboard) = set.dashboards.get(&input.dashboard_id) else {
         return Err(MonitoringError::not_found("There is no such dashboard."));
     };
+    let placed = dashboard
+        .layout
+        .iter()
+        .find(|item| item.widget == input.widget_id);
+    // A widget the dashboard does not place is the editor's to preview.
+    if placed.is_none()
+        && !drafting
+        && authorize_monitoring(
+            &claims,
+            vec![Permissions::MONITORING_CONFIGURE],
+        )
+        .is_err()
+    {
+        return Err(MonitoringError::not_found(
+            "The dashboard has no such widget.",
+        ));
+    }
     let revision = |kind: ConfigKind, key: &str| {
-        revision_of(&live.documents, kind, key)
+        revision_of(&config.documents, kind, key)
             .map(|revision| revision.to_string())
             .unwrap_or_else(|| "none".to_string())
     };
@@ -626,34 +683,8 @@ pub async fn render_widget(
             revision(ConfigKind::Theme, &theme_id),
         ),
     };
-    let dashboard_values = dashboard
-        .layout
-        .iter()
-        .find(|item| item.widget == input.widget_id)
-        .map(|item| item.values.clone())
-        .unwrap_or_default();
-    let snapshot = match input.snapshot_revision {
-        Some(revision) => {
-            let head = services
-                .monitoring_snapshots
-                .complete(viewer.event, revision)
-                .await
-                .map_err(MonitoringError::internal)?;
-            if head.is_none() {
-                return Err(MonitoringError::new(
-                    Status::Gone,
-                    "MONITORING_SNAPSHOT_PRUNED",
-                    "That snapshot is no longer kept.",
-                ));
-            }
-            head
-        }
-        None => services
-            .monitoring_snapshots
-            .live(viewer.event)
-            .await
-            .map_err(MonitoringError::internal)?,
-    };
+    let dashboard_values =
+        placed.map(|item| item.values.clone()).unwrap_or_default();
     let locale = input.locale.clone().unwrap_or_else(default_locale);
     let response = draw_widget(
         services,
@@ -669,6 +700,7 @@ pub async fn render_widget(
             theme_ref: (theme_id.as_str(), theme_revision),
             settings: set.settings.as_ref(),
             settings_revision: revision(ConfigKind::Settings, SETTINGS_KEY),
+            current_settings_revision: config.settings_revision(),
             dashboard_values,
             scope,
             selector_values: input.selector_values.clone().unwrap_or_default(),
@@ -681,6 +713,10 @@ pub async fn render_widget(
         },
     )
     .await?;
+    let mut response = response;
+    if let Some(notice) = config.notice {
+        response.notices.push(notice.to_string());
+    }
     Ok(Json(response))
 }
 
