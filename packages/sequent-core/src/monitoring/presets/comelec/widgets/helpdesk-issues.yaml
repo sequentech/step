@@ -50,7 +50,7 @@ chart:
       style:
         orientation: horizontal
         number_format: number
-        axis_y: {title: {visible: false}, ticks: {step: 1}}
+        axis_y: {title: {visible: false}}
       layers:
         - {type: bar, y: pending_issues, label: Still open}
   rows:
