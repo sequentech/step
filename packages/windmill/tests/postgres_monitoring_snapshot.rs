@@ -18,8 +18,8 @@ use serde_json::json;
 use uuid::Uuid;
 use windmill::postgres::monitoring_config::EventRef;
 use windmill::services::monitoring::snapshot::{
-    complete_snapshot, count_event, live_snapshot, prune_snapshots, read_scope,
-    request_election_set, scope_catalogue, PassOutcome, ScopeRead,
+    complete_snapshot, count_event, count_run, live_snapshot, prune_snapshots, read_scope,
+    request_election_set, scope_catalogue, start_run, PassOutcome, ScopeRead,
 };
 
 fn settings() -> Settings {
@@ -551,4 +551,323 @@ async fn a_set_a_viewer_asks_for_is_counted_by_the_next_pass() {
         .await,
     );
     assert_eq!(poll.totals[&Measure::Posts], 1);
+}
+
+/// Moves a run's times back by `hours`, as if it had run then. Runs are
+/// final, so this goes around the tables' triggers.
+async fn backdate(client: &mut Client, event: &Event, revision: i64, hours: i32) {
+    let tx = client.transaction().await.unwrap();
+    tx.batch_execute("SET LOCAL session_replication_role = replica")
+        .await
+        .unwrap();
+    tx.execute(
+        "UPDATE sequent_backend.monitoring_snapshot_run
+         SET started_at = started_at - make_interval(hours => $4),
+             finished_at = finished_at - make_interval(hours => $4),
+             as_of = as_of - make_interval(hours => $4),
+             checked_at = checked_at - make_interval(hours => $4)
+         WHERE tenant_id = $1 AND election_event_id = $2 AND revision = $3",
+        &[
+            &event.event.tenant_id,
+            &event.event.election_event_id,
+            &revision,
+            &hours,
+        ],
+    )
+    .await
+    .unwrap();
+    tx.commit().await.unwrap();
+}
+
+async fn is_kept(client: &mut Client, event: &Event, revision: i64) -> bool {
+    let tx = client.transaction().await.unwrap();
+    let kept = complete_snapshot(&tx, event.event, revision)
+        .await
+        .unwrap()
+        .is_some();
+    tx.commit().await.unwrap();
+    kept
+}
+
+async fn vote(client: &Client, event: &Event, voter: &str) {
+    client
+        .execute(
+            "UPDATE sequent_backend.monitoring_voter SET first_voted_at = now()
+             WHERE tenant_id = $1 AND election_event_id = $2 AND voter_id = $3",
+            &[
+                &event.event.tenant_id,
+                &event.event.election_event_id,
+                &voter,
+            ],
+        )
+        .await
+        .unwrap();
+}
+
+#[tokio::test]
+async fn a_run_shown_for_hours_is_kept_for_the_window_after_it_is_replaced() {
+    let pool = schema::pool().await;
+    let mut client = client(&pool).await;
+    let settings = settings();
+    let event = seed(&mut client).await;
+    voter(&client, &event, "ana", event.madrid, "Europe", false).await;
+    voter(&client, &event, "ben", event.tokyo, "Asia", false).await;
+    let PassOutcome::Completed {
+        revision: first, ..
+    } = pass(&mut client, &event, &settings).await
+    else {
+        panic!();
+    };
+    // Shown for three hours, then replaced.
+    backdate(&mut client, &event, first, 3).await;
+    vote(&client, &event, "ana").await;
+    let PassOutcome::Completed {
+        revision: second, ..
+    } = pass(&mut client, &event, &settings).await
+    else {
+        panic!();
+    };
+    let window = Duration::hours(2);
+    let pruned = prune_snapshots(&mut client, event.event, window)
+        .await
+        .unwrap();
+    assert_eq!(pruned.runs, 0);
+    assert!(
+        is_kept(&mut client, &event, first).await,
+        "a viewer shown it a moment ago can still export it"
+    );
+
+    // Replaced more than the window ago.
+    backdate(&mut client, &event, second, 3).await;
+    vote(&client, &event, "ben").await;
+    let PassOutcome::Completed {
+        revision: third, ..
+    } = pass(&mut client, &event, &settings).await
+    else {
+        panic!();
+    };
+    let closed_before: i64 = client
+        .query_one(
+            "SELECT count(*) FROM sequent_backend.monitoring_snapshot_figure
+             WHERE tenant_id = $1 AND election_event_id = $2 AND to_revision IS NOT NULL
+               AND to_revision <= $3",
+            &[
+                &event.event.tenant_id,
+                &event.event.election_event_id,
+                &second,
+            ],
+        )
+        .await
+        .unwrap()
+        .get(0);
+    let pruned = prune_snapshots(&mut client, event.event, window)
+        .await
+        .unwrap();
+    assert_eq!(pruned.runs, 1);
+    assert_eq!(
+        pruned.figures, closed_before as u64,
+        "every figure deleted is counted"
+    );
+    assert!(!is_kept(&mut client, &event, first).await);
+    assert!(
+        is_kept(&mut client, &event, second).await,
+        "replaced a moment ago"
+    );
+    assert!(is_kept(&mut client, &event, third).await, "the shown run");
+}
+
+#[tokio::test]
+async fn a_failing_pass_leaves_the_shown_run_shown() {
+    let pool = schema::pool().await;
+    let mut client = client(&pool).await;
+    let settings = settings();
+    let event = seed(&mut client).await;
+    voter(&client, &event, "ana", event.madrid, "Europe", false).await;
+    let PassOutcome::Completed {
+        revision: shown, ..
+    } = pass(&mut client, &event, &settings).await
+    else {
+        panic!();
+    };
+    // Every figure this event writes from now on is refused.
+    let tenant = event.event.tenant_id;
+    let name = format!("refuse_{}", tenant.simple());
+    client
+        .batch_execute(&format!(
+            "CREATE FUNCTION public.{name}() RETURNS trigger AS $$
+             BEGIN RAISE EXCEPTION 'refused for the test'; END; $$ LANGUAGE plpgsql;
+             CREATE TRIGGER {name} BEFORE INSERT ON sequent_backend.monitoring_snapshot_figure
+             FOR EACH ROW WHEN (NEW.tenant_id = '{tenant}')
+             EXECUTE FUNCTION public.{name}();"
+        ))
+        .await
+        .unwrap();
+    vote(&client, &event, "ana").await;
+    let failed = count_event(&mut client, event.event, &settings, 1, 1).await;
+    client
+        .batch_execute(&format!(
+            "DROP TRIGGER {name} ON sequent_backend.monitoring_snapshot_figure;
+             DROP FUNCTION public.{name}();"
+        ))
+        .await
+        .unwrap();
+    assert!(failed.is_err(), "the failure is the pass's error");
+    assert_eq!(live(&mut client, &event).await, shown);
+    let (status, error): (String, Option<String>) = client
+        .query_one(
+            "SELECT status, error FROM sequent_backend.monitoring_snapshot_run
+             WHERE tenant_id = $1 AND election_event_id = $2 AND revision > $3",
+            &[
+                &event.event.tenant_id,
+                &event.event.election_event_id,
+                &shown,
+            ],
+        )
+        .await
+        .map(|row| (row.get(0), row.get(1)))
+        .unwrap();
+    assert_eq!(status, "FAILED");
+    assert!(error.unwrap().contains("refused for the test"));
+    assert!(matches!(
+        pass(&mut client, &event, &settings).await,
+        PassOutcome::Completed { .. }
+    ));
+}
+
+#[tokio::test]
+async fn a_pass_a_later_one_overtook_is_superseded() {
+    let pool = schema::pool().await;
+    let mut client = client(&pool).await;
+    let settings = settings();
+    let event = seed(&mut client).await;
+    voter(&client, &event, "ana", event.madrid, "Europe", false).await;
+    let slow = start_run(&mut client, event.event).await.unwrap();
+    let PassOutcome::Completed {
+        revision: later, ..
+    } = pass(&mut client, &event, &settings).await
+    else {
+        panic!();
+    };
+    assert_eq!(
+        count_run(&mut client, event.event, slow, &settings, 1, 1)
+            .await
+            .unwrap(),
+        PassOutcome::Superseded { revision: slow }
+    );
+    assert_eq!(live(&mut client, &event).await, later);
+}
+
+#[tokio::test]
+async fn regions_read_from_areas_scope_posts_and_sign_ins() {
+    let pool = schema::pool().await;
+    let mut client = client(&pool).await;
+    let settings = presets::load("campus")
+        .unwrap()
+        .unwrap()
+        .set
+        .settings
+        .clone()
+        .unwrap();
+    let event = seed(&mut client).await;
+    let tenant = event.event.tenant_id;
+    let election_event = event.event.election_event_id;
+    let north = Uuid::new_v4();
+    for (election, area, campus) in [
+        (event.madrid, north, Some("North")),
+        (event.tokyo, Uuid::new_v4(), None),
+    ] {
+        let contest = Uuid::new_v4();
+        client
+            .execute(
+                "INSERT INTO sequent_backend.contest (id, tenant_id, election_event_id, election_id)
+                 VALUES ($1, $2, $3, $4)",
+                &[&contest, &tenant, &election_event, &election],
+            )
+            .await
+            .unwrap();
+        client
+            .execute(
+                "INSERT INTO sequent_backend.area (id, tenant_id, election_event_id, name, annotations)
+                 VALUES ($1, $2, $3, 'area', $4)",
+                &[&area, &tenant, &election_event, &campus.map(|campus| json!({"campus": campus}))],
+            )
+            .await
+            .unwrap();
+        client
+            .execute(
+                "INSERT INTO sequent_backend.area_contest
+                     (id, tenant_id, election_event_id, area_id, contest_id)
+                 VALUES ($1, $2, $3, $4, $5)",
+                &[&Uuid::new_v4(), &tenant, &election_event, &area, &contest],
+            )
+            .await
+            .unwrap();
+    }
+    // A voter whose own record names a campus the areas do not.
+    voter(&client, &event, "ana", event.tokyo, "South", false).await;
+    client
+        .execute(
+            "INSERT INTO sequent_backend.monitoring_login_counter
+                 (tenant_id, election_event_id, bucket_start, event_type, registration, area_id,
+                  attempts)
+             VALUES ($1, $2, date_bin('15 minutes', now(), '2000-01-01'), 'LOGIN', 'REGISTERED',
+                     $3, 4)",
+            &[&tenant, &election_event, &north],
+        )
+        .await
+        .unwrap();
+    let PassOutcome::Completed { revision, .. } = pass(&mut client, &event, &settings).await else {
+        panic!();
+    };
+    let set = full_set(&mut client, &event).await;
+    let tx = client.transaction().await.unwrap();
+    let catalogue = scope_catalogue(&tx, event.event, revision, &set)
+        .await
+        .unwrap();
+    tx.commit().await.unwrap();
+    assert_eq!(catalogue.regions, vec!["North", "South"]);
+    let north_polls = payload(
+        read(
+            &mut client,
+            &event,
+            revision,
+            DataSourceId::PollStatus,
+            &set,
+            "region=North",
+        )
+        .await,
+    );
+    assert_eq!(
+        north_polls.totals[&Measure::Posts],
+        1,
+        "Madrid, by its area"
+    );
+    let south_polls = payload(
+        read(
+            &mut client,
+            &event,
+            revision,
+            DataSourceId::PollStatus,
+            &set,
+            "region=South",
+        )
+        .await,
+    );
+    assert_eq!(
+        south_polls.totals[&Measure::Posts],
+        1,
+        "Tokyo, by its voter"
+    );
+    let sign_ins = payload(
+        read(
+            &mut client,
+            &event,
+            revision,
+            DataSourceId::AccessSecurity,
+            &set,
+            "region=North",
+        )
+        .await,
+    );
+    assert_eq!(sign_ins.totals[&Measure::Logins], 4);
 }
