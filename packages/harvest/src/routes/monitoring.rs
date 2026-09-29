@@ -12,6 +12,7 @@
 //! elections; a Post, region or country outside it is refused.
 
 use crate::ports::monitoring_renderer::ColorScheme;
+use crate::ports::monitoring_snapshots::{ScopeRead, SnapshotHead};
 use crate::services::authorization::authorize;
 use crate::services::dependencies::HarvestServices;
 use crate::services::monitoring::{
@@ -24,9 +25,12 @@ use indexmap::IndexMap;
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use rocket::State;
+use sequent_core::monitoring::compute::event_days;
 use sequent_core::monitoring::config::{
-    ConfigKind, ScopeSelector, SelectorWords, Settings,
+    ConfigKind, ConfigSet, Dashboard, DynamicOptions, ScopeSelector,
+    SelectorWords, Settings,
 };
+use sequent_core::monitoring::payload::ScopePayload;
 use sequent_core::monitoring::presets::SETTINGS_KEY;
 use sequent_core::monitoring::revision::DashboardMode;
 use sequent_core::monitoring::scope::ScopeSelection;
@@ -247,6 +251,9 @@ pub struct GetDashboardOutput {
     pinned_post: Option<String>,
     sources: IndexMap<DataSourceId, SourceView>,
     snapshot: Option<SnapshotView>,
+    /// The days with activity, `YYYY-MM-DD` in the settings' time zone,
+    /// oldest first: the options of a widget's Day selector.
+    event_days: Vec<String>,
 }
 
 fn json_of<T: Serialize>(value: &T) -> MonitoringResult<Value> {
@@ -415,6 +422,13 @@ pub async fn get_dashboard(
             key,
         })
         .collect();
+    let event_days = match &snapshot {
+        Some(head) => {
+            dashboard_event_days(services, &viewer, set, dashboard, head)
+                .await?
+        }
+        None => vec![],
+    };
     // A restricted viewer's elections are counted as long as someone asks.
     if viewer.restricted && snapshot.is_some() {
         services
@@ -437,7 +451,60 @@ pub async fn get_dashboard(
         pinned_post: viewer.pinned.map(|pinned| pinned.to_string()),
         sources: sources(settings),
         snapshot: snapshot.as_ref().map(SnapshotView::from),
+        event_days,
     }))
+}
+
+/// The days with activity of the sources whose widgets on `dashboard` pick
+/// a day, at the viewer's widest scope: the options `render-widget` accepts.
+async fn dashboard_event_days(
+    services: &HarvestServices,
+    viewer: &Viewer,
+    set: &ConfigSet,
+    dashboard: &Dashboard,
+    head: &SnapshotHead,
+) -> MonitoringResult<Vec<String>> {
+    let mut read: Vec<(DataSourceId, String)> = vec![];
+    let mut days: Vec<String> = vec![];
+    for item in &dashboard.layout {
+        let Some(widget) = set.widgets.get(&item.widget) else {
+            continue;
+        };
+        let picks_a_day = widget.selectors.values().any(|selector| {
+            selector.options_from == Some(DynamicOptions::EventDays)
+        });
+        if !picks_a_day || widget.source.spec().producer != Producer::Available
+        {
+            continue;
+        }
+        let key = ScopeSelection::default()
+            .for_widget(widget, &viewer.pinning())
+            .key
+            .canonical();
+        if read.contains(&(widget.source, key.clone())) {
+            continue;
+        }
+        read.push((widget.source, key.clone()));
+        let scope = services
+            .monitoring_snapshots
+            .read_scope(
+                viewer.event,
+                head.revision,
+                widget.source,
+                &viewer.election_set_key,
+                &key,
+            )
+            .await
+            .map_err(MonitoringError::internal)?;
+        if let ScopeRead::Payload { text, .. } = scope {
+            if let Ok(payload) = serde_json::from_str::<ScopePayload>(&text) {
+                days.extend(event_days(&payload));
+            }
+        }
+    }
+    days.sort();
+    days.dedup();
+    Ok(days)
 }
 
 // ---------------------------------------------------------------------------

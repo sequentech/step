@@ -458,6 +458,10 @@ async fn the_figures_windmill_counted_are_drawn_for_exactly_the_viewers_election
         .map(|region| region["key"].as_str().unwrap().to_string())
         .collect();
     assert_eq!(regions, ["Luzon", "Mindanao"], "{body}");
+    // The Day selector's options: the days with votes, in Manila time.
+    let days = body["event_days"].as_array().expect("event_days");
+    assert_eq!(days.len(), 1, "{body}");
+    assert_eq!(days[0].as_str().unwrap().len(), "2026-05-04".len());
 
     let (status, body) = render(
         &client,
