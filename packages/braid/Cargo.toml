@@ -73,6 +73,7 @@ tikv-jemalloc-ctl = { version = "0.6", features = ["stats"], optional = true }
 [dev-dependencies]
 criterion = {version = "0.5", features=["html_reports"]}
 serial_test = "3.2"
+tempfile = "3.23"
 
 [lib]
 crate-type = ["cdylib", "rlib"]
