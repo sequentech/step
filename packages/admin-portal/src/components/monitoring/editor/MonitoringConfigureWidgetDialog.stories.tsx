@@ -4,10 +4,13 @@
 import React from "react"
 import type {Meta, StoryObj} from "@storybook/react-vite"
 import {expect, fn, userEvent, waitFor, within} from "storybook/test"
+import {initCore} from "@sequentech/ui-core"
 import {AdminStoryProvider, graphqlBoundary} from "@/__stories__/AdminStoryProvider"
 import type {IMonitoringEditorApi} from "./api"
 import {MonitoringConfigureWidgetDialog} from "./MonitoringConfigureWidgetDialog"
+import {sequentCoreValidator} from "./sequentCoreValidator"
 import {
+    EMonitoringConfigKind,
     EMonitoringSaveStatus,
     EMonitoringValidationResult,
     type TMonitoringSaveOutcome,
@@ -254,5 +257,33 @@ export const LoadFailed: Story = {
             await dialog.findByText("The widget could not be loaded: widget not found")
         ).toBeVisible()
         await expect(dialog.getByRole("button", {name: "Save widget"})).toBeDisabled()
+    },
+}
+
+/** sequent-core's own policy, run in the browser from the portal's WebAssembly build. */
+export const BrowserChecks: Story = {
+    args: {localValidate: sequentCoreValidator(EMonitoringConfigKind.WIDGET)},
+    // The app loads the WebAssembly at start-up; a story has to ask for it.
+    beforeEach: async () => {
+        await initCore()
+    },
+    parameters: withApi(() => ({
+        getConfig: fn(async ({kind, key}) => ({
+            kind,
+            key,
+            yaml: WIDGET_YAML.replace(
+                "  template: by_group\n",
+                "  template: by_group\n  sql: select 1\n"
+            ),
+            revision: 7,
+        })),
+    })),
+    play: async ({canvasElement}) => {
+        const view = await openDialog(canvasElement)
+        const checks = view.getByRole("region", {name: /Checks/})
+        await expect(await within(checks).findByText("Browser check")).toBeVisible()
+        await expect(within(checks).getByText(/query\.sql/)).toBeVisible()
+        await expect(view.getByRole("button", {name: "Save widget"})).toBeDisabled()
+        expect(within(checks).queryByText(/Checks in the browser are unavailable/)).toBeNull()
     },
 }
