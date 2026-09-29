@@ -9,9 +9,9 @@
 use anyhow::{anyhow, Context as _, Result};
 use deadpool_postgres::Transaction;
 use protocol_board::{
-    encode_manager_key, parse_manager_key, tally_transition, transition, BoardHandle,
-    BoardManager, BoardName, CeremonyState, DkgBoard, PlatformEvent, SignedBallots,
-    SignedConfiguration, TallyBoard, TallyEvent, TallySessionState, Timestamps,
+    encode_manager_key, parse_manager_key, tally_transition, transition, BoardHandle, BoardManager,
+    BoardName, CeremonyState, DkgBoard, PlatformEvent, SignedBallots, SignedConfiguration,
+    TallyBoard, TallyEvent, TallySessionState, Timestamps,
 };
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::services::date::{get_now_utc_unix_ms, ISO8601};

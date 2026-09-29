@@ -397,12 +397,9 @@ async fn process_plaintexts(
             )
             .await?
         }
-        ContestEncryptionPolicy::SINGLE_CONTEST => generate_area_contests(
-            decrypted,
-            &ballot_styles,
-            &tally_session_contest,
-            areas,
-        )?,
+        ContestEncryptionPolicy::SINGLE_CONTEST => {
+            generate_area_contests(decrypted, &ballot_styles, &tally_session_contest, areas)?
+        }
     };
     almost_vec.extend(generate_acclaimed_area_contests(&ballot_styles, areas));
     event!(Level::WARN, "Num almost_vec = {}", almost_vec.len());
@@ -1160,7 +1157,10 @@ async fn map_plaintext_data(
     // payloads to count.
     let is_execution_completed = views.iter().all(|(_, _, view)| is_decrypted(view));
     if !is_execution_completed && !(tie_break_rerun || force_recount) {
-        event!(Level::INFO, "Not every tally board is decrypted yet, skipping");
+        event!(
+            Level::INFO,
+            "Not every tally board is decrypted yet, skipping"
+        );
         return Ok(None);
     }
 
@@ -1484,9 +1484,9 @@ pub async fn execute_tally_session_wrapped(
         &default_language,
         tally_type_enum.clone(),
         plaintexts_data.is_empty(),
-        // Same reasoning as the replay decision: a recount must produce a fresh
-        // results event even when the celery argument that requested it was
-        // lost, so the reason on the execution row counts too.
+        // Same reasoning as `force_recount` above: a recount must produce a
+        // fresh results event even when the celery argument that requested it
+        // was lost, so the reason on the execution row counts too.
         force_new_results_id
             || has_resolved_tie_break
             || tally_session_execution.run_reason() == TallyRunReason::RECOUNT

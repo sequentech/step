@@ -55,7 +55,7 @@ pub struct NewProtocolBoard {
     pub manager_message: Vec<u8>,
 }
 
-#[instrument(err, skip(hasura_transaction))]
+#[instrument(err, skip(hasura_transaction, board), fields(board = %board.name))]
 pub async fn insert_protocol_board(
     hasura_transaction: &Transaction<'_>,
     board: &NewProtocolBoard,
@@ -194,7 +194,8 @@ pub async fn get_trustee_boards(
         .prepare(
             r#"
                 SELECT
-                    board.*,
+                    board.name,
+                    board.created_at,
                     NULL::text AS parent_name
                 FROM
                     sequent_backend.protocol_board AS board
@@ -211,7 +212,8 @@ pub async fn get_trustee_boards(
                     $3 = ANY(keys_ceremony.trustee_ids)
                 UNION ALL
                 SELECT
-                    board.*,
+                    board.name,
+                    board.created_at,
                     parent.name AS parent_name
                 FROM
                     sequent_backend.protocol_board AS board
@@ -257,9 +259,9 @@ pub async fn get_trustee_boards(
 
     rows.into_iter()
         .map(|row| -> Result<TrusteeBoard> {
+            let name: String = row.try_get("name")?;
             let parent_name: Option<String> = row.try_get("parent_name")?;
-            let board = row.try_into().map(|res: ProtocolBoardWrapper| res.0)?;
-            TrusteeBoard::of(&board, parent_name.as_deref())
+            TrusteeBoard::of(&name, parent_name.as_deref())
         })
         .collect()
 }

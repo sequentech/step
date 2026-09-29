@@ -82,10 +82,7 @@ pub struct AreaContestDataType {
 }
 
 #[instrument(skip_all)]
-fn decode_plaintexts_to_biguints(
-    plaintexts: &[[u8; 30]],
-    contest: &Contest,
-) -> Vec<String> {
+fn decode_plaintexts_to_biguints(plaintexts: &[[u8; 30]], contest: &Contest) -> Vec<String> {
     plaintexts
         .iter()
         .filter_map(|plaintext| {

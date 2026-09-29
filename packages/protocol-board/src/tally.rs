@@ -226,6 +226,12 @@ fn read_boards(
             changes.push(format!("Board {} is now {observed}", status.name));
         }
     }
+    // Only a board that moved changes an election's progress; and a stored
+    // progress does not always read back as the float it was written from,
+    // so could jitter the progress without a proper meaning.
+    if changes.is_empty() {
+        return;
+    }
     let elections = elections_status(&next.status.elections_status, boards);
     next.status.elections_status = elections;
     for change in changes {
@@ -792,6 +798,40 @@ mod tests {
                 TallyElectionStatus::SUCCESS
             );
         }
+    }
+
+    #[test]
+    fn a_reading_that_moves_no_board_leaves_a_stored_session_as_it_was() {
+        // Six of seven boards decrypted and one decrypting: a progress of
+        // 640/7, which reads back from the stored JSON as another float.
+        let one_election = (1..=7)
+            .map(|batch| TallyBoardRef {
+                name: board(batch),
+                election_id: "election1".to_string(),
+                area_id: "area".to_string(),
+                contest_id: None,
+                batch,
+            })
+            .collect();
+        let reading = read(
+            (1..=7)
+                .map(|batch| match batch {
+                    7 => phase(batch, TallyBoardPhase::DECRYPTING),
+                    _ => phase(batch, TallyBoardPhase::DECRYPTED),
+                })
+                .collect(),
+        );
+        let reached = apply(
+            &apply(&in_progress(), TallyEvent::BoardsCreated(one_election)),
+            reading.clone(),
+        );
+
+        let stored = serde_json::to_string(&reached.status).unwrap();
+        let loaded = TallySessionState::new(
+            reached.execution.clone(),
+            serde_json::from_str(&stored).unwrap(),
+        );
+        assert_eq!(apply(&loaded, reading), loaded);
     }
 
     #[test]

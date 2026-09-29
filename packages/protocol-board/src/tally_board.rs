@@ -262,16 +262,25 @@ mod tests {
         fixture: &Fixture,
         manager: &BoardManager,
     ) -> Result<TallyBoard> {
+        batch_board(fixture, manager, &Uuid::new_v4(), &Uuid::new_v4(), 7)
+    }
+
+    fn batch_board(
+        fixture: &Fixture,
+        manager: &BoardManager,
+        row_id: &Uuid,
+        tally_session_id: &Uuid,
+        batch: i64,
+    ) -> Result<TallyBoard> {
         let quorum = Quorum::of_names(
             &fixture.dkg,
             &fixture.names,
             &names(&["trustee3", "trustee1"]),
-        )
-        .unwrap();
+        )?;
         TallyBoard::new(
-            &Uuid::new_v4(),
-            &Uuid::new_v4(),
-            7,
+            row_id,
+            tally_session_id,
+            batch,
             &fixture.dkg,
             &public_key_hash(),
             &quorum,
@@ -349,14 +358,21 @@ mod tests {
     }
 
     #[test]
-    fn every_board_gets_its_own_tally_id() {
+    fn each_batch_of_a_session_is_its_own_board_and_tally() {
         let fixture = setup(3, 2);
-        let first = tally_board(&fixture, &fixture.manager).unwrap();
-        let second = tally_board(&fixture, &fixture.manager).unwrap();
-        assert_ne!(
-            ballots_of(first.input.predicate()).tally_id,
-            ballots_of(second.input.predicate()).tally_id
-        );
+        let session = Uuid::new_v4();
+        let mut tally_ids = Vec::new();
+        for (row, batch) in [(Uuid::new_v4(), 1), (Uuid::new_v4(), 2)] {
+            let board =
+                batch_board(&fixture, &fixture.manager, &row, &session, batch)
+                    .unwrap();
+            assert_eq!(board.name, BoardName::for_tally(&session, batch));
+            let tally_id = ballots_of(board.input.predicate()).tally_id;
+            assert_eq!(Uuid::from_u128(tally_id), row);
+            tally_ids.push(tally_id);
+        }
+        // Sibling tallies under one Configuration need distinct identifiers.
+        assert_ne!(tally_ids[0], tally_ids[1]);
     }
 
     #[test]

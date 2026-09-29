@@ -98,13 +98,14 @@ mod tests {
     }
 
     #[test]
-    fn the_stored_entry_is_padded_base64_of_the_canonical_bytes() {
+    fn the_stored_entry_is_padded_base64_of_the_contests_then_the_ciphertext() {
         // The contract the voter's client meets without this crate's encoder.
         let ballot = ballot(&["contest"]);
-        let canonical = ballot.ser();
-        assert_eq!(ballot.encode(), STANDARD.encode(&canonical));
+        let expected =
+            [ballot.contest_ids.ser(), ballot.ciphertext.ser()].concat();
+        assert_eq!(ballot.encode(), STANDARD.encode(&expected));
         assert_eq!(
-            BallotCiphertext::parse(&STANDARD.encode(&canonical)).unwrap(),
+            BallotCiphertext::parse(&STANDARD.encode(&expected)).unwrap(),
             ballot
         );
     }

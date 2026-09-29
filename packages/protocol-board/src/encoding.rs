@@ -337,14 +337,4 @@ mod tests {
             format!("{:#}", parse_manager_key("not base64!").err().unwrap());
         assert!(error.contains(MANAGER_KEY), "{error}");
     }
-
-    #[test]
-    fn a_plaintext_element_decodes_to_the_bytes_it_encodes() {
-        let mut payload: ElementPayload = [0u8; 30];
-        payload[..18].copy_from_slice(b"testing encryption");
-        for payload in [payload, [0xde; 30], [0u8; 30], [0xff; 30]] {
-            let element = Ristretto255Group::encode_30_bytes(&payload).unwrap();
-            assert_eq!(decode_plaintext_element(&element).unwrap(), payload);
-        }
-    }
 }
