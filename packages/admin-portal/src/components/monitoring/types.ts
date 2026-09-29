@@ -89,6 +89,12 @@ export enum EWidgetRenderState {
     INVALID = "INVALID",
 }
 
+/** Why a widget is SCOPE_PENDING, when Harvest says. */
+export enum EPendingReason {
+    /** The settings were saved and the next count, with them, has not finished. */
+    SETTINGS_PENDING = "SETTINGS_PENDING",
+}
+
 /** Why the portal itself could not show a widget, beside the server's states. */
 export enum EWidgetFailure {
     REQUEST_FAILED = "REQUEST_FAILED",
@@ -287,6 +293,12 @@ export interface MonitoringTable {
     rows: unknown[][]
 }
 
+/** One governed query's rows, named as in the widget's `queries`. */
+export interface MonitoringQueryTable {
+    query: string
+    table?: MonitoringTable | null
+}
+
 export interface MonitoringScope {
     region?: string
     post?: string
@@ -311,7 +323,10 @@ export interface MonitoringRenderWidgetResponse {
     state: EWidgetRenderState
     reason?: string | null
     svg?: string | null
+    /** The first query's rows. */
     table?: MonitoringTable | null
+    /** Every governed query's rows, in widget order; absent from older backends. */
+    tables?: MonitoringQueryTable[] | null
     notices: string[]
     diagnostics: MonitoringProblem[]
     ignored_selectors: string[]

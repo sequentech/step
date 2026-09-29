@@ -359,6 +359,26 @@ export const ViewData: Story = {
     },
 }
 
+/** View data of a widget that reads several queries shows each one. */
+export const ViewDataOfEveryQuery: Story = {
+    args: {widgetId: "turnout-summary"},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await canvas.findByTitle("Voter turnout chart")
+        await userEvent.click(canvas.getByRole("button", {name: "Actions for Voter turnout"}))
+        await userEvent.click(
+            await within(document.body).findByRole("menuitem", {name: "View data"})
+        )
+        const body = await dialog()
+        expect(
+            body.getAllByRole("heading", {level: 3}).map((heading) => heading.textContent)
+        ).toEqual(["totals", "voted_reg", "voted_pre"])
+        const ratio = within(body.getByRole("table", {name: "Voter turnout · data · voted_reg"}))
+        await expect(ratio.getByRole("columnheader", {name: "Registered"})).toBeVisible()
+        expect(ratio.getAllByText("37.5%")).toHaveLength(2)
+    },
+}
+
 export const ExportWidget: Story = {
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)

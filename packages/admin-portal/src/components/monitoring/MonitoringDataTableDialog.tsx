@@ -10,31 +10,46 @@ import {
     DialogContent,
     DialogTitle,
     Stack,
+    Typography,
 } from "@mui/material"
 import {useTranslation} from "react-i18next"
-import type {MonitoringTable} from "./types"
+import type {MonitoringQueryTable, MonitoringTable} from "./types"
 import {MonitoringDataTable} from "./MonitoringDataTable"
+import {columnLabeler, dataSections} from "./lib/dataTables"
 
 export interface MonitoringDataTableDialogProps {
     open: boolean
     onClose: () => void
     title: string
     scope: string
-    table: MonitoringTable
+    /** The first query's rows: all an older backend sends. */
+    table?: MonitoringTable | null
+    /** Every query's rows, in widget order. */
+    tables?: MonitoringQueryTable[] | null
+    /** The widget's queries, whose measures and labels name the columns. */
+    queries?: Record<string, unknown>
     notices?: string[]
 }
 
-/** View data: the rows behind the chart the viewer is looking at. */
+/**
+ * View data: the rows behind the chart the viewer is looking at, a section per
+ * query, with columns named in the viewer's language where the platform knows
+ * the words.
+ */
 export function MonitoringDataTableDialog({
     open,
     onClose,
     title,
     scope,
     table,
+    tables,
+    queries,
     notices = [],
 }: MonitoringDataTableDialogProps) {
-    const {t} = useTranslation()
+    const {t, i18n} = useTranslation()
     const heading = t("monitoring.dataTable.title", {widget: title})
+    const known = (key: string) => (i18n.exists(key) ? t(key) : undefined)
+    const sections = dataSections({table, tables}, queries)
     return (
         <Dialog
             open={open}
@@ -56,7 +71,30 @@ export function MonitoringDataTableDialog({
                             {notice}
                         </Alert>
                     ))}
-                    <MonitoringDataTable table={table} caption={heading} />
+                    {sections.map((section, index) => {
+                        const id = `monitoring-data-query-${index}`
+                        return (
+                            <Stack
+                                key={section.query ?? index}
+                                component="section"
+                                spacing={1}
+                                aria-labelledby={section.query ? id : undefined}
+                            >
+                                {section.query ? (
+                                    <Typography id={id} variant="subtitle1" component="h3">
+                                        {section.query}
+                                    </Typography>
+                                ) : null}
+                                <MonitoringDataTable
+                                    table={section.table}
+                                    caption={
+                                        section.query ? `${heading} · ${section.query}` : heading
+                                    }
+                                    columnLabel={columnLabeler(section.definition, known)}
+                                />
+                            </Stack>
+                        )
+                    })}
                 </Stack>
             </DialogContent>
             <DialogActions>

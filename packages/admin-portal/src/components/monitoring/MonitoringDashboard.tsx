@@ -238,6 +238,7 @@ export function MonitoringDashboard({
                     scope={label}
                     timeZone={context.timeZone}
                     onSnapshotPruned={reload}
+                    widgets={cells.flatMap((cell) => (cell.widget ? [cell.widget] : []))}
                     target={{
                         electionEventId,
                         electionId: electionId ?? null,

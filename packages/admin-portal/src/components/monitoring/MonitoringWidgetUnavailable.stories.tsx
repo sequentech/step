@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import type {Meta, StoryObj} from "@storybook/react-vite"
 import {expect, within} from "storybook/test"
-import {EProblemSeverity, EWidgetFailure, EWidgetRenderState} from "./types"
+import {EPendingReason, EProblemSeverity, EWidgetFailure, EWidgetRenderState} from "./types"
 import {MonitoringWidgetUnavailable} from "./MonitoringWidgetUnavailable"
 import {summaryTable, turnoutTable} from "./__stories__/MonitoringFixture"
 
@@ -50,6 +50,21 @@ export const ScopePending: Story = {
     args: {state: EWidgetRenderState.SCOPE_PENDING, reason: null},
     play: async ({canvasElement}) => {
         await expect(within(canvasElement).getByText("Counting this selection")).toBeVisible()
+    },
+}
+
+/** Counted again after the settings were saved: the figures are not the old ones. */
+export const SettingsPending: Story = {
+    args: {state: EWidgetRenderState.SCOPE_PENDING, reason: EPendingReason.SETTINGS_PENDING},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await expect(canvas.getByText("Counting with the new settings…")).toBeVisible()
+        await expect(
+            canvas.getByText(
+                "The figures are counted again with the saved settings, within about a minute."
+            )
+        ).toBeVisible()
+        expect(canvas.queryByText("Counting this selection")).toBeNull()
     },
 }
 

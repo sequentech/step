@@ -21,6 +21,7 @@ import {
     type MonitoringDashboard,
     type MonitoringGetDashboardResponse,
     type MonitoringListDashboardsResponse,
+    type MonitoringQueryTable,
     type MonitoringRenderWidgetResponse,
     type MonitoringRenderWidgetVariables,
     type MonitoringSourceInfo,
@@ -43,8 +44,20 @@ export const turnoutSummary: MonitoringWidget = {
     title: "Voter turnout",
     source: EDataSource.VOTER_TURNOUT,
     requirements: ["SW-F-0259"],
-    query: {template: "summary", measures: ["registered", "pre_enrolled", "voted"]},
-    chart: {charts: {kpi: {type: "kpi", query: "data"}}, rows: ["kpi"]},
+    // As the preset has it: totals, then the ratios, each its own query.
+    queries: {
+        totals: {template: "summary", measures: ["registered", "pre_enrolled", "voted"]},
+        voted_reg: {template: "summary", ratio: ["voted", "registered"]},
+        voted_pre: {template: "summary", ratio: ["voted", "pre_enrolled"]},
+    },
+    chart: {
+        charts: {
+            voted: {type: "kpi", query: "totals", value: "voted"},
+            voted_reg: {type: "kpi", query: "voted_reg", value: "pct_label"},
+            voted_pre: {type: "kpi", query: "voted_pre", value: "pct_label"},
+        },
+        rows: [{cols: ["voted", "voted_reg", "voted_pre"]}],
+    },
     height: 160,
 }
 
@@ -286,6 +299,30 @@ export const summaryTable: MonitoringTable = {
     rows: [[874624, 465321, 0.532]],
 }
 
+const RATIO_COLUMNS = [
+    {name: "numerator", kind: EColumnKind.INTEGER},
+    {name: "denominator", kind: EColumnKind.INTEGER},
+    {name: "pct", kind: EColumnKind.NUMBER},
+    {name: "pct_label", kind: EColumnKind.TEXT},
+]
+
+/** Turnout summary's queries as Harvest sends them: 3 of 8 voted, nobody pre-enrolled. */
+export const turnoutSummaryTables: MonitoringQueryTable[] = [
+    {
+        query: "totals",
+        table: {
+            columns: [
+                {name: "registered", kind: EColumnKind.INTEGER},
+                {name: "pre_enrolled", kind: EColumnKind.INTEGER},
+                {name: "voted", kind: EColumnKind.INTEGER},
+            ],
+            rows: [[8, 0, 3]],
+        },
+    },
+    {query: "voted_reg", table: {columns: RATIO_COLUMNS, rows: [[3, 8, 0.375, "37.5%"]]}},
+    {query: "voted_pre", table: {columns: RATIO_COLUMNS, rows: [[3, 0, null, "—"]]}},
+]
+
 export function renderResponse(
     overrides: Partial<MonitoringRenderWidgetResponse> = {}
 ): MonitoringRenderWidgetResponse {
@@ -294,6 +331,8 @@ export function renderResponse(
         reason: null,
         svg: barChartSvg([120, 90, 40]),
         table: turnoutTable,
+        // What an older backend sends: the first query's rows only.
+        tables: null,
         notices: [],
         diagnostics: [],
         ignored_selectors: [],
@@ -349,8 +388,9 @@ export function monitoringHandlers(options: MonitoringHandlerOptions = {}) {
                 data: {
                     monitoringRenderWidget: renderResponse({
                         svg: barChartSvg([40 + widgetIndex * 20, 90, 120 - widgetIndex * 10]),
-                        table:
-                            variables.widgetId === turnoutSummary.id ? summaryTable : turnoutTable,
+                        ...(variables.widgetId === turnoutSummary.id
+                            ? {table: turnoutSummaryTables[0].table, tables: turnoutSummaryTables}
+                            : {table: turnoutTable}),
                         ...override,
                     }),
                 },
@@ -372,8 +412,8 @@ export function monitoringHandlers(options: MonitoringHandlerOptions = {}) {
 }
 
 /** Harvest's refusal as Hasura passes it on: a GraphQL error with its code in `extensions`. */
-export function refusal(code: string): FetchResult {
-    return {errors: [new GraphQLError(`Refused: ${code}`, {extensions: {code}})]}
+export function refusal(code: string, extensions: Record<string, unknown> = {}): FetchResult {
+    return {errors: [new GraphQLError(`Refused: ${code}`, {extensions: {...extensions, code}})]}
 }
 
 /**

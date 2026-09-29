@@ -8,6 +8,7 @@ import {
     EMonitoringErrorCode,
     monitoringErrorCode,
     monitoringErrorMessage,
+    monitoringProblems,
 } from "./errors"
 
 const refusal = (extensions: Record<string, unknown>) =>
@@ -54,5 +55,38 @@ describe("Harvest's monitoring errors", () => {
         }
         expect(monitoringErrorMessage(new Error("?"))).toBe("monitoring.errors.unknown")
         expect(BUSY_RETRY_MS).toBeGreaterThan(0)
+    })
+})
+
+describe("the problems of a refusal", () => {
+    const problem = {
+        severity: "ERROR",
+        code: "unknown_option",
+        path: "widget_selector_values.turnout-by-group.breakdown",
+        message: "'region' is not an option of 'breakdown'.",
+    }
+
+    it("reads MONITORING_INVALID and its problems", () => {
+        const error = refusal({code: "MONITORING_INVALID", problems: [problem]})
+        expect(monitoringErrorCode(error)).toBe(EMonitoringErrorCode.INVALID)
+        expect(monitoringProblems(error)).toEqual([
+            {code: problem.code, path: problem.path, message: problem.message},
+        ])
+    })
+
+    it("reads the problems from the handler's body when Hasura wraps it", () => {
+        const body = JSON.stringify({
+            message: "The configuration is not valid.",
+            extensions: {code: "MONITORING_INVALID", problems: [problem]},
+        })
+        const error = refusal({internal: {response: {status: 422, body}}})
+        expect(monitoringErrorCode(error)).toBe(EMonitoringErrorCode.INVALID)
+        expect(monitoringProblems(error).map(({code}) => code)).toEqual(["unknown_option"])
+    })
+
+    it("has none for other errors, and skips what is not a problem", () => {
+        expect(monitoringProblems(refusal({code: "MONITORING_BUSY"}))).toEqual([])
+        expect(monitoringProblems(refusal({problems: [null, "x", {code: 3}]}))).toEqual([])
+        expect(monitoringProblems(undefined)).toEqual([])
     })
 })
