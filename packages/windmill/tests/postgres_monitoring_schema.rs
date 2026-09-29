@@ -50,9 +50,14 @@ fn sha256(text: &str) -> String {
     hex::encode(Sha256::digest(text.as_bytes()))
 }
 
-/// A payload digest, as the snapshot tables store it.
-fn digest(text: &str) -> Vec<u8> {
-    Sha256::digest(text.as_bytes()).to_vec()
+/// The stored text of the payload named `label`.
+fn payload_text(label: &str) -> String {
+    serde_json::json!({ "label": label }).to_string()
+}
+
+/// The digest of the payload named `label`, as the snapshot tables store it.
+fn digest(label: &str) -> Vec<u8> {
+    Sha256::digest(payload_text(label).as_bytes()).to_vec()
 }
 
 fn set_key(ids: &[Uuid]) -> String {
@@ -115,13 +120,13 @@ async fn election_set(tx: &Transaction<'_>, s: Scope, ids: &[Uuid]) -> String {
     key
 }
 
-async fn payload(tx: &Transaction<'_>, s: Scope, text: &str) -> Vec<u8> {
-    let sha = digest(text);
+async fn payload(tx: &Transaction<'_>, s: Scope, label: &str) -> Vec<u8> {
+    let sha = digest(label);
     tx.execute(
         "INSERT INTO sequent_backend.monitoring_snapshot_payload
              (tenant_id, election_event_id, sha256, payload)
-         VALUES ($1, $2, $3, '{}')",
-        &[&s.tenant, &s.event, &sha],
+         VALUES ($1, $2, $3, $4)",
+        &[&s.tenant, &s.event, &sha, &payload_text(label)],
     )
     .await
     .unwrap();
@@ -714,6 +719,7 @@ async fn configuration_and_figures_need_their_event_configured() {
     let post = id(line!(), 3);
     election(&tx, s, post).await;
     let (key, figures) = (set_key(&[post]), digest("figures"));
+    let figures_text = payload_text("figures");
 
     assert_eq!(
         Revision::edit("w", 1, "id: w\n").save(&mut tx, s).await,
@@ -764,8 +770,8 @@ async fn configuration_and_figures_need_their_event_configured() {
         (
             "INSERT INTO sequent_backend.monitoring_snapshot_payload
                  (tenant_id, election_event_id, sha256, payload)
-             VALUES ($1, $2, $3, '{}')",
-            &[&s.tenant, &s.event, &figures],
+             VALUES ($1, $2, $3, $4)",
+            &[&s.tenant, &s.event, &figures, &figures_text],
             "monitoring_snapshot_payload_of_its_event",
         ),
         (
@@ -2312,32 +2318,45 @@ async fn a_scope_shows_one_stored_payload_over_a_range_of_runs() {
     let payload_row = "INSERT INTO sequent_backend.monitoring_snapshot_payload
                            (tenant_id, election_event_id, sha256, payload)
                        VALUES ($1, $2, $3, $4)";
-    let object = serde_json::json!({"rows": []});
     let (early, late) = (digest("early"), digest("late"));
-    for sha in [&early, &late] {
+    for (sha, label) in [(&early, "early"), (&late, "late")] {
         assert_eq!(
-            attempt(&mut tx, payload_row, &[&s.tenant, &s.event, sha, &object]).await,
+            attempt(
+                &mut tx,
+                payload_row,
+                &[&s.tenant, &s.event, sha, &payload_text(label)]
+            )
+            .await,
             Ok(1)
         );
     }
     let north = payload(&tx, s, "north").await;
     let short = early[..16].to_vec();
+    let list = "[]".to_string();
+    let list_sha = Sha256::digest(list.as_bytes()).to_vec();
+    let (early_text, late_text) = (payload_text("early"), payload_text("late"));
     for (sha, value, constraint, why) in [
         (
             &early,
-            &object,
+            &early_text,
             "monitoring_snapshot_payload_pkey",
             "the same figures stored twice",
         ),
         (
+            &early,
+            &late_text,
+            "monitoring_snapshot_payload_is_its_hash",
+            "other figures under a stored hash",
+        ),
+        (
             &short,
-            &object,
-            "monitoring_snapshot_payload_sha256_check",
+            &early_text,
+            "monitoring_snapshot_payload_is_its_hash",
             "not a SHA-256",
         ),
         (
-            &digest("list"),
-            &serde_json::json!([]),
+            &list_sha,
+            &list,
             "monitoring_snapshot_payload_payload_check",
             "figures that are not an object",
         ),
@@ -3209,6 +3228,122 @@ async fn pruning_out_of_order_fails_at_commit_unless_checked_at_once() {
 }
 
 #[tokio::test]
+async fn a_hash_names_one_content_whoever_stores_it_again() {
+    let pool = schema::pool().await;
+    let (mut writer_client, mut pass_client) =
+        (pool.get().await.unwrap(), pool.get().await.unwrap());
+    let (s, key, north, east) = {
+        let setup = pass_client.transaction().await.unwrap();
+        let s = scope(&setup, line!()).await;
+        let key = election_set(&setup, s, &[]).await;
+        let (north, east) = (
+            payload(&setup, s, "north").await,
+            payload(&setup, s, "east").await,
+        );
+        setup.commit().await.unwrap();
+        (s, key, north, east)
+    };
+    let shown = |revision: i64, scope_key: &'static str| {
+        let pool = pool.clone();
+        async move {
+            pool.get()
+                .await
+                .unwrap()
+                .query_one(
+                    "SELECT payload.payload FROM sequent_backend.monitoring_snapshot_figure figure
+                     JOIN sequent_backend.monitoring_snapshot_payload payload
+                       ON (payload.tenant_id, payload.election_event_id, payload.sha256)
+                        = (figure.tenant_id, figure.election_event_id, figure.payload_sha256)
+                     WHERE figure.tenant_id = $1 AND figure.election_event_id = $2
+                       AND figure.scope_key = $3
+                       AND int8range(figure.from_revision, figure.to_revision) @> $4::bigint",
+                    &[&s.tenant, &s.event, &scope_key, &revision],
+                )
+                .await
+                .unwrap()
+                .get::<_, String>(0)
+        }
+    };
+    // A pass names the payload after a REPEATABLE READ writer took its
+    // snapshot, which then no longer sees that anything names it.
+    let named_after = |scope_key: &'static str, sha: Vec<u8>| {
+        let pool = pool.clone();
+        let key = key.clone();
+        async move {
+            let mut client = pool.get().await.unwrap();
+            let pass = client.transaction().await.unwrap();
+            let run = start_run(&pass, s).await;
+            open_figure(&pass, s, (key.as_str(), scope_key), run, &sha)
+                .await
+                .unwrap();
+            end_run(&pass, s, run, "COMPLETE").await.unwrap();
+            assert_eq!(show(&pass, s, run).await.unwrap(), 1);
+            pass.commit().await.unwrap();
+            run
+        }
+    };
+    let delete = "DELETE FROM sequent_backend.monitoring_snapshot_payload
+                  WHERE tenant_id = $1 AND election_event_id = $2 AND sha256 = $3";
+    let insert = "INSERT INTO sequent_backend.monitoring_snapshot_payload
+                      (tenant_id, election_event_id, sha256, payload)
+                  VALUES ($1, $2, $3, $4)";
+
+    // Stored again with other figures: refused, whatever it saw.
+    let writer = writer_client
+        .build_transaction()
+        .isolation_level(IsolationLevel::RepeatableRead)
+        .start()
+        .await
+        .unwrap();
+    writer.query_one("SELECT 1", &[]).await.unwrap();
+    let first = named_after("region=north", north.clone()).await;
+    assert_eq!(
+        writer
+            .execute(delete, &[&s.tenant, &s.event, &north])
+            .await
+            .unwrap(),
+        1,
+        "the writer's snapshot sees nothing naming it"
+    );
+    let error = writer
+        .execute(
+            insert,
+            &[&s.tenant, &s.event, &north, &payload_text("south")],
+        )
+        .await
+        .unwrap_err();
+    assert_eq!(refusal(&error), "monitoring_snapshot_payload_is_its_hash");
+    writer.rollback().await.unwrap();
+    assert_eq!(shown(first, "region=north").await, payload_text("north"));
+
+    // Stored again as it was, it commits, and shows the same figures.
+    let writer = writer_client
+        .build_transaction()
+        .isolation_level(IsolationLevel::RepeatableRead)
+        .start()
+        .await
+        .unwrap();
+    writer.query_one("SELECT 1", &[]).await.unwrap();
+    let second = named_after("region=east", east.clone()).await;
+    writer
+        .execute(delete, &[&s.tenant, &s.event, &east])
+        .await
+        .unwrap();
+    writer
+        .execute(insert, &[&s.tenant, &s.event, &east, &payload_text("east")])
+        .await
+        .unwrap();
+    writer.commit().await.unwrap();
+    assert_eq!(shown(second, "region=east").await, payload_text("east"));
+
+    let cleanup = pass_client.transaction().await.unwrap();
+    delete_election_event(&cleanup, &s.tenant.to_string(), &s.event.to_string())
+        .await
+        .unwrap();
+    cleanup.commit().await.unwrap();
+}
+
+#[tokio::test]
 async fn no_monitoring_table_can_be_truncated() {
     let mut client = schema::pool().await.get().await.unwrap();
     let tx = client.transaction().await.unwrap();
@@ -3738,8 +3873,13 @@ async fn a_snapshot_pass_and_a_save_never_wait_for_one_another() {
         pass.execute(
             "INSERT INTO sequent_backend.monitoring_snapshot_payload
                  (tenant_id, election_event_id, sha256, payload)
-             VALUES ($1, $2, $3, '{}')",
-            &[&s.tenant, &s.event, &digest("more figures")],
+             VALUES ($1, $2, $3, $4)",
+            &[
+                &s.tenant,
+                &s.event,
+                &digest("more figures"),
+                &payload_text("more figures"),
+            ],
         ),
         "a payload after the save",
     )

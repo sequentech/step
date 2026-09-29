@@ -741,11 +741,15 @@ CREATE CONSTRAINT TRIGGER monitoring_snapshot_source_finishes_its_run
 CREATE TABLE sequent_backend.monitoring_snapshot_payload (
     tenant_id uuid NOT NULL,
     election_event_id uuid NOT NULL,
-    -- SHA-256, as bytes.
-    sha256 bytea NOT NULL CHECK (octet_length(sha256) = 32),
-    payload jsonb NOT NULL CHECK (jsonb_typeof(payload) = 'object'),
+    -- SHA-256 of `payload`, as bytes.
+    sha256 bytea NOT NULL,
+    -- The figures as the exact JSON text that was hashed, an object, so a
+    -- hash names one content whatever writes it, and is served as stored.
+    payload text NOT NULL CHECK (jsonb_typeof(payload::jsonb) = 'object'),
     created_at timestamptz NOT NULL DEFAULT now(),
     PRIMARY KEY (tenant_id, election_event_id, sha256),
+    CONSTRAINT monitoring_snapshot_payload_is_its_hash
+        CHECK (sha256 = sha256(convert_to(payload, 'UTF8'))),
     CONSTRAINT monitoring_snapshot_payload_of_its_event
         FOREIGN KEY (tenant_id, election_event_id)
         REFERENCES sequent_backend.monitoring_event (tenant_id, election_event_id)
