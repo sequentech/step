@@ -5,7 +5,7 @@ import {gql} from "@apollo/client"
 
 export const MONITORING_VALIDATE_CONFIG = gql`
     query MonitoringValidateConfig(
-        $electionEventId: String!
+        $electionEventId: uuid!
         $kind: String!
         $key: String!
         $yaml: String!
@@ -22,7 +22,6 @@ export const MONITORING_VALIDATE_CONFIG = gql`
                 code
                 path
                 message
-                engine_code
             }
             preview {
                 state
@@ -35,7 +34,6 @@ export const MONITORING_VALIDATE_CONFIG = gql`
                     code
                     path
                     message
-                    engine_code
                 }
                 ignored_selectors
                 render_ms

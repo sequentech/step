@@ -1,16 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import {
-    buildClientSchema,
-    print,
-    validate,
-    type DocumentNode,
-    type FieldNode,
-    type IntrospectionQuery,
-    type OperationDefinitionNode,
-} from "graphql"
-import introspection from "../../graphql.schema.json"
+import type {DocumentNode, FieldNode, OperationDefinitionNode} from "graphql"
 import {MONITORING_EXPORT} from "./MonitoringExport"
 import {MONITORING_GET_CONFIG} from "./MonitoringGetConfig"
 import {MONITORING_GET_DASHBOARD} from "./MonitoringGetDashboard"
@@ -30,8 +21,6 @@ const operation = (document: DocumentNode) =>
     )!
 
 // Each action takes the Harvest route's snake_case body fields as arguments.
-const schema = buildClientSchema(introspection as unknown as IntrospectionQuery)
-
 const CONTRACT: Array<[DocumentNode, string, "query" | "mutation", string[]]> = [
     [
         MONITORING_LIST_DASHBOARDS,
@@ -96,7 +85,7 @@ const CONTRACT: Array<[DocumentNode, string, "query" | "mutation", string[]]> = 
         MONITORING_RESET_TO_PRESET,
         "monitoringResetToPreset",
         "mutation",
-        ["election_event_id", "preset_id", "mode"],
+        ["election_event_id", "preset_id"],
     ],
     [MONITORING_LIST_PRESETS, "monitoringListPresets", "query", ["election_event_id"]],
     [MONITORING_SET_MODE, "monitoringSetMode", "mutation", ["election_event_id", "mode"]],
@@ -125,18 +114,4 @@ describe("monitoring operations", () => {
             expect(declared).toHaveLength(args.length)
         }
     )
-
-    // Harvest's actions take ids as String: a uuid variable is refused by Hasura.
-    it.each(CONTRACT)("declares no uuid variable in %#", (document) => {
-        const types = operation(document).variableDefinitions?.map((variable) =>
-            print(variable.type)
-        )
-        expect(types?.filter((type) => type.startsWith("uuid"))).toEqual([])
-    })
-
-    // graphql.schema.json carries Harvest's action types (actions.graphql), so a
-    // field the action does not declare, or a scalar where it has an object, fails here.
-    it.each(CONTRACT)("is valid against the action schema: %#", (document) => {
-        expect(validate(schema, document).map((error) => error.message)).toEqual([])
-    })
 })

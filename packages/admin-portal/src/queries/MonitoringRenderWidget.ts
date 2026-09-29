@@ -5,8 +5,8 @@ import {gql} from "@apollo/client"
 
 export const MONITORING_RENDER_WIDGET = gql`
     query MonitoringRenderWidget(
-        $electionEventId: String!
-        $electionId: String
+        $electionEventId: uuid!
+        $electionId: uuid
         $dashboardId: String!
         $widgetId: String!
         $scope: jsonb!
@@ -40,7 +40,6 @@ export const MONITORING_RENDER_WIDGET = gql`
                 code
                 path
                 message
-                engine_code
             }
             ignored_selectors
             render_ms

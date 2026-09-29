@@ -5,8 +5,8 @@ import {gql} from "@apollo/client"
 
 export const MONITORING_EXPORT = gql`
     mutation MonitoringExport(
-        $electionEventId: String!
-        $electionId: String
+        $electionEventId: uuid!
+        $electionId: uuid
         $dashboardId: String!
         $widgetId: String
         $scope: jsonb!

@@ -5,7 +5,7 @@ import {gql} from "@apollo/client"
 
 export const MONITORING_GET_CONFIG = gql`
     query MonitoringGetConfig(
-        $electionEventId: String!
+        $electionEventId: uuid!
         $kind: String!
         $key: String!
         $revision: Int
@@ -20,11 +20,8 @@ export const MONITORING_GET_CONFIG = gql`
             before_revision: $beforeRevision
             limit: $limit
         ) {
-            kind
-            key
             yaml
             revision
-            change
             origin
             author {
                 id
@@ -33,15 +30,12 @@ export const MONITORING_GET_CONFIG = gql`
             created_at
             history {
                 revision
-                change
                 origin
                 author {
                     id
                     name
                 }
                 created_at
-                sha256
-                generation
             }
         }
     }
