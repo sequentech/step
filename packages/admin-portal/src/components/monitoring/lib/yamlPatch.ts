@@ -11,7 +11,16 @@
  * again, so the YAML tab always shows exactly what will be saved.
  */
 
-import {Document, isCollection, isMap, isScalar, isSeq, parseDocument, type Node} from "yaml"
+import {
+    Document,
+    isCollection,
+    isMap,
+    isScalar,
+    isSeq,
+    parseDocument,
+    stringify,
+    type Node,
+} from "yaml"
 
 export type TYamlPath = ReadonlyArray<string | number>
 
@@ -102,6 +111,14 @@ const isPrimitive = (value: unknown): value is string | number | boolean | null 
     value === null || ["string", "number", "boolean"].includes(typeof value)
 
 /**
+ * Whether a scalar's quotes were needed by its value (`""`, `"Turnout "`, a
+ * number) rather than chosen by the author. A value typed one key at a time
+ * passes through such states, and must not keep their quotes.
+ */
+const styleWasForced = (value: unknown) =>
+    typeof value !== "string" || /^["']/.test(stringify(value))
+
+/**
  * Sets the value at `path`, creating missing mappings on the way. A scalar
  * replaced by a scalar keeps its node, so its trailing comment stays with it.
  * `undefined` removes the key.
@@ -112,6 +129,7 @@ export const setIn = (text: string, path: TYamlPath, value: unknown): string => 
     const existing = document.getIn(path, true)
     if (isScalar(existing) && isPrimitive(value)) {
         if (existing.value === value) return text
+        if (styleWasForced(existing.value)) existing.type = undefined
         existing.value = value
     } else if (document.contents === null || !isCollection(document.contents)) {
         const fresh = new Document({})

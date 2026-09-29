@@ -89,6 +89,20 @@ describe("setIn", () => {
         expect(changed).toEqual(["  template: by_post"])
     })
 
+    it("does not keep the quotes an emptied field needed", () => {
+        const emptied = setIn("title: Old # shown\n", ["title"], "")
+        expect(emptied).toBe('title: "" # shown\n')
+        expect(setIn(emptied, ["title"], "New")).toBe("title: New # shown\n")
+        expect(setIn("title: 'kept'\n", ["title"], "still")).toBe("title: 'still'\n")
+        expect(setIn("limit: 10\n", ["limit"], "12")).toBe('limit: "12"\n')
+        // Typed one key at a time, a title passes through "Turnout " (quoted for its space).
+        const typed = ["Turnout", "Turnout ", "Turnout b"].reduce(
+            (text, title) => setIn(text, ["title"], title),
+            "title: T\n"
+        )
+        expect(typed).toBe("title: Turnout b\n")
+    })
+
     it("creates missing parents", () => {
         const next = setIn(WIDGET, ["query", "sort", "by"], "value")
         expect(getIn(next, ["query", "sort"])).toEqual({by: "value"})
