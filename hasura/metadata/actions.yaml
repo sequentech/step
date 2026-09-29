@@ -1838,6 +1838,7 @@ actions:
       permissions:
           - role: admin-user
           - role: monitoring-view
+          - role: monitoring-configure
       comment: Draw one monitoring widget
     - name: monitoringValidateConfig
       definition:
