@@ -9,9 +9,20 @@ module.exports = {
     setupFiles: ["<rootDir>/src/test/polyfills.cjs"],
     setupFilesAfterEnv: ["<rootDir>/src/setupTests.ts"],
     moduleNameMapper: {
+        "^@sequentech/ui-core$": "<rootDir>/../ui-core/src/index.tsx",
+        "^@sequentech/ui-essentials$": "<rootDir>/../ui-essentials/src/index.tsx",
         "\\.(png|jpg|jpeg|gif|svg)$": "<rootDir>/src/test/fileMock.cjs",
         "\\.(css|less|scss)$": "<rootDir>/src/test/styleMock.cjs",
     },
+    collectCoverageFrom: [
+        "src/**/*.{ts,tsx}",
+        "!src/**/*.d.ts",
+        "!src/**/*.test.{ts,tsx}",
+        "!src/setupTests.ts",
+        "!src/stories/**",
+    ],
+    coverageProvider: "babel",
+    coverageReporters: ["text", "html", "lcov", "json", "json-summary"],
     transform: {
         "^.+\\.[jt]sx?$": [
             "babel-jest",
