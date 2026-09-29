@@ -15,7 +15,12 @@
 //! Scopes are the ones [`ScopeKey`] names: the whole event, each region,
 //! Post and country, and each country within a region or a Post. Only
 //! scopes with something in them get a payload; a scope with none shows as
-//! zero, which the reader builds.
+//! zero, which the reader builds with [`empty_payload`].
+//!
+//! Every payload has the same shape whatever is in it: every measure of its
+//! source, every group its source can be grouped by (empty when nobody is
+//! in it) and, for a source with voter dimensions, the cube. A query never
+//! finds a figure missing only because nobody is in it.
 
 use chrono::{DateTime, Duration, Offset, Timelike, Utc};
 use chrono_tz::Tz;
@@ -25,8 +30,10 @@ use sequent_core::monitoring::payload::{
 };
 use sequent_core::monitoring::scope::ScopeKey;
 use sequent_core::monitoring::sources::{
-    BuiltinDimension, DataSourceId, Measure, PendingProducer, PostState, Producer,
+    BuiltinDimension, DataSourceId, Measure, PendingProducer, PostState, Producer, QueryTemplate,
+    VoterDimensions,
 };
+use serde_json::Value;
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use strum::IntoEnumIterator;
 use uuid::Uuid;
@@ -59,7 +66,9 @@ pub struct VoterRow {
 pub struct Post {
     pub id: Uuid,
     pub name: String,
-    pub region: Option<String>,
+    /// Every region the Post is in: its own annotation, its areas' or its
+    /// voters', as the settings read regions. None: Unknown.
+    pub regions: BTreeSet<String>,
     /// Where it stands in the poll.
     pub poll: PostState,
     /// Where it stands in counting and transmission.
@@ -84,16 +93,20 @@ pub struct ElectionSet {
     pub elections: BTreeSet<Uuid>,
 }
 
-/// What a pass read of an event.
+/// What a pass read of an event. Owned, so a pass counts it off the async
+/// runtime.
 #[derive(Debug, Clone)]
-pub struct EventFacts<'a> {
-    pub settings: &'a Settings,
+pub struct EventFacts {
+    pub settings: Settings,
     pub zone: Tz,
     pub posts: Vec<Post>,
     /// Sorted by voter.
     pub voters: Vec<VoterRow>,
     /// The elections each area votes in.
     pub area_elections: HashMap<Uuid, Vec<Uuid>>,
+    /// Each area's region, when the settings read regions from an area
+    /// annotation; empty otherwise.
+    pub area_regions: HashMap<Uuid, String>,
     pub logins: Vec<LoginRow>,
 }
 
@@ -114,8 +127,72 @@ pub struct SourceFigures {
     pub scopes: BTreeMap<String, ScopePayload>,
 }
 
+/// The builtin dimensions a source's payloads hold groups of: those its
+/// by_group template reads from the payload's groups. Posts by state are
+/// worked out from the Posts, not stored.
+pub fn group_dimensions(source: DataSourceId) -> Vec<BuiltinDimension> {
+    let spec = source.spec();
+    if !spec.has_template(QueryTemplate::ByGroup) {
+        return Vec::new();
+    }
+    spec.builtin_dimensions
+        .iter()
+        .copied()
+        .filter(|dimension| *dimension != BuiltinDimension::State)
+        .collect()
+}
+
+/// The voter dimensions a source's cube has, in the settings' order; `None`
+/// when the source has no cube or the settings name no dimension.
+pub fn cube_dimensions(source: DataSourceId, settings: &Settings) -> Option<Vec<String>> {
+    (source.spec().voter_dimensions == VoterDimensions::Configured
+        && !settings.dimensions.is_empty())
+    .then(|| settings.dimensions.keys().cloned().collect())
+}
+
+/// A counted scope with nothing in it: every measure of the source at zero,
+/// every group empty, and the cube with no cells. Built by the reader for a
+/// scope a run holds no payload of, which for sign-ins is never the whole
+/// event (always written), so it says unregistered attempts are excluded.
+pub fn empty_payload(source: DataSourceId, settings: &Settings) -> ScopePayload {
+    ScopePayload {
+        totals: zeros(source),
+        groups: group_dimensions(source)
+            .into_iter()
+            .map(|dimension| (dimension.to_string(), Vec::new()))
+            .collect(),
+        cube: cube_dimensions(source, settings).map(|dimensions| Cube {
+            dimensions,
+            cells: Vec::new(),
+        }),
+        notices: if source == DataSourceId::AccessSecurity {
+            vec![Notice::UnregisteredAttemptsExcluded]
+        } else {
+            Vec::new()
+        },
+        ..ScopePayload::default()
+    }
+}
+
+/// Every measure of `source` at zero.
+fn zeros(source: DataSourceId) -> Counts {
+    source
+        .spec()
+        .measures
+        .iter()
+        .map(|measure| (*measure, 0))
+        .collect()
+}
+
+/// `counts` with every measure of `source`, those it lacks at zero.
+fn complete(source: DataSourceId, counts: Counts) -> Counts {
+    let mut all = zeros(source);
+    add(&mut all, &counts);
+    all
+}
+
 /// Every source's figures for every set.
-pub fn produce(facts: &EventFacts<'_>, sets: &[ElectionSet]) -> Vec<SourceFigures> {
+pub fn produce(facts: &EventFacts, sets: &[ElectionSet]) -> Vec<SourceFigures> {
     let mut figures = Vec::new();
     for set in sets {
         let mut voters = voter_sources(facts, set);
@@ -294,13 +371,17 @@ impl Tally {
             .or_default() += count;
     }
 
+    /// The payload of `source`, in the shape of [`empty_payload`].
     fn payload(
-        self,
-        cube_dimensions: Option<&[String]>,
+        mut self,
+        source: DataSourceId,
+        settings: &Settings,
         zone: Tz,
-        series_measures: &[Measure],
         labels: &HashMap<String, String>,
     ) -> ScopePayload {
+        for dimension in group_dimensions(source) {
+            self.groups.entry(dimension.to_string()).or_default();
+        }
         let groups = self
             .groups
             .into_iter()
@@ -312,25 +393,28 @@ impl Tally {
                             .then(|| labels.get(&key).cloned())
                             .flatten(),
                         key,
-                        counts,
+                        counts: complete(source, counts),
                     })
                     .collect();
                 (dimension, rows)
             })
             .collect();
+        let cells = self.cube;
         ScopePayload {
-            totals: self.totals,
+            totals: complete(source, self.totals),
             groups,
-            cube: cube_dimensions.map(|dimensions| Cube {
-                dimensions: dimensions.to_vec(),
-                cells: self
-                    .cube
+            cube: cube_dimensions(source, settings).map(|dimensions| Cube {
+                dimensions,
+                cells: cells
                     .into_iter()
-                    .map(|(values, counts)| CubeCell { values, counts })
+                    .map(|(values, counts)| CubeCell {
+                        values,
+                        counts: complete(source, counts),
+                    })
                     .collect(),
             }),
             posts: Vec::new(),
-            series: series(zone, &self.series, series_measures),
+            series: series(zone, &self.series, series_measures(source)),
             notices: self.notices.into_iter().collect(),
         }
     }
@@ -392,7 +476,7 @@ fn series_measures(source: DataSourceId) -> &'static [Measure] {
     }
 }
 
-fn post_labels(facts: &EventFacts<'_>) -> HashMap<String, String> {
+fn post_labels(facts: &EventFacts) -> HashMap<String, String> {
     facts
         .posts
         .iter()
@@ -402,7 +486,7 @@ fn post_labels(facts: &EventFacts<'_>) -> HashMap<String, String> {
 
 /// Turnout, enrollment decisions and voting and enrollment activity.
 fn voter_sources(
-    facts: &EventFacts<'_>,
+    facts: &EventFacts,
     set: &ElectionSet,
 ) -> BTreeMap<DataSourceId, BTreeMap<String, ScopePayload>> {
     let dimensions: Vec<String> = facts.settings.dimensions.keys().cloned().collect();
@@ -462,10 +546,12 @@ fn voter_sources(
                 if source == DataSourceId::EnrollmentDecisions
                     && whole.enrollment == Some(Enrollment::Rejected)
                 {
+                    // The voters disapproved for the reason: each one
+                    // application, disapproved.
                     tally.group(
                         BuiltinDimension::Reason,
                         whole.reason.unwrap_or(UNKNOWN_KEY),
-                        &[(Measure::Disapproved, 1)].into(),
+                        &counts,
                     );
                 }
                 if source == DataSourceId::VotingEnrollmentActivity {
@@ -484,14 +570,12 @@ fn voter_sources(
     tallies
         .into_iter()
         .map(|(source, scopes)| {
-            let cube = (source == DataSourceId::VoterTurnout && !dimensions.is_empty())
-                .then_some(dimensions.as_slice());
             let scopes = scopes
                 .into_iter()
                 .map(|(scope, tally)| {
                     (
                         scope,
-                        tally.payload(cube, facts.zone, series_measures(source), &labels),
+                        tally.payload(source, &facts.settings, facts.zone, &labels),
                     )
                 })
                 .collect();
@@ -520,86 +604,94 @@ struct PostSources {
     counting: BTreeMap<String, ScopePayload>,
 }
 
-fn post_sources(facts: &EventFacts<'_>, set: &ElectionSet) -> PostSources {
+/// A Post's regions as one row shows them: the region of a region scope,
+/// else all of them.
+fn shown_region(post: &Post, region_scope: Option<&str>) -> Option<String> {
+    match region_scope {
+        Some(region) => Some(region.to_string()),
+        None if post.regions.is_empty() => None,
+        None => Some(post.regions.iter().cloned().collect::<Vec<_>>().join(", ")),
+    }
+}
+
+/// Poll status and counting and transmission. A Post is counted in every
+/// region it is in, so at a scope with Posts of several regions the region
+/// groups may add up to more than the Posts: each group is counted on its
+/// own, as every group is.
+fn post_sources(facts: &EventFacts, set: &ElectionSet) -> PostSources {
     let mut posts: Vec<&Post> = facts
         .posts
         .iter()
         .filter(|post| set.elections.contains(&post.id))
         .collect();
     posts.sort_by(|a, b| a.name.cmp(&b.name).then(a.id.cmp(&b.id)));
+    let labels = post_labels(facts);
     let for_source = |source: DataSourceId, state: fn(&Post) -> PostState| {
         let spec = source.spec();
-        let mut scopes: BTreeMap<String, Vec<PostRow>> = BTreeMap::new();
+        // Each scope's Posts, and the region it is of, if it is a region's.
+        let mut scopes: BTreeMap<String, (Option<&str>, Vec<&Post>)> = BTreeMap::new();
         for post in &posts {
-            let state = state(post);
-            let row = PostRow {
-                post_id: post.id.to_string(),
-                post: post.name.clone(),
-                region: post.region.clone(),
-                state: Some(state),
-                counts: spec
-                    .measures
-                    .iter()
-                    .map(|measure| (*measure, u64::from(state.has_reached(*measure))))
-                    .collect(),
-            };
-            let mut keys = vec![
-                canonical(None, None, None),
-                canonical(None, Some(post.id), None),
-            ];
-            if let Some(region) = &post.region {
-                keys.push(canonical(Some(region), None, None));
-            }
-            for key in keys {
-                scopes.entry(key).or_default().push(row.clone());
+            scopes
+                .entry(canonical(None, None, None))
+                .or_default()
+                .1
+                .push(post);
+            scopes
+                .entry(canonical(None, Some(post.id), None))
+                .or_default()
+                .1
+                .push(post);
+            for region in &post.regions {
+                let entry = scopes
+                    .entry(canonical(Some(region), None, None))
+                    .or_insert_with(|| (Some(region.as_str()), Vec::new()));
+                entry.1.push(post);
             }
         }
         scopes
             .into_iter()
-            .map(|(scope, rows)| {
-                let mut totals: Counts =
-                    spec.measures.iter().map(|measure| (*measure, 0)).collect();
-                let mut regions: BTreeMap<String, Counts> = BTreeMap::new();
-                let mut by_post = Vec::new();
-                for row in &rows {
-                    add(&mut totals, &row.counts);
-                    add(
-                        regions
-                            .entry(
-                                row.region
-                                    .clone()
-                                    .unwrap_or_else(|| UNKNOWN_KEY.to_string()),
-                            )
-                            .or_default(),
-                        &row.counts,
-                    );
-                    by_post.push(GroupRow {
-                        key: row.post_id.clone(),
-                        label: Some(row.post.clone()),
-                        counts: row.counts.clone(),
+            .map(|(scope, (region_scope, in_scope))| {
+                let mut tally = Tally::default();
+                let mut rows = Vec::new();
+                for post in in_scope {
+                    let state = state(post);
+                    let counts: Counts = spec
+                        .measures
+                        .iter()
+                        .map(|measure| (*measure, u64::from(state.has_reached(*measure))))
+                        .collect();
+                    add(&mut tally.totals, &counts);
+                    tally.group(BuiltinDimension::Post, &post.id.to_string(), &counts);
+                    match region_scope {
+                        Some(region) => tally.group(BuiltinDimension::Region, region, &counts),
+                        None if post.regions.is_empty() => {
+                            tally.group(BuiltinDimension::Region, UNKNOWN_KEY, &counts)
+                        }
+                        None => {
+                            for region in &post.regions {
+                                tally.group(BuiltinDimension::Region, region, &counts);
+                            }
+                        }
+                    }
+                    rows.push(PostRow {
+                        post_id: post.id.to_string(),
+                        post: post.name.clone(),
+                        region: shown_region(post, region_scope),
+                        state: Some(state),
+                        counts,
                     });
                 }
-                let groups = [
-                    (
-                        BuiltinDimension::Region.to_string(),
-                        regions
-                            .into_iter()
-                            .map(|(key, counts)| GroupRow {
-                                key,
-                                label: None,
-                                counts,
-                            })
-                            .collect(),
-                    ),
-                    (BuiltinDimension::Post.to_string(), by_post),
-                ]
-                .into();
-                let payload = ScopePayload {
-                    totals,
-                    groups,
-                    posts: rows,
-                    ..ScopePayload::default()
-                };
+                let mut payload = tally.payload(source, &facts.settings, facts.zone, &labels);
+                // Groups keyed by Post keep the Posts' order.
+                if let Some(by_post) = payload.groups.get_mut(&BuiltinDimension::Post.to_string()) {
+                    let order: HashMap<&str, usize> = rows
+                        .iter()
+                        .enumerate()
+                        .map(|(at, row)| (row.post_id.as_str(), at))
+                        .collect();
+                    by_post.sort_by_key(|row| order.get(row.key.as_str()).copied());
+                }
+                payload.posts = rows;
                 (scope, payload)
             })
             .collect()
@@ -620,16 +712,25 @@ pub fn login_measure(event_type: &str) -> Option<Measure> {
     }
 }
 
-/// Sign-in attempts. An attempt belongs to the Posts its voter's area votes
-/// in; one by an unknown username, or a voter with no area, belongs to no
-/// Post and is counted for the whole event only.
-fn access_security(facts: &EventFacts<'_>, set: &ElectionSet) -> BTreeMap<String, ScopePayload> {
-    let measures = DataSourceId::AccessSecurity.spec().measures;
-    let region_of: HashMap<Uuid, Option<&str>> = facts
+/// Sign-in attempts. An attempt by a voter belongs to the Posts their area
+/// votes in, and to the region of the area when the settings read regions
+/// from areas, else to the regions of those Posts. One by an unknown
+/// username belongs to no Post and is counted for the whole event only. One
+/// by a voter with no area, or whose area votes in no Post, is too, but only
+/// for the set of every election: a set restricted to some Posts cannot
+/// tell whether the voter is one of theirs.
+fn access_security(facts: &EventFacts, set: &ElectionSet) -> BTreeMap<String, ScopePayload> {
+    let source = DataSourceId::AccessSecurity;
+    let regions_of: HashMap<Uuid, &BTreeSet<String>> = facts
         .posts
         .iter()
-        .map(|post| (post.id, post.region.as_deref()))
+        .map(|post| (post.id, &post.regions))
         .collect();
+    let full = facts
+        .posts
+        .iter()
+        .all(|post| set.elections.contains(&post.id));
+    let by_area = facts.settings.scope.region.area_annotation.is_some();
     let mut tallies: BTreeMap<String, Tally> = BTreeMap::new();
     let event_scope = canonical(None, None, None);
     tallies.entry(event_scope.clone()).or_default();
@@ -638,51 +739,71 @@ fn access_security(facts: &EventFacts<'_>, set: &ElectionSet) -> BTreeMap<String
             continue;
         };
         let counts: Counts = [(measure, login.attempts)].into();
-        let posts: Vec<Uuid> = login
-            .area_id
-            .filter(|_| login.registered)
-            .and_then(|area| facts.area_elections.get(&area))
-            .map(|elections| {
-                elections
-                    .iter()
-                    .copied()
-                    .filter(|election| set.elections.contains(election))
-                    .collect()
-            })
-            .unwrap_or_default();
-        let at_event_only = !login.registered || login.area_id.is_none();
-        if posts.is_empty() && !at_event_only {
+        let area = login.area_id.filter(|_| login.registered);
+        let elections = area.and_then(|area| facts.area_elections.get(&area));
+        let posts: Vec<Uuid> = elections
+            .into_iter()
+            .flatten()
+            .copied()
+            .filter(|election| set.elections.contains(election))
+            .collect();
+        let placed = elections.is_some_and(|elections| !elections.is_empty());
+        let at_event_only = !login.registered || !placed;
+        if at_event_only {
+            if login.registered && !full {
+                // A voter this set may not see.
+                continue;
+            }
+        } else if posts.is_empty() {
             // A voter of Posts this set does not see.
             continue;
         }
-        let region = |post: &Uuid| region_of.get(post).copied().flatten();
-        let mut scopes: BTreeMap<String, Vec<Uuid>> = BTreeMap::new();
-        scopes.insert(event_scope.clone(), posts.clone());
+        let regions: BTreeSet<&str> = if at_event_only {
+            BTreeSet::new()
+        } else if by_area {
+            area.and_then(|area| facts.area_regions.get(&area))
+                .map(String::as_str)
+                .into_iter()
+                .collect()
+        } else {
+            posts
+                .iter()
+                .filter_map(|post| regions_of.get(post))
+                .flat_map(|regions| regions.iter().map(String::as_str))
+                .collect()
+        };
+        let mut scopes: Vec<(String, Option<&str>, Vec<Uuid>)> =
+            vec![(event_scope.clone(), None, posts.clone())];
         for post in &posts {
-            scopes
-                .entry(canonical(None, Some(*post), None))
-                .or_default()
-                .push(*post);
-            if let Some(region) = region(post) {
-                scopes
-                    .entry(canonical(Some(region), None, None))
-                    .or_default()
-                    .push(*post);
-            }
+            scopes.push((canonical(None, Some(*post), None), None, vec![*post]));
         }
-        for (scope, posts) in scopes {
+        for region in &regions {
+            scopes.push((
+                canonical(Some(region), None, None),
+                Some(*region),
+                posts.clone(),
+            ));
+        }
+        for (scope, region_scope, posts) in scopes {
             let tally = tallies.entry(scope).or_default();
             add(&mut tally.totals, &counts);
             tally.event(facts.zone, measure, login.bucket_start, login.attempts);
-            let regions: BTreeSet<&str> = posts
-                .iter()
-                .map(|post| region(post).unwrap_or(UNKNOWN_KEY))
-                .collect();
+            if at_event_only {
+                continue;
+            }
             for post in &posts {
                 tally.group(BuiltinDimension::Post, &post.to_string(), &counts);
             }
-            for region in regions {
-                tally.group(BuiltinDimension::Region, region, &counts);
+            match region_scope {
+                Some(region) => tally.group(BuiltinDimension::Region, region, &counts),
+                None if regions.is_empty() => {
+                    tally.group(BuiltinDimension::Region, UNKNOWN_KEY, &counts)
+                }
+                None => {
+                    for region in &regions {
+                        tally.group(BuiltinDimension::Region, region, &counts);
+                    }
+                }
             }
         }
     }
@@ -690,23 +811,37 @@ fn access_security(facts: &EventFacts<'_>, set: &ElectionSet) -> BTreeMap<String
     tallies
         .into_iter()
         .map(|(scope, mut tally)| {
-            for measure in measures {
-                tally.totals.entry(*measure).or_default();
-            }
             tally.notices.insert(if scope == event_scope {
                 Notice::UnregisteredAttemptsAtEventScopeOnly
             } else {
                 Notice::UnregisteredAttemptsExcluded
             });
-            let payload = tally.payload(
-                None,
-                facts.zone,
-                series_measures(DataSourceId::AccessSecurity),
-                &labels,
-            );
+            let payload = tally.payload(source, &facts.settings, facts.zone, &labels);
             (scope, payload)
         })
         .collect()
+}
+
+/// The channels a Post can be voted in, as its status names them.
+const VOTING_CHANNELS: [&str; 4] = [
+    "voting_status",
+    "kiosk_voting_status",
+    "early_voting_status",
+    "telephone_voting_status",
+];
+
+/// Where a Post stands over every channel it is voted in: open while any
+/// channel is, else paused while any is, else closed once any was, else not
+/// started.
+pub fn voting_status(status: Option<&Value>) -> &'static str {
+    let channels: Vec<&str> = VOTING_CHANNELS
+        .iter()
+        .filter_map(|channel| status?.get(channel)?.as_str())
+        .collect();
+    ["OPEN", "PAUSED", "CLOSED"]
+        .into_iter()
+        .find(|wanted| channels.contains(wanted))
+        .unwrap_or("NOT_STARTED")
 }
 
 /// Where a Post stands in the poll, from its status and whether its

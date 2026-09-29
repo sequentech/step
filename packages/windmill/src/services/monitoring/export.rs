@@ -403,7 +403,12 @@ async fn collect_widget(
             })
         }
         ScopeRead::NotConnected { reason } => return Ok(WidgetData::NotConnected { reason }),
-        ScopeRead::Empty => empty_payload(source),
+        ScopeRead::Empty => empty_payload(
+            source,
+            settings.ok_or_else(|| {
+                MonitoringExportError::Internal(anyhow!("a counted event has no settings"))
+            })?,
+        ),
         ScopeRead::Payload { text, .. } => serde_json::from_str(&text).map_err(|error| {
             MonitoringExportError::Internal(anyhow!(
                 "the stored figures of '{}' do not read: {error}",

@@ -6,6 +6,7 @@
 //! configured dashboards; a pass that finds its event's lock held is
 //! skipped, the next beat retries.
 
+use crate::postgres::lock::LOCK_HELD;
 use crate::postgres::monitoring_config::EventRef;
 use crate::services::celery_app::get_celery_app;
 use crate::services::database::{get_hasura_pool, get_keycloak_pool};
@@ -92,9 +93,14 @@ pub async fn refresh_monitoring_event_snapshot(
     .await
     {
         Ok(lock) => lock,
-        Err(error) => {
-            info!("Another pass of the event is running: {error}");
+        Err(error) if error.to_string() == LOCK_HELD => {
+            info!("Another pass of the event is running");
             return Ok(());
+        }
+        Err(error) => {
+            return Err(error
+                .context("Failed to take the event's snapshot lock")
+                .into())
         }
     };
     let result = pass(event).await;

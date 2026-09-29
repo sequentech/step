@@ -716,7 +716,18 @@ pub async fn draw_widget(
             response.ignored_selectors = ignored;
             return Ok(response);
         }
-        ScopeRead::Empty => empty_payload(source),
+        ScopeRead::Empty => match plan.settings {
+            Some(settings) => empty_payload(source, settings),
+            // A counted event always has its settings.
+            None => {
+                let mut response =
+                    RenderResponse::state(RenderState::RenderFailed)
+                        .reason("NO_SETTINGS")
+                        .at(&head);
+                response.ignored_selectors = ignored;
+                return Ok(response);
+            }
+        },
         ScopeRead::Payload { text, .. } => {
             match serde_json::from_str::<ScopePayload>(&text) {
                 Ok(payload) => payload,
