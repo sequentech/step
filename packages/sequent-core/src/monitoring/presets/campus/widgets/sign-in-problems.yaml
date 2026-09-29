@@ -24,5 +24,6 @@ chart:
       style:
         orientation: horizontal
         number_format: number
+        axis_y: {ticks: {step: 1}}
         marks: {bar: {labels: {visible: true, format: number}}}
   rows: [problems]
