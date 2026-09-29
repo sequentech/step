@@ -3,7 +3,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 package sequent.keycloak.scanovate_authenticator;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
@@ -36,10 +38,13 @@ import org.junit.jupiter.api.Test;
 import org.keycloak.authentication.AuthenticationFlowContext;
 import org.keycloak.events.EventBuilder;
 import org.keycloak.forms.login.LoginFormsProvider;
+import org.keycloak.headers.SecurityHeadersOptions;
+import org.keycloak.headers.SecurityHeadersProvider;
 import org.keycloak.http.FormPartValue;
 import org.keycloak.http.HttpRequest;
 import org.keycloak.models.AuthenticationExecutionModel;
 import org.keycloak.models.AuthenticatorConfigModel;
+import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.KeycloakUriInfo;
 import org.keycloak.models.UserModel;
 import org.keycloak.sessions.AuthenticationSessionModel;
@@ -68,6 +73,9 @@ class ScanovateAuthenticatorTest {
   private ScanovateClient client;
   private ScanovateAuthenticator authenticator;
   private MockedStatic<Utils> utils;
+  private LivenessSessionsTest.MemoryStore livenessStore;
+  private LivenessSessions livenessSessions;
+  private SecurityHeadersOptions securityHeaders;
 
   @BeforeEach
   void setUp() throws IOException {
@@ -131,7 +139,16 @@ class ScanovateAuthenticatorTest {
     when(client.createSessionLink(eq("jwt"), any()))
         .thenReturn(new SessionLink(FLOW_URL, "proc-1"));
     when(client.fetchResultsForProcess("proc-1")).thenReturn(json(SUCCESSFUL_RESULTS));
-    authenticator = new ScanovateAuthenticator(ignored -> client);
+    livenessStore = new LivenessSessionsTest.MemoryStore();
+    livenessSessions = new LivenessSessions(livenessStore, millis -> {});
+    authenticator = new ScanovateAuthenticator(ignored -> client, ignored -> livenessSessions);
+
+    KeycloakSession session = mock(KeycloakSession.class);
+    SecurityHeadersProvider headersProvider = mock(SecurityHeadersProvider.class);
+    securityHeaders = mock(SecurityHeadersOptions.class, RETURNS_SELF);
+    when(headersProvider.options()).thenReturn(securityHeaders);
+    when(session.getProvider(SecurityHeadersProvider.class)).thenReturn(headersProvider);
+    when(context.getSession()).thenReturn(session);
 
     utils = mockStatic(Utils.class);
   }
@@ -735,5 +752,172 @@ class ScanovateAuthenticatorTest {
     authenticator.authenticate(context);
 
     verify(client).createSessionLink(eq("jwt"), any());
+  }
+
+  private void liveness() {
+    embedded();
+    config.put(ScanovateAuthenticatorFactory.FACE_CAPTURE, FaceCapture.LIVENESS.value());
+    config.putAll(LivenessSettingsTest.livenessConfig());
+  }
+
+  /** Starts the liveness capture and returns the token of its iframe. */
+  private String startLiveness() {
+    authenticator.authenticate(context);
+    String token = authNotes.get(ScanovateAuthenticator.LIVENESS_TOKEN_NOTE);
+    assertNotNull(token);
+    return token;
+  }
+
+  private void livenessResult(String token, String status, boolean passed) {
+    assertEquals(
+        LivenessSessions.RecordOutcome.RECORDED,
+        livenessSessions.record(
+            token, "callback-secret", json(LivenessSessionsTest.result(status, passed, JPEG))));
+  }
+
+  @Test
+  void livenessCapturePageOpensTheLivenessIframe() throws IOException {
+    liveness();
+
+    String token = startLiveness();
+
+    @SuppressWarnings("unchecked")
+    ArgumentCaptor<Map<String, Object>> capture = ArgumentCaptor.forClass(Map.class);
+    verify(form).setAttribute(eq(ScanovateAuthenticator.FTL_SCANOVATE), capture.capture());
+    assertEquals(
+        Map.of(
+            ScanovateAuthenticator.FTL_LIVENESS_URL,
+            "https://liveness.example.com:8443/liveness/?scan_config=scan_config"
+                + "&video_config=video_config&translation_variant=sequent&ui_theme=sequent_ui"
+                + "&case_id=proc-1&token="
+                + token,
+            ScanovateAuthenticator.FTL_LIVENESS_ORIGIN,
+            "https://liveness.example.com:8443",
+            ScanovateAuthenticator.FTL_LIVENESS_LANGUAGES,
+            List.of("en", "es")),
+        capture.getValue().get(ScanovateAuthenticator.FTL_LIVENESS));
+    verify(securityHeaders).allowFrameSrc("https://liveness.example.com:8443");
+    verify(form).createForm(ScanovateAuthenticator.CAPTURE_FORM);
+    assertEquals(true, livenessSessions.verify(token, "proc-1", "callback-secret"));
+  }
+
+  @Test
+  void photoCapturePageHasNoLivenessIframe() {
+    embedded();
+
+    authenticator.authenticate(context);
+
+    verifyCapturePage(List.of("FRONT", "BACK"), 3);
+    verify(securityHeaders, never()).allowFrameSrc(anyString());
+    assertNull(authNotes.get(ScanovateAuthenticator.LIVENESS_TOKEN_NOTE));
+  }
+
+  @Test
+  void refreshingTheLivenessCaptureReplacesItsToken() {
+    liveness();
+    String first = startLiveness();
+
+    authenticator.authenticate(context);
+
+    String second = authNotes.get(ScanovateAuthenticator.LIVENESS_TOKEN_NOTE);
+    assertNotNull(second);
+    assertEquals(false, first.equals(second));
+    assertEquals(false, livenessSessions.verify(first, "proc-1", "callback-secret"));
+  }
+
+  @Test
+  void livenessWithoutItsSettingsIsAnInternalError() throws IOException {
+    liveness();
+    config.remove(ScanovateAuthenticatorFactory.LIVENESS_SECRET);
+
+    authenticator.authenticate(context);
+
+    verify(client, never()).createSessionLink(any(), any());
+    verify(form)
+        .setAttribute(ScanovateAuthenticator.FTL_ERROR, ScanovateError.INTERNAL.messageKey());
+    verify(form).setAttribute(ScanovateAuthenticator.FTL_CAN_RETRY, false);
+  }
+
+  @Test
+  void passedLivenessIsUploadedWithTheDocument() throws IOException {
+    liveness();
+    String token = startLiveness();
+    livenessResult(token, "completed", true);
+    capture(JPEG, JPEG, null, null);
+
+    authenticator.action(context);
+
+    ArgumentCaptor<CaptureMedia> media = ArgumentCaptor.forClass(CaptureMedia.class);
+    verify(client).uploadMedia(eq("jwt"), eq("proc-1"), media.capture());
+    assertEquals(
+        List.of(MediaKind.FRONT_IMAGE, MediaKind.BACK_IMAGE, MediaKind.FACE_IMAGE),
+        List.copyOf(media.getValue().files().keySet()));
+    assertArrayEquals(JPEG, media.getValue().files().get(MediaKind.FACE_IMAGE).content());
+    verify(form).createForm(ScanovateAuthenticator.CONFIRMATION_FORM);
+    assertNull(authNotes.get(ScanovateAuthenticator.LIVENESS_TOKEN_NOTE));
+    assertEquals(false, livenessSessions.verify(token, "proc-1", "callback-secret"));
+  }
+
+  @Test
+  void facePartsPostedByTheBrowserAreIgnoredWithLiveness() throws IOException {
+    liveness();
+    String token = startLiveness();
+    livenessResult(token, "completed", true);
+    capture(JPEG, JPEG, new byte[] {(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, 1}, WEBM);
+
+    authenticator.action(context);
+
+    ArgumentCaptor<CaptureMedia> media = ArgumentCaptor.forClass(CaptureMedia.class);
+    verify(client).uploadMedia(eq("jwt"), eq("proc-1"), media.capture());
+    assertArrayEquals(JPEG, media.getValue().files().get(MediaKind.FACE_IMAGE).content());
+    assertEquals(false, media.getValue().files().containsKey(MediaKind.SCAN_VIDEO));
+  }
+
+  @Test
+  void failedLivenessCountsAsAnAttempt() throws IOException {
+    liveness();
+    String token = startLiveness();
+    livenessResult(token, "completed", false);
+    capture(JPEG, JPEG, null, null);
+
+    authenticator.action(context);
+
+    verify(client, never()).uploadMedia(any(), any(), any());
+    assertEquals("1", authNotes.get(ScanovateAuthenticator.ATTEMPTS_NOTE));
+    verify(form)
+        .setAttribute(
+            ScanovateAuthenticator.FTL_ERROR, ScanovateError.LIVENESS_FAILED.messageKey());
+    verify(form).setAttribute(ScanovateAuthenticator.FTL_CAN_RETRY, true);
+    assertNull(authNotes.get(ScanovateAuthenticator.PROCESS_ID_NOTE));
+    assertNull(authNotes.get(ScanovateAuthenticator.LIVENESS_TOKEN_NOTE));
+  }
+
+  @Test
+  void missingLivenessResultIsARetryableInternalError() throws IOException {
+    liveness();
+    startLiveness();
+    capture(JPEG, JPEG, null, null);
+
+    authenticator.action(context);
+
+    verify(client, never()).uploadMedia(any(), any(), any());
+    assertNull(authNotes.get(ScanovateAuthenticator.ATTEMPTS_NOTE));
+    verify(form)
+        .setAttribute(ScanovateAuthenticator.FTL_ERROR, ScanovateError.INTERNAL.messageKey());
+    verify(form).setAttribute(ScanovateAuthenticator.FTL_CAN_RETRY, true);
+  }
+
+  @Test
+  void invalidDocumentIsRejectedBeforeWaitingForLiveness() throws IOException {
+    liveness();
+    String token = startLiveness();
+    livenessResult(token, "completed", true);
+    capture(PNG, JPEG, null, null);
+
+    authenticator.action(context);
+
+    verify(form).setError(ScanovateError.CAPTURE_INVALID.messageKey());
+    verify(client, never()).uploadMedia(any(), any(), any());
+    assertNull(authNotes.get(ScanovateAuthenticator.ATTEMPTS_NOTE));
   }
 }

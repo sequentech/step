@@ -22,6 +22,7 @@ import {
 import type {MessageKey} from "../i18n"
 import {ScanovateSide} from "../KcContext"
 import CaptureCamera, {STEP_TITLES} from "../scanovate/CaptureCamera"
+import LivenessFrame from "../scanovate/LivenessFrame"
 import {AttemptsLeft, CheckList} from "../scanovate/parts"
 import {
     Phase,
@@ -33,7 +34,7 @@ import {
     stepsFor,
 } from "../scanovate/controller"
 import {useCaptureEnvironment} from "../scanovate/environment"
-import {CAPTURE_ACTION, CAPTURE_PARTS, populateCaptureForm} from "../scanovate/form"
+import {CAPTURE_ACTION, CAPTURE_PARTS, MEDIA_STEPS, populateCaptureForm} from "../scanovate/form"
 import {StageLayout} from "../scanovate/geometry"
 import {stopStream, cameraProblem} from "../scanovate/media"
 import type {ScanovatePageProps} from "../scanovate/pageProps"
@@ -64,6 +65,14 @@ const PROBLEMS: Record<CaptureProblem, [MessageKey, MessageKey]> = {
         "scanovateRecorderUnsupportedTitle",
         "scanovateRecorderUnsupportedText",
     ],
+    [CaptureProblem.LivenessFailed]: [
+        "scanovateLivenessFailedTitle",
+        "scanovateLivenessFailedText",
+    ],
+    [CaptureProblem.LivenessExpired]: [
+        "scanovateLivenessExpiredTitle",
+        "scanovateLivenessExpiredText",
+    ],
 }
 
 const HELP: Record<CaptureStep, MessageKey[]> = {
@@ -92,6 +101,12 @@ const HELP: Record<CaptureStep, MessageKey[]> = {
         "scanovateHelpVideoFace",
         "scanovateHelpVideoStill",
     ],
+    [CaptureStep.Liveness]: [
+        "scanovateHelpFaceLevel",
+        "scanovateHelpFaceCoverings",
+        "scanovateHelpFaceLight",
+        "scanovateHelpFaceAlone",
+    ],
 }
 
 export default function ScanovateCapture(props: ScanovatePageProps<"scanovate-capture.ftl">) {
@@ -100,7 +115,11 @@ export default function ScanovateCapture(props: ScanovatePageProps<"scanovate-ca
     const {services, startAt} = useCaptureEnvironment()
     const text = textFor(kcContext, i18n)
     const phone = useMediaQuery(PHONE_QUERY, {noSsr: true})
-    const steps = useMemo(() => stepsFor(scanovate.sides), [scanovate.sides])
+    const liveness = scanovate.liveness
+    const steps = useMemo(
+        () => stepsFor(scanovate.sides, liveness !== undefined),
+        [scanovate.sides, liveness]
+    )
     const [state, dispatch] = useReducer(captureReducer, steps, (initial) =>
         startAt === undefined
             ? initialCaptureState(initial)
@@ -201,13 +220,19 @@ export default function ScanovateCapture(props: ScanovatePageProps<"scanovate-ca
     }
     const onProblem = (next: CaptureProblem) => dispatch({type: "problem", problem: next})
     const start = () => {
-        if (services.recorder.supported()) {
+        // Only our own face video needs a recorder.
+        if (liveness !== undefined || services.recorder.supported()) {
             dispatch({type: "start"})
         } else {
             dispatch({type: "problem", problem: CaptureProblem.RecorderUnsupported})
         }
     }
     const retry = () => {
+        if (problem === CaptureProblem.LivenessExpired) {
+            // A GET of the page renders it again with a new token for the iframe.
+            window.location.assign(window.location.href)
+            return
+        }
         if (problem === CaptureProblem.AnalyzerFailed) {
             setAnalyzerFailed(false)
             setAnalyzerAttempt((attempt) => attempt + 1)
@@ -229,6 +254,9 @@ export default function ScanovateCapture(props: ScanovatePageProps<"scanovate-ca
         const title = text(titleKey)
         const body = text(bodyKey)
         const canRetry = problem !== CaptureProblem.RecorderUnsupported
+        const retryLabel = text(
+            problem === CaptureProblem.LivenessExpired ? "scanovateStartOver" : "scanovateTryAgain"
+        )
         return (
             <Template
                 {...card}
@@ -248,9 +276,9 @@ export default function ScanovateCapture(props: ScanovatePageProps<"scanovate-ca
                             className="auth-submit"
                             endIcon={<ArrowIcon />}
                             onClick={retry}
-                            lang={text("scanovateTryAgain").lang}
+                            lang={retryLabel.lang}
                         >
-                            {text("scanovateTryAgain").text}
+                            {retryLabel.text}
                         </Button>
                     )}
                     <Button
@@ -278,6 +306,7 @@ export default function ScanovateCapture(props: ScanovatePageProps<"scanovate-ca
                     text={text}
                     document={document}
                     bothSides={scanovate.sides.includes(ScanovateSide.Back)}
+                    liveness={liveness !== undefined}
                     attemptsLeft={
                         scanovate.attemptsLeft < scanovate.maxAttempts
                             ? scanovate.attemptsLeft
@@ -297,7 +326,7 @@ export default function ScanovateCapture(props: ScanovatePageProps<"scanovate-ca
                 headerNode={text("scanovateCheckingTitle").text}
                 titleLang={text("scanovateCheckingTitle").lang}
             >
-                <Checking text={text} />
+                <Checking text={text} liveness={liveness !== undefined} />
                 <form
                     ref={formRef}
                     method="post"
@@ -306,7 +335,7 @@ export default function ScanovateCapture(props: ScanovatePageProps<"scanovate-ca
                     hidden
                 >
                     <input type="hidden" name="action" value={CAPTURE_ACTION} />
-                    {Object.values(CaptureStep).map((part) => (
+                    {MEDIA_STEPS.map((part) => (
                         <input
                             key={part}
                             type="file"
@@ -316,6 +345,58 @@ export default function ScanovateCapture(props: ScanovatePageProps<"scanovate-ca
                         />
                     ))}
                 </form>
+            </Template>
+        )
+    }
+
+    if (state.phase === Phase.Liveness && liveness !== undefined) {
+        const heading = text("scanovateCaptureLivenessHeading")
+        const body = text("scanovateCaptureLivenessText")
+        const stop = text("scanovateStop")
+        return (
+            <Template
+                {...card}
+                layout={phone ? TemplateLayout.Fullscreen : TemplateLayout.Wide}
+                headerNode={text(STEP_TITLES[CaptureStep.Liveness]).text}
+            >
+                <section
+                    className={phone ? "capture capture-liveness-page" : "capture-liveness-page"}
+                >
+                    {!phone && (
+                        <header className="capture-liveness-header">
+                            <h2 lang={heading.lang}>{heading.text}</h2>
+                            <p lang={body.lang}>{body.text}</p>
+                        </header>
+                    )}
+                    <LivenessFrame
+                        liveness={liveness}
+                        attempt={state.livenessAttempt}
+                        languageTag={i18n.currentLanguage.languageTag}
+                        title={text("scanovateLivenessFrameTitle").text}
+                        onDone={() => dispatch({type: "livenessDone"})}
+                        onProblem={(next) =>
+                            next === null
+                                ? dispatch({type: "confirmStop"})
+                                : dispatch({type: "problem", problem: next})
+                        }
+                    />
+                    {!phone && (
+                        <Button
+                            variant="outlined"
+                            fullWidth
+                            onClick={() => dispatch({type: "requestStop"})}
+                            lang={stop.lang}
+                        >
+                            {stop.text}
+                        </Button>
+                    )}
+                </section>
+                <StopDialog
+                    open={state.stopConfirmOpen}
+                    text={text}
+                    onCancel={() => dispatch({type: "cancelStop"})}
+                    onConfirm={() => dispatch({type: "confirmStop"})}
+                />
             </Template>
         )
     }
@@ -371,43 +452,60 @@ export default function ScanovateCapture(props: ScanovatePageProps<"scanovate-ca
                     </Button>
                 </DialogActions>
             </Dialog>
-            <Dialog
+            <StopDialog
                 open={state.stopConfirmOpen}
-                onClose={() => dispatch({type: "cancelStop"})}
-                className="capture-dialog"
-                aria-labelledby="capture-stop-title"
-                aria-describedby="capture-stop-text"
-                fullWidth
-                maxWidth="xs"
-            >
-                <DialogTitle id="capture-stop-title" lang={text("scanovateStopTitle").lang}>
-                    {text("scanovateStopTitle").text}
-                </DialogTitle>
-                <DialogContent>
-                    <p id="capture-stop-text" lang={text("scanovateStopText").lang}>
-                        {text("scanovateStopText").text}
-                    </p>
-                </DialogContent>
-                <DialogActions>
-                    <Button
-                        variant="outlined"
-                        fullWidth
-                        onClick={() => dispatch({type: "cancelStop"})}
-                        lang={text("scanovateStopCancel").lang}
-                    >
-                        {text("scanovateStopCancel").text}
-                    </Button>
-                    <Button
-                        variant="contained"
-                        fullWidth
-                        onClick={() => dispatch({type: "confirmStop"})}
-                        lang={text("scanovateStopConfirm").lang}
-                    >
-                        {text("scanovateStopConfirm").text}
-                    </Button>
-                </DialogActions>
-            </Dialog>
+                text={text}
+                onCancel={() => dispatch({type: "cancelStop"})}
+                onConfirm={() => dispatch({type: "confirmStop"})}
+            />
         </Template>
+    )
+}
+
+function StopDialog(props: {
+    open: boolean
+    text: Text
+    onCancel: () => void
+    onConfirm: () => void
+}) {
+    const {open, text, onCancel, onConfirm} = props
+    return (
+        <Dialog
+            open={open}
+            onClose={onCancel}
+            className="capture-dialog"
+            aria-labelledby="capture-stop-title"
+            aria-describedby="capture-stop-text"
+            fullWidth
+            maxWidth="xs"
+        >
+            <DialogTitle id="capture-stop-title" lang={text("scanovateStopTitle").lang}>
+                {text("scanovateStopTitle").text}
+            </DialogTitle>
+            <DialogContent>
+                <p id="capture-stop-text" lang={text("scanovateStopText").lang}>
+                    {text("scanovateStopText").text}
+                </p>
+            </DialogContent>
+            <DialogActions>
+                <Button
+                    variant="outlined"
+                    fullWidth
+                    onClick={onCancel}
+                    lang={text("scanovateStopCancel").lang}
+                >
+                    {text("scanovateStopCancel").text}
+                </Button>
+                <Button
+                    variant="contained"
+                    fullWidth
+                    onClick={onConfirm}
+                    lang={text("scanovateStopConfirm").lang}
+                >
+                    {text("scanovateStopConfirm").text}
+                </Button>
+            </DialogActions>
+        </Dialog>
     )
 }
 
@@ -415,19 +513,26 @@ function Intro(props: {
     text: Text
     document: TemplateLabel
     bothSides: boolean
+    liveness: boolean
     attemptsLeft: number | null
     onStart: () => void
 }) {
-    const {text, document, bothSides, attemptsLeft, onStart} = props
-    const lead = text("scanovateIntroLead", document.text)
-    const items: [() => ReactNode, MessageKey, MessageKey][] = [
+    const {text, document, bothSides, liveness, attemptsLeft, onStart} = props
+    const lead = text(liveness ? "scanovateIntroLeadLiveness" : "scanovateIntroLead", document.text)
+    type Item = [() => ReactNode, MessageKey, MessageKey]
+    const face: Item[] = liveness
+        ? [[FaceIcon, "scanovateIntroFace", "scanovateIntroLivenessHint"]]
+        : [
+              [FaceIcon, "scanovateIntroFace", "scanovateIntroFaceHint"],
+              [VideoIcon, "scanovateIntroVideo", "scanovateIntroVideoHint"],
+          ]
+    const items: Item[] = [
         [
             IdCardIcon,
             bothSides ? "scanovateIntroDocumentBothSides" : "scanovateIntroDocumentFrontSide",
             "scanovateIntroDocumentHint",
         ],
-        [FaceIcon, "scanovateIntroFace", "scanovateIntroFaceHint"],
-        [VideoIcon, "scanovateIntroVideo", "scanovateIntroVideoHint"],
+        ...face,
     ]
     const before = text("scanovateIntroBeforeTitle")
     const privacy = text("scanovateIntroPrivacy")
@@ -487,10 +592,10 @@ function Intro(props: {
     )
 }
 
-function Checking({text}: {text: Text}) {
+function Checking({text, liveness}: {text: Text; liveness: boolean}) {
     const lead = text("scanovateCheckingLead")
     const steps: [MessageKey, string][] = [
-        ["scanovateCheckingReceived", "done"],
+        [liveness ? "scanovateCheckingReceivedLiveness" : "scanovateCheckingReceived", "done"],
         ["scanovateCheckingVerifying", "current"],
         ["scanovateCheckingReading", ""],
     ]

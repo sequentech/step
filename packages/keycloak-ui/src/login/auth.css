@@ -1024,3 +1024,43 @@
         animation-duration: 3s;
     }
 }
+
+/* Liveness Plus iframe: full screen on phones, a panel on larger screens. */
+.sequent-auth .capture-liveness-page {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+.sequent-auth .capture.capture-liveness-page {
+    gap: 0;
+}
+.sequent-auth .capture-liveness-header h2 {
+    margin: 0 0 4px;
+    font-size: 1.25rem;
+    color: #173449;
+}
+.sequent-auth .capture-liveness-header p {
+    margin: 0;
+    color: #5b6e7b;
+    line-height: 1.6;
+}
+.sequent-auth .capture-liveness {
+    position: relative;
+    height: min(72vh, 680px);
+    min-height: 480px;
+    overflow: hidden;
+    border-radius: 16px;
+    background: #0b2231;
+}
+.sequent-auth .capture .capture-liveness {
+    flex: 1;
+    height: auto;
+    min-height: 0;
+    border-radius: 0;
+}
+.sequent-auth .capture-liveness iframe {
+    display: block;
+    width: 100%;
+    height: 100%;
+    border: 0;
+}

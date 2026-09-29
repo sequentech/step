@@ -106,6 +106,34 @@ class CaptureSettingsTest {
   }
 
   @Test
+  void facePhotoIsCapturedByDefault() throws ScanovateException {
+    assertEquals(FaceCapture.PHOTO, CaptureSettings.fromConfig(Map.of(), "x").faceCapture());
+  }
+
+  @Test
+  void livenessOnlyNeedsTheDocumentSides() throws ScanovateException {
+    Map<String, String> config = new HashMap<>();
+    config.put(ScanovateAuthenticatorFactory.CAPTURE_SIDES, SIDES);
+    config.put(ScanovateAuthenticatorFactory.FACE_CAPTURE, FaceCapture.LIVENESS.value());
+
+    assertEquals(
+        List.of(MediaKind.FRONT_IMAGE),
+        CaptureSettings.fromConfig(config, "philSysID").requiredMedia());
+    assertEquals(
+        List.of(MediaKind.FRONT_IMAGE, MediaKind.BACK_IMAGE),
+        CaptureSettings.fromConfig(config, "driversLicense").requiredMedia());
+  }
+
+  @Test
+  void unknownFaceCaptureIsRejected() {
+    assertThrows(
+        ScanovateException.class,
+        () ->
+            CaptureSettings.fromConfig(
+                Map.of(ScanovateAuthenticatorFactory.FACE_CAPTURE, "selfie"), "x"));
+  }
+
+  @Test
   void invalidNumbersAreRejected() {
     for (String key :
         List.of(

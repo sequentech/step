@@ -38,12 +38,20 @@ export enum ScanovateSide {
     Back = "BACK",
 }
 
+// The Liveness Plus iframe, when it checks the voter's face instead of our camera.
+export type ScanovateLiveness = {
+    url: string
+    origin: string
+    languages: string[]
+}
+
 export type ScanovateCaptureSettings = {
     documentType: string
     sides: ScanovateSide[]
     videoSeconds: number
     attemptsLeft: number
     maxAttempts: number
+    liveness?: ScanovateLiveness
 }
 
 export type ScanovateStoredAttribute = {

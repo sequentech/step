@@ -65,6 +65,27 @@ public record CaptureMedia(Map<MediaKind, MediaFile> files) {
   }
 
   /**
+   * Returns a copy with an image obtained by Keycloak itself, such as the voter's picture taken by
+   * Liveness Plus.
+   *
+   * @throws InvalidCaptureException if the image is too big or not of an accepted format
+   */
+  public CaptureMedia withImage(MediaKind kind, byte[] content, int maxBytes)
+      throws InvalidCaptureException {
+    if (content.length > maxBytes) {
+      throw new InvalidCaptureException(kind.formPart() + " is larger than " + maxBytes);
+    }
+    MediaFormat format =
+        MediaFormat.detect(MediaCategory.IMAGE, content)
+            .orElseThrow(
+                () -> new InvalidCaptureException(kind.formPart() + " has an invalid format"));
+    Map<MediaKind, MediaFile> updated = new EnumMap<>(MediaKind.class);
+    updated.putAll(files);
+    updated.put(kind, new MediaFile(format, content));
+    return new CaptureMedia(updated);
+  }
+
+  /**
    * Reads up to one byte past the limit, so that bigger files are detected without reading them.
    */
   private static byte[] read(MediaKind kind, FormPartValue value, int maxBytes)

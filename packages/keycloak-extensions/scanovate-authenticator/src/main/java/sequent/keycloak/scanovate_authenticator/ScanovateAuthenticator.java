@@ -20,11 +20,13 @@ import lombok.extern.jbosslog.JBossLog;
 import org.keycloak.authentication.AuthenticationFlowContext;
 import org.keycloak.authentication.Authenticator;
 import org.keycloak.forms.login.LoginFormsProvider;
+import org.keycloak.headers.SecurityHeadersProvider;
 import org.keycloak.models.AuthenticationExecutionModel;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
 import org.keycloak.sessions.AuthenticationSessionModel;
+import sequent.keycloak.scanovate_authenticator.LivenessSessions.LivenessResult;
 import sequent.keycloak.voter_enrollment.Utils;
 
 /**
@@ -34,11 +36,14 @@ import sequent.keycloak.voter_enrollment.Utils;
  * server to server, validated against the configured rules, and the extracted attributes are stored
  * as auth notes for the voter to confirm. In the embedded mode the voter captures the media in
  * Keycloak's own page instead, and Keycloak uploads it to the B-Trust session before fetching the
- * results.
+ * results. With the liveness face capture, the voter's liveness is checked by the on-premise
+ * Liveness Plus service in an iframe of that page, and its picture of the voter is uploaded as the
+ * face photo, see {@link LivenessSessions}.
  */
 @JBossLog
 public class ScanovateAuthenticator implements Authenticator {
   static final String PROCESS_ID_NOTE = "scanovate-process-id";
+  static final String LIVENESS_TOKEN_NOTE = "scanovate-liveness-token";
   static final String ATTEMPTS_NOTE = "scanovate-attempts";
   static final String PROCESS_ID_QUERY_PARAM = "processId";
   static final String FORM_ACTION_PARAM = "action";
@@ -56,6 +61,10 @@ public class ScanovateAuthenticator implements Authenticator {
   static final String FTL_SCANOVATE = "scanovate";
   static final String FTL_SIDES = "sides";
   static final String FTL_VIDEO_SECONDS = "videoSeconds";
+  static final String FTL_LIVENESS = "liveness";
+  static final String FTL_LIVENESS_URL = "url";
+  static final String FTL_LIVENESS_ORIGIN = "origin";
+  static final String FTL_LIVENESS_LANGUAGES = "languages";
   static final String EVENT_ERROR = "scanovate_verification_failed";
   static final String EVENT_DETAIL_ERROR = "scanovate_error";
   static final String EVENT_DETAIL_PROCESS_ID = "scanovate_process_id";
@@ -63,13 +72,25 @@ public class ScanovateAuthenticator implements Authenticator {
   private static final ObjectMapper MAPPER = new ObjectMapper();
 
   private final Function<Map<String, String>, ScanovateClient> clientFactory;
+  private final Function<KeycloakSession, LivenessSessions> livenessFactory;
 
   public ScanovateAuthenticator() {
-    this(ScanovateAuthenticator::defaultClient);
+    this(ScanovateAuthenticator::defaultClient, ScanovateAuthenticator::defaultLiveness);
   }
 
   ScanovateAuthenticator(Function<Map<String, String>, ScanovateClient> clientFactory) {
+    this(clientFactory, ScanovateAuthenticator::defaultLiveness);
+  }
+
+  ScanovateAuthenticator(
+      Function<Map<String, String>, ScanovateClient> clientFactory,
+      Function<KeycloakSession, LivenessSessions> livenessFactory) {
     this.clientFactory = clientFactory;
+    this.livenessFactory = livenessFactory;
+  }
+
+  static LivenessSessions defaultLiveness(KeycloakSession session) {
+    return new LivenessSessions(new SingleUseLivenessStore(session), Thread::sleep);
   }
 
   static ScanovateClient defaultClient(Map<String, String> config) {
@@ -158,6 +179,9 @@ public class ScanovateAuthenticator implements Authenticator {
           mode == ExecutionMode.EMBEDDED
               ? Optional.of(CaptureSettings.fromConfig(config, documentType(config, authSession)))
               : Optional.empty();
+      if (captureSettings.filter(s -> s.faceCapture() == FaceCapture.LIVENESS).isPresent()) {
+        LivenessSettings.fromConfig(config);
+      }
       saveOption =
           SaveOption.fromValue(config.get(ScanovateAuthenticatorFactory.SAVE_OPTION))
               .orElseThrow(() -> new ScanovateException("Invalid save option"));
@@ -228,10 +252,46 @@ public class ScanovateAuthenticator implements Authenticator {
     capture.put(FTL_VIDEO_SECONDS, settings.videoSeconds());
     capture.put(FTL_ATTEMPTS_LEFT, attemptsLeft(context, maxAttempts));
     capture.put(FTL_MAX_ATTEMPTS, maxAttempts);
+    if (settings.faceCapture() == FaceCapture.LIVENESS) {
+      LivenessSettings liveness;
+      try {
+        liveness = LivenessSettings.fromConfig(config);
+      } catch (ScanovateException e) {
+        log.error("showCapture: invalid liveness configuration", e);
+        showError(context, ScanovateError.INTERNAL, false);
+        return;
+      }
+      capture.put(FTL_LIVENESS, livenessIframe(context, liveness));
+    }
 
     LoginFormsProvider form = context.form().setAttribute(FTL_SCANOVATE, capture);
     errorKey.ifPresent(form::setError);
     context.challenge(form.createForm(CAPTURE_FORM));
+  }
+
+  /**
+   * Issues a new token for the Liveness Plus iframe, replacing any earlier one, and allows the
+   * iframe in the Content Security Policy of the page.
+   */
+  private Map<String, Object> livenessIframe(
+      AuthenticationFlowContext context, LivenessSettings liveness) {
+    AuthenticationSessionModel authSession = context.getAuthenticationSession();
+    String caseId = authSession.getAuthNote(PROCESS_ID_NOTE);
+    LivenessSessions sessions = livenessFactory.apply(context.getSession());
+    sessions.discard(authSession.getAuthNote(LIVENESS_TOKEN_NOTE));
+    String token = sessions.create(caseId, liveness.secret());
+    authSession.setAuthNote(LIVENESS_TOKEN_NOTE, token);
+    context
+        .getSession()
+        .getProvider(SecurityHeadersProvider.class)
+        .options()
+        .allowFrameSrc(liveness.origin());
+
+    Map<String, Object> iframe = new LinkedHashMap<>();
+    iframe.put(FTL_LIVENESS_URL, liveness.iframeUrl(token, caseId));
+    iframe.put(FTL_LIVENESS_ORIGIN, liveness.origin());
+    iframe.put(FTL_LIVENESS_LANGUAGES, liveness.languages());
+    return iframe;
   }
 
   private void capture(AuthenticationFlowContext context) {
@@ -263,6 +323,14 @@ public class ScanovateAuthenticator implements Authenticator {
       return;
     }
 
+    if (settings.faceCapture() == FaceCapture.LIVENESS) {
+      Optional<CaptureMedia> withLiveness = addLivenessImage(context, config, settings, media);
+      if (withLiveness.isEmpty()) {
+        return;
+      }
+      media = withLiveness.get();
+    }
+
     try {
       ScanovateClient client = clientFactory.apply(config);
       client.uploadMedia(client.fetchAccessToken(), processId, media);
@@ -273,6 +341,58 @@ public class ScanovateAuthenticator implements Authenticator {
     }
     log.infov("capture: uploaded the capture for {0}", processId);
     processReturn(context);
+  }
+
+  /**
+   * Adds the voter's picture taken by Liveness Plus to the capture, once the result callback of the
+   * voter's liveness session confirms that it passed. Otherwise, shows the error and returns empty.
+   */
+  private Optional<CaptureMedia> addLivenessImage(
+      AuthenticationFlowContext context,
+      Map<String, String> config,
+      CaptureSettings settings,
+      CaptureMedia media) {
+    AuthenticationSessionModel authSession = context.getAuthenticationSession();
+    String processId = authSession.getAuthNote(PROCESS_ID_NOTE);
+    LivenessSettings liveness;
+    try {
+      liveness = LivenessSettings.fromConfig(config);
+    } catch (ScanovateException e) {
+      log.error("capture: invalid liveness configuration", e);
+      showError(context, ScanovateError.INTERNAL, false);
+      return Optional.empty();
+    }
+
+    String token = authSession.getAuthNote(LIVENESS_TOKEN_NOTE);
+    LivenessSessions sessions = livenessFactory.apply(context.getSession());
+    Optional<LivenessResult> result =
+        token == null
+            ? Optional.empty()
+            : sessions.awaitResult(token, liveness.resultWaitSeconds());
+    if (result.isEmpty()) {
+      log.errorv("capture: no liveness result for {0}", processId);
+      showError(context, ScanovateError.INTERNAL, true);
+      return Optional.empty();
+    }
+    sessions.discard(token);
+    authSession.removeAuthNote(LIVENESS_TOKEN_NOTE);
+    if (!result.get().passed() || result.get().image().isEmpty()) {
+      log.warnv(
+          "capture: liveness of {0} did not pass, status={1}", processId, result.get().status());
+      failAttempt(context, ScanovateError.LIVENESS_FAILED.messageKey());
+      return Optional.empty();
+    }
+    try {
+      return Optional.of(
+          media.withImage(
+              MediaKind.FACE_IMAGE,
+              result.get().image().get(),
+              settings.maxBytes(MediaCategory.IMAGE)));
+    } catch (InvalidCaptureException e) {
+      log.errorv("capture: invalid liveness picture for {0}: {1}", processId, e.getMessage());
+      showError(context, ScanovateError.INTERNAL, true);
+      return Optional.empty();
+    }
   }
 
   private void processReturn(AuthenticationFlowContext context) {
@@ -404,6 +524,11 @@ public class ScanovateAuthenticator implements Authenticator {
 
   private void clearVerification(AuthenticationFlowContext context) {
     AuthenticationSessionModel authSession = context.getAuthenticationSession();
+    String livenessToken = authSession.getAuthNote(LIVENESS_TOKEN_NOTE);
+    if (livenessToken != null) {
+      livenessFactory.apply(context.getSession()).discard(livenessToken);
+      authSession.removeAuthNote(LIVENESS_TOKEN_NOTE);
+    }
     authSession.removeAuthNote(PROCESS_ID_NOTE);
     authSession.removeAuthNote(userStatusNote(config(context)));
   }

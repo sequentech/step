@@ -37,6 +37,13 @@ public class ScanovateAuthenticatorFactory implements AuthenticatorFactory {
   public static final String VIDEO_SECONDS = "video-seconds";
   public static final String MAX_IMAGE_BYTES = "max-image-bytes";
   public static final String MAX_VIDEO_BYTES = "max-video-bytes";
+  public static final String FACE_CAPTURE = "face-capture";
+  public static final String LIVENESS_URL = "liveness-url";
+  public static final String LIVENESS_SECRET = "liveness-secret";
+  public static final String LIVENESS_UI_THEME = "liveness-ui-theme";
+  public static final String LIVENESS_TRANSLATION_VARIANT = "liveness-translation-variant";
+  public static final String LIVENESS_LANGUAGES = "liveness-languages";
+  public static final String LIVENESS_RESULT_WAIT_SECONDS = "liveness-result-wait-seconds";
 
   public static final String DEFAULT_DOC_ID = "sequent.read-only.id-card-number";
   public static final String DEFAULT_DOC_ID_TYPE = "sequent.read-only.id-card-type";
@@ -46,6 +53,10 @@ public class ScanovateAuthenticatorFactory implements AuthenticatorFactory {
   public static final int DEFAULT_VIDEO_SECONDS = 5;
   public static final int DEFAULT_MAX_IMAGE_BYTES = 2 * 1024 * 1024;
   public static final int DEFAULT_MAX_VIDEO_BYTES = 3 * 1024 * 1024;
+  public static final String DEFAULT_LIVENESS_UI_THEME = "sequent_ui";
+  public static final String DEFAULT_LIVENESS_TRANSLATION_VARIANT = "sequent";
+  public static final String DEFAULT_LIVENESS_LANGUAGES = "en,es";
+  public static final int DEFAULT_LIVENESS_RESULT_WAIT_SECONDS = 15;
 
   static final String DEFAULT_CAPTURE_SIDES = "{\"default\": [\"front\", \"back\"]}";
 
@@ -323,6 +334,72 @@ public class ScanovateAuthenticatorFactory implements AuthenticatorFactory {
                 + " limit of any reverse proxy in front of Keycloak.")
         .type(ProviderConfigProperty.STRING_TYPE)
         .defaultValue(String.valueOf(DEFAULT_MAX_VIDEO_BYTES))
+        .add()
+        .property()
+        .name(FACE_CAPTURE)
+        .label("Face capture")
+        .helpText(
+            "Embedded mode only. photo captures a photo of the voter and a video of them holding"
+                + " the ID in Keycloak's own page. liveness checks the voter's liveness with the"
+                + " on-premise Scanovate Liveness Plus service in an iframe, and sends its picture"
+                + " of the voter to B-Trust as the face photo.")
+        .type(ProviderConfigProperty.LIST_TYPE)
+        .options(Arrays.stream(FaceCapture.values()).map(FaceCapture::value).toList())
+        .defaultValue(FaceCapture.PHOTO.value())
+        .add()
+        .property()
+        .name(LIVENESS_URL)
+        .label("Liveness Plus URL")
+        .helpText(
+            "Liveness face capture only. Base URL of the Liveness Plus service as the voter's"
+                + " browser reaches it, e.g. https://liveness.example.com. It is allowed in the"
+                + " frame-src of Keycloak's Content Security Policy.")
+        .type(ProviderConfigProperty.STRING_TYPE)
+        .add()
+        .property()
+        .name(LIVENESS_SECRET)
+        .label("Liveness Plus callback secret")
+        .helpText(
+            "Liveness face capture only. Secret that Liveness Plus sends in the secret query"
+                + " parameter of the onprem.token_verification_url and onprem.callback_url of its"
+                + " service_config.json. The voter's browser never sees it.")
+        .type(ProviderConfigProperty.PASSWORD)
+        .secret(true)
+        .add()
+        .property()
+        .name(LIVENESS_UI_THEME)
+        .label("Liveness Plus UI theme")
+        .helpText("Liveness face capture only. ui_theme configuration file of Liveness Plus.")
+        .type(ProviderConfigProperty.STRING_TYPE)
+        .defaultValue(DEFAULT_LIVENESS_UI_THEME)
+        .add()
+        .property()
+        .name(LIVENESS_TRANSLATION_VARIANT)
+        .label("Liveness Plus translation variant")
+        .helpText(
+            "Liveness face capture only. translation_variant of Liveness Plus, a folder of"
+                + " config/locales.")
+        .type(ProviderConfigProperty.STRING_TYPE)
+        .defaultValue(DEFAULT_LIVENESS_TRANSLATION_VARIANT)
+        .add()
+        .property()
+        .name(LIVENESS_LANGUAGES)
+        .label("Liveness Plus languages")
+        .helpText(
+            "Liveness face capture only. Comma separated languages of the translation variant."
+                + " The iframe uses the voter's language if listed, and the service default"
+                + " otherwise.")
+        .type(ProviderConfigProperty.STRING_TYPE)
+        .defaultValue(DEFAULT_LIVENESS_LANGUAGES)
+        .add()
+        .property()
+        .name(LIVENESS_RESULT_WAIT_SECONDS)
+        .label("Liveness result wait")
+        .helpText(
+            "Liveness face capture only. Seconds to wait for the result callback of Liveness"
+                + " Plus once the voter is done.")
+        .type(ProviderConfigProperty.STRING_TYPE)
+        .defaultValue(String.valueOf(DEFAULT_LIVENESS_RESULT_WAIT_SECONDS))
         .add()
         .build();
   }

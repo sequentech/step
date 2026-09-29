@@ -170,7 +170,25 @@ async fn upload_requires_the_capture_parts() {
     assert_eq!(status, Status::BadRequest);
     let body = body.unwrap();
     assert_eq!(body["success"], false);
-    assert_eq!(body["data"], "missing parts: face_image, scan_video");
+    assert_eq!(body["data"], "missing parts: face_image");
+}
+
+#[tokio::test]
+async fn scan_video_is_optional() {
+    // With the liveness face capture, the face image comes from Liveness Plus and
+    // there is no video.
+    let client = client().await;
+    create_session(&client, "no-video", "success").await;
+    let body = multipart(&[
+        ("front_image", "front_image.jpg", "image/jpeg", JPEG),
+        ("back_image", "back_image.jpg", "image/jpeg", JPEG),
+        ("face_image", "face_image.jpg", "image/jpeg", JPEG),
+    ]);
+
+    let (status, _) = upload(&client, "no-video", body, Some("Bearer jwt")).await;
+
+    assert_eq!(status, Status::Ok);
+    assert_eq!(results(&client, "no-video").await["data"]["success"], true);
 }
 
 #[tokio::test]

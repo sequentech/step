@@ -89,6 +89,11 @@ window.kcContext.courier = "${courier?string?js_string}";
     "scanovateInternalError", "scanovateVerificationFailedError",
     "scanovateDocumentAuthenticationError", "scanovateMaxTrialsError", "scanovateAttributesError",
     "scanovateScoringError", "scanovateMaxRetriesError", "scanovateCaptureInvalidError",
+    "scanovateLivenessError", "scanovateIntroLeadLiveness", "scanovateIntroLivenessHint",
+    "scanovateCaptureLivenessTitle", "scanovateCaptureLivenessHeading",
+    "scanovateCaptureLivenessText", "scanovateLivenessFrameTitle", "scanovateLivenessFailedTitle",
+    "scanovateLivenessFailedText", "scanovateLivenessExpiredTitle", "scanovateLivenessExpiredText",
+    "scanovateStartOver", "scanovateCheckingReceivedLiveness",
     "scanovateConfirmTitle", "scanovateConfirmLead", "scanovateConfirmDocument",
     "scanovateConfirmSubmit", "scanovateConfirmRetry", "dateOfBirth",
     "sequent.read-only.id-card-number"

@@ -12,7 +12,8 @@ public enum ScanovateError {
   ATTRIBUTES("scanovateAttributesError"),
   SCORING("scanovateScoringError"),
   MAX_RETRIES("scanovateMaxRetriesError"),
-  CAPTURE_INVALID("scanovateCaptureInvalidError");
+  CAPTURE_INVALID("scanovateCaptureInvalidError"),
+  LIVENESS_FAILED("scanovateLivenessError");
 
   private final String messageKey;
 

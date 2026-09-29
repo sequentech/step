@@ -96,6 +96,8 @@ export enum CaptureStep {
     Back = "BACK",
     Face = "FACE",
     Video = "VIDEO",
+    // Checked by the Liveness Plus iframe instead of our own camera.
+    Liveness = "LIVENESS",
 }
 
 export enum CameraFacing {
@@ -111,6 +113,9 @@ export enum CaptureProblem {
     CameraFailed = "CAMERA_FAILED",
     AnalyzerFailed = "ANALYZER_FAILED",
     RecorderUnsupported = "RECORDER_UNSUPPORTED",
+    LivenessFailed = "LIVENESS_FAILED",
+    // The one-time token of the iframe is used up: only a new page gets a new one.
+    LivenessExpired = "LIVENESS_EXPIRED",
 }
 
 export interface CameraService {

@@ -74,6 +74,7 @@ export const STEP_TITLES: Record<CaptureStep, MessageKey> = {
     [CaptureStep.Back]: "scanovateCaptureBackTitle",
     [CaptureStep.Face]: "scanovateCaptureFaceTitle",
     [CaptureStep.Video]: "scanovateCaptureVideoTitle",
+    [CaptureStep.Liveness]: "scanovateCaptureLivenessTitle",
 }
 
 const STEP_HEADINGS: Record<CaptureStep, [MessageKey, MessageKey]> = {
@@ -81,6 +82,7 @@ const STEP_HEADINGS: Record<CaptureStep, [MessageKey, MessageKey]> = {
     [CaptureStep.Back]: ["scanovateCaptureBackHeading", "scanovateCaptureBackText"],
     [CaptureStep.Face]: ["scanovateCaptureFaceHeading", "scanovateCaptureFaceText"],
     [CaptureStep.Video]: ["scanovateCaptureVideoHeading", "scanovateCaptureVideoText"],
+    [CaptureStep.Liveness]: ["scanovateCaptureLivenessHeading", "scanovateCaptureLivenessText"],
 }
 
 const CHIPS: Partial<Record<CaptureStep, MessageKey>> = {
@@ -94,6 +96,7 @@ const STEP_ICONS: Record<CaptureStep, () => ReactNode> = {
     [CaptureStep.Back]: IdCardIcon,
     [CaptureStep.Face]: FaceIcon,
     [CaptureStep.Video]: VideoIcon,
+    [CaptureStep.Liveness]: FaceIcon,
 }
 
 type Live = {
@@ -124,6 +127,7 @@ export function guidanceFor(step: CaptureStep, live: Live): Guidance {
         case CaptureStep.Back:
             return documentGuidance(step, live.document)
         case CaptureStep.Face:
+        case CaptureStep.Liveness:
             return faceGuidance(live.face)
         case CaptureStep.Video:
             return videoGuidance(live.face, live.document, live.recordingSeconds !== null)

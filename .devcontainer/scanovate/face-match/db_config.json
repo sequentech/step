@@ -1,0 +1,7 @@
+{
+  "sequent-dev": {
+    "database_type": "valkey",
+    "database_url": "valkey://scanovate-valkey:6379",
+    "use_cluster": false
+  }
+}

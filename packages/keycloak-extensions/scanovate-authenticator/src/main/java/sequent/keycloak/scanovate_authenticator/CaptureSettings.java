@@ -20,9 +20,14 @@ import java.util.Set;
  * @param videoSeconds length of the video holding the document
  * @param maxImageBytes size limit of each image
  * @param maxVideoBytes size limit of the video
+ * @param faceCapture how the voter's face is captured
  */
 public record CaptureSettings(
-    List<DocumentSide> sides, int videoSeconds, int maxImageBytes, int maxVideoBytes) {
+    List<DocumentSide> sides,
+    int videoSeconds,
+    int maxImageBytes,
+    int maxVideoBytes,
+    FaceCapture faceCapture) {
   static final List<DocumentSide> DEFAULT_SIDES = List.of(DocumentSide.FRONT, DocumentSide.BACK);
 
   private static final ObjectMapper MAPPER = new ObjectMapper();
@@ -51,7 +56,22 @@ public record CaptureSettings(
         positiveInt(
             config,
             ScanovateAuthenticatorFactory.MAX_VIDEO_BYTES,
-            ScanovateAuthenticatorFactory.DEFAULT_MAX_VIDEO_BYTES));
+            ScanovateAuthenticatorFactory.DEFAULT_MAX_VIDEO_BYTES),
+        faceCapture(config));
+  }
+
+  /**
+   * Reads the face capture from the authenticator configuration, photo when unset.
+   *
+   * @throws ScanovateException if the face capture is unknown
+   */
+  public static FaceCapture faceCapture(Map<String, String> config) throws ScanovateException {
+    String value = config.get(ScanovateAuthenticatorFactory.FACE_CAPTURE);
+    if (value == null || value.isBlank()) {
+      return FaceCapture.PHOTO;
+    }
+    return FaceCapture.fromValue(value.trim())
+        .orElseThrow(() -> new ScanovateException("Invalid face capture: " + value));
   }
 
   /**
@@ -100,12 +120,17 @@ public record CaptureSettings(
     return List.copyOf(sides);
   }
 
-  /** Files that a capture must contain, in upload order. */
+  /**
+   * Files that the capture page must post, in upload order. With the liveness face capture, the
+   * face photo comes from Liveness Plus instead.
+   */
   public List<MediaKind> requiredMedia() {
     List<MediaKind> media = new ArrayList<>();
     sides.forEach(side -> media.add(side.mediaKind()));
-    media.add(MediaKind.FACE_IMAGE);
-    media.add(MediaKind.SCAN_VIDEO);
+    if (faceCapture == FaceCapture.PHOTO) {
+      media.add(MediaKind.FACE_IMAGE);
+      media.add(MediaKind.SCAN_VIDEO);
+    }
     return media;
   }
 
@@ -116,7 +141,7 @@ public record CaptureSettings(
     };
   }
 
-  private static int positiveInt(Map<String, String> config, String key, int defaultValue)
+  static int positiveInt(Map<String, String> config, String key, int defaultValue)
       throws ScanovateException {
     String value = config.get(key);
     if (value == null || value.isBlank()) {

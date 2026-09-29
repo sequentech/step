@@ -11,6 +11,7 @@ export enum Phase {
     Starting = "STARTING",
     Capturing = "CAPTURING",
     Problem = "PROBLEM",
+    Liveness = "LIVENESS",
     Checking = "CHECKING",
 }
 
@@ -27,6 +28,8 @@ export interface CaptureState {
     stopConfirmOpen: boolean
     stepStartedAt: number | null
     justCaptured: CaptureStep | null
+    // Bumped to reload the Liveness Plus iframe.
+    livenessAttempt: number
 }
 
 export type CaptureAction =
@@ -42,13 +45,14 @@ export type CaptureAction =
     | {type: "requestStop"}
     | {type: "cancelStop"}
     | {type: "confirmStop"}
+    | {type: "livenessDone"}
 
-export function stepsFor(sides: ScanovateSide[]): CaptureStep[] {
+// With liveness, the Liveness Plus iframe replaces our face photo and video.
+export function stepsFor(sides: ScanovateSide[], liveness = false): CaptureStep[] {
     return [
         CaptureStep.Front,
         ...(sides.includes(ScanovateSide.Back) ? [CaptureStep.Back] : []),
-        CaptureStep.Face,
-        CaptureStep.Video,
+        ...(liveness ? [CaptureStep.Liveness] : [CaptureStep.Face, CaptureStep.Video]),
     ]
 }
 
@@ -75,6 +79,7 @@ export function initialCaptureState(steps: CaptureStep[]): CaptureState {
         stopConfirmOpen: false,
         stepStartedAt: null,
         justCaptured: null,
+        livenessAttempt: 0,
     }
 }
 
@@ -83,7 +88,7 @@ export function stateAtStep(steps: CaptureStep[], step: CaptureStep, blob: Blob)
     const index = Math.max(steps.indexOf(step), 0)
     return {
         ...initialCaptureState(steps),
-        phase: Phase.Starting,
+        phase: steps[index] === CaptureStep.Liveness ? Phase.Liveness : Phase.Starting,
         stepIndex: index,
         captures: Object.fromEntries(steps.slice(0, index).map((done) => [done, blob])),
     }
@@ -112,6 +117,14 @@ export function captureReducer(state: CaptureState, action: CaptureAction): Capt
             return {...state, ...stepReset, phase: Phase.Problem, problem: action.problem}
         case "retry":
             if (state.phase !== Phase.Problem) return state
+            if (currentStep(state) === CaptureStep.Liveness) {
+                return {
+                    ...state,
+                    phase: Phase.Liveness,
+                    problem: null,
+                    livenessAttempt: state.livenessAttempt + 1,
+                }
+            }
             return {...state, phase: Phase.Starting, problem: null}
         case "captured": {
             if (state.phase !== Phase.Capturing || action.step !== currentStep(state)) {
@@ -126,6 +139,16 @@ export function captureReducer(state: CaptureState, action: CaptureAction): Capt
                     phase: Phase.Checking,
                     captures,
                     stepIndex: state.steps.length - 1,
+                    justCaptured: action.step,
+                }
+            }
+            if (state.steps[stepIndex] === CaptureStep.Liveness) {
+                return {
+                    ...state,
+                    ...stepReset,
+                    phase: Phase.Liveness,
+                    captures,
+                    stepIndex,
                     justCaptured: action.step,
                 }
             }
@@ -162,5 +185,8 @@ export function captureReducer(state: CaptureState, action: CaptureAction): Capt
             return {...state, stopConfirmOpen: false}
         case "confirmStop":
             return initialCaptureState(state.steps)
+        case "livenessDone":
+            if (state.phase !== Phase.Liveness) return state
+            return {...state, ...stepReset, phase: Phase.Checking}
     }
 }

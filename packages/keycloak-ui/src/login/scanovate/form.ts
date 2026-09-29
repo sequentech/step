@@ -5,8 +5,18 @@ import {CaptureStep} from "./types"
 
 export const CAPTURE_ACTION = "capture"
 
+// Steps that produce a file; the liveness picture reaches Keycloak server to server.
+export type MediaStep = Exclude<CaptureStep, CaptureStep.Liveness>
+
+export const MEDIA_STEPS: MediaStep[] = [
+    CaptureStep.Front,
+    CaptureStep.Back,
+    CaptureStep.Face,
+    CaptureStep.Video,
+]
+
 // Multipart part names expected by the scanovate-authenticator.
-export const CAPTURE_PARTS: Record<CaptureStep, string> = {
+export const CAPTURE_PARTS: Record<MediaStep, string> = {
     [CaptureStep.Front]: "front",
     [CaptureStep.Back]: "back",
     [CaptureStep.Face]: "face",
@@ -19,7 +29,7 @@ const EXTENSIONS: Record<string, string> = {
     "video/mp4": "mp4",
 }
 
-export function captureFile(step: CaptureStep, blob: Blob): File {
+export function captureFile(step: MediaStep, blob: Blob): File {
     const type = blob.type.split(";")[0]
     const extension = EXTENSIONS[type] ?? "bin"
     return new File([blob], `${CAPTURE_PARTS[step]}.${extension}`, {type})
@@ -27,7 +37,7 @@ export function captureFile(step: CaptureStep, blob: Blob): File {
 
 /** Puts every capture in its hidden file input; inputs without a capture are emptied. */
 export function populateCaptureForm(form: HTMLFormElement, captures: Captures): void {
-    for (const step of Object.values(CaptureStep)) {
+    for (const step of MEDIA_STEPS) {
         const input = form.elements.namedItem(CAPTURE_PARTS[step])
         if (!(input instanceof HTMLInputElement)) continue
         const transfer = new DataTransfer()

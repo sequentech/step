@@ -28,6 +28,11 @@ const TIPS: Record<string, MessageKey[]> = {
         "scanovateTipFaceUncovered",
         "scanovateTipLookAtCamera",
     ],
+    scanovateLivenessError: [
+        "scanovateTipFaceUncovered",
+        "scanovateTipLookAtCamera",
+        "scanovateIntroTipLight",
+    ],
     scanovateAttributesError: ["scanovateTipSameDocument", "scanovateTipCheckDetails"],
     scanovateMaxTrialsError: ["scanovateTipCamera", "scanovateTipConnection", "scanovateTipLight"],
     scanovateInternalError: ["scanovateTipWait", "scanovateTipConnection"],

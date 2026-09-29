@@ -173,3 +173,57 @@ describe("captureReducer", () => {
         expect(Object.keys(state.captures)).toEqual([CaptureStep.Front, CaptureStep.Back])
     })
 })
+
+describe("liveness", () => {
+    const LIVENESS = stepsFor([ScanovateSide.Front, ScanovateSide.Back], true)
+
+    it("replaces the face photo and the video with the liveness check", () => {
+        expect(LIVENESS).toEqual([CaptureStep.Front, CaptureStep.Back, CaptureStep.Liveness])
+        expect(stepsFor([ScanovateSide.Front], true)).toEqual([
+            CaptureStep.Front,
+            CaptureStep.Liveness,
+        ])
+    })
+
+    function livenessState(): CaptureState {
+        return run(
+            capturing(LIVENESS),
+            {type: "captured", step: CaptureStep.Front, blob: photo, at: 1},
+            {type: "captured", step: CaptureStep.Back, blob: photo, at: 2}
+        )
+    }
+
+    it("hands over to the liveness iframe after the ID", () => {
+        const state = livenessState()
+        expect(state.phase).toBe(Phase.Liveness)
+        expect(currentStep(state)).toBe(CaptureStep.Liveness)
+        expect(Object.keys(state.captures)).toEqual([CaptureStep.Front, CaptureStep.Back])
+    })
+
+    it("submits the ID once the liveness check is done", () => {
+        const state = run(livenessState(), {type: "livenessDone"})
+        expect(state.phase).toBe(Phase.Checking)
+        expect(state.captures[CaptureStep.Liveness]).toBeUndefined()
+    })
+
+    it("ignores a liveness result outside the liveness step", () => {
+        const state = capturing(LIVENESS)
+        expect(captureReducer(state, {type: "livenessDone"})).toBe(state)
+    })
+
+    it("reloads the iframe to retry after a liveness problem", () => {
+        const before = livenessState()
+        const problem = run(before, {type: "problem", problem: CaptureProblem.LivenessFailed})
+        expect(problem.phase).toBe(Phase.Problem)
+        const retried = run(problem, {type: "retry"})
+        expect(retried.phase).toBe(Phase.Liveness)
+        expect(retried.livenessAttempt).toBe(before.livenessAttempt + 1)
+        expect(retried.captures).toEqual(before.captures)
+    })
+
+    it("can start at the liveness step", () => {
+        const state = stateAtStep(LIVENESS, CaptureStep.Liveness, photo)
+        expect(state.phase).toBe(Phase.Liveness)
+        expect(Object.keys(state.captures)).toEqual([CaptureStep.Front, CaptureStep.Back])
+    })
+})

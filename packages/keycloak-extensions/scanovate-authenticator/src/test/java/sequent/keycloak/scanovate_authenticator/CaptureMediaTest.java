@@ -75,7 +75,7 @@ class CaptureMediaTest {
   }
 
   private static CaptureSettings settings(List<DocumentSide> sides) {
-    return new CaptureSettings(sides, 5, 16, 16);
+    return new CaptureSettings(sides, 5, 16, 16, FaceCapture.PHOTO);
   }
 
   private static final CaptureSettings BOTH_SIDES =
@@ -165,7 +165,8 @@ class CaptureMediaTest {
         InvalidCaptureException.class,
         () ->
             CaptureMedia.fromParts(
-                parts(JPEG, JPEG, JPEG, WEBM), new CaptureSettings(BOTH_SIDES.sides(), 5, 16, 5)));
+                parts(JPEG, JPEG, JPEG, WEBM),
+                new CaptureSettings(BOTH_SIDES.sides(), 5, 16, 5, FaceCapture.PHOTO)));
     assertEquals(
         16,
         assertDoesNotThrow(
@@ -190,5 +191,32 @@ class CaptureMediaTest {
     parts.put("video", List.of(BROKEN_PART));
 
     assertThrows(InvalidCaptureException.class, () -> CaptureMedia.fromParts(parts, BOTH_SIDES));
+  }
+
+  @Test
+  void livenessImageIsAddedAsTheFacePhoto() throws InvalidCaptureException {
+    CaptureMedia media =
+        CaptureMedia.fromParts(
+                parts(JPEG, JPEG, null, null),
+                new CaptureSettings(BOTH_SIDES.sides(), 5, 16, 16, FaceCapture.LIVENESS))
+            .withImage(MediaKind.FACE_IMAGE, JPEG, 16);
+
+    assertEquals(
+        List.of(MediaKind.FRONT_IMAGE, MediaKind.BACK_IMAGE, MediaKind.FACE_IMAGE),
+        List.copyOf(media.files().keySet()));
+    assertEquals(MediaFormat.JPEG, media.files().get(MediaKind.FACE_IMAGE).format());
+  }
+
+  @Test
+  void invalidOrOversizedLivenessImagesAreRejected() throws InvalidCaptureException {
+    CaptureMedia media =
+        CaptureMedia.fromParts(
+            parts(JPEG, JPEG, null, null),
+            new CaptureSettings(BOTH_SIDES.sides(), 5, 16, 16, FaceCapture.LIVENESS));
+
+    assertThrows(
+        InvalidCaptureException.class, () -> media.withImage(MediaKind.FACE_IMAGE, PNG, 16));
+    assertThrows(
+        InvalidCaptureException.class, () -> media.withImage(MediaKind.FACE_IMAGE, JPEG, 5));
   }
 }

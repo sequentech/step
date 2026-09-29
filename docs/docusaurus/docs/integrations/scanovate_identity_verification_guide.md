@@ -23,6 +23,10 @@ The integration is the `scanovate-authenticator` Keycloak authenticator. It
 follows the B-Trust v3.8.2 Identity Verification Tech Specs and replaces the
 previous Inetum integration.
 
+Scanovate also ships Liveness Plus and 1:N Face Match as services we run
+ourselves. See [Scanovate On-Premise Services](scanovate_on_premise_guide.md)
+for how to get access to their images and run them.
+
 ## How it works
 
 ```mermaid
@@ -90,6 +94,10 @@ voter gets live guidance and photos are taken automatically once the frame is
 good. Keycloak then uploads the capture to the B-Trust session and processes the
 results exactly as in the `interactive` mode.
 
+With `face-capture` set to `liveness`, the selfie and the video are replaced by
+a liveness check of the on-premise Scanovate Liveness Plus service, see
+[Liveness face capture](#liveness-face-capture).
+
 ```mermaid
 sequenceDiagram
     participant V as Voter browser
@@ -131,8 +139,8 @@ these parts:
 | --- | --- |
 | `front_image` | JPEG photo of the front of the document. |
 | `back_image` | JPEG photo of the back of the document. Only for documents with a back side. |
-| `face_image` | JPEG selfie. |
-| `scan_video` | WebM or MP4 video of the voter holding the document. |
+| `face_image` | JPEG selfie, or the picture taken by Liveness Plus with the `liveness` face capture. |
+| `scan_video` | WebM or MP4 video of the voter holding the document. Not sent with the `liveness` face capture. |
 
 The expected response is `{"success": true, "errorCode": 0}`. Like the other
 calls, it's retried with exponential backoff on network and server errors, and
@@ -184,10 +192,77 @@ Some design decisions to be aware of:
   field and rejected.
 
 The capture page receives a `scanovate` attribute with `documentType`, `sides`
-(`FRONT`, and `BACK` if the document has one), `videoSeconds`, `attemptsLeft`
-and `maxAttempts`. The error page also receives `attemptsLeft`, and the
+(`FRONT`, and `BACK` if the document has one), `videoSeconds`, `attemptsLeft`,
+`maxAttempts` and, with the `liveness` face capture, `liveness` (`url`,
+`origin` and `languages` of the iframe). The error page also receives `attemptsLeft`, and the
 confirmation page receives `storedAttributes` as a list of `{key, value, type}`
 and `documentType`.
+
+### Liveness face capture
+
+With `face-capture` set to `liveness`, the voter's face is checked by
+[Liveness Plus](scanovate_on_premise_guide.md), which runs its presentation
+(PAD, including deepfakes) and injection attack detection on the camera frames.
+Our capture page still guides the voter through the photos of the ID, and then
+hands over to the Liveness Plus UI in an iframe, which guides the voter through
+the selfie itself. We can't change what it does, but its colours, fonts and
+texts are configured to match ours (see
+[Sequent look](scanovate_on_premise_guide.md#sequent-look)).
+
+```mermaid
+sequenceDiagram
+    participant V as Voter browser
+    participant K as Keycloak
+    participant L as Liveness Plus
+    participant B as B-Trust API
+    K->>B: POST /flow/v3/link
+    K->>K: one-time token for the process id
+    K->>V: capture page with the iframe URL (token, case_id = process id)
+    V->>V: guided photos of the ID
+    V->>L: iframe: load the UI and create the session
+    L->>K: GET /realms/master/scanovate/liveness/verify?secret=... (X-token, case-id)
+    K-->>L: 200, or 401
+    L->>K: POST /realms/master/scanovate/liveness/callback?secret=... (start)
+    V->>L: guided selfie
+    L->>K: POST .../liveness/callback?secret=... (result, with the picture)
+    L->>V: postMessage done
+    V->>K: POST login actions URL (action=capture, front, back)
+    K->>K: wait for the result, reject the attempt unless it passed
+    K->>B: POST /api/v3/mobile_interaction/{processId}/media (front, back, face_image = Liveness Plus picture)
+    K->>B: fetch and validate the results as usual
+```
+
+- **The verdict never comes from the browser.** The iframe's `postMessage`
+  only tells the page to move on. Liveness Plus posts the result to Keycloak
+  server to server, and the capture only goes on if that result is `completed`
+  with `liveness_check_passed`. Its picture of the voter is then sent to B-Trust
+  as `face_image`, which matches it against the ID. Any `face` or `video` part
+  posted by the browser is ignored.
+- **One-time tokens.** Each time the capture page is shown, Keycloak issues a
+  random token for the iframe and discards the previous one. Tokens live for
+  30 minutes in Keycloak's single-use object store, shared by the cluster, and
+  are discarded once the capture is submitted. A token allows 3 liveness
+  sessions, so the voter can retry after a camera problem without reloading.
+  After that, Liveness Plus reports `invalid token` (`1014`) and the page asks
+  the voter to start over, which renders it again with a new token.
+- **Shared secret.** The token and the case id go through the browser, so they
+  alone can't authenticate Liveness Plus. Its `token_verification_url` and
+  `callback_url` carry a `secret` query parameter that matches
+  `liveness-secret`, which the browser never sees. The public reverse proxy
+  also answers `404` for `/realms/*/scanovate/liveness/`: only Liveness Plus
+  calls it, on the internal network. The endpoints aren't tied to a realm, so the
+  `master` realm URL serves every realm.
+- **Failed liveness counts as an attempt** (`scanovateLivenessError`). If no
+  result arrives within `liveness-result-wait-seconds` of the voter being
+  done, the voter gets a retryable `scanovateInternalError` instead.
+- **Content Security Policy.** The page allows the Liveness Plus origin in
+  `frame-src`. We serve Liveness Plus on Keycloak's own origin under
+  `/biometric/` (`liveness-url` `https://<keycloak host>/biometric`, see
+  [Deployment on Keycloak's origin](scanovate_on_premise_guide.md#deployment-on-keycloaks-origin)),
+  so the iframe is same origin. A separate origin also works, as long as its
+  proxy lets Keycloak's origin frame it.
+- **Language.** The iframe asks for the voter's language if it's listed in
+  `liveness-languages`, and the service default otherwise.
 
 ## Configuration
 
@@ -213,11 +288,19 @@ steps that collect the document number and type, and configure it:
 | `video-seconds` | `embedded` only. Length of the video holding the document, in seconds. | `5` |
 | `max-image-bytes` | `embedded` only. Maximum size of each photo. 3 photos and the video must fit in Keycloak's 10 MiB body limit. | `2097152` (2 MiB) |
 | `max-video-bytes` | `embedded` only. Maximum size of the video. | `3145728` (3 MiB) |
+| `face-capture` | `embedded` only. `photo` takes a selfie and a video holding the ID in our page. `liveness` checks the voter's liveness with Liveness Plus, see [Liveness face capture](#liveness-face-capture). | `photo` |
+| `liveness-url` | `liveness` only. Liveness Plus base URL as the voter's browser reaches it, `https://<keycloak host>/biometric` in our deployments. | |
+| `liveness-secret` | `liveness` only. Secret that Liveness Plus sends as the `secret` query parameter of its `token_verification_url` and `callback_url`. | |
+| `liveness-ui-theme` | `liveness` only. Liveness Plus UI configuration (`ui_theme`). | `sequent_ui` |
+| `liveness-translation-variant` | `liveness` only. Liveness Plus texts (`translation_variant`). | `sequent` |
+| `liveness-languages` | `liveness` only. Comma separated languages of that variant. | `en,es` |
+| `liveness-result-wait-seconds` | `liveness` only. How long to wait for the result callback once the voter is done. | `15` |
 
 A malformed `capture-sides` (not an object, an empty or unknown side, a
 repeated side, or no front) or a non-positive number in the other `embedded`
 settings rejects the verification with `scanovateInternalError`, like the other
-settings. For example, to capture only the data page of passports:
+settings, as does a `liveness` face capture without a valid `liveness-url` or
+without `liveness-secret`. For example, to capture only the data page of passports:
 
 ```json
 {
@@ -374,7 +457,7 @@ B-Trust endpoints used by the authenticator:
 | `GET /flow/complete?process_id=&outcome=` | Redirects to `redirect_url?processId=...&token=...`. |
 | `GET /api/v3/mobile_interaction/{session}/token` | Returns a session token. |
 | `GET /api/v3/mobile_interaction/v2/{token}/results_with_image_names` | Returns OCR, liveness, face match and document liveness results. |
-| `POST /api/v3/mobile_interaction/{session}/media` | Proposed endpoint for the `embedded` mode. Requires a bearer token (`401` otherwise) and the `front_image`, `face_image` and `scan_video` parts (`400` otherwise), with `back_image` optional, and marks the session as having media. The results then list the uploaded back image. The outcome is still the one selected with `mock_outcome`. |
+| `POST /api/v3/mobile_interaction/{session}/media` | Proposed endpoint for the `embedded` mode. Requires a bearer token (`401` otherwise) and the `front_image` and `face_image` parts (`400` otherwise), with `back_image` and `scan_video` optional, and marks the session as having media. The results then list the uploaded back image. The outcome is still the one selected with `mock_outcome`. |
 
 If the `country` flow parameter is sent and voters were loaded with
 `POST /upload-csv`, the OCR data comes from a random voter of that country.

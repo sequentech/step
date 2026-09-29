@@ -1,0 +1,22 @@
+{
+  "rotate_view": 0,
+  "mirror_view": false,
+  "rotate_buffer": 0,
+  "mirror_buffer": false,
+  "video_width": 1280,
+  "video_height": 720,
+  "video_bitrate": {
+    "webm": 300000,
+    "mp4": 1200000,
+    "other": 600000
+  },
+  "audio_bitrate": 30000,
+  "extra_video_duration_seconds": 3,
+  "video_compression": {
+    "max_size_kb": 1000,
+    "scale": 0.5,
+    "frame_rate": 10,
+    "output_format": "mp4",
+    "keep_last_seconds": 10
+  }
+}

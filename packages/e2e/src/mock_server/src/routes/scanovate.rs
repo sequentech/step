@@ -176,7 +176,6 @@ impl MediaUpload<'_> {
         [
             ("front_image", is_present(&self.front_image)),
             ("face_image", is_present(&self.face_image)),
-            ("scan_video", is_present(&self.scan_video)),
         ]
         .into_iter()
         .filter(|(_, present)| !present)
