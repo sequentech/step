@@ -21,7 +21,10 @@
 //!   figure is never shown as filtered when it is not.
 //!
 //! The result's columns are fixed per template, which is what lets a chart
-//! name them: `group`, `pct`, `bucket_start` and so on.
+//! name them: `group`, `pct`, `bucket_start` and so on. A list's rows also
+//! carry their `position`, from 1, because a chart orders by a column: a
+//! horizontal bar left unsorted orders by value, so a chart that keeps the
+//! query's order (bands in order, Unknown last) sorts by `position`.
 
 use super::config::{DimensionMapping, Ratio, Settings, SortKey, SortOrder};
 use super::payload::{
@@ -249,6 +252,9 @@ struct Keyed {
     unknown: bool,
 }
 
+/// A list row's place in the result, from 1.
+pub const POSITION: &str = "position";
+
 fn column(name: impl Into<String>, kind: ColumnKind) -> Column {
     Column {
         name: name.into(),
@@ -432,12 +438,15 @@ impl Evaluation<'_> {
         let mut columns = vec![
             column("group", ColumnKind::Text),
             column("group_key", ColumnKind::Text),
+            column(POSITION, ColumnKind::Integer),
         ];
         columns.extend(self.value_columns());
         let rows = rows
             .into_iter()
-            .map(|row| {
-                let mut cells = vec![json!(row.label), json!(row.key)];
+            .zip(1_u64..)
+            .map(|(row, position)| {
+                let mut cells =
+                    vec![json!(row.label), json!(row.key), json!(position)];
                 cells.extend(self.value_cells(&row.counts, report));
                 cells
             })
@@ -669,6 +678,7 @@ impl Evaluation<'_> {
                 column("state_label", ColumnKind::Text),
             ]);
         }
+        columns.push(column(POSITION, ColumnKind::Integer));
         columns.extend(self.value_columns());
 
         let by_id: IndexMap<&str, &PostRow> = self
@@ -692,7 +702,8 @@ impl Evaluation<'_> {
             .sorted(keyed, report)
             .into_iter()
             .filter_map(|row| by_id.get(row.key.as_str()).copied())
-            .map(|post| {
+            .zip(1_u64..)
+            .map(|(post, position)| {
                 let mut cells = vec![
                     json!(post.post),
                     json!(post.post_id),
@@ -710,6 +721,7 @@ impl Evaluation<'_> {
                         None => cells.extend([Value::Null, Value::Null]),
                     }
                 }
+                cells.push(json!(position));
                 cells.extend(self.value_cells(&post.counts, report));
                 cells
             })
@@ -825,6 +837,7 @@ impl Evaluation<'_> {
         let columns = vec![
             column("measure", ColumnKind::Text),
             column("label", ColumnKind::Text),
+            column(POSITION, ColumnKind::Integer),
             column("value", ColumnKind::Integer),
         ];
         let totals = self.scope_totals(report)?;
@@ -832,11 +845,13 @@ impl Evaluation<'_> {
             .query
             .measures
             .iter()
-            .map(|measure| {
+            .zip(1_u64..)
+            .map(|(measure, position)| {
                 let key = measure.to_string();
                 vec![
                     json!(key),
                     json!(self.label(&key, measure.default_label())),
+                    json!(position),
                     json!(count(&totals, *measure, report).unwrap_or(0)),
                 ]
             })

@@ -194,6 +194,7 @@ fn voter_groups_are_labelled_ordered_and_add_up_to_the_totals() {
         [
             "group",
             "group_key",
+            "position",
             "registered",
             "numerator",
             "denominator",
@@ -483,6 +484,48 @@ fn poll_payload() -> ScopePayload {
     }
 }
 
+/// A chart orders by a column, and a horizontal bar left unsorted orders by
+/// value. Each row says where the query put it, so a chart can keep the
+/// query's order: bands in order, the sort asked for, Unknown last.
+#[test]
+fn rows_say_where_the_query_put_them() {
+    let mut by_sex = query(QueryTemplate::ByGroup);
+    by_sex.group_by = Some("sex".into());
+    by_sex.measures = vec![Registered];
+    by_sex.sort = Some(Sort {
+        by: SortKey::Value,
+        order: SortOrder::Asc,
+    });
+    let result = run(VoterTurnout, &by_sex, &turnout_payload());
+    assert_eq!(
+        column(&result, "group_key"),
+        [json!("M"), json!("F"), json!(UNKNOWN_KEY)]
+    );
+    assert_eq!(column(&result, "position"), [json!(1), json!(2), json!(3)]);
+
+    let mut by_post = query(QueryTemplate::ByPost);
+    by_post.sort = Some(Sort {
+        by: SortKey::Label,
+        order: SortOrder::Desc,
+    });
+    let result = run(PollStatus, &by_post, &poll_payload());
+    assert_eq!(column(&result, "post"), [json!("Tokyo"), json!("Madrid")]);
+    assert_eq!(column(&result, "position"), [json!(1), json!(2)]);
+
+    let mut outcomes = query(QueryTemplate::ByMeasure);
+    outcomes.measures = vec![LoginFailures, Logins];
+    let payload = ScopePayload {
+        totals: counts(&[
+            (Logins, 90),
+            (LoginFailures, 10),
+            (PasswordResets, 1),
+        ]),
+        ..ScopePayload::default()
+    };
+    let result = run(AccessSecurity, &outcomes, &payload);
+    assert_eq!(column(&result, "position"), [json!(1), json!(2)]);
+}
+
 #[test]
 fn posts_are_listed_with_their_state() {
     let mut by_post = query(QueryTemplate::ByPost);
@@ -490,7 +533,14 @@ fn posts_are_listed_with_their_state() {
     let result = run(PollStatus, &by_post, &poll_payload());
     assert_eq!(
         names(&result),
-        ["post", "post_id", "region", "state", "state_label"]
+        [
+            "post",
+            "post_id",
+            "region",
+            "state",
+            "state_label",
+            "position"
+        ]
     );
     assert_eq!(column(&result, "post"), [json!("Madrid"), json!("Tokyo")]);
     assert_eq!(column(&result, "state"), [json!("closed"), json!("opened")]);
@@ -525,7 +575,7 @@ fn by_measure_turns_measures_into_rows_for_a_pie() {
         ..ScopePayload::default()
     };
     let result = run(AccessSecurity, &outcomes, &payload);
-    assert_eq!(names(&result), ["measure", "label", "value"]);
+    assert_eq!(names(&result), ["measure", "label", "position", "value"]);
     assert_eq!(column(&result, "label"), [json!("Logins"), json!("Failed")]);
     assert_eq!(column(&result, "value"), [json!(90), json!(10)]);
     assert_eq!(
@@ -547,6 +597,7 @@ fn columns_say_what_they_hold() {
         [
             ColumnKind::Text,
             ColumnKind::Text,
+            ColumnKind::Integer,
             ColumnKind::Integer,
             ColumnKind::Integer,
             ColumnKind::Number,
@@ -736,7 +787,14 @@ fn post_lists_have_the_same_columns_whatever_the_data() {
     let result = run(PollStatus, &query(QueryTemplate::ByPost), &empty);
     assert_eq!(
         names(&result),
-        ["post", "post_id", "region", "state", "state_label"]
+        [
+            "post",
+            "post_id",
+            "region",
+            "state",
+            "state_label",
+            "position"
+        ]
     );
     assert!(result.rows.is_empty());
 }
