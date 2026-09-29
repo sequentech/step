@@ -10,6 +10,7 @@ use crate::services::database::PgConfig;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::electoral_log::ElectoralLog;
 use crate::services::electoral_log_queue::drain_electoral_log_queue;
+use crate::services::monitoring::login_counter::{count_login_attempts_apart, login_attempt};
 use crate::services::protocol_manager::get_board_client;
 use crate::services::users::get_user_area_id;
 use crate::types::error::{Error, Result};
@@ -119,6 +120,11 @@ pub struct LogEventInput {
     pub username: Option<String>,
     pub tenant_id: String,
     pub body: LogEventBody,
+    /// When Keycloak saw the event, in milliseconds since the Unix epoch.
+    /// Absent from messages sent before the listener said, which are written
+    /// (and so hashed) exactly as they were.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub event_time_ms: Option<i64>,
 }
 
 /// Enqueue the electoral log event.
@@ -226,7 +232,7 @@ async fn persist_electoral_log_deliveries(events: Vec<IdentifiedLogEvent>) -> an
         .get()
         .await
         .with_context(|| "Error getting DB pool for batch processing")?;
-    let hasura_tx = hasura_db_client
+    let mut hasura_tx = hasura_db_client
         .transaction()
         .await
         .with_context(|| "Error starting Hasura transaction")?;
@@ -241,6 +247,7 @@ async fn persist_electoral_log_deliveries(events: Vec<IdentifiedLogEvent>) -> an
         .await
         .with_context(|| "Error starting keycloak transaction")?;
 
+    let mut login_attempts = Vec::new();
     for delivery in events {
         let input = &delivery.input;
         let mut messages = Vec::new();
@@ -268,6 +275,11 @@ async fn persist_electoral_log_deliveries(events: Vec<IdentifiedLogEvent>) -> an
                 let user_area_id = get_user_area_id(&keycloak_transaction, &realm, &user_id)
                     .await
                     .with_context(|| "Error getting user area id")?;
+                if let Some(attempt) =
+                    login_attempt(input, user_area_id.as_deref(), chrono::Utc::now())
+                {
+                    login_attempts.push((delivery.delivery_id.clone(), attempt));
+                }
                 let electoral_log = ElectoralLog::new(
                     &hasura_tx,
                     &input.tenant_id,
@@ -311,6 +323,7 @@ async fn persist_electoral_log_deliveries(events: Vec<IdentifiedLogEvent>) -> an
             .push((delivery, messages));
     }
 
+    count_login_attempts_apart(&mut hasura_tx, &login_attempts).await;
     hasura_tx
         .commit()
         .await

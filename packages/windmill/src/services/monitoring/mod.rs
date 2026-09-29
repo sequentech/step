@@ -10,3 +10,6 @@ pub mod audit;
 
 /// Reading an event's configuration, and saving, resetting and switching it.
 pub mod config_store;
+
+/// Sign-in attempts counted from the electoral log's Keycloak events.
+pub mod login_counter;

@@ -693,6 +693,7 @@ impl ElectoralLog {
                 serde_json::to_string(&board_message)
                     .with_context(|| "Error serializing ElectoralLogMessage")?,
             ),
+            event_time_ms: None,
         };
 
         let celery_app = get_celery_app().await;
@@ -806,6 +807,7 @@ impl ElectoralLog {
                 serde_json::to_string(&board_message)
                     .with_context(|| "Error serializing ElectoralLogMessage")?,
             ),
+            event_time_ms: None,
         };
         let celery_app = get_celery_app().await;
         celery_app
@@ -858,6 +860,7 @@ impl ElectoralLog {
                 serde_json::to_string(&board_message)
                     .with_context(|| "Error serializing post cast vote")?,
             ),
+            event_time_ms: None,
         };
         let celery_app = get_celery_app().await;
         celery_app
@@ -945,6 +948,7 @@ impl ElectoralLog {
                 serde_json::to_string(&board_message)
                     .with_context(|| "Error serializing ElectoralLogMessage")?,
             ),
+            event_time_ms: None,
         };
         let celery_app = get_celery_app().await;
         celery_app
