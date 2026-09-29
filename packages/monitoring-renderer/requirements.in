@@ -1,0 +1,12 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# What the renderer runs on. Compiled, with hashes, into requirements.txt:
+#   pip-compile --generate-hashes --allow-unsafe --strip-extras requirements.in
+dbt-charts==0.8.0
+defusedxml==0.7.1
+fastapi==0.142.0
+pydantic==2.13.5
+pyyaml==6.0.3
+uvicorn==0.54.0
