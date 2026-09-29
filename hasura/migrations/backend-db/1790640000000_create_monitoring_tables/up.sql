@@ -118,7 +118,7 @@ BEGIN
     THEN
         RAISE EXCEPTION 'a monitoring event keeps its election event'
             USING ERRCODE = 'integrity_constraint_violation',
-                  CONSTRAINT = 'monitoring_event_is_kept';
+                  CONSTRAINT = 'monitoring_event_keeps_its_election_event';
     END IF;
     IF (TG_OP = 'INSERT' AND NEW.config_generation <> 0)
        OR (TG_OP = 'UPDATE'
@@ -384,7 +384,10 @@ CREATE SEQUENCE sequent_backend.monitoring_snapshot_revision;
 
 -- One pass of the snapshot job, recorded as RUNNING in a transaction of its
 -- own so a failed pass can still be marked FAILED. Once complete or failed a
--- run is final, but for `checked_at`, which only moves on.
+-- run is final, but for `checked_at`, which only moves on. Runs complete in
+-- revision order (see monitoring_snapshot_state.last_complete_revision), so
+-- a pass that fell behind a later one can no longer complete. A run left
+-- RUNNING by a crash is marked FAILED by a later pass.
 CREATE TABLE sequent_backend.monitoring_snapshot_run (
     tenant_id uuid NOT NULL,
     election_event_id uuid NOT NULL,
@@ -467,10 +470,20 @@ CREATE TABLE sequent_backend.monitoring_snapshot_state (
     live_snapshot_status text GENERATED ALWAYS AS (
         CASE WHEN live_snapshot_revision IS NOT NULL THEN 'COMPLETE' END
     ) STORED,
+    -- The newest run that completed, recorded by the completion itself: of
+    -- two passes of one event, the older can then never complete after the
+    -- newer. Under REPEATABLE READ it fails to serialize; under READ
+    -- COMMITTED it waits for the newer, then is refused. It only moves on.
+    last_complete_revision bigint,
     watermarks jsonb NOT NULL DEFAULT '{}'::jsonb
         CHECK (jsonb_typeof(watermarks) = 'object'),
     updated_at timestamptz NOT NULL DEFAULT now(),
     PRIMARY KEY (tenant_id, election_event_id),
+    CONSTRAINT monitoring_snapshot_state_shows_what_completed
+        CHECK (
+            live_snapshot_revision IS NULL
+            OR live_snapshot_revision <= last_complete_revision
+        ),
     CONSTRAINT monitoring_snapshot_state_of_its_event
         FOREIGN KEY (tenant_id, election_event_id)
         REFERENCES sequent_backend.monitoring_event (tenant_id, election_event_id)
@@ -506,6 +519,15 @@ BEGIN
             USING ERRCODE = 'integrity_constraint_violation',
                   CONSTRAINT = 'monitoring_snapshot_state_moves_forward';
     END IF;
+    IF OLD.last_complete_revision IS NOT NULL AND (
+        NEW.last_complete_revision IS NULL
+        OR NEW.last_complete_revision < OLD.last_complete_revision
+    ) THEN
+        RAISE EXCEPTION 'run % completed; no earlier run completes after it',
+                OLD.last_complete_revision
+            USING ERRCODE = 'integrity_constraint_violation',
+                  CONSTRAINT = 'monitoring_snapshot_state_moves_forward';
+    END IF;
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
@@ -514,9 +536,48 @@ CREATE TRIGGER monitoring_snapshot_state_moves_forward
     BEFORE UPDATE OR DELETE ON sequent_backend.monitoring_snapshot_state
     FOR EACH ROW EXECUTE FUNCTION sequent_backend.monitoring_snapshot_state_moves_forward();
 
+CREATE FUNCTION sequent_backend.monitoring_snapshot_run_completes_in_order()
+RETURNS trigger AS $$
+DECLARE
+    recorded integer;
+BEGIN
+    IF NEW.status <> 'COMPLETE' OR (TG_OP = 'UPDATE' AND OLD.status = 'COMPLETE') THEN
+        RETURN NEW;
+    END IF;
+    -- Without its event the run's foreign key refuses it.
+    IF NOT EXISTS (
+        SELECT 1 FROM sequent_backend.monitoring_event
+        WHERE tenant_id = NEW.tenant_id AND election_event_id = NEW.election_event_id
+    ) THEN
+        RETURN NEW;
+    END IF;
+    INSERT INTO sequent_backend.monitoring_snapshot_state AS state
+        (tenant_id, election_event_id, last_complete_revision)
+    VALUES (NEW.tenant_id, NEW.election_event_id, NEW.revision)
+    ON CONFLICT (tenant_id, election_event_id) DO UPDATE
+        SET last_complete_revision = EXCLUDED.last_complete_revision
+        WHERE state.last_complete_revision IS NULL
+           OR state.last_complete_revision < EXCLUDED.last_complete_revision;
+    GET DIAGNOSTICS recorded = ROW_COUNT;
+    IF recorded = 0 THEN
+        RAISE EXCEPTION 'snapshot run % would complete after a later run did', NEW.revision
+            USING ERRCODE = 'integrity_constraint_violation',
+                  CONSTRAINT = 'monitoring_snapshot_run_completes_in_order';
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- A run completes once, after every run of its event before it that did.
+CREATE TRIGGER monitoring_snapshot_run_completes_in_order
+    BEFORE INSERT OR UPDATE ON sequent_backend.monitoring_snapshot_run
+    FOR EACH ROW EXECUTE FUNCTION sequent_backend.monitoring_snapshot_run_completes_in_order();
+
 -- The snapshot tables' references to one another are checked at commit, so
--- an event's cascade may remove both ends in either order. The snapshot job
--- prunes in a transaction of its own that starts with
+-- an event's cascade may remove both ends in either order. A pass never sets
+-- all constraints immediate: what it writes is checked at commit against its
+-- run having finished, so it names any constraint it wants checked early.
+-- The snapshot job prunes in a transaction of its own that starts with
 -- SET CONSTRAINTS ALL IMMEDIATE, so a pruning mistake fails at the statement
 -- that made it and leaves the snapshot it wrote alone. It prunes an event
 -- after its pass, under the same per-event lock, so pruning never races a
@@ -528,6 +589,8 @@ CREATE TRIGGER monitoring_snapshot_state_moves_forward
 -- before is gone, never partly there.
 
 -- Whether each source was counted in a run, for each set of elections.
+-- Written by the pass of a RUNNING run, which has finished, complete or
+-- failed, by commit; then kept until the run is pruned.
 CREATE TABLE sequent_backend.monitoring_snapshot_source (
     tenant_id uuid NOT NULL,
     election_event_id uuid NOT NULL,
@@ -564,6 +627,70 @@ CREATE TRIGGER monitoring_snapshot_source_is_immutable
     BEFORE UPDATE ON sequent_backend.monitoring_snapshot_source
     FOR EACH ROW
     EXECUTE FUNCTION sequent_backend.monitoring_refuse_change('monitoring_snapshot_source_is_immutable');
+
+CREATE FUNCTION sequent_backend.monitoring_snapshot_source_is_kept()
+RETURNS trigger AS $$
+BEGIN
+    IF TG_OP = 'DELETE' THEN
+        -- Inside its run's cascade, or its event's, the row above is gone.
+        IF EXISTS (
+            SELECT 1 FROM sequent_backend.monitoring_event
+            WHERE tenant_id = OLD.tenant_id AND election_event_id = OLD.election_event_id
+        ) AND EXISTS (
+            SELECT 1 FROM sequent_backend.monitoring_snapshot_run
+            WHERE tenant_id = OLD.tenant_id AND election_event_id = OLD.election_event_id
+              AND revision = OLD.revision
+        ) THEN
+            RAISE EXCEPTION 'what run % counted goes with the run', OLD.revision
+                USING ERRCODE = 'integrity_constraint_violation',
+                      CONSTRAINT = 'monitoring_snapshot_source_is_kept';
+        END IF;
+        RETURN OLD;
+    END IF;
+    -- Without its run the foreign key refuses it.
+    IF EXISTS (
+        SELECT 1 FROM sequent_backend.monitoring_snapshot_run
+        WHERE tenant_id = NEW.tenant_id AND election_event_id = NEW.election_event_id
+          AND revision = NEW.revision AND status <> 'RUNNING'
+    ) THEN
+        RAISE EXCEPTION 'snapshot run % is finished; what it counted is not added to', NEW.revision
+            USING ERRCODE = 'integrity_constraint_violation',
+                  CONSTRAINT = 'monitoring_snapshot_source_of_a_running_pass';
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER monitoring_snapshot_source_is_kept
+    BEFORE INSERT OR DELETE ON sequent_backend.monitoring_snapshot_source
+    FOR EACH ROW EXECUTE FUNCTION sequent_backend.monitoring_snapshot_source_is_kept();
+
+CREATE FUNCTION sequent_backend.monitoring_snapshot_source_finishes_its_run()
+RETURNS trigger AS $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM sequent_backend.monitoring_snapshot_source
+        WHERE tenant_id = NEW.tenant_id AND election_event_id = NEW.election_event_id
+          AND revision = NEW.revision AND source = NEW.source
+          AND election_set_key = NEW.election_set_key
+    ) AND EXISTS (
+        SELECT 1 FROM sequent_backend.monitoring_snapshot_run
+        WHERE tenant_id = NEW.tenant_id AND election_event_id = NEW.election_event_id
+          AND revision = NEW.revision AND status = 'RUNNING'
+    ) THEN
+        RAISE EXCEPTION 'snapshot run % is still running when what it counted is kept', NEW.revision
+            USING ERRCODE = 'integrity_constraint_violation',
+                  CONSTRAINT = 'monitoring_snapshot_source_finishes_its_run';
+    END IF;
+    RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Checked at commit: the pass that wrote the row has completed or failed.
+CREATE CONSTRAINT TRIGGER monitoring_snapshot_source_finishes_its_run
+    AFTER INSERT ON sequent_backend.monitoring_snapshot_source
+    DEFERRABLE INITIALLY DEFERRED
+    FOR EACH ROW EXECUTE FUNCTION sequent_backend.monitoring_snapshot_source_finishes_its_run();
 
 -- Figures for one scope, stored once by the SHA-256 of their content, so
 -- Harvest may cache them by hash and an unchanged scope stores nothing new.
