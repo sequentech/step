@@ -316,8 +316,24 @@ impl StatementHead {
 }
 
 fn monitoring_config_description(details: &MonitoringConfigChangeDetails) -> String {
+    let removed = details
+        .revisions
+        .iter()
+        .filter(|revision| revision.action == MonitoringConfigChangeAction::Delete)
+        .count();
+    let counts = match details.revisions.len() {
+        0 => "no document changed".to_string(),
+        written => format!(
+            "{} documents saved and {removed} removed",
+            written - removed
+        ),
+    };
     let changes = match (details.preset.as_ref(), details.revisions.as_slice()) {
-        (_, []) => "no document changed".to_string(),
+        (Some(preset), _) => format!(
+            "reset to preset {} version {}, {counts}",
+            preset.id.0, preset.version
+        ),
+        (None, []) => format!("Dashboard tab switched, {counts}"),
         (None, [revision]) => format!(
             "{} {} revision {} {}",
             revision.kind.0,
@@ -328,23 +344,7 @@ fn monitoring_config_description(details: &MonitoringConfigChangeDetails) -> Str
                 MonitoringConfigChangeAction::Delete => "removed",
             }
         ),
-        (preset, revisions) => {
-            let removed = revisions
-                .iter()
-                .filter(|revision| revision.action == MonitoringConfigChangeAction::Delete)
-                .count();
-            let counts = format!(
-                "{} documents saved and {removed} removed",
-                revisions.len() - removed
-            );
-            match preset {
-                Some(preset) => format!(
-                    "reset to preset {} version {}, {counts}",
-                    preset.id.0, preset.version
-                ),
-                None => counts,
-            }
-        }
+        (None, _) => counts,
     };
     format!(
         "Monitoring configuration generation {} (dashboard {}): {changes}.",

@@ -23,10 +23,10 @@ use tokio::sync::Notify;
 use uuid::Uuid;
 use windmill::postgres::election_event::delete_election_event;
 use windmill::services::monitoring::config_store::{
-    get_document, get_live_config, history, reset_to_preset, save, set_mode, Author, DocumentEdit,
-    EventRef, ExpectedHead, ModeError, ModeOutcome, MonitoringConfigAudit, MonitoringConfigChecks,
-    ProposedChange, RecordedChange, ResetError, ResetOutcome, SaveError, SaveOutcome,
-    WrittenRevision,
+    get_config_at_generation, get_document, get_live_config, history, reset_to_preset, save,
+    set_mode, Author, DocumentEdit, EventRef, ExpectedHead, ModeError, ModeOutcome,
+    MonitoringConfigAudit, MonitoringConfigChecks, ProposedChange, RecordedChange, ResetError,
+    ResetOutcome, SaveError, SaveOutcome, WrittenRevision,
 };
 
 /// A fixed v4 UUID per test (`seed`) and call (`n`).
@@ -104,44 +104,100 @@ async fn stored(pool: &Pool, event: EventRef) -> (Option<i64>, i64, i64) {
 
 /// Records what it is given, and can be told to fail. With a pool, it also
 /// checks it runs before the change commits: the change is visible in the
-/// transaction and nowhere else yet.
+/// transaction and nowhere else yet. With `probe`, it also checks that the
+/// transaction's deferred checks were made before it was asked to record: a
+/// head naming no revision is refused at once.
 #[derive(Default)]
 struct Audits {
     entries: Mutex<Vec<RecordedChange>>,
     fail: AtomicBool,
     pool: Option<Pool>,
     seen_before_commit: Mutex<Vec<(i64, Option<i64>)>>,
+    /// Each preparation: the author, and the event's generation committed
+    /// then.
+    prepared: Mutex<Vec<(String, Option<i64>)>>,
+    fail_prepare: AtomicBool,
+    probe: AtomicBool,
+    immediate: Mutex<Vec<bool>>,
+    /// Each call, in order.
+    calls: Mutex<Vec<&'static str>>,
 }
 
 impl Audits {
     fn entries(&self) -> Vec<RecordedChange> {
         self.entries.lock().unwrap().clone()
     }
+
+    fn prepared(&self) -> Vec<(String, Option<i64>)> {
+        self.prepared.lock().unwrap().clone()
+    }
 }
+
+const GENERATION: &str = "SELECT config_generation FROM sequent_backend.monitoring_event
+                          WHERE tenant_id = $1 AND election_event_id = $2";
 
 #[async_trait]
 impl MonitoringConfigAudit for Audits {
+    async fn prepare(
+        &self,
+        client: &mut Client,
+        event: EventRef,
+        author: &Author,
+    ) -> anyhow::Result<()> {
+        self.calls.lock().unwrap().push("prepare");
+        let generation: Option<i64> = client
+            .query_opt(GENERATION, &[&event.tenant_id, &event.election_event_id])
+            .await?
+            .map(|row| row.get(0));
+        self.prepared
+            .lock()
+            .unwrap()
+            .push((author.id.clone(), generation));
+        if self.fail_prepare.load(Ordering::SeqCst) {
+            anyhow::bail!("the vault is unreachable");
+        }
+        Ok(())
+    }
+
     async fn record(
         &self,
         transaction: &Transaction<'_>,
         change: &RecordedChange,
     ) -> anyhow::Result<()> {
+        self.calls.lock().unwrap().push("record");
+        let params: [&(dyn tokio_postgres::types::ToSql + Sync); 2] =
+            [&change.event.tenant_id, &change.event.election_event_id];
         if let Some(pool) = &self.pool {
-            let query = "SELECT config_generation FROM sequent_backend.monitoring_event
-                         WHERE tenant_id = $1 AND election_event_id = $2";
-            let params: [&(dyn tokio_postgres::types::ToSql + Sync); 2] =
-                [&change.event.tenant_id, &change.event.election_event_id];
-            let inside: i64 = transaction.query_one(query, &params).await?.get(0);
+            let inside: i64 = transaction.query_one(GENERATION, &params).await?.get(0);
             let outside: Option<i64> = pool
                 .get()
                 .await?
-                .query_opt(query, &params)
+                .query_opt(GENERATION, &params)
                 .await?
                 .map(|row| row.get(0));
             self.seen_before_commit
                 .lock()
                 .unwrap()
                 .push((inside, outside));
+        }
+        if self.probe.load(Ordering::SeqCst) {
+            transaction.batch_execute("SAVEPOINT audit_probe").await?;
+            let inserted = transaction
+                .execute(
+                    "INSERT INTO sequent_backend.monitoring_config_head
+                         (tenant_id, election_event_id, kind, key, revision)
+                     VALUES ($1, $2, 'widget', 'audit-probe', 1)",
+                    &params,
+                )
+                .await;
+            let immediate = inserted.as_ref().is_err_and(|error| {
+                error.as_db_error().and_then(|db| db.constraint())
+                    == Some("monitoring_config_head_names_a_revision")
+            });
+            transaction
+                .batch_execute("ROLLBACK TO SAVEPOINT audit_probe")
+                .await?;
+            self.immediate.lock().unwrap().push(immediate);
         }
         if self.fail.load(Ordering::SeqCst) {
             anyhow::bail!("the electoral log is unreachable");
@@ -152,28 +208,42 @@ impl MonitoringConfigAudit for Audits {
 }
 
 /// Stands in for the chart engine: answers with the problems it is given,
-/// or fails, and can hold a save inside its checks until released.
+/// or fails. It can hold its first check until released, and, with a pool,
+/// move the event on (raise its generation) during each check, as a change
+/// made meanwhile would.
 #[derive(Default)]
 struct Checks {
     problems: Mutex<Report>,
     fail: AtomicBool,
     calls: AtomicUsize,
     hold: Option<(Arc<Notify>, Arc<Notify>)>,
+    move_on: Option<Pool>,
 }
 
 #[async_trait]
 impl MonitoringConfigChecks for Checks {
     async fn check(&self, change: &ProposedChange<'_>) -> anyhow::Result<Report> {
-        self.calls.fetch_add(1, Ordering::SeqCst);
+        let call = self.calls.fetch_add(1, Ordering::SeqCst);
         assert!(
             change.set.widgets.contains_key(change.key)
                 || change.kind != ConfigKind::Widget
                 || change.edit == Edit::Delete,
             "the checks see the set the save leaves"
         );
-        if let Some((entered, release)) = &self.hold {
+        if let (Some((entered, release)), 0) = (&self.hold, call) {
             entered.notify_one();
             release.notified().await;
+        }
+        if let Some(pool) = &self.move_on {
+            pool.get()
+                .await?
+                .execute(
+                    "UPDATE sequent_backend.monitoring_event
+                     SET config_generation = config_generation + 1
+                     WHERE tenant_id = $1 AND election_event_id = $2",
+                    &[&change.event.tenant_id, &change.event.election_event_id],
+                )
+                .await?;
         }
         if self.fail.load(Ordering::SeqCst) {
             anyhow::bail!("the renderer is unreachable");
@@ -323,8 +393,10 @@ async fn a_reset_writes_the_preset_and_records_it_before_it_commits() {
         Ok(ResetOutcome::Reset {
             generation,
             revisions,
+            warnings,
         }) => {
             assert_eq!(generation, 1);
+            assert_eq!(warnings, campus.warnings, "the preset's warnings come back");
             revisions
         }
         other => panic!("expected a reset, got {other:?}"),
@@ -471,6 +543,7 @@ async fn a_reset_to_another_preset_leaves_exactly_its_documents() {
     let Ok(ResetOutcome::Reset {
         generation,
         revisions,
+        ..
     }) = outcome
     else {
         panic!("expected a reset, got {outcome:?}");
@@ -881,10 +954,47 @@ async fn a_refused_save_writes_nothing_and_records_nothing() {
         .await,
     );
     assert_eq!(codes(&nothing_to_remove), vec![Code::DanglingReference]);
+    // What may be edited at all is checked before the document's head: the
+    // settings' own text is still refused, and a key that is no id is not a
+    // conflict with a document that cannot exist.
+    let (_, settings_yaml) = first(&campus, ConfigKind::Settings);
+    let same_settings = refused(
+        edit(
+            &mut client,
+            &checks,
+            &audit,
+            event,
+            ConfigKind::Settings,
+            &settings,
+            Edit::Upsert(settings_yaml),
+            ExpectedHead::At(1),
+        )
+        .await,
+    );
+    assert_eq!(codes(&same_settings), vec![Code::PresetOnly]);
+    let not_an_id_at_one = refused(
+        edit(
+            &mut client,
+            &checks,
+            &audit,
+            event,
+            ConfigKind::Widget,
+            "Not An Id",
+            Edit::Upsert(yaml),
+            ExpectedHead::At(1),
+        )
+        .await,
+    );
+    assert_eq!(codes(&not_an_id_at_one), vec![Code::InvalidId]);
     assert_eq!(
         checks.calls.load(Ordering::SeqCst),
         0,
         "the renderer is asked only about what may be saved"
+    );
+    assert_eq!(
+        audit.prepared().len(),
+        1,
+        "nor is the log prepared for what is refused"
     );
 
     // The chart engine refuses the chart.
@@ -924,10 +1034,57 @@ async fn a_refused_save_writes_nothing_and_records_nothing() {
     )
     .await;
     assert!(
-        matches!(unreachable, Err(SaveError::Internal(_))),
+        matches!(unreachable, Err(SaveError::ChecksUnavailable(_))),
         "{unreachable:?}"
     );
     checks.fail.store(false, Ordering::SeqCst);
+    // The electoral log cannot be prepared: nothing is written or recorded.
+    audit.fail_prepare.store(true, Ordering::SeqCst);
+    let unprepared = edit(
+        &mut client,
+        &checks,
+        &audit,
+        event,
+        ConfigKind::Widget,
+        &widget,
+        Edit::Upsert(&edited),
+        ExpectedHead::At(1),
+    )
+    .await;
+    assert!(
+        matches!(unprepared, Err(SaveError::Internal(_))),
+        "{unprepared:?}"
+    );
+    let unprepared_reset = reset(
+        &mut client,
+        &audit,
+        event,
+        "comelec",
+        DashboardMode::Configured,
+    )
+    .await;
+    assert!(
+        matches!(unprepared_reset, Err(ResetError::Internal(_))),
+        "{unprepared_reset:?}"
+    );
+    let unprepared_switch =
+        set_mode(&mut client, &audit, event, &editor(), DashboardMode::Legacy).await;
+    assert!(
+        matches!(unprepared_switch, Err(ModeError::Internal(_))),
+        "{unprepared_switch:?}"
+    );
+    audit.fail_prepare.store(false, Ordering::SeqCst);
+    assert_eq!(
+        audit
+            .calls
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|call| **call == "record")
+            .count(),
+        1,
+        "only the reset was recorded"
+    );
     // The electoral log cannot be written: the change is not kept either.
     audit.fail.store(true, Ordering::SeqCst);
     let unaudited = edit(
@@ -1088,8 +1245,23 @@ async fn a_removed_document_keeps_its_history_and_its_key_can_be_used_again() {
     );
     tx.rollback().await.unwrap();
 
-    // Removed, it is absent: saving from its removal is a conflict that
-    // names the removal, and removing it again has nothing to remove.
+    // Removed, it is absent; removing it again has nothing to remove,
+    // whether the editor started from its removal or from nothing, and a
+    // save from a revision it never had is a conflict naming the removal.
+    let again_from_removal = refused(
+        edit(
+            &mut client,
+            &checks,
+            &audit,
+            event,
+            ConfigKind::Widget,
+            "copy",
+            Edit::Delete,
+            ExpectedHead::At(2),
+        )
+        .await,
+    );
+    assert_eq!(codes(&again_from_removal), vec![Code::DanglingReference]);
     let outcome = edit(
         &mut client,
         &checks,
@@ -1098,7 +1270,7 @@ async fn a_removed_document_keeps_its_history_and_its_key_can_be_used_again() {
         ConfigKind::Widget,
         "copy",
         Edit::Upsert(&copy),
-        ExpectedHead::At(2),
+        ExpectedHead::At(1),
     )
     .await;
     assert!(
@@ -1120,6 +1292,40 @@ async fn a_removed_document_keeps_its_history_and_its_key_can_be_used_again() {
     );
     assert_eq!(codes(&again), vec![Code::DanglingReference]);
 
+    // An editor who saw the removal started from it, as one who saw nothing
+    // did: either brings the key back.
+    assert_eq!(
+        saved(
+            edit(
+                &mut client,
+                &checks,
+                &audit,
+                event,
+                ConfigKind::Widget,
+                "copy",
+                Edit::Upsert(&copy),
+                ExpectedHead::At(2)
+            )
+            .await
+        ),
+        3
+    );
+    assert_eq!(
+        saved(
+            edit(
+                &mut client,
+                &checks,
+                &audit,
+                event,
+                ConfigKind::Widget,
+                "copy",
+                Edit::Delete,
+                ExpectedHead::At(3)
+            )
+            .await
+        ),
+        4
+    );
     assert_eq!(
         saved(
             edit(
@@ -1134,7 +1340,7 @@ async fn a_removed_document_keeps_its_history_and_its_key_can_be_used_again() {
             )
             .await
         ),
-        3
+        5
     );
     let tx = client.transaction().await.unwrap();
     let revisions = history(&tx, event, ConfigKind::Widget, "copy")
@@ -1146,6 +1352,8 @@ async fn a_removed_document_keeps_its_history_and_its_key_can_be_used_again() {
             .map(|revision| (revision.revision, revision.change))
             .collect::<Vec<_>>(),
         vec![
+            (5, DocumentChange::Upsert),
+            (4, DocumentChange::Delete),
             (3, DocumentChange::Upsert),
             (2, DocumentChange::Delete),
             (1, DocumentChange::Upsert)
@@ -1218,7 +1426,7 @@ async fn the_dashboard_tab_is_switched_only_to_dashboards_that_exist() {
     .await;
     match empty {
         Err(ModeError::Invalid(report)) => {
-            assert_eq!(codes(&report), vec![Code::DanglingReference])
+            assert_eq!(codes(&report), vec![Code::NoDashboard])
         }
         other => panic!("expected the switch refused, got {other:?}"),
     }
@@ -1350,14 +1558,853 @@ async fn a_document_that_no_longer_passes_is_left_out_and_said_why() {
     remove(&pool, event).await;
 }
 
+/// Starts a save on a connection of its own.
+fn spawn_edit(
+    pool: &Pool,
+    checks: Arc<Checks>,
+    audit: Arc<Audits>,
+    event: EventRef,
+    key: String,
+    text: String,
+    expected: ExpectedHead,
+) -> tokio::task::JoinHandle<Result<SaveOutcome, SaveError>> {
+    let pool = pool.clone();
+    tokio::spawn(async move {
+        let mut client = pool.get().await.unwrap();
+        edit(
+            &mut client,
+            &checks,
+            &audit,
+            event,
+            ConfigKind::Widget,
+            &key,
+            Edit::Upsert(&text),
+            expected,
+        )
+        .await
+    })
+}
+
+/// A save held in its checks, and what releases it.
+struct Held {
+    checks: Arc<Checks>,
+    release: Arc<Notify>,
+    save: tokio::task::JoinHandle<Result<SaveOutcome, SaveError>>,
+}
+
+async fn hold_a_save(
+    pool: &Pool,
+    audit: &Arc<Audits>,
+    event: EventRef,
+    key: &str,
+    text: String,
+) -> Held {
+    let (entered, release) = (Arc::new(Notify::new()), Arc::new(Notify::new()));
+    let checks = Arc::new(Checks {
+        hold: Some((entered.clone(), release.clone())),
+        ..Checks::default()
+    });
+    let save = spawn_edit(
+        pool,
+        checks.clone(),
+        audit.clone(),
+        event,
+        key.to_string(),
+        text,
+        ExpectedHead::At(1),
+    );
+    tokio::time::timeout(Duration::from_secs(5), entered.notified())
+        .await
+        .expect("the save reaches its checks");
+    Held {
+        checks,
+        release,
+        save,
+    }
+}
+
+/// Waits for a change that nothing should hold back.
+async fn promptly<T>(change: impl std::future::Future<Output = T>) -> T {
+    tokio::time::timeout(Duration::from_secs(5), change)
+        .await
+        .expect("nothing holds the change back")
+}
+
 #[tokio::test]
-async fn of_two_saves_from_one_revision_the_second_waits_then_conflicts() {
+async fn a_save_held_in_its_checks_holds_back_no_one_and_then_conflicts() {
     let pool = schema::pool().await;
     let event = event(&pool, line!()).await;
     let audit = Arc::new(Audits::default());
     let campus = preset("campus");
-    {
-        let mut client = pool.get().await.unwrap();
+    reset(
+        &mut pool.get().await.unwrap(),
+        &audit,
+        event,
+        "campus",
+        DashboardMode::Configured,
+    )
+    .await
+    .unwrap();
+    let (widget, yaml) = first(&campus, ConfigKind::Widget);
+
+    let held = hold_a_save(&pool, &audit, event, &widget, format!("{yaml}\n# first\n")).await;
+    let free = Arc::new(Checks::default());
+    let second = promptly(spawn_edit(
+        &pool,
+        free.clone(),
+        audit.clone(),
+        event,
+        widget.clone(),
+        format!("{yaml}\n# second\n"),
+        ExpectedHead::At(1),
+    ))
+    .await
+    .unwrap();
+    assert_eq!(saved(second), 2, "the save that finished first is kept");
+    let mut client = pool.get().await.unwrap();
+    assert!(
+        matches!(
+            promptly(set_mode(
+                &mut client,
+                &*audit,
+                event,
+                &editor(),
+                DashboardMode::Legacy
+            ))
+            .await,
+            Ok(ModeOutcome::Switched { .. })
+        ),
+        "nor does it hold back a switch"
+    );
+
+    held.release.notify_one();
+    let first_save = held.save.await.unwrap();
+    assert!(
+        matches!(&first_save, Err(SaveError::Conflict { current: Some(current) }) if current.revision == 2),
+        "{first_save:?}"
+    );
+    assert_eq!(
+        held.checks.calls.load(Ordering::SeqCst),
+        1,
+        "the conflict is found before the renderer is asked again"
+    );
+    assert_eq!(audit.entries().len(), 3);
+    remove(&pool, event).await;
+}
+
+#[tokio::test]
+async fn a_save_is_checked_again_when_another_change_came_first() {
+    let pool = schema::pool().await;
+    let event = event(&pool, line!()).await;
+    let audit = Arc::new(Audits::default());
+    let campus = preset("campus");
+    reset(
+        &mut pool.get().await.unwrap(),
+        &audit,
+        event,
+        "campus",
+        DashboardMode::Configured,
+    )
+    .await
+    .unwrap();
+    let widgets: Vec<&str> = campus
+        .documents
+        .iter()
+        .filter(|document| document.kind == ConfigKind::Widget)
+        .map(|document| document.key.as_str())
+        .collect();
+    let (mine, theirs) = (widgets[0], widgets[1]);
+    let text = |key: &str| {
+        let yaml = campus
+            .documents
+            .iter()
+            .find(|document| document.key == key)
+            .unwrap()
+            .yaml;
+        format!("{yaml}\n# edited\n")
+    };
+
+    let held = hold_a_save(&pool, &audit, event, mine, text(mine)).await;
+    let other = promptly(spawn_edit(
+        &pool,
+        Arc::new(Checks::default()),
+        audit.clone(),
+        event,
+        theirs.to_string(),
+        text(theirs),
+        ExpectedHead::At(1),
+    ))
+    .await
+    .unwrap();
+    assert_eq!(saved(other), 2);
+
+    held.release.notify_one();
+    let outcome = held.save.await.unwrap();
+    let Ok(SaveOutcome::Saved { revision, .. }) = outcome else {
+        panic!("expected the save kept, got {outcome:?}");
+    };
+    assert_eq!(
+        (revision.revision, revision.config_generation),
+        (2, 3),
+        "saved on top of the other change"
+    );
+    assert_eq!(
+        held.checks.calls.load(Ordering::SeqCst),
+        2,
+        "and checked against what that change left"
+    );
+    let entries = audit.entries();
+    assert_eq!(
+        entries
+            .iter()
+            .map(|entry| entry.generation)
+            .collect::<Vec<_>>(),
+        vec![1, 2, 3]
+    );
+    remove(&pool, event).await;
+}
+
+#[tokio::test]
+async fn a_save_that_is_overtaken_each_time_it_is_checked_gives_up_busy() {
+    let pool = schema::pool().await;
+    let event = event(&pool, line!()).await;
+    let mut client = pool.get().await.unwrap();
+    let audit = Audits::default();
+    let campus = preset("campus");
+    reset(
+        &mut client,
+        &audit,
+        event,
+        "campus",
+        DashboardMode::Configured,
+    )
+    .await
+    .unwrap();
+    let (widget, yaml) = first(&campus, ConfigKind::Widget);
+    let (_, revisions, heads) = stored(&pool, event).await;
+    let overtaken = Checks {
+        move_on: Some(pool.clone()),
+        ..Checks::default()
+    };
+
+    let outcome = edit(
+        &mut client,
+        &overtaken,
+        &audit,
+        event,
+        ConfigKind::Widget,
+        &widget,
+        Edit::Upsert(&format!("{yaml}\n# edited\n")),
+        ExpectedHead::At(1),
+    )
+    .await;
+    assert!(matches!(outcome, Err(SaveError::Busy)), "{outcome:?}");
+    assert_eq!(overtaken.calls.load(Ordering::SeqCst), 3, "three attempts");
+    assert_eq!(
+        stored(&pool, event).await,
+        (Some(4), revisions, heads),
+        "each moved the event on; the save wrote nothing"
+    );
+    assert_eq!(audit.entries().len(), 1, "and recorded nothing");
+    assert_eq!(audit.prepared().len(), 2, "the save was prepared once");
+    remove(&pool, event).await;
+}
+
+#[tokio::test]
+async fn a_save_overtaken_by_a_reset_conflicts_with_what_the_reset_left() {
+    let pool = schema::pool().await;
+    let event = event(&pool, line!()).await;
+    let audit = Arc::new(Audits::default());
+    let campus = preset("campus");
+    reset(
+        &mut pool.get().await.unwrap(),
+        &audit,
+        event,
+        "campus",
+        DashboardMode::Configured,
+    )
+    .await
+    .unwrap();
+    let (widget, yaml) = first(&campus, ConfigKind::Widget);
+
+    let held = hold_a_save(&pool, &audit, event, &widget, format!("{yaml}\n# mine\n")).await;
+    let mut client = pool.get().await.unwrap();
+    let outcome = promptly(reset(
+        &mut client,
+        &audit,
+        event,
+        "comelec",
+        DashboardMode::Configured,
+    ))
+    .await;
+    assert!(
+        matches!(outcome, Ok(ResetOutcome::Reset { generation: 2, .. })),
+        "{outcome:?}"
+    );
+
+    held.release.notify_one();
+    let mine = held.save.await.unwrap();
+    assert!(
+        matches!(&mine, Err(SaveError::Conflict { current: Some(current) })
+            if current.revision == 2 && current.origin == RevisionOrigin::Preset),
+        "{mine:?}"
+    );
+    let tx = client.transaction().await.unwrap();
+    let live = get_live_config(&tx, event).await.unwrap().unwrap();
+    assert_eq!(live.assembled.set, preset("comelec").set);
+    tx.rollback().await.unwrap();
+    remove(&pool, event).await;
+}
+
+#[tokio::test]
+async fn two_first_resets_at_once_configure_the_event_once() {
+    let pool = schema::pool().await;
+    let event = event(&pool, line!()).await;
+    let audit = Arc::new(Audits::default());
+    let start = || {
+        let (pool, audit) = (pool.clone(), audit.clone());
+        tokio::spawn(async move {
+            let mut client = pool.get().await.unwrap();
+            reset(
+                &mut client,
+                &audit,
+                event,
+                "campus",
+                DashboardMode::Configured,
+            )
+            .await
+        })
+    };
+    let (one, other) = (start(), start());
+    let outcomes = [one.await.unwrap(), other.await.unwrap()];
+    let reset_count = outcomes
+        .iter()
+        .filter(|outcome| matches!(outcome, Ok(ResetOutcome::Reset { generation: 1, .. })))
+        .count();
+    let unchanged = outcomes
+        .iter()
+        .filter(|outcome| matches!(outcome, Ok(ResetOutcome::Unchanged)))
+        .count();
+    assert_eq!((reset_count, unchanged), (1, 1), "{outcomes:?}");
+    let documents = preset("campus").documents.len() as i64;
+    assert_eq!(stored(&pool, event).await, (Some(1), documents, documents));
+    assert_eq!(audit.entries().len(), 1);
+    remove(&pool, event).await;
+}
+
+#[tokio::test]
+async fn a_save_may_not_leave_the_configured_dashboard_tab_without_a_dashboard() {
+    let pool = schema::pool().await;
+    let event = event(&pool, line!()).await;
+    let mut client = pool.get().await.unwrap();
+    let (checks, audit) = (Checks::default(), Audits::default());
+    let campus = preset("campus");
+    reset(
+        &mut client,
+        &audit,
+        event,
+        "campus",
+        DashboardMode::Configured,
+    )
+    .await
+    .unwrap();
+    let dashboards: Vec<String> = campus.set.dashboards.keys().cloned().collect();
+    let (last, others) = dashboards.split_last().expect("campus has dashboards");
+    assert!(!others.is_empty(), "campus has more than one dashboard");
+    for dashboard in others {
+        saved(
+            edit(
+                &mut client,
+                &checks,
+                &audit,
+                event,
+                ConfigKind::Dashboard,
+                dashboard,
+                Edit::Delete,
+                ExpectedHead::At(1),
+            )
+            .await,
+        );
+    }
+    let before = stored(&pool, event).await;
+    let calls = checks.calls.load(Ordering::SeqCst);
+
+    let refused_last = refused(
+        edit(
+            &mut client,
+            &checks,
+            &audit,
+            event,
+            ConfigKind::Dashboard,
+            last,
+            Edit::Delete,
+            ExpectedHead::At(1),
+        )
+        .await,
+    );
+    assert_eq!(codes(&refused_last), vec![Code::NoDashboard]);
+    assert_eq!(stored(&pool, event).await, before);
+    assert_eq!(checks.calls.load(Ordering::SeqCst), calls);
+
+    // On the standard dashboard, the last one may go; the tab then cannot
+    // be switched back until there is one.
+    set_mode(&mut client, &audit, event, &editor(), DashboardMode::Legacy)
+        .await
+        .unwrap();
+    saved(
+        edit(
+            &mut client,
+            &checks,
+            &audit,
+            event,
+            ConfigKind::Dashboard,
+            last,
+            Edit::Delete,
+            ExpectedHead::At(1),
+        )
+        .await,
+    );
+    let switched = set_mode(
+        &mut client,
+        &audit,
+        event,
+        &editor(),
+        DashboardMode::Configured,
+    )
+    .await;
+    assert!(
+        matches!(&switched, Err(ModeError::Invalid(report)) if codes(report) == vec![Code::NoDashboard]),
+        "{switched:?}"
+    );
+    remove(&pool, event).await;
+}
+
+#[tokio::test]
+async fn the_configuration_an_event_had_at_a_generation_is_read_back() {
+    let pool = schema::pool().await;
+    let event = event(&pool, line!()).await;
+    let mut client = pool.get().await.unwrap();
+    let (checks, audit) = (Checks::default(), Audits::default());
+    let campus = preset("campus");
+    reset(&mut client, &audit, event, "campus", DashboardMode::Legacy)
+        .await
+        .unwrap();
+    let (widget, yaml) = first(&campus, ConfigKind::Widget);
+    let edited = format!("{yaml}\n# edited\n");
+    saved(
+        edit(
+            &mut client,
+            &checks,
+            &audit,
+            event,
+            ConfigKind::Widget,
+            &widget,
+            Edit::Upsert(&edited),
+            ExpectedHead::At(1),
+        )
+        .await,
+    );
+    let (dashboard, _) = first(&campus, ConfigKind::Dashboard);
+    saved(
+        edit(
+            &mut client,
+            &checks,
+            &audit,
+            event,
+            ConfigKind::Dashboard,
+            &dashboard,
+            Edit::Delete,
+            ExpectedHead::At(1),
+        )
+        .await,
+    );
+
+    let tx = client.transaction().await.unwrap();
+    let at = |generation| get_config_at_generation(&tx, event, generation);
+    let none = at(0).await.unwrap().unwrap();
+    assert!(none.documents.is_empty(), "before the first reset");
+    let first_reset = at(1).await.unwrap().unwrap();
+    assert_eq!(first_reset.generation, 1);
+    assert_eq!(first_reset.assembled.set, campus.set);
+    assert!(first_reset.documents.iter().all(|d| d.revision == 1));
+    let second = at(2).await.unwrap().unwrap();
+    let saved_widget = second.documents.iter().find(|d| d.key == widget).unwrap();
+    assert_eq!(
+        (saved_widget.revision, saved_widget.yaml.as_deref()),
+        (2, Some(edited.as_str()))
+    );
+    assert!(second.documents.iter().any(|d| d.key == dashboard));
+    let third = at(3).await.unwrap().unwrap();
+    assert!(
+        third.documents.iter().all(|d| d.key != dashboard),
+        "a removed document is left out"
+    );
+    let live = get_live_config(&tx, event).await.unwrap().unwrap();
+    assert_eq!(
+        (third.documents, third.assembled),
+        (live.documents, live.assembled),
+        "the last generation is the live configuration"
+    );
+    assert!(at(4).await.unwrap().is_none(), "a generation not reached");
+    let elsewhere = EventRef {
+        election_event_id: id(line!(), 9),
+        ..event
+    };
+    assert!(get_config_at_generation(&tx, elsewhere, 1)
+        .await
+        .unwrap()
+        .is_none());
+    tx.rollback().await.unwrap();
+    remove(&pool, event).await;
+}
+
+#[tokio::test]
+async fn each_change_is_prepared_before_it_starts_and_checked_before_it_is_recorded() {
+    let pool = schema::pool().await;
+    let event = event(&pool, line!()).await;
+    let mut client = pool.get().await.unwrap();
+    let checks = Checks::default();
+    let audit = Audits::default();
+    audit.probe.store(true, Ordering::SeqCst);
+    let campus = preset("campus");
+
+    reset(
+        &mut client,
+        &audit,
+        event,
+        "campus",
+        DashboardMode::Configured,
+    )
+    .await
+    .unwrap();
+    let (widget, yaml) = first(&campus, ConfigKind::Widget);
+    saved(
+        edit(
+            &mut client,
+            &checks,
+            &audit,
+            event,
+            ConfigKind::Widget,
+            &widget,
+            Edit::Upsert(&format!("{yaml}\n# edited\n")),
+            ExpectedHead::At(1),
+        )
+        .await,
+    );
+    set_mode(&mut client, &audit, event, &editor(), DashboardMode::Legacy)
+        .await
+        .unwrap();
+
+    assert_eq!(
+        *audit.calls.lock().unwrap(),
+        vec!["prepare", "record", "prepare", "record", "prepare", "record"]
+    );
+    assert_eq!(
+        audit.prepared(),
+        vec![
+            ("admin-1".to_string(), None),
+            ("admin-1".to_string(), Some(1)),
+            ("admin-1".to_string(), Some(2)),
+        ],
+        "each prepared before its change started"
+    );
+    assert_eq!(
+        *audit.immediate.lock().unwrap(),
+        vec![true, true, true],
+        "and the deferred checks made before the log was asked to record it"
+    );
+    remove(&pool, event).await;
+}
+
+#[tokio::test]
+async fn a_change_by_no_one_is_refused() {
+    let pool = schema::pool().await;
+    let event = event(&pool, line!()).await;
+    let mut client = pool.get().await.unwrap();
+    let (checks, audit) = (Checks::default(), Audits::default());
+    reset(&mut client, &audit, event, "campus", DashboardMode::Legacy)
+        .await
+        .unwrap();
+    let before = stored(&pool, event).await;
+    let (widget, yaml) = first(&preset("campus"), ConfigKind::Widget);
+    let no_one = Author {
+        id: " \t".to_string(),
+        name: Some("Nobody".to_string()),
+    };
+    let edited = format!("{yaml}\n# edited\n");
+
+    let saved_by_no_one = save(
+        &mut client,
+        &checks,
+        &audit,
+        event,
+        &no_one,
+        DocumentEdit {
+            kind: ConfigKind::Widget,
+            key: &widget,
+            edit: Edit::Upsert(&edited),
+            expected: ExpectedHead::At(1),
+        },
+    )
+    .await;
+    assert!(
+        matches!(&saved_by_no_one, Err(SaveError::Invalid(report)) if codes(report) == vec![Code::InvalidValue]),
+        "{saved_by_no_one:?}"
+    );
+    let reset_by_no_one = reset_to_preset(
+        &mut client,
+        &audit,
+        event,
+        &no_one,
+        "comelec",
+        DashboardMode::Legacy,
+    )
+    .await;
+    assert!(
+        matches!(&reset_by_no_one, Err(ResetError::Invalid(report)) if codes(report) == vec![Code::InvalidValue]),
+        "{reset_by_no_one:?}"
+    );
+    let switched_by_no_one = set_mode(
+        &mut client,
+        &audit,
+        event,
+        &no_one,
+        DashboardMode::Configured,
+    )
+    .await;
+    assert!(
+        matches!(&switched_by_no_one, Err(ModeError::Invalid(report)) if codes(report) == vec![Code::InvalidValue]),
+        "{switched_by_no_one:?}"
+    );
+
+    assert_eq!(stored(&pool, event).await, before);
+    assert_eq!(audit.prepared().len(), 1, "only the first reset");
+    assert_eq!(checks.calls.load(Ordering::SeqCst), 0);
+    remove(&pool, event).await;
+}
+
+#[tokio::test]
+async fn a_reset_of_an_event_that_does_not_exist_is_not_found() {
+    let pool = schema::pool().await;
+    let mut client = pool.get().await.unwrap();
+    let audit = Audits::default();
+    let nowhere = EventRef {
+        tenant_id: id(line!(), 1),
+        election_event_id: id(line!(), 2),
+    };
+    let outcome = reset(
+        &mut client,
+        &audit,
+        nowhere,
+        "campus",
+        DashboardMode::Configured,
+    )
+    .await;
+    assert!(matches!(outcome, Err(ResetError::NotFound)), "{outcome:?}");
+    assert_eq!(stored(&pool, nowhere).await, (None, 0, 0));
+    assert!(audit.prepared().is_empty());
+}
+
+#[tokio::test]
+async fn a_reset_to_the_preset_the_event_has_still_sets_its_mode_and_version() {
+    let pool = schema::pool().await;
+    let event = event(&pool, line!()).await;
+    let mut client = pool.get().await.unwrap();
+    let audit = Audits::default();
+    let campus = preset("campus");
+    let version = campus.manifest.version as i32;
+    reset(&mut client, &audit, event, "campus", DashboardMode::Legacy)
+        .await
+        .unwrap();
+    let preset_of = |live: &windmill::services::monitoring::config_store::LiveConfig| {
+        live.preset.as_ref().map(|p| (p.id.clone(), p.version))
+    };
+
+    // The same documents, in another mode.
+    let outcome = reset(
+        &mut client,
+        &audit,
+        event,
+        "campus",
+        DashboardMode::Configured,
+    )
+    .await;
+    assert!(
+        matches!(&outcome, Ok(ResetOutcome::Reset { generation: 2, revisions, .. }) if revisions.is_empty()),
+        "{outcome:?}"
+    );
+    // The switch keeps the preset.
+    set_mode(&mut client, &audit, event, &editor(), DashboardMode::Legacy)
+        .await
+        .unwrap();
+    let tx = client.transaction().await.unwrap();
+    let live = get_live_config(&tx, event).await.unwrap().unwrap();
+    assert_eq!(
+        (live.mode, preset_of(&live)),
+        (DashboardMode::Legacy, Some(("campus".to_string(), version)))
+    );
+    tx.rollback().await.unwrap();
+
+    // The same documents, from another version of the preset.
+    let tx = client.transaction().await.unwrap();
+    tx.execute(
+        "UPDATE sequent_backend.monitoring_event SET preset_version = preset_version + 100
+         WHERE tenant_id = $1 AND election_event_id = $2",
+        &[&event.tenant_id, &event.election_event_id],
+    )
+    .await
+    .unwrap();
+    tx.commit().await.unwrap();
+    let outcome = reset(&mut client, &audit, event, "campus", DashboardMode::Legacy).await;
+    assert!(
+        matches!(&outcome, Ok(ResetOutcome::Reset { generation: 4, revisions, .. }) if revisions.is_empty()),
+        "{outcome:?}"
+    );
+    let tx = client.transaction().await.unwrap();
+    let live = get_live_config(&tx, event).await.unwrap().unwrap();
+    assert_eq!(preset_of(&live), Some(("campus".to_string(), version)));
+    tx.rollback().await.unwrap();
+    let entries = audit.entries();
+    assert_eq!(entries.len(), 4);
+    assert_eq!(
+        entries
+            .last()
+            .and_then(|entry| entry.preset.as_ref())
+            .map(|p| p.version),
+        Some(version)
+    );
+    remove(&pool, event).await;
+}
+
+#[tokio::test]
+async fn a_reset_brings_back_what_an_earlier_one_removed() {
+    let pool = schema::pool().await;
+    let event = event(&pool, line!()).await;
+    let mut client = pool.get().await.unwrap();
+    let audit = Audits::default();
+    let (campus, comelec) = (preset("campus"), preset("comelec"));
+    for preset_id in ["campus", "comelec", "campus"] {
+        reset(
+            &mut client,
+            &audit,
+            event,
+            preset_id,
+            DashboardMode::Configured,
+        )
+        .await
+        .unwrap();
+    }
+    let only_campus = campus
+        .documents
+        .iter()
+        .find(|document| {
+            !comelec
+                .documents
+                .iter()
+                .any(|other| other.kind == document.kind && other.key == document.key)
+        })
+        .expect("campus has a document comelec lacks");
+
+    let tx = client.transaction().await.unwrap();
+    let live = get_live_config(&tx, event).await.unwrap().unwrap();
+    assert_eq!(live.assembled.set, campus.set);
+    let kept = history(&tx, event, only_campus.kind, &only_campus.key)
+        .await
+        .unwrap();
+    assert_eq!(
+        kept.iter()
+            .map(|revision| (
+                revision.revision,
+                revision.change,
+                revision.config_generation
+            ))
+            .collect::<Vec<_>>(),
+        vec![
+            (3, DocumentChange::Upsert, 3),
+            (2, DocumentChange::Delete, 2),
+            (1, DocumentChange::Upsert, 1)
+        ]
+    );
+    assert_eq!(kept[0].yaml.as_deref(), Some(only_campus.yaml));
+    tx.rollback().await.unwrap();
+    remove(&pool, event).await;
+}
+
+#[tokio::test]
+async fn a_save_returns_what_is_warned_of_and_is_refused_only_for_errors() {
+    let pool = schema::pool().await;
+    let event = event(&pool, line!()).await;
+    let mut client = pool.get().await.unwrap();
+    let (checks, audit) = (Checks::default(), Audits::default());
+    reset(
+        &mut client,
+        &audit,
+        event,
+        "campus",
+        DashboardMode::Configured,
+    )
+    .await
+    .unwrap();
+    assert!(preset("campus").set.widgets.contains_key("polls"));
+    // Polls have no country: a dashboard of them alone that offers one warns.
+    let unused = "id: poll-watch\ntitle: Polls\nselectors: [region, post, country]\nlayout: [{widget: polls, width: 12}]\n";
+    let warning = Problem::warning(Code::ChartSchema, "chart", "labels overlap")
+        .with_engine_code("WARN-LABELS");
+    let error =
+        Problem::error(Code::ChartSchema, "chart", "unknown mark").with_engine_code("ERR-MARK");
+
+    *checks.problems.lock().unwrap() = Report {
+        problems: vec![warning.clone(), error.clone()],
+    };
+    let mixed = refused(
+        edit(
+            &mut client,
+            &checks,
+            &audit,
+            event,
+            ConfigKind::Dashboard,
+            "poll-watch",
+            Edit::Upsert(unused),
+            ExpectedHead::Absent,
+        )
+        .await,
+    );
+    assert_eq!(mixed.problems, vec![error], "only what refuses it");
+
+    *checks.problems.lock().unwrap() = Report {
+        problems: vec![warning.clone()],
+    };
+    let outcome = edit(
+        &mut client,
+        &checks,
+        &audit,
+        event,
+        ConfigKind::Dashboard,
+        "poll-watch",
+        Edit::Upsert(unused),
+        ExpectedHead::Absent,
+    )
+    .await;
+    let Ok(SaveOutcome::Saved { warnings, .. }) = outcome else {
+        panic!("expected the save kept, got {outcome:?}");
+    };
+    assert_eq!(
+        codes(&warnings),
+        vec![Code::UnusedSelector, Code::ChartSchema],
+        "the policy's warnings, then the engine's"
+    );
+    remove(&pool, event).await;
+}
+
+#[tokio::test]
+async fn two_events_with_the_same_keys_are_kept_apart() {
+    let pool = schema::pool().await;
+    let one = event(&pool, line!()).await;
+    let other = event(&pool, line!() + 100_000).await;
+    let mut client = pool.get().await.unwrap();
+    let (checks, audit) = (Checks::default(), Audits::default());
+    let campus = preset("campus");
+    for event in [one, other] {
         reset(
             &mut client,
             &audit,
@@ -1369,56 +2416,43 @@ async fn of_two_saves_from_one_revision_the_second_waits_then_conflicts() {
         .unwrap();
     }
     let (widget, yaml) = first(&campus, ConfigKind::Widget);
-    let (entered, release) = (Arc::new(Notify::new()), Arc::new(Notify::new()));
-    let held = Arc::new(Checks {
-        hold: Some((entered.clone(), release.clone())),
-        ..Checks::default()
-    });
-    let free = Arc::new(Checks::default());
-
-    let start = |checks: Arc<Checks>, text: String| {
-        let (pool, audit, widget) = (pool.clone(), audit.clone(), widget.clone());
-        tokio::spawn(async move {
-            let mut client = pool.get().await.unwrap();
-            edit(
-                &mut client,
-                &checks,
-                &audit,
-                event,
-                ConfigKind::Widget,
-                &widget,
-                Edit::Upsert(&text),
-                ExpectedHead::At(1),
-            )
-            .await
-        })
-    };
-    let first_save = start(held.clone(), format!("{yaml}\n# first\n"));
-    tokio::time::timeout(Duration::from_secs(5), entered.notified())
-        .await
-        .expect("the first save reaches its checks");
-    let second_save = start(free.clone(), format!("{yaml}\n# second\n"));
-    tokio::time::sleep(Duration::from_millis(300)).await;
-    assert!(
-        !second_save.is_finished(),
-        "the second save waits for the first"
+    saved(
+        edit(
+            &mut client,
+            &checks,
+            &audit,
+            one,
+            ConfigKind::Widget,
+            &widget,
+            Edit::Upsert(&format!("{yaml}\n# edited\n")),
+            ExpectedHead::At(1),
+        )
+        .await,
     );
-    assert_eq!(free.calls.load(Ordering::SeqCst), 0);
-
-    release.notify_one();
-    assert_eq!(saved(first_save.await.unwrap()), 2);
-    let second = second_save.await.unwrap();
-    assert!(
-        matches!(&second, Err(SaveError::Conflict { current: Some(current) }) if current.revision == 2),
-        "{second:?}"
-    );
+    let documents = campus.documents.len() as i64;
     assert_eq!(
-        free.calls.load(Ordering::SeqCst),
-        0,
-        "a conflict is found before the renderer is asked"
+        stored(&pool, one).await,
+        (Some(2), documents + 1, documents)
     );
-    assert_eq!(audit.entries().len(), 2);
-    remove(&pool, event).await;
+    assert_eq!(stored(&pool, other).await, (Some(1), documents, documents));
+    // The other event's document is still at the revision it was reset to.
+    let from_other = edit(
+        &mut client,
+        &checks,
+        &audit,
+        other,
+        ConfigKind::Widget,
+        &widget,
+        Edit::Upsert(&format!("{yaml}\n# edited\n")),
+        ExpectedHead::At(2),
+    )
+    .await;
+    assert!(
+        matches!(&from_other, Err(SaveError::Conflict { current: Some(current) }) if current.revision == 1),
+        "{from_other:?}"
+    );
+    remove(&pool, one).await;
+    remove(&pool, other).await;
 }
 
 #[test]

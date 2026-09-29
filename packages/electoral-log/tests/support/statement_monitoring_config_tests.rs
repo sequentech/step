@@ -109,6 +109,25 @@ fn a_mode_switch_writes_no_document() {
 
     assert_eq!(
         head.description,
-        "Monitoring configuration generation 9 (dashboard Legacy): no document changed."
+        "Monitoring configuration generation 9 (dashboard Legacy): Dashboard tab switched, no document changed."
+    );
+}
+
+#[test]
+fn a_reset_that_writes_no_document_still_names_the_preset() {
+    let head = head(MonitoringConfigChangeDetails {
+        origin: MonitoringConfigOrigin::Preset,
+        preset: Some(MonitoringPresetRef {
+            id: MonitoringPresetIdString("comelec".to_string()),
+            version: 3,
+        }),
+        mode: MonitoringDashboardMode::Legacy,
+        generation: 5,
+        revisions: Vec::new(),
+    });
+
+    assert_eq!(
+        head.description,
+        "Monitoring configuration generation 5 (dashboard Legacy): reset to preset comelec version 3, no document changed."
     );
 }

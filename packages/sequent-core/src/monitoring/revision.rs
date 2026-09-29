@@ -219,21 +219,10 @@ pub struct Checked {
     pub report: Report,
 }
 
-/// What saving `edit` to the document `kind`/`key` would leave the event
-/// with, or why it may not be saved: the kind is only written by a reset;
-/// the key is not an id; the document does not pass its own checks; the
-/// edit removes the default theme; or the set would have an error it did not
-/// already have. Errors the set already had do not block an edit elsewhere,
-/// so one stale document cannot freeze the rest.
-///
-/// Whether the document exists, and at which revision, is the store's to
-/// check.
-pub fn check_edit(
-    live: &ConfigSet,
-    kind: ConfigKind,
-    key: &str,
-    edit: Edit<'_>,
-) -> Result<Checked, Report> {
+/// Whether `kind`/`key` may be edited at all: the kind is not one only a
+/// reset writes, and the key is an id. The first of [`check_edit`]'s checks,
+/// for a store to make before it looks at the document's revision.
+pub fn check_target(kind: ConfigKind, key: &str) -> Result<(), Report> {
     let mut report = Report::default();
     if kind.editability() == Editability::PresetOnly {
         report.push(Problem::error(
@@ -251,6 +240,34 @@ pub fn check_edit(
         ));
         return Err(report);
     }
+    Ok(())
+}
+
+/// Whether `path`, as the set-wide checks name it, lies in the document at
+/// `place`.
+fn lies_in(path: &str, place: &str) -> bool {
+    path.strip_prefix(place)
+        .is_some_and(|rest| rest.is_empty() || rest.starts_with('.'))
+}
+
+/// What saving `edit` to the document `kind`/`key` would leave the event
+/// with, or why it may not be saved: [`check_target`] refuses it; the
+/// document does not pass its own checks; the edit removes the default
+/// theme; the document saved has a set-wide error of its own; or the set
+/// would have an error elsewhere it did not already have. Errors elsewhere
+/// that the set already had do not block the edit, so one stale document
+/// cannot freeze the rest.
+///
+/// Whether the document exists, and at which revision, is the store's to
+/// check.
+pub fn check_edit(
+    live: &ConfigSet,
+    kind: ConfigKind,
+    key: &str,
+    edit: Edit<'_>,
+) -> Result<Checked, Report> {
+    check_target(kind, key)?;
+    let mut report = Report::default();
 
     let mut set = live.clone();
     match edit {
@@ -274,8 +291,11 @@ pub fn check_edit(
     }
 
     let before = validate_set(live);
+    let edited = place(kind, key);
     for problem in validate_set(&set).problems {
-        if !before.problems.contains(&problem) {
+        if lies_in(&problem.path, &edited)
+            || !before.problems.contains(&problem)
+        {
             report.push(problem);
         }
     }

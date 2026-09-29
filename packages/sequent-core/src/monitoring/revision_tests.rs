@@ -241,6 +241,79 @@ fn problems_the_set_already_had_do_not_block_an_unrelated_edit() {
 }
 
 #[test]
+fn a_saved_document_passes_the_set_checks_whatever_the_set_already_lacked() {
+    let preset = campus();
+    let mut unset = preset.set.clone();
+    unset.settings = None;
+    assert!(!validate_set(&unset).is_accepted());
+    let by_role =
+        yaml_of(&preset, ConfigKind::Widget, "participation-by-faculty")
+            .replace(
+                "id: participation-by-faculty",
+                "id: participation-by-role",
+            );
+    let refused = check_edit(
+        &unset,
+        ConfigKind::Widget,
+        "participation-by-role",
+        Edit::Upsert(&by_role),
+    )
+    .unwrap_err();
+    assert!(
+        refused
+            .errors()
+            .any(|problem| problem.code == Code::DanglingReference
+                && problem.path
+                    == "widgets.participation-by-role.query.group_by"),
+        "a new widget grouping voters needs settings: {refused}"
+    );
+}
+
+#[test]
+fn a_document_saved_with_an_error_of_its_own_is_refused_even_if_it_had_it() {
+    let preset = campus();
+    let mut broken = preset.set.clone();
+    broken.widgets.shift_remove("polls");
+    let operations = yaml_of(&preset, ConfigKind::Dashboard, "operations");
+
+    let retitled = operations.replacen("title:", "title: Live", 1);
+    let refused = check_edit(
+        &broken,
+        ConfigKind::Dashboard,
+        "operations",
+        Edit::Upsert(&retitled),
+    )
+    .unwrap_err();
+    assert_eq!(codes(&refused), [Code::DanglingReference], "{refused}");
+
+    let without_polls =
+        operations.replace("  - {widget: polls, width: 6}\n", "");
+    assert_ne!(without_polls, operations);
+    let checked = check_edit(
+        &broken,
+        ConfigKind::Dashboard,
+        "operations",
+        Edit::Upsert(&without_polls),
+    )
+    .unwrap();
+    assert!(validate_set(&checked.set).is_accepted());
+}
+
+#[test]
+fn only_the_target_of_an_edit_is_checked_before_its_revision() {
+    assert_eq!(check_target(ConfigKind::Widget, "polls"), Ok(()));
+    let cases = [
+        (ConfigKind::Settings, SETTINGS_KEY, Code::PresetOnly),
+        (ConfigKind::Widget, "Polls", Code::InvalidId),
+        (ConfigKind::Dashboard, &"d".repeat(65), Code::InvalidId),
+    ];
+    for (kind, key, code) in cases {
+        let refused = check_target(kind, key).unwrap_err();
+        assert_eq!(codes(&refused), [code], "{kind} {key}");
+    }
+}
+
+#[test]
 fn a_reset_writes_what_differs_and_removes_what_the_preset_lacks() {
     let preset = campus();
     let from_nothing = plan_reset(&preset, &[]);

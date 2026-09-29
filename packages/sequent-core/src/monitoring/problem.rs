@@ -74,6 +74,9 @@ pub enum Code {
     ChartSchema,
     /// A kind of document only a reset to a preset writes.
     PresetOnly,
+    /// The Dashboard tab would show the configured dashboards, and the event
+    /// has none.
+    NoDashboard,
 }
 
 /// One thing wrong with a configuration document.

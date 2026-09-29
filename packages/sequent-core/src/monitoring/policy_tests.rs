@@ -630,7 +630,19 @@ fn a_voter_group_must_be_a_configured_dimension() {
 fn voter_groups_need_settings() {
     let mut set = specification_set();
     set.settings = None;
-    assert_refused(&validate_set(&set), Code::DanglingReference, "settings");
+    let report = validate_set(&set);
+    assert_refused(
+        &report,
+        Code::DanglingReference,
+        "widgets.turnout-by-group.query.group_by",
+    );
+    assert!(
+        report
+            .problems
+            .iter()
+            .all(|problem| problem.path != "settings"),
+        "each widget grouping voters is named: {report}"
+    );
 }
 
 #[test]

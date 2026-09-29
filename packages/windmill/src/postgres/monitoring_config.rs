@@ -86,12 +86,16 @@ fn parsed<T: FromStr>(row: &Row, column: &str) -> Result<T> {
         .map_err(|_| anyhow::anyhow!("unknown {column} '{text}' in the monitoring tables"))
 }
 
-fn preset(row: &Row) -> Result<Option<PresetVersion>> {
-    let id: Option<String> = row.try_get("preset_id")?;
-    let version: Option<i32> = row.try_get("preset_version")?;
+fn preset_in(row: &Row, id: &str, version: &str) -> Result<Option<PresetVersion>> {
+    let id: Option<String> = row.try_get(id)?;
+    let version: Option<i32> = row.try_get(version)?;
     Ok(id
         .zip(version)
         .map(|(id, version)| PresetVersion { id, version }))
+}
+
+fn preset(row: &Row) -> Result<Option<PresetVersion>> {
+    preset_in(row, "preset_id", "preset_version")
 }
 
 impl TryFrom<&Row> for MonitoringEvent {
@@ -104,6 +108,36 @@ impl TryFrom<&Row> for MonitoringEvent {
             generation: row.try_get("config_generation")?,
         })
     }
+}
+
+/// The event's columns next to a revision's, which share some of their
+/// names.
+const EVENT_COLUMNS: &str = "e.dashboard_mode AS event_dashboard_mode,
+     e.preset_id AS event_preset_id, e.preset_version AS event_preset_version,
+     e.config_generation AS event_config_generation";
+
+fn event_in(row: &Row) -> Result<MonitoringEvent> {
+    Ok(MonitoringEvent {
+        mode: parsed(row, "event_dashboard_mode")?,
+        preset: preset_in(row, "event_preset_id", "event_preset_version")?,
+        generation: row.try_get("event_config_generation")?,
+    })
+}
+
+/// The event and the revisions next to it, from rows that repeat the event
+/// once per revision, or name it once with no revision.
+fn event_and_revisions(rows: Vec<Row>) -> Result<Option<(MonitoringEvent, Vec<StoredRevision>)>> {
+    let Some(first) = rows.first() else {
+        return Ok(None);
+    };
+    let event = event_in(first)?;
+    let mut documents = Vec::with_capacity(rows.len());
+    for row in &rows {
+        if row.try_get::<_, Option<String>>("kind")?.is_some() {
+            documents.push(StoredRevision::try_from(row)?);
+        }
+    }
+    Ok(Some((event, documents)))
 }
 
 impl TryFrom<&Row> for StoredRevision {
@@ -248,6 +282,93 @@ pub async fn get_heads(
         .await
         .context("Failed to read the monitoring configuration heads")?;
     revisions(rows)
+}
+
+/// The event and the revision each document's head names, removals included,
+/// read by one statement, so they are of one moment whatever the isolation
+/// level; `None` without a monitoring row.
+#[instrument(err, skip(transaction))]
+pub async fn get_event_and_heads(
+    transaction: &Transaction<'_>,
+    event: EventRef,
+) -> Result<Option<(MonitoringEvent, Vec<StoredRevision>)>> {
+    let rows = transaction
+        .query(
+            &format!(
+                "SELECT {EVENT_COLUMNS}, {REVISION_COLUMNS}
+                 FROM sequent_backend.monitoring_event e
+                 LEFT JOIN sequent_backend.monitoring_config_head h
+                     ON h.tenant_id = e.tenant_id AND h.election_event_id = e.election_event_id
+                 LEFT JOIN sequent_backend.monitoring_config c
+                     ON c.tenant_id = h.tenant_id AND c.election_event_id = h.election_event_id
+                    AND c.kind = h.kind AND c.key = h.key AND c.revision = h.revision
+                 WHERE e.tenant_id = $1 AND e.election_event_id = $2
+                 ORDER BY {DOCUMENT_ORDER}"
+            ),
+            &[&event.tenant_id, &event.election_event_id],
+        )
+        .await
+        .context("Failed to read the monitoring event and its heads")?;
+    event_and_revisions(rows)
+}
+
+/// The event as it is now, and the last revision of each document written
+/// by the change that raised the generation to `generation` or by one
+/// before it, removals included; read by one statement. `None` without a
+/// monitoring row.
+#[instrument(err, skip(transaction))]
+pub async fn get_event_and_revisions_at(
+    transaction: &Transaction<'_>,
+    event: EventRef,
+    generation: i64,
+) -> Result<Option<(MonitoringEvent, Vec<StoredRevision>)>> {
+    let rows = transaction
+        .query(
+            &format!(
+                "SELECT {EVENT_COLUMNS}, {REVISION_COLUMNS}
+                 FROM sequent_backend.monitoring_event e
+                 LEFT JOIN LATERAL (
+                     SELECT DISTINCT ON (r.kind, r.key) r.*
+                     FROM sequent_backend.monitoring_config r
+                     WHERE r.tenant_id = e.tenant_id
+                       AND r.election_event_id = e.election_event_id
+                       AND r.config_generation <= $3
+                     ORDER BY r.kind, r.key, r.revision DESC
+                 ) c ON true
+                 WHERE e.tenant_id = $1 AND e.election_event_id = $2
+                 ORDER BY {DOCUMENT_ORDER}"
+            ),
+            &[&event.tenant_id, &event.election_event_id, &generation],
+        )
+        .await
+        .context("Failed to read the monitoring configuration at a generation")?;
+    event_and_revisions(rows)
+}
+
+/// Whether the election event exists, holding it so it cannot be deleted
+/// before the transaction ends.
+#[instrument(err, skip(transaction))]
+pub async fn lock_election_event(transaction: &Transaction<'_>, event: EventRef) -> Result<bool> {
+    Ok(transaction
+        .query_opt(
+            "SELECT 1 FROM sequent_backend.election_event
+             WHERE tenant_id = $1 AND id = $2
+             FOR KEY SHARE",
+            &[&event.tenant_id, &event.election_event_id],
+        )
+        .await
+        .context("Failed to read the election event")?
+        .is_some())
+}
+
+/// Makes now the checks the tables defer to commit, so that a change the
+/// electoral log is about to record is one that will commit.
+#[instrument(err, skip(transaction))]
+pub async fn check_deferred_constraints(transaction: &Transaction<'_>) -> Result<()> {
+    transaction
+        .batch_execute("SET CONSTRAINTS ALL IMMEDIATE")
+        .await
+        .context("The monitoring configuration change does not pass the tables' checks")
 }
 
 /// The revision a document's head names; `None` for a document never saved.

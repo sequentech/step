@@ -5,13 +5,14 @@
 //! The electoral log's entry for each monitoring configuration change,
 //! signed by the administrator who made it.
 
-use super::config_store::{MonitoringConfigAudit, RecordedChange};
+use super::config_store::{Author, EventRef, MonitoringConfigAudit, RecordedChange};
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::electoral_log::ElectoralLog;
+use crate::services::vault;
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
-use deadpool_postgres::Transaction;
+use deadpool_postgres::{Client, Transaction};
 use electoral_log::messages::newtypes::{
     MonitoringConfigChangeAction, MonitoringConfigChangeDetails, MonitoringConfigDigestString,
     MonitoringConfigKeyString, MonitoringConfigKindString, MonitoringConfigOrigin,
@@ -65,16 +66,50 @@ pub fn change_details(change: &RecordedChange) -> Result<MonitoringConfigChangeD
 /// Posts each change to the election event's electoral log.
 pub struct ElectoralLogConfigAudit;
 
+/// The electoral-log board of the election event.
+async fn board(transaction: &Transaction<'_>, event: EventRef) -> Result<String> {
+    let election_event = get_election_event_by_id(
+        transaction,
+        &event.tenant_id.to_string(),
+        &event.election_event_id.to_string(),
+    )
+    .await?;
+    get_election_event_board(election_event.bulletin_board_reference)
+        .ok_or_else(|| anyhow!("The election event has no electoral-log board"))
+}
+
 #[async_trait]
 impl MonitoringConfigAudit for ElectoralLogConfigAudit {
+    /// Makes the author's signing key, and posts its public key, unless they
+    /// have one: in a transaction of its own, so a change that then rolls
+    /// back does not take with it a key whose public half the log has.
+    async fn prepare(&self, client: &mut Client, event: EventRef, author: &Author) -> Result<()> {
+        let transaction = client
+            .transaction()
+            .await
+            .context("Failed to start preparing the electoral log")?;
+        let board = board(&transaction, event).await?;
+        vault::get_admin_user_signing_key(
+            &transaction,
+            &board,
+            &event.tenant_id.to_string(),
+            &author.id,
+            author.name.clone(),
+            None,
+            None,
+        )
+        .await?;
+        transaction
+            .commit()
+            .await
+            .context("Failed to keep the administrator's signing key")
+    }
+
     async fn record(&self, transaction: &Transaction<'_>, change: &RecordedChange) -> Result<()> {
         let details = change_details(change)?;
         let tenant_id = change.event.tenant_id.to_string();
         let election_event_id = change.event.election_event_id.to_string();
-        let election_event =
-            get_election_event_by_id(transaction, &tenant_id, &election_event_id).await?;
-        let board = get_election_event_board(election_event.bulletin_board_reference)
-            .ok_or_else(|| anyhow!("The election event has no electoral-log board"))?;
+        let board = board(transaction, change.event).await?;
         let electoral_log = ElectoralLog::for_admin_user(
             transaction,
             &board,

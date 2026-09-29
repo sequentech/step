@@ -2286,7 +2286,6 @@ pub fn validate_set(set: &ConfigSet) -> Report {
         stored_under_id(key, &dashboard.id, "dashboards", &mut report);
     }
 
-    let mut settings_missing_reported = false;
     for (key, widget) in &set.widgets {
         let spec = widget.source.spec();
         if spec.voter_dimensions != VoterDimensions::Configured {
@@ -2321,15 +2320,13 @@ pub fn validate_set(set: &ConfigSet) -> Report {
                     continue;
                 }
                 match &set.settings {
-                    None if !settings_missing_reported => {
-                        settings_missing_reported = true;
+                    None => {
                         report.push(Problem::error(
                             Code::DanglingReference,
-                            "settings",
-                            "Widgets group voters by configured dimensions, and this event has no settings defining them.",
+                            path,
+                            format!("'{group}' is a dimension settings configure, and this event has no settings."),
                         ));
                     }
-                    None => {}
                     Some(settings)
                         if !settings.dimensions.contains_key(&group) =>
                     {
