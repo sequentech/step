@@ -1300,6 +1300,8 @@ const englishTranslation = {
             permissions: {
                 "admin-user": "Admin User",
                 "admin-dashboard-view": "Admin Dashboard View",
+                "monitoring-view": "View Monitoring Dashboards",
+                "monitoring-configure": "Configure Monitoring Dashboards",
                 "application-export": "Application Export",
                 "application-import": "Application Import",
                 "tenant-create": "Create Tenant",

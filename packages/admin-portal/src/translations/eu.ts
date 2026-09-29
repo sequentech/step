@@ -1308,6 +1308,8 @@ const basqueTranslation: TranslationType = {
                 "voter-information-letter": "Hauteslearen informazio-gutuna sortu",
                 "admin-user": "Admin Erabiltzailea",
                 "admin-dashboard-view": "Admin Panela Ikusi",
+                "monitoring-view": "Monitorizazio Panelak Ikusi",
+                "monitoring-configure": "Monitorizazio Panelak Konfiguratu",
                 "application-export": "Aplikazio Esportazioa",
                 "application-import": "Aplikazio Inportazioa",
                 "tenant-create": "Sortu Maizterra",

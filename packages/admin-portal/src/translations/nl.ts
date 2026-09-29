@@ -1314,6 +1314,8 @@ const dutchTranslation: TranslationType = {
                 "voter-information-letter": "Kiezersinformatiebrief genereren",
                 "admin-user": "Beheerder Gebruiker",
                 "admin-dashboard-view": "Beheerdersdashboard Bekijken",
+                "monitoring-view": "Monitoringdashboards Bekijken",
+                "monitoring-configure": "Monitoringdashboards Configureren",
                 "application-export": "Applicatie Exporteren",
                 "application-import": "Applicatie Importeren",
                 "tenant-create": "Tenant Aanmaken",

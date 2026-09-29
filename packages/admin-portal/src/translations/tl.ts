@@ -1314,6 +1314,8 @@ const tagalogTranslation: TranslationType = {
                 "voter-information-letter": "Bumuo ng Liham ng impormasyon para sa botante",
                 "admin-user": "Admin na Tagagamit",
                 "admin-dashboard-view": "Tingnan ang Dashboard ng Admin",
+                "monitoring-view": "Tingnan ang mga Dashboard ng Pagsubaybay",
+                "monitoring-configure": "I-configure ang mga Dashboard ng Pagsubaybay",
                 "application-export": "Pag-export ng Aplikasyon",
                 "application-import": "Pag-import ng Aplikasyon",
                 "tenant-create": "Lumikha ng Tenant",

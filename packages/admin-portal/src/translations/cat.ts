@@ -1316,6 +1316,8 @@ const catalanTranslation: TranslationType = {
                 "voter-information-letter": "Genera una Carta d'informació per al votant",
                 "admin-user": "Administració",
                 "admin-dashboard-view": "Vista del Tauler d'Administració",
+                "monitoring-view": "Veure Taulers de Monitoratge",
+                "monitoring-configure": "Configurar Taulers de Monitoratge",
                 "application-export": "Exportació d'Aplicacions",
                 "application-import": "Importació d'Aplicacions",
                 "tenant-create": "Crear Inquilí",

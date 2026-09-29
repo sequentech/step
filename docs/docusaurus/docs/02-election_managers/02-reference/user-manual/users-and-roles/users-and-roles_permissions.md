@@ -40,3 +40,20 @@ omitted. A decrypted voter-export document remains restricted: downloading it ch
 Assign read and write independently where duties require it. For example, an import operator can
 receive secret-write without secret-read, while a support operator who must inspect a value can
 receive secret-read without permission to change it.
+
+## Monitoring Dashboard Permissions
+
+An election event's **Dashboard** tab shows its monitoring dashboards once the event is set up for
+them. Two permissions govern them:
+
+| Permission | Allows |
+|---|---|
+| `monitoring-view` | See the monitoring dashboards, view a widget's data and export it. |
+| `monitoring-configure` | Edit widgets, dashboards and themes, and reset the event to a preset. |
+
+A user without `monitoring-view` keeps the standard dashboard. Permission labels still apply: a user
+whose roles carry labels sees only the elections those labels allow, and cannot choose any other.
+
+Configuring also needs `election-event-write`, since it changes the event. The development realm
+grants both permissions to the `admin` group and only `monitoring-view` to `admin-light`. An
+existing realm does not gain them on upgrade, so grant them to the intended roles by hand.

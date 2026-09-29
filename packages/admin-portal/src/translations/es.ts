@@ -1313,6 +1313,8 @@ const spanishTranslation: TranslationType = {
                 "voter-information-letter": "Generar Carta de información para el votante",
                 "admin-user": "Administración",
                 "admin-dashboard-view": "Vista del Panel de Administración",
+                "monitoring-view": "Ver Paneles de Monitorización",
+                "monitoring-configure": "Configurar Paneles de Monitorización",
                 "application-export": "Exportación de Aplicaciones",
                 "application-import": "Importación de Aplicaciones",
                 "tenant-create": "Crear Inquilino",

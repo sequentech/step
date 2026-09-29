@@ -1318,6 +1318,8 @@ const frenchTranslation: TranslationType = {
                 "voter-information-letter": "Générer une Lettre d'information de l'électeur",
                 "admin-user": "Administration",
                 "admin-dashboard-view": "Vue du Tableau de Bord d'Administration",
+                "monitoring-view": "Voir les Tableaux de Bord de Suivi",
+                "monitoring-configure": "Configurer les Tableaux de Bord de Suivi",
                 "application-export": "Exportation d'Applications",
                 "application-import": "Importation d'Applications",
                 "tenant-create": "Créer Locataire",

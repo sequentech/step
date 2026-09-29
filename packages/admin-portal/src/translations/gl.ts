@@ -1313,6 +1313,8 @@ const galegoTranslation: TranslationType = {
                 "voter-information-letter": "Xerar Carta de información para o votante",
                 "admin-user": "Administración",
                 "admin-dashboard-view": "Vista del Panel de Administración",
+                "monitoring-view": "Ver Paneis de Monitorización",
+                "monitoring-configure": "Configurar Paneis de Monitorización",
                 "application-export": "Exportación de Aplicaciones",
                 "application-import": "Importación de Aplicaciones",
                 "tenant-create": "Crear Inquilino",
