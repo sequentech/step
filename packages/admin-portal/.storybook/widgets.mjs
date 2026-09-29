@@ -61,6 +61,7 @@ export default {
         "src/providers/SettingsContextProvider.tsx#SettingsContextProvider": SESSION,
         "src/providers/SettingsContextProvider.tsx#SettingsGate": SESSION,
         "src/providers/SettingsContextProvider.tsx#SettingsWrapper": SESSION,
+        "src/components/monitoring/MonitoringProvider.tsx#MonitoringProvider": PROVIDER,
         "src/providers/CandidateContextProvider.tsx#CandidateContextProvider": PROVIDER,
         "src/providers/ContestContextProvider.tsx#ContestContextProvider": PROVIDER,
         "src/providers/CreateElectionEventContextProvider.tsx#CreateElectionEventProvider":
