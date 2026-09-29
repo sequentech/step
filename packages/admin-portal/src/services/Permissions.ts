@@ -184,6 +184,18 @@ const AdminOperationMap: Record<string, IPermissions> = {
     sequent_backend_previews: IPermissions.PREVIEW_READ,
     // voter secret attributes
     RevealVoterSecretAttribute: IPermissions.VOTER_READ,
+    // monitoring actions: Harvest checks the permission and labels again
+    MonitoringListDashboards: IPermissions.MONITORING_VIEW,
+    MonitoringGetDashboard: IPermissions.MONITORING_VIEW,
+    MonitoringRenderWidget: IPermissions.MONITORING_VIEW,
+    MonitoringExport: IPermissions.MONITORING_VIEW,
+    MonitoringValidateConfig: IPermissions.MONITORING_CONFIGURE,
+    MonitoringSaveConfig: IPermissions.MONITORING_CONFIGURE,
+    MonitoringResetToPreset: IPermissions.MONITORING_CONFIGURE,
+    MonitoringListPresets: IPermissions.MONITORING_CONFIGURE,
+    MonitoringSetMode: IPermissions.MONITORING_CONFIGURE,
+    MonitoringListConfig: IPermissions.MONITORING_CONFIGURE,
+    MonitoringGetConfig: IPermissions.MONITORING_CONFIGURE,
 }
 
 const TrusteeOperationMap: Record<string, IPermissions> = {
