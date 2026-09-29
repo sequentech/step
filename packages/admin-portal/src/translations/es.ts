@@ -2918,6 +2918,12 @@ const spanishTranslation: TranslationType = {
                 ATTACK_DETECTION_FEED: "no hay ninguna fuente de detección de ataques conectada",
                 HELPDESK_INTEGRATION: "no hay ningún sistema de soporte conectado",
             },
+            notices: {
+                UNREGISTERED_ATTEMPTS_AT_EVENT_SCOPE_ONLY:
+                    "Los intentos con nombres de usuario no registrados no pertenecen a ningún puesto, por lo que solo se cuentan para todo el evento.",
+                UNREGISTERED_ATTEMPTS_EXCLUDED:
+                    "Estas cifras no incluyen los intentos con nombres de usuario no registrados; se cuentan para todo el evento.",
+            },
             unavailable: {
                 notConnected: "No conectado · {{reason}}",
                 notConnectedHelp: "No se muestra nada hasta que lo esté.",

@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import {EColorScheme} from "../types"
+import {EColorScheme, MIN_RENDER_WIDTH_PX, WIDTH_BUCKET_PX} from "../types"
 import {CHART_CSP, chartDocument, hashString, sanitizeSvg, widthBucket} from "./chartDocument"
 import {CHART_FONT_CSS} from "./chartFonts"
 
@@ -87,6 +87,12 @@ describe("chartDocument", () => {
         expect(html).toContain("<rect")
     })
 
+    it("scales a chart wider than the frame down to it, with no sideways scroll", () => {
+        const {html} = chartDocument({svg: svg("<rect/>"), colorScheme: EColorScheme.LIGHT})
+        expect(html).toContain("svg { display: block; max-width: 100%; height: auto; }")
+        expect(html).toContain("overflow-x: hidden")
+    })
+
     it("reads the chart's size from the sanitized root", () => {
         const tall =
             '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 607.7" width="400">' +
@@ -131,10 +137,21 @@ describe("chartDocument", () => {
 })
 
 describe("widthBucket", () => {
-    it("rounds a width down to 40 px steps, never below one step", () => {
+    it("rounds a width down to 40 px steps", () => {
         expect(widthBucket(419)).toBe(400)
         expect(widthBucket(440)).toBe(440)
-        expect(widthBucket(10)).toBe(40)
-        expect(widthBucket(0)).toBe(40)
+        expect(widthBucket(1000)).toBe(1000)
+    })
+
+    it("never asks for less than the minimum render width", () => {
+        // A phone's card is about 260 px wide: drawn at 360 and scaled down,
+        // not drawn at 240 with every label cut and bars of no width.
+        expect(MIN_RENDER_WIDTH_PX).toBe(360)
+        expect(MIN_RENDER_WIDTH_PX % WIDTH_BUCKET_PX).toBe(0)
+        expect(widthBucket(260)).toBe(360)
+        expect(widthBucket(399)).toBe(360)
+        expect(widthBucket(10)).toBe(360)
+        expect(widthBucket(0)).toBe(360)
+        expect(widthBucket(-5)).toBe(360)
     })
 })

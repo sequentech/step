@@ -46,6 +46,7 @@ import {MonitoringWidgetSelectors} from "./MonitoringWidgetSelectors"
 import {MonitoringWidgetMenu} from "./MonitoringWidgetMenu"
 import {MonitoringDataTableDialog} from "./MonitoringDataTableDialog"
 import {widgetQueries} from "./lib/dataTables"
+import {noticeText} from "./lib/notices"
 import {MonitoringExportDialog} from "./MonitoringExportDialog"
 
 /** What every widget of a dashboard shares. */
@@ -286,7 +287,7 @@ export function MonitoringWidgetCard({cell, context}: MonitoringWidgetCardProps)
                     </Box>
                     {render?.notices.map((notice) => (
                         <Typography key={notice} variant="caption" color="text.secondary">
-                            {notice}
+                            {noticeText(t, notice)}
                         </Typography>
                     ))}
                 </Stack>

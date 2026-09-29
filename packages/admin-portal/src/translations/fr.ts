@@ -2937,6 +2937,12 @@ const frenchTranslation: TranslationType = {
                 ATTACK_DETECTION_FEED: "aucun flux de détection d'attaques n'est connecté",
                 HELPDESK_INTEGRATION: "aucun système d'assistance n'est connecté",
             },
+            notices: {
+                UNREGISTERED_ATTEMPTS_AT_EVENT_SCOPE_ONLY:
+                    "Les tentatives avec des noms d'utilisateur non enregistrés n'appartiennent à aucun poste ; elles ne sont donc comptées que pour l'ensemble de l'événement.",
+                UNREGISTERED_ATTEMPTS_EXCLUDED:
+                    "Ces chiffres excluent les tentatives avec des noms d'utilisateur non enregistrés ; elles sont comptées pour l'ensemble de l'événement.",
+            },
             unavailable: {
                 notConnected: "Non connecté · {{reason}}",
                 notConnectedHelp: "Rien n'est affiché tant que ce n'est pas le cas.",

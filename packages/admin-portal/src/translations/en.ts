@@ -2887,6 +2887,12 @@ const englishTranslation = {
                 ATTACK_DETECTION_FEED: "no attack detection feed is connected",
                 HELPDESK_INTEGRATION: "no helpdesk system is connected",
             },
+            notices: {
+                UNREGISTERED_ATTEMPTS_AT_EVENT_SCOPE_ONLY:
+                    "Attempts by unregistered usernames belong to no Post, so they are counted for the whole event only.",
+                UNREGISTERED_ATTEMPTS_EXCLUDED:
+                    "These figures leave out attempts by unregistered usernames; they are counted for the whole event.",
+            },
             unavailable: {
                 notConnected: "Not connected · {{reason}}",
                 notConnectedHelp: "Nothing is shown until it is.",

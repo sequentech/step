@@ -2926,6 +2926,12 @@ const tagalogTranslation: TranslationType = {
                 ATTACK_DETECTION_FEED: "walang nakakonektang feed ng pagtukoy ng atake",
                 HELPDESK_INTEGRATION: "walang nakakonektang helpdesk system",
             },
+            notices: {
+                UNREGISTERED_ATTEMPTS_AT_EVENT_SCOPE_ONLY:
+                    "Ang mga pagtatangka gamit ang hindi rehistradong username ay hindi kabilang sa anumang Post, kaya binibilang lamang ang mga ito para sa buong event.",
+                UNREGISTERED_ATTEMPTS_EXCLUDED:
+                    "Hindi kasama sa mga bilang na ito ang mga pagtatangka gamit ang hindi rehistradong username; binibilang ang mga ito para sa buong event.",
+            },
             unavailable: {
                 notConnected: "Hindi nakakonekta · {{reason}}",
                 notConnectedHelp: "Walang ipapakita hangga't hindi ito nakakonekta.",

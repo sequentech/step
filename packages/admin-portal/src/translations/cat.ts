@@ -2931,6 +2931,12 @@ const catalanTranslation: TranslationType = {
                 ATTACK_DETECTION_FEED: "no hi ha cap font de detecció d'atacs connectada",
                 HELPDESK_INTEGRATION: "no hi ha cap sistema de suport connectat",
             },
+            notices: {
+                UNREGISTERED_ATTEMPTS_AT_EVENT_SCOPE_ONLY:
+                    "Els intents amb noms d'usuari no registrats no pertanyen a cap lloc, de manera que només es compten per a tot l'esdeveniment.",
+                UNREGISTERED_ATTEMPTS_EXCLUDED:
+                    "Aquestes xifres no inclouen els intents amb noms d'usuari no registrats; es compten per a tot l'esdeveniment.",
+            },
             unavailable: {
                 notConnected: "No connectat · {{reason}}",
                 notConnectedHelp: "No es mostra res fins que ho estigui.",

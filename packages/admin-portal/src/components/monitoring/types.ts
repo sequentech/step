@@ -16,6 +16,12 @@ export const DEFAULT_WIDGET_HEIGHT = 280
 /** Chart widths are requested in steps of this many pixels, so renders cache. */
 export const WIDTH_BUCKET_PX = 40
 
+/**
+ * No chart is drawn narrower than this: narrower, the renderer cuts every
+ * label and draws marks of no width. A narrower frame scales the chart down.
+ */
+export const MIN_RENDER_WIDTH_PX = 360
+
 /** How long a resize settles before a new width is requested. */
 export const WIDTH_DEBOUNCE_MS = 200
 
@@ -103,6 +109,16 @@ export enum EWidgetFailure {
 export type MonitoringUnavailableState =
     | Exclude<EWidgetRenderState, EWidgetRenderState.RENDERED>
     | EWidgetFailure
+
+/**
+ * What the server notes about a widget's figures, as
+ * `sequent_core::monitoring::payload::Notice` names it. A code this build does
+ * not know is still shown, as words.
+ */
+export enum EMonitoringNotice {
+    UNREGISTERED_ATTEMPTS_AT_EVENT_SCOPE_ONLY = "UNREGISTERED_ATTEMPTS_AT_EVENT_SCOPE_ONLY",
+    UNREGISTERED_ATTEMPTS_EXCLUDED = "UNREGISTERED_ATTEMPTS_EXCLUDED",
+}
 
 export enum EColorScheme {
     LIGHT = "LIGHT",

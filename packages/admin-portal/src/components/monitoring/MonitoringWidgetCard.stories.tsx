@@ -342,13 +342,17 @@ export const DayPicker: Story = {
 }
 
 export const ViewData: Story = {
-    args: {render: {notices: ["Unregistered attempts are counted at event scope only."]}},
+    args: {render: {notices: ["UNREGISTERED_ATTEMPTS_AT_EVENT_SCOPE_ONLY", "SOMETHING_NEW"]}},
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
         await canvas.findByTitle("Turnout by group chart")
         await expect(
-            canvas.getByText("Unregistered attempts are counted at event scope only.")
+            canvas.getByText(
+                "Attempts by unregistered usernames belong to no Post, so they are counted for the whole event only."
+            )
         ).toBeVisible()
+        // A notice this build does not know is shown as words, never as its code.
+        await expect(canvas.getByText("Something new")).toBeVisible()
         await userEvent.click(canvas.getByRole("button", {name: "Actions for Turnout by group"}))
         await userEvent.click(
             await within(document.body).findByRole("menuitem", {name: "View data"})
