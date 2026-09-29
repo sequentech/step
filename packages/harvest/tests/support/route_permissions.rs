@@ -292,6 +292,7 @@ fn cases() -> Vec<Case> {
         case!(Admin, "/miru/send-transmission-package", {"election_id": "test-election", "area_id": AREA_ID, "tally_session_id": "test-session"}, [MIRU_SEND], BACKEND, UNAUTHORIZED),
         case!(Admin, "/miru/upload-signature", {"election_id": "test-election", "area_id": AREA_ID, "tally_session_id": "test-session", "document_id": "test-document", "password": "test-password"}, [MIRU_SIGN], BACKEND_TEXT, UNAUTHORIZED),
         // Plugins receive the claims and make their own decisions.
+        case!(UuidTenant, "/monitoring/export", {"election_event_id": UUID_EVENT_ID, "dashboard_id": "overview", "snapshot_revision": 1, "format": "CSV"}, [MONITORING_VIEW], BACKEND, UNAUTHORIZED_JSON),
         case!(UuidTenant, "/monitoring/get-config", {"election_event_id": UUID_EVENT_ID, "kind": "widget", "key": "turnout"}, [MONITORING_CONFIGURE], BACKEND, UNAUTHORIZED_JSON),
         case!(UuidTenant, "/monitoring/get-dashboard", {"election_event_id": UUID_EVENT_ID, "dashboard_id": "overview"}, [MONITORING_VIEW], BACKEND, UNAUTHORIZED_JSON),
         case!(UuidTenant, "/monitoring/list-config", {"election_event_id": UUID_EVENT_ID}, [MONITORING_CONFIGURE], BACKEND, UNAUTHORIZED_JSON),

@@ -91,6 +91,7 @@
 /miru/create-transmission-package
 /miru/send-transmission-package
 /miru/upload-signature
+/monitoring/export
 /monitoring/get-config
 /monitoring/get-dashboard
 /monitoring/list-config

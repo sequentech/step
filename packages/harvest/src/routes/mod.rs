@@ -47,6 +47,7 @@ pub mod limit_access_by_countries;
 pub mod miru_plugin;
 pub mod monitoring;
 pub mod monitoring_config;
+pub mod monitoring_export;
 pub mod permissions;
 pub mod phone_blacklist;
 pub mod plugins;

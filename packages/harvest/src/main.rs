@@ -186,6 +186,7 @@ fn build_application_with(
                 routes::monitoring_config::set_dashboard_mode,
                 routes::monitoring_config::list_config,
                 routes::monitoring_config::get_config,
+                routes::monitoring_export::export_monitoring,
                 routes::export_ballot_publication::export_ballot_publication_route,
                 routes::reports::render_document_pdf,
                 routes::reports::generate_template,

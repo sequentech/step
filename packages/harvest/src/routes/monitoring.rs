@@ -57,7 +57,7 @@ pub(crate) fn authorize_monitoring(
 
 /// The viewer, and the event's configuration, read in one transaction that
 /// is over before anything slow happens.
-async fn viewer_and_config(
+pub(crate) async fn viewer_and_config(
     services: &HarvestServices,
     claims: &JwtClaims,
     election_event_id: &str,
