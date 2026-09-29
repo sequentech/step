@@ -1,0 +1,37 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+# SPDX-License-Identifier: AGPL-3.0-only
+name: Additional package unit tests
+on:
+  pull_request:
+    paths: ['packages/**', '.github/workflows/additional-unit-tests.yml', '.github/actions/setup-rust-tests/**']
+  push:
+    branches: [main]
+    paths: ['packages/**', '.github/workflows/additional-unit-tests.yml', '.github/actions/setup-rust-tests/**']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  rust:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        package: [immu-board]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-rust-tests
+        with:
+          cargo-build-name: additional-${{ matrix.package }}
+          cargo-build-path: packages/target
+          cargo-lock-path: packages/Cargo.lock
+      - name: Run package contracts
+        working-directory: packages
+        env:
+          RUST_TEST_THREADS: '2'
+        run: cargo test --locked -p '${{ matrix.package }}' --tests
+      - name: Check production code
+        working-directory: packages
+        run: cargo clippy --locked -p '${{ matrix.package }}' --lib --bins
