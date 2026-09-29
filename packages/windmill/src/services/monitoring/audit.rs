@@ -20,6 +20,7 @@ use electoral_log::messages::newtypes::{
     MonitoringPresetRef,
 };
 use sequent_core::monitoring::revision::{DashboardMode, DocumentChange, RevisionOrigin};
+use std::future::Future;
 use tracing::warn;
 
 /// The entry's details for a change.
@@ -79,6 +80,45 @@ async fn board(transaction: &Transaction<'_>, event: EventRef) -> Result<String>
         .ok_or_else(|| anyhow!("The election event has no electoral-log board"))
 }
 
+/// What preparing the author's key came to: done, if it failed but the key
+/// is there anyway (`kept`), as another change by the author kept it.
+async fn kept_anyway<Kept>(prepared: Result<()>, kept: impl FnOnce() -> Kept) -> Result<()>
+where
+    Kept: Future<Output = Result<bool>>,
+{
+    let Err(error) = prepared else {
+        return Ok(());
+    };
+    match kept().await {
+        Ok(true) => {
+            warn!("The administrator's signing key was kept by another change: {error:?}");
+            Ok(())
+        }
+        Ok(false) => Err(error),
+        Err(looking) => Err(error.context(format!(
+            "Failed to look for the administrator's signing key too: {looking:#}"
+        ))),
+    }
+}
+
+async fn signing_key_exists(client: &mut Client, event: EventRef, author: &Author) -> Result<bool> {
+    let transaction = client
+        .transaction()
+        .await
+        .context("Failed to start looking for the administrator's signing key")?;
+    let exists = vault::admin_user_signing_key_exists(
+        &transaction,
+        &event.tenant_id.to_string(),
+        &author.id,
+    )
+    .await?;
+    transaction
+        .commit()
+        .await
+        .context("Failed to finish looking for the administrator's signing key")?;
+    Ok(exists)
+}
+
 async fn prepare_signing_key(client: &mut Client, event: EventRef, author: &Author) -> Result<()> {
     let transaction = client
         .transaction()
@@ -108,16 +148,11 @@ impl MonitoringConfigAudit for ElectoralLogConfigAudit {
     /// back does not take with it a key whose public half the log has.
     ///
     /// Two first changes by one author at once both find no key, and the
-    /// second to keep one is refused; it is then tried once more, and reads
-    /// the key the first kept.
+    /// second to keep one is refused. That one then finds the key the first
+    /// kept, and goes on with it.
     async fn prepare(&self, client: &mut Client, event: EventRef, author: &Author) -> Result<()> {
-        match prepare_signing_key(client, event, author).await {
-            Ok(()) => Ok(()),
-            Err(error) => {
-                warn!("Preparing the electoral log failed, trying once more: {error:?}");
-                prepare_signing_key(client, event, author).await
-            }
-        }
+        let prepared = prepare_signing_key(client, event, author).await;
+        kept_anyway(prepared, || signing_key_exists(client, event, author)).await
     }
 
     async fn record(&self, transaction: &Transaction<'_>, change: &RecordedChange) -> Result<()> {
@@ -144,5 +179,40 @@ impl MonitoringConfigAudit for ElectoralLogConfigAudit {
                 change.author.name.clone(),
             )
             .await
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::kept_anyway;
+    use anyhow::anyhow;
+
+    #[tokio::test]
+    async fn a_key_kept_by_another_change_prepares_the_change() {
+        assert!(kept_anyway(Ok(()), || async { panic!("not looked for") })
+            .await
+            .is_ok());
+        assert!(
+            kept_anyway(Err(anyhow!("duplicate key")), || async { Ok(true) })
+                .await
+                .is_ok()
+        );
+        let error = kept_anyway(Err(anyhow!("the vault is down")), || async { Ok(false) })
+            .await
+            .unwrap_err();
+        assert_eq!(error.to_string(), "the vault is down");
+        let error = kept_anyway(Err(anyhow!("the vault is down")), || async {
+            Err(anyhow!("so is the database"))
+        })
+        .await
+        .unwrap_err();
+        assert!(
+            format!("{error:#}").contains("the vault is down"),
+            "{error:#}"
+        );
+        assert!(
+            format!("{error:#}").contains("so is the database"),
+            "{error:#}"
+        );
     }
 }

@@ -77,6 +77,8 @@ pub enum Code {
     /// The Dashboard tab would show the configured dashboards, and the event
     /// has none.
     NoDashboard,
+    /// A removal of a document the event does not have.
+    NothingToRemove,
 }
 
 /// One thing wrong with a configuration document.

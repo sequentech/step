@@ -28,6 +28,7 @@ use windmill::services::monitoring::config_store::{
     MonitoringConfigAudit, MonitoringConfigChecks, ProposedChange, RecordedChange, ResetError,
     ResetOutcome, SaveError, SaveOutcome, WrittenRevision,
 };
+use windmill::services::vault::admin_user_signing_key_exists;
 
 /// A fixed v4 UUID per test (`seed`) and call (`n`).
 fn id(seed: u32, n: u32) -> Uuid {
@@ -801,7 +802,6 @@ async fn a_save_from_an_older_revision_is_a_conflict_that_names_the_current_one(
     for (change, expected) in [
         (Edit::Upsert(&mine), ExpectedHead::At(1)),
         (Edit::Upsert(&mine), ExpectedHead::Absent),
-        (Edit::Upsert(&theirs), ExpectedHead::At(1)),
         (Edit::Delete, ExpectedHead::At(1)),
         (Edit::Upsert(&mine), ExpectedHead::At(3)),
     ] {
@@ -829,6 +829,22 @@ async fn a_save_from_an_older_revision_is_a_conflict_that_names_the_current_one(
             other => panic!("{change:?} from {expected:?}: expected a conflict, got {other:?}"),
         }
     }
+    // What the document says already is no conflict, from any revision.
+    let same = edit(
+        &mut client,
+        &checks,
+        &audit,
+        event,
+        ConfigKind::Widget,
+        &widget,
+        Edit::Upsert(&theirs),
+        ExpectedHead::At(1),
+    )
+    .await;
+    assert!(
+        matches!(&same, Ok(SaveOutcome::Unchanged(head)) if head.revision == 2),
+        "{same:?}"
+    );
     // A document that does not exist has no current revision to name.
     let outcome = edit(
         &mut client,
@@ -967,7 +983,7 @@ async fn a_refused_save_writes_nothing_and_records_nothing() {
         )
         .await,
     );
-    assert_eq!(codes(&nothing_to_remove), vec![Code::DanglingReference]);
+    assert_eq!(codes(&nothing_to_remove), vec![Code::NothingToRemove]);
     // What may be edited at all is checked before the document's head: the
     // settings' own text is still refused, and a key that is no id is not a
     // conflict with a document that cannot exist.
@@ -1209,7 +1225,7 @@ async fn a_removed_document_keeps_its_history_and_its_key_can_be_used_again() {
         event,
         ConfigKind::Widget,
         "copy",
-        Edit::Upsert(&copy),
+        Edit::Upsert(&format!("{copy}\n# another\n")),
         ExpectedHead::Absent,
     )
     .await;
@@ -1275,7 +1291,7 @@ async fn a_removed_document_keeps_its_history_and_its_key_can_be_used_again() {
         )
         .await,
     );
-    assert_eq!(codes(&again_from_removal), vec![Code::DanglingReference]);
+    assert_eq!(codes(&again_from_removal), vec![Code::NothingToRemove]);
     let outcome = edit(
         &mut client,
         &checks,
@@ -1304,7 +1320,7 @@ async fn a_removed_document_keeps_its_history_and_its_key_can_be_used_again() {
         )
         .await,
     );
-    assert_eq!(codes(&again), vec![Code::DanglingReference]);
+    assert_eq!(codes(&again), vec![Code::NothingToRemove]);
 
     // An editor who saw the removal started from it, as one who saw nothing
     // did: either brings the key back.
@@ -1525,8 +1541,24 @@ async fn a_document_that_no_longer_passes_is_left_out_and_said_why() {
     );
     tx.rollback().await.unwrap();
 
-    // The stale document does not block editing another.
+    // Saved again as it is, it is refused, not taken as unchanged.
     let checks = Checks::default();
+    let again = refused(
+        edit(
+            &mut client,
+            &checks,
+            &audit,
+            event,
+            ConfigKind::Widget,
+            "stale",
+            Edit::Upsert(stale),
+            ExpectedHead::At(1),
+        )
+        .await,
+    );
+    assert!(!again.is_accepted(), "{again:?}");
+
+    // The stale document does not block editing another.
     let (_, yaml) = first(&campus, ConfigKind::Widget);
     let edited = format!("{yaml}\n# edited\n");
     assert_eq!(
@@ -2711,10 +2743,27 @@ async fn dashboards_that_no_longer_pass_do_not_block_the_configured_tab() {
     .await
     .unwrap();
     let dashboards: Vec<String> = campus.set.dashboards.keys().cloned().collect();
-    for dashboard in &dashboards {
-        let stale = format!("id: {dashboard}\nunknown_field: true\n");
-        write_directly(&pool, event, "dashboard", dashboard, 2, &stale).await;
+    let stale = |dashboard: &str| format!("id: {dashboard}\nunknown_field: true\n");
+    let (passing, others) = dashboards.split_first().unwrap();
+    for dashboard in others {
+        write_directly(&pool, event, "dashboard", dashboard, 2, &stale(dashboard)).await;
     }
+    // The one that passes is the last the tab shows.
+    let last = refused(
+        edit(
+            &mut client,
+            &checks,
+            &audit,
+            event,
+            ConfigKind::Dashboard,
+            passing,
+            Edit::Delete,
+            ExpectedHead::At(1),
+        )
+        .await,
+    );
+    assert_eq!(codes(&last), vec![Code::NoDashboard]);
+    write_directly(&pool, event, "dashboard", passing, 2, &stale(passing)).await;
     let tx = client.transaction().await.unwrap();
     let live = get_live_config(&tx, event).await.unwrap().unwrap();
     assert!(live.assembled.set.dashboards.is_empty(), "each is left out");
@@ -2755,6 +2804,22 @@ async fn dashboards_that_no_longer_pass_do_not_block_the_configured_tab() {
         ),
         3,
         "nor does removing one of them"
+    );
+    // But the tab is not switched back to show none.
+    set_mode(&mut client, &audit, event, &editor(), DashboardMode::Legacy)
+        .await
+        .unwrap();
+    let switched = set_mode(
+        &mut client,
+        &audit,
+        event,
+        &editor(),
+        DashboardMode::Configured,
+    )
+    .await;
+    assert!(
+        matches!(&switched, Err(ModeError::Invalid(report)) if codes(report) == vec![Code::NoDashboard]),
+        "{switched:?}"
     );
     remove(&pool, event).await;
 }
@@ -2880,5 +2945,89 @@ async fn what_a_change_prepared_is_kept_when_the_change_fails() {
         "{outcome:?}"
     );
     assert_eq!(prepared_rows(&client, event).await, 3);
+    remove(&pool, event).await;
+}
+
+#[tokio::test]
+async fn a_save_sent_again_after_it_was_kept_is_unchanged() {
+    let pool = schema::pool().await;
+    let event = event(&pool, line!()).await;
+    let mut client = pool.get().await.unwrap();
+    let (checks, audit) = (Checks::default(), Audits::default());
+    let campus = preset("campus");
+    reset(
+        &mut client,
+        &audit,
+        event,
+        "campus",
+        DashboardMode::Configured,
+    )
+    .await
+    .unwrap();
+    let (widget, yaml) = first(&campus, ConfigKind::Widget);
+    let edited = format!("{yaml}\n# edited\n");
+    assert_eq!(
+        saved(
+            edit(
+                &mut client,
+                &checks,
+                &audit,
+                event,
+                ConfigKind::Widget,
+                &widget,
+                Edit::Upsert(&edited),
+                ExpectedHead::At(1),
+            )
+            .await
+        ),
+        2
+    );
+    let before = stored(&pool, event).await;
+
+    // Its answer was lost, so the editor sends it again from where it
+    // started: the document already says it.
+    let again = edit(
+        &mut client,
+        &checks,
+        &audit,
+        event,
+        ConfigKind::Widget,
+        &widget,
+        Edit::Upsert(&edited),
+        ExpectedHead::At(1),
+    )
+    .await;
+    assert!(
+        matches!(&again, Ok(SaveOutcome::Unchanged(head)) if head.revision == 2),
+        "{again:?}"
+    );
+    assert_eq!(stored(&pool, event).await, before);
+    assert_eq!(audit.entries().len(), 2);
+    remove(&pool, event).await;
+}
+
+#[tokio::test]
+async fn an_administrator_signing_key_is_found_without_being_read() {
+    let pool = schema::pool().await;
+    let event = event(&pool, line!()).await;
+    let mut client = pool.get().await.unwrap();
+    let tenant = event.tenant_id.to_string();
+    let tx = client.transaction().await.unwrap();
+    tx.execute(
+        "INSERT INTO sequent_backend.secret (tenant_id, key, value) VALUES ($1, $2, '\\x00')",
+        &[
+            &event.tenant_id,
+            &format!("admin_signing_key-{tenant}-admin-1"),
+        ],
+    )
+    .await
+    .unwrap();
+    assert!(admin_user_signing_key_exists(&tx, &tenant, "admin-1")
+        .await
+        .unwrap());
+    assert!(!admin_user_signing_key_exists(&tx, &tenant, "admin-2")
+        .await
+        .unwrap());
+    tx.rollback().await.unwrap();
     remove(&pool, event).await;
 }

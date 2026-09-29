@@ -175,25 +175,6 @@ fn revisions(rows: Vec<Row>) -> Result<Vec<StoredRevision>> {
     rows.iter().map(StoredRevision::try_from).collect()
 }
 
-#[instrument(err, skip(transaction))]
-pub async fn get_monitoring_event(
-    transaction: &Transaction<'_>,
-    event: EventRef,
-) -> Result<Option<MonitoringEvent>> {
-    transaction
-        .query_opt(
-            "SELECT dashboard_mode, preset_id, preset_version, config_generation
-             FROM sequent_backend.monitoring_event
-             WHERE tenant_id = $1 AND election_event_id = $2",
-            &[&event.tenant_id, &event.election_event_id],
-        )
-        .await
-        .context("Failed to read the monitoring event")?
-        .as_ref()
-        .map(MonitoringEvent::try_from)
-        .transpose()
-}
-
 /// Gives the event a monitoring row, on the standard dashboard, unless it
 /// has one.
 #[instrument(err, skip(transaction))]

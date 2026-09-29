@@ -17,7 +17,9 @@
 //! commits. Anything refused on the way writes nothing, and
 //! nothing reaches the log. A commit that fails after the log recorded the
 //! change leaves an entry for a generation the event never reached; the next
-//! change takes that generation again, and its entry says so.
+//! change takes that generation again, so the log then holds two entries for
+//! it, and only the one whose digests match the stored revisions took
+//! effect.
 //!
 //! A save is checked before its transaction starts, against the event as
 //! one statement read it, so a slow chart engine holds back no one. The
@@ -83,7 +85,8 @@ pub struct LiveConfig {
     /// out: settings, themes, widgets, dashboards; each by key.
     pub documents: Vec<StoredRevision>,
     /// The documents as one set, leaving out, and saying why, any that no
-    /// longer pass the checks they were saved under.
+    /// longer pass their own checks. What the set as a whole no longer
+    /// passes is neither left out nor said here.
     pub assembled: Assembled,
 }
 
@@ -277,6 +280,17 @@ fn live_documents(heads: Vec<StoredRevision>) -> (Vec<StoredRevision>, Assembled
         })
     }));
     (documents, assembled)
+}
+
+/// Whether the set has the document: a stored one that no longer passes is
+/// left out of it.
+fn in_set(set: &ConfigSet, kind: ConfigKind, key: &str) -> bool {
+    match kind {
+        ConfigKind::Settings => set.settings.is_some(),
+        ConfigKind::Theme => set.themes.contains_key(key),
+        ConfigKind::Widget => set.widgets.contains_key(key),
+        ConfigKind::Dashboard => set.dashboards.contains_key(key),
+    }
 }
 
 /// Why the Dashboard tab may not show the configured dashboards.
@@ -538,6 +552,18 @@ async fn check_save(
     let exists = head
         .as_ref()
         .filter(|head| head.change == DocumentChange::Upsert);
+    let (_, live) = live_documents(heads);
+    // A save of what the document says already changes nothing, whichever
+    // revision the editor started from: a save sent again after its answer
+    // was lost, say. A document left out of the set is saved again only as
+    // a fix, so its own text is checked, and refused, like any other.
+    if let (Edit::Upsert(yaml), Some(head)) = (change, exists) {
+        if head.sha256.as_deref() == Some(document_digest(yaml).as_str())
+            && in_set(&live.set, kind, key)
+        {
+            return Ok(Checked::Unchanged(head.clone()));
+        }
+    }
     let started_from_head = match (expected, &head) {
         (ExpectedHead::Absent, None) => true,
         (ExpectedHead::Absent, Some(head)) => head.change == DocumentChange::Delete,
@@ -547,25 +573,16 @@ async fn check_save(
     if !started_from_head {
         return Err(SaveError::Conflict { current: head });
     }
-    match (change, exists) {
-        (Edit::Upsert(yaml), Some(head))
-            if head.sha256.as_deref() == Some(document_digest(yaml).as_str()) =>
-        {
-            return Ok(Checked::Unchanged(head.clone()));
-        }
-        (Edit::Delete, None) => {
-            return Err(SaveError::Invalid(Report {
-                problems: vec![Problem::error(
-                    Code::DanglingReference,
-                    "",
-                    format!("There is no {kind} '{key}' to remove."),
-                )],
-            }));
-        }
-        _ => {}
+    if change == Edit::Delete && exists.is_none() {
+        return Err(SaveError::Invalid(Report {
+            problems: vec![Problem::error(
+                Code::NothingToRemove,
+                "",
+                format!("There is no {kind} '{key}' to remove."),
+            )],
+        }));
     }
 
-    let (_, live) = live_documents(heads);
     let checked = check_edit(&live.set, kind, key, change).map_err(SaveError::Invalid)?;
     // Dashboards that no longer pass are shown by no one already, so a save
     // among them takes none away.
@@ -722,7 +739,14 @@ pub async fn reset_to_preset(
         Some(Ok(preset)) => preset,
     };
     if mode == DashboardMode::Configured && preset.set.dashboards.is_empty() {
-        return Err(ResetError::Invalid(nothing_to_show()));
+        return Err(ResetError::Invalid(Report {
+            problems: vec![Problem::error(
+                Code::NoDashboard,
+                "",
+                "The preset has no dashboard to show; reset to it with the standard dashboard, \
+                 or choose another preset.",
+            )],
+        }));
     }
     let version = PresetVersion {
         id: preset.manifest.id.clone(),
