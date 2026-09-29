@@ -1,15 +1,15 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
 
+import {customBuildQuery} from "./customBuildQuery"
+import {Order_By} from "@/gql/graphql"
+
 const mockBuildQuery = jest.fn()
 
 jest.mock("ra-data-hasura", () => ({
     buildQuery: () => mockBuildQuery,
     buildVariables: () => jest.fn(),
 }))
-
-import {customBuildQuery} from "./customBuildQuery"
-import {Order_By} from "@/gql/graphql"
 
 const RESOURCE = "sequent_backend_tally_session_execution"
 
