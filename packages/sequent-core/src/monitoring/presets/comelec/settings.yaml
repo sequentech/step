@@ -19,8 +19,5 @@ dimensions:
   # Free text in the voter record; shown as written.
   status: {voter_attribute: landBasedOrSeafarer}
 unknown_label: Unknown
-# What the dashboard selectors are called.
-selectors:
-  region: {label: Region, all: All regions}
-  post: {label: Post, all: All Posts}
-  country: {label: Country, all: All countries}
+# The dashboard selectors keep the portal's words (Region, Post, Country),
+# translated and aware of what a viewer is allowed to see.

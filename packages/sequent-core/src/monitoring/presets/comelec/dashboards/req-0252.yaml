@@ -6,7 +6,7 @@ id: req-0252
 title: Access and security
 requirements: [SW-F-0252, SW-F-0268]
 order: 30
-selectors: [region, post, country]
+selectors: [region, post]
 layout:
   - {widget: access-security, width: 12}
   - {widget: login-outcomes, width: 12, values: {grain: day}}

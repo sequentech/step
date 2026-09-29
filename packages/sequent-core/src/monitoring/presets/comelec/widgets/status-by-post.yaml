@@ -6,7 +6,7 @@
 id: status-by-post
 title: Status by Post
 source: poll_status
-requirements: [SW-F-0262, SW-F-0368, SW-F-0369, SW-F-0370]
+requirements: [SW-F-0256, SW-F-0257, SW-F-0258, SW-F-0262, SW-F-0368, SW-F-0369, SW-F-0370]
 query:
   template: by_post
   measures: [posts]

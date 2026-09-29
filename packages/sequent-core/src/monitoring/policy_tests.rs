@@ -1179,3 +1179,41 @@ fn settings_may_word_the_dashboard_selectors_but_not_leave_them_blank() {
     ))
     .is_accepted());
 }
+
+#[test]
+fn a_dashboard_selector_no_widget_on_it_can_apply_is_warned_of() {
+    let mut set = specification_set();
+    let poll = parse_widget(
+        "
+id: poll
+title: Poll
+source: poll_status
+query: {template: summary, ratio: [opened, posts]}
+chart: {charts: {k: {type: kpi, query: data, value: pct_label}}, rows: [k]}
+",
+    )
+    .value
+    .expect("poll widget");
+    set.widgets.insert(poll.id.clone(), poll);
+    let dashboard = parse_dashboard(
+        "
+id: polls
+title: Polls
+selectors: [region, post, country]
+layout: [{widget: poll, width: 12}]
+",
+    )
+    .value
+    .expect("polls dashboard");
+    set.dashboards.insert(dashboard.id.clone(), dashboard);
+    let report = validate_set(&set);
+    assert!(report.is_accepted(), "a warning, not an error:\n{report}");
+    let unused: Vec<&str> = report
+        .problems
+        .iter()
+        .filter(|problem| problem.code == Code::UnusedSelector)
+        .map(|problem| problem.path.as_str())
+        .collect();
+    // Posts have no country; the specification's dashboard applies all three.
+    assert_eq!(unused, ["dashboards.polls.selectors[2]"]);
+}

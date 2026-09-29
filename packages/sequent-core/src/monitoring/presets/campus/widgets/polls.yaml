@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
-# Which polling stations are open.
+# How many polling stations have opened, and where each one stands now.
 id: polls
 title: Polling stations
 source: poll_status
@@ -20,7 +20,7 @@ chart:
       type: kpi
       query: opened
       value: numerator
-      label: Stations opened
+      label: Stations that have opened
       style: {value: {format: integer}}
       support: {value: pct_label, label: of the stations}
     # A campus has a handful of stations: a donut shows each state's count.

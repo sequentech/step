@@ -179,6 +179,17 @@ impl Widget {
             .as_ref()
             .map_or(true, |follows| follows.contains(&selector))
     }
+
+    /// Whether choosing a value in `selector` narrows this widget: it
+    /// follows the selector and its source can be narrowed by it.
+    pub fn narrowed_by(&self, selector: ScopeSelector) -> bool {
+        self.follows(selector)
+            && self
+                .source
+                .spec()
+                .builtin_dimensions
+                .contains(&selector.dimension())
+    }
 }
 
 /// How a selector is drawn.

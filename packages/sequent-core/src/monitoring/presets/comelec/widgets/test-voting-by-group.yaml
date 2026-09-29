@@ -9,8 +9,8 @@ requirements: [SW-F-0367]
 selectors:
   breakdown:
     label: Breakdown
-    options: {sex: Sex, age_band: Age, status: Status abroad, post: Post}
-    default: post
+    options: {sex: Sex, age_band: Age, status: Status abroad}
+    default: sex
 query:
   template: by_group
   group_by: {selector: breakdown}

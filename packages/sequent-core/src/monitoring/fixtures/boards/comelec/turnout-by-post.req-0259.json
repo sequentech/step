@@ -41,6 +41,9 @@
             "format": "integer",
             "label": "Voted"
           }
+        },
+        "pagination": {
+          "enabled": false
         }
       },
       "type": "table"

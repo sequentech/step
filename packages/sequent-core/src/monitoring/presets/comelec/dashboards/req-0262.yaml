@@ -6,6 +6,6 @@ id: req-0262
 title: Status by Post
 requirements: [SW-F-0262]
 order: 24
-selectors: [region, post, country]
+selectors: [region, post]
 layout:
   - {widget: status-by-post, width: 12}

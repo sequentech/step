@@ -79,7 +79,7 @@ const REASONS: [(&str, &str); 12] = [
     ("not-eligible", "Not eligible"),
     ("duplicate", "Duplicate application"),
     ("signature-missing", "Signature missing"),
-    ("wrong-post", "Wrong Post"),
+    ("wrong-area", "Wrong area"),
     ("form-incomplete", "Form incomplete"),
     ("address-unverified", "Address unverified"),
     ("name-mismatch", "Name does not match"),

@@ -104,6 +104,8 @@ pub struct Preset {
     pub manifest: PresetManifest,
     pub set: ConfigSet,
     pub documents: Vec<PresetDocument>,
+    /// What the checks warn of; a preset with errors does not load.
+    pub warnings: Report,
 }
 
 /// Every preset the platform ships: one per directory under `presets/`,
@@ -293,6 +295,7 @@ impl PresetSource {
                 manifest,
                 set,
                 documents,
+                warnings: report,
             }),
             _ => Err(report),
         }
