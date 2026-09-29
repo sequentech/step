@@ -237,6 +237,9 @@ pub enum BuiltinDimension {
     Country,
     /// Why an application was disapproved.
     Reason,
+    /// Where a Post stands, for a source that counts Posts. Worked out from
+    /// the Posts in scope, each in one state.
+    State,
 }
 
 /// Whether a source's rows carry the voter dimensions a deployment configures
@@ -346,6 +349,7 @@ const POST_TEMPLATES: &[QueryTemplate] =
     &[T::Summary, T::ByGroup, T::ByPost, T::ByMeasure];
 const SCOPE: &[BuiltinDimension] = &[D::Region, D::Post, D::Country];
 const POST_SCOPE: &[BuiltinDimension] = &[D::Region, D::Post];
+const POSTS_BY_STATE: &[BuiltinDimension] = &[D::Region, D::Post, D::State];
 
 impl DataSourceId {
     /// The source's contract. The only place a counting rule is stated.
@@ -411,7 +415,7 @@ impl DataSourceId {
                 CountingUnit::PostsInScope,
                 &[M::Posts, M::Initialized, M::Opened, M::Paused, M::Closed],
                 POST_TEMPLATES,
-                POST_SCOPE,
+                POSTS_BY_STATE,
                 VoterDimensions::NotApplicable,
                 Producer::Available,
             ),
@@ -419,7 +423,7 @@ impl DataSourceId {
                 CountingUnit::PostsInScope,
                 &[M::Posts, M::Tested, M::LockedDown],
                 POST_TEMPLATES,
-                POST_SCOPE,
+                POSTS_BY_STATE,
                 VoterDimensions::NotApplicable,
                 Producer::Pending(PendingProducer::FinalTestingLockdownState),
             ),
@@ -427,7 +431,7 @@ impl DataSourceId {
                 CountingUnit::PostsInScope,
                 &[M::Posts, M::Tallied, M::Transmitted, M::TransmissionFailed],
                 POST_TEMPLATES,
-                POST_SCOPE,
+                POSTS_BY_STATE,
                 VoterDimensions::NotApplicable,
                 Producer::Available,
             ),

@@ -59,9 +59,11 @@ pub fn build_board(
     Value::Object(board)
 }
 
-/// `over` merged onto `base`: mappings key by key, anything else replaced.
+/// `over` merged onto `base`: mappings key by key, lists and values
+/// replaced whole. A null in `over` says nothing, so the theme's value stays.
 fn merge(base: Value, over: Value) -> Value {
     match (base, over) {
+        (base, Value::Null) => base,
         (Value::Object(mut base), Value::Object(over)) => {
             for (key, value) in over {
                 let merged = match base.remove(&key) {

@@ -63,6 +63,10 @@ pub enum Code {
     /// The snapshot has no count for what a query asks: the producer did not
     /// count that measure or dimension. Refused rather than shown as zero.
     NotCounted,
+    /// The snapshot is not in the shape its producer promises: a cube cell
+    /// with the wrong number of values, an unreadable offset. Refused rather
+    /// than guessed at.
+    MalformedSnapshot,
     /// dbt Charts refused the chart, or warned about it. The engine's own code
     /// travels in [`Problem::engine_code`].
     ChartSchema,

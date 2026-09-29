@@ -12,24 +12,29 @@
 //! - a ratio is its numerator over its denominator, both shown, and a zero
 //!   denominator is "—", not 0%;
 //! - a missing dimension value is the Unknown group, shown last and never
-//!   dropped by a limit;
+//!   dropped by a limit, and a configured value nobody has is a zero, not a
+//!   gap;
 //! - a day is the sum of its hours, and both are `[start, end)` in the
 //!   event's time zone, so buckets add up to the totals;
-//! - a measure the producer did not count is refused, never shown as zero.
+//! - a measure the producer did not count is refused, never shown as zero;
+//! - a parameter the template does not read is refused, never ignored, so a
+//!   figure is never shown as filtered when it is not.
 //!
 //! The result's columns are fixed per template, which is what lets a chart
 //! name them: `group`, `pct`, `bucket_start` and so on.
 
 use super::config::{DimensionMapping, Ratio, Settings, SortKey, SortOrder};
 use super::payload::{
-    Counts, Cube, GroupRow, Notice, PostRow, ScopePayload, UNKNOWN_KEY,
+    Bucket, Counts, Cube, CubeCell, Notice, PostRow, ScopePayload, UNKNOWN_KEY,
     UNKNOWN_LABEL,
 };
 use super::problem::{Code, Problem, Report};
 use super::resolve::ResolvedQuery;
 use super::sources::{
-    BuiltinDimension, DataSourceId, Measure, QueryTemplate, TimeGrain,
+    BuiltinDimension, DataSourceId, Measure, QueryTemplate, SourceSpec,
+    TimeGrain,
 };
+use chrono::{Duration, NaiveDateTime};
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -71,6 +76,14 @@ pub fn evaluate(
 ) -> Result<QueryResult, Report> {
     let mut report = Report::default();
     let spec = source.spec();
+    if !spec.has_template(query.template) {
+        report.push(Problem::error(
+            Code::UnsupportedBySource,
+            "template",
+            format!("{source} has no {} template.", query.template),
+        ));
+    }
+    refuse_unread_parameters(query, &mut report);
     let asked = query
         .measures
         .iter()
@@ -89,6 +102,7 @@ pub fn evaluate(
         return Err(report);
     }
     let evaluation = Evaluation {
+        spec,
         query,
         payload,
         settings,
@@ -110,6 +124,48 @@ pub fn evaluate(
     }
 }
 
+/// What each template reads. The policy refuses the rest when a widget is
+/// saved; this refuses it again for anything evaluated without that check —
+/// a draft preview, a stored document from an older release.
+fn refuse_unread_parameters(query: &ResolvedQuery, report: &mut Report) {
+    use QueryTemplate::*;
+    let template = query.template;
+    let checks = [
+        (
+            "ratio",
+            query.ratio.is_some(),
+            !matches!(template, Timeseries | ByMeasure),
+        ),
+        ("group_by", query.group_by.is_some(), template == ByGroup),
+        (
+            "filters",
+            !query.filters.is_empty(),
+            matches!(template, Summary | ByGroup | ByMeasure),
+        ),
+        ("grain", query.grain.is_some(), template == Timeseries),
+        ("day", query.day.is_some(), template == Timeseries),
+        (
+            "sort",
+            query.sort.is_some(),
+            matches!(template, ByGroup | ByPost),
+        ),
+        (
+            "limit",
+            query.limit.is_some(),
+            matches!(template, ByGroup | ByPost),
+        ),
+    ];
+    for (parameter, given, read) in checks {
+        if given && !read {
+            report.push(Problem::error(
+                Code::TemplateParameter,
+                parameter,
+                format!("The {template} template does not read `{parameter}`."),
+            ));
+        }
+    }
+}
+
 /// The days with any activity, oldest first: the options of a day picker.
 pub fn event_days(payload: &ScopePayload) -> Vec<String> {
     let mut days: Vec<String> = Vec::new();
@@ -123,24 +179,67 @@ pub fn event_days(payload: &ScopePayload) -> Vec<String> {
 }
 
 /// `53.2%` to one decimal, rounded half away from zero; `—` when the
-/// denominator is zero.
+/// denominator is zero. Never `100.0%` short of all, nor `0.0%` above none:
+/// 9,995 of 10,000 Posts closed is not every Post closed.
 pub fn percent_label(numerator: u64, denominator: u64) -> String {
     if denominator == 0 {
         return UNDEFINED_RATIO.to_string();
     }
     let (numerator, denominator) =
         (u128::from(numerator), u128::from(denominator));
-    let tenths = (numerator * 2000 + denominator) / (denominator * 2);
+    let mut tenths = (numerator * 2000 + denominator) / (denominator * 2);
+    if numerator < denominator && tenths == 1000 {
+        tenths = 999;
+    }
+    if numerator > 0 && tenths == 0 {
+        tenths = 1;
+    }
     format!("{}.{}%", tenths / 10, tenths % 10)
 }
 
 struct Evaluation<'a> {
+    spec: SourceSpec,
     query: &'a ResolvedQuery,
     payload: &'a ScopePayload,
     settings: Option<&'a Settings>,
 }
 
 type Table = (Vec<Column>, Vec<Vec<Value>>);
+
+/// A time bucket before it becomes cells: an hour, or a day of them.
+struct Span {
+    /// Local wall-clock start, as the payload writes it.
+    start: String,
+    utc: NaiveDateTime,
+    day: String,
+    /// The hour's offset; `None` for a day.
+    offset: Option<String>,
+    counts: Counts,
+}
+
+/// The UTC start of a local hour: its wall-clock start less its offset.
+/// `None` when either is not in the shape the payload promises.
+fn utc_start(bucket: &Bucket) -> Option<NaiveDateTime> {
+    let local =
+        NaiveDateTime::parse_from_str(&bucket.start, "%Y-%m-%dT%H:%M:%S")
+            .ok()?;
+    let offset = bucket.utc_offset.as_bytes();
+    let sign = match offset.first()? {
+        b'+' => 1,
+        b'-' => -1,
+        _ => return None,
+    };
+    let (hours, minutes) = bucket.utc_offset.get(1..)?.split_once(':')?;
+    if hours.len() != 2 || minutes.len() != 2 {
+        return None;
+    }
+    let hours: i64 = hours.parse().ok()?;
+    let minutes: i64 = minutes.parse().ok()?;
+    if hours > 14 || minutes > 59 {
+        return None;
+    }
+    Some(local - Duration::minutes(sign * (hours * 60 + minutes)))
+}
 
 /// A labelled row before it becomes cells: a group, a Post.
 struct Keyed {
@@ -155,6 +254,14 @@ fn column(name: impl Into<String>, kind: ColumnKind) -> Column {
         name: name.into(),
         kind,
     }
+}
+
+fn malformed(what: String) -> Problem {
+    Problem::error(
+        Code::MalformedSnapshot,
+        "",
+        format!("The snapshot is malformed: {what}."),
+    )
 }
 
 fn not_counted(what: String) -> Problem {
@@ -230,30 +337,60 @@ impl Evaluation<'_> {
     }
 
     fn summary(&self, report: &mut Report) -> Option<Table> {
-        let totals = if self.query.filters.is_empty() {
-            self.payload.totals.clone()
-        } else {
-            let cube = self.cube(report)?;
-            let cells = self.filtered_cells(cube, report)?;
-            sum(cells.iter().map(|cell| &cell.counts))
-        };
+        let totals = self.scope_totals(report)?;
         let row = self.value_cells(&totals, report);
         Some((self.value_columns(), vec![row]))
     }
 
-    fn cube(&self, report: &mut Report) -> Option<&Cube> {
-        let cube = self.payload.cube.as_ref();
-        if cube.is_none() {
-            report.push(not_counted("voters by their dimensions".to_string()));
+    /// The scope's totals, or the voters the filters keep. A filter nobody
+    /// matches keeps no voter: zero of every measure the scope counted.
+    fn scope_totals(&self, report: &mut Report) -> Option<Counts> {
+        if self.query.filters.is_empty() {
+            return Some(self.payload.totals.clone());
         }
-        cube
+        let cube = self.cube(report)?;
+        let cells = self.filtered_cells(cube, report)?;
+        let mut totals = self.zeroed();
+        for cell in cells {
+            add(&mut totals, &cell.counts);
+        }
+        Some(totals)
+    }
+
+    /// Zero of every measure the scope counted.
+    fn zeroed(&self) -> Counts {
+        self.payload
+            .totals
+            .keys()
+            .map(|measure| (*measure, 0))
+            .collect()
+    }
+
+    fn cube(&self, report: &mut Report) -> Option<&Cube> {
+        let Some(cube) = self.payload.cube.as_ref() else {
+            report.push(not_counted("voters by their dimensions".to_string()));
+            return None;
+        };
+        if !cube.is_well_formed() {
+            report.push(malformed(
+                "a cube cell does not have one value per dimension".to_string(),
+            ));
+            return None;
+        }
+        Some(cube)
+    }
+
+    fn unknown_label(&self) -> String {
+        self.settings
+            .map_or(UNKNOWN_LABEL, Settings::unknown_label)
+            .to_string()
     }
 
     fn filtered_cells<'c>(
         &self,
         cube: &'c Cube,
         report: &mut Report,
-    ) -> Option<Vec<&'c super::payload::CubeCell>> {
+    ) -> Option<Vec<&'c CubeCell>> {
         let mut filters: Vec<(usize, &Vec<String>)> = Vec::new();
         for (dimension, values) in &self.query.filters {
             match cube.dimensions.iter().position(|name| name == dimension) {
@@ -287,7 +424,8 @@ impl Evaluation<'_> {
             return None;
         };
         let rows = match dimension.parse::<BuiltinDimension>() {
-            Ok(_) => self.builtin_groups(dimension, report)?,
+            Ok(BuiltinDimension::State) => self.state_groups(report)?,
+            Ok(builtin) => self.builtin_groups(builtin, dimension, report)?,
             Err(_) => self.voter_groups(dimension, report)?,
         };
         let rows = self.sorted(rows, report);
@@ -309,6 +447,7 @@ impl Evaluation<'_> {
 
     fn builtin_groups(
         &self,
+        builtin: BuiltinDimension,
         dimension: &str,
         report: &mut Report,
     ) -> Option<Vec<Keyed>> {
@@ -324,7 +463,79 @@ impl Evaluation<'_> {
             report.push(not_counted(format!("groups by '{dimension}'")));
             return None;
         };
-        Some(rows.iter().map(keyed_group).collect())
+        let mapping = self.settings.and_then(|settings| match builtin {
+            BuiltinDimension::Region => Some(&settings.scope.region),
+            BuiltinDimension::Country => Some(&settings.scope.country),
+            _ => None,
+        });
+        Some(
+            rows.iter()
+                .map(|row| {
+                    let unknown = row.key == UNKNOWN_KEY;
+                    let label = if unknown {
+                        self.unknown_label()
+                    } else {
+                        row.label
+                            .clone()
+                            .or_else(|| {
+                                mapping.and_then(|mapping| {
+                                    mapping.labels.get(&row.key).cloned()
+                                })
+                            })
+                            .unwrap_or_else(|| row.key.clone())
+                    };
+                    Keyed {
+                        key: row.key.clone(),
+                        label,
+                        counts: row.counts.clone(),
+                        unknown,
+                    }
+                })
+                .collect(),
+        )
+    }
+
+    /// Posts by where they stand: every state the source has, in the order
+    /// Posts move through them. Each Post is in one state, so the groups
+    /// partition the Posts in scope and add up to them.
+    fn state_groups(&self, report: &mut Report) -> Option<Vec<Keyed>> {
+        if self.spec.states.is_empty() {
+            report.push(not_counted("Posts by state".to_string()));
+            return None;
+        }
+        let zero = self.zeroed();
+        let mut rows: Vec<Keyed> = self
+            .spec
+            .states
+            .iter()
+            .map(|state| {
+                let key = state.to_string();
+                Keyed {
+                    label: self.label(&key, state.default_label()),
+                    key,
+                    counts: zero.clone(),
+                    unknown: false,
+                }
+            })
+            .collect();
+        let mut unknown: Option<Keyed> = None;
+        for post in &self.payload.posts {
+            let at = post.state.and_then(|state| {
+                self.spec.states.iter().position(|s| *s == state)
+            });
+            let row = match at {
+                Some(at) => &mut rows[at],
+                None => unknown.get_or_insert_with(|| Keyed {
+                    key: UNKNOWN_KEY.to_string(),
+                    label: self.unknown_label(),
+                    counts: zero.clone(),
+                    unknown: true,
+                }),
+            };
+            add(&mut row.counts, &post.counts);
+        }
+        rows.extend(unknown);
+        Some(rows)
     }
 
     fn voter_groups(
@@ -340,20 +551,34 @@ impl Evaluation<'_> {
             return None;
         };
         let cells = self.filtered_cells(cube, report)?;
-        let mut groups: IndexMap<&str, Counts> = IndexMap::new();
-        for cell in cells {
-            let totals = groups.entry(cell.values[at].as_str()).or_default();
-            add(totals, &cell.counts);
-        }
         let mapping = self
             .settings
             .and_then(|settings| settings.dimensions.get(dimension));
+        // Every value the settings name is a row, voters or not.
+        let zero = self.zeroed();
+        let mut groups: IndexMap<&str, Counts> = mapping
+            .into_iter()
+            .flat_map(|mapping| {
+                mapping
+                    .age_bands
+                    .iter()
+                    .map(|band| band.label.as_str())
+                    .chain(mapping.labels.keys().map(String::as_str))
+            })
+            .map(|key| (key, zero.clone()))
+            .collect();
+        for cell in cells {
+            let totals = groups
+                .entry(cell.values[at].as_str())
+                .or_insert_with(|| zero.clone());
+            add(totals, &cell.counts);
+        }
         let mut rows: Vec<Keyed> = groups
             .into_iter()
             .map(|(key, counts)| {
                 let unknown = key == UNKNOWN_KEY;
                 let label = if unknown {
-                    UNKNOWN_LABEL.to_string()
+                    self.unknown_label()
                 } else {
                     mapping
                         .and_then(|mapping| mapping.labels.get(key))
@@ -430,7 +655,9 @@ impl Evaluation<'_> {
     }
 
     fn by_post(&self, report: &mut Report) -> Option<Table> {
-        let stated = self.payload.posts.iter().any(|post| post.state.is_some());
+        // Fixed by the source, not by the data, so a chart can name them
+        // whether or not any Post is in scope.
+        let stated = !self.spec.states.is_empty();
         let mut columns = vec![
             column("post", ColumnKind::Text),
             column("post_id", ColumnKind::Text),
@@ -469,9 +696,7 @@ impl Evaluation<'_> {
                 let mut cells = vec![
                     json!(post.post),
                     json!(post.post_id),
-                    post.region
-                        .as_ref()
-                        .map_or(Value::Null, |region| json!(region)),
+                    json!(self.region_label(post.region.as_deref())),
                 ];
                 if stated {
                     match post.state {
@@ -501,33 +726,51 @@ impl Evaluation<'_> {
             ));
             return None;
         };
-        // (start, label, day, counts), oldest first.
-        let mut buckets: Vec<(String, String, String, Counts)> = Vec::new();
+        let mut buckets: Vec<Span> = Vec::new();
         for bucket in &self.payload.series {
-            match grain {
-                TimeGrain::Hour => buckets.push((
-                    bucket.start.clone(),
-                    bucket.start.get(11..16).unwrap_or_default().to_string(),
-                    bucket.day.clone(),
-                    bucket.counts.clone(),
-                )),
-                TimeGrain::Day => match buckets.last_mut() {
-                    Some((_, _, day, counts)) if *day == bucket.day => {
-                        add(counts, &bucket.counts)
-                    }
-                    _ => buckets.push((
-                        format!("{}T00:00:00", bucket.day),
-                        bucket.day.clone(),
-                        bucket.day.clone(),
-                        bucket.counts.clone(),
-                    )),
-                },
+            let Some(utc) = utc_start(bucket) else {
+                report.push(malformed(format!(
+                    "the hour '{}' has no readable UTC offset ('{}')",
+                    bucket.start, bucket.utc_offset
+                )));
+                return None;
+            };
+            match (grain, buckets.last_mut()) {
+                (TimeGrain::Day, Some(last)) if last.day == bucket.day => {
+                    add(&mut last.counts, &bucket.counts)
+                }
+                (TimeGrain::Day, _) => buckets.push(Span {
+                    start: format!("{}T00:00:00", bucket.day),
+                    utc,
+                    day: bucket.day.clone(),
+                    offset: None,
+                    counts: bucket.counts.clone(),
+                }),
+                (TimeGrain::Hour, _) => buckets.push(Span {
+                    start: bucket.start.clone(),
+                    utc,
+                    day: bucket.day.clone(),
+                    offset: Some(bucket.utc_offset.clone()),
+                    counts: bucket.counts.clone(),
+                }),
             }
         }
+        // The hour lived twice when clocks go back is two buckets with one
+        // wall-clock start; their offsets tell them apart.
+        let mut starts: IndexMap<&str, usize> = IndexMap::new();
+        for bucket in &buckets {
+            *starts.entry(bucket.start.as_str()).or_default() += 1;
+        }
+        let repeated: Vec<String> = starts
+            .into_iter()
+            .filter(|(_, times)| *times > 1)
+            .map(|(start, _)| start.to_string())
+            .collect();
 
         let mut columns = vec![
             column("bucket_start", ColumnKind::Text),
             column("bucket_label", ColumnKind::Text),
+            column("bucket_utc", ColumnKind::Text),
         ];
         for measure in &self.query.measures {
             columns.push(column(measure.to_string(), ColumnKind::Integer));
@@ -539,17 +782,36 @@ impl Evaluation<'_> {
 
         let mut running: Counts = Counts::new();
         let mut rows = Vec::new();
-        for (start, label, day, counts) in buckets {
-            let mut cells = vec![json!(start), json!(label)];
+        for bucket in &buckets {
+            let label = match (&bucket.offset, &self.query.day) {
+                (None, _) => bucket.day.clone(),
+                (Some(_), Some(_)) => bucket.start[11..16].to_string(),
+                (Some(_), None) => {
+                    format!("{} {}", bucket.day, &bucket.start[11..16])
+                }
+            };
+            let label = match &bucket.offset {
+                Some(offset) if repeated.contains(&bucket.start) => {
+                    format!("{label} (UTC{offset})")
+                }
+                _ => label,
+            };
+            let mut cells = vec![
+                json!(bucket.start),
+                json!(label),
+                json!(bucket.utc.format("%Y-%m-%dT%H:%M:%SZ").to_string()),
+            ];
             for measure in &self.query.measures {
-                let value = count(&counts, *measure, report)?;
+                let value = count(&bucket.counts, *measure, report)?;
                 let total = running.entry(*measure).or_default();
                 *total += value;
                 cells.push(json!(value));
                 cells.push(json!(*total));
             }
             let shown = match &self.query.day {
-                Some(wanted) => grain == TimeGrain::Day || *wanted == day,
+                Some(wanted) => {
+                    grain == TimeGrain::Day || *wanted == bucket.day
+                }
                 None => true,
             };
             if shown {
@@ -565,15 +827,7 @@ impl Evaluation<'_> {
             column("label", ColumnKind::Text),
             column("value", ColumnKind::Integer),
         ];
-        let totals = if self.query.filters.is_empty() {
-            self.payload.totals.clone()
-        } else {
-            let cube = self.cube(report)?;
-            sum(self
-                .filtered_cells(cube, report)?
-                .iter()
-                .map(|cell| &cell.counts))
-        };
+        let totals = self.scope_totals(report)?;
         let rows = self
             .query
             .measures
@@ -590,26 +844,26 @@ impl Evaluation<'_> {
         Some((columns, rows))
     }
 
+    /// A Post's region as the region groups show it.
+    fn region_label(&self, region: Option<&str>) -> String {
+        match region
+            .filter(|region| !region.is_empty() && *region != UNKNOWN_KEY)
+        {
+            None => self.unknown_label(),
+            Some(region) => self
+                .settings
+                .and_then(|settings| settings.scope.region.labels.get(region))
+                .cloned()
+                .unwrap_or_else(|| region.to_string()),
+        }
+    }
+
     fn label(&self, key: &str, default: &str) -> String {
         self.query
             .labels
             .get(key)
             .cloned()
             .unwrap_or_else(|| default.to_string())
-    }
-}
-
-fn keyed_group(row: &GroupRow) -> Keyed {
-    let unknown = row.key == UNKNOWN_KEY;
-    Keyed {
-        key: row.key.clone(),
-        label: if unknown {
-            UNKNOWN_LABEL.to_string()
-        } else {
-            row.label.clone().unwrap_or_else(|| row.key.clone())
-        },
-        counts: row.counts.clone(),
-        unknown,
     }
 }
 
@@ -645,16 +899,6 @@ fn add(into: &mut Counts, counts: &Counts) {
     }
 }
 
-/// The sum of partition cells. Only ever called on a partition — never on
-/// groups or Posts, which overlap.
-fn sum<'c>(cells: impl Iterator<Item = &'c Counts>) -> Counts {
-    let mut totals = Counts::new();
-    for counts in cells {
-        add(&mut totals, counts);
-    }
-    totals
-}
-
 #[derive(Debug, Clone, PartialEq)]
 enum SortValue {
     Text(String),
@@ -672,7 +916,10 @@ impl SortValue {
             }
             (SortValue::Undefined, _) => return Ordering::Greater,
             (_, SortValue::Undefined) => return Ordering::Less,
-            (SortValue::Text(left), SortValue::Text(right)) => left.cmp(right),
+            (SortValue::Text(left), SortValue::Text(right)) => left
+                .to_lowercase()
+                .cmp(&right.to_lowercase())
+                .then_with(|| left.cmp(right)),
             (SortValue::Count(left), SortValue::Count(right)) => {
                 left.cmp(right)
             }

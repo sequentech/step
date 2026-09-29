@@ -29,17 +29,15 @@ pub struct ScopeSelection {
 }
 
 /// Whether the Post comes from the page rather than from a selector.
-#[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize,
-)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum PostPinning {
     /// The event's dashboard: Post is a selector like the others.
     #[default]
     Selectable,
-    /// An election's own page: every widget shows that Post, whether or not
-    /// it follows the Post selector.
-    Pinned,
+    /// An election's own page: every widget shows this Post, whether or not
+    /// it follows the Post selector, and the Post selector is not read.
+    Pinned(String),
 }
 
 /// One scope the snapshot job counts.
@@ -68,44 +66,62 @@ pub struct ScopeKey {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct WidgetScope {
     pub key: ScopeKey,
-    /// Selectors set on the dashboard that this widget's source cannot be
-    /// narrowed by — Country, for a source that counts Posts. The portal
-    /// says so rather than silently showing a wider figure.
+    /// Selectors set on the dashboard — or a Post pinned by the page — that
+    /// this widget's source cannot be narrowed by: Country, for a source
+    /// that counts Posts. The portal says so rather than silently showing a
+    /// wider figure.
     pub ignored: Vec<ScopeSelector>,
 }
 
 impl ScopeSelection {
     /// The scope `widget` shows: the selectors it follows and its source can
-    /// be narrowed by. A pinned Post applies regardless.
+    /// be narrowed by. A pinned Post applies whether or not the widget
+    /// follows the Post selector. An empty value is "All".
     pub fn for_widget(
         &self,
         widget: &Widget,
-        pinning: PostPinning,
+        pinning: &PostPinning,
     ) -> WidgetScope {
         let spec = widget.source.spec();
         let mut ignored = Vec::new();
-        let mut pick = |selector: ScopeSelector, value: &Option<String>| {
-            let value = value.clone()?;
-            if !widget.follows(selector) {
+        let mut narrow = |selector: ScopeSelector,
+                          value: Option<&String>,
+                          followed: bool| {
+            let value = value.filter(|value| !value.is_empty())?;
+            if !followed {
                 return None;
             }
             if !spec.builtin_dimensions.contains(&selector.dimension()) {
                 ignored.push(selector);
                 return None;
             }
-            Some(value)
+            Some(value.clone())
         };
         let post = match pinning {
-            PostPinning::Pinned => self.post.clone(),
-            PostPinning::Selectable => pick(ScopeSelector::Post, &self.post),
-        };
-        let region = match (&post, pinning) {
-            (Some(_), _) | (None, PostPinning::Pinned) => None,
-            (None, PostPinning::Selectable) => {
-                pick(ScopeSelector::Region, &self.region)
+            PostPinning::Pinned(post) => {
+                narrow(ScopeSelector::Post, Some(post), true)
             }
+            PostPinning::Selectable => narrow(
+                ScopeSelector::Post,
+                self.post.as_ref(),
+                widget.follows(ScopeSelector::Post),
+            ),
         };
-        let country = pick(ScopeSelector::Country, &self.country);
+        // A Post lies in one region, so choosing one drops the region; on a
+        // Post's own page the region selector is not offered.
+        let region = match (&post, pinning) {
+            (Some(_), _) | (None, PostPinning::Pinned(_)) => None,
+            (None, PostPinning::Selectable) => narrow(
+                ScopeSelector::Region,
+                self.region.as_ref(),
+                widget.follows(ScopeSelector::Region),
+            ),
+        };
+        let country = narrow(
+            ScopeSelector::Country,
+            self.country.as_ref(),
+            widget.follows(ScopeSelector::Country),
+        );
         WidgetScope {
             key: ScopeKey {
                 region,
