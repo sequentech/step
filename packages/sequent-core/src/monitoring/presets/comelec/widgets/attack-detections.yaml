@@ -46,7 +46,7 @@ chart:
       y_label: Detections
       # In time order, which the labels alone are not when clocks go back.
       sort: {by: bucket_utc, order: asc}
-      style: {orientation: vertical, number_format: number, axis_y: {ticks: {step: 1}}}
+      style: {orientation: vertical, number_format: number}
     categories:
       type: bar
       query: categories
@@ -58,7 +58,6 @@ chart:
       style:
         orientation: horizontal
         number_format: number
-        axis_y: {ticks: {step: 1}}
         marks: {bar: {labels: {visible: true, format: number}}}
   rows:
     - total
