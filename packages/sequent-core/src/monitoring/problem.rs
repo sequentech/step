@@ -72,6 +72,8 @@ pub enum Code {
     /// dbt Charts refused the chart, or warned about it. The engine's own code
     /// travels in [`Problem::engine_code`].
     ChartSchema,
+    /// A kind of document only a reset to a preset writes.
+    PresetOnly,
 }
 
 /// One thing wrong with a configuration document.

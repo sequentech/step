@@ -1303,7 +1303,7 @@ fn refuse_typed_in_chart(value: &Value, path: &str, report: &mut Report) {
 // -- the semantic pass -----------------------------------------------------
 
 /// Widget, dashboard and theme ids: `turnout-by-group`, `req-0260`.
-fn is_id(text: &str) -> bool {
+pub(crate) fn is_id(text: &str) -> bool {
     let mut chars = text.chars();
     chars.next().is_some_and(|first| {
         first.is_ascii_lowercase() || first.is_ascii_digit()

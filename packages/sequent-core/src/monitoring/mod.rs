@@ -40,6 +40,10 @@ pub mod problem;
 /// The dbt Charts board sent to the renderer for one widget.
 pub mod render_request;
 
+/// What an event's stored documents amount to, and what a save or a reset
+/// may write.
+pub mod revision;
+
 /// Made-up payloads in the shape each producer writes, for previews and
 /// tests before any snapshot exists.
 pub mod sample;
