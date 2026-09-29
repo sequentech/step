@@ -1,0 +1,259 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# Configuration that must be refused because of what it contains: anything that
+# would reach outside the governed data, or be interpreted rather than shown.
+#
+# Shared by the Rust policy and the renderer's own defence-in-depth checks, so
+# the two refuse the same things. Every case names the kind of document, the
+# problem code the Rust policy reports and the path it reports it at.
+- name: inline SQL as a chart query
+  kind: widget
+  code: dangling_reference
+  path: chart.charts.k.query
+  yaml: |
+    id: w
+    title: W
+    source: voter_turnout
+    query: {template: summary, measures: [voted]}
+    chart: {charts: {k: {type: kpi, query: "SELECT count(*) FROM cast_vote", value: voted}}, rows: [k]}
+- name: SQL query object in a chart
+  kind: widget
+  code: forbidden_key
+  path: chart.charts.k.query.sql
+  yaml: |
+    id: w
+    title: W
+    source: voter_turnout
+    query: {template: summary, measures: [voted]}
+    chart: {charts: {k: {type: kpi, query: {sql: "SELECT 1 AS voted"}, value: voted}}, rows: [k]}
+- name: named SQL queries in the chart
+  kind: widget
+  code: forbidden_key
+  path: chart.queries
+  yaml: |
+    id: w
+    title: W
+    source: voter_turnout
+    query: {template: summary, measures: [voted]}
+    chart:
+      queries: {extra: "SELECT 1"}
+      charts: {k: {type: kpi, query: data, value: voted}}
+      rows: [k]
+- name: inline values in the chart
+  kind: widget
+  code: forbidden_key
+  path: chart.queries
+  yaml: |
+    id: w
+    title: W
+    source: voter_turnout
+    query: {template: summary, measures: [voted]}
+    chart:
+      queries: {data: {columns: [voted], values: [[874624]]}}
+      charts: {k: {type: kpi, query: data, value: voted}}
+      rows: [k]
+- name: HTTP query in a layer
+  kind: widget
+  code: forbidden_key
+  path: chart.charts.k.layers[0].query.url
+  yaml: |
+    id: w
+    title: W
+    source: voter_turnout
+    query: {template: by_group, group_by: sex, measures: [voted]}
+    chart:
+      charts:
+        k:
+          type: bar
+          query: data
+          x: group
+          y: voted
+          layers: [{type: line, query: {type: http, url: "https://example.org/data.json"}, y: voted}]
+      rows: [k]
+- name: file source
+  kind: widget
+  code: forbidden_key
+  path: chart.source
+  yaml: |
+    id: w
+    title: W
+    source: voter_turnout
+    query: {template: summary, measures: [voted]}
+    chart: {source: ./voters.csv, charts: {k: {type: kpi, query: data, value: voted}}, rows: [k]}
+- name: click-through link
+  kind: widget
+  code: forbidden_key
+  path: chart.charts.k.link
+  yaml: |
+    id: w
+    title: W
+    source: voter_turnout
+    query: {template: by_group, group_by: sex, measures: [voted]}
+    chart: {charts: {k: {type: bar, query: data, x: group, y: voted, link: "/voters?sex={{ group }}"}}, rows: [k]}
+- name: markdown notes
+  kind: widget
+  code: forbidden_key
+  path: chart.charts.k.notes
+  yaml: |
+    id: w
+    title: W
+    source: voter_turnout
+    query: {template: summary, measures: [voted]}
+    chart: {charts: {k: {type: kpi, query: data, value: voted, notes: "**see** the log"}}, rows: [k]}
+- name: callout with a typed-in number
+  kind: widget
+  code: forbidden_key
+  path: chart.charts.k.message
+  yaml: |
+    id: w
+    title: W
+    source: voter_turnout
+    query: {template: summary, measures: [voted]}
+    chart: {charts: {k: {type: callout, message: "874,624 voted"}}, rows: [k]}
+- name: Jinja label template
+  kind: widget
+  code: forbidden_key
+  path: chart.charts.k.style.marks.slice.labels.template
+  yaml: |
+    id: w
+    title: W
+    source: voter_turnout
+    query: {template: by_group, group_by: sex, measures: [voted]}
+    chart:
+      charts:
+        k: {type: donut, query: data, theta: voted, color: group, style: {marks: {slice: {labels: {template: "{{ voted }}"}}}}}
+      rows: [k]
+- name: board variables
+  kind: widget
+  code: forbidden_key
+  path: chart.variables
+  yaml: |
+    id: w
+    title: W
+    source: voter_turnout
+    query: {template: summary, measures: [voted]}
+    chart: {variables: {region: {input: select}}, charts: {k: {type: kpi, query: data, value: voted}}, rows: [k]}
+- name: board inheritance
+  kind: widget
+  code: forbidden_key
+  path: chart.extends
+  yaml: |
+    id: w
+    title: W
+    source: voter_turnout
+    query: {template: summary, measures: [voted]}
+    chart: {extends: ./other.yaml, charts: {k: {type: kpi, query: data, value: voted}}, rows: [k]}
+- name: inline geometry
+  kind: widget
+  code: forbidden_key
+  path: chart.charts.k.geo
+  yaml: |
+    id: w
+    title: W
+    source: voter_turnout
+    query: {template: by_group, group_by: country, measures: [voted]}
+    chart: {charts: {k: {type: map, query: data, geo: "https://example.org/world.json", value: voted}}, rows: [k]}
+- name: image mark
+  kind: widget
+  code: forbidden_value
+  path: chart.charts.k.type
+  yaml: |
+    id: w
+    title: W
+    source: voter_turnout
+    query: {template: summary, measures: [voted]}
+    chart: {charts: {k: {type: image, query: data}}, rows: [k]}
+- name: raw HTML in a title
+  kind: widget
+  code: forbidden_value
+  path: title
+  yaml: |
+    id: w
+    title: "<img src=x onerror=alert(1)>"
+    source: voter_turnout
+    query: {template: summary, measures: [voted]}
+    chart: {charts: {k: {type: kpi, query: data, value: voted}}, rows: [k]}
+- name: template in an axis label
+  kind: widget
+  code: forbidden_value
+  path: chart.charts.k.x_label
+  yaml: |
+    id: w
+    title: W
+    source: voter_turnout
+    query: {template: by_group, group_by: sex, measures: [voted]}
+    chart: {charts: {k: {type: bar, query: data, x: group, y: voted, x_label: "{% if true %}x{% endif %}"}}, rows: [k]}
+- name: URL in a subtitle
+  kind: widget
+  code: forbidden_value
+  path: chart.charts.k.subtitle
+  yaml: |
+    id: w
+    title: W
+    source: voter_turnout
+    query: {template: by_group, group_by: sex, measures: [voted]}
+    chart: {charts: {k: {type: bar, query: data, x: group, y: voted, subtitle: "Source: https://example.org"}}, rows: [k]}
+- name: script URL in a selector label
+  kind: widget
+  code: forbidden_value
+  path: selectors.s.label
+  yaml: |
+    id: w
+    title: W
+    source: voter_turnout
+    selectors:
+      s: {label: "javascript:alert(1)", options: {voted: Voted}, default: voted}
+    query: {template: summary, measures: [voted]}
+    chart: {charts: {k: {type: kpi, query: data, value: voted}}, rows: [k]}
+- name: data URI in a colour
+  kind: theme
+  code: forbidden_value
+  path: style.background
+  yaml: |
+    id: t
+    style: {background: "data:image/svg+xml;base64,PHN2Zz4="}
+- name: font loaded from the internet
+  kind: theme
+  code: forbidden_key
+  path: style.font.url
+  yaml: |
+    id: t
+    style: {font: {family: Inter, url: "https://fonts.example.org/inter.woff2"}}
+- name: queries in a theme
+  kind: theme
+  code: forbidden_key
+  path: style.queries
+  yaml: |
+    id: t
+    style: {queries: {data: {sql: "SELECT 1"}}}
+- name: URL in a dashboard title
+  kind: dashboard
+  code: forbidden_value
+  path: title
+  yaml: |
+    id: d
+    title: "Open http://example.org"
+    layout: [{widget: w, width: 12}]
+- name: URL as an annotation key
+  kind: settings
+  code: forbidden_value
+  path: scope.region.election_annotation
+  yaml: |
+    time_zone: UTC
+    scope:
+      region: {election_annotation: "https://example.org/region"}
+      country: {voter_attribute: country}
+    pre_enrolled: {voter_attribute: validated, equals: "yes"}
+- name: a counting rule
+  kind: widget
+  code: unreadable
+  path: counting
+  yaml: |
+    id: w
+    title: W
+    source: voter_turnout
+    counting: sum_of_elections
+    query: {template: summary, measures: [voted]}
+    chart: {charts: {k: {type: kpi, query: data, value: voted}}, rows: [k]}
