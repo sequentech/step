@@ -105,7 +105,8 @@ impl MonitoringError {
         Self::new(
             Status::InternalServerError,
             "InternalServerError",
-            format!("{error:#}"),
+            // The first line only: the causes stay in the log.
+            error.to_string(),
         )
     }
 
