@@ -145,3 +145,26 @@ fn governed_rows_replace_any_queries_the_chart_carries() {
     assert_eq!(board["queries"]["data"]["columns"], json!(["group", "pct"]));
     assert!(board["queries"]["data"].get("sql").is_none());
 }
+
+#[test]
+fn the_engine_adds_no_footer_freshness_line_or_total_of_its_own() {
+    // The dashboard says when its figures are from, and a donut's slices
+    // need not add up to the scope: the engine's defaults would say both.
+    let mut widget = widget();
+    widget.chart = serde_yaml::from_str(
+        "charts:\n  pie: {type: donut, query: data, theta: pct, color: group, total: {label: Voters}}\n  bars: {type: bar, query: data, x: group, y: pct}\nrows: [pie, bars]\n",
+    )
+    .unwrap();
+    let board = build_board(&widget, Some(&paper()), &data());
+    assert_eq!(board["style"]["footer"], json!({"visible": false}));
+    assert_eq!(board["style"]["timestamp"], json!({"visible": false}));
+    assert_eq!(
+        board["charts"]["pie"]["total"],
+        json!({"label": "Voters", "visible": false})
+    );
+    assert!(board["charts"]["bars"].get("total").is_none());
+    assert_eq!(board["style"]["background"], json!("dbt-grays.canvas"));
+
+    let board = build_board(&widget, None, &data());
+    assert_eq!(board["style"]["footer"], json!({"visible": false}));
+}
