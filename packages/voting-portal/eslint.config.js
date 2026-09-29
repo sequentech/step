@@ -14,6 +14,7 @@ export default [
         ignores: [
             "dist/**",
             "build/**",
+            "coverage/**",
             "node_modules/**",
             "public/**",
             "*.config.js",
@@ -23,7 +24,7 @@ export default [
         ],
     },
     {
-        files: ["**/*.{js,jsx,ts,tsx}"],
+        files: ["**/*.{js,jsx,ts,tsx,mts}"],
         languageOptions: {
             ecmaVersion: "latest",
             sourceType: "module",

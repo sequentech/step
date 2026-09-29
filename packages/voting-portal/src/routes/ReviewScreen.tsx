@@ -316,6 +316,18 @@ const useTryInsertCastVote = () => {
     }
 }
 
+// The ref rejects a second cast before the next render; the state renders the
+// pending cast.
+const useCastingState = () => {
+    const castingRef = useRef<boolean>(false)
+    const [isCasting, setIsCasting] = useState<boolean>(false)
+    const setCasting = (value: boolean) => {
+        castingRef.current = value
+        setIsCasting(value)
+    }
+    return {castingRef, isCasting, setCasting}
+}
+
 interface ActionButtonProps {
     ballotStyle: IBallotStyle
     auditableBallot?: IAuditableBallot
@@ -347,7 +359,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
     const navigate = useNavigate()
     const location = useLocation()
     const [auditBallotHelp, setAuditBallotHelp] = useState<boolean>(false)
-    const isCastingBallot = useRef<boolean>(false)
+    const {castingRef, isCasting, setCasting} = useCastingState()
     const [isConfirmCastVoteModal, setConfirmCastVoteModal] = React.useState<boolean>(false)
     const {tenantId, eventId} = useParams<TenantEventType>()
     const {toHashableBallot, toHashableMultiBallot} = provideBallotService()
@@ -406,18 +418,18 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
     }
 
     const castBallotAction = async () => {
-        if (isCastingBallot.current) {
+        if (castingRef.current) {
             return
         }
         // A fully acclaimed election produces no ballot, so there is nothing
         // to encrypt, hash or cast: the voter goes straight to confirmation.
         if (isFullyAcclaimed) {
-            isCastingBallot.current = true
+            setCasting(true)
             dispatch(completeAcclaimedElection(ballotStyle.election_id))
             return submit(null, {method: "post"})
         }
         const errorType = VotingPortalErrorType.UNABLE_TO_CAST_BALLOT
-        isCastingBallot.current = true
+        setCasting(true)
         if (isDemo || globalSettings.DISABLE_AUTH) {
             if (isGoldenPolicy) {
                 // Save contests to session storage and perform reauthentication
@@ -442,7 +454,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
                 ? toHashableMultiBallot(auditableBallot as IAuditableMultiBallot)
                 : toHashableBallot(auditableBallot as IAuditableSingleBallot)
         } catch (error) {
-            isCastingBallot.current = false
+            setCasting(false)
             console.error(error)
             let ballotError = (error as IBallotError) || undefined
             if (ballotError?.error_type) {
@@ -483,7 +495,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
                 setErrorMsg
             ))
         ) {
-            isCastingBallot.current = false
+            setCasting(false)
             return submit({error: errorType}, {method: "post"})
         }
         return submit(null, {method: "post"})
@@ -515,7 +527,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
                 ) : null}
                 <LoadingOrCastButton
                     className="cast-ballot-button"
-                    isCastingBallot={isCastingBallot.current}
+                    isCastingBallot={isCasting}
                     isFullyAcclaimed={isFullyAcclaimed}
                     onClick={() =>
                         castVoteConfirmModal && !isFullyAcclaimed
@@ -577,7 +589,7 @@ export const ReviewScreen: React.FC = () => {
     const [errorMsg, setErrorMsg] = useState<string>()
     const authContext = useContext(AuthContext)
     const {isGoldUser, reauthWithGold} = authContext
-    const isCastingBallot = useRef<boolean>(false)
+    const {castingRef, isCasting, setCasting} = useCastingState()
     const {globalSettings} = useContext(SettingsContext)
     const dispatch = useAppDispatch()
     const addFakeCastVote = useAddFakeCastVote(tenantId, eventId)
@@ -725,15 +737,15 @@ export const ReviewScreen: React.FC = () => {
 
     // Cast the ballot automatically after reauth with golden user
     const goldenUserCastBallotAction = async () => {
-        if (isCastingBallot.current) {
+        if (castingRef.current) {
             return
         }
-        isCastingBallot.current = true
+        setCasting(true)
         const errorType = VotingPortalErrorType.UNABLE_TO_CAST_BALLOT
         const ballotData = getBallotDataFromSessionStorage()
 
         if (!ballotData) {
-            isCastingBallot.current = false
+            setCasting(false)
             clearSessionStorageBallotData()
             return submit({error: errorType}, {method: "post"})
         }
@@ -741,7 +753,7 @@ export const ReviewScreen: React.FC = () => {
         if (ballotData?.isDemo) {
             addFakeCastVote()
             clearSessionStorageBallotData()
-            isCastingBallot.current = false
+            setCasting(false)
             return submit(null, {method: "post"})
         }
 
@@ -753,7 +765,7 @@ export const ReviewScreen: React.FC = () => {
                 setErrorMsg
             ))
         ) {
-            isCastingBallot.current = false
+            setCasting(false)
             return submit({error: errorType}, {method: "post"})
         }
 
@@ -787,7 +799,7 @@ export const ReviewScreen: React.FC = () => {
             !isFullyAcclaimed
         ) {
             if (isGoldUser()) {
-                if (!isCastingBallot.current) {
+                if (!castingRef.current) {
                     goldenUserCastBallotAction()
                     clearSessionStorageBallotData()
                 }
@@ -973,7 +985,7 @@ export const ReviewScreen: React.FC = () => {
                     />
                 </Box>
             ))}
-            {!isCastingBallot.current && (
+            {!isCasting && (
                 <ActionButtons
                     ballotStyle={ballotStyle}
                     auditableBallot={auditableBallot}
