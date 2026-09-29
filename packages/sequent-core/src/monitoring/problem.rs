@@ -60,6 +60,8 @@ pub enum Code {
     TemplateParameter,
     /// A layout width outside the 12-column grid.
     LayoutWidth,
+    /// A dashboard selector that narrows none of the dashboard's widgets.
+    UnusedSelector,
     /// The snapshot has no count for what a query asks: the producer did not
     /// count that measure or dimension. Refused rather than shown as zero.
     NotCounted,

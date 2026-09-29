@@ -40,6 +40,10 @@ fn registry(root: &Path) -> String {
     for preset in sorted(root) {
         let id = name(&preset);
         assert!(
+            preset.is_dir(),
+            "monitoring presets: '{id}' is not a preset; each preset is a directory under {PRESETS_DIR}/"
+        );
+        assert!(
             !id.is_empty()
                 && id.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-'),
             "monitoring preset '{id}': a preset's directory is named with lower-case letters, digits and dashes"

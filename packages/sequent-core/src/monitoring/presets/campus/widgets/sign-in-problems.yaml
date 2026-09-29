@@ -9,7 +9,7 @@ source: access_security
 query:
   template: by_measure
   measures: [login_failures, password_resets]
-  labels: {login_failures: Wrong password, password_resets: Password reset}
+  labels: {login_failures: Failed sign-ins, password_resets: Password reset}
 height: 240
 chart:
   charts:

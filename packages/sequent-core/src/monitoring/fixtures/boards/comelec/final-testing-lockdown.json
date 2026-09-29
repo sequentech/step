@@ -2,7 +2,7 @@
   "charts": {
     "in_scope": {
       "label": "Posts in scope",
-      "query": "milestone",
+      "query": "tested",
       "style": {
         "value": {
           "format": "integer"
@@ -10,6 +10,21 @@
       },
       "type": "kpi",
       "value": "denominator"
+    },
+    "locked_down": {
+      "label": "Locked down",
+      "query": "locked_down",
+      "style": {
+        "value": {
+          "format": "integer"
+        }
+      },
+      "support": {
+        "label": "of the Posts in scope",
+        "value": "pct_label"
+      },
+      "type": "kpi",
+      "value": "numerator"
     },
     "posts": {
       "query": "posts",
@@ -36,13 +51,16 @@
           "state_label": {
             "label": "Status"
           }
+        },
+        "pagination": {
+          "enabled": false
         }
       },
       "type": "table"
     },
-    "reached": {
-      "label": "Posts that reached the milestone",
-      "query": "milestone",
+    "tested": {
+      "label": "Final testing done",
+      "query": "tested",
       "style": {
         "value": {
           "format": "integer"
@@ -57,7 +75,7 @@
     }
   },
   "queries": {
-    "milestone": {
+    "locked_down": {
       "columns": [
         "numerator",
         "denominator",
@@ -66,10 +84,10 @@
       ],
       "values": [
         [
-          8,
+          4,
           12,
-          0.6666666666666666,
-          "66.7%"
+          0.3333333333333333,
+          "33.3%"
         ]
       ]
     },
@@ -193,12 +211,29 @@
           1
         ]
       ]
+    },
+    "tested": {
+      "columns": [
+        "numerator",
+        "denominator",
+        "pct",
+        "pct_label"
+      ],
+      "values": [
+        [
+          8,
+          12,
+          0.6666666666666666,
+          "66.7%"
+        ]
+      ]
     }
   },
   "rows": [
     {
       "cols": [
-        "reached",
+        "tested",
+        "locked_down",
         "in_scope"
       ]
     },

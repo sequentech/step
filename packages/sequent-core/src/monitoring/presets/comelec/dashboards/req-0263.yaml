@@ -6,6 +6,6 @@ id: req-0263
 title: Counting
 requirements: [SW-F-0263]
 order: 25
-selectors: [region, post, country]
+selectors: [region, post]
 layout:
   - {widget: counting-transmission, width: 12, values: {milestone: tallied}}

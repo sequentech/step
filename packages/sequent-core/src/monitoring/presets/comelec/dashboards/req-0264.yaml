@@ -6,6 +6,6 @@ id: req-0264
 title: Transmission
 requirements: [SW-F-0264, SW-F-0265]
 order: 26
-selectors: [region, post, country]
+selectors: [region, post]
 layout:
   - {widget: counting-transmission, width: 12, values: {milestone: transmitted}}

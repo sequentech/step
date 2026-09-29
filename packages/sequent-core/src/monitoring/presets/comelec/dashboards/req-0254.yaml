@@ -6,6 +6,6 @@ id: req-0254
 title: Final testing and lockdown
 requirements: [SW-F-0254, SW-F-0255]
 order: 20
-selectors: [region, post, country]
+selectors: [region, post]
 layout:
-  - {widget: final-testing-lockdown, width: 12, values: {milestone: tested}}
+  - {widget: final-testing-lockdown, width: 12}

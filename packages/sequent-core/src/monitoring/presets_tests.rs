@@ -9,7 +9,9 @@
 use super::*;
 use crate::monitoring::compute::{evaluate, QueryResult};
 use crate::monitoring::config::Ratio;
-use crate::monitoring::config::{Dashboard, DynamicOptions, Theme, Widget};
+use crate::monitoring::config::{
+    Dashboard, DynamicOptions, ScopeSelector, Theme, Widget,
+};
 use crate::monitoring::render_request::build_board;
 use crate::monitoring::resolve::{
     resolve_widget, DynamicOptionValues, ResolvedWidget, SelectorState,
@@ -33,6 +35,11 @@ fn loaded(id: &str) -> Preset {
     }
 }
 
+fn is_hidden(path: &Path) -> bool {
+    path.file_name()
+        .is_some_and(|name| name.to_string_lossy().starts_with('.'))
+}
+
 fn all_presets() -> Vec<Preset> {
     PRESETS.iter().map(|source| loaded(source.id)).collect()
 }
@@ -41,13 +48,19 @@ fn all_presets() -> Vec<Preset> {
 
 #[test]
 fn every_preset_loads_without_a_single_problem() {
+    // Warnings too, from each document and from the set: a preset is the
+    // example administrators copy.
     for source in PRESETS {
         match source.load() {
-            Ok(_) => {}
+            Ok(preset) => assert!(
+                preset.warnings.problems.is_empty(),
+                "{}:\n{}",
+                source.id,
+                preset.warnings
+            ),
             Err(report) => panic!("{}:\n{report}", source.id),
         }
     }
-    // Warnings too: a preset is the example administrators copy.
     for source in PRESETS {
         let mut report = Report::default();
         for file in source.files {
@@ -74,6 +87,10 @@ fn the_build_lists_every_file_of_every_preset_directory() {
         while let Some(dir) = pending.pop() {
             for entry in std::fs::read_dir(&dir).expect("preset directory") {
                 let path = entry.expect("entry").path();
+                // As the build does: editors' hidden files are not documents.
+                if is_hidden(&path) {
+                    continue;
+                }
                 if path.is_dir() {
                     pending.push(path);
                 } else {
@@ -93,9 +110,9 @@ fn the_build_lists_every_file_of_every_preset_directory() {
     let directories: BTreeSet<String> =
         std::fs::read_dir(monitoring_dir().join("presets"))
             .unwrap()
-            .map(|entry| {
-                entry.unwrap().file_name().to_string_lossy().to_string()
-            })
+            .map(|entry| entry.unwrap().path())
+            .filter(|path| !is_hidden(path))
+            .map(|path| path.file_name().unwrap().to_string_lossy().to_string())
             .collect();
     let registered: BTreeSet<String> =
         PRESETS.iter().map(|source| source.id.to_string()).collect();
@@ -931,6 +948,8 @@ fn dashboards_open_on_the_figure_their_record_asks_for() {
         ("req-0261", ratio(PreEnrolled, Registered)),
     ] {
         assert_eq!(opened_on(dashboard, "turnout-by-post", "data"), figure);
+        // With a Post chosen, the countries under it.
+        assert_eq!(opened_on(dashboard, "turnout-by-country", "data"), figure);
         // The summary shows all three figures on every turnout dashboard.
         assert_eq!(
             opened_on(dashboard, "turnout-summary", "voted_reg"),
@@ -945,9 +964,14 @@ fn dashboards_open_on_the_figure_their_record_asks_for() {
             ratio(PreEnrolled, Registered)
         );
     }
+    // Both of the dashboard's records at once, with no choice to make.
     assert_eq!(
-        opened_on("req-0254", "final-testing-lockdown", "milestone"),
+        opened_on("req-0254", "final-testing-lockdown", "tested"),
         ratio(Tested, Posts)
+    );
+    assert_eq!(
+        opened_on("req-0254", "final-testing-lockdown", "locked_down"),
+        ratio(LockedDown, Posts)
     );
     assert_eq!(
         opened_on("req-0263", "counting-transmission", "milestone"),
@@ -1042,24 +1066,30 @@ fn no_code_is_chosen_by_preset() {
     assert!(offenders.is_empty(), "{offenders:?}");
 }
 
-/// A dashboard selector is worded in the preset's language, as its widgets'
-/// titles are; the portal's own words are only for configurations that
-/// predate this.
+/// A preset words the dashboard selectors in its own terms, or leaves all of
+/// them to the portal's translated words; a dashboard never mixes the two.
 #[test]
-fn every_dashboard_selector_is_worded_by_its_preset() {
+fn a_preset_words_every_dashboard_selector_or_none() {
+    let mut worded = BTreeMap::new();
     for preset in all_presets() {
         let settings = preset.set.settings.as_ref().expect("settings");
-        for dashboard in preset.set.dashboards.values() {
-            for selector in &dashboard.selectors {
-                assert!(
-                    settings.selector_words(*selector).is_some(),
-                    "{}: dashboard '{}' shows the {selector} selector, which settings.yaml does not word",
-                    preset.manifest.id,
-                    dashboard.id
-                );
-            }
-        }
+        let shown: BTreeSet<ScopeSelector> = preset
+            .set
+            .dashboards
+            .values()
+            .flat_map(|dashboard| dashboard.selectors.iter().copied())
+            .collect();
+        let named: BTreeSet<ScopeSelector> =
+            settings.selectors.keys().copied().collect();
+        assert!(
+            named.is_empty() || shown.is_subset(&named),
+            "{} words {named:?} but its dashboards show {shown:?}",
+            preset.manifest.id
+        );
+        worded.insert(preset.manifest.id.clone(), !named.is_empty());
     }
+    assert_eq!(worded["comelec"], false, "the portal's words apply");
+    assert_eq!(worded["campus"], true, "a campus has its own terms");
 }
 
 /// FNV-1a: stable across platforms and releases, enough to notice a change.
@@ -1162,4 +1192,76 @@ fn the_column_check_reads_every_field_that_names_a_column() {
         unknown_columns(&painted).is_empty(),
         "a colour is not a column"
     );
+}
+
+/// A widget that does not follow a selector its dashboard shows would show
+/// wider figures than the viewer chose, with nothing saying so; one whose
+/// source cannot be narrowed by it says so instead (`WidgetScope::ignored`).
+#[test]
+fn a_chosen_scope_narrows_each_widget_or_it_says_why_not() {
+    use crate::monitoring::scope::{PostPinning, ScopeSelection};
+    let chosen = ScopeSelection {
+        region: Some("europe".into()),
+        post: None,
+        country: Some("ES".into()),
+    };
+    let posted = ScopeSelection {
+        post: Some("madrid".into()),
+        ..chosen.clone()
+    };
+    for preset in all_presets() {
+        for dashboard in preset.set.dashboards.values() {
+            for item in &dashboard.layout {
+                let widget = &preset.set.widgets[&item.widget];
+                for selector in &dashboard.selectors {
+                    assert!(
+                        widget.follows(*selector),
+                        "{}/{}: {} does not follow {selector}",
+                        preset.manifest.id,
+                        dashboard.id,
+                        widget.id
+                    );
+                }
+                for (selection, pinning) in [
+                    (&chosen, PostPinning::Selectable),
+                    (&posted, PostPinning::Selectable),
+                    (&chosen, PostPinning::Pinned("madrid".into())),
+                ] {
+                    let scope = selection.for_widget(widget, &pinning);
+                    for selector in &dashboard.selectors {
+                        let narrowed = match selector {
+                            ScopeSelector::Region => scope.key.region.is_some(),
+                            ScopeSelector::Post => scope.key.post.is_some(),
+                            ScopeSelector::Country => {
+                                scope.key.country.is_some()
+                            }
+                        };
+                        // A chosen Post takes the place of its region.
+                        let replaced = *selector == ScopeSelector::Region
+                            && scope.key.post.is_some();
+                        let chosen = match selector {
+                            ScopeSelector::Region => selection.region.is_some(),
+                            ScopeSelector::Post => {
+                                selection.post.is_some()
+                                    || matches!(pinning, PostPinning::Pinned(_))
+                            }
+                            ScopeSelector::Country => {
+                                selection.country.is_some()
+                            }
+                        };
+                        assert!(
+                            !chosen
+                                || narrowed
+                                || replaced
+                                || scope.ignored.contains(selector),
+                            "{}/{}: {} is silently wider than the {selector} chosen",
+                            preset.manifest.id,
+                            dashboard.id,
+                            widget.id
+                        );
+                    }
+                }
+            }
+        }
+    }
 }

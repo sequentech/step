@@ -168,3 +168,25 @@ fn the_engine_adds_no_footer_freshness_line_or_total_of_its_own() {
     let board = build_board(&widget, None, &data());
     assert_eq!(board["style"]["footer"], json!({"visible": false}));
 }
+
+#[test]
+fn a_table_shows_every_row_without_a_pager() {
+    // The engine pages a long table with a script, which the dashboard's
+    // sanitiser and sandboxed frame never run: a pager there would be dead.
+    let mut widget = widget();
+    widget.chart = serde_yaml::from_str(
+        "charts:\n  posts: {type: table, query: data, style: {pagination: {enabled: true, page_rows: 5}}}\n  plain: {type: table, query: data}\n  bars: {type: bar, query: data, x: group, y: pct}\nrows: [posts, plain, bars]\n",
+    )
+    .unwrap();
+    let board = build_board(&widget, Some(&paper()), &data());
+    for table in ["posts", "plain"] {
+        assert_eq!(
+            board["charts"][table]["style"]["pagination"]["enabled"],
+            json!(false),
+            "{table}"
+        );
+    }
+    assert!(board["charts"]["bars"]
+        .pointer("/style/pagination")
+        .is_none());
+}

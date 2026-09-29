@@ -35,7 +35,7 @@
       "values": [
         [
           "login_failures",
-          "Wrong password",
+          "Failed sign-ins",
           1,
           180
         ],

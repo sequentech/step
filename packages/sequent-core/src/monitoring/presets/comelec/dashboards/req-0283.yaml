@@ -6,6 +6,5 @@ id: req-0283
 title: Attack detections
 requirements: [SW-F-0283]
 order: 33
-selectors: [region, post, country]
 layout:
   - {widget: attack-detections, width: 12}

@@ -43,6 +43,9 @@
           "state_label": {
             "label": "Status"
           }
+        },
+        "pagination": {
+          "enabled": false
         }
       },
       "type": "table"

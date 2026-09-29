@@ -1,6 +1,6 @@
 {
   "charts": {
-    "posts": {
+    "countries": {
       "query": "data",
       "style": {
         "columns": {
@@ -8,7 +8,7 @@
             "visible": false
           },
           "group": {
-            "label": "Post"
+            "label": "Country"
           },
           "group_key": {
             "visible": false
@@ -65,8 +65,8 @@
       ],
       "values": [
         [
-          "Washington",
-          "post-washington",
+          "United States",
+          "United States",
           1,
           54,
           21,
@@ -77,8 +77,8 @@
           "38.9%"
         ],
         [
-          "Doha",
-          "post-doha",
+          "Qatar",
+          "Qatar",
           2,
           80,
           31,
@@ -89,8 +89,8 @@
           "38.8%"
         ],
         [
-          "Sydney",
-          "post-sydney",
+          "Australia",
+          "Australia",
           3,
           88,
           34,
@@ -101,8 +101,8 @@
           "38.6%"
         ],
         [
-          "Madrid",
-          "post-madrid",
+          "Spain",
+          "Spain",
           4,
           122,
           47,
@@ -113,8 +113,8 @@
           "38.5%"
         ],
         [
-          "London",
-          "post-london",
+          "United Kingdom",
+          "United Kingdom",
           5,
           117,
           45,
@@ -126,7 +126,7 @@
         ],
         [
           "Singapore",
-          "post-singapore",
+          "Singapore",
           6,
           110,
           42,
@@ -137,8 +137,8 @@
           "38.2%"
         ],
         [
-          "Toronto",
-          "post-toronto",
+          "Canada",
+          "Canada",
           7,
           71,
           27,
@@ -149,8 +149,8 @@
           "38.0%"
         ],
         [
-          "Rome",
-          "post-rome",
+          "Italy",
+          "Italy",
           8,
           143,
           54,
@@ -161,8 +161,8 @@
           "37.8%"
         ],
         [
-          "Dubai",
-          "post-dubai",
+          "United Arab Emirates",
+          "United Arab Emirates",
           9,
           101,
           38,
@@ -173,21 +173,9 @@
           "37.6%"
         ],
         [
-          "Riyadh",
-          "post-riyadh",
+          "Japan",
+          "Japan",
           10,
-          59,
-          22,
-          6,
-          22,
-          59,
-          0.3728813559322034,
-          "37.3%"
-        ],
-        [
-          "Tokyo",
-          "post-tokyo",
-          11,
           135,
           36,
           13,
@@ -198,8 +186,8 @@
         ],
         [
           "Kuwait",
-          "post-kuwait",
-          12,
+          "Kuwait",
+          11,
           90,
           24,
           9,
@@ -207,12 +195,24 @@
           90,
           0.26666666666666666,
           "26.7%"
+        ],
+        [
+          "Unknown",
+          "__unknown__",
+          12,
+          59,
+          22,
+          6,
+          22,
+          59,
+          0.3728813559322034,
+          "37.3%"
         ]
       ]
     }
   },
   "rows": [
-    "posts"
+    "countries"
   ],
   "style": {
     "accent": "#1d4ed8",

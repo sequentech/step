@@ -63,7 +63,9 @@ pub fn build_board(
 /// What dbt Charts draws unless told not to, and a dashboard must not show:
 /// a footer linking to dbt Charts, a "Data as of" line in UTC (the dashboard
 /// shows its snapshot time in the event's zone), and a donut's total, which
-/// adds up slices that need not add up to the scope. Set after the theme and
+/// adds up slices that need not add up to the scope; and a table's pager,
+/// which runs on a script the dashboard never runs, so a table shows every
+/// row and its frame scrolls. Set after the theme and
 /// the widget, so neither can bring them back.
 fn hide_engine_additions(board: &mut Map<String, Value>) {
     let hidden = || {
@@ -84,11 +86,26 @@ fn hide_engine_additions(board: &mut Map<String, Value>) {
             let Value::Object(chart) = chart else {
                 continue;
             };
-            let pie = matches!(
-                chart.get("type").and_then(Value::as_str),
-                Some("pie" | "donut")
-            );
-            if !pie {
+            let kind = chart.get("type").and_then(Value::as_str);
+            if kind == Some("table") {
+                let style = chart
+                    .entry("style")
+                    .or_insert_with(|| Value::Object(Map::new()));
+                if !style.is_object() {
+                    *style = Value::Object(Map::new());
+                }
+                if let Value::Object(style) = style {
+                    style.insert(
+                        "pagination".into(),
+                        Value::Object(Map::from_iter([(
+                            "enabled".into(),
+                            Value::Bool(false),
+                        )])),
+                    );
+                }
+                continue;
+            }
+            if !matches!(kind, Some("pie" | "donut")) {
                 continue;
             }
             match chart.get_mut("total") {

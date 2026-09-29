@@ -2355,6 +2355,20 @@ pub fn validate_set(set: &ConfigSet) -> Report {
                 format!("There is no theme '{theme}'."),
             ));
         }
+        for (position, selector) in dashboard.selectors.iter().enumerate() {
+            let applies = dashboard.layout.iter().any(|item| {
+                set.widgets
+                    .get(&item.widget)
+                    .is_some_and(|widget| widget.narrowed_by(*selector))
+            });
+            if !applies {
+                report.push(Problem::warning(
+                    Code::UnusedSelector,
+                    index(&join(&dashboard_path, "selectors"), position),
+                    format!("No widget on this dashboard can be narrowed by the {selector} selector; a viewer would change it to no effect."),
+                ));
+            }
+        }
         for (position, item) in dashboard.layout.iter().enumerate() {
             let item_path = index(&join(&dashboard_path, "layout"), position);
             let Some(widget) = set.widgets.get(&item.widget) else {

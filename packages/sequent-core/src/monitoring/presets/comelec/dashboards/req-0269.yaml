@@ -6,7 +6,7 @@ id: req-0269
 title: Helpdesk
 requirements: [SW-F-0269]
 order: 32
-selectors: [region, post, country]
+selectors: [region, post]
 layout:
   - {widget: helpdesk-issues, width: 12}
   - {widget: pending-issues-by-post, width: 12}
