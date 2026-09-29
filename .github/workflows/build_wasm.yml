@@ -77,7 +77,7 @@ jobs:
             # `--locked` for the reason spelled out in
             # `.devcontainer/scripts/rebuild-election-config-wasm.sh`: re-resolving
             # picks `getrandom 0.4.3`, which does not build for wasm at all.
-            wasm-pack build --mode no-install --out-name index --release --target web --features=wasmtest,default_features -- --locked
+            wasm-pack build --mode no-install --out-name index --release --target web --features=wasmtest,default_features,monitoring -- --locked
             wasm-pack -v pack .
           '
 

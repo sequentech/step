@@ -21,6 +21,10 @@
 /// Evaluating a query against the counts a snapshot holds.
 pub mod compute;
 
+/// One document checked alone or against the event's other documents, as
+/// the editor asks on every keystroke.
+pub mod check;
+
 /// Configuration as authored: widgets, dashboards, themes and settings.
 pub mod config;
 
@@ -61,6 +65,10 @@ pub mod voter;
 /// The governed data sources: their counting units, measures, dimensions and
 /// query templates. Adding one is a code change, by design.
 pub mod sources;
+
+/// The browser's view of [`check`].
+#[cfg(feature = "wasm")]
+pub mod wasm;
 
 pub use config::{
     ConfigKind, ConfigSet, Dashboard, LayoutItem, Query, Selector, Settings,

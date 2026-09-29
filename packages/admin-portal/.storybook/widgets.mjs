@@ -77,5 +77,8 @@ export default {
         "src/providers/TenantContextProvider.tsx#TenantContextProvider": PROVIDER,
         "src/providers/WidgetsContextProvider.tsx#WidgetsContextProvider":
             PROVIDER + " Its task widgets have their own section, Admin/Components/WidgetsStack.",
+        "src/components/monitoring/editor/useMonitoringEditor.tsx#EditorElement":
+            "The element useMonitoringEditor returns: the editor's dialogs, which have their " +
+            "own sections, and its notices; the MonitoringDashboardTab Editor* stories render it.",
     },
 }
