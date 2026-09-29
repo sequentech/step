@@ -11,10 +11,13 @@ use crate::adapters::memory::database::FixedDatabasePools;
 use crate::adapters::memory::documents::MemoryDocumentStorage;
 use crate::adapters::memory::electoral_log::MemoryElectoralLogs;
 use crate::adapters::memory::identity::LocalIdentityAdmin;
+use crate::adapters::memory::monitoring_audit::MemoryConfigAudit;
+use crate::adapters::memory::monitoring_renderer::MemoryRenderer;
+use crate::adapters::memory::monitoring_snapshots::MemorySnapshots;
 use crate::adapters::memory::task_ledger::MemoryTaskLedger;
 use crate::adapters::memory::task_queue::MemoryTaskQueue;
 use crate::adapters::memory::vault::MemoryVault;
-use crate::services::dependencies::HarvestServices;
+use crate::services::dependencies::{HarvestServices, MonitoringCache};
 use crate::test_claims::Claims;
 use deadpool_postgres::{Pool, Runtime};
 use rocket::http::{ContentType, Header, Status};
@@ -41,6 +44,10 @@ pub struct Services {
     pub documents: Arc<MemoryDocumentStorage>,
     pub electoral_log: Arc<MemoryElectoralLogs>,
     pub identity: Arc<LocalIdentityAdmin>,
+    pub monitoring_audit: Arc<MemoryConfigAudit>,
+    pub monitoring_cache: Arc<MonitoringCache>,
+    pub monitoring_renderer: Arc<MemoryRenderer>,
+    pub monitoring_snapshots: Arc<MemorySnapshots>,
     pub ledger: Arc<MemoryTaskLedger>,
     pub tasks: MemoryTaskQueue,
     pub vault: Arc<MemoryVault>,
@@ -65,10 +72,30 @@ impl Services {
             documents: Default::default(),
             electoral_log: Default::default(),
             identity: Default::default(),
+            monitoring_audit: Default::default(),
+            monitoring_cache: Arc::new(MonitoringCache::new(64)),
+            monitoring_renderer: Default::default(),
+            monitoring_snapshots: Default::default(),
             ledger: Default::default(),
             tasks: Default::default(),
             vault: Default::default(),
         }
+    }
+
+    pub fn with_monitoring_renderer(
+        mut self,
+        renderer: MemoryRenderer,
+    ) -> Self {
+        self.monitoring_renderer = Arc::new(renderer);
+        self
+    }
+
+    pub fn with_monitoring_snapshots(
+        mut self,
+        snapshots: MemorySnapshots,
+    ) -> Self {
+        self.monitoring_snapshots = Arc::new(snapshots);
+        self
     }
 
     pub fn with_cast_votes(mut self, cast_votes: ScriptedCastVotes) -> Self {
@@ -119,6 +146,10 @@ impl Services {
             documents: self.documents.clone(),
             electoral_log: self.electoral_log.clone(),
             identity: self.identity.clone(),
+            monitoring_audit: self.monitoring_audit.clone(),
+            monitoring_cache: self.monitoring_cache.clone(),
+            monitoring_renderer: self.monitoring_renderer.clone(),
+            monitoring_snapshots: self.monitoring_snapshots.clone(),
             ledger: self.ledger.clone(),
             tasks: Arc::new(self.tasks.clone()),
             vault: self.vault.clone(),

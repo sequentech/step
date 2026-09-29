@@ -45,6 +45,8 @@ pub mod insert_tenant;
 pub mod keys_ceremony;
 pub mod limit_access_by_countries;
 pub mod miru_plugin;
+pub mod monitoring;
+pub mod monitoring_config;
 pub mod permissions;
 pub mod phone_blacklist;
 pub mod plugins;
