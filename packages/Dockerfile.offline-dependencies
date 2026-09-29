@@ -22,6 +22,13 @@
 # The toolchain versions here must match the ones the product Dockerfiles build
 # with, or the vendored artifacts will not be the ones the build wants.
 
+# Global build arguments. These must precede the first FROM: an ARG after a FROM
+# belongs to that stage only, and a later stage redeclaring it would then see an
+# empty value -- which silently turned a pinned immudb tag into an empty one.
+ARG IMMUDB_VERSION=1.9.6
+ARG OID4VP_VERSION=0.6.2
+ARG OID4VP_SHA256=f6cd968bc77fec4f8e1417d3caeefe4920941e01b119f152f1c9186bbd2b2e15
+
 # Cargo dependencies, including git dependencies and patched crates, which
 # cargo vendor resolves into the same directory.
 FROM rust:1.96.0-slim-bookworm AS rust-deps
@@ -33,7 +40,10 @@ COPY . .
 # The emitted config.toml names an absolute directory. Consumers rewrite that
 # path rather than depending on this layout, because a COPY from an image can
 # only reliably start at its root.
-RUN cargo vendor /vendor-cache > /vendor-cache/config.toml
+# The redirect target cannot live inside /vendor-cache: the shell creates it
+# before cargo has made that directory. Write it outside, then move it in.
+RUN cargo vendor /vendor-cache > /config.toml \
+    && mv /config.toml /vendor-cache/config.toml
 
 # Yarn dependencies as an offline mirror: a directory of tarballs that
 # `yarn install --offline` resolves against without contacting a registry.
@@ -52,7 +62,6 @@ RUN printf 'yarn-offline-mirror "/npm-packages-offline-cache"\nyarn-offline-mirr
 # compiled.
 #
 # Built for BUILDPLATFORM, matching what Dockerfile.immudb's builder stage does.
-ARG IMMUDB_VERSION=1.9.6
 FROM --platform=$BUILDPLATFORM golang:1.22-alpine AS immudb-build
 ARG IMMUDB_VERSION
 RUN apk add --no-cache git make gcc musl-dev bash
@@ -76,8 +85,6 @@ RUN mvn -B -Dmaven.repo.local=/m2-repo \
 
 # The oid4vp extension's source archive and its Maven closure. The tarball is
 # checksum-pinned upstream, so vendoring it changes nothing about what is trusted.
-ARG OID4VP_VERSION=0.6.2
-ARG OID4VP_SHA256=f6cd968bc77fec4f8e1417d3caeefe4920941e01b119f152f1c9186bbd2b2e15
 FROM maven:3-amazoncorretto-21 AS oid4vp-m2
 ARG OID4VP_VERSION
 ARG OID4VP_SHA256
