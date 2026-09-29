@@ -271,6 +271,7 @@ pub async fn update_scheduled_event(
     tenant_id: &str,
     id: &str,
     cron_config: CronConfig,
+    voting_channels: Option<&Vec<sequent_core::ballot::VotingStatusChannel>>,
 ) -> Result<()> {
     let tenant_uuid: uuid::Uuid =
         parse_uuid_v4(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
@@ -285,7 +286,9 @@ pub async fn update_scheduled_event(
             UPDATE
                 "sequent_backend".scheduled_event
             SET
-                cron_config = $3
+                cron_config = $3,
+                event_payload = CASE WHEN $4::jsonb IS NULL THEN event_payload
+                    ELSE COALESCE(event_payload, '{}'::jsonb) || jsonb_build_object('voting_channels', $4::jsonb) END
             WHERE
                 tenant_id = $1
                 AND id = $2
@@ -295,7 +298,15 @@ pub async fn update_scheduled_event(
         .await?;
 
     let _rows: Vec<Row> = hasura_transaction
-        .query(&statement, &[&tenant_uuid, &id_uuid, &cron_config_js])
+        .query(
+            &statement,
+            &[
+                &tenant_uuid,
+                &id_uuid,
+                &cron_config_js,
+                &voting_channels.map(serde_json::to_value).transpose()?,
+            ],
+        )
         .await
         .map_err(|err| anyhow!("Error running the update_scheduled_event query: {err}"))?;
 
