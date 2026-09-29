@@ -233,10 +233,10 @@
     {
       "cols": [
         "tested",
-        "locked_down",
-        "in_scope"
+        "locked_down"
       ]
     },
+    "in_scope",
     "posts"
   ],
   "style": {
