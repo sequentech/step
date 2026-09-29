@@ -4,8 +4,13 @@
 
 # Optional offline dependency source. The default, scratch, copies an empty
 # directory into the builder and leaves the online build byte-identical. Point it
-# at packages/Dockerfile.offline-dependencies' output to build with no network:
-#   --build-arg VENDOR_IMAGE=sequentech.local/offline-dependencies:latest --network=none
+# at packages/Dockerfile.offline-dependencies' output to resolve dependencies from
+# vendored inputs instead of a registry:
+#   --build-arg VENDOR_IMAGE=sequentech.local/offline-dependencies:latest
+#
+# This is not yet enough for --network=none: the stages below still install
+# operating-system packages, and some download tools over HTTPS. See the scope
+# note in packages/Dockerfile.offline-dependencies for the full list.
 # See sequentech/meta#13625.
 ARG VENDOR_IMAGE=scratch
 FROM ${VENDOR_IMAGE} AS vendor

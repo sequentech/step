@@ -9,7 +9,11 @@
 ###############################################################################
 # Optional offline dependency source. The default, scratch, copies an empty
 # directory and leaves the online build unchanged. Point it at
-# packages/Dockerfile.offline-dependencies' output to build with no network.
+# packages/Dockerfile.offline-dependencies' output to take the immudb binaries it
+# compiled instead of cloning and building here.
+#
+# The runtime stage below still runs apk, so this alone is not enough for
+# --network=none. See the scope note in Dockerfile.offline-dependencies.
 # See sequentech/meta#13625.
 # Global build arguments. These must precede the first FROM: an ARG after a FROM
 # belongs to that stage only, and a later stage redeclaring it would then see an

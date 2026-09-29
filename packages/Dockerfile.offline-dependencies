@@ -36,9 +36,12 @@
 #   docker build -t sequentech.local/offline-dependencies:latest \
 #     -f packages/Dockerfile.offline-dependencies packages
 #
-# Then build any product image with no network:
+# Then build any product image with its dependencies resolved from this image
+# rather than from a registry:
 #   docker build --build-arg VENDOR_IMAGE=sequentech.local/offline-dependencies:latest \
-#     --network=none -f packages/harvest/Dockerfile.prod packages
+#     -f packages/harvest/Dockerfile.prod packages
+#
+# --network=none does not work yet; see the scope note above for what is missing.
 #
 # The toolchain versions here must match the ones the product Dockerfiles build
 # with, or the vendored artifacts will not be the ones the build wants.
