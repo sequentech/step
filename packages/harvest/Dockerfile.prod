@@ -2,6 +2,14 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
+# Optional offline dependency source. The default, scratch, copies an empty
+# directory into the builder and leaves the online build byte-identical. Point it
+# at packages/Dockerfile.offline-dependencies' output to build with no network:
+#   --build-arg VENDOR_IMAGE=sequentech.local/offline-dependencies:latest --network=none
+# See sequentech/meta#13625.
+ARG VENDOR_IMAGE=scratch
+FROM ${VENDOR_IMAGE} AS vendor
+
 FROM rust:1.96.0-slim-bookworm as builder
 
 WORKDIR /app
@@ -37,6 +45,22 @@ COPY ./plugins ./plugins
 COPY ./Cargo.toml ./Cargo.toml
 COPY ./Cargo.lock ./Cargo.lock
 COPY ./.cargo ./.cargo
+
+# Use the vendored crates when a vendor image was supplied, otherwise fetch as
+# before. cargo vendor writes an absolute directory into its config, so the path
+# is rewritten to where the cache actually landed here.
+#
+# net.offline is set in the same branch so an incomplete vendor fails loudly
+# instead of quietly reaching for crates.io -- which would make an "offline"
+# build silently depend on the network it is meant to prove it does not need.
+COPY --from=vendor / /vendor/
+RUN if [ -d /vendor/vendor-cache ]; then \
+        mkdir -p .cargo && \
+        sed 's|^directory = .*|directory = "/vendor/vendor-cache"|' \
+            /vendor/vendor-cache/config.toml >> .cargo/config.toml && \
+        printf '\n[net]\noffline = true\n' >> .cargo/config.toml && \
+        echo "offline build: using vendored crates from /vendor/vendor-cache"; \
+    fi
 
 RUN cp /app/windmill/external-bin/ecies-tool.jar /usr/local/bin/
 
