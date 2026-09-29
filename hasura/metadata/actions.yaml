@@ -1794,6 +1794,171 @@ actions:
           - role: admin-user
           - role: tally-sheet-import-review
       comment: review_tally_sheet_import
+    - name: monitoringListDashboards
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/monitoring/list-dashboards
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
+          - role: monitoring-view
+      comment: List an election event's monitoring dashboards
+    - name: monitoringGetDashboard
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/monitoring/get-dashboard
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
+          - role: monitoring-view
+      comment: Get one monitoring dashboard with what its widgets need
+    - name: monitoringRenderWidget
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/monitoring/render-widget
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
+          - role: monitoring-view
+      comment: Draw one monitoring widget
+    - name: monitoringValidateConfig
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/monitoring/validate-config
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
+          - role: monitoring-configure
+      comment: Check a monitoring configuration document
+    - name: monitoringListPresets
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/monitoring/list-presets
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
+          - role: monitoring-configure
+      comment: List the monitoring presets
+    - name: monitoringListConfig
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/monitoring/list-config
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
+          - role: monitoring-configure
+      comment: List an event's monitoring configuration documents
+    - name: monitoringGetConfig
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/monitoring/get-config
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
+          - role: monitoring-configure
+      comment: Get a monitoring configuration document and its history
+    - name: monitoringSaveConfig
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/monitoring/save-config
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
+          - role: monitoring-configure
+      comment: Save or remove a monitoring configuration document
+    - name: monitoringResetToPreset
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/monitoring/reset-to-preset
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
+          - role: monitoring-configure
+      comment: Reset an event's monitoring configuration to a preset
+    - name: monitoringSetMode
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/monitoring/set-mode
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
+          - role: monitoring-configure
+      comment: Switch the Dashboard tab between the legacy and the configured dashboards
+    - name: monitoringExport
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/monitoring/export
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
+          - role: monitoring-view
+      comment: Export a monitoring dashboard's figures as CSV or SQL
 custom_types:
     enums:
         - name: EarlyVotingPolicy
@@ -1891,6 +2056,29 @@ custom_types:
         - name: ImportOptions
         - name: CountUsersInput
     objects:
+        - name: MonitoringSnapshot
+        - name: MonitoringDashboardSummary
+        - name: MonitoringListDashboardsOutput
+        - name: MonitoringDocumentRef
+        - name: MonitoringScopeOption
+        - name: MonitoringPostOption
+        - name: MonitoringScopeOptions
+        - name: MonitoringGetDashboardOutput
+        - name: MonitoringProblem
+        - name: MonitoringRenderWidgetOutput
+        - name: MonitoringValidateConfigOutput
+        - name: MonitoringSaveConfigOutput
+        - name: MonitoringGenerationOutput
+        - name: MonitoringSetModeOutput
+        - name: MonitoringPreset
+        - name: MonitoringListPresetsOutput
+        - name: MonitoringAuthor
+        - name: MonitoringDocumentSummary
+        - name: MonitoringPresetRef
+        - name: MonitoringListConfigOutput
+        - name: MonitoringHistoryEntry
+        - name: MonitoringGetConfigOutput
+        - name: MonitoringExportOutput
         - name: GetManualVerificationOutput
         - name: GetRealmAttributesOutput
         - name: UpdateRealmAttributesOutput

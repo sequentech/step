@@ -9,6 +9,8 @@ pub mod electoral_log;
 pub mod identity;
 #[cfg(test)]
 pub mod memory;
+pub mod monitoring_renderer;
+pub mod monitoring_snapshots;
 pub mod task_ledger;
 pub mod task_queue;
 pub mod user_tasks;
