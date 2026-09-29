@@ -2915,6 +2915,12 @@ const galegoTranslation: TranslationType = {
                 ATTACK_DETECTION_FEED: "non hai ningunha fonte de detección de ataques conectada",
                 HELPDESK_INTEGRATION: "non hai ningún sistema de soporte conectado",
             },
+            notices: {
+                UNREGISTERED_ATTEMPTS_AT_EVENT_SCOPE_ONLY:
+                    "Os intentos con nomes de usuario non rexistrados non pertencen a ningún posto, polo que só se contan para todo o evento.",
+                UNREGISTERED_ATTEMPTS_EXCLUDED:
+                    "Estas cifras non inclúen os intentos con nomes de usuario non rexistrados; cóntanse para todo o evento.",
+            },
             unavailable: {
                 notConnected: "Non conectado · {{reason}}",
                 notConnectedHelp: "Non se mostra nada ata que o estea.",

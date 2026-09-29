@@ -2918,6 +2918,12 @@ const dutchTranslation: TranslationType = {
                 ATTACK_DETECTION_FEED: "er is geen bron voor aanvalsdetectie gekoppeld",
                 HELPDESK_INTEGRATION: "er is geen helpdesksysteem gekoppeld",
             },
+            notices: {
+                UNREGISTERED_ATTEMPTS_AT_EVENT_SCOPE_ONLY:
+                    "Pogingen met niet-geregistreerde gebruikersnamen horen bij geen enkele post en worden daarom alleen voor het hele evenement geteld.",
+                UNREGISTERED_ATTEMPTS_EXCLUDED:
+                    "Deze cijfers laten pogingen met niet-geregistreerde gebruikersnamen buiten beschouwing; die worden voor het hele evenement geteld.",
+            },
             unavailable: {
                 notConnected: "Niet gekoppeld · {{reason}}",
                 notConnectedHelp: "Er wordt niets getoond totdat dat zo is.",

@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import DOMPurify, {type DOMPurify as Purifier} from "dompurify"
-import {EColorScheme, WIDTH_BUCKET_PX} from "../types"
+import {EColorScheme, MIN_RENDER_WIDTH_PX, WIDTH_BUCKET_PX} from "../types"
 import {chartSize, type ChartSize} from "./chartSize"
 
 // A chart is drawn in `<iframe sandbox="" srcDoc>`: no script runs, and this
@@ -70,10 +70,14 @@ export function hashString(text: string): string {
     return (hash >>> 0).toString(16).padStart(8, "0")
 }
 
-/** The width a render is requested at: whole 40 px steps, at least one. */
+/**
+ * The width a render is requested at: whole 40 px steps, never below
+ * {@link MIN_RENDER_WIDTH_PX}. A frame narrower than that shrinks the chart
+ * to fit (`max-width: 100%; height: auto`).
+ */
 export function widthBucket(width: number): number {
     const steps = Math.floor(Math.max(0, width) / WIDTH_BUCKET_PX)
-    return Math.max(1, steps) * WIDTH_BUCKET_PX
+    return Math.max(MIN_RENDER_WIDTH_PX, steps * WIDTH_BUCKET_PX)
 }
 
 export interface ChartDocument {

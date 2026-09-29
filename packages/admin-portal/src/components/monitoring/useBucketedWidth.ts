@@ -6,8 +6,9 @@ import {WIDTH_DEBOUNCE_MS} from "./types"
 import {widthBucket} from "./lib/chartDocument"
 
 /**
- * The element's width in 40 px steps: measured at once, then again after a
- * resize settles, so dragging a window does not ask for a render per pixel.
+ * The element's width in 40 px steps, at least the minimum render width:
+ * measured at once, then again after a resize settles, so dragging a window
+ * does not ask for a render per pixel.
  */
 export function useBucketedWidth(ref: RefObject<HTMLElement | null>): number | null {
     const [width, setWidth] = useState<number | null>(null)

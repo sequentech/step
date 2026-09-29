@@ -40,6 +40,11 @@ describe("frameHeight", () => {
         expect(frameHeight(size, 520, 400)).toBe(608)
         // Narrowed to a 300 px frame.
         expect(frameHeight(size, 300, 400)).toBe(Math.ceil(300 * (607.7 / 400)))
+        // Drawn at the minimum render width, shrunk to a phone's 260 px card.
+        const narrow = chartSize(
+            '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 180" width="360"></svg>'
+        )
+        expect(frameHeight(narrow, 260, 400)).toBe(130)
         // No width of its own: as wide as the frame.
         expect(frameHeight({aspect: 0.5}, 600, 280)).toBe(300)
     })

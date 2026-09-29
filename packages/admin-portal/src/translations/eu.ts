@@ -2906,6 +2906,12 @@ const basqueTranslation: TranslationType = {
                 ATTACK_DETECTION_FEED: "ez dago erasoak detektatzeko iturririk konektatuta",
                 HELPDESK_INTEGRATION: "ez dago laguntza-sistemarik konektatuta",
             },
+            notices: {
+                UNREGISTERED_ATTEMPTS_AT_EVENT_SCOPE_ONLY:
+                    "Erregistratu gabeko erabiltzaile-izenen saiakerak ez dira inongo posturenak, eta, beraz, gertaera osorako soilik zenbatzen dira.",
+                UNREGISTERED_ATTEMPTS_EXCLUDED:
+                    "Zifra hauek ez dituzte erregistratu gabeko erabiltzaile-izenen saiakerak barne hartzen; gertaera osorako zenbatzen dira.",
+            },
             unavailable: {
                 notConnected: "Konektatu gabe · {{reason}}",
                 notConnectedHelp: "Ez da ezer erakusten konektatu arte.",
