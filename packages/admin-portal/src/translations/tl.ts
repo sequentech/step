@@ -270,7 +270,6 @@ const tagalogTranslation: TranslationType = {
                 EXPORT_BALLOT_PUBLICATION: "I-export ang Paglalathala ng Balota",
                 GENERATE_TRANSMISSION_REPORT: "Bumuo ng Ulat ng Paglilipat",
                 EXPORT_ACTIVITY_LOGS_REPORT: "I-export ang Ulat ng Mga Log ng Aktibidad",
-                EXPORT_MONITORING_DATA: "I-export ang Datos ng Pagsubaybay",
                 GENERATE_REPORT: "Bumuo ng ulat",
                 EXPORT_TRUSTEES: "I-export ang mga Awtoridad",
                 EXPORT_APPLICATION: "I-export ang Mga Aplikasyon",
