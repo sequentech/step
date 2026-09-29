@@ -11,7 +11,7 @@ queries:
   totals: {template: summary, measures: [registered, voted]}
   share: {template: summary, ratio: [voted, registered]}
   verified: {template: summary, ratio: [voted, pre_enrolled]}
-height: 180
+height: 300
 chart:
   charts:
     voted:
@@ -32,4 +32,6 @@ chart:
       value: pct_label
       label: Of verified electors
       support: {value: denominator, label: verified, format: integer}
-  rows: [{cols: [voted, share, verified]}]
+  rows:
+    - {cols: [voted, share]}
+    - verified

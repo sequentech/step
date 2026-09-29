@@ -12,7 +12,7 @@ queries:
   tested: {template: summary, ratio: [tested, posts]}
   locked_down: {template: summary, ratio: [locked_down, posts]}
   posts: {template: by_post, measures: [posts], sort: {by: label, order: asc}}
-height: 400
+height: 460
 chart:
   charts:
     tested:
@@ -48,5 +48,6 @@ chart:
           state_label: {label: Status}
           posts: {visible: false}
   rows:
-    - {cols: [tested, locked_down, in_scope]}
+    - {cols: [tested, locked_down]}
+    - in_scope
     - posts
