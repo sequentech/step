@@ -608,7 +608,7 @@ mod tests {
             .deserialize_contests::<RistrettoCtx>()
             .unwrap();
         let plaintext = contests[0].choice.plaintext.clone();
-        let plaintext_vec = vec::decode_array_to_vec(&plaintext); // compare
+        let plaintext_vec = vec::decode_array_to_vec(&plaintext).unwrap();
         assert_eq!(plaintext_vec, plaintext_bytes_vec);
         assert_eq!(plaintext_vec, vec![198, 20, 150, 48]);
         let decoded_plaintext =
