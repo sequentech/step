@@ -1,0 +1,84 @@
+#!/bin/bash
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# Regenerates the GraphQL schema and the generated TypeScript types from the
+# graphql-engine reachable as graphql-engine:8080. Shared by update-graphql.sh
+# and the GraphQL Schema workflow, so CI checks exactly what developers commit.
+# Run it from the repository root with HASURA_ADMIN_SECRET set.
+
+set -e -o pipefail
+
+HASURA_ADMIN_SECRET="${HASURA_ADMIN_SECRET:?HASURA_ADMIN_SECRET is not set}"
+
+# Generate graphql schema.
+#
+# Readiness is defined as "the introspection we need succeeds", rather than a
+# fixed wait or the container healthcheck: the healthcheck has no explicit
+# interval, so it inherits Docker's 30s default and can report unhealthy for
+# half a minute after Hasura is already serving.
+#
+# The output goes to a temporary file and is moved into place only on success.
+# Redirecting straight into graphql.schema.json truncates it before gq runs, so
+# any failure used to leave the tracked schema empty.
+cd packages/admin-portal
+
+# The temporary file is created in the destination directory so that the final
+# step is a rename within a single filesystem, and therefore atomic.
+SCHEMA_TMP="$(mktemp ./graphql.schema.json.XXXXXX)"
+trap 'rm -f "${SCHEMA_TMP}"' EXIT
+
+HASURA_READY_TIMEOUT_SECS="${HASURA_READY_TIMEOUT_SECS:-120}"
+deadline=$((SECONDS + HASURA_READY_TIMEOUT_SECS))
+
+while true; do
+    remaining=$((deadline - SECONDS))
+    if [ "${remaining}" -le 0 ]; then
+        echo "graphql-engine was not ready within ${HASURA_READY_TIMEOUT_SECS}s; check 'docker logs hasura'" >&2
+        exit 1
+    fi
+
+    # Each attempt is bounded by the time left on the overall deadline, so a
+    # request that connects and then stalls cannot hang the script past it.
+    if timeout "${remaining}s" gq http://graphql-engine:8080/v1/graphql \
+            -H "X-Hasura-Admin-Secret: ${HASURA_ADMIN_SECRET}" \
+            --introspect \
+            --format json \
+            > "${SCHEMA_TMP}" 2>/dev/null \
+        && [ -s "${SCHEMA_TMP}" ]; then
+        break
+    fi
+
+    # A container that is not running will never become ready, so fail now with
+    # a pointer to the cause rather than waiting out the whole timeout. A failed
+    # migration leaves graphql-engine in a restart loop and lands here.
+    if [ "$(env -u LD_LIBRARY_PATH docker inspect -f '{{.State.Running}}' hasura 2>/dev/null)" != "true" ]; then
+        echo "graphql-engine is not running; check 'docker logs hasura'" >&2
+        exit 1
+    fi
+
+    sleep 2
+done
+
+mv "${SCHEMA_TMP}" graphql.schema.json
+trap - EXIT
+
+# Copy the schema to the apps
+cd ..
+cp admin-portal/graphql.schema.json voting-portal/graphql.schema.json
+cp admin-portal/graphql.schema.json ballot-verifier/graphql.schema.json
+cp admin-portal/graphql.schema.json results-portal/graphql.schema.json
+cp admin-portal/graphql.schema.json step-cli/src/graphql/schema.json
+cp admin-portal/graphql.schema.json .
+
+yarn
+
+# Generate Ts types, functions and graphql queries
+ADMIN_SECRET="${HASURA_ADMIN_SECRET}" yarn generate:admin-portal
+ADMIN_SECRET="${HASURA_ADMIN_SECRET}" yarn generate:voting-portal
+ADMIN_SECRET="${HASURA_ADMIN_SECRET}" yarn generate:ballot-verifier
+ADMIN_SECRET="${HASURA_ADMIN_SECRET}" yarn generate:results-portal
+
+# Format the generated source files
+yarn lint:fix && yarn prettify:fix

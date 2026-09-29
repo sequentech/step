@@ -1,0 +1,107 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+name: GraphQL Schema
+
+on:
+  pull_request:
+  push:
+      branches: [ 'main', 'release/[0-9]+.[0-9]+' ]
+
+permissions:
+  contents: read
+
+jobs:
+  graphql-schema:
+    name: Check GraphQL schema is up to date
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      # Only used by the throwaway graphql-engine started below.
+      HASURA_ADMIN_SECRET: ci-admin-secret
+    services:
+      postgres:
+        image: postgres:18-bookworm
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: yarn
+          cache-dependency-path: packages/yarn.lock
+
+      # Same version devenv provides, so the schema copies it writes match.
+      - name: Install graphqurl
+        run: npm install --global graphqurl@2.0.0
+
+      # A step rather than a service because it needs the checked-out migrations
+      # and metadata. Started before the install so migrations run meanwhile.
+      - name: Start Hasura with the committed migrations and metadata
+        run: |
+          # The image developers run, so the schema is generated the same way.
+          hasura_image="$(grep --only-matching --max-count=1 -E 'hasura/graphql-engine:[^[:space:]]+' .devcontainer/docker-compose-base.yml)"
+          docker run --detach --name hasura --network host \
+            --volume "${GITHUB_WORKSPACE}/hasura/migrations:/hasura-migrations:ro" \
+            --volume "${GITHUB_WORKSPACE}/hasura/metadata:/hasura-metadata:ro" \
+            --env HASURA_GRAPHQL_MIGRATIONS_DIR=/hasura-migrations \
+            --env HASURA_GRAPHQL_METADATA_DIR=/hasura-metadata \
+            --env HASURA_GRAPHQL_METADATA_DATABASE_URL=postgres://postgres:postgres@127.0.0.1:5432/postgres \
+            --env PG_DATABASE_URL=postgres://postgres:postgres@127.0.0.1:5432/postgres \
+            --env HASURA_GRAPHQL_ADMIN_SECRET="${HASURA_ADMIN_SECRET}" \
+            --env ACTIONS_ADMIN_SECRET="${HASURA_ADMIN_SECRET}" \
+            --env HARVEST_DOMAIN=harvest:8400 \
+            "${hasura_image:?no graphql-engine image found in .devcontainer/docker-compose-base.yml}"
+          # generate-graphql.sh and the codegen configs reach Hasura as graphql-engine.
+          echo "127.0.0.1 graphql-engine" | sudo tee --append /etc/hosts
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile --non-interactive --prefer-offline
+        working-directory: packages
+
+      # yarn lint:fix resolves ui-core and ui-essentials through their dist/
+      # bundles, which yarn install does not produce.
+      - name: Build workspace libraries
+        run: yarn build:ui-core && yarn build:ui-essentials
+        working-directory: packages
+
+      - name: Regenerate the GraphQL schema and types
+        id: regenerate
+        run: .devcontainer/scripts/generate-graphql.sh
+
+      - name: Show Hasura logs
+        if: failure() && steps.regenerate.outcome == 'failure'
+        run: docker logs hasura
+
+      - name: Check the committed schema and types are up to date
+        run: |
+          generated=(
+            packages/graphql.schema.json
+            packages/step-cli/src/graphql/schema.json
+            packages/admin-portal/graphql.schema.json
+            packages/admin-portal/src/gql
+            packages/voting-portal/graphql.schema.json
+            packages/voting-portal/src/gql
+            packages/ballot-verifier/graphql.schema.json
+            packages/ballot-verifier/src/gql
+            packages/results-portal/graphql.schema.json
+            packages/results-portal/src/gql
+          )
+          if [ -n "$(git status --porcelain -- "${generated[@]}")" ]; then
+            git status --short -- "${generated[@]}"
+            git diff --stat -- "${generated[@]}"
+            echo "::error::The GraphQL schema or generated types are out of date. Run the update.graphql task and commit the result."
+            exit 1
+          fi
