@@ -152,5 +152,14 @@ describe("monitoring operations against the admin schema", () => {
     it("reads what the view needs of Harvest's additions", () => {
         expect(selected(MONITORING_GET_DASHBOARD)).toContain("event_days")
         expect(selected(MONITORING_SET_MODE)).toEqual(["mode", "generation"])
+        // Every governed query's rows, in widget order, next to the first one's `table`.
+        const render = operation(MONITORING_RENDER_WIDGET).selectionSet.selections[0] as FieldNode
+        const tables = render.selectionSet!.selections.find(
+            (selection) => (selection as FieldNode).name.value === "tables"
+        ) as FieldNode | undefined
+        expect(
+            tables?.selectionSet?.selections.map((field) => (field as FieldNode).name.value)
+        ).toEqual(["query", "table"])
+        expect(selected(MONITORING_RENDER_WIDGET)).toContain("table")
     })
 })

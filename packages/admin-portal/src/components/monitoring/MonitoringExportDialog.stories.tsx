@@ -9,7 +9,12 @@ import type {WidgetMeta} from "@/__stories__/widgetStory"
 import {STORY_IDS} from "@/__stories__/fixtures"
 import {EMonitoringExportFormat} from "./types"
 import {MonitoringExportDialog} from "./MonitoringExportDialog"
-import {MONITORING_SNAPSHOT, monitoringHandlers, refusal} from "./__stories__/MonitoringFixture"
+import {
+    MONITORING_SNAPSHOT,
+    monitoringHandlers,
+    refusal,
+    turnoutByGroup,
+} from "./__stories__/MonitoringFixture"
 
 interface Scenario {
     onClose: () => void
@@ -18,6 +23,8 @@ interface Scenario {
     initialFormat: EMonitoringExportFormat
     /** Harvest's refusal of the export, as `extensions.code`. */
     refusal?: string
+    /** The refusal's `extensions.problems`, for MONITORING_INVALID. */
+    problems?: Array<{severity: string; code: string; path: string; message: string}>
 }
 
 const DASHBOARD_PICKS = {"turnout-by-group": {breakdown: "sex", measure: "voted_pre"}}
@@ -35,6 +42,7 @@ function Fixture({onClose, onSnapshotPruned, widgetId, initialFormat}: Scenario)
                 timeZone="Asia/Manila"
                 initialFormat={initialFormat}
                 onSnapshotPruned={onSnapshotPruned}
+                widgets={[turnoutByGroup]}
                 target={{
                     electionEventId: STORY_IDS.event,
                     electionId: null,
@@ -65,7 +73,11 @@ const meta = {
             args.refusal
                 ? {
                       ...handlers,
-                      MonitoringExport: () => refusal(args.refusal as string),
+                      MonitoringExport: () =>
+                          refusal(
+                              args.refusal as string,
+                              args.problems ? {problems: args.problems} : {}
+                          ),
                   }
                 : handlers,
             {schema: true}
@@ -134,7 +146,7 @@ export const DashboardSqlOverRange: Story = {
         )
         await expect(
             body.getByText(
-                /Totals and statuses are as of the shown update; activity is limited to the range/
+                /Totals, statuses and groups are as of the shown update; only the rows of activity series are limited to the range/
             )
         ).toBeVisible()
     },
@@ -178,5 +190,43 @@ export const EndBeforeStart: Story = {
         await expect(body.getByText("The end must be after the start.")).toBeVisible()
         await expect(body.getByRole("button", {name: "Export"})).toBeDisabled()
         expect(exports()).toHaveLength(0)
+    },
+}
+
+/** Harvest refuses a dashboard export's pick: the dialog names the widget and the choice. */
+export const RefusedPick: Story = {
+    args: {
+        widgetId: null,
+        refusal: "MONITORING_INVALID",
+        problems: [
+            {
+                severity: "ERROR",
+                code: "unknown_option",
+                path: "widget_selector_values.turnout-by-group.breakdown",
+                message: "'region' is not an option of 'breakdown'.",
+            },
+        ],
+    },
+    play: async ({args}) => {
+        const body = await dialog()
+        await userEvent.click(body.getByRole("button", {name: "Export"}))
+        await expect(
+            await body.findByText(
+                "The value chosen for “Breakdown” in Turnout by group is no longer offered. Choose it again and export."
+            )
+        ).toBeVisible()
+        expect(args.onClose).not.toHaveBeenCalled()
+    },
+}
+
+/** A request Harvest cannot read, such as a bound without an offset, is told plainly. */
+export const BadRequest: Story = {
+    args: {refusal: "MONITORING_BAD_REQUEST"},
+    play: async () => {
+        const body = await dialog()
+        await userEvent.click(body.getByRole("button", {name: "Export"}))
+        await expect(
+            await body.findByText("The request was not accepted. Reload the page and try again.")
+        ).toBeVisible()
     },
 }

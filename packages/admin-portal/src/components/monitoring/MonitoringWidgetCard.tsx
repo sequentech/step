@@ -45,6 +45,7 @@ import {MonitoringWidgetUnavailable} from "./MonitoringWidgetUnavailable"
 import {MonitoringWidgetSelectors} from "./MonitoringWidgetSelectors"
 import {MonitoringWidgetMenu} from "./MonitoringWidgetMenu"
 import {MonitoringDataTableDialog} from "./MonitoringDataTableDialog"
+import {widgetQueries} from "./lib/dataTables"
 import {MonitoringExportDialog} from "./MonitoringExportDialog"
 
 /** What every widget of a dashboard shares. */
@@ -154,6 +155,7 @@ export function MonitoringWidgetCard({cell, context}: MonitoringWidgetCardProps)
     const render = error
         ? undefined
         : (data ?? (loading ? previousData : undefined))?.monitoringRenderWidget
+    const hasData = Boolean(render?.tables?.some((query) => query.table) || render?.table)
     const title = widget?.title ?? cell.widgetId
     const height = widget?.height ?? DEFAULT_WIDGET_HEIGHT
     const sourceLabel = widget
@@ -251,9 +253,7 @@ export function MonitoringWidgetCard({cell, context}: MonitoringWidgetCardProps)
                                     ? () => actions.onConfigureWidget?.(cell.widgetId)
                                     : undefined
                             }
-                            onViewData={
-                                render?.table ? () => setDialog(EWidgetDialog.DATA) : undefined
-                            }
+                            onViewData={hasData ? () => setDialog(EWidgetDialog.DATA) : undefined}
                             onExport={
                                 widget && context.snapshot
                                     ? () => setDialog(EWidgetDialog.EXPORT)
@@ -291,13 +291,15 @@ export function MonitoringWidgetCard({cell, context}: MonitoringWidgetCardProps)
                     ))}
                 </Stack>
             </CardContent>
-            {render?.table ? (
+            {render && hasData ? (
                 <MonitoringDataTableDialog
                     open={dialog === EWidgetDialog.DATA}
                     onClose={() => setDialog(EWidgetDialog.NONE)}
                     title={title}
                     scope={context.scopeLabel}
                     table={render.table}
+                    tables={render.tables}
+                    queries={widgetQueries(widget)}
                     notices={render.notices}
                 />
             ) : null}
@@ -310,6 +312,7 @@ export function MonitoringWidgetCard({cell, context}: MonitoringWidgetCardProps)
                     timeZone={context.timeZone}
                     initialFormat={EMonitoringExportFormat.CSV}
                     onSnapshotPruned={context.onSnapshotPruned}
+                    widgets={widget ? [widget] : []}
                     target={{
                         electionEventId: context.electionEventId,
                         electionId: context.electionId ?? null,

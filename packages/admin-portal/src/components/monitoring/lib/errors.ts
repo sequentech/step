@@ -20,8 +20,10 @@ export enum EMonitoringErrorCode {
     LOCKED_DOWN = "MONITORING_LOCKED_DOWN",
     /** 404: the dashboard or widget is no longer configured. */
     NOT_FOUND = "MONITORING_NOT_FOUND",
-    /** 400: the request is not one Harvest accepts. */
+    /** 400 or 422: the request is not one Harvest accepts, such as a bound without an offset. */
     BAD_REQUEST = "MONITORING_BAD_REQUEST",
+    /** 422 with `problems`: values Harvest checked and refused, such as a widget's pick. */
+    INVALID = "MONITORING_INVALID",
 }
 
 /** How long a busy answer waits before it is asked again. */
@@ -37,6 +39,7 @@ const MESSAGES: Record<EMonitoringErrorCode, string> = {
     [EMonitoringErrorCode.LOCKED_DOWN]: "monitoring.errors.lockedDown",
     [EMonitoringErrorCode.NOT_FOUND]: "monitoring.errors.notFound",
     [EMonitoringErrorCode.BAD_REQUEST]: "monitoring.errors.badRequest",
+    [EMonitoringErrorCode.INVALID]: "monitoring.errors.invalid",
 }
 
 const record = (value: unknown): Record<string, unknown> =>
@@ -51,15 +54,47 @@ function parsed(body: unknown): Record<string, unknown> {
     }
 }
 
-/** The codes in an error, wherever Hasura put them. */
-function codesOf(error: unknown): unknown[] {
+/** Each error's extensions, and those of the handler's body when Hasura wraps it. */
+function extensionsOf(error: unknown): Record<string, unknown>[] {
     const graphQLErrors = record(error).graphQLErrors
     if (!Array.isArray(graphQLErrors)) return []
     return graphQLErrors.flatMap((graphQLError) => {
         const extensions = record(record(graphQLError).extensions)
         const body = parsed(record(record(extensions.internal).response).body)
-        return [extensions.code, record(body.extensions).code]
+        return [extensions, record(body.extensions)]
     })
+}
+
+/** The codes in an error, wherever Hasura put them. */
+function codesOf(error: unknown): unknown[] {
+    return extensionsOf(error).map((extensions) => extensions.code)
+}
+
+/** A problem Harvest found in a request: a code, where, and its words for it. */
+export interface MonitoringRequestProblem {
+    code: string
+    path: string
+    message: string
+}
+
+/** The `problems` of a MONITORING_INVALID refusal. */
+export function monitoringProblems(error: unknown): MonitoringRequestProblem[] {
+    return extensionsOf(error).flatMap((extensions) =>
+        Array.isArray(extensions.problems)
+            ? extensions.problems.flatMap((problem): MonitoringRequestProblem[] => {
+                  const {code, path, message} = record(problem)
+                  return typeof code === "string"
+                      ? [
+                            {
+                                code,
+                                path: typeof path === "string" ? path : "",
+                                message: typeof message === "string" ? message : "",
+                            },
+                        ]
+                      : []
+              })
+            : []
+    )
 }
 
 /** Harvest's code for a failed monitoring request, when it is one the view knows. */

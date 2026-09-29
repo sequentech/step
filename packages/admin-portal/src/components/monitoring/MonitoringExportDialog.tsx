@@ -23,9 +23,11 @@ import {
     type MonitoringExportMutation,
     type MonitoringExportVariables,
     type MonitoringScope,
+    type MonitoringWidget,
 } from "./types"
 import {EExportRange, exportBound, exportRange} from "./lib/exportRange"
-import {EMonitoringErrorCode, monitoringErrorCode, monitoringErrorMessage} from "./lib/errors"
+import {EMonitoringErrorCode, monitoringErrorCode} from "./lib/errors"
+import {exportFailure} from "./lib/exportErrors"
 
 /** What is exported: a dashboard, or one of its widgets, at the revision shown. */
 export interface MonitoringExportTarget {
@@ -51,6 +53,8 @@ export interface MonitoringExportDialogProps {
     initialFormat?: EMonitoringExportFormat
     /** The update shown is no longer kept: the dashboard asks for the current one. */
     onSnapshotPruned?: () => void
+    /** The widgets exported, which name a refused pick. */
+    widgets?: MonitoringWidget[]
 }
 
 /**
@@ -66,6 +70,7 @@ export function MonitoringExportDialog({
     target,
     initialFormat = EMonitoringExportFormat.CSV,
     onSnapshotPruned,
+    widgets = [],
 }: MonitoringExportDialogProps) {
     const {t} = useTranslation()
     const [format, setFormat] = useState(initialFormat)
@@ -111,7 +116,7 @@ export function MonitoringExportDialog({
             if (monitoringErrorCode(error) === EMonitoringErrorCode.SNAPSHOT_PRUNED) {
                 onSnapshotPruned?.()
             }
-            setFailure(t(monitoringErrorMessage(error)))
+            setFailure(exportFailure(error, t, widgets))
         } finally {
             setSending(false)
         }

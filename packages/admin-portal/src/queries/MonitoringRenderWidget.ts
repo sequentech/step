@@ -34,6 +34,10 @@ export const MONITORING_RENDER_WIDGET = gql`
             reason
             svg
             table
+            tables {
+                query
+                table
+            }
             notices
             diagnostics {
                 severity

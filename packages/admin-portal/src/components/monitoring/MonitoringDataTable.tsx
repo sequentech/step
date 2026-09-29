@@ -11,10 +11,16 @@ export interface MonitoringDataTableProps {
     table: MonitoringTable
     /** Names the table for assistive technology. */
     caption: string
+    /** A column's header; its raw name when not given. */
+    columnLabel?: (name: string) => string
 }
 
 /** A widget's query result with exact values; the renderer's `position` column is left out. */
-export function MonitoringDataTable({table, caption}: MonitoringDataTableProps) {
+export function MonitoringDataTable({
+    table,
+    caption,
+    columnLabel = (name) => name,
+}: MonitoringDataTableProps) {
     const {t, i18n} = useTranslation()
     const shown = table.columns
         .map((column, index) => ({column, index}))
@@ -32,7 +38,7 @@ export function MonitoringDataTable({table, caption}: MonitoringDataTableProps) 
                                 key={column.name}
                                 align={column.kind === EColumnKind.TEXT ? "left" : "right"}
                             >
-                                {column.name}
+                                {columnLabel(column.name)}
                             </TableCell>
                         ))}
                     </TableRow>
