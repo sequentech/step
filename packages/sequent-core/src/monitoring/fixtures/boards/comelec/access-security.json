@@ -1,19 +1,19 @@
 {
   "charts": {
     "failures": {
-      "label": "Failed sign-ins per successful one",
-      "query": "failures",
-      "support": {
-        "format": "integer",
-        "label": "failed",
-        "value": "numerator"
+      "label": "Failed sign-ins",
+      "query": "data",
+      "style": {
+        "value": {
+          "format": "integer"
+        }
       },
       "type": "kpi",
-      "value": "pct_label"
+      "value": "login_failures"
     },
     "logins": {
       "label": "Successful sign-ins",
-      "query": "totals",
+      "query": "data",
       "style": {
         "value": {
           "format": "integer"
@@ -24,7 +24,7 @@
     },
     "resets": {
       "label": "Password resets",
-      "query": "totals",
+      "query": "data",
       "style": {
         "value": {
           "format": "integer"
@@ -35,23 +35,7 @@
     }
   },
   "queries": {
-    "failures": {
-      "columns": [
-        "numerator",
-        "denominator",
-        "pct",
-        "pct_label"
-      ],
-      "values": [
-        [
-          144,
-          2120,
-          0.06792452830188679,
-          "6.8%"
-        ]
-      ]
-    },
-    "totals": {
+    "data": {
       "columns": [
         "logins",
         "login_failures",
@@ -59,9 +43,9 @@
       ],
       "values": [
         [
-          2120,
-          144,
-          22
+          2400,
+          180,
+          40
         ]
       ]
     }
@@ -108,9 +92,7 @@
       },
       "legend": {
         "title": {
-          "font": {
-            "case": "none"
-          }
+          "visible": false
         }
       },
       "support_table": {

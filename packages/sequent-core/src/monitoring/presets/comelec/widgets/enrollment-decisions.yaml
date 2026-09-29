@@ -52,6 +52,7 @@ chart:
       theta: value
       color: label
       title: Latest decision
+      style: {legend: {visible: true}}
     reasons:
       type: table
       query: reasons

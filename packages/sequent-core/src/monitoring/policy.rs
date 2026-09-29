@@ -2213,6 +2213,11 @@ fn check_settings(settings: &Settings, report: &mut Report) {
         }
         check_mapping(mapping, &path, report);
     }
+    for (selector, words) in &settings.selectors {
+        let path = join("selectors", &selector.to_string());
+        require_text(&words.label, &join(&path, "label"), report);
+        require_text(&words.all, &join(&path, "all"), report);
+    }
 }
 
 fn check_mapping(mapping: &DimensionMapping, path: &str, report: &mut Report) {

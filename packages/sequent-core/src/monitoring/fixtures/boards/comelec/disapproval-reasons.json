@@ -10,12 +10,12 @@
         "marks": {
           "bar": {
             "labels": {
-              "format": "integer",
+              "format": "number",
               "visible": true
             }
           }
         },
-        "number_format": "integer",
+        "number_format": "number",
         "orientation": "horizontal"
       },
       "type": "bar",
@@ -30,52 +30,74 @@
         "group",
         "group_key",
         "position",
-        "disapproved",
-        "numerator",
-        "denominator",
-        "pct",
-        "pct_label"
+        "disapproved"
       ],
       "values": [
         [
-          "Document unreadable",
-          "document-unreadable",
-          1,
-          15,
-          15,
-          278,
-          0.0539568345323741,
-          "5.4%"
-        ],
-        [
           "Details do not match",
           "details-mismatch",
+          1,
+          7
+        ],
+        [
+          "Document unreadable",
+          "document-unreadable",
           2,
-          9,
-          9,
-          167,
-          0.05389221556886228,
-          "5.4%"
+          6
+        ],
+        [
+          "Photo unclear",
+          "photo-unclear",
+          3,
+          6
+        ],
+        [
+          "Document expired",
+          "document-expired",
+          4,
+          6
         ],
         [
           "Not eligible",
           "not-eligible",
-          3,
-          3,
-          3,
-          55,
-          0.05454545454545454,
-          "5.5%"
+          5,
+          5
+        ],
+        [
+          "Signature missing",
+          "signature-missing",
+          6,
+          5
+        ],
+        [
+          "Form incomplete",
+          "form-incomplete",
+          7,
+          5
+        ],
+        [
+          "Duplicate application",
+          "duplicate",
+          8,
+          4
+        ],
+        [
+          "Wrong Post",
+          "wrong-post",
+          9,
+          4
+        ],
+        [
+          "Address unverified",
+          "address-unverified",
+          10,
+          4
         ],
         [
           "Unknown",
           "__unknown__",
-          4,
-          3,
-          3,
-          55,
-          0.05454545454545454,
-          "5.5%"
+          11,
+          2
         ]
       ]
     }
@@ -116,9 +138,7 @@
       },
       "legend": {
         "title": {
-          "font": {
-            "case": "none"
-          }
+          "visible": false
         }
       },
       "support_table": {

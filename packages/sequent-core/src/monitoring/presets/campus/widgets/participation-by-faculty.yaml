@@ -25,8 +25,9 @@ chart:
       y: pct
       # The query's order, Unknown last; unsorted, a bar orders by value.
       sort: {by: position, order: asc}
-      y_label: Voted
+      y_label: Turnout
       style:
+        orientation: horizontal
         number_format: percent
         marks: {bar: {labels: {visible: true, format: percent}}}
   rows: [bars]

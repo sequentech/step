@@ -23,6 +23,6 @@ chart:
       y_label: Attempts
       style:
         orientation: horizontal
-        number_format: integer
-        marks: {bar: {labels: {visible: true, format: integer}}}
+        number_format: number
+        marks: {bar: {labels: {visible: true, format: number}}}
   rows: [problems]

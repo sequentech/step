@@ -32,7 +32,7 @@ chart:
       y: logins
       # Names the first series in the legend; the axis itself needs no title.
       y_label: Successful
-      style: {number_format: integer, axis_y: {title: {visible: false}}}
+      style: {number_format: number, axis_y: {title: {visible: false}}}
       layers:
         - {type: line, y: login_failures, label: Failed}
         - {type: line, y: password_resets, label: Password resets}

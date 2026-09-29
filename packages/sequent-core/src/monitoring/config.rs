@@ -563,6 +563,12 @@ pub struct Settings {
     /// "Unknown". Its key stays `__unknown__` whatever the label.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub unknown_label: Option<String>,
+
+    /// What the dashboard selectors are called, in the preset's language: a
+    /// university may say "Faculty" where an election body says "Region". A
+    /// selector not named here takes the portal's translated words.
+    #[serde(default, skip_serializing_if = "IndexMap::is_empty")]
+    pub selectors: IndexMap<ScopeSelector, SelectorWords>,
 }
 
 impl Settings {
@@ -571,6 +577,22 @@ impl Settings {
             .as_deref()
             .unwrap_or(super::payload::UNKNOWN_LABEL)
     }
+
+    pub fn selector_words(
+        &self,
+        selector: ScopeSelector,
+    ) -> Option<&SelectorWords> {
+        self.selectors.get(&selector)
+    }
+}
+
+/// `{label: Region, all: All regions}`: the selector's name, and the choice
+/// that keeps every value.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SelectorWords {
+    pub label: String,
+    pub all: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

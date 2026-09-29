@@ -19,9 +19,10 @@
 //! - `themes/`, `widgets/` and `dashboards/`, one document per file, named
 //!   after the document's id.
 //!
-//! The files are compiled in, so the admin portal, Harvest and the tests all
-//! read the same bytes, and a preset that fails validation fails the build's
-//! tests rather than an event's reset.
+//! The build script lists the directories and compiles the files in, so the
+//! admin portal, Harvest and the tests all read the same bytes, and a preset
+//! that fails validation fails the build's tests rather than an event's
+//! reset. A file anywhere else in a preset's directory fails the build.
 
 use super::config::{ConfigKind, ConfigSet, DEFAULT_THEME};
 use super::policy::{
@@ -105,107 +106,10 @@ pub struct Preset {
     pub documents: Vec<PresetDocument>,
 }
 
-macro_rules! preset_file {
-    ($preset:literal, $kind:ident, $path:literal) => {
-        PresetFile {
-            kind: ConfigKind::$kind,
-            path: $path,
-            yaml: include_str!(concat!("presets/", $preset, "/", $path)),
-        }
-    };
-}
-
-/// Every preset the platform ships.
-pub const PRESETS: &[PresetSource] = &[
-    PresetSource {
-        id: "comelec",
-        manifest: include_str!("presets/comelec/preset.yaml"),
-        files: &[
-            preset_file!("comelec", Settings, "settings.yaml"),
-            preset_file!("comelec", Theme, "themes/default.yaml"),
-            preset_file!("comelec", Widget, "widgets/access-security.yaml"),
-            preset_file!("comelec", Widget, "widgets/attack-detections.yaml"),
-            preset_file!(
-                "comelec",
-                Widget,
-                "widgets/counting-transmission.yaml"
-            ),
-            preset_file!("comelec", Widget, "widgets/credentials-by-post.yaml"),
-            preset_file!("comelec", Widget, "widgets/credentials-issued.yaml"),
-            preset_file!("comelec", Widget, "widgets/disapproval-reasons.yaml"),
-            preset_file!("comelec", Widget, "widgets/enrollment-activity.yaml"),
-            preset_file!(
-                "comelec",
-                Widget,
-                "widgets/enrollment-decisions.yaml"
-            ),
-            preset_file!(
-                "comelec",
-                Widget,
-                "widgets/final-testing-lockdown.yaml"
-            ),
-            preset_file!("comelec", Widget, "widgets/helpdesk-issues.yaml"),
-            preset_file!("comelec", Widget, "widgets/login-outcomes.yaml"),
-            preset_file!(
-                "comelec",
-                Widget,
-                "widgets/pending-issues-by-post.yaml"
-            ),
-            preset_file!("comelec", Widget, "widgets/poll-status.yaml"),
-            preset_file!("comelec", Widget, "widgets/status-by-post.yaml"),
-            preset_file!(
-                "comelec",
-                Widget,
-                "widgets/test-voting-by-group.yaml"
-            ),
-            preset_file!("comelec", Widget, "widgets/test-voting.yaml"),
-            preset_file!("comelec", Widget, "widgets/turnout-by-group.yaml"),
-            preset_file!("comelec", Widget, "widgets/turnout-by-post.yaml"),
-            preset_file!("comelec", Widget, "widgets/turnout-summary.yaml"),
-            preset_file!("comelec", Widget, "widgets/voting-activity.yaml"),
-            preset_file!("comelec", Dashboard, "dashboards/overview.yaml"),
-            preset_file!("comelec", Dashboard, "dashboards/req-0249.yaml"),
-            preset_file!("comelec", Dashboard, "dashboards/req-0250.yaml"),
-            preset_file!("comelec", Dashboard, "dashboards/req-0251.yaml"),
-            preset_file!("comelec", Dashboard, "dashboards/req-0252.yaml"),
-            preset_file!("comelec", Dashboard, "dashboards/req-0253.yaml"),
-            preset_file!("comelec", Dashboard, "dashboards/req-0254.yaml"),
-            preset_file!("comelec", Dashboard, "dashboards/req-0256.yaml"),
-            preset_file!("comelec", Dashboard, "dashboards/req-0257.yaml"),
-            preset_file!("comelec", Dashboard, "dashboards/req-0258.yaml"),
-            preset_file!("comelec", Dashboard, "dashboards/req-0259.yaml"),
-            preset_file!("comelec", Dashboard, "dashboards/req-0260.yaml"),
-            preset_file!("comelec", Dashboard, "dashboards/req-0261.yaml"),
-            preset_file!("comelec", Dashboard, "dashboards/req-0262.yaml"),
-            preset_file!("comelec", Dashboard, "dashboards/req-0263.yaml"),
-            preset_file!("comelec", Dashboard, "dashboards/req-0264.yaml"),
-            preset_file!("comelec", Dashboard, "dashboards/req-0267.yaml"),
-            preset_file!("comelec", Dashboard, "dashboards/req-0269.yaml"),
-            preset_file!("comelec", Dashboard, "dashboards/req-0280.yaml"),
-            preset_file!("comelec", Dashboard, "dashboards/req-0282.yaml"),
-            preset_file!("comelec", Dashboard, "dashboards/req-0283.yaml"),
-        ],
-    },
-    PresetSource {
-        id: "campus",
-        manifest: include_str!("presets/campus/preset.yaml"),
-        files: &[
-            preset_file!("campus", Settings, "settings.yaml"),
-            preset_file!("campus", Theme, "themes/default.yaml"),
-            preset_file!("campus", Widget, "widgets/hourly-votes.yaml"),
-            preset_file!("campus", Widget, "widgets/participation.yaml"),
-            preset_file!(
-                "campus",
-                Widget,
-                "widgets/participation-by-faculty.yaml"
-            ),
-            preset_file!("campus", Widget, "widgets/polls.yaml"),
-            preset_file!("campus", Widget, "widgets/sign-in-problems.yaml"),
-            preset_file!("campus", Dashboard, "dashboards/operations.yaml"),
-            preset_file!("campus", Dashboard, "dashboards/participation.yaml"),
-        ],
-    },
-];
+/// Every preset the platform ships: one per directory under `presets/`,
+/// listed by the build script, so adding a preset needs no code.
+pub const PRESETS: &[PresetSource] =
+    include!(concat!(env!("OUT_DIR"), "/monitoring_presets.rs"));
 
 /// The preset with this id, read and checked.
 pub fn load(id: &str) -> Option<Result<Preset, Report>> {
@@ -256,10 +160,38 @@ impl PresetSource {
         let mut set = ConfigSet::default();
         let mut documents = Vec::new();
         for file in self.files {
+            let directory = match file.kind {
+                ConfigKind::Settings => "",
+                ConfigKind::Theme => "themes/",
+                ConfigKind::Widget => "widgets/",
+                ConfigKind::Dashboard => "dashboards/",
+            };
+            let placed = match file.kind {
+                ConfigKind::Settings => file.path == "settings.yaml",
+                _ => file.path.strip_prefix(directory).is_some_and(|name| {
+                    !name.contains('/') && name.ends_with(".yaml")
+                }),
+            };
+            if !placed {
+                report.push(Problem::error(
+                    Code::InvalidValue,
+                    file.path,
+                    format!(
+                        "A {} is kept in {}.",
+                        file.kind,
+                        if directory.is_empty() {
+                            "settings.yaml"
+                        } else {
+                            directory
+                        }
+                    ),
+                ));
+            }
             let key = match file.kind {
                 ConfigKind::Settings => {
                     let parsed = parse_settings(file.yaml);
-                    report.problems.extend(located(file.path, parsed.report));
+                    located(file.path, parsed.report)
+                        .for_each(|problem| report.push(problem));
                     if set.settings.is_some() {
                         report.push(Problem::error(
                             Code::DuplicateId,
@@ -272,7 +204,8 @@ impl PresetSource {
                 }
                 ConfigKind::Theme => {
                     let parsed = parse_theme(file.yaml);
-                    report.problems.extend(located(file.path, parsed.report));
+                    located(file.path, parsed.report)
+                        .for_each(|problem| report.push(problem));
                     parsed.value.map(|theme| {
                         let id = theme.id.clone();
                         insert(
@@ -287,7 +220,8 @@ impl PresetSource {
                 }
                 ConfigKind::Widget => {
                     let parsed = parse_widget(file.yaml);
-                    report.problems.extend(located(file.path, parsed.report));
+                    located(file.path, parsed.report)
+                        .for_each(|problem| report.push(problem));
                     parsed.value.map(|widget| {
                         let id = widget.id.clone();
                         insert(
@@ -302,7 +236,8 @@ impl PresetSource {
                 }
                 ConfigKind::Dashboard => {
                     let parsed = parse_dashboard(file.yaml);
-                    report.problems.extend(located(file.path, parsed.report));
+                    located(file.path, parsed.report)
+                        .for_each(|problem| report.push(problem));
                     parsed.value.map(|dashboard| {
                         let id = dashboard.id.clone();
                         insert(
@@ -417,6 +352,18 @@ fn check_manifest(id: &str, manifest: &PresetManifest, report: &mut Report) {
             "preset.yaml:title",
             "This may not be empty.",
         ));
+    }
+    let mut exported = BTreeSet::new();
+    for (position, requirement) in
+        manifest.export_requirements.iter().enumerate()
+    {
+        if !exported.insert(requirement) {
+            report.push(Problem::error(
+                Code::DuplicateId,
+                format!("preset.yaml:export_requirements[{position}]"),
+                format!("{requirement} is listed twice."),
+            ));
+        }
     }
     for (position, owned) in manifest.owned_elsewhere.iter().enumerate() {
         let path = format!("preset.yaml:owned_elsewhere[{position}]");

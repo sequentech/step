@@ -9,4 +9,3 @@ order: 10
 selectors: [region, post, country]
 layout:
   - {widget: enrollment-decisions, width: 12}
-  - {widget: disapproval-reasons, width: 12, values: {top: "5"}}

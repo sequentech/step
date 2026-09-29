@@ -3,13 +3,17 @@
     "opened": {
       "label": "Stations opened",
       "query": "opened",
+      "style": {
+        "value": {
+          "format": "integer"
+        }
+      },
       "support": {
-        "format": "integer",
-        "label": "stations",
-        "value": "numerator"
+        "label": "of the stations",
+        "value": "pct_label"
       },
       "type": "kpi",
-      "value": "pct_label"
+      "value": "numerator"
     },
     "states": {
       "color": "group",
@@ -32,10 +36,10 @@
       ],
       "values": [
         [
-          3,
-          4,
-          0.75,
-          "75.0%"
+          6,
+          12,
+          0.5,
+          "50.0%"
         ]
       ]
     },
@@ -51,31 +55,31 @@
           "Not ready",
           "not_initialized",
           1,
-          0
+          3
         ],
         [
           "Ready",
           "initialized",
           2,
-          1
+          3
         ],
         [
           "Open",
           "opened",
           3,
-          1
+          2
         ],
         [
           "Paused",
           "paused",
           4,
-          1
+          2
         ],
         [
           "Closed",
           "closed",
           5,
-          1
+          2
         ]
       ]
     }
@@ -121,9 +125,7 @@
       },
       "legend": {
         "title": {
-          "font": {
-            "case": "none"
-          }
+          "visible": false
         }
       },
       "support_table": {

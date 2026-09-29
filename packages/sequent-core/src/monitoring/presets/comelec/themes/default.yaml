@@ -2,8 +2,8 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
-# Applied to every COMELEC dashboard: a quiet base, one accent, and Unknown
-# always in grey so it never reads as a group of its own.
+# Applied to every COMELEC dashboard: a quiet base, and Unknown in grey
+# wherever a chart colours by group, so it never reads as a group of its own.
 id: default
 title: COMELEC
 base: clarity
@@ -14,7 +14,9 @@ style:
   title: {font: {case: none}}
   charts:
     axis: {title: {font: {case: none}}}
-    legend: {title: {font: {case: none}}}
+    # A legend is titled with the column it colours by, a name only the
+    # query uses; its entries say enough.
+    legend: {title: {visible: false}}
     table: {header: {font: {case: none}}}
     kpi: {label: {font: {case: none}}}
     support_table: {label: {font: {case: none}}}

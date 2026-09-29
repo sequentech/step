@@ -8,27 +8,25 @@ id: access-security
 title: Access and security
 source: access_security
 requirements: [SW-F-0252, SW-F-0268]
-queries:
-  totals: {template: summary, measures: [logins, login_failures, password_resets]}
-  failures: {template: summary, ratio: [login_failures, logins]}
+query: {template: summary, measures: [logins, login_failures, password_resets]}
 height: 180
 chart:
   charts:
     logins:
       type: kpi
-      query: totals
+      query: data
       value: logins
       label: Successful sign-ins
       style: {value: {format: integer}}
     failures:
       type: kpi
-      query: failures
-      value: pct_label
-      label: Failed sign-ins per successful one
-      support: {value: numerator, label: failed, format: integer}
+      query: data
+      value: login_failures
+      label: Failed sign-ins
+      style: {value: {format: integer}}
     resets:
       type: kpi
-      query: totals
+      query: data
       value: password_resets
       label: Password resets
       style: {value: {format: integer}}

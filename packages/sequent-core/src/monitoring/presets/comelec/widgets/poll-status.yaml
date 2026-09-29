@@ -18,15 +18,22 @@ queries:
   milestone: {template: summary, ratio: {selector: milestone}}
   states: {template: by_group, group_by: state, measures: [posts]}
   regions: {template: by_group, group_by: region, ratio: {selector: milestone}}
-height: 340
+height: 360
 chart:
   charts:
     reached:
       type: kpi
       query: milestone
-      value: pct_label
+      value: numerator
       label: Posts that reached the milestone
-      support: {value: numerator, label: Posts, format: integer}
+      style: {value: {format: integer}}
+      support: {value: pct_label, label: of the Posts in scope}
+    in_scope:
+      type: kpi
+      query: milestone
+      value: denominator
+      label: Posts in scope
+      style: {value: {format: integer}}
     states:
       type: donut
       query: states
@@ -46,5 +53,5 @@ chart:
         number_format: percent
         marks: {bar: {labels: {visible: true, format: percent}}}
   rows:
-    - reached
+    - {cols: [reached, in_scope]}
     - {cols: [states, regions]}

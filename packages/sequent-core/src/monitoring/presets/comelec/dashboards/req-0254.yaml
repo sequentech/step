@@ -8,4 +8,4 @@ requirements: [SW-F-0254, SW-F-0255]
 order: 20
 selectors: [region, post, country]
 layout:
-  - {widget: final-testing-lockdown, width: 12}
+  - {widget: final-testing-lockdown, width: 12, values: {milestone: tested}}

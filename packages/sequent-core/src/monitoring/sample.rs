@@ -9,9 +9,18 @@
 //! fakes; and the renderer's tests, which draw the boards built from them.
 //! Deterministic, so a board built from them can be compared byte for byte.
 //!
-//! The figures are consistent the way real ones are: a voter source's totals
-//! are the sum of its cube, a Post source's the sum of its Posts, an activity
-//! source's the sum of its hours. They are never shown to a viewer.
+//! The figures are consistent the way real ones are:
+//! - one electorate: every voter source reads the same voters, so the voted
+//!   total of turnout is the running total of voting activity;
+//! - a voter source's totals are the sum of its cube, a Post source's the
+//!   sum of its Posts, and every group list and series splits the totals
+//!   exactly;
+//! - each funnel stage stays below the one before, in every cell and group;
+//! - groups turn out differently, and there are more Posts and reasons than
+//!   a list's limit, so a chart that mixes up a ratio or ignores a limit
+//!   shows it.
+//!
+//! They are never shown to a viewer.
 
 use super::config::Settings;
 use super::payload::{
@@ -28,6 +37,66 @@ pub const SAMPLE_DAYS: [&str; 2] = ["2026-05-04", "2026-05-05"];
 /// The offset the sample hours are in. Samples are not in any real zone.
 const SAMPLE_OFFSET: &str = "+00:00";
 
+/// The sample's Posts: id, name and region. One has no region.
+const POSTS: [(&str, &str, Option<&str>); 12] = [
+    ("post-madrid", "Madrid", Some("Europe")),
+    ("post-rome", "Rome", Some("Europe")),
+    ("post-london", "London", Some("Europe")),
+    ("post-tokyo", "Tokyo", Some("Asia Pacific")),
+    ("post-singapore", "Singapore", Some("Asia Pacific")),
+    ("post-sydney", "Sydney", Some("Asia Pacific")),
+    ("post-dubai", "Dubai", Some("Middle East")),
+    ("post-doha", "Doha", Some("Middle East")),
+    ("post-kuwait", "Kuwait", Some("Middle East")),
+    ("post-toronto", "Toronto", Some("Americas")),
+    ("post-washington", "Washington", Some("Americas")),
+    ("post-riyadh", "Riyadh", None),
+];
+
+const REGIONS: [&str; 4] =
+    ["Europe", "Asia Pacific", "Middle East", "Americas"];
+
+const COUNTRIES: [&str; 11] = [
+    "Spain",
+    "Italy",
+    "United Kingdom",
+    "Japan",
+    "Singapore",
+    "Australia",
+    "United Arab Emirates",
+    "Qatar",
+    "Kuwait",
+    "Canada",
+    "United States",
+];
+
+/// Disapproval reasons: key and label.
+const REASONS: [(&str, &str); 12] = [
+    ("document-unreadable", "Document unreadable"),
+    ("details-mismatch", "Details do not match"),
+    ("photo-unclear", "Photo unclear"),
+    ("document-expired", "Document expired"),
+    ("not-eligible", "Not eligible"),
+    ("duplicate", "Duplicate application"),
+    ("signature-missing", "Signature missing"),
+    ("wrong-post", "Wrong Post"),
+    ("form-incomplete", "Form incomplete"),
+    ("address-unverified", "Address unverified"),
+    ("name-mismatch", "Name does not match"),
+    ("underage", "Under voting age"),
+];
+
+const ISSUE_CATEGORIES: [&str; 4] =
+    ["Sign-in", "Enrollment", "Ballot", "Other"];
+
+const ATTACK_CATEGORIES: [&str; 3] =
+    ["Credential stuffing", "Brute force", "Bot traffic"];
+
+/// Voters per hour of a day, relative: busier by day than by night.
+const HOURLY_SHAPE: [u64; 24] = [
+    0, 0, 0, 0, 0, 1, 2, 4, 6, 8, 9, 9, 8, 8, 9, 9, 8, 7, 6, 5, 4, 2, 1, 0,
+];
+
 /// A payload for `source` at the whole event, with a cube over the voter
 /// dimensions `settings` configure.
 pub fn sample_payload(
@@ -36,39 +105,36 @@ pub fn sample_payload(
 ) -> ScopePayload {
     let spec = source.spec();
     let measures = spec.measures;
+    let electorate = settings
+        .filter(|settings| !settings.dimensions.is_empty())
+        .map(electorate);
     let mut payload = ScopePayload::default();
-
-    let cube = match (spec.voter_dimensions, settings) {
-        (VoterDimensions::Configured, Some(settings))
-            if !settings.dimensions.is_empty() =>
-        {
-            Some(sample_cube(measures, settings))
-        }
-        _ => None,
-    };
 
     let stated = !spec.states.is_empty();
     if stated {
         payload.posts = sample_posts(source);
     }
-
-    if spec.has_template(QueryTemplate::Timeseries) {
-        payload.series = sample_series(measures);
+    if let (VoterDimensions::Configured, Some(electorate)) =
+        (spec.voter_dimensions, &electorate)
+    {
+        payload.cube = Some(project(electorate, measures));
     }
 
-    payload.totals = if let Some(cube) = &cube {
+    let event = event_totals(electorate.as_ref());
+    payload.totals = if let Some(cube) = &payload.cube {
         sum(cube.cells.iter().map(|cell| &cell.counts))
     } else if stated {
         sum(payload.posts.iter().map(|post| &post.counts))
-    } else if !payload.series.is_empty() {
-        sum(payload.series.iter().map(|bucket| &bucket.counts))
     } else {
         measures
             .iter()
-            .map(|measure| (*measure, base(*measure)))
+            .map(|measure| (*measure, event[measure]))
             .collect()
     };
-    payload.cube = cube;
+
+    if spec.has_template(QueryTemplate::Timeseries) {
+        payload.series = sample_series(&payload.totals);
+    }
 
     for dimension in spec.builtin_dimensions {
         let groups = match dimension {
@@ -78,7 +144,7 @@ pub fn sample_payload(
             BuiltinDimension::Region | BuiltinDimension::Post if stated => {
                 post_groups(*dimension, &payload.posts)
             }
-            _ => sample_groups(*dimension, &payload.totals),
+            _ => sample_groups(source, *dimension, measures, &payload.totals),
         };
         payload.groups.insert(dimension.to_string(), groups);
     }
@@ -89,29 +155,61 @@ pub fn sample_payload(
     payload
 }
 
-/// A plausible count for a measure at the whole event.
+/// A plausible count for a measure at the whole event, before the voter
+/// funnel narrows it.
 fn base(measure: Measure) -> u64 {
     use Measure::*;
     match measure {
         Registered => 1200,
         PreEnrolled => 780,
+        Approved => 780,
         CredentialsIssued => 610,
         TestVoted => 140,
         Voted => 512,
         Applications => 900,
         Pending => 60,
-        Approved => 780,
         Disapproved => 60,
-        Posts => 1,
+        Posts => POSTS.len() as u64,
         Initialized | Opened | Tested | Tallied | Transmitted => 1,
         Paused | Closed | LockedDown | TransmissionFailed => 0,
         Logins => 2400,
         LoginFailures => 180,
         PasswordResets => 40,
-        Detections => 7,
+        Detections => 40,
         Issues => 25,
         PendingIssues => 6,
     }
+}
+
+/// The measure each voter measure narrows, in the order the funnel runs.
+/// Approved voters are exactly the pre-enrolled ones: validating a voter's
+/// document is what approves them.
+const VOTER_FUNNEL: [(Measure, Option<Measure>); 6] = [
+    (Measure::Registered, None),
+    (Measure::PreEnrolled, Some(Measure::Registered)),
+    (Measure::Approved, Some(Measure::PreEnrolled)),
+    (Measure::CredentialsIssued, Some(Measure::Approved)),
+    (Measure::TestVoted, Some(Measure::PreEnrolled)),
+    (Measure::Voted, Some(Measure::PreEnrolled)),
+];
+
+/// The totals every source agrees on: the electorate's where there is one,
+/// and the applications the decisions add up to.
+fn event_totals(electorate: Option<&Cube>) -> Counts {
+    use strum::IntoEnumIterator;
+    let mut totals: Counts = Measure::iter()
+        .map(|measure| (measure, base(measure)))
+        .collect();
+    if let Some(electorate) = electorate {
+        totals.extend(sum(electorate.cells.iter().map(|cell| &cell.counts)));
+    }
+    totals.insert(
+        Measure::Applications,
+        totals[&Measure::Approved]
+            + totals[&Measure::Disapproved]
+            + totals[&Measure::Pending],
+    );
+    totals
 }
 
 /// The values the sample gives a configured dimension: its bands, else its
@@ -133,7 +231,9 @@ fn values_of(settings: &Settings, dimension: &str) -> Vec<String> {
     values
 }
 
-fn sample_cube(measures: &[Measure], settings: &Settings) -> Cube {
+/// Every voter measure over every combination of the configured
+/// dimensions' values.
+fn electorate(settings: &Settings) -> Cube {
     let dimensions: Vec<String> = settings.dimensions.keys().cloned().collect();
     let values: Vec<Vec<String>> = dimensions
         .iter()
@@ -158,37 +258,27 @@ fn sample_cube(measures: &[Measure], settings: &Settings) -> Cube {
         .into_iter()
         .enumerate()
         .map(|(position, at)| {
-            // Spread each measure over the cells unevenly but reproducibly.
-            // A source lists its measures in funnel order, so each stage
-            // keeps a share of the one before it that depends on the cell's
-            // value in every dimension: groups turn out differently, and no
-            // stage outgrows the one before.
+            // Voters spread over the cells unevenly but reproducibly. Each
+            // funnel stage keeps a share of the one it narrows that depends
+            // on the cell's value in every dimension, so groups turn out
+            // differently and no stage outgrows the one before.
             let weight = 1 + (position as u64 * 7) % 5;
-            let mut before: Option<u64> = None;
-            let counts = measures
-                .iter()
-                .enumerate()
-                .map(|(stage, measure)| {
-                    let share = base(*measure) * weight / (3 * count);
-                    let share = match before {
-                        None => share,
-                        Some(before) => {
-                            let kept = at.iter().enumerate().fold(
-                                share,
-                                |kept, (dimension, value)| {
-                                    let tenths = 10
-                                        - (value + dimension + stage) as u64
-                                            % 4;
-                                    kept * tenths / 10
-                                },
-                            );
-                            kept.min(before)
-                        }
-                    };
-                    before = Some(share);
-                    (*measure, share)
-                })
-                .collect();
+            let mut counts = Counts::new();
+            for (stage, (measure, narrows)) in VOTER_FUNNEL.iter().enumerate() {
+                let count = match (measure, narrows) {
+                    (_, None) => base(*measure) * weight / (3 * count),
+                    (Measure::Approved, Some(same)) => counts[same],
+                    (_, Some(narrows)) => at.iter().enumerate().fold(
+                        counts[narrows],
+                        |kept, (dimension, value)| {
+                            let tenths =
+                                9 - (value + dimension + stage) as u64 % 4;
+                            kept * tenths / 10
+                        },
+                    ),
+                };
+                counts.insert(*measure, count);
+            }
             let values = at
                 .iter()
                 .enumerate()
@@ -200,20 +290,32 @@ fn sample_cube(measures: &[Measure], settings: &Settings) -> Cube {
     Cube { dimensions, cells }
 }
 
+/// The electorate's cube with only a source's measures.
+fn project(electorate: &Cube, measures: &[Measure]) -> Cube {
+    Cube {
+        dimensions: electorate.dimensions.clone(),
+        cells: electorate
+            .cells
+            .iter()
+            .map(|cell| CubeCell {
+                values: cell.values.clone(),
+                counts: measures
+                    .iter()
+                    .map(|measure| (*measure, cell.counts[measure]))
+                    .collect(),
+            })
+            .collect(),
+    }
+}
+
 fn sample_posts(source: DataSourceId) -> Vec<PostRow> {
     let spec = source.spec();
-    let places = [
-        ("post-madrid", "Madrid", Some("Europe")),
-        ("post-tokyo", "Tokyo", Some("Asia Pacific")),
-        ("post-dubai", "Dubai", Some("Middle East")),
-        ("post-riyadh", "Riyadh", None),
-    ];
-    places
+    POSTS
         .iter()
         .enumerate()
         .map(|(position, (id, name, region))| {
-            // Each Post a step further along, so every state shows.
-            let state = spec.states[(position + 1) % spec.states.len()];
+            // Posts at every step along, so every state shows.
+            let state = spec.states[position % spec.states.len()];
             PostRow {
                 post_id: id.to_string(),
                 post: name.to_string(),
@@ -231,26 +333,35 @@ fn sample_posts(source: DataSourceId) -> Vec<PostRow> {
         .collect()
 }
 
-fn sample_series(measures: &[Measure]) -> Vec<Bucket> {
-    SAMPLE_DAYS
+/// Each measure's total over the hours of the sample days, the first day
+/// busier than the second.
+fn sample_series(totals: &Counts) -> Vec<Bucket> {
+    let hours: Vec<(&str, usize)> = SAMPLE_DAYS
         .iter()
-        .flat_map(|day| {
-            (0..24).map(move |hour| Bucket {
-                start: format!("{day}T{hour:02}:00:00"),
-                day: day.to_string(),
-                utc_offset: SAMPLE_OFFSET.to_string(),
-                counts: measures
-                    .iter()
-                    .map(|measure| {
-                        // Busier by day than by night.
-                        let shape = [
-                            0, 0, 0, 0, 0, 1, 2, 4, 6, 8, 9, 9, 8, 8, 9, 9, 8,
-                            7, 6, 5, 4, 2, 1, 0,
-                        ];
-                        (*measure, base(*measure) * shape[hour] / 240)
-                    })
-                    .collect(),
-            })
+        .flat_map(|day| (0..24).map(move |hour| (*day, hour)))
+        .collect();
+    let weights: Vec<u64> = hours
+        .iter()
+        .map(|(day, hour)| {
+            let busier = if *day == SAMPLE_DAYS[0] { 2 } else { 1 };
+            HOURLY_SHAPE[*hour] * busier
+        })
+        .collect();
+    let shares: Vec<(Measure, Vec<u64>)> = totals
+        .iter()
+        .map(|(measure, total)| (*measure, apportion(*total, &weights)))
+        .collect();
+    hours
+        .iter()
+        .enumerate()
+        .map(|(at, (day, hour))| Bucket {
+            start: format!("{day}T{hour:02}:00:00"),
+            day: day.to_string(),
+            utc_offset: SAMPLE_OFFSET.to_string(),
+            counts: shares
+                .iter()
+                .map(|(measure, shares)| (*measure, shares[at]))
+                .collect(),
         })
         .collect()
 }
@@ -291,47 +402,105 @@ fn post_groups(
     groups
 }
 
-fn sample_groups(
+/// The groups a built-in dimension has in the sample: key and label.
+fn group_keys(
+    source: DataSourceId,
     dimension: BuiltinDimension,
+) -> Vec<(String, Option<String>)> {
+    let own = |keys: &[&str]| -> Vec<(String, Option<String>)> {
+        keys.iter().map(|key| (key.to_string(), None)).collect()
+    };
+    let mut keys = match dimension {
+        BuiltinDimension::Region => own(&REGIONS),
+        BuiltinDimension::Country => own(&COUNTRIES),
+        BuiltinDimension::Post => POSTS
+            .iter()
+            .map(|(id, name, _)| (id.to_string(), Some(name.to_string())))
+            .collect(),
+        BuiltinDimension::Reason => REASONS
+            .iter()
+            .map(|(key, label)| (key.to_string(), Some(label.to_string())))
+            .collect(),
+        BuiltinDimension::Category
+            if source == DataSourceId::AttackDetections =>
+        {
+            own(&ATTACK_CATEGORIES)
+        }
+        BuiltinDimension::Category => own(&ISSUE_CATEGORIES),
+        BuiltinDimension::State => Vec::new(),
+    };
+    // Every Post has a Post; anything else can be missing.
+    if dimension != BuiltinDimension::Post {
+        keys.push((UNKNOWN_KEY.to_string(), None));
+    }
+    keys
+}
+
+/// A built-in dimension's groups, splitting each measure's total exactly.
+/// Each measure leans a little differently over the groups, so a group's
+/// ratio is its own; a reason is only given for a disapproval.
+fn sample_groups(
+    source: DataSourceId,
+    dimension: BuiltinDimension,
+    measures: &[Measure],
     totals: &Counts,
 ) -> Vec<GroupRow> {
-    let rows: &[(&str, Option<&str>, u64)] = match dimension {
-        BuiltinDimension::Region => &[
-            ("Europe", None, 5),
-            ("Asia Pacific", None, 4),
-            ("Middle East", None, 3),
-            (UNKNOWN_KEY, None, 1),
-        ],
-        BuiltinDimension::Post => &[
-            ("post-madrid", Some("Madrid"), 5),
-            ("post-tokyo", Some("Tokyo"), 4),
-            ("post-dubai", Some("Dubai"), 3),
-            ("post-riyadh", Some("Riyadh"), 2),
-        ],
-        BuiltinDimension::Country => &[
-            ("Spain", None, 5),
-            ("Japan", None, 4),
-            ("United Arab Emirates", None, 3),
-            (UNKNOWN_KEY, None, 1),
-        ],
-        BuiltinDimension::Reason => &[
-            ("document-unreadable", Some("Document unreadable"), 5),
-            ("details-mismatch", Some("Details do not match"), 3),
-            ("not-eligible", Some("Not eligible"), 1),
-            (UNKNOWN_KEY, None, 1),
-        ],
-        BuiltinDimension::State => &[],
+    let keys = group_keys(source, dimension);
+    let counted: Vec<Measure> = match dimension {
+        BuiltinDimension::Reason => vec![Measure::Disapproved],
+        _ => measures.to_vec(),
     };
-    rows.iter()
-        .map(|(key, label, weight)| GroupRow {
-            key: key.to_string(),
-            label: label.map(str::to_string),
-            counts: totals
+    let shares: Vec<(Measure, Vec<u64>)> = counted
+        .iter()
+        .enumerate()
+        .map(|(stage, measure)| {
+            let weights: Vec<u64> = (0..keys.len())
+                .map(|at| {
+                    // Fewer in later groups, and a lean of up to a seventh
+                    // either way that differs by measure.
+                    let size = 3 * keys.len() as u64 - 2 * at as u64;
+                    let lean = 14 + ((at * 3 + stage) % 5) as u64 - 2;
+                    size * lean
+                })
+                .collect();
+            (*measure, apportion(totals[measure], &weights))
+        })
+        .collect();
+    keys.into_iter()
+        .enumerate()
+        .map(|(at, (key, label))| GroupRow {
+            key,
+            label,
+            counts: shares
                 .iter()
-                .map(|(measure, total)| (*measure, total * weight / 14))
+                .map(|(measure, shares)| (*measure, shares[at]))
                 .collect(),
         })
         .collect()
+}
+
+/// `total` split in proportion to `weights`, exactly: the largest
+/// remainders take what rounding down leaves, the earliest first on a tie.
+fn apportion(total: u64, weights: &[u64]) -> Vec<u64> {
+    let whole: u64 = weights.iter().sum();
+    if whole == 0 {
+        return vec![0; weights.len()];
+    }
+    let mut shares: Vec<u64> = weights
+        .iter()
+        .map(|weight| total * weight / whole)
+        .collect();
+    let mut remainders: Vec<(u64, usize)> = weights
+        .iter()
+        .enumerate()
+        .map(|(at, weight)| (total * weight % whole, at))
+        .collect();
+    remainders.sort_by(|a, b| b.0.cmp(&a.0).then(a.1.cmp(&b.1)));
+    let left = total - shares.iter().sum::<u64>();
+    for (_, at) in remainders.into_iter().take(left as usize) {
+        shares[at] += 1;
+    }
+    shares
 }
 
 fn sum<'c>(counts: impl Iterator<Item = &'c Counts>) -> Counts {

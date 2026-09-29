@@ -32,7 +32,9 @@ chart:
       x: bucket_label
       y: voted
       y_label: First votes
-      style: {number_format: integer}
+      # In time order, which the labels alone are not when clocks go back.
+      sort: {by: bucket_utc, order: asc}
+      style: {orientation: vertical, number_format: number}
       layers:
         - type: line
           y: voted_cumulative

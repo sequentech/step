@@ -31,5 +31,5 @@ chart:
           when:
             - {eq: Opened, background: positive.bg}
             - {eq: Paused, background: warning.bg}
-            - {eq: Closed, background: dbt-grays.muted}
+            - {eq: Closed, background: dbt-grays.border}
   rows: [posts]

@@ -1,15 +1,30 @@
 {
   "charts": {
+    "in_scope": {
+      "label": "Posts in scope",
+      "query": "milestone",
+      "style": {
+        "value": {
+          "format": "integer"
+        }
+      },
+      "type": "kpi",
+      "value": "denominator"
+    },
     "reached": {
       "label": "Posts that reached the milestone",
       "query": "milestone",
+      "style": {
+        "value": {
+          "format": "integer"
+        }
+      },
       "support": {
-        "format": "integer",
-        "label": "Posts",
-        "value": "numerator"
+        "label": "of the Posts in scope",
+        "value": "pct_label"
       },
       "type": "kpi",
-      "value": "pct_label"
+      "value": "numerator"
     },
     "regions": {
       "query": "regions",
@@ -55,10 +70,10 @@
       ],
       "values": [
         [
-          4,
-          4,
-          1.0,
-          "100.0%"
+          9,
+          12,
+          0.75,
+          "75.0%"
         ]
       ]
     },
@@ -77,33 +92,42 @@
           "Europe",
           "Europe",
           1,
-          1,
-          1,
-          1.0,
-          "100.0%"
+          2,
+          3,
+          0.6666666666666666,
+          "66.7%"
         ],
         [
           "Asia Pacific",
           "Asia Pacific",
           2,
-          1,
-          1,
-          1.0,
-          "100.0%"
+          2,
+          3,
+          0.6666666666666666,
+          "66.7%"
         ],
         [
           "Middle East",
           "Middle East",
           3,
-          1,
-          1,
+          3,
+          3,
           1.0,
           "100.0%"
         ],
         [
+          "Americas",
+          "Americas",
+          4,
+          1,
+          2,
+          0.5,
+          "50.0%"
+        ],
+        [
           "Unknown",
           "__unknown__",
-          4,
+          5,
           1,
           1,
           1.0,
@@ -123,37 +147,42 @@
           "Not initialized",
           "not_initialized",
           1,
-          0
+          3
         ],
         [
           "Initialized",
           "initialized",
           2,
-          1
+          3
         ],
         [
           "Opened",
           "opened",
           3,
-          1
+          2
         ],
         [
           "Paused",
           "paused",
           4,
-          1
+          2
         ],
         [
           "Closed",
           "closed",
           5,
-          1
+          2
         ]
       ]
     }
   },
   "rows": [
-    "reached",
+    {
+      "cols": [
+        "reached",
+        "in_scope"
+      ]
+    },
     {
       "cols": [
         "states",
@@ -194,9 +223,7 @@
       },
       "legend": {
         "title": {
-          "font": {
-            "case": "none"
-          }
+          "visible": false
         }
       },
       "support_table": {

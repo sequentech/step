@@ -15,3 +15,8 @@ dimensions:
     voter_attribute: role
     labels: {student: Students, staff: Staff, faculty: Teaching staff}
 unknown_label: Not stated
+# What the dashboard selectors are called on a campus.
+selectors:
+  region: {label: Campus, all: All campuses}
+  post: {label: Polling station, all: All stations}
+  country: {label: Nationality, all: All nationalities}

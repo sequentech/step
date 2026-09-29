@@ -36,6 +36,11 @@
     "outcomes": {
       "color": "label",
       "query": "outcomes",
+      "style": {
+        "legend": {
+          "visible": true
+        }
+      },
       "theta": "value",
       "title": "Latest decision",
       "total": {
@@ -91,19 +96,19 @@
           "approved",
           "Approved",
           1,
-          680
+          421
         ],
         [
           "disapproved",
           "Disapproved",
           2,
-          44
+          60
         ],
         [
           "pending",
           "Pending",
           3,
-          44
+          60
         ]
       ]
     },
@@ -116,28 +121,40 @@
       ],
       "values": [
         [
-          "Document unreadable",
-          "document-unreadable",
-          1,
-          15
-        ],
-        [
           "Details do not match",
           "details-mismatch",
+          1,
+          7
+        ],
+        [
+          "Document unreadable",
+          "document-unreadable",
           2,
-          9
+          6
+        ],
+        [
+          "Photo unclear",
+          "photo-unclear",
+          3,
+          6
+        ],
+        [
+          "Document expired",
+          "document-expired",
+          4,
+          6
         ],
         [
           "Not eligible",
           "not-eligible",
-          3,
-          3
+          5,
+          5
         ],
         [
           "Unknown",
           "__unknown__",
-          4,
-          3
+          6,
+          2
         ]
       ]
     },
@@ -150,10 +167,10 @@
       ],
       "values": [
         [
-          780,
-          680,
-          44,
-          44
+          541,
+          421,
+          60,
+          60
         ]
       ]
     }
@@ -207,9 +224,7 @@
       },
       "legend": {
         "title": {
-          "font": {
-            "case": "none"
-          }
+          "visible": false
         }
       },
       "support_table": {

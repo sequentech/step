@@ -8,25 +8,32 @@ id: final-testing-lockdown
 title: Final testing and lockdown
 source: final_testing_lockdown
 requirements: [SW-F-0254, SW-F-0255]
+selectors:
+  milestone:
+    label: Milestone
+    control: toggle
+    options: {tested: Final testing done, locked_down: Locked down}
+    default: tested
+    maps: {tested: [tested, posts], locked_down: [locked_down, posts]}
 queries:
-  tested: {template: summary, ratio: [tested, posts]}
-  locked: {template: summary, ratio: [locked_down, posts]}
+  milestone: {template: summary, ratio: {selector: milestone}}
   posts: {template: by_post, measures: [posts], sort: {by: label, order: asc}}
-height: 360
+height: 400
 chart:
   charts:
-    tested:
+    reached:
       type: kpi
-      query: tested
-      value: pct_label
-      label: Final testing done
-      support: {value: numerator, label: Posts, format: integer}
-    locked:
+      query: milestone
+      value: numerator
+      label: Posts that reached the milestone
+      style: {value: {format: integer}}
+      support: {value: pct_label, label: of the Posts in scope}
+    in_scope:
       type: kpi
-      query: locked
-      value: pct_label
-      label: Locked down
-      support: {value: numerator, label: Posts, format: integer}
+      query: milestone
+      value: denominator
+      label: Posts in scope
+      style: {value: {format: integer}}
     posts:
       type: table
       query: posts
@@ -40,5 +47,5 @@ chart:
           state_label: {label: Status}
           posts: {visible: false}
   rows:
-    - {cols: [tested, locked]}
+    - {cols: [reached, in_scope]}
     - posts

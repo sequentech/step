@@ -102,3 +102,17 @@ fn a_milestone_stays_reached_but_a_pause_or_failure_only_lasts() {
         }
     }
 }
+
+/// Helpdesk issues and attack detections come in categories, which a
+/// widget breaks them down by.
+#[test]
+fn issues_and_detections_can_be_broken_down_by_category() {
+    for source in [DataSourceId::Helpdesk, DataSourceId::AttackDetections] {
+        assert!(source.spec().may_group_by("category"), "{source}");
+        assert!(
+            source.spec().has_template(QueryTemplate::ByGroup),
+            "{source}"
+        );
+    }
+    assert!(!DataSourceId::VoterTurnout.spec().may_group_by("category"));
+}

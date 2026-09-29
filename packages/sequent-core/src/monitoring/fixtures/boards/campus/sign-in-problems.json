@@ -10,12 +10,12 @@
         "marks": {
           "bar": {
             "labels": {
-              "format": "integer",
+              "format": "number",
               "visible": true
             }
           }
         },
-        "number_format": "integer",
+        "number_format": "number",
         "orientation": "horizontal"
       },
       "type": "bar",
@@ -37,13 +37,13 @@
           "login_failures",
           "Wrong password",
           1,
-          144
+          180
         ],
         [
           "password_resets",
           "Password reset",
           2,
-          22
+          40
         ]
       ]
     }
@@ -84,9 +84,7 @@
       },
       "legend": {
         "title": {
-          "font": {
-            "case": "none"
-          }
+          "visible": false
         }
       },
       "support_table": {

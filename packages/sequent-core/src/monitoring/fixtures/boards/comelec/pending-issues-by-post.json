@@ -10,12 +10,12 @@
         "marks": {
           "bar": {
             "labels": {
-              "format": "integer",
+              "format": "number",
               "visible": true
             }
           }
         },
-        "number_format": "integer",
+        "number_format": "number",
         "orientation": "horizontal"
       },
       "type": "bar",
@@ -38,29 +38,71 @@
           "Madrid",
           "post-madrid",
           1,
-          0,
-          0
+          1,
+          3
+        ],
+        [
+          "Rome",
+          "post-rome",
+          2,
+          1,
+          3
+        ],
+        [
+          "London",
+          "post-london",
+          3,
+          1,
+          2
         ],
         [
           "Tokyo",
           "post-tokyo",
-          2,
-          0,
-          0
+          4,
+          1,
+          3
+        ],
+        [
+          "Singapore",
+          "post-singapore",
+          5,
+          1,
+          2
         ],
         [
           "Dubai",
           "post-dubai",
-          3,
-          0,
-          0
+          6,
+          1,
+          2
         ],
         [
-          "Riyadh",
-          "post-riyadh",
-          4,
+          "Sydney",
+          "post-sydney",
+          7,
           0,
-          0
+          2
+        ],
+        [
+          "Doha",
+          "post-doha",
+          8,
+          0,
+          2
+        ],
+        [
+          "Kuwait",
+          "post-kuwait",
+          9,
+          0,
+          2
+        ],
+        [
+          "Toronto",
+          "post-toronto",
+          10,
+          0,
+          2
         ]
       ]
     }
@@ -101,9 +143,7 @@
       },
       "legend": {
         "title": {
-          "font": {
-            "case": "none"
-          }
+          "visible": false
         }
       },
       "support_table": {

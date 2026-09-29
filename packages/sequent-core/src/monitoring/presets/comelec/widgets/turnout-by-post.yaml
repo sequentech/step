@@ -42,5 +42,5 @@ chart:
           numerator: {visible: false}
           denominator: {visible: false}
           pct: {visible: false}
-          pct_label: {label: Turnout, align: right}
+          pct_label: {label: Share, align: right}
   rows: [posts]

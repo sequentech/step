@@ -1,9 +1,37 @@
 {
   "charts": {
+    "categories": {
+      "query": "categories",
+      "sort": {
+        "by": "position",
+        "order": "asc"
+      },
+      "style": {
+        "marks": {
+          "bar": {
+            "labels": {
+              "format": "number",
+              "visible": true
+            }
+          }
+        },
+        "number_format": "number",
+        "orientation": "horizontal"
+      },
+      "title": "By category",
+      "type": "bar",
+      "x": "group",
+      "y": "detections"
+    },
     "series": {
       "query": "series",
+      "sort": {
+        "by": "bucket_utc",
+        "order": "asc"
+      },
       "style": {
-        "number_format": "integer"
+        "number_format": "number",
+        "orientation": "vertical"
       },
       "type": "bar",
       "x": "bucket_label",
@@ -23,6 +51,40 @@
     }
   },
   "queries": {
+    "categories": {
+      "columns": [
+        "group",
+        "group_key",
+        "position",
+        "detections"
+      ],
+      "values": [
+        [
+          "Credential stuffing",
+          "Credential stuffing",
+          1,
+          12
+        ],
+        [
+          "Brute force",
+          "Brute force",
+          2,
+          12
+        ],
+        [
+          "Bot traffic",
+          "Bot traffic",
+          3,
+          8
+        ],
+        [
+          "Unknown",
+          "__unknown__",
+          4,
+          8
+        ]
+      ]
+    },
     "series": {
       "columns": [
         "bucket_start",
@@ -36,15 +98,15 @@
           "2026-05-04T00:00:00",
           "2026-05-04",
           "2026-05-04T00:00:00Z",
-          0,
-          0
+          27,
+          27
         ],
         [
           "2026-05-05T00:00:00",
           "2026-05-05",
           "2026-05-05T00:00:00Z",
-          0,
-          0
+          13,
+          40
         ]
       ]
     },
@@ -54,14 +116,19 @@
       ],
       "values": [
         [
-          0
+          40
         ]
       ]
     }
   },
   "rows": [
     "total",
-    "series"
+    {
+      "cols": [
+        "series",
+        "categories"
+      ]
+    }
   ],
   "style": {
     "accent": "#1d4ed8",
@@ -96,9 +163,7 @@
       },
       "legend": {
         "title": {
-          "font": {
-            "case": "none"
-          }
+          "visible": false
         }
       },
       "support_table": {

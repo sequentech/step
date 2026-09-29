@@ -5,7 +5,9 @@
 //! Tests for [`super`].
 
 use super::*;
-use crate::monitoring::config::{ConfigKind, ConfigSet, Editability};
+use crate::monitoring::config::{
+    ConfigKind, ConfigSet, Editability, ScopeSelector,
+};
 use crate::monitoring::problem::{Code, Report};
 use serde::Deserialize;
 
@@ -1137,4 +1139,43 @@ fn a_day_picker_shows_for_every_hourly_option_and_only_those() {
         "in: [hour, hours]",
         1,
     )));
+}
+
+#[test]
+fn settings_may_word_the_dashboard_selectors_but_not_leave_them_blank() {
+    let worded = format!(
+        "{SETTINGS}\nselectors:\n  region: {{label: Campus, all: All campuses}}\n  post: {{label: Polling station, all: All stations}}\n"
+    );
+    let parsed = parse_settings(&worded);
+    assert_accepted(&parsed.report);
+    let settings = parsed.value.expect("worded settings");
+    let region = settings
+        .selector_words(ScopeSelector::Region)
+        .expect("region words");
+    assert_eq!(
+        (region.label.as_str(), region.all.as_str()),
+        ("Campus", "All campuses")
+    );
+    assert!(
+        settings.selector_words(ScopeSelector::Country).is_none(),
+        "unworded selectors fall back to the portal's words"
+    );
+    assert!(parse_settings(SETTINGS).value.unwrap().selectors.is_empty());
+
+    for (field, path) in [
+        ("{label: \" \", all: All}", "selectors.region.label"),
+        ("{label: Region, all: \"\"}", "selectors.region.all"),
+    ] {
+        assert_refused(
+            &settings_report(&format!(
+                "{SETTINGS}\nselectors:\n  region: {field}\n"
+            )),
+            Code::InvalidValue,
+            path,
+        );
+    }
+    assert!(!settings_report(&format!(
+        "{SETTINGS}\nselectors:\n  district: {{label: District, all: All}}\n"
+    ))
+    .is_accepted());
 }

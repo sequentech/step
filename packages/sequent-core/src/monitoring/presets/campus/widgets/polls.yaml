@@ -19,9 +19,10 @@ chart:
     opened:
       type: kpi
       query: opened
-      value: pct_label
+      value: numerator
       label: Stations opened
-      support: {value: numerator, label: stations, format: integer}
+      style: {value: {format: integer}}
+      support: {value: pct_label, label: of the stations}
     # A campus has a handful of stations: a donut shows each state's count.
     states:
       type: donut

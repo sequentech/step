@@ -13,8 +13,13 @@
         }
       ],
       "query": "data",
+      "sort": {
+        "by": "bucket_utc",
+        "order": "asc"
+      },
       "style": {
-        "number_format": "integer"
+        "number_format": "number",
+        "orientation": "vertical"
       },
       "type": "bar",
       "x": "bucket_label",
@@ -36,15 +41,15 @@
           "2026-05-04T00:00:00",
           "2026-05-04",
           "2026-05-04T00:00:00Z",
-          220,
-          220
+          93,
+          93
         ],
         [
           "2026-05-05T00:00:00",
           "2026-05-05",
           "2026-05-05T00:00:00Z",
-          220,
-          440
+          45,
+          138
         ]
       ]
     }
@@ -85,9 +90,7 @@
       },
       "legend": {
         "title": {
-          "font": {
-            "case": "none"
-          }
+          "visible": false
         }
       },
       "support_table": {

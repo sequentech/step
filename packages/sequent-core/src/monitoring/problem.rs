@@ -144,12 +144,18 @@ pub struct Report {
 }
 
 impl Report {
+    /// Adds a problem, unless the report already says it: a check that runs
+    /// once per row finds the same problem in every row.
     pub fn push(&mut self, problem: Problem) {
-        self.problems.push(problem);
+        if !self.problems.contains(&problem) {
+            self.problems.push(problem);
+        }
     }
 
     pub fn extend(&mut self, other: Report) {
-        self.problems.extend(other.problems);
+        for problem in other.problems {
+            self.push(problem);
+        }
     }
 
     /// Whether the configuration may be saved: warnings do not stop it.
@@ -174,3 +180,7 @@ impl fmt::Display for Report {
         Ok(())
     }
 }
+
+#[cfg(test)]
+#[path = "problem_tests.rs"]
+mod problem_tests;

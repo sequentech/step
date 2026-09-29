@@ -13,7 +13,7 @@
               "eq": "Paused"
             },
             {
-              "background": "dbt-grays.muted",
+              "background": "dbt-grays.border",
               "eq": "Closed"
             }
           ]
@@ -61,39 +61,111 @@
       ],
       "values": [
         [
-          "Dubai",
-          "post-dubai",
+          "Doha",
+          "post-doha",
           "Middle East",
-          "paused",
-          "Paused",
+          "opened",
+          "Opened",
           1,
           1
         ],
         [
-          "Madrid",
-          "post-madrid",
-          "Europe",
+          "Dubai",
+          "post-dubai",
+          "Middle East",
           "initialized",
           "Initialized",
           2,
           1
         ],
         [
+          "Kuwait",
+          "post-kuwait",
+          "Middle East",
+          "paused",
+          "Paused",
+          3,
+          1
+        ],
+        [
+          "London",
+          "post-london",
+          "Europe",
+          "opened",
+          "Opened",
+          4,
+          1
+        ],
+        [
+          "Madrid",
+          "post-madrid",
+          "Europe",
+          "not_initialized",
+          "Not initialized",
+          5,
+          1
+        ],
+        [
           "Riyadh",
           "post-riyadh",
           "Unknown",
+          "initialized",
+          "Initialized",
+          6,
+          1
+        ],
+        [
+          "Rome",
+          "post-rome",
+          "Europe",
+          "initialized",
+          "Initialized",
+          7,
+          1
+        ],
+        [
+          "Singapore",
+          "post-singapore",
+          "Asia Pacific",
           "closed",
           "Closed",
-          3,
+          8,
+          1
+        ],
+        [
+          "Sydney",
+          "post-sydney",
+          "Asia Pacific",
+          "not_initialized",
+          "Not initialized",
+          9,
           1
         ],
         [
           "Tokyo",
           "post-tokyo",
           "Asia Pacific",
-          "opened",
-          "Opened",
-          4,
+          "paused",
+          "Paused",
+          10,
+          1
+        ],
+        [
+          "Toronto",
+          "post-toronto",
+          "Americas",
+          "closed",
+          "Closed",
+          11,
+          1
+        ],
+        [
+          "Washington",
+          "post-washington",
+          "Americas",
+          "not_initialized",
+          "Not initialized",
+          12,
           1
         ]
       ]
@@ -135,9 +207,7 @@
       },
       "legend": {
         "title": {
-          "font": {
-            "case": "none"
-          }
+          "visible": false
         }
       },
       "support_table": {

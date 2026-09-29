@@ -1,0 +1,7 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# preset version digest
+campus 1 a0e7043665301d99
+comelec 1 479ebe0cb6892acf

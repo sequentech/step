@@ -2,32 +2,39 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
-# Posts that have counted and transmitted their results, and those whose
-# transmission failed.
+# Posts that have counted and transmitted their results, over the Posts in
+# scope, and those whose transmission failed.
 id: counting-transmission
 title: Counting and transmission
 source: counting_transmission
 requirements: [SW-F-0263, SW-F-0264, SW-F-0265]
+selectors:
+  milestone:
+    label: Milestone
+    control: toggle
+    options: {tallied: Counted, transmitted: Transmitted}
+    default: tallied
+    maps: {tallied: [tallied, posts], transmitted: [transmitted, posts]}
 queries:
-  tallied: {template: summary, ratio: [tallied, posts]}
-  transmitted: {template: summary, ratio: [transmitted, posts]}
+  milestone: {template: summary, ratio: {selector: milestone}}
   failed: {template: summary, measures: [transmission_failed]}
   posts: {template: by_post, measures: [posts], sort: {by: label, order: asc}}
-height: 380
+height: 400
 chart:
   charts:
-    tallied:
+    reached:
       type: kpi
-      query: tallied
-      value: pct_label
-      label: Counted
-      support: {value: numerator, label: Posts, format: integer}
-    transmitted:
+      query: milestone
+      value: numerator
+      label: Posts that reached the milestone
+      style: {value: {format: integer}}
+      support: {value: pct_label, label: of the Posts in scope}
+    in_scope:
       type: kpi
-      query: transmitted
-      value: pct_label
-      label: Transmitted
-      support: {value: numerator, label: Posts, format: integer}
+      query: milestone
+      value: denominator
+      label: Posts in scope
+      style: {value: {format: integer}}
     failed:
       type: kpi
       query: failed
@@ -51,5 +58,5 @@ chart:
           when:
             - {eq: Transmission failed, background: negative.bg}
   rows:
-    - {cols: [tallied, transmitted, failed]}
+    - {cols: [reached, in_scope, failed]}
     - posts

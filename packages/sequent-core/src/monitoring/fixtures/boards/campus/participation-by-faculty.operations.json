@@ -15,12 +15,13 @@
             }
           }
         },
-        "number_format": "percent"
+        "number_format": "percent",
+        "orientation": "horizontal"
       },
       "type": "bar",
       "x": "group",
       "y": "pct",
-      "y_label": "Voted"
+      "y_label": "Turnout"
     }
   },
   "queries": {
@@ -36,40 +37,49 @@
       ],
       "values": [
         [
-          "Asia Pacific",
-          "Asia Pacific",
+          "Europe",
+          "Europe",
           1,
-          96,
-          342,
-          0.2807017543859649,
-          "28.1%"
+          108,
+          284,
+          0.38028169014084506,
+          "38.0%"
         ],
         [
-          "Europe",
-          "Europe",
+          "Middle East",
+          "Middle East",
           2,
-          120,
-          428,
-          0.2803738317757009,
-          "28.0%"
+          85,
+          226,
+          0.37610619469026546,
+          "37.6%"
         ],
         [
-          "Middle East",
-          "Middle East",
+          "Americas",
+          "Americas",
           3,
-          72,
-          257,
-          0.2801556420233463,
-          "28.0%"
+          60,
+          227,
+          0.2643171806167401,
+          "26.4%"
+        ],
+        [
+          "Asia Pacific",
+          "Asia Pacific",
+          4,
+          80,
+          308,
+          0.2597402597402597,
+          "26.0%"
         ],
         [
           "Not stated",
           "__unknown__",
-          4,
-          24,
-          85,
-          0.2823529411764706,
-          "28.2%"
+          5,
+          58,
+          155,
+          0.3741935483870968,
+          "37.4%"
         ]
       ]
     }
@@ -110,9 +120,7 @@
       },
       "legend": {
         "title": {
-          "font": {
-            "case": "none"
-          }
+          "visible": false
         }
       },
       "support_table": {

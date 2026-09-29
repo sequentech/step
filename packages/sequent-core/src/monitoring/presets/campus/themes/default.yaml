@@ -12,7 +12,9 @@ style:
   title: {font: {case: none}}
   charts:
     axis: {title: {font: {case: none}}}
-    legend: {title: {font: {case: none}}}
+    # A legend is titled with the column it colours by, a name only the
+    # query uses; its entries say enough.
+    legend: {title: {visible: false}}
     table: {header: {font: {case: none}}}
     kpi: {label: {font: {case: none}}}
     support_table: {label: {font: {case: none}}}

@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
-# Attacks the platform detected, over time.
+# Attacks the platform detected, over time and by category.
 id: attack-detections
 title: Attack detections
 source: attack_detections
@@ -24,7 +24,12 @@ queries:
     measures: [detections]
     grain: {selector: grain}
     day: {selector: day}
-height: 320
+  categories:
+    template: by_group
+    group_by: category
+    measures: [detections]
+    sort: {by: value, order: desc}
+height: 400
 chart:
   charts:
     total:
@@ -39,5 +44,21 @@ chart:
       x: bucket_label
       y: detections
       y_label: Detections
-      style: {number_format: integer}
-  rows: [total, series]
+      # In time order, which the labels alone are not when clocks go back.
+      sort: {by: bucket_utc, order: asc}
+      style: {orientation: vertical, number_format: number}
+    categories:
+      type: bar
+      query: categories
+      x: group
+      y: detections
+      # The query's order, Unknown last; unsorted, a bar orders by value.
+      sort: {by: position, order: asc}
+      title: By category
+      style:
+        orientation: horizontal
+        number_format: number
+        marks: {bar: {labels: {visible: true, format: number}}}
+  rows:
+    - total
+    - {cols: [series, categories]}

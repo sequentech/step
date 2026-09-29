@@ -64,7 +64,7 @@ fn every_preset_loads_without_a_single_problem() {
 }
 
 #[test]
-fn every_file_in_a_preset_directory_is_listed_and_every_listed_file_exists() {
+fn the_build_lists_every_file_of_every_preset_directory() {
     let mut ids = BTreeSet::new();
     for source in PRESETS {
         assert!(ids.insert(source.id), "{} is listed twice", source.id);
@@ -208,6 +208,47 @@ fn a_preset_has_a_default_theme() {
     assert_eq!(paths, ["themes/default.yaml"], "{report}");
 }
 
+/// The directory says what a document is; a widget in `dashboards/` is a
+/// mistake, not a dashboard.
+#[test]
+fn a_document_is_where_its_kind_belongs() {
+    const MISPLACED: PresetSource = PresetSource {
+        id: "misplaced",
+        manifest: "id: misplaced\nversion: 1\ntitle: Misplaced\nexport_requirements: [R-1, R-1]\n",
+        files: &[
+            PresetFile {
+                kind: ConfigKind::Settings,
+                path: "settings.yaml",
+                yaml: include_str!("fixtures/settings.yaml"),
+            },
+            PresetFile {
+                kind: ConfigKind::Theme,
+                path: "themes/default.yaml",
+                yaml: include_str!("fixtures/theme_default.yaml"),
+            },
+            PresetFile {
+                kind: ConfigKind::Widget,
+                path: "dashboards/turnout-by-group.yaml",
+                yaml: include_str!("fixtures/turnout_by_group.yaml"),
+            },
+        ],
+    };
+    let report = MISPLACED.load().expect_err("misplaced");
+    let paths: Vec<&str> = report
+        .problems
+        .iter()
+        .map(|problem| problem.path.as_str())
+        .collect();
+    assert!(
+        paths.contains(&"dashboards/turnout-by-group.yaml"),
+        "{report}"
+    );
+    assert!(
+        paths.contains(&"preset.yaml:export_requirements[1]"),
+        "{report}"
+    );
+}
+
 #[test]
 fn a_requirement_is_answered_in_one_place() {
     let manifest = "id: twice\nversion: 1\ntitle: Twice\nexport_requirements: [R-1]\nowned_elsewhere:\n  - {requirements: [R-2], subject: Logs, owner: Team}\n";
@@ -321,6 +362,12 @@ fn draw(
     if !unread.is_empty() {
         return Err(format!("chart reads columns its query lacks: {unread:?}"));
     }
+    let unoriented = unoriented_bars(&board);
+    if !unoriented.is_empty() {
+        return Err(format!(
+            "bars that leave their orientation to the engine: {unoriented:?}"
+        ));
+    }
     let unlisted = unlisted_table_columns(&board);
     if !unlisted.is_empty() {
         return Err(format!(
@@ -392,6 +439,20 @@ fn unknown_columns(board: &Value) -> Vec<String> {
                 check(field.to_string(), value, &columns);
             }
         }
+        for (pointer, field) in [
+            ("/multiples/rows", "multiples.rows"),
+            ("/multiples/columns", "multiples.columns"),
+            ("/stroke/color", "stroke.color"),
+            ("/stroke/width", "stroke.width"),
+        ] {
+            if let Some(value) = chart.pointer(pointer) {
+                check(field.into(), value, &columns);
+            }
+        }
+        // As a string, a background is a colour.
+        if let Some(value) = chart.get("background").filter(|v| v.is_object()) {
+            check("background".into(), value, &columns);
+        }
         if let Some(value) = chart.pointer("/support/value") {
             check("support.value".into(), value, &columns);
         }
@@ -443,6 +504,20 @@ fn unknown_columns(board: &Value) -> Vec<String> {
         }
     }
     unknown
+}
+
+/// The engine turns a bar over a text column on its side, and a bar on its
+/// side ranks by value, so an hourly series left to it reads 09:00, 10:00,
+/// …, 00:00. A preset's bars say which way they stand.
+fn unoriented_bars(board: &Value) -> Vec<String> {
+    board["charts"]
+        .as_object()
+        .into_iter()
+        .flatten()
+        .filter(|(_, chart)| chart["type"] == "bar")
+        .filter(|(_, chart)| chart.pointer("/style/orientation").is_none())
+        .map(|(name, _)| name.clone())
+        .collect()
 }
 
 /// A table shows every column it does not hide, so a preset's tables list
@@ -850,6 +925,66 @@ fn dashboards_open_on_the_figure_their_record_asks_for() {
         opened_on("req-0258", "poll-status", "milestone"),
         ratio(Closed, Posts)
     );
+    for (dashboard, figure) in [
+        ("req-0259", ratio(Voted, Registered)),
+        ("req-0260", ratio(Voted, PreEnrolled)),
+        ("req-0261", ratio(PreEnrolled, Registered)),
+    ] {
+        assert_eq!(opened_on(dashboard, "turnout-by-post", "data"), figure);
+        // The summary shows all three figures on every turnout dashboard.
+        assert_eq!(
+            opened_on(dashboard, "turnout-summary", "voted_reg"),
+            ratio(Voted, Registered)
+        );
+        assert_eq!(
+            opened_on(dashboard, "turnout-summary", "voted_pre"),
+            ratio(Voted, PreEnrolled)
+        );
+        assert_eq!(
+            opened_on(dashboard, "turnout-summary", "pre_reg"),
+            ratio(PreEnrolled, Registered)
+        );
+    }
+    assert_eq!(
+        opened_on("req-0254", "final-testing-lockdown", "milestone"),
+        ratio(Tested, Posts)
+    );
+    assert_eq!(
+        opened_on("req-0263", "counting-transmission", "milestone"),
+        ratio(Tallied, Posts)
+    );
+    assert_eq!(
+        opened_on("req-0264", "counting-transmission", "milestone"),
+        ratio(Transmitted, Posts)
+    );
+}
+
+/// Each choice a viewer can make shows other figures: an option that draws
+/// the same figures as another is one the viewer cannot tell apart.
+#[test]
+fn every_choice_a_viewer_can_make_shows_other_figures() {
+    let mut same = Vec::new();
+    for preset in all_presets() {
+        for (key, widget) in &preset.set.widgets {
+            let mut seen: BTreeMap<String, IndexMap<String, String>> =
+                BTreeMap::new();
+            for requested in combinations(widget) {
+                let (_, board) =
+                    draw(&preset, widget, None, &IndexMap::new(), &requested)
+                        .unwrap_or_else(|why| panic!("{key}: {why}"));
+                let figures = board["queries"].to_string();
+                if let Some(earlier) = seen.get(&figures) {
+                    same.push(format!(
+                        "{}/{key}: {earlier:?} and {requested:?}",
+                        preset.manifest.id
+                    ));
+                } else {
+                    seen.insert(figures, requested);
+                }
+            }
+        }
+    }
+    assert!(same.is_empty(), "same figures:\n{}", same.join("\n"));
 }
 
 // -- a second customer -----------------------------------------------------
@@ -905,4 +1040,126 @@ fn no_code_is_chosen_by_preset() {
         }
     }
     assert!(offenders.is_empty(), "{offenders:?}");
+}
+
+/// A dashboard selector is worded in the preset's language, as its widgets'
+/// titles are; the portal's own words are only for configurations that
+/// predate this.
+#[test]
+fn every_dashboard_selector_is_worded_by_its_preset() {
+    for preset in all_presets() {
+        let settings = preset.set.settings.as_ref().expect("settings");
+        for dashboard in preset.set.dashboards.values() {
+            for selector in &dashboard.selectors {
+                assert!(
+                    settings.selector_words(*selector).is_some(),
+                    "{}: dashboard '{}' shows the {selector} selector, which settings.yaml does not word",
+                    preset.manifest.id,
+                    dashboard.id
+                );
+            }
+        }
+    }
+}
+
+/// FNV-1a: stable across platforms and releases, enough to notice a change.
+fn digest(preset: &PresetSource) -> String {
+    let mut hash: u64 = 0xcbf2_9ce4_8422_2325;
+    let mut feed = |bytes: &[u8]| {
+        for byte in bytes.iter().chain([0_u8].iter()) {
+            hash ^= u64::from(*byte);
+            hash = hash.wrapping_mul(0x0100_0000_01b3);
+        }
+    };
+    feed(preset.manifest.as_bytes());
+    for file in preset.files {
+        feed(file.path.as_bytes());
+        feed(file.yaml.as_bytes());
+    }
+    format!("{hash:016x}")
+}
+
+/// An event records the preset version it was reset to, so a preset whose
+/// documents change is given a new version. `preset_versions.txt` holds each
+/// preset's version and digest; `MONITORING_UPDATE_PRESET_VERSIONS=1`
+/// rewrites it once the version is raised.
+#[test]
+fn a_preset_that_changes_is_given_a_new_version() {
+    let path = monitoring_dir().join("fixtures/preset_versions.txt");
+    let text = std::fs::read_to_string(&path).unwrap_or_default();
+    let recorded: BTreeMap<String, (u32, String)> = text
+        .lines()
+        .filter(|line| !line.starts_with('#') && !line.trim().is_empty())
+        .map(|line| {
+            let fields: Vec<&str> = line.split_whitespace().collect();
+            assert_eq!(fields.len(), 3, "id version digest: '{line}'");
+            (
+                fields[0].to_string(),
+                (fields[1].parse().unwrap(), fields[2].to_string()),
+            )
+        })
+        .collect();
+    let mut current = BTreeMap::new();
+    let mut unbumped = Vec::new();
+    for source in PRESETS {
+        let version = loaded(source.id).manifest.version;
+        let digest = digest(source);
+        if let Some((was, digested)) = recorded.get(source.id) {
+            assert!(version >= *was, "{}: version went back", source.id);
+            if version == *was && *digested != digest {
+                unbumped.push(source.id);
+            }
+        }
+        current.insert(source.id.to_string(), (version, digest));
+    }
+    assert!(
+        unbumped.is_empty(),
+        "{unbumped:?} changed; raise `version` in preset.yaml"
+    );
+    if std::env::var_os("MONITORING_UPDATE_PRESET_VERSIONS").is_some() {
+        let mut text = String::from(
+            "# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>\n#\n# SPDX-License-Identifier: AGPL-3.0-only\n\n# preset version digest\n",
+        );
+        for (id, (version, digest)) in &current {
+            text.push_str(&format!("{id} {version} {digest}\n"));
+        }
+        std::fs::write(&path, text).unwrap();
+        return;
+    }
+    assert_eq!(
+        recorded, current,
+        "run with MONITORING_UPDATE_PRESET_VERSIONS=1 to record new versions"
+    );
+}
+
+#[test]
+fn the_column_check_reads_every_field_that_names_a_column() {
+    let board = serde_json::json!({
+        "queries": {"data": {"columns": ["group", "voted"], "values": []}},
+        "charts": {"k": {
+            "type": "bar", "query": "data", "x": "group", "y": "voted",
+            "multiples": {"rows": "region", "columns": "country"},
+            "stroke": {"color": {"field": "state"}, "width": {"field": "weight"}},
+            "background": {"field": "shade"},
+        }},
+    });
+    assert_eq!(
+        unknown_columns(&board),
+        [
+            "k.multiples.rows: region",
+            "k.multiples.columns: country",
+            "k.stroke.color: state",
+            "k.stroke.width: weight",
+            "k.background: shade",
+        ]
+    );
+    let painted = serde_json::json!({
+        "queries": {"data": {"columns": ["group"], "values": []}},
+        "charts": {"k": {"type": "bar", "query": "data", "x": "group",
+            "background": "dbt-grays.canvas"}},
+    });
+    assert!(
+        unknown_columns(&painted).is_empty(),
+        "a colour is not a column"
+    );
 }

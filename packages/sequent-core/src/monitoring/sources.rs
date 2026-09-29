@@ -240,6 +240,9 @@ pub enum BuiltinDimension {
     /// Where a Post stands, for a source that counts Posts. Worked out from
     /// the Posts in scope, each in one state.
     State,
+    /// The kind of a helpdesk issue or of a detected attack, as the system
+    /// reporting it classifies it.
+    Category,
 }
 
 /// Whether a source's rows carry the voter dimensions a deployment configures
@@ -381,6 +384,7 @@ const POST_TEMPLATES: &[QueryTemplate] =
     &[T::Summary, T::ByGroup, T::ByPost, T::ByMeasure];
 const SCOPE: &[BuiltinDimension] = &[D::Region, D::Post, D::Country];
 const POST_SCOPE: &[BuiltinDimension] = &[D::Region, D::Post];
+const ISSUES: &[BuiltinDimension] = &[D::Region, D::Post, D::Category];
 const POSTS_BY_STATE: &[BuiltinDimension] = &[D::Region, D::Post, D::State];
 
 impl DataSourceId {
@@ -491,8 +495,8 @@ impl DataSourceId {
             AttackDetections => (
                 CountingUnit::Detections,
                 &[M::Detections],
-                &[T::Summary, T::Timeseries, T::ByMeasure],
-                &[],
+                &[T::Summary, T::ByGroup, T::Timeseries, T::ByMeasure],
+                &[D::Category],
                 VoterDimensions::NotApplicable,
                 Producer::Pending(PendingProducer::AttackDetectionFeed),
             ),
@@ -500,7 +504,7 @@ impl DataSourceId {
                 CountingUnit::ReportedIssues,
                 &[M::Issues, M::PendingIssues],
                 &[T::Summary, T::ByGroup, T::Timeseries, T::ByMeasure],
-                POST_SCOPE,
+                ISSUES,
                 VoterDimensions::NotApplicable,
                 Producer::Pending(PendingProducer::HelpdeskIntegration),
             ),

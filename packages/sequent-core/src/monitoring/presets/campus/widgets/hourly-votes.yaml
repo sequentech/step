@@ -2,7 +2,8 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
-# Ballots cast each hour of the chosen day, with the running total.
+# Ballots cast each hour of the chosen day, with the running total on its
+# own axis.
 id: hourly-votes
 title: Ballots by hour
 source: voting_enrollment_activity
@@ -19,13 +20,17 @@ height: 280
 chart:
   charts:
     votes:
-      type: area
+      type: bar
       query: data
       x: bucket_label
-      y: voted_cumulative
-      # Names the first series in the legend; the axis itself needs no title.
-      y_label: Ballots so far
-      style: {number_format: integer, axis_y: {title: {visible: false}}}
+      y: voted
+      y_label: In the hour
+      # In time order, which the labels alone are not when clocks go back.
+      sort: {by: bucket_utc, order: asc}
+      style: {orientation: vertical, number_format: number}
       layers:
-        - {type: bar, y: voted, label: In the hour}
+        - type: line
+          y: voted_cumulative
+          label: So far
+          axis_y: {position: right, title: So far}
   rows: [votes]
