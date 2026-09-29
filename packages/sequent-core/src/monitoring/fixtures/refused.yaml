@@ -678,7 +678,7 @@
     source: voter_turnout
     query: {template: by_group, group_by: sex, measures: [voted]}
     chart: {charts: {k: {type: bar, query: data, x: group, y: voted, height: 1000000}}, rows: [k]}
-- name: a tick step, which the data's range turns into any number of ticks
+- name: a tick step with a time unit, a calendar cadence that draws any number of ticks
   kind: widget
   code: forbidden_key
   path: chart.charts.k.style.axis_y.ticks.step
@@ -687,7 +687,17 @@
     title: W
     source: voter_turnout
     query: {template: by_group, group_by: sex, measures: [voted]}
-    chart: {charts: {k: {type: bar, query: data, x: group, y: voted, style: {axis_y: {ticks: {step: 1}}}}}, rows: [k]}
+    chart: {charts: {k: {type: bar, query: data, x: group, y: voted, style: {axis_y: {ticks: {step: 1, time_unit: millisecond}}}}}, rows: [k]}
+- name: a tick step below one
+  kind: widget
+  code: forbidden_key
+  path: chart.charts.k.style.axis_y.ticks.step
+  yaml: |
+    id: w
+    title: W
+    source: voter_turnout
+    query: {template: by_group, group_by: sex, measures: [voted]}
+    chart: {charts: {k: {type: bar, query: data, x: group, y: voted, style: {axis_y: {ticks: {step: 0.001}}}}}, rows: [k]}
 - name: a chart defined as the title of a nested board
   kind: widget
   code: invalid_value
