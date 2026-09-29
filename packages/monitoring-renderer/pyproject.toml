@@ -1,0 +1,23 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+[project]
+name = "monitoring-renderer"
+version = "0.1.0"
+description = "Internal service that draws monitoring widgets with dbt Charts"
+requires-python = ">=3.12,<3.13"
+license = "AGPL-3.0-only"
+
+[tool.setuptools]
+packages = ["monitoring_renderer"]
+
+[tool.setuptools.package-data]
+monitoring_renderer = ["data/*.txt", "data/*.json", "data/geo/*.json"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = [".", "tests"]
+# No test may reach the network: inet sockets are refused (asyncio's own
+# socketpair is a unix socket).
+addopts = "--disable-socket --allow-unix-socket -p no:cacheprovider"
