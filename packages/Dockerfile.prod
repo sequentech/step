@@ -2,6 +2,14 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
+# Optional offline dependency source. The default, scratch, copies an empty
+# directory into the builder and leaves the online build byte-identical. Point it
+# at packages/Dockerfile.offline-dependencies' output to build with no network:
+#   --build-arg VENDOR_IMAGE=sequentech.local/offline-dependencies:latest --network=none
+# See sequentech/meta#13625.
+ARG VENDOR_IMAGE=scratch
+FROM ${VENDOR_IMAGE} AS vendor
+
 FROM node:20-alpine as builder
 WORKDIR /usr/src/app/
 
@@ -16,8 +24,16 @@ COPY ./results-portal ./results-portal
 COPY ./package.json ./package.json
 COPY ./yarn.lock ./yarn.lock
 
-# Install dependencies
-RUN yarn install --frozen-lockfile --non-interactive
+# Install dependencies. With a vendor image supplied, resolve them from its
+# offline mirror instead of the registry; otherwise fetch as before.
+COPY --from=vendor / /vendor/
+RUN if [ -d /vendor/npm-packages-offline-cache ]; then \
+        printf 'yarn-offline-mirror "/vendor/npm-packages-offline-cache"\nyarn-offline-mirror-pruning false\n' > .yarnrc && \
+        echo "offline build: using vendored packages from /vendor/npm-packages-offline-cache" && \
+        yarn install --frozen-lockfile --offline --non-interactive; \
+    else \
+        yarn install --frozen-lockfile --non-interactive; \
+    fi
 
 ARG SPA_NAME
 

@@ -1,0 +1,50 @@
+# SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# Vendors every Cargo and Yarn dependency this workspace needs into one image,
+# so the product images can then be built with no network access at all.
+#
+# This exists for the offline/airgapped release pipeline (sequentech/meta#13625),
+# where dependencies are fetched on an online machine and the product is built on
+# a physically separate disconnected one. It is the only image here that needs the
+# network; everything downstream consumes its output.
+#
+# Build (online):
+#   docker build -t sequentech.local/offline-dependencies:latest \
+#     -f packages/Dockerfile.offline-dependencies packages
+#
+# Then build any product image with no network:
+#   docker build --build-arg VENDOR_IMAGE=sequentech.local/offline-dependencies:latest \
+#     --network=none -f packages/harvest/Dockerfile.prod packages
+#
+# The toolchain versions here must match the ones the product Dockerfiles build
+# with, or the vendored artifacts will not be the ones the build wants.
+
+# Cargo dependencies, including git dependencies and patched crates, which
+# cargo vendor resolves into the same directory.
+FROM rust:1.96.0-slim-bookworm AS rust-deps
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends git ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+WORKDIR /workspace
+COPY . .
+# The emitted config.toml names an absolute directory. Consumers rewrite that
+# path rather than depending on this layout, because a COPY from an image can
+# only reliably start at its root.
+RUN cargo vendor /vendor-cache > /vendor-cache/config.toml
+
+# Yarn dependencies as an offline mirror: a directory of tarballs that
+# `yarn install --offline` resolves against without contacting a registry.
+FROM node:20-bookworm-slim AS node-deps
+WORKDIR /workspace
+COPY . .
+RUN printf 'yarn-offline-mirror "/npm-packages-offline-cache"\nyarn-offline-mirror-pruning false\n' > .yarnrc \
+    && yarn install --frozen-lockfile --non-interactive
+
+# Both caches at the image root, and nothing else. Consumers copy from / so the
+# same COPY works whether or not this image was supplied -- the default is
+# scratch, which yields an empty directory and an unchanged online build.
+FROM scratch
+COPY --from=rust-deps /vendor-cache /vendor-cache
+COPY --from=node-deps /npm-packages-offline-cache /npm-packages-offline-cache
