@@ -119,17 +119,18 @@ fn a_null_in_the_widget_style_leaves_the_theme_value() {
 #[test]
 fn a_list_in_the_widget_style_replaces_the_theme_list_whole() {
     let theme = parse_theme(
-        "id: t\nstyle:\n  color: {categorical: {palette: [\"#111111\", \"#222222\"]}}\n",
+        "id: t\nstyle:\n  charts: {color: {categorical: {palette: [\"#111111\", \"#222222\"]}}}\n",
     )
     .value
     .expect("theme");
     let mut widget = widget();
-    widget.chart["style"] =
-        serde_yaml::from_str("color: {categorical: {palette: [\"#333333\"]}}")
-            .unwrap();
+    widget.chart["style"] = serde_yaml::from_str(
+        "charts: {color: {categorical: {palette: [\"#333333\"]}}}",
+    )
+    .unwrap();
     let board = build_board(&widget, Some(&theme), &data());
     assert_eq!(
-        board["style"]["color"]["categorical"]["palette"],
+        board["style"]["charts"]["color"]["categorical"]["palette"],
         json!(["#333333"])
     );
 }
@@ -143,4 +144,27 @@ fn governed_rows_replace_any_queries_the_chart_carries() {
     let board = build_board(&widget, None, &data());
     assert_eq!(board["queries"]["data"]["columns"], json!(["group", "pct"]));
     assert!(board["queries"]["data"].get("sql").is_none());
+}
+
+#[test]
+fn the_engine_adds_no_footer_freshness_line_or_total_of_its_own() {
+    // The dashboard says when its figures are from, and a donut's slices
+    // need not add up to the scope: the engine's defaults would say both.
+    let mut widget = widget();
+    widget.chart = serde_yaml::from_str(
+        "charts:\n  pie: {type: donut, query: data, theta: pct, color: group, total: {label: Voters}}\n  bars: {type: bar, query: data, x: group, y: pct}\nrows: [pie, bars]\n",
+    )
+    .unwrap();
+    let board = build_board(&widget, Some(&paper()), &data());
+    assert_eq!(board["style"]["footer"], json!({"visible": false}));
+    assert_eq!(board["style"]["timestamp"], json!({"visible": false}));
+    assert_eq!(
+        board["charts"]["pie"]["total"],
+        json!({"label": "Voters", "visible": false})
+    );
+    assert!(board["charts"]["bars"].get("total").is_none());
+    assert_eq!(board["style"]["background"], json!("dbt-grays.canvas"));
+
+    let board = build_board(&widget, None, &data());
+    assert_eq!(board["style"]["footer"], json!({"visible": false}));
 }

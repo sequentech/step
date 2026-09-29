@@ -39,6 +39,7 @@ pub fn build_board(
             board.insert("theme".into(), Value::String(base.to_string()));
         }
     }
+    hide_engine_additions(&mut board);
     let queries: Map<String, Value> = data
         .iter()
         .map(|(name, result)| {
@@ -57,6 +58,49 @@ pub fn build_board(
         .collect();
     board.insert("queries".into(), Value::Object(queries));
     Value::Object(board)
+}
+
+/// What dbt Charts draws unless told not to, and a dashboard must not show:
+/// a footer linking to dbt Charts, a "Data as of" line in UTC (the dashboard
+/// shows its snapshot time in the event's zone), and a donut's total, which
+/// adds up slices that need not add up to the scope. Set after the theme and
+/// the widget, so neither can bring them back.
+fn hide_engine_additions(board: &mut Map<String, Value>) {
+    let hidden = || {
+        Value::Object(Map::from_iter([("visible".into(), Value::Bool(false))]))
+    };
+    let style = board
+        .entry("style")
+        .or_insert_with(|| Value::Object(Map::new()));
+    if !style.is_object() {
+        *style = Value::Object(Map::new());
+    }
+    if let Value::Object(style) = style {
+        style.insert("footer".into(), hidden());
+        style.insert("timestamp".into(), hidden());
+    }
+    if let Some(Value::Object(charts)) = board.get_mut("charts") {
+        for chart in charts.values_mut() {
+            let Value::Object(chart) = chart else {
+                continue;
+            };
+            let pie = matches!(
+                chart.get("type").and_then(Value::as_str),
+                Some("pie" | "donut")
+            );
+            if !pie {
+                continue;
+            }
+            match chart.get_mut("total") {
+                Some(Value::Object(total)) => {
+                    total.insert("visible".into(), Value::Bool(false));
+                }
+                _ => {
+                    chart.insert("total".into(), hidden());
+                }
+            }
+        }
+    }
 }
 
 /// `over` merged onto `base`: mappings key by key, lists and values

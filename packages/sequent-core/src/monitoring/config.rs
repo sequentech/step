@@ -258,6 +258,32 @@ pub struct Selector {
     pub maps: Option<IndexMap<String, serde_yaml::Value>>,
 }
 
+impl Selector {
+    /// What `option` stands for in a query parameter of type `T`: its entry
+    /// in `maps`, else the option itself — as text, or failing that as the
+    /// number or flag the text spells, so `{10: Top 10}` feeds a limit of 10
+    /// without a mapping.
+    pub fn option_value<T: serde::de::DeserializeOwned>(
+        &self,
+        option: &str,
+    ) -> Result<T, serde_yaml::Error> {
+        if let Some(mapped) =
+            self.maps.as_ref().and_then(|maps| maps.get(option))
+        {
+            return serde_yaml::from_value(mapped.clone());
+        }
+        serde_yaml::from_value(serde_yaml::Value::String(option.to_string()))
+            .or_else(|as_text| {
+                match serde_yaml::from_str::<serde_yaml::Value>(option) {
+                    Ok(scalar) if !scalar.is_string() => {
+                        serde_yaml::from_value(scalar)
+                    }
+                    _ => Err(as_text),
+                }
+            })
+    }
+}
+
 /// `when: {selector: grain, in: [hour]}`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]

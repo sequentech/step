@@ -33,7 +33,7 @@ account                            forbid
 active_marker                      allow
 active_weight                      allow
 affix                              allow
-aggregate                          allow
+aggregate                          forbid
 aliases                            forbid
 align                              allow
 anchor                             allow
@@ -195,7 +195,7 @@ flush                              allow
 focus_color                        allow
 font                               allow
 font_compact                       allow
-footer                             allow
+footer                             forbid
 format                             allow
 formats                            names
 frame                              allow
@@ -443,7 +443,7 @@ stack                              allow
 stack_order                        allow
 stacked                            allow
 static                             allow
-step                               allow
+step                               forbid
 stripe                             allow
 stroke                             allow
 stroke_width                       allow
@@ -481,7 +481,7 @@ tilt                               allow
 tilt_increments                    allow
 time_format                        allow
 time_unit                          allow
-timestamp                          allow
+timestamp                          forbid
 tiny                               allow
 title                              allow
 title_baseline_offset              allow

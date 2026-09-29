@@ -62,27 +62,134 @@ pub const MAX_WIDGET_HEIGHT: u32 = 2000;
 /// The board fields a widget's `chart` may set. Everything else a dbt Charts
 /// board can hold — queries, sources, variables, inheritance, text — is either
 /// supplied by the platform or not allowed.
-const CHART_FIELDS: &[&str] =
-    &["charts", "rows", "cols", "grid", "tabs", "style"];
+const CHART_FIELDS: &[&str] = &["charts", "rows", "cols", "grid", "style"];
 
 /// What a board nested in the layout may set besides placing charts.
 const NESTED_BOARD_FIELDS: &[&str] = &[
-    "rows", "cols", "grid", "tabs", "style", "title", "details", "visible",
-    "card_gap", "height", "width",
+    "rows", "cols", "grid", "style", "title", "visible", "card_gap", "height",
+    "width",
 ];
+
+/// The fields of a nested board that place charts; it needs one of them.
+const LAYOUT_FIELDS: &[&str] = &["rows", "cols", "grid"];
+
+/// Layout that switches what is shown by navigating to another URL. A
+/// widget's frame runs no script and navigates nowhere, so these would draw
+/// controls that do nothing — and links.
+const NAVIGATING_FIELDS: &[&str] = &["tabs", "details"];
 
 const GRID_FIELDS: &[&str] = &["columns", "items"];
 const GRID_ITEM_FIELDS: &[&str] = &[
     "item", "col", "col_span", "row", "row_span", "height", "width",
 ];
-const TABS_FIELDS: &[&str] = &["items", "default", "id", "position"];
-const TAB_FIELDS: &[&str] = &["title", "rows", "cols", "grid", "tabs", "style"];
+
+/// What a board's `style` sets: the engine's `Style`. Chart styles differ,
+/// and a layout key here would reach the board when a theme is merged in.
+const BOARD_STYLE_FIELDS: &[&str] = &[
+    "accent",
+    "background",
+    "border",
+    "box_shadow",
+    "charts",
+    "font",
+    "footer",
+    "formats",
+    "frame",
+    "gap",
+    "layout",
+    "margin",
+    "muted",
+    "opacity",
+    "padding",
+    "palettes",
+    "placeholder",
+    "roles",
+    "text",
+    "timestamp",
+    "title",
+    "tones",
+    "variables",
+];
+
+/// Style keys whose text value is a colour. The engine writes some of these
+/// straight into an SVG attribute or a CSS rule, so anything else — a quote,
+/// a `;` — would break out of it.
+const COLOUR_KEYS: &[&str] = &[
+    "accent",
+    "background",
+    "color",
+    "color_active",
+    "color_disabled",
+    "color_inactive",
+    "drop_line_color",
+    "fill",
+    "focus_color",
+    "glyph_color",
+    "info",
+    "muted",
+    "negative",
+    "null_color",
+    "palette",
+    "positive",
+    "static",
+    "stroke",
+    "warning",
+];
+
+/// Text the engine writes beside a figure. A digit there reads as part of
+/// the figure: a prefix of `9` turns 5 votes into 95.
+const AFFIX_KEYS: &[&str] = &["glyph", "prefix", "suffix", "value_suffix"];
+
+/// Numbers the engine draws that many of: ticks, bins, bars, legend
+/// entries. Each costs the renderer time, and a large one exhausts it.
+const COUNT_KEYS: &[&str] = &[
+    "bin_maxbins",
+    "col",
+    "col_span",
+    "columns",
+    "compact_columns",
+    "count",
+    "label_max_lines",
+    "level",
+    "max_bars",
+    "max_chars",
+    "max_number",
+    "page_rows",
+    "row",
+    "row_span",
+    "symbol_limit",
+];
+pub const MAX_DBT_COUNT: f64 = 100.0;
+
+/// Numbers compared with, or placed at, a figure: a threshold, a domain, a
+/// tick value. Figures reach millions, so these are not bounded like sizes.
+const DATA_VALUED_KEYS: &[&str] = &[
+    "bound",
+    "domain",
+    "gt",
+    "gte",
+    "lt",
+    "lte",
+    "max",
+    "min",
+    "range",
+    "thresholds",
+    "values",
+    "x",
+    "y",
+];
+
+/// Every other number in a chart is a size, a ratio or an offset in
+/// pixels, which no screen needs above this.
+pub const MAX_DBT_NUMBER: f64 = 10_000.0;
 
 /// Chart types whose content is typed in rather than read from a query.
 const FORBIDDEN_CHART_TYPES: &[&str] = &["callout", "image"];
 
 /// Map geometry the renderer bundles; any other name dbt Charts would fetch,
-/// or read as a URL.
+/// or read as a URL. dbt Charts' own defaults for these names are URLs, so the
+/// renderer points them at the bundled files, and its tests fail if drawing a
+/// map opens a connection.
 pub const GEO_SOURCES: &[&str] = &["world-countries", "world-50m"];
 
 /// Where a string `text` is a caption rather than markdown content.
@@ -236,6 +343,7 @@ fn read<T: DeserializeOwned>(
         return None;
     }
     scan_text(&raw, "", report);
+    refuse_colliding_keys(&raw, "", report);
     walk(&raw, report);
     match serde_path_to_error::deserialize::<_, T>(text_keys(raw)) {
         Ok(typed) => Some(typed),
@@ -282,6 +390,34 @@ fn text_keys(value: Value) -> Value {
             Value::Sequence(items.into_iter().map(text_keys).collect())
         }
         other => other,
+    }
+}
+
+/// Keys that differ in YAML but read the same as text, `10` and `"10"`:
+/// only one would survive [`text_keys`], silently.
+fn refuse_colliding_keys(value: &Value, path: &str, report: &mut Report) {
+    match value {
+        Value::Mapping(map) => {
+            let mut seen = std::collections::HashSet::new();
+            for (key, value) in map {
+                let text = key_text(key);
+                let child = join(path, &text);
+                if !seen.insert(text.clone()) {
+                    report.push(Problem::error(
+                        Code::DuplicateId,
+                        &child,
+                        format!("'{text}' is given twice."),
+                    ));
+                }
+                refuse_colliding_keys(value, &child, report);
+            }
+        }
+        Value::Sequence(items) => {
+            for (position, item) in items.iter().enumerate() {
+                refuse_colliding_keys(item, &index(path, position), report);
+            }
+        }
+        _ => {}
     }
 }
 
@@ -394,7 +530,14 @@ fn interpreted(text: &str) -> Option<&'static str> {
     {
         return Some("a script URL");
     }
-    if squeezed.contains("url(") {
+    // `url(` as CSS writes it, not the end of a word such as "curl(".
+    let css_url = squeezed.match_indices("url(").any(|(at, _)| {
+        squeezed[..at]
+            .chars()
+            .next_back()
+            .map_or(true, |before| !before.is_alphanumeric())
+    });
+    if css_url {
         return Some("a CSS URL");
     }
     let controls_as_spaces: String = lower
@@ -413,7 +556,9 @@ fn interpreted(text: &str) -> Option<&'static str> {
             })
         })
         .any(address);
-    if points_somewhere || has_url(&squeezed) {
+    // Browsers drop tabs and newlines inside a URL, but not spaces: "day: //"
+    // is prose.
+    if points_somewhere || has_url(&without_controls) {
         return Some("a URL");
     }
     None
@@ -422,7 +567,15 @@ fn interpreted(text: &str) -> Option<&'static str> {
 /// Whether one word of text is an address: `mailto:…`, `//host`, `www.…`.
 fn address(word: &str) -> bool {
     if let Some((scheme, rest)) = word.split_once(':') {
-        if URL_SCHEMES.contains(&scheme) && !rest.is_empty() {
+        // A data URL starts with its media type or a comma; "data:5" is a
+        // count.
+        let addressed = match scheme {
+            "data" => {
+                rest.starts_with(|c: char| c.is_ascii_alphabetic() || c == ',')
+            }
+            _ => !rest.is_empty(),
+        };
+        if URL_SCHEMES.contains(&scheme) && addressed {
             return true;
         }
     }
@@ -488,6 +641,9 @@ fn walk_widget(raw: &Value, report: &mut Report) {
             _ if CHART_FIELDS.contains(&key.as_str()) => {
                 walk_board_field(&key, value, &path, &governed, report)
             }
+            _ if NAVIGATING_FIELDS.contains(&key.as_str()) => {
+                report.push(navigating(&key, &path))
+            }
             _ => report.push(Problem::error(
                 Code::ForbiddenKey,
                 path,
@@ -500,6 +656,14 @@ fn walk_widget(raw: &Value, report: &mut Report) {
     }
 }
 
+fn navigating(key: &str, path: &str) -> Problem {
+    Problem::error(
+        Code::ForbiddenKey,
+        path,
+        format!("'{key}' switches views by following a link, which a widget's frame cannot do; give the widget a selector instead."),
+    )
+}
+
 /// A theme's `style`: paint only.
 fn walk_theme(raw: &Value, report: &mut Report) {
     if let Some(style) = raw.get("style") {
@@ -507,8 +671,32 @@ fn walk_theme(raw: &Value, report: &mut Report) {
             queries: None,
             charts: &[],
         };
-        walk_dbt(style, "style", "style", &governed, report);
+        walk_board_style(style, "style", &governed, report);
     }
+}
+
+/// A board's `style`, from a widget, a board in its layout or a theme.
+fn walk_board_style(
+    value: &Value,
+    path: &str,
+    governed: &Governed,
+    report: &mut Report,
+) {
+    if let Value::Mapping(fields) = value {
+        for (key, _) in fields {
+            let key = key_text(key);
+            if !BOARD_STYLE_FIELDS.contains(&key.as_str()) {
+                refuse_other_fields(
+                    &key,
+                    BOARD_STYLE_FIELDS,
+                    "A board's style",
+                    &join(path, &key),
+                    report,
+                );
+            }
+        }
+    }
+    walk_dbt(value, path, "style", governed, report);
 }
 
 /// `charts`: each one defined here, in full.
@@ -552,8 +740,8 @@ fn walk_board_field(
     match key {
         "rows" | "cols" => walk_layout(value, path, governed, report),
         "grid" => walk_grid(value, path, governed, report),
-        "tabs" => walk_tabs(value, path, governed, report),
-        "visible" => check_flag(key, value, path, report),
+        "style" => walk_board_style(value, path, governed, report),
+        "visible" => check_flag(key, value, "", path, report),
         _ => walk_dbt(value, path, key, governed, report),
     }
 }
@@ -613,23 +801,65 @@ fn walk_nested_board(
     report: &mut Report,
 ) {
     let Value::Mapping(fields) = value else {
+        report.push(Problem::error(
+            Code::InvalidValue,
+            path,
+            "A board inside the layout is a mapping of rows, cols or grid.",
+        ));
         return;
     };
+    // dbt Charts reads a one-key mapping whose value is a chart as that chart,
+    // defined inline: `{title: {type: bar, ...}}`. A board that lays out
+    // something, with every field of the type it takes, cannot be read so.
+    let lays_out = fields
+        .keys()
+        .any(|key| LAYOUT_FIELDS.contains(&key_text(key).as_str()));
+    if !lays_out {
+        report.push(Problem::error(
+            Code::InvalidValue,
+            path,
+            "A board inside the layout places the widget's charts with rows, cols or grid.",
+        ));
+    }
     for (key, value) in fields {
         let key = key_text(key);
         let child = join(path, &key);
-        if NESTED_BOARD_FIELDS.contains(&key.as_str()) {
-            walk_board_field(&key, value, &child, governed, report);
-            continue;
-        }
-        let message = match key.as_str() {
-            "charts" | "type" => "Define charts once, under chart.charts, and place them here by name.".to_string(),
-            _ => format!(
-                "A board inside the layout may set {}; '{key}' is not allowed.",
-                NESTED_BOARD_FIELDS.join(", ")
+        let scalar =
+            matches!(value, Value::String(_) | Value::Number(_) | Value::Null);
+        match key.as_str() {
+            "title" if !matches!(value, Value::String(_) | Value::Null) => {
+                report.push(Problem::error(
+                    Code::InvalidValue,
+                    &child,
+                    "A board's title is text.",
+                ))
+            }
+            "card_gap" | "height" | "width" if !scalar => {
+                report.push(Problem::error(
+                    Code::InvalidValue,
+                    &child,
+                    format!("'{key}' is a size."),
+                ))
+            }
+            _ if NESTED_BOARD_FIELDS.contains(&key.as_str()) => {
+                walk_board_field(&key, value, &child, governed, report)
+            }
+            _ if NAVIGATING_FIELDS.contains(&key.as_str()) => {
+                report.push(navigating(&key, &child))
+            }
+            "charts" | "type" => report.push(Problem::error(
+                Code::ForbiddenKey,
+                child,
+                "Define charts once, under chart.charts, and place them here by name.",
+            )),
+            _ => refuse_other_fields(
+                &key,
+                NESTED_BOARD_FIELDS,
+                "A board inside the layout",
+                &child,
+                report,
             ),
-        };
-        report.push(Problem::error(Code::ForbiddenKey, child, message));
+        }
     }
 }
 
@@ -657,6 +887,11 @@ fn walk_grid(
     report: &mut Report,
 ) {
     let Value::Mapping(fields) = value else {
+        report.push(Problem::error(
+            Code::InvalidValue,
+            path,
+            "A grid is a mapping of `columns` and `items`.",
+        ));
         return;
     };
     for (key, value) in fields {
@@ -664,7 +899,15 @@ fn walk_grid(
         let child = join(path, &key);
         match key.as_str() {
             "items" => {
-                for (position, cell) in sequence(value).iter().enumerate() {
+                let Value::Sequence(cells) = value else {
+                    report.push(Problem::error(
+                        Code::InvalidValue,
+                        &child,
+                        "A grid's items are a list of cells.",
+                    ));
+                    continue;
+                };
+                for (position, cell) in cells.iter().enumerate() {
                     walk_grid_item(
                         cell,
                         &index(&child, position),
@@ -690,8 +933,20 @@ fn walk_grid_item(
     report: &mut Report,
 ) {
     let Value::Mapping(fields) = value else {
+        report.push(Problem::error(
+            Code::InvalidValue,
+            path,
+            "A grid cell is a mapping with the `item` it holds and where.",
+        ));
         return;
     };
+    if !fields.contains_key("item") {
+        report.push(Problem::error(
+            Code::InvalidValue,
+            path,
+            "A grid cell names the `item` it holds.",
+        ));
+    }
     for (key, value) in fields {
         let key = key_text(key);
         let child = join(path, &key);
@@ -718,59 +973,6 @@ fn walk_grid_item(
                 report,
             ),
         }
-    }
-}
-
-fn walk_tabs(
-    value: &Value,
-    path: &str,
-    governed: &Governed,
-    report: &mut Report,
-) {
-    let Value::Mapping(fields) = value else {
-        return;
-    };
-    for (key, value) in fields {
-        let key = key_text(key);
-        let child = join(path, &key);
-        match key.as_str() {
-            "items" => {
-                for (position, tab) in sequence(value).iter().enumerate() {
-                    walk_tab(tab, &index(&child, position), governed, report);
-                }
-            }
-            _ if TABS_FIELDS.contains(&key.as_str()) => {
-                walk_dbt(value, &child, &key, governed, report)
-            }
-            _ => refuse_other_fields(&key, TABS_FIELDS, "Tabs", &child, report),
-        }
-    }
-}
-
-fn walk_tab(
-    value: &Value,
-    path: &str,
-    governed: &Governed,
-    report: &mut Report,
-) {
-    let Value::Mapping(fields) = value else {
-        return;
-    };
-    for (key, value) in fields {
-        let key = key_text(key);
-        let child = join(path, &key);
-        if TAB_FIELDS.contains(&key.as_str()) {
-            walk_board_field(&key, value, &child, governed, report);
-        } else {
-            refuse_other_fields(&key, TAB_FIELDS, "A tab", &child, report);
-        }
-    }
-}
-
-fn sequence(value: &Value) -> &[Value] {
-    match value {
-        Value::Sequence(items) => items,
-        _ => &[],
     }
 }
 
@@ -803,7 +1005,114 @@ fn walk_dbt(
                 );
             }
         }
-        _ => {}
+        Value::String(text) => check_dbt_text(text, path, parent, report),
+        Value::Number(number) => check_dbt_number(number, path, parent, report),
+        Value::Bool(_) | Value::Null | Value::Tagged(_) => {}
+    }
+}
+
+/// Whether `path` is inside a `style`, where text is paint.
+fn in_style(path: &str) -> bool {
+    path.split('.')
+        .any(|segment| segment == "style" || segment.starts_with("style["))
+}
+
+/// Text in dbt Charts YAML, where some of it ends up inside an SVG attribute
+/// or a CSS rule that the engine does not escape.
+fn check_dbt_text(text: &str, path: &str, parent: &str, report: &mut Report) {
+    let refuse = |message: String, report: &mut Report| {
+        report.push(Problem::error(Code::ForbiddenValue, path, message))
+    };
+    if text.contains(['"', '\\']) {
+        refuse(
+            "Chart text may not contain a double quote or a backslash; use typographic quotes (“ ”).".to_string(),
+            report,
+        );
+        return;
+    }
+    let style = in_style(path);
+    if style && text.contains([';', '{', '}']) {
+        refuse(
+            "A style value is one value; ';', '{' and '}' would start another."
+                .to_string(),
+            report,
+        );
+        return;
+    }
+    let colour = COLOUR_KEYS.contains(&parent)
+        || parent == "thresholds"
+        || (parent == "values" && path.contains(".category_colors."));
+    if style && colour && !is_colour(text) {
+        refuse(
+            format!("'{text}' is not a colour: use #rrggbb, rgb(), hsl(), a colour name or a theme token such as dbt-grays.muted."),
+            report,
+        );
+    }
+    if AFFIX_KEYS.contains(&parent) && text.chars().any(|c| c.is_ascii_digit())
+    {
+        refuse(
+            format!("'{parent}' is written beside a figure, so it may not contain digits: they would read as part of the figure."),
+            report,
+        );
+    }
+}
+
+/// A CSS colour, or a name the engine resolves to one: `#1f77b4`,
+/// `rgb(10, 20, 30)`, `transparent`, `dbt-grays.muted`, `category[2]`.
+fn is_colour(text: &str) -> bool {
+    if let Some(hex) = text.strip_prefix('#') {
+        return matches!(hex.len(), 3 | 4 | 6 | 8)
+            && hex.chars().all(|c| c.is_ascii_hexdigit());
+    }
+    for function in ["rgb(", "rgba(", "hsl(", "hsla("] {
+        if let Some(inner) = text
+            .strip_prefix(function)
+            .and_then(|rest| rest.strip_suffix(')'))
+        {
+            return inner.chars().all(|c| {
+                c.is_ascii_digit()
+                    || matches!(c, '.' | ',' | '%' | ' ' | '/' | '-')
+            });
+        }
+    }
+    let (name, position) = match text.strip_suffix(']') {
+        Some(rest) => match rest.split_once('[') {
+            Some((name, position)) => (name, Some(position)),
+            None => return false,
+        },
+        None => (text, None),
+    };
+    position.map_or(true, |position| {
+        !position.is_empty() && position.chars().all(|c| c.is_ascii_digit())
+    }) && name.chars().next().is_some_and(|c| c.is_ascii_alphabetic())
+        && name
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.'))
+}
+
+/// A number in dbt Charts YAML. Sizes and counts are bounded: the engine
+/// allocates or loops by them, and one large enough stops the renderer.
+fn check_dbt_number(
+    number: &serde_yaml::Number,
+    path: &str,
+    parent: &str,
+    report: &mut Report,
+) {
+    let value = number.as_f64().unwrap_or(f64::INFINITY);
+    if COUNT_KEYS.contains(&parent) && value.abs() > MAX_DBT_COUNT {
+        report.push(Problem::error(
+            Code::TooLarge,
+            path,
+            format!("'{parent}' is at most {MAX_DBT_COUNT}: the renderer draws that many of something."),
+        ));
+    } else if !DATA_VALUED_KEYS.contains(&parent)
+        && !(value.abs() <= MAX_DBT_NUMBER)
+    {
+        report.push(Problem::error(
+            Code::TooLarge,
+            path,
+            format!("Sizes in a chart are at most {MAX_DBT_NUMBER}."),
+        ));
     }
 }
 
@@ -825,16 +1134,22 @@ fn walk_dbt_key(
     };
     match rule {
         KeyRule::Allow => walk_dbt(value, path, key, governed, report),
-        KeyRule::Forbid => report.push(forbidden(format!(
-            "'{key}' would bring data, a destination, markup or an expression from outside the governed sources."
-        ))),
+        KeyRule::Forbid => report.push(forbidden(forbidden_because(key))),
         KeyRule::Layout => report.push(forbidden(format!(
             "'{key}' belongs in the widget's layout."
         ))),
         KeyRule::Names => match value {
             Value::Mapping(map) => {
                 for (name, value) in map {
-                    let child = join(path, &key_text(name));
+                    let name = key_text(name);
+                    let child = join(path, &name);
+                    if name.contains(['"', '\\']) {
+                        report.push(Problem::error(
+                            Code::ForbiddenValue,
+                            &child,
+                            "A name may not contain a double quote or a backslash.",
+                        ));
+                    }
                     walk_dbt(value, &child, key, governed, report);
                 }
             }
@@ -842,7 +1157,7 @@ fn walk_dbt_key(
         },
         KeyRule::Query => walk_query(value, path, governed, report),
         KeyRule::ChartType => refuse_typed_in_chart(value, path, report),
-        KeyRule::Flag => check_flag(key, value, path, report),
+        KeyRule::Flag => check_flag(key, value, parent, path, report),
         KeyRule::Geo => check_geo(value, path, report),
         KeyRule::Source if parent == "basemap" => check_geo(value, path, report),
         KeyRule::Source if COLUMN_SOURCE_PARENTS.contains(&parent) => {
@@ -852,7 +1167,9 @@ fn walk_dbt_key(
             "A chart reads its widget's governed queries; it cannot name a source of its own.".to_string(),
         )),
         KeyRule::Text => match value {
-            Value::String(_) if PLAIN_TEXT_PARENTS.contains(&parent) => {}
+            Value::String(text) if PLAIN_TEXT_PARENTS.contains(&parent) => {
+                check_dbt_text(text, path, parent, report)
+            }
             Value::String(_) => report.push(forbidden(
                 "Markdown text is not accepted; titles and labels say what a chart shows.".to_string(),
             )),
@@ -861,19 +1178,37 @@ fn walk_dbt_key(
     }
 }
 
+/// Why a key the list forbids is refused.
+fn forbidden_because(key: &str) -> String {
+    match key {
+        "step" => "A tick step turns the data's range into any number of ticks; set `ticks.count` instead.".to_string(),
+        "aggregate" => "The renderer does not aggregate: every figure comes from the data source, counted once.".to_string(),
+        "footer" | "timestamp" => "The dashboard says when its figures are from; the engine's footer and freshness line stay off.".to_string(),
+        _ => format!("'{key}' would bring data, a destination, markup or an expression from outside the governed sources."),
+    }
+}
+
 /// `visible` and `enabled`: decided by the author, never by an expression
-/// or a query probe the renderer would evaluate.
-fn check_flag(key: &str, value: &Value, path: &str, report: &mut Report) {
-    let fixed = match value {
-        Value::Bool(_) | Value::Null => true,
-        Value::String(text) => text == "auto",
-        _ => false,
-    };
-    if !fixed {
+/// or a query probe the renderer would evaluate. `auto` is one: the engine
+/// reads it as a template variable.
+fn check_flag(
+    key: &str,
+    value: &Value,
+    parent: &str,
+    path: &str,
+    report: &mut Report,
+) {
+    if !matches!(value, Value::Bool(_) | Value::Null) {
         report.push(Problem::error(
             Code::ForbiddenValue,
             path,
             format!("'{key}' is true or false; an expression or a query probe would be evaluated."),
+        ));
+    } else if parent == "total" && *value == Value::Bool(true) {
+        report.push(Problem::error(
+            Code::ForbiddenValue,
+            path,
+            "The renderer does not add slices up: groups need not sum to the scope, so a total comes from a summary query.",
         ));
     }
 }
@@ -1362,13 +1697,7 @@ fn option_value<T: DeserializeOwned>(
     selector: &Selector,
     option: &str,
 ) -> Result<T, serde_yaml::Error> {
-    let raw = selector
-        .maps
-        .as_ref()
-        .and_then(|maps| maps.get(option))
-        .cloned()
-        .unwrap_or_else(|| Value::String(option.to_string()));
-    serde_yaml::from_value(raw)
+    selector.option_value(option)
 }
 
 /// A parameter a query cannot run without must not come from a selector
@@ -1464,13 +1793,16 @@ fn check_query(
                     "List at least one measure.",
                 ));
             }
-            for (position, measure) in set.into_iter().enumerate() {
-                check_measure(
-                    spec,
-                    measure,
-                    &index(&measures_path, position),
-                    report,
-                );
+            for (position, measure) in set.iter().enumerate() {
+                let measure_path = index(&measures_path, position);
+                if set[..position].contains(measure) {
+                    report.push(Problem::error(
+                        Code::DuplicateId,
+                        &measure_path,
+                        format!("'{measure}' is listed twice; each measure is one column."),
+                    ));
+                }
+                check_measure(spec, *measure, &measure_path, report);
             }
         }
     }
@@ -1767,22 +2099,35 @@ fn check_day_picker(
         .selectors
         .get(picker)
         .and_then(|selector| selector.when.as_ref());
+    // Shown for exactly the hourly options: for a daily one the day narrows
+    // nothing, and an hourly one without it runs over every day at once.
+    let hourly: Vec<&String> = grain_selector
+        .options
+        .keys()
+        .filter(|option| {
+            matches!(
+                option_value::<TimeGrain>(grain_selector, option),
+                Ok(TimeGrain::Hour)
+            )
+        })
+        .collect();
     let hourly_only = condition.is_some_and(|condition| {
         condition.selector == grain
             && !condition.one_of.is_empty()
-            && condition.one_of.iter().all(|option| {
-                matches!(
-                    option_value::<TimeGrain>(grain_selector, option),
-                    Ok(TimeGrain::Hour)
-                )
-            })
+            && condition
+                .one_of
+                .iter()
+                .all(|option| hourly.contains(&option))
+            && hourly
+                .iter()
+                .all(|option| condition.one_of.contains(option))
     });
     if !hourly_only {
         report.push(Problem::error(
             Code::TemplateParameter,
             path,
             format!(
-                "A day narrows an hourly series: show '{picker}' only for the hourly options of '{grain}', with `when: {{selector: {grain}, in: [...]}}`."
+                "A day narrows an hourly series: show '{picker}' for every hourly option of '{grain}' and no other, with `when: {{selector: {grain}, in: [...]}}`."
             ),
         ));
     }
