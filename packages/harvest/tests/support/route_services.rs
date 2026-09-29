@@ -17,6 +17,7 @@ use crate::adapters::memory::monitoring_snapshots::MemorySnapshots;
 use crate::adapters::memory::task_ledger::MemoryTaskLedger;
 use crate::adapters::memory::task_queue::MemoryTaskQueue;
 use crate::adapters::memory::vault::MemoryVault;
+use crate::ports::monitoring_renderer::MonitoringRenderer;
 use crate::services::dependencies::{HarvestServices, MonitoringCache};
 use crate::test_claims::Claims;
 use deadpool_postgres::{Pool, Runtime};
@@ -47,6 +48,8 @@ pub struct Services {
     pub monitoring_audit: Arc<MemoryConfigAudit>,
     pub monitoring_cache: Arc<MonitoringCache>,
     pub monitoring_renderer: Arc<MemoryRenderer>,
+    /// A real renderer instead of the fake, for the live checks.
+    pub live_renderer: Option<Arc<dyn MonitoringRenderer>>,
     pub monitoring_snapshots: Arc<MemorySnapshots>,
     pub ledger: Arc<MemoryTaskLedger>,
     pub tasks: MemoryTaskQueue,
@@ -75,6 +78,7 @@ impl Services {
             monitoring_audit: Default::default(),
             monitoring_cache: Arc::new(MonitoringCache::new(64)),
             monitoring_renderer: Default::default(),
+            live_renderer: None,
             monitoring_snapshots: Default::default(),
             ledger: Default::default(),
             tasks: Default::default(),
@@ -87,6 +91,14 @@ impl Services {
         renderer: MemoryRenderer,
     ) -> Self {
         self.monitoring_renderer = Arc::new(renderer);
+        self
+    }
+
+    pub fn with_live_renderer(
+        mut self,
+        renderer: Arc<dyn MonitoringRenderer>,
+    ) -> Self {
+        self.live_renderer = Some(renderer);
         self
     }
 
@@ -148,7 +160,10 @@ impl Services {
             identity: self.identity.clone(),
             monitoring_audit: self.monitoring_audit.clone(),
             monitoring_cache: self.monitoring_cache.clone(),
-            monitoring_renderer: self.monitoring_renderer.clone(),
+            monitoring_renderer: match &self.live_renderer {
+                Some(renderer) => renderer.clone(),
+                None => self.monitoring_renderer.clone(),
+            },
             monitoring_snapshots: self.monitoring_snapshots.clone(),
             ledger: self.ledger.clone(),
             tasks: Arc::new(self.tasks.clone()),

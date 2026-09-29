@@ -57,3 +57,16 @@ fn a_document_that_is_not_an_svg_is_refused() {
         Err(UnsafeSvg::Malformed)
     );
 }
+
+#[test]
+fn attribute_values_keep_their_entities_and_character_references() {
+    let svg = r#"<svg xmlns="http://www.w3.org/2000/svg" data-style="{&quot;font&quot;: &#x27;Inter&#x27;, &#34;a&amp;b&#34;}"/>"#;
+    assert_eq!(
+        sanitize_svg(svg),
+        Ok(r#"<svg xmlns="http://www.w3.org/2000/svg" data-style="{&quot;font&quot;: 'Inter', &quot;a&amp;b&quot;}"/>"#.to_string())
+    );
+    assert_eq!(
+        sanitize_svg(r#"<svg data-x="&nbsp;"/>"#),
+        Err(UnsafeSvg::Malformed)
+    );
+}

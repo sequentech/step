@@ -179,3 +179,7 @@ impl MonitoringRenderer for HttpMonitoringRenderer {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "../../tests/support/monitoring_renderer_http.rs"]
+mod monitoring_renderer_http;

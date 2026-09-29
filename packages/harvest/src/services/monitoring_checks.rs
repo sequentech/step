@@ -223,3 +223,7 @@ impl MonitoringConfigChecks for RendererChecks {
         .await
     }
 }
+
+#[cfg(test)]
+#[path = "../../tests/support/monitoring_live_renderer.rs"]
+mod monitoring_live_renderer;

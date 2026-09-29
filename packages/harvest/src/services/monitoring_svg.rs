@@ -250,10 +250,10 @@ fn kept(start: &BytesStart<'_>) -> Result<BytesStart<'static>, UnsafeSvg> {
         let key = std::str::from_utf8(attribute.key.as_ref())
             .map_err(|_| UnsafeSvg::Malformed)?
             .to_string();
-        let value = attribute
-            .unescape_value()
-            .map_err(|_| UnsafeSvg::Malformed)?
-            .into_owned();
+        let value = unescape(
+            std::str::from_utf8(&attribute.value)
+                .map_err(|_| UnsafeSvg::Malformed)?,
+        )?;
         if !attribute_is_safe(&key, &value) {
             continue;
         }
@@ -312,6 +312,45 @@ fn urls_are_fragments(text: &str) -> bool {
         rest = &rest[at + 4..];
     }
     true
+}
+
+/// An attribute value as written, with XML's five entities and character
+/// references replaced; any other entity is not XML.
+fn unescape(raw: &str) -> Result<String, UnsafeSvg> {
+    let mut value = String::with_capacity(raw.len());
+    let mut rest = raw;
+    while let Some(at) = rest.find('&') {
+        value.push_str(&rest[..at]);
+        let after = &rest[at + 1..];
+        let end = after.find(';').ok_or(UnsafeSvg::Malformed)?;
+        let entity = &after[..end];
+        let c = match entity {
+            "lt" => '<',
+            "gt" => '>',
+            "amp" => '&',
+            "quot" => '"',
+            "apos" => '\'',
+            _ => {
+                let code = if let Some(hex) = entity
+                    .strip_prefix("#x")
+                    .or_else(|| entity.strip_prefix("#X"))
+                {
+                    u32::from_str_radix(hex, 16)
+                } else if let Some(decimal) = entity.strip_prefix('#') {
+                    decimal.parse::<u32>()
+                } else {
+                    return Err(UnsafeSvg::Malformed);
+                };
+                code.ok()
+                    .and_then(char::from_u32)
+                    .ok_or(UnsafeSvg::Malformed)?
+            }
+        };
+        value.push(c);
+        rest = &after[end + 1..];
+    }
+    value.push_str(rest);
+    Ok(value)
 }
 
 /// An attribute value inside double quotes.

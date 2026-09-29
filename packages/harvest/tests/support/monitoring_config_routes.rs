@@ -318,3 +318,84 @@ async fn the_configuration_lists_its_documents_presets_and_mode() {
         call(&client, "/monitoring/list-dashboards", &event, json!({})).await;
     assert_eq!(body["mode"], "LEGACY", "{body}");
 }
+
+/// With a running renderer service (`HARVEST_MONITORING_RENDERER_URL` and
+/// `_TOKEN`): a preset widget checks, saves and draws through the real
+/// engine, and a chart the engine refuses is not saved.
+#[rocket::async_test]
+#[ignore = "needs a running renderer service"]
+async fn a_widget_checks_saves_and_draws_through_the_real_renderer() {
+    use crate::adapters::memory::monitoring_snapshots::MemorySnapshots;
+    use crate::adapters::monitoring_renderer::HttpMonitoringRenderer;
+    use std::sync::Arc;
+    use windmill::services::monitoring::snapshot::ScopeRead;
+
+    let services = Services::on_test_database()
+        .await
+        .with_live_renderer(Arc::new(HttpMonitoringRenderer::from_env()))
+        .with_monitoring_snapshots(MemorySnapshots::at(7, ScopeRead::Empty));
+    let client = services.client().await;
+    let event = rows::event(&services.hasura).await;
+    event.election(&services.hasura).await;
+    configure(&client, &event).await;
+    let (yaml, revision) = widget(&client, &event, "turnout-by-group").await;
+
+    let (status, body) = call(
+        &client,
+        "/monitoring/validate-config",
+        &event,
+        json!({"kind": "widget", "key": "turnout-by-group", "yaml": yaml}),
+    )
+    .await;
+    assert_eq!(status, Status::Ok, "{body}");
+    assert_eq!(body["result"], "VALID", "{body}");
+    assert_eq!(body["preview"]["state"], "RENDERED", "{body}");
+
+    let renamed = yaml.replacen("title: ", "title: Live ", 1);
+    let (status, body) =
+        save_widget(&client, &event, "turnout-by-group", &renamed, revision)
+            .await;
+    assert_eq!(status, Status::Ok, "{body}");
+
+    // A chart type the engine does not know passes the policy but not dbt
+    // Charts, so the live revision stays.
+    let broken = renamed.replacen("type: bar", "type: no_such_chart", 1);
+    assert_ne!(broken, renamed, "the widget has a bar chart");
+    let (status, body) =
+        save_widget(&client, &event, "turnout-by-group", &broken, revision + 1)
+            .await;
+    assert_eq!(status, Status::UnprocessableEntity, "{body}");
+    assert!(
+        body["extensions"]["problems"][0]["engine_code"]
+            .as_str()
+            .is_some_and(|code| code.starts_with("ERR-")),
+        "{body}"
+    );
+    assert_eq!(
+        widget(&client, &event, "turnout-by-group").await.1,
+        revision + 1
+    );
+
+    let viewer = Claims::new(&event.tenant_id, "monitor")
+        .roles([Permissions::MONITORING_VIEW]);
+    let (status, body) = json(
+        post(
+            &client,
+            "/monitoring/render-widget",
+            &viewer,
+            &json!({
+                "election_event_id": event.election_event_id,
+                "dashboard_id": "overview",
+                "widget_id": "turnout-summary",
+                "color_scheme": "DARK",
+                "width": 900,
+            }),
+        )
+        .await,
+    )
+    .await;
+    assert_eq!(status, Status::Ok, "{body}");
+    assert_eq!(body["state"], "RENDERED", "{body}");
+    let svg = body["svg"].as_str().unwrap();
+    assert!(svg.starts_with("<svg") && svg.contains("<text"), "{svg}");
+}
