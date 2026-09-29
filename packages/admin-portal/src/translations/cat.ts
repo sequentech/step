@@ -225,6 +225,7 @@ const catalanTranslation: TranslationType = {
                 DELETE_TENANT: "Suprimir llogater",
                 PUBLISH_BALLOT: "Publicar papereta",
                 VOTER_INFORMATION_LETTER: "Carta d'informació per al votant",
+                EXPORT_MONITORING_DATA: "Exportar Dades de Monitorització",
                 EXPORT_ELECTION_EVENT: "Exportar esdeveniment electoral",
                 CREATE_ELECTION_EVENT: "Crear Esdeveniment Electoral",
                 IMPORT_ELECTION_EVENT: "Importar esdeveniment electoral",
@@ -2930,6 +2931,12 @@ const catalanTranslation: TranslationType = {
                     "encara no es registren les proves finals i el bloqueig",
                 ATTACK_DETECTION_FEED: "no hi ha cap font de detecció d'atacs connectada",
                 HELPDESK_INTEGRATION: "no hi ha cap sistema de suport connectat",
+            },
+            notices: {
+                UNREGISTERED_ATTEMPTS_AT_EVENT_SCOPE_ONLY:
+                    "Els intents amb noms d'usuari no registrats no pertanyen a cap lloc, de manera que només es compten per a tot l'esdeveniment.",
+                UNREGISTERED_ATTEMPTS_EXCLUDED:
+                    "Aquestes xifres no inclouen els intents amb noms d'usuari no registrats; es compten per a tot l'esdeveniment.",
             },
             unavailable: {
                 notConnected: "No connectat · {{reason}}",

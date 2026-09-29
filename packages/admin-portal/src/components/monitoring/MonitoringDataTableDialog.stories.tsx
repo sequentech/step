@@ -15,7 +15,7 @@ const meta = {
         title: "Turnout by group",
         scope: "North · All authorized Posts · All countries",
         table: turnoutTable,
-        notices: ["Unregistered attempts are counted at event scope only."],
+        notices: ["UNREGISTERED_ATTEMPTS_AT_EVENT_SCOPE_ONLY", "SOMETHING_NEW"],
     },
 } satisfies Meta<typeof MonitoringDataTableDialog>
 export default meta
@@ -34,8 +34,12 @@ export const ViewData: Story = {
         await expect(body.getByText("Turnout by group · data")).toBeVisible()
         await expect(body.getByText("North · All authorized Posts · All countries")).toBeVisible()
         await expect(
-            body.getByText("Unregistered attempts are counted at event scope only.")
+            body.getByText(
+                "Attempts by unregistered usernames belong to no Post, so they are counted for the whole event only."
+            )
         ).toBeVisible()
+        // A notice this build does not know is shown as words, never as its code.
+        await expect(body.getByText("Something new")).toBeVisible()
         await expect(body.getByRole("table", {name: "Turnout by group · data"})).toBeVisible()
         await userEvent.click(body.getByRole("button", {name: "Close"}))
         await expect(args.onClose).toHaveBeenCalled()

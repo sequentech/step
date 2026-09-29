@@ -5,5 +5,9 @@
 pub mod access;
 pub mod authorization;
 pub mod dependencies;
+pub mod monitoring;
+pub mod monitoring_cache;
+pub mod monitoring_checks;
+pub mod monitoring_svg;
 pub mod user_tasks;
 pub mod worker;

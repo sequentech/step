@@ -257,6 +257,7 @@ const galegoTranslation: TranslationType = {
                 DELETE_TENANT: "Eliminar organización",
                 PUBLISH_BALLOT: "Publicar papeleta",
                 VOTER_INFORMATION_LETTER: "Carta de información para o votante",
+                EXPORT_MONITORING_DATA: "Exportar Datos de Monitorización",
                 EXPORT_ELECTION_EVENT: "Exportar evento electoral",
                 CREATE_ELECTION_EVENT: "Crear Evento Electoral",
                 IMPORT_ELECTION_EVENT: "Importar evento electoral",
@@ -2914,6 +2915,12 @@ const galegoTranslation: TranslationType = {
                 FINAL_TESTING_LOCKDOWN_STATE: "aínda non se rexistran as probas finais e o bloqueo",
                 ATTACK_DETECTION_FEED: "non hai ningunha fonte de detección de ataques conectada",
                 HELPDESK_INTEGRATION: "non hai ningún sistema de soporte conectado",
+            },
+            notices: {
+                UNREGISTERED_ATTEMPTS_AT_EVENT_SCOPE_ONLY:
+                    "Os intentos con nomes de usuario non rexistrados non pertencen a ningún posto, polo que só se contan para todo o evento.",
+                UNREGISTERED_ATTEMPTS_EXCLUDED:
+                    "Estas cifras non inclúen os intentos con nomes de usuario non rexistrados; cóntanse para todo o evento.",
             },
             unavailable: {
                 notConnected: "Non conectado · {{reason}}",

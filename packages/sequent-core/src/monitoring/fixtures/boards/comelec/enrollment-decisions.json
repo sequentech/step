@@ -182,17 +182,17 @@
     {
       "cols": [
         "applications",
-        "approved",
-        "disapproved",
-        "pending"
+        "approved"
       ]
     },
     {
       "cols": [
-        "outcomes",
-        "reasons"
+        "disapproved",
+        "pending"
       ]
-    }
+    },
+    "outcomes",
+    "reasons"
   ],
   "style": {
     "accent": "#1d4ed8",

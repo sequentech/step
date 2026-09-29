@@ -206,3 +206,41 @@ fn only_a_hyphenated_uuid_is_an_election_id() {
         );
     }
 }
+
+#[test]
+fn a_canonical_key_reads_back_as_the_key_it_names() {
+    let keys = [
+        ScopeKey::event(),
+        ScopeKey {
+            region: Some("Asia Pacific".into()),
+            ..ScopeKey::default()
+        },
+        ScopeKey {
+            region: Some("Europe".into()),
+            country: Some("Côte d'Ivoire".into()),
+            ..ScopeKey::default()
+        },
+        ScopeKey {
+            post: Some("0b6f9c52-8f7a-4d3e-9b1a-2c4d6e8f0a1b".into()),
+            country: Some("Spain/Madrid".into()),
+            ..ScopeKey::default()
+        },
+    ];
+    for key in keys {
+        assert_eq!(
+            ScopeKey::from_canonical(&key.canonical()),
+            Some(key.clone())
+        );
+    }
+    for text in [
+        "",
+        "region=",
+        "country=a&region=b",
+        "region=a&region=b",
+        "town=x",
+        "region=%ZZ",
+        "region=a b",
+    ] {
+        assert_eq!(ScopeKey::from_canonical(text), None, "{text:?}");
+    }
+}

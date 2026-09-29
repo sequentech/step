@@ -258,6 +258,7 @@ const tagalogTranslation: TranslationType = {
                 DELETE_TENANT: "Tanggalin ang tenant",
                 PUBLISH_BALLOT: "I-publish ang balota",
                 VOTER_INFORMATION_LETTER: "Liham ng impormasyon para sa botante",
+                EXPORT_MONITORING_DATA: "I-export ang Datos ng Pagsubaybay",
                 EXPORT_ELECTION_EVENT: "I-export ang Kaganapan sa Halalan",
                 CREATE_ELECTION_EVENT: "Lumikha ng Kaganapan ng Halalan",
                 IMPORT_ELECTION_EVENT: "I-import ang Kaganapan sa Halalan",
@@ -2925,6 +2926,12 @@ const tagalogTranslation: TranslationType = {
                 FINAL_TESTING_LOCKDOWN_STATE: "hindi pa naitatala ang huling pagsubok at lockdown",
                 ATTACK_DETECTION_FEED: "walang nakakonektang feed ng pagtukoy ng atake",
                 HELPDESK_INTEGRATION: "walang nakakonektang helpdesk system",
+            },
+            notices: {
+                UNREGISTERED_ATTEMPTS_AT_EVENT_SCOPE_ONLY:
+                    "Ang mga pagtatangka gamit ang hindi rehistradong username ay hindi kabilang sa anumang Post, kaya binibilang lamang ang mga ito para sa buong event.",
+                UNREGISTERED_ATTEMPTS_EXCLUDED:
+                    "Hindi kasama sa mga bilang na ito ang mga pagtatangka gamit ang hindi rehistradong username; binibilang ang mga ito para sa buong event.",
             },
             unavailable: {
                 notConnected: "Hindi nakakonekta · {{reason}}",

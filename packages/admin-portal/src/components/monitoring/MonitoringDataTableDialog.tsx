@@ -16,6 +16,7 @@ import {useTranslation} from "react-i18next"
 import type {MonitoringQueryTable, MonitoringTable} from "./types"
 import {MonitoringDataTable} from "./MonitoringDataTable"
 import {columnLabeler, dataSections} from "./lib/dataTables"
+import {noticeText} from "./lib/notices"
 
 export interface MonitoringDataTableDialogProps {
     open: boolean
@@ -28,6 +29,7 @@ export interface MonitoringDataTableDialogProps {
     tables?: MonitoringQueryTable[] | null
     /** The widget's queries, whose measures and labels name the columns. */
     queries?: Record<string, unknown>
+    /** Notice codes, as the server sends them; shown in the viewer's language. */
     notices?: string[]
 }
 
@@ -68,7 +70,7 @@ export function MonitoringDataTableDialog({
                 <Stack spacing={2}>
                     {notices.map((notice) => (
                         <Alert key={notice} severity="info">
-                            {notice}
+                            {noticeText(t, notice)}
                         </Alert>
                     ))}
                     {sections.map((section, index) => {

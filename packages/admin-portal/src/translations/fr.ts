@@ -258,6 +258,7 @@ const frenchTranslation: TranslationType = {
                 DELETE_TENANT: "Supprimer le locataire",
                 PUBLISH_BALLOT: "Publier le bulletin",
                 VOTER_INFORMATION_LETTER: "Lettre d'information de l'électeur",
+                EXPORT_MONITORING_DATA: "Exporter les Données de Suivi",
                 EXPORT_ELECTION_EVENT: "Exporter l'événement électoral",
                 CREATE_ELECTION_EVENT: "Créer Événement Électoral",
                 IMPORT_ELECTION_EVENT: "Importer l'événement électoral",
@@ -2936,6 +2937,12 @@ const frenchTranslation: TranslationType = {
                     "les tests finaux et le verrouillage ne sont pas encore enregistrés",
                 ATTACK_DETECTION_FEED: "aucun flux de détection d'attaques n'est connecté",
                 HELPDESK_INTEGRATION: "aucun système d'assistance n'est connecté",
+            },
+            notices: {
+                UNREGISTERED_ATTEMPTS_AT_EVENT_SCOPE_ONLY:
+                    "Les tentatives avec des noms d'utilisateur non enregistrés n'appartiennent à aucun poste ; elles ne sont donc comptées que pour l'ensemble de l'événement.",
+                UNREGISTERED_ATTEMPTS_EXCLUDED:
+                    "Ces chiffres excluent les tentatives avec des noms d'utilisateur non enregistrés ; elles sont comptées pour l'ensemble de l'événement.",
             },
             unavailable: {
                 notConnected: "Non connecté · {{reason}}",

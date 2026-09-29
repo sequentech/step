@@ -282,6 +282,7 @@ const englishTranslation = {
                 EXPORT_CERTIFICATE_AUTHORITIES: "Export Certificate Authorities",
                 PUBLISH_RESULTS_WEBSITE: "Publish Results Website",
                 VOTER_INFORMATION_LETTER: "Voter Information Letter",
+                EXPORT_MONITORING_DATA: "Export Monitoring Data",
             },
             documentAccess: {
                 title: "Document access",
@@ -2886,6 +2887,12 @@ const englishTranslation = {
                 FINAL_TESTING_LOCKDOWN_STATE: "final testing and lockdown are not recorded yet",
                 ATTACK_DETECTION_FEED: "no attack detection feed is connected",
                 HELPDESK_INTEGRATION: "no helpdesk system is connected",
+            },
+            notices: {
+                UNREGISTERED_ATTEMPTS_AT_EVENT_SCOPE_ONLY:
+                    "Attempts by unregistered usernames belong to no Post, so they are counted for the whole event only.",
+                UNREGISTERED_ATTEMPTS_EXCLUDED:
+                    "These figures leave out attempts by unregistered usernames; they are counted for the whole event.",
             },
             unavailable: {
                 notConnected: "Not connected · {{reason}}",

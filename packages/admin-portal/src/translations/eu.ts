@@ -258,6 +258,7 @@ const basqueTranslation: TranslationType = {
                 DELETE_TENANT: "Ezabatu maizterra",
                 PUBLISH_BALLOT: "Boto-papera argitaratu",
                 VOTER_INFORMATION_LETTER: "Hauteslearen informazio-gutuna",
+                EXPORT_MONITORING_DATA: "Esportatu Monitorizazio Datuak",
                 EXPORT_ELECTION_EVENT: "Esportatu Hauteskunde Gertaera",
                 CREATE_ELECTION_EVENT: "Sortu Hauteskunde Gertaera",
                 IMPORT_ELECTION_EVENT: "Inportatu Hauteskunde Gertaera",
@@ -2905,6 +2906,12 @@ const basqueTranslation: TranslationType = {
                     "azken probak eta blokeoa ez dira oraindik erregistratzen",
                 ATTACK_DETECTION_FEED: "ez dago erasoak detektatzeko iturririk konektatuta",
                 HELPDESK_INTEGRATION: "ez dago laguntza-sistemarik konektatuta",
+            },
+            notices: {
+                UNREGISTERED_ATTEMPTS_AT_EVENT_SCOPE_ONLY:
+                    "Erregistratu gabeko erabiltzaile-izenen saiakerak ez dira inongo posturenak, eta, beraz, gertaera osorako soilik zenbatzen dira.",
+                UNREGISTERED_ATTEMPTS_EXCLUDED:
+                    "Zifra hauek ez dituzte erregistratu gabeko erabiltzaile-izenen saiakerak barne hartzen; gertaera osorako zenbatzen dira.",
             },
             unavailable: {
                 notConnected: "Konektatu gabe · {{reason}}",

@@ -8,6 +8,9 @@
 /// The electoral log's record of each configuration change.
 pub mod audit;
 
+/// Exporting what a dashboard shows, as CSV or SQL.
+pub mod export;
+
 /// Reading an event's configuration, and saving, resetting and switching it.
 pub mod config_store;
 
@@ -17,3 +20,9 @@ pub mod login_counter;
 /// `monitoring_voter`: what each voter counts as, refreshed from Keycloak,
 /// their applications and their votes.
 pub mod projection;
+
+/// What each data source counts, from what a snapshot pass read.
+pub mod producers;
+
+/// The snapshot job's passes, and reading what they counted.
+pub mod snapshot;

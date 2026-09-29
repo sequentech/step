@@ -258,6 +258,7 @@ const dutchTranslation: TranslationType = {
                 DELETE_TENANT: "Tenant verwijderen",
                 PUBLISH_BALLOT: "Stembiljet publiceren",
                 VOTER_INFORMATION_LETTER: "Kiezersinformatiebrief",
+                EXPORT_MONITORING_DATA: "Monitoringgegevens Exporteren",
                 EXPORT_ELECTION_EVENT: "Verkiezingsevenement Exporteren",
                 CREATE_ELECTION_EVENT: "Verkiezingsevenement Aanmaken",
                 IMPORT_ELECTION_EVENT: "Verkiezingsevenement Importeren",
@@ -2917,6 +2918,12 @@ const dutchTranslation: TranslationType = {
                     "eindtest en vergrendeling worden nog niet vastgelegd",
                 ATTACK_DETECTION_FEED: "er is geen bron voor aanvalsdetectie gekoppeld",
                 HELPDESK_INTEGRATION: "er is geen helpdesksysteem gekoppeld",
+            },
+            notices: {
+                UNREGISTERED_ATTEMPTS_AT_EVENT_SCOPE_ONLY:
+                    "Pogingen met niet-geregistreerde gebruikersnamen horen bij geen enkele post en worden daarom alleen voor het hele evenement geteld.",
+                UNREGISTERED_ATTEMPTS_EXCLUDED:
+                    "Deze cijfers laten pogingen met niet-geregistreerde gebruikersnamen buiten beschouwing; die worden voor het hele evenement geteld.",
             },
             unavailable: {
                 notConnected: "Niet gekoppeld · {{reason}}",

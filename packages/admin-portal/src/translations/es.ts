@@ -257,6 +257,7 @@ const spanishTranslation: TranslationType = {
                 DELETE_TENANT: "Eliminar organización",
                 PUBLISH_BALLOT: "Publicar papeleta",
                 VOTER_INFORMATION_LETTER: "Carta de información para el votante",
+                EXPORT_MONITORING_DATA: "Exportar Datos de Monitorización",
                 EXPORT_ELECTION_EVENT: "Exportar evento electoral",
                 CREATE_ELECTION_EVENT: "Crear Evento Electoral",
                 IMPORT_ELECTION_EVENT: "Importar evento electoral",
@@ -2917,6 +2918,12 @@ const spanishTranslation: TranslationType = {
                     "aún no se registran las pruebas finales y el bloqueo",
                 ATTACK_DETECTION_FEED: "no hay ninguna fuente de detección de ataques conectada",
                 HELPDESK_INTEGRATION: "no hay ningún sistema de soporte conectado",
+            },
+            notices: {
+                UNREGISTERED_ATTEMPTS_AT_EVENT_SCOPE_ONLY:
+                    "Los intentos con nombres de usuario no registrados no pertenecen a ningún puesto, por lo que solo se cuentan para todo el evento.",
+                UNREGISTERED_ATTEMPTS_EXCLUDED:
+                    "Estas cifras no incluyen los intentos con nombres de usuario no registrados; se cuentan para todo el evento.",
             },
             unavailable: {
                 notConnected: "No conectado · {{reason}}",
