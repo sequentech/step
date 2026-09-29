@@ -258,6 +258,7 @@ const frenchTranslation: TranslationType = {
                 DELETE_TENANT: "Supprimer le locataire",
                 PUBLISH_BALLOT: "Publier le bulletin",
                 VOTER_INFORMATION_LETTER: "Lettre d'information de l'électeur",
+                EXPORT_MONITORING_DATA: "Exporter les Données de Suivi",
                 EXPORT_ELECTION_EVENT: "Exporter l'événement électoral",
                 CREATE_ELECTION_EVENT: "Créer Événement Électoral",
                 IMPORT_ELECTION_EVENT: "Importer l'événement électoral",

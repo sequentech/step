@@ -258,6 +258,7 @@ const basqueTranslation: TranslationType = {
                 DELETE_TENANT: "Ezabatu maizterra",
                 PUBLISH_BALLOT: "Boto-papera argitaratu",
                 VOTER_INFORMATION_LETTER: "Hauteslearen informazio-gutuna",
+                EXPORT_MONITORING_DATA: "Esportatu Monitorizazio Datuak",
                 EXPORT_ELECTION_EVENT: "Esportatu Hauteskunde Gertaera",
                 CREATE_ELECTION_EVENT: "Sortu Hauteskunde Gertaera",
                 IMPORT_ELECTION_EVENT: "Inportatu Hauteskunde Gertaera",
