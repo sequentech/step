@@ -13,7 +13,9 @@
 //! Types here only describe shape. What makes a shaped document acceptable is
 //! [`super::policy`].
 
-use super::sources::{DataSourceId, Measure, QueryTemplate, TimeGrain};
+use super::sources::{
+    BuiltinDimension, DataSourceId, Measure, QueryTemplate, TimeGrain,
+};
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use strum_macros::{Display, EnumIter, EnumString};
@@ -41,6 +43,40 @@ pub enum ConfigKind {
     Settings,
 }
 
+/// Who may change a kind of document.
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    Display,
+    EnumString,
+)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+#[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
+pub enum Editability {
+    /// Administrators edit it in the Admin Portal.
+    Editor,
+    /// Only resetting the event to a preset writes it. Settings decide who
+    /// counts as pre-enrolled, which is a denominator, so an editor must not
+    /// be able to change them.
+    PresetOnly,
+}
+
+impl ConfigKind {
+    pub fn editability(self) -> Editability {
+        match self {
+            ConfigKind::Dashboard | ConfigKind::Widget | ConfigKind::Theme => {
+                Editability::Editor
+            }
+            ConfigKind::Settings => Editability::PresetOnly,
+        }
+    }
+}
+
 /// A dashboard selector: one that applies to every widget that follows it.
 #[derive(
     Debug,
@@ -66,6 +102,17 @@ pub enum ScopeSelector {
     Country,
 }
 
+impl ScopeSelector {
+    /// The dimension a source must have to be narrowed by this selector.
+    pub fn dimension(self) -> BuiltinDimension {
+        match self {
+            ScopeSelector::Region => BuiltinDimension::Region,
+            ScopeSelector::Post => BuiltinDimension::Post,
+            ScopeSelector::Country => BuiltinDimension::Country,
+        }
+    }
+}
+
 /// One widget: a data source, its queries, its selectors and its chart.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -79,8 +126,9 @@ pub struct Widget {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub requirements: Vec<String>,
 
-    /// Which dashboard selectors narrow this widget. Absent means all of
-    /// them; an empty list means the widget always shows the whole event.
+    /// Which dashboard selectors narrow this widget. Absent means every one
+    /// its source can be narrowed by; an empty list means the widget always
+    /// shows the whole event.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub follows: Option<Vec<ScopeSelector>>,
 
@@ -230,23 +278,38 @@ pub enum Param<T> {
 /// Only a `{selector: name}` mapping is a reference. serde's derived untagged
 /// form would also read a struct from a sequence, turning `[voted]` into a
 /// reference to a selector named `voted`.
+///
+/// The value is read on its own, so an error inside it names where: the
+/// outer path stops at the parameter.
 impl<'de, T: serde::de::DeserializeOwned> Deserialize<'de> for Param<T> {
     fn deserialize<D: serde::Deserializer<'de>>(
         deserializer: D,
     ) -> Result<Self, D::Error> {
         use serde::de::Error;
         let raw = serde_yaml::Value::deserialize(deserializer)?;
+        let within = |why: serde_path_to_error::Error<serde_yaml::Error>| {
+            let at = why.path().to_string();
+            if at == "." {
+                D::Error::custom(why.into_inner())
+            } else {
+                D::Error::custom(format!("at {at}: {}", why.into_inner()))
+            }
+        };
         if raw.is_mapping() && raw.get("selector").is_some() {
-            serde_yaml::from_value(raw)
+            serde_path_to_error::deserialize(raw)
                 .map(Param::Selector)
-                .map_err(D::Error::custom)
+                .map_err(within)
         } else {
-            serde_yaml::from_value(raw)
+            serde_path_to_error::deserialize(raw)
                 .map(Param::Literal)
-                .map_err(D::Error::custom)
+                .map_err(within)
         }
     }
 }
+
+/// A parameter that can be left out, including by a selector option that
+/// maps to `null`: `{top: 10, all: null}` offers "All" for a limit.
+pub type OptionalParam<T> = Param<Option<T>>;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -337,9 +400,10 @@ pub struct Query {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub group_by: Option<Param<String>>,
 
-    /// Keep only these values of a dimension.
+    /// Keep only these values of a dimension. A selector option mapping to
+    /// `null` keeps them all.
     #[serde(default, skip_serializing_if = "IndexMap::is_empty")]
-    pub filters: IndexMap<String, Param<Vec<String>>>,
+    pub filters: IndexMap<String, OptionalParam<Vec<String>>>,
 
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub grain: Option<Param<TimeGrain>>,
@@ -348,11 +412,19 @@ pub struct Query {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub day: Option<Param<String>>,
 
+    /// Order of a group or Post list. Absent: the template's own order.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub sort: Option<Sort>,
+    pub sort: Option<OptionalParam<Sort>>,
 
+    /// Rows of a group or Post list to keep, after sorting. Unknown is
+    /// always kept, after them.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub limit: Option<u32>,
+    pub limit: Option<OptionalParam<u32>>,
+
+    /// How to show a measure or a Post state in the result:
+    /// `{login_failures: Failed}`. Unlabelled ones use the platform's words.
+    #[serde(default, skip_serializing_if = "IndexMap::is_empty")]
+    pub labels: IndexMap<String, String>,
 }
 
 /// Widgets on a 12-column grid, with the dashboard selectors they share.
@@ -407,11 +479,35 @@ pub struct Theme {
 
     /// A dbt Charts built-in theme to start from.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub base: Option<String>,
+    pub base: Option<BuiltinTheme>,
 
     /// dbt Charts board style: fonts, palette, category colours.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub style: Option<serde_yaml::Value>,
+}
+
+/// The themes dbt Charts ships. A theme may only start from one of these:
+/// dbt Charts would read any other name as a board file to inherit.
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    Display,
+    EnumString,
+    EnumIter,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum BuiltinTheme {
+    Clarity,
+    Neon,
+    Paper,
+    Stark,
+    Vivid,
 }
 
 /// How this event's voters map onto dimensions, and the event's time zone.

@@ -60,6 +60,9 @@ pub enum Code {
     TemplateParameter,
     /// A layout width outside the 12-column grid.
     LayoutWidth,
+    /// The snapshot has no count for what a query asks: the producer did not
+    /// count that measure or dimension. Refused rather than shown as zero.
+    NotCounted,
     /// dbt Charts refused the chart, or warned about it. The engine's own code
     /// travels in [`Problem::engine_code`].
     ChartSchema,

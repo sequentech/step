@@ -5,7 +5,7 @@
 //! Tests for [`super`].
 
 use super::*;
-use crate::monitoring::config::{ConfigKind, ConfigSet};
+use crate::monitoring::config::{ConfigKind, ConfigSet, Editability};
 use crate::monitoring::problem::{Code, Report};
 use serde::Deserialize;
 
@@ -640,4 +640,393 @@ fn a_document_is_stored_under_its_own_id() {
         .expect("fixture");
     set.widgets.insert("activity".into(), widget);
     assert_refused(&validate_set(&set), Code::InvalidId, "widgets.activity.id");
+}
+
+// -- templates and parameters that compute relies on -----------------------
+
+#[test]
+fn by_measure_lists_measures_as_rows() {
+    assert_accepted(&widget_report(&minimal_with(
+        "{template: summary, measures: [voted]}",
+        "{template: by_measure, measures: [pre_enrolled, voted], labels: {voted: Voted so far}}",
+    )));
+    assert_refused(
+        &widget_report(&minimal_with(
+            "{template: summary, measures: [voted]}",
+            "{template: by_measure, ratio: [voted, registered]}",
+        )),
+        Code::TemplateParameter,
+        "query.ratio",
+    );
+    assert_refused(
+        &widget_report(&minimal_with(
+            "{template: summary, measures: [voted]}",
+            "{template: by_measure}",
+        )),
+        Code::TemplateParameter,
+        "query.measures",
+    );
+}
+
+#[test]
+fn a_series_counts_first_events_and_takes_no_ratio() {
+    assert_refused(
+        &widget_report(&VOTING_ACTIVITY.replacen(
+            "measures: [voted]",
+            "measures: [voted]\n  ratio: [voted, pre_enrolled]",
+            1,
+        )),
+        Code::TemplateParameter,
+        "query.ratio",
+    );
+}
+
+#[test]
+fn filters_narrow_by_voter_dimensions_only() {
+    let summary = "{template: summary, measures: [voted]}";
+    assert_accepted(&widget_report(&minimal_with(
+        summary,
+        "{template: summary, measures: [voted], filters: {status: [sea]}}",
+    )));
+    assert_refused(
+        &widget_report(&minimal_with(
+            summary,
+            "{template: summary, measures: [voted], filters: {region: [NCR]}}",
+        )),
+        Code::UnsupportedBySource,
+        "query.filters.region",
+    );
+    assert_refused(
+        &widget_report(&minimal_with(
+            summary,
+            "{template: by_group, group_by: post, measures: [voted], filters: {sex: [F]}}",
+        )),
+        Code::TemplateParameter,
+        "query.filters",
+    );
+}
+
+#[test]
+fn series_and_post_lists_take_no_filters() {
+    assert_refused(
+        &widget_report(&VOTING_ACTIVITY.replacen(
+            "measures: [voted]",
+            "measures: [voted]\n  filters: {sex: [F]}",
+            1,
+        )),
+        Code::TemplateParameter,
+        "query.filters",
+    );
+    let poll = MINIMAL
+        .replace("voter_turnout", "poll_status")
+        .replace(
+            "{template: summary, measures: [voted]}",
+            "{template: by_post, filters: {sex: [F]}}",
+        )
+        .replace("value: voted", "value: posts");
+    assert_refused(
+        &widget_report(&poll),
+        Code::TemplateParameter,
+        "query.filters",
+    );
+}
+
+#[test]
+fn labels_name_measures_or_post_states_of_the_source() {
+    let poll = MINIMAL
+        .replace("voter_turnout", "poll_status")
+        .replace(
+            "{template: summary, measures: [voted]}",
+            "{template: by_post, labels: {opened: Open, closed: Closed}}",
+        )
+        .replace("value: voted", "value: posts");
+    assert_accepted(&widget_report(&poll));
+    assert_refused(
+        &widget_report(&minimal_with(
+            "{template: summary, measures: [voted]}",
+            "{template: summary, measures: [voted], labels: {logins: Logins}}",
+        )),
+        Code::UnsupportedBySource,
+        "query.labels.logins",
+    );
+    assert_refused(
+        &widget_report(&minimal_with(
+            "{template: summary, measures: [voted]}",
+            "{template: summary, measures: [voted], labels: {opened: Open}}",
+        )),
+        Code::UnsupportedBySource,
+        "query.labels.opened",
+    );
+    assert_refused(
+        &widget_report(&minimal_with(
+            "{template: summary, measures: [voted]}",
+            "{template: summary, measures: [voted], labels: {voted: ' '}}",
+        )),
+        Code::InvalidValue,
+        "query.labels.voted",
+    );
+}
+
+#[test]
+fn chart_features_that_read_only_governed_data_are_accepted() {
+    let widget = "
+id: w
+title: W
+source: voter_turnout
+query: {template: by_group, group_by: country, ratio: [voted, registered]}
+chart:
+  style:
+    text: {align: left}
+    padding: 8
+    footer: {visible: false, text: Sequent}
+    placeholder: {overlay: {text: No votes yet}}
+    charts: {axis_x: {ticks: {visible: auto}}}
+  charts:
+    world:
+      type: geoshape
+      query: data
+      geo_source: world-countries
+      lookup: group_key
+      value: pct
+      style: {basemap: {source: world-50m}}
+    trend:
+      type: bar
+      query: data
+      x: group
+      y: numerator
+      support_table: [{source: denominator, label: Registered, format: integer}]
+      style: {marks: {text: {font: {size: 11}}}}
+  rows: [{visible: false, rows: [world]}, trend]
+  grid: {columns: 2, items: [{item: world, col: 0}, {item: trend, col: 1}]}
+  tabs: {items: [{title: Map, rows: [world]}, {title: Bars, cols: [trend]}]}
+";
+    assert_accepted(&widget_report(widget));
+    assert_accepted(&parse_theme("id: t\nbase: paper\n").report);
+}
+
+#[test]
+fn every_dbt_charts_property_is_classified() {
+    let schema: std::collections::BTreeSet<&str> =
+        include_str!("fixtures/dbt_charts_properties.txt")
+            .lines()
+            .filter(|line| !line.is_empty() && !line.starts_with('#'))
+            .collect();
+    let classified: std::collections::BTreeSet<&str> =
+        dbt_keys().keys().copied().collect();
+    let unclassified: Vec<_> = schema.difference(&classified).collect();
+    let stale: Vec<_> = classified.difference(&schema).collect();
+    assert!(
+        unclassified.is_empty() && stale.is_empty(),
+        "unclassified: {unclassified:?}; not in the schema: {stale:?}"
+    );
+}
+
+#[test]
+fn a_widget_follows_only_selectors_its_source_can_be_narrowed_by() {
+    let poll = MINIMAL
+        .replace("voter_turnout", "poll_status")
+        .replace("[voted]", "[posts]")
+        .replace("value: voted", "value: posts");
+    assert_accepted(&widget_report(&poll.replace(
+        "source: poll_status",
+        "source: poll_status\nfollows: [region, post]",
+    )));
+    assert_refused(
+        &widget_report(&poll.replace(
+            "source: poll_status",
+            "source: poll_status\nfollows: [post, country]",
+        )),
+        Code::UnsupportedBySource,
+        "follows[1]",
+    );
+}
+
+const TOP_GROUPS: &str = "
+id: w
+title: W
+source: voter_turnout
+selectors:
+  top: {label: Show, options: {ten: Top 10, all: All}, default: ten, maps: {ten: 10, all: null}}
+  order: {label: Order, options: {most: Most first, name: By name}, default: most, maps: {most: {by: value}, name: {by: label, order: asc}}}
+  status: {label: Status, options: {all: All, sea: Sea-based}, default: all, maps: {all: null, sea: [sea]}}
+query:
+  template: by_group
+  group_by: sex
+  measures: [voted]
+  sort: {selector: order}
+  limit: {selector: top}
+  filters: {status: {selector: status}}
+chart: {charts: {k: {type: bar, query: data, x: group, y: voted}}, rows: [k]}
+";
+
+#[test]
+fn sort_limit_and_filters_may_come_from_selectors_and_all_means_none() {
+    assert_accepted(&widget_report(TOP_GROUPS));
+    assert_refused(
+        &widget_report(&TOP_GROUPS.replace(
+            "maps: {ten: 10, all: null}",
+            "maps: {ten: 10, all: 5000}",
+        )),
+        Code::InvalidValue,
+        "query.limit",
+    );
+}
+
+#[test]
+fn sort_and_limit_only_order_lists() {
+    let summary = "{template: summary, measures: [voted]}";
+    assert_refused(
+        &widget_report(&minimal_with(
+            summary,
+            "{template: summary, measures: [voted], limit: 5}",
+        )),
+        Code::TemplateParameter,
+        "query.limit",
+    );
+    assert_refused(
+        &widget_report(&minimal_with(
+            summary,
+            "{template: summary, measures: [voted], sort: {by: label}}",
+        )),
+        Code::TemplateParameter,
+        "query.sort",
+    );
+    assert_refused(
+        &widget_report(&minimal_with(
+            summary,
+            "{template: by_group, group_by: sex, measures: [voted], sort: {by: ratio}}",
+        )),
+        Code::TemplateParameter,
+        "query.sort",
+    );
+}
+
+#[test]
+fn a_toggle_switches_between_two_options() {
+    assert_refused(
+        &widget_report(&VOTING_ACTIVITY.replacen(
+            "options: {hour: Hourly, day: Daily}",
+            "options: {hour: Hourly, day: Daily, week: Weekly}",
+            1,
+        )),
+        Code::InvalidValue,
+        "selectors.grain.options",
+    );
+}
+
+#[test]
+fn a_day_exists_on_the_calendar() {
+    let report = widget_report(&VOTING_ACTIVITY.replacen(
+        "day: {selector: day}",
+        "day: \"2026-02-31\"",
+        1,
+    ));
+    assert_refused(&report, Code::InvalidValue, "query.day");
+    assert!(is_calendar_date("2028-02-29"));
+    assert!(!is_calendar_date("2026-02-29"));
+    assert!(!is_calendar_date("2026-2-01"));
+}
+
+#[test]
+fn a_dashboard_cannot_pin_a_day_the_data_has_not_got() {
+    let set = specification_set();
+    let widget = &set.widgets["voting-activity"];
+    let mut values = IndexMap::new();
+    values.insert("day".to_string(), "2026-05-12".to_string());
+    let mut report = Report::default();
+    check_layout_values(widget, &values, "values", &mut report);
+    assert_refused(&report, Code::InvalidValue, "values.day");
+}
+
+#[test]
+fn a_conditional_selector_feeds_only_parameters_a_query_can_do_without() {
+    let widget = "
+id: w
+title: W
+source: voter_turnout
+selectors:
+  view: {label: View, options: {groups: Groups, total: Total}, default: groups}
+  breakdown: {label: Breakdown, options: {sex: Sex}, default: sex, when: {selector: view, in: [groups]}}
+query: {template: by_group, group_by: {selector: breakdown}, measures: [voted]}
+chart: {charts: {k: {type: bar, query: data, x: group, y: voted}}, rows: [k]}
+";
+    assert_refused(
+        &widget_report(widget),
+        Code::TemplateParameter,
+        "query.group_by",
+    );
+}
+
+#[test]
+fn a_day_picker_shows_only_while_the_series_is_hourly() {
+    assert_refused(
+        &widget_report(&VOTING_ACTIVITY.replacen(
+            "    when: {selector: grain, in: [hour]}\n",
+            "",
+            1,
+        )),
+        Code::TemplateParameter,
+        "query.day",
+    );
+    assert_refused(
+        &widget_report(&VOTING_ACTIVITY.replacen(
+            "when: {selector: grain, in: [hour]}",
+            "when: {selector: grain, in: [day]}",
+            1,
+        )),
+        Code::TemplateParameter,
+        "query.day",
+    );
+}
+
+#[test]
+fn settings_change_counting_so_only_a_preset_sets_them() {
+    assert_eq!(ConfigKind::Settings.editability(), Editability::PresetOnly);
+    for kind in [ConfigKind::Widget, ConfigKind::Dashboard, ConfigKind::Theme] {
+        assert_eq!(kind.editability(), Editability::Editor);
+    }
+}
+
+#[test]
+fn numeric_option_values_are_read_as_text() {
+    let widget = "
+id: w
+title: W
+source: voter_turnout
+selectors:
+  top: {label: Show, options: {5: Top 5, 10: Top 10}, default: \"10\", maps: {5: 5, 10: 10}}
+query: {template: by_group, group_by: sex, measures: [voted], limit: {selector: top}}
+chart: {charts: {k: {type: bar, query: data, x: group, y: voted}}, rows: [k]}
+";
+    assert_accepted(&widget_report(widget));
+}
+
+#[test]
+fn a_misread_parameter_says_where_inside_it() {
+    let report = widget_report(&minimal_with("[voted]", "[voted, nonsense]"));
+    let problem = report
+        .problems
+        .iter()
+        .find(|problem| problem.path == "query.measures")
+        .unwrap_or_else(|| panic!("no problem at query.measures:\n{report}"));
+    assert!(problem.message.contains("[1]"), "{}", problem.message);
+}
+
+#[test]
+fn the_key_list_is_sorted_unique_and_every_rule_is_known() {
+    let lines: Vec<(&str, &str)> = key_lines().collect();
+    for (name, rule) in &lines {
+        assert!(
+            KeyRule::parse(rule).is_some(),
+            "{name}: unknown rule '{rule}'"
+        );
+    }
+    let names: Vec<&str> = lines.iter().map(|(name, _)| *name).collect();
+    let mut sorted = names.clone();
+    sorted.sort_unstable();
+    sorted.dedup();
+    assert_eq!(
+        names, sorted,
+        "keep dbt_charts_keys.txt sorted, one line per key"
+    );
 }

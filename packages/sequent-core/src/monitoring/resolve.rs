@@ -8,7 +8,9 @@
 //! dashboard's `values` for the widget, and the selector's own default. Only
 //! the options a selector lists (or, for dynamic options, the days the data
 //! has) are accepted, so a request can never smuggle in a parameter the
-//! configuration did not offer.
+//! configuration did not offer. A request for anything else is refused; a
+//! dashboard value that no longer fits — a renamed option — falls back to the
+//! default, since the viewer did not ask for it.
 //!
 //! Expects a widget the policy has accepted; anything it cannot resolve is
 //! reported, never guessed.
@@ -61,6 +63,7 @@ pub struct ResolvedQuery {
     pub day: Option<String>,
     pub sort: Option<Sort>,
     pub limit: Option<u32>,
+    pub labels: IndexMap<String, String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -92,7 +95,8 @@ pub fn resolve_widget(
             name,
             selector,
             &selectors,
-            [requested.get(name), dashboard_values.get(name)],
+            requested.get(name),
+            dashboard_values.get(name),
             dynamic,
             &mut report,
         );
@@ -116,7 +120,8 @@ fn selector_state(
     name: &str,
     selector: &Selector,
     earlier: &IndexMap<String, SelectorState>,
-    chosen: [Option<&String>; 2],
+    requested: Option<&String>,
+    dashboard: Option<&String>,
     dynamic: &DynamicOptionValues,
     report: &mut Report,
 ) -> SelectorState {
@@ -133,7 +138,7 @@ fn selector_state(
         Some(from) => dynamic.get(from).iter().collect(),
         None => selector.options.keys().collect(),
     };
-    if let Some(value) = chosen.into_iter().flatten().next() {
+    if let Some(value) = requested {
         if options.contains(&value) {
             return SelectorState::Value(value.clone());
         }
@@ -143,6 +148,9 @@ fn selector_state(
             format!("'{value}' is not an option of '{name}'."),
         ));
         return SelectorState::NoOptions;
+    }
+    if let Some(value) = dashboard.filter(|value| options.contains(value)) {
+        return SelectorState::Value(value.clone());
     }
     let fallback = match selector.options_from {
         Some(_) => options.last().copied(),
@@ -160,6 +168,12 @@ fn resolve_query(
     selectors: &IndexMap<String, SelectorState>,
     report: &mut Report,
 ) -> ResolvedQuery {
+    let grain = resolve(widget, query.grain.as_ref(), selectors, report);
+    // A day narrows an hourly series; a daily one covers every day.
+    let day = match grain {
+        Some(TimeGrain::Day) => None,
+        _ => resolve(widget, query.day.as_ref(), selectors, report),
+    };
     ResolvedQuery {
         template: query.template,
         measures: resolve(widget, query.measures.as_ref(), selectors, report)
@@ -171,13 +185,16 @@ fn resolve_query(
             .iter()
             .filter_map(|(dimension, values)| {
                 resolve(widget, Some(values), selectors, report)
+                    .flatten()
                     .map(|values| (dimension.clone(), values))
             })
             .collect(),
-        grain: resolve(widget, query.grain.as_ref(), selectors, report),
-        day: resolve(widget, query.day.as_ref(), selectors, report),
-        sort: query.sort,
-        limit: query.limit,
+        grain,
+        day,
+        sort: resolve(widget, query.sort.as_ref(), selectors, report).flatten(),
+        limit: resolve(widget, query.limit.as_ref(), selectors, report)
+            .flatten(),
+        labels: query.labels.clone(),
     }
 }
 

@@ -129,6 +129,39 @@ pub enum Measure {
     PendingIssues,
 }
 
+impl Measure {
+    /// Shown for the measure unless a query relabels it.
+    pub fn default_label(self) -> &'static str {
+        match self {
+            Measure::Registered => "Registered",
+            Measure::PreEnrolled => "Pre-enrolled",
+            Measure::CredentialsIssued => "Credentials issued",
+            Measure::TestVoted => "Test voted",
+            Measure::Voted => "Voted",
+            Measure::Applications => "Applications",
+            Measure::Pending => "Pending",
+            Measure::Approved => "Approved",
+            Measure::Disapproved => "Disapproved",
+            Measure::Posts => "Posts",
+            Measure::Initialized => "Initialized",
+            Measure::Opened => "Opened",
+            Measure::Paused => "Paused",
+            Measure::Closed => "Closed",
+            Measure::Tested => "Tested",
+            Measure::LockedDown => "Locked down",
+            Measure::Tallied => "Tallied",
+            Measure::Transmitted => "Transmitted",
+            Measure::TransmissionFailed => "Transmission failed",
+            Measure::Logins => "Logins",
+            Measure::LoginFailures => "Login failures",
+            Measure::PasswordResets => "Password resets",
+            Measure::Detections => "Detections",
+            Measure::Issues => "Issues",
+            Measure::PendingIssues => "Pending issues",
+        }
+    }
+}
+
 /// The shapes of result a source can return. Each fixes its output columns,
 /// which is what lets a chart refer to them by name.
 #[derive(
@@ -155,6 +188,8 @@ pub enum QueryTemplate {
     ByPost,
     /// One row per time bucket.
     Timeseries,
+    /// One row per listed measure, for a pie of outcomes or a funnel.
+    ByMeasure,
 }
 
 /// How wide a time bucket is. Buckets are `[start, end)` in the event's time
@@ -241,6 +276,52 @@ pub enum PendingProducer {
     HelpdeskIntegration,
 }
 
+/// Where a Post stands in a Post-counting source.
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Serialize,
+    Deserialize,
+    Display,
+    EnumString,
+    EnumIter,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum PostState {
+    NotInitialized,
+    Initialized,
+    Opened,
+    Paused,
+    Closed,
+    NotTallied,
+    Tallied,
+    Transmitted,
+    TransmissionFailed,
+}
+
+impl PostState {
+    /// Shown unless a query relabels it.
+    pub fn default_label(self) -> &'static str {
+        match self {
+            PostState::NotInitialized => "Not initialized",
+            PostState::Initialized => "Initialized",
+            PostState::Opened => "Opened",
+            PostState::Paused => "Paused",
+            PostState::Closed => "Closed",
+            PostState::NotTallied => "Not tallied",
+            PostState::Tallied => "Tallied",
+            PostState::Transmitted => "Transmitted",
+            PostState::TransmissionFailed => "Transmission failed",
+        }
+    }
+}
+
 /// Everything configuration may ask of a source.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 pub struct SourceSpec {
@@ -250,6 +331,8 @@ pub struct SourceSpec {
     pub templates: &'static [QueryTemplate],
     pub builtin_dimensions: &'static [BuiltinDimension],
     pub voter_dimensions: VoterDimensions,
+    /// The states a Post can be in, for a source that counts Posts.
+    pub states: &'static [PostState],
     pub producer: Producer,
 }
 
@@ -258,8 +341,9 @@ use Measure as M;
 use QueryTemplate as T;
 
 const VOTER_TEMPLATES: &[QueryTemplate] =
-    &[T::Summary, T::ByGroup, T::Timeseries];
-const POST_TEMPLATES: &[QueryTemplate] = &[T::Summary, T::ByGroup, T::ByPost];
+    &[T::Summary, T::ByGroup, T::Timeseries, T::ByMeasure];
+const POST_TEMPLATES: &[QueryTemplate] =
+    &[T::Summary, T::ByGroup, T::ByPost, T::ByMeasure];
 const SCOPE: &[BuiltinDimension] = &[D::Region, D::Post, D::Country];
 const POST_SCOPE: &[BuiltinDimension] = &[D::Region, D::Post];
 
@@ -267,6 +351,22 @@ impl DataSourceId {
     /// The source's contract. The only place a counting rule is stated.
     pub const fn spec(self) -> SourceSpec {
         use DataSourceId::*;
+        let states: &'static [PostState] = match self {
+            PollStatus => &[
+                PostState::NotInitialized,
+                PostState::Initialized,
+                PostState::Opened,
+                PostState::Paused,
+                PostState::Closed,
+            ],
+            CountingTransmission => &[
+                PostState::NotTallied,
+                PostState::Tallied,
+                PostState::Transmitted,
+                PostState::TransmissionFailed,
+            ],
+            _ => &[],
+        };
         let (counting_unit, measures, templates, builtin, voter, producer): (
             CountingUnit,
             &'static [Measure],
@@ -334,7 +434,7 @@ impl DataSourceId {
             VotingEnrollmentActivity => (
                 CountingUnit::FirstEventPerVoter,
                 &[M::PreEnrolled, M::CredentialsIssued, M::Voted],
-                &[T::Summary, T::Timeseries],
+                &[T::Summary, T::Timeseries, T::ByMeasure],
                 SCOPE,
                 VoterDimensions::NotApplicable,
                 Producer::Available,
@@ -342,7 +442,7 @@ impl DataSourceId {
             AccessSecurity => (
                 CountingUnit::Attempts,
                 &[M::Logins, M::LoginFailures, M::PasswordResets],
-                &[T::Summary, T::ByGroup, T::Timeseries],
+                &[T::Summary, T::ByGroup, T::Timeseries, T::ByMeasure],
                 POST_SCOPE,
                 VoterDimensions::NotApplicable,
                 Producer::Available,
@@ -350,7 +450,7 @@ impl DataSourceId {
             AttackDetections => (
                 CountingUnit::Detections,
                 &[M::Detections],
-                &[T::Summary, T::Timeseries],
+                &[T::Summary, T::Timeseries, T::ByMeasure],
                 &[],
                 VoterDimensions::NotApplicable,
                 Producer::Pending(PendingProducer::AttackDetectionFeed),
@@ -358,7 +458,7 @@ impl DataSourceId {
             Helpdesk => (
                 CountingUnit::ReportedIssues,
                 &[M::Issues, M::PendingIssues],
-                &[T::Summary, T::ByGroup, T::Timeseries],
+                &[T::Summary, T::ByGroup, T::Timeseries, T::ByMeasure],
                 POST_SCOPE,
                 VoterDimensions::NotApplicable,
                 Producer::Pending(PendingProducer::HelpdeskIntegration),
@@ -371,6 +471,7 @@ impl DataSourceId {
             templates,
             builtin_dimensions: builtin,
             voter_dimensions: voter,
+            states,
             producer,
         }
     }

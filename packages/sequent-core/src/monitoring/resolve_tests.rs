@@ -5,7 +5,7 @@
 //! Tests for [`super`].
 
 use super::*;
-use crate::monitoring::config::{Ratio, Widget};
+use crate::monitoring::config::{Ratio, Sort, SortKey, SortOrder, Widget};
 use crate::monitoring::policy::parse_widget;
 use crate::monitoring::problem::Code;
 use crate::monitoring::sources::{Measure, TimeGrain};
@@ -186,4 +186,82 @@ fn a_day_picker_with_no_days_yet_is_empty() {
     let result = resolved(&activity, &[], &[("grain", "hour")], &days(&[]));
     assert_eq!(result.selectors["day"], SelectorState::NoOptions);
     assert_eq!(result.queries["data"].day, None);
+}
+
+#[test]
+fn a_stale_dashboard_value_falls_back_to_the_default() {
+    let turnout = widget(TURNOUT_BY_GROUP);
+    let result =
+        resolved(&turnout, &[("breakdown", "province")], &[], &days(&[]));
+    assert_eq!(
+        result.selectors["breakdown"],
+        SelectorState::Value("age_band".into())
+    );
+    let activity = widget(VOTING_ACTIVITY);
+    let result = resolved(
+        &activity,
+        &[("grain", "hour"), ("day", "2026-05-01")],
+        &[],
+        &days(&["2026-05-11", "2026-05-12"]),
+    );
+    assert_eq!(result.queries["data"].day.as_deref(), Some("2026-05-12"));
+}
+
+#[test]
+fn a_daily_series_ignores_a_literal_day() {
+    let activity = widget(&VOTING_ACTIVITY.replacen(
+        "  day: {selector: day}",
+        "  day: \"2026-05-11\"",
+        1,
+    ));
+    let hourly = resolved(&activity, &[], &[("grain", "hour")], &days(&[]));
+    assert_eq!(hourly.queries["data"].day.as_deref(), Some("2026-05-11"));
+    let daily = resolved(&activity, &[], &[("grain", "day")], &days(&[]));
+    assert_eq!(daily.queries["data"].grain, Some(TimeGrain::Day));
+    assert_eq!(daily.queries["data"].day, None);
+}
+
+const TOP_GROUPS: &str = "
+id: w
+title: W
+source: voter_turnout
+selectors:
+  top: {label: Show, options: {ten: Top 10, all: All}, default: ten, maps: {ten: 10, all: null}}
+  order: {label: Order, options: {most: Most first, name: By name}, default: most, maps: {most: {by: value}, name: {by: label, order: asc}}}
+  status: {label: Status, options: {all: All, sea: Sea-based}, default: all, maps: {all: null, sea: [sea]}}
+query:
+  template: by_group
+  group_by: sex
+  measures: [voted]
+  sort: {selector: order}
+  limit: {selector: top}
+  filters: {status: {selector: status}}
+chart: {charts: {k: {type: bar, query: data, x: group, y: voted}}, rows: [k]}
+";
+
+#[test]
+fn selectors_set_sort_limit_and_filters_and_all_removes_them() {
+    let top = widget(TOP_GROUPS);
+    let first = resolved(&top, &[], &[], &days(&[]));
+    let query = &first.queries["data"];
+    assert_eq!(query.limit, Some(10));
+    assert_eq!(
+        query.sort,
+        Some(Sort {
+            by: SortKey::Value,
+            order: SortOrder::Desc
+        })
+    );
+    assert!(query.filters.is_empty(), "All keeps every value");
+
+    let all = resolved(
+        &top,
+        &[],
+        &[("top", "all"), ("order", "name"), ("status", "sea")],
+        &days(&[]),
+    );
+    let query = &all.queries["data"];
+    assert_eq!(query.limit, None);
+    assert_eq!(query.sort.map(|sort| sort.by), Some(SortKey::Label));
+    assert_eq!(query.filters["status"], vec!["sea".to_string()]);
 }
