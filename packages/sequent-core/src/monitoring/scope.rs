@@ -166,19 +166,48 @@ impl ScopeKey {
 /// of the SHA-256 of their ids, lowercase, ascending and comma-separated,
 /// each id once. Election ids are UUIDs, whose lowercase text sorts as their
 /// bytes do, so the monitoring tables can check a stored key against its ids.
-pub fn election_set_key<I, S>(ids: I) -> String
+/// Only the hyphenated form is an id, in either case, so one set cannot get
+/// two keys.
+pub fn election_set_key<I, S>(ids: I) -> Result<String, NotAnElectionId>
 where
     I: IntoIterator<Item = S>,
     S: AsRef<str>,
 {
-    let mut ids: Vec<String> = ids
+    let mut ids = ids
         .into_iter()
-        .map(|id| id.as_ref().to_ascii_lowercase())
-        .collect();
+        .map(|id| {
+            let id = id.as_ref();
+            if is_hyphenated_uuid(id) {
+                Ok(id.to_ascii_lowercase())
+            } else {
+                Err(NotAnElectionId(id.to_string()))
+            }
+        })
+        .collect::<Result<Vec<String>, NotAnElectionId>>()?;
     ids.sort();
     ids.dedup();
     let digest = Sha256::digest(ids.join(",").as_bytes());
-    hex::encode(digest)[..16].to_string()
+    Ok(hex::encode(digest)[..16].to_string())
+}
+
+/// Text that is not an election id: a UUID, hyphenated.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NotAnElectionId(pub String);
+
+impl std::fmt::Display for NotAnElectionId {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(formatter, "'{}' is not an election id", self.0)
+    }
+}
+
+impl std::error::Error for NotAnElectionId {}
+
+fn is_hyphenated_uuid(text: &str) -> bool {
+    text.len() == 36
+        && text.char_indices().all(|(position, c)| match position {
+            8 | 13 | 18 | 23 => c == '-',
+            _ => c.is_ascii_hexdigit(),
+        })
 }
 
 fn encode(value: &str) -> String {

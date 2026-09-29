@@ -169,7 +169,8 @@ fn a_set_of_elections_is_keyed_by_its_ids_whatever_their_order_or_case() {
     let key = election_set_key([
         "B0EEBC99-9C0B-4EF8-BB6D-6BB9BD380A12",
         "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11",
-    ]);
+    ])
+    .unwrap();
     // SHA-256 of "a0eebc99-…-6bb9bd380a11,b0eebc99-…-6bb9bd380a12".
     assert_eq!(key, "b060af5b18c65887");
     assert_eq!(
@@ -178,9 +179,30 @@ fn a_set_of_elections_is_keyed_by_its_ids_whatever_their_order_or_case() {
             "b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a12",
             "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11",
         ]),
-        key,
+        Ok(key),
         "an id listed twice is one election"
     );
     // A viewer allowed no election still has a set: the empty one.
-    assert_eq!(election_set_key(Vec::<String>::new()), "e3b0c44298fc1c14");
+    assert_eq!(
+        election_set_key(Vec::<String>::new()),
+        Ok("e3b0c44298fc1c14".to_string())
+    );
+}
+
+#[test]
+fn only_a_hyphenated_uuid_is_an_election_id() {
+    for id in [
+        "{a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11}",
+        "a0eebc999c0b4ef8bb6d6bb9bd380a11",
+        " a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11",
+        "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a1g",
+        "a0eebc99-9c0b-4ef8-bb6d_6bb9bd380a11",
+        "",
+    ] {
+        assert_eq!(
+            election_set_key([id]),
+            Err(NotAnElectionId(id.to_string())),
+            "{id:?}"
+        );
+    }
 }
