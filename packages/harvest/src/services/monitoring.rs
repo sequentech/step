@@ -101,11 +101,11 @@ impl MonitoringError {
     }
 
     pub fn internal(error: impl std::fmt::Display) -> Self {
-        error!("Monitoring route failed: {error}");
+        error!("Monitoring route failed: {error:#}");
         Self::new(
             Status::InternalServerError,
             "InternalServerError",
-            error.to_string(),
+            format!("{error:#}"),
         )
     }
 
@@ -287,14 +287,14 @@ pub async fn event_elections(
 ) -> anyhow::Result<Vec<EventElection>> {
     let rows = transaction
         .query(
-            "SELECT id, name, alias, external_id, presentation, permission_label, annotations
+            "SELECT id, external_id, presentation, permission_label, annotations
              FROM sequent_backend.election
              WHERE tenant_id = $1 AND election_event_id = $2
-             ORDER BY name NULLS LAST, id",
+             ORDER BY id",
             &[&event.tenant_id, &event.election_event_id],
         )
         .await?;
-    Ok(rows
+    let mut elections: Vec<EventElection> = rows
         .iter()
         .map(|row| {
             let id: Uuid = row.get("id");
@@ -302,7 +302,7 @@ pub async fn event_elections(
                 id,
                 name: post_name(
                     row.get("presentation"),
-                    [row.get("alias"), row.get("name"), row.get("external_id")],
+                    row.get("external_id"),
                     id,
                 ),
                 permission_label: row
@@ -311,15 +311,17 @@ pub async fn event_elections(
                 annotations: row.get("annotations"),
             }
         })
-        .collect())
+        .collect();
+    elections.sort_by(|a, b| a.name.cmp(&b.name).then(a.id.cmp(&b.id)));
+    Ok(elections)
 }
 
 /// The name the portal shows for an election, as the snapshot job names its
-/// Posts: its English alias or name, else any language's; else its alias,
-/// name or external id; else its id.
+/// Posts: its English alias or name, else any language's; else its
+/// external id; else its id.
 fn post_name(
     presentation: Option<Value>,
-    fallbacks: [Option<String>; 3],
+    external_id: Option<String>,
     id: Uuid,
 ) -> String {
     let i18n = presentation
@@ -342,12 +344,7 @@ fn post_name(
                 field(lang, "alias").or_else(|| field(lang, "name"))
             })
         })
-        .or_else(|| {
-            fallbacks
-                .into_iter()
-                .flatten()
-                .find(|value| !value.trim().is_empty())
-        })
+        .or_else(|| external_id.filter(|value| !value.trim().is_empty()))
         .unwrap_or_else(|| id.to_string())
 }
 
