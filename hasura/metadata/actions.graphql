@@ -2181,6 +2181,7 @@ type Mutation {
         widget_id: String
         scope: jsonb
         selector_values: jsonb
+        widget_selector_values: jsonb
         snapshot_revision: Int!
         format: String!
         from: String
@@ -2253,11 +2254,17 @@ type MonitoringProblem {
     engine_code: String
 }
 
+type MonitoringQueryTable {
+    query: String!
+    table: jsonb!
+}
+
 type MonitoringRenderWidgetOutput {
     state: String!
     reason: String
     svg: String
     table: jsonb
+    tables: [MonitoringQueryTable!]
     notices: [String!]!
     diagnostics: [MonitoringProblem!]!
     ignored_selectors: [String!]!

@@ -32,6 +32,8 @@ use sequent_core::monitoring::config::{
 };
 use sequent_core::monitoring::payload::ScopePayload;
 use sequent_core::monitoring::policy::{parse_theme, parse_widget};
+use sequent_core::monitoring::presets::SETTINGS_KEY;
+use sequent_core::monitoring::problem::Code;
 use sequent_core::monitoring::problem::{Problem, Report, Severity};
 use sequent_core::monitoring::render_request::build_board;
 use sequent_core::monitoring::resolve::{resolve_widget, DynamicOptionValues};
@@ -49,7 +51,8 @@ use std::sync::Arc;
 use tracing::{error, warn};
 use uuid::Uuid;
 use windmill::services::monitoring::config_store::{
-    get_live_config, Author, EventRef, LiveConfig, StoredRevision,
+    get_config_at_generation, get_live_config, Author, EventRef, LiveConfig,
+    StoredRevision,
 };
 use windmill::services::monitoring::snapshot::empty_payload;
 
@@ -90,6 +93,15 @@ impl MonitoringError {
 
     pub fn bad_request(message: impl Into<String>) -> Self {
         Self::new(Status::BadRequest, "MONITORING_BAD_REQUEST", message)
+    }
+
+    /// A value the request holds that reads, but not as what it must be.
+    pub fn unprocessable(message: impl Into<String>) -> Self {
+        Self::new(
+            Status::UnprocessableEntity,
+            "MONITORING_BAD_REQUEST",
+            message,
+        )
     }
 
     pub fn not_found(message: impl Into<String>) -> Self {
@@ -451,6 +463,135 @@ pub async fn live_config(
         .map_err(MonitoringError::internal)
 }
 
+/// An instant a request names: RFC 3339 with its offset (`Z`, `+08:00`).
+/// A time without one names no instant, so it is refused.
+pub fn parse_instant(
+    name: &str,
+    text: Option<&str>,
+) -> MonitoringResult<Option<DateTime<Utc>>> {
+    let Some(text) = text.map(str::trim).filter(|text| !text.is_empty()) else {
+        return Ok(None);
+    };
+    DateTime::parse_from_rfc3339(text)
+        .map(|at| Some(at.with_timezone(&Utc)))
+        .map_err(|_| {
+            MonitoringError::unprocessable(format!(
+                "`{name}` must be an RFC 3339 date and time with a UTC offset, \
+                 such as 2026-05-04T08:00:00+08:00; '{text}' has no offset or does not read"
+            ))
+        })
+}
+
+/// A notice a drawing carries when it is not drawn with the configuration
+/// its snapshot was counted under.
+pub const CONFIG_AT_SNAPSHOT_UNAVAILABLE: &str =
+    "CONFIG_AT_SNAPSHOT_UNAVAILABLE";
+pub const CONFIG_NEWER_THAN_SNAPSHOT: &str = "CONFIG_NEWER_THAN_SNAPSHOT";
+
+/// The configuration a snapshot is read with.
+#[derive(Debug, Clone)]
+pub struct SnapshotConfig {
+    pub generation: i64,
+    pub documents: Vec<StoredRevision>,
+    pub set: ConfigSet,
+    /// Why it is the live configuration rather than the snapshot's own.
+    pub notice: Option<&'static str>,
+}
+
+impl SnapshotConfig {
+    pub fn live(live: LiveConfig) -> Self {
+        Self {
+            generation: live.generation,
+            documents: live.documents,
+            set: live.assembled.set,
+            notice: None,
+        }
+    }
+
+    pub fn settings_revision(&self) -> Option<i32> {
+        revision_of(&self.documents, ConfigKind::Settings, SETTINGS_KEY)
+    }
+}
+
+/// The configuration `head` was counted under, as an export reads it, so
+/// what is drawn is what the figures were counted for. The live one when
+/// there is no run, when that generation is no longer kept, or when it has
+/// not what `has` asks for (a widget added since); the latter two say so.
+pub async fn config_at_snapshot(
+    services: &HarvestServices,
+    event: EventRef,
+    head: Option<&SnapshotHead>,
+    live: LiveConfig,
+    has: impl Fn(&ConfigSet) -> bool,
+) -> MonitoringResult<SnapshotConfig> {
+    let Some(head) =
+        head.filter(|head| head.config_generation != live.generation)
+    else {
+        return Ok(SnapshotConfig::live(live));
+    };
+    let mut client = hasura_client(services).await?;
+    let transaction = client
+        .transaction()
+        .await
+        .map_err(MonitoringError::internal)?;
+    let at =
+        get_config_at_generation(&transaction, event, head.config_generation)
+            .await
+            .map_err(MonitoringError::internal)?;
+    transaction
+        .commit()
+        .await
+        .map_err(MonitoringError::internal)?;
+    let notice = match at {
+        Some(at) if has(&at.assembled.set) => {
+            return Ok(SnapshotConfig {
+                generation: at.generation,
+                documents: at.documents,
+                set: at.assembled.set,
+                notice: None,
+            })
+        }
+        Some(_) => CONFIG_NEWER_THAN_SNAPSHOT,
+        None => CONFIG_AT_SNAPSHOT_UNAVAILABLE,
+    };
+    Ok(SnapshotConfig {
+        notice: Some(notice),
+        ..SnapshotConfig::live(live)
+    })
+}
+
+/// Checks the values a request gives a widget's selectors against the
+/// options it lists: a selector it lacks, or an option not listed, is a
+/// problem. Days come from the figures, so a day is checked when the
+/// figures are read.
+pub fn check_selector_values(
+    widget: &Widget,
+    values: &IndexMap<String, String>,
+    report: &mut Report,
+) {
+    for (name, value) in values {
+        let path = format!("widget_selector_values.{}.{name}", widget.id);
+        match widget.selectors.get(name) {
+            None => report.push(Problem::error(
+                Code::UnknownSelector,
+                path,
+                format!("'{}' has no selector '{name}'.", widget.id),
+            )),
+            Some(selector)
+                if selector.options_from.is_none()
+                    && !selector.options.contains_key(value) =>
+            {
+                report.push(Problem::error(
+                    Code::UnknownOption,
+                    path,
+                    format!("'{value}' is not an option of '{name}'."),
+                ))
+            }
+            Some(_) => {}
+        }
+    }
+}
+
 /// The revision of a document the event has.
 pub fn revision_of(
     documents: &[StoredRevision],
@@ -553,6 +694,25 @@ impl From<&QueryResult> for TableView {
     }
 }
 
+/// One query's figures, named as in the widget.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct QueryTableView {
+    pub query: String,
+    pub table: TableView,
+}
+
+impl QueryTableView {
+    /// Every query's table, in the widget's query order.
+    pub fn all(data: &IndexMap<String, QueryResult>) -> Vec<Self> {
+        data.iter()
+            .map(|(query, result)| Self {
+                query: query.clone(),
+                table: TableView::from(result),
+            })
+            .collect()
+    }
+}
+
 /// What drawing a widget came to.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct RenderResponse {
@@ -563,6 +723,9 @@ pub struct RenderResponse {
     pub svg: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub table: Option<TableView>,
+    /// Every query's table, in the widget's query order; `table` is the
+    /// default query's.
+    pub tables: Vec<QueryTableView>,
     pub notices: Vec<String>,
     pub diagnostics: Vec<ProblemView>,
     pub ignored_selectors: Vec<ScopeSelector>,
@@ -581,6 +744,7 @@ impl RenderResponse {
             reason: None,
             svg: None,
             table: None,
+            tables: vec![],
             notices: vec![],
             diagnostics: vec![],
             ignored_selectors: vec![],
@@ -654,6 +818,9 @@ pub struct DrawPlan<'a> {
     pub theme_ref: (&'a str, String),
     pub settings: Option<&'a Settings>,
     pub settings_revision: String,
+    /// The settings revision drawn with; a run counted with an older one
+    /// may lack a count these settings add.
+    pub current_settings_revision: Option<i32>,
     pub dashboard_values: IndexMap<String, String>,
     pub scope: ScopeSelection,
     pub selector_values: IndexMap<String, String>,
@@ -661,6 +828,27 @@ pub struct DrawPlan<'a> {
     pub width: i64,
     pub color_scheme: ColorScheme,
     pub locale: &'a str,
+}
+
+/// Why a widget is pending: its run was counted with older settings.
+pub const SETTINGS_PENDING: &str = "SETTINGS_PENDING";
+
+/// Whether a count is missing only because the run was counted with older
+/// settings than the ones drawn with: the next run counts it.
+fn counted_before_these_settings(
+    report: &Report,
+    head: &SnapshotHead,
+    plan: &DrawPlan<'_>,
+) -> bool {
+    let only_not_counted = !report.problems.is_empty()
+        && report
+            .problems
+            .iter()
+            .all(|problem| problem.code == Code::NotCounted);
+    only_not_counted
+        && plan
+            .current_settings_revision
+            .is_some_and(|current| head.settings_revision < current)
 }
 
 /// Draws one widget for a viewer: reads the figures counted for the
@@ -792,7 +980,14 @@ pub async fn draw_widget(
                 data.insert(name.clone(), result);
             }
             Err(report) => {
-                let mut response = RenderResponse::invalid(&report).at(&head);
+                let mut response =
+                    if counted_before_these_settings(&report, &head, &plan) {
+                        RenderResponse::state(RenderState::ScopePending)
+                            .reason(SETTINGS_PENDING)
+                            .at(&head)
+                    } else {
+                        RenderResponse::invalid(&report).at(&head)
+                    };
                 response.ignored_selectors = ignored;
                 return Ok(response);
             }
@@ -802,6 +997,7 @@ pub async fn draw_widget(
         .get(DEFAULT_QUERY_NAME)
         .or_else(|| data.values().next())
         .map(TableView::from);
+    let tables = QueryTableView::all(&data);
     let mut notices: Vec<String> = vec![];
     for result in data.values() {
         for notice in &result.notices {
@@ -891,6 +1087,7 @@ pub async fn draw_widget(
         }
     };
     response.table = table;
+    response.tables = tables;
     response.notices = notices;
     response.ignored_selectors = ignored;
     Ok(response.at(&head))

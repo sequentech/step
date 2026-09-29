@@ -37,6 +37,8 @@ pub struct SampleBoard {
     pub board: Value,
     /// The first rows of its default query.
     pub data: Option<QueryResult>,
+    /// Every query's rows, in the widget's query order.
+    pub queries: IndexMap<String, QueryResult>,
     pub height: Option<u32>,
 }
 
@@ -79,6 +81,7 @@ pub fn sample_board(
             .get(DEFAULT_QUERY_NAME)
             .or_else(|| data.values().next())
             .cloned(),
+        queries: data,
         height: widget.height,
     })
 }

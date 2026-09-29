@@ -2065,6 +2065,7 @@ custom_types:
         - name: MonitoringScopeOptions
         - name: MonitoringGetDashboardOutput
         - name: MonitoringProblem
+        - name: MonitoringQueryTable
         - name: MonitoringRenderWidgetOutput
         - name: MonitoringValidateConfigOutput
         - name: MonitoringSaveConfigOutput

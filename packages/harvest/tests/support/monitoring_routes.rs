@@ -15,7 +15,9 @@ use rocket::local::asynchronous::Client;
 use sequent_core::types::permissions::Permissions;
 use serde_json::{json, Value};
 use uuid::Uuid;
-use windmill::services::monitoring::snapshot::ScopeRead;
+use windmill::services::monitoring::snapshot::{
+    LiveSnapshot as SnapshotHead, ScopeRead,
+};
 
 pub fn viewer(event: &Event) -> Claims {
     Claims::new(&event.tenant_id, "monitor")
@@ -486,4 +488,311 @@ async fn the_figures_windmill_counted_are_drawn_for_exactly_the_viewers_election
     assert_eq!(body["state"], "RENDERED", "{body}");
     assert_eq!(first(&body, "registered"), 2, "{body}");
     assert_eq!(first(&body, "voted"), 1, "{body}");
+}
+
+/// Saves `key` with its title changed, as a configurator; the generation
+/// the save made.
+async fn retitle(client: &Client, event: &Event, key: &str) -> i64 {
+    let (status, body) = json(
+        post(
+            client,
+            "/monitoring/get-config",
+            &configurator(event),
+            &json!({
+                "election_event_id": event.election_event_id,
+                "kind": "widget",
+                "key": key,
+            }),
+        )
+        .await,
+    )
+    .await;
+    assert_eq!(status, Status::Ok, "{body}");
+    let yaml = body["yaml"].as_str().unwrap();
+    let retitled = yaml.replacen("title: ", "title: Renamed ", 1);
+    assert_ne!(retitled, yaml);
+    let (status, body) = json(
+        post(
+            client,
+            "/monitoring/save-config",
+            &configurator(event),
+            &json!({
+                "election_event_id": event.election_event_id,
+                "kind": "widget",
+                "key": key,
+                "yaml": retitled,
+                "expected_revision": body["revision"],
+                "change": "UPSERT",
+            }),
+        )
+        .await,
+    )
+    .await;
+    assert_eq!(status, Status::Ok, "{body}");
+    body["generation"].as_i64().unwrap()
+}
+
+fn set_head(services: &Services, change: impl FnOnce(&mut SnapshotHead)) {
+    let mut head = services.monitoring_snapshots.head.lock().unwrap();
+    change(head.as_mut().expect("a live run"));
+}
+
+#[rocket::async_test]
+async fn a_widget_is_drawn_with_the_configuration_its_snapshot_was_counted_under(
+) {
+    let services = Services::on_test_database()
+        .await
+        .with_monitoring_snapshots(MemorySnapshots::at(7, ScopeRead::Empty));
+    let client = services.client().await;
+    let event = rows::event(&services.hasura).await;
+    event.election(&services.hasura).await;
+    configure(&client, &event).await;
+
+    let (status, body) = render(
+        &client,
+        &viewer(&event),
+        &event,
+        "turnout-summary",
+        json!({}),
+    )
+    .await;
+    assert_eq!(body["state"], "RENDERED", "{status} {body}");
+    assert_eq!(services.monitoring_renderer.renders(), 1);
+
+    // Saved after the run was counted: the run still shows what it was
+    // counted under, so the drawing is the one already made.
+    let generation = retitle(&client, &event, "turnout-summary").await;
+    let (_, body) = render(
+        &client,
+        &viewer(&event),
+        &event,
+        "turnout-summary",
+        json!({}),
+    )
+    .await;
+    assert_eq!(body["state"], "RENDERED", "{body}");
+    assert_eq!(body["notices"], json!([]), "{body}");
+    assert_eq!(services.monitoring_renderer.renders(), 1);
+
+    // The next run is counted under the save.
+    set_head(&services, |head| head.config_generation = generation);
+    let (_, body) = render(
+        &client,
+        &viewer(&event),
+        &event,
+        "turnout-summary",
+        json!({}),
+    )
+    .await;
+    assert_eq!(body["state"], "RENDERED", "{body}");
+    assert_eq!(services.monitoring_renderer.renders(), 2);
+}
+
+#[rocket::async_test]
+async fn a_run_whose_configuration_is_gone_is_drawn_with_the_live_one_and_says_so(
+) {
+    let services = Services::on_test_database()
+        .await
+        .with_monitoring_snapshots(MemorySnapshots::at(7, ScopeRead::Empty));
+    let client = services.client().await;
+    let event = rows::event(&services.hasura).await;
+    event.election(&services.hasura).await;
+    configure(&client, &event).await;
+    set_head(&services, |head| head.config_generation = 99);
+
+    let (status, body) = render(
+        &client,
+        &viewer(&event),
+        &event,
+        "turnout-summary",
+        json!({}),
+    )
+    .await;
+    assert_eq!(status, Status::Ok, "{body}");
+    assert_eq!(body["state"], "RENDERED", "{body}");
+    assert_eq!(
+        body["notices"],
+        json!(["CONFIG_AT_SNAPSHOT_UNAVAILABLE"]),
+        "{body}"
+    );
+}
+
+/// Figures counted before the event had the campus preset's settings: no
+/// voter has a faculty.
+fn counted_without_faculties() -> ScopeRead {
+    use sequent_core::monitoring::sources::DataSourceId;
+    use windmill::services::monitoring::snapshot::empty_payload;
+    let comelec = sequent_core::monitoring::presets::load("comelec")
+        .unwrap()
+        .unwrap();
+    let payload = empty_payload(
+        DataSourceId::VoterTurnout,
+        comelec.set.settings.as_ref().unwrap(),
+    );
+    ScopeRead::Payload {
+        sha256_hex: "0".repeat(64),
+        text: serde_json::to_string(&payload).unwrap(),
+    }
+}
+
+#[rocket::async_test]
+async fn a_count_the_settings_changed_is_pending_until_the_next_run() {
+    let services = Services::on_test_database()
+        .await
+        .with_monitoring_snapshots(MemorySnapshots::at(
+            7,
+            counted_without_faculties(),
+        ));
+    let client = services.client().await;
+    let event = rows::event(&services.hasura).await;
+    event.election(&services.hasura).await;
+    let (status, body) = json(
+        post(
+            &client,
+            "/monitoring/reset-to-preset",
+            &configurator(&event),
+            &json!({
+                "election_event_id": event.election_event_id,
+                "preset_id": "campus",
+            }),
+        )
+        .await,
+    )
+    .await;
+    assert_eq!(status, Status::Ok, "{body}");
+    let by_faculty = json!({"dashboard_id": "participation"});
+
+    // The run was counted with the settings before these.
+    set_head(&services, |head| head.settings_revision = 0);
+    let (status, body) = render(
+        &client,
+        &viewer(&event),
+        &event,
+        "participation-by-faculty",
+        by_faculty.clone(),
+    )
+    .await;
+    assert_eq!(status, Status::Ok, "{body}");
+    assert_eq!(body["state"], "SCOPE_PENDING", "{body}");
+    assert_eq!(body["reason"], "SETTINGS_PENDING", "{body}");
+    assert!(body.get("table").is_none(), "{body}");
+    assert_eq!(services.monitoring_renderer.renders(), 0);
+
+    // Counted with these settings, a count they lack is a configuration
+    // problem.
+    set_head(&services, |head| head.settings_revision = 1);
+    let (status, body) = render(
+        &client,
+        &viewer(&event),
+        &event,
+        "participation-by-faculty",
+        by_faculty,
+    )
+    .await;
+    assert_eq!(status, Status::Ok, "{body}");
+    assert_eq!(body["state"], "INVALID", "{body}");
+    assert_eq!(body["diagnostics"][0]["code"], "not_counted", "{body}");
+}
+
+#[rocket::async_test]
+async fn a_widget_outside_the_dashboard_is_drawn_only_for_a_configurator() {
+    let services = Services::on_test_database()
+        .await
+        .with_monitoring_snapshots(MemorySnapshots::at(7, ScopeRead::Empty));
+    let client = services.client().await;
+    let event = rows::event(&services.hasura).await;
+    event.election(&services.hasura).await;
+    configure(&client, &event).await;
+
+    // turnout-by-post is a widget of the event, not of the overview.
+    let (status, body) = render(
+        &client,
+        &viewer(&event),
+        &event,
+        "turnout-by-post",
+        json!({}),
+    )
+    .await;
+    assert_eq!(status, Status::NotFound, "{body}");
+    assert_eq!(body["extensions"]["code"], "MONITORING_NOT_FOUND");
+
+    let (status, body) = render(
+        &client,
+        &configurator(&event),
+        &event,
+        "turnout-by-post",
+        json!({}),
+    )
+    .await;
+    assert_eq!(status, Status::Ok, "{body}");
+    assert_eq!(body["state"], "RENDERED", "{body}");
+}
+
+#[rocket::async_test]
+async fn a_drawn_widget_returns_every_querys_table_in_its_order() {
+    let services = Services::on_test_database()
+        .await
+        .with_monitoring_snapshots(MemorySnapshots::at(7, ScopeRead::Empty));
+    let client = services.client().await;
+    let event = rows::event(&services.hasura).await;
+    event.election(&services.hasura).await;
+    configure(&client, &event).await;
+
+    let (status, body) = render(
+        &client,
+        &viewer(&event),
+        &event,
+        "turnout-summary",
+        json!({}),
+    )
+    .await;
+    assert_eq!(status, Status::Ok, "{body}");
+    let queries: Vec<&str> = body["tables"]
+        .as_array()
+        .expect("tables")
+        .iter()
+        .map(|table| table["query"].as_str().unwrap())
+        .collect();
+    assert_eq!(queries, ["totals", "voted_reg", "voted_pre", "pre_reg"]);
+    // `table` stays the first query's.
+    assert_eq!(body["tables"][0]["table"], body["table"], "{body}");
+    assert!(body["tables"][1]["table"]["columns"].is_array(), "{body}");
+
+    // The configuration check's preview has them too.
+    let (status, body) = json(
+        post(
+            &client,
+            "/monitoring/get-config",
+            &configurator(&event),
+            &json!({
+                "election_event_id": event.election_event_id,
+                "kind": "widget",
+                "key": "turnout-summary",
+            }),
+        )
+        .await,
+    )
+    .await;
+    assert_eq!(status, Status::Ok, "{body}");
+    let (status, body) = json(
+        post(
+            &client,
+            "/monitoring/validate-config",
+            &configurator(&event),
+            &json!({
+                "election_event_id": event.election_event_id,
+                "kind": "widget",
+                "key": "turnout-summary",
+                "yaml": body["yaml"],
+            }),
+        )
+        .await,
+    )
+    .await;
+    assert_eq!(status, Status::Ok, "{body}");
+    assert_eq!(
+        body["preview"]["tables"].as_array().map(Vec::len),
+        Some(4),
+        "{body}"
+    );
 }

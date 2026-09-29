@@ -154,3 +154,123 @@ async fn a_pruned_run_is_gone_and_a_foreign_post_refused_before_anything_is_sent
     assert!(services.tasks.sent().is_empty());
     assert!(services.ledger.tasks().is_empty());
 }
+
+#[rocket::async_test]
+async fn a_range_with_any_offset_and_each_widgets_values_reach_the_task() {
+    let services = Services::on_test_database()
+        .await
+        .with_monitoring_snapshots(MemorySnapshots::at(7, ScopeRead::Empty));
+    let client = services.client().await;
+    let event = rows::event(&services.hasura).await;
+    event.election(&services.hasura).await;
+    configure(&client, &event).await;
+
+    let (status, body) = export(
+        &client,
+        &viewer(&event),
+        &event,
+        json!({
+            "from": "2026-05-04T08:00:00+08:00",
+            "to": "2026-05-04T10:30:00Z",
+            "widget_selector_values": {"voting-activity": {"grain": "hour"}},
+        }),
+    )
+    .await;
+    assert_eq!(status, Status::Ok, "{body}");
+    let request = &services.tasks.sent()[0].kwargs["request"];
+    assert_eq!(request["from"], "2026-05-04T00:00:00Z");
+    assert_eq!(request["to"], "2026-05-04T10:30:00Z");
+    assert_eq!(
+        request["widget_selector_values"],
+        json!({"voting-activity": {"grain": "hour"}})
+    );
+}
+
+#[rocket::async_test]
+async fn a_time_without_an_offset_is_refused_as_a_bad_request() {
+    let services = Services::on_test_database()
+        .await
+        .with_monitoring_snapshots(MemorySnapshots::at(7, ScopeRead::Empty));
+    let client = services.client().await;
+    let event = rows::event(&services.hasura).await;
+    event.election(&services.hasura).await;
+    configure(&client, &event).await;
+
+    for range in [
+        json!({"from": "2026-05-04T08:00:00"}),
+        json!({"to": "2026-05-04"}),
+        json!({"from": "yesterday"}),
+    ] {
+        let (status, body) =
+            export(&client, &viewer(&event), &event, range.clone()).await;
+        assert_eq!(status, Status::UnprocessableEntity, "{range}: {body}");
+        assert_eq!(body["extensions"]["code"], "MONITORING_BAD_REQUEST");
+        assert!(
+            body["message"].as_str().unwrap().contains("offset"),
+            "{body}"
+        );
+    }
+    assert!(services.tasks.sent().is_empty());
+}
+
+#[rocket::async_test]
+async fn the_dashboard_is_looked_up_at_the_runs_configuration() {
+    let services = Services::on_test_database()
+        .await
+        .with_monitoring_snapshots(MemorySnapshots::at(7, ScopeRead::Empty));
+    let client = services.client().await;
+    let event = rows::event(&services.hasura).await;
+    event.election(&services.hasura).await;
+    configure(&client, &event).await;
+    // The run was counted under a configuration the event no longer has.
+    services
+        .monitoring_snapshots
+        .head
+        .lock()
+        .unwrap()
+        .as_mut()
+        .unwrap()
+        .config_generation = 99;
+
+    let (status, body) =
+        export(&client, &viewer(&event), &event, json!({})).await;
+    assert_eq!(status, Status::NotFound, "{body}");
+    assert_eq!(body["extensions"]["code"], "MONITORING_NOT_FOUND");
+    assert!(services.tasks.sent().is_empty());
+}
+
+#[rocket::async_test]
+async fn a_widgets_pick_outside_its_options_is_refused() {
+    let services = Services::on_test_database()
+        .await
+        .with_monitoring_snapshots(MemorySnapshots::at(7, ScopeRead::Empty));
+    let client = services.client().await;
+    let event = rows::event(&services.hasura).await;
+    event.election(&services.hasura).await;
+    configure(&client, &event).await;
+
+    for picks in [
+        json!({"voting-activity": {"grain": "week"}}),
+        json!({"voting-activity": {"colour": "red"}}),
+    ] {
+        let (status, body) = export(
+            &client,
+            &viewer(&event),
+            &event,
+            json!({"widget_selector_values": picks}),
+        )
+        .await;
+        assert_eq!(status, Status::UnprocessableEntity, "{picks}: {body}");
+        assert_eq!(body["extensions"]["code"], "MONITORING_INVALID");
+        assert_eq!(
+            body["extensions"]["problems"][0]["path"]
+                .as_str()
+                .unwrap()
+                .split('.')
+                .nth(1),
+            Some("voting-activity"),
+            "{body}"
+        );
+    }
+    assert!(services.tasks.sent().is_empty());
+}
