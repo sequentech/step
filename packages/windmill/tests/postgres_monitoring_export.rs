@@ -14,6 +14,7 @@ use deadpool_postgres::{Client, Transaction};
 use indexmap::IndexMap;
 use sequent_core::monitoring::presets;
 use sequent_core::monitoring::revision::DashboardMode;
+use sequent_core::monitoring::scope::ScopeSelection;
 use serde_json::{json, Value};
 use tokio_postgres::IsolationLevel;
 use uuid::Uuid;
@@ -24,7 +25,9 @@ use windmill::services::monitoring::export::{
     build_file, collect_export, export_table, ExportData, MonitoringExportError,
     MonitoringExportFormat, MonitoringExportRequest,
 };
-use windmill::services::monitoring::snapshot::{count_event, request_election_set, PassOutcome};
+use windmill::services::monitoring::snapshot::{
+    count_event, prune_snapshots, request_election_set, PassOutcome,
+};
 
 struct NoAudit;
 
@@ -43,6 +46,7 @@ struct Seeded {
     madrid: Uuid,
     tokyo: Uuid,
     revision: i64,
+    generation: i64,
 }
 
 /// An event on the COMELEC preset with two Posts and a voter in each, the
@@ -147,6 +151,7 @@ async fn seed(client: &mut Client) -> Seeded {
         madrid,
         tokyo,
         revision,
+        generation,
     }
 }
 
@@ -160,6 +165,7 @@ fn request(seeded: &Seeded, elections: &[Uuid], revision: i64) -> MonitoringExpo
         pinned_post: None,
         scope: Default::default(),
         selector_values: IndexMap::new(),
+        widget_selector_values: IndexMap::new(),
         snapshot_revision: revision,
         format: MonitoringExportFormat::Csv,
         from: None,
@@ -198,7 +204,7 @@ fn posts(data: &ExportData) -> Vec<String> {
 }
 
 #[tokio::test]
-async fn an_export_holds_the_viewers_elections_only_and_a_pruned_revision_none() {
+async fn an_export_holds_the_viewers_elections_only() {
     let pool = schema::pool().await;
     let mut client = pool.get().await.unwrap();
     let seeded = seed(&mut client).await;
@@ -247,22 +253,53 @@ async fn an_export_holds_the_viewers_elections_only_and_a_pruned_revision_none()
         Err(MonitoringExportError::ForbiddenScope(_))
     ));
 
-    let pruned = export(
+    // A Post, region or country outside the viewer's elections is refused
+    // too when it is the dashboard's selection.
+    let refused = |scope: ScopeSelection| {
+        let mut asked = request(&seeded, &[seeded.madrid], seeded.revision);
+        asked.scope = scope;
+        asked
+    };
+    for scope in [
+        ScopeSelection {
+            post: Some(seeded.tokyo.to_string()),
+            ..Default::default()
+        },
+        ScopeSelection {
+            region: Some("Asia".to_string()),
+            ..Default::default()
+        },
+        ScopeSelection {
+            country: Some("Atlantis".to_string()),
+            ..Default::default()
+        },
+    ] {
+        let outcome = export(&mut client, &refused(scope.clone())).await;
+        assert!(
+            matches!(outcome, Err(MonitoringExportError::ForbiddenScope(_))),
+            "{scope:?}: {outcome:?}"
+        );
+    }
+    let europe = export(
         &mut client,
-        &request(&seeded, &[seeded.madrid], seeded.revision + 100),
+        &refused(ScopeSelection {
+            region: Some("Europe".to_string()),
+            ..Default::default()
+        }),
     )
     .await;
-    assert!(
-        matches!(pruned, Err(MonitoringExportError::SnapshotPruned { revision }) if revision == seeded.revision + 100),
-        "{pruned:?}"
-    );
+    assert!(europe.is_ok(), "{europe:?}");
 
     // The whole dashboard, as SQL: every widget of it.
     let mut dashboard = request(&seeded, &[seeded.madrid, seeded.tokyo], seeded.revision);
     dashboard.widget_id = None;
     dashboard.format = MonitoringExportFormat::Sql;
     let data = export(&mut client, &dashboard).await.unwrap();
-    let widgets: Vec<&str> = data.widgets.iter().map(|(id, _)| id.as_str()).collect();
+    let widgets: Vec<&str> = data
+        .widgets
+        .iter()
+        .map(|widget| widget.id.as_str())
+        .collect();
     assert_eq!(
         widgets,
         vec![
@@ -276,15 +313,22 @@ async fn an_export_holds_the_viewers_elections_only_and_a_pruned_revision_none()
     assert!(sql.starts_with("-- Monitoring export (PostgreSQL)\n"));
     assert!(sql.contains("CREATE TABLE \"monitoring_export\""));
 
-    // The SQL runs, and holds what the table holds.
-    client.batch_execute(&sql).await.unwrap();
-    let rows: i64 = client
+    // The SQL runs, and holds what the table holds: inside a transaction
+    // that is rolled back, so the test leaves nothing behind.
+    let statements: String = sql
+        .lines()
+        .filter(|line| *line != "BEGIN;" && *line != "COMMIT;")
+        .map(|line| format!("{line}\n"))
+        .collect();
+    let tx = client.transaction().await.unwrap();
+    tx.batch_execute(&statements).await.unwrap();
+    let rows: i64 = tx
         .query_one("SELECT count(*) FROM monitoring_export", &[])
         .await
         .unwrap()
         .get(0);
     assert_eq!(rows as usize, export_table(&data).rows.len());
-    let registered: Value = client
+    let registered: Value = tx
         .query_one(
             "SELECT to_jsonb(registered) FROM monitoring_export
              WHERE widget_id = 'turnout-summary' AND query = 'totals'",
@@ -294,10 +338,23 @@ async fn an_export_holds_the_viewers_elections_only_and_a_pruned_revision_none()
         .unwrap()
         .get(0);
     assert_eq!(registered, json!(2));
-    client
-        .batch_execute("DROP TABLE monitoring_export")
+    let revisions: i64 = tx
+        .query_one(
+            "SELECT count(DISTINCT snapshot_revision) FROM monitoring_export
+             WHERE snapshot_revision = $1",
+            &[&seeded.revision],
+        )
         .await
-        .unwrap();
+        .unwrap()
+        .get(0);
+    assert_eq!(revisions, 1, "every row names the revision");
+    tx.rollback().await.unwrap();
+    let left: bool = client
+        .query_one("SELECT to_regclass('monitoring_export') IS NOT NULL", &[])
+        .await
+        .unwrap()
+        .get(0);
+    assert!(!left);
 
     // Series buckets outside [from, to) are left out; totals are kept.
     let mut activity = request(&seeded, &[seeded.madrid, seeded.tokyo], seeded.revision);
@@ -318,4 +375,58 @@ async fn an_export_holds_the_viewers_elections_only_and_a_pruned_revision_none()
         export(&mut client, &activity).await,
         Err(MonitoringExportError::Invalid(_))
     ));
+}
+
+#[tokio::test]
+async fn a_revision_pruned_after_it_was_shown_exports_nothing() {
+    let pool = schema::pool().await;
+    let mut client = pool.get().await.unwrap();
+    let seeded = seed(&mut client).await;
+    let madrid_only = request(&seeded, &[seeded.madrid], seeded.revision);
+    assert!(export(&mut client, &madrid_only).await.is_ok());
+
+    // A later vote makes a later pass write a new run; with no window left
+    // the one shown before is pruned.
+    client
+        .execute(
+            "INSERT INTO sequent_backend.monitoring_voter
+                 (tenant_id, election_event_id, election_id, voter_id, region, country, dims,
+                  first_voted_at, attributes_hash, settings_revision)
+             VALUES ($1, $2, $3, 'cruz', 'Europe', 'Spain', '{}', now(), 'h', 1)",
+            &[
+                &seeded.event.tenant_id,
+                &seeded.event.election_event_id,
+                &seeded.madrid,
+            ],
+        )
+        .await
+        .unwrap();
+    let settings = presets::load("comelec")
+        .unwrap()
+        .unwrap()
+        .set
+        .settings
+        .clone()
+        .unwrap();
+    let PassOutcome::Completed { revision, .. } =
+        count_event(&mut client, seeded.event, &settings, 1, seeded.generation)
+            .await
+            .unwrap()
+    else {
+        panic!("the second pass completes");
+    };
+    assert!(revision > seeded.revision);
+    let pruned = prune_snapshots(&mut client, seeded.event, Duration::zero())
+        .await
+        .unwrap();
+    assert_eq!(pruned.runs, 1);
+
+    let outcome = export(&mut client, &madrid_only).await;
+    assert!(
+        matches!(outcome, Err(MonitoringExportError::SnapshotPruned { revision }) if revision == seeded.revision),
+        "{outcome:?}"
+    );
+    let mut now = madrid_only.clone();
+    now.snapshot_revision = revision;
+    assert!(export(&mut client, &now).await.is_ok());
 }

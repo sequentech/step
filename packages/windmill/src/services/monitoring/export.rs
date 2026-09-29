@@ -11,25 +11,42 @@
 //! labels before sending the task, and the figures read are those of that
 //! set of elections. So what a file holds matches what the dashboard showed.
 //!
-//! Every widget and query goes in one table in long form: the widget, the
-//! query, the row's place in the query, then the query's own columns. Reading
-//! is split from formatting ([`collect_export`], [`build_file`]) so the file
-//! can be checked without uploading it.
+//! Every widget and query goes in one table in long form. Each row says what
+//! it was read from (`snapshot_revision`, `as_of`, the widget's `scope`),
+//! then the widget, the query, the row's place in the query and the query's
+//! own columns, then `range_from`/`range_to`, `ignored_selectors` and
+//! `notice`. The SQL file also says this in comments; a CSV has no comments,
+//! so its columns carry it.
+//!
+//! A range `[from, to)` limits only the activity series: the hours starting
+//! in it are kept before the queries run, so a daily bucket sums its kept
+//! hours and a running total counts from the range's start, and a Day
+//! selector no longer narrows (it is listed as ignored). Totals, statuses and
+//! groups are as of the snapshot revision: a snapshot holds no history of
+//! them. Series rows carry `range_from`/`range_to`; other rows leave them
+//! empty.
+//!
+//! Reading is split from formatting ([`collect_export`], [`build_file`]) so
+//! the file can be checked without uploading it.
 
 use super::config_store::{get_config_at_generation, EventRef};
 use super::snapshot::{
     complete_snapshot, empty_payload, read_scope, scope_catalogue, LiveSnapshot, ScopeRead,
 };
 use anyhow::anyhow;
-use chrono::{DateTime, NaiveDateTime, Utc};
+use chrono::{DateTime, Utc};
 use deadpool_postgres::Transaction;
 use indexmap::IndexMap;
 use sequent_core::monitoring::compute::{evaluate, event_days, ColumnKind, QueryResult};
-use sequent_core::monitoring::config::{ConfigSet, ScopeSelector, Settings, Widget};
+use sequent_core::monitoring::config::{
+    ConfigSet, DynamicOptions, Param, ScopeSelector, Settings, Widget,
+};
 use sequent_core::monitoring::payload::ScopePayload;
 use sequent_core::monitoring::problem::Report;
 use sequent_core::monitoring::resolve::{resolve_widget, DynamicOptionValues};
-use sequent_core::monitoring::scope::{election_set_key, PostPinning, ScopeSelection};
+use sequent_core::monitoring::scope::{
+    election_set_key, PostPinning, ScopeKey, ScopeSelection, WidgetScope,
+};
 use sequent_core::monitoring::sources::{PendingProducer, Producer};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -80,18 +97,33 @@ pub struct MonitoringExportRequest {
     pub pinned_post: Option<String>,
     #[serde(default)]
     pub scope: ScopeSelection,
+    /// A single widget's export reads these as the render route does: an
+    /// unknown selector or option is refused. A whole dashboard's gives each
+    /// widget those of its selectors it has, and skips a value that is not
+    /// one of that widget's options.
     #[serde(default)]
     pub selector_values: IndexMap<String, String>,
+    /// Each widget's own values, by widget id, over `selector_values`; read
+    /// strictly, as a single widget's are. A widget the export does not
+    /// include is skipped.
+    #[serde(default)]
+    pub widget_selector_values: IndexMap<String, IndexMap<String, String>>,
     /// The revision the dashboard showed.
     pub snapshot_revision: i64,
     pub format: MonitoringExportFormat,
-    /// Series buckets starting in `[from, to)` are kept; the rest of the
-    /// figures are as of the revision.
+    /// Series hours starting in `[from, to)` are kept; the rest of the
+    /// figures are as of the revision. Instants; any RFC 3339 offset reads.
     #[serde(default)]
     pub from: Option<DateTime<Utc>>,
     #[serde(default)]
     pub to: Option<DateTime<Utc>>,
     pub document_id: String,
+}
+
+impl MonitoringExportRequest {
+    fn has_range(&self) -> bool {
+        self.from.is_some() || self.to.is_some()
+    }
 }
 
 /// Why an export writes no file. Each message starts with its code, which
@@ -110,6 +142,10 @@ pub enum MonitoringExportError {
         widget_id: String,
     },
     Invalid(String),
+    /// The export did not finish in the time the task has.
+    TimedOut {
+        seconds: u64,
+    },
     Internal(anyhow::Error),
 }
 
@@ -121,6 +157,7 @@ impl MonitoringExportError {
             MonitoringExportError::ForbiddenScope(_) => "FORBIDDEN_SCOPE",
             MonitoringExportError::ScopePending { .. } => "SCOPE_PENDING",
             MonitoringExportError::Invalid(_) => "INVALID",
+            MonitoringExportError::TimedOut { .. } => "TIMED_OUT",
             MonitoringExportError::Internal(_) => "INTERNAL",
         }
     }
@@ -143,6 +180,11 @@ impl fmt::Display for MonitoringExportError {
                  try again after the next snapshot"
             ),
             MonitoringExportError::Invalid(what) => write!(formatter, "{code}: {what}"),
+            MonitoringExportError::TimedOut { seconds } => write!(
+                formatter,
+                "{code}: the export did not finish within {seconds} seconds; export one \
+                 widget or a shorter range"
+            ),
             MonitoringExportError::Internal(error) => write!(formatter, "{code}: {error:#}"),
         }
     }
@@ -175,6 +217,20 @@ pub enum WidgetData {
     NotConnected { reason: PendingProducer },
 }
 
+/// One widget of an export: what it holds, and what it was read at.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ExportedWidget {
+    pub id: String,
+    /// The scope its figures were read at, as [`ScopeKey::canonical`] writes
+    /// it: the dashboard's selection narrowed to what the widget follows.
+    pub scope: String,
+    /// The selectors that did not apply to it: dashboard scope selectors its
+    /// source cannot be narrowed by, and its Day selector when a range is
+    /// given.
+    pub ignored_selectors: Vec<String>,
+    pub data: WidgetData,
+}
+
 /// Everything an export file holds, before it is formatted.
 #[derive(Debug, Clone, PartialEq)]
 pub struct ExportData {
@@ -188,7 +244,26 @@ pub struct ExportData {
     pub from: Option<DateTime<Utc>>,
     pub to: Option<DateTime<Utc>>,
     /// In the dashboard's layout order.
-    pub widgets: Vec<(String, WidgetData)>,
+    pub widgets: Vec<ExportedWidget>,
+}
+
+impl ExportData {
+    /// The dashboard's scope as asked, a Post the page pins included.
+    pub fn scope_key(&self) -> String {
+        let value = |value: &Option<String>| value.clone().filter(|value| !value.is_empty());
+        let post = value(&self.pinned_post).or_else(|| value(&self.scope.post));
+        ScopeKey {
+            // A Post lies in one region, so choosing one drops the region.
+            region: if post.is_some() {
+                None
+            } else {
+                value(&self.scope.region)
+            },
+            post,
+            country: value(&self.scope.country),
+        }
+        .canonical()
+    }
 }
 
 fn parse_uuid(name: &str, text: &str) -> Result<Uuid, MonitoringExportError> {
@@ -238,8 +313,8 @@ pub async fn collect_export(
     let pinning = check_scope(transaction, event, &snapshot, &set_key, &allowed, request).await?;
     let items = layout_items(set, request)?;
     let mut widgets = Vec::new();
-    for (widget_id, widget, dashboard_values) in items {
-        let data = collect_widget(
+    for (widget, dashboard_values) in items {
+        let exported = collect_widget(
             transaction,
             event,
             &snapshot,
@@ -251,7 +326,7 @@ pub async fn collect_export(
             set.settings.as_ref(),
         )
         .await?;
-        widgets.push((widget_id, data));
+        widgets.push(exported);
     }
     Ok(ExportData {
         election_event_id: event.election_event_id.to_string(),
@@ -331,7 +406,7 @@ async fn check_scope(
 fn layout_items<'a>(
     set: &'a ConfigSet,
     request: &MonitoringExportRequest,
-) -> Result<Vec<(String, &'a Widget, &'a IndexMap<String, String>)>, MonitoringExportError> {
+) -> Result<Vec<(&'a Widget, &'a IndexMap<String, String>)>, MonitoringExportError> {
     let dashboard = set.dashboards.get(&request.dashboard_id).ok_or_else(|| {
         MonitoringExportError::NotFound(format!(
             "the dashboard '{}' is not configured at this revision",
@@ -351,7 +426,7 @@ fn layout_items<'a>(
                 item.widget
             ))
         })?;
-        items.push((item.widget.clone(), widget, &item.values));
+        items.push((widget, &item.values));
         if request.widget_id.is_some() {
             break;
         }
@@ -379,14 +454,20 @@ async fn collect_widget(
     widget: &Widget,
     dashboard_values: &IndexMap<String, String>,
     settings: Option<&Settings>,
-) -> Result<WidgetData, MonitoringExportError> {
+) -> Result<ExportedWidget, MonitoringExportError> {
     let source = widget.source;
-    if let Producer::Pending(reason) = source.spec().producer {
-        return Ok(WidgetData::NotConnected { reason });
-    }
     let mut selection = request.scope.clone();
     selection.post = selection.post.map(|post| post.to_ascii_lowercase());
     let scope = selection.for_widget(widget, pinning);
+    let not_connected = |reason| ExportedWidget {
+        id: widget.id.clone(),
+        scope: scope.key.canonical(),
+        ignored_selectors: scope_ignored(&scope),
+        data: WidgetData::NotConnected { reason },
+    };
+    if let Producer::Pending(reason) = source.spec().producer {
+        return Ok(not_connected(reason));
+    }
     let read = read_scope(
         transaction,
         event,
@@ -402,13 +483,17 @@ async fn collect_widget(
                 widget_id: widget.id.clone(),
             })
         }
-        ScopeRead::NotConnected { reason } => return Ok(WidgetData::NotConnected { reason }),
-        ScopeRead::Empty => empty_payload(
-            source,
-            settings.ok_or_else(|| {
-                MonitoringExportError::Internal(anyhow!("a counted event has no settings"))
-            })?,
-        ),
+        ScopeRead::NotConnected { reason } => return Ok(not_connected(reason)),
+        ScopeRead::Empty => match settings {
+            Some(settings) => empty_payload(source, settings),
+            // A pass counts only with settings, so a counted scope has them.
+            None => {
+                return Err(MonitoringExportError::Internal(anyhow!(
+                    "the configuration of '{}' has no settings",
+                    widget.id
+                )))
+            }
+        },
         ScopeRead::Payload { text, .. } => serde_json::from_str(&text).map_err(|error| {
             MonitoringExportError::Internal(anyhow!(
                 "the stored figures of '{}' do not read: {error}",
@@ -416,69 +501,114 @@ async fn collect_widget(
             ))
         })?,
     };
-    let requested = selector_values_for(widget, request);
+    evaluate_widget(widget, dashboard_values, request, &scope, payload, settings)
+}
+
+fn scope_ignored(scope: &WidgetScope) -> Vec<String> {
+    scope.ignored.iter().map(ToString::to_string).collect()
+}
+
+/// Evaluates a widget's queries on the figures of its scope, as the request
+/// asks: its selector values, and the range, which keeps the series hours
+/// in it and lifts the Day selector's narrowing.
+pub fn evaluate_widget(
+    widget: &Widget,
+    dashboard_values: &IndexMap<String, String>,
+    request: &MonitoringExportRequest,
+    scope: &WidgetScope,
+    mut payload: ScopePayload,
+    settings: Option<&Settings>,
+) -> Result<ExportedWidget, MonitoringExportError> {
+    // The Day selector's options are the days of the whole series, as the
+    // dashboard offered them.
     let dynamic = DynamicOptionValues {
         event_days: event_days(&payload),
     };
-    let resolved = resolve_widget(widget, dashboard_values, &requested, &dynamic)
+    let requested = selector_values_for(widget, request, &dynamic);
+    let mut resolved = resolve_widget(widget, dashboard_values, &requested, &dynamic)
         .map_err(|report| invalid_report(&widget.id, &report))?;
+    let mut ignored_selectors = scope_ignored(scope);
+    if request.has_range() {
+        keep_hours(&mut payload, request.from, request.to);
+        let queries = widget.named_queries();
+        for (name, query) in resolved.queries.iter_mut() {
+            if query.day.take().is_none() {
+                continue;
+            }
+            let selector = match queries.get(name).and_then(|query| query.day.as_ref()) {
+                Some(Param::Selector(reference)) => reference.selector.clone(),
+                _ => "day".to_string(),
+            };
+            if !ignored_selectors.contains(&selector) {
+                ignored_selectors.push(selector);
+            }
+        }
+    }
     let mut queries = IndexMap::new();
     for (name, query) in &resolved.queries {
-        let mut result = evaluate(source, query, &payload, settings)
+        let result = evaluate(widget.source, query, &payload, settings)
             .map_err(|report| invalid_report(&widget.id, &report))?;
-        keep_buckets(&mut result, request.from, request.to);
         queries.insert(name.clone(), result);
     }
-    Ok(WidgetData::Evaluated { queries })
+    Ok(ExportedWidget {
+        id: widget.id.clone(),
+        scope: scope.key.canonical(),
+        ignored_selectors,
+        data: WidgetData::Evaluated { queries },
+    })
 }
 
-/// A single widget's export reads the values as the render route does, so
-/// an unknown selector is refused; a dashboard's gives each widget the
-/// values of the selectors it has.
+/// The values a widget's selectors are resolved with. A single widget's
+/// export, and a widget's own map, are read strictly: an unknown selector or
+/// option is refused. A whole dashboard's shared values reach a widget only
+/// for selectors it has and options it lists.
 fn selector_values_for(
     widget: &Widget,
     request: &MonitoringExportRequest,
+    dynamic: &DynamicOptionValues,
 ) -> IndexMap<String, String> {
-    if request.widget_id.is_some() {
-        return request.selector_values.clone();
+    let mut values: IndexMap<String, String> = if request.widget_id.is_some() {
+        request.selector_values.clone()
+    } else {
+        request
+            .selector_values
+            .iter()
+            .filter(|(name, value)| {
+                widget
+                    .selectors
+                    .get(*name)
+                    .is_some_and(|selector| match selector.options_from {
+                        Some(DynamicOptions::EventDays) => dynamic.event_days.contains(value),
+                        None => selector.options.contains_key(*value),
+                    })
+            })
+            .map(|(name, value)| (name.clone(), value.clone()))
+            .collect()
+    };
+    if let Some(own) = request.widget_selector_values.get(&widget.id) {
+        values.extend(
+            own.iter()
+                .map(|(name, value)| (name.clone(), value.clone())),
+        );
     }
-    request
-        .selector_values
-        .iter()
-        .filter(|(name, _)| widget.selectors.contains_key(*name))
-        .map(|(name, value)| (name.clone(), value.clone()))
-        .collect()
+    values
 }
 
-/// The column of a series row that says when its bucket starts, in UTC.
-const BUCKET_UTC: &str = "bucket_utc";
-
-/// Keeps the series buckets starting in `[from, to)`; other results have no
-/// buckets and are kept whole.
-pub fn keep_buckets(
-    result: &mut QueryResult,
+/// Keeps the series hours whose UTC start is in `[from, to)`. An hour whose
+/// start does not read is kept, so evaluating it reports it.
+pub fn keep_hours(
+    payload: &mut ScopePayload,
     from: Option<DateTime<Utc>>,
     to: Option<DateTime<Utc>>,
 ) {
-    if from.is_none() && to.is_none() {
-        return;
-    }
-    let Some(index) = result
-        .columns
-        .iter()
-        .position(|column| column.name == BUCKET_UTC)
-    else {
-        return;
-    };
-    result.rows.retain(|row| {
-        let Some(start) = row
-            .get(index)
-            .and_then(Value::as_str)
-            .and_then(|text| NaiveDateTime::parse_from_str(text, "%Y-%m-%dT%H:%M:%SZ").ok())
-            .map(|start| start.and_utc())
-        else {
-            return false;
+    payload.series.retain(|bucket| {
+        let Ok(start) = DateTime::parse_from_str(
+            &format!("{}{}", bucket.start, bucket.utc_offset),
+            "%Y-%m-%dT%H:%M:%S%:z",
+        ) else {
+            return true;
         };
+        let start = start.with_timezone(&Utc);
         from.map_or(true, |from| start >= from) && to.map_or(true, |to| start < to)
     });
 }
@@ -526,27 +656,61 @@ pub struct ExportTable {
     pub rows: Vec<Vec<Value>>,
 }
 
+const REVISION_COLUMN: &str = "snapshot_revision";
+const AS_OF_COLUMN: &str = "as_of";
+const SCOPE_COLUMN: &str = "scope";
 const WIDGET_COLUMN: &str = "widget_id";
 const QUERY_COLUMN: &str = "query";
 const ROW_COLUMN: &str = "row";
+const RANGE_FROM_COLUMN: &str = "range_from";
+const RANGE_TO_COLUMN: &str = "range_to";
+const IGNORED_COLUMN: &str = "ignored_selectors";
 const NOTICE_COLUMN: &str = "notice";
+
+/// The columns before a query's own.
+const LEADING: [(&str, ExportColumnType); 6] = [
+    (REVISION_COLUMN, ExportColumnType::Integer),
+    (AS_OF_COLUMN, ExportColumnType::Text),
+    (SCOPE_COLUMN, ExportColumnType::Text),
+    (WIDGET_COLUMN, ExportColumnType::Text),
+    (QUERY_COLUMN, ExportColumnType::Text),
+    (ROW_COLUMN, ExportColumnType::Integer),
+];
+
+/// The columns after a query's own.
+const TRAILING: [(&str, ExportColumnType); 4] = [
+    (RANGE_FROM_COLUMN, ExportColumnType::Text),
+    (RANGE_TO_COLUMN, ExportColumnType::Text),
+    (IGNORED_COLUMN, ExportColumnType::Text),
+    (NOTICE_COLUMN, ExportColumnType::Text),
+];
+
+/// The column of a series row that says when its bucket starts, in UTC.
+const BUCKET_UTC: &str = "bucket_utc";
 
 /// A query's column named like one of the table's own, renamed.
 fn own_name(name: &str) -> String {
-    if [WIDGET_COLUMN, QUERY_COLUMN, ROW_COLUMN, NOTICE_COLUMN].contains(&name) {
+    let fixed = LEADING.iter().chain(TRAILING.iter());
+    if fixed.map(|(fixed, _)| *fixed).any(|fixed| fixed == name) {
         format!("{name}_value")
     } else {
         name.to_string()
     }
 }
 
-/// The long table: `widget_id`, `query`, `row` (from 1 within the query),
-/// every query's columns in the order first met, then `notice`. A query
-/// without a column leaves it null.
+fn instant(at: DateTime<Utc>) -> String {
+    at.to_rfc3339_opts(chrono::SecondsFormat::Secs, true)
+}
+
+/// The long table: what each row was read at (`snapshot_revision`, `as_of`,
+/// `scope`), `widget_id`, `query`, `row` (from 1 within the query), every
+/// query's columns in the order first met, then `range_from` and `range_to`
+/// (on series rows, when a range is given), `ignored_selectors` and
+/// `notice`. A query without a column leaves it null.
 pub fn export_table(data: &ExportData) -> ExportTable {
     let mut shared: IndexMap<String, ExportColumnType> = IndexMap::new();
-    for (_, widget) in &data.widgets {
-        if let WidgetData::Evaluated { queries } = widget {
+    for widget in &data.widgets {
+        if let WidgetData::Evaluated { queries } = &widget.data {
             for result in queries.values() {
                 for column in &result.columns {
                     let kind = ExportColumnType::from_kind(column.kind);
@@ -558,13 +722,26 @@ pub fn export_table(data: &ExportData) -> ExportTable {
             }
         }
     }
-    let width = shared.len() + 4;
+    let lead = LEADING.len();
+    let width = lead + shared.len() + TRAILING.len();
+    let text = |value: Option<String>| value.map_or(Value::Null, Value::String);
+    let range_from = text(data.from.map(instant));
+    let range_to = text(data.to.map(instant));
     let mut rows = Vec::new();
-    for (widget_id, widget) in &data.widgets {
-        match widget {
+    for widget in &data.widgets {
+        let ignored = text(Some(widget.ignored_selectors.join(", ")).filter(|x| !x.is_empty()));
+        let blank = || {
+            let mut row = vec![Value::Null; width];
+            row[0] = Value::from(data.snapshot_revision);
+            row[1] = Value::String(instant(data.as_of));
+            row[2] = Value::String(widget.scope.clone());
+            row[3] = Value::String(widget.id.clone());
+            row[width - 2] = ignored.clone();
+            row
+        };
+        match &widget.data {
             WidgetData::NotConnected { reason } => {
-                let mut row = vec![Value::Null; width];
-                row[0] = Value::String(widget_id.clone());
+                let mut row = blank();
                 row[width - 1] = Value::String(format!("NOT_CONNECTED: {reason}"));
                 rows.push(row);
             }
@@ -572,23 +749,28 @@ pub fn export_table(data: &ExportData) -> ExportTable {
                 for (name, result) in queries {
                     let notices: Vec<String> =
                         result.notices.iter().map(ToString::to_string).collect();
-                    let notice = if notices.is_empty() {
-                        Value::Null
-                    } else {
-                        Value::String(notices.join("; "))
-                    };
+                    let notice = text(Some(notices.join("; ")).filter(|x| !x.is_empty()));
+                    let series = result
+                        .columns
+                        .iter()
+                        .any(|column| column.name == BUCKET_UTC);
                     let places: Vec<usize> = result
                         .columns
                         .iter()
-                        .map(|column| shared.get_index_of(&own_name(&column.name)).unwrap_or(0) + 3)
+                        .map(|column| {
+                            shared.get_index_of(&own_name(&column.name)).unwrap_or(0) + lead
+                        })
                         .collect();
                     for (number, cells) in (1_u64..).zip(&result.rows) {
-                        let mut row = vec![Value::Null; width];
-                        row[0] = Value::String(widget_id.clone());
-                        row[1] = Value::String(name.clone());
-                        row[2] = Value::from(number);
+                        let mut row = blank();
+                        row[4] = Value::String(name.clone());
+                        row[5] = Value::from(number);
                         for (place, cell) in places.iter().zip(cells) {
                             row[*place] = cell.clone();
+                        }
+                        if series {
+                            row[width - 4] = range_from.clone();
+                            row[width - 3] = range_to.clone();
                         }
                         row[width - 1] = notice.clone();
                         rows.push(row);
@@ -597,13 +779,16 @@ pub fn export_table(data: &ExportData) -> ExportTable {
             }
         }
     }
-    let mut columns = vec![
-        (WIDGET_COLUMN.to_string(), ExportColumnType::Text),
-        (QUERY_COLUMN.to_string(), ExportColumnType::Text),
-        (ROW_COLUMN.to_string(), ExportColumnType::Integer),
-    ];
+    let mut columns: Vec<(String, ExportColumnType)> = LEADING
+        .iter()
+        .map(|(name, kind)| (name.to_string(), *kind))
+        .collect();
     columns.extend(shared);
-    columns.push((NOTICE_COLUMN.to_string(), ExportColumnType::Text));
+    columns.extend(
+        TRAILING
+            .iter()
+            .map(|(name, kind)| (name.to_string(), *kind)),
+    );
     ExportTable { columns, rows }
 }
 
@@ -619,7 +804,11 @@ pub fn build_file(
     }
 }
 
-/// The file's name: the dashboard, the widget, the revision.
+/// The longest a part of a file name taken from the request is.
+const NAME_PART: usize = 80;
+
+/// The file's name: the dashboard, the widget, the scope, the revision and
+/// the range, each with only letters, digits, `-` and `_`.
 pub fn file_name(data: &ExportData, format: MonitoringExportFormat) -> String {
     let safe = |text: &str| -> String {
         text.chars()
@@ -630,19 +819,23 @@ pub fn file_name(data: &ExportData, format: MonitoringExportFormat) -> String {
                     '_'
                 }
             })
+            .take(NAME_PART)
             .collect()
     };
-    let widget = data
-        .widget_id
-        .as_deref()
-        .map(|widget| format!("-{}", safe(widget)))
-        .unwrap_or_default();
-    format!(
-        "monitoring-{}{widget}-r{}.{}",
-        safe(&data.dashboard_id),
-        data.snapshot_revision,
-        format.extension()
-    )
+    let compact = |at: DateTime<Utc>| at.format("%Y%m%dT%H%MZ").to_string();
+    let mut parts = vec![format!("monitoring-{}", safe(&data.dashboard_id))];
+    if let Some(widget) = &data.widget_id {
+        parts.push(safe(widget));
+    }
+    parts.push(safe(&data.scope_key()));
+    parts.push(format!("r{}", data.snapshot_revision));
+    if let Some(from) = data.from {
+        parts.push(format!("from{}", compact(from)));
+    }
+    if let Some(to) = data.to {
+        parts.push(format!("to{}", compact(to)));
+    }
+    format!("{}.{}", parts.join("-"), format.extension())
 }
 
 /// A cell a spreadsheet would run as a formula starts with one of these; it
@@ -688,11 +881,11 @@ const INSERT_BATCH: usize = 500;
 /// The exported table's name.
 const SQL_TABLE: &str = "monitoring_export";
 
-/// A value as a PostgreSQL literal (with `standard_conforming_strings`, the
-/// default, so a backslash is only a backslash): NULL, TRUE/FALSE, a number
-/// as JSON wrote it, text in single quotes with each quote doubled. Text
-/// cannot hold a NUL, so a value with one is refused rather than cut short.
-/// Lists and maps are written as their JSON text.
+/// A value as a PostgreSQL literal (with `standard_conforming_strings`,
+/// which the file sets, so a backslash is only a backslash): NULL,
+/// TRUE/FALSE, a number as JSON wrote it, text in single quotes with each
+/// quote doubled. Text cannot hold a NUL, so a value with one is refused
+/// rather than cut short. Lists and maps are written as their JSON text.
 pub fn sql_literal(value: &Value) -> Result<String, MonitoringExportError> {
     let quoted = |text: &str| -> Result<String, MonitoringExportError> {
         if text.contains('\0') {
@@ -737,15 +930,16 @@ fn sql_cell(value: &Value, column: ExportColumnType) -> Result<String, Monitorin
     }
 }
 
+/// What the file's figures are as of, said in its header.
+pub const AS_OF_NOTE: &str = "Totals, statuses and groups are as of the snapshot revision. \
+    Only activity series rows (those with range_from/range_to) are limited to the range; their \
+    cumulative columns count from the range's start";
+
 pub fn to_sql(data: &ExportData, table: &ExportTable) -> Result<Vec<u8>, MonitoringExportError> {
     let mut out = String::new();
     let scope = |value: &Option<String>| value.clone().unwrap_or_else(|| "all".to_string());
-    let range = |value: Option<DateTime<Utc>>| {
-        value.map_or("-".to_string(), |at| {
-            at.to_rfc3339_opts(chrono::SecondsFormat::Secs, true)
-        })
-    };
-    let header = [
+    let range = |value: Option<DateTime<Utc>>| value.map_or("-".to_string(), instant);
+    let mut header = vec![
         "Monitoring export (PostgreSQL)".to_string(),
         format!("Election event: {}", data.election_event_id),
         format!(
@@ -756,17 +950,17 @@ pub fn to_sql(data: &ExportData, table: &ExportTable) -> Result<Vec<u8>, Monitor
         format!(
             "Snapshot revision {} as of {}",
             data.snapshot_revision,
-            data.as_of
-                .to_rfc3339_opts(chrono::SecondsFormat::Secs, true)
+            instant(data.as_of)
         ),
         format!(
-            "Scope: {} {}; {} {}; {} {}",
+            "Scope: {} {}; {} {}; {} {} ({})",
             ScopeSelector::Region,
             scope(&data.scope.region),
             ScopeSelector::Post,
             scope(&data.pinned_post.clone().or(data.scope.post.clone())),
             ScopeSelector::Country,
             scope(&data.scope.country),
+            data.scope_key(),
         ),
         format!(
             "Series buckets from {} up to, not including, {}",
@@ -774,10 +968,19 @@ pub fn to_sql(data: &ExportData, table: &ExportTable) -> Result<Vec<u8>, Monitor
             range(data.to)
         ),
     ];
+    if data.from.is_some() || data.to.is_some() {
+        header.push(AS_OF_NOTE.to_string());
+    } else {
+        header.push("Totals, statuses and groups are as of the snapshot revision".to_string());
+    }
     for line in header {
         out.push_str(&format!("-- {}\n", sql_comment(&line)));
     }
     out.push_str("BEGIN;\n");
+    // The literals below are written for these; a client's own settings do
+    // not change what they read as.
+    out.push_str("SET standard_conforming_strings = on;\n");
+    out.push_str("SET client_encoding = 'UTF8';\n");
     let table_name = sql_identifier(SQL_TABLE);
     out.push_str(&format!("CREATE TABLE {table_name} (\n"));
     let definitions: Vec<String> = table
