@@ -12157,6 +12157,7 @@ dependencies = [
  "handlebars",
  "hex",
  "immudb-rs",
+ "indexmap 2.14.2",
  "keycloak",
  "lapin",
  "lettre",

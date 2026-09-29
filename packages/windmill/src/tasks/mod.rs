@@ -16,6 +16,7 @@ pub mod export_application;
 pub mod export_ballot_publication;
 pub mod export_certificate_authority;
 pub mod export_election_event;
+pub mod export_monitoring_data;
 pub mod export_tally_results;
 pub mod export_tasks_execution;
 pub mod export_templates;
