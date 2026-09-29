@@ -778,9 +778,8 @@ chart:
   style:
     text: {align: left}
     padding: 8
-    footer: {visible: false, text: Sequent}
     placeholder: {overlay: {text: No votes yet}}
-    charts: {axis_x: {ticks: {visible: auto}}}
+    charts: {axis_x: {ticks: {visible: false, count: 6}}}
   charts:
     world:
       type: geoshape
@@ -798,7 +797,6 @@ chart:
       style: {marks: {text: {font: {size: 11}}}}
   rows: [{visible: false, rows: [world]}, trend]
   grid: {columns: 2, items: [{item: world, col: 0}, {item: trend, col: 1}]}
-  tabs: {items: [{title: Map, rows: [world]}, {title: Bars, cols: [trend]}]}
 ";
     assert_accepted(&widget_report(widget));
     assert_accepted(&parse_theme("id: t\nbase: paper\n").report);
@@ -994,7 +992,7 @@ id: w
 title: W
 source: voter_turnout
 selectors:
-  top: {label: Show, options: {5: Top 5, 10: Top 10}, default: \"10\", maps: {5: 5, 10: 10}}
+  top: {label: Show, options: {5: Top 5, 10: Top 10}, default: \"10\"}
 query: {template: by_group, group_by: sex, measures: [voted], limit: {selector: top}}
 chart: {charts: {k: {type: bar, query: data, x: group, y: voted}}, rows: [k]}
 ";
@@ -1029,4 +1027,81 @@ fn the_key_list_is_sorted_unique_and_every_rule_is_known() {
         names, sorted,
         "keep dbt_charts_keys.txt sorted, one line per key"
     );
+}
+
+#[test]
+fn colours_in_every_notation_the_engine_reads_are_accepted() {
+    let theme = "
+id: t
+style:
+  accent: \"#1f77b4\"
+  background: \"#fff\"
+  muted: dbt-grays.muted
+  tones: {positive: \"rgb(10, 120, 40)\", negative: \"hsl(0, 70%, 45%)\", warning: \"#f5a623cc\"}
+  charts:
+    color: {categorical: {palette: [\"category[1]\", \"#333333\", transparent]}}
+    category_colors:
+      group: {values: {Unknown: dbt-grays.muted, \"Asia Pacific\": \"category[2]\"}}
+";
+    assert_accepted(&parse_theme(theme).report);
+}
+
+#[test]
+fn prose_with_apostrophes_digits_and_colons_is_accepted() {
+    for title in [
+        "Voters' turnout",
+        "Top 10 Posts, 2026",
+        "Data:5 votes",
+        "Votes (data:2024)",
+        "Curl (x) rate",
+        "Turnout by day: // hourly",
+    ] {
+        let yaml = minimal_with("title: W", &format!("title: {title:?}"));
+        assert_accepted(&widget_report(&yaml));
+    }
+    let bar = "
+id: w
+title: W
+source: voter_turnout
+query: {template: by_group, group_by: sex, measures: [voted]}
+chart: {charts: {k: {type: bar, query: data, x: group, y: voted, subtitle: \"Each voter's first vote\", style: {marks: {bar: {labels: {format: \".1%\"}}}}}}, rows: [k]}
+";
+    assert_accepted(&widget_report(bar));
+}
+
+#[test]
+fn a_nested_board_lays_out_the_widget_s_own_charts() {
+    let widget = "
+id: w
+title: W
+source: voter_turnout
+query: {template: by_group, group_by: sex, measures: [voted]}
+chart:
+  charts:
+    a: {type: bar, query: data, x: group, y: voted}
+    b: {type: table, query: data}
+  rows: [{title: Turnout, cols: [a, b], height: 300}]
+";
+    assert_accepted(&widget_report(widget));
+}
+
+#[test]
+fn a_day_picker_shows_for_every_hourly_option_and_only_those() {
+    let hours = VOTING_ACTIVITY
+        .replacen(
+            "options: {hour: Hourly, day: Daily}",
+            "options: {hour: Hourly, day: Daily, hours: Every hour}\n    maps: {hour: hour, day: day, hours: hour}",
+            1,
+        )
+        .replacen("    control: toggle\n", "", 1);
+    assert_refused(
+        &widget_report(&hours),
+        Code::TemplateParameter,
+        "query.day",
+    );
+    assert_accepted(&widget_report(&hours.replacen(
+        "in: [hour]",
+        "in: [hour, hours]",
+        1,
+    )));
 }

@@ -214,14 +214,8 @@ fn resolve<T: DeserializeOwned + Clone>(
     else {
         return None;
     };
-    let raw = widget
-        .selectors
-        .get(&reference.selector)
-        .and_then(|selector| selector.maps.as_ref())
-        .and_then(|maps| maps.get(value))
-        .cloned()
-        .unwrap_or_else(|| Value::String(value.clone()));
-    match serde_yaml::from_value(raw) {
+    let selector = widget.selectors.get(&reference.selector)?;
+    match selector.option_value(value) {
         Ok(value) => Some(value),
         Err(why) => {
             report.push(Problem::error(
