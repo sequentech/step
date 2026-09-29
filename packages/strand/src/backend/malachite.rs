@@ -24,13 +24,13 @@ use std::marker::PhantomData;
 use std::ops::Rem;
 
 use borsh::{BorshDeserialize, BorshSerialize};
+use malachite::base::num::arithmetic::traits::LegendreSymbol;
+use malachite::base::num::arithmetic::traits::ModInverse;
+use malachite::base::num::arithmetic::traits::ModPow;
+use malachite::base::num::conversion::traits::Digits;
+use malachite::base::num::conversion::traits::{FromStringBase, ToStringBase};
+use malachite::base::random::Seed;
 use malachite::natural::random::uniform_random_natural_inclusive_range;
-use malachite::num::arithmetic::traits::LegendreSymbol;
-use malachite::num::arithmetic::traits::ModInverse;
-use malachite::num::arithmetic::traits::ModPow;
-use malachite::num::conversion::traits::Digits;
-use malachite::num::conversion::traits::{FromStringBase, ToStringBase};
-use malachite::random::Seed;
 use malachite::Natural;
 
 use rand::Rng;
@@ -135,6 +135,52 @@ impl<P: MalachiteCtxParams> MalachiteCtx<P> {
         let mut seed_bytes = [0u8; 32];
         rng.fill(&mut seed_bytes);
         Seed::from_bytes(seed_bytes)
+    }
+}
+
+// A context carries fixed group parameters. Preserve all four values in the
+// wire representation and reject a different group on input; group-element
+// deserialization cannot read the modulus itself (p is not an element of Z_p*).
+impl<P: MalachiteCtxParams> MalachiteCtx<P> {
+    fn parameter_bytes(&self) -> [Vec<u8>; 4] {
+        let bytes = |value: &Natural| -> Vec<u8> {
+            value
+                .to_digits_desc(&256u16)
+                .into_iter()
+                .map(|digit| digit as u8)
+                .collect()
+        };
+        [
+            bytes(&self.params.generator().0),
+            bytes(&self.params.modulus().0),
+            bytes(&self.params.exp_modulus().0),
+            bytes(self.params.co_factor()),
+        ]
+    }
+}
+
+impl<P: MalachiteCtxParams> BorshSerialize for MalachiteCtx<P> {
+    fn serialize<W: std::io::Write>(
+        &self,
+        writer: &mut W,
+    ) -> std::io::Result<()> {
+        self.parameter_bytes().serialize(writer)
+    }
+}
+
+impl<P: MalachiteCtxParams> BorshDeserialize for MalachiteCtx<P> {
+    fn deserialize_reader<R: std::io::Read>(
+        reader: &mut R,
+    ) -> std::io::Result<Self> {
+        let supplied = <[Vec<u8>; 4]>::deserialize_reader(reader)?;
+        let ctx = Self::default();
+        if supplied != ctx.parameter_bytes() {
+            return Err(Error::new(
+                ErrorKind::InvalidData,
+                "Unexpected group parameters",
+            ));
+        }
+        Ok(ctx)
     }
 }
 
@@ -506,8 +552,10 @@ impl<P: MalachiteCtxParams> BorshSerialize for NaturalE<P> {
 
 impl<P: MalachiteCtxParams> BorshDeserialize for NaturalE<P> {
     #[inline]
-    fn deserialize(bytes: &mut &[u8]) -> std::io::Result<Self> {
-        let bytes = <Vec<u8>>::deserialize(bytes)?;
+    fn deserialize_reader<R: std::io::Read>(
+        reader: &mut R,
+    ) -> std::io::Result<Self> {
+        let bytes = <Vec<u8>>::deserialize_reader(reader)?;
         let ctx: MalachiteCtx<P> = Default::default();
 
         ctx.element_from_bytes(&bytes)
@@ -529,8 +577,10 @@ impl<P: MalachiteCtxParams> BorshSerialize for NaturalX<P> {
 
 impl<P: MalachiteCtxParams> BorshDeserialize for NaturalX<P> {
     #[inline]
-    fn deserialize(bytes: &mut &[u8]) -> std::io::Result<Self> {
-        let bytes = <Vec<u8>>::deserialize(bytes)?;
+    fn deserialize_reader<R: std::io::Read>(
+        reader: &mut R,
+    ) -> std::io::Result<Self> {
+        let bytes = <Vec<u8>>::deserialize_reader(reader)?;
         let ctx = MalachiteCtx::<P>::default();
 
         ctx.exp_from_bytes(&bytes)
@@ -551,8 +601,10 @@ impl BorshSerialize for NaturalP {
 
 impl BorshDeserialize for NaturalP {
     #[inline]
-    fn deserialize(bytes: &mut &[u8]) -> std::io::Result<Self> {
-        let bytes = <Vec<u16>>::deserialize(bytes)?;
+    fn deserialize_reader<R: std::io::Read>(
+        reader: &mut R,
+    ) -> std::io::Result<Self> {
+        let bytes = <Vec<u16>>::deserialize_reader(reader)?;
 
         let num = Natural::from_digits_desc(&256u16, bytes.into_iter()).ok_or(
             Error::new(ErrorKind::Other, "from_digits_desc returned None"),
