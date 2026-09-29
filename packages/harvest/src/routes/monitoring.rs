@@ -469,12 +469,13 @@ pub struct RenderWidgetInput {
     selector_values: Option<IndexMap<String, String>>,
     #[serde(default)]
     snapshot_revision: Option<i64>,
-    #[serde(default = "default_width")]
-    width: i64,
-    #[serde(default = "default_color_scheme")]
-    color_scheme: ColorScheme,
-    #[serde(default = "default_locale")]
-    locale: String,
+    /// Hasura passes an argument left out as null.
+    #[serde(default)]
+    width: Option<i64>,
+    #[serde(default)]
+    color_scheme: Option<ColorScheme>,
+    #[serde(default)]
+    locale: Option<String>,
     #[serde(default)]
     draft: Option<Draft>,
 }
@@ -586,6 +587,7 @@ pub async fn render_widget(
             .await
             .map_err(MonitoringError::internal)?,
     };
+    let locale = input.locale.clone().unwrap_or_else(default_locale);
     let response = draw_widget(
         services,
         DrawPlan {
@@ -604,9 +606,11 @@ pub async fn render_widget(
             scope,
             selector_values: input.selector_values.clone().unwrap_or_default(),
             snapshot,
-            width: input.width,
-            color_scheme: input.color_scheme,
-            locale: &input.locale,
+            width: input.width.unwrap_or_else(default_width),
+            color_scheme: input
+                .color_scheme
+                .unwrap_or_else(default_color_scheme),
+            locale: &locale,
         },
     )
     .await?;

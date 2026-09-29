@@ -2087,3 +2087,267 @@ type VoterInformationLetterOutput {
 type DocumentPasswordOutput {
     password: String!
 }
+
+type Query {
+    monitoringListDashboards(
+        election_event_id: String!
+        election_id: String
+    ): MonitoringListDashboardsOutput!
+}
+
+type Query {
+    monitoringGetDashboard(
+        election_event_id: String!
+        election_id: String
+        dashboard_id: String!
+    ): MonitoringGetDashboardOutput!
+}
+
+type Query {
+    monitoringRenderWidget(
+        election_event_id: String!
+        election_id: String
+        dashboard_id: String!
+        widget_id: String!
+        scope: jsonb
+        selector_values: jsonb
+        snapshot_revision: Int
+        width: Int
+        color_scheme: String
+        locale: String
+        draft: jsonb
+    ): MonitoringRenderWidgetOutput!
+}
+
+type Query {
+    monitoringValidateConfig(
+        election_event_id: String!
+        kind: String!
+        key: String!
+        yaml: String!
+    ): MonitoringValidateConfigOutput!
+}
+
+type Query {
+    monitoringListPresets(election_event_id: String): MonitoringListPresetsOutput!
+}
+
+type Query {
+    monitoringListConfig(election_event_id: String!): MonitoringListConfigOutput!
+}
+
+type Query {
+    monitoringGetConfig(
+        election_event_id: String!
+        kind: String!
+        key: String!
+        revision: Int
+        before_revision: Int
+        limit: Int
+    ): MonitoringGetConfigOutput!
+}
+
+type Mutation {
+    monitoringSaveConfig(
+        election_event_id: String!
+        kind: String!
+        key: String!
+        yaml: String
+        expected_revision: Int
+        change: String!
+    ): MonitoringSaveConfigOutput!
+}
+
+type Mutation {
+    monitoringResetToPreset(
+        election_event_id: String!
+        preset_id: String!
+        mode: String
+    ): MonitoringGenerationOutput!
+}
+
+type Mutation {
+    monitoringSetMode(
+        election_event_id: String!
+        mode: String!
+    ): MonitoringSetModeOutput!
+}
+
+type Mutation {
+    monitoringExport(
+        election_event_id: String!
+        election_id: String
+        dashboard_id: String!
+        widget_id: String
+        scope: jsonb
+        selector_values: jsonb
+        snapshot_revision: Int!
+        format: String!
+        from: String
+        to: String
+    ): MonitoringExportOutput!
+}
+
+type MonitoringSnapshot {
+    revision: Int!
+    as_of: String!
+    checked_at: String
+}
+
+type MonitoringDashboardSummary {
+    id: String!
+    title: String!
+    requirements: [String!]!
+    widget_count: Int!
+}
+
+type MonitoringListDashboardsOutput {
+    mode: String!
+    dashboards: [MonitoringDashboardSummary!]!
+    snapshot: MonitoringSnapshot
+}
+
+type MonitoringDocumentRef {
+    id: String!
+    revision: Int!
+}
+
+type MonitoringScopeOption {
+    key: String!
+    label: String!
+}
+
+type MonitoringPostOption {
+    key: String!
+    label: String!
+    region: String
+}
+
+type MonitoringScopeOptions {
+    regions: [MonitoringScopeOption!]!
+    posts: [MonitoringPostOption!]!
+    countries: [MonitoringScopeOption!]!
+}
+
+type MonitoringGetDashboardOutput {
+    dashboard: jsonb!
+    dashboard_revision: Int!
+    widgets: jsonb!
+    catalog: jsonb!
+    theme: MonitoringDocumentRef
+    settings: jsonb!
+    settings_revision: Int!
+    scope_options: MonitoringScopeOptions!
+    restricted: Boolean!
+    pinned_post: String
+    sources: jsonb!
+    snapshot: MonitoringSnapshot
+}
+
+type MonitoringProblem {
+    severity: String!
+    code: String!
+    path: String!
+    message: String!
+    engine_code: String
+}
+
+type MonitoringRenderWidgetOutput {
+    state: String!
+    reason: String
+    svg: String
+    table: jsonb
+    notices: [String!]!
+    diagnostics: [MonitoringProblem!]!
+    ignored_selectors: [String!]!
+    render_ms: Int
+    snapshot_revision: Int
+    as_of: String
+}
+
+type MonitoringValidateConfigOutput {
+    result: String!
+    problems: [MonitoringProblem!]!
+    preview: MonitoringRenderWidgetOutput
+}
+
+type MonitoringSaveConfigOutput {
+    revision: Int!
+    generation: Int!
+    warnings: [MonitoringProblem!]!
+}
+
+type MonitoringGenerationOutput {
+    generation: Int!
+    warnings: [MonitoringProblem!]
+}
+
+type MonitoringSetModeOutput {
+    mode: String!
+    generation: Int!
+}
+
+type MonitoringPreset {
+    id: String!
+    version: Int!
+    title: String!
+    description: String
+}
+
+type MonitoringListPresetsOutput {
+    presets: [MonitoringPreset!]!
+}
+
+type MonitoringAuthor {
+    id: String!
+    name: String
+}
+
+type MonitoringDocumentSummary {
+    kind: String!
+    key: String!
+    revision: Int!
+    origin: String!
+    author: MonitoringAuthor!
+    created_at: String!
+    sha256: String
+}
+
+type MonitoringPresetRef {
+    id: String!
+    version: Int!
+}
+
+type MonitoringListConfigOutput {
+    mode: String!
+    generation: Int!
+    preset: MonitoringPresetRef
+    documents: [MonitoringDocumentSummary!]!
+}
+
+type MonitoringHistoryEntry {
+    revision: Int!
+    change: String!
+    origin: String!
+    author: MonitoringAuthor!
+    created_at: String!
+    sha256: String
+    generation: Int!
+}
+
+type MonitoringGetConfigOutput {
+    kind: String!
+    key: String!
+    yaml: String
+    revision: Int!
+    change: String!
+    origin: String!
+    author: MonitoringAuthor!
+    created_at: String!
+    history: [MonitoringHistoryEntry!]!
+}
+
+type MonitoringExportOutput {
+    document_id: String!
+    task_execution: tasks_execution_type
+}

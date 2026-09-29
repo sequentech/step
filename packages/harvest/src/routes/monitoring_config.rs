@@ -495,6 +495,12 @@ pub async fn list_presets(
     Ok(Json(ListPresetsOutput { presets }))
 }
 
+#[derive(Debug, Serialize)]
+pub struct SetModeOutput {
+    mode: DashboardMode,
+    generation: i64,
+}
+
 #[derive(Debug, Deserialize)]
 pub struct SetModeInput {
     election_event_id: String,
@@ -507,7 +513,7 @@ pub async fn set_dashboard_mode(
     body: Json<SetModeInput>,
     claims: JwtClaims,
     services: &State<HarvestServices>,
-) -> MonitoringResult<Json<GenerationOutput>> {
+) -> MonitoringResult<Json<SetModeOutput>> {
     configure_and_write(&claims)?;
     let input = body.into_inner();
     let event = event_ref(&claims, &input.election_event_id)?;
@@ -531,9 +537,9 @@ pub async fn set_dashboard_mode(
         ModeOutcome::Switched { generation } => generation,
         ModeOutcome::Unchanged => current_generation(services, event).await?,
     };
-    Ok(Json(GenerationOutput {
+    Ok(Json(SetModeOutput {
+        mode: input.mode,
         generation,
-        warnings: vec![],
     }))
 }
 
