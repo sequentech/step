@@ -1,0 +1,105 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+name: GraphQL Schema
+
+on:
+  pull_request:
+  push:
+      branches: [ 'main', 'release/[0-9]+.[0-9]+' ]
+
+jobs:
+  graphql-schema:
+    name: Check GraphQL schema is up to date
+    runs-on: ubuntu-24.04
+    env:
+      # Only used by the throwaway graphql-engine started below.
+      HASURA_ADMIN_SECRET: ci-admin-secret
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Set Node.js 20.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+
+      # Same version devenv provides, so the schema copies it writes match.
+      - name: Install graphqurl
+        run: npm install --global graphqurl@2.0.0
+
+      # Started before the install so migrations run while dependencies install.
+      - name: Start Hasura with the committed migrations and metadata
+        run: |
+          docker network create graphql-schema
+          docker run --detach --name postgres --network graphql-schema \
+            --env POSTGRES_PASSWORD=postgres \
+            postgres:18-bookworm
+          # Over TCP, so it only succeeds once the final server is up, not the
+          # temporary one the image runs while initialising the database.
+          for attempt in $(seq 1 30); do
+            docker exec postgres pg_isready --host 127.0.0.1 --username postgres && break
+            sleep 2
+          done
+          docker exec postgres pg_isready --host 127.0.0.1 --username postgres
+          docker run --detach --name hasura --network graphql-schema --publish 8080:8080 \
+            --volume "${GITHUB_WORKSPACE}/hasura/migrations:/hasura-migrations:ro" \
+            --volume "${GITHUB_WORKSPACE}/hasura/metadata:/hasura-metadata:ro" \
+            --env HASURA_GRAPHQL_MIGRATIONS_DIR=/hasura-migrations \
+            --env HASURA_GRAPHQL_METADATA_DIR=/hasura-metadata \
+            --env HASURA_GRAPHQL_METADATA_DATABASE_URL=postgres://postgres:postgres@postgres:5432/postgres \
+            --env PG_DATABASE_URL=postgres://postgres:postgres@postgres:5432/postgres \
+            --env HASURA_GRAPHQL_ADMIN_SECRET="${HASURA_ADMIN_SECRET}" \
+            --env ACTIONS_ADMIN_SECRET="${HASURA_ADMIN_SECRET}" \
+            --env HARVEST_DOMAIN=harvest:8400 \
+            hasura/graphql-engine:v2.33.1.cli-migrations-v3
+          # generate-graphql.sh and the codegen configs reach Hasura as graphql-engine.
+          echo "127.0.0.1 graphql-engine" | sudo tee --append /etc/hosts
+
+      - name: Run install
+        uses: borales/actions-yarn@v4
+        with:
+          cmd: install
+          dir: packages/
+
+      - name: Build ui-core
+        uses: borales/actions-yarn@v4
+        with:
+          cmd: build:ui-core
+          dir: packages/
+
+      - name: Build ui-essentials
+        uses: borales/actions-yarn@v4
+        with:
+          cmd: build:ui-essentials
+          dir: packages/
+
+      - name: Regenerate the GraphQL schema and types
+        id: regenerate
+        run: .devcontainer/scripts/generate-graphql.sh
+
+      - name: Show Hasura logs
+        if: failure() && steps.regenerate.outcome == 'failure'
+        run: docker logs hasura
+
+      - name: Check the committed schema and types are up to date
+        run: |
+          generated=(
+            packages/graphql.schema.json
+            packages/step-cli/src/graphql/schema.json
+            packages/admin-portal/graphql.schema.json
+            packages/admin-portal/src/gql
+            packages/voting-portal/graphql.schema.json
+            packages/voting-portal/src/gql
+            packages/ballot-verifier/graphql.schema.json
+            packages/ballot-verifier/src/gql
+            packages/results-portal/graphql.schema.json
+            packages/results-portal/src/gql
+          )
+          if [ -n "$(git status --porcelain -- "${generated[@]}")" ]; then
+            git status --short -- "${generated[@]}"
+            git diff --stat -- "${generated[@]}"
+            echo "::error::The GraphQL schema or generated types are out of date. Run the update.graphql task and commit the result."
+            exit 1
+          fi
