@@ -150,6 +150,9 @@ jobs:
             test_args: --runInBand
           - package: voting-portal
             test_args: --runInBand
+          - package: ballot-verifier
+            test_args: --runInBand
+            build_libs: true
           - package: keycloak-extensions/sequent-theme
             test_args: ''
       fail-fast: false
@@ -166,6 +169,15 @@ jobs:
 
       - name: Install dependencies
         run: yarn install --frozen-lockfile --non-interactive --prefer-offline
+        working-directory: packages
+
+      # ui-core and ui-essentials are consumed through their dist/ bundles,
+      # which yarn install does not produce. Suites that resolve either package
+      # need them built first, mocked ones included: jest.mock() still resolves
+      # the module before it swaps in the factory.
+      - name: Build workspace libraries
+        if: matrix.build_libs
+        run: yarn build:ui-core && yarn build:ui-essentials
         working-directory: packages
 
       - name: Run ${{ matrix.package }} tests
