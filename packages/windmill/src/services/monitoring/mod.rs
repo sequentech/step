@@ -8,6 +8,9 @@
 /// The electoral log's record of each configuration change.
 pub mod audit;
 
+/// Exporting what a dashboard shows, as CSV or SQL.
+pub mod export;
+
 /// Reading an event's configuration, and saving, resetting and switching it.
 pub mod config_store;
 

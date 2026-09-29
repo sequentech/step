@@ -9,7 +9,7 @@ title: Access and security
 source: access_security
 requirements: [SW-F-0252, SW-F-0268]
 query: {template: summary, measures: [logins, login_failures, password_resets]}
-height: 180
+height: 300
 chart:
   charts:
     logins:
@@ -30,4 +30,6 @@ chart:
       value: password_resets
       label: Password resets
       style: {value: {format: integer}}
-  rows: [{cols: [logins, failures, resets]}]
+  rows:
+    - {cols: [logins, failures]}
+    - resets

@@ -19,7 +19,7 @@ queries:
     measures: [disapproved]
     sort: {by: value, order: desc}
     limit: 5
-height: 420
+height: 560
 chart:
   charts:
     applications:
@@ -64,5 +64,7 @@ chart:
           position: {visible: false}
           disapproved: {label: Disapproved, format: integer, align: right}
   rows:
-    - {cols: [applications, approved, disapproved, pending]}
-    - {cols: [outcomes, reasons]}
+    - {cols: [applications, approved]}
+    - {cols: [disapproved, pending]}
+    - outcomes
+    - reasons

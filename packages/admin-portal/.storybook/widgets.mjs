@@ -61,6 +61,7 @@ export default {
         "src/providers/SettingsContextProvider.tsx#SettingsContextProvider": SESSION,
         "src/providers/SettingsContextProvider.tsx#SettingsGate": SESSION,
         "src/providers/SettingsContextProvider.tsx#SettingsWrapper": SESSION,
+        "src/components/monitoring/MonitoringProvider.tsx#MonitoringProvider": PROVIDER,
         "src/providers/CandidateContextProvider.tsx#CandidateContextProvider": PROVIDER,
         "src/providers/ContestContextProvider.tsx#ContestContextProvider": PROVIDER,
         "src/providers/CreateElectionEventContextProvider.tsx#CreateElectionEventProvider":
@@ -76,5 +77,8 @@ export default {
         "src/providers/TenantContextProvider.tsx#TenantContextProvider": PROVIDER,
         "src/providers/WidgetsContextProvider.tsx#WidgetsContextProvider":
             PROVIDER + " Its task widgets have their own section, Admin/Components/WidgetsStack.",
+        "src/components/monitoring/editor/useMonitoringEditor.tsx#EditorElement":
+            "The element useMonitoringEditor returns: the editor's dialogs, which have their " +
+            "own sections, and its notices; the MonitoringDashboardTab Editor* stories render it.",
     },
 }

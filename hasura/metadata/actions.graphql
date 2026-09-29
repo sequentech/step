@@ -26,8 +26,8 @@ type Query {
 
 type Query {
     fetchResultsArtifact(
-        election_event_id: String!
-        election_id: String
+        election_event_id: uuid!
+        election_id: uuid
         publication_id: String!
     ): FetchResultsArtifactOutput!
 }
@@ -42,7 +42,7 @@ type Query {
 
 type Mutation {
     configureResultsWebsitePolicy(
-        election_event_id: String!
+        election_event_id: uuid!
         status: ResultsWebsiteStatus!
         access: ResultsWebsiteAccess!
         visibility_scope: ResultsWebsiteVisibilityScope!
@@ -85,7 +85,7 @@ type Mutation {
 
 type Mutation {
     create_election(
-        election_event_id: String!
+        election_event_id: uuid!
         external_id: String!
         presentation: jsonb
         description: String
@@ -192,14 +192,14 @@ type Mutation {
 
 type Mutation {
     update_realm_attributes(
-        election_event_id: String!
+        election_event_id: uuid!
         attributes: jsonb!
     ): UpdateRealmAttributesOutput
 }
 
 type Mutation {
     update_realm_password_policy(
-        election_event_id: String!
+        election_event_id: uuid!
         minimum_length: Int!
         maximum_length: Int!
         include_uppercase: Boolean!
@@ -213,7 +213,7 @@ type Mutation {
     delete_users(
         tenant_id: String!
         election_event_id: String
-        election_id: String
+        election_id: uuid
         users_id: [String!]
         select_all: Boolean
         first_name: json
@@ -234,21 +234,21 @@ type Mutation {
 
 type Mutation {
     create_external_reconciliation_import(
-        election_event_id: String!
+        election_event_id: uuid!
         document_id: String!
     ): taskOutput
 }
 
 type Mutation {
     apply_external_reconciliation_changes(
-        election_event_id: String!
+        election_event_id: uuid!
         diff_document_id: String!
     ): taskOutput
 }
 
 type Mutation {
     encrypt_report(
-        election_event_id: String!
+        election_event_id: uuid!
         report_id: String
         password: String!
     ): EncryptReportOutput
@@ -262,15 +262,15 @@ type Mutation {
     export_application(
         tenant_id: String!
         election_event_id: String
-        election_id: String
+        election_id: uuid
     ): ExportApplicationOutput
 }
 
 type Mutation {
     export_ballot_publication(
         tenant_id: String!
-        election_event_id: String!
-        election_id: String
+        election_event_id: uuid!
+        election_id: uuid
         ballot_publication_id: String!
     ): ExportBallotPublicationOutput
 }
@@ -284,7 +284,7 @@ type Mutation {
 
 type Mutation {
     export_election_event_logs(
-        election_event_id: String!
+        election_event_id: uuid!
         format: String!
     ): ExportLogsOutput
 }
@@ -295,7 +295,7 @@ type Mutation {
 
 type Mutation {
     export_tally_results(
-        election_event_id: String!
+        election_event_id: uuid!
         tally_session_id: String!
     ): ExportTallyResultsOutput
 }
@@ -303,13 +303,13 @@ type Mutation {
 type Mutation {
     export_tasks_execution(
         tenant_id: String!
-        election_event_id: String!
+        election_event_id: uuid!
     ): ExportTasksExecutionOutput
 }
 
 type Mutation {
     publishResultsWebsite(
-        election_event_id: String!
+        election_event_id: uuid!
         tally_session_id: String!
         tally_session_execution_id: String!
         results_event_id: String!
@@ -324,21 +324,21 @@ type Mutation {
 
 type Mutation {
     revokeResultsPublication(
-        election_event_id: String!
+        election_event_id: uuid!
         publication_id: String!
     ): RevokeResultsPublicationOutput!
 }
 
 type Mutation {
     refreshResultsPublicationIndex(
-        election_event_id: String!
+        election_event_id: uuid!
     ): RefreshResultsPublicationIndexOutput!
 }
 
 type Query {
     resolveResultsPublication(
         ee_id: String!
-        election_id: String
+        election_id: uuid
     ): ResolveResultsPublicationOutput
 }
 
@@ -346,7 +346,7 @@ type Mutation {
     export_template(
         tenant_id: String!
         election_event_id: String
-        election_id: String
+        election_id: uuid
     ): ExportTemplateOutput
 }
 
@@ -362,7 +362,7 @@ type Mutation {
     export_users(
         tenant_id: String!
         election_event_id: String
-        election_id: String
+        election_id: uuid
         include_secret_attributes: Boolean
     ): ExportUsersOutput
 }
@@ -370,7 +370,7 @@ type Mutation {
 type Query {
     reveal_voter_secret_attribute(
         tenant_id: String!
-        election_event_id: String!
+        election_event_id: uuid!
         user_id: String!
         attribute_name: String!
     ): RevealVoterSecretAttributeOutput!
@@ -419,7 +419,7 @@ type Mutation {
 
 type Mutation {
     generate_template(
-        election_event_id: String!
+        election_event_id: uuid!
         election_id: String!
         tally_session_id: String!
         type: String!
@@ -429,8 +429,8 @@ type Mutation {
 type Mutation {
     generate_transmission_report(
         tenant_id: String!
-        election_event_id: String!
-        election_id: String
+        election_event_id: uuid!
+        election_id: uuid
         tally_session_id: String
     ): generateReportOutput
 }
@@ -522,7 +522,7 @@ type Mutation {
     import_application(
         tenant_id: String!
         election_event_id: String
-        election_id: String
+        election_id: uuid
         document_id: String!
         sha256: String
     ): applicationOutput
@@ -530,7 +530,7 @@ type Mutation {
 
 type Mutation {
     import_areas(
-        election_event_id: String!
+        election_event_id: uuid!
         document_id: String!
         sha256: String
     ): OptionalId
@@ -538,7 +538,7 @@ type Mutation {
 
 type Mutation {
     import_candidates(
-        election_event_id: String!
+        election_event_id: uuid!
         document_id: String!
         sha256: String
     ): documentTaskOutput
@@ -628,8 +628,8 @@ type Query {
 type Query {
     list_cast_vote_messages(
         tenant_id: String!
-        election_event_id: String!
-        election_id: String
+        election_event_id: uuid!
+        election_id: uuid
         ballot_id: String!
         limit: Int
         offset: Int
@@ -651,7 +651,7 @@ type Query {
 
 type Query {
     logEvent(
-        election_event_id: String!
+        election_event_id: uuid!
         message_type: String!
         user_id: String
         body: String!
@@ -660,8 +660,8 @@ type Query {
 
 type Mutation {
     manage_election_dates(
-        election_event_id: String!
-        election_id: String
+        election_event_id: uuid!
+        election_id: uuid
         scheduled_date: String
         event_processor: String!
         voting_channels: [VotingStatusChannel!]
@@ -670,7 +670,7 @@ type Mutation {
 
 type Mutation {
     prepare_ballot_publication_preview(
-        election_event_id: String!
+        election_event_id: uuid!
         ballot_publication_id: String!
     ): PrepareBallotPublicationPreviewOutput
 }
@@ -732,7 +732,7 @@ type Mutation {
 
 type Mutation {
     set_voter_authentication(
-        election_event_id: String!
+        election_event_id: uuid!
         enrollment: String!
         otp: String!
     ): SetVoterAuthenticationOutput
@@ -798,7 +798,7 @@ type Mutation {
         id: String
         name: String!
         description: String
-        election_event_id: String!
+        election_event_id: uuid!
         tenant_id: String!
         parent_id: String
         area_contest_ids: [String]
@@ -815,7 +815,7 @@ type Mutation {
 
 type Mutation {
     create_new_tally_sheet(
-        election_event_id: String!
+        election_event_id: uuid!
         channel: String!
         content: jsonb!
         contest_id: String!
@@ -825,7 +825,7 @@ type Mutation {
 
 type Mutation {
     review_tally_sheet(
-        election_event_id: String!
+        election_event_id: uuid!
         tally_sheet_id: String!
         new_status: String!
     ): TallySheetOutput
@@ -833,7 +833,7 @@ type Mutation {
 
 type Mutation {
     preview_tally_sheet_import(
-        election_event_id: String!
+        election_event_id: uuid!
         document_id: String!
         sha256: String
         source_format: String!
@@ -843,7 +843,7 @@ type Mutation {
 
 type Mutation {
     create_tally_sheet_import(
-        election_event_id: String!
+        election_event_id: uuid!
         document_id: String!
         sha256: String
         source_format: String!
@@ -853,7 +853,7 @@ type Mutation {
 
 type Mutation {
     review_tally_sheet_import(
-        election_event_id: String!
+        election_event_id: uuid!
         import_id: String!
         decision: String!
     ): TallySheetImportActionOutput
@@ -2069,7 +2069,7 @@ type RefreshResultsPublicationIndexOutput {
 
 type Mutation {
     generate_voter_information_letter(
-        election_event_id: String!
+        election_event_id: uuid!
         voter_id: String!
     ): VoterInformationLetterOutput!
 }
@@ -2086,4 +2086,276 @@ type VoterInformationLetterOutput {
 
 type DocumentPasswordOutput {
     password: String!
+}
+
+type Query {
+    monitoringListDashboards(
+        election_event_id: uuid!
+        election_id: uuid
+    ): MonitoringListDashboardsOutput!
+}
+
+type Query {
+    monitoringGetDashboard(
+        election_event_id: uuid!
+        election_id: uuid
+        dashboard_id: String!
+    ): MonitoringGetDashboardOutput!
+}
+
+type Query {
+    monitoringRenderWidget(
+        election_event_id: uuid!
+        election_id: uuid
+        dashboard_id: String!
+        widget_id: String!
+        scope: jsonb
+        selector_values: jsonb
+        snapshot_revision: Int
+        width: Int
+        color_scheme: String
+        locale: String
+        draft: jsonb
+    ): MonitoringRenderWidgetOutput!
+}
+
+type Query {
+    monitoringValidateConfig(
+        election_event_id: uuid!
+        kind: String!
+        key: String!
+        yaml: String!
+    ): MonitoringValidateConfigOutput!
+}
+
+type Query {
+    monitoringListPresets(election_event_id: uuid): MonitoringListPresetsOutput!
+}
+
+type Query {
+    monitoringListConfig(election_event_id: uuid!): MonitoringListConfigOutput!
+}
+
+type Query {
+    monitoringGetConfig(
+        election_event_id: uuid!
+        kind: String!
+        key: String!
+        revision: Int
+        before_revision: Int
+        limit: Int
+    ): MonitoringGetConfigOutput!
+}
+
+type Mutation {
+    monitoringSaveConfig(
+        election_event_id: uuid!
+        kind: String!
+        key: String!
+        yaml: String
+        expected_revision: Int
+        change: String!
+    ): MonitoringSaveConfigOutput!
+}
+
+type Mutation {
+    monitoringResetToPreset(
+        election_event_id: uuid!
+        preset_id: String!
+        mode: String
+    ): MonitoringGenerationOutput!
+}
+
+type Mutation {
+    monitoringSetMode(
+        election_event_id: uuid!
+        mode: String!
+    ): MonitoringSetModeOutput!
+}
+
+type Mutation {
+    monitoringExport(
+        election_event_id: uuid!
+        election_id: uuid
+        dashboard_id: String!
+        widget_id: String
+        scope: jsonb
+        selector_values: jsonb
+        widget_selector_values: jsonb
+        snapshot_revision: Int!
+        format: String!
+        from: String
+        to: String
+    ): MonitoringExportOutput!
+}
+
+type MonitoringSnapshot {
+    revision: Int!
+    as_of: String!
+    checked_at: String
+}
+
+type MonitoringDashboardSummary {
+    id: String!
+    title: String!
+    requirements: [String!]!
+    widget_count: Int!
+}
+
+type MonitoringListDashboardsOutput {
+    mode: String!
+    dashboards: [MonitoringDashboardSummary!]!
+    snapshot: MonitoringSnapshot
+}
+
+type MonitoringDocumentRef {
+    id: String!
+    revision: Int!
+}
+
+type MonitoringScopeOption {
+    key: String!
+    label: String!
+}
+
+type MonitoringPostOption {
+    key: String!
+    label: String!
+    region: String
+}
+
+type MonitoringScopeOptions {
+    regions: [MonitoringScopeOption!]!
+    posts: [MonitoringPostOption!]!
+    countries: [MonitoringScopeOption!]!
+}
+
+type MonitoringGetDashboardOutput {
+    dashboard: jsonb!
+    dashboard_revision: Int!
+    widgets: jsonb!
+    catalog: jsonb!
+    theme: MonitoringDocumentRef
+    settings: jsonb!
+    settings_revision: Int!
+    scope_options: MonitoringScopeOptions!
+    restricted: Boolean!
+    pinned_post: String
+    sources: jsonb!
+    snapshot: MonitoringSnapshot
+    event_days: [String!]!
+}
+
+type MonitoringProblem {
+    severity: String!
+    code: String!
+    path: String!
+    message: String!
+    engine_code: String
+}
+
+type MonitoringQueryTable {
+    query: String!
+    table: jsonb!
+}
+
+type MonitoringRenderWidgetOutput {
+    state: String!
+    reason: String
+    svg: String
+    table: jsonb
+    tables: [MonitoringQueryTable!]
+    notices: [String!]!
+    diagnostics: [MonitoringProblem!]!
+    ignored_selectors: [String!]!
+    render_ms: Int
+    snapshot_revision: Int
+    as_of: String
+}
+
+type MonitoringValidateConfigOutput {
+    result: String!
+    problems: [MonitoringProblem!]!
+    preview: MonitoringRenderWidgetOutput
+}
+
+type MonitoringSaveConfigOutput {
+    revision: Int!
+    generation: Int!
+    warnings: [MonitoringProblem!]!
+}
+
+type MonitoringGenerationOutput {
+    generation: Int!
+    warnings: [MonitoringProblem!]
+}
+
+type MonitoringSetModeOutput {
+    mode: String!
+    generation: Int!
+}
+
+type MonitoringPreset {
+    id: String!
+    version: Int!
+    title: String!
+    description: String
+}
+
+type MonitoringListPresetsOutput {
+    presets: [MonitoringPreset!]!
+}
+
+type MonitoringAuthor {
+    id: String!
+    name: String
+}
+
+type MonitoringDocumentSummary {
+    kind: String!
+    key: String!
+    revision: Int!
+    origin: String!
+    author: MonitoringAuthor!
+    created_at: String!
+    sha256: String
+}
+
+type MonitoringPresetRef {
+    id: String!
+    version: Int!
+}
+
+type MonitoringListConfigOutput {
+    mode: String!
+    generation: Int!
+    preset: MonitoringPresetRef
+    documents: [MonitoringDocumentSummary!]!
+}
+
+type MonitoringHistoryEntry {
+    revision: Int!
+    change: String!
+    origin: String!
+    author: MonitoringAuthor!
+    created_at: String!
+    sha256: String
+    generation: Int!
+}
+
+type MonitoringGetConfigOutput {
+    kind: String!
+    key: String!
+    yaml: String
+    revision: Int!
+    change: String!
+    origin: String!
+    author: MonitoringAuthor!
+    created_at: String!
+    history: [MonitoringHistoryEntry!]!
+}
+
+type MonitoringExportOutput {
+    document_id: String!
+    task_execution: tasks_execution_type
 }
