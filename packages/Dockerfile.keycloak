@@ -18,7 +18,8 @@ ARG OID4VP_SHA256=f6cd968bc77fec4f8e1417d3caeefe4920941e01b119f152f1c9186bbd2b2e
 
 # Optional offline dependency source. The default, scratch, copies an empty
 # directory and leaves the online build unchanged. Point it at
-# packages/Dockerfile.offline-dependencies' output to build with no network.
+# packages/Dockerfile.offline-dependencies' output to resolve Maven dependencies
+# and the oid4vp archive from vendored inputs instead of the network.
 # See sequentech/meta#13625.
 ARG VENDOR_IMAGE=scratch
 FROM ${VENDOR_IMAGE} AS vendor
