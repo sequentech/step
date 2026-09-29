@@ -7,7 +7,9 @@ import {
     INITIAL_STATE,
     loadState,
     monitoringReducer,
+    placementValues,
     saveState,
+    setPlacementValue,
     widgetValueKey,
 } from "./state"
 
@@ -49,6 +51,44 @@ describe("monitoringReducer", () => {
         expect(cleared.widgetValues).toEqual({"overview/turnout": {}})
     })
 
+    it("keeps the picks of each placement of a widget apart", () => {
+        const first = {key: "0:turnout", widgetId: "turnout"}
+        const second = {key: "3:turnout", widgetId: "turnout"}
+        let state = monitoringReducer(
+            INITIAL_STATE,
+            setPlacementValue("overview", first, "measure", "voted_pre")
+        )
+        state = monitoringReducer(
+            state,
+            setPlacementValue("overview", second, "measure", "pre_reg")
+        )
+        expect(placementValues(state, "overview", first)).toEqual({measure: "voted_pre"})
+        expect(placementValues(state, "overview", second)).toEqual({measure: "pre_reg"})
+        expect(placementValues(state, "req-0260", first)).toEqual({})
+    })
+
+    it("reads the picks an earlier portal kept by widget id, until a placement has its own", () => {
+        const first = {key: "0:turnout", widgetId: "turnout"}
+        const second = {key: "3:turnout", widgetId: "turnout"}
+        const saved = {
+            ...INITIAL_STATE,
+            widgetValues: {"overview/turnout": {measure: "voted_pre", breakdown: "sex"}},
+        }
+        expect(placementValues(saved, "overview", first)).toEqual({
+            measure: "voted_pre",
+            breakdown: "sex",
+        })
+        const state = monitoringReducer(
+            saved,
+            setPlacementValue("overview", first, "measure", null)
+        )
+        expect(placementValues(state, "overview", first)).toEqual({breakdown: "sex"})
+        expect(placementValues(state, "overview", second)).toEqual({
+            measure: "voted_pre",
+            breakdown: "sex",
+        })
+    })
+
     it("switches between viewing and editing", () => {
         const next = monitoringReducer(INITIAL_STATE, {
             type: EMonitoringAction.SET_MODE,
@@ -72,6 +112,19 @@ describe("session storage", () => {
             dashboardId: "overview",
             dashboardValues: {country: "ES"},
         })
+    })
+
+    it("restores picks saved by widget id as well as by placement", () => {
+        const storage = new MemoryStorage()
+        const widgetValues = {
+            "overview/turnout": {measure: "voted_pre"},
+            "overview/3:turnout": {measure: "pre_reg"},
+        }
+        storage.setItem(
+            "k",
+            JSON.stringify({dashboardId: "overview", dashboardValues: {}, widgetValues})
+        )
+        expect(loadState(storage, "k").widgetValues).toEqual(widgetValues)
     })
 
     it("starts afresh from nothing, from bad JSON or from an unexpected shape", () => {

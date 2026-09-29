@@ -105,3 +105,31 @@ export function selectorValuesForRequest(resolved: ResolvedSelector[]): Record<s
         )
     )
 }
+
+/** A layout cell, as far as its selector values go. */
+export interface SelectorPlacement {
+    key: string
+    widgetId: string
+    values: Record<string, string>
+    widget: MonitoringWidget | null
+}
+
+/**
+ * A dashboard export's `widget_selector_values`: each widget's values as the
+ * dashboard draws it, by widget id. A widget placed twice is exported as its
+ * first placement shows it.
+ */
+export function dashboardSelectorValues(
+    cells: SelectorPlacement[],
+    picksOf: (cell: SelectorPlacement) => Record<string, string>,
+    dynamic: DynamicOptionValues
+): Record<string, Record<string, string>> {
+    const values: Record<string, Record<string, string>> = {}
+    for (const cell of cells) {
+        if (!cell.widget || cell.widgetId in values) continue
+        values[cell.widgetId] = selectorValuesForRequest(
+            resolveSelectors(cell.widget, cell.values, picksOf(cell), dynamic)
+        )
+    }
+    return values
+}

@@ -2866,6 +2866,20 @@ const frenchTranslation: TranslationType = {
             dashboardFailed: "Le tableau de bord de suivi n'a pas pu être chargé.",
             dashboardInvalid: "Ce tableau de bord ne peut pas être affiché : {{problem}}",
             retry: "Réessayer",
+            errors: {
+                busy: "Le serveur est occupé. Nouvel essai dans quelques secondes.",
+                forbiddenScope:
+                    "Vous ne pouvez pas voir cette région, ce Post ou ce pays. Choisissez-en un autre.",
+                snapshotPruned:
+                    "La mise à jour affichée n'est plus conservée. Le tableau de bord affiche maintenant la dernière mise à jour : exportez de nouveau pour l'utiliser.",
+                checksUnavailable:
+                    "Le service de graphiques n'est pas disponible pour le moment. Réessayez plus tard.",
+                lockedDown: "L'événement électoral est verrouillé : ceci ne peut pas être modifié.",
+                notFound:
+                    "Ce tableau de bord ou ce widget n'est plus configuré. Rechargez la page.",
+                badRequest: "La demande n'a pas été acceptée. Rechargez la page et réessayez.",
+                unknown: "Une erreur s'est produite. Réessayez plus tard.",
+            },
             header: {
                 dashboard: "Tableau de bord",
                 widgets_one: "{{count}} widget",
@@ -2894,6 +2908,8 @@ const frenchTranslation: TranslationType = {
                 duplicate: "Dupliquer",
                 loading: "Chargement de {{widget}}",
                 missing: "Le tableau de bord nomme un widget qui n'existe pas : {{id}}",
+                updating: "Mise à jour de {{widget}}",
+                updatingNote: "Mise à jour : le graphique affiché est le précédent.",
             },
             frame: {
                 title: "Graphique {{widget}}",
@@ -2950,7 +2966,7 @@ const frenchTranslation: TranslationType = {
                 from: "Du",
                 to: "Au",
                 timeZoneHelp:
-                    "Les heures sont en {{timeZone}}. L'activité horaire et quotidienne va de l'heure de début jusqu'à l'heure de fin, non comprise. L'état et les totaux tels qu'enregistrés à chaque heure de la période.",
+                    "Les heures sont en {{timeZone}}. Les totaux et les états sont ceux de la mise à jour affichée ; l'activité est limitée à la période, de l'heure de début jusqu'à l'heure de fin, non comprise.",
                 cancel: "Annuler",
                 export: "Exporter",
                 invalidRange: "La fin doit être postérieure au début.",

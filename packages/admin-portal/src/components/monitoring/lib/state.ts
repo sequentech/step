@@ -22,7 +22,14 @@ export enum EMonitoringAction {
 export type MonitoringActionMessage =
     | {type: EMonitoringAction.SELECT_DASHBOARD; dashboardId: string}
     | {type: EMonitoringAction.SET_SCOPE; scope: MonitoringScope}
-    | {type: EMonitoringAction.SET_WIDGET_VALUE; key: string; name: string; value: string | null}
+    | {
+          type: EMonitoringAction.SET_WIDGET_VALUE
+          key: string
+          /** Picks to start from while `key` has none of its own. */
+          inherit?: string
+          name: string
+          value: string | null
+      }
     | {type: EMonitoringAction.SET_MODE; mode: EMonitoringViewMode}
 
 export const INITIAL_STATE: MonitoringState = {
@@ -33,8 +40,47 @@ export const INITIAL_STATE: MonitoringState = {
 }
 
 /** A dashboard may give a widget other defaults, so picks are kept per dashboard. */
-export const widgetValueKey = (dashboardId: string, widgetId: string) =>
-    `${dashboardId}/${widgetId}`
+export const widgetValueKey = (dashboardId: string, id: string) => `${dashboardId}/${id}`
+
+/** Where a widget sits: a dashboard may place one widget more than once. */
+export interface WidgetPlacement {
+    /** The layout cell's key, unique within the dashboard. */
+    key: string
+    widgetId: string
+}
+
+const NO_VALUES: Record<string, string> = {}
+
+/**
+ * The viewer's picks for a placement. Picks were once kept by widget id; those
+ * still apply to each placement of the widget until it has picks of its own.
+ */
+export function placementValues(
+    state: MonitoringState,
+    dashboardId: string,
+    placement: WidgetPlacement
+): Record<string, string> {
+    return (
+        state.widgetValues[widgetValueKey(dashboardId, placement.key)] ??
+        state.widgetValues[widgetValueKey(dashboardId, placement.widgetId)] ??
+        NO_VALUES
+    )
+}
+
+export function setPlacementValue(
+    dashboardId: string,
+    placement: WidgetPlacement,
+    name: string,
+    value: string | null
+): MonitoringActionMessage {
+    return {
+        type: EMonitoringAction.SET_WIDGET_VALUE,
+        key: widgetValueKey(dashboardId, placement.key),
+        inherit: widgetValueKey(dashboardId, placement.widgetId),
+        name,
+        value,
+    }
+}
 
 export function monitoringReducer(
     state: MonitoringState,
@@ -46,7 +92,11 @@ export function monitoringReducer(
         case EMonitoringAction.SET_SCOPE:
             return {...state, dashboardValues: action.scope}
         case EMonitoringAction.SET_WIDGET_VALUE: {
-            const values = {...(state.widgetValues[action.key] ?? {})}
+            const values = {
+                ...(state.widgetValues[action.key] ??
+                    (action.inherit ? state.widgetValues[action.inherit] : undefined) ??
+                    {}),
+            }
             if (action.value === null) delete values[action.name]
             else values[action.name] = action.value
             return {...state, widgetValues: {...state.widgetValues, [action.key]: values}}

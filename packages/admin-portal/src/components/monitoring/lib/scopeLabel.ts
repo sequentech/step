@@ -74,6 +74,15 @@ export function optionLabel(
     return optionsOf(options, selector).find((option) => option.key === key)?.label ?? key
 }
 
+/**
+ * On an election's page its Post is fixed, and with it the Post's Region:
+ * neither is offered.
+ */
+export const PINNED_BY_POST: ReadonlySet<EScopeSelector> = new Set([
+    EScopeSelector.REGION,
+    EScopeSelector.POST,
+])
+
 /** `All regions · Madrid · Spain`: the scope a dashboard or export is shown at. */
 export function scopeLabel({
     scope,
@@ -92,10 +101,16 @@ export function scopeLabel({
     restricted: boolean
     pinnedPost?: string | null
 }): string {
+    const pinned = pinnedPost ? options.posts.find((post) => post.key === pinnedPost) : undefined
     return selectors
         .map((selector) => {
-            const key =
-                selector === EScopeSelector.POST && pinnedPost ? pinnedPost : scope[selector]
+            const key = !pinnedPost
+                ? scope[selector]
+                : selector === EScopeSelector.POST
+                  ? pinnedPost
+                  : selector === EScopeSelector.REGION
+                    ? (pinned?.region ?? undefined)
+                    : scope[selector]
             return key
                 ? optionLabel(options, selector, key)
                 : selectorWords(selector, settings, t, restricted).all

@@ -13,6 +13,8 @@ import {formatDateTime} from "./lib/format"
 import {MonitoringSwitcher} from "./MonitoringSwitcher"
 
 export interface MonitoringHeaderProps {
+    /** The dashboard's title: the heading its widgets' titles sit under. */
+    title: string
     dashboards: MonitoringDashboardSummary[]
     dashboardId: string
     onSelectDashboard: (dashboardId: string) => void
@@ -28,6 +30,7 @@ export interface MonitoringHeaderProps {
 
 /** {dashboard} ▾ · {n} widgets · {requirement IDs} · Updated {time} · every 30 s · Export · Edit dashboard */
 export function MonitoringHeader({
+    title,
     dashboards,
     dashboardId,
     onSelectDashboard,
@@ -50,30 +53,35 @@ export function MonitoringHeader({
         t("monitoring.header.refresh", {seconds: MONITORING_DEFAULT_REFRESH_MS / 1000}),
     ].filter(Boolean)
     return (
-        <Stack
-            direction={{xs: "column", md: "row"}}
-            spacing={2}
-            alignItems={{xs: "stretch", md: "center"}}
-            useFlexGap
-            flexWrap="wrap"
-        >
-            <MonitoringSwitcher
-                dashboards={dashboards}
-                dashboardId={dashboardId}
-                onChange={onSelectDashboard}
-            />
-            <Typography variant="body2" color="text.secondary" sx={{flexGrow: 1}}>
-                {facts.join(" · ")}
+        <Stack spacing={1}>
+            <Typography variant="h5" component="h2">
+                {title}
             </Typography>
-            <Stack direction="row" spacing={1}>
-                <Button variant="outlined" onClick={onExport} disabled={!onExport}>
-                    {t("monitoring.header.export")}
-                </Button>
-                {onEditDashboard ? (
-                    <Button variant="contained" onClick={onEditDashboard}>
-                        {t("monitoring.header.editDashboard")}
+            <Stack
+                direction={{xs: "column", md: "row"}}
+                spacing={2}
+                alignItems={{xs: "stretch", md: "center"}}
+                useFlexGap
+                flexWrap="wrap"
+            >
+                <MonitoringSwitcher
+                    dashboards={dashboards}
+                    dashboardId={dashboardId}
+                    onChange={onSelectDashboard}
+                />
+                <Typography variant="body2" color="text.secondary" sx={{flexGrow: 1}}>
+                    {facts.join(" · ")}
+                </Typography>
+                <Stack direction="row" spacing={1}>
+                    <Button variant="outlined" onClick={onExport} disabled={!onExport}>
+                        {t("monitoring.header.export")}
                     </Button>
-                ) : null}
+                    {onEditDashboard ? (
+                        <Button variant="contained" onClick={onEditDashboard}>
+                            {t("monitoring.header.editDashboard")}
+                        </Button>
+                    ) : null}
+                </Stack>
             </Stack>
         </Stack>
     )

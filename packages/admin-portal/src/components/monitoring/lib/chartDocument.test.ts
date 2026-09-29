@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import {EColorScheme} from "../types"
 import {CHART_CSP, chartDocument, hashString, sanitizeSvg, widthBucket} from "./chartDocument"
+import {CHART_FONT_CSS} from "./chartFonts"
 
 const svg = (inner: string) =>
     `<svg xmlns="http://www.w3.org/2000/svg" width="100" height="50">${inner}</svg>`
@@ -38,6 +39,40 @@ describe("sanitizeSvg", () => {
     })
 })
 
+describe("sanitizeSvg styles", () => {
+    it("drops @import and every url() that leaves the document from a style element", () => {
+        const clean = sanitizeSvg(
+            svg(
+                "<style>@import url(https://evil/x.css); rect{fill:url(https://evil/p)}" +
+                    " circle{fill:url(#grad)} @import 'https://evil/y.css';</style><rect/>"
+            )
+        )
+        expect(clean).not.toMatch(/evil|@import/i)
+        expect(clean).toContain("fill:url(#grad)")
+        expect(clean).toContain("<style>")
+    })
+
+    it("drops a url() that leaves the document from a style attribute", () => {
+        const clean = sanitizeSvg(
+            svg(
+                '<rect style="fill:url(https://evil/p); stroke:red"/>' +
+                    '<circle style="fill:url(#grad)"/>' +
+                    "<ellipse style='fill:URL( \"https://evil/q\" )'/>"
+            )
+        )
+        expect(clean).not.toMatch(/evil/i)
+        expect(clean).toContain("stroke:red")
+        expect(clean).toContain("fill:url(#grad)")
+    })
+
+    it("drops a style that hides a url() behind a CSS escape", () => {
+        const clean = sanitizeSvg(
+            svg('<style>rect{fill:u\\72l(https://evil/p)}</style><rect style="fill:\\75rl(x)"/>')
+        )
+        expect(clean).not.toMatch(/evil|72l|75rl/i)
+    })
+})
+
 describe("chartDocument", () => {
     it("puts the content security policy first in the head", () => {
         const {html} = chartDocument({svg: svg("<rect/>"), colorScheme: EColorScheme.LIGHT})
@@ -50,6 +85,19 @@ describe("chartDocument", () => {
         )
         expect(html).toContain("overflow-y: auto")
         expect(html).toContain("<rect")
+    })
+
+    it("gives the frame the engine's font as a data: URI the policy allows", () => {
+        expect(CHART_FONT_CSS).toMatch(
+            /^@font-face\{font-family:'Inter Variable';src:url\(data:font\/woff;base64,[A-Za-z0-9+/=]+\)/
+        )
+        const {html} = chartDocument({
+            svg: svg("<rect/>"),
+            colorScheme: EColorScheme.LIGHT,
+            fontCss: CHART_FONT_CSS,
+        })
+        expect(html).toContain("<style>@font-face{font-family:'Inter Variable'")
+        expect(CHART_CSP).toContain("font-src data:")
     })
 
     it("has a hash that changes only with the document", () => {

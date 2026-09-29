@@ -14,6 +14,20 @@ export const CHART_CSP =
 
 const HREF_ATTRIBUTES = new Set(["href", "xlink:href"])
 
+const IMPORT_RULE = /@import[^;]*(;|$)/gi
+/** `url(...)` whose target, quoted or not, is not a `#fragment` of the document. */
+const OUTSIDE_URL = /url\(\s*(?!['"]?\s*#)[^)]*\)?/gi
+
+/**
+ * CSS the chart may keep: no `@import`, and `url()` only to the document's own
+ * gradients, patterns and filters. A CSS escape could spell `url` or `@import`
+ * so that no pattern sees it, so styles with one are dropped whole.
+ */
+export function sanitizeCss(css: string): string {
+    if (css.includes("\\")) return ""
+    return css.replace(IMPORT_RULE, "").replace(OUTSIDE_URL, "none")
+}
+
 let purifier: Purifier | undefined
 
 function svgPurifier(): Purifier {
@@ -23,6 +37,12 @@ function svgPurifier(): Purifier {
     instance.addHook("uponSanitizeAttribute", (_node, data) => {
         if (HREF_ATTRIBUTES.has(data.attrName) && !data.attrValue.trim().startsWith("#")) {
             data.keepAttr = false
+        }
+        if (data.attrName === "style") data.attrValue = sanitizeCss(data.attrValue)
+    })
+    instance.addHook("uponSanitizeElement", (node, data) => {
+        if (data.tagName === "style" && node.textContent) {
+            node.textContent = sanitizeCss(node.textContent)
         }
     })
     purifier = instance

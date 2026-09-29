@@ -14,6 +14,7 @@ const meta = {
     title: "Admin/Monitoring/MonitoringHeader",
     component: MonitoringHeader,
     args: {
+        title: "Monitoring overview",
         dashboards: listDashboardsResponse().dashboards,
         dashboardId: "overview",
         onSelectDashboard: fn(),

@@ -2838,6 +2838,18 @@ const basqueTranslation: TranslationType = {
             dashboardFailed: "Ezin izan da monitorizazio-panela kargatu.",
             dashboardInvalid: "Panel hau ezin da erakutsi: {{problem}}",
             retry: "Saiatu berriro",
+            errors: {
+                busy: "Zerbitzaria lanpetuta dago. Segundo batzuk barru saiatuko da berriro.",
+                forbiddenScope:
+                    "Ezin duzu eskualde, Post edo herrialde hau ikusi. Aukeratu beste bat.",
+                snapshotPruned:
+                    "Erakutsitako eguneratzea ez da gehiago gordetzen. Panelak azken eguneratzea erakusten du orain: esportatu berriro hura erabiltzeko.",
+                checksUnavailable: "Grafikoen zerbitzua ez dago erabilgarri orain. Saiatu geroago.",
+                lockedDown: "Hauteskunde-gertaera blokeatuta dago; beraz, hau ezin da aldatu.",
+                notFound: "Panel edo widget hau ez dago konfiguratuta jada. Kargatu berriro orria.",
+                badRequest: "Eskaera ez da onartu. Kargatu berriro orria eta saiatu berriro.",
+                unknown: "Zerbaitek huts egin du. Saiatu geroago.",
+            },
             header: {
                 dashboard: "Panela",
                 widgets_one: "Widget {{count}}",
@@ -2866,6 +2878,8 @@ const basqueTranslation: TranslationType = {
                 duplicate: "Bikoiztu",
                 loading: "{{widget}} kargatzen",
                 missing: "Panelak existitzen ez den widget bat aipatzen du: {{id}}",
+                updating: "{{widget}} eguneratzen",
+                updatingNote: "Eguneratzen: erakutsitako grafikoa aurrekoa da.",
             },
             frame: {
                 title: "{{widget}} grafikoa",
@@ -2921,7 +2935,7 @@ const basqueTranslation: TranslationType = {
                 from: "Noiztik",
                 to: "Noiz arte",
                 timeZoneHelp:
-                    "Orduak {{timeZone}} ordu-eremuan daude. Orduko eta eguneko jarduera hasiera-ordutik amaiera-ordura arte doa, hura barne hartu gabe. Egoera eta guztizkoak, tarteko ordu bakoitzean erregistratu bezala.",
+                    "Orduak {{timeZone}} ordu-eremuan daude. Guztizkoak eta egoerak erakutsitako eguneratzekoak dira; jarduera tartera mugatzen da, hasiera-ordutik amaiera-ordura arte, hura barne hartu gabe.",
                 cancel: "Utzi",
                 export: "Esportatu",
                 invalidRange: "Amaierak hasiera baino geroagokoa izan behar du.",

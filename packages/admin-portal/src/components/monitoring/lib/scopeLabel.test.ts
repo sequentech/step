@@ -83,6 +83,6 @@ describe("scopeLabel", () => {
                 restricted: false,
                 pinnedPost: "p1",
             })
-        ).toBe("All regions · Madrid · FR")
+        ).toBe("North · Madrid · FR")
     })
 })
