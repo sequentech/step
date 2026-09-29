@@ -18,14 +18,26 @@
 //!
 //! See <https://github.com/sequentech/meta/issues/13624>.
 
+/// Evaluating a query against the counts a snapshot holds.
+pub mod compute;
+
 /// Configuration as authored: widgets, dashboards, themes and settings.
 pub mod config;
+
+/// What the snapshot job stores for one source at one scope.
+pub mod payload;
 
 /// What the platform refuses in configuration, and every reason why.
 pub mod policy;
 
 /// What validation reports.
 pub mod problem;
+
+/// The dbt Charts board sent to the renderer for one widget.
+pub mod render_request;
+
+/// Which slice of the event a widget shows, and the key it is stored under.
+pub mod scope;
 
 /// Turning selector values into the concrete queries a widget runs.
 pub mod resolve;
