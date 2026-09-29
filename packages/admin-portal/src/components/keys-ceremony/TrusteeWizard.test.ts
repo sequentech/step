@@ -80,7 +80,7 @@ const buildCeremony = (
             logs: [],
             trustees,
         },
-    }) as unknown as Sequent_Backend_Keys_Ceremony
+    } as unknown as Sequent_Backend_Keys_Ceremony)
 
 const renderWizard = (currentCeremony: Sequent_Backend_Keys_Ceremony) =>
     render(
