@@ -6,6 +6,7 @@ DROP TABLE IF EXISTS sequent_backend.monitoring_login_counter;
 DROP TABLE IF EXISTS sequent_backend.monitoring_voter;
 DROP TABLE IF EXISTS sequent_backend.monitoring_snapshot_figure;
 DROP FUNCTION IF EXISTS sequent_backend.monitoring_snapshot_figure_is_kept();
+DROP FUNCTION IF EXISTS sequent_backend.monitoring_snapshot_figure_completes_its_run();
 DROP TABLE IF EXISTS sequent_backend.monitoring_snapshot_payload;
 DROP TABLE IF EXISTS sequent_backend.monitoring_snapshot_source;
 DROP TABLE IF EXISTS sequent_backend.monitoring_snapshot_state;
@@ -23,5 +24,19 @@ DROP FUNCTION IF EXISTS sequent_backend.monitoring_config_generation_is_current(
 DROP FUNCTION IF EXISTS sequent_backend.monitoring_config_is_append_only();
 DROP TABLE IF EXISTS sequent_backend.monitoring_event;
 DROP FUNCTION IF EXISTS sequent_backend.monitoring_event_is_kept();
+DROP FUNCTION IF EXISTS sequent_backend.monitoring_event_generation_moves_by_one();
+DROP FUNCTION IF EXISTS sequent_backend.monitoring_deleted_with_event();
 DROP FUNCTION IF EXISTS sequent_backend.monitoring_refuse_change();
-DROP EXTENSION IF EXISTS btree_gist;
+-- btree_gist goes only if this migration created it and nothing else has
+-- come to use it since.
+DO $$
+BEGIN
+    IF obj_description(
+        (SELECT oid FROM pg_extension WHERE extname = 'btree_gist'), 'pg_extension'
+    ) = 'created by migration 1790640000000_create_monitoring_tables' THEN
+        DROP EXTENSION btree_gist;
+    END IF;
+EXCEPTION WHEN dependent_objects_still_exist THEN
+    RAISE NOTICE 'btree_gist is kept: other objects use it';
+END;
+$$;
