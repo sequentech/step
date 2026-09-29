@@ -991,9 +991,6 @@ fn walk_dbt(
             for (key, value) in map {
                 let key = key_text(key);
                 let child = join(path, &key);
-                if key == "step" && parent == "ticks" && least_tick_gap(map) {
-                    continue;
-                }
                 walk_dbt_key(&key, value, &child, parent, governed, report);
             }
         }
@@ -1012,17 +1009,6 @@ fn walk_dbt(
         Value::Number(number) => check_dbt_number(number, path, parent, report),
         Value::Bool(_) | Value::Null | Value::Tagged(_) => {}
     }
-}
-
-/// A tick `step` of at least 1 with no `time_unit`: dbt Charts emits it as
-/// Vega-Lite's `tickMinStep`, which only thins the ticks. With a time unit
-/// it is a calendar cadence, which draws any number of them.
-fn least_tick_gap(ticks: &serde_yaml::Mapping) -> bool {
-    !ticks.contains_key("time_unit")
-        && ticks
-            .get("step")
-            .and_then(Value::as_f64)
-            .is_some_and(|step| (1.0..=MAX_DBT_NUMBER).contains(&step))
 }
 
 /// Whether `path` is inside a `style`, where text is paint.
