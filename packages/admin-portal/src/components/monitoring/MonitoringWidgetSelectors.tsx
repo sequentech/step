@@ -2,7 +2,14 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React from "react"
-import {MenuItem, Stack, TextField, ToggleButton, ToggleButtonGroup} from "@mui/material"
+import {
+    MenuItem,
+    Stack,
+    TextField,
+    ToggleButton,
+    ToggleButtonGroup,
+    Typography,
+} from "@mui/material"
 import {ESelectorControl} from "./types"
 import {ESelectorState, type ResolvedSelector} from "./lib/selectors"
 
@@ -25,23 +32,33 @@ export function MonitoringWidgetSelectors({
             {shown.map(({name, selector, options, state}) => {
                 const value = state.kind === ESelectorState.VALUE ? state.value : ""
                 if (selector.control === ESelectorControl.TOGGLE) {
+                    const labelId = `monitoring-${widgetId}-${name}-label`
                     return (
-                        <ToggleButtonGroup
-                            key={name}
-                            size="small"
-                            exclusive
-                            value={value}
-                            aria-label={selector.label}
-                            onChange={(_event, selected: string | null) => {
-                                if (selected !== null) onChange(name, selected)
-                            }}
-                        >
-                            {options.map((option) => (
-                                <ToggleButton key={option.value} value={option.value}>
-                                    {option.label}
-                                </ToggleButton>
-                            ))}
-                        </ToggleButtonGroup>
+                        <Stack key={name} direction="row" alignItems="center" spacing={1}>
+                            <Typography
+                                id={labelId}
+                                variant="body2"
+                                component="span"
+                                color="text.secondary"
+                            >
+                                {selector.label}
+                            </Typography>
+                            <ToggleButtonGroup
+                                size="small"
+                                exclusive
+                                value={value}
+                                aria-labelledby={labelId}
+                                onChange={(_event, selected: string | null) => {
+                                    if (selected !== null) onChange(name, selected)
+                                }}
+                            >
+                                {options.map((option) => (
+                                    <ToggleButton key={option.value} value={option.value}>
+                                        {option.label}
+                                    </ToggleButton>
+                                ))}
+                            </ToggleButtonGroup>
+                        </Stack>
                     )
                 }
                 return (

@@ -29,7 +29,7 @@ import {Box, CircularProgress} from "@mui/material"
 import {Tabs} from "@/components/Tabs"
 import {useNavigate, useLocation} from "react-router-dom"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
-import {EMonitoringLock} from "@/components/monitoring/useMonitoringPermissions"
+import {monitoringLock} from "@/components/monitoring/useMonitoringPermissions"
 
 // ---------------------------------------------------------------------
 // Lazy load all tab contents
@@ -101,10 +101,7 @@ interface ITabProps {
 
 const DashboardTab: React.FC<ITabProps> = ({refreshRef, handleChildMount}) => {
     const record = useRecordContext<Sequent_Backend_Election_Event>()
-    const lock =
-        record?.presentation?.locked_down === EElectionEventLockedDown.LOCKED_DOWN
-            ? EMonitoringLock.LOCKED_DOWN
-            : EMonitoringLock.OPEN
+    const lock = monitoringLock(record)
     return (
         <Suspense fallback={<div>Loading Dashboard...</div>}>
             <MonitoringDashboardTab

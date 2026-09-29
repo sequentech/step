@@ -132,13 +132,24 @@ export const LockedDownEvent: Story = {
     },
 }
 
+export const LockNotKnownYet: Story = {
+    args: {lock: EMonitoringLock.UNKNOWN},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await canvas.findByRole("combobox", {name: "Dashboard"})
+        // Until the event says whether it is locked down, nothing offers a change.
+        expect(canvas.queryByRole("button", {name: "Edit dashboard"})).toBeNull()
+    },
+}
+
 export const ElectionPage: Story = {
     args: {electionId: POSTS.madrid},
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
-        await canvas.findByRole("combobox", {name: "Region"})
-        // The election's Post is fixed, so it is not offered.
+        await canvas.findByRole("combobox", {name: "Country"})
+        // The election's Post is fixed, and with it its Region: neither is offered.
         expect(canvas.queryByRole("combobox", {name: "Post"})).toBeNull()
+        expect(canvas.queryByRole("combobox", {name: "Region"})).toBeNull()
         await waitFor(() =>
             expect(
                 graphql.calls.find(({name}) => name === "MonitoringRenderWidget")?.variables

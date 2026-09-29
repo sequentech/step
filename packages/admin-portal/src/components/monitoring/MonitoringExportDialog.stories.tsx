@@ -9,17 +9,22 @@ import type {WidgetMeta} from "@/__stories__/widgetStory"
 import {STORY_IDS} from "@/__stories__/fixtures"
 import {EMonitoringExportFormat} from "./types"
 import {MonitoringExportDialog} from "./MonitoringExportDialog"
-import {MONITORING_SNAPSHOT, monitoringHandlers} from "./__stories__/MonitoringFixture"
+import {MONITORING_SNAPSHOT, monitoringHandlers, refusal} from "./__stories__/MonitoringFixture"
 
 interface Scenario {
     onClose: () => void
+    onSnapshotPruned: () => void
     widgetId: string | null
     initialFormat: EMonitoringExportFormat
+    /** Harvest's refusal of the export, as `extensions.code`. */
+    refusal?: string
 }
+
+const DASHBOARD_PICKS = {"turnout-by-group": {breakdown: "sex", measure: "voted_pre"}}
 
 let graphql: ReturnType<typeof graphqlBoundary>
 
-function Fixture({onClose, widgetId, initialFormat}: Scenario) {
+function Fixture({onClose, onSnapshotPruned, widgetId, initialFormat}: Scenario) {
     return (
         <AdminStoryProvider boundary={graphql}>
             <MonitoringExportDialog
@@ -29,13 +34,15 @@ function Fixture({onClose, widgetId, initialFormat}: Scenario) {
                 scope="North · All Posts · All countries"
                 timeZone="Asia/Manila"
                 initialFormat={initialFormat}
+                onSnapshotPruned={onSnapshotPruned}
                 target={{
                     electionEventId: STORY_IDS.event,
                     electionId: null,
                     dashboardId: "overview",
                     widgetId,
                     scope: {region: "north"},
-                    selectorValues: {breakdown: "age_band", measure: "voted_pre"},
+                    selectorValues: widgetId ? {breakdown: "age_band", measure: "voted_pre"} : {},
+                    widgetSelectorValues: widgetId ? undefined : DASHBOARD_PICKS,
                     snapshotRevision: MONITORING_SNAPSHOT.revision,
                 }}
             />
@@ -46,9 +53,23 @@ function Fixture({onClose, widgetId, initialFormat}: Scenario) {
 const meta = {
     title: "Admin/Monitoring/MonitoringExportDialog",
     component: MonitoringExportDialog,
-    args: {onClose: fn(), widgetId: "turnout-by-group", initialFormat: EMonitoringExportFormat.CSV},
-    beforeEach: async () => {
-        graphql = graphqlBoundary(monitoringHandlers(), {schema: true})
+    args: {
+        onClose: fn(),
+        onSnapshotPruned: fn(),
+        widgetId: "turnout-by-group",
+        initialFormat: EMonitoringExportFormat.CSV,
+    },
+    beforeEach: async ({args}) => {
+        const handlers = monitoringHandlers()
+        graphql = graphqlBoundary(
+            args.refusal
+                ? {
+                      ...handlers,
+                      MonitoringExport: () => refusal(args.refusal as string),
+                  }
+                : handlers,
+            {schema: true}
+        )
         await graphql.ready
     },
     render: (args) => <Fixture {...args} />,
@@ -87,6 +108,7 @@ export const WidgetCsv: Story = {
             })
         )
         expect(exports()[0].variables.from).toBeUndefined()
+        expect(exports()[0].variables.widgetSelectorValues).toBeUndefined()
     },
 }
 
@@ -103,11 +125,48 @@ export const DashboardSqlOverRange: Story = {
             expect.objectContaining({
                 widgetId: null,
                 format: EMonitoringExportFormat.SQL,
-                // Wall-clock times, read in the event's time zone.
-                from: "2026-05-11T08:00:00",
-                to: "2026-05-12T08:00:00",
+                // Wall-clock times of the event's time zone, sent as instants.
+                from: "2026-05-11T08:00:00+08:00",
+                to: "2026-05-12T08:00:00+08:00",
+                // Each widget exported as the dashboard draws it.
+                widgetSelectorValues: DASHBOARD_PICKS,
             })
         )
+        await expect(
+            body.getByText(
+                /Totals and statuses are as of the shown update; activity is limited to the range/
+            )
+        ).toBeVisible()
+    },
+}
+
+export const SnapshotPruned: Story = {
+    args: {refusal: "MONITORING_SNAPSHOT_PRUNED"},
+    play: async ({args}) => {
+        const body = await dialog()
+        await userEvent.click(body.getByRole("button", {name: "Export"}))
+        // The dialog stays open to say why, and the dashboard asks for the current update.
+        await expect(
+            await body.findByText(
+                "The update shown is no longer kept. The dashboard now shows the latest update: export again to use it."
+            )
+        ).toBeVisible()
+        await expect(args.onSnapshotPruned).toHaveBeenCalledTimes(1)
+        expect(args.onClose).not.toHaveBeenCalled()
+    },
+}
+
+export const ForbiddenScope: Story = {
+    args: {refusal: "MONITORING_FORBIDDEN_SCOPE"},
+    play: async ({args}) => {
+        const body = await dialog()
+        await userEvent.click(body.getByRole("button", {name: "Export"}))
+        await expect(
+            await body.findByText(
+                "You may not see this region, Post or country. Choose another one."
+            )
+        ).toBeVisible()
+        expect(args.onSnapshotPruned).not.toHaveBeenCalled()
     },
 }
 

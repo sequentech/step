@@ -2846,6 +2846,22 @@ const dutchTranslation: TranslationType = {
             dashboardFailed: "Het monitoringdashboard kon niet worden geladen.",
             dashboardInvalid: "Dit dashboard kan niet worden getoond: {{problem}}",
             retry: "Opnieuw proberen",
+            errors: {
+                busy: "De server is bezet. Over enkele seconden wordt het opnieuw geprobeerd.",
+                forbiddenScope:
+                    "U mag deze regio, deze Post of dit land niet zien. Kies een andere.",
+                snapshotPruned:
+                    "De getoonde update wordt niet meer bewaard. Het dashboard toont nu de laatste update: exporteer opnieuw om die te gebruiken.",
+                checksUnavailable:
+                    "De grafiekdienst is nu niet beschikbaar. Probeer het later opnieuw.",
+                lockedDown:
+                    "Het verkiezingsevenement is vergrendeld, dus dit kan niet worden gewijzigd.",
+                notFound:
+                    "Dit dashboard of deze widget is niet meer geconfigureerd. Laad de pagina opnieuw.",
+                badRequest:
+                    "Het verzoek is niet geaccepteerd. Laad de pagina opnieuw en probeer het nogmaals.",
+                unknown: "Er ging iets mis. Probeer het later opnieuw.",
+            },
             header: {
                 dashboard: "Dashboard",
                 widgets_one: "{{count}} widget",
@@ -2874,6 +2890,8 @@ const dutchTranslation: TranslationType = {
                 duplicate: "Dupliceren",
                 loading: "{{widget}} laden",
                 missing: "Het dashboard noemt een widget die niet bestaat: {{id}}",
+                updating: "{{widget}} wordt bijgewerkt",
+                updatingNote: "Bijwerken: de getoonde grafiek is de vorige.",
             },
             frame: {
                 title: "Grafiek {{widget}}",
@@ -2930,7 +2948,7 @@ const dutchTranslation: TranslationType = {
                 from: "Van",
                 to: "Tot",
                 timeZoneHelp:
-                    "Tijden zijn in {{timeZone}}. Activiteit per uur en per dag vanaf de begintijd tot, maar niet met, de eindtijd. Status en totalen zoals vastgelegd op elk uur in de periode.",
+                    "Tijden zijn in {{timeZone}}. Totalen en statussen zijn die van de getoonde update; activiteit is beperkt tot de periode, vanaf de begintijd tot, maar niet met, de eindtijd.",
                 cancel: "Annuleren",
                 export: "Exporteren",
                 invalidRange: "Het einde moet na het begin liggen.",

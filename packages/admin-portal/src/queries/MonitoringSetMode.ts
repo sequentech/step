@@ -6,6 +6,7 @@ import {gql} from "@apollo/client"
 export const MONITORING_SET_MODE = gql`
     mutation MonitoringSetMode($electionEventId: uuid!, $mode: String!) {
         monitoringSetMode(election_event_id: $electionEventId, mode: $mode) {
+            mode
             generation
         }
     }

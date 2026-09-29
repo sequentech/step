@@ -2,7 +2,12 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {EDataSource, EDynamicOptions, ESelectorControl, type MonitoringWidget} from "../types"
-import {ESelectorState, resolveSelectors, selectorValuesForRequest} from "./selectors"
+import {
+    ESelectorState,
+    dashboardSelectorValues,
+    resolveSelectors,
+    selectorValuesForRequest,
+} from "./selectors"
 
 const widget: MonitoringWidget = {
     id: "turnout-by-group",
@@ -74,5 +79,40 @@ describe("resolveSelectors", () => {
 
     it("resolves a widget without selectors to nothing", () => {
         expect(resolveSelectors({...widget, selectors: undefined}, {}, {}, {})).toEqual([])
+    })
+})
+
+describe("dashboardSelectorValues", () => {
+    const cell = (key: string, values: Record<string, string>, shown = widget) => ({
+        key,
+        widgetId: shown.id,
+        values,
+        widget: shown,
+    })
+    const days = {event_days: ["2026-05-01", "2026-05-02"]}
+
+    it("gives each widget the values it is drawn with, by widget id", () => {
+        const plain: MonitoringWidget = {...widget, id: "summary", selectors: undefined}
+        const cells = [cell("0:turnout-by-group", {breakdown: "sex"}), cell("1:summary", {}, plain)]
+        const picks: Record<string, Record<string, string>> = {
+            "0:turnout-by-group": {grain: "hour"},
+        }
+        expect(
+            dashboardSelectorValues(cells, (placement) => picks[placement.key] ?? {}, days)
+        ).toEqual({
+            "turnout-by-group": {breakdown: "sex", grain: "hour", day: "2026-05-02"},
+            "summary": {},
+        })
+    })
+
+    it("takes a widget placed twice as its first placement shows it, and skips a missing one", () => {
+        const cells = [
+            cell("0:turnout-by-group", {breakdown: "sex"}),
+            cell("2:turnout-by-group", {breakdown: "age_band"}),
+            {key: "3:gone", widgetId: "gone", values: {}, widget: null},
+        ]
+        expect(dashboardSelectorValues(cells, () => ({}), days)).toEqual({
+            "turnout-by-group": {breakdown: "sex", grain: "day"},
+        })
     })
 })

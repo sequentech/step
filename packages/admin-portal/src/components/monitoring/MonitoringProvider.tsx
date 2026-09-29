@@ -14,8 +14,10 @@ import {
     INITIAL_STATE,
     loadState,
     monitoringReducer,
+    placementValues,
     saveState,
-    widgetValueKey,
+    setPlacementValue,
+    type WidgetPlacement,
 } from "./lib/state"
 import type {EMonitoringViewMode, MonitoringScope, MonitoringState} from "./types"
 
@@ -33,8 +35,9 @@ interface MonitoringContextValue {
     state: MonitoringState
     selectDashboard: (dashboardId: string) => void
     setScope: (scope: MonitoringScope) => void
-    setWidgetValue: (widgetId: string, name: string, value: string | null) => void
-    widgetValues: (widgetId: string) => Record<string, string>
+    /** A pick for one placement of a widget: one placed twice keeps two sets. */
+    setWidgetValue: (placement: WidgetPlacement, name: string, value: string | null) => void
+    widgetValues: (placement: WidgetPlacement) => Record<string, string>
     setMode: (mode: EMonitoringViewMode) => void
     actions: MonitoringEditorActions
 }
@@ -82,15 +85,9 @@ export function MonitoringProvider({
             selectDashboard: (id) =>
                 dispatch({type: EMonitoringAction.SELECT_DASHBOARD, dashboardId: id}),
             setScope: (scope) => dispatch({type: EMonitoringAction.SET_SCOPE, scope}),
-            setWidgetValue: (widgetId, name, selected) =>
-                dispatch({
-                    type: EMonitoringAction.SET_WIDGET_VALUE,
-                    key: widgetValueKey(dashboardId, widgetId),
-                    name,
-                    value: selected,
-                }),
-            widgetValues: (widgetId) =>
-                state.widgetValues[widgetValueKey(dashboardId, widgetId)] ?? NO_VALUES,
+            setWidgetValue: (placement, name, selected) =>
+                dispatch(setPlacementValue(dashboardId, placement, name, selected)),
+            widgetValues: (placement) => placementValues(state, dashboardId, placement),
             setMode: (mode) => dispatch({type: EMonitoringAction.SET_MODE, mode}),
             actions,
         }

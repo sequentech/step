@@ -40,7 +40,9 @@ function Fixture({dashboard}: Scenario) {
                         snapshot: MONITORING_SNAPSHOT,
                         sources: response.sources,
                         timeZone: response.settings.time_zone,
+                        eventDays: response.event_days,
                         configVersion: "3/1/1",
+                        pollCount: 0,
                         configure: EMonitoringCapability.DENIED,
                     }}
                 />

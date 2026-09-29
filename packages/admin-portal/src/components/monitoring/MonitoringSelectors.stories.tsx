@@ -52,7 +52,9 @@ export const RestrictedViewer: Story = {
 export const PinnedPost: Story = {
     args: {pinnedPost: POSTS.madrid},
     play: async ({canvasElement}) => {
+        // The election's Post is fixed, and with it its Region: only Country is left.
         expect(within(canvasElement).queryByRole("combobox", {name: "Post"})).toBeNull()
+        expect(within(canvasElement).queryByRole("combobox", {name: "Region"})).toBeNull()
         await expect(combobox(canvasElement, "Country")).toBeVisible()
     },
 }

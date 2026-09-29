@@ -263,6 +263,11 @@ export interface MonitoringGetDashboardResponse {
     pinned_post?: string | null
     sources: Record<string, MonitoringSourceInfo>
     snapshot?: MonitoringSnapshot | null
+    /**
+     * Days with activity (`YYYY-MM-DD` in the settings' time zone) for the
+     * widgets that pick a day: the options of `options_from: event_days`.
+     */
+    event_days: string[]
 }
 
 export interface MonitoringProblem {
@@ -389,7 +394,11 @@ export type MonitoringScopeValues = MonitoringScope
 export interface MonitoringState {
     dashboardId: string | null
     dashboardValues: MonitoringScopeValues
-    /** Viewer's picks per widget id, then selector name. */
+    /**
+     * Viewer's picks by `dashboard/placement` (the layout cell's key), then
+     * selector name. Sessions saved by earlier portals key them by
+     * `dashboard/widget id`, which still apply to every placement.
+     */
     widgetValues: Record<string, Record<string, string>>
     mode: EMonitoringViewMode
 }
@@ -438,6 +447,8 @@ export interface MonitoringExportVariables extends MonitoringGetDashboardVariabl
     widgetId?: string | null
     scope: MonitoringScope
     selectorValues: Record<string, string>
+    /** A dashboard export: each widget's picks, by widget id. */
+    widgetSelectorValues?: Record<string, Record<string, string>> | null
     snapshotRevision: number
     format: EMonitoringExportFormat
     from?: string | null
@@ -461,7 +472,7 @@ export interface MonitoringListPresetsQuery {
 }
 
 export interface MonitoringSetModeMutation {
-    monitoringSetMode: {generation: number}
+    monitoringSetMode: {mode: EMonitoringMode; generation: number}
 }
 
 export interface MonitoringListConfigQuery {

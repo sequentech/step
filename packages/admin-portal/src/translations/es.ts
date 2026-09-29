@@ -2850,6 +2850,18 @@ const spanishTranslation: TranslationType = {
             dashboardFailed: "No se ha podido cargar el panel de monitorización.",
             dashboardInvalid: "Este panel no se puede mostrar: {{problem}}",
             retry: "Reintentar",
+            errors: {
+                busy: "El servidor está ocupado. Se volverá a intentar en unos segundos.",
+                forbiddenScope: "No puede ver esta región, Post o país. Elija otro.",
+                snapshotPruned:
+                    "La actualización mostrada ya no se conserva. El panel muestra ahora la última actualización: vuelva a exportar para usarla.",
+                checksUnavailable:
+                    "El servicio de gráficos no está disponible ahora. Inténtelo más tarde.",
+                lockedDown: "El evento electoral está bloqueado, así que esto no se puede cambiar.",
+                notFound: "Este panel o widget ya no está configurado. Recargue la página.",
+                badRequest: "No se aceptó la solicitud. Recargue la página e inténtelo de nuevo.",
+                unknown: "Algo ha fallado. Inténtelo más tarde.",
+            },
             header: {
                 dashboard: "Panel",
                 widgets_one: "{{count}} widget",
@@ -2878,6 +2890,8 @@ const spanishTranslation: TranslationType = {
                 duplicate: "Duplicar",
                 loading: "Cargando {{widget}}",
                 missing: "El panel nombra un widget que no existe: {{id}}",
+                updating: "Actualizando {{widget}}",
+                updatingNote: "Actualizando: el gráfico mostrado es el anterior.",
             },
             frame: {
                 title: "Gráfico de {{widget}}",
@@ -2933,7 +2947,7 @@ const spanishTranslation: TranslationType = {
                 from: "Desde",
                 to: "Hasta",
                 timeZoneHelp:
-                    "Las horas están en {{timeZone}}. La actividad por hora y por día va desde la hora de inicio hasta la hora de fin, sin incluirla. El estado y los totales, tal como se registraron en cada hora del intervalo.",
+                    "Las horas están en {{timeZone}}. Los totales y los estados son los de la actualización mostrada; la actividad se limita al intervalo, desde la hora de inicio hasta la hora de fin, sin incluirla.",
                 cancel: "Cancelar",
                 export: "Exportar",
                 invalidRange: "El fin debe ser posterior al inicio.",
