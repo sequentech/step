@@ -10,6 +10,7 @@ import {AdminStoryProvider, graphqlBoundary} from "@/__stories__/AdminStoryProvi
 import {STORY_IDS, electionRecord, eventPresentation, eventRecord} from "@/__stories__/fixtures"
 import type {WidgetMeta} from "@/__stories__/widgetStory"
 import {IPermissions} from "@/types/keycloak"
+import {legacyMonitoring} from "@/components/monitoring/__stories__/MonitoringFixture"
 import {ElectionTabs} from "./ElectionTabs"
 import {
     answerOrPending,
@@ -93,7 +94,7 @@ const meta = {
                       sequent_backend_election_event: [event],
                   }
         )
-        graphql = graphqlBoundary(answerOrPending(), {schema: true})
+        graphql = graphqlBoundary(answerOrPending(legacyMonitoring()), {schema: true})
         // The dashboard builds the voting portal addresses with sequent-core.
         await Promise.all([graphql.ready, initCore()])
     },
