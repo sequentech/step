@@ -20,6 +20,9 @@ use strum_macros::{Display, EnumIter, EnumString};
 /// A source whose producer is owned by another team is listed anyway, so a
 /// preset can place its widget today and the widget says "Not connected"
 /// until the producer lands — never zero.
+///
+/// The monitoring tables list these names in a CHECK constraint, so a new
+/// source needs a migration deployed before the code that writes it.
 #[derive(
     Debug,
     Clone,

@@ -21,6 +21,9 @@ use serde::{Deserialize, Serialize};
 use strum_macros::{Display, EnumIter, EnumString};
 
 /// Which of the four kinds a document is.
+///
+/// The monitoring tables list these names in a CHECK constraint, so a new
+/// kind needs a migration deployed before the code that writes it.
 #[derive(
     Debug,
     Clone,
