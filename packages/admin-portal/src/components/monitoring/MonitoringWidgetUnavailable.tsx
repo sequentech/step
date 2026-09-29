@@ -6,6 +6,7 @@ import {Box, Stack, Typography} from "@mui/material"
 import {useTranslation} from "react-i18next"
 import {
     EColumnKind,
+    EPendingReason,
     EWidgetFailure,
     EWidgetRenderState,
     POSITION_COLUMN,
@@ -55,6 +56,12 @@ const WORDS: Record<MonitoringUnavailableState, {title: string; help: string}> =
     },
 }
 
+/** Counting again with newly saved settings: pending, but not for the selection. */
+const SETTINGS_PENDING_WORDS = {
+    title: "monitoring.unavailable.settingsPending",
+    help: "monitoring.unavailable.settingsPendingHelp",
+}
+
 /** A table of one row reads better as figures. */
 function Fallback({table, title}: {table: MonitoringTable; title: string}) {
     const figures = table.columns
@@ -87,7 +94,10 @@ export function MonitoringWidgetUnavailable({
     title,
 }: MonitoringWidgetUnavailableProps) {
     const {t} = useTranslation()
-    const words = WORDS[state]
+    const words =
+        state === EWidgetRenderState.SCOPE_PENDING && reason === EPendingReason.SETTINGS_PENDING
+            ? SETTINGS_PENDING_WORDS
+            : WORDS[state]
     const reasonText = reason ? t(`monitoring.reasons.${reason}`, {defaultValue: reason}) : ""
     const errors = diagnostics.map((diagnostic) => diagnostic.message)
     return (
