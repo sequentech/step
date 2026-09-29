@@ -8,8 +8,29 @@
 #
 # This exists for the offline/airgapped release pipeline (sequentech/meta#13625),
 # where dependencies are fetched on an online machine and the product is built on
-# a physically separate disconnected one. It is the only image here that needs the
-# network; everything downstream consumes its output.
+# a physically separate disconnected one.
+#
+# SCOPE, precisely: this covers dependency resolution -- Cargo crates, Yarn
+# packages, Maven repositories, the oid4vp archive and the immudb binaries. It
+# does NOT yet make the images fully buildable with --network=none, because the
+# runtime stages still install operating-system packages and download tools:
+#
+#   Dockerfile.prod            apk add jq                      (nginx:alpine)
+#   Dockerfile.immudb          apk add ca-certificates bash    (runtime stage)
+#   harvest, windmill          apt-get install ...; a JDK from download.java.net;
+#                              cargo-binstall from raw.githubusercontent.com
+#   b4, braid                  apt-get install ...; the AWS CLI; Vault
+#
+# Closing that needs OS package archives and pinned tool downloads vendored as
+# well, which is a larger change and a separate piece of work. Until then this
+# image removes the dependency-resolution network traffic, which is the bulk of
+# it and the part that varies per commit.
+#
+# Note also that b4 and braid resolve VAULT_VERSION by scraping
+# releases.hashicorp.com at build time when it is "latest". That is a floating
+# version decided during the build, so two builds of the same commit can ship
+# different Vault binaries -- a reproducibility problem independent of offline
+# builds, and one that has to be pinned before any byte-comparison gate can pass.
 #
 # Build (online):
 #   docker build -t sequentech.local/offline-dependencies:latest \
