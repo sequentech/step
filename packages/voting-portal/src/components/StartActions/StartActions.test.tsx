@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React from "react"
-import {render, screen} from "@testing-library/react"
+import {render, screen, waitFor} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import {MemoryRouter, Route, Routes, useLocation} from "react-router-dom"
 import {ESecurityConfirmationPolicy, IElection} from "@sequentech/ui-core"
@@ -102,8 +102,12 @@ describe("StartActions navigation", () => {
             await user.tab()
             await user.keyboard(key)
 
-            expect(screen.getByLabelText("Current route")).toHaveTextContent(
-                "/tenant/tenant-1/event/event-1/election/election-1/vote?preview=true"
+            // MUI finishes a Space-key activation after its lazy ripple work.
+            // Await the visible route transition rather than racing that task.
+            await waitFor(() =>
+                expect(screen.getByLabelText("Current route")).toHaveTextContent(
+                    "/tenant/tenant-1/event/event-1/election/election-1/vote?preview=true"
+                )
             )
         }
     )
