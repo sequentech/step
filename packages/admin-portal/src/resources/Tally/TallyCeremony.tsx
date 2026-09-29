@@ -259,26 +259,27 @@ export const TallyCeremony: React.FC = () => {
         }
     )
 
-    const {data: tallySessionExecutions} = useGetList<Sequent_Backend_Tally_Session_Execution>(
-        "sequent_backend_tally_session_execution",
-        {
-            pagination: {page: 1, perPage: 1},
-            sort: {field: "created_at", order: "DESC"},
-            filter: {
-                tally_session_id: tallyId,
-                tenant_id: tenantId,
+    const {data: tallySessionExecutions, refetch: refetchTallySessionExecutions} =
+        useGetList<Sequent_Backend_Tally_Session_Execution>(
+            "sequent_backend_tally_session_execution",
+            {
+                pagination: {page: 1, perPage: 1},
+                sort: {field: "created_at", order: "DESC"},
+                filter: {
+                    tally_session_id: tallyId,
+                    tenant_id: tenantId,
+                },
             },
-        },
-        {
-            refetchInterval: isTallyCompleted
-                ? undefined
-                : globalSettings.QUERY_FAST_POLL_INTERVAL_MS,
-            refetchOnWindowFocus: false,
-            refetchOnReconnect: false,
-            refetchOnMount: false,
-            enabled: !!tallyId && !!tenantId,
-        }
-    )
+            {
+                refetchInterval: isTallyCompleted
+                    ? undefined
+                    : globalSettings.QUERY_FAST_POLL_INTERVAL_MS,
+                refetchOnWindowFocus: false,
+                refetchOnReconnect: false,
+                refetchOnMount: false,
+                enabled: !!tallyId && !!tenantId,
+            }
+        )
 
     let resultsEventId = tallySessionExecutions?.[0]?.results_event_id ?? null
 
@@ -365,8 +366,12 @@ export const TallyCeremony: React.FC = () => {
 
     useEffect(() => {
         if (tallySession?.is_execution_completed && !isTallyCompleted) {
-            // Only mark as completed if we have the resultsEventId
-            if (resultsEventId) {
+            // Only mark as completed if we have the resultsEventId, unless the tally failed
+            if (tallySession.execution_status === ITallyExecutionStatus.FAILED) {
+                // The execution recording the failure can be newer than the last one fetched
+                void refetchTallySessionExecutions()
+                setIsTallyCompleted(true)
+            } else if (resultsEventId) {
                 // The results event can be created before its documents are uploaded. Refresh it
                 // once the execution is complete so export actions do not retain that stale state.
                 void refetch()
@@ -378,10 +383,12 @@ export const TallyCeremony: React.FC = () => {
         }
     }, [
         tallySession?.is_execution_completed,
+        tallySession?.execution_status,
         isTallyCompleted,
         resultsEventId,
         refetch,
         refetchTallySession,
+        refetchTallySessionExecutions,
     ])
 
     useEffect(() => {
@@ -401,7 +408,8 @@ export const TallyCeremony: React.FC = () => {
             }
             if (
                 tallySession.execution_status === ITallyExecutionStatus.IN_PROGRESS ||
-                tallySession.execution_status === ITallyExecutionStatus.AWAITING_INPUT
+                tallySession.execution_status === ITallyExecutionStatus.AWAITING_INPUT ||
+                tallySession.execution_status === ITallyExecutionStatus.FAILED
             ) {
                 setPage(WizardSteps.Tally)
                 return
@@ -1251,6 +1259,7 @@ export const TallyCeremony: React.FC = () => {
                     ) : null}
                     {page < WizardSteps.Results &&
                         tally?.execution_status !== ITallyExecutionStatus.CANCELLED &&
+                        tally?.execution_status !== ITallyExecutionStatus.FAILED &&
                         tally?.execution_status !== ITallyExecutionStatus.AWAITING_INPUT && (
                             <NextButton
                                 key="tally-next-button"

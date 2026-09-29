@@ -378,6 +378,10 @@ pub async fn try_insert_cast_vote(
         false
     };
 
+    // TODO(voter path step): these checks are the old core's. A new-core
+    // entry (`protocol_board::BallotCiphertext`) needs its Naor-Yung proof
+    // verified under the ballot encryption context and its contest ids checked
+    // against the ballot style.
     let hash_result = if is_multi_contest {
         deserialize_and_check_multi_ballot(&input, voter_id)
     } else {

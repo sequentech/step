@@ -12,14 +12,13 @@
 //! collapse to the single-batch behaviour that predates weighting.
 
 use anyhow::{anyhow, Result};
-use b4::messages::{artifact::Plaintexts, message::Message};
+use protocol_board::ElementPayload;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::types::hasura::core::{TallySessionContest, TallySessionContestAnnotations};
 use sequent_core::types::keycloak::{
     weight_bit_multiplier, weight_has_bit, MAX_TOTAL_VOTE_WEIGHT, VOTE_WEIGHT_BATCHES,
 };
-use strand::elgamal::Ciphertext;
-use strand::{backend::ristretto::RistrettoCtx, context::Ctx, serialization::StrandDeserialize};
+use std::collections::HashMap;
 use tracing::{event, Level};
 
 /// The batch offsets one copy of this voter's ciphertext goes into.
@@ -87,90 +86,20 @@ pub fn contest_weight_batches(
         .collect()
 }
 
-/// What a run should do with one of its area's batches, having compared what
-/// the board already holds for it against what this run built.
-#[derive(Debug, PartialEq, Eq)]
-pub enum BatchReconciliation {
-    /// Nothing readable on the board for it. Normally that means it has not
-    /// been posted and should be; at the one call site that can see an
-    /// unreadable artifact it means the batch is there but cannot be compared,
-    /// and posting is not an option because the board is append-only.
-    Post,
-    /// The board already holds exactly this: leave it alone.
-    Keep,
-    /// The board holds something else. Under weighting that is a wrong tally,
-    /// because the ballots on the board are what will be mixed and published
-    /// whatever is counted; without it, it is the census drifting from the
-    /// board, which has always been allowed.
-    Diverged,
-}
-
-/// Decides one batch. Split out from the dump so that every case can be pinned
-/// by a test: this decision changed in three consecutive review rounds, and
-/// each change broke the previous one in a way no test could catch.
-pub fn reconcile_batch(
-    posted: Option<&[Ciphertext<RistrettoCtx>]>,
-    built: &[Ciphertext<RistrettoCtx>],
-) -> BatchReconciliation {
-    let Some(posted) = posted else {
-        return BatchReconciliation::Post;
-    };
-    // Note this is also what an unreadable artifact resolves to, and the caller
-    // then leaves that batch alone. `collect_weighted_plaintexts` takes the
-    // opposite line and errors, because there it is the difference between
-    // waiting forever and failing. Here neither is recoverable -- the board is
-    // append-only, so a batch that cannot be read cannot be replaced -- and a
-    // batch that cannot be read also cannot be mixed, so nothing wrong can be
-    // published. Refusing the whole dump over it would only lose the areas that
-    // are still fine.
-    // An area with no ballots posts one empty batch, so the tally has something
-    // to wait for. It encodes no weight and contributes nothing, so it is not
-    // evidence that anything changed -- but only while this run agrees there is
-    // nothing to put in it.
-    if posted.is_empty() && built.is_empty() {
-        return BatchReconciliation::Keep;
-    }
-    if posted == built {
-        return BatchReconciliation::Keep;
-    }
-    BatchReconciliation::Diverged
-}
-
 /// The area's decrypted ballots, each repeated by the multiplier its batch
 /// carries, in one vector for the contest to count.
 ///
-/// `None` while any expected batch is still unmixed: counting the batches that
-/// have arrived would silently drop the weight of the ones that have not, and
-/// publish a result that looks complete.
-pub fn collect_weighted_plaintexts(
+/// `None` while any expected batch is still undecrypted: counting the batches
+/// that have arrived would silently drop the weight of the ones that have not,
+/// and publish a result that looks complete.
+pub fn collect_weighted_payloads(
     tally_session_contest: &TallySessionContest,
-    relevant_plaintexts: &[&Message],
-) -> Result<Option<Vec<<RistrettoCtx as Ctx>::P>>> {
+    decrypted: &HashMap<i64, Vec<ElementPayload>>,
+) -> Result<Option<Vec<ElementPayload>>> {
     let batches = contest_weight_batches(tally_session_contest)?;
-    let mut found: Vec<(Vec<<RistrettoCtx as Ctx>::P>, u64)> = Vec::with_capacity(batches.len());
+    let mut found: Vec<(&[ElementPayload], u64)> = Vec::with_capacity(batches.len());
     for (batch, multiplier) in batches {
-        // An artifact that is present but will not deserialize is a broken
-        // board message, not a batch that has yet to be mixed. Mapping it to
-        // the latter waits for it forever; the whole point of separating the
-        // two is that only one of them ever resolves.
-        let artifact = relevant_plaintexts
-            .iter()
-            .find(|message| batch == message.statement.get_batch_number() as i64)
-            .and_then(|message| message.artifact.clone());
-        let plaintexts = artifact
-            .map(|artifact| {
-                Plaintexts::<RistrettoCtx>::strand_deserialize(&artifact)
-                    .map(|plaintexts| plaintexts.0 .0)
-                    .map_err(|error| {
-                        anyhow!(
-                            "Could not read the Plaintexts artifact for batch {batch} of \
-                             tally session contest {}: {error:?}",
-                            tally_session_contest.id
-                        )
-                    })
-            })
-            .transpose()?;
-        let Some(plaintexts) = plaintexts else {
+        let Some(payloads) = decrypted.get(&batch) else {
             event!(
                 Level::INFO,
                 "Expected: Plaintexts not found yet for session contest = {}, batch number = {}",
@@ -179,17 +108,15 @@ pub fn collect_weighted_plaintexts(
             );
             return Ok(None);
         };
-        found.push((plaintexts, multiplier));
+        found.push((payloads.as_slice(), multiplier));
     }
 
-    let total: u64 = found
-        .iter()
-        .try_fold(0u64, |acc, (plaintexts, multiplier)| {
-            (plaintexts.len() as u64)
-                .checked_mul(*multiplier)
-                .and_then(|batch_total| acc.checked_add(batch_total))
-                .ok_or_else(|| anyhow!("Weighted plaintext count overflowed"))
-        })?;
+    let total: u64 = found.iter().try_fold(0u64, |acc, (payloads, multiplier)| {
+        (payloads.len() as u64)
+            .checked_mul(*multiplier)
+            .and_then(|batch_total| acc.checked_add(batch_total))
+            .ok_or_else(|| anyhow!("Weighted plaintext count overflowed"))
+    })?;
     // Only where a weight actually multiplies something. The dump bounds the
     // summed weight, but it is not what runs here: the multipliers come from a
     // mask read back out of a jsonb column and the ballot counts from the
@@ -212,10 +139,10 @@ pub fn collect_weighted_plaintexts(
         ));
     }
 
-    let mut collected: Vec<<RistrettoCtx as Ctx>::P> = Vec::with_capacity(total as usize);
-    for (plaintexts, multiplier) in found {
-        for plaintext in plaintexts {
-            collected.extend(std::iter::repeat_n(plaintext, multiplier as usize));
+    let mut collected: Vec<ElementPayload> = Vec::with_capacity(total as usize);
+    for (payloads, multiplier) in found {
+        for payload in payloads {
+            collected.extend(std::iter::repeat_n(*payload, multiplier as usize));
         }
     }
     Ok(Some(collected))
@@ -254,83 +181,6 @@ mod tests {
             value["weight_bit_mask"] = json!(mask);
         }
         value
-    }
-
-    /// A handful of distinct ciphertexts, built once per test so that the same
-    /// index yields the same value and different indices do not.
-    fn pool() -> Vec<Ciphertext<RistrettoCtx>> {
-        let ctx = RistrettoCtx::default();
-        let mut rng = ctx.get_rng();
-        (0..4)
-            .map(|_| Ciphertext {
-                mhr: ctx.rnd(&mut rng),
-                gr: ctx.rnd(&mut rng),
-            })
-            .collect()
-    }
-
-    #[test]
-    fn an_unposted_batch_is_posted() {
-        let pool = pool();
-        assert_eq!(reconcile_batch(None, &pool[..2]), BatchReconciliation::Post);
-        assert_eq!(reconcile_batch(None, &[]), BatchReconciliation::Post);
-    }
-
-    #[test]
-    fn a_batch_holding_what_this_run_built_is_kept() {
-        let pool = pool();
-        assert_eq!(
-            reconcile_batch(Some(&pool[..3]), &pool[..3]),
-            BatchReconciliation::Keep
-        );
-    }
-
-    #[test]
-    fn an_empty_placeholder_is_kept_only_while_it_is_still_empty() {
-        // An area with no ballots posts one empty batch; that is not evidence
-        // anything changed. But once this run has ballots for it, the empty
-        // batch on the board would strand them.
-        let pool = pool();
-        assert_eq!(reconcile_batch(Some(&[]), &[]), BatchReconciliation::Keep);
-        assert_eq!(
-            reconcile_batch(Some(&[]), &pool[..1]),
-            BatchReconciliation::Diverged
-        );
-    }
-
-    #[test]
-    fn a_batch_the_current_weights_no_longer_fill_has_diverged() {
-        let pool = pool();
-        assert_eq!(
-            reconcile_batch(Some(&pool[..2]), &[]),
-            BatchReconciliation::Diverged
-        );
-    }
-
-    #[test]
-    fn a_batch_of_a_different_size_has_diverged() {
-        let pool = pool();
-        assert_eq!(
-            reconcile_batch(Some(&pool[..3]), &pool[..2]),
-            BatchReconciliation::Diverged
-        );
-    }
-
-    #[test]
-    fn a_batch_of_the_same_size_holding_other_ballots_has_diverged() {
-        // The case a ballot count cannot see: weights permuted between two
-        // voters keeps every batch exactly the same size while changing who is
-        // in it, and counting the board would seat the old weights.
-        let pool = pool();
-        let swapped: Vec<Ciphertext<RistrettoCtx>> = vec![pool[1].clone(), pool[0].clone()];
-        assert_eq!(
-            reconcile_batch(Some(&pool[..2]), &swapped),
-            BatchReconciliation::Diverged
-        );
-        assert_eq!(
-            reconcile_batch(Some(&pool[..2]), &pool[1..3]),
-            BatchReconciliation::Diverged
-        );
     }
 
     #[test]

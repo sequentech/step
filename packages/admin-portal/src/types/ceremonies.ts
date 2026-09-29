@@ -41,6 +41,7 @@ export enum ITallyExecutionStatus {
     IN_PROGRESS = "IN_PROGRESS",
     AWAITING_INPUT = "AWAITING_INPUT",
     SUCCESS = "SUCCESS",
+    FAILED = "FAILED",
     CANCELLED = "CANCELLED",
 }
 
@@ -48,6 +49,7 @@ export enum ITallyTrusteeStatus {
     WAITING = "WAITING",
     KEY_RESTORED = "KEY_RESTORED",
     KEY_CHECKED = "KEY_CHECKED",
+    HALTED = "HALTED",
 }
 
 export interface ITallyTrustee {

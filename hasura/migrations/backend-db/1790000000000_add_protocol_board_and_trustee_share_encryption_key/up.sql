@@ -17,11 +17,14 @@ CREATE TABLE "sequent_backend"."protocol_board"
     "election_event_id" uuid        NOT NULL,
     "parent_id"         uuid        NULL,
     "keys_ceremony_id"  uuid        NOT NULL,
+    "tally_session_id"  uuid        NULL,
+    "batch"             integer     NULL,
     "name"              text        NOT NULL,
     "manager_message"   bytea       NOT NULL,
     "created_at"        timestamptz NOT NULL DEFAULT now(),
     PRIMARY KEY ("id"),
     UNIQUE ("name"),
+    UNIQUE ("tally_session_id", "batch"),
     FOREIGN KEY ("tenant_id")
         REFERENCES "sequent_backend"."tenant" ("id")
         ON UPDATE RESTRICT ON DELETE RESTRICT,
@@ -36,11 +39,24 @@ CREATE TABLE "sequent_backend"."protocol_board"
         ON UPDATE RESTRICT ON DELETE RESTRICT,
     FOREIGN KEY ("keys_ceremony_id", "tenant_id", "election_event_id")
         REFERENCES "sequent_backend"."keys_ceremony" ("id", "tenant_id", "election_event_id")
-        ON UPDATE RESTRICT ON DELETE RESTRICT
+        ON UPDATE RESTRICT ON DELETE RESTRICT,
+    FOREIGN KEY ("tally_session_id", "tenant_id", "election_event_id")
+        REFERENCES "sequent_backend"."tally_session" ("id", "tenant_id", "election_event_id")
+        ON UPDATE RESTRICT ON DELETE RESTRICT,
+    CHECK (
+        ("parent_id" IS NULL) = ("tally_session_id" IS NULL)
+        AND ("parent_id" IS NULL) = ("batch" IS NULL)
+    )
 );
 
 COMMENT ON COLUMN "sequent_backend"."protocol_board"."parent_id" IS
     'The parent board of a child board, or NULL for parent. A child board is any tally board, and its parent is dkg.';
+
+COMMENT ON COLUMN "sequent_backend"."protocol_board"."tally_session_id" IS
+    'The tally session of a tally board, or NULL for dkg. Set together with parent_id and batch.';
+
+COMMENT ON COLUMN "sequent_backend"."protocol_board"."batch" IS
+    'The ballot batch of a tally board, or NULL for dkg: the session_id of its tally session contest plus the weight batch offset.';
 
 COMMENT ON COLUMN "sequent_backend"."protocol_board"."manager_message" IS
     'The canonical bytes of the message published by the protocol manager it when the ceremony was created. Configuration for dkg, and Ballots for tally.';

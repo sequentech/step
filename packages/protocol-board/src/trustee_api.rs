@@ -7,8 +7,8 @@
 //! one of them. harvest serves and takes these as JSON, and the trustee reads
 //! and sends the same types.
 
-use anyhow::{bail, Context as _, Result};
-use sequent_core::types::protocol_board::{ProtocolBoard, ProtocolBoardKind};
+use anyhow::{Context as _, Result};
+use sequent_core::types::protocol_board::ProtocolBoardKind;
 use serde::{Deserialize, Serialize};
 use strum_macros::{Display, EnumString};
 
@@ -24,26 +24,20 @@ pub struct TrusteeBoard {
 }
 
 impl TrusteeBoard {
-    /// The entry of a board row, with its parent's name if it has a parent.
-    pub fn of(
-        row: &ProtocolBoard,
-        parent: Option<&str>,
-    ) -> Result<TrusteeBoard> {
-        let name = BoardName::parse(&row.name)?;
-        let kind = row.kind();
-        let parent = match (kind, parent) {
-            (ProtocolBoardKind::DKG, None) => None,
-            (ProtocolBoardKind::TALLY, Some(parent)) => Some(
-                BoardName::parse(parent)
-                    .with_context(|| format!("the parent of board {name}"))?,
-            ),
-            (ProtocolBoardKind::DKG, Some(parent)) => {
-                bail!("DKG board {name} has no parent, yet {parent} was given")
-            }
-            (ProtocolBoardKind::TALLY, None) => {
-                bail!("tally board {name} was given no parent")
-            }
-        };
+    /// The entry of board `name`, with its parent's name if it has one: a
+    /// board with a parent is a tally board, one without is a DKG board.
+    pub fn of(name: &str, parent: Option<&str>) -> Result<TrusteeBoard> {
+        let name = BoardName::parse(name)?;
+        let (kind, parent) =
+            match parent {
+                None => (ProtocolBoardKind::DKG, None),
+                Some(parent) => (
+                    ProtocolBoardKind::TALLY,
+                    Some(BoardName::parse(parent).with_context(|| {
+                        format!("the parent of board {name}")
+                    })?),
+                ),
+            };
         Ok(TrusteeBoard { name, kind, parent })
     }
 }
@@ -87,39 +81,23 @@ mod tests {
     use serde_json::json;
 
     const DKG_NAME: &str = "dkg_d9792af071b849528aac94bc0fead5f7";
-    /// The platform mints no tally board names yet, so the tally rows here
-    /// carry a DKG board name; a row's kind comes from its lineage, not its
-    /// name.
-    const TALLY_NAME: &str = "dkg_0f6a3b2c9d8e4f10a1b2c3d4e5f60718";
-
-    fn row(name: &str, parent_id: Option<&str>) -> ProtocolBoard {
-        ProtocolBoard {
-            id: "row-id".to_string(),
-            tenant_id: "tenant-id".to_string(),
-            election_event_id: "election-event-id".to_string(),
-            parent_id: parent_id.map(str::to_string),
-            keys_ceremony_id: "keys-ceremony-id".to_string(),
-            name: name.to_string(),
-            manager_message: vec![1, 2, 3],
-            created_at: None,
-        }
-    }
+    const TALLY_NAME: &str = "tally_0f6a3b2c9d8e4f10a1b2c3d4e5f60718_3";
 
     fn board_name(name: &str) -> BoardName {
         BoardName::parse(name).unwrap()
     }
 
-    fn refusal(row: &ProtocolBoard, parent: Option<&str>) -> String {
-        match TrusteeBoard::of(row, parent) {
+    fn refusal(name: &str, parent: Option<&str>) -> String {
+        match TrusteeBoard::of(name, parent) {
             Ok(board) => panic!("expected an error, got {board:?}"),
             Err(err) => format!("{err:#}"),
         }
     }
 
     #[test]
-    fn a_dkg_row_is_listed_without_a_parent() {
+    fn a_board_without_a_parent_is_listed_as_a_dkg_board() {
         assert_eq!(
-            TrusteeBoard::of(&row(DKG_NAME, None), None).unwrap(),
+            TrusteeBoard::of(DKG_NAME, None).unwrap(),
             TrusteeBoard {
                 name: board_name(DKG_NAME),
                 kind: ProtocolBoardKind::DKG,
@@ -129,10 +107,9 @@ mod tests {
     }
 
     #[test]
-    fn a_tally_row_is_listed_with_its_parent_board_name() {
-        let tally = row(TALLY_NAME, Some("parent-row-id"));
+    fn a_board_with_a_parent_is_listed_as_a_tally_board_of_it() {
         assert_eq!(
-            TrusteeBoard::of(&tally, Some(DKG_NAME)).unwrap(),
+            TrusteeBoard::of(TALLY_NAME, Some(DKG_NAME)).unwrap(),
             TrusteeBoard {
                 name: board_name(TALLY_NAME),
                 kind: ProtocolBoardKind::TALLY,
@@ -142,21 +119,11 @@ mod tests {
     }
 
     #[test]
-    fn a_row_whose_lineage_and_parent_disagree_is_an_error_naming_it() {
-        let error = refusal(&row(DKG_NAME, None), Some(TALLY_NAME));
-        assert!(error.contains(DKG_NAME), "{error}");
-
-        let error = refusal(&row(TALLY_NAME, Some("parent-row-id")), None);
-        assert!(error.contains(TALLY_NAME), "{error}");
-    }
-
-    #[test]
     fn a_name_the_platform_does_not_mint_is_an_error() {
-        let error = refusal(&row("../dkg", None), None);
+        let error = refusal("../dkg", None);
         assert!(error.contains("../dkg"), "{error}");
 
-        let tally = row(TALLY_NAME, Some("parent-row-id"));
-        let error = refusal(&tally, Some("dkg board"));
+        let error = refusal(TALLY_NAME, Some("dkg board"));
         assert!(error.contains(TALLY_NAME), "{error}");
         assert!(error.contains("dkg board"), "{error}");
     }
@@ -165,12 +132,8 @@ mod tests {
     fn the_board_list_and_the_report_have_the_routes_json_shapes() {
         let boards = TrusteeBoardsResponse {
             boards: vec![
-                TrusteeBoard::of(&row(DKG_NAME, None), None).unwrap(),
-                TrusteeBoard::of(
-                    &row(TALLY_NAME, Some("parent-row-id")),
-                    Some(DKG_NAME),
-                )
-                .unwrap(),
+                TrusteeBoard::of(DKG_NAME, None).unwrap(),
+                TrusteeBoard::of(TALLY_NAME, Some(DKG_NAME)).unwrap(),
             ],
         };
         let boards_json = json!({

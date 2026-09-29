@@ -303,10 +303,13 @@ pub async fn create_keys_ceremony(
     insert_protocol_board(
         transaction,
         &NewProtocolBoard {
+            id: None,
             tenant_id: tenant_id.clone(),
             election_event_id: election_event_id.clone(),
             parent_id: None,
             keys_ceremony_id: keys_ceremony_id.clone(),
+            tally_session_id: None,
+            batch: None,
             name: dkg.name.as_str().to_string(),
             manager_message: dkg.configuration.to_bytes(),
         },

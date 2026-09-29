@@ -41,23 +41,25 @@ use crate::configuration::DkgBoard;
 use crate::encoding::{generate_manager, HashHex};
 use crate::secrets::TrusteeSecrets;
 use crate::view::{DkgStatus, DkgView};
-use crate::{Ctx, Element};
+use crate::{BoardManager, Ctx, Element};
 
 /// The informational date stamped on the messages a test posts.
-const DATE: u64 = 0;
+pub(super) const DATE: u64 = 0;
 
 /// One ceremony's worth of protocol participants over a shared board.
-struct Ceremony {
-    fixtures: Vec<TrusteeFixture>,
+pub(super) struct Ceremony {
+    pub(super) fixtures: Vec<TrusteeFixture>,
     committee: Committee,
-    dkg: DkgBoard,
-    board: Arc<MemoryBoard<Ctx>>,
+    /// The board's protocol manager, which also signs its tallies' ballots.
+    pub(super) manager: BoardManager,
+    pub(super) dkg: DkgBoard,
+    pub(super) board: Arc<MemoryBoard<Ctx>>,
 }
 
 impl Ceremony {
     /// A committee of `count` trustees with the given threshold, on a board
     /// that already carries the stored Configuration message.
-    fn new(count: usize, threshold: usize) -> Ceremony {
+    pub(super) fn new(count: usize, threshold: usize) -> Ceremony {
         Ceremony::of(trustees(count), threshold)
     }
 
@@ -65,13 +67,10 @@ impl Ceremony {
     /// carries the stored Configuration message.
     fn of(fixtures: Vec<TrusteeFixture>, threshold: usize) -> Ceremony {
         let committee = committee_of(&fixtures);
-        let dkg = DkgBoard::new(
-            &Uuid::new_v4(),
-            &generate_manager(),
-            &committee,
-            threshold,
-        )
-        .unwrap();
+        let manager = generate_manager();
+        let dkg =
+            DkgBoard::new(&Uuid::new_v4(), &manager, &committee, threshold)
+                .unwrap();
 
         let board = MemoryBoard::<Ctx>::new();
         board.push(dkg.configuration.message().clone());
@@ -79,6 +78,7 @@ impl Ceremony {
         Ceremony {
             fixtures,
             committee,
+            manager,
             dkg,
             board,
         }
@@ -86,7 +86,7 @@ impl Ceremony {
 
     /// The Configuration the trustees run, read back from the stored message
     /// as they read it off the board.
-    fn configuration(&self) -> Configuration<Ctx> {
+    pub(super) fn configuration(&self) -> Configuration<Ctx> {
         self.dkg
             .configuration
             .message()
@@ -94,12 +94,12 @@ impl Ceremony {
             .unwrap()
     }
 
-    fn configuration_hash(&self) -> ConfigurationHash {
+    pub(super) fn configuration_hash(&self) -> ConfigurationHash {
         ConfigurationHash::from_configuration(&self.configuration()).unwrap()
     }
 
     /// The braid trustee behind one of the committee's members.
-    fn trustee(&self, position: usize) -> Trustee<Ctx> {
+    pub(super) fn trustee(&self, position: usize) -> Trustee<Ctx> {
         let fixture = &self.fixtures[position];
         Trustee::<Ctx>::new(
             fixture.input.name.clone(),
@@ -110,7 +110,7 @@ impl Ceremony {
         .expect("the committee's trustee belongs to the configuration it built")
     }
 
-    async fn sessions(
+    pub(super) async fn sessions(
         &self,
     ) -> Vec<Session<Ctx, MemoryTransport<Ctx>, NoOpPersistence>> {
         let mut sessions = Vec::new();
@@ -127,7 +127,7 @@ impl Ceremony {
     }
 
     /// Let every trustee take one update-step-post cycle, in order.
-    async fn round(
+    pub(super) async fn round(
         &self,
         sessions: &mut [Session<Ctx, MemoryTransport<Ctx>, NoOpPersistence>],
     ) {
@@ -137,7 +137,7 @@ impl Ceremony {
     }
 
     /// The board as the platform reads it.
-    async fn view(&self) -> DkgView {
+    pub(super) async fn view(&self) -> DkgView {
         read_dkg(Arc::clone(&self.board), self.dkg.configuration.hash()).await
     }
 

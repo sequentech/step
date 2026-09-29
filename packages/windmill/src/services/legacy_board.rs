@@ -3,26 +3,17 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 //! The client of the old core's b4 board (`packages/b4`, Postgres backed) and
-//! the helpers the tally still needs on it. The keys ceremony runs on the new
-//! core (`crate::services::protocol_board`); this module goes away with
-//! `packages/b4` once the tally is migrated too.
+//! the name of a keys ceremony's board on it, which the bulletin board export,
+//! import and deletion still use. The keys ceremony and the tally run on the
+//! new core (`crate::services::protocol_board`); this module goes away with
+//! `packages/b4`.
 
 use anyhow::{anyhow, Context, Result};
-use b4::client::pgsql::{B3MessageRow, PgsqlB3Client, PgsqlConnectionParams};
-use b4::messages::artifact::{Ballots, Configuration, DkgPublicKey};
-use b4::messages::message::Message;
-use b4::messages::newtypes::{BatchNumber, PublicKeyHash, TrusteeSet, MAX_TRUSTEES, NULL_TRUSTEE};
-use b4::messages::protocol_manager::ProtocolManager;
-use b4::messages::statement::StatementType;
+use b4::client::pgsql::{PgsqlB3Client, PgsqlConnectionParams};
 use deadpool_postgres::Transaction;
 use sequent_core::types::hasura::core::KeysCeremony;
 use std::env;
-use strand::context::Ctx;
-use strand::elgamal::Ciphertext;
-use strand::serialization::{StrandDeserialize, StrandSerialize};
-use strand::signature::StrandSignaturePk;
-use strand::util::StrandError;
-use tracing::{event, info, instrument, Level};
+use tracing::instrument;
 
 use crate::postgres::election::get_elections_by_keys_ceremony_id;
 use crate::postgres::election_event::get_election_event_by_id;
@@ -83,142 +74,4 @@ pub async fn get_keys_ceremony_board(
         let board = get_election_board(tenant_id, &election.id, &slug);
         Ok((board, Some(election.id)))
     }
-}
-
-#[instrument(err)]
-pub fn deserialize_public_key(public_key_string: String) -> Result<StrandSignaturePk> {
-    StrandSignaturePk::from_der_b64_string(&public_key_string).map_err(|err| anyhow!("{:?}", err))
-}
-
-pub fn get_configuration<C: Ctx>(messages: &Vec<Message>) -> Result<Configuration<C>> {
-    let configuration_msg = messages
-        .iter()
-        .find(|message| {
-            StatementType::Configuration == message.statement.get_kind()
-                && message.artifact.is_some()
-        })
-        .ok_or(anyhow!("Can't find configuration message"))?;
-    Ok(Configuration::<C>::strand_deserialize(
-        &configuration_msg
-            .artifact
-            .clone()
-            .ok_or(anyhow!("Missing artifact on configuration message"))?,
-    )?)
-}
-
-#[instrument(skip_all, err)]
-pub fn get_public_key_hash<C: Ctx>(messages: &Vec<Message>) -> Result<PublicKeyHash> {
-    let public_key_message = messages
-        .iter()
-        .find(|message| {
-            StatementType::PublicKey == message.statement.get_kind() && message.artifact.is_some()
-        })
-        .ok_or(anyhow!("Can't find public key message"))?;
-    let public_key_bytes = public_key_message
-        .artifact
-        .clone()
-        .ok_or(anyhow!("Public key message artifact missing"))?;
-    let dkgpk = DkgPublicKey::<C>::strand_deserialize(&public_key_bytes)?;
-    let pk_bytes = dkgpk.strand_serialize()?;
-    let pk_h = strand::hash::hash_to_array(&pk_bytes)?;
-    Ok(PublicKeyHash(strand::util::to_u8_array(&pk_h)?))
-}
-
-#[instrument(skip_all)]
-pub fn generate_trustee_set<C: Ctx>(
-    configuration: &Configuration<C>,
-    trustee_pks: Vec<StrandSignaturePk>,
-) -> TrusteeSet {
-    let mut selected_trustees: TrusteeSet = [NULL_TRUSTEE; MAX_TRUSTEES];
-    let trustee_ids: Vec<usize> = trustee_pks
-        .into_iter()
-        .map(|trustee_pk| {
-            let position = configuration
-                .trustees
-                .clone()
-                .into_iter()
-                .position(|trustee| trustee == trustee_pk);
-            match position {
-                Some(value) => value + 1,
-                None => NULL_TRUSTEE,
-            }
-        })
-        .collect();
-    for i in 0..trustee_ids.len() {
-        selected_trustees[i] = trustee_ids[i];
-    }
-    event!(Level::INFO, "TrusteeSet: {:?}", selected_trustees);
-    selected_trustees
-}
-
-#[instrument(skip_all, err)]
-pub fn convert_board_messages(board_messages: &Vec<B3MessageRow>) -> Result<Vec<Message>> {
-    board_messages
-        .iter()
-        .map(|board_message| Message::strand_deserialize(&board_message.message))
-        .collect::<Result<Vec<_>, StrandError>>()
-        .map_err(Into::into)
-}
-
-pub async fn get_board_messages<C: Ctx>(
-    board_name: &str,
-    b3_client: &PgsqlB3Client,
-) -> Result<Vec<Message>> {
-    let board_messages = b3_client.get_messages(board_name, -1).await?;
-    let messages: Vec<Message> = convert_board_messages(&board_messages)?;
-    Ok(messages)
-}
-
-#[instrument(
-    skip(
-        messages,
-        configuration,
-        public_key_hash,
-        selected_trustees,
-        ballots,
-        b3_client
-    ),
-    err
-)]
-pub async fn add_ballots_to_board<C: Ctx>(
-    pm: &ProtocolManager<C>,
-    b3_client: &mut PgsqlB3Client,
-    board_name: &str,
-    messages: &Vec<Message>,
-    configuration: &Configuration<C>,
-    public_key_hash: PublicKeyHash,
-    selected_trustees: TrusteeSet,
-    ballots: Vec<Ciphertext<C>>,
-    batch: BatchNumber,
-) -> Result<()> {
-    let existing_message = messages.iter().find(|message| {
-        let batch_number = message.statement.get_batch_number();
-        let kind = message.statement.get_kind();
-        batch_number == batch && StatementType::Ballots == kind
-    });
-    if let Some(_message) = existing_message {
-        event!(
-            Level::INFO,
-            "Not adding Ballot to board {} as it already exists for batch {}",
-            board_name,
-            batch
-        );
-        return Ok(());
-    }
-
-    let ballots_len = ballots.len();
-
-    let message = Message::ballots_msg::<C, ProtocolManager<C>>(
-        configuration,
-        batch,
-        &Ballots::<C>::new(ballots),
-        selected_trustees,
-        public_key_hash,
-        pm,
-    )?;
-    info!(
-        "Adding configuration to the board for batch {} and number of ballots {}",
-        batch, ballots_len
-    );
-    b3_client.insert_ballots::<C>(board_name, message).await
 }

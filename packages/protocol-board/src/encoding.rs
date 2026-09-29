@@ -20,15 +20,19 @@
 //! | the board's manager key | base64 (padded) of the 32-byte Ed25519 seed |
 //! | trustee signing key | base64 (padded) of the 32-byte Ed25519 seed |
 //! | trustee share-encryption secret key | base64 (padded) of the 32 canonical scalar bytes |
+//! | a decrypted plaintext element | the 30 bytes the element encodes |
+//!
+//! The stored form of a cast vote's ciphertext is the ballot module's.
 
 use std::fmt;
 
-use anyhow::{Context as _, Result};
+use anyhow::{bail, Context as _, Result};
 use base64::engine::general_purpose::{
     GeneralPurpose, STANDARD, STANDARD_NO_PAD,
 };
 use base64::Engine as _;
 use cryptography::context::Context as _;
+use cryptography::groups::Ristretto255Group;
 use cryptography::utils::serialization::{Deserializable, Serializable};
 use cryptography::utils::signatures::SignatureScheme;
 use wbraid::messages::newtypes::Hash;
@@ -112,28 +116,63 @@ pub(crate) fn encode_joint_public_key(y: &Element) -> String {
 /// A protocol hash in the form the platform stores and compares it: 128
 /// lowercase hexadecimal characters.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct HashHex(String);
+pub struct HashHex {
+    hash: Hash,
+    hex: String,
+}
 
 impl HashHex {
     pub(crate) fn of(hash: &Hash) -> HashHex {
-        HashHex(hex::encode(hash.as_slice()))
+        HashHex {
+            hash: *hash,
+            hex: hex::encode(hash.as_slice()),
+        }
+    }
+
+    /// A stored hash, in exactly the form [`HashHex::as_str`] gives.
+    pub fn parse(encoded: &str) -> Result<HashHex> {
+        let mut hash = Hash::default();
+        hex::decode_to_slice(encoded, &mut hash[..])
+            .with_context(|| format!("{encoded:?} is not a protocol hash"))?;
+        let parsed = HashHex::of(&hash);
+        if parsed.as_str() != encoded {
+            bail!("{encoded:?} is not a protocol hash in lowercase");
+        }
+        Ok(parsed)
     }
 
     pub fn as_str(&self) -> &str {
-        &self.0
+        &self.hex
+    }
+
+    /// The hash itself, as braid's message heads carry it.
+    pub(crate) fn to_hash(&self) -> Hash {
+        self.hash
     }
 
     /// The leading characters, for a log line or an error message that should
     /// stay readable. Never should be used for comparison.
     pub(crate) fn short(&self) -> &str {
-        &self.0[..16]
+        &self.hex[..16]
     }
 }
 
 impl fmt::Display for HashHex {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter.write_str(&self.0)
+        formatter.write_str(&self.hex)
     }
+}
+
+/// The 30 bytes a plaintext element encodes: what a voter's client packed into
+/// one ballot, as the trustees decrypted it.
+pub type ElementPayload = [u8; 30];
+
+/// The payload of a decrypted plaintext element.
+pub(crate) fn decode_plaintext_element(
+    element: &Element,
+) -> Result<ElementPayload> {
+    Ristretto255Group::decode_30_bytes(element)
+        .context("a plaintext element that does not decode to 30 bytes")
 }
 
 /// A brand-new protocol manager identity for one board.
@@ -141,9 +180,19 @@ pub fn generate_manager() -> BoardManager {
     BoardManager::new(Ctx::gen_signing_key())
 }
 
+/// What the protocol manager key is called wherever an error names it.
+const MANAGER_KEY: &str = "the protocol manager key";
+
 /// The manager's signing key as the vault keeps it.
 pub fn encode_manager_key(manager: &BoardManager) -> Result<String> {
-    encode_signing_key(&manager.signing_key).context("the protocol manager key")
+    encode_signing_key(&manager.signing_key).context(MANAGER_KEY)
+}
+
+/// The inverse of [`encode_manager_key`].
+pub fn parse_manager_key(encoded: &str) -> Result<BoardManager> {
+    Ok(BoardManager::new(
+        parse_signing_key(encoded).context(MANAGER_KEY)?,
+    ))
 }
 
 /// The verifying key of a protocol manager, which is what a `Configuration`
@@ -245,5 +294,47 @@ mod tests {
         assert_eq!(hex.as_str(), hex.as_str().to_lowercase());
         assert_ne!(hex, HashHex::of(&hash_bytes(b"another board")));
         assert!(hex.as_str().starts_with(hex.short()));
+    }
+
+    #[test]
+    fn a_stored_hash_reads_back_as_the_hash_it_was_written_from() {
+        let hash = hash_bytes(b"board");
+        let stored = HashHex::of(&hash).as_str().to_string();
+        let parsed = HashHex::parse(&stored).unwrap();
+        assert_eq!(parsed, HashHex::of(&hash));
+        assert_eq!(parsed.to_hash(), hash);
+        assert_eq!(parsed.as_str(), stored);
+    }
+
+    #[test]
+    fn only_the_stored_form_of_a_hash_parses() {
+        let stored = HashHex::of(&hash_bytes(b"board")).as_str().to_string();
+        for refused in [
+            String::new(),
+            stored.to_uppercase(),
+            stored[1..].to_string(),
+            stored[2..].to_string(),
+            format!("{stored}00"),
+            format!("0x{}", &stored[2..]),
+            format!("{} ", &stored[1..]),
+            "zz".repeat(64),
+        ] {
+            assert!(HashHex::parse(&refused).is_err(), "{refused:?}");
+        }
+    }
+
+    #[test]
+    fn a_manager_key_reads_back_as_the_manager_that_signs() {
+        let manager = generate_manager();
+        let stored = encode_manager_key(&manager).unwrap();
+        let parsed = parse_manager_key(&stored).unwrap();
+        assert_eq!(
+            manager_verifying_key(&parsed),
+            manager_verifying_key(&manager)
+        );
+
+        let error =
+            format!("{:#}", parse_manager_key("not base64!").err().unwrap());
+        assert!(error.contains(MANAGER_KEY), "{error}");
     }
 }
