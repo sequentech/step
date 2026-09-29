@@ -7,11 +7,6 @@
         "order": "asc"
       },
       "style": {
-        "axis_y": {
-          "ticks": {
-            "step": 1
-          }
-        },
         "marks": {
           "bar": {
             "labels": {
@@ -35,11 +30,6 @@
         "order": "asc"
       },
       "style": {
-        "axis_y": {
-          "ticks": {
-            "step": 1
-          }
-        },
         "number_format": "number",
         "orientation": "vertical"
       },
