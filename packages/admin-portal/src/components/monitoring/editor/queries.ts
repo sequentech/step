@@ -161,6 +161,10 @@ export const MONITORING_EDITOR_GET_CONFIG = gql`
 export const MONITORING_EDITOR_LIST_CONFIG = gql`
     query MonitoringEditorListConfig($election_event_id: uuid!) {
         monitoringListConfig(election_event_id: $election_event_id) {
+            preset {
+                id
+                version
+            }
             documents {
                 kind
                 key

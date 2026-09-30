@@ -88,7 +88,10 @@ export const EditAndSave: Story = {
         await waitFor(() => expect(order(view)).toHaveLength(4))
 
         await userEvent.click(view.getByRole("button", {name: "Save dashboard"}))
-        await expect(await view.findByText("Dashboard saved as revision 8")).toBeVisible()
+        const saved = await view.findByText("Dashboard saved as revision 8")
+        await expect(saved).toBeVisible()
+        // Beside Save, not below the widget list, where a long dashboard scrolls it away.
+        expect(saved.closest(".MuiDialogContent-root")).toBeNull()
         const yaml = savedYaml()
         expect(yaml).toContain("# The SW-F-0260 dashboard.")
         expect(yaml).toContain("title: Turnout\n")
@@ -173,6 +176,9 @@ export const ResetToPreset: Story = {
         await userEvent.click(await reset.findByRole("button", {name: "Reset"}))
         await expect(await reset.findByText("The event now uses COMELEC.")).toBeInTheDocument()
         expect(args.onReset).toHaveBeenCalled()
+        // The draft is of the configuration the reset replaced: the editor closes with the dialog.
+        await userEvent.click(reset.getByRole("button", {name: "Close"}))
+        await waitFor(() => expect(args.onClose).toHaveBeenCalled())
     },
 }
 
