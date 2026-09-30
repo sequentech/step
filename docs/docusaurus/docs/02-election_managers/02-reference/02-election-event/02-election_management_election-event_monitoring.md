@@ -199,11 +199,13 @@ asks for:
   daily activity is exported from the start time up to, but not including,
   the end time; status and totals as recorded at each hour in the range.
 
-The export uses the snapshot the dashboard shows, with its selectors, so the
-file matches the screen. It runs as a task (Export Monitoring Data in the
-**Tasks** tab), and the file downloads when it is ready. A snapshot stays
-available for export for two hours after a newer one replaces it; after that,
-refresh the dashboard and export again.
+The export uses the snapshot the dashboard shows, with its selectors, and the
+widgets as they were when that snapshot was recorded: a widget saved since
+shows on the dashboard at once, and in exports from the next snapshot. It
+runs as a task (Export Monitoring Data in the **Tasks** tab), and the file
+downloads when it is ready. A snapshot stays available for export for two
+hours after a newer one replaces it; after that, refresh the dashboard and
+export again.
 
 Every widget and query of the export is in the file. A query with nothing to
 show has one row with its name and no figures, with the notice
