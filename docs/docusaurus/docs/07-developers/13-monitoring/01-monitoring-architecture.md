@@ -249,7 +249,13 @@ scripts, foreign objects, images, links, event handlers, non-fragment
 
 Exports run as a task (`EXPORT_MONITORING_DATA`) over the snapshot revision
 the viewer saw: CSV in long format, or SQL as `CREATE TABLE` and `INSERT`
-statements, with rows in `[from, to)`.
+statements, with rows in `[from, to)`. The file is one long table: what
+each row was read at (`snapshot_revision`, `as_of`, `scope`), `widget_id`,
+`query`, `row`, every query's columns, then `range_from`, `range_to`,
+`ignored_selectors` and `notice`. A query without rows still has one row,
+with no `row` number and no figures, noticed `NO_ROWS_IN_RANGE` (a series
+when a range is given) or `NO_ROWS`, so no widget drops out of the file; a
+widget not connected has one noticed `NOT_CONNECTED: <reason>`.
 
 ## Renderer
 

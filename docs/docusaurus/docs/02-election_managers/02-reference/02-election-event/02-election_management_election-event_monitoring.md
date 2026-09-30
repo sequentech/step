@@ -205,6 +205,11 @@ file matches the screen. It runs as a task (Export Monitoring Data in the
 available for export for two hours after a newer one replaces it; after that,
 refresh the dashboard and export again.
 
+Every widget and query of the export is in the file. A query with nothing to
+show has one row with its name and no figures, with the notice
+`NO_ROWS_IN_RANGE` (activity with no hour in the range) or `NO_ROWS`; a widget
+whose data source is not connected has one row with `NOT_CONNECTED`.
+
 ### What a restricted user sees
 
 Permission labels limit monitoring the same way they limit the rest of the
