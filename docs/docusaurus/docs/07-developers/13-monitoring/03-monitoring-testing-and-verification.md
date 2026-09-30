@@ -470,7 +470,7 @@ To try another cadence in the dev stack:
    docker logs beat 2>&1 | grep "Monitoring cadence"
    ```
 
-2. Open the event's Dashboard tab: the header reads "Updated … · every 15 s".
+2. Open the event's Dashboard tab: the header shows "every 15 s".
    The dashboard answer carries the value:
 
    ```sh
