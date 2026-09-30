@@ -3265,6 +3265,8 @@ const englishTranslation = {
                         "The event is locked down; its monitoring configuration cannot change.",
                     forbiddenScope:
                         "You cannot see figures for the chosen region, Post or country.",
+                    badRequest:
+                        "The editor sent a request the server could not read. Reload the page and try again.",
                 },
                 duplicate: {
                     done: "Added {{id}}, a copy of the widget, to the dashboard.",

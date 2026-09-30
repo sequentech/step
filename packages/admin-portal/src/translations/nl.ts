@@ -3302,6 +3302,8 @@ const dutchTranslation: TranslationType = {
                         "Het evenement is vergrendeld; de monitoringconfiguratie kan niet meer veranderen.",
                     forbiddenScope:
                         "Je mag de cijfers van de gekozen regio, functie of het gekozen land niet zien.",
+                    badRequest:
+                        "De editor stuurde een verzoek dat de server niet kon lezen. Laad de pagina opnieuw en probeer het nog eens.",
                 },
                 duplicate: {
                     done: "{{id}}, een kopie van de widget, is aan het dashboard toegevoegd.",

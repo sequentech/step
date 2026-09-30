@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::ports::monitoring_snapshots::{
-    MonitoringSnapshots, ScopeCatalogue, ScopeRead, SnapshotHead,
+    KeptRun, MonitoringSnapshots, ScopeCatalogue, ScopeRead, SnapshotHead,
 };
 use chrono::{TimeZone, Utc};
 use sequent_core::monitoring::scope::election_set_key;
@@ -17,6 +17,8 @@ use windmill::services::monitoring::config_store::EventRef;
 #[derive(Default)]
 pub struct MemorySnapshots {
     pub head: Mutex<Option<SnapshotHead>>,
+    /// Runs kept that did not complete: running, failed or superseded.
+    pub incomplete: Mutex<Vec<i64>>,
     /// By source, set key and scope key; anything else reads as `fallback`.
     pub scopes: Mutex<HashMap<(DataSourceId, String, String), ScopeRead>>,
     pub fallback: Mutex<Option<ScopeRead>>,
@@ -83,18 +85,20 @@ impl MonitoringSnapshots for MemorySnapshots {
         Ok(self.head.lock().unwrap().clone())
     }
 
-    async fn complete(
+    async fn run(
         &self,
         _event: EventRef,
         revision: i64,
-    ) -> anyhow::Result<Option<SnapshotHead>> {
-        self.call(format!("complete:{revision}"));
-        Ok(self
-            .head
-            .lock()
-            .unwrap()
-            .clone()
-            .filter(|head| head.revision == revision))
+    ) -> anyhow::Result<KeptRun> {
+        self.call(format!("run:{revision}"));
+        let head = self.head.lock().unwrap().clone();
+        Ok(match head.filter(|head| head.revision == revision) {
+            Some(head) => KeptRun::Complete(head),
+            None if self.incomplete.lock().unwrap().contains(&revision) => {
+                KeptRun::Incomplete
+            }
+            None => KeptRun::Missing,
+        })
     }
 
     async fn read_scope(

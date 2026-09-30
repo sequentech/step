@@ -15,6 +15,7 @@ use std::sync::LazyLock;
 use tokio::runtime::Builder;
 use tracing::{event, Level};
 use windmill::services::celery_app::{self as celery_cfg, Queue};
+use windmill::services::monitoring::cadence;
 use windmill::services::probe::{setup_probe, AppName};
 use windmill::services::tasks_semaphore::init_semaphore;
 
@@ -140,6 +141,9 @@ async fn async_main(opt: CeleryOpt) -> Result<()> {
             let queues = celery_cfg::durable_electoral_log_consumer_queues(queues, &slug);
             let vec_str: Vec<&str> = queues.iter().map(AsRef::as_ref).collect();
             celery_cfg::set_queues(queues.clone());
+            // Read now rather than at the first pass, so the cadence and any
+            // value it had to replace are logged when the worker starts.
+            cadence::configured();
             celery_cfg::set_is_app_active(true);
             celery_app.consume_from(&vec_str[..]).await?;
             celery_cfg::set_is_app_active(false);

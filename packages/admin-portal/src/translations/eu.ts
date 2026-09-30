@@ -3287,6 +3287,8 @@ const basqueTranslation: TranslationType = {
                         "Gertaera blokeatuta dago; bere monitorizazio-konfigurazioa ezin da aldatu.",
                     forbiddenScope:
                         "Ezin dituzu ikusi aukeratutako eskualdeko, postuko edo herrialdeko zifrak.",
+                    badRequest:
+                        "Editoreak zerbitzariak irakurri ezin duen eskaera bat bidali du. Kargatu berriro orria eta saiatu berriro.",
                 },
                 duplicate: {
                     done: "{{id}} gehitu da panelera, widgetaren kopia bat.",

@@ -30,12 +30,12 @@ fn main() {
     let root = manifest_dir.join(PRESETS_DIR);
     let out = PathBuf::from(env::var("OUT_DIR").expect("cargo sets it"))
         .join("monitoring_presets.rs");
-    fs::write(&out, registry(&root))
+    fs::write(&out, registry(&manifest_dir, &root))
         .unwrap_or_else(|why| panic!("{}: {why}", out.display()));
 }
 
 /// `&[PresetSource { .. }, ..]`, one per preset directory, in id order.
-fn registry(root: &Path) -> String {
+fn registry(manifest_dir: &Path, root: &Path) -> String {
     let mut code = String::from("&[\n");
     for preset in sorted(root) {
         let id = name(&preset);
@@ -83,15 +83,15 @@ fn registry(root: &Path) -> String {
         );
         writeln!(
             code,
-            "    PresetSource {{\n        id: {id:?},\n        manifest: include_str!({:?}),\n        files: &[",
-            manifest.display().to_string()
+            "    PresetSource {{\n        id: {id:?},\n        manifest: {},\n        files: &[",
+            included(manifest_dir, &manifest)
         )
         .expect("writes to a string");
         for (kind, path, file) in files {
             writeln!(
                 code,
-                "            PresetFile {{ kind: ConfigKind::{kind}, path: {path:?}, yaml: include_str!({:?}) }},",
-                file.display().to_string()
+                "            PresetFile {{ kind: ConfigKind::{kind}, path: {path:?}, yaml: {} }},",
+                included(manifest_dir, &file)
             )
             .expect("writes to a string");
         }
@@ -99,6 +99,18 @@ fn registry(root: &Path) -> String {
     }
     code.push(']');
     code
+}
+
+/// `include_str!` of a file named from the crate's directory, so the
+/// generated code holds no checkout's absolute path and stays right when a
+/// target directory is shared by several checkouts.
+fn included(manifest_dir: &Path, file: &Path) -> String {
+    let relative = file
+        .strip_prefix(manifest_dir)
+        .expect("presets are inside the crate")
+        .to_str()
+        .expect("preset paths are UTF-8");
+    format!("include_str!(concat!(env!(\"CARGO_MANIFEST_DIR\"), {:?}))", format!("/{relative}"))
 }
 
 fn sorted(directory: &Path) -> Vec<PathBuf> {

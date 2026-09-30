@@ -120,6 +120,42 @@ pub async fn complete_snapshot(
     Ok(row.as_ref().map(live_from))
 }
 
+/// What is kept of the run at a revision.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum KeptRun {
+    Complete(LiveSnapshot),
+    /// Kept, but running, failed or superseded: never a snapshot shown.
+    Incomplete,
+    /// No such run: pruned, dropped by a pass that found nothing new, or
+    /// never the event's.
+    Missing,
+}
+
+/// The run at `revision`, whatever became of it.
+#[instrument(err, skip(transaction))]
+pub async fn kept_run(
+    transaction: &Transaction<'_>,
+    event: EventRef,
+    revision: i64,
+) -> Result<KeptRun> {
+    let row = transaction
+        .query_opt(
+            "SELECT status, revision, as_of, checked_at, settings_revision, config_generation
+             FROM sequent_backend.monitoring_snapshot_run
+             WHERE tenant_id = $1 AND election_event_id = $2 AND revision = $3",
+            &[&event.tenant_id, &event.election_event_id, &revision],
+        )
+        .await
+        .context("Failed to read a snapshot run")?;
+    Ok(match row {
+        Some(row) if row.get::<_, String>("status") == "COMPLETE" => {
+            KeptRun::Complete(live_from(&row))
+        }
+        Some(_) => KeptRun::Incomplete,
+        None => KeptRun::Missing,
+    })
+}
+
 /// What a run holds for one source, set of elections and scope.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ScopeRead {
