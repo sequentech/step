@@ -64,6 +64,7 @@ export const turnoutSummary: MonitoringWidget = {
 export const turnoutByGroup: MonitoringWidget = {
     id: "turnout-by-group",
     title: "Turnout by group",
+    description: "Percentages use the selected denominator.",
     source: EDataSource.VOTER_TURNOUT,
     requirements: ["SW-F-0260", "SW-F-0372"],
     selectors: {
@@ -146,6 +147,7 @@ export const WIDGETS: MonitoringWidget[] = [
 export const overviewDashboard: MonitoringDashboard = {
     id: "overview",
     title: "Monitoring overview",
+    description: "Turnout, Post status and activity at a glance.",
     requirements: ["SW-F-0247", "SW-F-0279", "SW-F-0365"],
     order: 0,
     selectors: [EScopeSelector.REGION, EScopeSelector.POST, EScopeSelector.COUNTRY],
@@ -162,6 +164,7 @@ export const overviewDashboard: MonitoringDashboard = {
 export const turnoutDashboard: MonitoringDashboard = {
     id: "req-0260",
     title: "Voted vs pre-enrolled",
+    section: "Voter turnout",
     requirements: ["SW-F-0260", "SW-F-0372"],
     order: 1,
     selectors: [EScopeSelector.REGION, EScopeSelector.POST, EScopeSelector.COUNTRY],
@@ -175,9 +178,11 @@ export function listDashboardsResponse(
 ): MonitoringListDashboardsResponse {
     return {
         mode,
+        preset: {id: "comelec", title: "COMELEC overseas voting"},
         dashboards: DASHBOARDS.map((dashboard) => ({
             id: dashboard.id,
             title: dashboard.title,
+            section: dashboard.section ?? null,
             requirements: dashboard.requirements ?? [],
             widget_count: dashboard.layout.length,
         })),

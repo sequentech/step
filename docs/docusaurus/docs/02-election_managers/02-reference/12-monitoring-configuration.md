@@ -44,6 +44,7 @@ its own selectors, and draws with a dbt Charts block.
 |---|---|---|---|
 | `id` | id | Yes | The widget's id; also the key it is stored under. |
 | `title` | text | Yes | Shown on the card. |
+| `description` | text | No | A line under the title saying what the figures are taken of, such as "Percentages use pre-enrolled OVs." Not empty when given. |
 | `source` | data source id | Yes | One of the [data sources](#data-sources). |
 | `requirements` | list of text | No | Requirement IDs this widget answers, for the catalog search. |
 | `follows` | list of `region`, `post`, `country` | No | Which dashboard selectors narrow this widget. Absent: every one its source can be narrowed by. An empty list: the widget always shows the whole event. Listing a selector the source cannot be narrowed by is an error. |
@@ -186,9 +187,8 @@ with `when`:
 ```yaml
 selectors:
   grain:
-    label: Interval
-    control: toggle
-    options: {hour: Hourly, day: Daily}
+    label: Resolution
+    options: {hour: Hour, day: Day}
     default: hour
   day:
     label: Day
@@ -208,9 +208,11 @@ Widgets on a 12-column grid, with the dashboard selectors they share.
 | Field | Type | Required | Meaning |
 |---|---|---|---|
 | `id` | id | Yes | The dashboard's id; also its key. |
-| `title` | text | Yes | Shown in the header and the switcher. |
-| `requirements` | list of text | No | Requirement IDs the dashboard answers. |
-| `order` | integer | No | Position in the dashboard switcher, lowest first. Default 0. |
+| `title` | text | Yes | Shown as the dashboard's heading and in the **Dashboard** menu. |
+| `description` | text | No | A line under the heading saying what the dashboard shows. Not empty when given. |
+| `section` | text | No | The heading the **Dashboard** menu lists it under, such as "Voter turnout", also shown above its title. Give a section's dashboards consecutive `order`s. Not empty when given. |
+| `requirements` | list of text | No | Requirement IDs the dashboard answers, shown in its footer. |
+| `order` | integer | No | Position in the **Dashboard** menu, lowest first. Default 0. |
 | `selectors` | list of `region`, `post`, `country` | No | The dashboard selectors shown. A selector that narrows none of the dashboard's widgets is a warning. |
 | `theme` | theme id | No | The theme merged into every widget. Absent: `default`. It must exist. |
 | `layout` | list of layout entries | Yes | At least one widget, in order. |
@@ -228,6 +230,7 @@ Example:
 ```yaml
 id: voted-vs-pre-enrolled
 title: Voted vs pre-enrolled
+description: Pre-enrolled OVs who voted, by group, Post and country.
 requirements: [REQ-12]
 order: 2
 selectors: [region, post, country]
@@ -270,6 +273,14 @@ style:
         values:
           Unknown: dbt-grays.muted
 ```
+
+The chart frame ships one typeface, `'Inter Variable'`. Any other family
+falls back to the viewer's system font, which may be a serif: the built-in
+themes name faces the frame does not have (Source Serif 4 on `clarity`, a
+tabular sans on the KPI, support-table, measure-axis and donut-total slots).
+The shipped presets set `font.family`, `text.font.family` and
+`title.font.family` and those slots to `'Inter Variable'`, so charts read in
+the portal's typeface.
 
 ## Settings
 
@@ -336,12 +347,12 @@ a source is a code change.
 | `voter_turnout` | Distinct voters at the selected scope | `registered`, `pre_enrolled`, `voted`, `voted_pre_enrolled` | `summary`, `by_group`, `timeseries`, `by_measure` | `region`, `post`, `country`, voter dimensions | Connected |
 | `test_voting` | Distinct pre-enrolled voters | `pre_enrolled`, `test_voted` | `summary`, `by_group`, `timeseries`, `by_measure` | `region`, `post`, `country`, voter dimensions | Not connected: test elections cannot be marked yet |
 | `enrollment_decisions` | Latest decision per voter | `applications`, `pending`, `approved`, `disapproved` | `summary`, `by_group`, `timeseries`, `by_measure` | `region`, `post`, `country`, `reason` | Connected |
-| `voting_credentials` | Approved voters | `approved`, `credentials_issued` | `summary`, `by_group`, `timeseries`, `by_measure` | `region`, `post`, `country`, voter dimensions | Not connected: issuing credentials is not recorded yet |
+| `voting_credentials` | Approved voters | `approved`, `credentials_issued` | `summary`, `by_group`, `timeseries`, `by_measure` | `region`, `post`, `country`, voter dimensions | Connected, by an interim rule: issued when the password is set |
 | `poll_status` | Posts in scope | `posts`, `initialized`, `opened`, `paused`, `closed` | `summary`, `by_group`, `by_post`, `by_measure` | `region`, `post`, `state` | Connected |
 | `final_testing_lockdown` | Posts in scope | `posts`, `tested`, `locked_down` | `summary`, `by_group`, `by_post`, `by_measure` | `region`, `post`, `state` | Not connected: final testing and lockdown are not recorded yet |
 | `counting_transmission` | Posts in scope | `posts`, `tallied`, `transmitted`, `transmission_failed` | `summary`, `by_group`, `by_post`, `by_measure` | `region`, `post`, `state` | Connected |
 | `voting_enrollment_activity` | Each voter's first valid vote or approval, in the bucket it happened | `approved`, `voted` | `summary`, `timeseries`, `by_measure` | `region`, `post`, `country` | Connected |
-| `access_security` | Attempts, not people | `logins`, `login_failures`, `password_resets` | `summary`, `by_group`, `timeseries`, `by_measure` | `region`, `post` | Connected |
+| `access_security` | Attempts, not people | `logins`, `login_failures`, `login_failures_valid_user`, `login_failures_unregistered`, `password_resets`, `password_reset_requests` | `summary`, `by_group`, `timeseries`, `by_measure` | `region`, `post` | Connected |
 | `attack_detections` | Detections | `detections` | `summary`, `by_group`, `timeseries`, `by_measure` | `category` | Not connected: no attack detection feed is connected |
 | `helpdesk` | Reported issues | `issues`, `pending_issues` | `summary`, `by_group`, `timeseries`, `by_measure` | `region`, `post`, `category` | Not connected: no helpdesk system is connected |
 
@@ -357,8 +368,8 @@ Notes:
   such a ratio; choose a numerator the denominator contains.
 - Time series are counted for: `voter_turnout` (`voted`),
   `enrollment_decisions` (`approved`, `disapproved`),
-  `voting_enrollment_activity` (`approved`, `voted`) and `access_security`
-  (all three measures). A series of any other measure is refused when the
+  `voting_enrollment_activity` (`approved`, `voted`), `voting_credentials`
+  (`credentials_issued`) and `access_security` (every measure). A series of any other measure is refused when the
   widget is drawn, rather than shown as zero.
 - **Poll status.** A Post is `not_initialized`, `initialized` (its
   initialization report was generated), `opened`, `paused` or `closed`.
@@ -372,11 +383,19 @@ Notes:
   `locked_down`.
 - **Enrollment decisions.** Each voter's latest application counts once; the
   `reason` dimension is the recorded disapproval reason.
-- **Access and security.** Keycloak `LOGIN` events count as `logins`,
-  `LOGIN_ERROR` as `login_failures`, and `RESET_PASSWORD` and
-  `UPDATE_PASSWORD` as `password_resets`. An attempt belongs to the Posts its
-  voter's area votes in; one with an unknown username, or by a voter with no
-  area, is counted for the whole event only.
+- **Access and security.** Keycloak `LOGIN` events count as `logins`.
+  `LOGIN_ERROR` counts as `login_failures` and, by whether the username
+  named an account, as `login_failures_valid_user` or
+  `login_failures_unregistered`. `RESET_PASSWORD` and `UPDATE_PASSWORD`
+  count as `password_resets`, and `SEND_RESET_PASSWORD` (a forgot-password
+  request that sent a new password) as `password_reset_requests`. An attempt
+  belongs to the Posts its voter's area votes in; one with an unknown
+  username, or by a voter with no area, is counted for the whole event only.
+- **Voting credentials.** Approved voters are those whose latest application
+  was accepted, and those imported without one. Until the platform records
+  when credentials are issued, a voter's credentials count as issued when
+  their Keycloak password is set, the earliest time seen; every figure of the
+  source carries the notice `CREDENTIALS_ISSUED_WHEN_PASSWORD_SET`.
 - A source that is **not connected** is declared so a widget can be placed
   today. Its widget shows "Not connected" with the reason until the producer
   exists, never zero.
@@ -462,6 +481,28 @@ chart:
 
 Bars, areas, lines, donuts, KPIs, tables, stacking, layers, labels, colours,
 fonts and number formats are all available, within the rules below.
+
+
+The shipped presets draw parts of a whole as progress bars: a `spark_bar`
+over a `by_measure` query whose first measure is the whole, so every bar is
+read against it. Name the rows with the query's `labels`:
+
+```yaml
+queries:
+  progress:
+    template: by_measure
+    measures: [posts, initialized, opened, closed]
+    labels: {posts: Posts in scope, opened: Online voting opened, closed: Voting closed}
+chart:
+  charts:
+    progress: {type: spark_bar, query: progress, x: value, y: label}
+  rows: [progress]
+```
+
+A `spark_bar` scales its bars to its largest row, so leave the whole out
+only where the rows are comparable on their own, such as successful and
+failed sign-ins. The presets' themes widen its label column
+(`style.charts.spark_bar.label.width`) so that longer names are not cut.
 
 ### How the theme and the widget combine
 
@@ -570,7 +611,7 @@ to decide how to count or what to show.
 
 | Preset | Contents |
 |---|---|
-| `comelec` | An overview and a dashboard for each monitoring record of an overseas voting package: turnout (three ratios, by group, by Post, by country), enrollment decisions and disapproval reasons, voting credentials, test voting, poll status and status by Post, final testing and lockdown, counting and transmission, voting and enrollment activity, access and security, attack detections and helpdesk. Time zone `Asia/Manila`; dimensions sex, age band and status abroad. |
+| `comelec` | An overview and a dashboard for each monitoring record of an overseas voting package, grouped by section in the order an election runs: enrollment (decisions, disapproval reasons, voting credentials), test voting, final testing and lockdown, voting (Posts initialized, opened and closed, status by Post), voter turnout (three ratios, by group, by Post, by country), counting and transmission, enrollment and voting rates, access and security (sign-ins, login outcomes, attack detections) and helpdesk. Time zone `Asia/Manila`; dimensions sex, age band and status abroad. |
 | `campus` | Participation and operations dashboards for a university election, with faculty and role dimensions, `Europe/Madrid` time, and its own names for the dashboard selectors. It runs on the same data sources with no code change. |
 
 Presets live in `packages/sequent-core/src/monitoring/presets/<id>/`: a

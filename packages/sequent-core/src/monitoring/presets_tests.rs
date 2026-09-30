@@ -965,8 +965,9 @@ fn comelec_names_the_owners_of_the_six_records_it_leaves() {
     assert_eq!(owners, expected);
 }
 
-/// The three turnout ratios each have a dashboard that opens on them, and
-/// the poll milestones each on theirs.
+/// Each record's dashboard opens on the figure it asks for: each turnout
+/// ratio on its own dashboard, every poll milestone with each of its Posts,
+/// both final testing records and both counting milestones.
 #[test]
 fn dashboards_open_on_the_figure_their_record_asks_for() {
     let preset = loaded("comelec");
@@ -989,35 +990,12 @@ fn dashboards_open_on_the_figure_their_record_asks_for() {
     };
     use Measure::*;
     let ratio = |numerator, denominator| Some(Ratio(numerator, denominator));
-    assert_eq!(
-        opened_on("req-0259", "turnout-by-group", "data"),
-        ratio(Voted, Registered)
-    );
-    assert_eq!(
-        opened_on("req-0260", "turnout-by-group", "data"),
-        ratio(VotedPreEnrolled, PreEnrolled)
-    );
-    assert_eq!(
-        opened_on("req-0261", "turnout-by-group", "data"),
-        ratio(PreEnrolled, Registered)
-    );
-    assert_eq!(
-        opened_on("req-0256", "poll-status", "milestone"),
-        ratio(Initialized, Posts)
-    );
-    assert_eq!(
-        opened_on("req-0257", "poll-status", "milestone"),
-        ratio(Opened, Posts)
-    );
-    assert_eq!(
-        opened_on("req-0258", "poll-status", "milestone"),
-        ratio(Closed, Posts)
-    );
     for (dashboard, figure) in [
         ("req-0259", ratio(Voted, Registered)),
         ("req-0260", ratio(VotedPreEnrolled, PreEnrolled)),
         ("req-0261", ratio(PreEnrolled, Registered)),
     ] {
+        assert_eq!(opened_on(dashboard, "turnout-by-group", "data"), figure);
         assert_eq!(opened_on(dashboard, "turnout-by-post", "data"), figure);
         // With a Post chosen, the countries under it.
         assert_eq!(opened_on(dashboard, "turnout-by-country", "data"), figure);
@@ -1035,7 +1013,19 @@ fn dashboards_open_on_the_figure_their_record_asks_for() {
             ratio(PreEnrolled, Registered)
         );
     }
-    // Both of the dashboard's records at once, with no choice to make.
+    for dashboard in ["req-0256", "req-0257", "req-0258"] {
+        for (query, figure) in [
+            ("initialized", ratio(Initialized, Posts)),
+            ("opened", ratio(Opened, Posts)),
+            ("closed", ratio(Closed, Posts)),
+        ] {
+            assert_eq!(opened_on(dashboard, "poll-status", query), figure);
+        }
+        assert!(preset.set.dashboards[dashboard]
+            .layout
+            .iter()
+            .any(|item| item.widget == "status-by-post"));
+    }
     assert_eq!(
         opened_on("req-0254", "final-testing-lockdown", "tested"),
         ratio(Tested, Posts)
@@ -1044,13 +1034,100 @@ fn dashboards_open_on_the_figure_their_record_asks_for() {
         opened_on("req-0254", "final-testing-lockdown", "locked_down"),
         ratio(LockedDown, Posts)
     );
+    for dashboard in ["req-0263", "req-0264"] {
+        assert_eq!(
+            opened_on(dashboard, "counting-transmission", "tallied"),
+            ratio(Tallied, Posts)
+        );
+        assert_eq!(
+            opened_on(dashboard, "counting-transmission", "transmitted"),
+            ratio(Transmitted, Posts)
+        );
+    }
+}
+
+/// The overview comes first, then every record's dashboard under the
+/// section of the election it belongs to, in the order an election runs.
+/// The switcher lists a section's dashboards together, so each section's
+/// dashboards are consecutive in `order`.
+#[test]
+fn comelec_s_dashboards_are_listed_by_section_in_election_order() {
+    let preset = loaded("comelec");
+    let mut dashboards: Vec<&Dashboard> =
+        preset.set.dashboards.values().collect();
+    dashboards.sort_by_key(|dashboard| dashboard.order);
+    assert_eq!(dashboards[0].id, "overview");
+    assert_eq!(dashboards[0].section, None);
+    let mut sections: Vec<&str> = Vec::new();
+    for dashboard in &dashboards[1..] {
+        let section = dashboard
+            .section
+            .as_deref()
+            .unwrap_or_else(|| panic!("{} is under no section", dashboard.id));
+        if sections.last() != Some(&section) {
+            assert!(
+                !sections.contains(&section),
+                "{section} is listed apart at {}",
+                dashboard.id
+            );
+            sections.push(section);
+        }
+    }
     assert_eq!(
-        opened_on("req-0263", "counting-transmission", "milestone"),
-        ratio(Tallied, Posts)
+        sections,
+        [
+            "Enrollment",
+            "Test voting",
+            "Final testing and lockdown",
+            "Voting",
+            "Voter turnout",
+            "Counting and transmission",
+            "Enrollment and voting rates",
+            "Access and security",
+            "Helpdesk",
+        ]
+    );
+    for dashboard in dashboards {
+        assert!(
+            dashboard.description.is_some(),
+            "{} says nothing under its heading",
+            dashboard.id
+        );
+    }
+}
+
+/// Failed sign-ins are shown by kind (0280, 0281) and forgot-password
+/// requests beside completed resets.
+#[test]
+fn access_and_security_shows_failures_by_kind_and_password_requests() {
+    let preset = loaded("comelec");
+    let measures = |widget: &str, query: &str| {
+        let widget = &preset.set.widgets[widget];
+        let query =
+            widget.queries.get(query).or(widget.query.as_ref()).unwrap();
+        match &query.measures {
+            Some(crate::monitoring::config::Param::Literal(measures)) => {
+                measures.clone()
+            }
+            other => panic!("{other:?}"),
+        }
+    };
+    use Measure::*;
+    assert_eq!(
+        measures("access-security", "failures"),
+        [
+            LoginFailures,
+            LoginFailuresValidUser,
+            LoginFailuresUnregistered
+        ]
     );
     assert_eq!(
-        opened_on("req-0264", "counting-transmission", "milestone"),
-        ratio(Transmitted, Posts)
+        measures("access-security", "passwords"),
+        [PasswordResetRequests, PasswordResets]
+    );
+    assert_eq!(
+        measures("login-outcomes", "data"),
+        [Logins, LoginFailuresValidUser, LoginFailuresUnregistered]
     );
 }
 
@@ -1392,4 +1469,12 @@ fn a_half_width_widget_has_room_for_each_chart_in_a_row() {
             }
         }
     }
+}
+
+/// A dashboard names the preset it came from without reading every document.
+#[test]
+fn a_preset_s_manifest_is_read_on_its_own() {
+    let comelec = manifest("comelec").expect("comelec ships");
+    assert_eq!(comelec, loaded("comelec").manifest);
+    assert_eq!(manifest("no-such-preset"), None);
 }

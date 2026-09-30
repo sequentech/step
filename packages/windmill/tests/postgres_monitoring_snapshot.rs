@@ -1117,11 +1117,30 @@ async fn a_pass_counts_again_whenever_what_it_counts_from_moved() {
     )
     .await;
 
-    // Moved, but not in anything a figure shows.
+    // Credentials issued: Voting credentials counts them.
     change(
         &client,
         &event,
         "UPDATE sequent_backend.monitoring_voter SET credentials_at = now()
+         WHERE tenant_id = $1 AND election_event_id = $2",
+    )
+    .await;
+    shown = counted_again_under(
+        &mut client,
+        &event,
+        &settings,
+        2,
+        2,
+        shown,
+        "credentials issued",
+    )
+    .await;
+
+    // Moved, but not in anything a figure shows.
+    change(
+        &client,
+        &event,
+        "UPDATE sequent_backend.monitoring_voter SET attributes_hash = 'moved'
          WHERE tenant_id = $1 AND election_event_id = $2",
     )
     .await;

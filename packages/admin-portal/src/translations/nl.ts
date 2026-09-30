@@ -2867,13 +2867,16 @@ const dutchTranslation: TranslationType = {
             },
             header: {
                 dashboard: "Dashboard",
-                widgets_one: "{{count}} widget",
-                widgets_other: "{{count}} widgets",
                 updated: "Bijgewerkt {{time}} ({{timeZone}})",
                 notUpdated: "Nog niet geteld",
                 refresh: "elke {{seconds}} s",
                 export: "Exporteren",
                 editDashboard: "Dashboard bewerken",
+                preset: "Dashboardvoorinstelling",
+                reload: "Nieuwe cijfers ophalen",
+            },
+            footer: {
+                dataThrough: "Gegevens tot {{time}} ({{timeZone}})",
             },
             selectors: {
                 region: "Regio",
@@ -2925,6 +2928,8 @@ const dutchTranslation: TranslationType = {
                     "Pogingen met niet-geregistreerde gebruikersnamen horen bij geen enkele post en worden daarom alleen voor het hele evenement geteld.",
                 UNREGISTERED_ATTEMPTS_EXCLUDED:
                     "Deze cijfers laten pogingen met niet-geregistreerde gebruikersnamen buiten beschouwing; die worden voor het hele evenement geteld.",
+                CREDENTIALS_ISSUED_WHEN_PASSWORD_SET:
+                    "Inloggegevens tellen als uitgegeven zodra het wachtwoord van de kiezer is ingesteld, totdat het platform de uitgifte registreert.",
                 CONFIG_NEWER_THAN_SNAPSHOT:
                     "Getekend met de nieuwste instellingen; de cijfers worden er bij de volgende telling mee geteld.",
                 CONFIG_AT_SNAPSHOT_UNAVAILABLE:
@@ -3007,7 +3012,10 @@ const dutchTranslation: TranslationType = {
                 transmission_failed: "Verzending mislukt",
                 logins: "Aanmeldingen",
                 login_failures: "Mislukte aanmeldingen",
+                login_failures_valid_user: "Mislukt, geldige gebruiker",
+                login_failures_unregistered: "Mislukt, niet-geregistreerde gebruiker",
                 password_resets: "Wachtwoordherstel",
+                password_reset_requests: "Aanvragen om wachtwoordherstel",
                 detections: "Detecties",
                 issues: "Meldingen",
                 pending_issues: "Openstaande meldingen",
@@ -3120,6 +3128,7 @@ const dutchTranslation: TranslationType = {
                         dataQuery: "Gegevens en query",
                         selectors: "Selectors",
                         yaml: "YAML",
+                        preview: "Voorbeeld",
                     },
                     save: "Widget opslaan",
                     loading: "Widget laden…",

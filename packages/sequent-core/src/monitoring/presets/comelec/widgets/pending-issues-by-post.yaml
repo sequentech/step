@@ -5,6 +5,7 @@
 # Posts with the most open helpdesk issues.
 id: pending-issues-by-post
 title: Pending issues by Post
+description: The Posts with the most pending issues.
 source: helpdesk
 requirements: [SW-F-0269]
 query:

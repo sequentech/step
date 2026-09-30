@@ -31,19 +31,38 @@ is the only place a source's contract is stated:
 | `builtin_dimensions` | Which of `region`, `post`, `country`, `reason`, `state`, `category` it can group by. `region`, `post` and `country` are also the dashboard selectors that can narrow it. |
 | `voter_dimensions` | `CONFIGURED` when its rows carry the voter dimensions the event's settings declare, else `NOT_APPLICABLE`. |
 | `states` | For a source that counts Posts, the states a Post moves through; `PostState::has_reached` defines each milestone. |
-| `producer` | `Available`, or `Pending(PendingProducer)` naming what is missing. |
+| `producer` | `Available`; `Interim(InterimRule)`, counted by a stand-in until the producer it names exists; or `Pending(PendingProducer)` naming what is missing. |
 
 A `Pending` source is declared so presets can place its widgets today. The
 snapshot job records it as `NOT_CONNECTED` with its reason, and its widgets
-show "Not connected · reason" and never a zero. Five sources are pending:
+show "Not connected · reason" and never a zero. Four sources are pending:
 
 | Source | `PendingProducer` | What it waits for |
 |---|---|---|
 | `test_voting` | `TEST_ELECTION_DESIGNATION` | A way to mark an election as a test election. |
-| `voting_credentials` | `CREDENTIAL_ISSUED_EVENT` | A recorded event when credentials are issued. |
 | `final_testing_lockdown` | `FINAL_TESTING_LOCKDOWN_STATE` | A recorded final-testing and lockdown state per Post. |
 | `attack_detections` | `ATTACK_DETECTION_FEED` | A feed of detected attacks. |
 | `helpdesk` | `HELPDESK_INTEGRATION` | A helpdesk system. |
+
+## Interim sources
+
+An `Interim` source is counted by a stand-in rule for a producer another
+team owns, so the dashboards answer their record now and the owner can
+replace the rule without touching what reads the facts. Every payload of
+the source carries the rule's notice, which the widget shows.
+
+| Source | `InterimRule` | Stands in for | How it counts |
+|---|---|---|---|
+| `voting_credentials` | `CREDENTIALS_AT_PASSWORD_SET` | `CREDENTIAL_ISSUED_EVENT` (DEV-ENROLLMENT) | `monitoring_voter.credentials_at` is the voter's Keycloak `password` credential time, kept at the earliest seen (`CREDENTIALS_AT_PASSWORD_SET` in `projection.rs`). The message-OTP credential registration creates does not count. COMELEC sets the password at registration for matched voters and at manual approval from the application's credentials. Approved voters: latest application accepted, or imported without one. |
+
+To replace `CREDENTIALS_AT_PASSWORD_SET` with the credential-issued event:
+
+1. Write `monitoring_voter.credentials_at` from the event instead of the
+   Keycloak expression in `projection.rs` (keep the earliest time).
+2. Make `voting_credentials` `Producer::Available` in `sources.rs`, and
+   remove the rule if nothing else uses it. The notice goes with it.
+3. The counting in `producers.rs`, the presets and the widgets stay as they
+   are.
 
 ## Turning a pending source on
 

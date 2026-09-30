@@ -2855,13 +2855,16 @@ const basqueTranslation: TranslationType = {
             },
             header: {
                 dashboard: "Panela",
-                widgets_one: "Widget {{count}}",
-                widgets_other: "{{count}} widget",
                 updated: "Eguneratua: {{time}} ({{timeZone}})",
                 notUpdated: "Oraindik zenbatu gabe",
                 refresh: "{{seconds}} s-ro",
                 export: "Esportatu",
                 editDashboard: "Editatu panela",
+                preset: "Panelen aurrezarpena",
+                reload: "Bilatu datu berriak",
+            },
+            footer: {
+                dataThrough: "Datuak {{time}} arte ({{timeZone}})",
             },
             selectors: {
                 region: "Eskualdea",
@@ -2913,6 +2916,8 @@ const basqueTranslation: TranslationType = {
                     "Erregistratu gabeko erabiltzaile-izenen saiakerak ez dira inongo posturenak, eta, beraz, gertaera osorako soilik zenbatzen dira.",
                 UNREGISTERED_ATTEMPTS_EXCLUDED:
                     "Zifra hauek ez dituzte erregistratu gabeko erabiltzaile-izenen saiakerak barne hartzen; gertaera osorako zenbatzen dira.",
+                CREDENTIALS_ISSUED_WHEN_PASSWORD_SET:
+                    "Kredentzialak emandakotzat hartzen dira hauteslearen pasahitza ezartzen denean, plataformak ematea erregistratu arte.",
                 CONFIG_NEWER_THAN_SNAPSHOT:
                     "Azken ezarpenekin marraztua; zifrak hurrengo zenbaketan zenbatzen dira haiekin.",
                 CONFIG_AT_SNAPSHOT_UNAVAILABLE:
@@ -2994,7 +2999,10 @@ const basqueTranslation: TranslationType = {
                 transmission_failed: "Bidalketak huts egin du",
                 logins: "Saio-hasierak",
                 login_failures: "Huts egindako saio-hasierak",
+                login_failures_valid_user: "Hutsak, baliozko erabiltzailea",
+                login_failures_unregistered: "Hutsak, erregistratu gabeko erabiltzailea",
                 password_resets: "Pasahitz-berrezarpenak",
+                password_reset_requests: "Pasahitza berrezartzeko eskaerak",
                 detections: "Detekzioak",
                 issues: "Gorabeherak",
                 pending_issues: "Zain dauden gorabeherak",
@@ -3107,6 +3115,7 @@ const basqueTranslation: TranslationType = {
                         dataQuery: "Datuak eta kontsulta",
                         selectors: "Hautatzaileak",
                         yaml: "YAML",
+                        preview: "Aurrebista",
                     },
                     save: "Gorde widgeta",
                     loading: "Widgeta kargatzen…",

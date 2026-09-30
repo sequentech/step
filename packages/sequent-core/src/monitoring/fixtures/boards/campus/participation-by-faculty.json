@@ -97,6 +97,13 @@
           }
         }
       },
+      "axis_quantitative": {
+        "labels": {
+          "font": {
+            "family": "'Inter Variable', Inter, system-ui, sans-serif"
+          }
+        }
+      },
       "callout": {
         "title": {
           "font": {
@@ -112,9 +119,17 @@
         }
       },
       "kpi": {
+        "font": {
+          "family": "'Inter Variable', Inter, system-ui, sans-serif"
+        },
         "label": {
           "font": {
             "case": "none"
+          }
+        },
+        "value": {
+          "font": {
+            "family": "'Inter Variable', Inter, system-ui, sans-serif"
           }
         }
       },
@@ -123,7 +138,30 @@
           "visible": false
         }
       },
+      "pie": {
+        "total": {
+          "value": {
+            "font": {
+              "family": "'Inter Variable', Inter, system-ui, sans-serif"
+            }
+          }
+        }
+      },
+      "spark_bar": {
+        "bar": {
+          "height": 20
+        },
+        "count": {
+          "width": 64
+        },
+        "label": {
+          "width": 220
+        }
+      },
       "support_table": {
+        "font": {
+          "family": "'Inter Variable', Inter, system-ui, sans-serif"
+        },
         "label": {
           "font": {
             "case": "none"
@@ -138,15 +176,24 @@
         }
       }
     },
+    "font": {
+      "family": "'Inter Variable', Inter, system-ui, sans-serif"
+    },
     "footer": {
       "visible": false
+    },
+    "text": {
+      "font": {
+        "family": "'Inter Variable', Inter, system-ui, sans-serif"
+      }
     },
     "timestamp": {
       "visible": false
     },
     "title": {
       "font": {
-        "case": "none"
+        "case": "none",
+        "family": "'Inter Variable', Inter, system-ui, sans-serif"
       }
     }
   },

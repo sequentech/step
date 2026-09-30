@@ -37,6 +37,7 @@ function Fixture({configure, onEditDashboard}: Scenario) {
                 <MonitoringDashboard
                     electionEventId={STORY_IDS.event}
                     dashboards={listDashboardsResponse().dashboards}
+                    presetTitle={listDashboardsResponse().preset?.title}
                     configure={configure}
                 />
             </MonitoringProvider>
@@ -78,11 +79,23 @@ const renders = () =>
 export const Overview: Story = {
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
+        await expect(await canvas.findByText("COMELEC overseas voting")).toBeVisible()
+        await expect(canvas.getByText("Dashboard preset")).toBeVisible()
+        // The update's time in the event's zone, and how often it is asked for.
+        await expect(canvas.getByText(/^Updated 8:00 PM\b.* · every 30 s$/)).toBeVisible()
+        await expect(canvas.getByRole("combobox", {name: "Dashboard"})).toHaveTextContent(
+            "Monitoring overview"
+        )
         await expect(
-            await canvas.findByText(
-                "5 widgets · SW-F-0247, SW-F-0279, SW-F-0365 · Updated Jan 15, 2026, 8:00 PM · every 30 s"
+            canvas.getByText("Turnout, Post status and activity at a glance.")
+        ).toBeVisible()
+        // What the figures are of and when, under the widgets, with the records they answer.
+        await expect(
+            canvas.getByText(
+                /^All regions · All Posts · All countries · Data through Jan 15, 2026, 8:00 PM/
             )
         ).toBeVisible()
+        await expect(canvas.getByText("SW-F-0247, SW-F-0279, SW-F-0365")).toBeVisible()
         await canvas.findByTitle("Poll status chart")
         // Widget titles sit under the dashboard's.
         await expect(
@@ -121,7 +134,12 @@ export const SwitchDashboard: Story = {
         await userEvent.click(
             await within(document.body).findByRole("option", {name: "Voted vs pre-enrolled"})
         )
-        await expect(await canvas.findByText(/^1 widget · SW-F-0260, SW-F-0372/)).toBeVisible()
+        await expect(
+            await canvas.findByRole("heading", {level: 2, name: "Voted vs pre-enrolled"})
+        ).toBeVisible()
+        // The section it is listed under, above its title.
+        await expect(canvas.getByText("Voter turnout", {selector: "p"})).toBeVisible()
+        await expect(canvas.getByText("SW-F-0260, SW-F-0372")).toBeVisible()
         expect(
             graphql.calls.filter(({name}) => name === "MonitoringGetDashboard").at(-1)?.variables
         ).toEqual(expect.objectContaining({dashboardId: "req-0260"}))

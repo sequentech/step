@@ -6,6 +6,7 @@
 # Post chosen, the countries under that Post.
 id: turnout-by-country
 title: Turnout by country
+description: Each country over its own denominator.
 source: voter_turnout
 requirements: [SW-F-0259, SW-F-0260, SW-F-0261]
 selectors:

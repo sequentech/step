@@ -2,18 +2,19 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
-# How many polling stations have opened, and where each one stands now.
+# How many polling stations have opened, and how many reached each step,
+# against all stations.
 id: polls
 title: Polling stations
+description: Stations that reached each step, against all stations.
 source: poll_status
 queries:
   opened: {template: summary, ratio: [opened, posts]}
-  states:
-    template: by_group
-    group_by: state
-    measures: [posts]
-    labels: {not_initialized: Not ready, initialized: Ready, opened: Open, paused: Paused, closed: Closed}
-height: 480
+  progress:
+    template: by_measure
+    measures: [posts, initialized, opened, closed]
+    labels: {posts: Stations, initialized: Ready, opened: Opened, closed: Closed}
+height: 240
 chart:
   charts:
     opened:
@@ -23,11 +24,9 @@ chart:
       label: Stations that have opened
       style: {value: {format: integer}}
       support: {value: pct_label, label: of the stations}
-    # A campus has a handful of stations: a donut shows each state's count.
-    states:
-      type: donut
-      query: states
-      theta: posts
-      color: group
-      title: Stations by state
-  rows: [opened, states]
+    progress:
+      type: spark_bar
+      query: progress
+      x: value
+      y: label
+  rows: [opened, progress]

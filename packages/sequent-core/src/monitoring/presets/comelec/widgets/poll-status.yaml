@@ -2,57 +2,50 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
-# How many Posts in scope have reached a milestone, how they stand now, and
-# the milestone by region. The denominator is always the Posts in scope.
+# Every milestone at once, as the Posts in scope that have reached it: each
+# as a count and a share, then as a bar against the Posts in scope.
 id: poll-status
 title: Poll status
+description: Percentages use the Posts in scope.
 source: poll_status
 requirements: [SW-F-0256, SW-F-0257, SW-F-0258, SW-F-0368, SW-F-0369, SW-F-0370]
-selectors:
-  milestone:
-    label: Milestone
-    options: {initialized: Initialized, opened: Opened, closed: Closed}
-    default: opened
-    maps: {initialized: [initialized, posts], opened: [opened, posts], closed: [closed, posts]}
 queries:
-  milestone: {template: summary, ratio: {selector: milestone}}
-  states: {template: by_group, group_by: state, measures: [posts]}
-  regions: {template: by_group, group_by: region, ratio: {selector: milestone}}
-height: 560
+  initialized: {template: summary, ratio: [initialized, posts]}
+  opened: {template: summary, ratio: [opened, posts]}
+  closed: {template: summary, ratio: [closed, posts]}
+  progress:
+    template: by_measure
+    measures: [posts, initialized, opened, closed]
+    labels: {posts: Posts in scope, opened: Online voting opened, closed: Voting closed}
+height: 300
 chart:
   charts:
-    reached:
+    initialized:
       type: kpi
-      query: milestone
+      query: initialized
       value: numerator
-      label: Posts at the milestone
+      label: Initialized
       style: {value: {format: integer}}
-      support: {value: pct_label, label: of the Posts in scope}
-    in_scope:
+      support: {value: pct_label, label: of Posts}
+    opened:
       type: kpi
-      query: milestone
-      value: denominator
-      label: Posts in scope
+      query: opened
+      value: numerator
+      label: Online voting opened
       style: {value: {format: integer}}
-    states:
-      type: donut
-      query: states
-      theta: posts
-      color: group
-      title: Posts by current state
-    regions:
-      type: bar
-      query: regions
-      x: group
-      y: pct
-      # The query's order, Unknown last; unsorted, a bar orders by value.
-      sort: {by: position, order: asc}
-      title: By region
-      style:
-        orientation: horizontal
-        number_format: percent
-        marks: {bar: {labels: {visible: true, format: percent}}}
+      support: {value: pct_label, label: of Posts}
+    closed:
+      type: kpi
+      query: closed
+      value: numerator
+      label: Voting closed
+      style: {value: {format: integer}}
+      support: {value: pct_label, label: of Posts}
+    progress:
+      type: spark_bar
+      query: progress
+      x: value
+      y: label
   rows:
-    - {cols: [reached, in_scope]}
-    - states
-    - regions
+    - {cols: [initialized, opened, closed]}
+    - progress

@@ -6,24 +6,30 @@
 # pre-enrolled voters (D1).
 id: test-voting
 title: Test voting
+description: Percentages use pre-enrolled OVs.
 source: test_voting
 requirements: [SW-F-0253, SW-F-0367]
 queries:
-  totals: {template: summary, measures: [pre_enrolled, test_voted]}
   share: {template: summary, ratio: [test_voted, pre_enrolled]}
-height: 180
+  progress:
+    template: by_measure
+    measures: [pre_enrolled, test_voted]
+    labels: {pre_enrolled: Pre-enrolled OVs, test_voted: Test voted}
+height: 240
 chart:
   charts:
-    tested:
-      type: kpi
-      query: totals
-      value: test_voted
-      label: Test voted
-      style: {value: {format: integer}}
     share:
       type: kpi
       query: share
-      value: pct_label
-      label: Of pre-enrolled voters
-      support: {value: denominator, label: pre-enrolled, format: integer}
-  rows: [{cols: [tested, share]}]
+      value: numerator
+      label: Test voted
+      style: {value: {format: integer}}
+      support: {value: pct_label, label: of pre-enrolled OVs}
+    progress:
+      type: spark_bar
+      query: progress
+      x: value
+      y: label
+  rows:
+    - share
+    - progress

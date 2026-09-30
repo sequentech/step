@@ -4,8 +4,10 @@
 
 id: req-0263
 title: Counting
+description: Posts that counted their votes.
+section: Counting and transmission
 requirements: [SW-F-0263]
-order: 25
+order: 13
 selectors: [region, post]
 layout:
-  - {widget: counting-transmission, width: 12, values: {milestone: tallied}}
+  - {widget: counting-transmission, width: 12}

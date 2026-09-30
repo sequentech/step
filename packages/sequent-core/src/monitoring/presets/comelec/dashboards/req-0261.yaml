@@ -4,8 +4,10 @@
 
 id: req-0261
 title: Pre-enrolled vs registered
+description: Pre-enrolled OVs, of the registered OVs.
+section: Voter turnout
 requirements: [SW-F-0261, SW-F-0373]
-order: 3
+order: 12
 selectors: [region, post, country]
 layout:
   - {widget: turnout-summary, width: 12}

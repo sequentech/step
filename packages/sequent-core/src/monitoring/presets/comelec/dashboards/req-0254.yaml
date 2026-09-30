@@ -4,8 +4,10 @@
 
 id: req-0254
 title: Final testing and lockdown
+description: Posts that finished final testing and were locked down.
+section: Final testing and lockdown
 requirements: [SW-F-0254, SW-F-0255]
-order: 20
+order: 5
 selectors: [region, post]
 layout:
   - {widget: final-testing-lockdown, width: 12}

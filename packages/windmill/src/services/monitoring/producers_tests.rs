@@ -47,6 +47,7 @@ fn voter(voter_id: &str, election: u128, region: &str, country: Option<&str>) ->
         enrollment: None,
         enrollment_reason: None,
         enrollment_decided_at: None,
+        credentials_at: None,
     }
 }
 
@@ -383,14 +384,29 @@ fn sign_ins_of_unknown_users_count_for_the_whole_event_only() {
     facts.logins = vec![
         login("LOGIN", true, Some(area), 3),
         login("LOGIN_ERROR", false, None, 5),
+        login("LOGIN_ERROR", true, Some(area), 2),
         login("CODE_TO_TOKEN", true, Some(area), 7),
+        login("SEND_RESET_PASSWORD", true, Some(area), 4),
+        login("UPDATE_PASSWORD", true, Some(area), 1),
     ];
     let figures = produce(&facts, &[set(&[1, 2, 3])]);
     let access = scopes(&figures, DataSourceId::AccessSecurity);
     let event = &access["event"];
     assert_eq!(event.totals[&Measure::Logins], 3);
-    assert_eq!(event.totals[&Measure::LoginFailures], 5);
-    assert_eq!(event.totals[&Measure::PasswordResets], 0);
+    // Every failure, then split by whether the username named an account.
+    assert_eq!(event.totals[&Measure::LoginFailures], 7);
+    assert_eq!(event.totals[&Measure::LoginFailuresValidUser], 2);
+    assert_eq!(event.totals[&Measure::LoginFailuresUnregistered], 5);
+    // A request sends a new password; the reset completes it.
+    assert_eq!(event.totals[&Measure::PasswordResetRequests], 4);
+    assert_eq!(event.totals[&Measure::PasswordResets], 1);
+    let hour = event
+        .series
+        .iter()
+        .find(|bucket| bucket.counts[&Measure::LoginFailures] > 0)
+        .unwrap();
+    assert_eq!(hour.counts[&Measure::LoginFailuresUnregistered], 5);
+    assert_eq!(hour.counts[&Measure::PasswordResetRequests], 4);
     assert_eq!(
         event.notices,
         vec![Notice::UnregisteredAttemptsAtEventScopeOnly]
@@ -401,7 +417,9 @@ fn sign_ins_of_unknown_users_count_for_the_whole_event_only() {
         3,
         "once for the area, not per Post"
     );
-    assert_eq!(europe.totals[&Measure::LoginFailures], 0);
+    assert_eq!(europe.totals[&Measure::LoginFailures], 2);
+    assert_eq!(europe.totals[&Measure::LoginFailuresValidUser], 2);
+    assert_eq!(europe.totals[&Measure::LoginFailuresUnregistered], 0);
     assert_eq!(europe.notices, vec![Notice::UnregisteredAttemptsExcluded]);
     assert_eq!(europe.groups["post"].len(), 2);
     assert_eq!(
@@ -418,6 +436,63 @@ fn sign_ins_of_unknown_users_count_for_the_whole_event_only() {
         "voters of Posts the set does not see"
     );
     assert_eq!(access["event"].totals[&Measure::LoginFailures], 5);
+    assert_eq!(
+        access["event"].totals[&Measure::LoginFailuresUnregistered],
+        5
+    );
+}
+
+/// Approved voters are those whose latest application was accepted, and
+/// those imported without one; credentials count once set, and only for an
+/// approved voter. Every payload says how credentials are counted.
+#[test]
+fn credentials_count_approved_voters_whose_password_is_set() {
+    let settings = settings();
+    let with = |id: &str, enrollment: Option<Enrollment>, credentials: Option<DateTime<Utc>>| {
+        let mut row = voter(id, 1, "Europe", Some("ES"));
+        row.enrollment = enrollment;
+        row.credentials_at = credentials;
+        row
+    };
+    let voters = vec![
+        with("a-imported", None, Some(at(1, 9, 5))),
+        with(
+            "b-accepted",
+            Some(Enrollment::Accepted),
+            Some(at(1, 10, 20)),
+        ),
+        with("c-accepted-no-password", Some(Enrollment::Accepted), None),
+        with("d-pending", Some(Enrollment::Pending), Some(at(1, 11, 0))),
+        with(
+            "e-rejected",
+            Some(Enrollment::Rejected),
+            Some(at(1, 11, 30)),
+        ),
+    ];
+    let figures = produce(&facts(&settings, voters), &[set(&[1, 2, 3])]);
+    let status = &figures
+        .iter()
+        .find(|figure| figure.source == DataSourceId::VotingCredentials)
+        .unwrap()
+        .status;
+    assert_eq!(*status, SourceStatus::Connected);
+    let credentials = scopes(&figures, DataSourceId::VotingCredentials);
+    let event = &credentials["event"];
+    assert_eq!(event.totals[&Measure::Approved], 3);
+    assert_eq!(event.totals[&Measure::CredentialsIssued], 2);
+    assert_eq!(
+        event.notices,
+        vec![Notice::CredentialsIssuedWhenPasswordSet]
+    );
+    let issued: u64 = event
+        .series
+        .iter()
+        .map(|bucket| bucket.counts[&Measure::CredentialsIssued])
+        .sum();
+    assert_eq!(issued, 2, "each at the hour the password was set");
+    let post = &credentials[&format!("post={}", id(1))];
+    assert_eq!(post.totals[&Measure::CredentialsIssued], 2);
+    assert_eq!(post.notices, vec![Notice::CredentialsIssuedWhenPasswordSet]);
 }
 
 #[test]

@@ -6,6 +6,7 @@
 # is its own numerator over its own denominator; Unknown is always shown.
 id: turnout-by-group
 title: Turnout by group
+description: Each group is its own numerator over its own denominator.
 source: voter_turnout
 requirements: [SW-F-0259, SW-F-0260, SW-F-0261, SW-F-0371, SW-F-0372, SW-F-0373]
 selectors:

@@ -1,15 +1,25 @@
 {
   "charts": {
+    "progress": {
+      "query": "progress",
+      "type": "spark_bar",
+      "x": "value",
+      "y": "label"
+    },
     "share": {
-      "label": "Of the electorate",
+      "label": "Ballots cast",
       "query": "share",
+      "style": {
+        "value": {
+          "format": "integer"
+        }
+      },
       "support": {
-        "format": "integer",
-        "label": "electors",
-        "value": "denominator"
+        "label": "of the electorate",
+        "value": "pct_label"
       },
       "type": "kpi",
-      "value": "pct_label"
+      "value": "numerator"
     },
     "verified": {
       "label": "Of verified electors",
@@ -21,20 +31,31 @@
       },
       "type": "kpi",
       "value": "pct_label"
-    },
-    "voted": {
-      "label": "Ballots cast",
-      "query": "totals",
-      "style": {
-        "value": {
-          "format": "integer"
-        }
-      },
-      "type": "kpi",
-      "value": "voted"
     }
   },
   "queries": {
+    "progress": {
+      "columns": [
+        "measure",
+        "label",
+        "position",
+        "value"
+      ],
+      "values": [
+        [
+          "registered",
+          "Electors",
+          1,
+          1200
+        ],
+        [
+          "voted",
+          "Ballots cast",
+          2,
+          391
+        ]
+      ]
+    },
     "share": {
       "columns": [
         "numerator",
@@ -48,18 +69,6 @@
           1200,
           0.3258333333333333,
           "32.6%"
-        ]
-      ]
-    },
-    "totals": {
-      "columns": [
-        "registered",
-        "voted"
-      ],
-      "values": [
-        [
-          1200,
-          391
         ]
       ]
     },
@@ -83,11 +92,11 @@
   "rows": [
     {
       "cols": [
-        "voted",
-        "share"
+        "share",
+        "verified"
       ]
     },
-    "verified"
+    "progress"
   ],
   "style": {
     "accent": "#0f766e",
@@ -96,6 +105,13 @@
         "title": {
           "font": {
             "case": "none"
+          }
+        }
+      },
+      "axis_quantitative": {
+        "labels": {
+          "font": {
+            "family": "'Inter Variable', Inter, system-ui, sans-serif"
           }
         }
       },
@@ -114,9 +130,17 @@
         }
       },
       "kpi": {
+        "font": {
+          "family": "'Inter Variable', Inter, system-ui, sans-serif"
+        },
         "label": {
           "font": {
             "case": "none"
+          }
+        },
+        "value": {
+          "font": {
+            "family": "'Inter Variable', Inter, system-ui, sans-serif"
           }
         }
       },
@@ -125,7 +149,30 @@
           "visible": false
         }
       },
+      "pie": {
+        "total": {
+          "value": {
+            "font": {
+              "family": "'Inter Variable', Inter, system-ui, sans-serif"
+            }
+          }
+        }
+      },
+      "spark_bar": {
+        "bar": {
+          "height": 20
+        },
+        "count": {
+          "width": 64
+        },
+        "label": {
+          "width": 220
+        }
+      },
       "support_table": {
+        "font": {
+          "family": "'Inter Variable', Inter, system-ui, sans-serif"
+        },
         "label": {
           "font": {
             "case": "none"
@@ -140,15 +187,24 @@
         }
       }
     },
+    "font": {
+      "family": "'Inter Variable', Inter, system-ui, sans-serif"
+    },
     "footer": {
       "visible": false
+    },
+    "text": {
+      "font": {
+        "family": "'Inter Variable', Inter, system-ui, sans-serif"
+      }
     },
     "timestamp": {
       "visible": false
     },
     "title": {
       "font": {
-        "case": "none"
+        "case": "none",
+        "family": "'Inter Variable', Inter, system-ui, sans-serif"
       }
     }
   },

@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React from "react"
-import {MenuItem, Stack, TextField} from "@mui/material"
+import {MenuItem, TextField} from "@mui/material"
 import {useTranslation} from "react-i18next"
 import {
     EScopeSelector,
@@ -25,7 +25,7 @@ export interface MonitoringSelectorsProps {
     pinnedPost?: string | null
 }
 
-/** Region · Post · Country, applying to every widget that follows them. */
+/** Region · Post · Country, applying to every widget that follows them; laid out by the header. */
 export function MonitoringSelectors({
     selectors,
     scope,
@@ -65,7 +65,7 @@ export function MonitoringSelectors({
     }
 
     return (
-        <Stack direction={{xs: "column", sm: "row"}} spacing={2} useFlexGap flexWrap="wrap">
+        <>
             {shown.map((selector) => {
                 const words = selectorWords(selector, settings, t, restricted)
                 const choices = choicesOf(selector)
@@ -81,7 +81,8 @@ export function MonitoringSelectors({
                         onChange={(event) => change(selector, event.target.value)}
                         // "All" is the empty value, and is shown as a choice.
                         slotProps={{select: {displayEmpty: true}, inputLabel: {shrink: true}}}
-                        sx={{minWidth: 200}}
+                        fullWidth={false}
+                        sx={{width: {xs: "100%", md: 190}}}
                     >
                         <MenuItem value="">{words.all}</MenuItem>
                         {choices.map((choice) => (
@@ -92,6 +93,6 @@ export function MonitoringSelectors({
                     </TextField>
                 )
             })}
-        </Stack>
+        </>
     )
 }

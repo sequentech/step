@@ -1,16 +1,5 @@
 {
   "charts": {
-    "in_scope": {
-      "label": "Posts in scope",
-      "query": "tested",
-      "style": {
-        "value": {
-          "format": "integer"
-        }
-      },
-      "type": "kpi",
-      "value": "denominator"
-    },
     "locked_down": {
       "label": "Locked down",
       "query": "locked_down",
@@ -20,7 +9,7 @@
         }
       },
       "support": {
-        "label": "of the Posts in scope",
+        "label": "of Posts",
         "value": "pct_label"
       },
       "type": "kpi",
@@ -56,7 +45,14 @@
           "enabled": false
         }
       },
+      "title": "Posts",
       "type": "table"
+    },
+    "progress": {
+      "query": "progress",
+      "type": "spark_bar",
+      "x": "value",
+      "y": "label"
     },
     "tested": {
       "label": "Final testing done",
@@ -67,7 +63,7 @@
         }
       },
       "support": {
-        "label": "of the Posts in scope",
+        "label": "of Posts",
         "value": "pct_label"
       },
       "type": "kpi",
@@ -212,6 +208,34 @@
         ]
       ]
     },
+    "progress": {
+      "columns": [
+        "measure",
+        "label",
+        "position",
+        "value"
+      ],
+      "values": [
+        [
+          "posts",
+          "Posts in scope",
+          1,
+          12
+        ],
+        [
+          "tested",
+          "Final testing done",
+          2,
+          8
+        ],
+        [
+          "locked_down",
+          "Locked down",
+          3,
+          4
+        ]
+      ]
+    },
     "tested": {
       "columns": [
         "numerator",
@@ -236,16 +260,23 @@
         "locked_down"
       ]
     },
-    "in_scope",
+    "progress",
     "posts"
   ],
   "style": {
-    "accent": "#1d4ed8",
+    "accent": "#0F054C",
     "charts": {
       "axis": {
         "title": {
           "font": {
             "case": "none"
+          }
+        }
+      },
+      "axis_quantitative": {
+        "labels": {
+          "font": {
+            "family": "'Inter Variable', Inter, system-ui, sans-serif"
           }
         }
       },
@@ -263,10 +294,33 @@
           }
         }
       },
+      "color": {
+        "categorical": {
+          "palette": [
+            "#0F054C",
+            "#43E3A1",
+            "#7C6FE0",
+            "#F59E0B",
+            "#0EA5E9",
+            "#DC2626"
+          ],
+          "single_series_palette": [
+            "#0F054C"
+          ]
+        }
+      },
       "kpi": {
+        "font": {
+          "family": "'Inter Variable', Inter, system-ui, sans-serif"
+        },
         "label": {
           "font": {
             "case": "none"
+          }
+        },
+        "value": {
+          "font": {
+            "family": "'Inter Variable', Inter, system-ui, sans-serif"
           }
         }
       },
@@ -275,7 +329,30 @@
           "visible": false
         }
       },
+      "pie": {
+        "total": {
+          "value": {
+            "font": {
+              "family": "'Inter Variable', Inter, system-ui, sans-serif"
+            }
+          }
+        }
+      },
+      "spark_bar": {
+        "bar": {
+          "height": 20
+        },
+        "count": {
+          "width": 64
+        },
+        "label": {
+          "width": 220
+        }
+      },
       "support_table": {
+        "font": {
+          "family": "'Inter Variable', Inter, system-ui, sans-serif"
+        },
         "label": {
           "font": {
             "case": "none"
@@ -290,15 +367,24 @@
         }
       }
     },
+    "font": {
+      "family": "'Inter Variable', Inter, system-ui, sans-serif"
+    },
     "footer": {
       "visible": false
+    },
+    "text": {
+      "font": {
+        "family": "'Inter Variable', Inter, system-ui, sans-serif"
+      }
     },
     "timestamp": {
       "visible": false
     },
     "title": {
       "font": {
-        "case": "none"
+        "case": "none",
+        "family": "'Inter Variable', Inter, system-ui, sans-serif"
       }
     }
   },

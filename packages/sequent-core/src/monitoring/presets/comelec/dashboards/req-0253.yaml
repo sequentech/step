@@ -4,8 +4,10 @@
 
 id: req-0253
 title: Test voting
+description: Pre-enrolled OVs who have and have not cast a test ballot.
+section: Test voting
 requirements: [SW-F-0253, SW-F-0367]
-order: 5
+order: 4
 selectors: [region, post, country]
 layout:
   - {widget: test-voting, width: 12}

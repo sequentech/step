@@ -7,9 +7,14 @@ export const MONITORING_LIST_DASHBOARDS = gql`
     query MonitoringListDashboards($electionEventId: uuid!, $electionId: uuid) {
         monitoringListDashboards(election_event_id: $electionEventId, election_id: $electionId) {
             mode
+            preset {
+                id
+                title
+            }
             dashboards {
                 id
                 title
+                section
                 requirements
                 widget_count
             }

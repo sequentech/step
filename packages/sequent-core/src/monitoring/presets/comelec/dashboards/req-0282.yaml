@@ -4,8 +4,10 @@
 
 id: req-0282
 title: Enrollment activity
+description: Distinct OVs approved per period.
+section: Enrollment and voting rates
 requirements: [SW-F-0282]
-order: 14
+order: 15
 selectors: [region, post, country]
 layout:
   - {widget: enrollment-activity, width: 12}

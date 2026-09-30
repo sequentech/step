@@ -5,24 +5,18 @@
 # Failed sign-ins and password resets, for the helpdesk.
 id: sign-in-problems
 title: Sign-in problems
+description: Counted in attempts, not electors.
 source: access_security
 query:
   template: by_measure
   measures: [login_failures, password_resets]
   labels: {login_failures: Failed sign-ins, password_resets: Password reset}
-height: 240
+height: 160
 chart:
   charts:
     problems:
-      type: bar
+      type: spark_bar
       query: data
-      x: label
-      y: value
-      # The query's order, Unknown last; unsorted, a bar orders by value.
-      sort: {by: position, order: asc}
-      y_label: Attempts
-      style:
-        orientation: horizontal
-        number_format: number
-        marks: {bar: {labels: {visible: true, format: number}}}
+      x: value
+      y: label
   rows: [problems]

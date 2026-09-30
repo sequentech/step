@@ -4,8 +4,10 @@
 
 id: req-0264
 title: Transmission
+description: Posts that transmitted their results, and transmission errors.
+section: Counting and transmission
 requirements: [SW-F-0264, SW-F-0265]
-order: 26
+order: 14
 selectors: [region, post]
 layout:
-  - {widget: counting-transmission, width: 12, values: {milestone: transmitted}}
+  - {widget: counting-transmission, width: 12}

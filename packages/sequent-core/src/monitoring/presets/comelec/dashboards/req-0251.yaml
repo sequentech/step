@@ -4,8 +4,10 @@
 
 id: req-0251
 title: Voting credentials
+description: Approved OVs and the credentials issued to them.
+section: Enrollment
 requirements: [SW-F-0251]
-order: 12
+order: 3
 selectors: [region, post, country]
 layout:
   - {widget: credentials-issued, width: 12}

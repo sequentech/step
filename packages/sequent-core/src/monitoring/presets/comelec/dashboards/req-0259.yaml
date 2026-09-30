@@ -4,8 +4,10 @@
 
 id: req-0259
 title: Voted vs registered
+description: OVs who voted, of the registered OVs.
+section: Voter turnout
 requirements: [SW-F-0259, SW-F-0371]
-order: 1
+order: 10
 selectors: [region, post, country]
 layout:
   - {widget: turnout-summary, width: 12}

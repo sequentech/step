@@ -4,8 +4,10 @@
 
 id: req-0252
 title: Access and security
+description: Sign-in attempts by outcome, failed attempts by kind, and password requests.
+section: Access and security
 requirements: [SW-F-0252, SW-F-0268]
-order: 30
+order: 17
 selectors: [region, post]
 layout:
   - {widget: access-security, width: 12}

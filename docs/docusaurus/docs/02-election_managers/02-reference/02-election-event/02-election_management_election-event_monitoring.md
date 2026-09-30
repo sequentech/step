@@ -50,7 +50,7 @@ The platform ships two presets:
 
 | Preset | For |
 |---|---|
-| `comelec` | An overview and one dashboard for each monitoring record of an overseas voting package. |
+| `comelec` | An overview and a dashboard for each monitoring record of an overseas voting package, grouped by section. |
 | `campus` | A university election: participation by faculty and role, and the day's operations. |
 
 Switching the tab back to the standard dashboard keeps the configuration and
@@ -60,15 +60,31 @@ its history; switching again shows the same dashboards.
 
 ### Header
 
-The header shows, from left to right:
+The header has two rows:
 
-- the dashboard's title, with a menu to switch to another dashboard of the
-  event;
-- how many widgets it has, and the requirement IDs it answers, if any;
-- **Updated** and a time: when the figures on screen were counted (see
-  [Freshness](#freshness));
-- **Export**, to export the dashboard's data;
-- **Edit dashboard**, for users who may configure monitoring.
+- the name of the preset the event's dashboards came from (for example
+  **COMELEC overseas voting**, marked **Dashboard preset**), with **Export**,
+  to export the dashboard's data, and **Edit dashboard**, for users who may
+  configure monitoring;
+- the **Dashboard** menu, to switch to another dashboard of the event, each
+  listed under the heading of its section, then the
+  [dashboard selectors](#dashboard-selectors), and on the right **Updated**
+  with a time: when the figures on screen were counted (see
+  [Freshness](#freshness)) and how often the dashboard checks for new ones.
+  The **↻** button checks at once.
+
+Below the header come the dashboard's section, its title and a line saying
+what it shows, then its widgets. Under the widgets a footer repeats what the
+figures are of (for example "All regions · Dubai PCG · All countries"), when
+they were counted, and the requirement IDs the dashboard answers, if any.
+
+The `comelec` preset has an **Overview** and a dashboard for each monitoring
+record, listed under the section of the election it belongs to, in the order
+an election runs: Enrollment, Test voting, Final testing and lockdown,
+Voting, Voter turnout, Counting and transmission, Enrollment and voting
+rates, Access and security, and Helpdesk. A record's dashboard opens on the
+figure it asks for; for example, **Voted vs pre-enrolled** opens Turnout by
+group on "Voted of pre-enrolled".
 
 ### Dashboard selectors
 
@@ -100,23 +116,33 @@ Widgets sit on a grid 12 columns wide. Each takes 1 to 12 columns; widgets
 fill a row and wrap to the next, and on a narrow screen they stack. A widget
 card shows:
 
-- its title, its data source and the requirement IDs it answers;
+- its title and, if it has one, a line saying what its figures are taken
+  of, such as "Percentages use pre-enrolled OVs.";
 - its own **widget selectors**, if it has any: a dropdown or a toggle, such
-  as Breakdown (Sex, Age, Status abroad), Show (which ratio), or Interval
-  (Hourly, Daily). Some selectors appear only while another has a given
-  value; for example, the Day picker shows only when Interval is Hourly;
+  as Breakdown (Sex, Age, Status abroad), Show (which ratio), or Resolution
+  (Hour, Day). Some selectors appear only while another has a given
+  value; for example, the Day picker shows only when Resolution is Hour;
 - the chart;
 - a **⋯** menu with **Configure widget**, **View data**, **Export CSV** and
   **Duplicate**. Configure widget and Duplicate appear only for users who may
   configure monitoring.
 
-A dashboard can open the same widget with different selector values. For
-example, a "Voted vs pre-enrolled" dashboard opens Turnout by group on
-"Voted of pre-enrolled", while another dashboard opens it on "Voted of
-registered". The values a viewer picks are kept while they stay in the
-browser tab.
+A dashboard can open the same widget with different selector values; for
+example, the Overview opens Voting activity by day and Enrollment and voting
+rates opens it by hour. The values a viewer picks are kept while they stay in
+the browser tab.
 
 ### How figures are counted
+
+**Voting credentials** are counted, until the platform records when
+credentials are issued, as issued when the voter's password is set. The
+widget says so under its chart. Approved voters are those whose latest
+application was accepted, and those imported without an application.
+
+**Sign-ins** are attempts, not people. Failed attempts are shown in total
+and by kind: a valid user whose authentication failed, or a username that
+names no account. Forgot-password requests (a new password sent) are shown
+beside the passwords reset.
 
 The counting rules belong to the data sources and are the same on every
 dashboard:
@@ -174,13 +200,12 @@ A widget that cannot show a chart says why:
 | **This widget cannot be shown** | Its configuration has a problem. |
 | **This widget could not be loaded** | The request failed. It is tried again when the dashboard updates. |
 
-Five data sources are declared but not connected yet, so their widgets show
+Four data sources are declared but not connected yet, so their widgets show
 **Not connected** with one of these reasons:
 
 | Data source | Reason |
 |---|---|
 | Test voting | Test elections cannot be marked yet. |
-| Voting credentials | Issuing credentials is not recorded yet. |
 | Final testing and lockdown | Final testing and lockdown are not recorded yet. |
 | Attack detections | No attack detection feed is connected. |
 | Helpdesk | No helpdesk system is connected. |
@@ -273,7 +298,7 @@ nothing is saved and the save can be tried again.
 ### Configure widget
 
 **Configure widget** opens the widget's definition next to a live preview.
-The three tabs edit the same YAML:
+The first three tabs edit the same YAML:
 
 - **Data & query**: title, data source, query template, measures,
   numerator and denominator, group by, sort and row limit, and which dashboard
@@ -285,6 +310,9 @@ The three tabs edit the same YAML:
   options and default. Selectors appear in the widget header; their values
   feed the query.
 - **YAML**: the whole definition, including the dbt Charts `chart` block.
+- **Preview**: the draft alone, across the dialog's full width and at the
+  widget's own height, with its checks underneath. Beside the other tabs the
+  preview is drawn at the width of the widget's card.
 
 While the YAML has a syntax error, the form tabs are read-only; fix it in
 the YAML tab to use them again. Problems are listed under **Checks**, each

@@ -15,7 +15,8 @@ import {
     Tabs,
 } from "@mui/material"
 import {countBySeverity, type IEditorDiagnostic} from "@/components/monitoring/lib/diagnostics"
-import {previewWidth} from "@/components/monitoring/lib/chartDocument"
+import {previewWidth, widthBucket} from "@/components/monitoring/lib/chartDocument"
+import {DEFAULT_WIDGET_HEIGHT} from "@/components/monitoring/types"
 import type {IMonitoringEditorApi} from "./api"
 import {
     EMonitoringColorScheme,
@@ -46,6 +47,7 @@ export enum EConfigureTab {
     DATA_QUERY = "DATA_QUERY",
     SELECTORS = "SELECTORS",
     YAML = "YAML",
+    PREVIEW = "PREVIEW",
 }
 
 /** Where the widget is being looked at, so the preview draws what the dashboard would. */
@@ -108,7 +110,13 @@ export const MonitoringConfigureWidgetDialog: React.FC<MonitoringConfigureWidget
     const [confirmDiscard, setConfirmDiscard] = useState(false)
     const editor = useRef<IMonitoringYamlEditorHandle>(null)
     const [paneWidth, setPaneWidth] = useState<number | null>(null)
-    const drawnWidth = previewWidth(width, paneWidth)
+    const [largeWidth, setLargeWidth] = useState<number | null>(null)
+    // Beside the forms the draft is drawn as its card is; on the Preview tab,
+    // as large as the dialog allows.
+    const drawnWidth =
+        tab === EConfigureTab.PREVIEW && largeWidth
+            ? widthBucket(largeWidth)
+            : previewWidth(width, paneWidth)
 
     const renderPreview = useCallback<TRenderPreview>(
         (text) =>
@@ -172,6 +180,16 @@ export const MonitoringConfigureWidgetDialog: React.FC<MonitoringConfigureWidget
     }
 
     const title = asWidget(draft.value).title
+    const height = asWidget(draft.value).height
+    const frameHeight = typeof height === "number" && height > 0 ? height : DEFAULT_WIDGET_HEIGHT
+    const previewing = tab === EConfigureTab.PREVIEW
+    const diagnosticsList = (
+        <MonitoringDiagnosticsList
+            diagnostics={draft.diagnostics}
+            localUnavailable={draft.localUnavailable}
+            onSelect={reveal}
+        />
+    )
     const table = draft.preview?.table
 
     return (
@@ -202,7 +220,9 @@ export const MonitoringConfigureWidgetDialog: React.FC<MonitoringConfigureWidget
                         sx={{
                             display: "grid",
                             gap: 2,
-                            gridTemplateColumns: {xs: "1fr", md: "minmax(0, 3fr) minmax(0, 2fr)"},
+                            gridTemplateColumns: previewing
+                                ? "1fr"
+                                : {xs: "1fr", md: "minmax(0, 3fr) minmax(0, 2fr)"},
                         }}
                     >
                         <Box sx={{minWidth: 0}}>
@@ -229,6 +249,12 @@ export const MonitoringConfigureWidgetDialog: React.FC<MonitoringConfigureWidget
                                     id="configure-tab-yaml"
                                     aria-controls="configure-panel-yaml"
                                     label={t("monitoring.editor.configureWidget.tabs.yaml")}
+                                />
+                                <Tab
+                                    value={EConfigureTab.PREVIEW}
+                                    id="configure-tab-preview"
+                                    aria-controls="configure-panel-preview"
+                                    label={t("monitoring.editor.configureWidget.tabs.preview")}
                                 />
                             </Tabs>
                             <div
@@ -276,21 +302,42 @@ export const MonitoringConfigureWidgetDialog: React.FC<MonitoringConfigureWidget
                                     minHeight={EDITOR_HEIGHT}
                                 />
                             </div>
+                            <div
+                                role="tabpanel"
+                                id="configure-panel-preview"
+                                aria-labelledby="configure-tab-preview"
+                                hidden={!previewing}
+                            >
+                                {previewing ? (
+                                    <Box sx={{display: "flex", flexDirection: "column", gap: 2}}>
+                                        <MonitoringPreviewPane
+                                            title={title}
+                                            preview={draft.preview}
+                                            status={draft.previewStatus}
+                                            error={draft.previewError}
+                                            height={frameHeight}
+                                            onWidth={setLargeWidth}
+                                        />
+                                        {diagnosticsList}
+                                    </Box>
+                                ) : null}
+                            </div>
                         </Box>
-                        <Box sx={{display: "flex", flexDirection: "column", gap: 2, minWidth: 0}}>
-                            <MonitoringPreviewPane
-                                title={title}
-                                preview={draft.preview}
-                                status={draft.previewStatus}
-                                error={draft.previewError}
-                                onWidth={setPaneWidth}
-                            />
-                            <MonitoringDiagnosticsList
-                                diagnostics={draft.diagnostics}
-                                localUnavailable={draft.localUnavailable}
-                                onSelect={reveal}
-                            />
-                        </Box>
+                        {previewing ? null : (
+                            <Box
+                                sx={{display: "flex", flexDirection: "column", gap: 2, minWidth: 0}}
+                            >
+                                <MonitoringPreviewPane
+                                    title={title}
+                                    preview={draft.preview}
+                                    status={draft.previewStatus}
+                                    error={draft.previewError}
+                                    height={frameHeight}
+                                    onWidth={setPaneWidth}
+                                />
+                                {diagnosticsList}
+                            </Box>
+                        )}
                     </Box>
                 ) : null}
                 {message ? (

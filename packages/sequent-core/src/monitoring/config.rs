@@ -122,6 +122,12 @@ impl ScopeSelector {
 pub struct Widget {
     pub id: String,
     pub title: String,
+
+    /// A line under the title saying what the figures are taken of:
+    /// "Percentages use disapproved OVs." Shown by the portal only.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+
     pub source: DataSourceId,
 
     /// The monitoring requirements this widget answers, for the catalog
@@ -473,6 +479,15 @@ pub struct Query {
 pub struct Dashboard {
     pub id: String,
     pub title: String,
+
+    /// A line under the dashboard's heading saying what it shows.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+
+    /// The heading the switcher lists the dashboard under, such as "Voter
+    /// turnout". Dashboards of one section are listed together, in `order`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub section: Option<String>,
 
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub requirements: Vec<String>,

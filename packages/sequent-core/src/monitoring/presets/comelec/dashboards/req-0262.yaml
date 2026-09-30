@@ -4,8 +4,10 @@
 
 id: req-0262
 title: Status by Post
+description: The current state of each Post in scope.
+section: Voting
 requirements: [SW-F-0262]
-order: 24
+order: 9
 selectors: [region, post]
 layout:
   - {widget: status-by-post, width: 12}

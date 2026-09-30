@@ -32,7 +32,7 @@ use sequent_core::monitoring::config::{
     SelectorWords, Settings,
 };
 use sequent_core::monitoring::payload::ScopePayload;
-use sequent_core::monitoring::presets::SETTINGS_KEY;
+use sequent_core::monitoring::presets::{self, SETTINGS_KEY};
 use sequent_core::monitoring::revision::DashboardMode;
 use sequent_core::monitoring::scope::ScopeSelection;
 use sequent_core::monitoring::sources::{
@@ -98,13 +98,25 @@ pub struct ListDashboardsInput {
 pub struct DashboardSummary {
     id: String,
     title: String,
+    /// The heading the switcher lists the dashboard under.
+    section: Option<String>,
     requirements: Vec<String>,
     widget_count: usize,
+}
+
+/// The preset an event's configuration was last reset to, by name.
+#[derive(Debug, Serialize)]
+pub struct PresetName {
+    id: String,
+    title: String,
 }
 
 #[derive(Debug, Serialize)]
 pub struct ListDashboardsOutput {
     mode: DashboardMode,
+    /// Absent before the event is reset to a preset, or when the preset no
+    /// longer ships.
+    preset: Option<PresetName>,
     dashboards: Vec<DashboardSummary>,
     snapshot: Option<SnapshotView>,
     /// Seconds between two snapshot passes: how often a dashboard asks for
@@ -136,6 +148,7 @@ pub async fn list_dashboards(
     let Some(live) = live else {
         return Ok(Json(ListDashboardsOutput {
             mode: DashboardMode::Legacy,
+            preset: None,
             dashboards: vec![],
             snapshot: None,
             refresh_seconds: refresh_seconds(services),
@@ -149,6 +162,7 @@ pub async fn list_dashboards(
         .map(|dashboard| DashboardSummary {
             id: dashboard.id.clone(),
             title: dashboard.title.clone(),
+            section: dashboard.section.clone(),
             requirements: dashboard.requirements.clone(),
             widget_count: dashboard.layout.len(),
         })
@@ -163,8 +177,15 @@ pub async fn list_dashboards(
             .as_ref()
             .map(SnapshotView::from),
     };
+    let preset = live.preset.as_ref().and_then(|preset| {
+        presets::manifest(&preset.id).map(|manifest| PresetName {
+            id: manifest.id,
+            title: manifest.title,
+        })
+    });
     Ok(Json(ListDashboardsOutput {
         mode: live.mode,
+        preset,
         dashboards,
         snapshot,
         refresh_seconds: refresh_seconds(services),
@@ -289,7 +310,10 @@ fn sources(settings: Option<&Settings>) -> IndexMap<DataSourceId, SourceView> {
                 }
             }
             let (producer, reason) = match spec.producer {
-                Producer::Available => (ProducerState::Connected, None),
+                // A stand-in counts: its figures carry its notice.
+                Producer::Available | Producer::Interim(_) => {
+                    (ProducerState::Connected, None)
+                }
                 Producer::Pending(reason) => {
                     (ProducerState::NotConnected, Some(reason.to_string()))
                 }
@@ -488,8 +512,7 @@ async fn dashboard_event_days(
         let picks_a_day = widget.selectors.values().any(|selector| {
             selector.options_from == Some(DynamicOptions::EventDays)
         });
-        if !picks_a_day || widget.source.spec().producer != Producer::Available
-        {
+        if !picks_a_day || !widget.source.spec().producer.counts() {
             continue;
         }
         let key = ScopeSelection::default()

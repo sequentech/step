@@ -6,13 +6,18 @@
 # scope.
 id: final-testing-lockdown
 title: Final testing and lockdown
+description: Percentages use the Posts in scope.
 source: final_testing_lockdown
 requirements: [SW-F-0254, SW-F-0255]
 queries:
   tested: {template: summary, ratio: [tested, posts]}
   locked_down: {template: summary, ratio: [locked_down, posts]}
+  progress:
+    template: by_measure
+    measures: [posts, tested, locked_down]
+    labels: {posts: Posts in scope, tested: Final testing done, locked_down: Locked down}
   posts: {template: by_post, measures: [posts], sort: {by: label, order: asc}}
-height: 460
+height: 520
 chart:
   charts:
     tested:
@@ -21,23 +26,23 @@ chart:
       value: numerator
       label: Final testing done
       style: {value: {format: integer}}
-      support: {value: pct_label, label: of the Posts in scope}
+      support: {value: pct_label, label: of Posts}
     locked_down:
       type: kpi
       query: locked_down
       value: numerator
       label: Locked down
       style: {value: {format: integer}}
-      support: {value: pct_label, label: of the Posts in scope}
-    in_scope:
-      type: kpi
-      query: tested
-      value: denominator
-      label: Posts in scope
-      style: {value: {format: integer}}
+      support: {value: pct_label, label: of Posts}
+    progress:
+      type: spark_bar
+      query: progress
+      x: value
+      y: label
     posts:
       type: table
       query: posts
+      title: Posts
       style:
         columns:
           post: {label: Post}
@@ -49,5 +54,5 @@ chart:
           posts: {visible: false}
   rows:
     - {cols: [tested, locked_down]}
-    - in_scope
+    - progress
     - posts

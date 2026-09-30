@@ -6,6 +6,7 @@
 # voters in the selected scope.
 id: turnout-summary
 title: Voter turnout
+description: Each ratio shows its denominator.
 source: voter_turnout
 requirements: [SW-F-0247, SW-F-0259, SW-F-0260, SW-F-0261, SW-F-0371, SW-F-0372, SW-F-0373]
 queries:

@@ -29,13 +29,21 @@ def golden_id(path: Path) -> str:
 
 
 def unseen_pin_board() -> dict:
-    """A golden board with a colour pin for a value it never draws, which the engine warns of.
+    """A board colouring by group with a colour pin for a value it never draws, which the engine warns of.
 
     `build_board` no longer sends such a pin; a board from elsewhere still may.
     """
-    board = golden("campus/polls.json")
-    board["style"]["charts"]["category_colors"] = {"group": {"values": {"Not stated": "dbt-grays.muted"}}}
-    return board
+    return {
+        "charts": {"d": {"type": "donut", "query": "data", "theta": "posts", "color": "group"}},
+        "rows": ["d"],
+        "style": {
+            "footer": {"visible": False},
+            "timestamp": {"visible": False},
+            "charts": {"category_colors": {"group": {"values": {"Not stated": "dbt-grays.muted"}}}},
+        },
+        "theme": "clarity",
+        "queries": {"data": {"columns": ["group", "posts"], "values": [["Open", 3], ["Closed", 2]]}},
+    }
 
 
 def kpi_board(**extra) -> dict:

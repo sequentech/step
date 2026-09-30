@@ -1392,6 +1392,9 @@ fn require_text(text: &str, path: &str, report: &mut Report) {
 fn check_widget(widget: &Widget, report: &mut Report) {
     require_id(&widget.id, "id", report);
     require_text(&widget.title, "title", report);
+    if let Some(description) = &widget.description {
+        require_text(description, "description", report);
+    }
     for (position, requirement) in widget.requirements.iter().enumerate() {
         require_text(requirement, &index("requirements", position), report);
     }
@@ -2146,6 +2149,12 @@ fn check_day_picker(
 fn check_dashboard(dashboard: &Dashboard, report: &mut Report) {
     require_id(&dashboard.id, "id", report);
     require_text(&dashboard.title, "title", report);
+    if let Some(description) = &dashboard.description {
+        require_text(description, "description", report);
+    }
+    if let Some(section) = &dashboard.section {
+        require_text(section, "section", report);
+    }
     for (position, requirement) in dashboard.requirements.iter().enumerate() {
         require_text(requirement, &index("requirements", position), report);
     }

@@ -108,6 +108,7 @@ async fn an_event_never_configured_shows_the_legacy_dashboard() {
         body,
         json!({
             "mode": "LEGACY",
+            "preset": null,
             "dashboards": [],
             "snapshot": null,
             "refresh_seconds": 30,
@@ -148,7 +149,17 @@ async fn a_configured_event_lists_its_dashboards_and_draws_a_widget_once() {
     .await;
     assert_eq!(status, Status::Ok, "{body}");
     assert_eq!(body["mode"], "CONFIGURED");
+    // The dashboards say which preset they came from, for their heading.
+    assert_eq!(
+        body["preset"],
+        json!({"id": "comelec", "title": "COMELEC overseas voting"}),
+        "{body}"
+    );
     assert_eq!(body["dashboards"][0]["id"], "overview", "{body}");
+    // Each record's dashboard names the section the switcher lists it under.
+    assert_eq!(body["dashboards"][0]["section"], json!(null), "{body}");
+    assert_eq!(body["dashboards"][1]["id"], "req-0249", "{body}");
+    assert_eq!(body["dashboards"][1]["section"], "Enrollment", "{body}");
     assert_eq!(body["snapshot"]["revision"], 7);
 
     let (status, body) = json(

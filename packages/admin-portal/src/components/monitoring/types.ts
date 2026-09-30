@@ -124,6 +124,8 @@ export type MonitoringUnavailableState =
 export enum EMonitoringNotice {
     UNREGISTERED_ATTEMPTS_AT_EVENT_SCOPE_ONLY = "UNREGISTERED_ATTEMPTS_AT_EVENT_SCOPE_ONLY",
     UNREGISTERED_ATTEMPTS_EXCLUDED = "UNREGISTERED_ATTEMPTS_EXCLUDED",
+    /** Voting credentials: counted when the password is set, until their issue is recorded. */
+    CREDENTIALS_ISSUED_WHEN_PASSWORD_SET = "CREDENTIALS_ISSUED_WHEN_PASSWORD_SET",
     /** Drawn with the live configuration: the snapshot's has not this widget yet. */
     CONFIG_NEWER_THAN_SNAPSHOT = "CONFIG_NEWER_THAN_SNAPSHOT",
     /** Drawn with the live configuration: the snapshot's is no longer kept. */
@@ -192,6 +194,8 @@ export interface MonitoringSelector {
 export interface MonitoringWidget {
     id: string
     title: string
+    /** A line under the title: what the figures are taken of. */
+    description?: string
     source: EDataSource | string
     requirements?: string[]
     follows?: EScopeSelector[]
@@ -211,6 +215,10 @@ export interface MonitoringLayoutItem {
 export interface MonitoringDashboard {
     id: string
     title: string
+    /** A line under the dashboard's heading. */
+    description?: string
+    /** The heading the switcher lists the dashboard under. */
+    section?: string
     requirements?: string[]
     order?: number
     selectors?: EScopeSelector[]
@@ -237,12 +245,22 @@ export interface MonitoringSnapshot {
 export interface MonitoringDashboardSummary {
     id: string
     title: string
+    /** The heading the switcher lists it under; absent from older servers. */
+    section?: string | null
     requirements: string[]
     widget_count: number
 }
 
+/** The preset an event's configuration was last reset to. */
+export interface MonitoringPresetName {
+    id: string
+    title: string
+}
+
 export interface MonitoringListDashboardsResponse {
     mode: EMonitoringMode
+    /** Absent before a reset, and from older servers. */
+    preset?: MonitoringPresetName | null
     dashboards: MonitoringDashboardSummary[]
     snapshot?: MonitoringSnapshot | null
     /** Seconds between two snapshot passes; absent from older servers. */

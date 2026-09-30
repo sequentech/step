@@ -5,6 +5,7 @@
 # The event at a glance: turnout, where Posts stand, activity and sign-ins.
 id: overview
 title: Overview
+description: Turnout, where Posts stand, activity and sign-ins at a glance.
 requirements: [SW-F-0247, SW-F-0279, SW-F-0365]
 order: 0
 selectors: [region, post, country]

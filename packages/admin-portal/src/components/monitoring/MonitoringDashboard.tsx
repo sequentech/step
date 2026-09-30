@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useCallback, useEffect, useMemo, useRef, useState} from "react"
-import {Alert, Box, Button, CircularProgress, Stack} from "@mui/material"
+import {Alert, Box, Button, CircularProgress, Stack, Typography} from "@mui/material"
 import {useQuery} from "@apollo/client"
 import {useTranslation} from "react-i18next"
 import {MONITORING_GET_DASHBOARD} from "@/queries/MonitoringGetDashboard"
@@ -33,6 +33,7 @@ import {MonitoringHeader} from "./MonitoringHeader"
 import {MonitoringSelectors} from "./MonitoringSelectors"
 import {MonitoringWidgetGrid} from "./MonitoringWidgetGrid"
 import {MonitoringExportDialog} from "./MonitoringExportDialog"
+import {MonitoringFooter} from "./MonitoringFooter"
 import type {MonitoringWidgetContext} from "./MonitoringWidgetCard"
 
 export interface MonitoringDashboardProps {
@@ -40,6 +41,8 @@ export interface MonitoringDashboardProps {
     /** An election's page: the server pins the Post to it. */
     electionId?: string | null
     dashboards: MonitoringDashboardSummary[]
+    /** The preset the configuration came from, named above the sections. */
+    presetTitle?: string | null
     configure: EMonitoringCapability
     /** The snapshot interval list-dashboards reported, until this dashboard reports its own. */
     refreshSeconds?: number | null
@@ -76,6 +79,7 @@ export function MonitoringDashboard({
     electionEventId,
     electionId,
     dashboards,
+    presetTitle,
     configure,
     refreshSeconds,
 }: MonitoringDashboardProps) {
@@ -219,28 +223,49 @@ export function MonitoringDashboard({
     return (
         <Stack spacing={2} sx={{py: 2}}>
             <MonitoringHeader
-                title={dashboard.title}
+                presetTitle={presetTitle}
                 dashboards={dashboards}
                 dashboardId={dashboardId}
                 onSelectDashboard={selectDashboard}
-                widgetCount={cells.length}
-                requirements={dashboard.requirements ?? []}
                 snapshot={snapshot}
                 timeZone={context.timeZone}
                 refreshMs={refreshMs}
+                onRefresh={reload}
                 onExport={snapshot ? () => setExporting(true) : undefined}
                 onEditDashboard={onEditDashboard}
-            />
-            <MonitoringSelectors
-                selectors={selectors}
-                scope={scope}
-                onChange={setScope}
-                options={response.scope_options}
-                settings={response.settings}
-                restricted={response.restricted}
-                pinnedPost={response.pinned_post}
-            />
+            >
+                <MonitoringSelectors
+                    selectors={selectors}
+                    scope={scope}
+                    onChange={setScope}
+                    options={response.scope_options}
+                    settings={response.settings}
+                    restricted={response.restricted}
+                    pinnedPost={response.pinned_post}
+                />
+            </MonitoringHeader>
+            <Box>
+                {dashboard.section ? (
+                    <Typography variant="overline" component="p" color="text.secondary">
+                        {dashboard.section}
+                    </Typography>
+                ) : null}
+                <Typography variant="h5" component="h2" sx={{color: "brandColor"}}>
+                    {dashboard.title}
+                </Typography>
+                {dashboard.description ? (
+                    <Typography variant="body2" color="text.secondary">
+                        {dashboard.description}
+                    </Typography>
+                ) : null}
+            </Box>
             <MonitoringWidgetGrid cells={cells} context={context} />
+            <MonitoringFooter
+                scopeLabel={label}
+                snapshot={snapshot}
+                timeZone={context.timeZone}
+                requirements={dashboard.requirements ?? []}
+            />
             {snapshot ? (
                 <MonitoringExportDialog
                     open={exporting}

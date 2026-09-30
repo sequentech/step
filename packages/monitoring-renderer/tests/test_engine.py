@@ -11,7 +11,7 @@ import socket
 
 import pytest
 
-from conftest import BOARDS, GOLDEN_BOARD_FILES, golden, golden_id, kpi_board, map_board, unseen_pin_board
+from conftest import BOARDS, GOLDEN_BOARD_FILES, MONITORING, golden, golden_id, kpi_board, map_board, unseen_pin_board
 from monitoring_renderer.engine import BoardRefused
 from monitoring_renderer.geo import BUNDLED_URLS, ExternalData, inline_bundled_data
 from monitoring_renderer.svg import clean_svg
@@ -48,7 +48,13 @@ def test_the_turnout_by_post_headers_fit_a_half_width_card(engine, path):
 
 def test_there_are_golden_boards_from_both_presets():
     assert {path.parent.name for path in GOLDEN_BOARD_FILES} == {"campus", "comelec"}
-    assert len(GOLDEN_BOARD_FILES) >= 40
+    # Every widget either preset ships is drawn at least once.
+    widgets = {
+        (path.parent.parent.name, path.stem)
+        for path in (MONITORING / "presets").glob("*/widgets/*.yaml")
+    }
+    drawn = {(path.parent.name, path.name.split(".")[0]) for path in GOLDEN_BOARD_FILES}
+    assert widgets and widgets <= drawn
 
 
 def svg_size(svg: str) -> tuple[str, str]:

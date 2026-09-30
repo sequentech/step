@@ -4,7 +4,9 @@
 
 id: req-0283
 title: Attack detections
+description: Bot and coordinated-attack detections for the whole event.
+section: Access and security
 requirements: [SW-F-0283]
-order: 33
+order: 19
 layout:
   - {widget: attack-detections, width: 12}

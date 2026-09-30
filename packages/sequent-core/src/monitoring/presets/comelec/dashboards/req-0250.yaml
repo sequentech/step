@@ -4,8 +4,10 @@
 
 id: req-0250
 title: Disapproval reasons
+description: Why applications were disapproved.
+section: Enrollment
 requirements: [SW-F-0250]
-order: 11
+order: 2
 selectors: [region, post, country]
 layout:
   - {widget: disapproval-reasons, width: 12}

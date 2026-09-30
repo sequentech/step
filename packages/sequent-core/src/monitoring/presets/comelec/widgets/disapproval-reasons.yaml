@@ -4,6 +4,7 @@
 
 id: disapproval-reasons
 title: Disapproval reasons
+description: The most common reasons of the disapproved OVs.
 source: enrollment_decisions
 requirements: [SW-F-0250]
 selectors:

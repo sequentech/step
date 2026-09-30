@@ -1249,7 +1249,8 @@ pub async fn load_facts(
     let stream = transaction
         .query_raw(
             "SELECT voter_id, election_id, region, country, dims, pre_enrolled_at,
-                    first_voted_at, enrollment_state, enrollment_reason, enrollment_decided_at
+                    first_voted_at, enrollment_state, enrollment_reason, enrollment_decided_at,
+                    credentials_at
              FROM sequent_backend.monitoring_voter
              WHERE tenant_id = $1 AND election_event_id = $2
              ORDER BY voter_id, election_id",
@@ -1276,6 +1277,7 @@ pub async fn load_facts(
             enrollment: enrollment(state),
             enrollment_reason: row.get("enrollment_reason"),
             enrollment_decided_at: row.get("enrollment_decided_at"),
+            credentials_at: row.get("credentials_at"),
         };
         if let Some(region) = &voter.region {
             if !voter_regions

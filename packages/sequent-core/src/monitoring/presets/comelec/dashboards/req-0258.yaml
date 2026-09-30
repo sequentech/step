@@ -4,9 +4,11 @@
 
 id: req-0258
 title: Posts closed
+description: Posts where voting closed, with where each Post stands.
+section: Voting
 requirements: [SW-F-0258, SW-F-0370]
-order: 23
+order: 8
 selectors: [region, post]
 layout:
-  - {widget: poll-status, width: 12, values: {milestone: closed}}
+  - {widget: poll-status, width: 12}
   - {widget: status-by-post, width: 12}
