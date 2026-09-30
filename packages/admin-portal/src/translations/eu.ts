@@ -2936,6 +2936,12 @@ const basqueTranslation: TranslationType = {
                 title: "{{widget}} · datuak",
                 close: "Itxi",
                 empty: "Errenkadarik ez",
+                rowsPerPage: "Errenkadak orriko:",
+                shownRows: "{{from}}–{{to}} / {{total}}",
+                firstPage: "Lehen orria",
+                previousPage: "Aurreko orria",
+                nextPage: "Hurrengo orria",
+                lastPage: "Azken orria",
             },
             columns: {
                 numerator: "Zenbakitzailea",

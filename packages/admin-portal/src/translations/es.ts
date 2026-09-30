@@ -2948,6 +2948,12 @@ const spanishTranslation: TranslationType = {
                 title: "{{widget}} · datos",
                 close: "Cerrar",
                 empty: "Sin filas",
+                rowsPerPage: "Filas por página:",
+                shownRows: "{{from}}–{{to}} de {{total}}",
+                firstPage: "Primera página",
+                previousPage: "Página anterior",
+                nextPage: "Página siguiente",
+                lastPage: "Última página",
             },
             columns: {
                 numerator: "Numerador",

@@ -2949,6 +2949,12 @@ const dutchTranslation: TranslationType = {
                 title: "{{widget}} · gegevens",
                 close: "Sluiten",
                 empty: "Geen rijen",
+                rowsPerPage: "Rijen per pagina:",
+                shownRows: "{{from}}–{{to}} van {{total}}",
+                firstPage: "Eerste pagina",
+                previousPage: "Vorige pagina",
+                nextPage: "Volgende pagina",
+                lastPage: "Laatste pagina",
             },
             columns: {
                 numerator: "Teller",

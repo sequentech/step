@@ -2916,6 +2916,12 @@ const englishTranslation = {
                 title: "{{widget}} · data",
                 close: "Close",
                 empty: "No rows",
+                rowsPerPage: "Rows per page:",
+                shownRows: "{{from}}–{{to}} of {{total}}",
+                firstPage: "First page",
+                previousPage: "Previous page",
+                nextPage: "Next page",
+                lastPage: "Last page",
             },
             columns: {
                 numerator: "Numerator",

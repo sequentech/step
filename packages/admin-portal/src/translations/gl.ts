@@ -2944,6 +2944,12 @@ const galegoTranslation: TranslationType = {
                 title: "{{widget}} · datos",
                 close: "Pechar",
                 empty: "Sen filas",
+                rowsPerPage: "Filas por páxina:",
+                shownRows: "{{from}}–{{to}} de {{total}}",
+                firstPage: "Primeira páxina",
+                previousPage: "Páxina anterior",
+                nextPage: "Páxina seguinte",
+                lastPage: "Última páxina",
             },
             columns: {
                 numerator: "Numerador",
