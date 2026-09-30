@@ -1139,6 +1139,7 @@ actions:
               version: 2
       permissions:
           - role: area-write
+          - role: area-import
     - name: import_candidates
       definition:
           kind: synchronous
