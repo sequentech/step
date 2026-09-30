@@ -131,6 +131,17 @@ async fn a_pruned_run_is_gone_and_a_foreign_post_refused_before_anything_is_sent
     .await;
     assert_eq!(status, Status::Gone, "{body}");
     assert_eq!(body["extensions"]["code"], "MONITORING_SNAPSHOT_PRUNED");
+    // A revision after the live one was never issued, so it is not "no
+    // longer kept".
+    let (status, body) = export(
+        &client,
+        &viewer(&event),
+        &event,
+        json!({"snapshot_revision": 999999}),
+    )
+    .await;
+    assert_eq!(status, Status::NotFound, "{body}");
+    assert_eq!(body["extensions"]["code"], "MONITORING_NOT_FOUND");
 
     let calls = services.monitoring_snapshots.calls().len();
     let (status, body) = export(

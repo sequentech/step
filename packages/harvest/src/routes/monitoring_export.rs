@@ -15,8 +15,8 @@
 use crate::routes::monitoring::{authorize_monitoring, viewer_and_config};
 use crate::services::dependencies::HarvestServices;
 use crate::services::monitoring::{
-    check_selector_values, hasura_client, parse_instant, request_body,
-    MonitoringBody, MonitoringError, MonitoringResult,
+    check_selector_values, hasura_client, parse_instant, pinned_snapshot,
+    request_body, MonitoringBody, MonitoringError, MonitoringResult,
 };
 use indexmap::IndexMap;
 use rocket::http::Status;
@@ -114,17 +114,13 @@ pub async fn export_monitoring(
     }
 
     let snapshots = &services.monitoring_snapshots;
-    let kept = snapshots
-        .complete(viewer.event, input.snapshot_revision)
-        .await
-        .map_err(MonitoringError::internal)?;
-    let Some(kept) = kept else {
-        return Err(MonitoringError::new(
-            Status::Gone,
-            "MONITORING_SNAPSHOT_PRUNED",
-            "That snapshot is no longer kept; export the current one.",
-        ));
-    };
+    let kept = pinned_snapshot(
+        services,
+        viewer.event,
+        input.snapshot_revision,
+        "That snapshot is no longer kept; export the current one.",
+    )
+    .await?;
     let config = {
         let mut client = hasura_client(services).await?;
         let transaction = client

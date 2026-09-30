@@ -560,6 +560,39 @@ impl SnapshotConfig {
     }
 }
 
+/// The complete run `revision` a request pins. One the event no longer keeps
+/// is gone (410, MONITORING_SNAPSHOT_PRUNED, saying `gone`); one after the
+/// event's live run, or of an event with no run, was never issued (404).
+pub async fn pinned_snapshot(
+    services: &HarvestServices,
+    event: EventRef,
+    revision: i64,
+    gone: &'static str,
+) -> MonitoringResult<SnapshotHead> {
+    let snapshots = &services.monitoring_snapshots;
+    if let Some(head) = snapshots
+        .complete(event, revision)
+        .await
+        .map_err(MonitoringError::internal)?
+    {
+        return Ok(head);
+    }
+    let live = snapshots
+        .live(event)
+        .await
+        .map_err(MonitoringError::internal)?;
+    if live.map_or(true, |live| revision > live.revision) {
+        return Err(MonitoringError::not_found(
+            "There is no such snapshot: the event has not counted it yet.",
+        ));
+    }
+    Err(MonitoringError::new(
+        Status::Gone,
+        "MONITORING_SNAPSHOT_PRUNED",
+        gone,
+    ))
+}
+
 /// Whether the figures `head` counted are the ones the live configuration
 /// reads. A run counts every source, at every scope, for every election set,
 /// from the settings and the event's elections alone: no widget, dashboard or

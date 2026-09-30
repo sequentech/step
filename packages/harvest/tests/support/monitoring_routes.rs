@@ -805,6 +805,33 @@ async fn a_count_the_settings_changed_is_pending_until_the_next_run() {
 }
 
 #[rocket::async_test]
+async fn a_pinned_run_never_issued_is_not_found_and_one_pruned_is_gone() {
+    let services = Services::on_test_database()
+        .await
+        .with_monitoring_snapshots(MemorySnapshots::at(7, ScopeRead::Empty));
+    let client = services.client().await;
+    let event = rows::event(&services.hasura).await;
+    event.election(&services.hasura).await;
+    configure(&client, &event).await;
+
+    for (revision, status, code) in [
+        (3, Status::Gone, "MONITORING_SNAPSHOT_PRUNED"),
+        (999999, Status::NotFound, "MONITORING_NOT_FOUND"),
+    ] {
+        let (answered, body) = render(
+            &client,
+            &viewer(&event),
+            &event,
+            "turnout-summary",
+            json!({"snapshot_revision": revision}),
+        )
+        .await;
+        assert_eq!(answered, status, "{revision}: {body}");
+        assert_eq!(body["extensions"]["code"], code, "{revision}: {body}");
+    }
+}
+
+#[rocket::async_test]
 async fn a_widget_outside_the_dashboard_is_drawn_only_for_a_configurator() {
     let services = Services::on_test_database()
         .await

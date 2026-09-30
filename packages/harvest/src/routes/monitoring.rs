@@ -18,9 +18,9 @@ use crate::services::dependencies::HarvestServices;
 use crate::services::monitoring::{
     config_at_snapshot, dashboard_theme_id, dimension_label, draft_revision,
     draft_theme, draft_widget, draw_widget, election_region, hasura_client,
-    live_config, request_body, revision_of, viewer, Draft, DrawPlan,
-    MonitoringBody, MonitoringError, MonitoringResult, RenderResponse,
-    SnapshotConfig, SnapshotView, Viewer,
+    live_config, pinned_snapshot, request_body, revision_of, viewer, Draft,
+    DrawPlan, MonitoringBody, MonitoringError, MonitoringResult,
+    RenderResponse, SnapshotConfig, SnapshotView, Viewer,
 };
 use indexmap::IndexMap;
 use rocket::http::Status;
@@ -584,21 +584,15 @@ pub async fn render_widget(
         ));
     };
     let snapshot = match input.snapshot_revision {
-        Some(revision) => {
-            let head = services
-                .monitoring_snapshots
-                .complete(viewer.event, revision)
-                .await
-                .map_err(MonitoringError::internal)?;
-            if head.is_none() {
-                return Err(MonitoringError::new(
-                    Status::Gone,
-                    "MONITORING_SNAPSHOT_PRUNED",
-                    "That snapshot is no longer kept.",
-                ));
-            }
-            head
-        }
+        Some(revision) => Some(
+            pinned_snapshot(
+                services,
+                viewer.event,
+                revision,
+                "That snapshot is no longer kept.",
+            )
+            .await?,
+        ),
         None => services
             .monitoring_snapshots
             .live(viewer.event)

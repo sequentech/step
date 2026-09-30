@@ -159,7 +159,9 @@ range of revisions (`from_revision` up to, not including, `to_revision`). An
 unchanged scope costs nothing new, and Harvest can cache by hash. The
 figures of revision R are the rows whose range holds R, so an export of a
 revision still within the window reads exactly what was shown; one that was
-pruned answers 410.
+pruned answers 410 `MONITORING_SNAPSHOT_PRUNED`, and one after the live run,
+never issued, 404 `MONITORING_NOT_FOUND`. `render-widget` pinned to a
+revision answers the same.
 
 **Buckets.** Series are hourly buckets in the settings' time zone, each
 `[start, end)`; a day is the sum of its hours. Each voter has one first-vote
