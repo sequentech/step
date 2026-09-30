@@ -12,7 +12,16 @@ from collections.abc import Sequence
 from dataclasses import replace
 from pathlib import Path
 
-from . import ci, focused_test, rust, summarize, ui_update, wasm, workspace
+from . import (
+    ci,
+    focused_test,
+    monitoring_viewers,
+    rust,
+    summarize,
+    ui_update,
+    wasm,
+    workspace,
+)
 from .common import default_output_dir
 from .edits import EditError, EditSpec, load_edits
 from .isolation import Dind, IsolationError, parse_seed, remove_as_root
@@ -533,6 +542,174 @@ def run_wasm(arguments: argparse.Namespace) -> Path:
     return wasm.run_wasm(options)
 
 
+def viewer_counts(value: str) -> list[int]:
+    try:
+        return monitoring_viewers.viewer_counts(value)
+    except ValueError as error:
+        raise argparse.ArgumentTypeError(str(error)) from None
+
+
+def locale_weights(value: str) -> dict[str, float]:
+    try:
+        return monitoring_viewers.locale_weights(value)
+    except ValueError as error:
+        raise argparse.ArgumentTypeError(str(error)) from None
+
+
+def share(value: str) -> float:
+    number = float(value)
+    if not 0.0 <= number <= 1.0:
+        raise argparse.ArgumentTypeError("must be between 0 and 1")
+    return number
+
+
+def add_monitoring_viewers(
+    subparsers: argparse._SubParsersAction[argparse.ArgumentParser],
+) -> None:
+    parser = subparsers.add_parser(
+        "monitoring-viewers",
+        help="render latency, renderer calls and source-table reads of N concurrent "
+        "monitoring dashboard viewers on the running stack",
+        description=monitoring_viewers.__doc__,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    common_options(parser, checkout=False)
+    parser.add_argument(
+        "--checkout",
+        type=checkout_path,
+        help="the checkout the running services were built from, to record its commit",
+    )
+    parser.add_argument(
+        "--graphql-url", default="http://graphql-engine:8080/v1/graphql"
+    )
+    parser.add_argument("--tenant-id", help="recorded with the result")
+    parser.add_argument("--election-event-id", required=True)
+    parser.add_argument("--election-id", help="an election page instead of the event's")
+    parser.add_argument("--dashboard", default="overview", help="dashboard id")
+    parser.add_argument(
+        "--token-command",
+        default=monitoring_viewers.default_token_command(),
+        help="shell command printing an access token with monitoring-view; run "
+        "again shortly before the token expires (default: %(default)s)",
+    )
+    parser.add_argument(
+        "--viewers",
+        type=viewer_counts,
+        default="10,100,1000",
+        help="viewer counts measured in turn (default: %(default)s)",
+    )
+    parser.add_argument(
+        "--cycle",
+        choices=[cycle.value for cycle in monitoring_viewers.Cycle],
+        default=monitoring_viewers.Cycle.RELOAD.value,
+        help="reload: list, get and every render each poll (an upper bound); "
+        "portal: get each poll, renders when the snapshot changes",
+    )
+    parser.add_argument("--poll-interval", type=float, default=30.0)
+    parser.add_argument(
+        "--warmup",
+        type=float,
+        help="seconds before each window; default: one poll interval",
+    )
+    parser.add_argument(
+        "--duration", type=float, default=60.0, help="seconds of each window"
+    )
+    parser.add_argument(
+        "--no-baseline", action="store_true", help="skip the idle baseline window"
+    )
+    parser.add_argument(
+        "--processes",
+        type=positive_int,
+        default=max(1, min(8, (os.cpu_count() or 2) // 2)),
+        help="load generator processes (default: %(default)s)",
+    )
+    parser.add_argument(
+        "--connections",
+        type=positive_int,
+        default=256,
+        help="HTTP connections to Hasura, shared by all viewers (default: %(default)s)",
+    )
+    parser.add_argument("--timeout", type=float, default=30.0, help="per request")
+    parser.add_argument("--seed", type=int, default=1)
+    parser.add_argument("--dark-share", type=share, default=0.3)
+    parser.add_argument(
+        "--locales",
+        type=locale_weights,
+        default="en-US=0.8,es=0.2",
+        help="NAME=WEIGHT pairs (default: %(default)s)",
+    )
+    parser.add_argument(
+        "--post-share",
+        type=share,
+        default=0.1,
+        help="viewers narrowed to one Post (default: %(default)s)",
+    )
+    parser.add_argument("--stats-interval", type=float, default=5.0)
+    parser.add_argument(
+        "--settle", type=float, default=10.0, help="seconds between levels"
+    )
+    parser.add_argument("--backend-db-container", default="postgres")
+    parser.add_argument("--backend-db", default="postgres")
+    parser.add_argument("--keycloak-db-container", default="postgres-keycloak")
+    parser.add_argument("--keycloak-db", default="postgres")
+    parser.add_argument("--harvest-container", default="harvest")
+    parser.add_argument(
+        "--container",
+        action="append",
+        help="containers whose CPU is sampled (default: harvest, hasura, "
+        "monitoring-renderer, postgres, postgres-keycloak, windmill, beat)",
+    )
+
+
+def run_monitoring_viewers(arguments: argparse.Namespace) -> Path:
+    containers = arguments.container or [
+        "harvest",
+        "hasura",
+        "monitoring-renderer",
+        "postgres",
+        "postgres-keycloak",
+        "windmill",
+        "beat",
+    ]
+    options = monitoring_viewers.ViewersOptions(
+        label=arguments.label,
+        graphql_url=arguments.graphql_url,
+        tenant_id=arguments.tenant_id,
+        election_event_id=arguments.election_event_id,
+        election_id=arguments.election_id,
+        dashboard_id=arguments.dashboard,
+        token_command=arguments.token_command,
+        viewers=arguments.viewers,
+        cycle=monitoring_viewers.Cycle(arguments.cycle),
+        poll_interval=arguments.poll_interval,
+        warmup=(
+            arguments.poll_interval if arguments.warmup is None else arguments.warmup
+        ),
+        duration=arguments.duration,
+        baseline=not arguments.no_baseline,
+        processes=arguments.processes,
+        connections=arguments.connections,
+        timeout=arguments.timeout,
+        seed=arguments.seed,
+        dark_share=arguments.dark_share,
+        locales=arguments.locales,
+        post_share=arguments.post_share,
+        stats_interval=arguments.stats_interval,
+        settle=arguments.settle,
+        stack=monitoring_viewers.Stack(
+            backend_container=arguments.backend_db_container,
+            backend_database=arguments.backend_db,
+            keycloak_container=arguments.keycloak_db_container,
+            keycloak_database=arguments.keycloak_db,
+            harvest_container=arguments.harvest_container,
+            containers=containers,
+        ),
+        output_dir=arguments.output_dir,
+        checkout=arguments.checkout,
+    )
+    return monitoring_viewers.run_viewers(options)
+
+
 def add_summarize(
     subparsers: argparse._SubParsersAction[argparse.ArgumentParser],
 ) -> None:
@@ -584,6 +761,7 @@ def parser() -> argparse.ArgumentParser:
     add_wasm(subparsers)
     add_rust(subparsers)
     add_ci(subparsers)
+    add_monitoring_viewers(subparsers)
     add_summarize(subparsers)
     add_clean(subparsers)
     return root
@@ -612,6 +790,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             "wasm": run_wasm,
             "rust": run_rust,
             "ci": run_ci,
+            "monitoring-viewers": run_monitoring_viewers,
         }
         written = runners[arguments.scenario](arguments)
     except (IsolationError, ProbeError, ValueError) as error:

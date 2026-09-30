@@ -14,7 +14,12 @@ import {
     type TMonitoringSaveOutcome,
 } from "./types"
 import {YamlDraftController} from "./yamlDraft"
-import {EMessageTone, useConfigDocument, type IDocumentMessages} from "./useConfigDocument"
+import {
+    authorName,
+    EMessageTone,
+    useConfigDocument,
+    type IDocumentMessages,
+} from "./useConfigDocument"
 
 // A new `t` on every render, as i18next hands out when the language changes.
 jest.mock("react-i18next", () => ({
@@ -124,6 +129,65 @@ describe("useConfigDocument", () => {
         )
     })
 
+    it("after a save, names the author and time Harvest stored the revision with", async () => {
+        const api = fakeApi({
+            saveConfig: jest.fn(async () => ({
+                status: EMonitoringSaveStatus.SAVED as const,
+                revision: 8,
+                generation: 2,
+                warnings: [],
+                author: {id: "u-admin", name: "Admin admin"},
+                created_at: "2026-09-30T08:00:00Z",
+            })),
+        })
+        const {controller, hook} = await open(api)
+        controller.setText(`${TEXT}height: 3\n`)
+        await act(async () => {
+            await hook.result.current.save()
+        })
+        expect(hook.result.current.revision).toEqual({
+            revision: 8,
+            author: {id: "u-admin", name: "Admin admin"},
+            createdAt: "2026-09-30T08:00:00Z",
+        })
+        expect(authorName(hook.result.current.revision?.author)).toBe("Admin admin")
+        // Named in the answer, so not read back.
+        expect(api.getConfig).not.toHaveBeenCalledWith(expect.objectContaining({revision: 8}))
+    })
+
+    it("after a save to an older Harvest, which names no author, reads the revision back", async () => {
+        const api = fakeApi({
+            getConfig: jest.fn(async ({revision}: {revision?: number}) =>
+                revision === 8 ? {...stored(8), author: {id: "u-me", name: "Me"}} : stored(7)
+            ),
+        })
+        const {controller, hook} = await open(api)
+        controller.setText(`${TEXT}height: 3\n`)
+        await act(async () => {
+            await hook.result.current.save()
+        })
+        await waitFor(() => expect(hook.result.current.revision?.author?.name).toBe("Me"))
+        expect(hook.result.current.revision?.revision).toBe(8)
+        expect(hook.result.current.revision?.createdAt).toBe("2026-09-29T10:00:00Z")
+    })
+
+    it("after a save to an older Harvest that cannot read it back, still dates it", async () => {
+        const api = fakeApi({
+            getConfig: jest.fn(async ({revision}: {revision?: number}) => {
+                if (revision === 8) throw new Error("offline")
+                return stored(7)
+            }),
+        })
+        const {controller, hook} = await open(api)
+        controller.setText(`${TEXT}height: 3\n`)
+        await act(async () => {
+            await hook.result.current.save()
+        })
+        expect(hook.result.current.revision?.revision).toBe(8)
+        expect(hook.result.current.revision?.author).toBeUndefined()
+        expect(hook.result.current.revision?.createdAt).toEqual(expect.any(String))
+    })
+
     it("shows the warnings a save let through", async () => {
         const warning = {
             severity: EMonitoringProblemSeverity.WARNING,
@@ -145,7 +209,41 @@ describe("useConfigDocument", () => {
             await hook.result.current.save()
         })
         expect(hook.result.current.message?.tone).toBe(EMessageTone.WARNING)
+        // Two sentences, not "revision 8 1 warning".
+        expect(hook.result.current.message?.text).toBe(
+            'saved {"revision":8} · monitoring.editor.document.savedWithWarnings {"count":1}'
+        )
         expect(controller.getState().serverProblems).toEqual([expect.objectContaining(warning)])
+    })
+
+    it("after a save, says who saved the revision it made and when", async () => {
+        const mine = {
+            ...stored(8),
+            author: {id: "u-me", name: "Me"},
+            created_at: "2026-09-30T05:00:00Z",
+        }
+        const api = fakeApi({
+            getConfig: jest.fn(async ({revision}: {revision?: number}) =>
+                revision === 8 ? mine : stored(7)
+            ),
+        })
+        const {controller, hook} = await open(api)
+        controller.setText(`${TEXT}height: 3\n`)
+        await act(async () => {
+            await hook.result.current.save()
+        })
+        await waitFor(() =>
+            expect(hook.result.current.revision).toEqual({
+                revision: 8,
+                author: {id: "u-me", name: "Me"},
+                createdAt: "2026-09-30T05:00:00Z",
+            })
+        )
+        expect(api.getConfig).toHaveBeenLastCalledWith({
+            kind: EMonitoringConfigKind.WIDGET,
+            key: "turnout",
+            revision: 8,
+        })
     })
 
     it("after a conflict, keeping the draft replaces the revision fetched, not the one reported", async () => {

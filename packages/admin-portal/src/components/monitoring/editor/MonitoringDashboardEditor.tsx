@@ -132,6 +132,8 @@ export const MonitoringDashboardEditor: React.FC<MonitoringDashboardEditorProps>
     const [adding, setAdding] = useState(false)
     const [theming, setTheming] = useState<{key: string; count: number} | null>(null)
     const [resetting, setResetting] = useState(false)
+    /** The event's configuration was replaced: the draft is of the one before. */
+    const [wasReset, setWasReset] = useState(false)
     const [confirmDiscard, setConfirmDiscard] = useState(false)
     const [duplicating, setDuplicating] = useState(false)
     const [menu, setMenu] = useState<{anchor: HTMLElement; index: number} | null>(null)
@@ -700,17 +702,18 @@ export const MonitoringDashboardEditor: React.FC<MonitoringDashboardEditorProps>
                         />
                     </Box>
                 ) : null}
+            </DialogContent>
+            <Box sx={{px: 3, py: 1.5}}>
+                {/* Beside Save: below a long widget list it would scroll out of view. */}
                 {stored.message ? (
                     <Alert
                         severity={stored.message.tone}
-                        sx={{mt: 2}}
+                        sx={{mb: 1.5}}
                         onClose={() => setMessage(null)}
                     >
                         {stored.message.text}
                     </Alert>
                 ) : null}
-            </DialogContent>
-            <Box sx={{px: 3, py: 1.5}}>
                 <MonitoringPreviewFooter
                     hasPreview={false}
                     errors={counts.errors}
@@ -783,8 +786,14 @@ export const MonitoringDashboardEditor: React.FC<MonitoringDashboardEditorProps>
                 <MonitoringResetToPresetDialog
                     open
                     api={api}
-                    onClose={() => setResetting(false)}
-                    onReset={() => onReset?.()}
+                    onClose={() => {
+                        setResetting(false)
+                        if (wasReset) onClose()
+                    }}
+                    onReset={() => {
+                        setWasReset(true)
+                        onReset?.()
+                    }}
                 />
             ) : null}
             <MonitoringDiscardDialog

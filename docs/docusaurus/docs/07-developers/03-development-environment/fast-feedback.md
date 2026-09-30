@@ -436,6 +436,10 @@ cover Jest, a Storybook story and Cargo. `wasm` restarts the dev server after
 `--build-cmd` and `--install-cmd` unless `--server-restart never`; `--no-change`
 repeats the workflow without an edit.
 
+`monitoring-viewers` is a load test, not a loop timing. It simulates
+concurrent viewers of a monitoring dashboard against a running stack; see
+[Viewer load benchmark](../13-monitoring/01-monitoring-architecture.md#viewer-load-benchmark).
+
 `workspace` and `ci` run on the host, with the Dev Containers CLI and `gh`.
 `workspace` never uses the default Docker daemon: a cold sample creates a fresh
 Docker-in-Docker daemon and checkout copy under `--sandbox-root`, and `--keep`

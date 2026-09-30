@@ -62,7 +62,7 @@ export const MonitoringResetToPresetDialog: React.FC<MonitoringResetToPresetDial
             (list) => {
                 if (!current) return
                 setPresets(list)
-                setChosen(list[0]?.id ?? "")
+                setChosen((list.find((candidate) => candidate.current) ?? list[0])?.id ?? "")
                 setStep(EResetStep.CHOOSING)
             },
             (failure) => {

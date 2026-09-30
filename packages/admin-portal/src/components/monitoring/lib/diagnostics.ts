@@ -35,6 +35,8 @@ export interface IEditorDiagnostic extends IMonitoringProblem {
 
 /** Paths from checks across documents start with the set they are in: `widgets.<key>.`. */
 const SET_PREFIXES = new Set(["widgets", "dashboards", "themes"])
+/** The key of a widget's dbt Charts document. */
+const CHART = "chart"
 
 const lineAt = (text: string, offset: number) => text.slice(0, offset).split("\n").length
 
@@ -46,9 +48,10 @@ interface IRange {
 const rangeOf = (node: Node | null | undefined): IRange | undefined =>
     node?.range ? {from: node.range[0], to: node.range[1]} : undefined
 
+/** The range of the deepest node of `segments` found; `undefined` when not even the first is. */
 const walk = (root: Node | null, segments: Array<string | number>): IRange | undefined => {
     let node: Node | null | undefined = root
-    let found: IRange | undefined = rangeOf(root)
+    let found: IRange | undefined
     for (const segment of segments) {
         if (isMap(node)) {
             const pair = node.items.find((item) => {
@@ -74,7 +77,25 @@ const walk = (root: Node | null, segments: Array<string | number>): IRange | und
     return found
 }
 
-/** Where in `text` the policy's `path` points, or the start of the document. */
+/**
+ * `segments` as a path from the document's root. A check across documents
+ * puts the set it is in first (`widgets.<key>.`); dbt Charts' checks of a
+ * widget name a path inside its `chart`.
+ */
+const withinDocument = (
+    root: Node | null,
+    segments: Array<string | number>
+): Array<string | number> => {
+    if (!isMap(root) || root.has(segments[0])) return segments
+    if (SET_PREFIXES.has(String(segments[0]))) return segments.slice(2)
+    const chart = root.get(CHART, true)
+    return isMap(chart) && chart.has(segments[0]) ? [CHART, ...segments] : segments
+}
+
+/**
+ * Where in `text` the policy's `path` points; the start of the document when
+ * no part of it is there, as for a check of another document.
+ */
 export const locatePath = (text: string, path: string): IRange & {line: number} => {
     const start = {from: 0, to: 0, line: 1}
     const segments = parsePath(path)
@@ -82,10 +103,7 @@ export const locatePath = (text: string, path: string): IRange & {line: number} 
     const document = parseDocument(text)
     if (document.errors.length) return start
     const root = document.contents as Node | null
-    const firstExists = isMap(root) && root.has(segments[0])
-    const effective =
-        !firstExists && SET_PREFIXES.has(String(segments[0])) ? segments.slice(2) : segments
-    const range = walk(root, effective)
+    const range = walk(root, withinDocument(root, segments))
     if (!range) return start
     const to = trimTrailing(text, range.from, range.to)
     return {from: range.from, to, line: lineAt(text, range.from)}

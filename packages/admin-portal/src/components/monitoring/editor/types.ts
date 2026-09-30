@@ -136,6 +136,10 @@ export type TMonitoringSaveOutcome =
           generation: number
           /** What the save let through but the author should know, such as a chart warning. */
           warnings: IMonitoringProblem[]
+          /** Who the stored revision is by; an older Harvest does not say. */
+          author?: IMonitoringAuthor | null
+          /** When the revision was stored; an older Harvest does not say. */
+          created_at?: string | null
       }
     | {
           status: EMonitoringSaveStatus.CONFLICT
@@ -171,6 +175,8 @@ export interface IMonitoringPreset {
     version: string | number
     title: string
     description?: string | null
+    /** The preset the event's configuration was last set from. */
+    current?: boolean
 }
 
 /** A data source as `get-dashboard` describes it: what a query may ask of it. */

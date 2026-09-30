@@ -77,6 +77,11 @@ export const MONITORING_EDITOR_SAVE_CONFIG = gql`
         ) {
             revision
             generation
+            author {
+                id
+                name
+            }
+            created_at
             warnings {
                 severity
                 code
@@ -161,6 +166,10 @@ export const MONITORING_EDITOR_GET_CONFIG = gql`
 export const MONITORING_EDITOR_LIST_CONFIG = gql`
     query MonitoringEditorListConfig($election_event_id: uuid!) {
         monitoringListConfig(election_event_id: $election_event_id) {
+            preset {
+                id
+                version
+            }
             documents {
                 kind
                 key

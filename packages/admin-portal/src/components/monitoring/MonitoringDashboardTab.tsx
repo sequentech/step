@@ -93,6 +93,7 @@ export function MonitoringDashboardTab({
                 electionId={electionId}
                 dashboards={list.dashboards}
                 configure={configure}
+                refreshSeconds={list.refresh_seconds}
             />
             {editor.element}
         </MonitoringProvider>

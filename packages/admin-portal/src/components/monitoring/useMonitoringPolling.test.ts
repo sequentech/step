@@ -68,6 +68,23 @@ describe("useMonitoringPolling", () => {
         expect(onPoll).toHaveBeenCalledTimes(1)
     })
 
+    it("polls at the interval it is given, and follows a new one", () => {
+        const onPoll = jest.fn()
+        const {rerender} = renderHook(
+            ({intervalMs}) => useMonitoringPolling({active: true, onPoll, intervalMs}),
+            {initialProps: {intervalMs: 90_000}}
+        )
+        advance(89_999)
+        expect(onPoll).not.toHaveBeenCalled()
+        advance(1)
+        expect(onPoll).toHaveBeenCalledTimes(1)
+        rerender({intervalMs: 5_000})
+        advance(5_000)
+        expect(onPoll).toHaveBeenCalledTimes(2)
+        advance(10_000)
+        expect(onPoll).toHaveBeenCalledTimes(4)
+    })
+
     it("uses the latest callback without restarting the clock", () => {
         const first = jest.fn()
         const second = jest.fn()

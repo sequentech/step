@@ -170,6 +170,26 @@ export const useConfigDocument = ({
         }
     }
 
+    /**
+     * Who stored a revision, and when, read back for a Harvest whose save
+     * does not answer with them, unless a newer revision is shown by then.
+     */
+    const learnAuthor = (saved: number) => {
+        api.getConfig({kind, key, revision: saved}).then(
+            (document) =>
+                setRevision((shown) =>
+                    shown.revision === saved
+                        ? {
+                              revision: saved,
+                              author: document.author,
+                              createdAt: document.created_at ?? shown.createdAt,
+                          }
+                        : shown
+                ),
+            () => undefined
+        )
+    }
+
     const save = async (): Promise<boolean> => {
         setBusy(EEditorBusy.SAVING)
         setMessage(null)
@@ -184,14 +204,19 @@ export const useConfigDocument = ({
             })
             if (outcome.status === EMonitoringSaveStatus.SAVED) {
                 controller.markSaved(sent)
-                setRevision({revision: outcome.revision, createdAt: new Date().toISOString()})
+                setRevision({
+                    revision: outcome.revision,
+                    author: outcome.author ?? undefined,
+                    createdAt: outcome.created_at ?? new Date().toISOString(),
+                })
                 setExpected(outcome.revision)
+                if (!outcome.author || !outcome.created_at) learnAuthor(outcome.revision)
                 const saved = t(messages.saved, {revision: outcome.revision})
                 if (outcome.warnings.length) {
                     controller.setServerProblems(outcome.warnings, sent)
                     setMessage({
                         tone: EMessageTone.WARNING,
-                        text: `${saved} ${t("monitoring.editor.document.savedWithWarnings", {
+                        text: `${saved} · ${t("monitoring.editor.document.savedWithWarnings", {
                             count: outcome.warnings.length,
                         })}`,
                     })

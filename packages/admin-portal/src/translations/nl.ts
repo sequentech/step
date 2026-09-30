@@ -2860,6 +2860,8 @@ const dutchTranslation: TranslationType = {
                     "Dit dashboard of deze widget is niet meer geconfigureerd. Laad de pagina opnieuw.",
                 badRequest:
                     "Het verzoek is niet geaccepteerd. Laad de pagina opnieuw en probeer het nogmaals.",
+                conflict:
+                    "Iemand anders heeft eerst een wijziging opgeslagen. Laad opnieuw en probeer het nog eens.",
                 invalid: "Sommige waarden van de export worden niet geaccepteerd.",
                 unknown: "Er ging iets mis. Probeer het later opnieuw.",
             },
@@ -2923,6 +2925,10 @@ const dutchTranslation: TranslationType = {
                     "Pogingen met niet-geregistreerde gebruikersnamen horen bij geen enkele post en worden daarom alleen voor het hele evenement geteld.",
                 UNREGISTERED_ATTEMPTS_EXCLUDED:
                     "Deze cijfers laten pogingen met niet-geregistreerde gebruikersnamen buiten beschouwing; die worden voor het hele evenement geteld.",
+                CONFIG_NEWER_THAN_SNAPSHOT:
+                    "Getekend met de nieuwste instellingen; de cijfers worden er bij de volgende telling mee geteld.",
+                CONFIG_AT_SNAPSHOT_UNAVAILABLE:
+                    "Getekend met de huidige instellingen: de instellingen waarmee de cijfers zijn geteld, worden niet meer bewaard.",
             },
             unavailable: {
                 notConnected: "Niet gekoppeld · {{reason}}",
