@@ -170,6 +170,26 @@ export const useConfigDocument = ({
         }
     }
 
+    /**
+     * A save answers with the revision only: who stored it, and when, are
+     * read back, unless a newer revision is shown by then.
+     */
+    const learnAuthor = (saved: number) => {
+        api.getConfig({kind, key, revision: saved}).then(
+            (document) =>
+                setRevision((shown) =>
+                    shown.revision === saved
+                        ? {
+                              revision: saved,
+                              author: document.author,
+                              createdAt: document.created_at ?? shown.createdAt,
+                          }
+                        : shown
+                ),
+            () => undefined
+        )
+    }
+
     const save = async (): Promise<boolean> => {
         setBusy(EEditorBusy.SAVING)
         setMessage(null)
@@ -186,12 +206,13 @@ export const useConfigDocument = ({
                 controller.markSaved(sent)
                 setRevision({revision: outcome.revision, createdAt: new Date().toISOString()})
                 setExpected(outcome.revision)
+                learnAuthor(outcome.revision)
                 const saved = t(messages.saved, {revision: outcome.revision})
                 if (outcome.warnings.length) {
                     controller.setServerProblems(outcome.warnings, sent)
                     setMessage({
                         tone: EMessageTone.WARNING,
-                        text: `${saved} ${t("monitoring.editor.document.savedWithWarnings", {
+                        text: `${saved} · ${t("monitoring.editor.document.savedWithWarnings", {
                             count: outcome.warnings.length,
                         })}`,
                     })

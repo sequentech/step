@@ -145,7 +145,41 @@ describe("useConfigDocument", () => {
             await hook.result.current.save()
         })
         expect(hook.result.current.message?.tone).toBe(EMessageTone.WARNING)
+        // Two sentences, not "revision 8 1 warning".
+        expect(hook.result.current.message?.text).toBe(
+            'saved {"revision":8} · monitoring.editor.document.savedWithWarnings {"count":1}'
+        )
         expect(controller.getState().serverProblems).toEqual([expect.objectContaining(warning)])
+    })
+
+    it("after a save, says who saved the revision it made and when", async () => {
+        const mine = {
+            ...stored(8),
+            author: {id: "u-me", name: "Me"},
+            created_at: "2026-09-30T05:00:00Z",
+        }
+        const api = fakeApi({
+            getConfig: jest.fn(async ({revision}: {revision?: number}) =>
+                revision === 8 ? mine : stored(7)
+            ),
+        })
+        const {controller, hook} = await open(api)
+        controller.setText(`${TEXT}height: 3\n`)
+        await act(async () => {
+            await hook.result.current.save()
+        })
+        await waitFor(() =>
+            expect(hook.result.current.revision).toEqual({
+                revision: 8,
+                author: {id: "u-me", name: "Me"},
+                createdAt: "2026-09-30T05:00:00Z",
+            })
+        )
+        expect(api.getConfig).toHaveBeenLastCalledWith({
+            kind: EMonitoringConfigKind.WIDGET,
+            key: "turnout",
+            revision: 8,
+        })
     })
 
     it("after a conflict, keeping the draft replaces the revision fetched, not the one reported", async () => {
