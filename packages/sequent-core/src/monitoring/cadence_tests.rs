@@ -40,28 +40,36 @@ fn values_within_the_bounds_are_used_as_configured() {
 
 #[test]
 fn a_snapshot_interval_outside_the_bounds_is_clamped_and_warned_about() {
-    for (raw, used, requested) in [
-        ("1", 5, 1),
-        ("0", 5, 0),
-        ("-10", 5, -10),
-        ("3601", 3600, 3601),
+    // A whole number too large for any integer type is still a whole
+    // number: it is clamped, not replaced by the default.
+    for (raw, used) in [
+        ("1", 5),
+        ("0", 5),
+        ("-10", 5),
+        ("3601", 3600),
+        ("99999999999999999999999", 3600),
+        ("+99999999999999999999999", 3600),
+        ("-99999999999999999999999", 5),
     ] {
         let setting = parse_snapshot_interval(Some(raw));
         assert_eq!(setting.seconds, used, "{raw}");
         assert_eq!(
             setting.source,
-            SettingSource::Clamped { requested },
+            SettingSource::Clamped {
+                requested: raw.to_string()
+            },
             "{raw}"
         );
         let warning = setting.warning().expect("a clamped value warns");
         assert!(warning.contains(SNAPSHOT_INTERVAL_ENV), "{warning}");
+        assert!(warning.contains(raw), "{warning}");
         assert!(warning.contains(&used.to_string()), "{warning}");
     }
 }
 
 #[test]
 fn a_value_that_is_not_whole_seconds_falls_back_to_the_default() {
-    for raw in ["thirty", "30s", "1.5", "99999999999999999999999"] {
+    for raw in ["thirty", "30s", "1.5", "-", "1e9", "--5"] {
         let setting = parse_snapshot_interval(Some(raw));
         assert_eq!(setting.seconds, DEFAULT_SNAPSHOT_INTERVAL_SECONDS, "{raw}");
         assert_eq!(
@@ -85,7 +93,9 @@ fn the_full_voter_pass_is_never_more_often_than_the_snapshot_interval() {
     assert_eq!(cadence.voter_full_pass.seconds, 600);
     assert_eq!(
         cadence.voter_full_pass.source,
-        SettingSource::Clamped { requested: 120 }
+        SettingSource::Clamped {
+            requested: "120".to_string()
+        }
     );
     let warnings = cadence.warnings();
     assert_eq!(warnings.len(), 1);
