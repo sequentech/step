@@ -129,16 +129,21 @@ A pass of an event:
 2. **Records a RUNNING run** in `monitoring_snapshot_run`, in its own
    transaction, after marking FAILED any run a crash left RUNNING.
 3. **Counts** in one REPEATABLE READ transaction, which gives a coherent
-   `as_of`. `load_facts` reads the projection, the elections (poll state from
-   `election.status` and the initialization report), the tally sessions
-   (counting and transmission state) and the login counters. `produce` then
-   builds the payload of every source, for every scope, for every election
-   set. The pass writes only the scopes whose figures changed, records per
-   source whether it was counted (`monitoring_snapshot_source`: `CONNECTED`
-   or `NOT_CONNECTED` with a reason), completes the run and makes it the live
-   one. When nothing changed it deletes its run and only marks the live run
-   checked (`checked_at`), so viewers keep the revision they have. On an
-   error the run is FAILED and the live revision stays in service.
+   `as_of`. It first reads what it counts from (`CountedInputs`, below) and,
+   when that is what the live run records, counts nothing (`Unchanged`,
+   `recount: Skipped`). Otherwise `load_facts` reads the projection, the
+   elections (poll state from `election.status` and the initialization
+   report), the areas, the tally sessions (counting and transmission state)
+   and the login counters. `produce` then builds the payload of every source,
+   for every scope, for every election set. The pass writes only the scopes
+   whose figures changed, records per source whether it was counted
+   (`monitoring_snapshot_source`: `CONNECTED` or `NOT_CONNECTED` with a
+   reason) and what it counted from (`monitoring_snapshot_run.counted_inputs`),
+   completes the run and makes it the live one. When nothing changed it
+   deletes its run and only marks the live run checked (`checked_at`), so
+   viewers keep the revision they have; having counted (`recount: Done`), it
+   records the new inputs with the live run. On an error the run is FAILED
+   and the live revision stays in service.
 4. **Prunes** (`prune_snapshots`), in its own transaction: runs finished more
    than `EXPORT_WINDOW` (2 hours) ago, never the live one; then figures no
    remaining complete run holds; then payloads no figure names.
@@ -161,10 +166,16 @@ payload once, keyed by the SHA-256 of its canonical JSON, and
 range of revisions (`from_revision` up to, not including, `to_revision`). An
 unchanged scope costs nothing new, and Harvest can cache by hash. The
 figures of revision R are the rows whose range holds R, so an export of a
-revision still within the window reads exactly what was shown; one that was
-pruned answers 410 `MONITORING_SNAPSHOT_PRUNED`, and one after the live run,
-never issued, 404 `MONITORING_NOT_FOUND`. `render-widget` pinned to a
-revision answers the same.
+revision still within the window reads the figures that were shown, with
+the configuration the dashboard drew them with (see
+[render-widget](#harvest-routes) below); the export request names that
+configuration's generation, so later saves do not change the file. A
+revision below the live run that is no longer kept answers 410
+`MONITORING_SNAPSHOT_PRUNED`. One that never was a snapshot answers 404
+`MONITORING_NOT_FOUND`: 0 or below, after the live run, or a run still kept
+that did not complete (running, failed or superseded). Pruning deletes a
+run's row, so any other revision below the live run with no row is taken
+as pruned. `render-widget` pinned to a revision answers the same.
 
 **Buckets.** Series are hourly buckets in the settings' time zone, each
 `[start, end)`; a day is the sum of its hours. Each voter has one first-vote
@@ -238,8 +249,10 @@ counted under until the next run (a count the new settings add is
 `SCOPE_PENDING` with `SETTINGS_PENDING`); when that configuration is no
 longer kept, or lacks the widget, it falls back to the live one with the
 notice `CONFIG_AT_SNAPSHOT_UNAVAILABLE` or `CONFIG_NEWER_THAN_SNAPSHOT`. An
-export always reads the configuration its run was counted under, so the
-same revision always exports the same file.
+export chooses its configuration by the same rule, so a widget saved a
+moment ago exports as it is drawn, and records the generation chosen in
+the task's request, which the task reads (a request without it reads the
+generation the run was counted under).
 
 Drawn charts are cached in an LRU with single flight, so viewers asking for
 the same chart at once wait on one draw. The key covers the tenant and
@@ -336,7 +349,25 @@ dashboards, so viewers add only cheap Harvest reads. What grows with the
 event is the pass itself:
 
 - Every pass reads each voter's latest application and first valid vote
-  from the backend tables, and counts every scope.
+  from the backend tables. It counts every scope only when something it
+  counts from moved since the live run was counted (see below).
+- **An unchanged pass counts nothing.** Before counting, a pass reads, in
+  one statement, digests of every row it would count from: all of the
+  event's `monitoring_voter` rows (so votes, applications and projection
+  writes and removals), the elections (status, initialization, names and
+  annotations), the areas and which elections each votes in, the tally
+  sessions, the login counters and the sets of elections still asked for.
+  These digests, with the settings revision, the configuration
+  generation, a hash of the settings, the UTC day ages are counted on, the
+  reader's version and the time, make up `CountedInputs`, which is stored
+  with the run it counted (`monitoring_snapshot_run.counted_inputs`). When a pass finds the live
+  run's inputs, it only marks the run checked. It counts again when any of
+  them moved, on a new day, at least every 10 minutes (`RECOUNT_EVERY`, for
+  what no digest covers, such as producers deployed under the same
+  version), and when the live run records no inputs, as runs completed
+  before inputs were recorded. An unchanged pass then takes 0.1 s at
+  10,000 voters and 0.5 s at 50,000 (release build) instead of 0.9 s and
+  3.2 s; see the scale guide.
 - The **full voter pass** reads every voter of the event realm from the
   Keycloak database. It is the expensive part and grows with the number of
   voters; between full passes a voter change in Keycloak shows only at the

@@ -174,6 +174,7 @@ describe("monitoringErrorMessage", () => {
         [EMonitoringErrorCode.BUSY, "monitoring.editor.errors.busy"],
         [EMonitoringErrorCode.LOCKED_DOWN, "monitoring.editor.errors.lockedDown"],
         [EMonitoringErrorCode.FORBIDDEN_SCOPE, "monitoring.editor.errors.forbiddenScope"],
+        [EMonitoringErrorCode.BAD_REQUEST, "monitoring.editor.errors.badRequest"],
     ])("explains %s", (code, key) => {
         const error = {graphQLErrors: [{message: "x", extensions: {code}}]}
         expect(monitoringErrorCode(error)).toBe(code)
@@ -201,6 +202,29 @@ describe("monitoringErrorMessage", () => {
             ],
         }
         expect(monitoringErrorMessage(error)).toBe("monitoring.editor.errors.busy")
+    })
+
+    it("explains a 422 MONITORING_BAD_REQUEST rather than showing an empty list of problems", () => {
+        const error = {
+            graphQLErrors: [
+                {
+                    extensions: {
+                        code: "unexpected",
+                        internal: {
+                            response: {
+                                status: 422,
+                                body: JSON.stringify({
+                                    message: "Unknown field `kinds`",
+                                    extensions: {code: EMonitoringErrorCode.BAD_REQUEST},
+                                }),
+                            },
+                        },
+                    },
+                },
+            ],
+        }
+        expect(interpretSaveError(error)).toBeUndefined()
+        expect(monitoringErrorMessage(error)).toBe("monitoring.editor.errors.badRequest")
     })
 
     it("says nothing of its own for a failure Harvest did not explain", () => {

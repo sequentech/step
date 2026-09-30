@@ -13,8 +13,9 @@
 //!   voters from Keycloak, the expensive part of a pass. Passes in between
 //!   read only the voters that changed.
 //!
-//! A value outside its bounds is clamped to the nearest bound; a value that
-//! is not a whole number of seconds is replaced by the default. Either way
+//! A value outside its bounds is clamped to the nearest bound, however many
+//! digits it has; a value that is not a whole number of seconds is replaced
+//! by the default. Either way
 //! the service keeps running and [`Setting::warning`] says what was used
 //! instead, for the caller to log. This module only parses: reading the
 //! environment is the caller's.
@@ -44,8 +45,9 @@ pub enum SettingSource {
     Default,
     /// As configured.
     Configured,
-    /// Outside the bounds: the nearest bound is used instead.
-    Clamped { requested: i64 },
+    /// Outside the bounds: the nearest bound is used instead. `requested`
+    /// is the value as written, which may be too large for any integer.
+    Clamped { requested: String },
     /// Not a whole number of seconds: the default is used instead.
     Unparseable { raw: String },
 }
@@ -164,22 +166,40 @@ fn parse_bounded(
     let Some(trimmed) = raw.map(str::trim).filter(|raw| !raw.is_empty()) else {
         return setting(default, SettingSource::Default);
     };
-    let Ok(requested) = trimmed.parse::<i64>() else {
+    let (negative, digits) = match trimmed.as_bytes()[0] {
+        b'-' => (true, &trimmed[1..]),
+        b'+' => (false, &trimmed[1..]),
+        _ => (false, trimmed),
+    };
+    if digits.is_empty() || !digits.bytes().all(|byte| byte.is_ascii_digit()) {
         return setting(
             default,
             SettingSource::Unparseable {
                 raw: trimmed.to_string(),
             },
         );
+    }
+    let clamped = |seconds| {
+        setting(
+            seconds,
+            SettingSource::Clamped {
+                requested: trimmed.to_string(),
+            },
+        )
     };
-    match u64::try_from(requested) {
-        Ok(seconds) if (min..=max).contains(&seconds) => {
-            setting(seconds, SettingSource::Configured)
-        }
-        Ok(seconds) if seconds > max => {
-            setting(max, SettingSource::Clamped { requested })
-        }
-        _ => setting(min, SettingSource::Clamped { requested }),
+    // A negative number is below every bound, and one with too many digits
+    // for a u64 above every one.
+    let seconds = match (negative, digits.parse::<u64>()) {
+        (false, Ok(seconds)) | (true, Ok(seconds @ 0)) => seconds,
+        (true, _) => return clamped(min),
+        (false, Err(_)) => return clamped(max),
+    };
+    if (min..=max).contains(&seconds) {
+        setting(seconds, SettingSource::Configured)
+    } else if seconds > max {
+        clamped(max)
+    } else {
+        clamped(min)
     }
 }
 

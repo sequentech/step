@@ -41,7 +41,7 @@ use windmill::services::monitoring::export::{
 use windmill::services::monitoring::projection::refresh_voter_activity;
 use windmill::services::monitoring::snapshot::{
     live_snapshot, prune_snapshots, read_scope, refresh_event_snapshot, request_election_set,
-    PassOptions, PassOutcome, ScopeRead,
+    PassOptions, PassOutcome, Recount, ScopeRead,
 };
 
 const POSTS: i32 = 100;
@@ -530,6 +530,7 @@ async fn export(
         selector_values: IndexMap::new(),
         widget_selector_values: IndexMap::new(),
         snapshot_revision: revision,
+        config_generation: None,
         format,
         from: None,
         to: None,
@@ -665,15 +666,16 @@ async fn at_size(voters: i32) {
         peak_rows(voters, source, &payload);
     }
 
-    // Nothing changed: no run is written.
+    // Nothing changed: nothing is counted, no run is written.
     let (second, took) = timed(pass(&mut hasura, &mut keycloak, event, now)).await;
     assert_eq!(
         second,
         PassOutcome::Unchanged {
-            shown: Some(revision)
+            shown: Some(revision),
+            recount: Recount::Skipped,
         }
     );
-    check(voters, "unchanged_pass", took, budget(voters, 1_000, 1_000));
+    check(voters, "unchanged_pass", took, budget(voters, 300, 200));
 
     // 1% of the voters vote now.
     hasura
@@ -726,7 +728,8 @@ async fn at_size(voters: i32) {
     assert_eq!(
         full,
         PassOutcome::Unchanged {
-            shown: Some(after_change)
+            shown: Some(after_change),
+            recount: Recount::Skipped,
         }
     );
     check(

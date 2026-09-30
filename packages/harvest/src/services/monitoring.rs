@@ -14,7 +14,7 @@
 use crate::ports::monitoring_renderer::{
     ColorScheme, RenderBoard, RendererError,
 };
-use crate::ports::monitoring_snapshots::{ScopeRead, SnapshotHead};
+use crate::ports::monitoring_snapshots::{KeptRun, ScopeRead, SnapshotHead};
 use crate::services::dependencies::HarvestServices;
 use crate::services::monitoring_cache::RenderKeyParts;
 use crate::services::monitoring_svg::{sanitize_svg, UnsafeSvg};
@@ -595,31 +595,46 @@ impl SnapshotConfig {
     }
 }
 
-/// The complete run `revision` a request pins. One the event no longer keeps
-/// is gone (410, MONITORING_SNAPSHOT_PRUNED, saying `gone`); one after the
-/// event's live run, or of an event with no run, was never issued (404).
+/// The complete run `revision` a request pins.
+///
+/// Only a revision that may have been a snapshot shown and is gone answers
+/// 410 (MONITORING_SNAPSHOT_PRUNED, saying `gone`): one with no run below the
+/// event's live run. Pruning deletes a run's row, so a complete run pruned
+/// cannot be told from a number the event did not keep for other reasons (a
+/// pass that found nothing new drops its run); a viewer only pins revisions
+/// it was shown, so such a number is taken as pruned. Everything else was
+/// never a snapshot and answers 404: a revision of 0 or below (runs count
+/// from 1), one after the live run or of an event with no run, and a run
+/// still kept that did not complete (running, failed or superseded).
 pub async fn pinned_snapshot(
     services: &HarvestServices,
     event: EventRef,
     revision: i64,
     gone: &'static str,
 ) -> MonitoringResult<SnapshotHead> {
+    const NEVER_SHOWN: &str =
+        "There is no such snapshot: the event has not counted it.";
+    if revision <= 0 {
+        return Err(MonitoringError::not_found(NEVER_SHOWN));
+    }
     let snapshots = &services.monitoring_snapshots;
-    if let Some(head) = snapshots
-        .complete(event, revision)
+    match snapshots
+        .run(event, revision)
         .await
         .map_err(MonitoringError::internal)?
     {
-        return Ok(head);
+        KeptRun::Complete(head) => return Ok(head),
+        KeptRun::Incomplete => {
+            return Err(MonitoringError::not_found(NEVER_SHOWN))
+        }
+        KeptRun::Missing => {}
     }
     let live = snapshots
         .live(event)
         .await
         .map_err(MonitoringError::internal)?;
     if live.map_or(true, |live| revision > live.revision) {
-        return Err(MonitoringError::not_found(
-            "There is no such snapshot: the event has not counted it yet.",
-        ));
+        return Err(MonitoringError::not_found(NEVER_SHOWN));
     }
     Err(MonitoringError::new(
         Status::Gone,
@@ -649,9 +664,9 @@ pub fn counted_for_live(head: &SnapshotHead, live: &LiveConfig) -> bool {
 /// again when that generation is no longer kept, or has not what `has` asks
 /// for (a widget added since), and those two say so.
 ///
-/// Exports do not use this: an export of a run always reads the
-/// configuration that run was counted under, so exporting the same revision
-/// twice gives the same file.
+/// An export chooses its configuration here too, so a file holds what the
+/// dashboard draws; the export task is told the generation chosen, so it
+/// reads exactly that one whatever is saved meanwhile.
 pub async fn config_at_snapshot(
     services: &HarvestServices,
     event: EventRef,

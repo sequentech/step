@@ -3322,6 +3322,8 @@ const frenchTranslation: TranslationType = {
                         "L'événement est verrouillé ; sa configuration de supervision ne peut pas changer.",
                     forbiddenScope:
                         "Vous ne pouvez pas voir les chiffres de la région, du poste ou du pays choisis.",
+                    badRequest:
+                        "L'éditeur a envoyé une demande que le serveur n'a pas pu lire. Rechargez la page et réessayez.",
                 },
                 duplicate: {
                     done: "{{id}}, une copie du widget, a été ajouté au tableau de bord.",

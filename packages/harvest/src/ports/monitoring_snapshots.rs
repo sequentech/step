@@ -7,7 +7,7 @@ use uuid::Uuid;
 use windmill::services::monitoring::config_store::EventRef;
 
 pub use windmill::services::monitoring::snapshot::{
-    LiveSnapshot as SnapshotHead, ScopeCatalogue, ScopeRead,
+    KeptRun, LiveSnapshot as SnapshotHead, ScopeCatalogue, ScopeRead,
 };
 
 /// The snapshot rows the Windmill job writes, read only; and the one row a
@@ -21,12 +21,12 @@ pub trait MonitoringSnapshots: Send + Sync {
         event: EventRef,
     ) -> anyhow::Result<Option<SnapshotHead>>;
 
-    /// The run at `revision` if it is complete and kept.
-    async fn complete(
+    /// What is kept of the run at `revision`.
+    async fn run(
         &self,
         event: EventRef,
         revision: i64,
-    ) -> anyhow::Result<Option<SnapshotHead>>;
+    ) -> anyhow::Result<KeptRun>;
 
     async fn read_scope(
         &self,
