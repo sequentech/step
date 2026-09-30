@@ -585,6 +585,10 @@ services:
       "run"
     ]
     environment:
+      # Monitoring snapshot cadence, the same on beat, windmill and harvest:
+      # seconds between passes (5..3600), and between full voter reads.
+      MONITORING_SNAPSHOT_INTERVAL_SECONDS: ${MONITORING_SNAPSHOT_INTERVAL_SECONDS:-30}
+      MONITORING_VOTER_FULL_PASS_SECONDS: ${MONITORING_VOTER_FULL_PASS_SECONDS:-300}
       RUST_BACKTRACE: ${RUST_BACKTRACE}
       SUPER_ADMIN_TENANT_ID: ${SUPER_ADMIN_TENANT_ID}
       WINDMILL_SECRET_EXPORT_GRANT_TTL_SECONDS: ${WINDMILL_SECRET_EXPORT_GRANT_TTL_SECONDS:-86400}
@@ -668,6 +672,14 @@ services:
       DOC_RENDERER_BACKEND: ${DOC_RENDERER_BACKEND}
       ENV_SLUG: ${ENV_SLUG}
       APP_VERSION: ${APP_VERSION}
+      # The monitoring renderer (packages/monitoring-renderer), reached on
+      # the internal monitoring-renderer network only.
+      HARVEST_MONITORING_RENDERER_URL: ${HARVEST_MONITORING_RENDERER_URL:-http://monitoring-renderer:8080}
+      HARVEST_MONITORING_RENDERER_TOKEN: ${MONITORING_RENDERER_TOKEN}
+      HARVEST_MONITORING_RENDERER_TIMEOUT_MS: ${HARVEST_MONITORING_RENDERER_TIMEOUT_MS:-5000}
+    networks:
+      - default
+      - monitoring-renderer
 
     #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
     #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
@@ -678,6 +690,34 @@ services:
       interval: 5s
       timeout: 10s
       retries: 25
+      start_period: 30s
+
+  # Draws monitoring widgets with dbt Charts. Internal only: no published
+  # ports, on a network with no route out, shared with harvest alone.
+  monitoring-renderer:
+    profiles: ["full", "base"]
+    image: sequentech.local/monitoring-renderer
+    container_name: ${DEVCONTAINER_NAME_PREFIX:-}monitoring-renderer
+    build:
+      context: ../packages/monitoring-renderer
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      RENDERER_TOKEN: ${MONITORING_RENDERER_TOKEN}
+      RENDERER_CONCURRENCY: ${MONITORING_RENDERER_CONCURRENCY:-2}
+    networks:
+      - monitoring-renderer
+    healthcheck:
+      test: ["CMD", "python", "-c", "import sys, urllib.request; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8080/ready', timeout=4).status == 200 else 1)"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
       start_period: 30s
 
   trustee1:
@@ -888,7 +928,7 @@ services:
       "--ignore",
       "windmill/core",
       "-x",
-      "run --bin main consume -q beat short_queue tally_queue reports_queue communication_queue import_export_queue electoral_log_batch_queue electoral_log_beat_queue --prefetch-count 1"
+      "run --bin main consume -q beat short_queue tally_queue reports_queue communication_queue import_export_queue electoral_log_batch_queue electoral_log_beat_queue monitoring_queue --prefetch-count 1"
     ]
     volumes_from:
       - devcontainer
@@ -902,6 +942,10 @@ services:
       #- postgres
       #- postgres-keycloak
     environment:
+      # Monitoring snapshot cadence, the same on beat, windmill and harvest:
+      # seconds between passes (5..3600), and between full voter reads.
+      MONITORING_SNAPSHOT_INTERVAL_SECONDS: ${MONITORING_SNAPSHOT_INTERVAL_SECONDS:-30}
+      MONITORING_VOTER_FULL_PASS_SECONDS: ${MONITORING_VOTER_FULL_PASS_SECONDS:-300}
       RUSTFLAGS: ${RUSTFLAGS}
       CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: ${DEVCONTAINER_WORKSPACE_FOLDER:-/workspaces/step}/.devcontainer/scripts/rust-lld-cc.sh
       RUST_BACKTRACE: ${RUST_BACKTRACE}
@@ -1020,6 +1064,10 @@ services:
       "run --bin beat"
     ]
     environment:
+      # Monitoring snapshot cadence, the same on beat, windmill and harvest:
+      # seconds between passes (5..3600), and between full voter reads.
+      MONITORING_SNAPSHOT_INTERVAL_SECONDS: ${MONITORING_SNAPSHOT_INTERVAL_SECONDS:-30}
+      MONITORING_VOTER_FULL_PASS_SECONDS: ${MONITORING_VOTER_FULL_PASS_SECONDS:-300}
       RUSTFLAGS: ${RUSTFLAGS}
       CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: ${DEVCONTAINER_WORKSPACE_FOLDER:-/workspaces/step}/.devcontainer/scripts/rust-lld-cc.sh
       LOG_LEVEL: ${LOG_LEVEL}
@@ -1104,6 +1152,11 @@ services:
       B4_BIND: ${B4_BIND}
       AWS_S3_UPLOAD_EXPIRATION_SECS: ${AWS_S3_UPLOAD_EXPIRATION_SECS}
       AWS_S3_FETCH_EXPIRATION_SECS: ${AWS_S3_FETCH_EXPIRATION_SECS}
+
+networks:
+  # Harvest and the monitoring renderer only; no route out.
+  monitoring-renderer:
+    internal: true
 
 volumes:
   db_data:

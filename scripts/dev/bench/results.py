@@ -33,6 +33,8 @@ class SampleRole(Enum):
     MEASURED = "measured"
     WARMUP = "warmup"
     REVERT = "revert"
+    # An idle window measured to compare the others with.
+    BASELINE = "baseline"
 
 
 def utc_now() -> str:

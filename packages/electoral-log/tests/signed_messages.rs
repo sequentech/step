@@ -582,3 +582,37 @@ fn reconciliation_preserves_signed_hash_references_and_the_separate_artifact() -
     }
     Ok(())
 }
+
+#[test]
+fn a_monitoring_config_change_is_an_event_wide_signed_record() -> Result<()> {
+    let (data, public) = signer()?;
+    let details = MonitoringConfigChangeDetails {
+        origin: MonitoringConfigOrigin::Editor,
+        preset: None,
+        mode: MonitoringDashboardMode::Configured,
+        generation: 3,
+        revisions: vec![MonitoringConfigRevisionRef {
+            kind: MonitoringConfigKindString("widget".into()),
+            key: MonitoringConfigKeyString("turnout".into()),
+            revision: 2,
+            action: MonitoringConfigChangeAction::Upsert,
+            digest: Some(MonitoringConfigDigestString("0".repeat(64))),
+        }],
+    };
+    let message = Message::monitoring_config_changed_message(
+        event(),
+        details.clone(),
+        &data,
+        actor(),
+        actor(),
+    )?;
+    assert_record(&message, &public, "MonitoringConfigChanged", None)?;
+    match &message.statement.body {
+        StatementBody::MonitoringConfigChanged(event_id, signed) => {
+            assert_eq!(event_id, &event());
+            assert_eq!(signed, &details);
+        }
+        other => panic!("unexpected body {other:?}"),
+    }
+    Ok(())
+}

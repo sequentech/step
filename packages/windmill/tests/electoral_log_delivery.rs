@@ -491,6 +491,7 @@ async fn a_full_queue_batch_fits_in_bounded_transactions_and_replays_without_dup
                             user_id: None,
                             username: None,
                             body: LogEventBody::Plain("synthetic".into()),
+                            event_time_ms: None,
                         },
                     },
                     vec![

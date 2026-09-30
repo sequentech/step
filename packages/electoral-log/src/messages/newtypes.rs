@@ -302,3 +302,126 @@ pub struct ResultsPublicationDetails {
     pub visibility_scope: ResultsPublicationVisibilityScopeString,
     pub contest_ids: Vec<ContestIdString>,
 }
+
+/// A monitoring configuration document's kind, as sequent-core names it:
+/// `widget`, `dashboard`, `theme` or `settings`.
+#[derive(
+    BorshSerialize, BorshDeserialize, Deserialize, Serialize, Clone, PartialEq, Eq, Hash, Debug,
+)]
+pub struct MonitoringConfigKindString(pub String);
+
+/// The key a monitoring configuration document is stored under: its id.
+#[derive(
+    BorshSerialize, BorshDeserialize, Deserialize, Serialize, Clone, PartialEq, Eq, Hash, Debug,
+)]
+pub struct MonitoringConfigKeyString(pub String);
+
+/// Lowercase hex SHA-256 of a monitoring configuration document's UTF-8
+/// text, which binds the entry to the stored revision.
+#[derive(
+    BorshSerialize, BorshDeserialize, Deserialize, Serialize, Clone, PartialEq, Eq, Hash, Debug,
+)]
+pub struct MonitoringConfigDigestString(pub String);
+
+#[derive(
+    BorshSerialize, BorshDeserialize, Deserialize, Serialize, Clone, PartialEq, Eq, Hash, Debug,
+)]
+pub struct MonitoringPresetIdString(pub String);
+
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Deserialize,
+    Serialize,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Hash,
+    Debug,
+    Display,
+)]
+pub enum MonitoringConfigChangeAction {
+    Upsert,
+    Delete,
+}
+
+/// Who wrote a monitoring configuration change: an administrator in the
+/// editor, or a reset to a preset.
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Deserialize,
+    Serialize,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Hash,
+    Debug,
+    Display,
+)]
+pub enum MonitoringConfigOrigin {
+    Editor,
+    Preset,
+}
+
+/// Which Dashboard tab an election event shows.
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Deserialize,
+    Serialize,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Hash,
+    Debug,
+    Display,
+)]
+pub enum MonitoringDashboardMode {
+    /// The standard dashboard.
+    Legacy,
+    /// The configured monitoring dashboards.
+    Configured,
+}
+
+#[derive(
+    BorshSerialize, BorshDeserialize, Deserialize, Serialize, Clone, PartialEq, Eq, Hash, Debug,
+)]
+pub struct MonitoringPresetRef {
+    pub id: MonitoringPresetIdString,
+    pub version: u32,
+}
+
+/// One stored revision of a monitoring configuration document.
+#[derive(
+    BorshSerialize, BorshDeserialize, Deserialize, Serialize, Clone, PartialEq, Eq, Hash, Debug,
+)]
+pub struct MonitoringConfigRevisionRef {
+    pub kind: MonitoringConfigKindString,
+    pub key: MonitoringConfigKeyString,
+    pub revision: u32,
+    pub action: MonitoringConfigChangeAction,
+    /// Absent exactly when the revision removes the document.
+    pub digest: Option<MonitoringConfigDigestString>,
+}
+
+/// One change to an election event's monitoring configuration: a save, a
+/// reset to a preset, or a switch of the Dashboard tab's mode.
+#[derive(
+    BorshSerialize, BorshDeserialize, Deserialize, Serialize, Clone, PartialEq, Eq, Hash, Debug,
+)]
+pub struct MonitoringConfigChangeDetails {
+    pub origin: MonitoringConfigOrigin,
+    /// The preset a reset wrote; absent for an editor change.
+    pub preset: Option<MonitoringPresetRef>,
+    /// The mode after the change.
+    pub mode: MonitoringDashboardMode,
+    /// The event's configuration generation after the change. Every change
+    /// raises it by one, so gaps and reorderings in the log show.
+    pub generation: u64,
+    /// The revisions written, in the order they were stored.
+    pub revisions: Vec<MonitoringConfigRevisionRef>,
+}

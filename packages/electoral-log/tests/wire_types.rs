@@ -55,6 +55,10 @@ string_wire_cases! {
     results_route_scope => ResultsPublicationRouteScopeString,
     results_access => ResultsPublicationAccessString,
     results_visibility_scope => ResultsPublicationVisibilityScopeString,
+    monitoring_config_kind => MonitoringConfigKindString,
+    monitoring_config_key => MonitoringConfigKeyString,
+    monitoring_config_digest => MonitoringConfigDigestString,
+    monitoring_preset_identifier => MonitoringPresetIdString,
 }
 
 #[test]
@@ -95,6 +99,65 @@ action_wire_cases! {
     reconciliation_actions => ExternalReconciliationKind {PatchGenerated = 0, ChangesApplied = 1},
     blacklist_actions => PhoneBlacklistAction {CreateEntry = 0, DeleteEntry = 1},
     results_actions => ResultsPublicationAction {Publish = 0, Revoke = 1},
+    monitoring_config_actions => MonitoringConfigChangeAction {Upsert = 0, Delete = 1},
+    monitoring_config_origins => MonitoringConfigOrigin {Editor = 0, Preset = 1},
+    monitoring_dashboard_modes => MonitoringDashboardMode {Legacy = 0, Configured = 1},
+}
+
+/// Field order is signed: every field of the audit entry, in order, as
+/// independently assembled bytes.
+#[test]
+fn a_monitoring_config_change_is_encoded_field_by_field() {
+    let text = |value: &str| {
+        let mut bytes = (value.len() as u32).to_le_bytes().to_vec();
+        bytes.extend_from_slice(value.as_bytes());
+        bytes
+    };
+    let details = MonitoringConfigChangeDetails {
+        origin: MonitoringConfigOrigin::Preset,
+        preset: Some(MonitoringPresetRef {
+            id: MonitoringPresetIdString("generic".into()),
+            version: 3,
+        }),
+        mode: MonitoringDashboardMode::Configured,
+        generation: 7,
+        revisions: vec![
+            MonitoringConfigRevisionRef {
+                kind: MonitoringConfigKindString("widget".into()),
+                key: MonitoringConfigKeyString("turnout".into()),
+                revision: 2,
+                action: MonitoringConfigChangeAction::Upsert,
+                digest: Some(MonitoringConfigDigestString("ab".into())),
+            },
+            MonitoringConfigRevisionRef {
+                kind: MonitoringConfigKindString("theme".into()),
+                key: MonitoringConfigKeyString("dark".into()),
+                revision: 5,
+                action: MonitoringConfigChangeAction::Delete,
+                digest: None,
+            },
+        ],
+    };
+    let mut expected = vec![1, 1];
+    expected.extend(text("generic"));
+    expected.extend(3_u32.to_le_bytes());
+    expected.push(1);
+    expected.extend(7_u64.to_le_bytes());
+    expected.extend(2_u32.to_le_bytes());
+    expected.extend(text("widget"));
+    expected.extend(text("turnout"));
+    expected.extend(2_u32.to_le_bytes());
+    expected.extend([0, 1]);
+    expected.extend(text("ab"));
+    expected.extend(text("theme"));
+    expected.extend(text("dark"));
+    expected.extend(5_u32.to_le_bytes());
+    expected.extend([1, 0]);
+    assert_eq!(borsh::to_vec(&details).unwrap(), expected);
+    assert_eq!(
+        borsh::from_slice::<MonitoringConfigChangeDetails>(&expected).unwrap(),
+        details
+    );
 }
 
 #[test]
