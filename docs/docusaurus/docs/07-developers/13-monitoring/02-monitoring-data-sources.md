@@ -120,7 +120,7 @@ select code by preset or customer id.
    `base` and `full` compose profiles) and an election event with voters.
 2. Reset the event to a preset with the `monitoringResetToPreset` action,
    which also switches its Dashboard tab to configured mode.
-3. Within about 30 seconds the beat's first pass completes and the
+3. Within one snapshot interval (30 seconds by default) the beat's first pass completes and the
    Dashboard tab shows the figures. Cast votes or decide applications and
    check that the next pass updates them, that ratios and buckets reconcile
    with the totals, and that a label-restricted administrator sees only the
