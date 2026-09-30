@@ -770,9 +770,30 @@ fn the_boards_match_the_files_the_renderer_is_tested_with() {
 }
 
 fn pretty(board: &Value) -> String {
-    let mut text = serde_json::to_string_pretty(board).unwrap();
+    let mut text = serde_json::to_string_pretty(&sorted_keys(board)).unwrap();
     text.push('\n');
     text
+}
+
+/// `value` with every object's keys in order, as the fixtures are written.
+/// A dependency may enable serde_json's `preserve_order`, and the key order of
+/// a serialized board would then follow the order the keys were inserted in.
+pub(super) fn sorted_keys(value: &Value) -> Value {
+    match value {
+        Value::Object(map) => {
+            let mut keys: Vec<&String> = map.keys().collect();
+            keys.sort();
+            Value::Object(
+                keys.into_iter()
+                    .map(|key| (key.clone(), sorted_keys(&map[key])))
+                    .collect(),
+            )
+        }
+        Value::Array(items) => {
+            Value::Array(items.iter().map(sorted_keys).collect())
+        }
+        other => other.clone(),
+    }
 }
 
 /// Every combination's board, for drawing them all with the engine by hand.
@@ -1477,4 +1498,230 @@ fn a_preset_s_manifest_is_read_on_its_own() {
     let comelec = manifest("comelec").expect("comelec ships");
     assert_eq!(comelec, loaded("comelec").manifest);
     assert_eq!(manifest("no-such-preset"), None);
+}
+
+// -- a preset's own mistakes ----------------------------------------------
+
+const SETTINGS_FILE: PresetFile = PresetFile {
+    kind: ConfigKind::Settings,
+    path: "settings.yaml",
+    yaml: include_str!("fixtures/settings.yaml"),
+};
+
+const DEFAULT_THEME_FILE: PresetFile = PresetFile {
+    kind: ConfigKind::Theme,
+    path: "themes/default.yaml",
+    yaml: include_str!("fixtures/theme_default.yaml"),
+};
+
+const MANIFEST: &str = "id: p\nversion: 1\ntitle: P\n";
+
+/// What loading the preset `p` reports, as codes and paths.
+fn refusal(
+    manifest: &'static str,
+    files: &'static [PresetFile],
+) -> Vec<(Code, String)> {
+    let source = PresetSource {
+        id: "p",
+        manifest,
+        files,
+    };
+    source
+        .load()
+        .expect_err("refused")
+        .problems
+        .into_iter()
+        .map(|problem| (problem.code, problem.path))
+        .collect()
+}
+
+fn found(code: Code, path: &str) -> (Code, String) {
+    (code, path.to_string())
+}
+
+#[test]
+fn a_preset_of_settings_and_a_default_theme_loads() {
+    let source = PresetSource {
+        id: "p",
+        manifest: MANIFEST,
+        files: &[SETTINGS_FILE, DEFAULT_THEME_FILE],
+    };
+    let preset = source.load().unwrap_or_else(|report| panic!("{report}"));
+    let keys: Vec<&str> = preset
+        .documents
+        .iter()
+        .map(|document| document.key.as_str())
+        .collect();
+    assert_eq!(keys, [SETTINGS_KEY, "default"]);
+}
+
+#[test]
+fn an_unreadable_manifest_refuses_the_preset() {
+    assert_eq!(
+        refusal(
+            "id: p\nversion: 1\ntitle: P\ncolour: red\n",
+            &[SETTINGS_FILE, DEFAULT_THEME_FILE]
+        ),
+        [found(Code::Unreadable, "preset.yaml")]
+    );
+}
+
+#[test]
+fn a_manifest_names_its_directory_a_version_and_a_title() {
+    assert_eq!(
+        refusal(
+            "id: q\nversion: 0\ntitle: ' '\n",
+            &[SETTINGS_FILE, DEFAULT_THEME_FILE]
+        ),
+        [
+            found(Code::InvalidValue, "preset.yaml:id"),
+            found(Code::InvalidValue, "preset.yaml:version"),
+            found(Code::InvalidValue, "preset.yaml:title"),
+        ]
+    );
+}
+
+#[test]
+fn a_requirement_owned_elsewhere_names_what_it_is_and_who_owns_it() {
+    let manifest = "id: p\nversion: 1\ntitle: P\nowned_elsewhere:\n  - {requirements: [], subject: Logs, owner: Team}\n  - {requirements: [R-1], subject: ' ', owner: Team}\n  - {requirements: [R-2], subject: Logs, owner: ''}\n  - {requirements: [R-3], subject: Logs, owner: Team}\n";
+    assert_eq!(
+        refusal(manifest, &[SETTINGS_FILE, DEFAULT_THEME_FILE]),
+        [
+            found(Code::InvalidValue, "preset.yaml:owned_elsewhere[0]"),
+            found(Code::InvalidValue, "preset.yaml:owned_elsewhere[1]"),
+            found(Code::InvalidValue, "preset.yaml:owned_elsewhere[2]"),
+        ]
+    );
+}
+
+#[test]
+fn a_requirement_is_owned_elsewhere_once() {
+    let manifest = "id: p\nversion: 1\ntitle: P\nowned_elsewhere:\n  - {requirements: [R-1], subject: Logs, owner: Team}\n  - {requirements: [R-1], subject: Mail, owner: Other}\n";
+    assert_eq!(
+        refusal(manifest, &[SETTINGS_FILE, DEFAULT_THEME_FILE]),
+        [found(Code::DuplicateId, "preset.yaml:owned_elsewhere")]
+    );
+}
+
+#[test]
+fn a_preset_has_one_settings_document_in_settings_yaml() {
+    assert_eq!(
+        refusal(MANIFEST, &[DEFAULT_THEME_FILE]),
+        [found(Code::DanglingReference, "settings.yaml")]
+    );
+    const MISPLACED: PresetFile = PresetFile {
+        path: "themes/settings.yaml",
+        ..SETTINGS_FILE
+    };
+    assert_eq!(
+        refusal(MANIFEST, &[MISPLACED, DEFAULT_THEME_FILE]),
+        [found(Code::InvalidValue, "themes/settings.yaml")]
+    );
+    assert_eq!(
+        refusal(MANIFEST, &[SETTINGS_FILE, DEFAULT_THEME_FILE, MISPLACED]),
+        [
+            found(Code::InvalidValue, "themes/settings.yaml"),
+            found(Code::DuplicateId, "themes/settings.yaml"),
+        ]
+    );
+}
+
+/// An unreadable settings file is reported as itself, not as missing.
+#[test]
+fn a_problem_with_a_whole_document_is_placed_at_its_file() {
+    const BROKEN: PresetFile = PresetFile {
+        yaml: "time_zone: [",
+        ..SETTINGS_FILE
+    };
+    assert_eq!(
+        refusal(MANIFEST, &[BROKEN, DEFAULT_THEME_FILE]),
+        [found(Code::Unreadable, "settings.yaml")]
+    );
+    const THEME: PresetFile = PresetFile {
+        kind: ConfigKind::Theme,
+        path: "themes/other.yaml",
+        yaml: "id: [",
+    };
+    const DASHBOARD: PresetFile = PresetFile {
+        kind: ConfigKind::Dashboard,
+        path: "dashboards/d.yaml",
+        yaml: "id: [",
+    };
+    assert_eq!(
+        refusal(
+            MANIFEST,
+            &[SETTINGS_FILE, DEFAULT_THEME_FILE, THEME, DASHBOARD]
+        ),
+        [
+            found(Code::Unreadable, "themes/other.yaml"),
+            found(Code::Unreadable, "dashboards/d.yaml"),
+        ]
+    );
+}
+
+#[test]
+fn two_documents_of_a_kind_may_not_share_an_id() {
+    const WIDGET: PresetFile = PresetFile {
+        kind: ConfigKind::Widget,
+        path: "widgets/turnout-by-group.yaml",
+        yaml: include_str!("fixtures/turnout_by_group.yaml"),
+    };
+    const DASHBOARD: PresetFile = PresetFile {
+        kind: ConfigKind::Dashboard,
+        path: "dashboards/d.yaml",
+        yaml: "id: d\ntitle: D\nrequirements: [SW-F-0260, SW-F-0372]\nlayout: [{widget: turnout-by-group, width: 12}]\n",
+    };
+    let problems = refusal(
+        MANIFEST,
+        &[
+            SETTINGS_FILE,
+            DEFAULT_THEME_FILE,
+            DEFAULT_THEME_FILE,
+            WIDGET,
+            WIDGET,
+            DASHBOARD,
+            DASHBOARD,
+        ],
+    );
+    for path in [
+        "themes/default.yaml:id",
+        "widgets/turnout-by-group.yaml:id",
+        "dashboards/d.yaml:id",
+    ] {
+        assert!(
+            problems.contains(&found(Code::DuplicateId, path)),
+            "{path}: {problems:?}"
+        );
+    }
+}
+
+/// Each kind of document is named after its id.
+#[test]
+fn a_theme_or_dashboard_is_named_after_its_id() {
+    const THEME: PresetFile = PresetFile {
+        kind: ConfigKind::Theme,
+        path: "themes/other.yaml",
+        yaml: "id: plain\n",
+    };
+    const DASHBOARD: PresetFile = PresetFile {
+        kind: ConfigKind::Dashboard,
+        path: "dashboards/other.yaml",
+        yaml: "id: d\ntitle: D\nrequirements: [SW-F-0260, SW-F-0372]\nlayout: [{widget: turnout-by-group, width: 12}]\n",
+    };
+    const WIDGET: PresetFile = PresetFile {
+        kind: ConfigKind::Widget,
+        path: "widgets/turnout-by-group.yaml",
+        yaml: include_str!("fixtures/turnout_by_group.yaml"),
+    };
+    let problems = refusal(
+        MANIFEST,
+        &[SETTINGS_FILE, DEFAULT_THEME_FILE, THEME, WIDGET, DASHBOARD],
+    );
+    assert_eq!(
+        problems,
+        [
+            found(Code::InvalidValue, "themes/other.yaml:id"),
+            found(Code::InvalidValue, "dashboards/other.yaml:id"),
+        ]
+    );
 }
