@@ -101,8 +101,9 @@ preset and version. This is also how an event opts in. Settings are
 The beat task `refresh_monitoring_snapshots` runs every
 `monitoring_snapshot_interval` seconds (default 30) on the beat queue. It
 prunes old login-counter receipts and sends one
-`refresh_monitoring_event_snapshot` task per `CONFIGURED` event to the
-reports queue. That task takes `PgLock("monitoring_snapshot-<tenant>-<event>")`
+`refresh_monitoring_event_snapshot` task per `CONFIGURED` event to its own
+`<slug>_monitoring_queue` (`Queue::Monitoring`), so a long pass never delays
+reports. That task takes `PgLock("monitoring_snapshot-<tenant>-<event>")`
 and skips the pass if another holds it.
 
 A pass of an event:
