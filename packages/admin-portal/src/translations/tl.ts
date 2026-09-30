@@ -2874,14 +2874,17 @@ const tagalogTranslation: TranslationType = {
                 unknown: "May nangyaring mali. Subukan muli mamaya.",
             },
             header: {
-                dashboard: "Dashboard",
-                widgets_one: "{{count}} widget",
-                widgets_other: "{{count}} widget",
+                dashboard: "Seksyon",
                 updated: "Na-update {{time}} ({{timeZone}})",
                 notUpdated: "Hindi pa nabibilang",
                 refresh: "bawat {{seconds}} s",
                 export: "I-export",
                 editDashboard: "I-edit ang dashboard",
+                preset: "Preset ng dashboard",
+                reload: "Tingnan ang bagong bilang",
+            },
+            footer: {
+                dataThrough: "Datos hanggang {{time}} ({{timeZone}})",
             },
             selectors: {
                 region: "Rehiyon",

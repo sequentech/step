@@ -2835,14 +2835,17 @@ const englishTranslation = {
                 unknown: "Something went wrong. Try again later.",
             },
             header: {
-                dashboard: "Dashboard",
-                widgets_one: "{{count}} widget",
-                widgets_other: "{{count}} widgets",
+                dashboard: "Section",
                 updated: "Updated {{time}} ({{timeZone}})",
                 notUpdated: "Not counted yet",
                 refresh: "every {{seconds}} s",
                 export: "Export",
                 editDashboard: "Edit dashboard",
+                preset: "Dashboard preset",
+                reload: "Check for new figures",
+            },
+            footer: {
+                dataThrough: "Data through {{time}} ({{timeZone}})",
             },
             selectors: {
                 region: "Region",

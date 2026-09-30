@@ -2866,14 +2866,17 @@ const dutchTranslation: TranslationType = {
                 unknown: "Er ging iets mis. Probeer het later opnieuw.",
             },
             header: {
-                dashboard: "Dashboard",
-                widgets_one: "{{count}} widget",
-                widgets_other: "{{count}} widgets",
+                dashboard: "Sectie",
                 updated: "Bijgewerkt {{time}} ({{timeZone}})",
                 notUpdated: "Nog niet geteld",
                 refresh: "elke {{seconds}} s",
                 export: "Exporteren",
                 editDashboard: "Dashboard bewerken",
+                preset: "Dashboardvoorinstelling",
+                reload: "Nieuwe cijfers ophalen",
+            },
+            footer: {
+                dataThrough: "Gegevens tot {{time}} ({{timeZone}})",
             },
             selectors: {
                 region: "Regio",

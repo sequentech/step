@@ -2865,14 +2865,17 @@ const spanishTranslation: TranslationType = {
                 unknown: "Algo ha fallado. Inténtelo más tarde.",
             },
             header: {
-                dashboard: "Panel",
-                widgets_one: "{{count}} widget",
-                widgets_other: "{{count}} widgets",
+                dashboard: "Sección",
                 updated: "Actualizado {{time}} ({{timeZone}})",
                 notUpdated: "Aún sin recuento",
                 refresh: "cada {{seconds}} s",
                 export: "Exportar",
                 editDashboard: "Editar panel",
+                preset: "Preajuste de paneles",
+                reload: "Buscar cifras nuevas",
+            },
+            footer: {
+                dataThrough: "Datos hasta {{time}} ({{timeZone}})",
             },
             selectors: {
                 region: "Región",

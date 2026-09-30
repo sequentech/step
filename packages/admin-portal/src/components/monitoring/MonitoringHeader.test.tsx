@@ -18,12 +18,10 @@ jest.mock("react-i18next", () => ({
 function header(refreshMs: number, snapshot: MonitoringHeaderProps["snapshot"] = null) {
     render(
         <MonitoringHeader
-            title="Overview"
+            presetTitle="COMELEC overseas voting"
             dashboards={[{id: "overview", title: "Overview", requirements: [], widget_count: 1}]}
             dashboardId="overview"
             onSelectDashboard={jest.fn()}
-            widgetCount={1}
-            requirements={[]}
             snapshot={snapshot}
             timeZone="Asia/Manila"
             refreshMs={refreshMs}
@@ -40,6 +38,12 @@ describe("MonitoringHeader", () => {
     it("shows the default interval when given it", () => {
         header(30_000)
         expect(screen.getByText(/monitoring\.header\.refresh \{"seconds":30\}/)).toBeInTheDocument()
+    })
+
+    it("names the preset the dashboards came from", () => {
+        header(30_000)
+        expect(screen.getByText("COMELEC overseas voting")).toBeInTheDocument()
+        expect(screen.getByText("monitoring.header.preset")).toBeInTheDocument()
     })
 
     it("names the time zone the update time is shown in", () => {

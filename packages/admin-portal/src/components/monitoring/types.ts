@@ -192,6 +192,8 @@ export interface MonitoringSelector {
 export interface MonitoringWidget {
     id: string
     title: string
+    /** A line under the title: what the figures are taken of. */
+    description?: string
     source: EDataSource | string
     requirements?: string[]
     follows?: EScopeSelector[]
@@ -211,6 +213,8 @@ export interface MonitoringLayoutItem {
 export interface MonitoringDashboard {
     id: string
     title: string
+    /** A line under the dashboard's heading. */
+    description?: string
     requirements?: string[]
     order?: number
     selectors?: EScopeSelector[]
@@ -241,8 +245,16 @@ export interface MonitoringDashboardSummary {
     widget_count: number
 }
 
+/** The preset an event's configuration was last reset to. */
+export interface MonitoringPresetName {
+    id: string
+    title: string
+}
+
 export interface MonitoringListDashboardsResponse {
     mode: EMonitoringMode
+    /** Absent before a reset, and from older servers. */
+    preset?: MonitoringPresetName | null
     dashboards: MonitoringDashboardSummary[]
     snapshot?: MonitoringSnapshot | null
     /** Seconds between two snapshot passes; absent from older servers. */

@@ -109,7 +109,7 @@ type Story = StoryObj<Scenario>
 export const Configured: Story = {
     play: async ({canvasElement, args}) => {
         const canvas = within(canvasElement)
-        await expect(await canvas.findByRole("combobox", {name: "Dashboard"})).toHaveTextContent(
+        await expect(await canvas.findByRole("combobox", {name: "Section"})).toHaveTextContent(
             "Monitoring overview"
         )
         expect(canvas.queryByText(LEGACY)).toBeNull()
@@ -161,7 +161,7 @@ export const ViewerWithoutConfigure: Story = {
     args: {role: EStoryPermissions.ADMIN_LIGHT},
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
-        await canvas.findByRole("combobox", {name: "Dashboard"})
+        await canvas.findByRole("combobox", {name: "Section"})
         expect(canvas.queryByRole("button", {name: "Edit dashboard"})).toBeNull()
     },
 }
@@ -170,7 +170,7 @@ export const LockedDownEvent: Story = {
     args: {lock: EMonitoringLock.LOCKED_DOWN},
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
-        await canvas.findByRole("combobox", {name: "Dashboard"})
+        await canvas.findByRole("combobox", {name: "Section"})
         expect(canvas.queryByRole("button", {name: "Edit dashboard"})).toBeNull()
     },
 }
@@ -179,7 +179,7 @@ export const LockNotKnownYet: Story = {
     args: {lock: EMonitoringLock.UNKNOWN},
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
-        await canvas.findByRole("combobox", {name: "Dashboard"})
+        await canvas.findByRole("combobox", {name: "Section"})
         // Until the event says whether it is locked down, nothing offers a change.
         expect(canvas.queryByRole("button", {name: "Edit dashboard"})).toBeNull()
     },

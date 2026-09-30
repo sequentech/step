@@ -21,7 +21,7 @@ type Story = StoryObj<typeof meta>
 export const ChooseDashboard: Story = {
     play: async ({canvasElement, args}) => {
         const canvas = within(canvasElement)
-        const select = canvas.getByRole("combobox", {name: "Dashboard"})
+        const select = canvas.getByRole("combobox", {name: "Section"})
         await expect(select).toHaveTextContent("Monitoring overview")
         await userEvent.click(select)
         await userEvent.click(

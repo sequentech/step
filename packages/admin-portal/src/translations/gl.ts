@@ -2863,14 +2863,17 @@ const galegoTranslation: TranslationType = {
                 unknown: "Algo fallou. Ténteo máis tarde.",
             },
             header: {
-                dashboard: "Panel",
-                widgets_one: "{{count}} widget",
-                widgets_other: "{{count}} widgets",
+                dashboard: "Sección",
                 updated: "Actualizado {{time}} ({{timeZone}})",
                 notUpdated: "Aínda sen reconto",
                 refresh: "cada {{seconds}} s",
                 export: "Exportar",
                 editDashboard: "Editar o panel",
+                preset: "Axuste predefinido de paneis",
+                reload: "Buscar cifras novas",
+            },
+            footer: {
+                dataThrough: "Datos ata {{time}} ({{timeZone}})",
             },
             selectors: {
                 region: "Rexión",

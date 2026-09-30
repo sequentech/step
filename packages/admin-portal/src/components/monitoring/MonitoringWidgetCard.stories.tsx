@@ -179,7 +179,7 @@ export const Rendered: Story = {
         expect(JSON.stringify(graphql.client.cache.extract())).not.toContain(
             "monitoringRenderWidget"
         )
-        await expect(canvas.getByText("Voter turnout · SW-F-0260 · SW-F-0372")).toBeVisible()
+        await expect(canvas.getByText("Percentages use the selected denominator.")).toBeVisible()
         // The dashboard's value for the widget, sent with the scope and snapshot.
         await expect(canvas.getByRole("combobox", {name: "Show"})).toHaveTextContent(
             "Voted of pre-enrolled"

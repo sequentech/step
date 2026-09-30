@@ -70,7 +70,8 @@ export function MonitoringWidgetSelectors({
                         label={selector.label}
                         value={value}
                         onChange={(event) => onChange(name, event.target.value)}
-                        sx={{minWidth: 140}}
+                        fullWidth={false}
+                        sx={{width: {xs: "100%", sm: 200}}}
                     >
                         {options.map((option) => (
                             <MenuItem key={option.value} value={option.value}>

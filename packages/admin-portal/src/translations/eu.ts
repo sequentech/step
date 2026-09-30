@@ -2854,14 +2854,17 @@ const basqueTranslation: TranslationType = {
                 unknown: "Zerbaitek huts egin du. Saiatu geroago.",
             },
             header: {
-                dashboard: "Panela",
-                widgets_one: "Widget {{count}}",
-                widgets_other: "{{count}} widget",
+                dashboard: "Atala",
                 updated: "Eguneratua: {{time}} ({{timeZone}})",
                 notUpdated: "Oraindik zenbatu gabe",
                 refresh: "{{seconds}} s-ro",
                 export: "Esportatu",
                 editDashboard: "Editatu panela",
+                preset: "Panelen aurrezarpena",
+                reload: "Bilatu datu berriak",
+            },
+            footer: {
+                dataThrough: "Datuak {{time}} arte ({{timeZone}})",
             },
             selectors: {
                 region: "Eskualdea",

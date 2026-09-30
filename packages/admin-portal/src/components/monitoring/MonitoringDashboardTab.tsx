@@ -92,6 +92,7 @@ export function MonitoringDashboardTab({
                 electionEventId={electionEventId as string}
                 electionId={electionId}
                 dashboards={list.dashboards}
+                presetTitle={list.preset?.title}
                 configure={configure}
                 refreshSeconds={list.refresh_seconds}
             />

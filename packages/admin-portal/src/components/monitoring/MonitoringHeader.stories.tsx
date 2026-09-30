@@ -5,26 +5,21 @@ import type {Meta, StoryObj} from "@storybook/react-vite"
 import {expect, fn, userEvent, within} from "storybook/test"
 import {MonitoringHeader} from "./MonitoringHeader"
 import {MONITORING_DEFAULT_REFRESH_MS} from "./types"
-import {
-    MONITORING_SNAPSHOT,
-    listDashboardsResponse,
-    overviewDashboard,
-} from "./__stories__/MonitoringFixture"
+import {MONITORING_SNAPSHOT, listDashboardsResponse} from "./__stories__/MonitoringFixture"
 
 const meta = {
     title: "Admin/Monitoring/MonitoringHeader",
     component: MonitoringHeader,
     args: {
-        title: "Monitoring overview",
+        presetTitle: "COMELEC overseas voting",
         dashboards: listDashboardsResponse().dashboards,
         dashboardId: "overview",
         onSelectDashboard: fn(),
-        widgetCount: 5,
-        requirements: overviewDashboard.requirements ?? [],
         snapshot: MONITORING_SNAPSHOT,
         timeZone: "Asia/Manila",
         refreshMs: MONITORING_DEFAULT_REFRESH_MS,
         onExport: fn(),
+        onRefresh: fn(),
     },
 } satisfies Meta<typeof MonitoringHeader>
 export default meta
@@ -33,12 +28,14 @@ type Story = StoryObj<typeof meta>
 export const Viewer: Story = {
     play: async ({canvasElement, args}) => {
         const canvas = within(canvasElement)
+        await expect(canvas.getByText("COMELEC overseas voting")).toBeVisible()
+        await expect(canvas.getByRole("combobox", {name: "Section"})).toHaveTextContent(
+            "Monitoring overview"
+        )
         // The snapshot's time in the event's zone, not the viewer's.
-        await expect(
-            canvas.getByText(
-                "5 widgets · SW-F-0247, SW-F-0279, SW-F-0365 · Updated Jan 15, 2026, 8:00 PM · every 30 s"
-            )
-        ).toBeVisible()
+        await expect(canvas.getByText(/^Updated 8:00 PM\b.* · every 30 s$/)).toBeVisible()
+        await userEvent.click(canvas.getByRole("button", {name: "Check for new figures"}))
+        await expect(args.onRefresh).toHaveBeenCalled()
         expect(canvas.queryByRole("button", {name: "Edit dashboard"})).toBeNull()
         await userEvent.click(canvas.getByRole("button", {name: "Export"}))
         await expect(args.onExport).toHaveBeenCalled()
@@ -54,10 +51,11 @@ export const Configurer: Story = {
 }
 
 export const NotCountedYet: Story = {
-    args: {snapshot: null, onExport: undefined, widgetCount: 1, requirements: []},
+    args: {snapshot: null, onExport: undefined, presetTitle: null},
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
-        await expect(canvas.getByText("1 widget · Not counted yet · every 30 s")).toBeVisible()
+        await expect(canvas.getByText("Not counted yet · every 30 s")).toBeVisible()
+        expect(canvas.queryByText("Dashboard preset")).toBeNull()
         await expect(canvas.getByRole("button", {name: "Export"})).toBeDisabled()
     },
 }
@@ -66,13 +64,9 @@ export const ServerInterval: Story = {
     args: {
         snapshot: null,
         onExport: undefined,
-        widgetCount: 1,
-        requirements: [],
         refreshMs: 120_000,
     },
     play: async ({canvasElement}) => {
-        await expect(
-            within(canvasElement).getByText("1 widget · Not counted yet · every 120 s")
-        ).toBeVisible()
+        await expect(within(canvasElement).getByText("Not counted yet · every 120 s")).toBeVisible()
     },
 }

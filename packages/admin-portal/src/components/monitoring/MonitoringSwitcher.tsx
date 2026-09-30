@@ -12,7 +12,7 @@ export interface MonitoringSwitcherProps {
     onChange: (dashboardId: string) => void
 }
 
-/** The dashboard ▾ menu: every dashboard of the event, in the configured order. */
+/** The Section ▾ menu: every dashboard of the event, in the configured order. */
 export function MonitoringSwitcher({dashboards, dashboardId, onChange}: MonitoringSwitcherProps) {
     const {t} = useTranslation()
     return (
@@ -23,7 +23,8 @@ export function MonitoringSwitcher({dashboards, dashboardId, onChange}: Monitori
             label={t("monitoring.header.dashboard")}
             value={dashboardId}
             onChange={(event) => onChange(event.target.value)}
-            sx={{minWidth: 220, maxWidth: "100%"}}
+            fullWidth={false}
+            sx={{width: {xs: "100%", md: 220}}}
         >
             {dashboards.map((dashboard) => (
                 <MenuItem key={dashboard.id} value={dashboard.id}>

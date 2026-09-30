@@ -2879,14 +2879,17 @@ const catalanTranslation: TranslationType = {
                 unknown: "Alguna cosa ha fallat. Torneu-ho a provar més tard.",
             },
             header: {
-                dashboard: "Tauler",
-                widgets_one: "{{count}} giny",
-                widgets_other: "{{count}} ginys",
+                dashboard: "Secció",
                 updated: "Actualitzat {{time}} ({{timeZone}})",
                 notUpdated: "Encara sense recompte",
                 refresh: "cada {{seconds}} s",
                 export: "Exportar",
                 editDashboard: "Editar el tauler",
+                preset: "Valor predefinit de taulers",
+                reload: "Cerca xifres noves",
+            },
+            footer: {
+                dataThrough: "Dades fins a {{time}} ({{timeZone}})",
             },
             selectors: {
                 region: "Regió",

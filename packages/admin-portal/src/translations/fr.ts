@@ -2884,14 +2884,17 @@ const frenchTranslation: TranslationType = {
                 unknown: "Une erreur s'est produite. Réessayez plus tard.",
             },
             header: {
-                dashboard: "Tableau de bord",
-                widgets_one: "{{count}} widget",
-                widgets_other: "{{count}} widgets",
+                dashboard: "Section",
                 updated: "Mis à jour {{time}} ({{timeZone}})",
                 notUpdated: "Pas encore compté",
                 refresh: "toutes les {{seconds}} s",
                 export: "Exporter",
                 editDashboard: "Modifier le tableau de bord",
+                preset: "Préréglage de tableaux de bord",
+                reload: "Chercher de nouveaux chiffres",
+            },
+            footer: {
+                dataThrough: "Données jusqu'au {{time}} ({{timeZone}})",
             },
             selectors: {
                 region: "Région",

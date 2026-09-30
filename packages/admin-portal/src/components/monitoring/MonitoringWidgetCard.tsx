@@ -6,6 +6,7 @@ import {
     Box,
     Card,
     CardContent,
+    Divider,
     LinearProgress,
     Skeleton,
     Stack,
@@ -159,9 +160,6 @@ export function MonitoringWidgetCard({cell, context}: MonitoringWidgetCardProps)
     const hasData = Boolean(render?.tables?.some((query) => query.table) || render?.table)
     const title = widget?.title ?? cell.widgetId
     const height = widget?.height ?? DEFAULT_WIDGET_HEIGHT
-    const sourceLabel = widget
-        ? t(`monitoring.sources.${widget.source}`, {defaultValue: widget.source})
-        : undefined
     const canConfigure = context.configure === EMonitoringCapability.GRANTED
 
     const content = () => {
@@ -236,17 +234,14 @@ export function MonitoringWidgetCard({cell, context}: MonitoringWidgetCardProps)
         <Card variant="outlined" sx={{height: "100%"}} data-widget-id={cell.widgetId}>
             <CardContent>
                 <Stack spacing={1}>
-                    <Stack direction="row" alignItems="flex-start" spacing={1}>
-                        <Box sx={{flexGrow: 1, minWidth: 0}}>
-                            <Typography variant="h6" component="h3">
-                                {title}
-                            </Typography>
-                            <Typography variant="body2" color="text.secondary">
-                                {[sourceLabel, ...(widget?.requirements ?? [])]
-                                    .filter(Boolean)
-                                    .join(" · ")}
-                            </Typography>
-                        </Box>
+                    <Stack direction="row" alignItems="center" spacing={1}>
+                        <Typography
+                            variant="subtitle1"
+                            component="h3"
+                            sx={{flexGrow: 1, minWidth: 0, fontWeight: 600, color: "brandColor"}}
+                        >
+                            {title}
+                        </Typography>
                         <MonitoringWidgetMenu
                             widgetTitle={title}
                             onConfigure={
@@ -271,6 +266,12 @@ export function MonitoringWidgetCard({cell, context}: MonitoringWidgetCardProps)
                             }
                         />
                     </Stack>
+                    <Divider />
+                    {widget?.description ? (
+                        <Typography variant="caption" color="text.secondary">
+                            {widget.description}
+                        </Typography>
+                    ) : null}
                     <MonitoringWidgetSelectors
                         widgetId={cell.key}
                         selectors={selectors}
