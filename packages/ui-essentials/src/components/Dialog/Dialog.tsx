@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {PropsWithChildren, useEffect, useId, useLayoutEffect, useRef} from "react"
+import React, {PropsWithChildren, useEffect, useId, useRef} from "react"
 import DialogTitle from "@mui/material/DialogTitle"
 import MaterialDialog from "@mui/material/Dialog"
 import {Backdrop, Box, Button, Breakpoint} from "@mui/material"
@@ -18,41 +18,11 @@ import {styled} from "@mui/material/styles"
 import Icon from "../Icon/Icon"
 import IconButton from "../IconButton/IconButton"
 import {useTranslation} from "react-i18next"
+import {useInertBackground} from "../../services/useInertBackground"
 
 const StyledBackdrop = styled(Backdrop)`
     opacity: 0.5 !important;
 `
-
-const inertBackgrounds = new WeakMap<Element, {count: number; wasInert: boolean}>()
-
-const makeBackgroundInert = (modal: HTMLElement) => {
-    const siblings = Array.from(modal.parentElement?.children ?? []).filter(
-        (element) =>
-            element !== modal &&
-            !element.matches(".MuiModal-hidden, .MuiModal-root:not([aria-hidden='true'])")
-    )
-    siblings.forEach((element) => {
-        const state = inertBackgrounds.get(element) ?? {
-            count: 0,
-            wasInert: element.hasAttribute("inert"),
-        }
-        state.count += 1
-        inertBackgrounds.set(element, state)
-        element.setAttribute("inert", "")
-    })
-    return () => {
-        siblings.forEach((element) => {
-            const state = inertBackgrounds.get(element)
-            if (!state || --state.count > 0) {
-                return
-            }
-            if (!state.wasInert) {
-                element.removeAttribute("inert")
-            }
-            inertBackgrounds.delete(element)
-        })
-    }
-}
 
 const getDialogTabStops = (root: HTMLElement): HTMLElement[] => {
     const candidates = Array.from(
@@ -164,15 +134,7 @@ const Dialog: React.FC<DialogProps> = ({
     const titleId = `${generatedId}-title`
     const errorId = `${generatedId}-error`
     const paperRef = useRef<HTMLDivElement>(null)
-    const [modalRoot, setModalRoot] = React.useState<HTMLDivElement | null>(null)
-
-    // aria-hidden alone does not prevent focus. Release inert before MUI's
-    // passive focus-restoration effect, including when dialogs overlap.
-    useLayoutEffect(() => {
-        if (open && modalRoot) {
-            return makeBackgroundInert(modalRoot)
-        }
-    }, [open, modalRoot])
+    const setModalRoot = useInertBackground(open)
 
     const handleTabKey = (event: React.KeyboardEvent<HTMLDivElement>) => {
         const paper = paperRef.current

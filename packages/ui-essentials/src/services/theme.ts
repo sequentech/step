@@ -481,6 +481,14 @@ let MuiButtonBase: Components["MuiButtonBase"] = {
 }
 
 let MuiMenu: Components["MuiMenu"] = {
+    styleOverrides: {
+        root: {
+            // Menus dismiss on Tab; their empty modal focus guards are redundant.
+            '& > [data-testid="sentinelStart"], & > [data-testid="sentinelEnd"]': {
+                display: "none",
+            },
+        },
+    },
     defaultProps: {
         PaperProps: {
             style: {

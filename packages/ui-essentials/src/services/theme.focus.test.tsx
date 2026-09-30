@@ -130,3 +130,45 @@ it("names the language menu when its responsive text is hidden", () => {
     label.style.display = "none"
     expect(screen.getByRole("button")).toHaveAccessibleName("language")
 })
+
+it("excludes the language menu background from focus and restores it on dismissal", async () => {
+    const {container, unmount} = render(
+        <ThemeProvider theme={theme}>
+            <LanguageMenu languagesList={["en", "es"]} />
+            <button>Background action</button>
+        </ThemeProvider>
+    )
+    const trigger = screen.getByRole("button", {name: "language"})
+    // MUI requires an on-screen anchor; JSDOM has no layout.
+    trigger.getBoundingClientRect = () => new DOMRect(0, 0, 100, 30)
+    for (const key of ["Escape", "Tab", "Shift+Tab"]) {
+        await act(async () => trigger.focus())
+        fireEvent.click(trigger)
+        const menu = screen.getByRole("menu")
+        expect(container).toHaveAttribute("aria-hidden", "true")
+        expect(container).toHaveAttribute("inert")
+        expect(menu.closest("[inert]")).toBeNull()
+        const region = screen.getByRole("region", {name: "language"})
+        expect(region).toContainElement(menu)
+        for (const guard of Array.from(region.querySelectorAll('[data-testid^="sentinel"]'))) {
+            expect(getComputedStyle(guard).display).toBe("none")
+        }
+        const options = screen.getAllByRole("menuitem")
+        expect(options[0]).toHaveFocus()
+        fireEvent.keyDown(options[0], {key: "ArrowDown"})
+        expect(options[1]).toHaveFocus()
+        fireEvent.keyDown(options[1], {key: "ArrowDown"})
+        expect(options[0]).toHaveFocus()
+        fireEvent.keyDown(options[0], {
+            key: key === "Shift+Tab" ? "Tab" : key,
+            shiftKey: key === "Shift+Tab",
+        })
+        expect(container).not.toHaveAttribute("inert")
+        expect(container).not.toHaveAttribute("aria-hidden")
+        expect(trigger).toHaveFocus()
+    }
+    fireEvent.click(trigger)
+    expect(container).toHaveAttribute("inert")
+    unmount()
+    expect(container).not.toHaveAttribute("inert")
+})
