@@ -319,6 +319,10 @@ services:
     image: 581718213778.dkr.ecr.us-east-1.amazonaws.com/harvest:STEP_VERSION
     platform: linux/amd64
     environment:
+      # Monitoring snapshot cadence, the same on beat, windmill and harvest:
+      # seconds between passes (5..3600), and between full voter reads.
+      MONITORING_SNAPSHOT_INTERVAL_SECONDS: ${MONITORING_SNAPSHOT_INTERVAL_SECONDS:-30}
+      MONITORING_VOTER_FULL_PASS_SECONDS: ${MONITORING_VOTER_FULL_PASS_SECONDS:-300}
       RUST_BACKTRACE: ${RUST_BACKTRACE}
       SUPER_ADMIN_TENANT_ID: ${SUPER_ADMIN_TENANT_ID}
       LOG_LEVEL: ${LOG_LEVEL}
@@ -557,6 +561,10 @@ services:
       configure-minio:
         condition: service_completed_successfully
     environment:
+      # Monitoring snapshot cadence, the same on beat, windmill and harvest:
+      # seconds between passes (5..3600), and between full voter reads.
+      MONITORING_SNAPSHOT_INTERVAL_SECONDS: ${MONITORING_SNAPSHOT_INTERVAL_SECONDS:-30}
+      MONITORING_VOTER_FULL_PASS_SECONDS: ${MONITORING_VOTER_FULL_PASS_SECONDS:-300}
       RUSTFLAGS: ${RUSTFLAGS}
       RUST_BACKTRACE: ${RUST_BACKTRACE}
       LOG_LEVEL: ${LOG_LEVEL}
@@ -640,6 +648,10 @@ services:
       rabbitmq:
         condition: service_healthy
     environment:
+      # Monitoring snapshot cadence, the same on beat, windmill and harvest:
+      # seconds between passes (5..3600), and between full voter reads.
+      MONITORING_SNAPSHOT_INTERVAL_SECONDS: ${MONITORING_SNAPSHOT_INTERVAL_SECONDS:-30}
+      MONITORING_VOTER_FULL_PASS_SECONDS: ${MONITORING_VOTER_FULL_PASS_SECONDS:-300}
       RUSTFLAGS: ${RUSTFLAGS}
       LOG_LEVEL: ${LOG_LEVEL}
       CARGO_TERM_COLOR: ${CARGO_TERM_COLOR}
