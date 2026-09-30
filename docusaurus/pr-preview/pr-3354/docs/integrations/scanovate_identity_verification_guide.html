@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Scanovate Identity Verification | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-3354/docs/integrations/scanovate_identity_verification_guide"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Scanovate Identity Verification | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-3354/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3354/docs/integrations/scanovate_identity_verification_guide"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3354/docs/integrations/scanovate_identity_verification_guide" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3354/docs/integrations/scanovate_identity_verification_guide" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Scanovate Identity Verification","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-3354/docs/integrations/scanovate_identity_verification_guide"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-3354/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/pr-preview/pr-3354/assets/js/runtime~main.a3e2a750.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-3354/assets/js/runtime~main.9053c874.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-3354/assets/js/main.edc3b244.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -67,9 +67,10 @@ short video holding the ID. Each camera frame is analysed in the browser, so the
 voter gets live guidance and photos are taken automatically once the frame is
 good. Keycloak then uploads the capture to the B-Trust session and processes the
 results exactly as in the <code>interactive</code> mode.</p>
-<p>With <code>face-capture</code> set to <code>liveness</code>, the selfie and the video are replaced by
-a liveness check of the on-premise Scanovate Liveness Plus service, see
-<a href="#liveness-face-capture" class="">Liveness face capture</a>.</p>
+<p>With <code>face-capture</code> set to <code>liveness</code>, the face is checked on premise instead:
+the page checks the voter&#x27;s liveness with the Scanovate Liveness Plus API, and
+Keycloak compares their face with the ID with Scanovate Face Match. Only the
+photos of the ID go to B-Trust, see <a href="#liveness-face-capture" class="">Liveness face capture</a>.</p>
 <!-- -->
 <div class="theme-admonition theme-admonition-warning admonition_xJq3 alert alert--warning"><div class="admonitionHeading_Gvgb"><span class="admonitionIcon_Rf37"><svg viewBox="0 0 16 16"><path fill-rule="evenodd" d="M8.893 1.5c-.183-.31-.52-.5-.887-.5s-.703.19-.886.5L.138 13.499a.98.98 0 0 0 0 1.001c.193.31.53.501.886.501h13.964c.367 0 .704-.19.877-.5a1.03 1.03 0 0 0 .01-1.002L8.893 1.5zm.133 11.497H6.987v-2.003h2.039v2.003zm0-3.004H6.987V5.987h2.039v4.006z"></path></svg></span>Proposed endpoint</div><div class="admonitionContent_BuS1"><p>B-Trust v3.8.2 doesn&#x27;t document a way to submit media captured outside its own
 flow UI. The upload endpoint below is a proposal pending Scanovate&#x27;s
@@ -79,7 +80,7 @@ confirms the endpoint. <code>interactive</code> stays the default.</p></div></di
 <p><code>POST {base-url}/api/v3/mobile_interaction/{processId}/media</code>, with
 <code>Authorization: Bearer &lt;access token&gt;</code> and a <code>multipart/form-data</code> body with
 these parts:</p>
-<table><thead><tr><th>Part</th><th>Content</th></tr></thead><tbody><tr><td><code>front_image</code></td><td>JPEG photo of the front of the document.</td></tr><tr><td><code>back_image</code></td><td>JPEG photo of the back of the document. Only for documents with a back side.</td></tr><tr><td><code>face_image</code></td><td>JPEG selfie, or the picture taken by Liveness Plus with the <code>liveness</code> face capture.</td></tr><tr><td><code>scan_video</code></td><td>WebM or MP4 video of the voter holding the document. Not sent with the <code>liveness</code> face capture.</td></tr></tbody></table>
+<table><thead><tr><th>Part</th><th>Content</th></tr></thead><tbody><tr><td><code>front_image</code></td><td>JPEG photo of the front of the document.</td></tr><tr><td><code>back_image</code></td><td>JPEG photo of the back of the document. Only for documents with a back side.</td></tr><tr><td><code>face_image</code></td><td>JPEG selfie. Not sent with the <code>liveness</code> face capture.</td></tr><tr><td><code>scan_video</code></td><td>WebM or MP4 video of the voter holding the document. Not sent with the <code>liveness</code> face capture.</td></tr></tbody></table>
 <p>The expected response is <code>{&quot;success&quot;: true, &quot;errorCode&quot;: 0}</code>. Like the other
 calls, it&#x27;s retried with exponential backoff on network and server errors, and
 any other response is an internal error that the voter can retry. It doesn&#x27;t
@@ -130,34 +131,47 @@ field and rejected.</li>
 </ul>
 <p>The capture page receives a <code>scanovate</code> attribute with <code>documentType</code>, <code>sides</code>
 (<code>FRONT</code>, and <code>BACK</code> if the document has one), <code>videoSeconds</code>, <code>attemptsLeft</code>,
-<code>maxAttempts</code> and, with the <code>liveness</code> face capture, <code>liveness</code> (<code>url</code>,
-<code>origin</code> and <code>languages</code> of the iframe). The error page also receives <code>attemptsLeft</code>, and the
+<code>maxAttempts</code> and, with the <code>liveness</code> face capture, <code>liveness</code> (<code>url</code> of the
+Liveness Plus API, the one-time <code>token</code> and the <code>caseId</code>). The error page also receives <code>attemptsLeft</code>, and the
 confirmation page receives <code>storedAttributes</code> as a list of <code>{key, value, type}</code>
 and <code>documentType</code>.</p>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="liveness-face-capture">Liveness face capture<a href="#liveness-face-capture" class="hash-link" aria-label="Direct link to Liveness face capture" title="Direct link to Liveness face capture" translate="no">​</a></h3>
-<p>With <code>face-capture</code> set to <code>liveness</code>, the voter&#x27;s face is checked by
-<a class="" href="/docusaurus/pr-preview/pr-3354/docs/integrations/scanovate_on_premise_guide">Liveness Plus</a>, which runs its presentation
-(PAD, including deepfakes) and injection attack detection on the camera frames.
-Our capture page still guides the voter through the photos of the ID, and then
-hands over to the Liveness Plus UI in an iframe, which guides the voter through
-the selfie itself. We can&#x27;t change what it does, but its colours, fonts and
-texts are configured to match ours (see
-<a class="" href="/docusaurus/pr-preview/pr-3354/docs/integrations/scanovate_on_premise_guide#sequent-look">Sequent look</a>).</p>
+<p>With <code>face-capture</code> set to <code>liveness</code>, the voter&#x27;s face is checked on our own
+infrastructure, with the <a class="" href="/docusaurus/pr-preview/pr-3354/docs/integrations/scanovate_on_premise_guide">Scanovate on-premise services</a>:
+Liveness Plus checks that a live person is in front of the camera (presentation
+attacks and deepfakes), and Face Match compares their face with the photo on
+the ID. There is no iframe: our capture page takes every photo and calls the
+Liveness Plus API itself. The voter goes through the same four steps as with
+the <code>photo</code> face capture: the front of the ID, its back, their face and a photo
+holding the ID.</p>
 <!-- -->
 <ul>
-<li class=""><strong>The verdict never comes from the browser.</strong> The iframe&#x27;s <code>postMessage</code>
-only tells the page to move on. Liveness Plus posts the result to Keycloak
+<li class=""><strong>The verdict never comes from the browser.</strong> The answers of the Liveness
+Plus API only guide the page. Liveness Plus posts the result to Keycloak
 server to server, and the capture only goes on if that result is <code>completed</code>
-with <code>liveness_check_passed</code>. Its picture of the voter is then sent to B-Trust
-as <code>face_image</code>, which matches it against the ID. Any <code>face</code> or <code>video</code> part
-posted by the browser is ignored.</li>
+with <code>liveness_check_passed</code> and <code>presentation_attack_check_passed</code>, and
+<code>injection_attack_check_passed</code> isn&#x27;t <code>false</code>. The face Keycloak compares is
+the frame of that result, never one sent by the browser.</li>
+<li class=""><strong>Face comparisons.</strong> Keycloak compares the liveness frame with the front of
+the ID and with the photo holding the ID, with Face Match&#x27;s 1:1 API. Each
+must reach <code>face-match-min-similarity</code> for the document type, and the
+service&#x27;s own threshold. A face that can&#x27;t be found on the ID or in the photo
+holding it fails the attempt with <code>scanovateFaceNotFoundError</code>, a low
+similarity with <code>scanovateFaceMismatchError</code>. The similarities are logged and
+added to the Keycloak event (<code>scanovate_face_match_document</code>,
+<code>scanovate_face_match_holding</code>), never the images.</li>
+<li class=""><strong>Only the ID goes to B-Trust.</strong> Keycloak uploads the photos of the front and
+back of the ID, for OCR and the document authenticity check. The voter&#x27;s face
+and the photo holding the ID stay in our network. So B-Trust has no
+<code>liveness_plus</code> or <code>biometric_match</code> results in this mode: remove rules on
+them from <code>attributes-to-validate</code>, which would otherwise reject every voter.</li>
 <li class=""><strong>One-time tokens.</strong> Each time the capture page is shown, Keycloak issues a
-random token for the iframe and discards the previous one. Tokens live for
+random token for Liveness Plus and discards the previous one. Tokens live for
 30 minutes in Keycloak&#x27;s single-use object store, shared by the cluster, and
 are discarded once the capture is submitted. A token allows 3 liveness
-sessions, so the voter can retry after a camera problem without reloading.
-After that, Liveness Plus reports <code>invalid token</code> (<code>1014</code>) and the page asks
-the voter to start over, which renders it again with a new token.</li>
+sessions, so the voter can retry after a camera problem or an expired session
+without reloading. After that, Liveness Plus rejects the token and the page
+asks the voter to start over, which renders it again with a new token.</li>
 <li class=""><strong>Shared secret.</strong> The token and the case id go through the browser, so they
 alone can&#x27;t authenticate Liveness Plus. Its <code>token_verification_url</code> and
 <code>callback_url</code> carry a <code>secret</code> query parameter that matches
@@ -165,35 +179,34 @@ alone can&#x27;t authenticate Liveness Plus. Its <code>token_verification_url</c
 also answers <code>404</code> for <code>/realms/*/scanovate/liveness/</code>: only Liveness Plus
 calls it, on the internal network. The endpoints aren&#x27;t tied to a realm, so the
 <code>master</code> realm URL serves every realm.</li>
-<li class=""><strong>Failed liveness counts as an attempt</strong> (<code>scanovateLivenessError</code>). If no
-result arrives within <code>liveness-result-wait-seconds</code> of the voter being
-done, the voter gets a retryable <code>scanovateInternalError</code> instead.</li>
-<li class=""><strong>Content Security Policy.</strong> The page allows the Liveness Plus origin in
-<code>frame-src</code>. We serve Liveness Plus on Keycloak&#x27;s own origin under
-<code>/biometric/</code> (<code>liveness-url</code> <code>https://&lt;keycloak host&gt;/biometric</code>, see
+<li class=""><strong>Failed checks count as attempts</strong> (<code>scanovateLivenessError</code>,
+<code>scanovateFaceMismatchError</code>, <code>scanovateFaceNotFoundError</code>). If no liveness
+result arrives within <code>liveness-result-wait-seconds</code> of the voter being done,
+or Face Match can&#x27;t be reached, the voter gets a retryable
+<code>scanovateInternalError</code> instead.</li>
+<li class=""><strong>Same origin.</strong> We serve the Liveness Plus API on Keycloak&#x27;s own origin
+under <code>/biometric/</code> (<code>liveness-url</code> <code>https://&lt;keycloak host&gt;/biometric</code>, see
 <a class="" href="/docusaurus/pr-preview/pr-3354/docs/integrations/scanovate_on_premise_guide#deployment-on-keycloaks-origin">Deployment on Keycloak&#x27;s origin</a>),
-so the iframe is same origin. A separate origin also works, as long as its
-proxy lets Keycloak&#x27;s origin frame it.</li>
-<li class=""><strong>Language.</strong> The iframe asks for the voter&#x27;s language if it&#x27;s listed in
-<code>liveness-languages</code>, and the service default otherwise.</li>
-<li class=""><strong>What leaves our network.</strong> The liveness check runs on our own
-infrastructure, but the photos of the ID and the liveness picture still go to
-B-Trust, for OCR, the document authenticity check and the match against the
-ID. See
-<a class="" href="/docusaurus/pr-preview/pr-3354/docs/integrations/scanovate_on_premise_guide#what-stays-in-our-network">What stays in our network</a>.</li>
+so the page calls it without CORS. Face Match is only called by Keycloak, on
+the internal network (<code>face-match-url</code>).</li>
+<li class=""><strong>No injection attack detection.</strong> Scanovate&#x27;s injection detection needs its
+own capture client, which isn&#x27;t available on premise, so Liveness Plus runs
+in <code>PRESENTATION</code> mode. See
+<a class="" href="/docusaurus/pr-preview/pr-3354/docs/integrations/scanovate_on_premise_guide#injection-attacks">Injection attacks</a>.</li>
 </ul>
 <p>To try it in the dev container, with the mock server standing in for B-Trust,
 see
-<a class="" href="/docusaurus/pr-preview/pr-3354/docs/integrations/scanovate_on_premise_guide#trying-the-flow-from-keycloak">Trying the flow from Keycloak</a>.</p>
+<a class="" href="/docusaurus/pr-preview/pr-3354/docs/integrations/scanovate_on_premise_guide#end-to-end-test">End-to-end test</a>.</p>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="configuration">Configuration<a href="#configuration" class="hash-link" aria-label="Direct link to Configuration" title="Direct link to Configuration" translate="no">​</a></h2>
 <p>Add a <code>scanovate-authenticator</code> execution to the registration flow, after the
 steps that collect the document number and type, and configure it:</p>
-<table><thead><tr><th>Key</th><th>Description</th><th>Default</th></tr></thead><tbody><tr><td><code>base-url</code></td><td>B-Trust API base URL.</td><td></td></tr><tr><td><code>client-id</code> / <code>client-secret</code></td><td>OAuth credentials provided by Scanovate.</td><td></td></tr><tr><td><code>flow-id</code></td><td>Numeric id of the B-Trust flow, configured in the B-Trust Flow Builder.</td><td></td></tr><tr><td><code>execution-mode</code></td><td><code>interactive</code> redirects the voter. <code>embedded</code> captures the media in Keycloak&#x27;s own page and uploads it (see <a href="#embedded-capture" class="">Embedded capture</a>). <code>auto-complete</code> fetches results right away and is only for mock servers.</td><td><code>interactive</code></td></tr><tr><td><code>save-option</code></td><td>Empty (account default), <code>save</code> or <code>do_not_save</code>.</td><td>empty</td></tr><tr><td><code>link-params</code></td><td>JSON mapping B-Trust flow parameters to auth notes, e.g. <code>{&quot;country&quot;: &quot;country&quot;}</code>.</td><td><code>{}</code></td></tr><tr><td><code>doc-id</code></td><td>Auth note with the document number, sent as <code>id_number</code>.</td><td><code>sequent.read-only.id-card-number</code></td></tr><tr><td><code>doc-id-type</code></td><td>Auth note with the document type, used to pick the rules.</td><td><code>sequent.read-only.id-card-type</code></td></tr><tr><td><code>user-status</code></td><td>Auth note set to <code>VERIFIED</code> on success.</td><td><code>sequent.read-only.id-card-number-validated</code></td></tr><tr><td><code>attributes-to-validate</code></td><td>Validation rules, see below.</td><td>liveness, face match, document number, expiry</td></tr><tr><td><code>attributes-to-store</code></td><td>Values to store and show for confirmation, see below.</td><td>first name, last name, date of birth</td></tr><tr><td><code>max-retries</code></td><td>Attempts per B-Trust API call, with exponential backoff from 1 second.</td><td><code>3</code></td></tr><tr><td><code>max-attempts</code></td><td>Failed verifications allowed before the voter is rejected.</td><td><code>3</code></td></tr><tr><td><code>capture-sides</code></td><td><code>embedded</code> only. JSON keyed by document type (the value of the <code>doc-id-type</code> auth note), with a <code>default</code> key for any other type, listing the sides to capture: <code>[&quot;front&quot;]</code> or <code>[&quot;front&quot;, &quot;back&quot;]</code>. Document types without an entry capture both sides.</td><td><code>{&quot;default&quot;: [&quot;front&quot;, &quot;back&quot;]}</code></td></tr><tr><td><code>video-seconds</code></td><td><code>embedded</code> only. Length of the video holding the document, in seconds.</td><td><code>5</code></td></tr><tr><td><code>max-image-bytes</code></td><td><code>embedded</code> only. Maximum size of each photo. 3 photos and the video must fit in Keycloak&#x27;s 10 MiB body limit.</td><td><code>2097152</code> (2 MiB)</td></tr><tr><td><code>max-video-bytes</code></td><td><code>embedded</code> only. Maximum size of the video.</td><td><code>3145728</code> (3 MiB)</td></tr><tr><td><code>face-capture</code></td><td><code>embedded</code> only. <code>photo</code> takes a selfie and a video holding the ID in our page. <code>liveness</code> checks the voter&#x27;s liveness with Liveness Plus, see <a href="#liveness-face-capture" class="">Liveness face capture</a>.</td><td><code>photo</code></td></tr><tr><td><code>liveness-url</code></td><td><code>liveness</code> only. Liveness Plus base URL as the voter&#x27;s browser reaches it, <code>https://&lt;keycloak host&gt;/biometric</code> in our deployments.</td><td></td></tr><tr><td><code>liveness-secret</code></td><td><code>liveness</code> only. Secret that Liveness Plus sends as the <code>secret</code> query parameter of its <code>token_verification_url</code> and <code>callback_url</code>.</td><td></td></tr><tr><td><code>liveness-ui-theme</code></td><td><code>liveness</code> only. Liveness Plus UI configuration (<code>ui_theme</code>).</td><td><code>sequent_ui</code></td></tr><tr><td><code>liveness-translation-variant</code></td><td><code>liveness</code> only. Liveness Plus texts (<code>translation_variant</code>).</td><td><code>sequent</code></td></tr><tr><td><code>liveness-languages</code></td><td><code>liveness</code> only. Comma separated languages of that variant.</td><td><code>en,es</code></td></tr><tr><td><code>liveness-result-wait-seconds</code></td><td><code>liveness</code> only. How long to wait for the result callback once the voter is done.</td><td><code>15</code></td></tr></tbody></table>
+<table><thead><tr><th>Key</th><th>Description</th><th>Default</th></tr></thead><tbody><tr><td><code>base-url</code></td><td>B-Trust API base URL.</td><td></td></tr><tr><td><code>client-id</code> / <code>client-secret</code></td><td>OAuth credentials provided by Scanovate.</td><td></td></tr><tr><td><code>flow-id</code></td><td>Numeric id of the B-Trust flow, configured in the B-Trust Flow Builder.</td><td></td></tr><tr><td><code>execution-mode</code></td><td><code>interactive</code> redirects the voter. <code>embedded</code> captures the media in Keycloak&#x27;s own page and uploads it (see <a href="#embedded-capture" class="">Embedded capture</a>). <code>auto-complete</code> fetches results right away and is only for mock servers.</td><td><code>interactive</code></td></tr><tr><td><code>save-option</code></td><td>Empty (account default), <code>save</code> or <code>do_not_save</code>.</td><td>empty</td></tr><tr><td><code>link-params</code></td><td>JSON mapping B-Trust flow parameters to auth notes, e.g. <code>{&quot;country&quot;: &quot;country&quot;}</code>.</td><td><code>{}</code></td></tr><tr><td><code>doc-id</code></td><td>Auth note with the document number, sent as <code>id_number</code>.</td><td><code>sequent.read-only.id-card-number</code></td></tr><tr><td><code>doc-id-type</code></td><td>Auth note with the document type, used to pick the rules.</td><td><code>sequent.read-only.id-card-type</code></td></tr><tr><td><code>user-status</code></td><td>Auth note set to <code>VERIFIED</code> on success.</td><td><code>sequent.read-only.id-card-number-validated</code></td></tr><tr><td><code>attributes-to-validate</code></td><td>Validation rules, see below.</td><td>liveness, face match, document number, expiry</td></tr><tr><td><code>attributes-to-store</code></td><td>Values to store and show for confirmation, see below.</td><td>first name, last name, date of birth</td></tr><tr><td><code>max-retries</code></td><td>Attempts per B-Trust API call, with exponential backoff from 1 second.</td><td><code>3</code></td></tr><tr><td><code>max-attempts</code></td><td>Failed verifications allowed before the voter is rejected.</td><td><code>3</code></td></tr><tr><td><code>capture-sides</code></td><td><code>embedded</code> only. JSON keyed by document type (the value of the <code>doc-id-type</code> auth note), with a <code>default</code> key for any other type, listing the sides to capture: <code>[&quot;front&quot;]</code> or <code>[&quot;front&quot;, &quot;back&quot;]</code>. Document types without an entry capture both sides.</td><td><code>{&quot;default&quot;: [&quot;front&quot;, &quot;back&quot;]}</code></td></tr><tr><td><code>video-seconds</code></td><td><code>embedded</code> only. Length of the video holding the document, in seconds.</td><td><code>5</code></td></tr><tr><td><code>max-image-bytes</code></td><td><code>embedded</code> only. Maximum size of each photo. 3 photos and the video must fit in Keycloak&#x27;s 10 MiB body limit.</td><td><code>2097152</code> (2 MiB)</td></tr><tr><td><code>max-video-bytes</code></td><td><code>embedded</code> only. Maximum size of the video.</td><td><code>3145728</code> (3 MiB)</td></tr><tr><td><code>face-capture</code></td><td><code>embedded</code> only. <code>photo</code> takes a selfie and a video holding the ID in our page, and B-Trust checks them. <code>liveness</code> checks the voter&#x27;s face on premise: liveness with the Liveness Plus API, and the match with the ID with Face Match. Only the ID goes to B-Trust. See <a href="#liveness-face-capture" class="">Liveness face capture</a>.</td><td><code>photo</code></td></tr><tr><td><code>liveness-url</code></td><td><code>liveness</code> only. Liveness Plus base URL as the voter&#x27;s browser reaches it, <code>https://&lt;keycloak host&gt;/biometric</code> in our deployments.</td><td></td></tr><tr><td><code>liveness-secret</code></td><td><code>liveness</code> only. Secret that Liveness Plus sends as the <code>secret</code> query parameter of its <code>token_verification_url</code> and <code>callback_url</code>.</td><td></td></tr><tr><td><code>liveness-result-wait-seconds</code></td><td><code>liveness</code> only. How long to wait for the result callback once the voter is done.</td><td><code>15</code></td></tr><tr><td><code>face-match-url</code></td><td><code>liveness</code> only. Face Match base URL as Keycloak reaches it, on the internal network, e.g. <code>http://scanovate-face-match:3000</code>.</td><td></td></tr><tr><td><code>face-match-min-similarity</code></td><td><code>liveness</code> only. JSON keyed by document type, with a <code>default</code> key for any other document type, of the minimum similarity (0 to 1) of the voter&#x27;s face with the ID and with the photo holding it. The service&#x27;s own threshold (<code>0.67</code>) applies if higher.</td><td><code>{&quot;default&quot;: 0.67}</code></td></tr></tbody></table>
 <p>A malformed <code>capture-sides</code> (not an object, an empty or unknown side, a
 repeated side, or no front) or a non-positive number in the other <code>embedded</code>
 settings rejects the verification with <code>scanovateInternalError</code>, like the other
-settings, as does a <code>liveness</code> face capture without a valid <code>liveness-url</code> or
-without <code>liveness-secret</code>. For example, to capture only the data page of passports:</p>
+settings, as does a <code>liveness</code> face capture without a valid <code>liveness-url</code>,
+<code>liveness-secret</code> or <code>face-match-url</code>, or with a malformed
+<code>face-match-min-similarity</code>. For example, to capture only the data page of passports:</p>
 <div class="language-json codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-json codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token punctuation" style="color:rgb(199, 146, 234)">{</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token property">&quot;philippinePassport&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token punctuation" style="color:rgb(199, 146, 234)">[</span><span class="token string" style="color:rgb(195, 232, 141)">&quot;front&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">]</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token property">&quot;default&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token punctuation" style="color:rgb(199, 146, 234)">[</span><span class="token string" style="color:rgb(195, 232, 141)">&quot;front&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;back&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">]</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain"></span><span class="token punctuation" style="color:rgb(199, 146, 234)">}</span><br></span></code></pre></div></div>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="rules">Rules<a href="#rules" class="hash-link" aria-label="Direct link to Rules" title="Direct link to Rules" translate="no">​</a></h3>
 <p>Both rule settings are JSON objects keyed by document type (the value of the
@@ -226,13 +239,21 @@ results for each accepted document type and check every <code>attributePath</cod
 <code>scanovateAttributesError</code>, <code>scanovateScoringError</code>,
 <code>scanovateMaxRetriesError</code> and, for the <code>embedded</code> mode,
 <code>scanovateCaptureInvalidError</code>, <code>scanovateCaptureTitle</code> and
-<code>scanovateCaptureThemeRequired</code>.</p>
+<code>scanovateCaptureThemeRequired</code>, and for the <code>liveness</code> face capture,
+<code>scanovateLivenessError</code>, <code>scanovateFaceMismatchError</code> and
+<code>scanovateFaceNotFoundError</code>.</p>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="comelec-janitor">COMELEC janitor<a href="#comelec-janitor" class="hash-link" aria-label="Direct link to COMELEC janitor" title="Direct link to COMELEC janitor" translate="no">​</a></h3>
 <p>The COMELEC realm template (<code>packages/windmill/external-bin/janitor/templates/COMELEC/keycloak.hbs</code>)
 offers the voter these document types, each with its own rules:</p>
 <table><thead><tr><th>Document type</th><th><code>sequent.read-only.id-card-type</code></th></tr></thead><tbody><tr><td>Passport</td><td><code>philippinePassport</code></td></tr><tr><td>Driver’s License</td><td><code>driversLicense</code></td></tr><tr><td>PhilSys ID</td><td><code>philSysID</code></td></tr><tr><td>Integrated Bar of the Philippines ID</td><td><code>iBP</code></td></tr><tr><td>Seafarer’s Book</td><td><code>seamanBook</code></td></tr></tbody></table>
-<p>All of them require liveness, a minimum face match score and an authentic
-document. All but the PhilSys ID, which has no expiry date, must not have
+<p>The realm uses the <code>embedded</code> mode with the <code>liveness</code> face capture: the voter
+takes the photos in our own capture page (the front and back of the ID, their
+face and a photo holding the ID), Liveness Plus and Face Match check their face
+on premise, and B-Trust only reads the ID and checks that it&#x27;s authentic (see
+<a href="#liveness-face-capture" class="">Liveness face capture</a>). So the rules have no
+<code>liveness_plus</code> or <code>biometric_match</code> entries: every document type requires
+liveness and a minimum Face Match similarity through the Keycloak step itself,
+and an authentic document through B-Trust. All but the PhilSys ID, which has no expiry date, must not have
 expired, and all but the Integrated Bar of the Philippines ID must be issued by
 the Philippines (<code>PHL</code>).</p>
 <p>Only Filipino citizens can enroll. The document rules alone don&#x27;t guarantee
@@ -248,9 +269,17 @@ OCR nationality, e.g.
 only once real B-Trust results confirm that the field is read for that
 document. Otherwise the rule fails closed and rejects every voter using it.</p>
 <p><code>run.py</code> fills the template from these <code>settings</code> rows of the spreadsheet:</p>
-<table><thead><tr><th>Setting</th><th>Default</th></tr></thead><tbody><tr><td><code>keycloak_scanovate_base_url</code></td><td>empty</td></tr><tr><td><code>keycloak_scanovate_client_id</code></td><td>empty</td></tr><tr><td><code>keycloak_scanovate_client_secret</code></td><td>empty</td></tr><tr><td><code>keycloak_scanovate_flow_id</code></td><td>empty</td></tr><tr><td><code>keycloak_scanovate_execution_mode</code></td><td><code>interactive</code></td></tr><tr><td><code>keycloak_scanovate_min_biometric_score_&lt;philis_id|seaman_book|passport|driver_license|ibp&gt;</code></td><td><code>0.67</code></td></tr></tbody></table>
-<p>B-Trust scores go from 0.0 to 1.0, unlike Inetum&#x27;s 0 to 100. The old
-<code>keycloak_inetum_min_value_*</code> settings are no longer read.</p>
+<table><thead><tr><th>Setting</th><th>Default</th></tr></thead><tbody><tr><td><code>keycloak_scanovate_base_url</code></td><td>empty</td></tr><tr><td><code>keycloak_scanovate_client_id</code></td><td>empty</td></tr><tr><td><code>keycloak_scanovate_client_secret</code></td><td>empty</td></tr><tr><td><code>keycloak_scanovate_flow_id</code></td><td>empty</td></tr><tr><td><code>keycloak_scanovate_liveness_url</code></td><td>empty</td></tr><tr><td><code>keycloak_scanovate_liveness_secret</code></td><td>empty</td></tr><tr><td><code>keycloak_scanovate_face_match_url</code></td><td>empty</td></tr><tr><td><code>keycloak_scanovate_min_biometric_score_&lt;philis_id|seaman_book|passport|driver_license|ibp&gt;</code></td><td><code>0.67</code></td></tr></tbody></table>
+<p>The <code>min_biometric_score</code> settings are now the minimum Face Match similarity of
+each document type (<code>face-match-min-similarity</code>), from 0.0 to 1.0, unlike
+Inetum&#x27;s 0 to 100. The old <code>keycloak_inetum_min_value_*</code> settings, and
+<code>keycloak_scanovate_execution_mode</code>, are no longer read. The liveness and
+Face Match settings have no usable default: until they&#x27;re set, enrollment fails
+with <code>scanovateInternalError</code>.</p>
+<div class="theme-admonition theme-admonition-warning admonition_xJq3 alert alert--warning"><div class="admonitionHeading_Gvgb"><span class="admonitionIcon_Rf37"><svg viewBox="0 0 16 16"><path fill-rule="evenodd" d="M8.893 1.5c-.183-.31-.52-.5-.887-.5s-.703.19-.886.5L.138 13.499a.98.98 0 0 0 0 1.001c.193.31.53.501.886.501h13.964c.367 0 .704-.19.877-.5a1.03 1.03 0 0 0 .01-1.002L8.893 1.5zm.133 11.497H6.987v-2.003h2.039v2.003zm0-3.004H6.987V5.987h2.039v4.006z"></path></svg></span>Login theme</div><div class="admonitionContent_BuS1"><p>The capture page is part of the React login theme (<code>sequent-ui-voting</code>),
+which the COMELEC template doesn&#x27;t select yet and the production Keycloak image
+doesn&#x27;t ship yet (see decision D8 of meta#13611). Until then, COMELEC realms
+show <code>scanovateCaptureThemeRequired</code> at this step.</p></div></div>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="testing">Testing<a href="#testing" class="hash-link" aria-label="Direct link to Testing" title="Direct link to Testing" translate="no">​</a></h2>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="unit-tests">Unit tests<a href="#unit-tests" class="hash-link" aria-label="Direct link to Unit tests" title="Direct link to Unit tests" translate="no">​</a></h3>
 <p>The authenticator has unit tests for result interpretation, the rules engine,
@@ -264,7 +293,7 @@ confirmation, retries and configuration errors):</p>
 <p>The e2e mock server (<code>packages/e2e/src/mock_server</code>, <code>mock_server</code> service of
 the <code>full</code> docker compose profile, port <code>MOCK_SERVER_PORT</code>) implements the
 B-Trust endpoints used by the authenticator:</p>
-<table><thead><tr><th>Endpoint</th><th>Behaviour</th></tr></thead><tbody><tr><td><code>POST /auth/token</code></td><td>Returns a random access token.</td></tr><tr><td><code>POST /flow/v3/link</code></td><td>Stores the session and returns <code>MOCK_SERVER_PUBLIC_URL/flow?...&amp;process_id=&lt;identifier_id&gt;</code>.</td></tr><tr><td><code>GET /flow?process_id=</code></td><td>Page standing in for the B-Trust UI, where you pick the outcome.</td></tr><tr><td><code>GET /flow/complete?process_id=&amp;outcome=</code></td><td>Redirects to <code>redirect_url?processId=...&amp;token=...</code>.</td></tr><tr><td><code>GET /api/v3/mobile_interaction/{session}/token</code></td><td>Returns a session token.</td></tr><tr><td><code>GET /api/v3/mobile_interaction/v2/{token}/results_with_image_names</code></td><td>Returns OCR, liveness, face match and document liveness results.</td></tr><tr><td><code>POST /api/v3/mobile_interaction/{session}/media</code></td><td>Proposed endpoint for the <code>embedded</code> mode. Requires a bearer token (<code>401</code> otherwise) and the <code>front_image</code> and <code>face_image</code> parts (<code>400</code> otherwise), with <code>back_image</code> and <code>scan_video</code> optional, and marks the session as having media. The results then list the uploaded back image. The outcome is still the one selected with <code>mock_outcome</code>.</td></tr></tbody></table>
+<table><thead><tr><th>Endpoint</th><th>Behaviour</th></tr></thead><tbody><tr><td><code>POST /auth/token</code></td><td>Returns a random access token.</td></tr><tr><td><code>POST /flow/v3/link</code></td><td>Stores the session and returns <code>MOCK_SERVER_PUBLIC_URL/flow?...&amp;process_id=&lt;identifier_id&gt;</code>.</td></tr><tr><td><code>GET /flow?process_id=</code></td><td>Page standing in for the B-Trust UI, where you pick the outcome.</td></tr><tr><td><code>GET /flow/complete?process_id=&amp;outcome=</code></td><td>Redirects to <code>redirect_url?processId=...&amp;token=...</code>.</td></tr><tr><td><code>GET /api/v3/mobile_interaction/{session}/token</code></td><td>Returns a session token.</td></tr><tr><td><code>GET /api/v3/mobile_interaction/v2/{token}/results_with_image_names</code></td><td>Returns OCR, liveness, face match and document liveness results.</td></tr><tr><td><code>POST /api/v3/mobile_interaction/{session}/media</code></td><td>Proposed endpoint for the <code>embedded</code> mode. Requires a bearer token (<code>401</code> otherwise) and the <code>front_image</code> part (<code>400</code> otherwise), with <code>back_image</code>, <code>face_image</code> and <code>scan_video</code> optional, and marks the session as having media. The results then list the uploaded back image, and have no <code>liveness_plus</code> or <code>biometric_match</code> entries without a <code>face_image</code>, as with the <code>liveness</code> face capture. The outcome is still the one selected with <code>mock_outcome</code>.</td></tr></tbody></table>
 <p>If the <code>country</code> flow parameter is sent and voters were loaded with
 <code>POST /upload-csv</code>, the OCR data comes from a random voter of that country.
 Otherwise it&#x27;s a fixed voter (<code>JUAN DELA CRUZ</code>, born <code>01.01.1990</code>) whose
@@ -367,6 +396,9 @@ a capture with a missing or non-JPEG photo shows
 <code>scanovateCaptureInvalidError</code> without using up an attempt.
 With the default <code>link-params</code>, the mock completes with <code>success</code>; map a
 <code>mock_outcome</code> auth note to try the failure outcomes.</li>
+<li class=""><code>liveness</code> face capture: follow
+<a class="" href="/docusaurus/pr-preview/pr-3354/docs/integrations/scanovate_on_premise_guide#end-to-end-test">End-to-end test</a>,
+which runs the real Liveness Plus and Face Match next to the mock.</li>
 <li class="">Check the Keycloak logs (<code>docker logs keycloak</code>) for
 <code>ScanovateAuthenticator</code> entries, and the Keycloak events for
 <code>scanovate_verification_failed</code> errors carrying <code>scanovate_error</code> and
@@ -379,9 +411,13 @@ voter, so voters go through enrollment without any B-Trust UI. The step-cli
 test election templates (<code>packages/step-cli/data/*.json</code>) use this mode against
 <code>http://mock-server:8500</code>. Never use <code>auto-complete</code> against the real B-Trust.</p>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="testing-against-the-scanovate-test-environment">Testing against the Scanovate test environment<a href="#testing-against-the-scanovate-test-environment" class="hash-link" aria-label="Direct link to Testing against the Scanovate test environment" title="Direct link to Testing against the Scanovate test environment" translate="no">​</a></h3>
-<p>This is the real voter journey: the voter scans their ID and records a selfie
-video in B-Trust, from a browser. The same steps apply to production, with
-production values.</p>
+<p>This is the <code>interactive</code> voter journey: the voter scans their ID and records a
+selfie video in B-Trust, from a browser. The same steps apply to production,
+with production values.</p>
+<p>The COMELEC template uses the <code>embedded</code> mode with the <code>liveness</code> face capture
+instead, which uploads the ID photos to B-Trust. It needs Scanovate to confirm
+the proposed upload endpoint (see <a href="#embedded-capture" class="">Embedded capture</a>), and a
+flow with only OCR and Document Liveness Plus.</p>
 <h4 class="anchor anchorTargetStickyNavbar_Vzrq" id="what-to-ask-scanovate-for">What to ask Scanovate for<a href="#what-to-ask-scanovate-for" class="hash-link" aria-label="Direct link to What to ask Scanovate for" title="Direct link to What to ask Scanovate for" translate="no">​</a></h4>
 <ul>
 <li class="">The test environment API base URL, and a <code>client_id</code> and <code>client_secret</code>.</li>
@@ -469,8 +505,8 @@ deletes the session data in B-Trust, including through <code>btrust.sh results</
 <li class="">New election events: set the <code>keycloak_scanovate_base_url</code>,
 <code>keycloak_scanovate_client_id</code>, <code>keycloak_scanovate_client_secret</code> and
 <code>keycloak_scanovate_flow_id</code> settings of the janitor spreadsheet to the
-production values, and leave <code>keycloak_scanovate_execution_mode</code> as
-<code>interactive</code> (see <a href="#comelec-janitor" class="">COMELEC janitor</a>).</li>
+production values, and the liveness and Face Match settings to the
+production services (see <a href="#comelec-janitor" class="">COMELEC janitor</a>).</li>
 <li class="">Existing election events: run <code>btrust.sh configure</code> with the production
 values, and <code>KEYCLOAK_URL</code>, <code>KEYCLOAK_ADMIN</code> and <code>KEYCLOAK_ADMIN_PASSWORD</code> of
 the production Keycloak.</li>
