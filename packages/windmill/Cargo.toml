@@ -44,7 +44,7 @@ lapin = "2.5"
 rayon = "1.5"
 tokio = { version = "1.32", features = ["full"] }
 async-trait = "0.1"
-clap = { version = "4.4", features = ["derive"] } # Added for generate_logs binary
+clap = { version = "4.4", features = ["derive", "env"] } # generate_logs and beat
 dotenv = "0.15"
 chrono = "0.4"
 chrono-tz = "0.10"

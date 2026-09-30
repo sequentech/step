@@ -18,6 +18,7 @@ export const MONITORING_LIST_DASHBOARDS = gql`
                 as_of
                 checked_at
             }
+            refresh_seconds
         }
     }
 `

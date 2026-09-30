@@ -7,8 +7,14 @@
 // the Harvest JSON (snake_case); configuration documents mirror
 // `sequent_core::monitoring::config`.
 
-/** How often the dashboard asks whether a new snapshot is live. */
+/**
+ * How often the dashboard asks whether a new snapshot is live, when the
+ * server does not report its snapshot interval (`refresh_seconds`).
+ */
 export const MONITORING_DEFAULT_REFRESH_MS = 30_000
+
+/** The dashboard never asks more often than this, whatever the server reports. */
+export const MONITORING_MIN_REFRESH_MS = 5_000
 
 /** Frame height when the widget YAML sets none. */
 export const DEFAULT_WIDGET_HEIGHT = 280
@@ -239,6 +245,8 @@ export interface MonitoringListDashboardsResponse {
     mode: EMonitoringMode
     dashboards: MonitoringDashboardSummary[]
     snapshot?: MonitoringSnapshot | null
+    /** Seconds between two snapshot passes; absent from older servers. */
+    refresh_seconds?: number | null
 }
 
 export interface MonitoringScopeOption {
@@ -294,6 +302,8 @@ export interface MonitoringGetDashboardResponse {
      * widgets that pick a day: the options of `options_from: event_days`.
      */
     event_days: string[]
+    /** Seconds between two snapshot passes; absent from older servers. */
+    refresh_seconds?: number | null
 }
 
 export interface MonitoringProblem {

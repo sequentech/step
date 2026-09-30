@@ -13,9 +13,9 @@ export interface MonitoringPollingOptions {
 }
 
 /**
- * Asks for the dashboard every 30 s while the tab is shown and nobody is
- * editing. A tab shown again asks at once, rather than showing figures that
- * may be minutes old until the next tick.
+ * Asks for the dashboard every `intervalMs` (30 s by default) while the tab
+ * is shown and nobody is editing. A tab shown again asks at once, rather than
+ * showing figures that may be minutes old until the next tick.
  */
 export function useMonitoringPolling({
     active,
