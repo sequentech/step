@@ -3292,6 +3292,8 @@ const spanishTranslation: TranslationType = {
                         "El evento está bloqueado; su configuración de monitorización no puede cambiar.",
                     forbiddenScope:
                         "No puedes ver cifras de la región, el puesto o el país elegidos.",
+                    badRequest:
+                        "El editor envió una solicitud que el servidor no pudo leer. Recargue la página e inténtelo de nuevo.",
                 },
                 duplicate: {
                     done: "Se añadió {{id}}, una copia del widget, al panel.",

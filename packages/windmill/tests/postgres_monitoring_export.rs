@@ -1,8 +1,8 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
 
-//! Exports read the revision the dashboard showed, with the configuration it
-//! was counted under, and only the figures of the viewer's elections; a
+//! Exports read the revision the dashboard showed, with the configuration
+//! it was drawn with, and only the figures of the viewer's elections; a
 //! pruned revision exports nothing.
 
 #[path = "support/schema.rs"]
@@ -167,6 +167,7 @@ fn request(seeded: &Seeded, elections: &[Uuid], revision: i64) -> MonitoringExpo
         selector_values: IndexMap::new(),
         widget_selector_values: IndexMap::new(),
         snapshot_revision: revision,
+        config_generation: None,
         format: MonitoringExportFormat::Csv,
         from: None,
         to: None,
@@ -429,4 +430,24 @@ async fn a_revision_pruned_after_it_was_shown_exports_nothing() {
     let mut now = madrid_only.clone();
     now.snapshot_revision = revision;
     assert!(export(&mut client, &now).await.is_ok());
+}
+
+#[tokio::test]
+async fn an_export_reads_the_configuration_generation_it_names() {
+    let pool = schema::pool().await;
+    let mut client = pool.get().await.unwrap();
+    let seeded = seed(&mut client).await;
+
+    // Named, the generation is read, not the run's: one the event never
+    // reached exports nothing.
+    let mut named = request(&seeded, &[seeded.madrid], seeded.revision);
+    named.config_generation = Some(seeded.generation);
+    assert!(export(&mut client, &named).await.is_ok());
+    named.config_generation = Some(seeded.generation + 1000);
+    let outcome = export(&mut client, &named).await;
+    assert!(
+        matches!(&outcome, Err(MonitoringExportError::NotFound(message))
+            if message.contains(&(seeded.generation + 1000).to_string())),
+        "{outcome:?}"
+    );
 }

@@ -3287,6 +3287,8 @@ const galegoTranslation: TranslationType = {
                     lockedDown:
                         "O evento está bloqueado; a súa configuración de monitorización non pode cambiar.",
                     forbiddenScope: "Non podes ver cifras da rexión, o posto ou o país escollidos.",
+                    badRequest:
+                        "O editor enviou unha solicitude que o servidor non puido ler. Recargue a páxina e ténteo de novo.",
                 },
                 duplicate: {
                     done: "Engadiuse {{id}}, unha copia do widget, ao panel.",

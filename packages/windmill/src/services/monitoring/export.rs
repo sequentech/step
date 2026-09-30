@@ -5,7 +5,8 @@
 //! Exporting what a dashboard shows, as CSV or SQL.
 //!
 //! An export reads the snapshot revision the viewer was shown, with the
-//! configuration that revision was counted under, and evaluates every
+//! configuration generation the dashboard drew it with (as Harvest chose it
+//! and named it in the request), and evaluates every
 //! widget's governed queries the way the render route does. It counts only
 //! the elections the viewer may see: Harvest computes them from the viewer's
 //! labels before sending the task, and the figures read are those of that
@@ -110,6 +111,11 @@ pub struct MonitoringExportRequest {
     pub widget_selector_values: IndexMap<String, IndexMap<String, String>>,
     /// The revision the dashboard showed.
     pub snapshot_revision: i64,
+    /// The configuration generation the dashboard drew that revision with,
+    /// which the export reads. `None`, as a request sent before Harvest named
+    /// it, reads the generation the revision was counted under.
+    #[serde(default)]
+    pub config_generation: Option<i64>,
     pub format: MonitoringExportFormat,
     /// Series hours starting in `[from, to)` are kept; the rest of the
     /// figures are as of the revision. Instants; any RFC 3339 offset reads.
@@ -301,12 +307,14 @@ pub async fn collect_export(
         .ok_or(MonitoringExportError::SnapshotPruned {
             revision: request.snapshot_revision,
         })?;
-    let config = get_config_at_generation(transaction, event, snapshot.config_generation)
+    let generation = request
+        .config_generation
+        .unwrap_or(snapshot.config_generation);
+    let config = get_config_at_generation(transaction, event, generation)
         .await?
         .ok_or_else(|| {
             MonitoringExportError::NotFound(format!(
-                "the event has no configuration at generation {}",
-                snapshot.config_generation
+                "the event has no configuration at generation {generation}"
             ))
         })?;
     let set = &config.assembled.set;

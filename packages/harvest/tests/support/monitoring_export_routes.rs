@@ -22,16 +22,20 @@ fn viewer(event: &Event) -> Claims {
         .roles([Permissions::MONITORING_VIEW])
 }
 
-async fn configure(client: &Client, event: &Event) {
-    let configurator = Claims::new(&event.tenant_id, "configurator").roles([
+fn configurator(event: &Event) -> Claims {
+    Claims::new(&event.tenant_id, "configurator").roles([
         Permissions::MONITORING_CONFIGURE,
         Permissions::ELECTION_EVENT_WRITE,
-    ]);
+    ])
+}
+
+/// Resets the event to the COMELEC preset; the generation it made.
+async fn configure(client: &Client, event: &Event) -> i64 {
     let (status, body) = json(
         post(
             client,
             "/monitoring/reset-to-preset",
-            &configurator,
+            &configurator(event),
             &json!({
                 "election_event_id": event.election_event_id,
                 "preset_id": "comelec",
@@ -41,6 +45,66 @@ async fn configure(client: &Client, event: &Event) {
     )
     .await;
     assert_eq!(status, Status::Ok, "{body}");
+    body["generation"].as_i64().unwrap()
+}
+
+/// The `kind` document `key`'s YAML and revision.
+async fn document(
+    client: &Client,
+    event: &Event,
+    kind: &str,
+    key: &str,
+) -> (String, Value) {
+    let (status, body) = json(
+        post(
+            client,
+            "/monitoring/get-config",
+            &configurator(event),
+            &json!({
+                "election_event_id": event.election_event_id,
+                "kind": kind,
+                "key": key,
+            }),
+        )
+        .await,
+    )
+    .await;
+    assert_eq!(status, Status::Ok, "{body}");
+    (
+        body["yaml"].as_str().unwrap().to_string(),
+        body["revision"].clone(),
+    )
+}
+
+/// Saves the `kind` document `key` as `yaml` over `expected` (`null` for a
+/// new one); the generation the save made.
+async fn save(
+    client: &Client,
+    event: &Event,
+    kind: &str,
+    key: &str,
+    yaml: &str,
+    expected: Value,
+) -> i64 {
+    let (status, body) = json(
+        post(
+            client,
+            "/monitoring/save-config",
+            &configurator(event),
+            &json!({
+                "election_event_id": event.election_event_id,
+                "kind": kind,
+                "key": key,
+                "yaml": yaml,
+                "expected_revision": expected,
+                "change": "UPSERT",
+            }),
+        )
+        .await,
+    )
+    .await;
+    assert_eq!(status, Status::Ok, "{body}");
+    body["generation"].as_i64().unwrap()
 }
 
 async fn labelled_election(
@@ -232,18 +296,18 @@ async fn a_time_without_an_offset_is_refused_as_a_bad_request() {
 }
 
 #[rocket::async_test]
-async fn the_dashboard_is_looked_up_at_the_runs_configuration() {
+async fn the_dashboard_is_looked_up_in_the_configuration_it_is_drawn_with() {
     let services = Services::on_test_database()
         .await
         .with_monitoring_snapshots(MemorySnapshots::at(7, ScopeRead::Empty));
     let client = services.client().await;
     let event = rows::event(&services.hasura).await;
     event.election(&services.hasura).await;
-    configure(&client, &event).await;
+    let generation = configure(&client, &event).await;
     // The run was counted under a configuration the event no longer has,
-    // with the settings it still has. The dashboard draws such a run with
-    // the live configuration; an export always reads the run's own, so the
-    // same revision always exports the same file.
+    // with the settings it still has: the dashboard draws it with the live
+    // configuration, and an export of it reads that one too, named in the
+    // request so the task reads exactly it.
     services
         .monitoring_snapshots
         .head
@@ -255,9 +319,59 @@ async fn the_dashboard_is_looked_up_at_the_runs_configuration() {
 
     let (status, body) =
         export(&client, &viewer(&event), &event, json!({})).await;
-    assert_eq!(status, Status::NotFound, "{body}");
-    assert_eq!(body["extensions"]["code"], "MONITORING_NOT_FOUND");
-    assert!(services.tasks.sent().is_empty());
+    assert_eq!(status, Status::Ok, "{body}");
+    let request = &services.tasks.sent()[0].kwargs["request"];
+    assert_eq!(request["config_generation"], generation, "{request}");
+}
+
+#[rocket::async_test]
+async fn a_widget_added_since_the_run_is_exported_without_waiting_for_a_pass() {
+    let services = Services::on_test_database()
+        .await
+        .with_monitoring_snapshots(MemorySnapshots::at(7, ScopeRead::Empty));
+    let client = services.client().await;
+    let event = rows::event(&services.hasura).await;
+    event.election(&services.hasura).await;
+    configure(&client, &event).await;
+
+    // Saved after the run was counted, under the same settings: the
+    // dashboard draws the new widget from the figures in hand, so its
+    // export reads the configuration that has it.
+    let (yaml, _) =
+        document(&client, &event, "widget", "turnout-summary").await;
+    let copy = yaml.replacen("id: turnout-summary", "id: turnout-copy", 1);
+    assert_ne!(copy, yaml);
+    save(
+        &client,
+        &event,
+        "widget",
+        "turnout-copy",
+        &copy,
+        Value::Null,
+    )
+    .await;
+    let (layout, revision) =
+        document(&client, &event, "dashboard", "overview").await;
+    let placed = layout.replacen(
+        "layout:\n",
+        "layout:\n  - {widget: turnout-copy, width: 12}\n",
+        1,
+    );
+    assert_ne!(placed, layout);
+    let generation =
+        save(&client, &event, "dashboard", "overview", &placed, revision).await;
+
+    let (status, body) = export(
+        &client,
+        &viewer(&event),
+        &event,
+        json!({"widget_id": "turnout-copy"}),
+    )
+    .await;
+    assert_eq!(status, Status::Ok, "{body}");
+    let request = &services.tasks.sent()[0].kwargs["request"];
+    assert_eq!(request["widget_id"], "turnout-copy");
+    assert_eq!(request["config_generation"], generation, "{request}");
 }
 
 #[rocket::async_test]

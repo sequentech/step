@@ -947,9 +947,15 @@ async fn a_pinned_run_never_issued_is_not_found_and_one_pruned_is_gone() {
     event.election(&services.hasura).await;
     configure(&client, &event).await;
 
+    // Run 5 is still kept, but it failed (or is still counting), so it
+    // never was a snapshot to show; no run is numbered 0 or below.
+    services.monitoring_snapshots.incomplete.lock().unwrap().push(5);
     for (revision, status, code) in [
         (3, Status::Gone, "MONITORING_SNAPSHOT_PRUNED"),
         (999999, Status::NotFound, "MONITORING_NOT_FOUND"),
+        (5, Status::NotFound, "MONITORING_NOT_FOUND"),
+        (0, Status::NotFound, "MONITORING_NOT_FOUND"),
+        (-1, Status::NotFound, "MONITORING_NOT_FOUND"),
     ] {
         let (answered, body) = render(
             &client,

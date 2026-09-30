@@ -4,7 +4,7 @@
 
 use crate::ports::database::DatabasePools;
 use crate::ports::monitoring_snapshots::{
-    MonitoringSnapshots, ScopeCatalogue, ScopeRead, SnapshotHead,
+    KeptRun, MonitoringSnapshots, ScopeCatalogue, ScopeRead, SnapshotHead,
 };
 use anyhow::Context;
 use sequent_core::monitoring::sources::DataSourceId;
@@ -43,17 +43,16 @@ impl MonitoringSnapshots for WindmillMonitoringSnapshots {
         Ok(head)
     }
 
-    async fn complete(
+    async fn run(
         &self,
         event: EventRef,
         revision: i64,
-    ) -> anyhow::Result<Option<SnapshotHead>> {
+    ) -> anyhow::Result<KeptRun> {
         let mut client = self.client().await?;
         let transaction = client.transaction().await?;
-        let head =
-            snapshot::complete_snapshot(&transaction, event, revision).await?;
+        let run = snapshot::kept_run(&transaction, event, revision).await?;
         transaction.commit().await?;
-        Ok(head)
+        Ok(run)
     }
 
     async fn read_scope(
