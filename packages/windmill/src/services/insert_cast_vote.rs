@@ -1138,7 +1138,8 @@ async fn check_previous_votes(
         // `in-progress` votes count toward the revote / cross-area check so a
         // voter can't bypass it by voting again before the async
         // process_cast_vote pipeline promotes the previous vote. `discarded`
-        // votes do not count (they never became a recorded vote).
+        // votes do not count: they were either never promoted, or released
+        // when an administrator disabled the voter.
         postgres::cast_vote::get_cast_votes(
             &hasura_transaction,
             tenant_uuid,

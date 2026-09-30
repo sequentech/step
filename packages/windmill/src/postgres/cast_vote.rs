@@ -348,9 +348,9 @@ pub async fn get_cast_vote_by_id(
         .transpose()
 }
 
-/// Used by the datafix flow to tell a VoterView
-/// `HasVoted` response caused by our own earlier `SetVoted` (a legitimate
-/// re-vote) apart from a genuine "already voted through another channel". <br/>
+/// Used by the datafix flow to recognise a re-vote before sending `SetVoted`:
+/// a voter who already holds a `valid` vote is not notified to VoterView a
+/// second time. <br/>
 /// Returns whether the voter already has at least one `valid` cast vote in
 /// the cast_vote table for this election event.
 #[instrument(skip(hasura_transaction), err)]
@@ -393,8 +393,8 @@ pub async fn has_valid_cast_vote(
     Ok(row.get("found"))
 }
 
-/// Counts votes in a contest area whose Datafix outcome is not resolved.
-/// Tally extraction must wait because neither status is countable.
+/// Counts the `in-progress` votes in a contest area, whose Datafix outcome is
+/// not resolved yet. Tally extraction must wait because they are not countable.
 #[instrument(skip(hasura_transaction), err)]
 pub async fn count_unresolved_cast_votes(
     hasura_transaction: &Transaction<'_>,
