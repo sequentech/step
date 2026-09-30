@@ -447,6 +447,19 @@ export function serveAdminTenant(portal: PortalServices, tables = adminTables())
             sequent_backend_election: [{statistics: eventStatistics}],
         },
     }))
+    // The event has no monitoring configuration, so its Dashboard tabs keep
+    // today's dashboard, whose statistics are answered above.
+    portal.graphql.on("MonitoringListDashboards", () => ({
+        data: {
+            monitoringListDashboards: {
+                mode: "LEGACY",
+                preset: null,
+                dashboards: [],
+                snapshot: null,
+                refresh_seconds: 30,
+            },
+        },
+    }))
     portal.graphql.on("GetCastVotesByIp", () => ({
         data: {get_top_votes_by_ip: {items: [], total: {aggregate: {count: 0}}}},
     }))

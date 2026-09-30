@@ -72,12 +72,6 @@ const noPermission = () => i18n.t("electionScreen.common.noPermission")
 
 export const Populated: Story = {
     globals: {permissions: EStoryPermissions.ADMIN},
-    parameters: {
-        expectedFailure: {
-            reason: "The election dashboard's loading spinner is a progressbar without an accessible name.",
-            a11y: ["aria-progressbar-name"],
-        },
-    },
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
         await expect(await canvas.findByText("Council")).toBeVisible()

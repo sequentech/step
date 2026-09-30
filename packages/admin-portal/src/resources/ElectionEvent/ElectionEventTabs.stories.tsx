@@ -18,6 +18,7 @@ import type {WidgetMeta} from "@/__stories__/widgetStory"
 import {ElectionEventTabs} from "./ElectionEventTabs"
 import {answerOrPending, readsOf, recordsOrPending} from "./__stories__/ElectionEventFixture"
 import {jsonEditorDefects} from "./__stories__/IvrFixture"
+import {legacyMonitoring} from "@/components/monitoring/__stories__/MonitoringFixture"
 import {EStoryPermissions, useStoryGlobals} from "../../../../ui-essentials/.storybook/globals"
 
 interface Scenario {
@@ -95,7 +96,7 @@ const meta = {
                 ? {}
                 : {sequent_backend_election_event: [tabsEvent(args.lockedDown)]}
         )
-        graphql = graphqlBoundary(answerOrPending(), {schema: true})
+        graphql = graphqlBoundary(answerOrPending(legacyMonitoring()), {schema: true})
         // The dashboard builds the voting portal addresses with sequent-core.
         await Promise.all([graphql.ready, initCore()])
     },

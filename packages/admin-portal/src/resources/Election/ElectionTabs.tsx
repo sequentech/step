@@ -16,6 +16,8 @@ import {v4 as uuidv4} from "uuid"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import ElectionHeader from "@/components/ElectionHeader"
 import DashboardElection from "@/components/dashboard/election/Dashboard"
+import {MonitoringDashboardTab} from "@/components/monitoring/MonitoringDashboardTab"
+import {monitoringLock} from "@/components/monitoring/useMonitoringPermissions"
 import {Sequent_Backend_Election, Sequent_Backend_Election_Event} from "@/gql/graphql"
 import {Publish} from "../Publish/Publish"
 import {EditElectionData} from "./ElectionData"
@@ -36,11 +38,27 @@ import {ListTallySheet} from "../TallySheet/ListTallySheet"
 // Stable Tab Components
 // ---------------------------------------------------------------------
 
-const DashboardTab: React.FC = () => (
-    <Suspense fallback={<div>Loading Dashboard...</div>}>
-        <DashboardElection />
-    </Suspense>
-)
+const DashboardTab: React.FC = () => {
+    const record = useRecordContext<Sequent_Backend_Election>()
+    // The lockdown is a property of the election event, not of the election.
+    const {data: electionEvent} = useGetOne<Sequent_Backend_Election_Event>(
+        "sequent_backend_election_event",
+        {id: record?.election_event_id},
+        {enabled: Boolean(record?.election_event_id)}
+    )
+    // Unknown until the event has loaded, so configure actions do not flash.
+    const lock = monitoringLock(electionEvent)
+    return (
+        <Suspense fallback={<div>Loading Dashboard...</div>}>
+            <MonitoringDashboardTab
+                electionEventId={record?.election_event_id}
+                electionId={record?.id}
+                lock={lock}
+                legacy={<DashboardElection />}
+            />
+        </Suspense>
+    )
+}
 
 const DataTab: React.FC = () => (
     <Suspense fallback={<div>Loading Data...</div>}>
