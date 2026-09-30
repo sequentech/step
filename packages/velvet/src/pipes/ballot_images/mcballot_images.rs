@@ -33,6 +33,10 @@ use strand::hash::{hash_b64, hash_sha256};
 use tokio::runtime::Runtime;
 use tracing::{info, instrument};
 
+#[cfg(test)]
+#[path = "../../../tests/support/ballot_image_boundaries.rs"]
+mod boundary_tests;
+
 pub const BALLOT_IMAGES_OUTPUT_FILE: &str = "ballots";
 
 pub struct MCBallotImages {
@@ -453,6 +457,13 @@ impl Pipe for MCBallotImages {
     #[instrument(err, skip_all, name = "MultiBallotReceipts::exec")]
     fn exec(&self) -> Result<()> {
         let pipe_config: PipeConfigBallotImages = self.get_config()?;
+        let report_options = pipe_config.report_options.clone().unwrap_or_default();
+        let max_items_per_report = report_options.max_items_per_report.unwrap_or(100);
+        if max_items_per_report == 0 {
+            return Err(Error::UnexpectedError(
+                "Receipt max_items_per_report must be greater than zero".into(),
+            ));
+        }
         let pipe_data = get_pipe_data();
         for election_input in &self.pipe_inputs.election_list {
             let area_contests_map = election_input.get_area_contest_map();
@@ -478,7 +489,6 @@ impl Pipe for MCBallotImages {
                     let mcballots: Vec<DecodedBallotChoices> = crate::utils::parse_file(f)?;
 
                     let ballots = convert_ballots(election_input, mcballots)?;
-                    let report_options = pipe_config.report_options.clone().unwrap_or_default();
                     let max_threads = report_options.max_threads.unwrap_or_else(|| 3);
                     let pool = ThreadPoolBuilder::new()
                         .num_threads(max_threads)
@@ -486,9 +496,6 @@ impl Pipe for MCBallotImages {
                         .map_err(|e| {
                             Error::UnexpectedError(format!("Error building thread pool: {}", e))
                         })?;
-
-                    let max_items_per_report =
-                        report_options.max_items_per_report.unwrap_or_else(|| 100);
 
                     let path = PipeInputs::mcballots_path(
                         &self
@@ -642,9 +649,9 @@ impl Pipe for MCBallotImages {
                         Ok(())
                     });
 
-                    if let Err(e) = result {
-                        eprintln!("Error processing: {}", e);
-                    }
+                    // A missing PDF or manifest is an incomplete output. Let
+                    // the caller stop the pipeline rather than announce success.
+                    result?;
                 } else {
                     println!(
                         "[{}] File not found: {} -- Not processed",
