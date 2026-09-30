@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {useEffect, useMemo, useRef, useState} from "react"
+import React, {useMemo, useRef, useState} from "react"
 import {useTranslation} from "react-i18next"
 import {
     Alert,
@@ -54,12 +54,7 @@ import {MonitoringDiscardDialog} from "./MonitoringDiscardDialog"
 import {MonitoringWidgetCatalogDialog} from "./MonitoringWidgetCatalogDialog"
 import {MonitoringThemeEditorDialog} from "./MonitoringThemeEditorDialog"
 import {MonitoringResetToPresetDialog} from "./MonitoringResetToPresetDialog"
-import {
-    DEFAULT_THEME,
-    countThemeWidgets,
-    loadWidgetCatalog,
-    type IWidgetCatalogEntry,
-} from "./catalog"
+import {DEFAULT_THEME, countThemeWidgets} from "./catalog"
 import {SCOPE_SELECTORS, copyId, layoutEntries, stringList} from "./formValues"
 import {
     EDocumentLoad,
@@ -68,6 +63,7 @@ import {
     useConfigDocument,
     type IDocumentMessages,
 } from "./useConfigDocument"
+import {useWidgetCatalog} from "./useWidgetCatalog"
 
 export enum EDashboardTab {
     WIDGETS = "WIDGETS",
@@ -126,9 +122,6 @@ export const MonitoringDashboardEditor: React.FC<MonitoringDashboardEditorProps>
 }) => {
     const {t} = useTranslation()
     const [tab, setTab] = useState(EDashboardTab.WIDGETS)
-    const [catalog, setCatalog] = useState<IWidgetCatalogEntry[] | undefined>()
-    const [catalogError, setCatalogError] = useState("")
-    const [themes, setThemes] = useState<string[]>([])
     const [adding, setAdding] = useState(false)
     const [theming, setTheming] = useState<{key: string; count: number} | null>(null)
     const [resetting, setResetting] = useState(false)
@@ -155,34 +148,7 @@ export const MonitoringDashboardEditor: React.FC<MonitoringDashboardEditorProps>
         onSaved,
     })
     const {setMessage} = stored
-
-    useEffect(() => {
-        if (!open) return
-        let current = true
-        setCatalog(undefined)
-        setCatalogError("")
-        loadWidgetCatalog(api).then(
-            (entries) => current && setCatalog(entries),
-            (error) =>
-                current &&
-                setCatalogError(
-                    t("monitoring.editor.dashboard.requestFailed", {reason: reason(error)})
-                )
-        )
-        api.listConfig().then(
-            (documents) =>
-                current &&
-                setThemes(
-                    documents
-                        .filter((entry) => entry.kind === EMonitoringConfigKind.THEME)
-                        .map((entry) => entry.key)
-                ),
-            () => undefined
-        )
-        return () => {
-            current = false
-        }
-    }, [open, api, t])
+    const {catalog, setCatalog, catalogError, themes} = useWidgetCatalog(api, open)
 
     const dashboard = asDashboard(draft.value)
     /** Every patch addresses an item by its index in the YAML, which `entries` keeps. */
