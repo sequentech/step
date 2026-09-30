@@ -2830,6 +2830,7 @@ const englishTranslation = {
                 lockedDown: "The election event is locked down, so this cannot be changed.",
                 notFound: "This dashboard or widget is no longer configured. Reload the page.",
                 badRequest: "The request was not accepted. Reload the page and try again.",
+                conflict: "Someone else saved a change first. Reload and try again.",
                 invalid: "Some of the export's values are not accepted.",
                 unknown: "Something went wrong. Try again later.",
             },
@@ -2892,6 +2893,10 @@ const englishTranslation = {
                     "Attempts by unregistered usernames belong to no Post, so they are counted for the whole event only.",
                 UNREGISTERED_ATTEMPTS_EXCLUDED:
                     "These figures leave out attempts by unregistered usernames; they are counted for the whole event.",
+                CONFIG_NEWER_THAN_SNAPSHOT:
+                    "Drawn with the latest settings; the figures are counted with them in the next pass.",
+                CONFIG_AT_SNAPSHOT_UNAVAILABLE:
+                    "Drawn with the current settings: those the figures were counted under are no longer kept.",
             },
             unavailable: {
                 notConnected: "Not connected · {{reason}}",

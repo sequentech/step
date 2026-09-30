@@ -2858,6 +2858,7 @@ const galegoTranslation: TranslationType = {
                 lockedDown: "O evento electoral está bloqueado, así que isto non se pode cambiar.",
                 notFound: "Este panel ou widget xa non está configurado. Recargue a páxina.",
                 badRequest: "Non se aceptou a solicitude. Recargue a páxina e ténteo de novo.",
+                conflict: "Outra persoa gardou un cambio antes. Recargue e ténteo de novo.",
                 invalid: "Algúns valores da exportación non se aceptan.",
                 unknown: "Algo fallou. Ténteo máis tarde.",
             },
@@ -2920,6 +2921,10 @@ const galegoTranslation: TranslationType = {
                     "Os intentos con nomes de usuario non rexistrados non pertencen a ningún posto, polo que só se contan para todo o evento.",
                 UNREGISTERED_ATTEMPTS_EXCLUDED:
                     "Estas cifras non inclúen os intentos con nomes de usuario non rexistrados; cóntanse para todo o evento.",
+                CONFIG_NEWER_THAN_SNAPSHOT:
+                    "Debuxado coa configuración máis recente; as cifras cóntanse con ela na próxima pasada.",
+                CONFIG_AT_SNAPSHOT_UNAVAILABLE:
+                    "Debuxado coa configuración actual: a configuración coa que se contaron as cifras xa non se conserva.",
             },
             unavailable: {
                 notConnected: "Non conectado · {{reason}}",

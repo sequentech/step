@@ -79,6 +79,11 @@ fn data() -> ExportData {
         ],
         notices: vec![],
     };
+    // A series with no bucket in the range.
+    let late = QueryResult {
+        rows: vec![],
+        ..series.clone()
+    };
     let mut turnout = widget(
         "turnout",
         "region=Europe",
@@ -86,6 +91,7 @@ fn data() -> ExportData {
             queries: IndexMap::from([
                 ("data".to_string(), groups),
                 ("activity".to_string(), series),
+                ("late".to_string(), late),
             ]),
         },
     );
@@ -129,6 +135,7 @@ fn csv_is_one_long_table_with_every_value_quoted_as_needed() {
         format!("{lead},region=Europe,turnout,data,4,'=SUM(A1),2,0.5,50.0%,,,,,day,UNREGISTERED_ATTEMPTS_EXCLUDED\r\n"),
         format!("{lead},region=Europe,turnout,activity,1,,4,,,2026-05-11T10:00:00,2026-05-11T08:00:00Z,2026-05-11T08:00:00Z,2026-05-11T10:00:00Z,day,\r\n"),
         format!("{lead},region=Europe,turnout,activity,2,,5,,,2026-05-11T11:00:00,2026-05-11T09:00:00Z,2026-05-11T08:00:00Z,2026-05-11T10:00:00Z,day,\r\n"),
+        format!("{lead},region=Europe,turnout,late,,,,,,,,2026-05-11T08:00:00Z,2026-05-11T10:00:00Z,day,NO_ROWS_IN_RANGE\r\n"),
         format!("{lead},event,helpdesk,,,,,,,,,,,,NOT_CONNECTED: HELPDESK_INTEGRATION\r\n"),
     ]
     .concat();
@@ -175,11 +182,53 @@ fn sql_creates_the_table_and_inserts_every_row_as_literals() {
         format!("  ({lead}, 'data', 4, '=SUM(A1)', 2, 0.5, '50.0%', NULL, NULL, NULL, NULL, 'day', 'UNREGISTERED_ATTEMPTS_EXCLUDED'),\n"),
         format!("  ({lead}, 'activity', 1, NULL, 4, NULL, NULL, '2026-05-11T10:00:00', '2026-05-11T08:00:00Z', '2026-05-11T08:00:00Z', '2026-05-11T10:00:00Z', 'day', NULL),\n"),
         format!("  ({lead}, 'activity', 2, NULL, 5, NULL, NULL, '2026-05-11T11:00:00', '2026-05-11T09:00:00Z', '2026-05-11T08:00:00Z', '2026-05-11T10:00:00Z', 'day', NULL),\n"),
+        format!("  ({lead}, 'late', NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2026-05-11T08:00:00Z', '2026-05-11T10:00:00Z', 'day', 'NO_ROWS_IN_RANGE'),\n"),
         "  (7, '2026-05-11T09:00:00Z', 'event', 'helpdesk', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'NOT_CONNECTED: HELPDESK_INTEGRATION');\n".to_string(),
         "COMMIT;\n".to_string(),
     ]
     .concat();
     assert_eq!(sql, expected);
+}
+
+#[test]
+fn a_query_without_rows_keeps_its_widget_in_the_file_with_a_row_that_says_so() {
+    let empty = |columns: Vec<Column>| QueryResult {
+        columns,
+        rows: vec![],
+        notices: vec![Notice::UnregisteredAttemptsExcluded],
+    };
+    let mut data = data();
+    data.from = None;
+    data.to = None;
+    data.widget_id = Some("quiet".to_string());
+    data.widgets = vec![widget(
+        "quiet",
+        "event",
+        WidgetData::Evaluated {
+            queries: IndexMap::from([
+                (
+                    "groups".to_string(),
+                    empty(vec![column("group", ColumnKind::Text)]),
+                ),
+                (
+                    "activity".to_string(),
+                    empty(vec![column("bucket_utc", ColumnKind::Text)]),
+                ),
+            ]),
+        },
+    )];
+    let csv = String::from_utf8(build_file(&data, MonitoringExportFormat::Csv).unwrap()).unwrap();
+    // Without a range nothing was left out: the query has no rows at all.
+    let notice = "NO_ROWS; UNREGISTERED_ATTEMPTS_EXCLUDED";
+    assert_eq!(
+        csv,
+        [
+            "snapshot_revision,as_of,scope,widget_id,query,row,group,bucket_utc,range_from,range_to,ignored_selectors,notice\r\n".to_string(),
+            format!("7,2026-05-11T09:00:00Z,event,quiet,groups,,,,,,,{notice}\r\n"),
+            format!("7,2026-05-11T09:00:00Z,event,quiet,activity,,,,,,,{notice}\r\n"),
+        ]
+        .concat()
+    );
 }
 
 #[test]

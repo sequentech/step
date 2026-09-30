@@ -5,11 +5,17 @@
 //! The monitoring snapshot job: every beat sends a pass for each event on
 //! configured dashboards; a pass that finds its event's lock held is
 //! skipped, the next beat retries.
+//!
+//! Beat ticks once per snapshot interval
+//! ([`sequent_core::monitoring::cadence`]). Every message the job sends
+//! expires after one interval: by then the next tick has asked again, so an
+//! older request would only count twice what one pass counts.
 
 use crate::postgres::lock::LOCK_HELD;
 use crate::postgres::monitoring_config::EventRef;
 use crate::services::celery_app::get_celery_app;
 use crate::services::database::{get_hasura_pool, get_keycloak_pool};
+use crate::services::monitoring::cadence;
 use crate::services::monitoring::login_counter::prune_login_counter_receipts;
 use crate::services::monitoring::snapshot::{
     prune_snapshots, refresh_event_snapshot, PassOptions, EXPORT_WINDOW,
@@ -18,7 +24,11 @@ use crate::services::pg_lock::PgLock;
 use crate::types::error::Result;
 use anyhow::{anyhow, Context};
 use celery::error::TaskError;
+use celery::task::Signature;
 use chrono::{Duration, Utc};
+use sequent_core::monitoring::cadence::{
+    Cadence, MAX_SNAPSHOT_INTERVAL_SECONDS, MIN_SNAPSHOT_INTERVAL_SECONDS,
+};
 use sequent_core::services::date::ISO8601;
 use tracing::{info, instrument, warn};
 use uuid::Uuid;
@@ -27,17 +37,50 @@ use uuid::Uuid;
 const RECEIPTS_KEPT_FOR: Duration = Duration::days(7);
 
 fn full_pass_every() -> Duration {
-    std::env::var("MONITORING_VOTER_FULL_PASS_SECONDS")
-        .ok()
-        .and_then(|seconds| seconds.parse().ok())
-        .map(Duration::seconds)
-        .unwrap_or(Duration::seconds(300))
+    let seconds = cadence::configured().voter_full_pass.seconds;
+    Duration::seconds(i64::try_from(seconds).unwrap_or(i64::MAX))
 }
 
+/// Seconds as a message's expiry takes them.
+fn expiry(interval_seconds: u64) -> u32 {
+    u32::try_from(interval_seconds).unwrap_or(u32::MAX)
+}
+
+/// The fan-out beat sends every tick of `cadence`: it carries the interval,
+/// so the passes it sends expire with it.
+pub fn scheduled_fan_out(cadence: &Cadence) -> Signature<refresh_monitoring_snapshots> {
+    let interval = cadence.snapshot_interval.seconds;
+    refresh_monitoring_snapshots::new(Some(interval)).with_expires_in(expiry(interval))
+}
+
+/// The interval a fan-out works with: the one beat sent, within bounds, or
+/// this worker's own when the message has none.
+fn fan_out_interval(sent: Option<u64>) -> u64 {
+    match sent {
+        Some(seconds) => {
+            seconds.clamp(MIN_SNAPSHOT_INTERVAL_SECONDS, MAX_SNAPSHOT_INTERVAL_SECONDS)
+        }
+        None => cadence::configured().snapshot_interval.seconds,
+    }
+}
+
+/// One event's pass, expiring after one interval.
+fn event_pass(
+    tenant_id: Uuid,
+    election_event_id: Uuid,
+    interval_seconds: u64,
+) -> Signature<refresh_monitoring_event_snapshot> {
+    refresh_monitoring_event_snapshot::new(tenant_id.to_string(), election_event_id.to_string())
+        .with_expires_in(expiry(interval_seconds))
+}
+
+// No `expires` here or on the pass: a task-level expiry and a message's own
+// `with_expires_in` together send no expiry at all, so each message sets it.
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
-#[celery::task(expires = 30)]
-pub async fn refresh_monitoring_snapshots() -> Result<()> {
+#[celery::task]
+pub async fn refresh_monitoring_snapshots(interval_seconds: Option<u64>) -> Result<()> {
+    let interval = fan_out_interval(interval_seconds);
     let mut client = get_hasura_pool()
         .await
         .get()
@@ -62,13 +105,7 @@ pub async fn refresh_monitoring_snapshots() -> Result<()> {
     let celery_app = get_celery_app().await;
     for (tenant_id, election_event_id) in events {
         celery_app
-            .send_task(
-                refresh_monitoring_event_snapshot::new(
-                    tenant_id.to_string(),
-                    election_event_id.to_string(),
-                )
-                .with_expires_in(30),
-            )
+            .send_task(event_pass(tenant_id, election_event_id, interval))
             .await?;
     }
     Ok(())
@@ -76,7 +113,7 @@ pub async fn refresh_monitoring_snapshots() -> Result<()> {
 
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
-#[celery::task(time_limit = 600, max_retries = 0, expires = 30)]
+#[celery::task(time_limit = 600, max_retries = 0)]
 pub async fn refresh_monitoring_event_snapshot(
     tenant_id: String,
     election_event_id: String,
@@ -138,3 +175,7 @@ async fn pass(event: EventRef) -> Result<()> {
     }
     Ok(())
 }
+
+#[cfg(test)]
+#[path = "refresh_monitoring_snapshot_tests.rs"]
+mod refresh_monitoring_snapshot_tests;

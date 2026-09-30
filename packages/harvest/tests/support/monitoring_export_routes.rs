@@ -131,6 +131,17 @@ async fn a_pruned_run_is_gone_and_a_foreign_post_refused_before_anything_is_sent
     .await;
     assert_eq!(status, Status::Gone, "{body}");
     assert_eq!(body["extensions"]["code"], "MONITORING_SNAPSHOT_PRUNED");
+    // A revision after the live one was never issued, so it is not "no
+    // longer kept".
+    let (status, body) = export(
+        &client,
+        &viewer(&event),
+        &event,
+        json!({"snapshot_revision": 999999}),
+    )
+    .await;
+    assert_eq!(status, Status::NotFound, "{body}");
+    assert_eq!(body["extensions"]["code"], "MONITORING_NOT_FOUND");
 
     let calls = services.monitoring_snapshots.calls().len();
     let (status, body) = export(
@@ -151,6 +162,13 @@ async fn a_pruned_run_is_gone_and_a_foreign_post_refused_before_anything_is_sent
     )
     .await;
     assert_eq!(status, Status::UnprocessableEntity, "{body}");
+    assert_eq!(body["extensions"]["code"], "MONITORING_INVALID");
+    // Said as what is wrong, not as a configuration problem.
+    assert_eq!(
+        body["message"], "The end of the range must come after its start.",
+        "{body}"
+    );
+    assert_eq!(body["extensions"]["problems"][0]["path"], "to", "{body}");
     assert!(services.tasks.sent().is_empty());
     assert!(services.ledger.tasks().is_empty());
 }
@@ -222,7 +240,10 @@ async fn the_dashboard_is_looked_up_at_the_runs_configuration() {
     let event = rows::event(&services.hasura).await;
     event.election(&services.hasura).await;
     configure(&client, &event).await;
-    // The run was counted under a configuration the event no longer has.
+    // The run was counted under a configuration the event no longer has,
+    // with the settings it still has. The dashboard draws such a run with
+    // the live configuration; an export always reads the run's own, so the
+    // same revision always exports the same file.
     services
         .monitoring_snapshots
         .head

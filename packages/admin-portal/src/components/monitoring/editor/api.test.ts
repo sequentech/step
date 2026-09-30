@@ -2,12 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import {
-    EMonitoringErrorCode,
-    interpretSaveError,
-    monitoringErrorCode,
-    monitoringErrorMessage,
-} from "./api"
+import {EMonitoringErrorCode} from "@/components/monitoring/lib/errors"
+import {interpretSaveError, monitoringErrorCode, monitoringErrorMessage} from "./api"
 import {EMonitoringProblemSeverity, EMonitoringSaveStatus} from "./types"
 
 describe("interpretSaveError", () => {

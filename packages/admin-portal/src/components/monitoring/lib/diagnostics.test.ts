@@ -74,6 +74,21 @@ describe("locatePath", () => {
         expect(WIDGET.slice(located.from, located.to)).toBe("template: by_group")
     })
 
+    it("reads a dbt Charts path as one inside the widget's chart", () => {
+        const located = locatePath(WIDGET, "charts.bars.type")
+        expect(WIDGET.slice(located.from, located.to)).toBe("type: bar")
+        expect(located.line).toBe(9)
+    })
+
+    it("points at the start of the document when no part of the path is in it", () => {
+        // A check of another document, such as the theme a dashboard uses.
+        expect(locatePath(WIDGET, "style.charts.category_colors.group")).toEqual({
+            from: 0,
+            to: 0,
+            line: 1,
+        })
+    })
+
     it("points at the start of the document for an empty path", () => {
         expect(locatePath(WIDGET, "")).toEqual({from: 0, to: 0, line: 1})
     })

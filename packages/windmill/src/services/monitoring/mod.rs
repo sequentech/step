@@ -8,6 +8,9 @@
 /// The electoral log's record of each configuration change.
 pub mod audit;
 
+/// How often this process counts, and how often it reads every voter.
+pub mod cadence;
+
 /// Exporting what a dashboard shows, as CSV or SQL.
 pub mod export;
 

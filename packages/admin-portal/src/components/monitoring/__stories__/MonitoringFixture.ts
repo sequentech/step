@@ -182,6 +182,7 @@ export function listDashboardsResponse(
             widget_count: dashboard.layout.length,
         })),
         snapshot: MONITORING_SNAPSHOT,
+        refresh_seconds: 30,
     }
 }
 
@@ -260,6 +261,7 @@ export function getDashboardResponse({
         },
         snapshot,
         event_days: EVENT_DAYS,
+        refresh_seconds: 30,
     }
 }
 
