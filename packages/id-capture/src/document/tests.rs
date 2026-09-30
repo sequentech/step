@@ -188,6 +188,39 @@ fn moving_card_never_becomes_ready() {
 }
 
 #[test]
+fn jittering_card_becomes_ready() {
+    // A hand-held document in front of a webcam moves by a few pixels from frame to frame.
+    let mut analyzer = DocumentAnalyzer::new();
+    let mut last = None;
+    for step in 0..STILL_FRAMES {
+        let jitter = if step % 2 == 0 { 3.0 } else { -3.0 };
+        last = Some(analyze(
+            &mut analyzer,
+            &frame_with_card(1.0, [jitter, jitter], 0.0),
+        ));
+    }
+    let last = last.unwrap();
+    assert_eq!(last.status, DocumentStatus::Ready, "{last:?}");
+}
+
+#[test]
+fn brief_problems_keep_the_stillness() {
+    // A glare flicker or a missed corner in a frame or two doesn't restart the count, and the
+    // voter keeps seeing that the photo is being taken.
+    let good = frame_with_card(1.0, [0.0, 0.0], 0.0);
+    let mut analyzer = DocumentAnalyzer::new();
+    for _ in 0..(STILL_FRAMES - 1) {
+        analyze(&mut analyzer, &good);
+    }
+    for _ in 0..MAX_MISSED_FRAMES {
+        let frame = analyze(&mut analyzer, &Canvas::background());
+        assert_eq!(frame.status, DocumentStatus::HoldStill, "{frame:?}");
+        assert!(frame.corners.is_none(), "{frame:?}");
+    }
+    assert_eq!(analyze(&mut analyzer, &good).status, DocumentStatus::Ready);
+}
+
+#[test]
 fn problems_and_reset_clear_the_stillness() {
     let good = frame_with_card(1.0, [0.0, 0.0], 0.0);
     let mut analyzer = DocumentAnalyzer::new();
@@ -195,7 +228,13 @@ fn problems_and_reset_clear_the_stillness() {
         analyze(&mut analyzer, &good);
     }
     assert_eq!(analyze(&mut analyzer, &good).status, DocumentStatus::Ready);
-    analyze(&mut analyzer, &Canvas::background());
+    for _ in 0..MAX_MISSED_FRAMES {
+        analyze(&mut analyzer, &Canvas::background());
+    }
+    assert_eq!(
+        analyze(&mut analyzer, &Canvas::background()).status,
+        DocumentStatus::NoDocument
+    );
     assert_eq!(
         analyze(&mut analyzer, &good).status,
         DocumentStatus::HoldStill

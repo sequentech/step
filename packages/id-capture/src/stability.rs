@@ -18,6 +18,10 @@ pub(crate) struct StillnessTracker {
     required_frames: usize,
     /// Largest allowed displacement of any point, as a fraction of the reference length.
     tolerance: f32,
+    /// Consecutive frames without the tracked points that don't restart the run.
+    max_misses: usize,
+    /// Consecutive frames without the tracked points since the last observation.
+    misses: usize,
 }
 
 impl StillnessTracker {
@@ -28,7 +32,16 @@ impl StillnessTracker {
             still_frames: 0,
             required_frames: required_frames.max(1),
             tolerance,
+            max_misses: 0,
+            misses: 0,
         }
+    }
+
+    /// Lets the run survive up to `max_misses` consecutive frames without the tracked points, e.g.
+    /// a glare flicker or a missed corner.
+    pub(crate) fn with_max_misses(mut self, max_misses: usize) -> Self {
+        self.max_misses = max_misses;
+        self
     }
 
     /// Records a good frame and returns the stability in `0..=1`.
@@ -36,6 +49,7 @@ impl StillnessTracker {
     /// `reference` is the length the displacement is measured against (the guide diagonal, the
     /// oval radius).
     pub(crate) fn observe(&mut self, points: &[Point], reference: f32) -> f32 {
+        self.misses = 0;
         let limit = self.tolerance * reference;
         let within = self.anchor.as_ref().is_some_and(|anchor| {
             anchor.len() == points.len()
@@ -58,10 +72,23 @@ impl StillnessTracker {
         (to_f32(self.still_frames) / to_f32(self.required_frames)).min(1.0)
     }
 
+    /// Records a frame without the tracked points. Returns the stability of the run while it
+    /// survives, or `None` once it's forgotten.
+    pub(crate) fn miss(&mut self) -> Option<f32> {
+        if self.anchor.is_some() && self.misses < self.max_misses {
+            self.misses += 1;
+            Some(self.stability())
+        } else {
+            self.reset();
+            None
+        }
+    }
+
     /// Forgets the current run.
     pub(crate) fn reset(&mut self) {
         self.anchor = None;
         self.still_frames = 0;
+        self.misses = 0;
     }
 }
 
@@ -85,6 +112,31 @@ mod tests {
             let stability = tracker.observe(&[[10.0 + offset, 10.0]], 100.0);
             assert!(stability < 1.0, "step {step}");
         }
+    }
+
+    #[test]
+    fn brief_misses_keep_the_run() {
+        let mut tracker = StillnessTracker::new(3, 0.01).with_max_misses(2);
+        tracker.observe(&[[10.0, 10.0]], 100.0);
+        tracker.observe(&[[10.0, 10.0]], 100.0);
+        assert!(tracker.miss().is_some());
+        assert!(tracker.miss().is_some());
+        assert!((tracker.observe(&[[10.0, 10.0]], 100.0) - 1.0).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn long_misses_restart_the_run() {
+        let mut tracker = StillnessTracker::new(3, 0.01).with_max_misses(1);
+        tracker.observe(&[[10.0, 10.0]], 100.0);
+        assert!(tracker.miss().is_some());
+        assert!(tracker.miss().is_none());
+        assert!(tracker.stability().abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn misses_without_a_run_restart_nothing() {
+        let mut tracker = StillnessTracker::new(3, 0.01).with_max_misses(2);
+        assert!(tracker.miss().is_none());
     }
 
     #[test]

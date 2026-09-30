@@ -71,7 +71,10 @@ const MIN_SHARPNESS: f32 = 0.25;
 /// Still good frames needed before capturing (about 0.6 s at 15 frames per second).
 const STILL_FRAMES: usize = 9;
 /// Largest corner movement during the still run, as a fraction of the guide diagonal.
-const STILL_TOLERANCE: f32 = 0.015;
+const STILL_TOLERANCE: f32 = 0.03;
+/// Consecutive frames with a problem that don't restart the stillness count: a hand-held document
+/// in front of a webcam flickers in and out of the checks.
+const MAX_MISSED_FRAMES: usize = 2;
 
 /// Outcome of a document frame, most important problem first.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
@@ -137,7 +140,8 @@ impl DocumentAnalyzer {
     #[must_use]
     pub fn new() -> Self {
         Self {
-            stillness: StillnessTracker::new(STILL_FRAMES, STILL_TOLERANCE),
+            stillness: StillnessTracker::new(STILL_FRAMES, STILL_TOLERANCE)
+                .with_max_misses(MAX_MISSED_FRAMES),
         }
     }
 
@@ -233,10 +237,12 @@ impl DocumentAnalyzer {
                 };
                 (status, stability)
             }
-            (failure, _) => {
-                self.stillness.reset();
-                (failure.unwrap_or(DocumentStatus::NoDocument), 0.0)
-            }
+            (failure, _) => match self.stillness.miss() {
+                // The photo is only taken on a frame without problems: meanwhile the voter
+                // keeps holding still.
+                Some(stability) => (DocumentStatus::HoldStill, stability),
+                None => (failure.unwrap_or(DocumentStatus::NoDocument), 0.0),
+            },
         };
         Ok(DocumentFrame {
             status,
