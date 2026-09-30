@@ -567,11 +567,13 @@ services:
     environment:
       - PYTHONUNBUFFERED=1
 
-  # Scanovate on-premise services: Liveness Plus (with its presentation and
-  # injection attack detection servers) and the 1:N Face Match service with its
-  # Valkey vector database. Opt-in `scanovate` profile: the images are private,
-  # so pulling them needs a Docker Hub login (Liveness Plus) and an AWS ECR
-  # login (Face Match) with the access Scanovate provides. See docs/docusaurus/docs/integrations/scanovate_on_premise_guide.md.
+  # Scanovate on-premise services: Liveness Plus with its presentation and
+  # injection attack detection servers (opt-in `scanovate` profile), and the
+  # 1:N Face Match service with its Valkey vector database (opt-in
+  # `scanovate-face-match` profile, which Keycloak doesn't use yet). The images
+  # are private: pulling them needs a Docker Hub login (Liveness Plus) and an
+  # AWS ECR login (Face Match) with the access Scanovate provides. See
+  # docs/docusaurus/docs/integrations/scanovate_on_premise_guide.md.
   # Service names use hyphens: Java HTTP clients (Keycloak) reject host names
   # with underscores.
   scanovate-presentation-detection:
@@ -622,7 +624,7 @@ services:
       - scanovate-injection-detection
 
   scanovate-valkey:
-    profiles: ["scanovate"]
+    profiles: ["scanovate-face-match"]
     container_name: ${DEVCONTAINER_NAME_PREFIX:-}scanovate-valkey
     image: valkey/valkey-extensions:8.1
     restart: unless-stopped
@@ -636,7 +638,7 @@ services:
       retries: 10
 
   scanovate-face-match:
-    profiles: ["scanovate"]
+    profiles: ["scanovate-face-match"]
     container_name: ${DEVCONTAINER_NAME_PREFIX:-}scanovate-face-match
     image: 495947449196.dkr.ecr.eu-central-1.amazonaws.com/ngfacematch:version_3.9.0_ba58397_79
     restart: unless-stopped

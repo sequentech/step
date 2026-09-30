@@ -58,7 +58,8 @@ server {
     # origin so that its iframe in the login pages is same origin. With
     # CLIENT_BASE_URL_PREFIX=biometric/ the service itself serves everything
     # under /biometric/liveness/, so the path is passed unchanged: stripping
-    # the prefix makes it answer 404. Server-Sent Events must not be buffered. Without the profile running, only this path fails (502).
+    # the prefix makes it answer 404. Server-Sent Events must not be buffered.
+    # Without the profile running, only this path fails (502).
     location /biometric/ {
         set $liveness_upstream http://scanovate-liveness:5050;
         proxy_pass $liveness_upstream;
