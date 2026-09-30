@@ -4,6 +4,7 @@ import http from "k6/http";
 import exec from "k6/execution";
 import { SharedArray } from "k6/data";
 import { Counter, Rate, Trend } from "k6/metrics";
+import { voterCredentials } from "./credentials.js";
 import { approvedUrl, replayJourney } from "./replay.k6.js";
 
 const config = JSON.parse(open(__ENV.LOAD_CONFIG));
@@ -63,11 +64,7 @@ export default function () {
   const local = exec.scenario.iterationInTest;
   const index = config.start + first + local;
   const ballot = {
-    credentials: {
-      ...config.login_fields,
-      username: config.username_prefix + index,
-      password: __ENV.LOAD_PASSWORD,
-    },
+    credentials: voterCredentials(config, index, __ENV.LOAD_PASSWORD),
     election_event_id: config.election_event_id,
     style_id: config.style_id,
     publication_version: config.publication_version,
