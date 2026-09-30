@@ -30,6 +30,10 @@ def test_every_golden_board_renders_to_a_clean_svg(engine, path):
     assert "/static/fonts" not in rendered.svg
     assert clean_svg(rendered.svg) == rendered.svg
     assert all(problem.severity.value == "warning" for problem in rendered.warnings)
+    # A theme pins its colours for every dashboard; a board gets only the
+    # pins for values it draws, so the engine never skips one.
+    assert not [p for p in rendered.warnings if p.engine_code == "WARN-CATEGORY-COLOR-PIN-UNSEEN"]
+
 
 
 def test_there_are_golden_boards_from_both_presets():
