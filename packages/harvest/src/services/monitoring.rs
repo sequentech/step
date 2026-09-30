@@ -629,9 +629,9 @@ pub fn counted_for_live(head: &SnapshotHead, live: &LiveConfig) -> bool {
 /// again when that generation is no longer kept, or has not what `has` asks
 /// for (a widget added since), and those two say so.
 ///
-/// Exports do not use this: an export of a run always reads the
-/// configuration that run was counted under, so exporting the same revision
-/// twice gives the same file.
+/// An export chooses its configuration here too, so a file holds what the
+/// dashboard draws; the export task is told the generation chosen, so it
+/// reads exactly that one whatever is saved meanwhile.
 pub async fn config_at_snapshot(
     services: &HarvestServices,
     event: EventRef,

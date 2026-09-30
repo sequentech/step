@@ -382,6 +382,7 @@ fn request() -> MonitoringExportRequest {
         selector_values: IndexMap::new(),
         widget_selector_values: IndexMap::new(),
         snapshot_revision: 1,
+        config_generation: None,
         format: MonitoringExportFormat::Csv,
         from: None,
         to: None,
@@ -561,6 +562,8 @@ fn the_request_reads_as_harvest_sends_it() {
     assert!(request.selector_values.is_empty());
     assert!(request.widget_selector_values.is_empty());
     assert_eq!(request.scope, ScopeSelection::default());
+    // A request sent before Harvest named the generation it drew with.
+    assert_eq!(request.config_generation, None);
 }
 
 #[test]

@@ -161,10 +161,16 @@ payload once, keyed by the SHA-256 of its canonical JSON, and
 range of revisions (`from_revision` up to, not including, `to_revision`). An
 unchanged scope costs nothing new, and Harvest can cache by hash. The
 figures of revision R are the rows whose range holds R, so an export of a
-revision still within the window reads exactly what was shown; one that was
-pruned answers 410 `MONITORING_SNAPSHOT_PRUNED`, and one after the live run,
-never issued, 404 `MONITORING_NOT_FOUND`. `render-widget` pinned to a
-revision answers the same.
+revision still within the window reads the figures that were shown, with
+the configuration the dashboard drew them with (see
+[render-widget](#harvest-routes) below); the export request names that
+configuration's generation, so later saves do not change the file. A
+revision below the live run that is no longer kept answers 410
+`MONITORING_SNAPSHOT_PRUNED`. One that never was a snapshot answers 404
+`MONITORING_NOT_FOUND`: 0 or below, after the live run, or a run still kept
+that did not complete (running, failed or superseded). Pruning deletes a
+run's row, so any other revision below the live run with no row is taken
+as pruned. `render-widget` pinned to a revision answers the same.
 
 **Buckets.** Series are hourly buckets in the settings' time zone, each
 `[start, end)`; a day is the sum of its hours. Each voter has one first-vote
@@ -238,8 +244,10 @@ counted under until the next run (a count the new settings add is
 `SCOPE_PENDING` with `SETTINGS_PENDING`); when that configuration is no
 longer kept, or lacks the widget, it falls back to the live one with the
 notice `CONFIG_AT_SNAPSHOT_UNAVAILABLE` or `CONFIG_NEWER_THAN_SNAPSHOT`. An
-export always reads the configuration its run was counted under, so the
-same revision always exports the same file.
+export chooses its configuration by the same rule, so a widget saved a
+moment ago exports as it is drawn, and records the generation chosen in
+the task's request, which the task reads (a request without it reads the
+generation the run was counted under).
 
 Drawn charts are cached in an LRU with single flight, so viewers asking for
 the same chart at once wait on one draw. The key covers the tenant and
