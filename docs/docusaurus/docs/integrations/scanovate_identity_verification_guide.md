@@ -109,8 +109,9 @@ sequenceDiagram
     B-->>K: flow URL with the process id (the URL is not used)
     K->>V: scanovate-capture.ftl (document type, sides, video length, attempts)
     V->>V: guided capture: front, back, selfie, video
-    V->>K: POST login actions URL, multipart/form-data (action=capture, front, back, face, video)
-    K->>K: check parts, formats and sizes
+    V->>K: PUT /realms/{realm}/scanovate/capture/{front,back,face,video} (X-Scanovate-Capture token)
+    V->>K: POST login actions URL (action=capture)
+    K->>K: check the uploaded parts, formats and sizes
     alt invalid capture
         K->>V: capture page again with scanovateCaptureInvalidError (not an attempt)
     else valid capture
@@ -170,31 +171,34 @@ Some design decisions to be aware of:
 - **Refresh.** Reloading the capture page renders it again for the same
   B-Trust session. A capture posted without a session in progress starts a new
   one.
-- **Request size.** Captures are kept small instead of raising Keycloak's
-  limits. Keycloak (Quarkus) rejects request bodies larger than
-  `quarkus.http.limits.max-body-size`, 10 MiB (10240K) by default, before they
-  reach the authenticator. Keycloak 26.6, the development container and
-  `packages/Dockerfile.keycloak` all keep that default. The capture page
+- **Uploads, then the capture.** Keycloak's authentication flow can't receive
+  files: on every form post to the login actions URL it reads the whole form as
+  text, which fails on file parts, and text fields are limited to 128 KiB
+  (`quarkus.http.limits.max-form-attribute-size`). So the page uploads each
+  photo, and the video, to `PUT /realms/{realm}/scanovate/capture/{part}` as a
+  plain request body, with the one-time capture token that Keycloak issues with
+  each rendering of the page in the `X-Scanovate-Capture` header. Keycloak keeps
+  them in its single-use object store, for the authentication session only,
+  and the page then posts `action=capture` to the login actions URL. The upload
+  endpoint answers `401` for an unknown token, `413` for a file over 8 MiB and
+  `415` for a file that isn't JPEG, WebM or MP4; the per-configuration limits
+  are checked when the capture is posted.
+- **Request size.** Each file is its own request, within Keycloak's body limit
+  (`quarkus.http.limits.max-body-size`, 10 MiB by default). The capture page
   encodes the photos as JPEG of at most 1920 px and the video at about
-  1.5 Mbps (about 1 MiB for the default 5 seconds), and the size limits are set
-  so that the worst case fits: 3 photos of up to 2 MiB (`max-image-bytes`) and a
-  video of up to 3 MiB (`max-video-bytes`) add up to 9 MiB, leaving room for
-  the multipart overhead. If you raise `max-image-bytes`, `max-video-bytes` or
-  `video-seconds`, keep that total under the body limit.
+  1.5 Mbps (about 1 MiB for the default 5 seconds), well under
+  `max-image-bytes` (2 MiB) and `max-video-bytes` (3 MiB).
 - **Reverse proxies.** Any reverse proxy in front of Keycloak must accept
-  request bodies of at least 10 MiB on the login actions path
-  (`/realms/{realm}/login-actions/`), e.g. with nginx
-  `client_max_body_size 10m;` in that `location`, since its default is 1 MiB.
-  Otherwise the proxy rejects the capture with `413` before it reaches
-  Keycloak.
-- **File parts.** Quarkus only treats multipart parts with a file name as files.
-  The capture page must send each photo and the video with a file name (as
-  `FormData.append(name, blob)` does), otherwise the part is read as a text
-  field and rejected.
+  request bodies up to the largest of these limits on
+  `/realms/{realm}/scanovate/capture/`, e.g. with nginx
+  `client_max_body_size 8m;` in a `location` for that path, since nginx's
+  default is 1 MiB. Otherwise it rejects the upload with `413` before it
+  reaches Keycloak.
 
 The capture page receives a `scanovate` attribute with `documentType`, `sides`
 (`FRONT`, and `BACK` if the document has one), `videoSeconds`, `attemptsLeft`,
-`maxAttempts` and, with the `liveness` face capture, `liveness` (`url` of the
+`maxAttempts`, `upload` (the `url` of the upload endpoint and the one-time
+capture `token`) and, with the `liveness` face capture, `liveness` (`url` of the
 Liveness Plus API, the one-time `token` and the `caseId`). The error page also receives `attemptsLeft`, and the
 confirmation page receives `storedAttributes` as a list of `{key, value, type}`
 and `documentType`.
@@ -229,7 +233,8 @@ sequenceDiagram
     V->>L: GET /client_session_data
     L->>K: POST .../liveness/callback?secret=... (result, with the frame)
     V->>V: guided photo of the voter holding the ID
-    V->>K: POST login actions URL (action=capture, front, back, holding)
+    V->>K: PUT /realms/{realm}/scanovate/capture/{front,back,holding}
+    V->>K: POST login actions URL (action=capture)
     K->>K: wait for the result, reject the attempt unless it passed
     K->>F: POST /facematch11/compare_images (front of the ID, liveness frame)
     K->>F: POST /facematch11/compare_images (holding photo, liveness frame)
@@ -311,7 +316,7 @@ steps that collect the document number and type, and configure it:
 | `max-attempts` | Failed verifications allowed before the voter is rejected. | `3` |
 | `capture-sides` | `embedded` only. JSON keyed by document type (the value of the `doc-id-type` auth note), with a `default` key for any other type, listing the sides to capture: `["front"]` or `["front", "back"]`. Document types without an entry capture both sides. | `{"default": ["front", "back"]}` |
 | `video-seconds` | `embedded` only. Length of the video holding the document, in seconds. | `5` |
-| `max-image-bytes` | `embedded` only. Maximum size of each photo. 3 photos and the video must fit in Keycloak's 10 MiB body limit. | `2097152` (2 MiB) |
+| `max-image-bytes` | `embedded` only. Maximum size of each photo. | `2097152` (2 MiB) |
 | `max-video-bytes` | `embedded` only. Maximum size of the video. | `3145728` (3 MiB) |
 | `face-capture` | `embedded` only. `photo` takes a selfie and a video holding the ID in our page, and B-Trust checks them. `liveness` checks the voter's face on premise: liveness with the Liveness Plus API, and the match with the ID with Face Match. Only the ID goes to B-Trust. See [Liveness face capture](#liveness-face-capture). | `photo` |
 | `liveness-url` | `liveness` only. Liveness Plus base URL as the voter's browser reaches it, `https://<keycloak host>/biometric` in our deployments. | |
@@ -558,8 +563,11 @@ container starts the `base` profile by default.
    yarn && yarn build:ui-core && yarn build:ui-essentials && yarn start:admin-portal
    ```
 
-5. Enrollment OTPs aren't sent: the dummy email and SMS senders write them to
-   the Keycloak log. Read them with `docker logs keycloak 2>&1 | grep "Your OTP is"`.
+5. Enrollment OTPs aren't delivered: the dummy email and SMS senders only log
+   the recipient, and the logged message has the code masked. To enroll, set
+   the OTP steps of the realm's registration flow (`message-otp-authenticator`
+   and the `deferred-otp-subflow*` subflows) to **Disabled** in the Keycloak
+   admin console, and enable them again afterwards.
 
 ### Sample election event
 
@@ -578,7 +586,7 @@ To use it:
 2. Open the new election event, go to **Voters** and import `voters.csv`.
 3. Open the enrollment page of the election event from the voting portal, or
    directly at
-   `http://127.0.0.1:8090/realms/tenant-<tenant id>-event-<election event id>/protocol/openid-connect/registrations?client_id=voting-portal&response_type=code&scope=openid&redirect_uri=http%3A%2F%2F127.0.0.1%3A3000%2F`.
+   `http://127.0.0.1:8090/realms/tenant-<tenant id>-event-<election event id>/protocol/openid-connect/registrations?client_id=voting-portal&response_type=code&scope=openid&redirect_uri=http%3A%2F%2Flocalhost%3A3000%2F`.
 4. Fill in the form with any valid ID, a password and an email, select
    **Japan/Tokyo PE** and **Tokyo PE**, and click **Enroll**. Enter the OTPs
    from the Keycloak log.

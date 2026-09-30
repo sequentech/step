@@ -32,8 +32,8 @@ isn't available. With `face-capture=liveness`:
 
 ## Done
 
-- [x] Docker Hub access for all the images, Face Match included
-      (`scanovate/ngfacematch`): no ECR access needed.
+- [x] Mirror the images to our ECR (`133529410358.dkr.ecr.eu-west-1.amazonaws.com/scanovate/*`, same tags and
+      digests as Scanovate's Docker Hub images), and pull them from there.
 - [x] Confirm the Face Match 1:1 API (`/facematch11/*`, `/faceutils/*`) in its
       OpenAPI description, and that it needs no configuration file or database.
 - [x] Read the Liveness Plus API from the service: without Scanovate's client,
@@ -98,7 +98,6 @@ isn't available. With `face-capture=liveness`:
 
 ## Production
 
-- [ ] Mirror the images to our own registry.
 - [ ] Add the `/biometric/liveness/` API routes and the
       `/realms/*/scanovate/liveness/` block to the production reverse proxy of
       Keycloak.

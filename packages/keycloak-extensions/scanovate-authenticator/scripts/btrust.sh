@@ -26,8 +26,9 @@
 #     {"default": 0.67}.
 #   SCANOVATE_CAPTURE_SIDES: capture-sides, default the passport's front only
 #     and both sides of any other document.
-#   SCANOVATE_LOGIN_THEME: if set, the login theme of the realm, e.g.
-#     sequent-ui-voting, which has the capture page.
+#   SCANOVATE_LOGIN_THEME: if set, the login theme of the realm, and of its
+#     clients that set their own, e.g. sequent-ui-voting, which has the
+#     capture page.
 #   KEYCLOAK_URL: Keycloak base URL, default http://127.0.0.1:8090.
 #   KEYCLOAK_ADMIN, KEYCLOAK_ADMIN_PASSWORD: master realm admin, default admin/admin.
 
@@ -159,6 +160,17 @@ configure_liveness() {
       --data "$(jq -n --arg theme "$SCANOVATE_LOGIN_THEME" '{loginTheme: $theme}')" \
       "$KEYCLOAK_URL/admin/realms/$realm"
     echo "Set the login theme of $realm to $SCANOVATE_LOGIN_THEME"
+    # A client's own login theme overrides the realm's for its logins
+    local client client_id
+    curl -sSf -H "Authorization: Bearer $token" "$KEYCLOAK_URL/admin/realms/$realm/clients" \
+      | jq -c '.[] | select((.attributes.login_theme // "") != "")' \
+      | while read -r client; do
+          client_id="$(jq -r .id <<<"$client")"
+          curl -sSf -X PUT -H "Authorization: Bearer $token" -H "Content-Type: application/json" \
+            --data "$(jq --arg theme "$SCANOVATE_LOGIN_THEME" '.attributes.login_theme = $theme' <<<"$client")" \
+            "$KEYCLOAK_URL/admin/realms/$realm/clients/$client_id"
+          echo "Set the login theme of client $(jq -r .clientId <<<"$client") to $SCANOVATE_LOGIN_THEME"
+        done
   fi
 }
 

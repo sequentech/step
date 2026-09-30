@@ -569,15 +569,15 @@ services:
 
   # Scanovate on-premise services (opt-in `scanovate` profile): Liveness Plus
   # with its presentation attack detection server, and the Face Match service,
-  # used for 1:1 comparisons. The images are private on Docker Hub: pulling them
-  # needs a Docker Hub login with the access Scanovate provides. See
+  # used for 1:1 comparisons. The images come from our private ECR mirror of
+  # Scanovate's images: pulling them needs an ECR login. See
   # docs/docusaurus/docs/integrations/scanovate_on_premise_guide.md.
   # Service names use hyphens: Java HTTP clients (Keycloak) reject host names
   # with underscores.
   scanovate-presentation-detection:
     profiles: ["scanovate"]
     container_name: ${DEVCONTAINER_NAME_PREFIX:-}scanovate-presentation-detection
-    image: scanovate/liveness-presentation-detection-service:release_1.52.0
+    image: 133529410358.dkr.ecr.eu-west-1.amazonaws.com/scanovate/liveness-presentation-detection-service:release_1.52.0
     restart: unless-stopped
     environment:
       SERVER_ALLOW_CORS: "true"
@@ -589,7 +589,7 @@ services:
   scanovate-liveness:
     profiles: ["scanovate"]
     container_name: ${DEVCONTAINER_NAME_PREFIX:-}scanovate-liveness
-    image: scanovate/liveness-plus-service:version_3.9.0_e0dc72e_115
+    image: 133529410358.dkr.ecr.eu-west-1.amazonaws.com/scanovate/liveness-plus-service:version_3.9.0_e0dc72e_115
     restart: unless-stopped
     environment:
       MODE: onprem
@@ -618,7 +618,7 @@ services:
   scanovate-face-match:
     profiles: ["scanovate"]
     container_name: ${DEVCONTAINER_NAME_PREFIX:-}scanovate-face-match
-    image: scanovate/ngfacematch:version_3.9.0_ba58397_79
+    image: 133529410358.dkr.ecr.eu-west-1.amazonaws.com/scanovate/ngfacematch:version_3.9.0_ba58397_79
     restart: unless-stopped
     environment:
       MODE: onprem

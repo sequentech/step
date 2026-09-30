@@ -35,12 +35,12 @@ contract between them, the capture page and Keycloak.
 
 | Service | Image | Role |
 | --- | --- | --- |
-| `scanovate-liveness` | `scanovate/liveness-plus-service:version_3.9.0_e0dc72e_115` | Liveness API. Manages the sessions, checks the face quality of each frame, calls PAD, sends the callbacks. |
-| `scanovate-presentation-detection` | `scanovate/liveness-presentation-detection-service:release_1.52.0` | PAD server, with the `pad-r-2` (presentation attacks) and `dfd-3` (deepfakes) pipelines. |
-| `scanovate-face-match` | `scanovate/ngfacematch:version_3.9.0_ba58397_79` | Face Match API. We use its 1:1 API (`/facematch11`). |
+| `scanovate-liveness` | `133529410358.dkr.ecr.eu-west-1.amazonaws.com/scanovate/liveness-plus-service:version_3.9.0_e0dc72e_115` | Liveness API. Manages the sessions, checks the face quality of each frame, calls PAD, sends the callbacks. |
+| `scanovate-presentation-detection` | `133529410358.dkr.ecr.eu-west-1.amazonaws.com/scanovate/liveness-presentation-detection-service:release_1.52.0` | PAD server, with the `pad-r-2` (presentation attacks) and `dfd-3` (deepfakes) pipelines. |
+| `scanovate-face-match` | `133529410358.dkr.ecr.eu-west-1.amazonaws.com/scanovate/ngfacematch:version_3.9.0_ba58397_79` | Face Match API. We use its 1:1 API (`/facematch11`). |
 
 Scanovate also ships an injection attack detection server
-(`scanovate/liveness-injection-detection-service`) and a 1:N API in the Face
+(`133529410358.dkr.ecr.eu-west-1.amazonaws.com/scanovate/liveness-injection-detection-service:release-2.6.2`) and a 1:N API in the Face
 Match image. We don't use them, see [Injection attacks](#injection-attacks) and
 [Face Match](#face-match).
 
@@ -84,7 +84,8 @@ sequenceDiagram
     V->>L: GET client_session_data
     L->>K: POST callback (result, with the frame)
     V->>V: photo of the voter holding the ID
-    V->>K: POST capture (front, back, holding)
+    V->>K: PUT scanovate/capture (front, back, holding)
+    V->>K: POST capture
     K->>K: wait for the result, reject unless it passed
     K->>F: compare_images (ID front, liveness frame)
     K->>F: compare_images (holding photo, liveness frame)
@@ -101,7 +102,7 @@ sequenceDiagram
    token, and sends frames until Liveness Plus completes the scan. Liveness Plus
    posts the verdict and the checked frame to Keycloak, server to server.
 4. The page takes a photo of the voter holding the ID next to their face, and
-   posts the ID photos and that photo to Keycloak.
+   uploads the ID photos and that photo to Keycloak, then posts the capture.
 5. Keycloak waits for the liveness verdict, and rejects the attempt unless it
    passed.
 6. Keycloak asks Face Match whether the face in the liveness frame is the one on
@@ -113,47 +114,50 @@ sequenceDiagram
 
 ## Access to the images
 
-The Scanovate images are private on Docker Hub. Without access, pulling them
-fails with:
+We run the images from our own mirror on AWS ECR, in the `133529410358` account
+(`eu-west-1`), with the same tags and digests as Scanovate's private images on
+Docker Hub:
 
-```text
-denied: requested access to the resource is denied
-unauthorized: authentication required
-```
+| Repository | Tag |
+| --- | --- |
+| `133529410358.dkr.ecr.eu-west-1.amazonaws.com/scanovate/liveness-plus-service` | `version_3.9.0_e0dc72e_115` |
+| `133529410358.dkr.ecr.eu-west-1.amazonaws.com/scanovate/liveness-presentation-detection-service` | `release_1.52.0` |
+| `133529410358.dkr.ecr.eu-west-1.amazonaws.com/scanovate/liveness-injection-detection-service` | `release-2.6.2` (not used) |
+| `133529410358.dkr.ecr.eu-west-1.amazonaws.com/scanovate/ngfacematch` | `version_3.9.0_ba58397_79` |
 
-Scanovate grants access to a Docker Hub account, or gives us the credentials of
-one. Log in with them in the Docker client that pulls the images: your host,
+Log in to the registry in the Docker client that pulls the images: your host,
 since the dev container talks to the host's Docker daemon, or each server that
-runs them. Use an access token rather than the account password when possible,
-and read it from standard input so it doesn't end up in the shell history:
+runs them. With an AWS SSO profile for that account (e.g. `sequent-ecr`, role
+`ECRPushPull`):
 
 ```bash
-docker login --username <docker hub user> --password-stdin
-# paste the token, then Ctrl-D
+aws sso login --profile sequent-ecr
+aws ecr get-login-password --profile sequent-ecr --region eu-west-1 \
+  | docker login --username AWS --password-stdin 133529410358.dkr.ecr.eu-west-1.amazonaws.com
 ```
 
-Then check the access without downloading anything:
+ECR login tokens expire after 12 hours: log in again before pulling a new tag.
+Without a valid login, pulling fails with `no basic auth credentials` or
+`authorization token has expired`. Check the access without downloading
+anything:
 
 ```bash
-docker manifest inspect scanovate/liveness-plus-service:version_3.9.0_e0dc72e_115
-docker manifest inspect scanovate/ngfacematch:version_3.9.0_ba58397_79
+docker manifest inspect 133529410358.dkr.ecr.eu-west-1.amazonaws.com/scanovate/liveness-plus-service:version_3.9.0_e0dc72e_115
 ```
-
-Scanovate also publishes Face Match on its AWS ECR registry
-(`495947449196.dkr.ecr.eu-central-1.amazonaws.com/ngfacematch`), with the same
-tag. We use the Docker Hub image, so we don't need ECR access.
 
 Some rules:
 
-- Never commit the credentials, or put them in `.env.development`, election
-  event data or tickets. Keep them in the team's password manager.
-- `docker login` stores them in `~/.docker/config.json`, in plain text unless a
+- Mirror a new version by pulling it from Scanovate's Docker Hub repositories
+  (`scanovate/<name>:<tag>`, with the access Scanovate gives us) and pushing it
+  with the same tag. Pin tags, never `latest`, and check that the digests match
+  (`docker buildx imagetools inspect <image>`).
+- Never commit credentials, or put them in `.env.development`, election event
+  data or tickets.
+- `docker login` stores the token in `~/.docker/config.json`, in plain text
+  unless a
   [credential helper](https://docs.docker.com/reference/cli/docker/login/#credential-stores)
   is configured. Log out (`docker logout`) on shared machines.
-- For deployments, prefer copying the images to our own registry once
-  (`docker pull`, `docker tag`, `docker push`) and pulling from there, instead of
-  spreading the Scanovate credentials to every server. Air-gapped servers can
-  load them with `docker save` and `docker load`.
+- Air-gapped servers can load the images with `docker save` and `docker load`.
 
 ## Running them in the development environment
 
@@ -229,7 +233,7 @@ capture is checked (at most 30 minutes). No image is logged.
 
 ### What you need
 
-- Docker Hub access to the Scanovate images (see
+- Access to our ECR mirror of the Scanovate images (see
   [Access to the images](#access-to-the-images)), and about 10 GB of memory for
   Docker on top of the dev container.
 - A computer with a webcam of at least 1280×720, and Chrome or Firefox.
@@ -243,7 +247,8 @@ From the host, in the checkout:
 ```bash
 # Writes the SCANOVATE_* variables into .devcontainer/.env if it predates them
 .devcontainer/scripts/initialize-command.sh
-docker login --username <docker hub user> --password-stdin
+aws ecr get-login-password --profile sequent-ecr --region eu-west-1 \
+  | docker login --username AWS --password-stdin 133529410358.dkr.ecr.eu-west-1.amazonaws.com
 
 cd .devcontainer
 docker compose --profile full up -d mock_server
@@ -343,7 +348,8 @@ don't depend on it.
 `btrust.sh` points the realm's Scanovate step to the mock, and switches it to
 the embedded capture with the on-premise face checks. It also removes the
 B-Trust rules on its own liveness and face match, which the mock doesn't
-report in this mode, and sets the React login theme. It needs `curl` and `jq`:
+report in this mode, and sets the React login theme on the realm and on the
+clients that set their own (`voting-portal` does). It needs `curl` and `jq`:
 
 ```bash
 export REALM=tenant-<tenant id>-event-<election event id>
@@ -373,12 +379,15 @@ Open the enrollment page on `https://localhost:8443`, the origin of the
 Liveness Plus API, and accept the development certificate:
 
 ```text
-https://localhost:8443/realms/<realm>/protocol/openid-connect/registrations?client_id=voting-portal&response_type=code&scope=openid&redirect_uri=http%3A%2F%2F127.0.0.1%3A3000%2F
+https://localhost:8443/realms/<realm>/protocol/openid-connect/registrations?client_id=voting-portal&response_type=code&scope=openid&redirect_uri=http%3A%2F%2Flocalhost%3A3000%2F
 ```
 
 1. Fill in the form: your ID type (e.g. **Passport**), **Japan/Tokyo PE** and
-   **Tokyo PE**, an email, a phone and a password. Enter the OTPs from the
-   Keycloak log: `docker compose logs keycloak | grep "Your OTP is"`.
+   **Tokyo PE**, an email, a phone and a password. The development senders
+   don't deliver the OTPs, and the codes aren't logged: to skip them, set the
+   OTP steps of the registration flow to **Disabled** (the
+   `message-otp-authenticator` step and the `deferred-otp-subflow*` subflows),
+   and enable them again after the test.
 2. **Verify your identity**: allow the camera.
 3. **Front of the ID**: the page with your photo, flat, with the four corners
    in the frame. It's taken automatically.
@@ -392,7 +401,7 @@ https://localhost:8443/realms/<realm>/protocol/openid-connect/registrations?clie
    data.
 8. **Check the details from your ID**: the voter you loaded. **Confirm and
    enroll**. The voting portal isn't running, so the final redirect to
-   `127.0.0.1:3000` fails; the enrollment is done by then.
+   `localhost:3000` fails; the enrollment is done by then.
 
 Follow it in the logs, from `.devcontainer`:
 
@@ -642,6 +651,8 @@ single origin.
   PAD and Face Match stay internal.
 - The same proxy answers `404` for `/realms/*/scanovate/liveness/`: only
   Liveness Plus calls those endpoints, on the internal network.
+- It accepts bodies of up to 8 MiB on `/realms/*/scanovate/capture/`, where the
+  page uploads each photo (nginx's default is 1 MiB).
 
 The dev container does exactly this in `keycloak-nginx`
 (`.devcontainer/keycloak-nginx/keycloak-mtls.conf.template`), on
@@ -656,6 +667,12 @@ location ~ ^/biometric/liveness/(create_session|check_liveness|client_session_da
 
 location /biometric/ {
     return 404;
+}
+
+location ~ ^/realms/[^/]+/scanovate/capture/ {
+    set $keycloak_upstream http://keycloak:${KC_HTTP_PORT};
+    proxy_pass $keycloak_upstream;
+    client_max_body_size 8m;
 }
 
 location ~ ^/realms/[^/]+/scanovate/liveness/ {
@@ -674,8 +691,9 @@ location ~ ^/realms/[^/]+/scanovate/liveness/ {
   same as the authenticator's `liveness-secret`, and test both before going
   live. Liveness Plus reaches Keycloak on the internal network.
 - Block `/realms/*/scanovate/liveness/` on the public proxy.
-- Use a secure random `JWT_SECRET_KEY`, and keep it and the Docker Hub
-  credentials in the secrets store.
+- Use a secure random `JWT_SECRET_KEY`, and keep it in the secrets store.
+- Pull the images from our ECR mirror (see
+  [Access to the images](#access-to-the-images)).
 - Pin image tags, never `latest`.
 - Tune the PAD thresholds and the Face Match minimum similarity with real
   devices and each accepted document type.
