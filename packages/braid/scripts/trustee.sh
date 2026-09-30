@@ -13,6 +13,18 @@ cd /opt/braid
 TRUSTEE_CONFIG_PATH=${TRUSTEE_CONFIG_PATH:-"/opt/braid/trustee.toml"} # Skipping secretsService if TRUSTEE_CONFIG_PATH is set
 SECRETS_BACKEND=${SECRETS_BACKEND:-"Awssecretsmanager"} # Default to Awssecretsmanager if not set
 SECRETS_BACKEND_LOWER=$(echo "$SECRETS_BACKEND" | tr '[:upper:]' '[:lower:]')
+# Under an indexed Job the shards share one pod spec, so the trustee identity has
+# to come from the pod's completion index rather than from the environment. The
+# index is 0-based and trustees are 1-based, hence the offset.
+#
+# An explicit TRUSTEE_NAME always wins, so the per-trustee Deployments are
+# unaffected.
+if [ -z "$TRUSTEE_NAME" ] && [ -n "$JOB_COMPLETION_INDEX" ]; then
+    TRUSTEE_NAME="${TRUSTEE_NAME_PREFIX:-trustee}$((JOB_COMPLETION_INDEX + ${TRUSTEE_INDEX_OFFSET:-1}))"
+    export TRUSTEE_NAME
+    echo "Derived TRUSTEE_NAME=$TRUSTEE_NAME from JOB_COMPLETION_INDEX=$JOB_COMPLETION_INDEX"
+fi
+
 if [ -z "$TRUSTEE_NAME" ] && [ ! -f "$TRUSTEE_CONFIG_PATH" ]; then
     echo "Error: TRUSTEE_NAME must be set." #Avoid secrets overwriting
     exit 1
@@ -124,5 +136,9 @@ handle_trustee_config() {
 
 handle_trustee_config
 
-# Run trustee with the generated or fetched config
-trustee --b4-url "$B4_URL" --trustee-config "$TRUSTEE_CONFIG_PATH"
+# Run trustee with the generated or fetched config.
+#
+# EXIT_WHEN_IDLE_SECS is read by the binary itself, so it needs no flag here; when
+# it is set the trustee returns once the protocol goes quiet, which is what lets
+# this run as a Job instead of a Deployment that something else has to stop.
+exec trustee --b4-url "$B4_URL" --trustee-config "$TRUSTEE_CONFIG_PATH"
