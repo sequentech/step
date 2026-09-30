@@ -24,6 +24,7 @@ use crate::ports::task_queue::TaskQueue;
 use crate::ports::vault::SecretVault;
 use crate::services::monitoring::{DrawFailure, DrawnChart};
 use crate::services::monitoring_cache::RenderCache;
+use crate::services::monitoring_config_cache::MonitoringConfigs;
 use std::sync::Arc;
 use windmill::services::monitoring::audit::ElectoralLogConfigAudit;
 use windmill::services::monitoring::config_store::MonitoringConfigAudit;
@@ -42,6 +43,7 @@ pub struct HarvestServices {
     pub identity: Arc<dyn IdentityAdmin>,
     pub monitoring_audit: Arc<dyn MonitoringConfigAudit>,
     pub monitoring_cache: Arc<MonitoringCache>,
+    pub monitoring_configs: Arc<MonitoringConfigs>,
     pub monitoring_renderer: Arc<dyn MonitoringRenderer>,
     pub monitoring_snapshots: Arc<dyn MonitoringSnapshots>,
     pub ledger: Arc<dyn TaskLedger>,
@@ -60,6 +62,7 @@ impl HarvestServices {
             identity: Arc::new(KeycloakIdentityAdmin),
             monitoring_audit: Arc::new(ElectoralLogConfigAudit),
             monitoring_cache: Arc::new(MonitoringCache::from_env()),
+            monitoring_configs: Arc::new(MonitoringConfigs::from_env()),
             monitoring_renderer: Arc::new(HttpMonitoringRenderer::from_env()),
             monitoring_snapshots: Arc::new(WindmillMonitoringSnapshots {
                 databases,

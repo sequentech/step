@@ -51,8 +51,8 @@ use std::sync::Arc;
 use tracing::{error, warn};
 use uuid::Uuid;
 use windmill::services::monitoring::config_store::{
-    get_config_at_generation, get_live_config, Author, EventRef, LiveConfig,
-    StoredRevision,
+    get_config_at_generation, get_live_config, Author, ConfigAtGeneration,
+    EventRef, LiveConfig, StoredRevision,
 };
 use windmill::services::monitoring::snapshot::empty_payload;
 
@@ -463,6 +463,41 @@ pub async fn live_config(
         .map_err(MonitoringError::internal)
 }
 
+/// The event's live configuration for a read route: its generation is read
+/// first, and the documents are read and checked only for a generation not
+/// kept yet (see [`crate::services::monitoring_config_cache`]).
+pub async fn viewed_config(
+    services: &HarvestServices,
+    transaction: &Transaction<'_>,
+    event: EventRef,
+) -> MonitoringResult<Option<LiveConfig>> {
+    let row = transaction
+        .query_opt(
+            "SELECT config_generation FROM sequent_backend.monitoring_event
+             WHERE tenant_id = $1 AND election_event_id = $2",
+            &[&event.tenant_id, &event.election_event_id],
+        )
+        .await
+        .map_err(MonitoringError::internal)?;
+    let Some(row) = row else {
+        return Ok(None);
+    };
+    let generation: i64 = row.get(0);
+    if let Some(kept) = services.monitoring_configs.live.get(event, generation)
+    {
+        return Ok(Some(LiveConfig::clone(&kept)));
+    }
+    let live = live_config(transaction, event).await?;
+    if let Some(live) = &live {
+        services.monitoring_configs.live.put(
+            event,
+            live.generation,
+            live.clone(),
+        );
+    }
+    Ok(live)
+}
+
 /// An instant a request names: RFC 3339 with its offset (`Z`, `+08:00`).
 /// A time without one names no instant, so it is refused.
 pub fn parse_instant(
@@ -529,19 +564,9 @@ pub async fn config_at_snapshot(
     else {
         return Ok(SnapshotConfig::live(live));
     };
-    let mut client = hasura_client(services).await?;
-    let transaction = client
-        .transaction()
-        .await
-        .map_err(MonitoringError::internal)?;
-    let at =
-        get_config_at_generation(&transaction, event, head.config_generation)
-            .await
-            .map_err(MonitoringError::internal)?;
-    transaction
-        .commit()
-        .await
-        .map_err(MonitoringError::internal)?;
+    let at = config_at_generation(services, event, head.config_generation)
+        .await?
+        .map(|at| ConfigAtGeneration::clone(&at));
     let notice = match at {
         Some(at) if has(&at.assembled.set) => {
             return Ok(SnapshotConfig {
@@ -558,6 +583,32 @@ pub async fn config_at_snapshot(
         notice: Some(notice),
         ..SnapshotConfig::live(live)
     })
+}
+
+/// What the event was configured with at `generation`, which never
+/// changes once reached: read once, then kept.
+async fn config_at_generation(
+    services: &HarvestServices,
+    event: EventRef,
+    generation: i64,
+) -> MonitoringResult<Option<Arc<ConfigAtGeneration>>> {
+    if let Some(kept) = services.monitoring_configs.at.get(event, generation) {
+        return Ok(Some(kept));
+    }
+    let mut client = hasura_client(services).await?;
+    let transaction = client
+        .transaction()
+        .await
+        .map_err(MonitoringError::internal)?;
+    let at = get_config_at_generation(&transaction, event, generation)
+        .await
+        .map_err(MonitoringError::internal)?;
+    transaction
+        .commit()
+        .await
+        .map_err(MonitoringError::internal)?;
+    // Not reached yet is not kept: it may be reached later.
+    Ok(at.map(|at| services.monitoring_configs.at.put(event, generation, at)))
 }
 
 /// Checks the values a request gives a widget's selectors against the

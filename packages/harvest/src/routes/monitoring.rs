@@ -18,7 +18,7 @@ use crate::services::dependencies::HarvestServices;
 use crate::services::monitoring::{
     config_at_snapshot, dashboard_theme_id, dimension_label, draft_revision,
     draft_theme, draft_widget, draw_widget, election_region, hasura_client,
-    live_config, revision_of, viewer, Draft, DrawPlan, MonitoringError,
+    revision_of, viewed_config, viewer, Draft, DrawPlan, MonitoringError,
     MonitoringResult, RenderResponse, SnapshotConfig, SnapshotView, Viewer,
 };
 use indexmap::IndexMap;
@@ -74,7 +74,7 @@ pub(crate) async fn viewer_and_config(
         .map_err(MonitoringError::internal)?;
     let viewer =
         viewer(&transaction, claims, election_event_id, election_id).await?;
-    let live = live_config(&transaction, viewer.event).await?;
+    let live = viewed_config(services, &transaction, viewer.event).await?;
     transaction
         .commit()
         .await
