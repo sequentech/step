@@ -16,6 +16,7 @@
 //! Run with `--nocapture` to see what each widget measured:
 //! `[scale] preset=.. widget=.. compute_ms=.. board_bytes=..`.
 
+use super::presets_tests::sorted_keys;
 use super::*;
 use crate::monitoring::compute::{evaluate, QueryResult};
 use crate::monitoring::config::{DynamicOptions, Widget, DEFAULT_THEME};
@@ -660,7 +661,8 @@ fn the_scale_boards_match_the_files_the_renderer_is_tested_with() {
         let widget = &preset.set.widgets[key];
         let drawn = draw(&preset, widget, &requested_for(file), hours)
             .unwrap_or_else(|why| panic!("{file}: {why}"));
-        let mut text = serde_json::to_string(&drawn.board).unwrap();
+        let mut text =
+            serde_json::to_string(&sorted_keys(&drawn.board)).unwrap();
         text.push('\n');
         let path = root.join(format!("{preset_id}.{file}.json"));
         if update {

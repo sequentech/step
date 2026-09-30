@@ -1070,3 +1070,344 @@ fn a_bucket_with_an_unreadable_offset_is_refused() {
         .iter()
         .any(|problem| problem.code == Code::MalformedSnapshot));
 }
+
+/// The codes and paths `query` is refused with.
+fn refusal(
+    source: DataSourceId,
+    query: &ResolvedQuery,
+    payload: &ScopePayload,
+) -> Vec<(Code, String)> {
+    evaluate(source, query, payload, Some(&settings()))
+        .expect_err("refused")
+        .problems
+        .into_iter()
+        .map(|problem| (problem.code, problem.path))
+        .collect()
+}
+
+fn refused_as(code: Code, path: &str) -> Vec<(Code, String)> {
+    vec![(code, path.to_string())]
+}
+
+#[test]
+fn a_measure_the_source_lacks_is_refused() {
+    let mut summary = query(QueryTemplate::Summary);
+    summary.measures = vec![Registered];
+    assert_eq!(
+        refusal(VotingEnrollmentActivity, &summary, &activity_payload()),
+        refused_as(Code::UnsupportedBySource, "measures")
+    );
+    let mut share = query(QueryTemplate::Summary);
+    share.ratio = Some(Ratio(Voted, Registered));
+    assert_eq!(
+        refusal(VotingEnrollmentActivity, &share, &activity_payload()),
+        refused_as(Code::UnsupportedBySource, "measures")
+    );
+}
+
+#[test]
+fn an_offset_out_of_shape_or_range_is_refused() {
+    let mut hourly = query(QueryTemplate::Timeseries);
+    hourly.measures = vec![Voted];
+    hourly.grain = Some(TimeGrain::Hour);
+    let offsets = [
+        "", "08:00", "+8:00", "+08:0", "+ab:00", "+08:xx", "+15:00", "+08:60",
+        "+08",
+    ];
+    for offset in offsets {
+        let mut payload = madrid_autumn();
+        payload.series[1].utc_offset = offset.into();
+        assert_eq!(
+            refusal(VotingEnrollmentActivity, &hourly, &payload),
+            refused_as(Code::MalformedSnapshot, ""),
+            "{offset:?}"
+        );
+    }
+    let mut payload = madrid_autumn();
+    payload.series[1].start = "2026-10-25 02:00".into();
+    assert_eq!(
+        refusal(VotingEnrollmentActivity, &hourly, &payload),
+        refused_as(Code::MalformedSnapshot, ""),
+        "a start that is not a wall-clock time"
+    );
+    let mut payload = madrid_autumn();
+    payload.series[0].utc_offset = "-14:59".into();
+    let result = run(VotingEnrollmentActivity, &hourly, &payload);
+    assert_eq!(
+        column(&result, "bucket_utc")[0],
+        json!("2026-10-25T15:59:00Z")
+    );
+}
+
+#[test]
+fn a_filter_without_voter_counts_is_refused_not_ignored() {
+    let mut summary = query(QueryTemplate::Summary);
+    summary.measures = vec![Voted];
+    summary.filters = [("sex".to_string(), vec!["F".to_string()])].into();
+    let payload = ScopePayload {
+        totals: counts(&[(Voted, 30)]),
+        ..ScopePayload::default()
+    };
+    assert_eq!(
+        refusal(VoterTurnout, &summary, &payload),
+        refused_as(Code::NotCounted, "")
+    );
+    summary.filters = [("religion".to_string(), vec!["x".to_string()])].into();
+    assert_eq!(
+        refusal(VoterTurnout, &summary, &turnout_payload()),
+        refused_as(Code::NotCounted, "")
+    );
+}
+
+#[test]
+fn groups_need_a_dimension_and_a_series_needs_a_grain() {
+    let mut by_group = query(QueryTemplate::ByGroup);
+    by_group.measures = vec![Voted];
+    assert_eq!(
+        refusal(VoterTurnout, &by_group, &turnout_payload()),
+        refused_as(Code::TemplateParameter, "group_by")
+    );
+    let mut series = query(QueryTemplate::Timeseries);
+    series.measures = vec![Voted];
+    assert_eq!(
+        refusal(VotingEnrollmentActivity, &series, &activity_payload()),
+        refused_as(Code::TemplateParameter, "grain")
+    );
+}
+
+/// Groups by Post are counted Post by Post, not voter by voter: no voter
+/// dimension can narrow them.
+#[test]
+fn builtin_groups_cannot_be_filtered_by_voter_dimensions() {
+    let mut by_post = query(QueryTemplate::ByGroup);
+    by_post.group_by = Some("post".into());
+    by_post.measures = vec![Voted];
+    by_post.filters = [("sex".to_string(), vec!["F".to_string()])].into();
+    assert_eq!(
+        refusal(VoterTurnout, &by_post, &turnout_payload()),
+        refused_as(Code::TemplateParameter, "filters")
+    );
+}
+
+#[test]
+fn a_voter_dimension_the_cube_lacks_is_refused() {
+    let mut by_religion = query(QueryTemplate::ByGroup);
+    by_religion.group_by = Some("religion".into());
+    by_religion.measures = vec![Voted];
+    assert_eq!(
+        refusal(VoterTurnout, &by_religion, &turnout_payload()),
+        refused_as(Code::NotCounted, "")
+    );
+}
+
+#[test]
+fn a_source_that_does_not_count_posts_has_no_states() {
+    let mut by_state = query(QueryTemplate::ByGroup);
+    by_state.group_by = Some("state".into());
+    by_state.measures = vec![Voted];
+    assert_eq!(
+        refusal(VoterTurnout, &by_state, &turnout_payload()),
+        refused_as(Code::NotCounted, "")
+    );
+}
+
+/// A Post without a state, or in a state this source does not have, is in
+/// the Unknown group, last, and never dropped.
+#[test]
+fn a_post_in_no_known_state_is_in_the_unknown_state() {
+    let mut payload = poll_payload();
+    payload.posts[0].state = None;
+    payload.posts[1].state = Some(PostState::Tested);
+    let mut by_state = query(QueryTemplate::ByGroup);
+    by_state.group_by = Some("state".into());
+    by_state.measures = vec![Posts];
+    let result = run(PollStatus, &by_state, &payload);
+    assert_eq!(column(&result, "group_key")[5], json!(UNKNOWN_KEY));
+    assert_eq!(column(&result, "group")[5], json!("Unknown"));
+    assert_eq!(
+        column(&result, "posts"),
+        [json!(0), json!(0), json!(0), json!(0), json!(0), json!(2)]
+    );
+}
+
+#[test]
+fn a_listed_post_without_a_state_has_no_state_cells() {
+    let mut payload = poll_payload();
+    payload.posts[1].state = None;
+    let result = run(PollStatus, &query(QueryTemplate::ByPost), &payload);
+    assert_eq!(column(&result, "state"), [json!("closed"), Value::Null]);
+    assert_eq!(
+        column(&result, "state_label"),
+        [json!("Closed"), Value::Null]
+    );
+}
+
+#[test]
+fn undefined_ratios_sort_last_in_either_order() {
+    let group = |key: &str, registered, voted| GroupRow {
+        key: key.into(),
+        label: None,
+        counts: counts(&[(Registered, registered), (Voted, voted)]),
+    };
+    let payload = ScopePayload {
+        totals: counts(&[(Registered, 5), (Voted, 2)]),
+        groups: [(
+            "region".to_string(),
+            vec![
+                group("B", 4, 1),
+                group("A", 0, 0),
+                group("D", 1, 1),
+                group("C", 0, 0),
+            ],
+        )]
+        .into(),
+        ..ScopePayload::default()
+    };
+    let mut by_region = query(QueryTemplate::ByGroup);
+    by_region.group_by = Some("region".into());
+    by_region.ratio = Some(Ratio(Voted, Registered));
+    for (order, expected) in [
+        (SortOrder::Asc, ["B", "D", "A", "C"]),
+        (SortOrder::Desc, ["D", "B", "A", "C"]),
+    ] {
+        by_region.sort = Some(Sort {
+            by: SortKey::Ratio,
+            order,
+        });
+        let result = run(VoterTurnout, &by_region, &payload);
+        assert_eq!(column(&result, "group"), expected.map(|key| json!(key)));
+    }
+}
+
+#[test]
+fn a_filter_on_a_dimension_the_cube_lacks_refuses_its_groups_and_measures() {
+    let mut by_sex = query(QueryTemplate::ByGroup);
+    by_sex.group_by = Some("sex".into());
+    by_sex.measures = vec![Voted];
+    by_sex.filters = [("religion".to_string(), vec!["x".to_string()])].into();
+    assert_eq!(
+        refusal(VoterTurnout, &by_sex, &turnout_payload()),
+        refused_as(Code::NotCounted, "")
+    );
+    let mut outcomes = query(QueryTemplate::ByMeasure);
+    outcomes.measures = vec![Voted];
+    outcomes.filters = by_sex.filters.clone();
+    assert_eq!(
+        refusal(VoterTurnout, &outcomes, &turnout_payload()),
+        refused_as(Code::NotCounted, "")
+    );
+}
+
+#[test]
+fn an_hour_missing_a_measure_is_refused_rather_than_shown_as_zero() {
+    let mut payload = activity_payload();
+    payload.series[2].counts.remove(&Voted);
+    let mut hourly = query(QueryTemplate::Timeseries);
+    hourly.measures = vec![Voted];
+    hourly.grain = Some(TimeGrain::Hour);
+    assert_eq!(
+        refusal(VotingEnrollmentActivity, &hourly, &payload),
+        refused_as(Code::NotCounted, "")
+    );
+}
+
+/// A value sort reads the first measure, or else the ratio's numerator; a
+/// sort with nothing to read keeps the rows in their order.
+#[test]
+fn a_sort_with_nothing_to_read_keeps_the_rows_in_order() {
+    let payload = ScopePayload {
+        totals: counts(&[(Registered, 3), (Voted, 3)]),
+        groups: [(
+            "region".to_string(),
+            vec![
+                GroupRow {
+                    key: "A".into(),
+                    label: None,
+                    counts: counts(&[(Registered, 1), (Voted, 1)]),
+                },
+                GroupRow {
+                    key: "B".into(),
+                    label: None,
+                    counts: counts(&[(Registered, 2), (Voted, 2)]),
+                },
+            ],
+        )]
+        .into(),
+        ..ScopePayload::default()
+    };
+    let mut by_region = query(QueryTemplate::ByGroup);
+    by_region.group_by = Some("region".into());
+    by_region.sort = Some(Sort {
+        by: SortKey::Value,
+        order: SortOrder::Desc,
+    });
+    let groups = |query: &ResolvedQuery| {
+        column(&run(VoterTurnout, query, &payload), "group")
+    };
+    assert_eq!(groups(&by_region), [json!("A"), json!("B")]);
+    by_region.sort = Some(Sort {
+        by: SortKey::Ratio,
+        order: SortOrder::Desc,
+    });
+    assert_eq!(groups(&by_region), [json!("A"), json!("B")]);
+    by_region.ratio = Some(Ratio(Voted, Registered));
+    by_region.sort = Some(Sort {
+        by: SortKey::Value,
+        order: SortOrder::Desc,
+    });
+    assert_eq!(groups(&by_region), [json!("B"), json!("A")]);
+}
+
+/// Labels equal but for case keep one order: capitals first.
+#[test]
+fn labels_equal_but_for_case_sort_capitals_first() {
+    let group = |key: &str| GroupRow {
+        key: key.into(),
+        label: None,
+        counts: counts(&[(Registered, 1)]),
+    };
+    let payload = ScopePayload {
+        totals: counts(&[(Registered, 3)]),
+        groups: [(
+            "region".to_string(),
+            vec![group("bicol"), group("Bicol"), group("abra")],
+        )]
+        .into(),
+        ..ScopePayload::default()
+    };
+    let mut by_region = query(QueryTemplate::ByGroup);
+    by_region.group_by = Some("region".into());
+    by_region.measures = vec![Registered];
+    by_region.sort = Some(Sort {
+        by: SortKey::Label,
+        order: SortOrder::Asc,
+    });
+    let result = run(VoterTurnout, &by_region, &payload);
+    assert_eq!(
+        column(&result, "group"),
+        [json!("abra"), json!("Bicol"), json!("bicol")]
+    );
+}
+
+#[test]
+fn a_ratio_sort_over_a_group_missing_a_measure_is_refused() {
+    let mut payload = turnout_payload();
+    let posts = payload.groups.get_mut("post").unwrap();
+    posts[0].counts.remove(&Registered);
+    let mut by_post = query(QueryTemplate::ByGroup);
+    by_post.group_by = Some("post".into());
+    by_post.ratio = Some(Ratio(Voted, Registered));
+    by_post.sort = Some(Sort {
+        by: SortKey::Ratio,
+        order: SortOrder::Desc,
+    });
+    let refused = refusal(VoterTurnout, &by_post, &payload);
+    assert!(!refused.is_empty());
+    assert!(refused.iter().all(|(code, _)| *code == Code::NotCounted));
+    payload.groups.get_mut("post").unwrap()[1]
+        .counts
+        .remove(&Voted);
+    assert!(refusal(VoterTurnout, &by_post, &payload)
+        .iter()
+        .all(|(code, _)| *code == Code::NotCounted));
+}

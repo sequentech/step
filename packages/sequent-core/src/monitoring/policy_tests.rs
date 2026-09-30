@@ -1307,3 +1307,376 @@ layout: [{widget: poll, width: 12}]
     // Posts have no country; the specification's dashboard applies all three.
     assert_eq!(unused, ["dashboards.polls.selectors[2]"]);
 }
+
+// -- the content pass: whatever the document is ----------------------------
+
+#[test]
+fn a_misspelt_key_rule_is_no_rule() {
+    assert_eq!(KeyRule::parse("allow"), Some(KeyRule::Allow));
+    assert_eq!(KeyRule::parse("alow"), None);
+}
+
+#[test]
+fn a_document_missing_a_required_field_is_unreadable_as_a_whole() {
+    assert_refused(
+        &widget_report(&minimal_with("id: w\n", "")),
+        Code::Unreadable,
+        "",
+    );
+}
+
+#[test]
+fn a_yaml_tag_is_refused_wherever_it_appears() {
+    let yaml = minimal_with("title: W", "title: !shout W");
+    assert_refused(&widget_report(&yaml), Code::ForbiddenValue, "title");
+}
+
+#[test]
+fn an_address_in_a_scheme_of_its_own_is_refused_but_a_scheme_starts_with_a_letter(
+) {
+    let yaml = minimal_with("title: W", "title: \"Open x-app://ballots\"");
+    assert_refused(&widget_report(&yaml), Code::ForbiddenValue, "title");
+    let yaml = minimal_with("title: W", "title: \"Ratio 1://2\"");
+    assert_accepted(&widget_report(&yaml));
+}
+
+// -- the content pass: a widget's chart ------------------------------------
+
+const KPI: &str = "k: {type: kpi, query: data, value: voted}";
+
+/// [`MINIMAL`] with `chart` for its chart.
+fn minimal_charting(chart: &str) -> String {
+    minimal_with(
+        "{charts: {k: {type: kpi, query: data, value: voted}}, rows: [k]}",
+        chart,
+    )
+}
+
+/// [`MINIMAL`] with more fields on its one chart.
+fn minimal_chart_with(fields: &str) -> String {
+    minimal_with("value: voted}", &format!("value: voted, {fields}}}"))
+}
+
+#[test]
+fn a_chart_that_is_not_a_board_is_unreadable() {
+    assert_refused(
+        &widget_report(&minimal_charting("[k]")),
+        Code::Unreadable,
+        "chart",
+    );
+}
+
+#[test]
+fn layout_that_is_not_the_shape_dbt_charts_reads_is_refused() {
+    for (chart, code, path) in [
+        ("{charts: [k], rows: [k]}".to_string(), Code::InvalidValue, "chart.charts"),
+        (format!("{{charts: {{{KPI}}}, rows: k}}"), Code::InvalidValue, "chart.rows"),
+        (format!("{{charts: {{{KPI}}}, rows: [5]}}"), Code::InvalidValue, "chart.rows[0]"),
+        (
+            format!("{{charts: {{{KPI}}}, rows: [{{rows: [k], card_gap: [8]}}]}}"),
+            Code::InvalidValue,
+            "chart.rows[0].card_gap",
+        ),
+        (
+            format!("{{charts: {{{KPI}}}, grid: {{items: [{{item: k}}], gap: 8}}}}"),
+            Code::ForbiddenKey,
+            "chart.grid.gap",
+        ),
+        (
+            format!("{{charts: {{{KPI}}}, grid: {{items: [{{col: 0}}]}}}}"),
+            Code::InvalidValue,
+            "chart.grid.items[0]",
+        ),
+        (
+            format!("{{charts: {{{KPI}}}, grid: {{items: [{{item: 5}}]}}}}"),
+            Code::InvalidValue,
+            "chart.grid.items[0].item",
+        ),
+        (
+            format!("{{charts: {{{KPI}}}, grid: {{items: [{{item: k, colour: red}}]}}}}"),
+            Code::ForbiddenKey,
+            "chart.grid.items[0].colour",
+        ),
+    ] {
+        assert_refused(&widget_report(&minimal_charting(&chart)), code, path);
+    }
+}
+
+#[test]
+fn a_chart_definition_holds_no_layout_markdown_or_unbundled_source() {
+    for (fields, code, path) in [
+        ("items: [k]", Code::ForbiddenKey, "chart.charts.k.items"),
+        ("text: Hello", Code::ForbiddenKey, "chart.charts.k.text"),
+        (
+            "geo_source: 5",
+            Code::ForbiddenValue,
+            "chart.charts.k.geo_source",
+        ),
+        (
+            "support_table: [{source: 5}]",
+            Code::ForbiddenValue,
+            "chart.charts.k.support_table[0].source",
+        ),
+        (
+            "style: {category_colors: {'gr\"oup': {values: {M: red}}}}",
+            Code::ForbiddenValue,
+            "chart.charts.k.style.category_colors.gr\"oup",
+        ),
+    ] {
+        assert_refused(&widget_report(&minimal_chart_with(fields)), code, path);
+    }
+    assert_refused(
+        &widget_report(&minimal_with("query: data", "query: 5")),
+        Code::InvalidValue,
+        "chart.charts.k.query",
+    );
+}
+
+#[test]
+fn values_the_engine_reads_as_absent_and_boards_in_grid_cells_are_accepted() {
+    assert_accepted(&widget_report(&minimal_charting(&format!(
+        "{{charts: {{{KPI}}}, grid: {{items: [{{item: {{rows: [k]}}}}]}}, style: {{padding: null}}}}"
+    ))));
+    assert_accepted(&widget_report(&minimal_chart_with(
+        "geo_source: null, style: {category_colors: null}",
+    )));
+}
+
+#[test]
+fn only_typed_in_chart_types_are_refused_here_the_renderer_reads_the_rest() {
+    let report = widget_report(&minimal_with("type: kpi", "type: [kpi]"));
+    assert!(
+        !has(&report, Code::ForbiddenValue, "chart.charts.k.type"),
+        "{report}"
+    );
+}
+
+// -- the content pass: a theme ---------------------------------------------
+
+#[test]
+fn a_theme_s_style_is_a_mapping_of_paint_that_queries_nothing() {
+    assert_refused(
+        &parse_theme("id: t\nstyle: 5\n").report,
+        Code::InvalidValue,
+        "style",
+    );
+    assert_refused(
+        &parse_theme("id: t\nstyle: {charts: {query: data}}\n").report,
+        Code::ForbiddenKey,
+        "style.charts.query",
+    );
+    assert_refused(
+        &parse_theme("id: t\nstyle: {accent: \"red]\"}\n").report,
+        Code::ForbiddenValue,
+        "style.accent",
+    );
+}
+
+// -- the semantic pass: widgets --------------------------------------------
+
+#[test]
+fn a_widget_s_height_stays_within_what_a_screen_shows() {
+    let tall = |height: u32| {
+        minimal_with(
+            "source: voter_turnout",
+            &format!("source: voter_turnout\nheight: {height}"),
+        )
+    };
+    assert_accepted(&widget_report(&tall(400)));
+    for height in [MIN_WIDGET_HEIGHT - 1, MAX_WIDGET_HEIGHT + 1] {
+        assert_refused(
+            &widget_report(&tall(height)),
+            Code::InvalidValue,
+            "height",
+        );
+    }
+}
+
+#[test]
+fn a_widget_draws_a_bounded_number_of_charts() {
+    let charts: Vec<String> = (0..=MAX_CHARTS_PER_WIDGET)
+        .map(|n| format!("c{n}: {{type: kpi, query: data, value: voted}}"))
+        .collect();
+    let yaml = minimal_charting(&format!(
+        "{{charts: {{{}}}, rows: [c0]}}",
+        charts.join(", ")
+    ));
+    assert_refused(&widget_report(&yaml), Code::TooLarge, "chart.charts");
+}
+
+#[test]
+fn a_selector_lists_options_whose_values_are_words() {
+    let with_selector = |selector: &str| {
+        minimal_with("query:", &format!("selectors:\n  s: {selector}\nquery:"))
+    };
+    assert_refused(
+        &widget_report(&with_selector("{label: S, default: x}")),
+        Code::InvalidValue,
+        "selectors.s.options",
+    );
+    assert_refused(
+        &widget_report(&with_selector(
+            "{label: S, options: {\"a b\": A}, default: \"a b\"}",
+        )),
+        Code::InvalidId,
+        "selectors.s.options.a b",
+    );
+}
+
+#[test]
+fn options_taken_from_the_data_are_neither_defaulted_nor_mapped() {
+    let yaml = VOTING_ACTIVITY.replacen(
+        "    options_from: event_days\n",
+        "    options_from: event_days\n    default: \"2026-05-04\"\n    maps: {}\n",
+        1,
+    );
+    let report = widget_report(&yaml);
+    assert_refused(&report, Code::InvalidValue, "selectors.day.default");
+    assert_refused(&report, Code::InvalidValue, "selectors.day.maps");
+}
+
+#[test]
+fn a_condition_lists_at_least_one_value() {
+    let yaml = VOTING_ACTIVITY.replacen("in: [hour]", "in: []", 1);
+    assert_refused(
+        &widget_report(&yaml),
+        Code::InvalidValue,
+        "selectors.day.when.in",
+    );
+}
+
+#[test]
+fn a_condition_on_options_from_the_data_is_not_held_to_a_list() {
+    let yaml = VOTING_ACTIVITY.replacen(
+        "\nquery:\n",
+        "\n  note:\n    label: Note\n    options: {a: A}\n    default: a\n    when: {selector: day, in: [\"2026-05-04\"]}\nquery:\n",
+        1,
+    );
+    assert_accepted(&widget_report(&yaml));
+}
+
+#[test]
+fn a_query_counts_at_least_one_measure_and_a_filter_keeps_at_least_one_value() {
+    assert_refused(
+        &widget_report(&minimal_with("measures: [voted]", "measures: []")),
+        Code::TemplateParameter,
+        "query.measures",
+    );
+    assert_refused(
+        &widget_report(&minimal_with(
+            "measures: [voted]",
+            "measures: [voted], filters: {status: []}",
+        )),
+        Code::TemplateParameter,
+        "query.filters.status",
+    );
+}
+
+#[test]
+fn a_post_state_is_labelled_only_where_posts_are_counted() {
+    let poll = MINIMAL
+        .replace("voter_turnout", "poll_status")
+        .replace(
+            "{template: summary, measures: [voted]}",
+            "{template: by_post, labels: {not_initialized: Not yet}}",
+        )
+        .replace("value: voted", "value: posts");
+    assert_accepted(&widget_report(&poll));
+    for key in ["not_initialized", "nonsense"] {
+        assert_refused(
+            &widget_report(&minimal_with(
+                "measures: [voted]",
+                &format!("measures: [voted], labels: {{{key}: Label}}"),
+            )),
+            Code::UnsupportedBySource,
+            &format!("query.labels.{key}"),
+        );
+    }
+}
+
+#[test]
+fn sorting_by_value_needs_something_counted() {
+    let poll = MINIMAL
+        .replace("voter_turnout", "poll_status")
+        .replace(
+            "{template: summary, measures: [voted]}",
+            "{template: by_post, sort: {by: value}}",
+        )
+        .replace("value: voted", "value: posts");
+    assert_refused(
+        &widget_report(&poll),
+        Code::TemplateParameter,
+        "query.sort",
+    );
+}
+
+#[test]
+fn a_day_picker_beside_an_undeclared_grain_selector_is_refused_once() {
+    let yaml = VOTING_ACTIVITY.replacen(
+        "grain: {selector: grain}",
+        "grain: {selector: missing}",
+        1,
+    );
+    let report = widget_report(&yaml);
+    assert_refused(&report, Code::UnknownSelector, "query.grain.selector");
+    assert!(
+        !has(&report, Code::TemplateParameter, "query.day"),
+        "{report}"
+    );
+}
+
+// -- the semantic pass: dashboards, settings and sets ----------------------
+
+#[test]
+fn a_dashboard_shows_a_widget_and_names_its_theme_by_id() {
+    assert_refused(
+        &dashboard_report(&REQ_0260.replacen(
+            "\ntitle:",
+            "\ntheme: Neon\ntitle:",
+            1,
+        )),
+        Code::InvalidId,
+        "theme",
+    );
+    assert_accepted(&dashboard_report(&REQ_0260.replacen(
+        "\ntitle:",
+        "\ntheme: neon\ntitle:",
+        1,
+    )));
+    assert_refused(
+        &dashboard_report("id: d\ntitle: D\nlayout: []\n"),
+        Code::InvalidValue,
+        "layout",
+    );
+}
+
+#[test]
+fn a_split_needs_a_separator() {
+    let yaml = SETTINGS.replace("separator: \"/\"", "separator: \"\"");
+    assert_refused(
+        &settings_report(&yaml),
+        Code::InvalidValue,
+        "scope.country.split.separator",
+    );
+}
+
+#[test]
+fn a_filter_must_be_a_configured_dimension() {
+    let mut set = specification_set();
+    let widget = parse_widget(&minimal_with(
+        "measures: [voted]",
+        "measures: [voted], filters: {status: [sea]}",
+    ))
+    .value
+    .expect("filtered widget");
+    set.widgets.insert(widget.id.clone(), widget);
+    assert_accepted(&validate_set(&set));
+    if let Some(settings) = set.settings.as_mut() {
+        settings.dimensions.shift_remove("status");
+    }
+    assert_refused(
+        &validate_set(&set),
+        Code::UnsupportedBySource,
+        "widgets.w.query.filters.status",
+    );
+}

@@ -284,3 +284,165 @@ fn a_table_shows_every_row_without_a_pager() {
         .pointer("/style/pagination")
         .is_none());
 }
+
+fn styled(style: &str) -> Theme {
+    Theme {
+        id: "t".into(),
+        title: None,
+        base: None,
+        style: Some(serde_yaml::from_str(style).unwrap()),
+    }
+}
+
+fn group_rows(rows: Vec<Vec<Value>>) -> IndexMap<String, QueryResult> {
+    [(
+        "data".to_string(),
+        QueryResult {
+            columns: vec![Column {
+                name: "group".into(),
+                kind: ColumnKind::Text,
+            }],
+            rows,
+            notices: Vec::new(),
+        },
+    )]
+    .into()
+}
+
+#[test]
+fn a_chart_that_is_not_a_mapping_is_still_a_board_of_governed_rows() {
+    let mut widget = widget();
+    widget.chart = serde_yaml::Value::Null;
+    let board = build_board(&widget, None, &data());
+    assert_eq!(board["queries"]["data"]["columns"], json!(["group", "pct"]));
+    assert_eq!(board["style"]["footer"], json!({"visible": false}));
+    assert!(board.get("charts").is_none());
+}
+
+#[test]
+fn a_theme_with_only_a_base_sets_the_base_and_no_style() {
+    let theme = parse_theme("id: t\nbase: paper\n").value.expect("theme");
+    let board = build_board(&widget(), Some(&theme), &data());
+    assert_eq!(board["theme"], json!("paper"));
+    assert_eq!(
+        board["style"],
+        json!({"footer": {"visible": false}, "timestamp": {"visible": false}})
+    );
+}
+
+#[test]
+fn a_board_without_charts_keeps_every_theme_pin() {
+    let mut widget = widget();
+    widget.chart = serde_yaml::from_str("rows: []").unwrap();
+    let board = build_board(
+        &widget,
+        Some(&pinning("{Unknown: dbt-grays.muted}")),
+        &data(),
+    );
+    assert_eq!(
+        board["style"]["charts"]["category_colors"]["group"]["values"],
+        json!({"Unknown": "dbt-grays.muted"})
+    );
+    assert!(board.get("charts").is_none());
+}
+
+/// A chart colouring by a field it has no rows for draws none of its
+/// values, so the theme pins none of them.
+#[test]
+fn a_coloured_chart_without_its_rows_or_column_draws_no_pinned_value() {
+    let theme = pinning("{Unknown: dbt-grays.muted}");
+    let mut widget = widget();
+    widget.chart = serde_yaml::from_str(
+        "charts:\n  lost: {type: donut, query: missing, theta: pct, color: group}\nrows: [lost]\n",
+    )
+    .unwrap();
+    let board = build_board(&widget, Some(&theme), &data());
+    assert!(
+        board["style"]["charts"].get("category_colors").is_none(),
+        "{board}"
+    );
+
+    widget.chart = serde_yaml::from_str(
+        "charts:\n  pie: {type: donut, query: data, theta: pct, color: sex}\nrows: [pie]\n",
+    )
+    .unwrap();
+    let theme = styled(
+        "charts: {category_colors: {sex: {values: {Unknown: dbt-grays.muted}}}}",
+    );
+    let board = build_board(&widget, Some(&theme), &data());
+    assert!(
+        board["style"]["charts"].get("category_colors").is_none(),
+        "{board}"
+    );
+}
+
+/// A number is drawn as its text; a null or a missing cell draws nothing.
+#[test]
+fn a_pin_matches_a_drawn_number_by_its_text_and_no_null() {
+    let theme = pinning(
+        "{\"2024\": \"category[1]\", \"null\": \"category[2]\", Male: \"category[3]\"}",
+    );
+    let mut widget = widget();
+    widget.chart = serde_yaml::from_str(
+        "charts:\n  pie: {type: donut, query: data, theta: group, color: group}\nrows: [pie]\n",
+    )
+    .unwrap();
+    let rows = vec![vec![json!(2024)], vec![Value::Null], vec![]];
+    let board = build_board(&widget, Some(&theme), &group_rows(rows));
+    assert_eq!(
+        board["style"]["charts"]["category_colors"]["group"]["values"],
+        json!({"2024": "category[1]"})
+    );
+}
+
+#[test]
+fn a_theme_pin_without_values_is_kept_whole() {
+    let theme = styled(
+        "charts: {category_colors: {group: {fallback: dbt-grays.muted}}}",
+    );
+    let mut widget = widget();
+    widget.chart = serde_yaml::from_str(
+        "charts:\n  pie: {type: donut, query: data, theta: pct, color: group}\nrows: [pie]\n",
+    )
+    .unwrap();
+    let board = build_board(&widget, Some(&theme), &data());
+    assert_eq!(
+        board["style"]["charts"]["category_colors"]["group"],
+        json!({"fallback": "dbt-grays.muted"})
+    );
+}
+
+/// The hidden additions are set whatever the chart put in their place.
+#[test]
+fn a_style_that_is_not_a_mapping_still_hides_the_engine_additions() {
+    let mut widget = widget();
+    widget.chart = serde_yaml::from_str(
+        "style: plain\ncharts:\n  note: plain\n  posts: {type: table, query: data, style: plain}\nrows: [posts]\n",
+    )
+    .unwrap();
+    let board = build_board(&widget, None, &data());
+    assert_eq!(
+        board["style"],
+        json!({"footer": {"visible": false}, "timestamp": {"visible": false}})
+    );
+    assert_eq!(board["charts"]["note"], json!("plain"));
+    assert_eq!(
+        board["charts"]["posts"]["style"],
+        json!({"pagination": {"enabled": false}})
+    );
+}
+
+#[test]
+fn tags_are_read_through_and_every_kind_of_key_survives_as_text() {
+    let mut widget = widget();
+    widget.chart = serde_yaml::from_str(
+        "title: !note Turnout\nlabels:\n  ~: none\n  1.5: half\n  ? [a, b]\n  : pair\n",
+    )
+    .unwrap();
+    let board = build_board(&widget, None, &data());
+    assert_eq!(board["title"], json!("Turnout"));
+    assert_eq!(
+        board["labels"],
+        json!({"null": "none", "1.5": "half", "- a\n- b": "pair"})
+    );
+}
