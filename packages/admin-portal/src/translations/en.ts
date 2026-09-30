@@ -2956,6 +2956,7 @@ const englishTranslation = {
                 credentials_issued: "Credentials issued",
                 test_voted: "Test voted",
                 voted: "Voted",
+                voted_pre_enrolled: "Pre-enrolled and voted",
                 applications: "Applications",
                 pending: "Pending",
                 approved: "Approved",

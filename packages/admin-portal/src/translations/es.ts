@@ -2988,6 +2988,7 @@ const spanishTranslation: TranslationType = {
                 credentials_issued: "Credenciales emitidas",
                 test_voted: "Votos de prueba",
                 voted: "Votaron",
+                voted_pre_enrolled: "Preinscritos que votaron",
                 applications: "Solicitudes",
                 pending: "Pendientes",
                 approved: "Aprobadas",

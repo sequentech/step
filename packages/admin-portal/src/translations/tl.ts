@@ -2996,6 +2996,7 @@ const tagalogTranslation: TranslationType = {
                 credentials_issued: "Naibigay na kredensyal",
                 test_voted: "Pansubok na boto",
                 voted: "Bumoto",
+                voted_pre_enrolled: "Paunang nakatala na bumoto",
                 applications: "Mga aplikasyon",
                 pending: "Nakabinbin",
                 approved: "Inaprubahan",

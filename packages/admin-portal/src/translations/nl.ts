@@ -2990,6 +2990,7 @@ const dutchTranslation: TranslationType = {
                 credentials_issued: "Inloggegevens uitgegeven",
                 test_voted: "Testgestemd",
                 voted: "Gestemd",
+                voted_pre_enrolled: "Vooraf ingeschreven en gestemd",
                 applications: "Aanvragen",
                 pending: "In behandeling",
                 approved: "Goedgekeurd",

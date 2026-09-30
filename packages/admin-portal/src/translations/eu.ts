@@ -2977,6 +2977,7 @@ const basqueTranslation: TranslationType = {
                 credentials_issued: "Emandako kredentzialak",
                 test_voted: "Probako botoak",
                 voted: "Bozkatu dute",
+                voted_pre_enrolled: "Aurrez izena emanda bozkatu dute",
                 applications: "Eskaerak",
                 pending: "Zain",
                 approved: "Onartuak",

@@ -3008,6 +3008,7 @@ const frenchTranslation: TranslationType = {
                 credentials_issued: "Identifiants délivrés",
                 test_voted: "Votes de test",
                 voted: "Ont voté",
+                voted_pre_enrolled: "Pré-inscrits ayant voté",
                 applications: "Demandes",
                 pending: "En attente",
                 approved: "Approuvées",

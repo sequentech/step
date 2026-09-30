@@ -2984,6 +2984,7 @@ const galegoTranslation: TranslationType = {
                 credentials_issued: "Credenciais emitidas",
                 test_voted: "Votos de proba",
                 voted: "Votaron",
+                voted_pre_enrolled: "Preinscritos que votaron",
                 applications: "Solicitudes",
                 pending: "Pendentes",
                 approved: "Aprobadas",

@@ -3001,6 +3001,7 @@ const catalanTranslation: TranslationType = {
                 credentials_issued: "Credencials emeses",
                 test_voted: "Vots de prova",
                 voted: "Han votat",
+                voted_pre_enrolled: "Preinscrits que han votat",
                 applications: "Sol·licituds",
                 pending: "Pendents",
                 approved: "Aprovades",
