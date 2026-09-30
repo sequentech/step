@@ -2889,7 +2889,7 @@ const galegoTranslation: TranslationType = {
                 menu: "Accións de {{widget}}",
                 configure: "Configurar o widget",
                 viewData: "Ver datos",
-                exportCsv: "Exportar CSV",
+                export: "Exportar",
                 duplicate: "Duplicar",
                 loading: "Cargando {{widget}}",
                 missing: "O panel nomea un widget que non existe: {{id}}",

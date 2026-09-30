@@ -25,7 +25,7 @@ export const Viewer: Story = {
         const menu = await open(canvasElement)
         expect(menu.queryByRole("menuitem", {name: "Configure widget"})).toBeNull()
         expect(menu.queryByRole("menuitem", {name: "Duplicate"})).toBeNull()
-        await userEvent.click(menu.getByRole("menuitem", {name: "Export CSV"}))
+        await userEvent.click(menu.getByRole("menuitem", {name: "Export"}))
         await expect(args.onExport).toHaveBeenCalled()
     },
 }
@@ -37,7 +37,7 @@ export const Configurer: Story = {
         expect(menu.getAllByRole("menuitem").map((item) => item.textContent)).toEqual([
             "Configure widget",
             "View data",
-            "Export CSV",
+            "Export",
             "Duplicate",
         ])
         await userEvent.click(menu.getByRole("menuitem", {name: "Configure widget"}))
@@ -53,7 +53,7 @@ export const NothingToShowYet: Story = {
             "aria-disabled",
             "true"
         )
-        await expect(menu.getByRole("menuitem", {name: "Export CSV"})).toHaveAttribute(
+        await expect(menu.getByRole("menuitem", {name: "Export"})).toHaveAttribute(
             "aria-disabled",
             "true"
         )

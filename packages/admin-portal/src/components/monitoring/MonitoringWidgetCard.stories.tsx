@@ -388,10 +388,11 @@ export const ExportWidget: Story = {
         const canvas = within(canvasElement)
         await canvas.findByTitle("Turnout by group chart")
         await userEvent.click(canvas.getByRole("button", {name: "Actions for Turnout by group"}))
-        await userEvent.click(
-            await within(document.body).findByRole("menuitem", {name: "Export CSV"})
-        )
+        await userEvent.click(await within(document.body).findByRole("menuitem", {name: "Export"}))
         const body = await dialog()
+        // One widget exports as CSV or SQL, CSV first.
+        await expect(body.getByRole("radio", {name: "CSV"})).toBeChecked()
+        await expect(body.getByRole("radio", {name: "SQL"})).not.toBeChecked()
         await userEvent.click(body.getByRole("button", {name: "Export"}))
         await waitFor(() =>
             expect(graphql.calls.find(({name}) => name === "MonitoringExport")?.variables).toEqual(

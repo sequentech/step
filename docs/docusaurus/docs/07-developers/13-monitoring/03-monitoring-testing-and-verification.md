@@ -367,7 +367,7 @@ the write protocols.
 
 13. **View data.** Widget **⋯ → View data**. *Expect* a table per query with
     exact values (8, 3, 37.5%) matching the chart.
-14. **Export.** Header **Export** (or **⋯ → Export CSV** for one widget).
+14. **Export.** Header **Export** (or **⋯ → Export** for one widget).
     Choose **CSV**, a **From** and **To** around the votes of step 6, then
     **Export**. *Expect* an **Export Monitoring Data** task in the event's
     **Tasks** tab and a download. The file is one long table: each row names

@@ -15,7 +15,7 @@ export interface MonitoringWidgetMenuProps {
     onDuplicate?: () => void
 }
 
-/** The ⋯ menu: Configure widget · View data · Export CSV · Duplicate. */
+/** The ⋯ menu: Configure widget · View data · Export (CSV or SQL) · Duplicate. */
 export function MonitoringWidgetMenu({
     widgetTitle,
     onConfigure,
@@ -37,7 +37,7 @@ export function MonitoringWidgetMenu({
             always: false,
         },
         {key: "viewData", label: t("monitoring.widget.viewData"), action: onViewData, always: true},
-        {key: "export", label: t("monitoring.widget.exportCsv"), action: onExport, always: true},
+        {key: "export", label: t("monitoring.widget.export"), action: onExport, always: true},
         {
             key: "duplicate",
             label: t("monitoring.widget.duplicate"),

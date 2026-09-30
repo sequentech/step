@@ -2861,7 +2861,7 @@ const englishTranslation = {
                 menu: "Actions for {{widget}}",
                 configure: "Configure widget",
                 viewData: "View data",
-                exportCsv: "Export CSV",
+                export: "Export",
                 duplicate: "Duplicate",
                 loading: "Loading {{widget}}",
                 missing: "The dashboard names a widget that does not exist: {{id}}",
