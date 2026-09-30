@@ -14,122 +14,134 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 Besides the B-Trust cloud API used by the
 [Scanovate Identity Verification](scanovate_identity_verification_guide.md)
-authenticator, Scanovate ships two services that run on our own
-infrastructure:
+authenticator, Scanovate ships services that run on our own infrastructure:
 
 - **Liveness Plus** checks that a real, live person is in front of the camera.
-  It guides the voter from a web UI, runs Presentation Attack Detection (PAD,
-  including deepfake detection) and Injection Attack Detection (IAD) on the
-  camera frames, and posts the result to a callback URL.
-- **1:N Face Match** enrolls face templates into groups and searches them, for
-  example to find out whether a face was already enrolled in an election event.
+  It runs Presentation Attack Detection (PAD, including deepfake detection) on
+  the frames our capture page sends to its API, and posts the verdict to
+  Keycloak.
+- **Face Match** compares two face images (1:1) and returns their similarity.
+  It finds the face in each image itself, so it can compare a photo of a whole
+  ID with a photo of the voter.
 
-They don't do OCR or document authenticity checks, which stay in B-Trust.
+On premise we only get their APIs. Liveness Plus's own web UI, which the
+SaaS version shows in an iframe, isn't available: Keycloak's capture page takes
+every photo itself and calls the APIs.
 
-:::note Keycloak integration
-The `scanovate-authenticator` uses Liveness Plus for the selfie of the embedded
-capture when `face-capture` is `liveness` (see
+The `scanovate-authenticator` uses both when `face-capture` is `liveness` (see
 [Liveness face capture](scanovate_identity_verification_guide.md#liveness-face-capture)).
-It doesn't call Face Match yet. This page describes how to run the services,
-how to configure them, and the contract between them and Keycloak.
-:::
+This page describes how to run the services, how to configure them, and the
+contract between them, the capture page and Keycloak.
 
 | Service | Image | Role |
 | --- | --- | --- |
-| `scanovate-liveness` | `scanovate/liveness-plus-service:version_3.9.0_e0dc72e_115` | Liveness backend and web UI. Manages the sessions, calls PAD and IAD, sends the callbacks. |
-| `scanovate-presentation-detection` | `scanovate/liveness-presentation-detection-service:release_1.52.0` | PAD server, with the `pad-r-2` and `dfd-3` (deepfake) pipelines. |
-| `scanovate-injection-detection` | `scanovate/liveness-injection-detection-service:release-2.6.2` | IAD server. Checks that frames come from a real camera. |
-| `scanovate-face-match` | `495947449196.dkr.ecr.eu-central-1.amazonaws.com/ngfacematch:version_3.9.0_ba58397_79` | 1:N Face Match API (`/facematch1N`). |
-| `scanovate-valkey` | `valkey/valkey-extensions:8.1` | Vector database of the face templates, with the search module. |
+| `scanovate-liveness` | `scanovate/liveness-plus-service:version_3.9.0_e0dc72e_115` | Liveness API. Manages the sessions, checks the face quality of each frame, calls PAD, sends the callbacks. |
+| `scanovate-presentation-detection` | `scanovate/liveness-presentation-detection-service:release_1.52.0` | PAD server, with the `pad-r-2` (presentation attacks) and `dfd-3` (deepfakes) pipelines. |
+| `scanovate-face-match` | `scanovate/ngfacematch:version_3.9.0_ba58397_79` | Face Match API. We use its 1:1 API (`/facematch11`). |
+
+Scanovate also ships an injection attack detection server
+(`scanovate/liveness-injection-detection-service`) and a 1:N API in the Face
+Match image. We don't use them, see [Injection attacks](#injection-attacks) and
+[Face Match](#face-match).
 
 ### What stays in our network
 
-These services run on our own infrastructure. Their endpoints are only
-reachable inside our network, except the liveness UI and API, which the voter's
-browser reaches on Keycloak's origin, and in `onprem` mode their only
-configured outbound calls are Liveness Plus's to Keycloak. We still have to
-confirm that neither the services nor the liveness client in the browser send
-anything else out, e.g. analytics (the client reports
-`COULD_NOT_INIT_ANALYTICS` when these fail to start).
-
 | Check | Where it runs |
 | --- | --- |
-| Liveness: presentation attacks and deepfakes (PAD), injection attacks (IAD) | Our network: Liveness Plus, PAD and IAD. |
-| Duplicate faces (1:N search in an election event) | Our network: Face Match and Valkey. Not wired into Keycloak yet. |
-| Match of the selfie against the ID portrait (1:1) | B-Trust (`biometric_match`) today. Face Match could do it in our network, see [1:1 match](#11-match). |
-| OCR of the ID (name, birth date, number, nationality, expiry) | B-Trust (`ocr`). Scanovate hasn't delivered an on-premise service for it. |
+| Liveness: presentation attacks and deepfakes | Our network: Liveness Plus and PAD. |
+| The voter's live face against the photo on the ID (1:1) | Our network: Face Match. |
+| The voter's live face against the photo of them holding the ID (1:1) | Our network: Face Match. |
+| OCR of the ID (name, birth date, number, nationality, expiry) | B-Trust (`ocr`). There is no on-premise service for it. |
 | Document authenticity | B-Trust (`document_liveness_plus`). Same. |
 
-So, with the current services, the photos of the ID always go to B-Trust,
-since the voter data compared with the registry comes from its OCR. With
-`face-capture` `liveness`, the voter's face goes to B-Trust only as the
-picture of a passed liveness check, for the 1:1 match. Setting the
-authenticator's `save-option` to `do_not_save` makes B-Trust delete the session
-data once Keycloak fetches the results, but the data still leaves our network.
+So the voter's face never leaves our network: Keycloak only uploads the photos
+of the ID to B-Trust, which the voter data compared with the registry comes
+from. Setting the authenticator's `save-option` to `do_not_save` makes B-Trust
+delete them once Keycloak fetches the results.
 
-The order of the checks, with the parts that aren't implemented yet in
-*italics*:
+The services only call each other and Keycloak. Liveness Plus sends analytics
+only in its SaaS mode (`MODE=saas`), never in `onprem`, and our capture page
+loads nothing from Scanovate.
 
-1. Keycloak creates the B-Trust session (`POST /flow/v3/link`), whose process id
-   is also the liveness case id.
-2. Our capture page guides the voter through the photos of the ID. They stay
-   in the browser.
-3. Liveness Plus checks the voter's liveness in its iframe and posts the
-   result, with the voter's picture, to Keycloak. Keycloak rejects the attempt
-   unless it passed.
-4. *Face Match compares the liveness picture with the ID portrait (1:1), and
-   searches the election event's group for the same face (1:N) before
-   enrolling it.*
-5. Keycloak uploads the ID photos, and the liveness picture while B-Trust does
-   the 1:1 match, to the B-Trust session, which runs OCR and the document
-   authenticity check.
-6. Keycloak fetches the B-Trust results, validates them with the realm rules
-   and stores the voter's data, which later steps compare with the voter
-   registry.
+### Order of the checks
+
+```mermaid
+sequenceDiagram
+    participant V as Capture page
+    participant K as Keycloak
+    participant L as Liveness Plus
+    participant F as Face Match
+    participant B as B-Trust
+    K->>B: POST /flow/v3/link (process id = liveness case id)
+    K->>V: capture page (liveness API URL, one-time token, case id)
+    V->>V: photos of the front and back of the ID
+    V->>L: POST create_session (token, case_id)
+    L->>K: GET verify (X-token, case-id)
+    L->>K: POST callback (start)
+    loop until the scan is completed
+        V->>L: POST check_liveness (face frame)
+    end
+    V->>L: GET client_session_data
+    L->>K: POST callback (result, with the frame)
+    V->>V: photo of the voter holding the ID
+    V->>K: POST capture (front, back, holding)
+    K->>K: wait for the result, reject unless it passed
+    K->>F: compare_images (ID front, liveness frame)
+    K->>F: compare_images (holding photo, liveness frame)
+    K->>B: POST media (front, back)
+    K->>B: fetch the results, validate the rules
+```
+
+1. Keycloak creates the B-Trust session (`POST /flow/v3/link`). Its process id
+   is also the case id of the liveness sessions.
+2. The capture page guides the voter through the photos of the front and back
+   of the ID. They stay in the browser.
+3. For the face, the page shows its own oval and guidance. Once the face is
+   well placed, it opens a Liveness Plus session with Keycloak's one-time
+   token, and sends frames until Liveness Plus completes the scan. Liveness Plus
+   posts the verdict and the checked frame to Keycloak, server to server.
+4. The page takes a photo of the voter holding the ID next to their face, and
+   posts the ID photos and that photo to Keycloak.
+5. Keycloak waits for the liveness verdict, and rejects the attempt unless it
+   passed.
+6. Keycloak asks Face Match whether the face in the liveness frame is the one on
+   the ID, and the one in the photo holding the ID. Either failing rejects the
+   attempt.
+7. Only then, Keycloak uploads the photos of the ID to B-Trust, fetches its
+   results, validates them with the realm rules and stores the voter's data,
+   which later steps compare with the voter registry.
 
 ## Access to the images
 
-The Scanovate images are private: the Liveness Plus images are on Docker Hub,
-and the Face Match image is on Scanovate's AWS ECR registry
-(`495947449196.dkr.ecr.eu-central-1.amazonaws.com`). Without access, pulling
-them fails with:
+The Scanovate images are private on Docker Hub. Without access, pulling them
+fails with:
 
 ```text
 denied: requested access to the resource is denied
 unauthorized: authentication required
 ```
 
-Log in to both registries in the Docker client that pulls the images: your
-host, since the dev container talks to the host's Docker daemon, or each server
-that runs them.
-
-For Docker Hub, Scanovate grants access to a Docker Hub account, or gives us
-the credentials of one. Use an access token rather than the account password
-when possible, and read it from standard input so it doesn't end up in the
-shell history:
+Scanovate grants access to a Docker Hub account, or gives us the credentials of
+one. Log in with them in the Docker client that pulls the images: your host,
+since the dev container talks to the host's Docker daemon, or each server that
+runs them. Use an access token rather than the account password when possible,
+and read it from standard input so it doesn't end up in the shell history:
 
 ```bash
 docker login --username <docker hub user> --password-stdin
 # paste the token, then Ctrl-D
 ```
 
-For ECR, Scanovate grants access to an AWS identity of ours. With the AWS CLI
-configured for it:
-
-```bash
-aws ecr get-login-password --region eu-central-1 \
-  | docker login --username AWS --password-stdin \
-    495947449196.dkr.ecr.eu-central-1.amazonaws.com
-```
-
-ECR login tokens expire after 12 hours: log in again before pulling a new tag.
-
 Then check the access without downloading anything:
 
 ```bash
 docker manifest inspect scanovate/liveness-plus-service:version_3.9.0_e0dc72e_115
-docker manifest inspect 495947449196.dkr.ecr.eu-central-1.amazonaws.com/ngfacematch:version_3.9.0_ba58397_79
+docker manifest inspect scanovate/ngfacematch:version_3.9.0_ba58397_79
 ```
+
+Scanovate also publishes Face Match on its AWS ECR registry
+(`495947449196.dkr.ecr.eu-central-1.amazonaws.com/ngfacematch`), with the same
+tag. We use the Docker Hub image, so we don't need ECR access.
 
 Some rules:
 
@@ -145,23 +157,14 @@ Some rules:
 
 ## Running them in the development environment
 
-The services belong to two docker compose profiles of the dev container
-(`.devcontainer/docker-compose-base.yml`):
-
-- `scanovate`: Liveness Plus, PAD and IAD, from Docker Hub. This is all the
-  `liveness` face capture needs.
-- `scanovate-face-match`: Face Match and Valkey. The Face Match image is on
-  ECR, and Keycloak doesn't use it yet, so it has its own profile: the liveness
-  services start without ECR access.
-
-No mode starts them: once logged in, start them from the host.
+The services belong to the `scanovate` docker compose profile of the dev
+container (`.devcontainer/docker-compose-base.yml`). No mode starts them: once
+logged in, start them from the host.
 
 ```bash
 .devcontainer/scripts/initialize-command.sh
 cd .devcontainer
 docker compose --profile scanovate up -d
-# With ECR access
-docker compose --profile scanovate-face-match up -d
 ```
 
 `initialize-command.sh` writes the `SCANOVATE_*` variables of
@@ -170,105 +173,271 @@ your `.env` predates them.
 
 | Variable | Default | Description |
 | --- | --- | --- |
-| `SCANOVATE_LIVENESS_PORT` | `5050` | Host port of `scanovate-liveness`. The voter's browser loads the liveness UI from it. |
-| `SCANOVATE_FACE_MATCH_PORT` | `5060` | Host port of `scanovate-face-match`. Scanovate's examples use `3000` or `3002`, which the voting and admin portals use. |
+| `SCANOVATE_LIVENESS_PORT` | `5050` | Host port of `scanovate-liveness`, for direct checks. The capture page calls it through `keycloak-nginx`. |
+| `SCANOVATE_FACE_MATCH_PORT` | `5060` | Host port of `scanovate-face-match`, for direct checks. Scanovate's examples use `3000` or `3002`, which the voting and admin portals use. |
 | `SCANOVATE_LIVENESS_JWT_SECRET_KEY` | `liveness-dev-secret` | Secret of the liveness session tokens. |
 
-The PAD, IAD and Valkey services aren't published on the host: only the
-liveness and face match services talk to them. Inside the compose network they
-are reachable by service name, e.g. `http://scanovate-liveness:5050` and
-`http://scanovate-face-match:3000` from Keycloak.
+The PAD server isn't published on the host: only Liveness Plus talks to it.
+Inside the compose network the services are reachable by name, e.g.
+`http://scanovate-liveness:5050` and `http://scanovate-face-match:3000` from
+Keycloak.
 
-The detection servers are heavy. Scanovate's requirements, on Intel CPUs:
+Scanovate's requirements, on Intel CPUs:
 
 | Service | Needs |
 | --- | --- |
-| Liveness | 1 CPU, plus 1 CPU and 1 GB of memory per concurrent session. |
+| Liveness Plus | 1 CPU, plus 1 CPU and 1 GB of memory per concurrent session. |
 | PAD | 1 CPU and 8 GB of memory to start, plus 0.5 CPU and 0.5 GB per concurrent session. |
-| IAD | 1 CPU and 4 GB of memory to start, plus 0.5 CPU and 0.5 GB per concurrent session. |
 
-Idle, PAD takes about 5.4 GB of memory, IAD 2.9 GB and Liveness Plus 0.5 GB:
-give Docker at least 14 GB for the `scanovate` profile, on top of the rest of
-the dev container. If a container exits right after starting, check
-`docker compose logs <service>`. Scanovate suggests running it with
-`security_opt: [seccomp=unconfined]` if it's killed by the seccomp profile,
-which none of the liveness services needed.
+Idle, PAD takes about 5.4 GB of memory, Face Match 1.7 GB and Liveness Plus
+0.5 GB: give Docker at least 10 GB for the profile, on top of the rest of the
+dev container. If a container exits right after starting, check
+`docker compose logs <service>`.
 
 ### Smoke tests
 
 ```bash
-# Liveness backend
+# Liveness Plus and Face Match
 curl -i http://127.0.0.1:5050/alive
+curl -i http://127.0.0.1:5060/alive
 
-# Face Match: an empty group list means the service, its configuration and
-# Valkey all work
-curl -s -H "x-company-id: sequent-dev" http://127.0.0.1:5060/facematch1N/get_groups
+# Face Match 1:1: with two photos of the same person, success is true and the
+# similarity is above the threshold (0.67)
+jq -n --rawfile a <(base64 -w0 id.jpg) --rawfile b <(base64 -w0 selfie.jpg) \
+  '{image_1_base64: $a, image_2_base64: $b, allow_multiple_faces: true}' \
+  | curl -s -H 'content-type: application/json' --data @- \
+    http://127.0.0.1:5060/facematch11/compare_images
 
-# Face Match API description: lists the 1:1 endpoints, if the image has them
-curl -s http://127.0.0.1:5060/openapi.json | jq '.paths | keys'
+# Through keycloak-nginx, only the API the capture page uses is routed:
+# create_session answers (401 without a token from Keycloak), the rest is 404
+curl -sk -o /dev/null -w '%{http_code}\n' -X POST -H 'content-type: application/json' \
+  -d '{}' https://localhost:8443/biometric/liveness/create_session
+curl -sk -o /dev/null -w '%{http_code}\n' https://localhost:8443/biometric/liveness/docs
 ```
 
-To try the liveness UI with the Sequent look, open it through `keycloak-nginx`,
-which serves it on Keycloak's origin under `/biometric/` (see
-[Deployment on Keycloak's origin](#deployment-on-keycloaks-origin)), in a
-browser with a camera:
+## End-to-end test
+
+This runs the whole enrollment in the dev container with your own face and ID:
+the real Liveness Plus, PAD and Face Match check your face, and the e2e mock
+server stands in for B-Trust. The mock doesn't read the ID: it returns the
+voter data you load into it, so the face checks are real and the OCR is not.
+
+Everything stays on your machine. The mock server discards the photos it
+receives, Liveness Plus keeps its sessions in memory for 5 minutes, Face Match
+keeps nothing, and Keycloak keeps the liveness frame in memory until the
+capture is checked (at most 30 minutes). No image is logged.
+
+### What you need
+
+- Docker Hub access to the Scanovate images (see
+  [Access to the images](#access-to-the-images)), and about 10 GB of memory for
+  Docker on top of the dev container.
+- A computer with a webcam of at least 1280×720, and Chrome or Firefox.
+- Your ID, for example your passport: the page with your photo.
+- This branch checked out, and the dev container (`base` profile) working.
+
+### 1. Start the services
+
+From the host, in the checkout:
+
+```bash
+# Writes the SCANOVATE_* variables into .devcontainer/.env if it predates them
+.devcontainer/scripts/initialize-command.sh
+docker login --username <docker hub user> --password-stdin
+
+cd .devcontainer
+docker compose --profile full up -d mock_server
+docker compose --profile scanovate up -d
+```
+
+Wait until the three Scanovate services answer. PAD takes a minute or two to
+load its models:
+
+```bash
+docker compose ps scanovate-liveness scanovate-presentation-detection scanovate-face-match
+curl -s http://127.0.0.1:5050/alive
+curl -s http://127.0.0.1:5060/alive
+curl -s http://127.0.0.1:8500/
+```
+
+### 2. Build Keycloak with the capture page
+
+The capture page is in the React login theme, which Keycloak only has with the
+`docker-compose-keycloak-ui.yml` overlay. In a `devenv shell` (it needs Node,
+Yarn and Maven), from the checkout:
+
+```bash
+scripts/dev/step-dev keycloak prepare --runtime built
+```
+
+This builds `packages/keycloak-ui` and installs the themes in
+`.cache/keycloak-ui/themes`. Then, from the host, rebuild Keycloak with this
+branch's extensions and `keycloak-nginx` with its proxy rules, and start
+Keycloak with the themes mounted:
+
+```bash
+cd .devcontainer
+docker compose build keycloak keycloak-nginx
+docker compose -f docker-compose.yml -f docker-compose-keycloak-ui.yml up -d keycloak keycloak-nginx
+```
+
+Recreating Keycloak without the overlay (a plain `docker compose up`)
+unmounts the themes: run the last command again. After changing
+`packages/keycloak-ui`, run `prepare` again and restart Keycloak; after
+changing `packages/keycloak-extensions`, rebuild it.
+
+Check that the proxy only routes the API the page uses:
+
+```bash
+curl -sk -o /dev/null -w '%{http_code}\n' https://localhost:8443/biometric/liveness/docs      # 404
+curl -sk -o /dev/null -w '%{http_code}\n' -X POST -H 'content-type: application/json' \
+  -d '{"token": "x"}' https://localhost:8443/biometric/liveness/create_session    # 401
+```
+
+### 3. Import the election event
+
+Start the admin portal from `packages/` in a `devenv shell`:
+
+```bash
+yarn && yarn build:ui-core && yarn build:ui-essentials && yarn start:admin-portal
+```
+
+In the admin portal (http://127.0.0.1:3002), import the election event with
+**Import Election Event**: the
+[sample election event](scanovate_identity_verification_guide.md#sample-election-event)
+(`packages/step-cli/data/scanovate-enrollment/election-event.json`), or an
+export of it such as `~/.sequent/election-event.json`. Its realm is
+`tenant-<tenant id>-event-<election event id>`, which the Keycloak admin
+console (http://127.0.0.1:8090) lists.
+
+### 4. Load yourself as a voter
+
+Enrollment only succeeds if the data read from the ID matches a voter of the
+election event. As the mock returns the voter data it was loaded with, load
+yourself in both places, with your names and date of birth as on your ID.
+
+In the election event, **Voters**, import a CSV like:
+
+```csv
+username,first_name,last_name,enabled,area_name,dateOfBirth,embassy,country
+tester,<FIRST NAMES>,<LAST NAME>,true,Japan - Tokyo PE,<yyyy-MM-dd>,Tokyo PE,Japan/Tokyo PE
+```
+
+And upload the same person to the mock server. Only the column positions
+matter; `country` must be the post you'll choose in the enrollment form:
+
+```bash
+cat > /tmp/mock-voters.csv <<'CSV'
+first_name,last_name,unused_2,unused_3,middle_name,date_of_birth,embassy,country,unused_8,unused_9,unused_10,unused_11,id_card_number,id_card_type
+<FIRST NAMES>,<LAST NAME>,,,,<yyyy-MM-dd>,Tokyo PE,Japan/Tokyo PE,,,,,<ID NUMBER>,philippinePassport
+CSV
+curl -s -F file=@/tmp/mock-voters.csv http://127.0.0.1:8500/upload-csv
+```
+
+To skip this step, import the sample `voters.csv` instead: the mock then
+returns its voter, `JUAN DELA CRUZ`, whatever ID you show. The face checks
+don't depend on it.
+
+### 5. Configure the realm
+
+`btrust.sh` points the realm's Scanovate step to the mock, and switches it to
+the embedded capture with the on-premise face checks. It also removes the
+B-Trust rules on its own liveness and face match, which the mock doesn't
+report in this mode, and sets the React login theme. It needs `curl` and `jq`:
+
+```bash
+export REALM=tenant-<tenant id>-event-<election event id>
+BTRUST=packages/keycloak-extensions/scanovate-authenticator/scripts/btrust.sh
+
+SCANOVATE_BASE_URL=http://mock-server:8500 SCANOVATE_CLIENT_ID=mock-client \
+SCANOVATE_CLIENT_SECRET=mock-secret SCANOVATE_FLOW_ID=1 SCANOVATE_SAVE_OPTION=do_not_save \
+  $BTRUST configure "$REALM"
+
+SCANOVATE_LIVENESS_URL=https://localhost:8443/biometric \
+SCANOVATE_LIVENESS_SECRET=liveness-dev-callback-secret \
+SCANOVATE_FACE_MATCH_URL=http://scanovate-face-match:3000 \
+SCANOVATE_LOGIN_THEME=sequent-ui-voting \
+  $BTRUST configure-liveness "$REALM"
+```
+
+`liveness-dev-callback-secret` is the secret of
+`.devcontainer/scanovate/liveness/service_config.json`. The first command also
+fixes exports whose `base-url` is `http://mock_server:8500`, which Keycloak
+can't call. `configure-liveness` captures only the front of passports; set
+`SCANOVATE_CAPTURE_SIDES` or `SCANOVATE_FACE_MATCH_MIN_SIMILARITY` to change
+the sides or the threshold (`{"default": 0.67}`).
+
+### 6. Enroll
+
+Open the enrollment page on `https://localhost:8443`, the origin of the
+Liveness Plus API, and accept the development certificate:
 
 ```text
-https://localhost:8443/biometric/liveness/?scan_config=scan_config&video_config=video_config&translation_variant=sequent&translation_language=en&ui_theme=sequent_ui
+https://localhost:8443/realms/<realm>/protocol/openid-connect/registrations?client_id=voting-portal&response_type=code&scope=openid&redirect_uri=http%3A%2F%2F127.0.0.1%3A3000%2F
 ```
 
-Loading it straight from `http://127.0.0.1:5050/biometric/liveness/` shows the
-UI, but browsers only give camera access to secure origins, and the login pages
-must share the iframe's origin.
+1. Fill in the form: your ID type (e.g. **Passport**), **Japan/Tokyo PE** and
+   **Tokyo PE**, an email, a phone and a password. Enter the OTPs from the
+   Keycloak log: `docker compose logs keycloak | grep "Your OTP is"`.
+2. **Verify your identity**: allow the camera.
+3. **Front of the ID**: the page with your photo, flat, with the four corners
+   in the frame. It's taken automatically.
+4. **Back of the ID**: only for documents with a back.
+5. **Your face**: keep it in the oval, looking at the camera. The page sends
+   frames to Liveness Plus until one is good enough, then moves on.
+6. **You holding your ID**: hold the page with your photo next to your face
+   until the progress ring completes.
+7. **Checking**: Keycloak waits for the liveness result, compares your face
+   with the ID and with the photo holding it, and asks the mock for the ID
+   data.
+8. **Check the details from your ID**: the voter you loaded. **Confirm and
+   enroll**. The voting portal isn't running, so the final redirect to
+   `127.0.0.1:3000` fails; the enrollment is done by then.
 
-Without a token from Keycloak, the session is rejected with `invalid token`
-(`1014`): the dev configuration verifies tokens with Keycloak. To look at the
-UI alone, empty `token_verification_url` in a local copy of
-`service_config.json`.
+Follow it in the logs, from `.devcontainer`:
 
-### Trying the flow from Keycloak
+```bash
+docker compose logs -f scanovate-liveness      # token check, frames, start and result callbacks
+docker compose logs -f keycloak | grep -E "ScanovateAuthenticator|capture:|liveness"
+```
 
-This runs the whole enrollment in the dev container, with the real Liveness
-Plus and the e2e mock server standing in for B-Trust. Only the Docker Hub
-access is needed.
+Keycloak logs the liveness verdict of the case and the similarity of each
+comparison, e.g. `capture: scanovate_face_match_document of <process id>:
+MATCH, similarity=0.8123, statuses=0/0`. The Keycloak events (**Realm settings**,
+**Events**, or the admin API) carry them as `scanovate_face_match_document`
+and `scanovate_face_match_holding`.
 
-1. Start the mock server (`full` profile) and the `scanovate` profile, see
-   [Starting the development environment](scanovate_identity_verification_guide.md#starting-the-development-environment).
-2. Rebuild Keycloak if `packages/keycloak-extensions` changed since it was
-   built: `docker compose build keycloak && docker compose up -d keycloak`.
-3. Prepare and mount the React login themes, see
-   [Hot updates on a real authentication session](../07-developers/06-keycloak/developers_keycloak.md#hot-updates-on-a-real-authentication-session).
-   The capture page is only in them.
-4. Import the
-   [sample election event](scanovate_identity_verification_guide.md#sample-election-event)
-   and its voters.
-5. In the Keycloak admin console (http://127.0.0.1:8090), open the election
-   event realm:
-   - **Realm settings**, **Themes**: set the login theme to
-     `sequent-ui-voting`.
-   - **Authentication**, the registration flow, the settings of the Scanovate
-     step: set `execution-mode` to `embedded`, `face-capture` to `liveness`,
-     `liveness-url` to `https://localhost:8443/biometric` and
-     `liveness-secret` to `liveness-dev-callback-secret` (the secret in
-     `.devcontainer/scanovate/liveness/service_config.json`).
-6. Open the enrollment URL of the sample election event on
-   `https://localhost:8443` instead of `http://127.0.0.1:8090`, so that the
-   login pages and the iframe share the origin, from a browser with a camera.
-7. Take the photos of the ID (any document: the mock doesn't read them), then
-   go through the liveness check. The mock completes with `success`, and the
-   confirmation page shows its voter.
+### 7. Try to break it
 
-Things to check on the way:
+Each of these must fail, and use up an attempt out of `max-attempts` (3):
 
-- `docker compose logs -f scanovate-liveness` shows the token verification
-  and the `start` and `result` callbacks, and `docker logs keycloak` shows the
-  `ScanovateAuthenticator` entries of the liveness result.
-- Holding a photo or a screen to the camera fails the check
-  (`scanovateLivenessError`) and uses up an attempt.
-- Denying the camera shows our camera permission message, not a failed
-  check.
-- After three liveness sessions on the same page, Liveness Plus answers
-  `invalid token` (`1014`) and the page asks the voter to start over.
+| Try | Expected |
+| --- | --- |
+| Show a photo of yourself, printed or on a screen, in the face step | `scanovateLivenessError` |
+| Show someone else's ID, or have someone else do the face step | `scanovateFaceMismatchError` |
+| Cover the photo on the ID, or keep it out of the frame when holding it | `scanovateFaceNotFoundError` |
+
+These must not use up an attempt:
+
+- Deny the camera: the page shows how to allow it.
+- Stop the services' containers (`docker compose stop scanovate-face-match`)
+  before the checking step: `scanovateInternalError`, which the voter can
+  retry.
+- Leave the face step for more than 90 seconds: the session expires and the
+  page opens a new one. After three sessions the page asks you to start over.
+
+The similarities of your tries are a first hint for
+`face-match-min-similarity`: note the ones of genuine and of mismatched
+faces for each document type.
+
+### 8. Clean up
+
+- Delete the enrolled voter from the election event to enroll again.
+- `docker compose restart scanovate-liveness keycloak` drops what's still in
+  memory, and `docker compose --profile scanovate stop` frees the memory of the
+  Scanovate services.
+- Never commit, attach or share photos of your ID or face, including
+  screenshots of the capture page.
 
 ## Configuration
 
@@ -279,173 +448,106 @@ Environment variables:
 | Variable | Description |
 | --- | --- |
 | `MODE` | `onprem`. |
+| `LIVENESS_MODE` | `PRESENTATION`: PAD only. See [Injection attacks](#injection-attacks). |
 | `JWT_SECRET_KEY` | Secret of the session tokens. Required. A secure random value outside development. |
 | `PRESENTATION_DETECTION_SERVER_URL` | PAD server URL. |
-| `INJECTION_DETECTION_SERVER_URL` | IAD server URL. |
-| `LIVENESS_MODE` | `PRESENTATION` runs PAD only, without an IAD server. Otherwise both run (`full` in Scanovate's compose file). |
+| `CLIENT_BASE_URL_PREFIX` | Prefix of the service's paths, ending with a slash. We use `biometric/`, see [Deployment on Keycloak's origin](#deployment-on-keycloaks-origin). |
 | `ENABLE_HTTPS` | `true` to serve HTTPS, with `SSL_KEYFILE`, `SSL_CERTFILE` and `SSL_CAFILE` (e.g. under `/app/certs`, mounted read-only). |
 | `SSL_EXTERNAL_CA_VERIFICATION_FILE` | CA bundle to verify the callback and token verification URLs. |
 | `SSL_EXTERNAL_USE_CA_VERIFICATION` | `false` disables that verification. Never in production. |
-| `CLIENT_BASE_URL_PREFIX` | Prefix that the client adds to its API and static resource paths, ending with a slash. We use `biometric/`, see [Deployment on Keycloak's origin](#deployment-on-keycloaks-origin). |
 
-The service also reads JSON files from its `config` directory. The image ships
-defaults. The dev container replaces the whole directory with
-`.devcontainer/scanovate/liveness/`, which has our own versions:
-
-| File | Contents |
-| --- | --- |
-| `service_config.json` | Session timeouts, bandwidth, PAD pipelines and thresholds, face quality thresholds, and the `onprem` integration settings. |
-| `video_config.json` | Camera rotation and mirroring, video resolution and bitrates, and video compression. |
-| `scan_config.json` | Reserved. |
-| `default_ui.json` | Scanovate's UI colours and fonts, selected with `ui_theme`. We use `sequent_ui.json` instead. |
-| `locales/default/{en,he}.json` | Scanovate's UI texts, selected with `translation_variant` and `translation_language`. We use `locales/sequent/{en,es}.json` instead. |
+The service reads JSON files from `/app/config`. The dev container only
+replaces `service_config.json`, with
+`.devcontainer/scanovate/liveness/service_config.json`: the others are the
+image's own. `video_config.json`, the UI theme and the texts only matter to
+Scanovate's UI, which we don't use, but the service still loads them when it
+creates a session.
 
 Our `service_config.json` is Scanovate's with the `onprem` section pointing to
 Keycloak (see [Integration contract](#integration-contract)), without the video
-in the results (`send_video_in_results: false`, which keeps the callbacks small
-and stores no video of the voter), and defaulting to the `sequent_ui` theme and
-the `sequent` English texts.
+in the results (`send_video_in_results: false`), and with English as the
+default language of the image's texts. Its `onprem` section:
 
-### Sequent look
-
-`sequent_ui.json` gives the Liveness Plus UI the colours and type of our
-capture page, so the iframe doesn't look like a different product:
-
-| Setting | Value | Matches |
+| Key | Our value | Description |
 | --- | --- | --- |
-| `title` | white, bold 22 px | the step title over the camera |
-| `instruction` | navy `#173449` on white, bold 18 px, pill shaped | the guidance pill |
-| `frame.overlay_background` | `#0b2231` at 72 % | the dimmed camera stage |
-| `frame.segment_color` | green `#43e3a1` | the progress ring |
-| `loading_screen` | white, teal `#0d796a` spinner and shield, navy and grey texts | our cards |
-| `success_indicator.checkmark_color` | teal `#0d796a` | our primary colour |
-
-All the texts use `Roboto, "Segoe UI", system-ui, sans-serif`: Sequent Sans is
-Roboto, and the iframe can't load our fonts. The loading screen shield is our
-own SVG, inlined as a data URI. The `sequent` locales use the wording of our
-own face guidance, in English and Spanish. Deployments with another brand can
-mount their own theme and variant, and select them with `liveness-ui-theme` and
-`liveness-translation-variant`.
-
-The `onprem` section of `service_config.json` is what connects the service to
-Keycloak. Its defaults:
-
-| Key | Default | Description |
-| --- | --- | --- |
-| `callback_url` | empty | Where the results are posted. May contain `{placeholders}` filled from the `callback_url_params` query parameter. |
-| `token_verification_url` | empty | Where the session token is verified. **Empty accepts any token**, which is only acceptable in development. |
+| `callback_url` | Keycloak's `.../scanovate/liveness/callback?secret=...` | Where the start and the result are posted. |
+| `token_verification_url` | Keycloak's `.../scanovate/liveness/verify?secret=...` | Where the session token is verified. **Empty accepts any token**, never do it. |
 | `max_active_sessions` | `0` | Maximum concurrent sessions (`0`: no limit). |
 | `send_results_to_server` | `true` | Post the result to `callback_url`. |
 | `send_debug_results_to_server` | `false` | Also post the full internal session. |
-| `send_video_in_results` | `true` | Include the video in the result. |
+| `send_video_in_results` | `false` | Include the video in the result. We send no video. |
 | `send_results_to_client` | `false` | Return the result to the browser. Keep it `false`: the browser is never trusted. |
-| `default_parameters` | `he`, `default_ui`, ... | Query parameters used when the URL doesn't set them. |
+| `default_parameters` | `default_ui`, `default`, `en`, ... | Configuration files used when `create_session` doesn't name them. |
 
-Other defaults to be aware of: sessions expire after 90 seconds
+Other settings of the file: sessions expire after 90 seconds
 (`expiry_timeout_in_seconds`) and are deleted 5 minutes later
 (`deletion_timeout_in_minutes`). The PAD pipelines are `pad-r-2` (main,
-threshold `0.56`) and `dfd-3` (`0.5`). Exactly one pipeline must be `main`, and
-the names must match `IDFACE_SERVER_AVAILABLE_PIPELINES` of the PAD server.
+threshold `0.56`) and `dfd-3` (`0.5`): the check passes only if every pipeline
+scores above its threshold. Exactly one pipeline must be `main`, and the names
+must match `IDFACE_SERVER_AVAILABLE_PIPELINES` of the PAD server. `face_config`
+sets the face quality a frame needs before PAD runs: a face of at least
+200×200 pixels, 60 pixels between the eyes, the nose near the centre of the
+frame, the head turned less than 15° and tilted less than 18°, sharp, lit, and
+without sunglasses or a mask.
 
-The files are read from `/app/config`: check it with
-`docker compose exec scanovate-liveness ls /app/config` when upgrading the
-image. A partial file replaces the whole default, so start from Scanovate's
-copy of each file.
+### Face Match
 
-### 1:N Face Match
+The 1:1 API needs no configuration file. Environment variables:
 
-The service reads two files from `/app/config`, mounted from
-`.devcontainer/scanovate/face-match/` in the dev container:
+| Variable | Description |
+| --- | --- |
+| `MODE` | `onprem`. |
+| `SUPPORT_1_TO_MANY` | `true` also serves the 1:N API (`/facematch1N`), which needs a Valkey or Redis database. We leave it unset. |
+| `ENABLE_HTTPS`, `SSL_KEYFILE`, `SSL_CERTFILE`, `SSL_CAFILE`, `SSL_KEY_PASSWORD`, `SSL_USE_TLS_1_2` | Serve HTTPS. |
+| `OMP_NUM_THREADS`, `OPENBLAS_NUM_THREADS`, `MKL_NUM_THREADS`, `ONNXRUNTIME_INTER_OP_NUM_THREADS`, `ONNXRUNTIME_INTRA_OP_NUM_THREADS` | Limit the CPU threads it uses (all of them by default). |
+| `LOG_IMAGES` | Logs face images, only for debugging: never enable it with real voters. |
 
-- `service_config.json`: `db_connections_clear_interval_hours`, how often idle
-  database connections are closed.
-- `db_config.json`: maps each company id to its database. Every request to
-  `/facematch1N/*` must send the company id in the `x-company-id` header, and
-  ids missing from the file don't work.
-
-```json
-{
-  "sequent-dev": {
-    "database_type": "valkey",
-    "database_url": "valkey://scanovate-valkey:6379",
-    "use_cluster": false
-  }
-}
-```
-
-`database_type` is `valkey` or `redis`. Redis needs the RediSearch module,
-e.g. the `redis/redis-stack` image. Set `use_cluster` to `true` for a cluster.
-Restart the service after editing the files. Companies that share a
-`database_url` share their storage, so give tenants that need isolated data a
-database of their own.
-
-Other environment variables: `SUPPORT_1_TO_MANY=true` enables the 1:N API,
-`ENABLE_HTTPS` with `SSL_KEYFILE`, `SSL_CERTFILE`, `SSL_CAFILE`,
-`SSL_KEY_PASSWORD` and `SSL_USE_TLS_1_2` serve HTTPS, and `OMP_NUM_THREADS`,
-`OPENBLAS_NUM_THREADS`, `MKL_NUM_THREADS`,
-`ONNXRUNTIME_INTER_OP_NUM_THREADS` and `ONNXRUNTIME_INTRA_OP_NUM_THREADS` limit
-the CPU threads it uses (all of them by default). `LOG_IMAGES` logs face
-images and is only for debugging: never enable it with real voters.
+The match threshold is the authenticator's `face-match-min-similarity`, per
+document type. Keycloak uses it or the service's own threshold (`0.67`),
+whichever is higher.
 
 ## Integration contract
 
-This is what Keycloak has to implement to use the services.
-
-Liveness Plus only replaces the selfie step of the
-[embedded capture](scanovate_identity_verification_guide.md#embedded-capture):
-
-- The photos of the ID stay in our capture page, which keeps guiding the voter
-  with the `id-capture` analyzers until the document is centred and readable.
-  Liveness Plus doesn't capture documents.
-- The selfie is taken in the Liveness Plus UI, which has its own face guidance.
-  Its injection detection relies on its own client capturing the frames, so a
-  selfie captured by our page can't be sent to it. Our page must release the
-  camera before loading the iframe.
-
 ### Liveness session
 
-Keycloak implements it in the `scanovate-authenticator` (`LivenessSessions` and
-the `scanovate` realm resource):
+The capture page drives the session through the Liveness Plus API, on
+Keycloak's origin under `/biometric/liveness/`. Keycloak gives it the API URL, a
+one-time token and the case id (the B-Trust process id).
 
-```mermaid
-sequenceDiagram
-    participant V as Voter browser
-    participant K as Keycloak
-    participant L as Liveness Plus
-    K->>V: page with an iframe to /liveness/?token=...&case_id=...
-    V->>L: load the UI, create the session
-    L->>K: GET token_verification_url (X-token, service-name, case-id)
-    K-->>L: 200 OK, or 401
-    L->>K: POST callback_url (message_type=start)
-    V->>L: camera frames, video
-    L->>K: POST callback_url (message_type=result)
-    L->>V: postMessage done or error
-    V->>K: continue the flow
-    K->>K: use the stored result, never the browser's
-```
+| Call | Request | Answer |
+| --- | --- | --- |
+| `POST /create_session` | JSON `{"token": ..., "case_id": ...}` | `{"session_token": ..., "client_config": ...}`. `401` if Keycloak rejects the token. |
+| `POST /check_liveness` | Header `service-session-token`. Multipart `encrypted_file` (the frame, a plain JPEG in `PRESENTATION` mode), `timestamp` (ISO 8601) and `frame_id` (unique per session). | `{"status": {"code": ..., "message": ...}}`, see below. |
+| `GET /client_session_data` | Header `service-session-token`. | Ends the session, which posts the result to Keycloak. `{"status": {"code": 1}}` once completed. |
+| `POST /client_error` | Header `service-session-token`. JSON `{"error": "user left page"}` or `"user pressed close"`. | Ends the session as aborted. |
 
-1. Keycloak embeds the UI in an iframe that can use the camera:
-   `<iframe allow="camera *; microphone *" onload="this.contentWindow.focus()">`,
-   with the page's viewport set to `width=device-width, initial-scale=1.0`. The
-   URL adds, to the parameters shown in [Smoke tests](#smoke-tests), a one-time
-   `token` and a `case_id` tied to the authentication session. Keycloak's
-   Content Security Policy must allow the liveness origin in `frame-src`.
-2. On session creation, Liveness Plus calls
-   `GET {token_verification_url}` with the `X-token`, `service-name` and
-   `case-id` headers. Any answer but `2xx` rejects the session with
-   `invalid token` (error `1014`).
-3. Liveness Plus posts JSON to `callback_url`, with the `x-token` and `case-id`
-   headers and any `callback_headers_params`: first `message_type: "start"`,
-   then `message_type: "result"`. A successful result has `status: "completed"`
-   and, in `scan.processing_result`, `liveness_check_passed`,
-   `presentation_attack_check_passed`, `injection_attack_check_passed`, the PAD
-   and deepfake probabilities and the face image. Otherwise `status` is
-   `aborted`, `expired` or `client_error`, with an `error_message`.
-4. The UI tells the parent page how it went with `window.parent.postMessage`:
-   `{type: "init"}`, `{type: "done"}` or
-   `{type: "error", error_code, error_message}`. These messages are only a
-   signal to move on: the outcome comes from the callback, which Keycloak must
-   match to the authentication session with the token and case id.
+The frame codes of `check_liveness`:
+
+| Code | Meaning | The page |
+| --- | --- | --- |
+| `2` | Scan completed: the frame passed the face quality checks and PAD ran on it. | Ends the session. |
+| `0` | Frame skipped, e.g. while another one is being checked. | Sends another frame. |
+| `10`–`110` | The face isn't good enough: several faces, none, too small, too big, off centre, turned, blurred, badly lit, sunglasses or a mask. | Shows the matching guidance, and sends more frames. |
+| `1002` | Session expired (90 seconds). | Opens a new session. |
+| `1000`, `1001`, `1003`, `200`–`202`, `5000`+ | Invalid token, unknown session, server errors. | Shows an error. |
+
+Liveness Plus completes the scan on the first frame that passes the face
+quality checks, whatever PAD says: the verdict is only in the result callback,
+never in these answers.
+
+Liveness Plus calls Keycloak, server to server:
+
+1. On `create_session`, `GET {token_verification_url}` with the `X-token`,
+   `service-name` and `case-id` headers. Any answer but `2xx` rejects the
+   session.
+2. `POST {callback_url}` with the `x-token` and `case-id` headers: first
+   `message_type: "start"`, then `message_type: "result"`. A completed session
+   has `status: "completed"` and, in `scan.processing_result`, the verdicts
+   (`liveness_check_passed`, `presentation_attack_check_passed`,
+   `injection_attack_check_passed`), the PAD and deepfake probabilities, the
+   checked frame (`image`) and the face cropped from it (`face_image`).
+   Otherwise `status` is `aborted`, `expired` or `client_error`, with an
+   `error_message`.
 
 Keycloak's endpoints, under any realm (the dev configuration uses `master`):
 
@@ -455,94 +557,89 @@ Keycloak's endpoints, under any realm (the dev configuration uses `master`):
 | `POST /realms/{realm}/scanovate/liveness/callback?secret=...` | `200` once the `start` or `result` message is recorded (other message types are ignored), `401` for an unknown token, a wrong secret or another case, `400` for a malformed body. The token is read from `x-token`, or from `onprem_params.token`. |
 
 The `secret` is the authenticator's `liveness-secret`, set in both URLs of
-`service_config.json`. The case id is the B-Trust process id, so the two can be
-matched in the logs.
-
-Client error codes:
-
-| Code | Name |
-| --- | --- |
-| `1000` | `COULD_NOT_INIT_ANALYTICS` |
-| `1001` | `COULD_NOT_CREATE_SESSION` |
-| `1002` | `MAX_ACTIVE_SESSIONS_REACHED` |
-| `1003` | `CAMERA_PERMISSION_BLOCKED` |
-| `1004` | `CAMERA_NOT_FOUND` |
-| `1005` | `COULD_NOT_OPEN_CAMERA` |
-| `1006` | `SESSION_EXPIRED` |
-| `1007` | `SERVER_ERROR` |
-| `1008` | `SLOW_NETWORK` |
-| `1009` | `USER_PRESSED_CLOSE` |
-| `1010` | `USER_LEFT_PAGE` |
-| `1011` | `NO_NETWORK` |
-| `1012` | `CLIENT_ERROR` |
-| `1013` | `CAMERA_PERMISSION_DISMISSED` |
-| `1014` | `INVALID_TOKEN` |
-| `1015` | `USER_CLOSED_PAGE` |
-| `1016` | `COULD_NOT_START_MEDIA_RECORDER` |
+`service_config.json`. Keycloak accepts the liveness check only if the result
+is `completed` with `liveness_check_passed` and
+`presentation_attack_check_passed`, `injection_attack_check_passed` isn't
+`false`, and it has the frame, which is what Face Match compares.
 
 ### Face Match
 
-All endpoints of the 1:N API are under `/facematch1N` and need the
-`x-company-id` header:
+Keycloak calls `POST /facematch11/compare_images`:
 
-| Endpoint | Purpose |
-| --- | --- |
-| `GET /get_groups`, `GET /get_group` | List groups, or get one. |
-| `POST /create_group`, `POST /rename_group`, `DELETE /delete_group` | Manage groups. |
-| `POST /insert_image`, `POST /insert_template` | Enroll a face in a group, from an image or a template. |
-| `GET /get_template/{group_id}/{template_id}`, `GET /get_template_global/{template_id}` | Get a template. |
-| `DELETE /delete_template/{template_id}`, `POST /move_template` | Remove or move a template. |
-| `POST /search_image`, `POST /search_template` | Search a group. |
-| `POST /search_image_global`, `POST /search_template_global` | Search all the groups of the company. |
-| `POST /compare_image_and_template_uuid` | Compare an image with a known template. |
+```json
+{"image_1_base64": "...", "image_2_base64": "...", "allow_multiple_faces": true}
+```
 
-For example, to reject an enrollment whose face was already enrolled in the
-election event, search the event's group with the liveness face image, and
-enroll it only when there's no match.
+```json
+{"success": true, "similarity": 0.81, "threshold": 0.67,
+ "image_1_status": {"code": 0, "message": "ok"},
+ "image_2_status": {"code": 0, "message": "ok"}}
+```
 
-Scanovate's guide doesn't fully specify the request bodies and responses, e.g.
-multipart form or base64 JSON. Check them against the service's OpenAPI
-description (usually `/docs` or `/openapi.json`) before implementing the
-client. Also confirm whether `DELETE /delete_group` deletes the templates of
-the group before relying on it to delete voters' biometric data.
+`allow_multiple_faces` makes it use the best matching face of each image:
+many IDs print a second, smaller copy of the portrait, and the photo holding
+the ID shows both the voter and the ID. The image status codes are `0` (ok),
+`1000` (cannot read the file), `1001` (invalid image), `1100` (image too
+small), `1101` (face not found), `1102` (several faces, without
+`allow_multiple_faces`) and `1103` (cannot align the face).
 
-### 1:1 match
+A comparison passes only if `success` is `true`, both statuses are `0` and the
+similarity reaches both the service's threshold and the configured minimum.
+Keycloak compares the liveness frame with the front of the ID, and with the
+photo holding the ID. A status other than `0` fails the attempt with
+`scanovateFaceNotFoundError`, a low similarity with
+`scanovateFaceMismatchError`.
 
-The 1:N guide only describes `/facematch1N`, but `SUPPORT_1_TO_MANY`, which
-enables it, is `false` by default: the image is Scanovate's face match server,
-which likely also serves a 1:1 API, as B-Trust does with its standalone
-`POST /face_match` (two base64 images in, a `similarity` score and its
-`threshold` out). Check it in `/openapi.json` once the image is available.
+The API also has `POST /facematch11/upload_and_compare_images` (the same, as a
+multipart upload), `/facematch11/create_template` and
+`/facematch11/compare_image_and_template` (to keep a template instead of an
+image), `POST /faceutils/crop_face_image` (returns the face found in an image)
+and `POST /faceutils/check_face_quality`. `GET /openapi.json` describes them.
 
-If it's there, Keycloak can match the liveness picture against the ID portrait
-in our network, and send B-Trust only the ID photos. Otherwise, the same can be
-done with the 1:N API: `insert_image` of the ID photo in a per-session group,
-then `compare_image_and_template_uuid` with the liveness picture, and
-`delete_group`. Either way, check that the service finds the portrait in a
-photo of the whole ID, and tune the threshold with real documents.
+### Injection attacks
+
+Scanovate's injection attack detection (IAD) checks that frames come from a
+real camera, and not from a virtual camera, an emulator or a tampered browser.
+It needs frames encrypted by Scanovate's own capture client, which is part of
+its UI and isn't available on premise. Our capture page sends plain frames, so
+Liveness Plus runs in `PRESENTATION` mode, without IAD.
+
+PAD still rejects photos, screens, masks and deepfakes shown to the camera, and
+Face Match ties the live face to the ID and to the photo holding it. But a
+tampered browser can send PAD a genuine photo of the voter that someone else
+took. Mitigations until Scanovate provides a capture client for injection
+detection on premise:
+
+- The frame must pass PAD and the deepfake pipeline at the configured
+  thresholds, and match the ID and the photo holding it.
+- Tokens are one-time, tied to the authentication session, and allow 3
+  liveness sessions each. Sessions expire after 90 seconds.
+- Attempts are limited by `max-attempts`, and every verification is logged
+  with its process id and similarities.
 
 ## Deployment on Keycloak's origin
 
-Liveness Plus runs on our infrastructure, so its public URL is ours to choose.
-We serve it on the same origin as Keycloak, under `/biometric/`:
+We serve the Liveness Plus API on the same origin as Keycloak, under
+`/biometric/`:
 
 | | URL |
 | --- | --- |
-| Liveness UI | `https://<keycloak host>/biometric/liveness/` |
-| Its API, assets and events | `https://<keycloak host>/biometric/liveness/create_session`, `.../biometric/liveness/assets/...`, `.../biometric/liveness/sse/...` |
+| Liveness Plus API | `https://<keycloak host>/biometric/liveness/{create_session,check_liveness,client_session_data,client_error}` |
 | Authenticator `liveness-url` | `https://<keycloak host>/biometric` |
 | Keycloak endpoints for Liveness Plus | `http://<keycloak internal host>/realms/master/scanovate/liveness/{verify,callback}`, internal only |
+| Authenticator `face-match-url` | `http://<face match internal host>:3000`, internal only |
 
 `/biometric/` is vendor neutral, and none of Keycloak's own top-level paths
-(`/realms`, `/admin`, `/resources`, `/js`, `/health`, `/metrics`) use it.
+(`/realms`, `/admin`, `/resources`, `/js`, `/health`, `/metrics`) use it. Being
+same origin, the calls need no CORS, and the voter grants the camera to a
+single origin.
 
-- `CLIENT_BASE_URL_PREFIX=biometric/` makes the service serve its UI, assets
-  and API under `/biometric/liveness/`, and its client call them there. Only
-  `/alive` also answers without the prefix.
-- Keycloak's public reverse proxy routes `/biometric/` to the Liveness Plus
-  service with the path unchanged, and Server-Sent Events unbuffered. Stripping
-  the prefix makes the service answer `404`. Only that
-  prefix is routed: the PAD and IAD servers stay internal.
+- `CLIENT_BASE_URL_PREFIX=biometric/` makes the service serve everything under
+  `/biometric/liveness/`. Only `/alive` also answers without the prefix.
+- Keycloak's public reverse proxy routes only the four endpoints of the capture
+  page, with the path unchanged: stripping the prefix makes the service answer
+  `404`. The rest of the service (its UI, `/docs`, `/openapi.json`, `/metrics`),
+  PAD and Face Match stay internal.
 - The same proxy answers `404` for `/realms/*/scanovate/liveness/`: only
   Liveness Plus calls those endpoints, on the internal network.
 
@@ -551,15 +648,14 @@ The dev container does exactly this in `keycloak-nginx`
 `https://localhost:8443`:
 
 ```nginx
-location /biometric/ {
+location ~ ^/biometric/liveness/(create_session|check_liveness|client_session_data|client_error)$ {
     set $liveness_upstream http://scanovate-liveness:5050;
     proxy_pass $liveness_upstream;
-    proxy_http_version 1.1;
-    proxy_set_header Connection "";
-    proxy_buffering off;
-    proxy_cache off;
-    proxy_read_timeout 1h;
-    client_max_body_size 20m;
+    client_max_body_size 5m;
+}
+
+location /biometric/ {
+    return 404;
 }
 
 location ~ ^/realms/[^/]+/scanovate/liveness/ {
@@ -567,33 +663,24 @@ location ~ ^/realms/[^/]+/scanovate/liveness/ {
 }
 ```
 
-The iframe is then same origin: Keycloak's default `frame-src 'self'` already
-allows it, the proxy sets the framing headers for both, the voter's browser
-grants the camera to a single origin, and the TLS certificate is Keycloak's.
-The iframe's messages also come from Keycloak's origin, which the page checks.
-
-Hosting it only moves where the UI is served from: the verdict still comes from
-the server callback, and the UI's client (frame encryption, injection
-detection) is still Scanovate's.
-
 ## Production
 
-- Serve Liveness Plus over HTTPS (`ENABLE_HTTPS` or a TLS proxy): browsers
-  only give camera access to secure origins. Proxies must pass Server-Sent
-  Events (`/sse/events`) without buffering.
-- Keep PAD, IAD, Face Match and Valkey on the internal network.
+- Serve the Liveness Plus API over HTTPS on Keycloak's origin (see
+  [Deployment on Keycloak's origin](#deployment-on-keycloaks-origin)):
+  browsers only give camera access to secure origins.
+- Keep PAD and Face Match on the internal network, and don't route the rest of
+  Liveness Plus publicly.
 - Set `token_verification_url` and `callback_url` with a random `secret`, the
   same as the authenticator's `liveness-secret`, and test both before going
   live. Liveness Plus reaches Keycloak on the internal network.
-- Serve the liveness UI under `/biometric/` on Keycloak's origin, and block
-  `/realms/*/scanovate/liveness/` on the public proxy (see
-  [Deployment on Keycloak's origin](#deployment-on-keycloaks-origin)).
-- Use a secure random `JWT_SECRET_KEY`, and keep it, the Docker Hub
-  credentials and the AWS access in the secrets store.
+- Block `/realms/*/scanovate/liveness/` on the public proxy.
+- Use a secure random `JWT_SECRET_KEY`, and keep it and the Docker Hub
+  credentials in the secrets store.
 - Pin image tags, never `latest`.
-- Valkey holds biometric templates: persist and back up its volume, restrict
-  access to it, and delete templates when the voter data is deleted.
-- Tune the PAD thresholds and the session expiry with real devices.
+- Tune the PAD thresholds and the Face Match minimum similarity with real
+  devices and each accepted document type.
 - Size the servers for the expected concurrent sessions (see the requirements
   in [Running them in the development environment](#running-them-in-the-development-environment)),
   and set `max_active_sessions` to match.
+- The PAD image carries a license that expires on 2027-10-04: renew it with
+  Scanovate before then.

@@ -9,132 +9,100 @@ SPDX-License-Identifier: AGPL-3.0-only
 Follow-ups of the Scanovate on-premise integration. See
 [Scanovate On-Premise Services](docs/docusaurus/docs/integrations/scanovate_on_premise_guide.md).
 
-## Once we have access to the images
+## Agreed design
 
-- [x] Get Docker Hub access from Scanovate for the Liveness Plus images.
-- [ ] Get AWS ECR access for the Face Match image
-      (`495947449196.dkr.ecr.eu-central-1.amazonaws.com/ngfacematch:version_3.9.0_ba58397_79`),
-      and store the credentials in the team's password manager.
-- [x] Check that Liveness Plus reads its config from `/app/config`. Our mount
-      replaces the whole directory, including the image's `default_ui.json`
-      and `locales/default`.
-- [x] Move Face Match and Valkey to their own `scanovate-face-match` compose
-      profile, so the liveness services start without ECR access.
-- [ ] Run the smoke tests of the guide: `/alive`, the liveness UI with a
-      camera, and `GET /facematch1N/get_groups` with `x-company-id: sequent-dev`.
-- [ ] Try the flow from Keycloak with the mock server
-      ("Trying the flow from Keycloak" in the guide).
-- [ ] Check that no service, nor the liveness client in the browser, sends
-      anything outside our network (e.g. analytics): run the profile on a
-      network without internet access, and watch the browser's requests.
-- [x] Check whether any container needs `security_opt: [seccomp=unconfined]`:
-      none of the liveness ones do. Idle, PAD takes ~5.4 GB, IAD ~2.9 GB and
-      Liveness Plus ~0.5 GB, so 14 GB is enough without Face Match.
-- [x] Create a liveness session through `/biometric/liveness/create_session`:
-      it returns the `sequent` texts and the `sequent_ui` theme.
-- [ ] Get the Face Match request and response schemas from its OpenAPI
-      description (`/docs` or `/openapi.json`), and document them.
-- [ ] Check whether the Face Match image also serves a 1:1 API, like B-Trust's
-      standalone `POST /face_match` (`SUPPORT_1_TO_MANY` defaults to `false`,
-      which suggests it does), and whether it finds the portrait in a photo of
-      the whole ID.
-- [ ] Confirm whether `DELETE /delete_group` deletes the templates of the
-      group.
+On premise we only get the Scanovate APIs: Liveness Plus's own UI (the iframe)
+isn't available. With `face-capture=liveness`:
 
-## Keycloak integration
+- **Photos:** our capture page takes them all, guided by the `id-capture` WASM
+  analyzers: the front and back of the ID, the face, and the voter holding the
+  ID next to their face (the four capture steps of the meta#13611 drafts).
+- **Liveness:** the page sends the face frames to the Liveness Plus API
+  (`create_session`, `check_liveness`, `client_session_data`), with Keycloak's
+  one-time token. The verdict and the checked frame reach Keycloak in the
+  server callback, never from the browser.
+- **Face comparisons:** Keycloak compares the liveness frame with the front of
+  the ID and with the photo holding the ID, with the Face Match 1:1 API
+  (`/facematch11/compare_images`, `allow_multiple_faces`).
+- **B-Trust:** only reads the ID (OCR) and checks that it's authentic. Keycloak
+  uploads the front and back only after the face checks pass. The voter's face
+  never leaves our network.
+- **Injection attacks:** Liveness Plus runs in `PRESENTATION` mode (PAD and
+  deepfakes), since injection detection needs Scanovate's own capture client.
 
-Agreed design:
+## Done
 
-- **ID front/back:** our own capture page keeps guiding the voter with the
-  `id-capture` WASM analyzers (centering, distance, alignment, glare, blur,
-  stillness) until the photo is readable. Liveness Plus doesn't capture
-  documents.
-- **Selfie and liveness:** the Liveness Plus iframe replaces our face step. Its
-  UI captures the frames (injection detection needs its own client) and gives
-  the voter its own face guidance, so our `FaceAnalyzer` guidance isn't used
-  for this step. The verdict comes from the server callback, never from
-  `postMessage`.
-- Our page releases the camera before loading the iframe: two pages holding
-  the same camera is unreliable, especially on mobile.
+- [x] Docker Hub access for all the images, Face Match included
+      (`scanovate/ngfacematch`): no ECR access needed.
+- [x] Confirm the Face Match 1:1 API (`/facematch11/*`, `/faceutils/*`) in its
+      OpenAPI description, and that it needs no configuration file or database.
+- [x] Read the Liveness Plus API from the service: without Scanovate's client,
+      frames must be plain JPEGs in `PRESENTATION` mode; the scan completes on
+      the first frame that passes the face quality checks; analytics are only
+      sent in SaaS mode.
+- [x] Run Liveness Plus in `PRESENTATION` mode, drop the IAD and Valkey
+      services, and mount only our `service_config.json`.
+- [x] Route only the four API endpoints the capture page uses through
+      `keycloak-nginx`: the service's UI, `/docs` and `/metrics` stay internal.
+- [x] Drive the Liveness Plus API from the capture page, and take a photo of
+      the voter holding the ID instead of a video.
+- [x] Check the liveness verdict (`liveness_check_passed`,
+      `presentation_attack_check_passed`, `injection_attack_check_passed` not
+      `false`) and compare faces with Face Match in Keycloak
+      (`face-match-url`, `face-match-min-similarity`).
+- [x] Upload only the ID photos to B-Trust, and accept that in the mock server.
+- [x] Switch the COMELEC template to `embedded` with the `liveness` face
+      capture, with the per-document minimum scores as Face Match similarities,
+      and without the B-Trust `liveness_plus` and `biometric_match` rules.
 
-- The "video holding the ID" step is dropped.
-- The ID photos stay in the browser and are uploaded at the end with the
-  liveness picture: B-Trust has no per-photo check.
-- The picture of the liveness callback is uploaded to B-Trust as
-  `face_image`, for the match against the ID portrait.
+## Testing
 
-- [x] Add a liveness face capture to `scanovate-authenticator`
-      (`face-capture=liveness`) that embeds the Liveness Plus UI in an iframe
-      (`allow="camera *; microphone *"`), with a one-time `token` and the
-      B-Trust process id as `case_id`.
-- [x] Protect the token verification and callback endpoints with a `secret`
-      query parameter that the browser never sees (`liveness-secret`).
-- [x] Set `send_video_in_results` to `false`: the callback would carry the
-      video in base64, and we don't store it.
-- [x] Add a Sequent `ui_theme` (`sequent_ui`) and `sequent` texts (en, es) for
-      the Liveness Plus UI.
-- [x] Allow the liveness origin in Keycloak's Content Security Policy
-      (`frame-src`).
-- [x] Add the token verification endpoint
-      (`GET /realms/{realm}/scanovate/liveness/verify`) and set
-      `onprem.token_verification_url`.
-- [x] Add the callback endpoint
-      (`POST /realms/{realm}/scanovate/liveness/callback`) and set
-      `onprem.callback_url`. Never trust the browser's `postMessage` outcome.
-- [x] Mount our own Liveness Plus config in the dev container.
-- [x] Unit tests first (TDD), then the implementation, and update the guides.
-- [ ] Confirm with Scanovate that B-Trust accepts media captured outside its
-      flow (the proposed `POST /api/v3/mobile_interaction/{processId}/media`),
-      now with the liveness `face_image` and without a video.
-- [ ] Ask Scanovate whether the liveness UI can run full page with a return
-      URL, or be driven by our own UI through a documented client API or SDK,
-      as alternatives to the iframe.
-- [x] Decide the public URL: `https://<keycloak host>/biometric/`, same origin
-      as Keycloak (`CLIENT_BASE_URL_PREFIX=biometric/`), routed by
-      `keycloak-nginx` in dev, which also blocks
-      `/realms/*/scanovate/liveness/`.
-- [x] Check `CLIENT_BASE_URL_PREFIX` with the image: the service itself serves
-      everything under `/biometric/liveness/`, so the proxy passes the path
-      unchanged (it doesn't strip it). The service sends no framing headers
-      (`X-Frame-Options`, CSP).
-- [ ] Add the `/biometric/` route and the `/realms/*/scanovate/liveness/`
-      block to the production reverse proxy of Keycloak.
-- [ ] Try the flow end to end with the images and a real camera, on desktop
-      and on phones (the iframe is full screen there), and check that the
-      `sequent_ui` theme renders as expected.
-- [ ] Optionally, reject enrollments whose face is already enrolled in the
-      election event with Face Match (`search_image` on the event's group, then
-      `insert_image`), and decide how company ids and groups map to tenants and
-      election events.
-- [ ] Delete Face Match templates when voter data is deleted.
-- [ ] Match the liveness picture against the ID portrait with Face Match (1:1),
-      so the voter's face doesn't go to B-Trust, and drop the
-      `biometric_match` rule for those realms.
+- [ ] Run the smoke tests of the guide, including a Face Match comparison of a
+      real ID with a selfie.
+- [ ] Run the end-to-end test of the guide with a real face and ID, on desktop
+      and on phones.
+- [x] Install the Scanovate pages in the dev React theme
+      (`step-dev keycloak prepare`), which only installed the sign-in pages.
+- [x] Add `btrust.sh configure-liveness` to switch a realm to the on-premise
+      face checks.
+- [ ] Check that a photo, a screen, another person and a covered ID photo are
+      rejected with the right message.
+- [ ] Tune `face-match-min-similarity` per document type with real documents:
+      printed portraits score lower than two selfies.
+- [ ] Check that no service or page sends anything outside our network: run
+      the profile on a network without internet access, and watch the
+      browser's requests.
+- [ ] Extend the e2e mock server with a fake Liveness Plus API and Face Match,
+      so the flow can be tested end to end without the Scanovate images.
 
-## Keeping data in our network
+## Scanovate
 
-With the delivered services, only liveness and face matching run on our
-premises. OCR and document authenticity stay in B-Trust, so the ID photos
-leave our network.
+- [ ] Ask for a capture client (web SDK) that encrypts frames for injection
+      attack detection on premise, usable from our own page.
+- [ ] Confirm that B-Trust accepts media captured outside its flow (the
+      proposed `POST /api/v3/mobile_interaction/{processId}/media`), now with
+      only the ID photos, and a flow with only OCR and Document Liveness Plus.
+- [ ] Ask whether they ship OCR and document authenticity on premise, so the
+      ID photos don't leave our network either.
+- [ ] Track the license baked into the PAD image, which expires on 2027-10-04,
+      and ask how it's renewed.
 
-- [ ] Ask Scanovate whether they ship OCR and document authenticity
-      (`document_liveness_plus`) on premise.
-- [ ] Ask Scanovate whether a B-Trust flow can run only OCR and document
-      authenticity on uploaded ID photos, without its own liveness and face
-      match.
-- [ ] Decide whether realms that need it use `save-option` `do_not_save`.
-- [ ] Extend the e2e mock server with a fake Liveness Plus (UI posting
-      `done` and the callbacks), so the flow can be tested end to end without
-      the Scanovate images.
+## COMELEC
+
+- [ ] Resolve D8 of meta#13611: the capture page needs the React login theme
+      (`sequent-ui-voting`), which the COMELEC template doesn't select and the
+      production Keycloak image doesn't ship yet.
+- [ ] Set `keycloak_scanovate_liveness_url`,
+      `keycloak_scanovate_liveness_secret` and
+      `keycloak_scanovate_face_match_url` in the janitor spreadsheets.
 
 ## Production
 
 - [ ] Mirror the images to our own registry.
-- [ ] Track the licenses baked into the images: PAD's expires on 2027-10-04 and
-      IAD's on 2027-08-30. Ask Scanovate how they're renewed.
-- [ ] Serve Liveness Plus over HTTPS, and make sure proxies don't buffer
-      Server-Sent Events (`/sse/events`).
-- [ ] Use a secure random `JWT_SECRET_KEY` from the secrets store.
-- [ ] Persist, back up and restrict access to the Valkey volume.
+- [ ] Add the `/biometric/liveness/` API routes and the
+      `/realms/*/scanovate/liveness/` block to the production reverse proxy of
+      Keycloak.
+- [ ] Use a secure random `JWT_SECRET_KEY` and `liveness-secret` from the
+      secrets store.
 - [ ] Tune the PAD thresholds, the session expiry and `max_active_sessions`
       with real devices and the expected load.
