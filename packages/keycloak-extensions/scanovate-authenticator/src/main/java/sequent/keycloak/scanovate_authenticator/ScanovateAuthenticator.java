@@ -5,10 +5,13 @@ package sequent.keycloak.scanovate_authenticator;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.MultivaluedMap;
 import jakarta.ws.rs.core.Response;
 import java.io.IOException;
 import java.net.URI;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -38,7 +41,8 @@ import sequent.keycloak.voter_enrollment.Utils;
  * server to server, validated against the configured rules, and the extracted attributes are stored
  * as auth notes for the voter to confirm. In the embedded mode the voter captures the media in
  * Keycloak's own page instead, and Keycloak uploads it to the B-Trust session before fetching the
- * results.
+ * results. The page uploads each file to Keycloak on its own before submitting the capture, see
+ * {@link CaptureUploads}.
  *
  * <p>With the liveness face capture, the voter's face never leaves our premises. The capture page
  * checks the voter's liveness with the on-premise Liveness Plus API, whose verdict and picture of
@@ -51,6 +55,7 @@ import sequent.keycloak.voter_enrollment.Utils;
 public class ScanovateAuthenticator implements Authenticator {
   static final String PROCESS_ID_NOTE = "scanovate-process-id";
   static final String LIVENESS_TOKEN_NOTE = "scanovate-liveness-token";
+  static final String CAPTURE_TOKEN_NOTE = "scanovate-capture-token";
   static final String ATTEMPTS_NOTE = "scanovate-attempts";
   static final String PROCESS_ID_QUERY_PARAM = "processId";
   static final String FORM_ACTION_PARAM = "action";
@@ -72,6 +77,9 @@ public class ScanovateAuthenticator implements Authenticator {
   static final String FTL_LIVENESS_URL = "url";
   static final String FTL_LIVENESS_TOKEN = "token";
   static final String FTL_LIVENESS_CASE_ID = "caseId";
+  static final String FTL_UPLOAD = "upload";
+  static final String FTL_UPLOAD_URL = "url";
+  static final String FTL_UPLOAD_TOKEN = "token";
   static final String EVENT_ERROR = "scanovate_verification_failed";
   static final String EVENT_DETAIL_ERROR = "scanovate_error";
   static final String EVENT_DETAIL_PROCESS_ID = "scanovate_process_id";
@@ -83,28 +91,33 @@ public class ScanovateAuthenticator implements Authenticator {
   private final Function<Map<String, String>, ScanovateClient> clientFactory;
   private final Function<KeycloakSession, LivenessSessions> livenessFactory;
   private final Function<FaceMatchSettings, FaceMatchClient> faceMatchFactory;
+  private final Function<KeycloakSession, CaptureUploads> uploadsFactory;
 
   public ScanovateAuthenticator() {
-    this(
-        ScanovateAuthenticator::defaultClient,
-        ScanovateAuthenticator::defaultLiveness,
-        ScanovateAuthenticator::defaultFaceMatch);
+    this(ScanovateAuthenticator::defaultClient);
   }
 
   ScanovateAuthenticator(Function<Map<String, String>, ScanovateClient> clientFactory) {
     this(
         clientFactory,
         ScanovateAuthenticator::defaultLiveness,
-        ScanovateAuthenticator::defaultFaceMatch);
+        ScanovateAuthenticator::defaultFaceMatch,
+        ScanovateAuthenticator::defaultUploads);
   }
 
   ScanovateAuthenticator(
       Function<Map<String, String>, ScanovateClient> clientFactory,
       Function<KeycloakSession, LivenessSessions> livenessFactory,
-      Function<FaceMatchSettings, FaceMatchClient> faceMatchFactory) {
+      Function<FaceMatchSettings, FaceMatchClient> faceMatchFactory,
+      Function<KeycloakSession, CaptureUploads> uploadsFactory) {
     this.clientFactory = clientFactory;
     this.livenessFactory = livenessFactory;
     this.faceMatchFactory = faceMatchFactory;
+    this.uploadsFactory = uploadsFactory;
+  }
+
+  static CaptureUploads defaultUploads(KeycloakSession session) {
+    return new CaptureUploads(new SingleUseLivenessStore(session));
   }
 
   static FaceMatchClient defaultFaceMatch(FaceMatchSettings settings) {
@@ -167,6 +180,10 @@ public class ScanovateAuthenticator implements Authenticator {
   @Override
   public void action(AuthenticationFlowContext context) {
     buildEventDetails(context);
+    if (isMultipart(context)) {
+      rejectMultipart(context);
+      return;
+    }
     MultivaluedMap<String, String> formData = context.getHttpRequest().getDecodedFormParameters();
     Optional<FormAction> formAction = FormAction.fromValue(formData.getFirst(FORM_ACTION_PARAM));
 
@@ -179,6 +196,39 @@ public class ScanovateAuthenticator implements Authenticator {
       case RETRY -> startVerification(context);
       case CAPTURE -> capture(context);
     }
+  }
+
+  /**
+   * Whether the request is a multipart form. Keycloak can't read its fields when it has files, so
+   * the capture page uploads its files beforehand and submits the capture as a plain form.
+   */
+  private static boolean isMultipart(AuthenticationFlowContext context) {
+    MediaType mediaType =
+        context.getHttpRequest().getHttpHeaders() == null
+            ? null
+            : context.getHttpRequest().getHttpHeaders().getMediaType();
+    return mediaType != null && MediaType.MULTIPART_FORM_DATA_TYPE.isCompatible(mediaType);
+  }
+
+  /** Shows the pending capture again as invalid, or starts a new verification without one. */
+  private void rejectMultipart(AuthenticationFlowContext context) {
+    Map<String, String> config = config(context);
+    AuthenticationSessionModel authSession = context.getAuthenticationSession();
+    if (authSession.getAuthNote(PROCESS_ID_NOTE) == null || !isEmbedded(config)) {
+      log.warn("action: rejected a multipart form, starting a new session");
+      startVerification(context);
+      return;
+    }
+    log.warn("action: rejected a multipart capture");
+    CaptureSettings settings;
+    try {
+      settings = CaptureSettings.fromConfig(config, documentType(config, authSession));
+    } catch (ScanovateException e) {
+      log.error("action: invalid capture configuration", e);
+      showError(context, ScanovateError.INTERNAL, false);
+      return;
+    }
+    showCapture(context, settings, Optional.of(ScanovateError.CAPTURE_INVALID.messageKey()));
   }
 
   private void startVerification(AuthenticationFlowContext context) {
@@ -279,6 +329,7 @@ public class ScanovateAuthenticator implements Authenticator {
     capture.put(FTL_VIDEO_SECONDS, settings.videoSeconds());
     capture.put(FTL_ATTEMPTS_LEFT, attemptsLeft(context, maxAttempts));
     capture.put(FTL_MAX_ATTEMPTS, maxAttempts);
+    capture.put(FTL_UPLOAD, uploadPage(context));
     if (settings.faceCapture() == FaceCapture.LIVENESS) {
       LivenessSettings liveness;
       try {
@@ -294,6 +345,39 @@ public class ScanovateAuthenticator implements Authenticator {
     LoginFormsProvider form = context.form().setAttribute(FTL_SCANOVATE, capture);
     errorKey.ifPresent(form::setError);
     context.challenge(form.createForm(CAPTURE_FORM));
+  }
+
+  /**
+   * Issues a new token for the capture page to upload its files with, replacing any earlier one and
+   * its files, see {@link CaptureUploads}.
+   */
+  private Map<String, Object> uploadPage(AuthenticationFlowContext context) {
+    AuthenticationSessionModel authSession = context.getAuthenticationSession();
+    CaptureUploads uploads = uploadsFactory.apply(context.getSession());
+    uploads.discard(authSession.getAuthNote(CAPTURE_TOKEN_NOTE));
+    String token = uploads.create();
+    authSession.setAuthNote(CAPTURE_TOKEN_NOTE, token);
+
+    Map<String, Object> page = new LinkedHashMap<>();
+    page.put(FTL_UPLOAD_URL, uploadUrl(context));
+    page.put(FTL_UPLOAD_TOKEN, token);
+    return page;
+  }
+
+  /**
+   * Root-relative URL of the upload endpoint, so that the page uploads to its own origin, whatever
+   * reverse proxy serves it.
+   */
+  private static String uploadUrl(AuthenticationFlowContext context) {
+    String base = context.getUriInfo().getBaseUri().getRawPath();
+    return (base.endsWith("/") ? base : base + "/")
+        + "realms/"
+        + URLEncoder.encode(context.getRealm().getName(), StandardCharsets.UTF_8)
+            .replace("+", "%20")
+        + "/"
+        + ScanovateReturnResourceFactory.PROVIDER_ID
+        + "/"
+        + ScanovateReturnResource.CAPTURE_PATH;
   }
 
   /**
@@ -335,10 +419,14 @@ public class ScanovateAuthenticator implements Authenticator {
       return;
     }
 
+    CaptureUploads uploads = uploadsFactory.apply(context.getSession());
+    String uploadToken = authSession.getAuthNote(CAPTURE_TOKEN_NOTE);
+    Map<String, byte[]> parts = uploads.parts(uploadToken).orElse(Map.of());
+    uploads.discard(uploadToken);
+    authSession.removeAuthNote(CAPTURE_TOKEN_NOTE);
     CaptureMedia media;
     try {
-      media =
-          CaptureMedia.fromParts(context.getHttpRequest().getMultiPartFormParameters(), settings);
+      media = CaptureMedia.fromUploads(parts, settings);
     } catch (InvalidCaptureException e) {
       log.warnv("capture: rejected the capture for {0}: {1}", processId, e.getMessage());
       showCapture(context, settings, Optional.of(ScanovateError.CAPTURE_INVALID.messageKey()));
@@ -594,6 +682,11 @@ public class ScanovateAuthenticator implements Authenticator {
     if (livenessToken != null) {
       livenessFactory.apply(context.getSession()).discard(livenessToken);
       authSession.removeAuthNote(LIVENESS_TOKEN_NOTE);
+    }
+    String uploadToken = authSession.getAuthNote(CAPTURE_TOKEN_NOTE);
+    if (uploadToken != null) {
+      uploadsFactory.apply(context.getSession()).discard(uploadToken);
+      authSession.removeAuthNote(CAPTURE_TOKEN_NOTE);
     }
     authSession.removeAuthNote(PROCESS_ID_NOTE);
     authSession.removeAuthNote(userStatusNote(config(context)));

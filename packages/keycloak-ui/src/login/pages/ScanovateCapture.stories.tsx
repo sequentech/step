@@ -11,10 +11,14 @@ import {
     failingCamera,
     fakeLiveness,
     fakeServices,
+    fakeUploads,
     sceneForFacing,
     syntheticCamera,
 } from "../scanovate/fakes"
+import {CapturePart, type CaptureUpload} from "../scanovate/form"
 import {LivenessRejection, LivenessStatus, type LivenessConnector} from "../scanovate/livenessApi"
+import {expectStickyActions} from "../scanovate/stickyActions"
+import {UploadRejection} from "../scanovate/uploads"
 import {CaptureStep, DocumentStatus, FaceStatus, type CaptureServices} from "../scanovate/types"
 
 const {KcPageStory} = createKcPageStory({pageId: "scanovate-capture.ftl"})
@@ -45,10 +49,13 @@ export default meta
 
 type Story = StoryObj<typeof meta>
 
-// Form submissions are kept in the page so the checking card stays visible.
+// Form submissions are kept in the page so the checking card stays visible,
+// and the uploads before them are recorded.
 const submissions: FormData[] = []
+const uploads: CaptureUpload[] = []
 function keepSubmissions() {
     submissions.length = 0
+    uploads.length = 0
     const keep = (event: SubmitEvent) => {
         event.preventDefault()
         if (event.target instanceof HTMLFormElement) {
@@ -105,6 +112,7 @@ export const Intro: Story = {
         await expect(canvas.getByText("Front and back of your ID")).toBeVisible()
         await expect(canvas.getByText("Have your Driver’s License with you.")).toBeVisible()
         await expect(canvas.queryByText(/more time/)).not.toBeInTheDocument()
+        await expectStickyActions(canvas.getByRole("button", {name: "Start"}))
     },
 }
 
@@ -324,6 +332,7 @@ export const CameraNotFound: Story = {
         await userEvent.click(await canvas.findByRole("button", {name: "Start"}))
         await canvas.findByRole("heading", {level: 1, name: "We couldn’t find a camera"})
         await expect(canvas.getByRole("button", {name: "Try again"})).toBeVisible()
+        await expectStickyActions(canvas.getByRole("button", {name: "Try again"}))
     },
 }
 
@@ -384,11 +393,12 @@ export const Checking: Story = {
     },
 }
 
-/** The whole flow with automatic captures, up to the multipart submission. */
+/** The whole flow with automatic captures, up to the uploads and the submission. */
 export const AutomaticCapture: Story = {
     args: {
         kcContext: {scanovate: {videoSeconds: 1}},
         services: fakeServices({
+            uploads: fakeUploads(uploads),
             document: {
                 statuses: [
                     DocumentStatus.NoDocument,
@@ -409,20 +419,67 @@ export const AutomaticCapture: Story = {
             {timeout: 12000}
         )
         await waitFor(() => expect(submissions).toHaveLength(1))
-        const form = submissions[0]
-        await expect(form.get("action")).toBe("capture")
-        for (const [part, type, name] of [
-            ["front", "image/jpeg", "front.jpg"],
-            ["back", "image/jpeg", "back.jpg"],
-            ["face", "image/jpeg", "face.jpg"],
-            ["video", "video/webm", "video.webm"],
-        ]) {
-            const file = form.get(part)
-            await expect(file).toBeInstanceOf(File)
-            await expect((file as File).type).toBe(type)
-            await expect((file as File).name).toBe(name)
-            await expect((file as File).size).toBeGreaterThan(0)
-        }
+        await expect([...submissions[0].keys()]).toEqual(["action"])
+        await expect(submissions[0].get("action")).toBe("capture")
+        await expect(uploads.map(({part}) => part)).toEqual([
+            CapturePart.Front,
+            CapturePart.Back,
+            CapturePart.Face,
+            CapturePart.Video,
+        ])
+        for (const {blob} of uploads) await expect(blob.size).toBeGreaterThan(0)
+        await expect(uploads[3].blob.type).toMatch(/^video\/webm/)
+    },
+}
+
+export const UploadFailed: Story = {
+    args: {
+        startAt: CaptureStep.Video,
+        kcContext: {scanovate: {videoSeconds: 1}},
+        services: fakeServices({
+            face: {statuses: [FaceStatus.Ready]},
+            document: {statuses: [DocumentStatus.HoldStill]},
+            uploads: fakeUploads([], UploadRejection.Failed),
+        }),
+    },
+    beforeEach: keepSubmissions,
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await expect(
+            await canvas.findByRole(
+                "heading",
+                {level: 1, name: "We couldn’t send your photos"},
+                {timeout: 8000}
+            )
+        ).toBeVisible()
+        await expect(canvas.getByText("Check your connection and try again.")).toBeVisible()
+        await expect(submissions).toHaveLength(0)
+        await expect(canvas.getByRole("button", {name: "Try again"})).toBeVisible()
+    },
+}
+
+export const UploadExpired: Story = {
+    args: {
+        startAt: CaptureStep.Video,
+        kcContext: {scanovate: {videoSeconds: 1}},
+        services: fakeServices({
+            face: {statuses: [FaceStatus.Ready]},
+            document: {statuses: [DocumentStatus.HoldStill]},
+            uploads: fakeUploads([], UploadRejection.InvalidToken),
+        }),
+    },
+    beforeEach: keepSubmissions,
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await expect(
+            await canvas.findByRole(
+                "heading",
+                {level: 1, name: "Start the verification again"},
+                {timeout: 8000}
+            )
+        ).toBeVisible()
+        await expect(canvas.getByRole("button", {name: "Start over"})).toBeVisible()
+        await expect(submissions).toHaveLength(0)
     },
 }
 
@@ -495,6 +552,7 @@ export const LivenessHoldingSubmitsPhoto: Story = {
             camera: holdingId,
             face: {statuses: [FaceStatus.Ready]},
             document: {statuses: [DocumentStatus.HoldStill]},
+            uploads: fakeUploads(uploads),
             recorder: {
                 supported: () => true,
                 start: () => {
@@ -515,15 +573,15 @@ export const LivenessHoldingSubmitsPhoto: Story = {
         ).toBeVisible()
         await expect(canvas.getByText("Photos and face check received")).toBeVisible()
         await waitFor(() => expect(submissions).toHaveLength(1))
-        const data = submissions[0]
-        await expect(data.get("action")).toBe("capture")
-        await expect((data.get("front") as File).name).toBe("front.jpg")
-        await expect((data.get("back") as File).name).toBe("back.jpg")
-        const holding = data.get("holding") as File
+        await expect([...submissions[0].keys()]).toEqual(["action"])
+        await expect(uploads.map(({part}) => part)).toEqual([
+            CapturePart.Front,
+            CapturePart.Back,
+            CapturePart.Holding,
+        ])
+        const holding = uploads[2].blob
         await expect(holding.type).toBe("image/jpeg")
         await expect(holding.size).toBeGreaterThan(0)
-        await expect(data.has("face")).toBe(false)
-        await expect(data.has("video")).toBe(false)
     },
 }
 

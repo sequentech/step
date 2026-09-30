@@ -1,109 +1,61 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
-import {afterEach, describe, expect, it} from "vitest"
-import {CapturePart, captureFile, populateCaptureForm} from "./form"
+import {describe, expect, it} from "vitest"
+import {CapturePart, captureParts} from "./form"
 import {CaptureStep, FaceCheck} from "./types"
 
-const jpeg = new Blob([new Uint8Array([0xff, 0xd8, 0xff])], {type: "image/jpeg"})
-const mp4 = new Blob([new Uint8Array([0, 0, 0, 0x18])], {type: "video/mp4"})
+const front = new Blob(["front"], {type: "image/jpeg"})
+const back = new Blob(["back"], {type: "image/jpeg"})
+const face = new Blob(["face"], {type: "image/jpeg"})
+const video = new Blob(["video"], {type: "video/mp4"})
 
-function captureForm(): HTMLFormElement {
-    const form = document.createElement("form")
-    form.method = "post"
-    form.enctype = "multipart/form-data"
-    const action = document.createElement("input")
-    action.type = "hidden"
-    action.name = "action"
-    action.value = "capture"
-    form.append(action)
-    for (const part of Object.values(CapturePart)) {
-        const input = document.createElement("input")
-        input.type = "file"
-        input.name = part
-        form.append(input)
-    }
-    document.body.append(form)
-    return form
-}
-
-afterEach(() => {
-    document.body.replaceChildren()
-})
-
-describe("captureFile", () => {
-    it("names every part so the server treats it as a file", () => {
-        expect(captureFile(CapturePart.Front, jpeg).name).toBe("front.jpg")
-        expect(captureFile(CapturePart.Video, mp4).name).toBe("video.mp4")
-        expect(captureFile(CapturePart.Holding, jpeg).name).toBe("holding.jpg")
-        const webm = captureFile(CapturePart.Video, new Blob([], {type: "video/webm;codecs=vp8"}))
-        expect(webm.name).toBe("video.webm")
-        expect(webm.type).toBe("video/webm")
-    })
-})
-
-describe("populateCaptureForm", () => {
-    it("sends the photos and the video as multipart files", () => {
-        const form = captureForm()
-        populateCaptureForm(
-            form,
-            {
-                [CaptureStep.Front]: jpeg,
-                [CaptureStep.Back]: jpeg,
-                [CaptureStep.Face]: jpeg,
-                [CaptureStep.Video]: mp4,
-            },
-            FaceCheck.Photo
-        )
-        const data = new FormData(form)
-        expect(data.get("action")).toBe("capture")
-        for (const [part, name, type] of [
-            ["front", "front.jpg", "image/jpeg"],
-            ["back", "back.jpg", "image/jpeg"],
-            ["face", "face.jpg", "image/jpeg"],
-            ["video", "video.mp4", "video/mp4"],
-        ]) {
-            const file = data.get(part)
-            expect(file).toBeInstanceOf(File)
-            expect((file as File).name).toBe(name)
-            expect((file as File).type).toBe(type)
-        }
+describe("captureParts", () => {
+    it("sends the photos and the video with the photo face capture", () => {
+        expect(
+            captureParts(
+                {
+                    [CaptureStep.Front]: front,
+                    [CaptureStep.Back]: back,
+                    [CaptureStep.Face]: face,
+                    [CaptureStep.Video]: video,
+                },
+                FaceCheck.Photo
+            )
+        ).toEqual([
+            {part: CapturePart.Front, blob: front},
+            {part: CapturePart.Back, blob: back},
+            {part: CapturePart.Face, blob: face},
+            {part: CapturePart.Video, blob: video},
+        ])
     })
 
     it("leaves out the back when the document has none", () => {
-        const form = captureForm()
-        populateCaptureForm(
-            form,
-            {
-                [CaptureStep.Front]: jpeg,
-                [CaptureStep.Face]: jpeg,
-                [CaptureStep.Video]: mp4,
-            },
+        const parts = captureParts(
+            {[CaptureStep.Front]: front, [CaptureStep.Face]: face, [CaptureStep.Video]: video},
             FaceCheck.Photo
         )
-        const data = new FormData(form)
-        expect(data.has("back")).toBe(false)
-        expect(data.has("front")).toBe(true)
+        expect(parts.map(({part}) => part)).toEqual([
+            CapturePart.Front,
+            CapturePart.Face,
+            CapturePart.Video,
+        ])
     })
 
     it("sends the ID and the photo holding it with liveness, not the face", () => {
-        const form = captureForm()
-        populateCaptureForm(
-            form,
-            {
-                [CaptureStep.Front]: jpeg,
-                [CaptureStep.Back]: jpeg,
-                [CaptureStep.Face]: jpeg,
-                [CaptureStep.Video]: jpeg,
-            },
-            FaceCheck.Liveness
-        )
-        const data = new FormData(form)
-        expect(data.has("face")).toBe(false)
-        expect(data.has("video")).toBe(false)
-        expect((data.get("front") as File).name).toBe("front.jpg")
-        expect((data.get("back") as File).name).toBe("back.jpg")
-        const holding = data.get("holding") as File
-        expect(holding.name).toBe("holding.jpg")
-        expect(holding.type).toBe("image/jpeg")
+        expect(
+            captureParts(
+                {
+                    [CaptureStep.Front]: front,
+                    [CaptureStep.Back]: back,
+                    [CaptureStep.Face]: face,
+                    [CaptureStep.Video]: face,
+                },
+                FaceCheck.Liveness
+            )
+        ).toEqual([
+            {part: CapturePart.Front, blob: front},
+            {part: CapturePart.Back, blob: back},
+            {part: CapturePart.Holding, blob: face},
+        ])
     })
 })

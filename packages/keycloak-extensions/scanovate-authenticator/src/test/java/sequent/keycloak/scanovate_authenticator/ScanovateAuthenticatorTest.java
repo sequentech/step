@@ -5,6 +5,7 @@ package sequent.keycloak.scanovate_authenticator;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -25,6 +26,8 @@ import static sequent.keycloak.scanovate_authenticator.CaptureMediaTest.WEBM;
 import static sequent.keycloak.scanovate_authenticator.ScanovateResultsTest.SUCCESSFUL_RESULTS;
 import static sequent.keycloak.scanovate_authenticator.ScanovateResultsTest.json;
 
+import jakarta.ws.rs.core.HttpHeaders;
+import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.MultivaluedHashMap;
 import jakarta.ws.rs.core.Response;
 import java.io.IOException;
@@ -33,6 +36,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -41,18 +45,17 @@ import org.keycloak.events.EventBuilder;
 import org.keycloak.forms.login.LoginFormsProvider;
 import org.keycloak.headers.SecurityHeadersOptions;
 import org.keycloak.headers.SecurityHeadersProvider;
-import org.keycloak.http.FormPartValue;
 import org.keycloak.http.HttpRequest;
 import org.keycloak.models.AuthenticationExecutionModel;
 import org.keycloak.models.AuthenticatorConfigModel;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.KeycloakUriInfo;
+import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
 import org.keycloak.sessions.AuthenticationSessionModel;
 import org.keycloak.sessions.RootAuthenticationSessionModel;
 import org.mockito.ArgumentCaptor;
 import org.mockito.MockedStatic;
-import sequent.keycloak.scanovate_authenticator.CaptureMediaTest.BytesPart;
 import sequent.keycloak.scanovate_authenticator.FaceMatchClient.FaceComparison;
 import sequent.keycloak.voter_enrollment.Utils;
 
@@ -66,8 +69,6 @@ class ScanovateAuthenticatorTest {
   private final Map<String, String> authNotes = new HashMap<>();
   private final MultivaluedHashMap<String, String> queryParams = new MultivaluedHashMap<>();
   private final MultivaluedHashMap<String, String> formParams = new MultivaluedHashMap<>();
-  private final MultivaluedHashMap<String, FormPartValue> multipartParams =
-      new MultivaluedHashMap<>();
 
   private AuthenticationFlowContext context;
   private LoginFormsProvider form;
@@ -77,6 +78,8 @@ class ScanovateAuthenticatorTest {
   private MockedStatic<Utils> utils;
   private LivenessSessionsTest.MemoryStore livenessStore;
   private LivenessSessions livenessSessions;
+  private CaptureUploads captureUploads;
+  private HttpHeaders httpHeaders;
   private SecurityHeadersOptions securityHeaders;
   private EventBuilder event;
   private FaceMatchClient faceMatch;
@@ -125,10 +128,16 @@ class ScanovateAuthenticatorTest {
     when(context.getEvent()).thenReturn(event);
     KeycloakUriInfo uriInfo = mock(KeycloakUriInfo.class);
     when(uriInfo.getQueryParameters()).thenReturn(queryParams);
+    when(uriInfo.getBaseUri()).thenReturn(URI.create("https://kc/"));
     when(context.getUriInfo()).thenReturn(uriInfo);
+    RealmModel realm = mock(RealmModel.class);
+    when(realm.getName()).thenReturn("r");
+    when(context.getRealm()).thenReturn(realm);
     HttpRequest httpRequest = mock(HttpRequest.class);
     when(httpRequest.getDecodedFormParameters()).thenReturn(formParams);
-    when(httpRequest.getMultiPartFormParameters()).thenReturn(multipartParams);
+    httpHeaders = mock(HttpHeaders.class);
+    when(httpHeaders.getMediaType()).thenReturn(MediaType.APPLICATION_FORM_URLENCODED_TYPE);
+    when(httpRequest.getHttpHeaders()).thenReturn(httpHeaders);
     when(context.getHttpRequest()).thenReturn(httpRequest);
     when(context.generateAccessCode()).thenReturn("c");
     when(context.getActionUrl("c")).thenReturn(URI.create(ACTION_URL));
@@ -147,6 +156,7 @@ class ScanovateAuthenticatorTest {
     when(client.fetchResultsForProcess("proc-1")).thenReturn(json(SUCCESSFUL_RESULTS));
     livenessStore = new LivenessSessionsTest.MemoryStore();
     livenessSessions = new LivenessSessions(livenessStore, millis -> {});
+    captureUploads = new CaptureUploads(new LivenessSessionsTest.MemoryStore());
     faceMatch = mock(FaceMatchClient.class);
     faceMatchSettings.clear();
     authenticator =
@@ -156,7 +166,8 @@ class ScanovateAuthenticatorTest {
             settings -> {
               faceMatchSettings.add(settings);
               return faceMatch;
-            });
+            },
+            ignored -> captureUploads);
 
     KeycloakSession session = mock(KeycloakSession.class);
     SecurityHeadersProvider headersProvider = mock(SecurityHeadersProvider.class);
@@ -446,9 +457,33 @@ class ScanovateAuthenticatorTest {
         "{\"philSysID\": [\"front\"], \"default\": [\"front\", \"back\"]}");
   }
 
+  /**
+   * The capture token of the rendered capture page. Tests that post a capture without rendering the
+   * page first get one as if it had been rendered.
+   */
+  private String captureToken() {
+    String token = authNotes.get(ScanovateAuthenticator.CAPTURE_TOKEN_NOTE);
+    if (token == null) {
+      token = captureUploads.create();
+      authNotes.put(ScanovateAuthenticator.CAPTURE_TOKEN_NOTE, token);
+    }
+    return token;
+  }
+
+  /**
+   * Uploads the parts through the capture endpoint, which refuses those of an unrecognised format,
+   * then posts the capture form.
+   */
+  private void upload(Map<String, byte[]> parts) {
+    String token = captureToken();
+    parts.forEach((part, content) -> captureUploads.store(token, part, content));
+    if (!formParams.containsKey(ScanovateAuthenticator.FORM_ACTION_PARAM)) {
+      formParams.add(ScanovateAuthenticator.FORM_ACTION_PARAM, FormAction.CAPTURE.value());
+    }
+  }
+
   private void capture(byte[] front, byte[] back, byte[] face, byte[] video) {
-    formParams.add(ScanovateAuthenticator.FORM_ACTION_PARAM, FormAction.CAPTURE.value());
-    CaptureMediaTest.parts(front, back, face, video).forEach(multipartParams::addAll);
+    upload(CaptureMediaTest.parts(front, back, face, video));
   }
 
   private void verifyCapturePage(List<String> sides, int attemptsLeft) {
@@ -456,6 +491,12 @@ class ScanovateAuthenticatorTest {
         .setAttribute(
             ScanovateAuthenticator.FTL_SCANOVATE,
             Map.of(
+                ScanovateAuthenticator.FTL_UPLOAD,
+                Map.of(
+                    ScanovateAuthenticator.FTL_UPLOAD_URL,
+                    "/realms/r/scanovate/capture",
+                    ScanovateAuthenticator.FTL_UPLOAD_TOKEN,
+                    authNotes.get(ScanovateAuthenticator.CAPTURE_TOKEN_NOTE)),
                 ScanovateAuthenticator.FTL_DOCUMENT_TYPE,
                 authNotes.getOrDefault(
                     ScanovateAuthenticatorFactory.DEFAULT_DOC_ID_TYPE, "default"),
@@ -643,15 +684,58 @@ class ScanovateAuthenticatorTest {
   }
 
   @Test
-  void repeatedCapturePartsAreRejected() throws IOException {
+  void multipartCapturePostIsRejectedWithoutReadingTheForm() throws IOException {
+    embedded();
+    authNotes.put(ScanovateAuthenticator.PROCESS_ID_NOTE, "proc-1");
+    when(httpHeaders.getMediaType()).thenReturn(MediaType.MULTIPART_FORM_DATA_TYPE);
+
+    authenticator.action(context);
+
+    verify(context.getHttpRequest(), never()).getDecodedFormParameters();
+    verifyCaptureRejected();
+  }
+
+  @Test
+  void multipartPostWithoutPendingCaptureStartsOver() throws IOException {
+    embedded();
+    when(httpHeaders.getMediaType())
+        .thenReturn(MediaType.valueOf("multipart/form-data; boundary=x"));
+
+    authenticator.action(context);
+
+    verify(context.getHttpRequest(), never()).getDecodedFormParameters();
+    verify(client).createSessionLink(eq("jwt"), any());
+    verifyCapturePage(List.of("FRONT", "BACK"), 3);
+  }
+
+  @Test
+  void uploadsAreDiscardedOnceTheCaptureIsProcessed() throws IOException {
     embedded();
     authNotes.put(ScanovateAuthenticator.PROCESS_ID_NOTE, "proc-1");
     capture(JPEG, JPEG, JPEG, WEBM);
-    multipartParams.add("front", new BytesPart(JPEG));
+    String token = captureToken();
+
+    authenticator.action(context);
+
+    assertEquals(Optional.empty(), captureUploads.parts(token));
+    assertNull(authNotes.get(ScanovateAuthenticator.CAPTURE_TOKEN_NOTE));
+  }
+
+  @Test
+  void rejectedCaptureGetsAFreshUploadToken() throws IOException {
+    embedded();
+    authNotes.put(ScanovateAuthenticator.PROCESS_ID_NOTE, "proc-1");
+    capture(JPEG, null, JPEG, WEBM);
+    String token = captureToken();
 
     authenticator.action(context);
 
     verifyCaptureRejected();
+    assertEquals(Optional.empty(), captureUploads.parts(token));
+    String fresh = authNotes.get(ScanovateAuthenticator.CAPTURE_TOKEN_NOTE);
+    assertNotNull(fresh);
+    assertNotEquals(token, fresh);
+    assertEquals(Optional.of(Map.of()), captureUploads.parts(fresh));
   }
 
   @Test
@@ -798,8 +882,7 @@ class ScanovateAuthenticatorTest {
   }
 
   private void livenessCapture(byte[] front, byte[] back, byte[] holding) {
-    formParams.add(ScanovateAuthenticator.FORM_ACTION_PARAM, FormAction.CAPTURE.value());
-    CaptureMediaTest.livenessParts(front, back, holding).forEach(multipartParams::addAll);
+    upload(CaptureMediaTest.livenessParts(front, back, holding));
   }
 
   /** A voter whose liveness passed posts the photos of the document and the one holding it. */
@@ -939,7 +1022,7 @@ class ScanovateAuthenticatorTest {
   @Test
   void facePartsPostedByTheBrowserAreNeverUploaded() throws IOException {
     passedLivenessCapture();
-    CaptureMediaTest.parts(null, null, JPEG, WEBM).forEach(multipartParams::addAll);
+    upload(CaptureMediaTest.parts(null, null, JPEG, WEBM));
     when(faceMatch.compare(any(), any())).thenReturn(match(0.9));
 
     authenticator.action(context);

@@ -189,6 +189,11 @@ export const scanovateEnglish = {
     scanovateLivenessExpiredText:
         "The face check can’t be tried again from here. Start over to take the photos of your ID and check your face again.",
     scanovateStartOver: "Start over",
+    scanovateUploadFailedTitle: "We couldn’t send your photos",
+    scanovateUploadFailedText: "Check your connection and try again.",
+    scanovateCaptureExpiredTitle: "Start the verification again",
+    scanovateCaptureExpiredText:
+        "Your photos can’t be sent from this page anymore. Start over to take them again.",
     scanovateCheckingReceivedLiveness: "Photos and face check received",
     scanovateLivenessError:
         "We could not confirm that it was you in front of the camera. Please try again.",
@@ -389,6 +394,11 @@ export const scanovateSpanish: Record<keyof typeof scanovateEnglish, string> = {
     scanovateLivenessExpiredText:
         "La comprobación facial no se puede repetir desde aquí. Vuelva a empezar para fotografiar su documento y comprobar su cara de nuevo.",
     scanovateStartOver: "Volver a empezar",
+    scanovateUploadFailedTitle: "No hemos podido enviar sus fotos",
+    scanovateUploadFailedText: "Compruebe su conexión y vuelva a intentarlo.",
+    scanovateCaptureExpiredTitle: "Vuelva a empezar la verificación",
+    scanovateCaptureExpiredText:
+        "Sus fotos ya no se pueden enviar desde esta página. Vuelva a empezar para tomarlas de nuevo.",
     scanovateCheckingReceivedLiveness: "Fotos y comprobación facial recibidas",
     scanovateLivenessError:
         "No pudimos confirmar que era usted quien estaba frente a la cámara. Vuelva a intentarlo.",

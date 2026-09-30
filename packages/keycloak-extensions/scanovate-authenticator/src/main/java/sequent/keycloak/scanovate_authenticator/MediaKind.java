@@ -3,6 +3,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 package sequent.keycloak.scanovate_authenticator;
 
+import java.util.Arrays;
+import java.util.Optional;
+
 /** Files captured in the voter's browser in the embedded mode. */
 public enum MediaKind {
   FRONT_IMAGE("front", "front_image", MediaCategory.IMAGE),
@@ -25,12 +28,16 @@ public enum MediaKind {
     this.category = category;
   }
 
-  /** Name of the multipart part posted by the capture page. */
+  /** Name of the part the capture page uploads, see {@link CaptureUploads}. */
   public String formPart() {
     return formPart;
   }
 
-  /** Name of the multipart part sent to B-Trust. */
+  public static Optional<MediaKind> fromFormPart(String formPart) {
+    return Arrays.stream(values()).filter(kind -> kind.formPart.equals(formPart)).findFirst();
+  }
+
+  /** Name of the multipart part sent to B-Trust, see {@link ScanovateClient#uploadMedia}. */
   public String uploadPart() {
     return uploadPart;
   }

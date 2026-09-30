@@ -33,7 +33,8 @@ import {
     stepsFor,
 } from "../scanovate/controller"
 import {useCaptureEnvironment} from "../scanovate/environment"
-import {CAPTURE_ACTION, CapturePart, populateCaptureForm} from "../scanovate/form"
+import {CAPTURE_ACTION, captureParts} from "../scanovate/form"
+import {uploadCaptures} from "../scanovate/uploads"
 import {StageLayout} from "../scanovate/geometry"
 import {Tone, type Guidance} from "../scanovate/guidance"
 import {LivenessCheck, LivenessOutcomeKind} from "../scanovate/liveness"
@@ -85,7 +86,18 @@ const PROBLEMS: Record<CaptureProblem, [MessageKey, MessageKey]> = {
         "scanovateLivenessExpiredTitle",
         "scanovateLivenessExpiredText",
     ],
+    [CaptureProblem.UploadFailed]: ["scanovateUploadFailedTitle", "scanovateUploadFailedText"],
+    [CaptureProblem.CaptureExpired]: [
+        "scanovateCaptureExpiredTitle",
+        "scanovateCaptureExpiredText",
+    ],
 }
+
+// Problems that only a new page, with new one-time tokens, can get past.
+const STALE_PAGE = new Set<CaptureProblem | null>([
+    CaptureProblem.LivenessExpired,
+    CaptureProblem.CaptureExpired,
+])
 
 const HELP: Record<CaptureStep, MessageKey[]> = {
     [CaptureStep.Front]: [
@@ -127,6 +139,7 @@ export default function ScanovateCapture(props: ScanovatePageProps<"scanovate-ca
         () => (liveness === undefined ? null : new LivenessCheck(services.liveness(liveness))),
         [services, liveness]
     )
+    const uploader = useMemo(() => services.uploads(scanovate.upload), [services, scanovate.upload])
     const steps = useMemo(() => stepsFor(scanovate.sides), [scanovate.sides])
     const [state, dispatch] = useReducer(captureReducer, steps, (initial) =>
         startAt === undefined
@@ -233,17 +246,31 @@ export default function ScanovateCapture(props: ScanovatePageProps<"scanovate-ca
         }
     }, [livenessCheck])
 
+    // Keycloak can't take files on its login actions URL: the captures are
+    // uploaded first, and the form only carries the action.
     useEffect(() => {
-        const form = formRef.current
-        if (state.phase !== Phase.Checking || form === null) return
-        populateCaptureForm(form, state.captures, faceCheck)
-        // Safari before 16 has no requestSubmit.
-        if ("requestSubmit" in form) {
-            form.requestSubmit()
-        } else {
-            HTMLFormElement.prototype.submit.call(form)
+        if (state.phase !== Phase.Checking) return
+        let active = true
+        const send = async () => {
+            const failure = await uploadCaptures(uploader, captureParts(state.captures, faceCheck))
+            const form = formRef.current
+            if (!active || form === null) return
+            if (failure !== null) {
+                dispatch({type: "uploadFailed", problem: failure})
+                return
+            }
+            // Safari before 16 has no requestSubmit.
+            if ("requestSubmit" in form) {
+                form.requestSubmit()
+            } else {
+                HTMLFormElement.prototype.submit.call(form)
+            }
         }
-    }, [state.phase, state.captures, faceCheck])
+        void send()
+        return () => {
+            active = false
+        }
+    }, [state.phase, state.captures, faceCheck, uploader])
 
     const accept = (captured: CaptureStep, blob: Blob) => {
         services.vibrate(60)
@@ -296,8 +323,8 @@ export default function ScanovateCapture(props: ScanovatePageProps<"scanovate-ca
         }
     }
     const retry = () => {
-        if (problem === CaptureProblem.LivenessExpired) {
-            // A GET of the page renders it again with a new token for the iframe.
+        if (STALE_PAGE.has(problem)) {
+            // A GET of the page renders it again with new one-time tokens.
             window.location.assign(window.location.href)
             return
         }
@@ -325,7 +352,7 @@ export default function ScanovateCapture(props: ScanovatePageProps<"scanovate-ca
         const body = text(bodyKey)
         const canRetry = problem !== CaptureProblem.RecorderUnsupported
         const retryLabel = text(
-            problem === CaptureProblem.LivenessExpired ? "scanovateStartOver" : "scanovateTryAgain"
+            STALE_PAGE.has(problem) ? "scanovateStartOver" : "scanovateTryAgain"
         )
         return (
             <Template
@@ -396,23 +423,8 @@ export default function ScanovateCapture(props: ScanovatePageProps<"scanovate-ca
                 titleLang={text("scanovateCheckingTitle").lang}
             >
                 <Checking text={text} faceCheck={faceCheck} />
-                <form
-                    ref={formRef}
-                    method="post"
-                    encType="multipart/form-data"
-                    action={url.loginAction}
-                    hidden
-                >
+                <form ref={formRef} method="post" action={url.loginAction} hidden>
                     <input type="hidden" name="action" value={CAPTURE_ACTION} />
-                    {Object.values(CapturePart).map((part) => (
-                        <input
-                            key={part}
-                            type="file"
-                            name={part}
-                            tabIndex={-1}
-                            aria-hidden="true"
-                        />
-                    ))}
                 </form>
             </Template>
         )

@@ -315,9 +315,9 @@ public class ScanovateAuthenticatorFactory implements AuthenticatorFactory {
         .label("Maximum image size")
         .helpText(
             "Embedded mode only. Maximum size in bytes of each captured image (2 MiB by"
-                + " default). Three images and the video must fit together in Keycloak's HTTP"
-                + " body limit (quarkus.http.limits.max-body-size, 10 MiB by default) and in the"
-                + " limit of any reverse proxy in front of Keycloak.")
+                + " default, at most 8 MiB). The capture page uploads each file in its own"
+                + " request, which must fit in the body limit of any reverse proxy in front of"
+                + " Keycloak.")
         .type(ProviderConfigProperty.STRING_TYPE)
         .defaultValue(String.valueOf(DEFAULT_MAX_IMAGE_BYTES))
         .add()
@@ -326,9 +326,9 @@ public class ScanovateAuthenticatorFactory implements AuthenticatorFactory {
         .label("Maximum video size")
         .helpText(
             "Embedded mode only. Maximum size in bytes of the captured video (3 MiB by"
-                + " default). Three images and the video must fit together in Keycloak's HTTP"
-                + " body limit (quarkus.http.limits.max-body-size, 10 MiB by default) and in the"
-                + " limit of any reverse proxy in front of Keycloak.")
+                + " default, at most 8 MiB). The capture page uploads each file in its own"
+                + " request, which must fit in the body limit of any reverse proxy in front of"
+                + " Keycloak.")
         .type(ProviderConfigProperty.STRING_TYPE)
         .defaultValue(String.valueOf(DEFAULT_MAX_VIDEO_BYTES))
         .add()

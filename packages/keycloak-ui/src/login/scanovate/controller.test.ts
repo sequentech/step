@@ -166,6 +166,29 @@ describe("captureReducer", () => {
         ).toBe(checking)
     })
 
+    it("shows a failed upload and sends the same captures again", () => {
+        const checking: CaptureState = {
+            ...initialCaptureState(BOTH),
+            phase: Phase.Checking,
+            captures: {[CaptureStep.Front]: photo},
+        }
+        const failed = run(checking, {type: "uploadFailed", problem: CaptureProblem.UploadFailed})
+        expect(failed.phase).toBe(Phase.Problem)
+        expect(failed.problem).toBe(CaptureProblem.UploadFailed)
+        expect(failed.captures).toBe(checking.captures)
+        const retried = run(failed, {type: "retry"})
+        expect(retried.phase).toBe(Phase.Checking)
+        expect(retried.problem).toBeNull()
+        expect(retried.captures).toBe(checking.captures)
+    })
+
+    it("only takes upload failures while checking", () => {
+        const state = capturing()
+        expect(
+            captureReducer(state, {type: "uploadFailed", problem: CaptureProblem.UploadFailed})
+        ).toBe(state)
+    })
+
     it("can start at a later step with the earlier ones done", () => {
         const state = stateAtStep(BOTH, CaptureStep.Face, photo)
         expect(state.phase).toBe(Phase.Starting)

@@ -10,6 +10,7 @@ import {
     type Recording,
 } from "./types"
 import {fetchLiveness} from "./livenessApi"
+import {fetchUploads} from "./uploads"
 
 export const VIDEO_BITS_PER_SECOND = 1_500_000
 // The authenticator accepts videos up to 3 MiB; keep a margin for the container.
@@ -134,6 +135,7 @@ export const browserServices: CaptureServices = {
     camera: browserCamera,
     recorder: browserRecorder,
     liveness: fetchLiveness,
+    uploads: fetchUploads,
     loadAnalyzers,
     vibrate: (pattern) => {
         if (typeof navigator.vibrate === "function") navigator.vibrate(pattern)

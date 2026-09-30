@@ -80,6 +80,22 @@ server {
         return 404;
     }
 
+    # The capture page uploads each photo, or the video, to the scanovate
+    # realm resource before submitting the capture: allow bodies bigger than
+    # nginx's 1 MiB default, up to the authenticator's largest limit.
+    location ~ ^/realms/[^/]+/scanovate/capture/ {
+        set $keycloak_upstream http://keycloak:${KC_HTTP_PORT};
+        proxy_pass $keycloak_upstream;
+        client_max_body_size 8m;
+
+        proxy_set_header Host               $host;
+        proxy_set_header X-Real-IP          $remote_addr;
+        proxy_set_header X-Forwarded-For    $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto  https;
+        proxy_set_header X-Forwarded-Host   $host;
+        proxy_set_header X-Forwarded-Port   8443;
+    }
+
     # Called by Liveness Plus on the internal network only, never by browsers.
     location ~ ^/realms/[^/]+/scanovate/liveness/ {
         return 404;

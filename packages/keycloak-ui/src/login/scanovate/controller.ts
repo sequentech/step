@@ -33,6 +33,7 @@ export type CaptureAction =
     | {type: "start"}
     | {type: "cameraReady"; at: number}
     | {type: "problem"; problem: CaptureProblem}
+    | {type: "uploadFailed"; problem: CaptureProblem}
     | {type: "retry"}
     | {type: "captured"; step: CaptureStep; blob: Blob; at: number}
     | {type: "flashDone"}
@@ -110,8 +111,15 @@ export function captureReducer(state: CaptureState, action: CaptureAction): Capt
         case "problem":
             if (state.phase === Phase.Checking) return state
             return {...state, ...stepReset, phase: Phase.Problem, problem: action.problem}
+        case "uploadFailed":
+            if (state.phase !== Phase.Checking) return state
+            return {...state, ...stepReset, phase: Phase.Problem, problem: action.problem}
         case "retry":
             if (state.phase !== Phase.Problem) return state
+            // A failed upload sends the same captures again.
+            if (state.problem === CaptureProblem.UploadFailed) {
+                return {...state, phase: Phase.Checking, problem: null}
+            }
             return {...state, phase: Phase.Starting, problem: null}
         case "captured": {
             if (state.phase !== Phase.Capturing || action.step !== currentStep(state)) {

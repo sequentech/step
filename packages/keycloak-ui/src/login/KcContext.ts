@@ -46,12 +46,20 @@ export type ScanovateLiveness = {
     caseId: string
 }
 
+// Where the page uploads its captures, with Keycloak's one-time token for it:
+// Keycloak can't take files on its login actions URL.
+export type ScanovateUpload = {
+    url: string
+    token: string
+}
+
 export type ScanovateCaptureSettings = {
     documentType: string
     sides: ScanovateSide[]
     videoSeconds: number
     attemptsLeft: number
     maxAttempts: number
+    upload: ScanovateUpload
     liveness?: ScanovateLiveness
 }
 

@@ -11,6 +11,13 @@ import {
     type LivenessApi,
     type LivenessConnector,
 } from "./livenessApi"
+import type {CaptureUpload} from "./form"
+import {
+    UploadError,
+    type CaptureUploader,
+    type UploadConnector,
+    type UploadRejection,
+} from "./uploads"
 import {
     CameraFacing,
     DocumentStatus,
@@ -269,18 +276,33 @@ export function fakeLiveness(
     }
 }
 
+// Records every upload; with a rejection, fails them all.
+export function fakeUploads(
+    uploaded: CaptureUpload[] = [],
+    rejection?: UploadRejection
+): UploadConnector {
+    return (): CaptureUploader => ({
+        upload: async (part, blob) => {
+            if (rejection !== undefined) throw new UploadError(rejection)
+            uploaded.push({part, blob})
+        },
+    })
+}
+
 export function fakeServices(options: {
     document?: Script<DocumentStatus>
     face?: Script<FaceStatus>
     camera?: CameraService
     recorder?: RecorderService
     liveness?: LivenessConnector
+    uploads?: UploadConnector
     analyzersFail?: boolean
 }): CaptureServices {
     return {
         camera: options.camera ?? syntheticCamera(sceneForFacing),
         recorder: options.recorder ?? fakeRecorder,
         liveness: options.liveness ?? fakeLiveness(),
+        uploads: options.uploads ?? fakeUploads(),
         loadAnalyzers: async (): Promise<Analyzers> => {
             if (options.analyzersFail) {
                 throw new Error("Synthetic analyzer failure")

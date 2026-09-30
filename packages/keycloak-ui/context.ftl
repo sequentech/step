@@ -91,6 +91,8 @@ window.kcContext.courier = "${courier?string?js_string}";
     "scanovateScoringError", "scanovateMaxRetriesError", "scanovateCaptureInvalidError",
     "scanovateLivenessError", "scanovateLivenessFailedTitle", "scanovateLivenessFailedText",
     "scanovateLivenessExpiredTitle", "scanovateLivenessExpiredText", "scanovateStartOver",
+    "scanovateUploadFailedTitle", "scanovateUploadFailedText", "scanovateCaptureExpiredTitle",
+    "scanovateCaptureExpiredText",
     "scanovateCheckingReceivedLiveness", "scanovateLivenessChecking",
     "scanovateFaceMismatchError", "scanovateFaceNotFoundError",
     "scanovateConfirmTitle", "scanovateConfirmLead", "scanovateConfirmDocument",

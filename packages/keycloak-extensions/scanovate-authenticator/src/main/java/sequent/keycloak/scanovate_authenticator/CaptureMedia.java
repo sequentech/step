@@ -3,13 +3,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 package sequent.keycloak.scanovate_authenticator;
 
-import java.io.IOException;
-import java.io.InputStream;
 import java.util.Collections;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
-import org.keycloak.http.FormPartValue;
 
 /**
  * Files captured in the voter's browser, checked and ready to be compared or sent to B-Trust.
@@ -31,29 +28,24 @@ public record CaptureMedia(Map<MediaKind, MediaFile> files) {
   }
 
   /**
-   * Reads and checks the files posted by the capture page.
+   * Checks the files uploaded by the capture page, see {@link CaptureUploads}.
    *
    * <p>Parts not required by the settings, such as the back of a single sided document, are
    * ignored.
    *
-   * @param parts multipart parts of the request, by name
-   * @throws InvalidCaptureException if a required file is missing, repeated, unreadable, too big or
-   *     not of an accepted format
+   * @param parts uploaded files, by part name
+   * @throws InvalidCaptureException if a required file is missing, too big or not of an accepted
+   *     format
    */
-  public static CaptureMedia fromParts(
-      Map<String, List<FormPartValue>> parts, CaptureSettings settings)
+  public static CaptureMedia fromUploads(Map<String, byte[]> parts, CaptureSettings settings)
       throws InvalidCaptureException {
     Map<MediaKind, MediaFile> files = new EnumMap<>(MediaKind.class);
     for (MediaKind kind : settings.requiredMedia()) {
-      List<FormPartValue> values = parts.get(kind.formPart());
-      if (values == null || values.isEmpty()) {
+      byte[] content = parts.get(kind.formPart());
+      if (content == null || content.length == 0) {
         throw new InvalidCaptureException("missing " + kind.formPart());
       }
-      if (values.size() > 1) {
-        throw new InvalidCaptureException("repeated " + kind.formPart());
-      }
       int maxBytes = settings.maxBytes(kind.category());
-      byte[] content = read(kind, values.get(0), maxBytes);
       if (content.length > maxBytes) {
         throw new InvalidCaptureException(kind.formPart() + " is larger than " + maxBytes);
       }
@@ -71,20 +63,5 @@ public record CaptureMedia(Map<MediaKind, MediaFile> files) {
     Map<MediaKind, MediaFile> kept = new EnumMap<>(MediaKind.class);
     kinds.stream().filter(files::containsKey).forEach(kind -> kept.put(kind, files.get(kind)));
     return new CaptureMedia(kept);
-  }
-
-  /**
-   * Reads up to one byte past the limit, so that bigger files are detected without reading them.
-   */
-  private static byte[] read(MediaKind kind, FormPartValue value, int maxBytes)
-      throws InvalidCaptureException {
-    try (InputStream input = value.asInputStream()) {
-      if (input == null) {
-        throw new InvalidCaptureException("missing " + kind.formPart());
-      }
-      return input.readNBytes(maxBytes + 1);
-    } catch (IOException e) {
-      throw new InvalidCaptureException("could not read " + kind.formPart(), e);
-    }
   }
 }

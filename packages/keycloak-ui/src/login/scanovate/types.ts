@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import type {LivenessConnector} from "./livenessApi"
+import type {UploadConnector} from "./uploads"
 
 // Frame analysis results returned by the id-capture WebAssembly module.
 export type Point = [number, number]
@@ -130,6 +131,9 @@ export enum CaptureProblem {
     LivenessFailed = "LIVENESS_FAILED",
     // Keycloak's one-time liveness token is used up: only a new page gets a new one.
     LivenessExpired = "LIVENESS_EXPIRED",
+    UploadFailed = "UPLOAD_FAILED",
+    // Keycloak no longer takes uploads for this page: only a new page can send them.
+    CaptureExpired = "CAPTURE_EXPIRED",
 }
 
 export interface CameraService {
@@ -150,6 +154,7 @@ export interface CaptureServices {
     camera: CameraService
     recorder: RecorderService
     liveness: LivenessConnector
+    uploads: UploadConnector
     loadAnalyzers(): Promise<Analyzers>
     vibrate(pattern: number): void
 }
