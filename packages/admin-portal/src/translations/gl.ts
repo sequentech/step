@@ -3117,6 +3117,7 @@ const galegoTranslation: TranslationType = {
                         dataQuery: "Datos e consulta",
                         selectors: "Selectores",
                         yaml: "YAML",
+                        preview: "Vista previa",
                     },
                     save: "Gardar widget",
                     loading: "Cargando o widget…",

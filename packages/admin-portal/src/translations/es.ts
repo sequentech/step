@@ -3121,6 +3121,7 @@ const spanishTranslation: TranslationType = {
                         dataQuery: "Datos y consulta",
                         selectors: "Selectores",
                         yaml: "YAML",
+                        preview: "Vista previa",
                     },
                     save: "Guardar widget",
                     loading: "Cargando el widget…",

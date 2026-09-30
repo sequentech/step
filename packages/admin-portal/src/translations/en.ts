@@ -3089,6 +3089,7 @@ const englishTranslation = {
                         dataQuery: "Data & query",
                         selectors: "Selectors",
                         yaml: "YAML",
+                        preview: "Preview",
                     },
                     save: "Save widget",
                     loading: "Loading the widget…",

@@ -3141,6 +3141,7 @@ const frenchTranslation: TranslationType = {
                         dataQuery: "Données et requête",
                         selectors: "Sélecteurs",
                         yaml: "YAML",
+                        preview: "Aperçu",
                     },
                     save: "Enregistrer le widget",
                     loading: "Chargement du widget…",

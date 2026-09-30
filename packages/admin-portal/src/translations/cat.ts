@@ -3134,6 +3134,7 @@ const catalanTranslation: TranslationType = {
                         dataQuery: "Dades i consulta",
                         selectors: "Selectors",
                         yaml: "YAML",
+                        preview: "Previsualització",
                     },
                     save: "Desa el widget",
                     loading: "Carregant el widget…",

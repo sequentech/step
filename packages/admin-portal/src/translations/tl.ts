@@ -3129,6 +3129,7 @@ const tagalogTranslation: TranslationType = {
                         dataQuery: "Data at query",
                         selectors: "Mga selector",
                         yaml: "YAML",
+                        preview: "Preview",
                     },
                     save: "I-save ang widget",
                     loading: "Nilo-load ang widget…",

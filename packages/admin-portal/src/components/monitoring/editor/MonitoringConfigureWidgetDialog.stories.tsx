@@ -115,6 +115,27 @@ export const EditAndSave: Story = {
     },
 }
 
+/** Preview: the draft on its own at the dialog's full width and the widget's height. */
+export const PreviewTab: Story = {
+    play: async ({canvasElement}) => {
+        const view = await openDialog(canvasElement)
+        await waitFor(() => expect(api.renderWidget).toHaveBeenCalled())
+        const beside = (api.renderWidget as unknown as {mock: {calls: [{width: number}][]}}).mock
+            .calls
+        const besideWidth = beside.at(-1)![0].width
+        await userEvent.click(view.getByRole("tab", {name: "Preview"}))
+        const panel = view.getByRole("tabpanel", {name: "Preview"})
+        // The preview beside the forms gives way to the large one.
+        expect(view.getAllByRole("region", {name: "Turnout by group"})).toHaveLength(1)
+        expect(within(panel).getByRole("region", {name: "Turnout by group"})).toBeVisible()
+        await waitFor(() => expect(beside.at(-1)![0].width).toBeGreaterThan(besideWidth))
+        const frame = await within(panel).findByTitle("Turnout by group")
+        await waitFor(() => expect(frame).toHaveStyle({height: "240px"}))
+        await userEvent.click(view.getByRole("tab", {name: "YAML"}))
+        await waitFor(() => expect(beside.at(-1)![0].width).toBe(besideWidth))
+    },
+}
+
 export const ConflictKeepEditing: Story = {
     parameters: withApi(() => ({
         // Opened at revision 7; revision 9 is the one saved meanwhile.

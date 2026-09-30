@@ -3123,6 +3123,7 @@ const dutchTranslation: TranslationType = {
                         dataQuery: "Gegevens en query",
                         selectors: "Selectors",
                         yaml: "YAML",
+                        preview: "Voorbeeld",
                     },
                     save: "Widget opslaan",
                     loading: "Widget laden…",

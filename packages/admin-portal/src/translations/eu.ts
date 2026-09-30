@@ -3110,6 +3110,7 @@ const basqueTranslation: TranslationType = {
                         dataQuery: "Datuak eta kontsulta",
                         selectors: "Hautatzaileak",
                         yaml: "YAML",
+                        preview: "Aurrebista",
                     },
                     save: "Gorde widgeta",
                     loading: "Widgeta kargatzen…",
