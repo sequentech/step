@@ -2887,7 +2887,7 @@ const frenchTranslation: TranslationType = {
                 dashboard: "Tableau de bord",
                 widgets_one: "{{count}} widget",
                 widgets_other: "{{count}} widgets",
-                updated: "Mis à jour {{time}}",
+                updated: "Mis à jour {{time}} ({{timeZone}})",
                 notUpdated: "Pas encore compté",
                 refresh: "toutes les {{seconds}} s",
                 export: "Exporter",
@@ -3008,6 +3008,7 @@ const frenchTranslation: TranslationType = {
                 credentials_issued: "Identifiants délivrés",
                 test_voted: "Votes de test",
                 voted: "Ont voté",
+                voted_pre_enrolled: "Pré-inscrits ayant voté",
                 applications: "Demandes",
                 pending: "En attente",
                 approved: "Approuvées",
@@ -3326,6 +3327,7 @@ const frenchTranslation: TranslationType = {
                         "L'éditeur a envoyé une demande que le serveur n'a pas pu lire. Rechargez la page et réessayez.",
                 },
                 duplicate: {
+                    copyTitle: "{{title}} (copie)",
                     done: "{{id}}, une copie du widget, a été ajouté au tableau de bord.",
                     failed: "Le widget n'a pas pu être dupliqué : {{reason}}",
                     notPlaced:

@@ -68,7 +68,7 @@ selectors:
     label: Show
     options: {voted_reg: Voted of registered, voted_pre: Voted of pre-enrolled, pre_reg: Pre-enrolled of registered}
     default: voted_reg
-    maps: {voted_reg: [voted, registered], voted_pre: [voted, pre_enrolled], pre_reg: [pre_enrolled, registered]}
+    maps: {voted_reg: [voted, registered], voted_pre: [voted_pre_enrolled, pre_enrolled], pre_reg: [pre_enrolled, registered]}
 query:
   template: by_group
   group_by: {selector: breakdown}
@@ -333,7 +333,7 @@ a source is a code change.
 
 | Source | Counting unit | Measures | Templates | Dimensions | Producer |
 |---|---|---|---|---|---|
-| `voter_turnout` | Distinct voters at the selected scope | `registered`, `pre_enrolled`, `voted` | `summary`, `by_group`, `timeseries`, `by_measure` | `region`, `post`, `country`, voter dimensions | Connected |
+| `voter_turnout` | Distinct voters at the selected scope | `registered`, `pre_enrolled`, `voted`, `voted_pre_enrolled` | `summary`, `by_group`, `timeseries`, `by_measure` | `region`, `post`, `country`, voter dimensions | Connected |
 | `test_voting` | Distinct pre-enrolled voters | `pre_enrolled`, `test_voted` | `summary`, `by_group`, `timeseries`, `by_measure` | `region`, `post`, `country`, voter dimensions | Not connected: test elections cannot be marked yet |
 | `enrollment_decisions` | Latest decision per voter | `applications`, `pending`, `approved`, `disapproved` | `summary`, `by_group`, `timeseries`, `by_measure` | `region`, `post`, `country`, `reason` | Connected |
 | `voting_credentials` | Approved voters | `approved`, `credentials_issued` | `summary`, `by_group`, `timeseries`, `by_measure` | `region`, `post`, `country`, voter dimensions | Not connected: issuing credentials is not recorded yet |
@@ -350,6 +350,11 @@ Notes:
 - The dimensions `region`, `post` and `country` are also the dashboard
   selectors that can narrow the source. A widget of a source without
   `country` ignores the Country selector.
+- `voted_pre_enrolled` counts the pre-enrolled voters who voted. A share of
+  the pre-enrolled who voted is `[voted_pre_enrolled, pre_enrolled]`, never
+  `[voted, pre_enrolled]`: `voted` also counts voters who voted without
+  pre-enrolling, so that ratio can pass 100%. The platform does not refuse
+  such a ratio; choose a numerator the denominator contains.
 - Time series are counted for: `voter_turnout` (`voted`),
   `enrollment_decisions` (`approved`, `disapproved`),
   `voting_enrollment_activity` (`approved`, `voted`) and `access_security`

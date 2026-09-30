@@ -5,7 +5,7 @@
 import React from "react"
 import {render, screen} from "@testing-library/react"
 import "@testing-library/jest-dom"
-import {MonitoringHeader} from "./MonitoringHeader"
+import {MonitoringHeader, type MonitoringHeaderProps} from "./MonitoringHeader"
 
 jest.mock("react-i18next", () => ({
     useTranslation: () => ({
@@ -15,7 +15,7 @@ jest.mock("react-i18next", () => ({
     }),
 }))
 
-function header(refreshMs: number) {
+function header(refreshMs: number, snapshot: MonitoringHeaderProps["snapshot"] = null) {
     render(
         <MonitoringHeader
             title="Overview"
@@ -24,8 +24,8 @@ function header(refreshMs: number) {
             onSelectDashboard={jest.fn()}
             widgetCount={1}
             requirements={[]}
-            snapshot={null}
-            timeZone="UTC"
+            snapshot={snapshot}
+            timeZone="Asia/Manila"
             refreshMs={refreshMs}
         />
     )
@@ -40,5 +40,14 @@ describe("MonitoringHeader", () => {
     it("shows the default interval when given it", () => {
         header(30_000)
         expect(screen.getByText(/monitoring\.header\.refresh \{"seconds":30\}/)).toBeInTheDocument()
+    })
+
+    it("names the time zone the update time is shown in", () => {
+        header(30_000, {revision: 4, as_of: "2026-09-30T02:00:00Z"})
+        expect(
+            screen.getByText(
+                /monitoring\.header\.updated \{"time":"[^"]*10:00[^"]*","timeZone":"Asia\/Manila"\}/
+            )
+        ).toBeInTheDocument()
     })
 })

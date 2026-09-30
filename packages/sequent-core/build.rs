@@ -110,7 +110,10 @@ fn included(manifest_dir: &Path, file: &Path) -> String {
         .expect("presets are inside the crate")
         .to_str()
         .expect("preset paths are UTF-8");
-    format!("include_str!(concat!(env!(\"CARGO_MANIFEST_DIR\"), {:?}))", format!("/{relative}"))
+    format!(
+        "include_str!(concat!(env!(\"CARGO_MANIFEST_DIR\"), {:?}))",
+        format!("/{relative}")
+    )
 }
 
 fn sorted(directory: &Path) -> Vec<PathBuf> {

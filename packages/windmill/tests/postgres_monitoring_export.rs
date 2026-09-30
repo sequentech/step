@@ -369,8 +369,22 @@ async fn an_export_holds_the_viewers_elections_only() {
     );
     activity.from = Some(Utc::now() + Duration::days(1));
     activity.to = Some(Utc::now() + Duration::days(2));
-    let later = export(&mut client, &activity).await.unwrap();
-    assert_eq!(series_rows(&later), 0);
+    // A range with no bucket keeps the query, as one row with no row number
+    // and no figures that says so.
+    let later = export_table(&export(&mut client, &activity).await.unwrap());
+    assert_eq!(later.rows.len(), 1, "{:?}", later.rows);
+    let column = |name: &str| {
+        let at = later
+            .columns
+            .iter()
+            .position(|(column, _)| column == name)
+            .unwrap_or_else(|| panic!("no column {name}"));
+        later.rows[0][at].clone()
+    };
+    assert_eq!(column("query"), json!("data"));
+    assert_eq!(column("row"), Value::Null);
+    assert_eq!(column("voted"), Value::Null);
+    assert_eq!(column("notice"), json!("NO_ROWS_IN_RANGE"));
     activity.to = activity.from;
     assert!(matches!(
         export(&mut client, &activity).await,

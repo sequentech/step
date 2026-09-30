@@ -13,7 +13,7 @@ import time
 import pytest
 from fastapi.testclient import TestClient
 
-from conftest import TOKEN, golden, kpi_board
+from conftest import TOKEN, golden, kpi_board, unseen_pin_board
 from monitoring_renderer.app import MAX_BODY_BYTES, Settings, create_app
 from monitoring_renderer.engine import Rendered
 
@@ -126,7 +126,7 @@ def test_a_repeated_request_is_served_from_the_cache(client):
 
 
 def test_render_warnings_are_returned_not_refused(client):
-    response = client.post("/render", json=render_body(golden("campus/polls.json")), headers=HEADERS)
+    response = client.post("/render", json=render_body(unseen_pin_board()), headers=HEADERS)
     assert response.status_code == 200
     assert [w["engine_code"] for w in response.json()["warnings"]] == ["WARN-CATEGORY-COLOR-PIN-UNSEEN"]
     assert response.json()["warnings"][0]["severity"] == "warning"

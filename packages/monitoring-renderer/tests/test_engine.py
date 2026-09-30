@@ -11,7 +11,7 @@ import socket
 
 import pytest
 
-from conftest import GOLDEN_BOARD_FILES, golden, golden_id, kpi_board, map_board
+from conftest import BOARDS, GOLDEN_BOARD_FILES, golden, golden_id, kpi_board, map_board, unseen_pin_board
 from monitoring_renderer.engine import BoardRefused
 from monitoring_renderer.geo import BUNDLED_URLS, ExternalData, inline_bundled_data
 from monitoring_renderer.svg import clean_svg
@@ -30,6 +30,20 @@ def test_every_golden_board_renders_to_a_clean_svg(engine, path):
     assert "/static/fonts" not in rendered.svg
     assert clean_svg(rendered.svg) == rendered.svg
     assert all(problem.severity.value == "warning" for problem in rendered.warnings)
+    # A theme pins its colours for every dashboard; a board gets only the
+    # pins for values it draws, so the engine never skips one.
+    assert not [p for p in rendered.warnings if p.engine_code == "WARN-CATEGORY-COLOR-PIN-UNSEEN"]
+
+
+TURNOUT_BY_POST = sorted(BOARDS.glob("comelec/turnout-by-post*.json"))
+
+
+@pytest.mark.parametrize("path", TURNOUT_BY_POST, ids=golden_id)
+def test_the_turnout_by_post_headers_fit_a_half_width_card(engine, path):
+    # 360 px is the narrowest a chart is drawn at: a half-width card on a
+    # narrow screen.
+    rendered = engine.render(golden(f"{path.parent.name}/{path.name}"), width=360)
+    assert not [p for p in rendered.warnings if p.engine_code == "WARN-TABLE-CRAMPED"]
 
 
 def test_there_are_golden_boards_from_both_presets():
@@ -148,7 +162,7 @@ def test_a_board_the_engine_refuses_carries_its_codes(engine):
 
 def test_validate_reports_engine_errors_and_warnings(engine):
     assert engine.validate(golden("comelec/turnout-by-country.json")) == []
-    warnings = engine.validate(golden("campus/polls.json"))
+    warnings = engine.validate(unseen_pin_board())
     assert {(p.severity.value, p.engine_code) for p in warnings} == {
         ("warning", "WARN-CATEGORY-COLOR-PIN-UNSEEN")
     }

@@ -54,3 +54,18 @@ fn the_fan_out_keeps_the_interval_within_its_bounds() {
         cadence::configured().snapshot_interval.seconds
     );
 }
+
+#[test]
+fn pruning_an_event_takes_the_lock_its_passes_take() {
+    let event = EventRef {
+        tenant_id: Uuid::new_v4(),
+        election_event_id: Uuid::new_v4(),
+    };
+    assert_eq!(
+        snapshot_lock_key(event),
+        format!(
+            "monitoring_snapshot-{}-{}",
+            event.tenant_id, event.election_event_id
+        )
+    );
+}

@@ -14,9 +14,11 @@ import {
     Typography,
 } from "@mui/material"
 import {countBySeverity, type IEditorDiagnostic} from "@/components/monitoring/lib/diagnostics"
+import {previewWidth} from "@/components/monitoring/lib/chartDocument"
 import type {IMonitoringEditorApi} from "./api"
 import {EMonitoringColorScheme, EMonitoringConfigKind} from "./types"
 import {useYamlDraft} from "./useYamlDraft"
+import {useRedrawOnWidth} from "./useRedrawOnWidth"
 import type {TLocalValidate, TRenderPreview} from "./yamlDraft"
 import {MonitoringYamlEditor, type IMonitoringYamlEditorHandle} from "./MonitoringYamlEditor"
 import {MonitoringDiagnosticsList} from "./MonitoringDiagnosticsList"
@@ -53,7 +55,6 @@ const THEME_MESSAGES: IDocumentMessages = {
     invalid: "monitoring.editor.document.invalid",
     requestFailed: "monitoring.editor.document.requestFailed",
 }
-const PREVIEW_WIDTH = 480
 
 /** The dbt Charts style of a dashboard, as YAML, previewed on one of its widgets. */
 export const MonitoringThemeEditorDialog: React.FC<MonitoringThemeEditorDialogProps> = ({
@@ -70,6 +71,8 @@ export const MonitoringThemeEditorDialog: React.FC<MonitoringThemeEditorDialogPr
     const {t, i18n} = useTranslation()
     const editor = useRef<IMonitoringYamlEditorHandle>(null)
     const [confirmDiscard, setConfirmDiscard] = useState(false)
+    const [paneWidth, setPaneWidth] = useState<number | null>(null)
+    const drawnWidth = previewWidth(preview?.width, paneWidth)
     const renderPreview = useCallback<TRenderPreview>(
         (text) =>
             api.renderWidget({
@@ -77,12 +80,12 @@ export const MonitoringThemeEditorDialog: React.FC<MonitoringThemeEditorDialogPr
                 widget_id: preview?.widgetId ?? "",
                 scope: {},
                 selector_values: {},
-                width: preview?.width ?? PREVIEW_WIDTH,
+                width: drawnWidth,
                 color_scheme: colorScheme,
                 locale: i18n.language,
                 draft: {theme_yaml: text},
             }),
-        [api, preview?.dashboardId, preview?.widgetId, preview?.width, colorScheme, i18n]
+        [api, preview?.dashboardId, preview?.widgetId, drawnWidth, colorScheme, i18n]
     )
     const draft = useYamlDraft({
         text: "",
@@ -100,6 +103,7 @@ export const MonitoringThemeEditorDialog: React.FC<MonitoringThemeEditorDialogPr
     })
     const counts = useMemo(() => countBySeverity(draft.diagnostics), [draft.diagnostics])
     const ready = stored.load === EDocumentLoad.READY
+    useRedrawOnWidth(draft.controller, drawnWidth, ready)
     const reveal = (diagnostic: IEditorDiagnostic) =>
         editor.current?.reveal(diagnostic.from, diagnostic.to)
     /** Backdrop, Escape and Cancel all ask first when there are unsaved changes. */
@@ -157,6 +161,7 @@ export const MonitoringThemeEditorDialog: React.FC<MonitoringThemeEditorDialogPr
                                     preview={draft.preview}
                                     status={draft.previewStatus}
                                     error={draft.previewError}
+                                    onWidth={setPaneWidth}
                                 />
                             ) : null}
                             <MonitoringDiagnosticsList

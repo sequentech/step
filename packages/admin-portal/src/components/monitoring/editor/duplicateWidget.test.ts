@@ -27,6 +27,8 @@ const DASHBOARD = [
 
 const WIDGET = "id: activity\ntitle: Activity\n"
 
+const copyTitle = (title: string) => `${title} (copy)`
+
 const document = (kind: EMonitoringConfigKind, key: string, yaml: string | null, revision = 4) =>
     ({kind, key, yaml, revision}) satisfies IMonitoringConfigDocument
 
@@ -58,18 +60,36 @@ const fakeApi = (
 }
 
 describe("duplicateWidgetOnDashboard", () => {
+    it("titles the copy apart from the original, and leaves an untitled widget untitled", async () => {
+        const api = fakeApi()
+        api.getConfig.mockImplementation(async ({kind, key}) =>
+            kind === EMonitoringConfigKind.DASHBOARD
+                ? document(kind, key, DASHBOARD, 9)
+                : document(kind, key, "id: activity\nsource: voter_turnout\n")
+        )
+        await duplicateWidgetOnDashboard(api, {
+            dashboardId: "overview",
+            widgetId: "activity",
+            copyTitle,
+        })
+        expect(api.saveConfig.mock.calls[0][0].yaml).toBe(
+            "id: activity-copy-2\nsource: voter_turnout\n"
+        )
+    })
+
     it("saves a copy under a free id and places it after the original", async () => {
         const api = fakeApi()
         const outcome = await duplicateWidgetOnDashboard(api, {
             dashboardId: "overview",
             widgetId: "activity",
+            copyTitle,
         })
         expect(outcome).toEqual({result: EDuplicateResult.DONE, id: "activity-copy-2"})
         const [copy, dashboard] = api.saveConfig.mock.calls.map(([request]) => request)
         expect(copy).toEqual({
             kind: EMonitoringConfigKind.WIDGET,
             key: "activity-copy-2",
-            yaml: "id: activity-copy-2\ntitle: Activity\n",
+            yaml: "id: activity-copy-2\ntitle: Activity (copy)\n",
             change: EMonitoringSaveChange.UPSERT,
         })
         expect(dashboard).toEqual(
@@ -95,6 +115,7 @@ describe("duplicateWidgetOnDashboard", () => {
         const outcome = await duplicateWidgetOnDashboard(api, {
             dashboardId: "overview",
             widgetId: "activity",
+            copyTitle,
         })
         expect(outcome).toEqual({result: EDuplicateResult.NOT_SAVED, problem: "Too long"})
         expect(api.saveConfig).toHaveBeenCalledTimes(1)
@@ -109,6 +130,7 @@ describe("duplicateWidgetOnDashboard", () => {
         const outcome = await duplicateWidgetOnDashboard(api, {
             dashboardId: "overview",
             widgetId: "activity",
+            copyTitle,
         })
         expect(outcome).toEqual({
             result: EDuplicateResult.NOT_PLACED,
@@ -120,7 +142,11 @@ describe("duplicateWidgetOnDashboard", () => {
     it("refuses a widget that is not on the dashboard, before saving anything", async () => {
         const api = fakeApi()
         await expect(
-            duplicateWidgetOnDashboard(api, {dashboardId: "overview", widgetId: "missing"})
+            duplicateWidgetOnDashboard(api, {
+                dashboardId: "overview",
+                widgetId: "missing",
+                copyTitle,
+            })
         ).rejects.toThrow("missing")
         expect(api.saveConfig).not.toHaveBeenCalled()
     })

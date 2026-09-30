@@ -2,12 +2,13 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {useMemo} from "react"
+import React, {useEffect, useMemo, useRef} from "react"
 import {useTranslation} from "react-i18next"
 import {Alert, Box, LinearProgress, Paper, Typography} from "@mui/material"
 import {EMonitoringRenderState, type IMonitoringRenderResponse} from "./types"
 import {EPreviewStatus} from "./yamlDraft"
 import {previewDocument} from "./previewDocument"
+import {useBucketedWidth} from "../useBucketedWidth"
 
 export interface MonitoringPreviewPaneProps {
     title?: string
@@ -16,6 +17,8 @@ export interface MonitoringPreviewPaneProps {
     error?: string
     /** Frame height: the widget's `height`, else 280 like the dashboard. */
     height?: number
+    /** The frame's width, in the 40 px steps a card is drawn at, once measured. */
+    onWidth?: (width: number) => void
 }
 
 export const DEFAULT_PREVIEW_HEIGHT = 280
@@ -27,8 +30,14 @@ export const MonitoringPreviewPane: React.FC<MonitoringPreviewPaneProps> = ({
     status,
     error,
     height = DEFAULT_PREVIEW_HEIGHT,
+    onWidth,
 }) => {
     const {t} = useTranslation()
+    const body = useRef<HTMLDivElement>(null)
+    const width = useBucketedWidth(body)
+    useEffect(() => {
+        if (width) onWidth?.(width)
+    }, [width, onWidth])
     const document = useMemo(
         () =>
             preview?.state === EMonitoringRenderState.RENDERED && preview.svg
@@ -57,28 +66,32 @@ export const MonitoringPreviewPane: React.FC<MonitoringPreviewPaneProps> = ({
                     {t("monitoring.editor.preview.failed", {reason: error ?? ""})}
                 </Alert>
             ) : null}
-            {document ? (
-                <iframe
-                    title={label}
-                    sandbox=""
-                    srcDoc={document}
-                    style={{width: "100%", height, border: 0}}
-                />
-            ) : preview && preview.state !== EMonitoringRenderState.RENDERED ? (
-                <Alert
-                    severity={preview.state === EMonitoringRenderState.INVALID ? "error" : "info"}
-                >
-                    <strong>{t(`monitoring.editor.preview.state.${preview.state}`)}</strong>
-                    {preview.reason ? ` · ${preview.reason}` : ""}
-                    {preview.state === EMonitoringRenderState.NOT_CONNECTED
-                        ? ` ${t("monitoring.editor.preview.notConnectedTail")}`
-                        : ""}
-                </Alert>
-            ) : !preview && status !== EPreviewStatus.RENDERING ? (
-                <Typography variant="body2" color="text.secondary">
-                    {t("monitoring.editor.preview.empty")}
-                </Typography>
-            ) : null}
+            <Box ref={body}>
+                {document ? (
+                    <iframe
+                        title={label}
+                        sandbox=""
+                        srcDoc={document}
+                        style={{width: "100%", height, border: 0}}
+                    />
+                ) : preview && preview.state !== EMonitoringRenderState.RENDERED ? (
+                    <Alert
+                        severity={
+                            preview.state === EMonitoringRenderState.INVALID ? "error" : "info"
+                        }
+                    >
+                        <strong>{t(`monitoring.editor.preview.state.${preview.state}`)}</strong>
+                        {preview.reason ? ` · ${preview.reason}` : ""}
+                        {preview.state === EMonitoringRenderState.NOT_CONNECTED
+                            ? ` ${t("monitoring.editor.preview.notConnectedTail")}`
+                            : ""}
+                    </Alert>
+                ) : !preview && status !== EPreviewStatus.RENDERING ? (
+                    <Typography variant="body2" color="text.secondary">
+                        {t("monitoring.editor.preview.empty")}
+                    </Typography>
+                ) : null}
+            </Box>
             {preview?.notices?.map((notice) => (
                 <Typography key={notice} variant="caption" color="text.secondary">
                     {notice}

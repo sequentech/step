@@ -2869,7 +2869,7 @@ const dutchTranslation: TranslationType = {
                 dashboard: "Dashboard",
                 widgets_one: "{{count}} widget",
                 widgets_other: "{{count}} widgets",
-                updated: "Bijgewerkt {{time}}",
+                updated: "Bijgewerkt {{time}} ({{timeZone}})",
                 notUpdated: "Nog niet geteld",
                 refresh: "elke {{seconds}} s",
                 export: "Exporteren",
@@ -2990,6 +2990,7 @@ const dutchTranslation: TranslationType = {
                 credentials_issued: "Inloggegevens uitgegeven",
                 test_voted: "Testgestemd",
                 voted: "Gestemd",
+                voted_pre_enrolled: "Vooraf ingeschreven en gestemd",
                 applications: "Aanvragen",
                 pending: "In behandeling",
                 approved: "Goedgekeurd",
@@ -3306,6 +3307,7 @@ const dutchTranslation: TranslationType = {
                         "De editor stuurde een verzoek dat de server niet kon lezen. Laad de pagina opnieuw en probeer het nog eens.",
                 },
                 duplicate: {
+                    copyTitle: "{{title}} (kopie)",
                     done: "{{id}}, een kopie van de widget, is aan het dashboard toegevoegd.",
                     failed: "De widget kon niet worden gedupliceerd: {{reason}}",
                     notPlaced:

@@ -450,6 +450,30 @@ fn a_timeseries_needs_a_grain_and_only_a_timeseries_takes_one() {
     );
 }
 
+/// A timeseries draws what its source counts per hour. Registered voters
+/// are a total the producer never splits into hours: a widget showing them
+/// hourly would only ever say "not counted".
+#[test]
+fn a_timeseries_shows_only_measures_its_source_counts_per_hour() {
+    let turnout = VOTING_ACTIVITY.replace(
+        "source: voting_enrollment_activity",
+        "source: voter_turnout",
+    );
+    assert_accepted(&widget_report(&turnout));
+    let stock =
+        turnout.replace("measures: [voted]", "measures: [voted, registered]");
+    assert_refused(
+        &widget_report(&stock),
+        Code::UnsupportedBySource,
+        "query.measures[1]",
+    );
+    // A summary of the same source counts it.
+    assert_accepted(&widget_report(&minimal_with(
+        "measures: [voted]",
+        "measures: [voted, registered]",
+    )));
+}
+
 #[test]
 fn a_day_only_narrows_an_hourly_series() {
     let yaml = VOTING_ACTIVITY

@@ -2868,7 +2868,7 @@ const spanishTranslation: TranslationType = {
                 dashboard: "Panel",
                 widgets_one: "{{count}} widget",
                 widgets_other: "{{count}} widgets",
-                updated: "Actualizado {{time}}",
+                updated: "Actualizado {{time}} ({{timeZone}})",
                 notUpdated: "Aún sin recuento",
                 refresh: "cada {{seconds}} s",
                 export: "Exportar",
@@ -2988,6 +2988,7 @@ const spanishTranslation: TranslationType = {
                 credentials_issued: "Credenciales emitidas",
                 test_voted: "Votos de prueba",
                 voted: "Votaron",
+                voted_pre_enrolled: "Preinscritos que votaron",
                 applications: "Solicitudes",
                 pending: "Pendientes",
                 approved: "Aprobadas",
@@ -3302,6 +3303,7 @@ const spanishTranslation: TranslationType = {
                         "El editor envió una solicitud que el servidor no pudo leer. Recargue la página e inténtelo de nuevo.",
                 },
                 duplicate: {
+                    copyTitle: "{{title}} (copia)",
                     done: "Se añadió {{id}}, una copia del widget, al panel.",
                     failed: "No se pudo duplicar el widget: {{reason}}",
                     notPlaced:

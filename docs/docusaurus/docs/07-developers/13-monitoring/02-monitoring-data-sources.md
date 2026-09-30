@@ -68,6 +68,13 @@ should fail until the step is done.
      scopes, so a voter in two Posts is one voter of their region;
    - count every measure the spec lists at every scope (a missing measure
      reads as "not counted", never as zero);
+   - give a share its own numerator measure when the denominator does not
+     contain the numerator: `voter_turnout` counts `voted_pre_enrolled`
+     (pre-enrolled voters who voted) for "Voted of pre-enrolled", because
+     `voted` includes voters who voted without pre-enrolling. The policy
+     does not check that a ratio's numerator is within its denominator;
+     the preset test `no_turnout_share_passes_100_percent_when_others_vote_too`
+     does, for the shipped presets;
    - put missing dimension values under `__unknown__`;
    - for a source with a `timeseries` template, add the measures it puts in
      series to `series_measures`, bucketed by the hour in the settings' time
@@ -92,6 +99,9 @@ should fail until the step is done.
 
 Rolling deploys are safe in both directions: an older Harvest drops a
 measure, state or notice it cannot name rather than refusing the payload.
+A payload counted before a measure was added still reads: a query that asks
+for the new measure is refused as not counted (`NOT_COUNTED`), never shown
+as zero, until the next pass that writes the scope counts it.
 
 ## Adding a preset
 

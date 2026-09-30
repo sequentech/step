@@ -80,6 +80,16 @@ export function widthBucket(width: number): number {
     return Math.max(MIN_RENDER_WIDTH_PX, steps * WIDTH_BUCKET_PX)
 }
 
+/**
+ * The width an editor preview is drawn at: the card's own, when the editor
+ * was opened from one, so the preview draws what the dashboard does; else
+ * the preview pane's. Bucketed like a card's, never below
+ * {@link MIN_RENDER_WIDTH_PX}.
+ */
+export function previewWidth(cardWidth: number | undefined, paneWidth: number | null): number {
+    return widthBucket(cardWidth ?? paneWidth ?? 0)
+}
+
 export interface ChartDocument {
     html: string
     hash: string

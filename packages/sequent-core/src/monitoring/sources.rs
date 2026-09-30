@@ -110,6 +110,10 @@ pub enum Measure {
     TestVoted,
     /// Voters with at least one valid vote. Revotes do not count again.
     Voted,
+    /// Pre-enrolled voters with at least one valid vote: the voters both
+    /// `pre_enrolled` and `voted` count, so a share of the pre-enrolled
+    /// that counts it never passes 100%.
+    VotedPreEnrolled,
     Applications,
     Pending,
     Approved,
@@ -141,6 +145,7 @@ impl Measure {
             Measure::CredentialsIssued => "Credentials issued",
             Measure::TestVoted => "Test voted",
             Measure::Voted => "Voted",
+            Measure::VotedPreEnrolled => "Pre-enrolled and voted",
             Measure::Applications => "Applications",
             Measure::Pending => "Pending",
             Measure::Approved => "Approved",
@@ -369,6 +374,10 @@ pub struct SourceSpec {
     pub id: DataSourceId,
     pub counting_unit: CountingUnit,
     pub measures: &'static [Measure],
+    /// The measures counted per hour, as the timeseries template shows
+    /// them. The others are totals the producer never splits into hours,
+    /// such as the voters registered; empty without a timeseries template.
+    pub series_measures: &'static [Measure],
     pub templates: &'static [QueryTemplate],
     pub builtin_dimensions: &'static [BuiltinDimension],
     pub voter_dimensions: VoterDimensions,
@@ -415,6 +424,17 @@ impl DataSourceId {
             ],
             _ => &[],
         };
+        let series_measures: &'static [Measure] = match self {
+            VoterTurnout => &[M::Voted],
+            TestVoting => &[M::TestVoted],
+            EnrollmentDecisions => &[M::Approved, M::Disapproved],
+            VotingCredentials => &[M::CredentialsIssued],
+            VotingEnrollmentActivity => &[M::Approved, M::Voted],
+            AccessSecurity => &[M::Logins, M::LoginFailures, M::PasswordResets],
+            AttackDetections => &[M::Detections],
+            Helpdesk => &[M::Issues],
+            PollStatus | FinalTestingLockdown | CountingTransmission => &[],
+        };
         let (counting_unit, measures, templates, builtin, voter, producer): (
             CountingUnit,
             &'static [Measure],
@@ -425,7 +445,7 @@ impl DataSourceId {
         ) = match self {
             VoterTurnout => (
                 CountingUnit::DistinctVoters,
-                &[M::Registered, M::PreEnrolled, M::Voted],
+                &[M::Registered, M::PreEnrolled, M::Voted, M::VotedPreEnrolled],
                 VOTER_TEMPLATES,
                 SCOPE,
                 VoterDimensions::Configured,
@@ -516,6 +536,7 @@ impl DataSourceId {
             id: self,
             counting_unit,
             measures,
+            series_measures,
             templates,
             builtin_dimensions: builtin,
             voter_dimensions: voter,
@@ -528,6 +549,11 @@ impl DataSourceId {
 impl SourceSpec {
     pub fn has_measure(&self, measure: Measure) -> bool {
         self.measures.contains(&measure)
+    }
+
+    /// Whether the timeseries template can show `measure`.
+    pub fn counts_per_hour(&self, measure: Measure) -> bool {
+        self.series_measures.contains(&measure)
     }
 
     pub fn has_template(&self, template: QueryTemplate) -> bool {

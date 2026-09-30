@@ -284,6 +284,39 @@ describe("useConfigDocument", () => {
         )
     })
 
+    it("after a conflict, keeping the draft shows the revision it now replaces", async () => {
+        const getConfig = jest
+            .fn()
+            .mockResolvedValueOnce(stored(7))
+            .mockResolvedValueOnce({
+                ...stored(12, "id: turnout\ntitle: Theirs\n"),
+                author: {id: "u-ben", name: "Ben"},
+                created_at: "2026-09-29T11:00:00Z",
+            })
+        const api = fakeApi({
+            getConfig,
+            saveConfig: jest.fn(async () => ({
+                status: EMonitoringSaveStatus.CONFLICT as const,
+                current_revision: 12,
+                author: {id: "u-ben", name: "Ben"},
+                time: "2026-09-29T11:00:00Z",
+            })),
+        })
+        const {controller, hook} = await open(api)
+        controller.setText(`${TEXT}height: 3\n`)
+        await act(async () => {
+            await hook.result.current.save()
+        })
+        await waitFor(() => expect(hook.result.current.conflict?.theirsRevision).toBe(12))
+        act(() => hook.result.current.keepEditing())
+        expect(hook.result.current.revision).toEqual({
+            revision: 12,
+            author: {id: "u-ben", name: "Ben"},
+            createdAt: "2026-09-29T11:00:00Z",
+        })
+        expect(controller.getState().dirty).toBe(true)
+    })
+
     it("when the saved revision cannot be fetched, says so and leaves Reload to try again", async () => {
         const getConfig = jest
             .fn()

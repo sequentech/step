@@ -109,6 +109,7 @@ fn share(total: u64, at: usize) -> u64 {
 fn voter_counts(measures: &BTreeSet<Measure>, at: usize) -> Counts {
     let registered = 40 + (at as u64 * 37) % 400;
     let pre_enrolled = registered * (6 + at as u64 % 4) / 10;
+    let voted = pre_enrolled * (3 + at as u64 % 5) / 10;
     measures
         .iter()
         .map(|measure| {
@@ -117,7 +118,8 @@ fn voter_counts(measures: &BTreeSet<Measure>, at: usize) -> Counts {
                 Measure::PreEnrolled | Measure::Approved => pre_enrolled,
                 Measure::CredentialsIssued => pre_enrolled * 9 / 10,
                 Measure::TestVoted => pre_enrolled / 5,
-                Measure::Voted => pre_enrolled * (3 + at as u64 % 5) / 10,
+                Measure::Voted => voted,
+                Measure::VotedPreEnrolled => voted * 8 / 10,
                 _ => share(registered, at),
             };
             (*measure, count)

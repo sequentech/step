@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {useEffect, useMemo, useRef, useState} from "react"
+import React, {useMemo, useRef, useState} from "react"
 import {useTranslation} from "react-i18next"
 import {
     Alert,
@@ -54,12 +54,7 @@ import {MonitoringDiscardDialog} from "./MonitoringDiscardDialog"
 import {MonitoringWidgetCatalogDialog} from "./MonitoringWidgetCatalogDialog"
 import {MonitoringThemeEditorDialog} from "./MonitoringThemeEditorDialog"
 import {MonitoringResetToPresetDialog} from "./MonitoringResetToPresetDialog"
-import {
-    DEFAULT_THEME,
-    countThemeWidgets,
-    loadWidgetCatalog,
-    type IWidgetCatalogEntry,
-} from "./catalog"
+import {DEFAULT_THEME, countThemeWidgets, themePreviewWidget} from "./catalog"
 import {SCOPE_SELECTORS, copyId, layoutEntries, stringList} from "./formValues"
 import {
     EDocumentLoad,
@@ -68,6 +63,8 @@ import {
     useConfigDocument,
     type IDocumentMessages,
 } from "./useConfigDocument"
+import {useWidgetCatalog} from "./useWidgetCatalog"
+import {widgetCopyYaml} from "./duplicateWidget"
 
 export enum EDashboardTab {
     WIDGETS = "WIDGETS",
@@ -126,9 +123,6 @@ export const MonitoringDashboardEditor: React.FC<MonitoringDashboardEditorProps>
 }) => {
     const {t} = useTranslation()
     const [tab, setTab] = useState(EDashboardTab.WIDGETS)
-    const [catalog, setCatalog] = useState<IWidgetCatalogEntry[] | undefined>()
-    const [catalogError, setCatalogError] = useState("")
-    const [themes, setThemes] = useState<string[]>([])
     const [adding, setAdding] = useState(false)
     const [theming, setTheming] = useState<{key: string; count: number} | null>(null)
     const [resetting, setResetting] = useState(false)
@@ -155,34 +149,7 @@ export const MonitoringDashboardEditor: React.FC<MonitoringDashboardEditorProps>
         onSaved,
     })
     const {setMessage} = stored
-
-    useEffect(() => {
-        if (!open) return
-        let current = true
-        setCatalog(undefined)
-        setCatalogError("")
-        loadWidgetCatalog(api).then(
-            (entries) => current && setCatalog(entries),
-            (error) =>
-                current &&
-                setCatalogError(
-                    t("monitoring.editor.dashboard.requestFailed", {reason: reason(error)})
-                )
-        )
-        api.listConfig().then(
-            (documents) =>
-                current &&
-                setThemes(
-                    documents
-                        .filter((entry) => entry.kind === EMonitoringConfigKind.THEME)
-                        .map((entry) => entry.key)
-                ),
-            () => undefined
-        )
-        return () => {
-            current = false
-        }
-    }, [open, api, t])
+    const {catalog, setCatalog, catalogError, themes} = useWidgetCatalog(api, open)
 
     const dashboard = asDashboard(draft.value)
     /** Every patch addresses an item by its index in the YAML, which `entries` keeps. */
@@ -201,6 +168,11 @@ export const MonitoringDashboardEditor: React.FC<MonitoringDashboardEditorProps>
         [catalog]
     )
     const titleOf = (widgetId: string) => titles.get(widgetId) ?? widgetId
+    /** A theme is previewed on a widget that shows its colours, not on a KPI. */
+    const previewWidget = themePreviewWidget(
+        layout.map((item) => item.widget),
+        catalog
+    )
     const patch = (change: (text: string) => string) => controller.patch(change)
     const move = (from: number, to: number) => patch((text) => moveIn(text, LAYOUT, from, to))
 
@@ -238,7 +210,9 @@ export const MonitoringDashboardEditor: React.FC<MonitoringDashboardEditorProps>
                 key: item.widget,
             })
             if (source.yaml === null) throw new Error(item.widget)
-            const yaml = setIn(source.yaml, ["id"], id)
+            const yaml = widgetCopyYaml(source.yaml, id, (title) =>
+                t("monitoring.editor.duplicate.copyTitle", {title})
+            )
             const outcome = await api.saveConfig({
                 kind: EMonitoringConfigKind.WIDGET,
                 key: id,
@@ -275,9 +249,16 @@ export const MonitoringDashboardEditor: React.FC<MonitoringDashboardEditorProps>
                     ...entries,
                     {
                         id,
-                        title: original?.title ?? item.widget,
+                        // As the catalog titles it: an untitled widget by its id.
+                        title:
+                            original && original.title !== original.id
+                                ? t("monitoring.editor.duplicate.copyTitle", {
+                                      title: original.title,
+                                  })
+                                : id,
                         source: original?.source ?? "",
                         requirements: original?.requirements ?? [],
+                        charts: original?.charts ?? [],
                     },
                 ]
             })
@@ -777,7 +758,7 @@ export const MonitoringDashboardEditor: React.FC<MonitoringDashboardEditorProps>
                     api={api}
                     themeKey={theming.key}
                     widgetCount={theming.count}
-                    preview={layout[0] ? {dashboardId, widgetId: layout[0].widget} : undefined}
+                    preview={previewWidget ? {dashboardId, widgetId: previewWidget} : undefined}
                     localValidate={themeValidate}
                     onClose={() => setTheming(null)}
                 />

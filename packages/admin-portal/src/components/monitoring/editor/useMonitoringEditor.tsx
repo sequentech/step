@@ -35,7 +35,7 @@ const MonitoringDashboardEditor = React.lazy(() => import("./MonitoringDashboard
  * so the dashboard's ⋯ menu and its Edit button can call them directly.
  */
 export interface IMonitoringEditorEntryPoints {
-    onConfigureWidget: (widgetId: string) => void
+    onConfigureWidget: (widgetId: string, width?: number) => void
     onDuplicateWidget: (widgetId: string) => void
     onEditDashboard: (dashboardId: string) => void
 }
@@ -306,6 +306,8 @@ export const useMonitoringEditor = ({
                 const outcome = await duplicateWidgetOnDashboard(api, {
                     dashboardId: target,
                     widgetId,
+                    copyTitle: (title) =>
+                        tRef.current("monitoring.editor.duplicate.copyTitle", {title}),
                 })
                 setNotice(duplicateNotice(outcome, tRef.current))
                 if (outcome.result !== EDuplicateResult.NOT_SAVED) changed()
@@ -326,7 +328,8 @@ export const useMonitoringEditor = ({
 
     const actions = useMemo(
         () => ({
-            onConfigureWidget: (id: string) => onConfigure(id),
+            onConfigureWidget: (id: string, width?: number) =>
+                onConfigure(id, width ? {width} : undefined),
             onDuplicateWidget: (id: string) => void duplicate(id),
             onEditDashboard: (id: string) => setDashboardId(id),
         }),
