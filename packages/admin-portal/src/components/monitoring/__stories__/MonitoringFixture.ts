@@ -1,0 +1,436 @@
+// SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
+// Synthetic monitoring responses in the shapes of the Harvest routes, and
+// GraphQL boundary handlers that answer the monitoring operations with them.
+// Every value is invented.
+import type {FetchResult, Operation} from "@apollo/client"
+import {GraphQLError} from "graphql"
+import {FIXED_TIME, STORY_IDS} from "@/__stories__/fixtures"
+import {pending} from "../../../../../ui-essentials/.storybook/screens"
+import {
+    EColumnKind,
+    EDataSource,
+    EDynamicOptions,
+    EMonitoringMode,
+    EProducerState,
+    ESelectorControl,
+    EScopeSelector,
+    EWidgetRenderState,
+    type MonitoringDashboard,
+    type MonitoringGetDashboardResponse,
+    type MonitoringListDashboardsResponse,
+    type MonitoringQueryTable,
+    type MonitoringRenderWidgetResponse,
+    type MonitoringRenderWidgetVariables,
+    type MonitoringSourceInfo,
+    type MonitoringTable,
+    type MonitoringWidget,
+} from "../types"
+
+export const MONITORING_SNAPSHOT = {revision: 41, as_of: FIXED_TIME, checked_at: FIXED_TIME}
+
+/** Days with activity, in the settings' time zone. */
+export const EVENT_DAYS = ["2026-01-14", "2026-01-15"]
+
+export const POSTS = {
+    madrid: STORY_IDS.election,
+    paris: STORY_IDS.secondElection,
+}
+
+export const turnoutSummary: MonitoringWidget = {
+    id: "turnout-summary",
+    title: "Voter turnout",
+    source: EDataSource.VOTER_TURNOUT,
+    requirements: ["SW-F-0259"],
+    // As the preset has it: totals, then the ratios, each its own query.
+    queries: {
+        totals: {template: "summary", measures: ["registered", "pre_enrolled", "voted"]},
+        voted_reg: {template: "summary", ratio: ["voted", "registered"]},
+        voted_pre: {template: "summary", ratio: ["voted", "pre_enrolled"]},
+    },
+    chart: {
+        charts: {
+            voted: {type: "kpi", query: "totals", value: "voted"},
+            voted_reg: {type: "kpi", query: "voted_reg", value: "pct_label"},
+            voted_pre: {type: "kpi", query: "voted_pre", value: "pct_label"},
+        },
+        rows: [{cols: ["voted", "voted_reg", "voted_pre"]}],
+    },
+    height: 160,
+}
+
+export const turnoutByGroup: MonitoringWidget = {
+    id: "turnout-by-group",
+    title: "Turnout by group",
+    description: "Percentages use the selected denominator.",
+    source: EDataSource.VOTER_TURNOUT,
+    requirements: ["SW-F-0260", "SW-F-0372"],
+    selectors: {
+        breakdown: {
+            label: "Breakdown",
+            options: {sex: "Sex", age_band: "Age", status: "Status abroad"},
+            default: "age_band",
+        },
+        measure: {
+            label: "Show",
+            options: {
+                voted_reg: "Voted of registered",
+                voted_pre: "Voted of pre-enrolled",
+                pre_reg: "Pre-enrolled of registered",
+            },
+            default: "voted_reg",
+            maps: {
+                voted_reg: ["voted", "registered"],
+                voted_pre: ["voted", "pre_enrolled"],
+                pre_reg: ["pre_enrolled", "registered"],
+            },
+        },
+    },
+    query: {template: "by_group", group_by: {selector: "breakdown"}, ratio: {selector: "measure"}},
+    chart: {charts: {bars: {type: "bar", query: "data", x: "group", y: "pct"}}, rows: ["bars"]},
+}
+
+export const votingActivity: MonitoringWidget = {
+    id: "voting-activity",
+    title: "Voting activity",
+    source: EDataSource.VOTING_ENROLLMENT_ACTIVITY,
+    requirements: ["SW-F-0267"],
+    selectors: {
+        grain: {
+            label: "Grain",
+            options: {hour: "Hourly", day: "Daily"},
+            default: "day",
+            control: ESelectorControl.TOGGLE,
+        },
+        day: {
+            label: "Day",
+            options_from: EDynamicOptions.EVENT_DAYS,
+            when: {selector: "grain", in: ["hour"]},
+        },
+    },
+    query: {template: "timeseries", grain: {selector: "grain"}, measures: ["voted"]},
+    chart: {
+        charts: {area: {type: "area", query: "data", x: "bucket_start", y: "voted"}},
+        rows: ["area"],
+    },
+}
+
+export const attackDetections: MonitoringWidget = {
+    id: "attack-detections",
+    title: "Attack detections",
+    source: EDataSource.ATTACK_DETECTIONS,
+    requirements: ["SW-F-0283"],
+    query: {template: "summary", measures: ["detections"]},
+    chart: {charts: {kpi: {type: "kpi", query: "data"}}, rows: ["kpi"]},
+    height: 160,
+}
+
+export const pollStatus: MonitoringWidget = {
+    id: "poll-status",
+    title: "Poll status",
+    source: EDataSource.POLL_STATUS,
+    requirements: ["SW-F-0256"],
+    query: {template: "by_measure", measures: ["initialized", "opened", "closed"]},
+    chart: {charts: {bars: {type: "bar", query: "data", x: "measure", y: "value"}}, rows: ["bars"]},
+}
+
+export const WIDGETS: MonitoringWidget[] = [
+    turnoutSummary,
+    turnoutByGroup,
+    votingActivity,
+    pollStatus,
+    attackDetections,
+]
+
+export const overviewDashboard: MonitoringDashboard = {
+    id: "overview",
+    title: "Monitoring overview",
+    description: "Turnout, Post status and activity at a glance.",
+    requirements: ["SW-F-0247", "SW-F-0279", "SW-F-0365"],
+    order: 0,
+    selectors: [EScopeSelector.REGION, EScopeSelector.POST, EScopeSelector.COUNTRY],
+    theme: "comelec",
+    layout: [
+        {widget: "turnout-summary", width: 12},
+        {widget: "turnout-by-group", width: 6, values: {measure: "voted_pre"}},
+        {widget: "voting-activity", width: 6},
+        {widget: "poll-status", width: 6},
+        {widget: "attack-detections", width: 6},
+    ],
+}
+
+export const turnoutDashboard: MonitoringDashboard = {
+    id: "req-0260",
+    title: "Voted vs pre-enrolled",
+    section: "Voter turnout",
+    requirements: ["SW-F-0260", "SW-F-0372"],
+    order: 1,
+    selectors: [EScopeSelector.REGION, EScopeSelector.POST, EScopeSelector.COUNTRY],
+    layout: [{widget: "turnout-by-group", width: 12, values: {measure: "voted_pre"}}],
+}
+
+export const DASHBOARDS = [overviewDashboard, turnoutDashboard]
+
+export function listDashboardsResponse(
+    mode: EMonitoringMode = EMonitoringMode.CONFIGURED
+): MonitoringListDashboardsResponse {
+    return {
+        mode,
+        preset: {id: "comelec", title: "COMELEC overseas voting"},
+        dashboards: DASHBOARDS.map((dashboard) => ({
+            id: dashboard.id,
+            title: dashboard.title,
+            section: dashboard.section ?? null,
+            requirements: dashboard.requirements ?? [],
+            widget_count: dashboard.layout.length,
+        })),
+        snapshot: MONITORING_SNAPSHOT,
+        refresh_seconds: 30,
+    }
+}
+
+const connected = (dimensions: string[]): MonitoringSourceInfo => ({
+    counting_unit: "DISTINCT_VOTERS",
+    measures: ["registered", "pre_enrolled", "voted"],
+    templates: ["summary", "by_group", "by_post", "timeseries"],
+    dimensions,
+    producer: EProducerState.CONNECTED,
+    reason: null,
+})
+
+export interface DashboardOptions {
+    dashboard?: MonitoringDashboard
+    restricted?: boolean
+    pinnedPost?: string | null
+    snapshot?: typeof MONITORING_SNAPSHOT | null
+    /** Replaces the widget definitions, e.g. with one that is not valid. */
+    widgets?: Record<string, unknown>
+}
+
+export function getDashboardResponse({
+    dashboard = overviewDashboard,
+    restricted = false,
+    pinnedPost = null,
+    snapshot = MONITORING_SNAPSHOT,
+    widgets,
+}: DashboardOptions = {}): MonitoringGetDashboardResponse {
+    const definitions = widgets ?? Object.fromEntries(WIDGETS.map((widget) => [widget.id, widget]))
+    return {
+        dashboard,
+        dashboard_revision: 3,
+        widgets: Object.fromEntries(
+            Object.entries(definitions).map(([id, definition]) => [id, {definition, revision: 2}])
+        ),
+        theme: {id: "comelec", revision: 1},
+        settings: {time_zone: "Asia/Manila", unknown_label: "Unknown", selectors: {}},
+        settings_revision: 1,
+        scope_options: {
+            regions: [
+                {key: "north", label: "North"},
+                {key: "south", label: "South"},
+            ],
+            posts: restricted
+                ? [{key: POSTS.madrid, label: "Madrid", region: "north"}]
+                : [
+                      {key: POSTS.madrid, label: "Madrid", region: "north"},
+                      {key: POSTS.paris, label: "Paris", region: "south"},
+                  ],
+            countries: [
+                {key: "ES", label: "Spain"},
+                {key: "FR", label: "France"},
+            ],
+        },
+        restricted,
+        pinned_post: pinnedPost,
+        sources: {
+            [EDataSource.VOTER_TURNOUT]: connected([
+                "region",
+                "post",
+                "country",
+                "sex",
+                "age_band",
+            ]),
+            [EDataSource.VOTING_ENROLLMENT_ACTIVITY]: connected(["region", "post", "country"]),
+            [EDataSource.POLL_STATUS]: {
+                ...connected(["region", "post"]),
+                counting_unit: "POSTS_IN_SCOPE",
+            },
+            [EDataSource.ATTACK_DETECTIONS]: {
+                ...connected([]),
+                counting_unit: "DETECTIONS",
+                producer: EProducerState.NOT_CONNECTED,
+                reason: "ATTACK_DETECTION_FEED",
+            },
+        },
+        snapshot,
+        event_days: EVENT_DAYS,
+        refresh_seconds: 30,
+    }
+}
+
+/** A bar chart as the renderer would send it, with one bar per value. */
+export function barChartSvg(values: number[], color = "#2c6fbb"): string {
+    const bars = values
+        .map(
+            (value, index) =>
+                `<rect x="${10 + index * 60}" y="${150 - value}" width="40" height="${value}" fill="${color}"/>` +
+                `<text x="${30 + index * 60}" y="170" font-size="12" text-anchor="middle">${value}</text>`
+        )
+        .join("")
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${values.length * 60 + 20} 180" width="100%">${bars}</svg>`
+}
+
+export const turnoutTable: MonitoringTable = {
+    columns: [
+        {name: "group", kind: EColumnKind.TEXT},
+        {name: "voted", kind: EColumnKind.INTEGER},
+        {name: "pre_enrolled", kind: EColumnKind.INTEGER},
+        {name: "pct", kind: EColumnKind.NUMBER},
+        {name: "position", kind: EColumnKind.INTEGER},
+    ],
+    rows: [
+        ["18–29", 120432, 226000, 0.5329, 1],
+        ["30–59", 402113, 610220, 0.659, 2],
+        ["Unknown", 1204, 0, null, 3],
+    ],
+}
+
+export const summaryTable: MonitoringTable = {
+    columns: [
+        {name: "registered", kind: EColumnKind.INTEGER},
+        {name: "voted", kind: EColumnKind.INTEGER},
+        {name: "pct", kind: EColumnKind.NUMBER},
+    ],
+    rows: [[874624, 465321, 0.532]],
+}
+
+const RATIO_COLUMNS = [
+    {name: "numerator", kind: EColumnKind.INTEGER},
+    {name: "denominator", kind: EColumnKind.INTEGER},
+    {name: "pct", kind: EColumnKind.NUMBER},
+    {name: "pct_label", kind: EColumnKind.TEXT},
+]
+
+/** Turnout summary's queries as Harvest sends them: 3 of 8 voted, nobody pre-enrolled. */
+export const turnoutSummaryTables: MonitoringQueryTable[] = [
+    {
+        query: "totals",
+        table: {
+            columns: [
+                {name: "registered", kind: EColumnKind.INTEGER},
+                {name: "pre_enrolled", kind: EColumnKind.INTEGER},
+                {name: "voted", kind: EColumnKind.INTEGER},
+            ],
+            rows: [[8, 0, 3]],
+        },
+    },
+    {query: "voted_reg", table: {columns: RATIO_COLUMNS, rows: [[3, 8, 0.375, "37.5%"]]}},
+    {query: "voted_pre", table: {columns: RATIO_COLUMNS, rows: [[3, 0, null, "—"]]}},
+]
+
+export function renderResponse(
+    overrides: Partial<MonitoringRenderWidgetResponse> = {}
+): MonitoringRenderWidgetResponse {
+    return {
+        state: EWidgetRenderState.RENDERED,
+        reason: null,
+        svg: barChartSvg([120, 90, 40]),
+        table: turnoutTable,
+        // What an older backend sends: the first query's rows only.
+        tables: null,
+        notices: [],
+        diagnostics: [],
+        ignored_selectors: [],
+        render_ms: 42,
+        snapshot_revision: MONITORING_SNAPSHOT.revision,
+        as_of: FIXED_TIME,
+        ...overrides,
+    }
+}
+
+export enum EMonitoringListScenario {
+    CONFIGURED = "CONFIGURED",
+    LEGACY = "LEGACY",
+    ERROR = "ERROR",
+    LOADING = "LOADING",
+}
+
+export interface MonitoringHandlerOptions extends DashboardOptions {
+    list?: EMonitoringListScenario
+    /** A widget's render, by widget id; the others draw a bar chart of their own. */
+    renders?: Record<string, Partial<MonitoringRenderWidgetResponse>>
+}
+
+/** GraphQL boundary handlers for the monitoring operations a dashboard makes. */
+export function monitoringHandlers(options: MonitoringHandlerOptions = {}) {
+    const {list = EMonitoringListScenario.CONFIGURED, renders = {}} = options
+    return {
+        MonitoringListDashboards: (): FetchResult | Promise<FetchResult> => {
+            if (list === EMonitoringListScenario.LOADING) return pending()
+            if (list === EMonitoringListScenario.ERROR)
+                throw new Error("Synthetic monitoring outage")
+            return {
+                data: {
+                    monitoringListDashboards: listDashboardsResponse(
+                        list === EMonitoringListScenario.LEGACY
+                            ? EMonitoringMode.LEGACY
+                            : EMonitoringMode.CONFIGURED
+                    ),
+                },
+            }
+        },
+        MonitoringGetDashboard: (operation: Operation): FetchResult => {
+            const dashboard =
+                DASHBOARDS.find((candidate) => candidate.id === operation.variables.dashboardId) ??
+                overviewDashboard
+            return {data: {monitoringGetDashboard: getDashboardResponse({...options, dashboard})}}
+        },
+        MonitoringRenderWidget: (operation: Operation): FetchResult => {
+            const variables = operation.variables as MonitoringRenderWidgetVariables
+            const override = renders[variables.widgetId] ?? {}
+            const widgetIndex = WIDGETS.findIndex((widget) => widget.id === variables.widgetId)
+            return {
+                data: {
+                    monitoringRenderWidget: renderResponse({
+                        svg: barChartSvg([40 + widgetIndex * 20, 90, 120 - widgetIndex * 10]),
+                        ...(variables.widgetId === turnoutSummary.id
+                            ? {table: turnoutSummaryTables[0].table, tables: turnoutSummaryTables}
+                            : {table: turnoutTable}),
+                        ...override,
+                    }),
+                },
+            }
+        },
+        MonitoringExport: (): FetchResult => ({
+            data: {
+                monitoringExport: {
+                    document_id: "monitoring-export-document",
+                    task_execution: {
+                        id: "monitoring-export-task",
+                        name: "EXPORT_MONITORING_DATA",
+                        execution_status: "IN_PROGRESS",
+                    },
+                },
+            },
+        }),
+    }
+}
+
+/** Harvest's refusal as Hasura passes it on: a GraphQL error with its code in `extensions`. */
+export function refusal(code: string, extensions: Record<string, unknown> = {}): FetchResult {
+    return {errors: [new GraphQLError(`Refused: ${code}`, {extensions: {...extensions, code}})]}
+}
+
+/**
+ * The monitoring answer of an event that keeps the standard dashboard, for the
+ * stories of screens that include the Dashboard tab.
+ */
+export function legacyMonitoring() {
+    return {
+        MonitoringListDashboards: (): FetchResult => ({
+            data: {monitoringListDashboards: listDashboardsResponse(EMonitoringMode.LEGACY)},
+        }),
+    }
+}
