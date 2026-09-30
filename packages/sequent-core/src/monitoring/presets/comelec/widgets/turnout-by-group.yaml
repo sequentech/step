@@ -1,0 +1,41 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# One turnout ratio broken down by a voter dimension or by Post. Every group
+# is its own numerator over its own denominator; Unknown is always shown.
+id: turnout-by-group
+title: Turnout by group
+description: Each group is its own numerator over its own denominator.
+source: voter_turnout
+requirements: [SW-F-0259, SW-F-0260, SW-F-0261, SW-F-0371, SW-F-0372, SW-F-0373]
+selectors:
+  breakdown:
+    label: Breakdown
+    options: {sex: Sex, age_band: Age, status: Status abroad}
+    default: age_band
+  measure:
+    label: Show
+    options: {voted_reg: Voted of registered, voted_pre: Voted of pre-enrolled, pre_reg: Pre-enrolled of registered}
+    default: voted_reg
+    maps: {voted_reg: [voted, registered], voted_pre: [voted_pre_enrolled, pre_enrolled], pre_reg: [pre_enrolled, registered]}
+query:
+  template: by_group
+  group_by: {selector: breakdown}
+  ratio: {selector: measure}
+height: 320
+chart:
+  charts:
+    bars:
+      type: bar
+      query: data
+      x: group
+      y: pct
+      # The query's order, Unknown last; unsorted, a bar orders by value.
+      sort: {by: position, order: asc}
+      y_label: Share
+      style:
+        orientation: horizontal
+        number_format: percent
+        marks: {bar: {labels: {visible: true, format: percent}}}
+  rows: [bars]

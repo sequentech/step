@@ -1,0 +1,22 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+time_zone: Europe/Madrid
+scope:
+  region: {area_annotation: campus}
+  country: {voter_attribute: nationality}
+pre_enrolled: {voter_attribute: email_verified, equals: "true"}
+dimensions:
+  faculty:
+    voter_attribute: faculty
+    labels: {SCI: Science, ENG: Engineering, HUM: Humanities, LAW: Law}
+  role:
+    voter_attribute: role
+    labels: {student: Students, staff: Staff, faculty: Teaching staff}
+unknown_label: Not stated
+# What the dashboard selectors are called on a campus.
+selectors:
+  region: {label: Campus, all: All campuses}
+  post: {label: Polling station, all: All stations}
+  country: {label: Nationality, all: All nationalities}

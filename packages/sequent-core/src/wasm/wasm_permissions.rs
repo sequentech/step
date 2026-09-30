@@ -69,6 +69,8 @@ export enum IPermissions {
     DOCUMENT_PASSWORD_READ = "document-password-read",
     ADMIN_CEREMONY = "admin-ceremony",
     ADMIN_DASHBOARD_VIEW = "admin-dashboard-view",
+    MONITORING_VIEW = "monitoring-view",
+    MONITORING_CONFIGURE = "monitoring-configure",
     TALLY_RESOLUTION_SUBMIT = "tally-resolution-submit",
 }
 "#;
