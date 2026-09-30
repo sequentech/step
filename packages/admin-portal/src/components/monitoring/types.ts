@@ -118,6 +118,10 @@ export type MonitoringUnavailableState =
 export enum EMonitoringNotice {
     UNREGISTERED_ATTEMPTS_AT_EVENT_SCOPE_ONLY = "UNREGISTERED_ATTEMPTS_AT_EVENT_SCOPE_ONLY",
     UNREGISTERED_ATTEMPTS_EXCLUDED = "UNREGISTERED_ATTEMPTS_EXCLUDED",
+    /** Drawn with the live configuration: the snapshot's has not this widget yet. */
+    CONFIG_NEWER_THAN_SNAPSHOT = "CONFIG_NEWER_THAN_SNAPSHOT",
+    /** Drawn with the live configuration: the snapshot's is no longer kept. */
+    CONFIG_AT_SNAPSHOT_UNAVAILABLE = "CONFIG_AT_SNAPSHOT_UNAVAILABLE",
 }
 
 export enum EColorScheme {

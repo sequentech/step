@@ -2892,6 +2892,10 @@ const englishTranslation = {
                     "Attempts by unregistered usernames belong to no Post, so they are counted for the whole event only.",
                 UNREGISTERED_ATTEMPTS_EXCLUDED:
                     "These figures leave out attempts by unregistered usernames; they are counted for the whole event.",
+                CONFIG_NEWER_THAN_SNAPSHOT:
+                    "Drawn with the latest settings; the figures are counted with them in the next pass.",
+                CONFIG_AT_SNAPSHOT_UNAVAILABLE:
+                    "Drawn with the current settings: those the figures were counted under are no longer kept.",
             },
             unavailable: {
                 notConnected: "Not connected · {{reason}}",
