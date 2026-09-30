@@ -11,7 +11,7 @@ requirements: [SW-F-0247, SW-F-0259, SW-F-0260, SW-F-0261, SW-F-0371, SW-F-0372,
 queries:
   totals: {template: summary, measures: [registered, pre_enrolled, voted]}
   voted_reg: {template: summary, ratio: [voted, registered]}
-  voted_pre: {template: summary, ratio: [voted, pre_enrolled]}
+  voted_pre: {template: summary, ratio: [voted_pre_enrolled, pre_enrolled]}
   pre_reg: {template: summary, ratio: [pre_enrolled, registered]}
 height: 260
 chart:

@@ -17,7 +17,7 @@ selectors:
     label: Show
     options: {voted_reg: Voted of registered, voted_pre: Voted of pre-enrolled, pre_reg: Pre-enrolled of registered}
     default: voted_reg
-    maps: {voted_reg: [voted, registered], voted_pre: [voted, pre_enrolled], pre_reg: [pre_enrolled, registered]}
+    maps: {voted_reg: [voted, registered], voted_pre: [voted_pre_enrolled, pre_enrolled], pre_reg: [pre_enrolled, registered]}
 query:
   template: by_group
   group_by: {selector: breakdown}
