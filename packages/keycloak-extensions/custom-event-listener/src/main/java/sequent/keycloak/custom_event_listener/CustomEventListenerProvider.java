@@ -209,8 +209,7 @@ public class CustomEventListenerProvider implements EventListenerProvider {
         electionEventId, messageType, body, userId, tenantId, username);
 
     List<Object> message =
-        buildMessage(
-            electionEventId, messageType, body, userId, tenantId, username, eventTimeMs);
+        buildMessage(electionEventId, messageType, body, userId, tenantId, username, eventTimeMs);
 
     // Generate a correlation ID.
     String correlationId = UUID.randomUUID().toString();
