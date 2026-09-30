@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Scanovate Identity Verification | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-3354/docs/integrations/scanovate_identity_verification_guide"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Scanovate Identity Verification | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-3354/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3354/docs/integrations/scanovate_identity_verification_guide"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3354/docs/integrations/scanovate_identity_verification_guide" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3354/docs/integrations/scanovate_identity_verification_guide" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Scanovate Identity Verification","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-3354/docs/integrations/scanovate_identity_verification_guide"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-3354/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/pr-preview/pr-3354/assets/js/runtime~main.39143fe8.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-3354/assets/js/runtime~main.a3e2a750.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-3354/assets/js/main.edc3b244.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -87,7 +87,7 @@ count as a failed verification.</p>
 <p>Some design decisions to be aware of:</p>
 <ul>
 <li class=""><strong>Needs the <code>sequent-ui</code> login theme.</strong> The capture page is part of the
-React login theme (<code>packages/keycloak-ui</code>). The authenticator also ships a
+React login themes (<code>packages/keycloak-ui</code>), e.g. <code>sequent-ui-voting</code>. The authenticator also ships a
 FreeMarker <code>scanovate-capture.ftl</code>, but it only tells the voter that the step
 needs that theme (<code>scanovateCaptureThemeRequired</code>). Only use <code>embedded</code> in
 realms whose login theme is <code>sequent-ui</code>.</li>
@@ -176,7 +176,15 @@ so the iframe is same origin. A separate origin also works, as long as its
 proxy lets Keycloak&#x27;s origin frame it.</li>
 <li class=""><strong>Language.</strong> The iframe asks for the voter&#x27;s language if it&#x27;s listed in
 <code>liveness-languages</code>, and the service default otherwise.</li>
+<li class=""><strong>What leaves our network.</strong> The liveness check runs on our own
+infrastructure, but the photos of the ID and the liveness picture still go to
+B-Trust, for OCR, the document authenticity check and the match against the
+ID. See
+<a class="" href="/docusaurus/pr-preview/pr-3354/docs/integrations/scanovate_on_premise_guide#what-stays-in-our-network">What stays in our network</a>.</li>
 </ul>
+<p>To try it in the dev container, with the mock server standing in for B-Trust,
+see
+<a class="" href="/docusaurus/pr-preview/pr-3354/docs/integrations/scanovate_on_premise_guide#trying-the-flow-from-keycloak">Trying the flow from Keycloak</a>.</p>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="configuration">Configuration<a href="#configuration" class="hash-link" aria-label="Direct link to Configuration" title="Direct link to Configuration" translate="no">​</a></h2>
 <p>Add a <code>scanovate-authenticator</code> execution to the registration flow, after the
 steps that collect the document number and type, and configure it:</p>

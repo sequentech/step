@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Scanovate On-Premise Services | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-3354/docs/integrations/scanovate_on_premise_guide"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Scanovate On-Premise Services | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-3354/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3354/docs/integrations/scanovate_on_premise_guide"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3354/docs/integrations/scanovate_on_premise_guide" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3354/docs/integrations/scanovate_on_premise_guide" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Scanovate On-Premise Services","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-3354/docs/integrations/scanovate_on_premise_guide"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-3354/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/pr-preview/pr-3354/assets/js/runtime~main.39143fe8.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-3354/assets/js/runtime~main.a3e2a750.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-3354/assets/js/main.edc3b244.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -32,6 +32,41 @@ capture when <code>face-capture</code> is <code>liveness</code> (see
 It doesn&#x27;t call Face Match yet. This page describes how to run the services,
 how to configure them, and the contract between them and Keycloak.</p></div></div>
 <table><thead><tr><th>Service</th><th>Image</th><th>Role</th></tr></thead><tbody><tr><td><code>scanovate-liveness</code></td><td><code>scanovate/liveness-plus-service:version_3.9.0_e0dc72e_115</code></td><td>Liveness backend and web UI. Manages the sessions, calls PAD and IAD, sends the callbacks.</td></tr><tr><td><code>scanovate-presentation-detection</code></td><td><code>scanovate/liveness-presentation-detection-service:release_1.52.0</code></td><td>PAD server, with the <code>pad-r-2</code> and <code>dfd-3</code> (deepfake) pipelines.</td></tr><tr><td><code>scanovate-injection-detection</code></td><td><code>scanovate/liveness-injection-detection-service:release-2.6.2</code></td><td>IAD server. Checks that frames come from a real camera.</td></tr><tr><td><code>scanovate-face-match</code></td><td><code>495947449196.dkr.ecr.eu-central-1.amazonaws.com/ngfacematch:version_3.9.0_ba58397_79</code></td><td>1<!-- -->:N<!-- --> Face Match API (<code>/facematch1N</code>).</td></tr><tr><td><code>scanovate-valkey</code></td><td><code>valkey/valkey-extensions:8.1</code></td><td>Vector database of the face templates, with the search module.</td></tr></tbody></table>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="what-stays-in-our-network">What stays in our network<a href="#what-stays-in-our-network" class="hash-link" aria-label="Direct link to What stays in our network" title="Direct link to What stays in our network" translate="no">​</a></h3>
+<p>These services run on our own infrastructure. Their endpoints are only
+reachable inside our network, except the liveness UI and API, which the voter&#x27;s
+browser reaches on Keycloak&#x27;s origin, and in <code>onprem</code> mode their only
+configured outbound calls are Liveness Plus&#x27;s to Keycloak. We still have to
+confirm that neither the services nor the liveness client in the browser send
+anything else out, e.g. analytics (the client reports
+<code>COULD_NOT_INIT_ANALYTICS</code> when these fail to start).</p>
+<table><thead><tr><th>Check</th><th>Where it runs</th></tr></thead><tbody><tr><td>Liveness: presentation attacks and deepfakes (PAD), injection attacks (IAD)</td><td>Our network: Liveness Plus, PAD and IAD.</td></tr><tr><td>Duplicate faces (1<!-- -->:N<!-- --> search in an election event)</td><td>Our network: Face Match and Valkey. Not wired into Keycloak yet.</td></tr><tr><td>Match of the selfie against the ID portrait (1:1)</td><td>B-Trust (<code>biometric_match</code>) today. Face Match could do it in our network, see <a href="#11-match" class="">1:1 match</a>.</td></tr><tr><td>OCR of the ID (name, birth date, number, nationality, expiry)</td><td>B-Trust (<code>ocr</code>). Scanovate hasn&#x27;t delivered an on-premise service for it.</td></tr><tr><td>Document authenticity</td><td>B-Trust (<code>document_liveness_plus</code>). Same.</td></tr></tbody></table>
+<p>So, with the current services, the photos of the ID always go to B-Trust,
+since the voter data compared with the registry comes from its OCR. With
+<code>face-capture</code> <code>liveness</code>, the voter&#x27;s face goes to B-Trust only as the
+picture of a passed liveness check, for the 1:1 match. Setting the
+authenticator&#x27;s <code>save-option</code> to <code>do_not_save</code> makes B-Trust delete the session
+data once Keycloak fetches the results, but the data still leaves our network.</p>
+<p>The order of the checks, with the parts that aren&#x27;t implemented yet in
+<em>italics</em>:</p>
+<ol>
+<li class="">Keycloak creates the B-Trust session (<code>POST /flow/v3/link</code>), whose process id
+is also the liveness case id.</li>
+<li class="">Our capture page guides the voter through the photos of the ID. They stay
+in the browser.</li>
+<li class="">Liveness Plus checks the voter&#x27;s liveness in its iframe and posts the
+result, with the voter&#x27;s picture, to Keycloak. Keycloak rejects the attempt
+unless it passed.</li>
+<li class=""><em>Face Match compares the liveness picture with the ID portrait (1:1), and
+searches the election event&#x27;s group for the same face (1<!-- -->:N<!-- -->) before
+enrolling it.</em></li>
+<li class="">Keycloak uploads the ID photos, and the liveness picture while B-Trust does
+the 1:1 match, to the B-Trust session, which runs OCR and the document
+authenticity check.</li>
+<li class="">Keycloak fetches the B-Trust results, validates them with the realm rules
+and stores the voter&#x27;s data, which later steps compare with the voter
+registry.</li>
+</ol>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="access-to-the-images">Access to the images<a href="#access-to-the-images" class="hash-link" aria-label="Direct link to Access to the images" title="Direct link to Access to the images" translate="no">​</a></h2>
 <p>The Scanovate images are private: the Liveness Plus images are on Docker Hub,
 and the Face Match image is on Scanovate&#x27;s AWS ECR registry
@@ -65,10 +100,17 @@ spreading the Scanovate credentials to every server. Air-gapped servers can
 load them with <code>docker save</code> and <code>docker load</code>.</li>
 </ul>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="running-them-in-the-development-environment">Running them in the development environment<a href="#running-them-in-the-development-environment" class="hash-link" aria-label="Direct link to Running them in the development environment" title="Direct link to Running them in the development environment" translate="no">​</a></h2>
-<p>The services belong to the <code>scanovate</code> docker compose profile of the dev
-container (<code>.devcontainer/docker-compose-base.yml</code>). No mode starts them: once
-logged in, start them from the host.</p>
-<div class="language-bash codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-bash codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token plain">.devcontainer/scripts/initialize-command.sh</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain"></span><span class="token builtin class-name" style="color:rgb(255, 203, 107)">cd</span><span class="token plain"> .devcontainer</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain"></span><span class="token function" style="color:rgb(130, 170, 255)">docker</span><span class="token plain"> compose </span><span class="token parameter variable" style="color:rgb(191, 199, 213)">--profile</span><span class="token plain"> scanovate up </span><span class="token parameter variable" style="color:rgb(191, 199, 213)">-d</span><br></span></code></pre></div></div>
+<p>The services belong to two docker compose profiles of the dev container
+(<code>.devcontainer/docker-compose-base.yml</code>):</p>
+<ul>
+<li class=""><code>scanovate</code>: Liveness Plus, PAD and IAD, from Docker Hub. This is all the
+<code>liveness</code> face capture needs.</li>
+<li class=""><code>scanovate-face-match</code>: Face Match and Valkey. The Face Match image is on
+ECR, and Keycloak doesn&#x27;t use it yet, so it has its own profile: the liveness
+services start without ECR access.</li>
+</ul>
+<p>No mode starts them: once logged in, start them from the host.</p>
+<div class="language-bash codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-bash codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token plain">.devcontainer/scripts/initialize-command.sh</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain"></span><span class="token builtin class-name" style="color:rgb(255, 203, 107)">cd</span><span class="token plain"> .devcontainer</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain"></span><span class="token function" style="color:rgb(130, 170, 255)">docker</span><span class="token plain"> compose </span><span class="token parameter variable" style="color:rgb(191, 199, 213)">--profile</span><span class="token plain"> scanovate up </span><span class="token parameter variable" style="color:rgb(191, 199, 213)">-d</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain"></span><span class="token comment" style="color:rgb(105, 112, 152);font-style:italic"># With ECR access</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain"></span><span class="token function" style="color:rgb(130, 170, 255)">docker</span><span class="token plain"> compose </span><span class="token parameter variable" style="color:rgb(191, 199, 213)">--profile</span><span class="token plain"> scanovate-face-match up </span><span class="token parameter variable" style="color:rgb(191, 199, 213)">-d</span><br></span></code></pre></div></div>
 <p><code>initialize-command.sh</code> writes the <code>SCANOVATE_*</code> variables of
 <code>.env.development</code> into <code>.devcontainer/.env</code>. You only need to run it again if
 your <code>.env</code> predates them.</p>
@@ -79,12 +121,14 @@ are reachable by service name, e.g. <code>http://scanovate-liveness:5050</code> 
 <code>http://scanovate-face-match:3000</code> from Keycloak.</p>
 <p>The detection servers are heavy. Scanovate&#x27;s requirements, on Intel CPUs:</p>
 <table><thead><tr><th>Service</th><th>Needs</th></tr></thead><tbody><tr><td>Liveness</td><td>1 CPU, plus 1 CPU and 1 GB of memory per concurrent session.</td></tr><tr><td>PAD</td><td>1 CPU and 8 GB of memory to start, plus 0.5 CPU and 0.5 GB per concurrent session.</td></tr><tr><td>IAD</td><td>1 CPU and 4 GB of memory to start, plus 0.5 CPU and 0.5 GB per concurrent session.</td></tr></tbody></table>
-<p>Give Docker at least 14 GB of memory for the whole profile. If a container
-exits right after starting, check <code>docker compose logs &lt;service&gt;</code>. Scanovate
-suggests running it with <code>security_opt: [seccomp=unconfined]</code> if it&#x27;s killed
-by the seccomp profile.</p>
+<p>Idle, PAD takes about 5.4 GB of memory, IAD 2.9 GB and Liveness Plus 0.5 GB:
+give Docker at least 14 GB for the <code>scanovate</code> profile, on top of the rest of
+the dev container. If a container exits right after starting, check
+<code>docker compose logs &lt;service&gt;</code>. Scanovate suggests running it with
+<code>security_opt: [seccomp=unconfined]</code> if it&#x27;s killed by the seccomp profile,
+which none of the liveness services needed.</p>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="smoke-tests">Smoke tests<a href="#smoke-tests" class="hash-link" aria-label="Direct link to Smoke tests" title="Direct link to Smoke tests" translate="no">​</a></h3>
-<div class="language-bash codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-bash codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token comment" style="color:rgb(105, 112, 152);font-style:italic"># Liveness backend</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain"></span><span class="token function" style="color:rgb(130, 170, 255)">curl</span><span class="token plain"> </span><span class="token parameter variable" style="color:rgb(191, 199, 213)">-i</span><span class="token plain"> http://127.0.0.1:5050/alive</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain" style="display:inline-block"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain"></span><span class="token comment" style="color:rgb(105, 112, 152);font-style:italic"># Face Match: an empty group list means the service, its configuration and</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain"></span><span class="token comment" style="color:rgb(105, 112, 152);font-style:italic"># Valkey all work</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain"></span><span class="token function" style="color:rgb(130, 170, 255)">curl</span><span class="token plain"> </span><span class="token parameter variable" style="color:rgb(191, 199, 213)">-s</span><span class="token plain"> </span><span class="token parameter variable" style="color:rgb(191, 199, 213)">-H</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;x-company-id: sequent-dev&quot;</span><span class="token plain"> http://127.0.0.1:5060/facematch1N/get_groups</span><br></span></code></pre></div></div>
+<div class="language-bash codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-bash codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token comment" style="color:rgb(105, 112, 152);font-style:italic"># Liveness backend</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain"></span><span class="token function" style="color:rgb(130, 170, 255)">curl</span><span class="token plain"> </span><span class="token parameter variable" style="color:rgb(191, 199, 213)">-i</span><span class="token plain"> http://127.0.0.1:5050/alive</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain" style="display:inline-block"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain"></span><span class="token comment" style="color:rgb(105, 112, 152);font-style:italic"># Face Match: an empty group list means the service, its configuration and</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain"></span><span class="token comment" style="color:rgb(105, 112, 152);font-style:italic"># Valkey all work</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain"></span><span class="token function" style="color:rgb(130, 170, 255)">curl</span><span class="token plain"> </span><span class="token parameter variable" style="color:rgb(191, 199, 213)">-s</span><span class="token plain"> </span><span class="token parameter variable" style="color:rgb(191, 199, 213)">-H</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;x-company-id: sequent-dev&quot;</span><span class="token plain"> http://127.0.0.1:5060/facematch1N/get_groups</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain" style="display:inline-block"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain"></span><span class="token comment" style="color:rgb(105, 112, 152);font-style:italic"># Face Match API description: lists the 1:1 endpoints, if the image has them</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain"></span><span class="token function" style="color:rgb(130, 170, 255)">curl</span><span class="token plain"> </span><span class="token parameter variable" style="color:rgb(191, 199, 213)">-s</span><span class="token plain"> http://127.0.0.1:5060/openapi.json </span><span class="token operator" style="color:rgb(137, 221, 255)">|</span><span class="token plain"> jq </span><span class="token string" style="color:rgb(195, 232, 141)">&#x27;.paths | keys&#x27;</span><br></span></code></pre></div></div>
 <p>To try the liveness UI with the Sequent look, open it through <code>keycloak-nginx</code>,
 which serves it on Keycloak&#x27;s origin under <code>/biometric/</code> (see
 <a href="#deployment-on-keycloaks-origin" class="">Deployment on Keycloak&#x27;s origin</a>), in a
@@ -97,12 +141,52 @@ must share the iframe&#x27;s origin.</p>
 (<code>1014</code>): the dev configuration verifies tokens with Keycloak. To look at the
 UI alone, empty <code>token_verification_url</code> in a local copy of
 <code>service_config.json</code>.</p>
-<p>To try it from Keycloak, configure the <code>scanovate-authenticator</code> of a realm
-with <code>execution-mode</code> <code>embedded</code>, <code>face-capture</code> <code>liveness</code>, <code>liveness-url</code>
-<code>https://localhost:8443/biometric</code> and <code>liveness-secret</code>
-<code>liveness-dev-callback-secret</code>, and go through the flow on
-<code>https://localhost:8443</code> so that the login pages and the iframe share the
-origin.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="trying-the-flow-from-keycloak">Trying the flow from Keycloak<a href="#trying-the-flow-from-keycloak" class="hash-link" aria-label="Direct link to Trying the flow from Keycloak" title="Direct link to Trying the flow from Keycloak" translate="no">​</a></h3>
+<p>This runs the whole enrollment in the dev container, with the real Liveness
+Plus and the e2e mock server standing in for B-Trust. Only the Docker Hub
+access is needed.</p>
+<ol>
+<li class="">Start the mock server (<code>full</code> profile) and the <code>scanovate</code> profile, see
+<a class="" href="/docusaurus/pr-preview/pr-3354/docs/integrations/scanovate_identity_verification_guide#starting-the-development-environment">Starting the development environment</a>.</li>
+<li class="">Rebuild Keycloak if <code>packages/keycloak-extensions</code> changed since it was
+built: <code>docker compose build keycloak &amp;&amp; docker compose up -d keycloak</code>.</li>
+<li class="">Prepare and mount the React login themes, see
+<a class="" href="/docusaurus/pr-preview/pr-3354/docs/developers/keycloak/developers_keycloak#hot-updates-on-a-real-authentication-session">Hot updates on a real authentication session</a>.
+The capture page is only in them.</li>
+<li class="">Import the
+<a class="" href="/docusaurus/pr-preview/pr-3354/docs/integrations/scanovate_identity_verification_guide#sample-election-event">sample election event</a>
+and its voters.</li>
+<li class="">In the Keycloak admin console (<a href="http://127.0.0.1:8090" target="_blank" rel="noopener noreferrer" class="">http://127.0.0.1:8090</a>), open the election
+event realm:<!-- -->
+<ul>
+<li class=""><strong>Realm settings</strong>, <strong>Themes</strong>: set the login theme to
+<code>sequent-ui-voting</code>.</li>
+<li class=""><strong>Authentication</strong>, the registration flow, the settings of the Scanovate
+step: set <code>execution-mode</code> to <code>embedded</code>, <code>face-capture</code> to <code>liveness</code>,
+<code>liveness-url</code> to <code>https://localhost:8443/biometric</code> and
+<code>liveness-secret</code> to <code>liveness-dev-callback-secret</code> (the secret in
+<code>.devcontainer/scanovate/liveness/service_config.json</code>).</li>
+</ul>
+</li>
+<li class="">Open the enrollment URL of the sample election event on
+<code>https://localhost:8443</code> instead of <code>http://127.0.0.1:8090</code>, so that the
+login pages and the iframe share the origin, from a browser with a camera.</li>
+<li class="">Take the photos of the ID (any document: the mock doesn&#x27;t read them), then
+go through the liveness check. The mock completes with <code>success</code>, and the
+confirmation page shows its voter.</li>
+</ol>
+<p>Things to check on the way:</p>
+<ul>
+<li class=""><code>docker compose logs -f scanovate-liveness</code> shows the token verification
+and the <code>start</code> and <code>result</code> callbacks, and <code>docker logs keycloak</code> shows the
+<code>ScanovateAuthenticator</code> entries of the liveness result.</li>
+<li class="">Holding a photo or a screen to the camera fails the check
+(<code>scanovateLivenessError</code>) and uses up an attempt.</li>
+<li class="">Denying the camera shows our camera permission message, not a failed
+check.</li>
+<li class="">After three liveness sessions on the same page, Liveness Plus answers
+<code>invalid token</code> (<code>1014</code>) and the page asks the voter to start over.</li>
+</ul>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="configuration">Configuration<a href="#configuration" class="hash-link" aria-label="Direct link to Configuration" title="Direct link to Configuration" translate="no">​</a></h2>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="liveness-plus">Liveness Plus<a href="#liveness-plus" class="hash-link" aria-label="Direct link to Liveness Plus" title="Direct link to Liveness Plus" translate="no">​</a></h3>
 <p>Environment variables:</p>
@@ -210,7 +294,8 @@ matched in the logs.</p>
 <p>Client error codes:</p>
 <table><thead><tr><th>Code</th><th>Name</th></tr></thead><tbody><tr><td><code>1000</code></td><td><code>COULD_NOT_INIT_ANALYTICS</code></td></tr><tr><td><code>1001</code></td><td><code>COULD_NOT_CREATE_SESSION</code></td></tr><tr><td><code>1002</code></td><td><code>MAX_ACTIVE_SESSIONS_REACHED</code></td></tr><tr><td><code>1003</code></td><td><code>CAMERA_PERMISSION_BLOCKED</code></td></tr><tr><td><code>1004</code></td><td><code>CAMERA_NOT_FOUND</code></td></tr><tr><td><code>1005</code></td><td><code>COULD_NOT_OPEN_CAMERA</code></td></tr><tr><td><code>1006</code></td><td><code>SESSION_EXPIRED</code></td></tr><tr><td><code>1007</code></td><td><code>SERVER_ERROR</code></td></tr><tr><td><code>1008</code></td><td><code>SLOW_NETWORK</code></td></tr><tr><td><code>1009</code></td><td><code>USER_PRESSED_CLOSE</code></td></tr><tr><td><code>1010</code></td><td><code>USER_LEFT_PAGE</code></td></tr><tr><td><code>1011</code></td><td><code>NO_NETWORK</code></td></tr><tr><td><code>1012</code></td><td><code>CLIENT_ERROR</code></td></tr><tr><td><code>1013</code></td><td><code>CAMERA_PERMISSION_DISMISSED</code></td></tr><tr><td><code>1014</code></td><td><code>INVALID_TOKEN</code></td></tr><tr><td><code>1015</code></td><td><code>USER_CLOSED_PAGE</code></td></tr><tr><td><code>1016</code></td><td><code>COULD_NOT_START_MEDIA_RECORDER</code></td></tr></tbody></table>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="face-match">Face Match<a href="#face-match" class="hash-link" aria-label="Direct link to Face Match" title="Direct link to Face Match" translate="no">​</a></h3>
-<p>All endpoints are under <code>/facematch1N</code> and need the <code>x-company-id</code> header:</p>
+<p>All endpoints of the 1<!-- -->:N<!-- --> API are under <code>/facematch1N</code> and need the
+<code>x-company-id</code> header:</p>
 <table><thead><tr><th>Endpoint</th><th>Purpose</th></tr></thead><tbody><tr><td><code>GET /get_groups</code>, <code>GET /get_group</code></td><td>List groups, or get one.</td></tr><tr><td><code>POST /create_group</code>, <code>POST /rename_group</code>, <code>DELETE /delete_group</code></td><td>Manage groups.</td></tr><tr><td><code>POST /insert_image</code>, <code>POST /insert_template</code></td><td>Enroll a face in a group, from an image or a template.</td></tr><tr><td><code>GET /get_template/{group_id}/{template_id}</code>, <code>GET /get_template_global/{template_id}</code></td><td>Get a template.</td></tr><tr><td><code>DELETE /delete_template/{template_id}</code>, <code>POST /move_template</code></td><td>Remove or move a template.</td></tr><tr><td><code>POST /search_image</code>, <code>POST /search_template</code></td><td>Search a group.</td></tr><tr><td><code>POST /search_image_global</code>, <code>POST /search_template_global</code></td><td>Search all the groups of the company.</td></tr><tr><td><code>POST /compare_image_and_template_uuid</code></td><td>Compare an image with a known template.</td></tr></tbody></table>
 <p>For example, to reject an enrollment whose face was already enrolled in the
 election event, search the event&#x27;s group with the liveness face image, and
@@ -220,6 +305,18 @@ multipart form or base64 JSON. Check them against the service&#x27;s OpenAPI
 description (usually <code>/docs</code> or <code>/openapi.json</code>) before implementing the
 client. Also confirm whether <code>DELETE /delete_group</code> deletes the templates of
 the group before relying on it to delete voters&#x27; biometric data.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="11-match">1:1 match<a href="#11-match" class="hash-link" aria-label="Direct link to 1:1 match" title="Direct link to 1:1 match" translate="no">​</a></h3>
+<p>The 1<!-- -->:N<!-- --> guide only describes <code>/facematch1N</code>, but <code>SUPPORT_1_TO_MANY</code>, which
+enables it, is <code>false</code> by default: the image is Scanovate&#x27;s face match server,
+which likely also serves a 1:1 API, as B-Trust does with its standalone
+<code>POST /face_match</code> (two base64 images in, a <code>similarity</code> score and its
+<code>threshold</code> out). Check it in <code>/openapi.json</code> once the image is available.</p>
+<p>If it&#x27;s there, Keycloak can match the liveness picture against the ID portrait
+in our network, and send B-Trust only the ID photos. Otherwise, the same can be
+done with the 1<!-- -->:N<!-- --> API: <code>insert_image</code> of the ID photo in a per-session group,
+then <code>compare_image_and_template_uuid</code> with the liveness picture, and
+<code>delete_group</code>. Either way, check that the service finds the portrait in a
+photo of the whole ID, and tune the threshold with real documents.</p>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="deployment-on-keycloaks-origin">Deployment on Keycloak&#x27;s origin<a href="#deployment-on-keycloaks-origin" class="hash-link" aria-label="Direct link to Deployment on Keycloak&#x27;s origin" title="Direct link to Deployment on Keycloak&#x27;s origin" translate="no">​</a></h2>
 <p>Liveness Plus runs on our infrastructure, so its public URL is ours to choose.
 We serve it on the same origin as Keycloak, under <code>/biometric/</code>:</p>
@@ -269,6 +366,6 @@ access to it, and delete templates when the voter data is deleted.</li>
 <li class="">Size the servers for the expected concurrent sessions (see the requirements
 in <a href="#running-them-in-the-development-environment" class="">Running them in the development environment</a>),
 and set <code>max_active_sessions</code> to match.</li>
-</ul></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-edit-meta-row"><div class="col noPrint_WFHX"><a href="https://github.com/sequentech/step/edit/main/docs/docusaurus/docs/integrations/scanovate_on_premise_guide.md" target="_blank" rel="noopener noreferrer" class="theme-edit-this-page"><svg fill="currentColor" height="20" width="20" viewBox="0 0 40 40" class="iconEdit_Z9Sw" aria-hidden="true"><g><path d="m34.5 11.7l-3 3.1-6.3-6.3 3.1-3q0.5-0.5 1.2-0.5t1.1 0.5l3.9 3.9q0.5 0.4 0.5 1.1t-0.5 1.2z m-29.5 17.1l18.4-18.5 6.3 6.3-18.4 18.4h-6.3v-6.2z"></path></g></svg>Edit this page</a></div><div class="col lastUpdated_JAkA"></div></div></footer></article><nav class="docusaurus-mt-lg pagination-nav" aria-label="Docs pages"><a class="pagination-nav__link pagination-nav__link--prev" href="/docusaurus/pr-preview/pr-3354/docs/integrations/scanovate_identity_verification_guide"><div class="pagination-nav__sublabel">Previous</div><div class="pagination-nav__label">Scanovate Identity Verification</div></a><a class="pagination-nav__link pagination-nav__link--next" href="/docusaurus/pr-preview/pr-3354/docs/integrations/smart_link_integration_guide"><div class="pagination-nav__sublabel">Next</div><div class="pagination-nav__label">Smart Link SSO Integration</div></a></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#overview" class="table-of-contents__link toc-highlight">Overview</a></li><li><a href="#access-to-the-images" class="table-of-contents__link toc-highlight">Access to the images</a></li><li><a href="#running-them-in-the-development-environment" class="table-of-contents__link toc-highlight">Running them in the development environment</a><ul><li><a href="#smoke-tests" class="table-of-contents__link toc-highlight">Smoke tests</a></li></ul></li><li><a href="#configuration" class="table-of-contents__link toc-highlight">Configuration</a><ul><li><a href="#liveness-plus" class="table-of-contents__link toc-highlight">Liveness Plus</a></li><li><a href="#sequent-look" class="table-of-contents__link toc-highlight">Sequent look</a></li><li><a href="#1-face-match" class="table-of-contents__link toc-highlight">1 Face Match</a></li></ul></li><li><a href="#integration-contract" class="table-of-contents__link toc-highlight">Integration contract</a><ul><li><a href="#liveness-session" class="table-of-contents__link toc-highlight">Liveness session</a></li><li><a href="#face-match" class="table-of-contents__link toc-highlight">Face Match</a></li></ul></li><li><a href="#deployment-on-keycloaks-origin" class="table-of-contents__link toc-highlight">Deployment on Keycloak&#39;s origin</a></li><li><a href="#production" class="table-of-contents__link toc-highlight">Production</a></li></ul></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="footer__bottom text--center"><div class="footer__copyright">Copyright © 2026 Sequent</div></div></div></footer></div>
+</ul></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-edit-meta-row"><div class="col noPrint_WFHX"><a href="https://github.com/sequentech/step/edit/main/docs/docusaurus/docs/integrations/scanovate_on_premise_guide.md" target="_blank" rel="noopener noreferrer" class="theme-edit-this-page"><svg fill="currentColor" height="20" width="20" viewBox="0 0 40 40" class="iconEdit_Z9Sw" aria-hidden="true"><g><path d="m34.5 11.7l-3 3.1-6.3-6.3 3.1-3q0.5-0.5 1.2-0.5t1.1 0.5l3.9 3.9q0.5 0.4 0.5 1.1t-0.5 1.2z m-29.5 17.1l18.4-18.5 6.3 6.3-18.4 18.4h-6.3v-6.2z"></path></g></svg>Edit this page</a></div><div class="col lastUpdated_JAkA"></div></div></footer></article><nav class="docusaurus-mt-lg pagination-nav" aria-label="Docs pages"><a class="pagination-nav__link pagination-nav__link--prev" href="/docusaurus/pr-preview/pr-3354/docs/integrations/scanovate_identity_verification_guide"><div class="pagination-nav__sublabel">Previous</div><div class="pagination-nav__label">Scanovate Identity Verification</div></a><a class="pagination-nav__link pagination-nav__link--next" href="/docusaurus/pr-preview/pr-3354/docs/integrations/smart_link_integration_guide"><div class="pagination-nav__sublabel">Next</div><div class="pagination-nav__label">Smart Link SSO Integration</div></a></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#overview" class="table-of-contents__link toc-highlight">Overview</a><ul><li><a href="#what-stays-in-our-network" class="table-of-contents__link toc-highlight">What stays in our network</a></li></ul></li><li><a href="#access-to-the-images" class="table-of-contents__link toc-highlight">Access to the images</a></li><li><a href="#running-them-in-the-development-environment" class="table-of-contents__link toc-highlight">Running them in the development environment</a><ul><li><a href="#smoke-tests" class="table-of-contents__link toc-highlight">Smoke tests</a></li><li><a href="#trying-the-flow-from-keycloak" class="table-of-contents__link toc-highlight">Trying the flow from Keycloak</a></li></ul></li><li><a href="#configuration" class="table-of-contents__link toc-highlight">Configuration</a><ul><li><a href="#liveness-plus" class="table-of-contents__link toc-highlight">Liveness Plus</a></li><li><a href="#sequent-look" class="table-of-contents__link toc-highlight">Sequent look</a></li><li><a href="#1-face-match" class="table-of-contents__link toc-highlight">1 Face Match</a></li></ul></li><li><a href="#integration-contract" class="table-of-contents__link toc-highlight">Integration contract</a><ul><li><a href="#liveness-session" class="table-of-contents__link toc-highlight">Liveness session</a></li><li><a href="#face-match" class="table-of-contents__link toc-highlight">Face Match</a></li><li><a href="#11-match" class="table-of-contents__link toc-highlight">1:1 match</a></li></ul></li><li><a href="#deployment-on-keycloaks-origin" class="table-of-contents__link toc-highlight">Deployment on Keycloak&#39;s origin</a></li><li><a href="#production" class="table-of-contents__link toc-highlight">Production</a></li></ul></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="footer__bottom text--center"><div class="footer__copyright">Copyright © 2026 Sequent</div></div></div></footer></div>
 </body>
 </html>
