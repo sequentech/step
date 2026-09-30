@@ -91,9 +91,10 @@ pub async fn process_cast_vote(
 /// Runs the Datafix send while the per-voter lock is held: validates the
 /// event's Datafix configuration, resolves the voter, and sends `SetVoted`,
 /// transitioning the row to its terminal status. Any definitive VoterView
-/// answer, including a rejection or a SOAP fault, makes the vote `valid`. Only
-/// a failure to prepare or deliver the request leaves it `in-progress`, to be
-/// retried on the next beat.
+/// answer, including a rejection or a SOAP fault, makes the vote `valid`. The
+/// vote stays `in-progress`, to be retried on the next beat, when the request
+/// cannot be prepared or delivered, or when its outcome is ambiguous: it may
+/// have been delivered, but no usable answer came back.
 #[instrument(skip(lock), fields(cast_vote_id = %cast_vote_id), err)]
 async fn process_locked_cast_vote(
     tenant_id: &str,

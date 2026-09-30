@@ -66,9 +66,10 @@ back to it, is recorded as an `ExternalApiRequest` entry.
   Only these inbound operations make the check. A voter edit from the Admin
   Portal, the Internet channel recorded when a vote is cast and the edits
   reconciliation applies to existing voters all write through Keycloak without
-  it, so on a realm that does not declare an attribute their value is dropped
-  silently. The voters reconciliation adds are written directly to the
-  database and keep their attributes whatever the realm declares.
+  it. On a realm that does not declare an attribute, and whose
+  unmanaged-attribute policy does not let administrators write it, their value
+  is dropped silently. The voters reconciliation adds are written directly to
+  the database and keep their attributes whatever the realm declares.
 
   A request is attributed to the election event whose `datafix:id` annotation
   matches the Datafix id in the caller's token. If several election events of

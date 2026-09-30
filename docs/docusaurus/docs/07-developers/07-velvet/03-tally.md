@@ -177,8 +177,9 @@ session refuses to proceed while its election and area contain an `in-progress`
 vote. A second check runs immediately before ballot extraction.
 
 Wait for `in-progress` votes to drain, then re-run the tally. A vote that stays
-`in-progress` needs an operator to find out why `SetVoted` cannot be delivered.
-See the Datafix / VoterView integration reference in the `beyond` repository
+`in-progress` needs an operator to investigate why `SetVoted` keeps failing to
+be delivered or keeps ending in an ambiguous outcome. See the Datafix /
+VoterView integration reference in the `beyond` repository
 (`docs/docusaurus/docs/engineering/datafix_voterview_integration.md`) for the
 state machine and runbook.
 
