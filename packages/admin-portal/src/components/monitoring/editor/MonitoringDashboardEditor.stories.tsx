@@ -163,6 +163,15 @@ export const EditTheme: Story = {
         )
         // Every dashboard of the event that uses the theme: this one's three widgets.
         await expect(await theme.findByText(/applies to 3 widgets/)).toBeInTheDocument()
+        // Previewed on the first widget that draws the theme's colours, not on its KPIs.
+        await waitFor(() =>
+            expect(api.renderWidget).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    widget_id: "turnout-by-group",
+                    draft: expect.objectContaining({theme_yaml: expect.any(String)}),
+                })
+            )
+        )
     },
 }
 

@@ -54,7 +54,7 @@ import {MonitoringDiscardDialog} from "./MonitoringDiscardDialog"
 import {MonitoringWidgetCatalogDialog} from "./MonitoringWidgetCatalogDialog"
 import {MonitoringThemeEditorDialog} from "./MonitoringThemeEditorDialog"
 import {MonitoringResetToPresetDialog} from "./MonitoringResetToPresetDialog"
-import {DEFAULT_THEME, countThemeWidgets} from "./catalog"
+import {DEFAULT_THEME, countThemeWidgets, themePreviewWidget} from "./catalog"
 import {SCOPE_SELECTORS, copyId, layoutEntries, stringList} from "./formValues"
 import {
     EDocumentLoad,
@@ -168,6 +168,11 @@ export const MonitoringDashboardEditor: React.FC<MonitoringDashboardEditorProps>
         [catalog]
     )
     const titleOf = (widgetId: string) => titles.get(widgetId) ?? widgetId
+    /** A theme is previewed on a widget that shows its colours, not on a KPI. */
+    const previewWidget = themePreviewWidget(
+        layout.map((item) => item.widget),
+        catalog
+    )
     const patch = (change: (text: string) => string) => controller.patch(change)
     const move = (from: number, to: number) => patch((text) => moveIn(text, LAYOUT, from, to))
 
@@ -253,6 +258,7 @@ export const MonitoringDashboardEditor: React.FC<MonitoringDashboardEditorProps>
                                 : id,
                         source: original?.source ?? "",
                         requirements: original?.requirements ?? [],
+                        charts: original?.charts ?? [],
                     },
                 ]
             })
@@ -752,7 +758,7 @@ export const MonitoringDashboardEditor: React.FC<MonitoringDashboardEditorProps>
                     api={api}
                     themeKey={theming.key}
                     widgetCount={theming.count}
-                    preview={layout[0] ? {dashboardId, widgetId: layout[0].widget} : undefined}
+                    preview={previewWidget ? {dashboardId, widgetId: previewWidget} : undefined}
                     localValidate={themeValidate}
                     onClose={() => setTheming(null)}
                 />
