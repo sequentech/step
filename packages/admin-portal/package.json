@@ -26,7 +26,7 @@
     "apexcharts": "3.41.1",
     "buffer": "^6.0.3",
     "diff": "^5.1.0",
-    "dompurify": "^3.4.13",
+    "dompurify": "^3.4.16",
     "fs-extra": "^11.2.0",
     "graphql": "^16.8.1",
     "i18next": "^25.5.2",
@@ -64,7 +64,7 @@
   },
   "resolutions": {
     "graphql": "^16.8.1",
-    "dompurify": "^3.4.13",
+    "dompurify": "^3.4.16",
     "braces": "^3.0.3",
     "tinymce": "^7.9.3",
     "webpack-dev-server": "^5.2.6",
