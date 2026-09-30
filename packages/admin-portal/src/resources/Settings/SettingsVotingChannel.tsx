@@ -34,10 +34,12 @@ export const SettingsVotingChannels: React.FC<void> = () => {
         undoable: false,
     })
 
+    // `??`, not `||`: disabling a channel stores `false`, and `false || true`
+    // reads back as enabled, so the online toggle could never be turned off.
     const [voting, setVoting] = useState<any>({
-        online: record?.voting_channels?.online || true,
-        kiosk: record?.voting_channels?.kiosk || false,
-        telephone: record?.voting_channels?.telephone || false,
+        online: record?.voting_channels?.online ?? true,
+        kiosk: record?.voting_channels?.kiosk ?? false,
+        telephone: record?.voting_channels?.telephone ?? false,
     })
 
     const handleToggle = (method: any) => {
@@ -65,9 +67,9 @@ export const SettingsVotingChannels: React.FC<void> = () => {
         console.log(record)
         if (record.voting_channels) {
             setVoting({
-                online: record?.voting_channels?.online || true,
-                kiosk: record?.voting_channels?.kiosk || false,
-                telephone: record?.voting_channels?.telephone || false,
+                online: record?.voting_channels?.online ?? true,
+                kiosk: record?.voting_channels?.kiosk ?? false,
+                telephone: record?.voting_channels?.telephone ?? false,
             })
         }
     }, [record])
