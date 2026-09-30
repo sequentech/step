@@ -40,6 +40,7 @@
     "@storybook/instrumenter": "8.6.15"
   },
   "resolutions": {
+    "**/test-exclude/minimatch/brace-expansion": "^5.0.8",
     "graphql": "^16.8.1",
     "dompurify": "^3.4.13",
     "braces": "^3.0.3",
@@ -96,7 +97,8 @@
     "immutable": "^3.8.4",
     "@babel/core": "^7.29.6",
     "@babel/plugin-transform-modules-systemjs": "^7.29.4",
-    "@tootallnate/once": "^2.0.1"
+    "@tootallnate/once": "^2.0.1",
+    "test-exclude": "^7.0.2"
   },
   "scripts": {
     "start:voting-portal": "yarn --cwd ./voting-portal start",
