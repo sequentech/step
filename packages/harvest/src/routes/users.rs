@@ -1510,7 +1510,7 @@ pub async fn edit_user(
     // For Datafix election events the edit is offloaded to the `edit_user`
     // task, which notifies VoterView (SetNotVoted) and reconciles the voter's
     // cast votes under the per-voter lock. Deferring it keeps the Save button
-    // from blocking on the (retried) VoterView round-trip, and the admin portal
+    // from blocking on the VoterView round-trip, and the admin portal
     // tracks the outcome in the returned task widget. Non-Datafix edits stay
     // synchronous.
     if !password_only {

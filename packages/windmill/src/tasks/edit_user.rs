@@ -69,7 +69,7 @@ pub struct EditUserOutput {
 }
 
 /// Edits a Datafix voter asynchronously so the admin's Save is not blocked by
-/// the (potentially slow, retried) VoterView round-trip. The release logic runs
+/// the (potentially slow) VoterView round-trip. The release logic runs
 /// in [`apply_datafix_voter_edit`]; its outcome is recorded on `task_execution`,
 /// which backs the operator's task widget. A Datafix voter's ballots are
 /// discarded and its voted-channel attribute reset after the Keycloak
@@ -268,13 +268,14 @@ async fn discard_voter_ballots(
 
 /// Resets `VOTED_CHANNEL` back to `NONE` after a release discards the voter's
 /// ballots, mirroring the reset `unmark_voter_as_voted` already does for the
-/// inbound `/unmark-voted` call. Without this the attribute — set once, when a
-/// vote first resolves to `Valid`, and otherwise never touched — stays stale
-/// after the ballot it described is gone, wrongly blocking a later re-enable
-/// and feeding a stale channel into the reconciliation patch for a voter
-/// Datafix has no record of. Only ever runs after `plan_voter_release` has
-/// already confirmed the voter isn't recorded as voted through another
-/// channel, so this can only be clearing a stale `INTERNET` value or a no-op.
+/// inbound `/unmark-voted` call. Without this the attribute — set when
+/// VoterView accepts the voter's first online vote, and not touched by the
+/// discard itself — stays stale after the ballot it described is gone, wrongly
+/// blocking a later re-enable and feeding a stale channel into the
+/// reconciliation patch for a voter Datafix has no record of. Only ever runs
+/// after `plan_voter_release` has already confirmed the voter isn't recorded
+/// as voted through another channel, so this can only be clearing a stale
+/// `INTERNET` value or a no-op.
 #[instrument(skip(ctx))]
 async fn clear_voted_channel(ctx: &DatafixEditCtx<'_>) -> anyhow::Result<()> {
     let client = KeycloakAdminClient::new().await?;
@@ -652,8 +653,9 @@ mod tests {
 
     #[test]
     fn reenabling_a_voter_with_only_discarded_internet_ballots_is_allowed() {
-        // The voted-channel attribute is never cleared by a discard, so once a
-        // voter has ever cast an internet ballot it stays "Internet" forever —
+        // A release resets the voted-channel attribute right after the
+        // discard, but as a separate Keycloak write: if that write fails the
+        // attribute stays "Internet" with no active ballot behind it —
         // re-enable must key off the live `VoterCastVoteState`, not this stale
         // attribute, or a fully-resolved (discarded) voter could never be
         // re-enabled.

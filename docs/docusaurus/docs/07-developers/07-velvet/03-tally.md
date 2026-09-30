@@ -165,22 +165,22 @@ When in doubt or when configuration is missing, the tally engine will always cho
 
 ## Cast vote status guard
 
-Each cast vote carries a `status` (`in-progress`, `indeterminate`, `valid`, or
-`discarded`). Ordinary election events store votes as `valid` immediately. A
-Datafix vote enters as `in-progress` and is promoted to `valid` or `discarded`
-by `process_cast_vote`. An ambiguous external outcome becomes `indeterminate`
-and is not retried automatically.
+Each cast vote carries a `status` (`in-progress`, `valid`, or `discarded`).
+Ordinary election events store votes as `valid` immediately. A Datafix vote
+enters as `in-progress` and is promoted to `valid` or `discarded` by
+`process_cast_vote`. A vote whose `SetVoted` request could not be delivered, or
+whose outcome is ambiguous, stays `in-progress` and is retried automatically by
+the `review_cast_votes` beat.
 
 Only `valid` votes are extracted. To avoid silently under-counting, a tally
 session refuses to proceed while its election and area contain an `in-progress`
-or `indeterminate` vote. A second check runs immediately before ballot
-extraction.
+vote. A second check runs immediately before ballot extraction.
 
-Wait for `in-progress` votes to drain, then re-run the tally. An
-`indeterminate` vote requires the documented operator reconciliation; waiting
-or repeatedly invoking `SetVoted` is not a safe resolution. See the
-[Datafix / VoterView integration](../../integrations/datafix_voterview_integration.md)
-for the state machine and runbook.
+Wait for `in-progress` votes to drain, then re-run the tally. A vote that stays
+`in-progress` needs an operator to find out why `SetVoted` cannot be delivered.
+See the Datafix / VoterView integration reference in the `beyond` repository
+(`docs/docusaurus/docs/engineering/datafix_voterview_integration.md`) for the
+state machine and runbook.
 
 ## Location
 
