@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React from "react"
+import React, {useMemo} from "react"
 import {useTranslation} from "react-i18next"
 import {NoItem} from "@/components/NoItem"
 import {Typography, Box} from "@mui/material"
@@ -32,6 +32,14 @@ export const TallyResultsCandidatesPlurality: React.FC<TallyResultsCandidatesPro
     const {t} = useTranslation()
     const aliasRenderer = useAliasRenderer()
     const defaultElectionLang = useDefaultElectionLang(electionId, electionEventId)
+    const normalizedOrderedResultsData = useMemo(
+        () =>
+            orderedResultsData.map((candidate) => ({
+                ...candidate,
+                name: aliasRenderer(candidate.presentation, defaultElectionLang),
+            })),
+        [orderedResultsData, aliasRenderer, defaultElectionLang]
+    )
 
     const columns: GridColDef[] = [
         {
@@ -40,9 +48,7 @@ export const TallyResultsCandidatesPlurality: React.FC<TallyResultsCandidatesPro
             flex: 1,
             editable: false,
             align: "left",
-            renderCell: (props: GridRenderCellParams<any, string>) => {
-                return aliasRenderer(props.row.presentation, defaultElectionLang)
-            },
+            renderCell: (props: GridRenderCellParams<any, string>) => props.value ?? "-",
         },
         {
             field: "cast_votes",
@@ -92,14 +98,14 @@ export const TallyResultsCandidatesPlurality: React.FC<TallyResultsCandidatesPro
                 >
                     <Box sx={{flex: {xs: "1 1 auto", lg: "0 0 auto"}, mt: 2}}>
                         <CandidatesResultsCharts
-                            results={orderedResultsData}
+                            results={normalizedOrderedResultsData}
                             chartName={chartName}
                         />
                     </Box>
                     <Box sx={{flex: "1 1 auto", alignItems: "center", mt: 2, minWidth: 0}}>
                         <DataGrid
                             sx={{mt: 0}}
-                            rows={orderedResultsData}
+                            rows={normalizedOrderedResultsData}
                             columns={columns}
                             initialState={{
                                 pagination: {

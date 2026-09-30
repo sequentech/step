@@ -13,6 +13,7 @@ import {IResultDocuments} from "@/types/results"
 import {tallyQueryData} from "@/atoms/tally-candidates"
 import {useAtomValue} from "jotai"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
+import {useDefaultElectionLang} from "@/hooks/useDefaultElectionLang"
 import {useKeysPermissions} from "../ElectionEvent/useKeysPermissions"
 import {IContest, IElectionPresentation, sortContestList} from "@sequentech/ui-core"
 import {convertContestsArray} from "./utils"
@@ -34,6 +35,7 @@ export const TallyResultsContestsTabs: React.FC<TallyResultsContestProps> = (pro
 
     const {t, i18n} = reactI18next.useTranslation()
     const aliasRenderer = useAliasRenderer()
+    const defaultElectionLang = useDefaultElectionLang(electionId ?? "", electionEventId ?? "")
     const [electionData, setElectionData] = useState<string | null>(null)
     const [electionEventData, setElectionEventData] = useState<string | null>(null)
     const [tenantData, setTenantData] = useState<string | null>(null)
@@ -146,8 +148,8 @@ export const TallyResultsContestsTabs: React.FC<TallyResultsContestProps> = (pro
         const contest = contests.find((c) => c.id === contestId)
         if (!contest?.presentation) return undefined
 
-        return aliasRenderer(contest.presentation)
-    }, [contestId, contests, i18n.language])
+        return aliasRenderer(contest.presentation, defaultElectionLang)
+    }, [contestId, contests, i18n.language, defaultElectionLang])
 
     let documents: IResultDocumentsData | null = useMemo(() => {
         let parsedDocuments: IResultDocuments | null = null
@@ -197,7 +199,7 @@ export const TallyResultsContestsTabs: React.FC<TallyResultsContestProps> = (pro
                     {sortedContests?.map((contest, index) => (
                         <Tab
                             key={contest.id}
-                            label={aliasRenderer(contest)}
+                            label={aliasRenderer(contest, defaultElectionLang)}
                             onClick={() => tabClicked(contest.id, index)}
                         />
                     ))}
