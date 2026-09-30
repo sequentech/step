@@ -2,15 +2,13 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::celery_app::{get_celery_app, get_celery_connection, get_queues, Queue};
-use crate::services::database::{get_hasura_pool, get_keycloak_pool};
-use crate::services::jwks::get_jwks_secret_path;
+use crate::services::database::{get_hasura_pool, get_keycloak_pool, PgConfig};
 use crate::services::providers::sms_sender::{SmsSender, SmsTransport};
 use crate::services::vault::check_master_secret;
 use core::time::Duration;
 use deadpool_postgres::Timeouts;
-use sequent_core::services::keycloak::get_client_credentials;
 use sequent_core::services::probe::ProbeHandler;
-use sequent_core::services::s3;
+use sequent_core::services::setup_probe::{check_postgres_select_one_no_tls, check_s3};
 use std::net::SocketAddr;
 use strum_macros::Display;
 use tokio::join;
@@ -90,17 +88,37 @@ async fn check_hasura_db(app_name: &AppName) -> Option<bool> {
     if AppName::BEAT == *app_name {
         return None;
     }
-    info!("obtaining hasura pool reference..");
-    let hasura_db_result = get_hasura_pool().await;
+    let pg = match PgConfig::from_env() {
+        Ok(c) => c,
+        Err(e) => {
+            error!("hasura db probe: load config: {e:?}");
+            return Some(false);
+        }
+    };
+    cfg_if::cfg_if! {
+        if #[cfg(any(feature = "fips_core", feature = "fips_full"))] {
+            info!("obtaining hasura pool reference..");
+            let hasura_db_result = get_hasura_pool().await;
 
-    let status = hasura_db_result.status();
-    info!("hasura db pool status: {status:?}");
+            let status = hasura_db_result.status();
+            info!("hasura db pool status: {status:?}");
 
-    match hasura_db_result.timeout_get(&DB_TIMEOUTS).await {
-        Ok(_) => Some(true),
-        Err(error) => {
-            error!("hasura db pool object error: {error:?}");
-            Some(false)
+            match hasura_db_result.timeout_get(&DB_TIMEOUTS).await {
+                Ok(_) => Some(true),
+                Err(error) => {
+                    error!("hasura db pool object error: {error:?}");
+                    Some(false)
+                }
+            }
+        } else {
+            match pg.hasura_db.get_pg_config() {
+                Ok(config) => {
+                    Some(check_postgres_select_one_no_tls(&config).await)},
+                Err(e) => {
+                    error!("hasura db probe: invalid pg config: {e:?}");
+                    Some(false)
+                }
+            }
         }
     }
 }
@@ -110,18 +128,36 @@ async fn check_keycloak_db(app_name: &AppName) -> Option<bool> {
     if AppName::BEAT == *app_name {
         return None;
     }
+    let pg = match PgConfig::from_env() {
+        Ok(c) => c,
+        Err(e) => {
+            error!("keycloak db probe: load config: {e:?}");
+            return Some(false);
+        }
+    };
+    cfg_if::cfg_if! {
+        if #[cfg(any(feature = "fips_core", feature = "fips_full"))] {
+            info!("obtaining keycloak pool reference..");
+            let keycloak_db_result = get_keycloak_pool().await;
 
-    info!("obtaining keycloak pool reference..");
-    let keycloak_db_result = get_keycloak_pool().await;
+            let status = keycloak_db_result.status();
+            info!("keycloak db pool status: {status:?}");
 
-    let status = keycloak_db_result.status();
-    info!("keycloak db pool status: {status:?}");
-
-    match keycloak_db_result.timeout_get(&DB_TIMEOUTS).await {
-        Ok(_) => Some(true),
-        Err(error) => {
-            error!("keycloak db pool object error: {error:?}");
-            Some(false)
+            match keycloak_db_result.timeout_get(&DB_TIMEOUTS).await {
+                Ok(_) => Some(true),
+                Err(error) => {
+                    error!("keycloak db pool object error: {error:?}");
+                    Some(false)
+                }
+            }
+        } else {
+            match pg.keycloak_db.get_pg_config() {
+                Ok(cfg) => Some(check_postgres_select_one_no_tls(&cfg).await),
+                Err(e) => {
+                    error!("keycloak db probe: invalid pg config: {e:?}");
+                    Some(false)
+                }
+            }
         }
     }
 }
@@ -136,29 +172,6 @@ async fn check_aws_secrets(app_name: &AppName) -> Option<bool> {
         Ok(_) => Some(true),
         Err(error) => {
             error!("aws secrets error: {error:?}");
-            Some(false)
-        }
-    }
-}
-
-#[instrument(ret)]
-async fn check_s3(app_name: &AppName) -> Option<bool> {
-    if AppName::BEAT == *app_name {
-        return None;
-    }
-
-    let s3_bucket = match s3::get_public_bucket() {
-        Ok(s3_bucket) => s3_bucket,
-        Err(err) => {
-            error!("s3 error: {err:?}");
-            return Some(false);
-        }
-    };
-    let path = get_jwks_secret_path();
-    match s3::get_file_from_s3(s3_bucket, path).await {
-        Ok(_) => Some(true),
-        Err(error) => {
-            error!("s3 error: {error:?}");
             Some(false)
         }
     }
@@ -201,13 +214,13 @@ async fn check_sms_sender(app_name: &AppName) -> Option<bool> {
 
 #[instrument(ret)]
 async fn readiness_test(app_name: &AppName) -> bool {
-    // Use futures::join! to await multiple futures concurrently
+    let s3_should_run = *app_name != AppName::BEAT;
     let (celery_ok, hasura_db_ok, keycloak_db_ok, aws_secrets_ok, s3_ok, sms_sender_ok) = join!(
         check_celery(app_name),
         check_hasura_db(app_name),
         check_keycloak_db(app_name),
         check_aws_secrets(app_name),
-        check_s3(app_name),
+        check_s3(s3_should_run),
         check_sms_sender(app_name),
     );
 

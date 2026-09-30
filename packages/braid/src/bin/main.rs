@@ -94,6 +94,9 @@ async fn main() -> Result<()> {
     let store_root = std::env::current_dir().unwrap().join("message_store");
     braid::util::ensure_directory(store_root.clone())?;
 
+    braid::probe::setup_probe(args.b3_url.clone(), store_root.clone()).await;
+    info!("braid probe setup complete");
+
     let mut session_map: HashMap<String, Session<RistrettoCtx, GrpcB3>> = HashMap::new();
     let mut loop_count: i64 = 0;
     loop {
