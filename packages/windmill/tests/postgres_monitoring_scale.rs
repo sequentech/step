@@ -530,6 +530,7 @@ async fn export(
         selector_values: IndexMap::new(),
         widget_selector_values: IndexMap::new(),
         snapshot_revision: revision,
+        config_generation: None,
         format,
         from: None,
         to: None,
