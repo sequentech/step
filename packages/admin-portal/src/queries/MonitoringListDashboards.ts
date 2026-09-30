@@ -14,6 +14,7 @@ export const MONITORING_LIST_DASHBOARDS = gql`
             dashboards {
                 id
                 title
+                section
                 requirements
                 widget_count
             }

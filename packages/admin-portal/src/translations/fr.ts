@@ -2884,7 +2884,7 @@ const frenchTranslation: TranslationType = {
                 unknown: "Une erreur s'est produite. Réessayez plus tard.",
             },
             header: {
-                dashboard: "Section",
+                dashboard: "Tableau de bord",
                 updated: "Mis à jour {{time}} ({{timeZone}})",
                 notUpdated: "Pas encore compté",
                 refresh: "toutes les {{seconds}} s",
@@ -2947,6 +2947,8 @@ const frenchTranslation: TranslationType = {
                     "Les tentatives avec des noms d'utilisateur non enregistrés n'appartiennent à aucun poste ; elles ne sont donc comptées que pour l'ensemble de l'événement.",
                 UNREGISTERED_ATTEMPTS_EXCLUDED:
                     "Ces chiffres excluent les tentatives avec des noms d'utilisateur non enregistrés ; elles sont comptées pour l'ensemble de l'événement.",
+                CREDENTIALS_ISSUED_WHEN_PASSWORD_SET:
+                    "Les identifiants comptent comme délivrés lorsque le mot de passe de l'électeur est défini, jusqu'à ce que la plateforme enregistre leur délivrance.",
                 CONFIG_NEWER_THAN_SNAPSHOT:
                     "Dessiné avec les derniers réglages ; les chiffres sont comptés avec eux au prochain passage.",
                 CONFIG_AT_SNAPSHOT_UNAVAILABLE:
@@ -3028,7 +3030,10 @@ const frenchTranslation: TranslationType = {
                 transmission_failed: "Échec de transmission",
                 logins: "Connexions",
                 login_failures: "Échecs de connexion",
+                login_failures_valid_user: "Échecs, utilisateur valide",
+                login_failures_unregistered: "Échecs, utilisateur non inscrit",
                 password_resets: "Réinitialisations de mot de passe",
+                password_reset_requests: "Demandes de réinitialisation du mot de passe",
                 detections: "Détections",
                 issues: "Incidents",
                 pending_issues: "Incidents en attente",

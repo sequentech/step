@@ -33,8 +33,9 @@ style:
     support_table: {font: {family: "'Inter Variable', Inter, system-ui, sans-serif"}, label: {font: {case: none}}}
     callout: {title: {font: {case: none}}}
     # Progress bars name their rows in full: the engine's 80 px cuts
-    # "Posts in scope" and "Online voting opened".
-    spark_bar: {label: {width: 170}, count: {width: 64}, bar: {height: 20}}
+    # "Posts in scope" and "Online voting opened" or
+    # "Valid user authentication failed".
+    spark_bar: {label: {width: 220}, count: {width: 64}, bar: {height: 20}}
     category_colors:
       group:
         values:

@@ -59,6 +59,10 @@ pub struct VoterRow {
     pub enrollment: Option<Enrollment>,
     pub enrollment_reason: Option<String>,
     pub enrollment_decided_at: Option<DateTime<Utc>>,
+    /// When the voter's credentials were issued, as the source's producer
+    /// reads it: see
+    /// [`sequent_core::monitoring::sources::InterimRule::CredentialsAtPasswordSet`].
+    pub credentials_at: Option<DateTime<Utc>>,
 }
 
 /// An election of the event: a Post.
@@ -168,9 +172,17 @@ pub fn empty_payload(source: DataSourceId, settings: &Settings) -> ScopePayload 
         notices: if source == DataSourceId::AccessSecurity {
             vec![Notice::UnregisteredAttemptsExcluded]
         } else {
-            Vec::new()
+            interim_notices(source)
         },
         ..ScopePayload::default()
+    }
+}
+
+/// The notice of the stand-in rule a source is counted by, if any.
+fn interim_notices(source: DataSourceId) -> Vec<Notice> {
+    match source.spec().producer {
+        Producer::Interim(rule) => vec![rule.notice()],
+        Producer::Available | Producer::Pending(_) => Vec::new(),
     }
 }
 
@@ -203,7 +215,7 @@ pub fn produce(facts: &EventFacts, sets: &[ElectionSet]) -> Vec<SourceFigures> {
                 Producer::Pending(pending) => {
                     (SourceStatus::NotConnected(pending), BTreeMap::new())
                 }
-                Producer::Available => (
+                Producer::Available | Producer::Interim(_) => (
                     SourceStatus::Connected,
                     match source {
                         DataSourceId::PollStatus => posts.poll.clone(),
@@ -260,6 +272,7 @@ struct Facts<'r> {
     enrollment: Option<Enrollment>,
     reason: Option<&'r str>,
     decided_at: Option<DateTime<Utc>>,
+    credentials_at: Option<DateTime<Utc>>,
 }
 
 fn facts_of<'r>(rows: &[&'r VoterRow]) -> Facts<'r> {
@@ -271,12 +284,14 @@ fn facts_of<'r>(rows: &[&'r VoterRow]) -> Facts<'r> {
         enrollment: first.enrollment,
         reason: first.enrollment_reason.as_deref(),
         decided_at: first.enrollment_decided_at,
+        credentials_at: rows.iter().filter_map(|row| row.credentials_at).min(),
     }
 }
 
-const VOTER_SOURCES: [DataSourceId; 3] = [
+const VOTER_SOURCES: [DataSourceId; 4] = [
     DataSourceId::VoterTurnout,
     DataSourceId::EnrollmentDecisions,
+    DataSourceId::VotingCredentials,
     DataSourceId::VotingEnrollmentActivity,
 ];
 
@@ -319,6 +334,17 @@ fn voter_counts(
                 ),
                 (Measure::Approved, one(accepted)),
                 (Measure::Disapproved, one(rejected)),
+            ]
+            .into()
+        }
+        DataSourceId::VotingCredentials => {
+            // Approved: accepted, or imported without an application.
+            let approved = facts.enrollment.is_none() || accepted;
+            let issued = facts.credentials_at.filter(|_| approved);
+            events.extend(issued.map(|at| (Measure::CredentialsIssued, at)));
+            [
+                (Measure::Approved, one(approved)),
+                (Measure::CredentialsIssued, one(issued.is_some())),
             ]
             .into()
         }
@@ -419,7 +445,11 @@ impl Tally {
             }),
             posts: Vec::new(),
             series: series(zone, &self.series, series_measures(source)),
-            notices: self.notices.into_iter().collect(),
+            notices: self
+                .notices
+                .into_iter()
+                .chain(interim_notices(source))
+                .collect(),
         }
     }
 }
@@ -524,7 +554,9 @@ fn voter_sources(
                 for (measure, at) in events {
                     tally.event(facts.zone, measure, at, 1);
                 }
-                if source == DataSourceId::VoterTurnout && !dimensions.is_empty() {
+                if source.spec().voter_dimensions == VoterDimensions::Configured
+                    && !dimensions.is_empty()
+                {
                     let values = dimensions
                         .iter()
                         .map(|name| {
@@ -696,13 +728,17 @@ fn post_sources(facts: &EventFacts, set: &ElectionSet) -> PostSources {
     }
 }
 
-/// The measure a Keycloak event type counts towards.
-pub fn login_measure(event_type: &str) -> Option<Measure> {
-    match event_type {
-        "LOGIN" => Some(Measure::Logins),
-        "LOGIN_ERROR" => Some(Measure::LoginFailures),
-        "RESET_PASSWORD" | "UPDATE_PASSWORD" => Some(Measure::PasswordResets),
-        _ => None,
+/// The measures a Keycloak event type counts towards: a failure counts as
+/// one of every failure and one of its kind, by whether the username named
+/// an account.
+pub fn login_measures(event_type: &str, registered: bool) -> &'static [Measure] {
+    match (event_type, registered) {
+        ("LOGIN", _) => &[Measure::Logins],
+        ("LOGIN_ERROR", true) => &[Measure::LoginFailures, Measure::LoginFailuresValidUser],
+        ("LOGIN_ERROR", false) => &[Measure::LoginFailures, Measure::LoginFailuresUnregistered],
+        ("RESET_PASSWORD" | "UPDATE_PASSWORD", _) => &[Measure::PasswordResets],
+        ("SEND_RESET_PASSWORD", _) => &[Measure::PasswordResetRequests],
+        _ => &[],
     }
 }
 
@@ -729,10 +765,14 @@ fn access_security(facts: &EventFacts, set: &ElectionSet) -> BTreeMap<String, Sc
     let event_scope = canonical(None, None, None);
     tallies.entry(event_scope.clone()).or_default();
     for login in &facts.logins {
-        let Some(measure) = login_measure(&login.event_type) else {
+        let measures = login_measures(&login.event_type, login.registered);
+        if measures.is_empty() {
             continue;
-        };
-        let counts: Counts = [(measure, login.attempts)].into();
+        }
+        let counts: Counts = measures
+            .iter()
+            .map(|measure| (*measure, login.attempts))
+            .collect();
         let area = login.area_id.filter(|_| login.registered);
         let elections = area.and_then(|area| facts.area_elections.get(&area));
         let posts: Vec<Uuid> = elections
@@ -781,7 +821,9 @@ fn access_security(facts: &EventFacts, set: &ElectionSet) -> BTreeMap<String, Sc
         for (scope, region_scope, posts) in scopes {
             let tally = tallies.entry(scope).or_default();
             add(&mut tally.totals, &counts);
-            tally.event(facts.zone, measure, login.bucket_start, login.attempts);
+            for measure in measures {
+                tally.event(facts.zone, *measure, login.bucket_start, login.attempts);
+            }
             if at_event_only {
                 continue;
             }

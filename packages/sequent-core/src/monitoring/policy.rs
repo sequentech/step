@@ -2152,6 +2152,9 @@ fn check_dashboard(dashboard: &Dashboard, report: &mut Report) {
     if let Some(description) = &dashboard.description {
         require_text(description, "description", report);
     }
+    if let Some(section) = &dashboard.section {
+        require_text(section, "section", report);
+    }
     for (position, requirement) in dashboard.requirements.iter().enumerate() {
         require_text(requirement, &index("requirements", position), report);
     }

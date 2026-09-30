@@ -245,6 +245,11 @@ export function MonitoringDashboard({
                 />
             </MonitoringHeader>
             <Box>
+                {dashboard.section ? (
+                    <Typography variant="overline" component="p" color="text.secondary">
+                        {dashboard.section}
+                    </Typography>
+                ) : null}
                 <Typography variant="h5" component="h2" sx={{color: "brandColor"}}>
                     {dashboard.title}
                 </Typography>

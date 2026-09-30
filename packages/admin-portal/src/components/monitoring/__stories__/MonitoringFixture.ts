@@ -164,6 +164,7 @@ export const overviewDashboard: MonitoringDashboard = {
 export const turnoutDashboard: MonitoringDashboard = {
     id: "req-0260",
     title: "Voted vs pre-enrolled",
+    section: "Voter turnout",
     requirements: ["SW-F-0260", "SW-F-0372"],
     order: 1,
     selectors: [EScopeSelector.REGION, EScopeSelector.POST, EScopeSelector.COUNTRY],
@@ -181,6 +182,7 @@ export function listDashboardsResponse(
         dashboards: DASHBOARDS.map((dashboard) => ({
             id: dashboard.id,
             title: dashboard.title,
+            section: dashboard.section ?? null,
             requirements: dashboard.requirements ?? [],
             widget_count: dashboard.layout.length,
         })),

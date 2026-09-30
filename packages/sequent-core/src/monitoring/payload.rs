@@ -156,6 +156,9 @@ pub enum Notice {
     UnregisteredAttemptsAtEventScopeOnly,
     /// This scope's figures exclude them.
     UnregisteredAttemptsExcluded,
+    /// Credentials count as issued when the voter's password is set, until
+    /// the platform records their issue.
+    CredentialsIssuedWhenPasswordSet,
 }
 
 impl Cube {

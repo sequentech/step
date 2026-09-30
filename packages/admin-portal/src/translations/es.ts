@@ -2865,7 +2865,7 @@ const spanishTranslation: TranslationType = {
                 unknown: "Algo ha fallado. Inténtelo más tarde.",
             },
             header: {
-                dashboard: "Sección",
+                dashboard: "Panel",
                 updated: "Actualizado {{time}} ({{timeZone}})",
                 notUpdated: "Aún sin recuento",
                 refresh: "cada {{seconds}} s",
@@ -2927,6 +2927,8 @@ const spanishTranslation: TranslationType = {
                     "Los intentos con nombres de usuario no registrados no pertenecen a ningún puesto, por lo que solo se cuentan para todo el evento.",
                 UNREGISTERED_ATTEMPTS_EXCLUDED:
                     "Estas cifras no incluyen los intentos con nombres de usuario no registrados; se cuentan para todo el evento.",
+                CREDENTIALS_ISSUED_WHEN_PASSWORD_SET:
+                    "Las credenciales cuentan como emitidas cuando se establece la contraseña del votante, hasta que la plataforma registre su emisión.",
                 CONFIG_NEWER_THAN_SNAPSHOT:
                     "Dibujado con la configuración más reciente; las cifras se cuentan con ella en la próxima pasada.",
                 CONFIG_AT_SNAPSHOT_UNAVAILABLE:
@@ -3008,7 +3010,10 @@ const spanishTranslation: TranslationType = {
                 transmission_failed: "Transmisión fallida",
                 logins: "Inicios de sesión",
                 login_failures: "Inicios de sesión fallidos",
+                login_failures_valid_user: "Fallidos, usuario válido",
+                login_failures_unregistered: "Fallidos, usuario no registrado",
                 password_resets: "Restablecimientos de contraseña",
+                password_reset_requests: "Solicitudes de restablecimiento de contraseña",
                 detections: "Detecciones",
                 issues: "Incidencias",
                 pending_issues: "Incidencias pendientes",

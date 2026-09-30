@@ -2874,7 +2874,7 @@ const tagalogTranslation: TranslationType = {
                 unknown: "May nangyaring mali. Subukan muli mamaya.",
             },
             header: {
-                dashboard: "Seksyon",
+                dashboard: "Dashboard",
                 updated: "Na-update {{time}} ({{timeZone}})",
                 notUpdated: "Hindi pa nabibilang",
                 refresh: "bawat {{seconds}} s",
@@ -2935,6 +2935,8 @@ const tagalogTranslation: TranslationType = {
                     "Ang mga pagtatangka gamit ang hindi rehistradong username ay hindi kabilang sa anumang Post, kaya binibilang lamang ang mga ito para sa buong event.",
                 UNREGISTERED_ATTEMPTS_EXCLUDED:
                     "Hindi kasama sa mga bilang na ito ang mga pagtatangka gamit ang hindi rehistradong username; binibilang ang mga ito para sa buong event.",
+                CREDENTIALS_ISSUED_WHEN_PASSWORD_SET:
+                    "Itinuturing na naibigay ang mga kredensyal kapag naitakda na ang password ng botante, hanggang maitala ng platform ang pagbibigay nito.",
                 CONFIG_NEWER_THAN_SNAPSHOT:
                     "Iginuhit gamit ang pinakabagong setting; bibilangin ang mga numero gamit ito sa susunod na pagbilang.",
                 CONFIG_AT_SNAPSHOT_UNAVAILABLE:
@@ -3016,7 +3018,10 @@ const tagalogTranslation: TranslationType = {
                 transmission_failed: "Nabigo ang pagpapadala",
                 logins: "Mga pag-login",
                 login_failures: "Mga nabigong pag-login",
+                login_failures_valid_user: "Nabigo, wastong user",
+                login_failures_unregistered: "Nabigo, hindi rehistradong user",
                 password_resets: "Mga pag-reset ng password",
+                password_reset_requests: "Mga kahilingang i-reset ang password",
                 detections: "Mga natukoy",
                 issues: "Mga isyu",
                 pending_issues: "Mga nakabinbing isyu",

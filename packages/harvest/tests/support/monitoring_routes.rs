@@ -156,6 +156,10 @@ async fn a_configured_event_lists_its_dashboards_and_draws_a_widget_once() {
         "{body}"
     );
     assert_eq!(body["dashboards"][0]["id"], "overview", "{body}");
+    // Each record's dashboard names the section the switcher lists it under.
+    assert_eq!(body["dashboards"][0]["section"], json!(null), "{body}");
+    assert_eq!(body["dashboards"][1]["id"], "req-0249", "{body}");
+    assert_eq!(body["dashboards"][1]["section"], "Enrollment", "{body}");
     assert_eq!(body["snapshot"]["revision"], 7);
 
     let (status, body) = json(

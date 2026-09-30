@@ -124,6 +124,8 @@ export type MonitoringUnavailableState =
 export enum EMonitoringNotice {
     UNREGISTERED_ATTEMPTS_AT_EVENT_SCOPE_ONLY = "UNREGISTERED_ATTEMPTS_AT_EVENT_SCOPE_ONLY",
     UNREGISTERED_ATTEMPTS_EXCLUDED = "UNREGISTERED_ATTEMPTS_EXCLUDED",
+    /** Voting credentials: counted when the password is set, until their issue is recorded. */
+    CREDENTIALS_ISSUED_WHEN_PASSWORD_SET = "CREDENTIALS_ISSUED_WHEN_PASSWORD_SET",
     /** Drawn with the live configuration: the snapshot's has not this widget yet. */
     CONFIG_NEWER_THAN_SNAPSHOT = "CONFIG_NEWER_THAN_SNAPSHOT",
     /** Drawn with the live configuration: the snapshot's is no longer kept. */
@@ -215,6 +217,8 @@ export interface MonitoringDashboard {
     title: string
     /** A line under the dashboard's heading. */
     description?: string
+    /** The heading the switcher lists the dashboard under. */
+    section?: string
     requirements?: string[]
     order?: number
     selectors?: EScopeSelector[]
@@ -241,6 +245,8 @@ export interface MonitoringSnapshot {
 export interface MonitoringDashboardSummary {
     id: string
     title: string
+    /** The heading the switcher lists it under; absent from older servers. */
+    section?: string | null
     requirements: string[]
     widget_count: number
 }

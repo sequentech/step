@@ -965,11 +965,11 @@ fn comelec_names_the_owners_of_the_six_records_it_leaves() {
     assert_eq!(owners, expected);
 }
 
-/// Each section opens on every figure its records ask for, with no choice to
-/// make: the three turnout ratios together, every poll milestone, both final
-/// testing records and both counting milestones.
+/// Each record's dashboard opens on the figure it asks for: each turnout
+/// ratio on its own dashboard, every poll milestone with each of its Posts,
+/// both final testing records and both counting milestones.
 #[test]
-fn sections_open_on_every_figure_their_records_ask_for() {
+fn dashboards_open_on_the_figure_their_record_asks_for() {
     let preset = loaded("comelec");
     let opened_on = |dashboard: &str, widget: &str, query: &str| {
         let dashboard = &preset.set.dashboards[dashboard];
@@ -990,7 +990,16 @@ fn sections_open_on_every_figure_their_records_ask_for() {
     };
     use Measure::*;
     let ratio = |numerator, denominator| Some(Ratio(numerator, denominator));
-    for dashboard in ["overview", "voter-turnout"] {
+    for (dashboard, figure) in [
+        ("req-0259", ratio(Voted, Registered)),
+        ("req-0260", ratio(VotedPreEnrolled, PreEnrolled)),
+        ("req-0261", ratio(PreEnrolled, Registered)),
+    ] {
+        assert_eq!(opened_on(dashboard, "turnout-by-group", "data"), figure);
+        assert_eq!(opened_on(dashboard, "turnout-by-post", "data"), figure);
+        // With a Post chosen, the countries under it.
+        assert_eq!(opened_on(dashboard, "turnout-by-country", "data"), figure);
+        // The summary shows all three figures on every turnout dashboard.
         assert_eq!(
             opened_on(dashboard, "turnout-summary", "voted_reg"),
             ratio(Voted, Registered)
@@ -1004,63 +1013,78 @@ fn sections_open_on_every_figure_their_records_ask_for() {
             ratio(PreEnrolled, Registered)
         );
     }
-    // The breakdowns open on the turnout of the registered and offer the
-    // other two ratios.
-    for widget in ["turnout-by-group", "turnout-by-post", "turnout-by-country"] {
+    for dashboard in ["req-0256", "req-0257", "req-0258"] {
+        for (query, figure) in [
+            ("initialized", ratio(Initialized, Posts)),
+            ("opened", ratio(Opened, Posts)),
+            ("closed", ratio(Closed, Posts)),
+        ] {
+            assert_eq!(opened_on(dashboard, "poll-status", query), figure);
+        }
+        assert!(preset.set.dashboards[dashboard]
+            .layout
+            .iter()
+            .any(|item| item.widget == "status-by-post"));
+    }
+    assert_eq!(
+        opened_on("req-0254", "final-testing-lockdown", "tested"),
+        ratio(Tested, Posts)
+    );
+    assert_eq!(
+        opened_on("req-0254", "final-testing-lockdown", "locked_down"),
+        ratio(LockedDown, Posts)
+    );
+    for dashboard in ["req-0263", "req-0264"] {
         assert_eq!(
-            opened_on("voter-turnout", widget, "data"),
-            ratio(Voted, Registered)
+            opened_on(dashboard, "counting-transmission", "tallied"),
+            ratio(Tallied, Posts)
         );
-    }
-    for (query, figure) in [
-        ("initialized", ratio(Initialized, Posts)),
-        ("opened", ratio(Opened, Posts)),
-        ("closed", ratio(Closed, Posts)),
-    ] {
-        assert_eq!(opened_on("voting", "poll-status", query), figure);
-    }
-    for (query, figure) in [
-        ("tested", ratio(Tested, Posts)),
-        ("locked_down", ratio(LockedDown, Posts)),
-    ] {
         assert_eq!(
-            opened_on("final-testing-lockdown", "final-testing-lockdown", query),
-            figure
-        );
-    }
-    for (query, figure) in [
-        ("tallied", ratio(Tallied, Posts)),
-        ("transmitted", ratio(Transmitted, Posts)),
-    ] {
-        assert_eq!(
-            opened_on("counting-transmission", "counting-transmission", query),
-            figure
+            opened_on(dashboard, "counting-transmission", "transmitted"),
+            ratio(Transmitted, Posts)
         );
     }
 }
 
-/// The sections come in the order an election runs, after the overview.
+/// The overview comes first, then every record's dashboard under the
+/// section of the election it belongs to, in the order an election runs.
+/// The switcher lists a section's dashboards together, so each section's
+/// dashboards are consecutive in `order`.
 #[test]
-fn comelec_s_sections_follow_the_election() {
+fn comelec_s_dashboards_are_listed_by_section_in_election_order() {
     let preset = loaded("comelec");
-    let mut dashboards: Vec<&Dashboard> = preset.set.dashboards.values().collect();
+    let mut dashboards: Vec<&Dashboard> =
+        preset.set.dashboards.values().collect();
     dashboards.sort_by_key(|dashboard| dashboard.order);
-    let ids: Vec<&str> =
-        dashboards.iter().map(|dashboard| dashboard.id.as_str()).collect();
+    assert_eq!(dashboards[0].id, "overview");
+    assert_eq!(dashboards[0].section, None);
+    let mut sections: Vec<&str> = Vec::new();
+    for dashboard in &dashboards[1..] {
+        let section = dashboard
+            .section
+            .as_deref()
+            .unwrap_or_else(|| panic!("{} is under no section", dashboard.id));
+        if sections.last() != Some(&section) {
+            assert!(
+                !sections.contains(&section),
+                "{section} is listed apart at {}",
+                dashboard.id
+            );
+            sections.push(section);
+        }
+    }
     assert_eq!(
-        ids,
+        sections,
         [
-            "overview",
-            "enrollment",
-            "test-voting",
-            "final-testing-lockdown",
-            "voting",
-            "voter-turnout",
-            "counting-transmission",
-            "activity",
-            "access-security",
-            "attack-detections",
-            "helpdesk",
+            "Enrollment",
+            "Test voting",
+            "Final testing and lockdown",
+            "Voting",
+            "Voter turnout",
+            "Counting and transmission",
+            "Enrollment and voting rates",
+            "Access and security",
+            "Helpdesk",
         ]
     );
     for dashboard in dashboards {
@@ -1070,6 +1094,41 @@ fn comelec_s_sections_follow_the_election() {
             dashboard.id
         );
     }
+}
+
+/// Failed sign-ins are shown by kind (0280, 0281) and forgot-password
+/// requests beside completed resets.
+#[test]
+fn access_and_security_shows_failures_by_kind_and_password_requests() {
+    let preset = loaded("comelec");
+    let measures = |widget: &str, query: &str| {
+        let widget = &preset.set.widgets[widget];
+        let query =
+            widget.queries.get(query).or(widget.query.as_ref()).unwrap();
+        match &query.measures {
+            Some(crate::monitoring::config::Param::Literal(measures)) => {
+                measures.clone()
+            }
+            other => panic!("{other:?}"),
+        }
+    };
+    use Measure::*;
+    assert_eq!(
+        measures("access-security", "failures"),
+        [
+            LoginFailures,
+            LoginFailuresValidUser,
+            LoginFailuresUnregistered
+        ]
+    );
+    assert_eq!(
+        measures("access-security", "passwords"),
+        [PasswordResetRequests, PasswordResets]
+    );
+    assert_eq!(
+        measures("login-outcomes", "data"),
+        [Logins, LoginFailuresValidUser, LoginFailuresUnregistered]
+    );
 }
 
 /// Each choice a viewer can make shows other figures: an option that draws

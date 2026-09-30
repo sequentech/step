@@ -2,12 +2,12 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
-# Who cast a test ballot, overall and by group.
-id: test-voting
+id: req-0253
 title: Test voting
 description: Pre-enrolled OVs who have and have not cast a test ballot.
+section: Test voting
 requirements: [SW-F-0253, SW-F-0367]
-order: 2
+order: 4
 selectors: [region, post, country]
 layout:
   - {widget: test-voting, width: 12}

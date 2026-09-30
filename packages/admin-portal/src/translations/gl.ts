@@ -2863,7 +2863,7 @@ const galegoTranslation: TranslationType = {
                 unknown: "Algo fallou. Ténteo máis tarde.",
             },
             header: {
-                dashboard: "Sección",
+                dashboard: "Panel",
                 updated: "Actualizado {{time}} ({{timeZone}})",
                 notUpdated: "Aínda sen reconto",
                 refresh: "cada {{seconds}} s",
@@ -2924,6 +2924,8 @@ const galegoTranslation: TranslationType = {
                     "Os intentos con nomes de usuario non rexistrados non pertencen a ningún posto, polo que só se contan para todo o evento.",
                 UNREGISTERED_ATTEMPTS_EXCLUDED:
                     "Estas cifras non inclúen os intentos con nomes de usuario non rexistrados; cóntanse para todo o evento.",
+                CREDENTIALS_ISSUED_WHEN_PASSWORD_SET:
+                    "As credenciais contan como emitidas cando se establece o contrasinal do votante, ata que a plataforma rexistre a súa emisión.",
                 CONFIG_NEWER_THAN_SNAPSHOT:
                     "Debuxado coa configuración máis recente; as cifras cóntanse con ela na próxima pasada.",
                 CONFIG_AT_SNAPSHOT_UNAVAILABLE:
@@ -3004,7 +3006,10 @@ const galegoTranslation: TranslationType = {
                 transmission_failed: "Transmisión fallida",
                 logins: "Inicios de sesión",
                 login_failures: "Inicios de sesión fallidos",
+                login_failures_valid_user: "Fallidos, usuario válido",
+                login_failures_unregistered: "Fallidos, usuario non rexistrado",
                 password_resets: "Restablecementos de contrasinal",
+                password_reset_requests: "Solicitudes de restablecemento de contrasinal",
                 detections: "Deteccións",
                 issues: "Incidencias",
                 pending_issues: "Incidencias pendentes",

@@ -2198,6 +2198,7 @@ type MonitoringSnapshot {
 type MonitoringDashboardSummary {
     id: String!
     title: String!
+    section: String
     requirements: [String!]!
     widget_count: Int!
 }

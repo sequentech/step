@@ -484,6 +484,11 @@ pub struct Dashboard {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
 
+    /// The heading the switcher lists the dashboard under, such as "Voter
+    /// turnout". Dashboards of one section are listed together, in `order`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub section: Option<String>,
+
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub requirements: Vec<String>,
 

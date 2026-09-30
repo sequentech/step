@@ -28,7 +28,8 @@ use super::payload::{
     UNKNOWN_KEY,
 };
 use super::sources::{
-    BuiltinDimension, DataSourceId, Measure, QueryTemplate, VoterDimensions,
+    BuiltinDimension, DataSourceId, Measure, Producer, QueryTemplate,
+    VoterDimensions,
 };
 
 /// The days the sample series covers, in order.
@@ -152,6 +153,9 @@ pub fn sample_payload(
     if source == DataSourceId::AccessSecurity {
         payload.notices = vec![Notice::UnregisteredAttemptsAtEventScopeOnly];
     }
+    if let Producer::Interim(rule) = source.spec().producer {
+        payload.notices.push(rule.notice());
+    }
     payload
 }
 
@@ -175,7 +179,10 @@ fn base(measure: Measure) -> u64 {
         Paused | Closed | LockedDown | TransmissionFailed => 0,
         Logins => 2400,
         LoginFailures => 180,
+        LoginFailuresValidUser => 110,
+        LoginFailuresUnregistered => 70,
         PasswordResets => 40,
+        PasswordResetRequests => 55,
         Detections => 40,
         Issues => 25,
         PendingIssues => 6,

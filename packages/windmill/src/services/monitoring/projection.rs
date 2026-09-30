@@ -43,9 +43,22 @@ pub struct VoterAccount {
     /// `applications.applicant_id` carry.
     pub voter_id: String,
     pub attributes: BTreeMap<String, Vec<String>>,
-    /// When the account was first given a credential.
+    /// When the voter's credentials were issued: see
+    /// [`CREDENTIALS_AT_PASSWORD_SET`].
     pub credentials_at: Option<DateTime<Utc>>,
 }
+
+/// When a voter's credentials count as issued, as the stand-in
+/// [`sequent_core::monitoring::sources::InterimRule::CredentialsAtPasswordSet`]
+/// reads it: the account's password credential. The message-OTP credential
+/// registration creates is not one. A password reset replaces the row, so
+/// the projection keeps the earliest time it saw.
+///
+/// DEV-ENROLLMENT's credential-issued event replaces this expression: write
+/// `monitoring_voter.credentials_at` from the event instead, then make the
+/// Voting credentials source `Producer::Available`.
+const CREDENTIALS_AT_PASSWORD_SET: &str =
+    "(SELECT min(c.created_date) FROM credential c WHERE c.user_id = u.id AND c.type = 'password')";
 
 /// One page of the realm's voters (members of `voter_group`), after
 /// `after` in id order; an empty page ends the pass.
@@ -59,14 +72,14 @@ pub async fn fetch_voter_accounts(
 ) -> Result<Vec<VoterAccount>> {
     let rows = keycloak_transaction
         .query(
-            "SELECT u.id,
+            &format!(
+                "SELECT u.id,
                     COALESCE(
                         (SELECT json_agg(json_build_array(ua.name, ua.value))
                          FROM user_attribute ua WHERE ua.user_id = u.id),
                         '[]'::json
                     ) AS attributes,
-                    (SELECT min(c.created_date) FROM credential c WHERE c.user_id = u.id)
-                        AS credentials_at
+                    {CREDENTIALS_AT_PASSWORD_SET} AS credentials_at
              FROM user_entity u
              JOIN realm r ON r.id = u.realm_id
              WHERE r.name = $1
@@ -77,7 +90,8 @@ pub async fn fetch_voter_accounts(
                    WHERE m.user_id = u.id AND g.name = $3
                )
              ORDER BY u.id
-             LIMIT $4",
+             LIMIT $4"
+            ),
             &[&realm, &after.unwrap_or(""), &voter_group, &limit],
         )
         .await
@@ -335,7 +349,10 @@ pub async fn write_voter_page(
                      WHEN EXCLUDED.pre_enrolled_at IS NULL THEN NULL
                      ELSE COALESCE(v.pre_enrolled_at, EXCLUDED.pre_enrolled_at)
                  END,
-                 credentials_at = EXCLUDED.credentials_at,
+                 credentials_at = CASE
+                     WHEN EXCLUDED.credentials_at IS NULL THEN NULL
+                     ELSE LEAST(v.credentials_at, EXCLUDED.credentials_at)
+                 END,
                  attributes_hash = EXCLUDED.attributes_hash,
                  settings_revision = EXCLUDED.settings_revision,
                  updated_at = now()

@@ -21,7 +21,6 @@ fn only_sources_whose_facts_the_platform_records_are_connected() {
     }
     let pending = [
         (TestVoting, PendingProducer::TestElectionDesignation),
-        (VotingCredentials, PendingProducer::CredentialIssuedEvent),
         (
             FinalTestingLockdown,
             PendingProducer::FinalTestingLockdownState,
@@ -33,6 +32,46 @@ fn only_sources_whose_facts_the_platform_records_are_connected() {
         assert_eq!(producer(source), Producer::Pending(reason), "{source}");
     }
     assert_eq!(DataSourceId::iter().count(), 11);
+}
+
+/// Credentials are counted by a stand-in until DEV-ENROLLMENT's event
+/// exists: the rule names the producer it stands in for and the notice its
+/// figures carry, so replacing it is one change to the source's contract.
+#[test]
+fn credentials_are_counted_at_the_password_until_their_event_exists() {
+    let rule = InterimRule::CredentialsAtPasswordSet;
+    assert_eq!(
+        DataSourceId::VotingCredentials.spec().producer,
+        Producer::Interim(rule)
+    );
+    assert_eq!(rule.stands_in_for(), PendingProducer::CredentialIssuedEvent);
+    assert_eq!(rule.notice(), Notice::CredentialsIssuedWhenPasswordSet);
+    assert!(Producer::Interim(rule).counts());
+    assert!(Producer::Available.counts());
+    assert!(!Producer::Pending(rule.stands_in_for()).counts());
+    let spec = DataSourceId::VotingCredentials.spec();
+    assert_eq!(spec.counting_unit, CountingUnit::ApprovedVoters);
+    assert!(spec.counts_per_hour(Measure::CredentialsIssued));
+}
+
+/// Failed sign-ins split by whether the username named an account, and
+/// forgot-password requests beside completed resets: all attempts.
+#[test]
+fn sign_in_failures_split_by_account_and_reset_requests_are_counted() {
+    let spec = DataSourceId::AccessSecurity.spec();
+    assert_eq!(spec.counting_unit, CountingUnit::Attempts);
+    for measure in [
+        Measure::LoginFailuresValidUser,
+        Measure::LoginFailuresUnregistered,
+        Measure::PasswordResetRequests,
+    ] {
+        assert!(spec.has_measure(measure), "{measure}");
+        assert!(spec.counts_per_hour(measure), "{measure}");
+    }
+    assert_eq!(
+        Measure::LoginFailuresValidUser.to_string(),
+        "login_failures_valid_user"
+    );
 }
 
 /// "First valid vote or approval per voter": credentials are issued by a

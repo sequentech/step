@@ -159,7 +159,7 @@ fn request(seeded: &Seeded, elections: &[Uuid], revision: i64) -> MonitoringExpo
     MonitoringExportRequest {
         tenant_id: seeded.event.tenant_id.to_string(),
         election_event_id: seeded.event.election_event_id.to_string(),
-        dashboard_id: "voter-turnout".to_string(),
+        dashboard_id: "req-0259".to_string(),
         widget_id: Some("turnout-by-post".to_string()),
         election_ids: elections.iter().map(Uuid::to_string).collect(),
         pinned_post: None,

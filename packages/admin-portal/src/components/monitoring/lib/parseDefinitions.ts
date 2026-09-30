@@ -94,6 +94,7 @@ export function parseDashboard(raw: unknown): Parsed<MonitoringDashboard> {
         text(value.id, "id")
         text(value.title, "title")
         optional(value.description, (description) => text(description, "description"))
+        optional(value.section, (section) => text(section, "section"))
         optional(value.requirements, (requirements) => texts(requirements, "requirements"))
         optional(value.selectors, (selectors) => texts(selectors, "selectors"))
         if (!Array.isArray(value.layout)) throw new ShapeError("layout is not a list")

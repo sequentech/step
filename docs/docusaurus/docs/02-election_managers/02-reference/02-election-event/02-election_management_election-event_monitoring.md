@@ -50,7 +50,7 @@ The platform ships two presets:
 
 | Preset | For |
 |---|---|
-| `comelec` | An overview and a section for each part of an overseas vote, from enrollment to transmission, answering every monitoring record of the package. |
+| `comelec` | An overview and a dashboard for each monitoring record of an overseas voting package, grouped by section. |
 | `campus` | A university election: participation by faculty and role, and the day's operations. |
 
 Switching the tab back to the standard dashboard keeps the configuration and
@@ -66,24 +66,25 @@ The header has two rows:
   **COMELEC overseas voting**, marked **Dashboard preset**), with **Export**,
   to export the dashboard's data, and **Edit dashboard**, for users who may
   configure monitoring;
-- the **Section** menu, to switch to another dashboard of the event, the
+- the **Dashboard** menu, to switch to another dashboard of the event, each
+  listed under the heading of its section, then the
   [dashboard selectors](#dashboard-selectors), and on the right **Updated**
   with a time: when the figures on screen were counted (see
   [Freshness](#freshness)) and how often the dashboard checks for new ones.
   The **↻** button checks at once.
 
-Below the header come the section's title and a line saying what it shows,
-then its widgets. Under the widgets a footer repeats what the figures are of
-(for example "All regions · Dubai PCG · All countries"), when they were
-counted, and the requirement IDs the section answers, if any.
+Below the header come the dashboard's section, its title and a line saying
+what it shows, then its widgets. Under the widgets a footer repeats what the
+figures are of (for example "All regions · Dubai PCG · All countries"), when
+they were counted, and the requirement IDs the dashboard answers, if any.
 
-The `comelec` preset has an **Overview** and one section for each part of
-the election, in the order it runs: Enrollment, Test voting, Final testing
-and lockdown, Voting, Voter turnout, Counting and transmission, Enrollment
-and voting rates, Access and security, Attack detections and Helpdesk. Each
-section shows every figure its records ask for at once: Voter turnout shows
-the three turnout ratios together, and Voting shows the Posts initialized,
-opened and closed.
+The `comelec` preset has an **Overview** and a dashboard for each monitoring
+record, listed under the section of the election it belongs to, in the order
+an election runs: Enrollment, Test voting, Final testing and lockdown,
+Voting, Voter turnout, Counting and transmission, Enrollment and voting
+rates, Access and security, and Helpdesk. A record's dashboard opens on the
+figure it asks for; for example, **Voted vs pre-enrolled** opens Turnout by
+group on "Voted of pre-enrolled".
 
 ### Dashboard selectors
 
@@ -132,6 +133,16 @@ rates opens it by hour. The values a viewer picks are kept while they stay in
 the browser tab.
 
 ### How figures are counted
+
+**Voting credentials** are counted, until the platform records when
+credentials are issued, as issued when the voter's password is set. The
+widget says so under its chart. Approved voters are those whose latest
+application was accepted, and those imported without an application.
+
+**Sign-ins** are attempts, not people. Failed attempts are shown in total
+and by kind: a valid user whose authentication failed, or a username that
+names no account. Forgot-password requests (a new password sent) are shown
+beside the passwords reset.
 
 The counting rules belong to the data sources and are the same on every
 dashboard:
@@ -189,13 +200,12 @@ A widget that cannot show a chart says why:
 | **This widget cannot be shown** | Its configuration has a problem. |
 | **This widget could not be loaded** | The request failed. It is tried again when the dashboard updates. |
 
-Five data sources are declared but not connected yet, so their widgets show
+Four data sources are declared but not connected yet, so their widgets show
 **Not connected** with one of these reasons:
 
 | Data source | Reason |
 |---|---|
 | Test voting | Test elections cannot be marked yet. |
-| Voting credentials | Issuing credentials is not recorded yet. |
 | Final testing and lockdown | Final testing and lockdown are not recorded yet. |
 | Attack detections | No attack detection feed is connected. |
 | Helpdesk | No helpdesk system is connected. |

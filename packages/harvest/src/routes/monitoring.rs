@@ -98,6 +98,8 @@ pub struct ListDashboardsInput {
 pub struct DashboardSummary {
     id: String,
     title: String,
+    /// The heading the switcher lists the dashboard under.
+    section: Option<String>,
     requirements: Vec<String>,
     widget_count: usize,
 }
@@ -160,6 +162,7 @@ pub async fn list_dashboards(
         .map(|dashboard| DashboardSummary {
             id: dashboard.id.clone(),
             title: dashboard.title.clone(),
+            section: dashboard.section.clone(),
             requirements: dashboard.requirements.clone(),
             widget_count: dashboard.layout.len(),
         })
@@ -307,7 +310,10 @@ fn sources(settings: Option<&Settings>) -> IndexMap<DataSourceId, SourceView> {
                 }
             }
             let (producer, reason) = match spec.producer {
-                Producer::Available => (ProducerState::Connected, None),
+                // A stand-in counts: its figures carry its notice.
+                Producer::Available | Producer::Interim(_) => {
+                    (ProducerState::Connected, None)
+                }
                 Producer::Pending(reason) => {
                     (ProducerState::NotConnected, Some(reason.to_string()))
                 }
@@ -506,8 +512,7 @@ async fn dashboard_event_days(
         let picks_a_day = widget.selectors.values().any(|selector| {
             selector.options_from == Some(DynamicOptions::EventDays)
         });
-        if !picks_a_day || widget.source.spec().producer != Producer::Available
-        {
+        if !picks_a_day || !widget.source.spec().producer.counts() {
             continue;
         }
         let key = ScopeSelection::default()

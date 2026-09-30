@@ -2,12 +2,12 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
-# Both records of the exercise at once, and each Post's state.
-id: final-testing-lockdown
+id: req-0254
 title: Final testing and lockdown
-description: Status of the final testing and lockdown exercise at each Post.
+description: Posts that finished final testing and were locked down.
+section: Final testing and lockdown
 requirements: [SW-F-0254, SW-F-0255]
-order: 3
+order: 5
 selectors: [region, post]
 layout:
   - {widget: final-testing-lockdown, width: 12}

@@ -12,6 +12,7 @@
 //!
 //! A new data source is therefore a code change, reviewed like one.
 
+use super::payload::Notice;
 use serde::{Deserialize, Serialize};
 use strum_macros::{Display, EnumIter, EnumString};
 
@@ -129,8 +130,17 @@ pub enum Measure {
     Transmitted,
     TransmissionFailed,
     Logins,
+    /// Every failed attempt: those of a valid user and of an unknown
+    /// username together.
     LoginFailures,
+    /// Failed attempts whose username named an account.
+    LoginFailuresValidUser,
+    /// Failed attempts whose username named no account.
+    LoginFailuresUnregistered,
+    /// Completed password resets.
     PasswordResets,
+    /// Forgot-password requests: a new password sent.
+    PasswordResetRequests,
     Detections,
     Issues,
     PendingIssues,
@@ -162,7 +172,10 @@ impl Measure {
             Measure::TransmissionFailed => "Transmission failed",
             Measure::Logins => "Logins",
             Measure::LoginFailures => "Login failures",
+            Measure::LoginFailuresValidUser => "Failed, valid user",
+            Measure::LoginFailuresUnregistered => "Failed, unregistered user",
             Measure::PasswordResets => "Password resets",
+            Measure::PasswordResetRequests => "Password reset requests",
             Measure::Detections => "Detections",
             Measure::Issues => "Issues",
             Measure::PendingIssues => "Pending issues",
@@ -267,7 +280,53 @@ pub enum VoterDimensions {
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum Producer {
     Available,
+    /// Counted by a stand-in rule until the producer it names exists. Every
+    /// payload carries the rule's notice, so a viewer knows how it counts.
+    Interim(InterimRule),
     Pending(PendingProducer),
+}
+
+impl Producer {
+    /// Whether the source is counted at all: by its producer or a stand-in.
+    pub const fn counts(self) -> bool {
+        !matches!(self, Producer::Pending(_))
+    }
+}
+
+/// A stand-in for a producer another part of the platform owns. Its owner
+/// replaces it by writing the same facts from their own record and making
+/// the source [`Producer::Available`]; nothing that reads the facts changes.
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Display, EnumIter,
+)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+#[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
+pub enum InterimRule {
+    /// A voter's credentials count as issued when their password is set
+    /// (D1's proposed answer), read from Keycloak into
+    /// `monitoring_voter.credentials_at`. DEV-ENROLLMENT's credential-issued
+    /// event replaces it by writing that column from the event instead.
+    CredentialsAtPasswordSet,
+}
+
+impl InterimRule {
+    /// The producer this rule stands in for.
+    pub const fn stands_in_for(self) -> PendingProducer {
+        match self {
+            InterimRule::CredentialsAtPasswordSet => {
+                PendingProducer::CredentialIssuedEvent
+            }
+        }
+    }
+
+    /// What every payload counted by this rule says about it.
+    pub const fn notice(self) -> Notice {
+        match self {
+            InterimRule::CredentialsAtPasswordSet => {
+                Notice::CredentialsIssuedWhenPasswordSet
+            }
+        }
+    }
 }
 
 /// A producer another part of the platform has still to deliver. The widget
@@ -430,7 +489,14 @@ impl DataSourceId {
             EnrollmentDecisions => &[M::Approved, M::Disapproved],
             VotingCredentials => &[M::CredentialsIssued],
             VotingEnrollmentActivity => &[M::Approved, M::Voted],
-            AccessSecurity => &[M::Logins, M::LoginFailures, M::PasswordResets],
+            AccessSecurity => &[
+                M::Logins,
+                M::LoginFailures,
+                M::LoginFailuresValidUser,
+                M::LoginFailuresUnregistered,
+                M::PasswordResets,
+                M::PasswordResetRequests,
+            ],
             AttackDetections => &[M::Detections],
             Helpdesk => &[M::Issues],
             PollStatus | FinalTestingLockdown | CountingTransmission => &[],
@@ -473,7 +539,7 @@ impl DataSourceId {
                 VOTER_TEMPLATES,
                 SCOPE,
                 VoterDimensions::Configured,
-                Producer::Pending(PendingProducer::CredentialIssuedEvent),
+                Producer::Interim(InterimRule::CredentialsAtPasswordSet),
             ),
             PollStatus => (
                 CountingUnit::PostsInScope,
@@ -509,7 +575,14 @@ impl DataSourceId {
             ),
             AccessSecurity => (
                 CountingUnit::Attempts,
-                &[M::Logins, M::LoginFailures, M::PasswordResets],
+                &[
+                    M::Logins,
+                    M::LoginFailures,
+                    M::LoginFailuresValidUser,
+                    M::LoginFailuresUnregistered,
+                    M::PasswordResets,
+                    M::PasswordResetRequests,
+                ],
                 &[T::Summary, T::ByGroup, T::Timeseries, T::ByMeasure],
                 POST_SCOPE,
                 VoterDimensions::NotApplicable,

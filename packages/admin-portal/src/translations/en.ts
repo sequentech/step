@@ -2835,7 +2835,7 @@ const englishTranslation = {
                 unknown: "Something went wrong. Try again later.",
             },
             header: {
-                dashboard: "Section",
+                dashboard: "Dashboard",
                 updated: "Updated {{time}} ({{timeZone}})",
                 notUpdated: "Not counted yet",
                 refresh: "every {{seconds}} s",
@@ -2896,6 +2896,8 @@ const englishTranslation = {
                     "Attempts by unregistered usernames belong to no Post, so they are counted for the whole event only.",
                 UNREGISTERED_ATTEMPTS_EXCLUDED:
                     "These figures leave out attempts by unregistered usernames; they are counted for the whole event.",
+                CREDENTIALS_ISSUED_WHEN_PASSWORD_SET:
+                    "Credentials count as issued when the voter's password is set, until the platform records their issue.",
                 CONFIG_NEWER_THAN_SNAPSHOT:
                     "Drawn with the latest settings; the figures are counted with them in the next pass.",
                 CONFIG_AT_SNAPSHOT_UNAVAILABLE:
@@ -2976,7 +2978,10 @@ const englishTranslation = {
                 transmission_failed: "Transmission failed",
                 logins: "Logins",
                 login_failures: "Login failures",
+                login_failures_valid_user: "Failed, valid user",
+                login_failures_unregistered: "Failed, unregistered user",
                 password_resets: "Password resets",
+                password_reset_requests: "Password reset requests",
                 detections: "Detections",
                 issues: "Issues",
                 pending_issues: "Pending issues",

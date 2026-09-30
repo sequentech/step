@@ -1,0 +1,13 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+id: req-0267
+title: Voting activity
+description: Distinct OVs voting for the first time per period.
+section: Enrollment and voting rates
+requirements: [SW-F-0267]
+order: 16
+selectors: [region, post, country]
+layout:
+  - {widget: voting-activity, width: 12}

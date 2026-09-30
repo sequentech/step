@@ -83,7 +83,7 @@ export const Overview: Story = {
         await expect(canvas.getByText("Dashboard preset")).toBeVisible()
         // The update's time in the event's zone, and how often it is asked for.
         await expect(canvas.getByText(/^Updated 8:00 PM\b.* · every 30 s$/)).toBeVisible()
-        await expect(canvas.getByRole("combobox", {name: "Section"})).toHaveTextContent(
+        await expect(canvas.getByRole("combobox", {name: "Dashboard"})).toHaveTextContent(
             "Monitoring overview"
         )
         await expect(
@@ -130,13 +130,15 @@ export const SwitchDashboard: Story = {
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
         await canvas.findByTitle("Poll status chart")
-        await userEvent.click(canvas.getByRole("combobox", {name: "Section"}))
+        await userEvent.click(canvas.getByRole("combobox", {name: "Dashboard"}))
         await userEvent.click(
             await within(document.body).findByRole("option", {name: "Voted vs pre-enrolled"})
         )
         await expect(
             await canvas.findByRole("heading", {level: 2, name: "Voted vs pre-enrolled"})
         ).toBeVisible()
+        // The section it is listed under, above its title.
+        await expect(canvas.getByText("Voter turnout", {selector: "p"})).toBeVisible()
         await expect(canvas.getByText("SW-F-0260, SW-F-0372")).toBeVisible()
         expect(
             graphql.calls.filter(({name}) => name === "MonitoringGetDashboard").at(-1)?.variables

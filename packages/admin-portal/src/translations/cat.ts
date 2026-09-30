@@ -2879,7 +2879,7 @@ const catalanTranslation: TranslationType = {
                 unknown: "Alguna cosa ha fallat. Torneu-ho a provar més tard.",
             },
             header: {
-                dashboard: "Secció",
+                dashboard: "Tauler",
                 updated: "Actualitzat {{time}} ({{timeZone}})",
                 notUpdated: "Encara sense recompte",
                 refresh: "cada {{seconds}} s",
@@ -2941,6 +2941,8 @@ const catalanTranslation: TranslationType = {
                     "Els intents amb noms d'usuari no registrats no pertanyen a cap lloc, de manera que només es compten per a tot l'esdeveniment.",
                 UNREGISTERED_ATTEMPTS_EXCLUDED:
                     "Aquestes xifres no inclouen els intents amb noms d'usuari no registrats; es compten per a tot l'esdeveniment.",
+                CREDENTIALS_ISSUED_WHEN_PASSWORD_SET:
+                    "Les credencials compten com a emeses quan s'estableix la contrasenya del votant, fins que la plataforma en registri l'emissió.",
                 CONFIG_NEWER_THAN_SNAPSHOT:
                     "Dibuixat amb la configuració més recent; les xifres es compten amb ella a la propera passada.",
                 CONFIG_AT_SNAPSHOT_UNAVAILABLE:
@@ -3021,7 +3023,10 @@ const catalanTranslation: TranslationType = {
                 transmission_failed: "Transmissió fallida",
                 logins: "Inicis de sessió",
                 login_failures: "Inicis de sessió fallits",
+                login_failures_valid_user: "Fallits, usuari vàlid",
+                login_failures_unregistered: "Fallits, usuari no registrat",
                 password_resets: "Restabliments de contrasenya",
+                password_reset_requests: "Sol·licituds de restabliment de contrasenya",
                 detections: "Deteccions",
                 issues: "Incidències",
                 pending_issues: "Incidències pendents",

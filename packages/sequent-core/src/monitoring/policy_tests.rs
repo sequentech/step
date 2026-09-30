@@ -134,6 +134,22 @@ fn the_specification_set_is_consistent() {
     assert_accepted(&validate_set(&specification_set()));
 }
 
+// -- sections: where a dashboard sits in the switcher -----------------------
+
+#[test]
+fn a_dashboard_may_name_the_section_it_is_listed_under() {
+    let yaml =
+        REQ_0260.replacen("\ntitle:", "\nsection: Voter turnout\ntitle:", 1);
+    let parsed = parse_dashboard(&yaml);
+    assert_accepted(&parsed.report);
+    assert_eq!(
+        parsed.value.expect("accepted").section.as_deref(),
+        Some("Voter turnout")
+    );
+    let blank = REQ_0260.replacen("\ntitle:", "\nsection: \" \"\ntitle:", 1);
+    assert_refused(&dashboard_report(&blank), Code::InvalidValue, "section");
+}
+
 // -- descriptions: a line under a title, for the reader --------------------
 
 #[test]

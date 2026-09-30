@@ -29,7 +29,7 @@ export const Viewer: Story = {
     play: async ({canvasElement, args}) => {
         const canvas = within(canvasElement)
         await expect(canvas.getByText("COMELEC overseas voting")).toBeVisible()
-        await expect(canvas.getByRole("combobox", {name: "Section"})).toHaveTextContent(
+        await expect(canvas.getByRole("combobox", {name: "Dashboard"})).toHaveTextContent(
             "Monitoring overview"
         )
         // The snapshot's time in the event's zone, not the viewer's.
