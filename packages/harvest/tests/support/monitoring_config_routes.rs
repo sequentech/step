@@ -252,6 +252,20 @@ async fn changes_need_election_event_write_and_an_event_not_locked_down() {
     )
     .await;
     assert_eq!(status, Status::Forbidden, "{body}");
+    // Which dashboard the event shows is part of its configuration too.
+    let (status, body) = call(
+        &client,
+        "/monitoring/set-mode",
+        &event,
+        json!({"mode": "LEGACY"}),
+    )
+    .await;
+    assert_eq!(status, Status::Forbidden, "{body}");
+    assert_eq!(body["extensions"]["code"], "MONITORING_LOCKED_DOWN");
+    let (status, body) =
+        call(&client, "/monitoring/list-config", &event, json!({})).await;
+    assert_eq!(status, Status::Ok, "{body}");
+    assert_eq!(body["mode"], "CONFIGURED", "{body}");
 }
 
 #[rocket::async_test]

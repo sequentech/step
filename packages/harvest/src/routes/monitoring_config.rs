@@ -527,6 +527,8 @@ pub async fn set_dashboard_mode(
     let input = request_body(body)?;
     let event = event_ref(&claims, &input.election_event_id)?;
     let mut client = hasura_client(services).await?;
+    // Which dashboard the event shows is part of its configuration.
+    check_not_locked_down(&mut client, event).await?;
     let outcome = set_mode(
         &mut client,
         services.monitoring_audit.as_ref(),
