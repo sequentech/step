@@ -11,7 +11,7 @@ import socket
 
 import pytest
 
-from conftest import BOARDS, GOLDEN_BOARD_FILES, golden, golden_id, kpi_board, map_board
+from conftest import BOARDS, GOLDEN_BOARD_FILES, golden, golden_id, kpi_board, map_board, unseen_pin_board
 from monitoring_renderer.engine import BoardRefused
 from monitoring_renderer.geo import BUNDLED_URLS, ExternalData, inline_bundled_data
 from monitoring_renderer.svg import clean_svg
@@ -162,7 +162,7 @@ def test_a_board_the_engine_refuses_carries_its_codes(engine):
 
 def test_validate_reports_engine_errors_and_warnings(engine):
     assert engine.validate(golden("comelec/turnout-by-country.json")) == []
-    warnings = engine.validate(golden("campus/polls.json"))
+    warnings = engine.validate(unseen_pin_board())
     assert {(p.severity.value, p.engine_code) for p in warnings} == {
         ("warning", "WARN-CATEGORY-COLOR-PIN-UNSEEN")
     }

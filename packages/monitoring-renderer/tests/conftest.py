@@ -28,6 +28,16 @@ def golden_id(path: Path) -> str:
     return f"{path.parent.name}/{path.name}"
 
 
+def unseen_pin_board() -> dict:
+    """A golden board with a colour pin for a value it never draws, which the engine warns of.
+
+    `build_board` no longer sends such a pin; a board from elsewhere still may.
+    """
+    board = golden("campus/polls.json")
+    board["style"]["charts"]["category_colors"] = {"group": {"values": {"Not stated": "dbt-grays.muted"}}}
+    return board
+
+
 def kpi_board(**extra) -> dict:
     """A small board of the shape `build_board` sends."""
     board = {
