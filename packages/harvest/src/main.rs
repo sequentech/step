@@ -68,6 +68,10 @@ fn build_application_with(
             ],
         )
         .register(
+            "/monitoring",
+            catchers![services::monitoring::monitoring_catcher],
+        )
+        .register(
             "/api/datafix",
             catchers![
                 routes::error_catchers::datafix_invalid_request,

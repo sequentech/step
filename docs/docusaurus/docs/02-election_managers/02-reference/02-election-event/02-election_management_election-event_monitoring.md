@@ -147,14 +147,14 @@ values behind a chart.
 ### Freshness
 
 Figures come from a snapshot, not from a live query. A background job counts
-every configured event about every 30 seconds and stores a new snapshot only
-when something changed. Every widget on the screen shows the same snapshot,
+every configured event at a fixed interval, 30 seconds unless the deployment
+sets another, and stores a new snapshot only when something changed. Every widget on the screen shows the same snapshot,
 and the header's **Updated** time says when it was counted, in the event's
 time zone. Before the first count finishes, the header shows **Not counted
 yet**.
 
-The dashboard checks for a new snapshot every 30 seconds while its browser
-tab is visible, and redraws a widget only when its figures changed. The
+The dashboard checks for a new snapshot at the same interval while its
+browser tab is visible (the header shows it, for example **every 30 s**), and redraws a widget only when its figures changed. The
 number of people watching a dashboard does not change how often the data is
 read.
 
@@ -199,11 +199,18 @@ asks for:
   daily activity is exported from the start time up to, but not including,
   the end time; status and totals as recorded at each hour in the range.
 
-The export uses the snapshot the dashboard shows, with its selectors, so the
-file matches the screen. It runs as a task (Export Monitoring Data in the
-**Tasks** tab), and the file downloads when it is ready. A snapshot stays
-available for export for two hours after a newer one replaces it; after that,
-refresh the dashboard and export again.
+The export uses the snapshot the dashboard shows, with its selectors, and the
+widgets as they were when that snapshot was recorded: a widget saved since
+shows on the dashboard at once, and in exports from the next snapshot. It
+runs as a task (Export Monitoring Data in the **Tasks** tab), and the file
+downloads when it is ready. A snapshot stays available for export for two
+hours after a newer one replaces it; after that, refresh the dashboard and
+export again.
+
+Every widget and query of the export is in the file. A query with nothing to
+show has one row with its name and no figures, with the notice
+`NO_ROWS_IN_RANGE` (activity with no hour in the range) or `NO_ROWS`; a widget
+whose data source is not connected has one row with `NOT_CONNECTED`.
 
 ### What a restricted user sees
 

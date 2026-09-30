@@ -15,7 +15,7 @@ import {
     DialogContentText,
     DialogTitle,
 } from "@mui/material"
-import {DiffView} from "@/components/DiffView"
+import {DiffView, EDiffFormat} from "@/components/DiffView"
 import type {IMonitoringAuthor} from "./types"
 
 export enum EClipboardResult {
@@ -43,9 +43,6 @@ export interface MonitoringConflictDialogProps {
     /** Where "Copy my YAML" writes; the browser clipboard by default. */
     copyText?: (text: string) => Promise<void>
 }
-
-/** DiffView compares JSON; a list of lines keeps the YAML as written, comments included. */
-const asLines = (text: string) => text.split("\n")
 
 const clipboardWrite = (text: string) => {
     if (typeof navigator === "undefined" || !navigator.clipboard) {
@@ -125,8 +122,9 @@ export const MonitoringConflictDialog: React.FC<MonitoringConflictDialogProps> =
                     <DiffView
                         currentTitle={t("monitoring.editor.conflict.saved")}
                         diffTitle={t("monitoring.editor.conflict.mine")}
-                        current={asLines(theirs)}
-                        modify={asLines(mine)}
+                        format={EDiffFormat.TEXT}
+                        current={theirs}
+                        modify={mine}
                         fetchAllPublishChanges={noMorePages}
                     />
                 )}

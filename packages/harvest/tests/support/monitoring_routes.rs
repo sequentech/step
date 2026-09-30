@@ -12,6 +12,7 @@ use crate::route_services::{json, post, Services};
 use crate::test_claims::Claims;
 use rocket::http::Status;
 use rocket::local::asynchronous::Client;
+use sequent_core::monitoring::cadence::Cadence;
 use sequent_core::types::permissions::Permissions;
 use serde_json::{json, Value};
 use uuid::Uuid;
@@ -105,7 +106,12 @@ async fn an_event_never_configured_shows_the_legacy_dashboard() {
     assert_eq!(status, Status::Ok, "{body}");
     assert_eq!(
         body,
-        json!({"mode": "LEGACY", "dashboards": [], "snapshot": null})
+        json!({
+            "mode": "LEGACY",
+            "dashboards": [],
+            "snapshot": null,
+            "refresh_seconds": 30,
+        })
     );
 
     let (status, body) = render(
@@ -181,6 +187,47 @@ async fn a_configured_event_lists_its_dashboards_and_draws_a_widget_once() {
         assert_eq!(body["snapshot_revision"], 7);
     }
     assert_eq!(services.monitoring_renderer.renders(), 1);
+}
+
+#[rocket::async_test]
+async fn the_dashboards_report_the_snapshot_interval_they_are_counted_at() {
+    let services = Services::on_test_database()
+        .await
+        .with_monitoring_cadence(Cadence::parse(Some("90"), None))
+        .with_monitoring_snapshots(MemorySnapshots::at(7, ScopeRead::Empty));
+    let client = services.client().await;
+    let event = rows::event(&services.hasura).await;
+    event.election(&services.hasura).await;
+    configure(&client, &event).await;
+
+    let (status, body) = json(
+        post(
+            &client,
+            "/monitoring/list-dashboards",
+            &viewer(&event),
+            &json!({"election_event_id": event.election_event_id}),
+        )
+        .await,
+    )
+    .await;
+    assert_eq!(status, Status::Ok, "{body}");
+    assert_eq!(body["refresh_seconds"], 90, "{body}");
+
+    let (status, body) = json(
+        post(
+            &client,
+            "/monitoring/get-dashboard",
+            &viewer(&event),
+            &json!({
+                "election_event_id": event.election_event_id,
+                "dashboard_id": "overview",
+            }),
+        )
+        .await,
+    )
+    .await;
+    assert_eq!(status, Status::Ok, "{body}");
+    assert_eq!(body["refresh_seconds"], 90, "{body}");
 }
 
 #[rocket::async_test]
@@ -490,9 +537,16 @@ async fn the_figures_windmill_counted_are_drawn_for_exactly_the_viewers_election
     assert_eq!(first(&body, "voted"), 1, "{body}");
 }
 
-/// Saves `key` with its title changed, as a configurator; the generation
-/// the save made.
-async fn retitle(client: &Client, event: &Event, key: &str) -> i64 {
+/// Saves the `kind` document `key` with `from` replaced by `to`, as a
+/// configurator; the generation the save made.
+async fn resave(
+    client: &Client,
+    event: &Event,
+    kind: &str,
+    key: &str,
+    from: &str,
+    to: &str,
+) -> i64 {
     let (status, body) = json(
         post(
             client,
@@ -500,7 +554,7 @@ async fn retitle(client: &Client, event: &Event, key: &str) -> i64 {
             &configurator(event),
             &json!({
                 "election_event_id": event.election_event_id,
-                "kind": "widget",
+                "kind": kind,
                 "key": key,
             }),
         )
@@ -509,8 +563,8 @@ async fn retitle(client: &Client, event: &Event, key: &str) -> i64 {
     .await;
     assert_eq!(status, Status::Ok, "{body}");
     let yaml = body["yaml"].as_str().unwrap();
-    let retitled = yaml.replacen("title: ", "title: Renamed ", 1);
-    assert_ne!(retitled, yaml);
+    let changed = yaml.replacen(from, to, 1);
+    assert_ne!(changed, yaml);
     let (status, body) = json(
         post(
             client,
@@ -518,9 +572,9 @@ async fn retitle(client: &Client, event: &Event, key: &str) -> i64 {
             &configurator(event),
             &json!({
                 "election_event_id": event.election_event_id,
-                "kind": "widget",
+                "kind": kind,
                 "key": key,
-                "yaml": retitled,
+                "yaml": changed,
                 "expected_revision": body["revision"],
                 "change": "UPSERT",
             }),
@@ -532,13 +586,62 @@ async fn retitle(client: &Client, event: &Event, key: &str) -> i64 {
     body["generation"].as_i64().unwrap()
 }
 
+/// Saves the widget `key` with its title and its first chart's label
+/// changed: what it shows, not what it reads.
+async fn retitle(client: &Client, event: &Event, key: &str) -> i64 {
+    resave(client, event, "widget", key, "title: ", "title: Renamed ").await;
+    resave(client, event, "widget", key, "label: ", "label: Renamed ").await
+}
+
+async fn reset_to(client: &Client, event: &Event, preset_id: &str) {
+    let (status, body) = json(
+        post(
+            client,
+            "/monitoring/reset-to-preset",
+            &configurator(event),
+            &json!({
+                "election_event_id": event.election_event_id,
+                "preset_id": preset_id,
+            }),
+        )
+        .await,
+    )
+    .await;
+    assert_eq!(status, Status::Ok, "{body}");
+}
+
+async fn settings_revision(client: &Client, event: &Event) -> i32 {
+    let (status, body) = json(
+        post(
+            client,
+            "/monitoring/get-config",
+            &configurator(event),
+            &json!({
+                "election_event_id": event.election_event_id,
+                "kind": "settings",
+                "key": "settings",
+            }),
+        )
+        .await,
+    )
+    .await;
+    assert_eq!(status, Status::Ok, "{body}");
+    body["revision"].as_i64().unwrap() as i32
+}
+
+/// The last board the renderer drew.
+fn last_drawn(services: &Services) -> String {
+    let boards = services.monitoring_renderer.boards();
+    serde_json::to_string(&boards.last().expect("a drawing").board).unwrap()
+}
+
 fn set_head(services: &Services, change: impl FnOnce(&mut SnapshotHead)) {
     let mut head = services.monitoring_snapshots.head.lock().unwrap();
     change(head.as_mut().expect("a live run"));
 }
 
 #[rocket::async_test]
-async fn a_widget_is_drawn_with_the_configuration_its_snapshot_was_counted_under(
+async fn a_saved_presentation_change_is_drawn_at_once_from_the_figures_already_counted(
 ) {
     let services = Services::on_test_database()
         .await
@@ -558,10 +661,12 @@ async fn a_widget_is_drawn_with_the_configuration_its_snapshot_was_counted_under
     .await;
     assert_eq!(body["state"], "RENDERED", "{status} {body}");
     assert_eq!(services.monitoring_renderer.renders(), 1);
+    assert!(!last_drawn(&services).contains("Renamed"));
 
-    // Saved after the run was counted: the run still shows what it was
-    // counted under, so the drawing is the one already made.
-    let generation = retitle(&client, &event, "turnout-summary").await;
+    // Saved after the run was counted, under the same settings: what the
+    // run counted is what the widget reads, so it is drawn as saved now,
+    // not after the next run.
+    retitle(&client, &event, "turnout-summary").await;
     let (_, body) = render(
         &client,
         &viewer(&event),
@@ -572,10 +677,57 @@ async fn a_widget_is_drawn_with_the_configuration_its_snapshot_was_counted_under
     .await;
     assert_eq!(body["state"], "RENDERED", "{body}");
     assert_eq!(body["notices"], json!([]), "{body}");
+    assert_eq!(body["snapshot_revision"], 7, "{body}");
+    assert_eq!(services.monitoring_renderer.renders(), 2);
+    assert!(last_drawn(&services).contains("Renamed"), "{body}");
+}
+
+#[rocket::async_test]
+async fn after_the_settings_change_a_widget_is_drawn_as_its_run_was_counted_until_the_next_run(
+) {
+    let services = Services::on_test_database()
+        .await
+        .with_monitoring_snapshots(MemorySnapshots::at(7, ScopeRead::Empty));
+    let client = services.client().await;
+    let event = rows::event(&services.hasura).await;
+    event.election(&services.hasura).await;
+    configure(&client, &event).await;
+    let (_, body) = render(
+        &client,
+        &viewer(&event),
+        &event,
+        "turnout-summary",
+        json!({}),
+    )
+    .await;
+    assert_eq!(body["state"], "RENDERED", "{body}");
     assert_eq!(services.monitoring_renderer.renders(), 1);
 
-    // The next run is counted under the save.
-    set_head(&services, |head| head.config_generation = generation);
+    // The settings decide what a run counts, and only a reset changes
+    // them: the run in hand was counted under the old ones, so the widget
+    // is drawn as it was then.
+    reset_to(&client, &event, "campus").await;
+    reset_to(&client, &event, "comelec").await;
+    let generation = retitle(&client, &event, "turnout-summary").await;
+    let settings_revision = settings_revision(&client, &event).await;
+    assert!(settings_revision > 1, "{settings_revision}");
+    let (_, body) = render(
+        &client,
+        &viewer(&event),
+        &event,
+        "turnout-summary",
+        json!({}),
+    )
+    .await;
+    assert_eq!(body["state"], "RENDERED", "{body}");
+    assert_eq!(body["notices"], json!([]), "{body}");
+    assert_eq!(services.monitoring_renderer.renders(), 1, "{body}");
+
+    // The next run is counted under them.
+    set_head(&services, |head| {
+        head.config_generation = generation;
+        head.settings_revision = settings_revision;
+    });
     let (_, body) = render(
         &client,
         &viewer(&event),
@@ -586,6 +738,7 @@ async fn a_widget_is_drawn_with_the_configuration_its_snapshot_was_counted_under
     .await;
     assert_eq!(body["state"], "RENDERED", "{body}");
     assert_eq!(services.monitoring_renderer.renders(), 2);
+    assert!(last_drawn(&services).contains("Renamed"), "{body}");
 }
 
 #[rocket::async_test]
@@ -598,7 +751,11 @@ async fn a_run_whose_configuration_is_gone_is_drawn_with_the_live_one_and_says_s
     let event = rows::event(&services.hasura).await;
     event.election(&services.hasura).await;
     configure(&client, &event).await;
-    set_head(&services, |head| head.config_generation = 99);
+    // Counted under other settings, at a generation no longer kept.
+    set_head(&services, |head| {
+        head.config_generation = 99;
+        head.settings_revision = 0;
+    });
 
     let (status, body) = render(
         &client,
@@ -692,6 +849,33 @@ async fn a_count_the_settings_changed_is_pending_until_the_next_run() {
     assert_eq!(status, Status::Ok, "{body}");
     assert_eq!(body["state"], "INVALID", "{body}");
     assert_eq!(body["diagnostics"][0]["code"], "not_counted", "{body}");
+}
+
+#[rocket::async_test]
+async fn a_pinned_run_never_issued_is_not_found_and_one_pruned_is_gone() {
+    let services = Services::on_test_database()
+        .await
+        .with_monitoring_snapshots(MemorySnapshots::at(7, ScopeRead::Empty));
+    let client = services.client().await;
+    let event = rows::event(&services.hasura).await;
+    event.election(&services.hasura).await;
+    configure(&client, &event).await;
+
+    for (revision, status, code) in [
+        (3, Status::Gone, "MONITORING_SNAPSHOT_PRUNED"),
+        (999999, Status::NotFound, "MONITORING_NOT_FOUND"),
+    ] {
+        let (answered, body) = render(
+            &client,
+            &viewer(&event),
+            &event,
+            "turnout-summary",
+            json!({"snapshot_revision": revision}),
+        )
+        .await;
+        assert_eq!(answered, status, "{revision}: {body}");
+        assert_eq!(body["extensions"]["code"], code, "{revision}: {body}");
+    }
 }
 
 #[rocket::async_test]
@@ -795,4 +979,99 @@ async fn a_drawn_widget_returns_every_querys_table_in_its_order() {
         Some(4),
         "{body}"
     );
+}
+
+const MONITORING_ROUTES: [&str; 11] = [
+    "/monitoring/list-dashboards",
+    "/monitoring/get-dashboard",
+    "/monitoring/render-widget",
+    "/monitoring/validate-config",
+    "/monitoring/save-config",
+    "/monitoring/reset-to-preset",
+    "/monitoring/list-presets",
+    "/monitoring/set-mode",
+    "/monitoring/list-config",
+    "/monitoring/get-config",
+    "/monitoring/export",
+];
+
+/// POSTs `body` as it is, JSON or not.
+async fn post_raw(
+    client: &Client,
+    path: &'static str,
+    claims: Option<&Claims>,
+    body: &str,
+) -> (Status, Value) {
+    use crate::route_services::bearer;
+    use rocket::http::ContentType;
+    let mut request = client
+        .post(path)
+        .header(ContentType::JSON)
+        .body(body.to_string());
+    if let Some(claims) = claims {
+        request = request.header(bearer(claims));
+    }
+    json(request.dispatch().await).await
+}
+
+#[rocket::async_test]
+async fn a_malformed_request_is_refused_as_every_monitoring_refusal_is() {
+    let client = Services::without_database().client().await;
+    let claims = Claims::new("00000000-0000-0000-0000-00000000000a", "admin")
+        .username("admin")
+        .roles([
+            Permissions::MONITORING_VIEW,
+            Permissions::MONITORING_CONFIGURE,
+            Permissions::ELECTION_EVENT_WRITE,
+        ]);
+    for path in MONITORING_ROUTES {
+        let mut malformed = vec![
+            ("{not json", Status::BadRequest),
+            (r#"{"election_event_id": 7}"#, Status::UnprocessableEntity),
+        ];
+        // The presets are the same for every event, so it may be left out.
+        if path != "/monitoring/list-presets" {
+            malformed.push(("{}", Status::UnprocessableEntity));
+        }
+        for (body, expected) in malformed {
+            let (status, answer) =
+                post_raw(&client, path, Some(&claims), body).await;
+            assert_eq!(status, expected, "{path} {body}: {answer}");
+            assert_eq!(
+                answer["extensions"]["code"], "MONITORING_BAD_REQUEST",
+                "{path} {body}: {answer}"
+            );
+            assert!(
+                answer["message"].as_str().is_some_and(|m| !m.is_empty()),
+                "{path} {body}: {answer}"
+            );
+        }
+    }
+    // A missing field is named, so the portal can say what was wrong.
+    let (_, answer) =
+        post_raw(&client, "/monitoring/get-config", Some(&claims), "{}").await;
+    assert!(
+        answer["message"]
+            .as_str()
+            .unwrap()
+            .contains("election_event_id"),
+        "{answer}"
+    );
+
+    // What fails before a route runs keeps the same shape.
+    let (status, answer) =
+        post_raw(&client, "/monitoring/get-config", None, "{}").await;
+    assert_eq!(status, Status::Unauthorized, "{answer}");
+    assert_eq!(answer["extensions"]["code"], "Unauthorized", "{answer}");
+    let (status, answer) =
+        post_raw(&client, "/monitoring/no-such-route", Some(&claims), "{}")
+            .await;
+    assert_eq!(status, Status::NotFound, "{answer}");
+    assert_eq!(answer["extensions"]["code"], "MONITORING_NOT_FOUND");
+
+    // Other routes answer as they did.
+    let (status, answer) =
+        post_raw(&client, "/get-roles", Some(&claims), "{not json").await;
+    assert_eq!(status, Status::BadRequest, "{answer}");
+    assert_eq!(answer, json!({"message": "Unknown Error"}));
 }

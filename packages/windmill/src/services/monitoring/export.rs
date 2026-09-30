@@ -688,6 +688,25 @@ const TRAILING: [(&str, ExportColumnType); 4] = [
 /// The column of a series row that says when its bucket starts, in UTC.
 const BUCKET_UTC: &str = "bucket_utc";
 
+/// Why a query's only row in the file carries no figures: so a query, or a
+/// whole widget, with nothing to show still appears.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EmptyQuery {
+    /// The query has no rows at all.
+    NoRows,
+    /// A series with no bucket in the range asked for.
+    NoRowsInRange,
+}
+
+impl EmptyQuery {
+    fn notice(self) -> &'static str {
+        match self {
+            EmptyQuery::NoRows => "NO_ROWS",
+            EmptyQuery::NoRowsInRange => "NO_ROWS_IN_RANGE",
+        }
+    }
+}
+
 /// A query's column named like one of the table's own, renamed.
 fn own_name(name: &str) -> String {
     let fixed = LEADING.iter().chain(TRAILING.iter());
@@ -706,7 +725,10 @@ fn instant(at: DateTime<Utc>) -> String {
 /// `scope`), `widget_id`, `query`, `row` (from 1 within the query), every
 /// query's columns in the order first met, then `range_from` and `range_to`
 /// (on series rows, when a range is given), `ignored_selectors` and
-/// `notice`. A query without a column leaves it null.
+/// `notice`. A query without a column leaves it null. A query with no rows
+/// has one row with no `row` number and no figures, whose notice says
+/// `NO_ROWS_IN_RANGE` (a series, when a range is given) or `NO_ROWS`, as a
+/// widget not connected has one saying `NOT_CONNECTED`.
 pub fn export_table(data: &ExportData) -> ExportTable {
     let mut shared: IndexMap<String, ExportColumnType> = IndexMap::new();
     for widget in &data.widgets {
@@ -747,13 +769,34 @@ pub fn export_table(data: &ExportData) -> ExportTable {
             }
             WidgetData::Evaluated { queries } => {
                 for (name, result) in queries {
-                    let notices: Vec<String> =
-                        result.notices.iter().map(ToString::to_string).collect();
-                    let notice = text(Some(notices.join("; ")).filter(|x| !x.is_empty()));
                     let series = result
                         .columns
                         .iter()
                         .any(|column| column.name == BUCKET_UTC);
+                    let empty = result.rows.is_empty().then(|| {
+                        if series && (data.from.is_some() || data.to.is_some()) {
+                            EmptyQuery::NoRowsInRange
+                        } else {
+                            EmptyQuery::NoRows
+                        }
+                    });
+                    let notices: Vec<String> = empty
+                        .map(|empty| empty.notice().to_string())
+                        .into_iter()
+                        .chain(result.notices.iter().map(ToString::to_string))
+                        .collect();
+                    let notice = text(Some(notices.join("; ")).filter(|x| !x.is_empty()));
+                    if empty.is_some() {
+                        let mut row = blank();
+                        row[4] = Value::String(name.clone());
+                        if series {
+                            row[width - 4] = range_from.clone();
+                            row[width - 3] = range_to.clone();
+                        }
+                        row[width - 1] = notice;
+                        rows.push(row);
+                        continue;
+                    }
                     let places: Vec<usize> = result
                         .columns
                         .iter()

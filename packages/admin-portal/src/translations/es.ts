@@ -2860,6 +2860,7 @@ const spanishTranslation: TranslationType = {
                 lockedDown: "El evento electoral está bloqueado, así que esto no se puede cambiar.",
                 notFound: "Este panel o widget ya no está configurado. Recargue la página.",
                 badRequest: "No se aceptó la solicitud. Recargue la página e inténtelo de nuevo.",
+                conflict: "Otra persona guardó un cambio antes. Recargue e inténtelo de nuevo.",
                 invalid: "Algunos valores de la exportación no se aceptan.",
                 unknown: "Algo ha fallado. Inténtelo más tarde.",
             },
@@ -2923,6 +2924,10 @@ const spanishTranslation: TranslationType = {
                     "Los intentos con nombres de usuario no registrados no pertenecen a ningún puesto, por lo que solo se cuentan para todo el evento.",
                 UNREGISTERED_ATTEMPTS_EXCLUDED:
                     "Estas cifras no incluyen los intentos con nombres de usuario no registrados; se cuentan para todo el evento.",
+                CONFIG_NEWER_THAN_SNAPSHOT:
+                    "Dibujado con la configuración más reciente; las cifras se cuentan con ella en la próxima pasada.",
+                CONFIG_AT_SNAPSHOT_UNAVAILABLE:
+                    "Dibujado con la configuración actual: la configuración con la que se contaron las cifras ya no se conserva.",
             },
             unavailable: {
                 notConnected: "No conectado · {{reason}}",

@@ -18,8 +18,9 @@ use crate::services::dependencies::HarvestServices;
 use crate::services::monitoring::{
     config_at_snapshot, dashboard_theme_id, dimension_label, draft_revision,
     draft_theme, draft_widget, draw_widget, election_region, hasura_client,
-    live_config, revision_of, viewer, Draft, DrawPlan, MonitoringError,
-    MonitoringResult, RenderResponse, SnapshotConfig, SnapshotView, Viewer,
+    live_config, pinned_snapshot, request_body, revision_of, viewer, Draft,
+    DrawPlan, MonitoringBody, MonitoringError, MonitoringResult,
+    RenderResponse, SnapshotConfig, SnapshotView, Viewer,
 };
 use indexmap::IndexMap;
 use rocket::http::Status;
@@ -106,17 +107,25 @@ pub struct ListDashboardsOutput {
     mode: DashboardMode,
     dashboards: Vec<DashboardSummary>,
     snapshot: Option<SnapshotView>,
+    /// Seconds between two snapshot passes: how often a dashboard asks for
+    /// new figures.
+    refresh_seconds: u64,
+}
+
+/// Seconds between two snapshot passes, as this Harvest is configured.
+fn refresh_seconds(services: &HarvestServices) -> u64 {
+    services.monitoring_cadence.snapshot_interval.seconds
 }
 
 #[instrument(skip(claims, services))]
 #[post("/monitoring/list-dashboards", format = "json", data = "<body>")]
 pub async fn list_dashboards(
-    body: Json<ListDashboardsInput>,
+    body: MonitoringBody<'_, ListDashboardsInput>,
     claims: JwtClaims,
     services: &State<HarvestServices>,
 ) -> MonitoringResult<Json<ListDashboardsOutput>> {
     authorize_monitoring(&claims, vec![Permissions::MONITORING_VIEW])?;
-    let input = body.into_inner();
+    let input = request_body(body)?;
     let (viewer, live) = viewer_and_config(
         services,
         &claims,
@@ -129,6 +138,7 @@ pub async fn list_dashboards(
             mode: DashboardMode::Legacy,
             dashboards: vec![],
             snapshot: None,
+            refresh_seconds: refresh_seconds(services),
         }));
     };
     let mut dashboards: Vec<_> =
@@ -157,6 +167,7 @@ pub async fn list_dashboards(
         mode: live.mode,
         dashboards,
         snapshot,
+        refresh_seconds: refresh_seconds(services),
     }))
 }
 
@@ -254,6 +265,9 @@ pub struct GetDashboardOutput {
     /// The days with activity, `YYYY-MM-DD` in the settings' time zone,
     /// oldest first: the options of a widget's Day selector.
     event_days: Vec<String>,
+    /// Seconds between two snapshot passes: how often the dashboard asks
+    /// for new figures.
+    refresh_seconds: u64,
 }
 
 fn json_of<T: Serialize>(value: &T) -> MonitoringResult<Value> {
@@ -298,12 +312,12 @@ fn sources(settings: Option<&Settings>) -> IndexMap<DataSourceId, SourceView> {
 #[instrument(skip(claims, services))]
 #[post("/monitoring/get-dashboard", format = "json", data = "<body>")]
 pub async fn get_dashboard(
-    body: Json<GetDashboardInput>,
+    body: MonitoringBody<'_, GetDashboardInput>,
     claims: JwtClaims,
     services: &State<HarvestServices>,
 ) -> MonitoringResult<Json<GetDashboardOutput>> {
     authorize_monitoring(&claims, vec![Permissions::MONITORING_VIEW])?;
-    let input = body.into_inner();
+    let input = request_body(body)?;
     let (viewer, live) = viewer_and_config(
         services,
         &claims,
@@ -452,6 +466,7 @@ pub async fn get_dashboard(
         sources: sources(settings),
         snapshot: snapshot.as_ref().map(SnapshotView::from),
         event_days,
+        refresh_seconds: refresh_seconds(services),
     }))
 }
 
@@ -550,11 +565,11 @@ pub struct RenderWidgetInput {
 #[instrument(skip(claims, services))]
 #[post("/monitoring/render-widget", format = "json", data = "<body>")]
 pub async fn render_widget(
-    body: Json<RenderWidgetInput>,
+    body: MonitoringBody<'_, RenderWidgetInput>,
     claims: JwtClaims,
     services: &State<HarvestServices>,
 ) -> MonitoringResult<Json<RenderResponse>> {
-    let input = body.into_inner();
+    let input = request_body(body)?;
     let draft = input.draft.clone().unwrap_or_default();
     let drafting = draft.widget_yaml.is_some() || draft.theme_yaml.is_some();
     let mut permissions = vec![Permissions::MONITORING_VIEW];
@@ -583,21 +598,15 @@ pub async fn render_widget(
         ));
     };
     let snapshot = match input.snapshot_revision {
-        Some(revision) => {
-            let head = services
-                .monitoring_snapshots
-                .complete(viewer.event, revision)
-                .await
-                .map_err(MonitoringError::internal)?;
-            if head.is_none() {
-                return Err(MonitoringError::new(
-                    Status::Gone,
-                    "MONITORING_SNAPSHOT_PRUNED",
-                    "That snapshot is no longer kept.",
-                ));
-            }
-            head
-        }
+        Some(revision) => Some(
+            pinned_snapshot(
+                services,
+                viewer.event,
+                revision,
+                "That snapshot is no longer kept.",
+            )
+            .await?,
+        ),
         None => services
             .monitoring_snapshots
             .live(viewer.event)

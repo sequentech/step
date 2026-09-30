@@ -4,11 +4,7 @@
 import React from "react"
 import {Button, Stack, Typography} from "@mui/material"
 import {useTranslation} from "react-i18next"
-import {
-    MONITORING_DEFAULT_REFRESH_MS,
-    type MonitoringDashboardSummary,
-    type MonitoringSnapshot,
-} from "./types"
+import {type MonitoringDashboardSummary, type MonitoringSnapshot} from "./types"
 import {formatDateTime} from "./lib/format"
 import {MonitoringSwitcher} from "./MonitoringSwitcher"
 
@@ -22,13 +18,15 @@ export interface MonitoringHeaderProps {
     requirements: string[]
     snapshot: MonitoringSnapshot | null
     timeZone: string
+    /** How often the dashboard asks for new figures. */
+    refreshMs: number
     /** Absent while there is no snapshot to export. */
     onExport?: () => void
     /** Given only to viewers who may configure. */
     onEditDashboard?: () => void
 }
 
-/** {dashboard} ▾ · {n} widgets · {requirement IDs} · Updated {time} · every 30 s · Export · Edit dashboard */
+/** {dashboard} ▾ · {n} widgets · {requirement IDs} · Updated {time} · every {n} s · Export · Edit dashboard */
 export function MonitoringHeader({
     title,
     dashboards,
@@ -38,6 +36,7 @@ export function MonitoringHeader({
     requirements,
     snapshot,
     timeZone,
+    refreshMs,
     onExport,
     onEditDashboard,
 }: MonitoringHeaderProps) {
@@ -50,7 +49,7 @@ export function MonitoringHeader({
                   time: formatDateTime(snapshot.as_of, timeZone, i18n.language),
               })
             : t("monitoring.header.notUpdated"),
-        t("monitoring.header.refresh", {seconds: MONITORING_DEFAULT_REFRESH_MS / 1000}),
+        t("monitoring.header.refresh", {seconds: Math.round(refreshMs / 1000)}),
     ].filter(Boolean)
     return (
         <Stack spacing={1}>

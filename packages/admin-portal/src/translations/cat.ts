@@ -2873,6 +2873,8 @@ const catalanTranslation: TranslationType = {
                     "Aquest tauler o giny ja no està configurat. Torneu a carregar la pàgina.",
                 badRequest:
                     "No s'ha acceptat la sol·licitud. Torneu a carregar la pàgina i torneu-ho a provar.",
+                conflict:
+                    "Una altra persona ha desat un canvi abans. Torneu a carregar i torneu-ho a provar.",
                 invalid: "Alguns valors de l'exportació no s'accepten.",
                 unknown: "Alguna cosa ha fallat. Torneu-ho a provar més tard.",
             },
@@ -2936,6 +2938,10 @@ const catalanTranslation: TranslationType = {
                     "Els intents amb noms d'usuari no registrats no pertanyen a cap lloc, de manera que només es compten per a tot l'esdeveniment.",
                 UNREGISTERED_ATTEMPTS_EXCLUDED:
                     "Aquestes xifres no inclouen els intents amb noms d'usuari no registrats; es compten per a tot l'esdeveniment.",
+                CONFIG_NEWER_THAN_SNAPSHOT:
+                    "Dibuixat amb la configuració més recent; les xifres es compten amb ella a la propera passada.",
+                CONFIG_AT_SNAPSHOT_UNAVAILABLE:
+                    "Dibuixat amb la configuració actual: la configuració amb què es van comptar les xifres ja no es conserva.",
             },
             unavailable: {
                 notConnected: "No connectat · {{reason}}",
