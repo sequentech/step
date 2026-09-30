@@ -18,8 +18,15 @@ Follow-ups of the Scanovate on-premise integration. See
 - [x] Check that Liveness Plus reads its config from `/app/config`. Our mount
       replaces the whole directory, including the image's `default_ui.json`
       and `locales/default`.
+- [x] Move Face Match and Valkey to their own `scanovate-face-match` compose
+      profile, so the liveness services start without ECR access.
 - [ ] Run the smoke tests of the guide: `/alive`, the liveness UI with a
       camera, and `GET /facematch1N/get_groups` with `x-company-id: sequent-dev`.
+- [ ] Try the flow from Keycloak with the mock server
+      ("Trying the flow from Keycloak" in the guide).
+- [ ] Check that no service, nor the liveness client in the browser, sends
+      anything outside our network (e.g. analytics): run the profile on a
+      network without internet access, and watch the browser's requests.
 - [x] Check whether any container needs `security_opt: [seccomp=unconfined]`:
       none of the liveness ones do. Idle, PAD takes ~5.4 GB, IAD ~2.9 GB and
       Liveness Plus ~0.5 GB, so 14 GB is enough without Face Match.
@@ -27,6 +34,10 @@ Follow-ups of the Scanovate on-premise integration. See
       it returns the `sequent` texts and the `sequent_ui` theme.
 - [ ] Get the Face Match request and response schemas from its OpenAPI
       description (`/docs` or `/openapi.json`), and document them.
+- [ ] Check whether the Face Match image also serves a 1:1 API, like B-Trust's
+      standalone `POST /face_match` (`SUPPORT_1_TO_MANY` defaults to `false`,
+      which suggests it does), and whether it finds the portrait in a photo of
+      the whole ID.
 - [ ] Confirm whether `DELETE /delete_group` deletes the templates of the
       group.
 
@@ -96,6 +107,22 @@ Agreed design:
       `insert_image`), and decide how company ids and groups map to tenants and
       election events.
 - [ ] Delete Face Match templates when voter data is deleted.
+- [ ] Match the liveness picture against the ID portrait with Face Match (1:1),
+      so the voter's face doesn't go to B-Trust, and drop the
+      `biometric_match` rule for those realms.
+
+## Keeping data in our network
+
+With the delivered services, only liveness and face matching run on our
+premises. OCR and document authenticity stay in B-Trust, so the ID photos
+leave our network.
+
+- [ ] Ask Scanovate whether they ship OCR and document authenticity
+      (`document_liveness_plus`) on premise.
+- [ ] Ask Scanovate whether a B-Trust flow can run only OCR and document
+      authenticity on uploaded ID photos, without its own liveness and face
+      match.
+- [ ] Decide whether realms that need it use `save-option` `do_not_save`.
 - [ ] Extend the e2e mock server with a fake Liveness Plus (UI posting
       `done` and the callbacks), so the flow can be tested end to end without
       the Scanovate images.

@@ -150,7 +150,7 @@ count as a failed verification.
 Some design decisions to be aware of:
 
 - **Needs the `sequent-ui` login theme.** The capture page is part of the
-  React login theme (`packages/keycloak-ui`). The authenticator also ships a
+  React login themes (`packages/keycloak-ui`), e.g. `sequent-ui-voting`. The authenticator also ships a
   FreeMarker `scanovate-capture.ftl`, but it only tells the voter that the step
   needs that theme (`scanovateCaptureThemeRequired`). Only use `embedded` in
   realms whose login theme is `sequent-ui`.
@@ -263,6 +263,15 @@ sequenceDiagram
   proxy lets Keycloak's origin frame it.
 - **Language.** The iframe asks for the voter's language if it's listed in
   `liveness-languages`, and the service default otherwise.
+- **What leaves our network.** The liveness check runs on our own
+  infrastructure, but the photos of the ID and the liveness picture still go to
+  B-Trust, for OCR, the document authenticity check and the match against the
+  ID. See
+  [What stays in our network](scanovate_on_premise_guide.md#what-stays-in-our-network).
+
+To try it in the dev container, with the mock server standing in for B-Trust,
+see
+[Trying the flow from Keycloak](scanovate_on_premise_guide.md#trying-the-flow-from-keycloak).
 
 ## Configuration
 
