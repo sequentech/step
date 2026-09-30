@@ -642,7 +642,7 @@ mod tests {
     fn reenabling_a_voter_with_only_discarded_internet_ballots_is_allowed() {
         // A release resets the voted-channel attribute right after the
         // discard, but as a separate Keycloak write: if that write fails the
-        // attribute stays "Internet" with no active ballot behind it —
+        // attribute may remain "Internet" with no active ballot behind it —
         // re-enable must key off the live `VoterCastVoteState`, not this stale
         // attribute, or a fully-resolved (discarded) voter could never be
         // re-enabled.
