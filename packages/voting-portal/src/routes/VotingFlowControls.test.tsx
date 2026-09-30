@@ -382,7 +382,7 @@ describe("Confirmation ballot locator links", () => {
         const {router} = renderRoute(<ConfirmationScreen />, "confirmation")
 
         const locatorUrl = `${window.location.origin}${ELECTION_PATH}/ballot-locator/${BALLOT_ID}${search}`
-        for (const link of screen.getAllByTestId("ballot-id")) {
+        for (const link of screen.getAllByRole("link", {name: new RegExp(BALLOT_ID.slice(0, 8))})) {
             expect(link).toHaveAttribute("href", locatorUrl)
             if (kiosk) {
                 expect(link).not.toHaveAttribute("target")
@@ -403,7 +403,9 @@ describe("Confirmation ballot locator links", () => {
             },
         })
         if (kiosk) {
-            for (const link of screen.getAllByTestId("ballot-id")) {
+            for (const link of screen.getAllByRole("link", {
+                name: new RegExp(BALLOT_ID.slice(0, 8)),
+            })) {
                 await userEvent.setup().click(link)
                 expect(router.state.location.pathname + router.state.location.search).toBe(
                     `${ELECTION_PATH}/ballot-locator/${BALLOT_ID}${search}`

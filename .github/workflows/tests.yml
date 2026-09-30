@@ -9,6 +9,10 @@ on:
   push:
     branches: [ 'main', 'release/[0-9]+.[0-9]+' ]
 
+# Avoid intermittent HTTP/2 framing errors while fetching crates.io dependencies.
+env:
+  CARGO_HTTP_MULTIPLEXING: "false"
+
 jobs:
   run-tests:
     name: Run Rust tests
@@ -27,6 +31,8 @@ jobs:
             extra: --features keycloak,default_features
           - service: step-cli
           - service: velvet
+            # PDF tests launch Chrome; serialize them and bound report workers.
+            extra: -- --test-threads=1
           - service: wrap-map-err
 
       fail-fast: false
@@ -67,6 +73,7 @@ jobs:
           DEFAULT_SQL_LIMIT: "20"
           DEFAULT_SQL_BATCH_SIZE: "1000"
           CARGO_BUILD_JOBS: ${{ matrix.build_jobs || 4 }}
+          RAYON_NUM_THREADS: ${{ matrix.service == 'velvet' && '2' || '0' }}
         run: cd packages/${{ matrix.service }} && cargo test ${{ matrix.extra }}
 
   # Windmill has PostgreSQL-backed tests, so it uses a dedicated job with an
