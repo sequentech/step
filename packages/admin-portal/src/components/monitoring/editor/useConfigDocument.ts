@@ -171,8 +171,8 @@ export const useConfigDocument = ({
     }
 
     /**
-     * A save answers with the revision only: who stored it, and when, are
-     * read back, unless a newer revision is shown by then.
+     * Who stored a revision, and when, read back for a Harvest whose save
+     * does not answer with them, unless a newer revision is shown by then.
      */
     const learnAuthor = (saved: number) => {
         api.getConfig({kind, key, revision: saved}).then(
@@ -210,7 +210,7 @@ export const useConfigDocument = ({
                     createdAt: outcome.created_at ?? new Date().toISOString(),
                 })
                 setExpected(outcome.revision)
-                learnAuthor(outcome.revision)
+                if (!outcome.author || !outcome.created_at) learnAuthor(outcome.revision)
                 const saved = t(messages.saved, {revision: outcome.revision})
                 if (outcome.warnings.length) {
                     controller.setServerProblems(outcome.warnings, sent)
