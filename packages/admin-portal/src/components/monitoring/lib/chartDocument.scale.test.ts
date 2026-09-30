@@ -58,9 +58,14 @@ function bigSvg(bytes: number): {svg: string; rects: number; height: number} {
 
 const count = (text: string, pattern: RegExp) => text.match(pattern)?.length ?? 0
 
+// Larger than any chart the renderer draws for an election (about 710 KB), and
+// small enough for jsdom: its DOM for a 5 MB chart alone takes 4 GB of heap.
+const MEGABYTES = 1
+
 describe("a large chart", () => {
-    it.each([2, 5])("sanitizes a %i MB chart whole", (megabytes) => {
-        const {svg, rects, height} = bigSvg(megabytes * 1024 * 1024)
+    const {svg, rects, height} = bigSvg(MEGABYTES * 1024 * 1024)
+
+    it(`sanitizes a ${MEGABYTES} MB chart whole`, () => {
         const sanitizeStart = performance.now()
         const clean = sanitizeSvg(svg)
         const sanitizeMs = performance.now() - sanitizeStart
@@ -78,7 +83,6 @@ describe("a large chart", () => {
     })
 
     it("keeps a frame for a chart tens of thousands of px tall to twice the widget height", () => {
-        const {svg, height} = bigSvg(5 * 1024 * 1024)
         // The declared size is far past any screen.
         expect(height).toBeGreaterThan(10_000)
         const {size} = chartDocument({svg, colorScheme: EColorScheme.LIGHT})
