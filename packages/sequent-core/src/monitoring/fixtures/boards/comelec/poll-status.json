@@ -203,13 +203,6 @@
           }
         }
       },
-      "category_colors": {
-        "group": {
-          "values": {
-            "Unknown": "dbt-grays.muted"
-          }
-        }
-      },
       "kpi": {
         "label": {
           "font": {

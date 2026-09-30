@@ -15,6 +15,7 @@ use super::config::{Theme, Widget};
 use indexmap::IndexMap;
 use serde_json::{Map, Value};
 use serde_yaml::Value as Yaml;
+use std::collections::{HashMap, HashSet};
 
 /// The board for `widget`, with `data` keyed by query name.
 pub fn build_board(
@@ -28,7 +29,8 @@ pub fn build_board(
     };
     if let Some(theme) = theme {
         if let Some(style) = &theme.style {
-            let theme_style = to_json(style);
+            let mut theme_style = to_json(style);
+            drop_undrawn_pins(&mut theme_style, &board, data);
             let merged = match board.remove("style") {
                 Some(own) => merge(theme_style, own),
                 None => theme_style,
@@ -58,6 +60,88 @@ pub fn build_board(
         .collect();
     board.insert("queries".into(), Value::Object(queries));
     Value::Object(board)
+}
+
+/// The values each field is coloured with on this board: what the charts
+/// with a `color:` channel draw from their query's rows.
+fn drawn_categories(
+    board: &Map<String, Value>,
+    data: &IndexMap<String, QueryResult>,
+) -> HashMap<String, HashSet<String>> {
+    let mut drawn: HashMap<String, HashSet<String>> = HashMap::new();
+    let Some(Value::Object(charts)) = board.get("charts") else {
+        return drawn;
+    };
+    for chart in charts.values() {
+        let Some(field) = chart.get("color").and_then(Value::as_str) else {
+            continue;
+        };
+        let values = drawn.entry(field.to_string()).or_default();
+        let result = chart
+            .get("query")
+            .and_then(Value::as_str)
+            .and_then(|query| data.get(query));
+        let Some(result) = result else {
+            continue;
+        };
+        let Some(at) =
+            result.columns.iter().position(|column| column.name == field)
+        else {
+            continue;
+        };
+        for row in &result.rows {
+            match row.get(at) {
+                Some(Value::String(text)) => {
+                    values.insert(text.clone());
+                }
+                Some(Value::Null) | None => {}
+                Some(other) => {
+                    values.insert(other.to_string());
+                }
+            }
+        }
+    }
+    drawn
+}
+
+/// Leaves out the theme's `category_colors` pins for values this board's
+/// charts colour by but never draw. A theme pins for every dashboard it
+/// styles — Unknown in grey wherever a chart colours by group — and a chart
+/// of Post states has no Unknown: the engine would warn, on every render
+/// and every save, that the pin was skipped. A field no chart colours by
+/// keeps its pins, which the engine ignores; the widget's own pins are
+/// merged afterwards and kept, so a misspelt one is still reported.
+fn drop_undrawn_pins(
+    theme_style: &mut Value,
+    board: &Map<String, Value>,
+    data: &IndexMap<String, QueryResult>,
+) {
+    let Some(Value::Object(pins)) = theme_style
+        .get_mut("charts")
+        .and_then(|charts| charts.get_mut("category_colors"))
+    else {
+        return;
+    };
+    let drawn = drawn_categories(board, data);
+    pins.retain(|field, binding| {
+        let Some(values) = drawn.get(field) else {
+            return true;
+        };
+        if let Some(Value::Object(pinned)) = binding.get_mut("values") {
+            pinned.retain(|value, _| values.contains(value));
+            if pinned.is_empty() {
+                if let Value::Object(binding) = binding {
+                    binding.remove("values");
+                }
+            }
+        }
+        !matches!(binding, Value::Object(binding) if binding.is_empty())
+    });
+    if pins.is_empty() {
+        if let Some(Value::Object(charts)) = theme_style.get_mut("charts") {
+            charts.remove("category_colors");
+        }
+    }
 }
 
 /// What dbt Charts draws unless told not to, and a dashboard must not show:

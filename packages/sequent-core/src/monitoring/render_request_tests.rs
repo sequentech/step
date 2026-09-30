@@ -94,6 +94,92 @@ fn non_string_keys_survive_as_text() {
     );
 }
 
+fn by_state() -> IndexMap<String, QueryResult> {
+    let rows = |values: &[&str]| QueryResult {
+        columns: vec![Column {
+            name: "group".into(),
+            kind: ColumnKind::Text,
+        }],
+        rows: values.iter().map(|value| vec![json!(value)]).collect(),
+        notices: Vec::new(),
+    };
+    [
+        ("states".to_string(), rows(&["Opened", "Closed"])),
+        ("regions".to_string(), rows(&["Europe", "Unknown"])),
+    ]
+    .into()
+}
+
+fn posts_widget(regions_coloured: bool) -> Widget {
+    let regions = if regions_coloured { ", color: group" } else { "" };
+    parse_widget(&format!(
+        "id: w\ntitle: W\nsource: poll_status\nqueries:\n  states: {{template: by_group, group_by: state, measures: [posts]}}\n  regions: {{template: by_group, group_by: region, measures: [posts]}}\nchart:\n  charts:\n    states: {{type: donut, query: states, theta: posts, color: group}}\n    regions: {{type: bar, query: regions, x: group, y: posts{regions}}}\n  rows: [states, regions]\n"
+    ))
+    .value
+    .expect("widget")
+}
+
+fn pinning(values: &str) -> Theme {
+    parse_theme(&format!(
+        "id: t\nstyle:\n  charts:\n    category_colors:\n      group:\n        values: {values}\n"
+    ))
+    .value
+    .expect("theme")
+}
+
+/// A theme's pins are event-wide: a widget whose coloured charts never draw
+/// a pinned value gets no pin for it, so the engine does not warn that the
+/// pin names a value this render never draws.
+#[test]
+fn a_theme_pin_reaches_a_board_only_when_its_coloured_charts_draw_the_value() {
+    let theme = pinning("{Unknown: dbt-grays.muted, Opened: \"category[2]\"}");
+    let board = build_board(&posts_widget(false), Some(&theme), &by_state());
+    assert_eq!(
+        board["style"]["charts"]["category_colors"]["group"]["values"],
+        json!({"Opened": "category[2]"}),
+        "the bar does not colour by group, so its Unknown is not drawn"
+    );
+    let board = build_board(&posts_widget(true), Some(&theme), &by_state());
+    assert_eq!(
+        board["style"]["charts"]["category_colors"]["group"]["values"],
+        json!({"Unknown": "dbt-grays.muted", "Opened": "category[2]"})
+    );
+    let board = build_board(&posts_widget(false), Some(&pinning("{Unknown: dbt-grays.muted}")), &by_state());
+    assert!(
+        board["style"]["charts"].get("category_colors").is_none(),
+        "{board}"
+    );
+}
+
+/// A widget's own pin is the author's, for this widget: it is kept, and the
+/// engine says so if the value is never drawn.
+#[test]
+fn a_widget_pin_reaches_the_board_whatever_it_draws() {
+    let mut widget = posts_widget(false);
+    widget.chart["style"] = serde_yaml::from_str(
+        "charts: {category_colors: {group: {values: {Paused: \"category[3]\"}}}}",
+    )
+    .unwrap();
+    let theme = pinning("{Unknown: dbt-grays.muted}");
+    let board = build_board(&widget, Some(&theme), &by_state());
+    assert_eq!(
+        board["style"]["charts"]["category_colors"]["group"]["values"],
+        json!({"Paused": "category[3]"})
+    );
+}
+
+/// A pin for a field no chart colours by is left alone: the engine binds
+/// nothing to it, so it cannot warn.
+#[test]
+fn a_theme_pin_on_a_field_no_chart_colours_by_is_left_alone() {
+    let theme = pinning("{Unknown: dbt-grays.muted}");
+    let board = build_board(&widget(), Some(&theme), &data());
+    assert_eq!(
+        board["style"]["charts"]["category_colors"]["group"]["values"],
+        json!({"Unknown": "dbt-grays.muted"})
+    );
+}
+
 fn paper() -> Theme {
     parse_theme(
         "id: t\nstyle:\n  background: dbt-grays.canvas\n  font: {color: dbt-grays.ink, size: 13}\n",
