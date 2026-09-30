@@ -122,7 +122,9 @@ export const DuplicateAndRemove: Story = {
             })
         )
         await waitFor(() => expect(order(view)).toHaveLength(4))
-        expect(order(view)[2]).toBe("Turnout by group")
+        // The copy goes in after the original, titled apart from it.
+        expect(order(view)[1]).toBe("Turnout by group")
+        expect(order(view)[2]).toBe("Turnout by group (copy)")
 
         await userEvent.click(view.getAllByRole("button", {name: "Actions for Voter turnout"})[0])
         await userEvent.click(await body(canvasElement).findByRole("menuitem", {name: "Remove"}))
@@ -168,7 +170,9 @@ export const EditTheme: Story = {
             expect(api.renderWidget).toHaveBeenCalledWith(
                 expect.objectContaining({
                     widget_id: "turnout-by-group",
-                    draft: expect.objectContaining({theme_yaml: expect.any(String)}),
+                    draft: expect.objectContaining({
+                        theme_yaml: expect.stringContaining("id: default"),
+                    }),
                 })
             )
         )
