@@ -225,6 +225,16 @@ scheme. Harvest then rebuilds the SVG from an allowlist of elements: no
 scripts, foreign objects, images, links, event handlers, non-fragment
 `href`s or external `url()`.
 
+The read routes (`list-dashboards`, `get-dashboard`, `render-widget`,
+`export`) read the event's `config_generation` first, and parse and check
+its documents only for a generation they have not kept yet
+(`services/monitoring_config_cache.rs`). This is safe because every save,
+reset or mode switch raises the generation in its own transaction, and the
+migration's triggers refuse a revision written without that raise. So what
+an event had at a generation never changes. Configuration past a snapshot's
+generation is kept the same way. The configuration routes (`list-config`,
+`get-config`, and the saves) always read the database.
+
 Exports run as a task (`EXPORT_MONITORING_DATA`) over the snapshot revision
 the viewer saw: CSV in long format, or SQL as `CREATE TABLE` and `INSERT`
 statements, with rows in `[from, to)`.
@@ -269,6 +279,7 @@ typing and from the server on preview and Validate.
 | `HARVEST_MONITORING_RENDERER_TOKEN` | Harvest | none | Sent as `X-Renderer-Token`; must equal the renderer's `RENDERER_TOKEN`. Compose sets both from `MONITORING_RENDERER_TOKEN`. |
 | `HARVEST_MONITORING_RENDERER_TIMEOUT_MS` | Harvest | `5000` | Per-request timeout, set above the renderer's own limit. |
 | `HARVEST_MONITORING_CACHE_ENTRIES` | Harvest | `1024` | Drawn charts kept in the render cache. |
+| `HARVEST_MONITORING_CONFIG_CACHE_ENTRIES` | Harvest | `64` | Event configurations (one per event and generation) kept for the read routes. |
 | `RENDERER_TOKEN` | renderer | none; required | The service will not start without it. |
 | `RENDERER_CONCURRENCY` | renderer | `2` | Draws running at once. |
 | `RENDERER_TIMEOUT_MS` | renderer | `4000` | Waiting plus drawing, after which a request gets 504. |
@@ -315,3 +326,122 @@ devenv shell -- bash -c 'cd packages && export CARGO_TARGET_DIR="$PWD/rust-local
 
 `scripts/dev/step-dev test <package> [name]` picks the narrowest of these
 commands for a package or file.
+
+## Viewer load benchmark
+
+`scripts/dev/step-dev bench monitoring-viewers` checks the promise above: the
+number of viewers never changes how often source data is scanned. It also
+measures what viewers cost in latency and CPU. It runs against a stack that
+is already up, and only reads.
+
+Each simulated viewer goes through Hasura and does what the Dashboard tab
+does:
+
+1. `monitoringListDashboards`;
+2. `monitoringGetDashboard`;
+3. `monitoringRenderWidget` for every widget the dashboard places.
+
+The render widths follow the portal's grid for one of five screen profiles
+(1920, 1440 and 1366 px desktops, a tablet and a phone). Colour scheme,
+locale and scope also vary per viewer, drawn from a fixed seed, so the
+render cache sees the key spread real viewers give it.
+
+`--cycle` sets what a viewer repeats every `--poll-interval` (30 s):
+
+- `reload`, the default: all three steps every poll, as if every viewer
+  reloaded the page. This is an upper bound.
+- `portal`: the portal's steady state. The list and the renders run once,
+  then `monitoringGetDashboard` runs every poll. The renders run again only
+  when the snapshot revision changes or a widget failed.
+
+Viewers are spread over one poll interval and over `--processes` worker
+processes. Each worker shares one pool of keep-alive connections
+(`--connections`). The access token comes from `--token-command`, which
+runs again a minute before the token expires.
+
+A run measures an idle baseline window first, then each `--viewers` count
+in turn: a warm-up of one poll interval, then a window of `--duration`
+seconds. For every window it records:
+
+- p50, p95 and p99 latency, and errors, for each operation;
+- renderer calls, counted from Harvest's `render` spans in `docker logs`;
+- `pg_stat_user_tables` before and after, for the source tables
+  (`cast_vote`, `applications`, `monitoring_voter`,
+  `monitoring_login_counter`, `tally_session`, and Keycloak's
+  `user_entity`, `user_attribute`, `user_group_membership` and
+  `credential`) and for the tables Harvest reads;
+- snapshot passes, from `monitoring_snapshot_run` inserts;
+- `docker stats` CPU of Harvest, Hasura, the renderer, both databases and
+  Windmill;
+- the load generator's own CPU and event-loop lag, to show it was not the
+  bottleneck.
+
+The result is a `step-bench/1` file whose notes hold a Markdown table.
+
+```sh
+devenv shell -- bash -c 'scripts/dev/step-dev bench monitoring-viewers \
+  --label before --checkout . \
+  --tenant-id "$TENANT_ID" --election-event-id "$EVENT_ID" \
+  --viewers 10,100,1000 --duration 60'
+```
+
+The default token command, `python3 -m scripts.dev.bench.admin_token`, needs
+the checkout's `.devcontainer/.env`. From a worktree without one, pass a
+command that prints a token with `monitoring-view`.
+
+### Results, 30 September 2026
+
+These numbers come from the local dev stack:
+
+- a debug Harvest build;
+- the comelec preset, 53 documents;
+- `--cycle reload`, 60 s windows;
+- a shared 16-core host that other builds kept saturated (load average
+  about 32).
+
+Read them for how things scale, not as absolute capacity.
+
+| Viewers | list p50/p95/p99 (ms) | get p50/p95/p99 (ms) | render p50/p95/p99 (ms) | Errors | Renderer calls | Source reads/min | Harvest CPU |
+|---|---|---|---|---|---|---|---|
+| idle | | | | 0 | 0 | 142 | 1% |
+| 10 | 49 / 57 / 65 | 54 / 65 / 78 | 55 / 92 / 121 | 0 of 160 | 0 | 95 | 12% |
+| 100 | 49 / 50 / 63 | 53 / 55 / 58 | 52 / 64 / 89 | 0 of 1,600 | 0 | 95 | 129% |
+| 1,000 | 16,148 / 26,572 / 27,893 | 17,994 / 26,150 / 27,306 | 23,121 / 27,362 / 28,740 | 0 of 8,814 | 72 | 141 | 597% |
+
+- **Source reads do not follow viewers.** Every window saw the same four
+  snapshot passes, and the same scans of the source tables: about 33 of
+  `cast_vote`, 4 of `applications` and `monitoring_login_counter`, and 20 of
+  `tally_session`. The only difference is Windmill's five-minute full pass
+  over the Keycloak voters. That pass reads the Keycloak tables and
+  `monitoring_voter` a few more times, and it fell inside the idle and
+  1,000-viewer windows (142 and 141 reads a minute against 95).
+- **Renderer calls do not follow viewers.** At 10 and 100 viewers every
+  chart came from the render cache. The 72 calls at 1,000 were first draws
+  of new cache keys: queueing pushed them into the measured window, and a
+  new snapshot revision starts the cache over. They are bounded by
+  distinct keys per snapshot revision (294 in that run), not by viewers.
+- **Harvest's own reads do follow requests.** Each request reads the
+  event's monitoring row, its elections (for permission labels), the
+  snapshot heads and the configuration. That is by design, and cheap.
+- **1,000 reloading viewers saturated Harvest's CPU.** Latency collapsed,
+  though nothing failed: 147 requests a second were served, against about
+  267 asked for. Every request re-parsed and re-checked the event's whole
+  configuration, about 37 ms of CPU in a debug build. With 16 request
+  workers competing for a saturated host, requests queued for tens of
+  seconds. The configuration cache per generation, described under Harvest
+  routes, removes that step for every request after a generation's first.
+
+The portal's steady state (`--cycle portal`, same stack, host load about
+8) is much lighter. The viewers had loaded the dashboard during the
+warm-up, so the window saw only polls, plus re-renders after a snapshot
+change:
+
+| Viewers | get p50/p95/p99 (ms) | render p50/p95/p99 (ms) | Errors | Renderer calls | Source reads/min | Harvest CPU mean (max) |
+|---|---|---|---|---|---|---|
+| 100 | 54 / 55 / 61 | | 0 of 200 | 0 | 95 | 17% (22%) |
+| 1,000 | 53 / 1,520 / 1,836 | 1,323 / 1,593 / 1,730 | 0 of 2,510 | 0 | 143 | 256% (1,000%) |
+
+At 1,000 viewers, a new snapshot revision makes every viewer re-render
+within one poll, and that burst saturated Harvest for a few seconds. The
+per-generation configuration cache takes most of each request's CPU out
+of that burst.
