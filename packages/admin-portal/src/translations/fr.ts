@@ -2973,6 +2973,12 @@ const frenchTranslation: TranslationType = {
                 title: "{{widget}} · données",
                 close: "Fermer",
                 empty: "Aucune ligne",
+                rowsPerPage: "Lignes par page :",
+                shownRows: "{{from}}–{{to}} sur {{total}}",
+                firstPage: "Première page",
+                previousPage: "Page précédente",
+                nextPage: "Page suivante",
+                lastPage: "Dernière page",
             },
             columns: {
                 numerator: "Numérateur",

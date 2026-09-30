@@ -1256,20 +1256,30 @@ pub async fn prune_snapshots(
         .map(|row| row.get(0))
         .collect();
     let figures = released.len() as u64;
-    let released: Vec<Vec<u8>> = released
-        .into_iter()
-        .collect::<BTreeSet<Vec<u8>>>()
-        .into_iter()
-        .collect();
+    let mut released: BTreeSet<Vec<u8>> = released.into_iter().collect();
+    // The hashes a remaining figure still names, read in one scan rather
+    // than looked up once per payload in the delete: while the statistics
+    // lag behind a pass's writes, the planner answers each lookup by
+    // scanning the event's figures.
+    let released_list: Vec<&[u8]> = released.iter().map(Vec::as_slice).collect();
+    for row in transaction
+        .query(
+            "SELECT DISTINCT payload_sha256 FROM sequent_backend.monitoring_snapshot_figure
+             WHERE tenant_id = $1 AND election_event_id = $2 AND payload_sha256 = ANY($3)",
+            &[&event.tenant_id, &event.election_event_id, &released_list],
+        )
+        .await
+        .context("Failed to read the payloads still named")?
+    {
+        released.remove(&row.get::<_, Vec<u8>>(0));
+    }
+    let released: Vec<Vec<u8>> = released.into_iter().collect();
+    // The event's lock keeps passes out meanwhile; a payload named after
+    // all is refused by its trigger rather than deleted.
     let payloads = transaction
         .execute(
-            "DELETE FROM sequent_backend.monitoring_snapshot_payload p
-             WHERE p.tenant_id = $1 AND p.election_event_id = $2 AND p.sha256 = ANY($3)
-               AND NOT EXISTS (
-                   SELECT 1 FROM sequent_backend.monitoring_snapshot_figure f
-                   WHERE f.tenant_id = p.tenant_id AND f.election_event_id = p.election_event_id
-                     AND f.payload_sha256 = p.sha256
-               )",
+            "DELETE FROM sequent_backend.monitoring_snapshot_payload
+             WHERE tenant_id = $1 AND election_event_id = $2 AND sha256 = ANY($3)",
             &[&event.tenant_id, &event.election_event_id, &released],
         )
         .await

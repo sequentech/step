@@ -2961,6 +2961,12 @@ const tagalogTranslation: TranslationType = {
                 title: "{{widget}} · datos",
                 close: "Isara",
                 empty: "Walang hilera",
+                rowsPerPage: "Mga hilera bawat pahina:",
+                shownRows: "{{from}}–{{to}} sa {{total}}",
+                firstPage: "Unang pahina",
+                previousPage: "Nakaraang pahina",
+                nextPage: "Susunod na pahina",
+                lastPage: "Huling pahina",
             },
             columns: {
                 numerator: "Numerator",

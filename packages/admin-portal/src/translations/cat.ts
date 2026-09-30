@@ -2966,6 +2966,12 @@ const catalanTranslation: TranslationType = {
                 title: "{{widget}} · dades",
                 close: "Tancar",
                 empty: "Sense files",
+                rowsPerPage: "Files per pàgina:",
+                shownRows: "{{from}}–{{to}} de {{total}}",
+                firstPage: "Primera pàgina",
+                previousPage: "Pàgina anterior",
+                nextPage: "Pàgina següent",
+                lastPage: "Última pàgina",
             },
             columns: {
                 numerator: "Numerador",
