@@ -2860,6 +2860,8 @@ const dutchTranslation: TranslationType = {
                     "Dit dashboard of deze widget is niet meer geconfigureerd. Laad de pagina opnieuw.",
                 badRequest:
                     "Het verzoek is niet geaccepteerd. Laad de pagina opnieuw en probeer het nogmaals.",
+                conflict:
+                    "Iemand anders heeft eerst een wijziging opgeslagen. Laad opnieuw en probeer het nog eens.",
                 invalid: "Sommige waarden van de export worden niet geaccepteerd.",
                 unknown: "Er ging iets mis. Probeer het later opnieuw.",
             },

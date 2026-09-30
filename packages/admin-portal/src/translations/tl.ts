@@ -2869,6 +2869,7 @@ const tagalogTranslation: TranslationType = {
                 notFound:
                     "Hindi na naka-configure ang dashboard o widget na ito. I-reload ang pahina.",
                 badRequest: "Hindi tinanggap ang kahilingan. I-reload ang pahina at subukan muli.",
+                conflict: "May ibang nag-save muna ng pagbabago. I-reload at subukan muli.",
                 invalid: "Hindi tinatanggap ang ilang halaga ng export.",
                 unknown: "May nangyaring mali. Subukan muli mamaya.",
             },

@@ -2860,6 +2860,7 @@ const spanishTranslation: TranslationType = {
                 lockedDown: "El evento electoral está bloqueado, así que esto no se puede cambiar.",
                 notFound: "Este panel o widget ya no está configurado. Recargue la página.",
                 badRequest: "No se aceptó la solicitud. Recargue la página e inténtelo de nuevo.",
+                conflict: "Otra persona guardó un cambio antes. Recargue e inténtelo de nuevo.",
                 invalid: "Algunos valores de la exportación no se aceptan.",
                 unknown: "Algo ha fallado. Inténtelo más tarde.",
             },

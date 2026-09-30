@@ -2830,6 +2830,7 @@ const englishTranslation = {
                 lockedDown: "The election event is locked down, so this cannot be changed.",
                 notFound: "This dashboard or widget is no longer configured. Reload the page.",
                 badRequest: "The request was not accepted. Reload the page and try again.",
+                conflict: "Someone else saved a change first. Reload and try again.",
                 invalid: "Some of the export's values are not accepted.",
                 unknown: "Something went wrong. Try again later.",
             },

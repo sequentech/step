@@ -2873,6 +2873,8 @@ const catalanTranslation: TranslationType = {
                     "Aquest tauler o giny ja no està configurat. Torneu a carregar la pàgina.",
                 badRequest:
                     "No s'ha acceptat la sol·licitud. Torneu a carregar la pàgina i torneu-ho a provar.",
+                conflict:
+                    "Una altra persona ha desat un canvi abans. Torneu a carregar i torneu-ho a provar.",
                 invalid: "Alguns valors de l'exportació no s'accepten.",
                 unknown: "Alguna cosa ha fallat. Torneu-ho a provar més tard.",
             },

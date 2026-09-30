@@ -2858,6 +2858,7 @@ const galegoTranslation: TranslationType = {
                 lockedDown: "O evento electoral está bloqueado, así que isto non se pode cambiar.",
                 notFound: "Este panel ou widget xa non está configurado. Recargue a páxina.",
                 badRequest: "Non se aceptou a solicitude. Recargue a páxina e ténteo de novo.",
+                conflict: "Outra persoa gardou un cambio antes. Recargue e ténteo de novo.",
                 invalid: "Algúns valores da exportación non se aceptan.",
                 unknown: "Algo fallou. Ténteo máis tarde.",
             },

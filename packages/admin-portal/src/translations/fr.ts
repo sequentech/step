@@ -2878,6 +2878,8 @@ const frenchTranslation: TranslationType = {
                 notFound:
                     "Ce tableau de bord ou ce widget n'est plus configuré. Rechargez la page.",
                 badRequest: "La demande n'a pas été acceptée. Rechargez la page et réessayez.",
+                conflict:
+                    "Quelqu'un d'autre a enregistré une modification avant vous. Rechargez et réessayez.",
                 invalid: "Certaines valeurs de l'export ne sont pas acceptées.",
                 unknown: "Une erreur s'est produite. Réessayez plus tard.",
             },

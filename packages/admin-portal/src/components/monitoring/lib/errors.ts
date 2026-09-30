@@ -6,8 +6,10 @@
 // {code, ...}}`, which Hasura passes on as the GraphQL error's extensions (or,
 // in some setups, keeps in `extensions.internal.response.body`).
 
-/** The codes the view tells the viewer about. */
+/** The codes Harvest's monitoring routes put in a refusal's `extensions.code`; the view and the editor share them. */
 export enum EMonitoringErrorCode {
+    /** 409: someone saved first; `{current_revision, author, time}`. */
+    CONFLICT = "MONITORING_CONFLICT",
     /** 503 with Retry-After: the event is busy; asked again after a moment. */
     BUSY = "MONITORING_BUSY",
     /** 403: a region, Post or country outside what the viewer may see. */
@@ -32,6 +34,7 @@ export const BUSY_RETRY_MS = 3_000
 const CODES = new Set<string>(Object.values(EMonitoringErrorCode))
 
 const MESSAGES: Record<EMonitoringErrorCode, string> = {
+    [EMonitoringErrorCode.CONFLICT]: "monitoring.errors.conflict",
     [EMonitoringErrorCode.BUSY]: "monitoring.errors.busy",
     [EMonitoringErrorCode.FORBIDDEN_SCOPE]: "monitoring.errors.forbiddenScope",
     [EMonitoringErrorCode.SNAPSHOT_PRUNED]: "monitoring.errors.snapshotPruned",
