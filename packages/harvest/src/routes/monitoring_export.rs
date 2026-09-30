@@ -139,6 +139,14 @@ pub async fn export_monitoring(
         },
     )
     .await?;
+    // The dashboard draws such a run with the live configuration and says
+    // so; a file cannot say so, and would hold the live queries over
+    // figures counted under another configuration.
+    if config.notice.is_some() {
+        return Err(MonitoringError::not_found(
+            "That snapshot was counted under a configuration no longer kept; export again after the next update.",
+        ));
+    }
     let set = &config.set;
     let Some(dashboard) = set.dashboards.get(&input.dashboard_id) else {
         return Err(MonitoringError::not_found("There is no such dashboard."));

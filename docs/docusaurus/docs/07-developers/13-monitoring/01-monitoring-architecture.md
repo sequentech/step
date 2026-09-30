@@ -252,7 +252,9 @@ notice `CONFIG_AT_SNAPSHOT_UNAVAILABLE` or `CONFIG_NEWER_THAN_SNAPSHOT`. An
 export chooses its configuration by the same rule, so a widget saved a
 moment ago exports as it is drawn, and records the generation chosen in
 the task's request, which the task reads (a request without it reads the
-generation the run was counted under).
+generation the run was counted under). Where the draw would fall back
+with a notice, the export is refused with 404 instead: a file cannot carry
+the notice. Export again after the next run.
 
 Drawn charts are cached in an LRU with single flight, so viewers asking for
 the same chart at once wait on one draw. The key covers the tenant and
