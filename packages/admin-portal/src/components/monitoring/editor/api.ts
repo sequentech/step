@@ -55,6 +55,7 @@ const INVALID_CODES = new Set<string>([
     "unprocessable",
     "validation-failed",
 ])
+const HARVEST_CODES = new Set<string>(Object.values(EMonitoringErrorCode))
 const CONFLICT_STATUS = 409
 const INVALID_STATUS = 422
 
@@ -64,6 +65,7 @@ const ERROR_MESSAGES: Partial<Record<string, string>> = {
     [EMonitoringErrorCode.BUSY]: "monitoring.editor.errors.busy",
     [EMonitoringErrorCode.LOCKED_DOWN]: "monitoring.editor.errors.lockedDown",
     [EMonitoringErrorCode.FORBIDDEN_SCOPE]: "monitoring.editor.errors.forbiddenScope",
+    [EMonitoringErrorCode.BAD_REQUEST]: "monitoring.editor.errors.badRequest",
 }
 
 const record = (value: unknown): Record<string, unknown> =>
@@ -140,7 +142,10 @@ export const interpretSaveError = (error: unknown): TMonitoringSaveOutcome | und
                 time: typeof details.time === "string" ? details.time : null,
             }
         }
-        if (INVALID_CODES.has(code) || status === INVALID_STATUS) {
+        // A 422 is read as problems only when Harvest named no code of its
+        // own: a MONITORING_BAD_REQUEST is a request it could not read, not
+        // a document it found problems in.
+        if (INVALID_CODES.has(code) || (status === INVALID_STATUS && !HARVEST_CODES.has(code))) {
             return {
                 status: EMonitoringSaveStatus.INVALID,
                 problems: normalizeProblems(details.problems),

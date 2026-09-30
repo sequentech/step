@@ -377,78 +377,171 @@ async fn end_pass(transaction: &Transaction<'_>, event: EventRef) -> Result<u64>
         .context("Failed to remove the voters no longer there")
 }
 
+/// A voter's enrollment as their latest application has it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct Enrolled {
+    state: Option<String>,
+    reason: Option<String>,
+    decided_at: Option<DateTime<Utc>>,
+}
+
+/// How many rows one batched activity update writes.
+const ACTIVITY_BATCH: usize = 5_000;
+
 /// Brings each voter's enrollment and first vote up to date, from the
-/// latest application and the valid votes: how many rows changed.
+/// latest application and the valid votes: how many rows changed, counting
+/// a row whose enrollment and first vote both changed twice.
+///
+/// It reads the event's rows, latest applications and first valid votes in
+/// one statement each, works out what changed here, and writes only that,
+/// keyed on the primary key. Joining the projection to itself in SQL let
+/// the planner pick a nested loop whenever the table's statistics lagged
+/// behind a pass's writes, which is every first pass: quadratic in the
+/// voters, 11 s at 10,000.
 #[instrument(err, skip(transaction))]
 pub async fn refresh_voter_activity(transaction: &Transaction<'_>, event: EventRef) -> Result<u64> {
     let params: [&(dyn tokio_postgres::types::ToSql + Sync); 2] =
         [&event.tenant_id, &event.election_event_id];
-    let enrollment = transaction
-        .execute(
-            "WITH latest AS (
-                 SELECT DISTINCT ON (applicant_id) applicant_id,
-                        CASE WHEN status IN ('PENDING', 'ACCEPTED', 'REJECTED') THEN status END
-                            AS status,
-                        NULLIF(btrim(annotations->>'rejection_reason'), '') AS reason,
-                        updated_at
-                 FROM sequent_backend.applications
-                 WHERE tenant_id = $1 AND election_event_id = $2
-                 ORDER BY applicant_id, updated_at DESC, id DESC
-             ),
-             wanted AS (
-                 SELECT v.election_id, v.voter_id, l.status,
-                        CASE WHEN l.status = 'REJECTED' THEN l.reason END AS reason,
-                        CASE WHEN l.status IN ('ACCEPTED', 'REJECTED') THEN l.updated_at END
-                            AS decided_at
-                 FROM sequent_backend.monitoring_voter v
-                 LEFT JOIN latest l ON l.applicant_id = v.voter_id
-                 WHERE v.tenant_id = $1 AND v.election_event_id = $2
-             )
-             UPDATE sequent_backend.monitoring_voter v SET
-                 enrollment_state = w.status,
-                 enrollment_reason = w.reason,
-                 enrollment_decided_at = w.decided_at,
-                 -- A pre-enrolled voter was so from the approval on, when
-                 -- that is earlier than the pass that first saw it.
-                 pre_enrolled_at = CASE
-                     WHEN v.pre_enrolled_at IS NOT NULL AND w.status = 'ACCEPTED'
-                     THEN LEAST(v.pre_enrolled_at, w.decided_at)
-                     ELSE v.pre_enrolled_at
-                 END,
-                 updated_at = now()
-             FROM wanted w
-             WHERE v.tenant_id = $1 AND v.election_event_id = $2
-               AND v.election_id = w.election_id AND v.voter_id = w.voter_id
-               AND (v.enrollment_state, v.enrollment_reason, v.enrollment_decided_at)
-                   IS DISTINCT FROM (w.status, w.reason, w.decided_at)",
+    let latest: HashMap<String, Enrolled> = transaction
+        .query(
+            "SELECT DISTINCT ON (applicant_id) applicant_id::text,
+                    CASE WHEN status IN ('PENDING', 'ACCEPTED', 'REJECTED') THEN status::text END
+                        AS status,
+                    NULLIF(btrim(annotations->>'rejection_reason'), '') AS reason,
+                    updated_at
+             FROM sequent_backend.applications
+             WHERE tenant_id = $1 AND election_event_id = $2
+             ORDER BY applicant_id, updated_at DESC, id DESC",
             &params,
         )
         .await
-        .context("Failed to bring the voters' enrollment up to date")?;
-    let votes = transaction
-        .execute(
-            "WITH first_votes AS (
-                 SELECT v.election_id, v.voter_id,
-                        (SELECT min(cv.created_at) FROM sequent_backend.cast_vote cv
-                         WHERE cv.tenant_id = $1 AND cv.election_event_id = $2
-                           AND cv.election_id = v.election_id
-                           AND cv.voter_id_string = v.voter_id
-                           AND cv.status = 'valid') AS first_voted_at
-                 FROM sequent_backend.monitoring_voter v
-                 WHERE v.tenant_id = $1 AND v.election_event_id = $2
-             )
-             UPDATE sequent_backend.monitoring_voter v SET
-                 first_voted_at = f.first_voted_at,
-                 updated_at = now()
-             FROM first_votes f
-             WHERE v.tenant_id = $1 AND v.election_event_id = $2
-               AND v.election_id = f.election_id AND v.voter_id = f.voter_id
-               AND v.first_voted_at IS DISTINCT FROM f.first_voted_at",
+        .context("Failed to read the voters' latest applications")?
+        .iter()
+        .map(|row| {
+            let state: Option<String> = row.get("status");
+            let reason: Option<String> = row.get("reason");
+            let updated_at: DateTime<Utc> = row.get("updated_at");
+            let decided = matches!(state.as_deref(), Some("ACCEPTED" | "REJECTED"));
+            (
+                row.get(0),
+                Enrolled {
+                    reason: reason.filter(|_| state.as_deref() == Some("REJECTED")),
+                    decided_at: decided.then_some(updated_at),
+                    state,
+                },
+            )
+        })
+        .collect();
+    let first_votes: HashMap<(Uuid, String), DateTime<Utc>> = transaction
+        .query(
+            "SELECT election_id, voter_id_string::text, min(created_at)
+             FROM sequent_backend.cast_vote
+             WHERE tenant_id = $1 AND election_event_id = $2 AND status = 'valid'
+               AND election_id IS NOT NULL AND voter_id_string IS NOT NULL
+             GROUP BY election_id, voter_id_string",
             &params,
         )
         .await
-        .context("Failed to bring the voters' first votes up to date")?;
-    Ok(enrollment + votes)
+        .context("Failed to read the voters' first votes")?
+        .iter()
+        .filter_map(|row| {
+            let at: Option<DateTime<Utc>> = row.get(2);
+            Some(((row.get(0), row.get(1)), at?))
+        })
+        .collect();
+
+    let none = Enrolled {
+        state: None,
+        reason: None,
+        decided_at: None,
+    };
+    let mut changes: u64 = 0;
+    let mut elections: Vec<Uuid> = Vec::new();
+    let mut voters: Vec<String> = Vec::new();
+    let mut states: Vec<Option<String>> = Vec::new();
+    let mut reasons: Vec<Option<String>> = Vec::new();
+    let mut decided: Vec<Option<DateTime<Utc>>> = Vec::new();
+    let mut pre_enrolled: Vec<Option<DateTime<Utc>>> = Vec::new();
+    let mut voted: Vec<Option<DateTime<Utc>>> = Vec::new();
+    for row in transaction
+        .query(
+            "SELECT election_id, voter_id, enrollment_state, enrollment_reason,
+                    enrollment_decided_at, pre_enrolled_at, first_voted_at
+             FROM sequent_backend.monitoring_voter
+             WHERE tenant_id = $1 AND election_event_id = $2",
+            &params,
+        )
+        .await
+        .context("Failed to read the monitoring voters")?
+    {
+        let election: Uuid = row.get(0);
+        let voter: String = row.get(1);
+        let current = Enrolled {
+            state: row.get(2),
+            reason: row.get(3),
+            decided_at: row.get(4),
+        };
+        let mut pre_enrolled_at: Option<DateTime<Utc>> = row.get(5);
+        let first_voted_at: Option<DateTime<Utc>> = row.get(6);
+        let wanted = latest.get(&voter).unwrap_or(&none);
+        let enrollment_changed = *wanted != current;
+        if enrollment_changed {
+            // A pre-enrolled voter was so from the approval on, when that
+            // is earlier than the pass that first saw it.
+            if let (Some(at), Some("ACCEPTED"), Some(decided_at)) =
+                (pre_enrolled_at, wanted.state.as_deref(), wanted.decided_at)
+            {
+                pre_enrolled_at = Some(at.min(decided_at));
+            }
+        }
+        let wanted_vote = first_votes.get(&(election, voter.clone())).copied();
+        let vote_changed = wanted_vote != first_voted_at;
+        if !enrollment_changed && !vote_changed {
+            continue;
+        }
+        changes += u64::from(enrollment_changed) + u64::from(vote_changed);
+        let wanted = if enrollment_changed { wanted } else { &current };
+        elections.push(election);
+        voters.push(voter);
+        states.push(wanted.state.clone());
+        reasons.push(wanted.reason.clone());
+        decided.push(wanted.decided_at);
+        pre_enrolled.push(pre_enrolled_at);
+        voted.push(wanted_vote);
+    }
+    for start in (0..elections.len()).step_by(ACTIVITY_BATCH) {
+        let end = (start + ACTIVITY_BATCH).min(elections.len());
+        transaction
+            .execute(
+                "UPDATE sequent_backend.monitoring_voter v SET
+                     enrollment_state = w.state,
+                     enrollment_reason = w.reason,
+                     enrollment_decided_at = w.decided_at,
+                     pre_enrolled_at = w.pre_enrolled_at,
+                     first_voted_at = w.first_voted_at,
+                     updated_at = now()
+                 FROM unnest($3::uuid[], $4::text[], $5::text[], $6::text[],
+                             $7::timestamptz[], $8::timestamptz[], $9::timestamptz[])
+                     AS w(election_id, voter_id, state, reason, decided_at, pre_enrolled_at,
+                          first_voted_at)
+                 WHERE v.tenant_id = $1 AND v.election_event_id = $2
+                   AND v.election_id = w.election_id AND v.voter_id = w.voter_id",
+                &[
+                    &event.tenant_id,
+                    &event.election_event_id,
+                    &&elections[start..end],
+                    &&voters[start..end],
+                    &&states[start..end],
+                    &&reasons[start..end],
+                    &&decided[start..end],
+                    &&pre_enrolled[start..end],
+                    &&voted[start..end],
+                ],
+            )
+            .await
+            .context("Failed to bring the voters' enrollment and first votes up to date")?;
+    }
+    Ok(changes)
 }
 
 /// What a refresh did.

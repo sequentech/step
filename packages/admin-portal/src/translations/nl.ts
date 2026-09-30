@@ -2955,6 +2955,12 @@ const dutchTranslation: TranslationType = {
                 title: "{{widget}} · gegevens",
                 close: "Sluiten",
                 empty: "Geen rijen",
+                rowsPerPage: "Rijen per pagina:",
+                shownRows: "{{from}}–{{to}} van {{total}}",
+                firstPage: "Eerste pagina",
+                previousPage: "Vorige pagina",
+                nextPage: "Volgende pagina",
+                lastPage: "Laatste pagina",
             },
             columns: {
                 numerator: "Teller",
@@ -3296,6 +3302,8 @@ const dutchTranslation: TranslationType = {
                         "Het evenement is vergrendeld; de monitoringconfiguratie kan niet meer veranderen.",
                     forbiddenScope:
                         "Je mag de cijfers van de gekozen regio, functie of het gekozen land niet zien.",
+                    badRequest:
+                        "De editor stuurde een verzoek dat de server niet kon lezen. Laad de pagina opnieuw en probeer het nog eens.",
                 },
                 duplicate: {
                     copyTitle: "{{title}} (kopie)",

@@ -2953,6 +2953,12 @@ const spanishTranslation: TranslationType = {
                 title: "{{widget}} · datos",
                 close: "Cerrar",
                 empty: "Sin filas",
+                rowsPerPage: "Filas por página:",
+                shownRows: "{{from}}–{{to}} de {{total}}",
+                firstPage: "Primera página",
+                previousPage: "Página anterior",
+                nextPage: "Página siguiente",
+                lastPage: "Última página",
             },
             columns: {
                 numerator: "Numerador",
@@ -3292,6 +3298,8 @@ const spanishTranslation: TranslationType = {
                         "El evento está bloqueado; su configuración de monitorización no puede cambiar.",
                     forbiddenScope:
                         "No puedes ver cifras de la región, el puesto o el país elegidos.",
+                    badRequest:
+                        "El editor envió una solicitud que el servidor no pudo leer. Recargue la página e inténtelo de nuevo.",
                 },
                 duplicate: {
                     copyTitle: "{{title}} (copia)",

@@ -2966,6 +2966,12 @@ const catalanTranslation: TranslationType = {
                 title: "{{widget}} · dades",
                 close: "Tancar",
                 empty: "Sense files",
+                rowsPerPage: "Files per pàgina:",
+                shownRows: "{{from}}–{{to}} de {{total}}",
+                firstPage: "Primera pàgina",
+                previousPage: "Pàgina anterior",
+                nextPage: "Pàgina següent",
+                lastPage: "Última pàgina",
             },
             columns: {
                 numerator: "Numerador",
@@ -3305,6 +3311,8 @@ const catalanTranslation: TranslationType = {
                     lockedDown:
                         "L'esdeveniment està bloquejat; la seva configuració de monitoratge no pot canviar.",
                     forbiddenScope: "No pots veure xifres de la regió, el lloc o el país triats.",
+                    badRequest:
+                        "L'editor ha enviat una sol·licitud que el servidor no ha pogut llegir. Recarregueu la pàgina i torneu-ho a provar.",
                 },
                 duplicate: {
                     copyTitle: "{{title}} (còpia)",

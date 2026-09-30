@@ -233,14 +233,29 @@ yarn --cwd packages/admin-portal stories:inventory src/components/monitoring/Mon
 scripts/dev/step-dev test admin-portal --story <story-id>
 ```
 
-:::note TODO(meta#13624): Playwright journey
-The Playwright journey `packages/admin-portal/test/journeys/monitoring.spec.ts`
-comes in a parallel branch. Add its command
-(`yarn --cwd packages/admin-portal test:journeys test/journeys/monitoring.spec.ts`,
-after the build steps of [UI browser tests](../03-development-environment/testing/ui-browser-tests.md))
-and what it covers here at merge time. See
-[issue 13624](https://github.com/sequentech/meta/issues/13624).
-:::
+### Playwright journey
+
+`packages/admin-portal/test/journeys/events/monitoring.spec.ts` drives the
+Dashboard tab against invented Harvest answers (no services needed), once at
+390 px and once at 1280 px wide. At each width it checks that:
+
+- the configured dashboard's widgets are drawn in frames with an empty
+  `sandbox` attribute, and nothing inside a chart can make a request (an
+  `<image href>` to an outside host is never fetched);
+- a form edit in the widget editor shows in the YAML tab, and Save sends the
+  YAML with the revision it was loaded from;
+- a save that finds a newer revision opens the conflict dialog;
+- an election's Dashboard tab pins its Post and hides the Post selector.
+
+`dashboard.spec.ts` stays the regression for the legacy dashboard. Build the
+shared UI packages and the Admin Portal as in
+[UI browser tests](../03-development-environment/testing/ui-browser-tests.md),
+then run:
+
+```sh
+yarn --cwd packages/admin-portal test:types
+yarn --cwd packages/admin-portal test:journeys test/journeys/events/monitoring.spec.ts test/journeys/events/dashboard.spec.ts
+```
 
 ## 4. Live verification
 
@@ -369,8 +384,9 @@ the write protocols.
     to show the change with its comments kept, **Checks** to say "No problems
     found", the preview and **Query result · first rows** to update.
     **Validate** says "The widget is valid."; **Save widget** says "Widget
-    saved as revision N", and the new title shows on every dashboard with the
-    widget (see [troubleshooting](#7-troubleshooting) if it takes a pass).
+    saved as revision N", and the new title shows at once on every dashboard
+    with the widget, drawn from the figures already counted: no snapshot
+    pass is needed.
 16. **Invalid save refused.** In the YAML tab add a top-level line
     `sql: SELECT 1`. *Expect* an error under **Checks** at `sql` ("unknown
     field `sql`, …"), **Save widget** refused with "The widget was not saved:
@@ -431,25 +447,51 @@ the write protocols.
 
 ## 5. Tuning freshness against load
 
-| Setting | Where | Default | Effect |
+| Setting | Where | Default and bounds | Effect |
 |---|---|---|---|
-| `-m`, `--monitoring-snapshot-interval` | beat's command line (`cargo run --bin beat -- -m 30`) | `30` | Seconds between snapshot beats. |
-| `MONITORING_VOTER_FULL_PASS_SECONDS` | Windmill worker environment | `300` | Seconds between full passes over the Keycloak voters. Votes and applications are read on every pass; voter attributes (region, country, dimensions, pre-enrolment) only on a full pass, or when there is no projection yet or the settings changed. Not set in the dev compose files: add it to the `windmill` service's `environment` to change it. |
+| `MONITORING_SNAPSHOT_INTERVAL_SECONDS` | `beat`, `windmill` and `harvest` services | `30`, within 5..=3600 | Seconds between snapshot passes. Beat schedules with it (its `-m`, `--monitoring-snapshot-interval` flag reads the same variable), both the beat message and the pass task expire after one interval, and Harvest reports it as `refresh_seconds`, which the portal polls with. |
+| `MONITORING_VOTER_FULL_PASS_SECONDS` | `windmill` service | `300`, within the snapshot interval..=86400 | Seconds between full passes over the Keycloak voters. Votes and applications are read on every pass; voter attributes (region, country, dimensions, pre-enrolment) only on a full pass, when there is no projection yet, or when the settings changed. |
+
+Compose passes both through from the shell or `.devcontainer/.env`
+(`.env.development` and the airgap `.env` list them), in
+`.devcontainer/docker-compose-base.yml`, `docker-compose-remote.yml`,
+`docker-compose-airgap-preparation.yml` and
+`scripts/airgap-files/docker-compose.yml`. A value out of bounds is clamped,
+and one that is not a whole number of seconds is replaced by the default;
+the service still starts and logs a warning. Each service logs
+`Monitoring cadence: ...` at startup.
+
+To try another cadence in the dev stack:
+
+1. Set the variable for the three services and recreate them:
+
+   ```sh
+   export MONITORING_SNAPSHOT_INTERVAL_SECONDS=15
+   cd "$LOCAL_WORKSPACE_FOLDER/.devcontainer" && docker compose up -d --no-deps --force-recreate beat windmill harvest
+   docker logs beat 2>&1 | grep "Monitoring cadence"
+   ```
+
+2. Open the event's Dashboard tab: the header shows "every 15 s".
+   The dashboard answer carries the value:
+
+   ```sh
+   gql 'query($e: uuid!){monitoringListDashboards(election_event_id:$e){refresh_seconds snapshot{revision as_of}}}' \
+     "{\"e\":\"$EVENT\"}"
+   ```
+
+3. Cast a vote and watch `checked_at` of the latest run (the first SQL query
+   of [Live verification](#4-live-verification)) move every 15 seconds.
+4. Unset the variable and recreate the services to go back to 30.
 
 A shorter interval gives fresher figures for one more pass per event per
-interval; a pass that finds the previous one still running skips, and the
-beat and the pass task expire after 30 seconds unconsumed. A shorter full pass
-picks up voter edits sooner at the cost of reading every voter from the
-Keycloak database in pages of 2,000.
-
-:::note Comes with the refresh-interval change
-The refresh-interval change, in a parallel branch, adds
-`MONITORING_SNAPSHOT_INTERVAL_SECONDS`, read by beat and Harvest (default 30,
-bounded), and a `refresh_seconds` field in the dashboard answer, which the
-portal polls with instead of its fixed 30 seconds. Correct this section when
-it merges: whether the `-m` flag remains, the variable's bounds, where compose
-sets it, and the header's "every N s".
-:::
+interval. Viewers do not add passes: Harvest serves every viewer from the
+same snapshot. A pass that finds the previous one still running skips, so
+the effective cadence is never shorter than the pass itself; keep the
+interval above the pass times in the `Monitoring snapshot pass` log lines.
+A shorter full pass picks up voter edits sooner at the cost of reading every
+voter from the Keycloak database in pages of 2,000. The architecture page
+suggests values by event size in
+[Snapshot cadence](./01-monitoring-architecture.md#snapshot-cadence).
 
 ## 6. Scale and load testing
 
@@ -473,8 +515,8 @@ Filled when the scale and bench branches merge
 | Configure widget says "Checks in the browser are unavailable; problems appear after the preview or Validate." | The dev server serves a sequent-core WASM without `validateMonitoringConfig`, usually one it loaded before the branch's package was installed. Run `yarn --cwd packages install --frozen-lockfile`, then restart the admin-portal dev server: a running server keeps the module it loaded. With a development build (`scripts/dev/step-dev wasm`, checked by `--status`), restart after its first publish too. |
 | A widget shows "The chart could not be drawn" with a table | `RENDER_FAILED`: the renderer is down (`RENDERER_UNAVAILABLE`), timed out (`RENDER_TIMEOUT`) or produced unsafe output. The figures still show as a table. Check `docker inspect -f '{{.State.Health.Status}}' monitoring-renderer`, `docker logs monitoring-renderer` and the Harvest log (`Monitoring renderer unavailable`). Charts already in Harvest's render cache keep showing until the snapshot or selection changes. Validate and Save answer 503 `MONITORING_CHECKS_UNAVAILABLE` meanwhile. |
 | "Counting this selection" or "Counting with the new settings…" | `SCOPE_PENDING`. A new set of allowed elections (a label change) is counted from the next pass; after a reset that changed the settings, the figures wait for a pass under them. It clears within one interval; if not, check that beat and the `monitoring_queue` consumer run. |
-| A saved title, chart or layout change takes a while to show | The dashboard shows the configuration its snapshot was counted under, so an edit can take up to one snapshot pass to appear. |
+| After a reset to a preset, the dashboards keep their old widgets for a while | A saved widget, dashboard or theme shows at once, drawn from the figures already counted. Only a settings change (a reset that changes the settings) waits: until a pass counts under the new settings, a dashboard is drawn with the configuration its snapshot was counted under, and a count only the new settings make shows "Counting with the new settings…" (`SCOPE_PENDING` with reason `SETTINGS_PENDING`). It clears within one interval. |
 | "Not counted yet" stays | No run completed. Check `monitoring_event.dashboard_mode` is `CONFIGURED`, that beat sends `refresh_monitoring_snapshots` and that the Windmill log shows passes; a `FAILED` run has its `error` in `monitoring_snapshot_run`. A missing `KEYCLOAK_VOTER_GROUP_NAME` fails every pass. |
-| Hasura answers `Unknown Error` (`extensions.code: unexpected`) | Harvest could not read the request body, so Rocket's default catcher answered. The values are case sensitive: `kind` is `widget`, `dashboard`, `theme` or `settings`; `change` is `UPSERT` or `DELETE`; `mode` is `LEGACY` or `CONFIGURED`; `format` is `CSV` or `SQL`; `from`/`to` are RFC 3339 with an offset. |
+| Hasura answers `MONITORING_BAD_REQUEST` | Harvest could not read the request body: 400 when it is not JSON, 422 when it is JSON but a field is missing, of the wrong type or not one of its values. The message names what is wrong. The values are case sensitive: `kind` is `widget`, `dashboard`, `theme` or `settings`; `change` is `UPSERT` or `DELETE`; `mode` is `LEGACY` or `CONFIGURED`; `format` is `CSV` or `SQL`; `from`/`to` are RFC 3339 with an offset. |
 | A chart's axis `ticks` is refused, or dbt Charts warns about it | The policy refuses `step` ("A tick step turns the data's range into any number of ticks; set `ticks.count` instead."), and on a measure axis dbt Charts accepts only `ticks.count`. |
 | `JWTExpired` from the `gql` helper | Rerun the `TOKEN=` line. |

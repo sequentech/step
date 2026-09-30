@@ -2949,6 +2949,12 @@ const galegoTranslation: TranslationType = {
                 title: "{{widget}} · datos",
                 close: "Pechar",
                 empty: "Sen filas",
+                rowsPerPage: "Filas por páxina:",
+                shownRows: "{{from}}–{{to}} de {{total}}",
+                firstPage: "Primeira páxina",
+                previousPage: "Páxina anterior",
+                nextPage: "Páxina seguinte",
+                lastPage: "Última páxina",
             },
             columns: {
                 numerator: "Numerador",
@@ -3287,6 +3293,8 @@ const galegoTranslation: TranslationType = {
                     lockedDown:
                         "O evento está bloqueado; a súa configuración de monitorización non pode cambiar.",
                     forbiddenScope: "Non podes ver cifras da rexión, o posto ou o país escollidos.",
+                    badRequest:
+                        "O editor enviou unha solicitude que o servidor non puido ler. Recargue a páxina e ténteo de novo.",
                 },
                 duplicate: {
                     copyTitle: "{{title}} (copia)",

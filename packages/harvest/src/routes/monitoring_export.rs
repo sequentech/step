@@ -9,19 +9,24 @@
 //! `from` and `to` are instants: RFC 3339 with an offset, any offset; the
 //! portal turns the local times it shows into instants with the settings'
 //! time zone. A time without an offset names no instant and is refused.
-//! The dashboard and widget are looked up in the configuration the run was
-//! counted under, which is what the task reads.
+//! The dashboard and widget are looked up in the configuration the dashboard
+//! draws the run with ([`config_at_snapshot`]): the live one unless the
+//! settings changed since the run was counted. The request names that
+//! configuration's generation, which is what the task reads, so a widget
+//! saved a moment ago exports as it is drawn, and the file does not change
+//! with later saves.
 
 use crate::routes::monitoring::{authorize_monitoring, viewer_and_config};
 use crate::services::dependencies::HarvestServices;
 use crate::services::monitoring::{
-    check_selector_values, hasura_client, parse_instant, pinned_snapshot,
+    check_selector_values, config_at_snapshot, parse_instant, pinned_snapshot,
     request_body, MonitoringBody, MonitoringError, MonitoringResult,
 };
 use indexmap::IndexMap;
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use rocket::State;
+use sequent_core::monitoring::config::ConfigSet;
 use sequent_core::monitoring::problem::{Code, Problem, Report};
 use sequent_core::monitoring::scope::ScopeSelection;
 use sequent_core::services::jwt::JwtClaims;
@@ -30,7 +35,6 @@ use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
 use tracing::{error, instrument};
 use uuid::Uuid;
-use windmill::services::monitoring::config_store::get_config_at_generation;
 use windmill::services::monitoring::export::{
     MonitoringExportFormat, MonitoringExportRequest,
 };
@@ -107,11 +111,11 @@ pub async fn export_monitoring(
             });
         }
     }
-    if live.is_none() {
+    let Some(live) = live else {
         return Err(MonitoringError::not_found(
             "The event has no monitoring configuration.",
         ));
-    }
+    };
 
     let snapshots = &services.monitoring_snapshots;
     let kept = pinned_snapshot(
@@ -121,35 +125,23 @@ pub async fn export_monitoring(
         "That snapshot is no longer kept; export the current one.",
     )
     .await?;
-    let config = {
-        let mut client = hasura_client(services).await?;
-        let transaction = client
-            .transaction()
-            .await
-            .map_err(MonitoringError::internal)?;
-        let config = get_config_at_generation(
-            &transaction,
-            viewer.event,
-            kept.config_generation,
-        )
-        .await
-        .map_err(MonitoringError::internal)?;
-        transaction
-            .commit()
-            .await
-            .map_err(MonitoringError::internal)?;
-        config
-    };
-    let Some(config) = config else {
-        return Err(MonitoringError::not_found(
-            "The configuration that snapshot was counted under is no longer kept.",
-        ));
-    };
-    let set = &config.assembled.set;
+    let (dashboard_id, widget_id) = (&input.dashboard_id, &input.widget_id);
+    let config = config_at_snapshot(
+        services,
+        viewer.event,
+        Some(&kept),
+        live,
+        |set: &ConfigSet| {
+            set.dashboards.contains_key(dashboard_id)
+                && widget_id.as_ref().map_or(true, |widget_id| {
+                    set.widgets.contains_key(widget_id)
+                })
+        },
+    )
+    .await?;
+    let set = &config.set;
     let Some(dashboard) = set.dashboards.get(&input.dashboard_id) else {
-        return Err(MonitoringError::not_found(
-            "There is no such dashboard in that snapshot's configuration.",
-        ));
+        return Err(MonitoringError::not_found("There is no such dashboard."));
     };
     if let Some(widget_id) = &input.widget_id {
         if !dashboard
@@ -245,6 +237,7 @@ pub async fn export_monitoring(
         selector_values: input.selector_values.unwrap_or_default(),
         widget_selector_values,
         snapshot_revision: input.snapshot_revision,
+        config_generation: Some(config.generation),
         format: input.format,
         from,
         to,

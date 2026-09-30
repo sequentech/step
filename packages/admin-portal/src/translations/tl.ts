@@ -2961,6 +2961,12 @@ const tagalogTranslation: TranslationType = {
                 title: "{{widget}} · datos",
                 close: "Isara",
                 empty: "Walang hilera",
+                rowsPerPage: "Mga hilera bawat pahina:",
+                shownRows: "{{from}}–{{to}} sa {{total}}",
+                firstPage: "Unang pahina",
+                previousPage: "Nakaraang pahina",
+                nextPage: "Susunod na pahina",
+                lastPage: "Huling pahina",
             },
             columns: {
                 numerator: "Numerator",
@@ -3303,6 +3309,8 @@ const tagalogTranslation: TranslationType = {
                         "Naka-lock down ang event; hindi na mababago ang configuration ng monitoring nito.",
                     forbiddenScope:
                         "Hindi mo maaaring makita ang mga bilang para sa napiling rehiyon, posisyon o bansa.",
+                    badRequest:
+                        "Nagpadala ang editor ng kahilingang hindi mabasa ng server. I-reload ang pahina at subukan muli.",
                 },
                 duplicate: {
                     copyTitle: "{{title}} (kopya)",

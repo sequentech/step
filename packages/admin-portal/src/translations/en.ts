@@ -2921,6 +2921,12 @@ const englishTranslation = {
                 title: "{{widget}} · data",
                 close: "Close",
                 empty: "No rows",
+                rowsPerPage: "Rows per page:",
+                shownRows: "{{from}}–{{to}} of {{total}}",
+                firstPage: "First page",
+                previousPage: "Previous page",
+                nextPage: "Next page",
+                lastPage: "Last page",
             },
             columns: {
                 numerator: "Numerator",
@@ -3259,6 +3265,8 @@ const englishTranslation = {
                         "The event is locked down; its monitoring configuration cannot change.",
                     forbiddenScope:
                         "You cannot see figures for the chosen region, Post or country.",
+                    badRequest:
+                        "The editor sent a request the server could not read. Reload the page and try again.",
                 },
                 duplicate: {
                     copyTitle: "{{title}} (copy)",

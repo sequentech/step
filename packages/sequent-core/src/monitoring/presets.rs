@@ -454,3 +454,7 @@ fn check_requirements(
 #[cfg(test)]
 #[path = "presets_tests.rs"]
 mod presets_tests;
+
+#[cfg(test)]
+#[path = "presets_scale_tests.rs"]
+mod presets_scale_tests;

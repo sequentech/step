@@ -14,7 +14,7 @@
 use crate::ports::monitoring_renderer::{
     ColorScheme, RenderBoard, RendererError,
 };
-use crate::ports::monitoring_snapshots::{ScopeRead, SnapshotHead};
+use crate::ports::monitoring_snapshots::{KeptRun, ScopeRead, SnapshotHead};
 use crate::services::dependencies::HarvestServices;
 use crate::services::monitoring_cache::RenderKeyParts;
 use crate::services::monitoring_svg::{sanitize_svg, UnsafeSvg};
@@ -52,8 +52,8 @@ use std::sync::Arc;
 use tracing::{error, warn};
 use uuid::Uuid;
 use windmill::services::monitoring::config_store::{
-    get_config_at_generation, get_live_config, Author, EventRef, LiveConfig,
-    StoredRevision,
+    get_config_at_generation, get_live_config, Author, ConfigAtGeneration,
+    EventRef, LiveConfig, StoredRevision,
 };
 use windmill::services::monitoring::snapshot::empty_payload;
 
@@ -510,6 +510,41 @@ pub async fn live_config(
         .map_err(MonitoringError::internal)
 }
 
+/// The event's live configuration for a read route: its generation is read
+/// first, and the documents are read and checked only for a generation not
+/// kept yet (see [`crate::services::monitoring_config_cache`]).
+pub async fn viewed_config(
+    services: &HarvestServices,
+    transaction: &Transaction<'_>,
+    event: EventRef,
+) -> MonitoringResult<Option<LiveConfig>> {
+    let row = transaction
+        .query_opt(
+            "SELECT config_generation FROM sequent_backend.monitoring_event
+             WHERE tenant_id = $1 AND election_event_id = $2",
+            &[&event.tenant_id, &event.election_event_id],
+        )
+        .await
+        .map_err(MonitoringError::internal)?;
+    let Some(row) = row else {
+        return Ok(None);
+    };
+    let generation: i64 = row.get(0);
+    if let Some(kept) = services.monitoring_configs.live.get(event, generation)
+    {
+        return Ok(Some(LiveConfig::clone(&kept)));
+    }
+    let live = live_config(transaction, event).await?;
+    if let Some(live) = &live {
+        services.monitoring_configs.live.put(
+            event,
+            live.generation,
+            live.clone(),
+        );
+    }
+    Ok(live)
+}
+
 /// An instant a request names: RFC 3339 with its offset (`Z`, `+08:00`).
 /// A time without one names no instant, so it is refused.
 pub fn parse_instant(
@@ -560,31 +595,46 @@ impl SnapshotConfig {
     }
 }
 
-/// The complete run `revision` a request pins. One the event no longer keeps
-/// is gone (410, MONITORING_SNAPSHOT_PRUNED, saying `gone`); one after the
-/// event's live run, or of an event with no run, was never issued (404).
+/// The complete run `revision` a request pins.
+///
+/// Only a revision that may have been a snapshot shown and is gone answers
+/// 410 (MONITORING_SNAPSHOT_PRUNED, saying `gone`): one with no run below the
+/// event's live run. Pruning deletes a run's row, so a complete run pruned
+/// cannot be told from a number the event did not keep for other reasons (a
+/// pass that found nothing new drops its run); a viewer only pins revisions
+/// it was shown, so such a number is taken as pruned. Everything else was
+/// never a snapshot and answers 404: a revision of 0 or below (runs count
+/// from 1), one after the live run or of an event with no run, and a run
+/// still kept that did not complete (running, failed or superseded).
 pub async fn pinned_snapshot(
     services: &HarvestServices,
     event: EventRef,
     revision: i64,
     gone: &'static str,
 ) -> MonitoringResult<SnapshotHead> {
+    const NEVER_SHOWN: &str =
+        "There is no such snapshot: the event has not counted it.";
+    if revision <= 0 {
+        return Err(MonitoringError::not_found(NEVER_SHOWN));
+    }
     let snapshots = &services.monitoring_snapshots;
-    if let Some(head) = snapshots
-        .complete(event, revision)
+    match snapshots
+        .run(event, revision)
         .await
         .map_err(MonitoringError::internal)?
     {
-        return Ok(head);
+        KeptRun::Complete(head) => return Ok(head),
+        KeptRun::Incomplete => {
+            return Err(MonitoringError::not_found(NEVER_SHOWN))
+        }
+        KeptRun::Missing => {}
     }
     let live = snapshots
         .live(event)
         .await
         .map_err(MonitoringError::internal)?;
     if live.map_or(true, |live| revision > live.revision) {
-        return Err(MonitoringError::not_found(
-            "There is no such snapshot: the event has not counted it yet.",
-        ));
+        return Err(MonitoringError::not_found(NEVER_SHOWN));
     }
     Err(MonitoringError::new(
         Status::Gone,
@@ -614,9 +664,9 @@ pub fn counted_for_live(head: &SnapshotHead, live: &LiveConfig) -> bool {
 /// again when that generation is no longer kept, or has not what `has` asks
 /// for (a widget added since), and those two say so.
 ///
-/// Exports do not use this: an export of a run always reads the
-/// configuration that run was counted under, so exporting the same revision
-/// twice gives the same file.
+/// An export chooses its configuration here too, so a file holds what the
+/// dashboard draws; the export task is told the generation chosen, so it
+/// reads exactly that one whatever is saved meanwhile.
 pub async fn config_at_snapshot(
     services: &HarvestServices,
     event: EventRef,
@@ -630,19 +680,9 @@ pub async fn config_at_snapshot(
     }) else {
         return Ok(SnapshotConfig::live(live));
     };
-    let mut client = hasura_client(services).await?;
-    let transaction = client
-        .transaction()
-        .await
-        .map_err(MonitoringError::internal)?;
-    let at =
-        get_config_at_generation(&transaction, event, head.config_generation)
-            .await
-            .map_err(MonitoringError::internal)?;
-    transaction
-        .commit()
-        .await
-        .map_err(MonitoringError::internal)?;
+    let at = config_at_generation(services, event, head.config_generation)
+        .await?
+        .map(|at| ConfigAtGeneration::clone(&at));
     let notice = match at {
         Some(at) if has(&at.assembled.set) => {
             return Ok(SnapshotConfig {
@@ -659,6 +699,32 @@ pub async fn config_at_snapshot(
         notice: Some(notice),
         ..SnapshotConfig::live(live)
     })
+}
+
+/// What the event was configured with at `generation`, which never
+/// changes once reached: read once, then kept.
+async fn config_at_generation(
+    services: &HarvestServices,
+    event: EventRef,
+    generation: i64,
+) -> MonitoringResult<Option<Arc<ConfigAtGeneration>>> {
+    if let Some(kept) = services.monitoring_configs.at.get(event, generation) {
+        return Ok(Some(kept));
+    }
+    let mut client = hasura_client(services).await?;
+    let transaction = client
+        .transaction()
+        .await
+        .map_err(MonitoringError::internal)?;
+    let at = get_config_at_generation(&transaction, event, generation)
+        .await
+        .map_err(MonitoringError::internal)?;
+    transaction
+        .commit()
+        .await
+        .map_err(MonitoringError::internal)?;
+    // Not reached yet is not kept: it may be reached later.
+    Ok(at.map(|at| services.monitoring_configs.at.put(event, generation, at)))
 }
 
 /// Checks the values a request gives a widget's selectors against the

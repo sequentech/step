@@ -22,6 +22,7 @@ use crate::ports::database::DatabasePools;
 use crate::ports::monitoring_renderer::MonitoringRenderer;
 use crate::ports::monitoring_snapshots::MonitoringSnapshots;
 use crate::services::dependencies::{HarvestServices, MonitoringCache};
+use crate::services::monitoring_config_cache::MonitoringConfigs;
 use crate::test_claims::Claims;
 use deadpool_postgres::{Pool, Runtime};
 use rocket::http::{ContentType, Header, Status};
@@ -51,6 +52,7 @@ pub struct Services {
     pub identity: Arc<LocalIdentityAdmin>,
     pub monitoring_audit: Arc<MemoryConfigAudit>,
     pub monitoring_cache: Arc<MonitoringCache>,
+    pub monitoring_configs: Arc<MonitoringConfigs>,
     pub monitoring_cadence: Cadence,
     pub monitoring_renderer: Arc<MemoryRenderer>,
     /// A real renderer instead of the fake, for the live checks.
@@ -84,6 +86,7 @@ impl Services {
             identity: Default::default(),
             monitoring_audit: Default::default(),
             monitoring_cache: Arc::new(MonitoringCache::new(64)),
+            monitoring_configs: Arc::new(MonitoringConfigs::new(64)),
             monitoring_cadence: Cadence::default(),
             monitoring_renderer: Default::default(),
             live_renderer: None,
@@ -189,6 +192,7 @@ impl Services {
             identity: self.identity.clone(),
             monitoring_audit: self.monitoring_audit.clone(),
             monitoring_cache: self.monitoring_cache.clone(),
+            monitoring_configs: self.monitoring_configs.clone(),
             monitoring_cadence: self.monitoring_cadence.clone(),
             monitoring_renderer: match &self.live_renderer {
                 Some(renderer) => renderer.clone(),

@@ -741,6 +741,92 @@ async fn after_the_settings_change_a_widget_is_drawn_as_its_run_was_counted_unti
     assert!(last_drawn(&services).contains("Renamed"), "{body}");
 }
 
+async fn dashboard(client: &Client, event: &Event) -> Value {
+    let (status, body) = json(
+        post(
+            client,
+            "/monitoring/get-dashboard",
+            &viewer(event),
+            &json!({
+                "election_event_id": event.election_event_id,
+                "dashboard_id": "overview",
+            }),
+        )
+        .await,
+    )
+    .await;
+    assert_eq!(status, Status::Ok, "{body}");
+    body
+}
+
+fn catalog_title(body: &Value, id: &str) -> String {
+    body["catalog"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|entry| entry["id"] == id)
+        .map(|entry| entry["title"].as_str().unwrap().to_string())
+        .unwrap()
+}
+
+#[rocket::async_test]
+async fn the_configuration_is_read_once_per_generation_however_many_ask() {
+    let services = Services::on_test_database()
+        .await
+        .with_monitoring_snapshots(MemorySnapshots::at(7, ScopeRead::Empty));
+    let client = services.client().await;
+    let event = rows::event(&services.hasura).await;
+    event.election(&services.hasura).await;
+    configure(&client, &event).await;
+    set_head(&services, |head| head.config_generation = 1);
+
+    let first = dashboard(&client, &event).await;
+    for _ in 0..3 {
+        assert_eq!(dashboard(&client, &event).await, first);
+        let (_, body) = render(
+            &client,
+            &viewer(&event),
+            &event,
+            "turnout-summary",
+            json!({}),
+        )
+        .await;
+        assert_eq!(body["state"], "RENDERED", "{body}");
+    }
+    assert_eq!(services.monitoring_configs.live.loads(), 1);
+    assert_eq!(services.monitoring_configs.at.loads(), 0);
+
+    // A save raises the generation: the next request reads the new one.
+    let generation = retitle(&client, &event, "turnout-summary").await;
+    let after = dashboard(&client, &event).await;
+    assert!(
+        catalog_title(&after, "turnout-summary").starts_with("Renamed "),
+        "{after}"
+    );
+    assert_eq!(services.monitoring_configs.live.loads(), 2);
+
+    // The run was counted under the older generation with the same
+    // settings, so the renders draw with the live configuration, read
+    // once, and never read the older one.
+    for _ in 0..3 {
+        let (_, body) = render(
+            &client,
+            &viewer(&event),
+            &event,
+            "turnout-summary",
+            json!({}),
+        )
+        .await;
+        assert_eq!(body["state"], "RENDERED", "{body}");
+        assert_eq!(body["notices"], json!([]), "{body}");
+    }
+    assert_eq!(services.monitoring_configs.at.loads(), 0);
+    assert_eq!(services.monitoring_configs.live.loads(), 2);
+    // Drawn once more, with the new title.
+    assert_eq!(services.monitoring_renderer.renders(), 2);
+    assert!(generation > 1);
+}
+
 #[rocket::async_test]
 async fn a_run_whose_configuration_is_gone_is_drawn_with_the_live_one_and_says_so(
 ) {
@@ -861,9 +947,15 @@ async fn a_pinned_run_never_issued_is_not_found_and_one_pruned_is_gone() {
     event.election(&services.hasura).await;
     configure(&client, &event).await;
 
+    // Run 5 is still kept, but it failed (or is still counting), so it
+    // never was a snapshot to show; no run is numbered 0 or below.
+    services.monitoring_snapshots.incomplete.lock().unwrap().push(5);
     for (revision, status, code) in [
         (3, Status::Gone, "MONITORING_SNAPSHOT_PRUNED"),
         (999999, Status::NotFound, "MONITORING_NOT_FOUND"),
+        (5, Status::NotFound, "MONITORING_NOT_FOUND"),
+        (0, Status::NotFound, "MONITORING_NOT_FOUND"),
+        (-1, Status::NotFound, "MONITORING_NOT_FOUND"),
     ] {
         let (answered, body) = render(
             &client,

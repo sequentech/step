@@ -2973,6 +2973,12 @@ const frenchTranslation: TranslationType = {
                 title: "{{widget}} · données",
                 close: "Fermer",
                 empty: "Aucune ligne",
+                rowsPerPage: "Lignes par page :",
+                shownRows: "{{from}}–{{to}} sur {{total}}",
+                firstPage: "Première page",
+                previousPage: "Page précédente",
+                nextPage: "Page suivante",
+                lastPage: "Dernière page",
             },
             columns: {
                 numerator: "Numérateur",
@@ -3316,6 +3322,8 @@ const frenchTranslation: TranslationType = {
                         "L'événement est verrouillé ; sa configuration de supervision ne peut pas changer.",
                     forbiddenScope:
                         "Vous ne pouvez pas voir les chiffres de la région, du poste ou du pays choisis.",
+                    badRequest:
+                        "L'éditeur a envoyé une demande que le serveur n'a pas pu lire. Rechargez la page et réessayez.",
                 },
                 duplicate: {
                     copyTitle: "{{title}} (copie)",

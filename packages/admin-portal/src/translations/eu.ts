@@ -2942,6 +2942,12 @@ const basqueTranslation: TranslationType = {
                 title: "{{widget}} · datuak",
                 close: "Itxi",
                 empty: "Errenkadarik ez",
+                rowsPerPage: "Errenkadak orriko:",
+                shownRows: "{{from}}–{{to}} / {{total}}",
+                firstPage: "Lehen orria",
+                previousPage: "Aurreko orria",
+                nextPage: "Hurrengo orria",
+                lastPage: "Azken orria",
             },
             columns: {
                 numerator: "Zenbakitzailea",
@@ -3281,6 +3287,8 @@ const basqueTranslation: TranslationType = {
                         "Gertaera blokeatuta dago; bere monitorizazio-konfigurazioa ezin da aldatu.",
                     forbiddenScope:
                         "Ezin dituzu ikusi aukeratutako eskualdeko, postuko edo herrialdeko zifrak.",
+                    badRequest:
+                        "Editoreak zerbitzariak irakurri ezin duen eskaera bat bidali du. Kargatu berriro orria eta saiatu berriro.",
                 },
                 duplicate: {
                     copyTitle: "{{title}} (kopia)",
