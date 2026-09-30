@@ -39,34 +39,51 @@ how to configure them, and the contract between them and Keycloak.
 | `scanovate-liveness` | `scanovate/liveness-plus-service:version_3.9.0_e0dc72e_115` | Liveness backend and web UI. Manages the sessions, calls PAD and IAD, sends the callbacks. |
 | `scanovate-presentation-detection` | `scanovate/liveness-presentation-detection-service:release_1.52.0` | PAD server, with the `pad-r-2` and `dfd-3` (deepfake) pipelines. |
 | `scanovate-injection-detection` | `scanovate/liveness-injection-detection-service:release-2.6.2` | IAD server. Checks that frames come from a real camera. |
-| `scanovate-face-match` | `scanovate/face-match:version_3.9.0_ba58397_79` | 1:N Face Match API (`/facematch1N`). |
+| `scanovate-face-match` | `495947449196.dkr.ecr.eu-central-1.amazonaws.com/ngfacematch:version_3.9.0_ba58397_79` | 1:N Face Match API (`/facematch1N`). |
 | `scanovate-valkey` | `valkey/valkey-extensions:8.1` | Vector database of the face templates, with the search module. |
 
 ## Access to the images
 
-The Scanovate images are private on Docker Hub. Without access, pulling them
-fails with:
+The Scanovate images are private: the Liveness Plus images are on Docker Hub,
+and the Face Match image is on Scanovate's AWS ECR registry
+(`495947449196.dkr.ecr.eu-central-1.amazonaws.com`). Without access, pulling
+them fails with:
 
 ```text
 denied: requested access to the resource is denied
 unauthorized: authentication required
 ```
 
-Scanovate grants access to a Docker Hub account, or gives us the credentials
-of one. Log in with them in the Docker client that pulls the images: your host,
-since the dev container talks to the host's Docker daemon, or each server that
-runs them. Use an access token rather than the account password when possible,
-and read it from standard input so it doesn't end up in the shell history:
+Log in to both registries in the Docker client that pulls the images: your
+host, since the dev container talks to the host's Docker daemon, or each server
+that runs them.
+
+For Docker Hub, Scanovate grants access to a Docker Hub account, or gives us
+the credentials of one. Use an access token rather than the account password
+when possible, and read it from standard input so it doesn't end up in the
+shell history:
 
 ```bash
 docker login --username <docker hub user> --password-stdin
 # paste the token, then Ctrl-D
 ```
 
+For ECR, Scanovate grants access to an AWS identity of ours. With the AWS CLI
+configured for it:
+
+```bash
+aws ecr get-login-password --region eu-central-1 \
+  | docker login --username AWS --password-stdin \
+    495947449196.dkr.ecr.eu-central-1.amazonaws.com
+```
+
+ECR login tokens expire after 12 hours: log in again before pulling a new tag.
+
 Then check the access without downloading anything:
 
 ```bash
 docker manifest inspect scanovate/liveness-plus-service:version_3.9.0_e0dc72e_115
+docker manifest inspect 495947449196.dkr.ecr.eu-central-1.amazonaws.com/ngfacematch:version_3.9.0_ba58397_79
 ```
 
 Some rules:
@@ -141,8 +158,9 @@ browser with a camera:
 https://localhost:8443/biometric/liveness/?scan_config=scan_config&video_config=video_config&translation_variant=sequent&translation_language=en&ui_theme=sequent_ui
 ```
 
-Loading it straight from port `5050` doesn't work: its client sends the API
-calls under `/biometric/`, which only `keycloak-nginx` strips.
+Loading it straight from `http://127.0.0.1:5050/biometric/liveness/` shows the
+UI, but browsers only give camera access to secure origins, and the login pages
+must share the iframe's origin.
 
 Without a token from Keycloak, the session is rejected with `invalid token`
 (`1014`): the dev configuration verifies tokens with Keycloak. To look at the
@@ -399,17 +417,19 @@ We serve it on the same origin as Keycloak, under `/biometric/`:
 | | URL |
 | --- | --- |
 | Liveness UI | `https://<keycloak host>/biometric/liveness/` |
-| Its API and events | `https://<keycloak host>/biometric/create_session`, `.../biometric/sse/events`, ... |
+| Its API, assets and events | `https://<keycloak host>/biometric/liveness/create_session`, `.../biometric/liveness/assets/...`, `.../biometric/liveness/sse/...` |
 | Authenticator `liveness-url` | `https://<keycloak host>/biometric` |
 | Keycloak endpoints for Liveness Plus | `http://<keycloak internal host>/realms/master/scanovate/liveness/{verify,callback}`, internal only |
 
 `/biometric/` is vendor neutral, and none of Keycloak's own top-level paths
 (`/realms`, `/admin`, `/resources`, `/js`, `/health`, `/metrics`) use it.
 
-- `CLIENT_BASE_URL_PREFIX=biometric/` makes the client send its calls under the
-  prefix.
+- `CLIENT_BASE_URL_PREFIX=biometric/` makes the service serve its UI, assets
+  and API under `/biometric/liveness/`, and its client call them there. Only
+  `/alive` also answers without the prefix.
 - Keycloak's public reverse proxy routes `/biometric/` to the Liveness Plus
-  service, stripping the prefix, with Server-Sent Events unbuffered. Only that
+  service with the path unchanged, and Server-Sent Events unbuffered. Stripping
+  the prefix makes the service answer `404`. Only that
   prefix is routed: the PAD and IAD servers stay internal.
 - The same proxy answers `404` for `/realms/*/scanovate/liveness/`: only
   Liveness Plus calls those endpoints, on the internal network.
@@ -421,7 +441,6 @@ The dev container does exactly this in `keycloak-nginx`
 ```nginx
 location /biometric/ {
     set $liveness_upstream http://scanovate-liveness:5050;
-    rewrite ^/biometric/(.*)$ /$1 break;
     proxy_pass $liveness_upstream;
     proxy_http_version 1.1;
     proxy_set_header Connection "";
@@ -457,8 +476,8 @@ detection) is still Scanovate's.
 - Serve the liveness UI under `/biometric/` on Keycloak's origin, and block
   `/realms/*/scanovate/liveness/` on the public proxy (see
   [Deployment on Keycloak's origin](#deployment-on-keycloaks-origin)).
-- Use a secure random `JWT_SECRET_KEY`, and keep it and the Docker Hub
-  credentials in the secrets store.
+- Use a secure random `JWT_SECRET_KEY`, and keep it, the Docker Hub
+  credentials and the AWS access in the secrets store.
 - Pin image tags, never `latest`.
 - Valkey holds biometric templates: persist and back up its volume, restrict
   access to it, and delete templates when the voter data is deleted.

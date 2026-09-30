@@ -11,18 +11,20 @@ Follow-ups of the Scanovate on-premise integration. See
 
 ## Once we have access to the images
 
-- [ ] Get Docker Hub access (or credentials) from Scanovate, and store them in
-      the team's password manager.
-- [ ] Pull the images and confirm that `scanovate/face-match:version_3.9.0_ba58397_79`
-      exists. The tag was inferred from the delivery folder name and the
-      release notes.
-- [ ] Check that Liveness Plus reads its config from `/app/config`
-      (`docker compose exec scanovate-liveness ls /app/config`), and update the
-      override example in the guide if not.
+- [x] Get Docker Hub access from Scanovate for the Liveness Plus images.
+- [ ] Get AWS ECR access for the Face Match image
+      (`495947449196.dkr.ecr.eu-central-1.amazonaws.com/ngfacematch:version_3.9.0_ba58397_79`),
+      and store the credentials in the team's password manager.
+- [x] Check that Liveness Plus reads its config from `/app/config`. Our mount
+      replaces the whole directory, including the image's `default_ui.json`
+      and `locales/default`.
 - [ ] Run the smoke tests of the guide: `/alive`, the liveness UI with a
       camera, and `GET /facematch1N/get_groups` with `x-company-id: sequent-dev`.
-- [ ] Check whether any container needs `security_opt: [seccomp=unconfined]`
-      and whether 14 GB of Docker memory is enough for the whole profile.
+- [x] Check whether any container needs `security_opt: [seccomp=unconfined]`:
+      none of the liveness ones do. Idle, PAD takes ~5.4 GB, IAD ~2.9 GB and
+      Liveness Plus ~0.5 GB, so 14 GB is enough without Face Match.
+- [x] Create a liveness session through `/biometric/liveness/create_session`:
+      it returns the `sequent` texts and the `sequent_ui` theme.
 - [ ] Get the Face Match request and response schemas from its OpenAPI
       description (`/docs` or `/openapi.json`), and document them.
 - [ ] Confirm whether `DELETE /delete_group` deletes the templates of the
@@ -80,9 +82,10 @@ Agreed design:
       as Keycloak (`CLIENT_BASE_URL_PREFIX=biometric/`), routed by
       `keycloak-nginx` in dev, which also blocks
       `/realms/*/scanovate/liveness/`.
-- [ ] Confirm with the image that `CLIENT_BASE_URL_PREFIX` only prefixes the
-      client's calls, so the proxy must strip it (as `keycloak-nginx` does), and
-      that the service doesn't send framing headers that block Keycloak.
+- [x] Check `CLIENT_BASE_URL_PREFIX` with the image: the service itself serves
+      everything under `/biometric/liveness/`, so the proxy passes the path
+      unchanged (it doesn't strip it). The service sends no framing headers
+      (`X-Frame-Options`, CSP).
 - [ ] Add the `/biometric/` route and the `/realms/*/scanovate/liveness/`
       block to the production reverse proxy of Keycloak.
 - [ ] Try the flow end to end with the images and a real camera, on desktop
@@ -100,6 +103,8 @@ Agreed design:
 ## Production
 
 - [ ] Mirror the images to our own registry.
+- [ ] Track the licenses baked into the images: PAD's expires on 2027-10-04 and
+      IAD's on 2027-08-30. Ask Scanovate how they're renewed.
 - [ ] Serve Liveness Plus over HTTPS, and make sure proxies don't buffer
       Server-Sent Events (`/sse/events`).
 - [ ] Use a secure random `JWT_SECRET_KEY` from the secrets store.

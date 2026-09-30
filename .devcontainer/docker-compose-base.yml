@@ -570,8 +570,8 @@ services:
   # Scanovate on-premise services: Liveness Plus (with its presentation and
   # injection attack detection servers) and the 1:N Face Match service with its
   # Valkey vector database. Opt-in `scanovate` profile: the images are private,
-  # so pulling them needs a Docker Hub login with the credentials Scanovate
-  # provides. See docs/docusaurus/docs/integrations/scanovate_on_premise_guide.md.
+  # so pulling them needs a Docker Hub login (Liveness Plus) and an AWS ECR
+  # login (Face Match) with the access Scanovate provides. See docs/docusaurus/docs/integrations/scanovate_on_premise_guide.md.
   # Service names use hyphens: Java HTTP clients (Keycloak) reject host names
   # with underscores.
   scanovate-presentation-detection:
@@ -605,9 +605,10 @@ services:
       JWT_SECRET_KEY: ${SCANOVATE_LIVENESS_JWT_SECRET_KEY}
       PRESENTATION_DETECTION_SERVER_URL: http://scanovate-presentation-detection:8080
       INJECTION_DETECTION_SERVER_URL: http://scanovate-injection-detection:8080
-      # Voters reach the UI on Keycloak's origin, under /biometric/, through
-      # keycloak-nginx, which strips the prefix. The host port is only for
-      # direct checks such as /alive.
+      # Voters reach the UI on Keycloak's origin, under /biometric/liveness/,
+      # through keycloak-nginx. The service serves its UI, assets and API under
+      # that prefix, so the proxy passes the path unchanged. The host port is
+      # only for direct checks such as /alive.
       CLIENT_BASE_URL_PREFIX: biometric/
     ports:
       - ${SCANOVATE_LIVENESS_PORT}:5050
@@ -637,7 +638,7 @@ services:
   scanovate-face-match:
     profiles: ["scanovate"]
     container_name: ${DEVCONTAINER_NAME_PREFIX:-}scanovate-face-match
-    image: scanovate/face-match:version_3.9.0_ba58397_79
+    image: 495947449196.dkr.ecr.eu-central-1.amazonaws.com/ngfacematch:version_3.9.0_ba58397_79
     restart: unless-stopped
     environment:
       MODE: onprem
