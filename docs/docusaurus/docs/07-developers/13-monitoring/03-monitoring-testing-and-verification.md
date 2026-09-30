@@ -233,14 +233,29 @@ yarn --cwd packages/admin-portal stories:inventory src/components/monitoring/Mon
 scripts/dev/step-dev test admin-portal --story <story-id>
 ```
 
-:::note TODO(meta#13624): Playwright journey
-The Playwright journey `packages/admin-portal/test/journeys/monitoring.spec.ts`
-comes in a parallel branch. Add its command
-(`yarn --cwd packages/admin-portal test:journeys test/journeys/monitoring.spec.ts`,
-after the build steps of [UI browser tests](../03-development-environment/testing/ui-browser-tests.md))
-and what it covers here at merge time. See
-[issue 13624](https://github.com/sequentech/meta/issues/13624).
-:::
+### Playwright journey
+
+`packages/admin-portal/test/journeys/events/monitoring.spec.ts` drives the
+Dashboard tab against invented Harvest answers (no services needed), once at
+390 px and once at 1280 px wide. At each width it checks that:
+
+- the configured dashboard's widgets are drawn in frames with an empty
+  `sandbox` attribute, and nothing inside a chart can make a request (an
+  `<image href>` to an outside host is never fetched);
+- a form edit in the widget editor shows in the YAML tab, and Save sends the
+  YAML with the revision it was loaded from;
+- a save that finds a newer revision opens the conflict dialog;
+- an election's Dashboard tab pins its Post and hides the Post selector.
+
+`dashboard.spec.ts` stays the regression for the legacy dashboard. Build the
+shared UI packages and the Admin Portal as in
+[UI browser tests](../03-development-environment/testing/ui-browser-tests.md),
+then run:
+
+```sh
+yarn --cwd packages/admin-portal test:types
+yarn --cwd packages/admin-portal test:journeys test/journeys/events/monitoring.spec.ts test/journeys/events/dashboard.spec.ts
+```
 
 ## 4. Live verification
 
@@ -431,25 +446,51 @@ the write protocols.
 
 ## 5. Tuning freshness against load
 
-| Setting | Where | Default | Effect |
+| Setting | Where | Default and bounds | Effect |
 |---|---|---|---|
-| `-m`, `--monitoring-snapshot-interval` | beat's command line (`cargo run --bin beat -- -m 30`) | `30` | Seconds between snapshot beats. |
-| `MONITORING_VOTER_FULL_PASS_SECONDS` | Windmill worker environment | `300` | Seconds between full passes over the Keycloak voters. Votes and applications are read on every pass; voter attributes (region, country, dimensions, pre-enrolment) only on a full pass, or when there is no projection yet or the settings changed. Not set in the dev compose files: add it to the `windmill` service's `environment` to change it. |
+| `MONITORING_SNAPSHOT_INTERVAL_SECONDS` | `beat`, `windmill` and `harvest` services | `30`, within 5..=3600 | Seconds between snapshot passes. Beat schedules with it (its `-m`, `--monitoring-snapshot-interval` flag reads the same variable), both the beat message and the pass task expire after one interval, and Harvest reports it as `refresh_seconds`, which the portal polls with. |
+| `MONITORING_VOTER_FULL_PASS_SECONDS` | `windmill` service | `300`, within the snapshot interval..=86400 | Seconds between full passes over the Keycloak voters. Votes and applications are read on every pass; voter attributes (region, country, dimensions, pre-enrolment) only on a full pass, when there is no projection yet, or when the settings changed. |
+
+Compose passes both through from the shell or `.devcontainer/.env`
+(`.env.development` and the airgap `.env` list them), in
+`.devcontainer/docker-compose-base.yml`, `docker-compose-remote.yml`,
+`docker-compose-airgap-preparation.yml` and
+`scripts/airgap-files/docker-compose.yml`. A value out of bounds is clamped,
+and one that is not a whole number of seconds is replaced by the default;
+the service still starts and logs a warning. Each service logs
+`Monitoring cadence: ...` at startup.
+
+To try another cadence in the dev stack:
+
+1. Set the variable for the three services and recreate them:
+
+   ```sh
+   export MONITORING_SNAPSHOT_INTERVAL_SECONDS=15
+   cd "$LOCAL_WORKSPACE_FOLDER/.devcontainer" && docker compose up -d --no-deps --force-recreate beat windmill harvest
+   docker logs beat 2>&1 | grep "Monitoring cadence"
+   ```
+
+2. Open the event's Dashboard tab: the header reads "Updated … · every 15 s".
+   The dashboard answer carries the value:
+
+   ```sh
+   gql 'query($e: uuid!){monitoringListDashboards(election_event_id:$e){refresh_seconds snapshot{revision as_of}}}' \
+     "{\"e\":\"$EVENT\"}"
+   ```
+
+3. Cast a vote and watch `checked_at` of the latest run (the first SQL query
+   of [Live verification](#4-live-verification)) move every 15 seconds.
+4. Unset the variable and recreate the services to go back to 30.
 
 A shorter interval gives fresher figures for one more pass per event per
-interval; a pass that finds the previous one still running skips, and the
-beat and the pass task expire after 30 seconds unconsumed. A shorter full pass
-picks up voter edits sooner at the cost of reading every voter from the
-Keycloak database in pages of 2,000.
-
-:::note Comes with the refresh-interval change
-The refresh-interval change, in a parallel branch, adds
-`MONITORING_SNAPSHOT_INTERVAL_SECONDS`, read by beat and Harvest (default 30,
-bounded), and a `refresh_seconds` field in the dashboard answer, which the
-portal polls with instead of its fixed 30 seconds. Correct this section when
-it merges: whether the `-m` flag remains, the variable's bounds, where compose
-sets it, and the header's "every N s".
-:::
+interval. Viewers do not add passes: Harvest serves every viewer from the
+same snapshot. A pass that finds the previous one still running skips, so
+the effective cadence is never shorter than the pass itself; keep the
+interval above the pass times in the `Monitoring snapshot pass` log lines.
+A shorter full pass picks up voter edits sooner at the cost of reading every
+voter from the Keycloak database in pages of 2,000. The architecture page
+suggests values by event size in
+[Snapshot cadence](./01-monitoring-architecture.md#snapshot-cadence).
 
 ## 6. Scale and load testing
 
