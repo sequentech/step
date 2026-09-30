@@ -6,32 +6,36 @@
 # their email have voted, out of them.
 id: participation
 title: Participation
+description: Percentages use each figure's own electorate.
 source: voter_turnout
 queries:
-  totals: {template: summary, measures: [registered, voted]}
   share: {template: summary, ratio: [voted, registered]}
   verified: {template: summary, ratio: [voted_pre_enrolled, pre_enrolled]}
-height: 300
+  progress:
+    template: by_measure
+    measures: [registered, voted]
+    labels: {registered: Electors, voted: Ballots cast}
+height: 260
 chart:
   charts:
-    voted:
-      type: kpi
-      query: totals
-      value: voted
-      label: Ballots cast
-      style: {value: {format: integer}}
     share:
       type: kpi
       query: share
-      value: pct_label
-      label: Of the electorate
-      support: {value: denominator, label: electors, format: integer}
+      value: numerator
+      label: Ballots cast
+      style: {value: {format: integer}}
+      support: {value: pct_label, label: of the electorate}
     verified:
       type: kpi
       query: verified
       value: pct_label
       label: Of verified electors
       support: {value: denominator, label: verified, format: integer}
+    progress:
+      type: spark_bar
+      query: progress
+      x: value
+      y: label
   rows:
-    - {cols: [voted, share]}
-    - verified
+    - {cols: [share, verified]}
+    - progress

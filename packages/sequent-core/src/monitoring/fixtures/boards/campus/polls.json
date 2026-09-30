@@ -15,15 +15,11 @@
       "type": "kpi",
       "value": "numerator"
     },
-    "states": {
-      "color": "group",
-      "query": "states",
-      "theta": "posts",
-      "title": "Stations by state",
-      "total": {
-        "visible": false
-      },
-      "type": "donut"
+    "progress": {
+      "query": "progress",
+      "type": "spark_bar",
+      "x": "value",
+      "y": "label"
     }
   },
   "queries": {
@@ -43,42 +39,36 @@
         ]
       ]
     },
-    "states": {
+    "progress": {
       "columns": [
-        "group",
-        "group_key",
+        "measure",
+        "label",
         "position",
-        "posts"
+        "value"
       ],
       "values": [
         [
-          "Not ready",
-          "not_initialized",
+          "posts",
+          "Stations",
           1,
-          3
+          12
         ],
         [
-          "Ready",
           "initialized",
+          "Ready",
           2,
-          3
+          9
         ],
         [
-          "Open",
           "opened",
+          "Opened",
           3,
-          2
+          6
         ],
         [
-          "Paused",
-          "paused",
-          4,
-          2
-        ],
-        [
-          "Closed",
           "closed",
-          5,
+          "Closed",
+          4,
           2
         ]
       ]
@@ -86,7 +76,7 @@
   },
   "rows": [
     "opened",
-    "states"
+    "progress"
   ],
   "style": {
     "accent": "#0f766e",
@@ -109,6 +99,13 @@
         "title": {
           "font": {
             "case": "none"
+          }
+        }
+      },
+      "category_colors": {
+        "group": {
+          "values": {
+            "Not stated": "dbt-grays.muted"
           }
         }
       },
@@ -139,6 +136,17 @@
               "family": "'Inter Variable', Inter, system-ui, sans-serif"
             }
           }
+        }
+      },
+      "spark_bar": {
+        "bar": {
+          "height": 20
+        },
+        "count": {
+          "width": 64
+        },
+        "label": {
+          "width": 170
         }
       },
       "support_table": {

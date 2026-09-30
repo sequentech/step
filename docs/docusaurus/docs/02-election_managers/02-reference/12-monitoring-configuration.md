@@ -473,6 +473,28 @@ chart:
 Bars, areas, lines, donuts, KPIs, tables, stacking, layers, labels, colours,
 fonts and number formats are all available, within the rules below.
 
+
+The shipped presets draw parts of a whole as progress bars: a `spark_bar`
+over a `by_measure` query whose first measure is the whole, so every bar is
+read against it. Name the rows with the query's `labels`:
+
+```yaml
+queries:
+  progress:
+    template: by_measure
+    measures: [posts, initialized, opened, closed]
+    labels: {posts: Posts in scope, opened: Online voting opened, closed: Voting closed}
+chart:
+  charts:
+    progress: {type: spark_bar, query: progress, x: value, y: label}
+  rows: [progress]
+```
+
+A `spark_bar` scales its bars to its largest row, so leave the whole out
+only where the rows are comparable on their own, such as successful and
+failed sign-ins. The presets' themes widen its label column
+(`style.charts.spark_bar.label.width`) so that longer names are not cut.
+
 ### How the theme and the widget combine
 
 For each widget the platform builds the board dbt Charts draws:

@@ -3,7 +3,8 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 # Both milestones at once, over the Posts in scope, the Posts whose
-# transmission failed, and where each Post stands.
+# transmission failed, the same as bars against the Posts in scope, and
+# where each Post stands.
 id: counting-transmission
 title: Counting and transmission
 description: Percentages use the Posts in scope.
@@ -13,8 +14,12 @@ queries:
   tallied: {template: summary, ratio: [tallied, posts]}
   transmitted: {template: summary, ratio: [transmitted, posts]}
   failed: {template: summary, measures: [transmission_failed]}
+  progress:
+    template: by_measure
+    measures: [posts, tallied, transmitted, transmission_failed]
+    labels: {posts: Posts in scope, tallied: Vote counting done, transmitted: Results transmitted, transmission_failed: Transmission errors}
   posts: {template: by_post, measures: [posts], sort: {by: label, order: asc}}
-height: 460
+height: 560
 chart:
   charts:
     tallied:
@@ -37,6 +42,11 @@ chart:
       value: transmission_failed
       label: Transmission errors
       style: {value: {format: integer}}
+    progress:
+      type: spark_bar
+      query: progress
+      x: value
+      y: label
     posts:
       type: table
       query: posts
@@ -56,4 +66,5 @@ chart:
             - {eq: Transmission failed, background: negative.bg}
   rows:
     - {cols: [tallied, transmitted, failed]}
+    - progress
     - posts

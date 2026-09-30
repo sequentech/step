@@ -1,63 +1,10 @@
 {
   "charts": {
-    "applications": {
-      "label": "Applications",
-      "query": "totals",
-      "style": {
-        "value": {
-          "format": "integer"
-        }
-      },
-      "type": "kpi",
-      "value": "applications"
-    },
-    "approved": {
-      "label": "Approved",
-      "query": "totals",
-      "style": {
-        "value": {
-          "format": "integer"
-        }
-      },
-      "type": "kpi",
-      "value": "approved"
-    },
-    "disapproved": {
-      "label": "Disapproved",
-      "query": "totals",
-      "style": {
-        "value": {
-          "format": "integer"
-        }
-      },
-      "type": "kpi",
-      "value": "disapproved"
-    },
     "outcomes": {
-      "color": "label",
       "query": "outcomes",
-      "style": {
-        "legend": {
-          "visible": true
-        }
-      },
-      "theta": "value",
-      "title": "Latest decision",
-      "total": {
-        "visible": false
-      },
-      "type": "donut"
-    },
-    "pending": {
-      "label": "Pending",
-      "query": "totals",
-      "style": {
-        "value": {
-          "format": "integer"
-        }
-      },
-      "type": "kpi",
-      "value": "pending"
+      "type": "spark_bar",
+      "x": "value",
+      "y": "label"
     },
     "reasons": {
       "query": "reasons",
@@ -96,21 +43,27 @@
       ],
       "values": [
         [
+          "applications",
+          "Applications",
+          1,
+          541
+        ],
+        [
           "approved",
           "Approved",
-          1,
+          2,
           421
         ],
         [
           "disapproved",
           "Disapproved",
-          2,
+          3,
           60
         ],
         [
           "pending",
           "Pending",
-          3,
+          4,
           60
         ]
       ]
@@ -160,37 +113,9 @@
           2
         ]
       ]
-    },
-    "totals": {
-      "columns": [
-        "applications",
-        "approved",
-        "disapproved",
-        "pending"
-      ],
-      "values": [
-        [
-          541,
-          421,
-          60,
-          60
-        ]
-      ]
     }
   },
   "rows": [
-    {
-      "cols": [
-        "applications",
-        "approved"
-      ]
-    },
-    {
-      "cols": [
-        "disapproved",
-        "pending"
-      ]
-    },
     "outcomes",
     "reasons"
   ],
@@ -267,6 +192,17 @@
               "family": "'Inter Variable', Inter, system-ui, sans-serif"
             }
           }
+        }
+      },
+      "spark_bar": {
+        "bar": {
+          "height": 20
+        },
+        "count": {
+          "width": 64
+        },
+        "label": {
+          "width": 170
         }
       },
       "support_table": {

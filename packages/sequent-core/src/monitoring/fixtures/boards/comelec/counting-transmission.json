@@ -54,6 +54,12 @@
       "title": "Posts",
       "type": "table"
     },
+    "progress": {
+      "query": "progress",
+      "type": "spark_bar",
+      "x": "value",
+      "y": "label"
+    },
     "tallied": {
       "label": "Vote counting done",
       "query": "tallied",
@@ -217,6 +223,40 @@
         ]
       ]
     },
+    "progress": {
+      "columns": [
+        "measure",
+        "label",
+        "position",
+        "value"
+      ],
+      "values": [
+        [
+          "posts",
+          "Posts in scope",
+          1,
+          12
+        ],
+        [
+          "tallied",
+          "Vote counting done",
+          2,
+          9
+        ],
+        [
+          "transmitted",
+          "Results transmitted",
+          3,
+          3
+        ],
+        [
+          "transmission_failed",
+          "Transmission errors",
+          4,
+          3
+        ]
+      ]
+    },
     "tallied": {
       "columns": [
         "numerator",
@@ -258,6 +298,7 @@
         "failed"
       ]
     },
+    "progress",
     "posts"
   ],
   "style": {
@@ -333,6 +374,17 @@
               "family": "'Inter Variable', Inter, system-ui, sans-serif"
             }
           }
+        }
+      },
+      "spark_bar": {
+        "bar": {
+          "height": 20
+        },
+        "count": {
+          "width": 64
+        },
+        "label": {
+          "width": 170
         }
       },
       "support_table": {

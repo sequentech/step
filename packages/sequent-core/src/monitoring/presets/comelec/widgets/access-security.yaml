@@ -9,28 +9,26 @@ title: Access and security
 description: Counted in sign-in attempts, not OVs.
 source: access_security
 requirements: [SW-F-0252, SW-F-0268]
-query: {template: summary, measures: [logins, login_failures, password_resets]}
-height: 300
+queries:
+  outcomes:
+    template: by_measure
+    measures: [logins, login_failures]
+    labels: {logins: Successful sign-ins, login_failures: Failed sign-ins}
+  resets: {template: summary, measures: [password_resets]}
+height: 220
 chart:
   charts:
-    logins:
-      type: kpi
-      query: data
-      value: logins
-      label: Successful sign-ins
-      style: {value: {format: integer}}
-    failures:
-      type: kpi
-      query: data
-      value: login_failures
-      label: Failed sign-ins
-      style: {value: {format: integer}}
+    outcomes:
+      type: spark_bar
+      query: outcomes
+      x: value
+      y: label
     resets:
       type: kpi
-      query: data
+      query: resets
       value: password_resets
       label: Password resets
       style: {value: {format: integer}}
   rows:
-    - {cols: [logins, failures]}
+    - outcomes
     - resets

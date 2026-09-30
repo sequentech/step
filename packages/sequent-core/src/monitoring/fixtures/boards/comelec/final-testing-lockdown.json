@@ -1,16 +1,5 @@
 {
   "charts": {
-    "in_scope": {
-      "label": "Posts in scope",
-      "query": "tested",
-      "style": {
-        "value": {
-          "format": "integer"
-        }
-      },
-      "type": "kpi",
-      "value": "denominator"
-    },
     "locked_down": {
       "label": "Locked down",
       "query": "locked_down",
@@ -20,7 +9,7 @@
         }
       },
       "support": {
-        "label": "of the Posts in scope",
+        "label": "of Posts",
         "value": "pct_label"
       },
       "type": "kpi",
@@ -56,7 +45,14 @@
           "enabled": false
         }
       },
+      "title": "Posts",
       "type": "table"
+    },
+    "progress": {
+      "query": "progress",
+      "type": "spark_bar",
+      "x": "value",
+      "y": "label"
     },
     "tested": {
       "label": "Final testing done",
@@ -67,7 +63,7 @@
         }
       },
       "support": {
-        "label": "of the Posts in scope",
+        "label": "of Posts",
         "value": "pct_label"
       },
       "type": "kpi",
@@ -212,6 +208,34 @@
         ]
       ]
     },
+    "progress": {
+      "columns": [
+        "measure",
+        "label",
+        "position",
+        "value"
+      ],
+      "values": [
+        [
+          "posts",
+          "Posts in scope",
+          1,
+          12
+        ],
+        [
+          "tested",
+          "Final testing done",
+          2,
+          8
+        ],
+        [
+          "locked_down",
+          "Locked down",
+          3,
+          4
+        ]
+      ]
+    },
     "tested": {
       "columns": [
         "numerator",
@@ -236,7 +260,7 @@
         "locked_down"
       ]
     },
-    "in_scope",
+    "progress",
     "posts"
   ],
   "style": {
@@ -312,6 +336,17 @@
               "family": "'Inter Variable', Inter, system-ui, sans-serif"
             }
           }
+        }
+      },
+      "spark_bar": {
+        "bar": {
+          "height": 20
+        },
+        "count": {
+          "width": 64
+        },
+        "label": {
+          "width": 170
         }
       },
       "support_table": {

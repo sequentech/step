@@ -387,6 +387,17 @@
           }
         }
       },
+      "spark_bar": {
+        "bar": {
+          "height": 20
+        },
+        "count": {
+          "width": 64
+        },
+        "label": {
+          "width": 170
+        }
+      },
       "support_table": {
         "font": {
           "family": "'Inter Variable', Inter, system-ui, sans-serif"

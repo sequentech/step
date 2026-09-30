@@ -4,6 +4,7 @@
 
 id: participation-by-faculty
 title: Participation by faculty
+description: Each group over its own electorate.
 source: voter_turnout
 selectors:
   breakdown:

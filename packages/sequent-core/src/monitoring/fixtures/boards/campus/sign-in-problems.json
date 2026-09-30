@@ -2,26 +2,9 @@
   "charts": {
     "problems": {
       "query": "data",
-      "sort": {
-        "by": "position",
-        "order": "asc"
-      },
-      "style": {
-        "marks": {
-          "bar": {
-            "labels": {
-              "format": "number",
-              "visible": true
-            }
-          }
-        },
-        "number_format": "number",
-        "orientation": "horizontal"
-      },
-      "type": "bar",
-      "x": "label",
-      "y": "value",
-      "y_label": "Attempts"
+      "type": "spark_bar",
+      "x": "value",
+      "y": "label"
     }
   },
   "queries": {
@@ -109,6 +92,17 @@
               "family": "'Inter Variable', Inter, system-ui, sans-serif"
             }
           }
+        }
+      },
+      "spark_bar": {
+        "bar": {
+          "height": 20
+        },
+        "count": {
+          "width": 64
+        },
+        "label": {
+          "width": 170
         }
       },
       "support_table": {

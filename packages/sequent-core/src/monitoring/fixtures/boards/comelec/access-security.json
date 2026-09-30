@@ -1,30 +1,14 @@
 {
   "charts": {
-    "failures": {
-      "label": "Failed sign-ins",
-      "query": "data",
-      "style": {
-        "value": {
-          "format": "integer"
-        }
-      },
-      "type": "kpi",
-      "value": "login_failures"
-    },
-    "logins": {
-      "label": "Successful sign-ins",
-      "query": "data",
-      "style": {
-        "value": {
-          "format": "integer"
-        }
-      },
-      "type": "kpi",
-      "value": "logins"
+    "outcomes": {
+      "query": "outcomes",
+      "type": "spark_bar",
+      "x": "value",
+      "y": "label"
     },
     "resets": {
       "label": "Password resets",
-      "query": "data",
+      "query": "resets",
       "style": {
         "value": {
           "format": "integer"
@@ -35,28 +19,41 @@
     }
   },
   "queries": {
-    "data": {
+    "outcomes": {
       "columns": [
-        "logins",
-        "login_failures",
+        "measure",
+        "label",
+        "position",
+        "value"
+      ],
+      "values": [
+        [
+          "logins",
+          "Successful sign-ins",
+          1,
+          2400
+        ],
+        [
+          "login_failures",
+          "Failed sign-ins",
+          2,
+          180
+        ]
+      ]
+    },
+    "resets": {
+      "columns": [
         "password_resets"
       ],
       "values": [
         [
-          2400,
-          180,
           40
         ]
       ]
     }
   },
   "rows": [
-    {
-      "cols": [
-        "logins",
-        "failures"
-      ]
-    },
+    "outcomes",
     "resets"
   ],
   "style": {
@@ -132,6 +129,17 @@
               "family": "'Inter Variable', Inter, system-ui, sans-serif"
             }
           }
+        }
+      },
+      "spark_bar": {
+        "bar": {
+          "height": 20
+        },
+        "count": {
+          "width": 64
+        },
+        "label": {
+          "width": 170
         }
       },
       "support_table": {

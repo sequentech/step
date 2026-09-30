@@ -6,6 +6,7 @@
 # own axis.
 id: hourly-votes
 title: Ballots by hour
+description: Ballots cast in each hour of the chosen day.
 source: voting_enrollment_activity
 selectors:
   day:

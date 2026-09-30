@@ -288,7 +288,7 @@ nothing is saved and the save can be tried again.
 ### Configure widget
 
 **Configure widget** opens the widget's definition next to a live preview.
-The three tabs edit the same YAML:
+The first three tabs edit the same YAML:
 
 - **Data & query**: title, data source, query template, measures,
   numerator and denominator, group by, sort and row limit, and which dashboard
@@ -300,6 +300,9 @@ The three tabs edit the same YAML:
   options and default. Selectors appear in the widget header; their values
   feed the query.
 - **YAML**: the whole definition, including the dbt Charts `chart` block.
+- **Preview**: the draft alone, across the dialog's full width and at the
+  widget's own height, with its checks underneath. Beside the other tabs the
+  preview is drawn at the width of the widget's card.
 
 While the YAML has a syntax error, the form tabs are read-only; fix it in
 the YAML tab to use them again. Problems are listed under **Checks**, each
