@@ -296,6 +296,10 @@ fn voter_counts(
                 (Measure::Registered, 1),
                 (Measure::PreEnrolled, one(facts.pre_enrolled_at.is_some())),
                 (Measure::Voted, one(facts.first_voted_at.is_some())),
+                (
+                    Measure::VotedPreEnrolled,
+                    one(facts.pre_enrolled_at.is_some() && facts.first_voted_at.is_some()),
+                ),
             ]
             .into()
         }
@@ -463,17 +467,7 @@ fn series(zone: Tz, hours: &BTreeMap<DateTime<Utc>, Counts>, measures: &[Measure
 }
 
 fn series_measures(source: DataSourceId) -> &'static [Measure] {
-    match source {
-        DataSourceId::VoterTurnout => &[Measure::Voted],
-        DataSourceId::EnrollmentDecisions => &[Measure::Approved, Measure::Disapproved],
-        DataSourceId::VotingEnrollmentActivity => &[Measure::Approved, Measure::Voted],
-        DataSourceId::AccessSecurity => &[
-            Measure::Logins,
-            Measure::LoginFailures,
-            Measure::PasswordResets,
-        ],
-        _ => &[],
-    }
+    source.spec().series_measures
 }
 
 fn post_labels(facts: &EventFacts) -> HashMap<String, String> {

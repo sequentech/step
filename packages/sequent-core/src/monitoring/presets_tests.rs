@@ -8,10 +8,11 @@
 
 use super::*;
 use crate::monitoring::compute::{evaluate, QueryResult};
-use crate::monitoring::config::Ratio;
 use crate::monitoring::config::{
     Dashboard, DynamicOptions, ScopeSelector, Theme, Widget,
 };
+use crate::monitoring::config::{Ratio, Settings};
+use crate::monitoring::payload::{Counts, ScopePayload};
 use crate::monitoring::render_request::build_board;
 use crate::monitoring::resolve::{
     resolve_widget, DynamicOptionValues, ResolvedWidget, SelectorState,
@@ -589,6 +590,76 @@ fn every_widget_draws_for_every_choice_a_viewer_can_make() {
     assert!(drawn > 40, "only {drawn} boards drawn");
 }
 
+/// Turnout where every voter voted, pre-enrolled or not: more voted than
+/// were pre-enrolled, in every cell and group.
+fn everyone_voted(settings: Option<&Settings>) -> ScopePayload {
+    let mut payload = sample_payload(DataSourceId::VoterTurnout, settings);
+    let all_voted = |counts: &mut Counts| {
+        counts.insert(Measure::Voted, counts[&Measure::Registered]);
+    };
+    all_voted(&mut payload.totals);
+    for cell in payload.cube.iter_mut().flat_map(|cube| &mut cube.cells) {
+        all_voted(&mut cell.counts);
+    }
+    for row in payload.groups.values_mut().flatten() {
+        all_voted(&mut row.counts);
+    }
+    payload
+}
+
+/// A share of the pre-enrolled counts only the pre-enrolled who voted, so
+/// voters who vote without pre-enrolling never push it past 100%.
+#[test]
+fn no_turnout_share_passes_100_percent_when_others_vote_too() {
+    let mut checked = 0;
+    let mut over = Vec::new();
+    for preset in all_presets() {
+        let settings = preset.set.settings.as_ref();
+        let payload = everyone_voted(settings);
+        for (key, widget) in &preset.set.widgets {
+            if widget.source != DataSourceId::VoterTurnout {
+                continue;
+            }
+            for requested in combinations(widget) {
+                let resolved = resolve_widget(
+                    widget,
+                    &IndexMap::new(),
+                    &requested,
+                    &dynamic(),
+                )
+                .unwrap_or_else(|report| panic!("{key}: {report}"));
+                for (name, query) in &resolved.queries {
+                    let Some(ratio) = &query.ratio else { continue };
+                    let result =
+                        evaluate(widget.source, query, &payload, settings)
+                            .unwrap_or_else(|report| {
+                                panic!("{key}.{name}: {report}")
+                            });
+                    let pct = result
+                        .columns
+                        .iter()
+                        .position(|column| column.name == "pct")
+                        .expect("a ratio has a pct column");
+                    checked += 1;
+                    let highest = result
+                        .rows
+                        .iter()
+                        .filter_map(|row| row[pct].as_f64())
+                        .fold(0.0, f64::max);
+                    if highest > 1.0 {
+                        over.push(format!(
+                            "{}/{key}.{name} {ratio:?}: {highest}",
+                            preset.manifest.id
+                        ));
+                    }
+                }
+            }
+        }
+    }
+    assert!(over.is_empty(), "shares past 100%:\n{}", over.join("\n"));
+    assert!(checked > 10, "only {checked} shares checked");
+}
+
 #[test]
 fn every_dashboard_default_is_the_value_the_widget_opens_with() {
     for preset in all_presets() {
@@ -924,7 +995,7 @@ fn dashboards_open_on_the_figure_their_record_asks_for() {
     );
     assert_eq!(
         opened_on("req-0260", "turnout-by-group", "data"),
-        ratio(Voted, PreEnrolled)
+        ratio(VotedPreEnrolled, PreEnrolled)
     );
     assert_eq!(
         opened_on("req-0261", "turnout-by-group", "data"),
@@ -944,7 +1015,7 @@ fn dashboards_open_on_the_figure_their_record_asks_for() {
     );
     for (dashboard, figure) in [
         ("req-0259", ratio(Voted, Registered)),
-        ("req-0260", ratio(Voted, PreEnrolled)),
+        ("req-0260", ratio(VotedPreEnrolled, PreEnrolled)),
         ("req-0261", ratio(PreEnrolled, Registered)),
     ] {
         assert_eq!(opened_on(dashboard, "turnout-by-post", "data"), figure);
@@ -957,7 +1028,7 @@ fn dashboards_open_on_the_figure_their_record_asks_for() {
         );
         assert_eq!(
             opened_on(dashboard, "turnout-summary", "voted_pre"),
-            ratio(Voted, PreEnrolled)
+            ratio(VotedPreEnrolled, PreEnrolled)
         );
         assert_eq!(
             opened_on(dashboard, "turnout-summary", "pre_reg"),
@@ -1290,7 +1361,10 @@ fn a_half_width_widget_has_room_for_each_chart_in_a_row() {
                 continue;
             }
             let charts = &widget.chart["charts"];
-            let rows = widget.chart["rows"].as_sequence().cloned().unwrap_or_default();
+            let rows = widget.chart["rows"]
+                .as_sequence()
+                .cloned()
+                .unwrap_or_default();
             for row in rows {
                 let cols: Vec<String> = match row.get("cols") {
                     Some(cols) => cols
@@ -1299,11 +1373,15 @@ fn a_half_width_widget_has_room_for_each_chart_in_a_row() {
                         .flatten()
                         .filter_map(|col| col.as_str().map(str::to_owned))
                         .collect(),
-                    None => row.as_str().map(str::to_owned).into_iter().collect(),
+                    None => {
+                        row.as_str().map(str::to_owned).into_iter().collect()
+                    }
                 };
                 let kpis = cols
                     .iter()
-                    .filter(|col| charts[col.as_str()]["type"].as_str() == Some("kpi"))
+                    .filter(|col| {
+                        charts[col.as_str()]["type"].as_str() == Some("kpi")
+                    })
                     .count();
                 assert!(
                     cols.len() <= 2 && (kpis == cols.len() || cols.len() == 1),

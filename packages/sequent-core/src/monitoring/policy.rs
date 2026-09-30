@@ -1803,6 +1803,16 @@ fn check_query(
                     ));
                 }
                 check_measure(spec, *measure, &measure_path, report);
+                if template == QueryTemplate::Timeseries
+                    && spec.has_measure(*measure)
+                    && !spec.counts_per_hour(*measure)
+                {
+                    report.push(Problem::error(
+                        Code::UnsupportedBySource,
+                        &measure_path,
+                        format!("{} counts '{measure}' as a total, not per hour, so a timeseries cannot show it.", spec.id),
+                    ));
+                }
             }
         }
     }

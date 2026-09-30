@@ -22,8 +22,11 @@ fn a_voter_cube_keeps_every_funnel_stage_below_the_one_before() {
         let registered = cell.counts[&Measure::Registered];
         let pre_enrolled = cell.counts[&Measure::PreEnrolled];
         let voted = cell.counts[&Measure::Voted];
+        let voted_pre_enrolled = cell.counts[&Measure::VotedPreEnrolled];
         assert!(
-            voted <= pre_enrolled && pre_enrolled <= registered,
+            voted_pre_enrolled <= voted
+                && voted <= pre_enrolled
+                && pre_enrolled <= registered,
             "{cell:?}"
         );
     }
@@ -180,7 +183,8 @@ fn built_in_groups_split_the_totals_and_turn_out_differently() {
         for group in groups {
             let counts = &group.counts;
             assert!(
-                counts[&Measure::Voted] <= counts[&Measure::PreEnrolled]
+                counts[&Measure::VotedPreEnrolled] <= counts[&Measure::Voted]
+                    && counts[&Measure::Voted] <= counts[&Measure::PreEnrolled]
                     && counts[&Measure::PreEnrolled]
                         <= counts[&Measure::Registered],
                 "{dimension}: {group:?}"

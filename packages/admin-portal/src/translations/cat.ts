@@ -2882,7 +2882,7 @@ const catalanTranslation: TranslationType = {
                 dashboard: "Tauler",
                 widgets_one: "{{count}} giny",
                 widgets_other: "{{count}} ginys",
-                updated: "Actualitzat {{time}}",
+                updated: "Actualitzat {{time}} ({{timeZone}})",
                 notUpdated: "Encara sense recompte",
                 refresh: "cada {{seconds}} s",
                 export: "Exportar",
@@ -3001,6 +3001,7 @@ const catalanTranslation: TranslationType = {
                 credentials_issued: "Credencials emeses",
                 test_voted: "Vots de prova",
                 voted: "Han votat",
+                voted_pre_enrolled: "Preinscrits que han votat",
                 applications: "Sol·licituds",
                 pending: "Pendents",
                 approved: "Aprovades",
@@ -3315,6 +3316,7 @@ const catalanTranslation: TranslationType = {
                         "L'editor ha enviat una sol·licitud que el servidor no ha pogut llegir. Recarregueu la pàgina i torneu-ho a provar.",
                 },
                 duplicate: {
+                    copyTitle: "{{title}} (còpia)",
                     done: "S'ha afegit {{id}}, una còpia del widget, al tauler.",
                     failed: "No s'ha pogut duplicar el widget: {{reason}}",
                     notPlaced:

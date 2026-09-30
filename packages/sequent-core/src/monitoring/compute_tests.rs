@@ -172,6 +172,33 @@ fn a_measure_that_was_not_counted_is_refused_rather_than_shown_as_zero() {
         .any(|problem| problem.code == Code::NotCounted));
 }
 
+/// A snapshot counted before `voted_pre_enrolled` was still reads, and a
+/// share of the pre-enrolled is refused as not counted, never shown as
+/// zero or as a share of all voters, until the next pass counts it.
+#[test]
+fn a_snapshot_from_before_a_measure_was_counted_refuses_only_that_measure() {
+    let payload: ScopePayload = serde_json::from_value(json!({
+        "totals": {"registered": 100, "pre_enrolled": 20, "voted": 30},
+    }))
+    .expect("an older payload still decodes");
+    let mut voted_reg = query(QueryTemplate::Summary);
+    voted_reg.ratio = Some(Ratio(Voted, Registered));
+    assert_eq!(
+        column(&run(VoterTurnout, &voted_reg, &payload), "pct"),
+        [json!(0.3)]
+    );
+    let mut voted_pre = query(QueryTemplate::Summary);
+    voted_pre.ratio = Some(Ratio(VotedPreEnrolled, PreEnrolled));
+    let refused =
+        evaluate(VoterTurnout, &voted_pre, &payload, Some(&settings()))
+            .expect_err("not counted yet");
+    assert!(!refused.problems.is_empty());
+    assert!(refused
+        .problems
+        .iter()
+        .all(|problem| problem.code == Code::NotCounted));
+}
+
 #[test]
 fn a_summary_reads_the_scope_totals_and_never_adds_up_groups() {
     // The Post rows add up to 125 registered voters because some voters are

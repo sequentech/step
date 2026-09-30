@@ -2857,7 +2857,7 @@ const basqueTranslation: TranslationType = {
                 dashboard: "Panela",
                 widgets_one: "Widget {{count}}",
                 widgets_other: "{{count}} widget",
-                updated: "Eguneratua: {{time}}",
+                updated: "Eguneratua: {{time}} ({{timeZone}})",
                 notUpdated: "Oraindik zenbatu gabe",
                 refresh: "{{seconds}} s-ro",
                 export: "Esportatu",
@@ -2977,6 +2977,7 @@ const basqueTranslation: TranslationType = {
                 credentials_issued: "Emandako kredentzialak",
                 test_voted: "Probako botoak",
                 voted: "Bozkatu dute",
+                voted_pre_enrolled: "Aurrez izena emanda bozkatu dute",
                 applications: "Eskaerak",
                 pending: "Zain",
                 approved: "Onartuak",
@@ -3291,6 +3292,7 @@ const basqueTranslation: TranslationType = {
                         "Editoreak zerbitzariak irakurri ezin duen eskaera bat bidali du. Kargatu berriro orria eta saiatu berriro.",
                 },
                 duplicate: {
+                    copyTitle: "{{title}} (kopia)",
                     done: "{{id}} gehitu da panelera, widgetaren kopia bat.",
                     failed: "Ezin izan da widgeta bikoiztu: {{reason}}",
                     notPlaced:

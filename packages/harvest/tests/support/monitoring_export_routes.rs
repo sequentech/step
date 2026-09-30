@@ -375,6 +375,31 @@ async fn a_widget_added_since_the_run_is_exported_without_waiting_for_a_pass() {
 }
 
 #[rocket::async_test]
+async fn a_run_counted_under_a_configuration_no_longer_kept_is_not_exported() {
+    let services = Services::on_test_database()
+        .await
+        .with_monitoring_snapshots(MemorySnapshots::at(7, ScopeRead::Empty));
+    let client = services.client().await;
+    let event = rows::event(&services.hasura).await;
+    event.election(&services.hasura).await;
+    configure(&client, &event).await;
+    // Counted under other settings, at a generation no longer kept: the
+    // dashboard draws it with the live configuration and says so, but a
+    // file would mix the live queries with figures counted otherwise.
+    {
+        let mut head = services.monitoring_snapshots.head.lock().unwrap();
+        let head = head.as_mut().expect("a live run");
+        head.config_generation = 99;
+        head.settings_revision = 0;
+    }
+
+    let (status, body) =
+        export(&client, &viewer(&event), &event, json!({})).await;
+    assert_eq!(status, Status::NotFound, "{body}");
+    assert!(services.tasks.sent().is_empty());
+}
+
+#[rocket::async_test]
 async fn a_widgets_pick_outside_its_options_is_refused() {
     let services = Services::on_test_database()
         .await

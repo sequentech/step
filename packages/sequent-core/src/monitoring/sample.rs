@@ -166,6 +166,7 @@ fn base(measure: Measure) -> u64 {
         CredentialsIssued => 610,
         TestVoted => 140,
         Voted => 512,
+        VotedPreEnrolled => 360,
         Applications => 900,
         Pending => 60,
         Disapproved => 60,
@@ -184,13 +185,14 @@ fn base(measure: Measure) -> u64 {
 /// The measure each voter measure narrows, in the order the funnel runs.
 /// Approved voters are exactly the pre-enrolled ones: validating a voter's
 /// document is what approves them.
-const VOTER_FUNNEL: [(Measure, Option<Measure>); 6] = [
+const VOTER_FUNNEL: [(Measure, Option<Measure>); 7] = [
     (Measure::Registered, None),
     (Measure::PreEnrolled, Some(Measure::Registered)),
     (Measure::Approved, Some(Measure::PreEnrolled)),
     (Measure::CredentialsIssued, Some(Measure::Approved)),
     (Measure::TestVoted, Some(Measure::PreEnrolled)),
     (Measure::Voted, Some(Measure::PreEnrolled)),
+    (Measure::VotedPreEnrolled, Some(Measure::Voted)),
 ];
 
 /// The totals every source agrees on: the electorate's where there is one,

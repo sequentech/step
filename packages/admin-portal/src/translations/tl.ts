@@ -2877,7 +2877,7 @@ const tagalogTranslation: TranslationType = {
                 dashboard: "Dashboard",
                 widgets_one: "{{count}} widget",
                 widgets_other: "{{count}} widget",
-                updated: "Na-update {{time}}",
+                updated: "Na-update {{time}} ({{timeZone}})",
                 notUpdated: "Hindi pa nabibilang",
                 refresh: "bawat {{seconds}} s",
                 export: "I-export",
@@ -2996,6 +2996,7 @@ const tagalogTranslation: TranslationType = {
                 credentials_issued: "Naibigay na kredensyal",
                 test_voted: "Pansubok na boto",
                 voted: "Bumoto",
+                voted_pre_enrolled: "Paunang nakatala na bumoto",
                 applications: "Mga aplikasyon",
                 pending: "Nakabinbin",
                 approved: "Inaprubahan",
@@ -3313,6 +3314,7 @@ const tagalogTranslation: TranslationType = {
                         "Nagpadala ang editor ng kahilingang hindi mabasa ng server. I-reload ang pahina at subukan muli.",
                 },
                 duplicate: {
+                    copyTitle: "{{title}} (kopya)",
                     done: "Idinagdag sa dashboard ang {{id}}, isang kopya ng widget.",
                     failed: "Hindi ma-duplicate ang widget: {{reason}}",
                     notPlaced:

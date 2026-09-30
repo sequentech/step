@@ -15,6 +15,7 @@ import {
     Tabs,
 } from "@mui/material"
 import {countBySeverity, type IEditorDiagnostic} from "@/components/monitoring/lib/diagnostics"
+import {previewWidth} from "@/components/monitoring/lib/chartDocument"
 import type {IMonitoringEditorApi} from "./api"
 import {
     EMonitoringColorScheme,
@@ -23,6 +24,7 @@ import {
     type IMonitoringSourceInfo,
 } from "./types"
 import {useYamlDraft} from "./useYamlDraft"
+import {useRedrawOnWidth} from "./useRedrawOnWidth"
 import type {TLocalValidate, TRenderPreview} from "./yamlDraft"
 import {MonitoringYamlEditor, type IMonitoringYamlEditorHandle} from "./MonitoringYamlEditor"
 import {MonitoringDiagnosticsList} from "./MonitoringDiagnosticsList"
@@ -55,6 +57,7 @@ export interface IMonitoringWidgetContext {
     scopeLabel?: string
     selectorValues?: Record<string, string>
     sources?: Record<string, IMonitoringSourceInfo>
+    /** The card's width when opened from one; else the preview pane's is used. */
     width?: number
     colorScheme?: EMonitoringColorScheme
 }
@@ -69,7 +72,6 @@ export interface MonitoringConfigureWidgetDialogProps extends IMonitoringWidgetC
     onSaved?: (revision: number) => void
 }
 
-const PREVIEW_WIDTH = 480
 const EDITOR_HEIGHT = 360
 const NO_SOURCES: Record<string, IMonitoringSourceInfo> = {}
 const WIDGET_MESSAGES: IDocumentMessages = {
@@ -98,13 +100,15 @@ export const MonitoringConfigureWidgetDialog: React.FC<MonitoringConfigureWidget
     scopeLabel,
     selectorValues,
     sources = NO_SOURCES,
-    width = PREVIEW_WIDTH,
+    width,
     colorScheme = EMonitoringColorScheme.LIGHT,
 }) => {
     const {t, i18n} = useTranslation()
     const [tab, setTab] = useState(EConfigureTab.DATA_QUERY)
     const [confirmDiscard, setConfirmDiscard] = useState(false)
     const editor = useRef<IMonitoringYamlEditorHandle>(null)
+    const [paneWidth, setPaneWidth] = useState<number | null>(null)
+    const drawnWidth = previewWidth(width, paneWidth)
 
     const renderPreview = useCallback<TRenderPreview>(
         (text) =>
@@ -114,12 +118,22 @@ export const MonitoringConfigureWidgetDialog: React.FC<MonitoringConfigureWidget
                 election_id: electionId ?? null,
                 scope: scope ?? {},
                 selector_values: selectorValues ?? {},
-                width,
+                width: drawnWidth,
                 color_scheme: colorScheme,
                 locale: i18n.language,
                 draft: {widget_yaml: text},
             }),
-        [api, dashboardId, widgetId, electionId, scope, selectorValues, width, colorScheme, i18n]
+        [
+            api,
+            dashboardId,
+            widgetId,
+            electionId,
+            scope,
+            selectorValues,
+            drawnWidth,
+            colorScheme,
+            i18n,
+        ]
     )
     const draft = useYamlDraft({text: "", localValidate, renderPreview})
     const {controller} = draft
@@ -134,6 +148,7 @@ export const MonitoringConfigureWidgetDialog: React.FC<MonitoringConfigureWidget
         onSaved,
     })
     const {load, revision, busy, message, setMessage, conflict} = stored
+    useRedrawOnWidth(controller, drawnWidth, load === EDocumentLoad.READY)
 
     useEffect(() => {
         if (open) setTab(EConfigureTab.DATA_QUERY)
@@ -268,6 +283,7 @@ export const MonitoringConfigureWidgetDialog: React.FC<MonitoringConfigureWidget
                                 preview={draft.preview}
                                 status={draft.previewStatus}
                                 error={draft.previewError}
+                                onWidth={setPaneWidth}
                             />
                             <MonitoringDiagnosticsList
                                 diagnostics={draft.diagnostics}

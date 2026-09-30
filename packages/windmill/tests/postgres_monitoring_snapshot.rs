@@ -24,6 +24,7 @@ use windmill::services::monitoring::snapshot::{
     request_election_set, scope_catalogue, start_run, PassOutcome, Recount, ScopeRead,
     RECOUNT_EVERY,
 };
+use windmill::tasks::refresh_monitoring_snapshot::events_to_prune;
 
 fn settings() -> Settings {
     presets::load("comelec")
@@ -1203,5 +1204,103 @@ async fn a_run_recording_no_inputs_it_can_read_is_counted_again() {
                 "{inputs}"
             );
         }
+    }
+}
+
+/// Beat sends passes, which prune as they go, only for events on configured
+/// dashboards. An event switched back to the legacy dashboard keeps the
+/// runs it had, so beat lists it for pruning until only its live run is left.
+#[tokio::test]
+async fn an_event_off_configured_dashboards_is_pruned_until_only_its_live_run_is_left() {
+    let pool = schema::pool().await;
+    let mut client = client(&pool).await;
+    let settings = settings();
+    // Seeded on the legacy dashboard, the default.
+    let event = seed(&mut client).await;
+    voter(&client, &event, "ana", event.madrid, "Europe", false).await;
+    let PassOutcome::Completed { .. } = pass(&mut client, &event, &settings).await else {
+        panic!();
+    };
+    assert!(
+        !events_to_prune(&client)
+            .await
+            .unwrap()
+            .contains(&event.event),
+        "its only run is the one shown"
+    );
+    vote(&client, &event, "ana").await;
+    let PassOutcome::Completed { .. } = pass(&mut client, &event, &settings).await else {
+        panic!();
+    };
+    assert!(events_to_prune(&client)
+        .await
+        .unwrap()
+        .contains(&event.event));
+    prune_snapshots(&mut client, event.event, Duration::zero())
+        .await
+        .unwrap();
+    assert!(!events_to_prune(&client)
+        .await
+        .unwrap()
+        .contains(&event.event));
+}
+
+/// A voter who votes without pre-enrolling is one who voted but not a
+/// pre-enrolled voter who voted, so "Voted of pre-enrolled" stays within
+/// the pre-enrolled.
+#[tokio::test]
+async fn a_voter_who_votes_without_pre_enrolling_counts_as_voted_only() {
+    let pool = schema::pool().await;
+    let mut client = client(&pool).await;
+    let settings = settings();
+    let event = seed(&mut client).await;
+    for (voter, pre_enrolled, voted) in [
+        ("ana", true, true),
+        ("ben", false, true),
+        ("cai", true, false),
+    ] {
+        client
+            .execute(
+                "INSERT INTO sequent_backend.monitoring_voter
+                     (tenant_id, election_event_id, election_id, voter_id, region, country, dims,
+                      pre_enrolled_at, first_voted_at, attributes_hash, settings_revision)
+                 VALUES ($1, $2, $3, $4, 'Europe', 'Spain', '{\"sex\": \"F\"}',
+                         CASE WHEN $5 THEN now() - interval '2 hours' END,
+                         CASE WHEN $6 THEN now() - interval '1 hour' END, 'h', 1)",
+                &[
+                    &event.event.tenant_id,
+                    &event.event.election_event_id,
+                    &event.madrid,
+                    &voter,
+                    &pre_enrolled,
+                    &voted,
+                ],
+            )
+            .await
+            .unwrap();
+    }
+    let PassOutcome::Completed { revision, .. } = pass(&mut client, &event, &settings).await else {
+        panic!("the pass completes");
+    };
+    let set = full_set(&mut client, &event).await;
+    for scope in ["event".to_string(), format!("post={}", event.madrid)] {
+        let turnout = payload(
+            read(
+                &mut client,
+                &event,
+                revision,
+                DataSourceId::VoterTurnout,
+                &set,
+                &scope,
+            )
+            .await,
+        );
+        assert_eq!(turnout.totals[&Measure::PreEnrolled], 2, "{scope}");
+        assert_eq!(turnout.totals[&Measure::Voted], 2, "{scope}");
+        assert_eq!(
+            turnout.totals[&Measure::VotedPreEnrolled],
+            1,
+            "{scope}: ana only"
+        );
     }
 }

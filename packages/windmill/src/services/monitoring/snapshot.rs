@@ -67,9 +67,10 @@ pub const SET_REQUEST_EVERY: Duration = Duration::minutes(5);
 /// what no digest covers, such as producers deployed without a new version.
 pub const RECOUNT_EVERY: Duration = Duration::minutes(10);
 
-/// What reads the inputs: a change to what a pass counts from, or to how,
-/// changes this, so no run recorded before is trusted.
-const INPUTS_READER: &str = concat!("1/", env!("CARGO_PKG_VERSION"));
+/// What reads the inputs and counts from them: a change to what a pass
+/// counts from, or to what the producers count (a new measure, say), bumps
+/// the leading number, so no run recorded before is trusted.
+const INPUTS_READER: &str = concat!("2/", env!("CARGO_PKG_VERSION"));
 
 /// What a pass counts from, recorded with the run it showed
 /// (`monitoring_snapshot_run.counted_inputs`). Two passes that find the same

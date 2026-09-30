@@ -251,7 +251,11 @@ export function MonitoringWidgetCard({cell, context}: MonitoringWidgetCardProps)
                             widgetTitle={title}
                             onConfigure={
                                 canConfigure && actions.onConfigureWidget
-                                    ? () => actions.onConfigureWidget?.(cell.widgetId)
+                                    ? () =>
+                                          actions.onConfigureWidget?.(
+                                              cell.widgetId,
+                                              width ?? undefined
+                                          )
                                     : undefined
                             }
                             onViewData={hasData ? () => setDialog(EWidgetDialog.DATA) : undefined}

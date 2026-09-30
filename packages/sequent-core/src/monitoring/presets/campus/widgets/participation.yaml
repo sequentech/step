@@ -2,15 +2,15 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
-# Who has voted, out of the electorate and out of those who verified their
-# email.
+# Who has voted, out of the electorate, and how many of those who verified
+# their email have voted, out of them.
 id: participation
 title: Participation
 source: voter_turnout
 queries:
   totals: {template: summary, measures: [registered, voted]}
   share: {template: summary, ratio: [voted, registered]}
-  verified: {template: summary, ratio: [voted, pre_enrolled]}
+  verified: {template: summary, ratio: [voted_pre_enrolled, pre_enrolled]}
 height: 300
 chart:
   charts:

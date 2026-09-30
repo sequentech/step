@@ -2838,7 +2838,7 @@ const englishTranslation = {
                 dashboard: "Dashboard",
                 widgets_one: "{{count}} widget",
                 widgets_other: "{{count}} widgets",
-                updated: "Updated {{time}}",
+                updated: "Updated {{time}} ({{timeZone}})",
                 notUpdated: "Not counted yet",
                 refresh: "every {{seconds}} s",
                 export: "Export",
@@ -2956,6 +2956,7 @@ const englishTranslation = {
                 credentials_issued: "Credentials issued",
                 test_voted: "Test voted",
                 voted: "Voted",
+                voted_pre_enrolled: "Pre-enrolled and voted",
                 applications: "Applications",
                 pending: "Pending",
                 approved: "Approved",
@@ -3269,6 +3270,7 @@ const englishTranslation = {
                         "The editor sent a request the server could not read. Reload the page and try again.",
                 },
                 duplicate: {
+                    copyTitle: "{{title}} (copy)",
                     done: "Added {{id}}, a copy of the widget, to the dashboard.",
                     failed: "The widget could not be duplicated: {{reason}}",
                     notPlaced:

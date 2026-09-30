@@ -17,6 +17,8 @@ export interface IWidgetCatalogEntry {
     title: string
     source: string
     requirements: string[]
+    /** The type of each chart it draws: `kpi`, `bar`, `table`… */
+    charts: string[]
 }
 
 export interface IWidgetCatalogGroup {
@@ -44,9 +46,41 @@ export const loadWidgetCatalog = async (
                 title: widget.title ?? document.key,
                 source: widget.source ?? "",
                 requirements: stringList(widget.requirements),
+                charts: chartTypes(parsed.value),
             },
         ]
     })
+}
+
+/** The type of each chart in the widget's `chart.charts`, a map by chart name. */
+const chartTypes = (value: unknown): string[] => {
+    const charts = (value as {chart?: {charts?: unknown}} | null)?.chart?.charts
+    if (!charts || typeof charts !== "object" || Array.isArray(charts)) return []
+    return Object.values(charts).flatMap((entry: unknown) => {
+        const type = (entry as {type?: unknown} | null)?.type
+        return typeof type === "string" ? [type] : []
+    })
+}
+
+/** Chart types drawn without the theme's series colours. */
+const UNCOLOURED_CHARTS = new Set(["kpi", "table"])
+
+/**
+ * The placed widget to preview a theme on: the first that draws a chart in
+ * the theme's colours, else the first table, else the first widget.
+ */
+export const themePreviewWidget = (
+    placed: string[],
+    catalog: IWidgetCatalogEntry[] | undefined
+): string | undefined => {
+    const charts = new Map((catalog ?? []).map((entry) => [entry.id, entry.charts]))
+    const drawing = (test: (type: string) => boolean) =>
+        placed.find((id) => (charts.get(id) ?? []).some(test))
+    return (
+        drawing((type) => !UNCOLOURED_CHARTS.has(type)) ??
+        drawing((type) => type === "table") ??
+        placed[0]
+    )
 }
 
 /** Entries whose title, id, source or a requirement ID contains `query`. */
@@ -74,13 +108,18 @@ const layoutOf = (value: unknown) => {
     const dashboard = (value ?? {}) as Partial<IMonitoringDashboardDefinition>
     return {
         theme: typeof dashboard.theme === "string" ? dashboard.theme : DEFAULT_THEME,
-        widgets: Array.isArray(dashboard.layout) ? dashboard.layout.length : 0,
+        widgets: Array.isArray(dashboard.layout)
+            ? dashboard.layout.flatMap((item) =>
+                  typeof item?.widget === "string" ? [item.widget] : []
+              )
+            : [],
     }
 }
 
 /**
- * How many widgets `themeKey` styles: the layout items of every dashboard
- * that uses it, with the dashboard being edited counted as drafted.
+ * How many widgets `themeKey` styles: those placed on a dashboard that uses
+ * it, each once however often it is placed, with the dashboard being edited
+ * counted as drafted.
  */
 export const countThemeWidgets = async (
     api: IMonitoringEditorApi,
@@ -102,8 +141,9 @@ export const countThemeWidgets = async (
         const parsed = parseYamlText(document.yaml)
         return parsed.status === EYamlParseStatus.OK ? [parsed.value] : []
     })
-    return [draft, ...values]
+    const styled = [draft, ...values]
         .map(layoutOf)
         .filter((dashboard) => dashboard.theme === themeKey)
-        .reduce((total, dashboard) => total + dashboard.widgets, 0)
+        .flatMap((dashboard) => dashboard.widgets)
+    return new Set(styled).size
 }

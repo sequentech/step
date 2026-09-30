@@ -2866,7 +2866,7 @@ const galegoTranslation: TranslationType = {
                 dashboard: "Panel",
                 widgets_one: "{{count}} widget",
                 widgets_other: "{{count}} widgets",
-                updated: "Actualizado {{time}}",
+                updated: "Actualizado {{time}} ({{timeZone}})",
                 notUpdated: "Aínda sen reconto",
                 refresh: "cada {{seconds}} s",
                 export: "Exportar",
@@ -2984,6 +2984,7 @@ const galegoTranslation: TranslationType = {
                 credentials_issued: "Credenciais emitidas",
                 test_voted: "Votos de proba",
                 voted: "Votaron",
+                voted_pre_enrolled: "Preinscritos que votaron",
                 applications: "Solicitudes",
                 pending: "Pendentes",
                 approved: "Aprobadas",
@@ -3297,6 +3298,7 @@ const galegoTranslation: TranslationType = {
                         "O editor enviou unha solicitude que o servidor non puido ler. Recargue a páxina e ténteo de novo.",
                 },
                 duplicate: {
+                    copyTitle: "{{title}} (copia)",
                     done: "Engadiuse {{id}}, unha copia do widget, ao panel.",
                     failed: "Non se puido duplicar o widget: {{reason}}",
                     notPlaced:

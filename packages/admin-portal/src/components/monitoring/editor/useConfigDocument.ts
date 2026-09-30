@@ -48,6 +48,9 @@ export interface IDocumentConflict {
     theirs?: string
     /** The revision fetched with `theirs`: what keeping the draft replaces. */
     theirsRevision?: number | null
+    /** Who saved `theirsRevision`, and when. */
+    theirsAuthor?: IMonitoringAuthor | null
+    theirsCreatedAt?: string | null
     /** Why `theirs` could not be fetched. */
     theirsError?: string
 }
@@ -241,6 +244,8 @@ export const useConfigDocument = ({
                                       theirs: document.yaml ?? "",
                                       theirsRevision:
                                           document.yaml === null ? null : document.revision,
+                                      theirsAuthor: document.author,
+                                      theirsCreatedAt: document.created_at,
                                       theirsError: undefined,
                                   }
                                 : previous
@@ -282,17 +287,20 @@ export const useConfigDocument = ({
 
     /**
      * Keeps the draft: the author has seen the newer revision, so the next
-     * save replaces it. The revision fetched is the one they saw; without
-     * it, the one Harvest reported (`null`: the document is gone, and the
-     * save creates it again).
+     * save replaces it, and the footer names it. The revision fetched is the
+     * one they saw; without it, the one Harvest reported (`null`: the
+     * document is gone, and the save creates it again).
      */
     const keepEditing = () => {
         if (conflict) {
-            setExpected(
-                conflict.theirsRevision !== undefined
-                    ? conflict.theirsRevision
-                    : conflict.currentRevision
-            )
+            const fetched = conflict.theirsRevision !== undefined
+            const seen = fetched ? (conflict.theirsRevision ?? null) : conflict.currentRevision
+            setExpected(seen)
+            setRevision({
+                revision: seen,
+                author: fetched ? conflict.theirsAuthor : conflict.author,
+                createdAt: fetched ? conflict.theirsCreatedAt : conflict.time,
+            })
         }
         setConflict(null)
     }

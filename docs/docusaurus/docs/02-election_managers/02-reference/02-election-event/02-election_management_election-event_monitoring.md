@@ -126,6 +126,9 @@ dashboard:
   Posts is still one voter of the region.
 - **Ratios are a numerator over a denominator**, both counted at the same
   scope. Where the denominator is zero the ratio shows as **—**, not 0%.
+- **"Voted of pre-enrolled" counts only pre-enrolled voters.** Its numerator
+  is the pre-enrolled voters who voted, so voters who vote without
+  pre-enrolling count in **Voted** but never push it past 100%.
 - **Missing values are shown.** A voter with no recorded sex, age or country
   appears in an **Unknown** group (or the preset's word for it), always last
   and never dropped by a row limit.
