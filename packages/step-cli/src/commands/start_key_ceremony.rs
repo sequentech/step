@@ -28,6 +28,13 @@ pub struct StartKeyCeremony {
     /// Name - optional name for the key ceremony
     #[arg(long)]
     name: Option<String>,
+
+    /// Automatic - if set, trustees complete this ceremony without a
+    /// separate per-trustee login (each trustee's braid service still does
+    /// the DKG round on its own; this only skips the manual
+    /// get-private-key/check-private-key confirmation step)
+    #[arg(long, default_value_t = false)]
+    automatic: bool,
 }
 
 #[derive(GraphQLQuery)]
@@ -45,6 +52,7 @@ impl StartKeyCeremony {
             self.threshold,
             self.election_id.as_deref(),
             self.name.as_deref(),
+            self.automatic,
         ) {
             Ok(id) => {
                 println!(
@@ -65,6 +73,7 @@ pub fn start_ceremony(
     threshold: i64,
     election_id: Option<&str>,
     name: Option<&str>,
+    automatic: bool,
 ) -> Result<String, Box<dyn std::error::Error>> {
     let config = read_config()?;
     let client = reqwest::blocking::Client::new();
@@ -76,7 +85,7 @@ pub fn start_ceremony(
         trustee_names: Some(trustees),
         election_id: election_id.map(|id| id.to_string()),
         name: name.map(|n| n.to_string()),
-        is_automatic_ceremony: Some(false),
+        is_automatic_ceremony: Some(automatic),
     };
 
     let request_body = CreateKeysCeremony::build_query(variables);
