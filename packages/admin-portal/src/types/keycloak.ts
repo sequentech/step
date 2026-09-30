@@ -11,6 +11,7 @@ export enum IPermissions {
     TENANT_CREATE = "tenant-create",
     TENANT_READ = "tenant-read",
     TENANT_WRITE = "tenant-write",
+    TENANT_DELETE = "tenant-delete",
     ELECTION_EVENT_CREATE = "election-event-create",
     ELECTION_EVENT_READ = "election-event-read",
     ELECTION_EVENT_WRITE = "election-event-write",
