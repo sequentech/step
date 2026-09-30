@@ -56,12 +56,20 @@ back to it, is recorded as an `ExternalApiRequest` entry.
   `voter_id="123456"; ReplacePin Failed: Cannot replace pin because the user is disabled (error_code=invalid-request)`.
   The reason is only recorded here; the API reply carries the error code alone.
 
-  Before writing to Keycloak, an operation checks that the election event's
-  user profile stores every attribute it is about to write (for example
+  Before writing to Keycloak, an inbound operation checks that the election
+  event's user profile stores every attribute it is about to write (for example
   `dateOfBirth`, `voted-channel` or `disable-comment`). If the realm would
   silently drop one, the operation fails without changing the voter, the
   external system receives `internal-error`, and the entry names the
   attributes the realm does not store.
+
+  Only these inbound operations make the check. A voter edit from the Admin
+  Portal, the Internet channel recorded when a vote is cast and the edits
+  reconciliation applies to existing voters all write through Keycloak without
+  it. On a realm that does not declare an attribute, and whose
+  unmanaged-attribute policy does not let administrators write it, their value
+  is dropped silently. The voters reconciliation adds are written directly to
+  the database and keep their attributes whatever the realm declares.
 
   A request is attributed to the election event whose `datafix:id` annotation
   matches the Datafix id in the caller's token. If several election events of

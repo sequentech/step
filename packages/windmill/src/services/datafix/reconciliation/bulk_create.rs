@@ -21,7 +21,11 @@
 //! Keycloak's own API enforces beyond what we replicate here (the username
 //! length rule we've directly observed Keycloak reject — 3 to 40
 //! characters) and Keycloak's event system entirely, so nothing that
-//! listens for Keycloak admin events fires for these voters.
+//! listens for Keycloak admin events fires for these voters. It also
+//! bypasses the realm's declarative user profile: every attribute is stored
+//! whether or not the realm declares it, whereas a write through the Admin
+//! API silently drops an undeclared one unless the realm's unmanaged-attribute
+//! policy lets administrators write it.
 
 use crate::postgres::keycloak_realm::get_realm_id;
 use crate::services::datafix::reconciliation::diff::DiffItem;
