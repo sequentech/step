@@ -29,12 +29,14 @@ import confirmationScreenDataReducer, {
 import {BALLOT_DATA_KEY} from "../store/castVotes/sessionBallotData"
 import VotingScreen from "./VotingScreen"
 import StartScreen from "./StartScreen"
+import AuditScreen from "./AuditScreen"
 import {ReviewScreen} from "./ReviewScreen"
 import ConfirmationScreen from "./ConfirmationScreen"
 import SupportMaterialsScreen from "./SupportMaterialsScreen"
 import PublishedBallot from "./PublishedBallot"
 
 jest.mock("react-i18next", () => ({
+    Trans: ({i18nKey}: {i18nKey: string}) => i18nKey,
     useTranslation: () => ({
         t: (key: string, values?: {ballotId?: string}) =>
             key === "ballotHash" ? `Ballot ID: ${values?.ballotId?.slice(0, 8)}` : key,
@@ -78,6 +80,14 @@ jest.mock(
         ).BallotHashCopyButton,
         theme: jest.requireActual("../../../ui-essentials/src/services/theme").default,
         Dialog: () => null,
+        WarnBox: jest.requireActual("../../../ui-essentials/src/components/WarnBox/WarnBox")
+            .default,
+        EWarnBoxAnnouncement: jest.requireActual(
+            "../../../ui-essentials/src/components/WarnBox/WarnBox"
+        ).EWarnBoxAnnouncement,
+        InfoDataBox: jest.requireActual(
+            "../../../ui-essentials/src/components/InfoDataBox/InfoDataBox"
+        ).default,
         QRCode: jest.requireActual("../../../ui-essentials/src/components/QRCode/QRCode").default,
     }),
     {virtual: true}
@@ -852,4 +862,12 @@ it("exposes the three instruction steps as a named ordered list", () => {
             `startScreen.step${index + 1}Title`
         )
     })
+})
+
+it("keeps the audit download named when its mobile label is hidden", () => {
+    setUpState({})
+    renderRoute(<AuditScreen />, "audit")
+    const label = screen.getByText("auditScreen.downloadButton")
+    label.style.display = "none"
+    expect(screen.getByRole("button", {name: "auditScreen.downloadButton"})).toBeEnabled()
 })
