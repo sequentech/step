@@ -192,6 +192,7 @@ function paintHeldCard(context: CanvasRenderingContext2D, width: number, height:
 }
 
 // A portrait stream on phone-sized windows, like a phone camera; landscape otherwise.
+// The scene is chosen on every frame, so a camera can change it between steps.
 export function syntheticCamera(sceneFor: (facing: CameraFacing) => SyntheticScene): CameraService {
     return {
         async open(facing) {
@@ -203,8 +204,8 @@ export function syntheticCamera(sceneFor: (facing: CameraFacing) => SyntheticSce
             if (context === null) {
                 throw new Error("Canvas 2D is not available")
             }
-            const scene = sceneFor(facing)
             const paint = () => {
+                const scene = sceneFor(facing)
                 paintBackground(context, canvas.width, canvas.height)
                 if (scene === SyntheticScene.Document) {
                     paintCard(context, canvas.width, canvas.height)

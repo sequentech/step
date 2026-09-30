@@ -623,3 +623,45 @@ export const LivenessTokenUsedUp: Story = {
         await expect(canvas.getByRole("button", {name: "Start over"})).toBeVisible()
     },
 }
+
+// The whole liveness capture at a pace people can follow, for walkthroughs and
+// reviews: the ID is found after a few hints, the face needs one better frame,
+// and the voter then holds the ID next to their face.
+const walkthroughDocument = [
+    ...Array<DocumentStatus>(25).fill(DocumentStatus.NoDocument),
+    ...Array<DocumentStatus>(25).fill(DocumentStatus.TooFar),
+    ...Array<DocumentStatus>(25).fill(DocumentStatus.Glare),
+    ...Array<DocumentStatus>(25).fill(DocumentStatus.HoldStill),
+    DocumentStatus.Ready,
+]
+const walkthroughFace = [
+    ...Array<FaceStatus>(35).fill(FaceStatus.NoFace),
+    ...Array<FaceStatus>(35).fill(FaceStatus.TooFar),
+    ...Array<FaceStatus>(35).fill(FaceStatus.HoldStill),
+    FaceStatus.Ready,
+]
+const holding = () =>
+    [...document.querySelectorAll("h1, h2")].some((heading) =>
+        heading.textContent?.includes("You holding your ID")
+    )
+
+export const Walkthrough: Story = {
+    args: {
+        kcContext: {
+            themeName: "sequent-ui-voting",
+            scanovate: {...livenessContext().scanovate, videoSeconds: 4},
+        },
+        services: fakeServices({
+            camera: syntheticCamera((facing) => {
+                const scene = sceneForFacing(facing)
+                return scene === SyntheticScene.Face && holding()
+                    ? SyntheticScene.FaceWithDocument
+                    : scene
+            }),
+            document: {statuses: walkthroughDocument, stability: 0.5},
+            face: {statuses: walkthroughFace, stability: 0.5},
+            liveness: fakeLiveness([LivenessStatus.FaceTooSmall, LivenessStatus.ScanCompleted]),
+        }),
+    },
+    beforeEach: keepSubmissions,
+}

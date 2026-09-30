@@ -51,9 +51,7 @@ export const ConfirmSubmitsTheAction: Story = {
         }
         window.addEventListener("submit", onSubmit)
         try {
-            await userEvent.click(
-                await canvas.findByRole("button", {name: "Confirm and enroll"})
-            )
+            await userEvent.click(await canvas.findByRole("button", {name: "Confirm and enroll"}))
             await expect(submitted).toEqual(["confirm"])
         } finally {
             window.removeEventListener("submit", onSubmit)
@@ -87,4 +85,9 @@ export const Spanish: Story = {
         ).toBeVisible()
         await expect(canvas.getByText("1 de enero de 1990")).toBeVisible()
     },
+}
+
+// As voters see it, in the voting portal's theme, for walkthroughs.
+export const Voting: Story = {
+    args: {kcContext: {themeName: "sequent-ui-voting"}},
 }
