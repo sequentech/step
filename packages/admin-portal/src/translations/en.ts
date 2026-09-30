@@ -3261,6 +3261,7 @@ const englishTranslation = {
                         "You cannot see figures for the chosen region, Post or country.",
                 },
                 duplicate: {
+                    copyTitle: "{{title}} (copy)",
                     done: "Added {{id}}, a copy of the widget, to the dashboard.",
                     failed: "The widget could not be duplicated: {{reason}}",
                     notPlaced:

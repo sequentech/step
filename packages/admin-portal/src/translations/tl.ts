@@ -3305,6 +3305,7 @@ const tagalogTranslation: TranslationType = {
                         "Hindi mo maaaring makita ang mga bilang para sa napiling rehiyon, posisyon o bansa.",
                 },
                 duplicate: {
+                    copyTitle: "{{title}} (kopya)",
                     done: "Idinagdag sa dashboard ang {{id}}, isang kopya ng widget.",
                     failed: "Hindi ma-duplicate ang widget: {{reason}}",
                     notPlaced:

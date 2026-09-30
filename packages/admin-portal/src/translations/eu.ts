@@ -3283,6 +3283,7 @@ const basqueTranslation: TranslationType = {
                         "Ezin dituzu ikusi aukeratutako eskualdeko, postuko edo herrialdeko zifrak.",
                 },
                 duplicate: {
+                    copyTitle: "{{title}} (kopia)",
                     done: "{{id}} gehitu da panelera, widgetaren kopia bat.",
                     failed: "Ezin izan da widgeta bikoiztu: {{reason}}",
                     notPlaced:

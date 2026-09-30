@@ -3294,6 +3294,7 @@ const spanishTranslation: TranslationType = {
                         "No puedes ver cifras de la región, el puesto o el país elegidos.",
                 },
                 duplicate: {
+                    copyTitle: "{{title}} (copia)",
                     done: "Se añadió {{id}}, una copia del widget, al panel.",
                     failed: "No se pudo duplicar el widget: {{reason}}",
                     notPlaced:

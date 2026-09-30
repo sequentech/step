@@ -3307,6 +3307,7 @@ const catalanTranslation: TranslationType = {
                     forbiddenScope: "No pots veure xifres de la regió, el lloc o el país triats.",
                 },
                 duplicate: {
+                    copyTitle: "{{title}} (còpia)",
                     done: "S'ha afegit {{id}}, una còpia del widget, al tauler.",
                     failed: "No s'ha pogut duplicar el widget: {{reason}}",
                     notPlaced:

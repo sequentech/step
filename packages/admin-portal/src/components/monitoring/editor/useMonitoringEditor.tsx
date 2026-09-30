@@ -306,6 +306,8 @@ export const useMonitoringEditor = ({
                 const outcome = await duplicateWidgetOnDashboard(api, {
                     dashboardId: target,
                     widgetId,
+                    copyTitle: (title) =>
+                        tRef.current("monitoring.editor.duplicate.copyTitle", {title}),
                 })
                 setNotice(duplicateNotice(outcome, tRef.current))
                 if (outcome.result !== EDuplicateResult.NOT_SAVED) changed()

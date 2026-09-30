@@ -9,7 +9,7 @@ import {
     setIn,
 } from "@/components/monitoring/lib/yamlPatch"
 import type {IMonitoringEditorApi} from "./api"
-import {copyId, layoutEntries} from "./formValues"
+import {asWidget, copyId, layoutEntries} from "./formValues"
 import {
     EDuplicateResult,
     EMonitoringConfigKind,
@@ -22,9 +22,25 @@ export {EDuplicateResult, type TDuplicateOutcome}
 
 const LAYOUT = ["layout"]
 
+/** The copy's title from the original's, e.g. `Turnout (copy)`, in the viewer's language. */
+export type TCopyTitle = (title: string) => string
+
+/**
+ * A widget's YAML saved as its copy: the new `id`, and a title told apart
+ * from the original's, so the two do not read alike on the dashboard and in
+ * the catalog. A widget without a title stays without one.
+ */
+export const widgetCopyYaml = (yaml: string, id: string, copyTitle: TCopyTitle): string => {
+    const withId = setIn(yaml, ["id"], id)
+    const parsed = parseYamlText(yaml)
+    if (parsed.status !== EYamlParseStatus.OK) return withId
+    const {title} = asWidget(parsed.value)
+    return typeof title === "string" && title ? setIn(withId, ["title"], copyTitle(title)) : withId
+}
+
 /**
  * Duplicate, from the dashboard's widget menu: saves a copy of the widget
- * under the first free `<id>-copy…` and places it right after the widget's
+ * under the first free `<id>-copy…`, titled by `copyTitle`, and places it right after the widget's
  * first placement, keeping its width. The dashboard is saved against the
  * revision read, so a concurrent edit is refused rather than overwritten.
  * Rejects when a document cannot be read or the widget is not on the
@@ -32,7 +48,11 @@ const LAYOUT = ["layout"]
  */
 export const duplicateWidgetOnDashboard = async (
     api: IMonitoringEditorApi,
-    {dashboardId, widgetId}: {dashboardId: string; widgetId: string}
+    {
+        dashboardId,
+        widgetId,
+        copyTitle,
+    }: {dashboardId: string; widgetId: string; copyTitle: TCopyTitle}
 ): Promise<TDuplicateOutcome> => {
     const [stored, dashboard, widget] = await Promise.all([
         api.listConfig(),
@@ -57,7 +77,7 @@ export const duplicateWidgetOnDashboard = async (
     const copy = await api.saveConfig({
         kind: EMonitoringConfigKind.WIDGET,
         key: id,
-        yaml: setIn(widget.yaml, ["id"], id),
+        yaml: widgetCopyYaml(widget.yaml, id, copyTitle),
         change: EMonitoringSaveChange.UPSERT,
     })
     if (copy.status !== EMonitoringSaveStatus.SAVED) {

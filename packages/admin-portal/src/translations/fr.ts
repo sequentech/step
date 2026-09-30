@@ -3318,6 +3318,7 @@ const frenchTranslation: TranslationType = {
                         "Vous ne pouvez pas voir les chiffres de la région, du poste ou du pays choisis.",
                 },
                 duplicate: {
+                    copyTitle: "{{title}} (copie)",
                     done: "{{id}}, une copie du widget, a été ajouté au tableau de bord.",
                     failed: "Le widget n'a pas pu être dupliqué : {{reason}}",
                     notPlaced:

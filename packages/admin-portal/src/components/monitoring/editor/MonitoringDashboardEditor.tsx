@@ -64,6 +64,7 @@ import {
     type IDocumentMessages,
 } from "./useConfigDocument"
 import {useWidgetCatalog} from "./useWidgetCatalog"
+import {widgetCopyYaml} from "./duplicateWidget"
 
 export enum EDashboardTab {
     WIDGETS = "WIDGETS",
@@ -204,7 +205,9 @@ export const MonitoringDashboardEditor: React.FC<MonitoringDashboardEditorProps>
                 key: item.widget,
             })
             if (source.yaml === null) throw new Error(item.widget)
-            const yaml = setIn(source.yaml, ["id"], id)
+            const yaml = widgetCopyYaml(source.yaml, id, (title) =>
+                t("monitoring.editor.duplicate.copyTitle", {title})
+            )
             const outcome = await api.saveConfig({
                 kind: EMonitoringConfigKind.WIDGET,
                 key: id,
@@ -241,7 +244,13 @@ export const MonitoringDashboardEditor: React.FC<MonitoringDashboardEditorProps>
                     ...entries,
                     {
                         id,
-                        title: original?.title ?? item.widget,
+                        // As the catalog titles it: an untitled widget by its id.
+                        title:
+                            original && original.title !== original.id
+                                ? t("monitoring.editor.duplicate.copyTitle", {
+                                      title: original.title,
+                                  })
+                                : id,
                         source: original?.source ?? "",
                         requirements: original?.requirements ?? [],
                     },

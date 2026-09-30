@@ -3298,6 +3298,7 @@ const dutchTranslation: TranslationType = {
                         "Je mag de cijfers van de gekozen regio, functie of het gekozen land niet zien.",
                 },
                 duplicate: {
+                    copyTitle: "{{title}} (kopie)",
                     done: "{{id}}, een kopie van de widget, is aan het dashboard toegevoegd.",
                     failed: "De widget kon niet worden gedupliceerd: {{reason}}",
                     notPlaced:

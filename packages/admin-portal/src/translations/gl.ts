@@ -3289,6 +3289,7 @@ const galegoTranslation: TranslationType = {
                     forbiddenScope: "Non podes ver cifras da rexión, o posto ou o país escollidos.",
                 },
                 duplicate: {
+                    copyTitle: "{{title}} (copia)",
                     done: "Engadiuse {{id}}, unha copia do widget, ao panel.",
                     failed: "Non se puido duplicar o widget: {{reason}}",
                     notPlaced:
