@@ -21,6 +21,7 @@ use windmill::services::monitoring::snapshot::{
     complete_snapshot, count_event, count_run, live_snapshot, prune_snapshots, read_scope,
     request_election_set, scope_catalogue, start_run, PassOutcome, ScopeRead,
 };
+use windmill::tasks::refresh_monitoring_snapshot::events_to_prune;
 
 fn settings() -> Settings {
     presets::load("comelec")
@@ -870,4 +871,42 @@ async fn regions_read_from_areas_scope_posts_and_sign_ins() {
         .await,
     );
     assert_eq!(sign_ins.totals[&Measure::Logins], 4);
+}
+
+/// Beat sends passes, which prune as they go, only for events on configured
+/// dashboards. An event switched back to the legacy dashboard keeps the
+/// runs it had, so beat lists it for pruning until only its live run is left.
+#[tokio::test]
+async fn an_event_off_configured_dashboards_is_pruned_until_only_its_live_run_is_left() {
+    let pool = schema::pool().await;
+    let mut client = client(&pool).await;
+    let settings = settings();
+    // Seeded on the legacy dashboard, the default.
+    let event = seed(&mut client).await;
+    voter(&client, &event, "ana", event.madrid, "Europe", false).await;
+    let PassOutcome::Completed { .. } = pass(&mut client, &event, &settings).await else {
+        panic!();
+    };
+    assert!(
+        !events_to_prune(&client)
+            .await
+            .unwrap()
+            .contains(&event.event),
+        "its only run is the one shown"
+    );
+    vote(&client, &event, "ana").await;
+    let PassOutcome::Completed { .. } = pass(&mut client, &event, &settings).await else {
+        panic!();
+    };
+    assert!(events_to_prune(&client)
+        .await
+        .unwrap()
+        .contains(&event.event));
+    prune_snapshots(&mut client, event.event, Duration::zero())
+        .await
+        .unwrap();
+    assert!(!events_to_prune(&client)
+        .await
+        .unwrap()
+        .contains(&event.event));
 }

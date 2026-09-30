@@ -4,7 +4,8 @@
 
 //! The monitoring snapshot job: every beat sends a pass for each event on
 //! configured dashboards; a pass that finds its event's lock held is
-//! skipped, the next beat retries.
+//! skipped, the next beat retries. An event on any other dashboard gets no
+//! pass, so beat prunes the runs it still keeps itself.
 //!
 //! Beat ticks once per snapshot interval
 //! ([`sequent_core::monitoring::cadence`]). Every message the job sends
@@ -26,6 +27,7 @@ use anyhow::{anyhow, Context};
 use celery::error::TaskError;
 use celery::task::Signature;
 use chrono::{Duration, Utc};
+use deadpool_postgres::Client;
 use sequent_core::monitoring::cadence::{
     Cadence, MAX_SNAPSHOT_INTERVAL_SECONDS, MIN_SNAPSHOT_INTERVAL_SECONDS,
 };
@@ -102,6 +104,7 @@ pub async fn refresh_monitoring_snapshots(interval_seconds: Option<u64>) -> Resu
         prune_login_counter_receipts(&transaction, RECEIPTS_KEPT_FOR).await?;
         transaction.commit().await?;
     }
+    prune_events_without_passes(&mut client).await;
     let celery_app = get_celery_app().await;
     for (tenant_id, election_event_id) in events {
         celery_app
@@ -109,6 +112,84 @@ pub async fn refresh_monitoring_snapshots(interval_seconds: Option<u64>) -> Resu
             .await?;
     }
     Ok(())
+}
+
+/// Events not on configured dashboards that keep a run besides the one
+/// shown. Passes prune an event on configured dashboards; one switched
+/// away gets none, so these are pruned by the fan-out.
+pub async fn events_to_prune(client: &Client) -> Result<Vec<EventRef>> {
+    Ok(client
+        .query(
+            "SELECT e.tenant_id, e.election_event_id FROM sequent_backend.monitoring_event e
+             WHERE e.dashboard_mode <> 'CONFIGURED'
+               AND EXISTS (
+                   SELECT 1 FROM sequent_backend.monitoring_snapshot_run r
+                   LEFT JOIN sequent_backend.monitoring_snapshot_state s
+                     ON s.tenant_id = r.tenant_id AND s.election_event_id = r.election_event_id
+                   WHERE r.tenant_id = e.tenant_id AND r.election_event_id = e.election_event_id
+                     AND r.revision IS DISTINCT FROM s.live_snapshot_revision
+               )",
+            &[],
+        )
+        .await
+        .context("Failed to list the events to prune")?
+        .iter()
+        .map(|row| EventRef {
+            tenant_id: row.get(0),
+            election_event_id: row.get(1),
+        })
+        .collect())
+}
+
+fn snapshot_lock_key(event: EventRef) -> String {
+    format!(
+        "monitoring_snapshot-{}-{}",
+        event.tenant_id, event.election_event_id
+    )
+}
+
+/// Prunes each of [`events_to_prune`] under its snapshot lock, keeping
+/// the run shown and those an export may still name. An event whose lock
+/// is held, or whose pruning fails, is left for the next beat.
+async fn prune_events_without_passes(client: &mut Client) {
+    let events = match events_to_prune(client).await {
+        Ok(events) => events,
+        Err(error) => {
+            warn!("Listing the monitoring events to prune failed: {error:#}");
+            return;
+        }
+    };
+    for event in events {
+        let lock = match PgLock::acquire(
+            snapshot_lock_key(event),
+            Uuid::new_v4().to_string(),
+            ISO8601::now() + Duration::seconds(600),
+        )
+        .await
+        {
+            Ok(lock) => lock,
+            Err(error) => {
+                if error.to_string() != LOCK_HELD {
+                    warn!(
+                        ?event,
+                        "Taking the snapshot lock to prune failed: {error:#}"
+                    );
+                }
+                continue;
+            }
+        };
+        match prune_snapshots(client, event, EXPORT_WINDOW).await {
+            Ok(pruned) => info!(
+                ?event,
+                ?pruned,
+                "Pruned the snapshots of an event without passes"
+            ),
+            Err(error) => warn!(?event, "Pruning monitoring snapshots failed: {error:#}"),
+        }
+        if let Err(error) = lock.release().await {
+            warn!(?event, "Releasing the snapshot lock failed: {error:#}");
+        }
+    }
 }
 
 #[instrument(err)]
@@ -123,7 +204,7 @@ pub async fn refresh_monitoring_event_snapshot(
         election_event_id: Uuid::parse_str(&election_event_id).context("Invalid event id")?,
     };
     let lock = match PgLock::acquire(
-        format!("monitoring_snapshot-{tenant_id}-{election_event_id}"),
+        snapshot_lock_key(event),
         Uuid::new_v4().to_string(),
         ISO8601::now() + Duration::seconds(600),
     )
