@@ -77,6 +77,11 @@ export const MONITORING_EDITOR_SAVE_CONFIG = gql`
         ) {
             revision
             generation
+            author {
+                id
+                name
+            }
+            created_at
             warnings {
                 severity
                 code

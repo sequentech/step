@@ -2282,6 +2282,8 @@ type MonitoringValidateConfigOutput {
 type MonitoringSaveConfigOutput {
     revision: Int!
     generation: Int!
+    author: MonitoringAuthor
+    created_at: String
     warnings: [MonitoringProblem!]!
 }
 

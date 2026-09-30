@@ -102,6 +102,13 @@ async fn a_save_from_a_stale_revision_is_refused_naming_who_saved_since() {
             .await;
     assert_eq!(status, Status::Ok, "{body}");
     assert_eq!(body["revision"], revision + 1);
+    // Who and when, as get-config names them, so the editor needs no reload.
+    assert_eq!(
+        body["author"],
+        json!({"id": "configurator", "name": "configurator"}),
+        "{body}"
+    );
+    assert!(body["created_at"].is_string(), "{body}");
     assert_eq!(widget(&client, &event, "turnout-summary").await.0, renamed);
 
     let (status, body) = save_widget(

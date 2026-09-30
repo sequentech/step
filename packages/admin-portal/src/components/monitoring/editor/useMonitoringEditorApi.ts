@@ -89,6 +89,8 @@ export const useMonitoringEditorApi = (electionEventId: string): IMonitoringEdit
                         revision: number
                         generation: number
                         warnings?: unknown
+                        author?: IMonitoringAuthor | null
+                        created_at?: string | null
                     }>(MONITORING_EDITOR_SAVE_CONFIG, {
                         kind,
                         key,
@@ -101,6 +103,8 @@ export const useMonitoringEditorApi = (electionEventId: string): IMonitoringEdit
                         revision: reply.revision,
                         generation: reply.generation,
                         warnings: normalizeProblems(reply.warnings),
+                        author: reply.author,
+                        created_at: reply.created_at,
                     }
                 } catch (error) {
                     const outcome = interpretSaveError(error)

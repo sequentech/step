@@ -278,6 +278,10 @@ pub struct SaveConfigInput {
 pub struct SaveConfigOutput {
     revision: i32,
     generation: i64,
+    /// Who the revision is by and when it was stored, as `get-config`
+    /// names them, so the editor shows them without reading it back.
+    author: AuthorView,
+    created_at: DateTime<Utc>,
     warnings: Vec<ProblemView>,
 }
 
@@ -372,6 +376,8 @@ pub async fn save_config(
     Ok(Json(SaveConfigOutput {
         revision: revision.revision,
         generation: revision.config_generation,
+        author: AuthorView::from(&revision.author),
+        created_at: revision.created_at,
         warnings: problems(
             warnings
                 .problems

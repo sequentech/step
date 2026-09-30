@@ -184,7 +184,11 @@ export const useConfigDocument = ({
             })
             if (outcome.status === EMonitoringSaveStatus.SAVED) {
                 controller.markSaved(sent)
-                setRevision({revision: outcome.revision, createdAt: new Date().toISOString()})
+                setRevision({
+                    revision: outcome.revision,
+                    author: outcome.author ?? undefined,
+                    createdAt: outcome.created_at ?? new Date().toISOString(),
+                })
                 setExpected(outcome.revision)
                 const saved = t(messages.saved, {revision: outcome.revision})
                 if (outcome.warnings.length) {

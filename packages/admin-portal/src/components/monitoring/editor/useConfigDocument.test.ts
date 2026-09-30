@@ -14,7 +14,12 @@ import {
     type TMonitoringSaveOutcome,
 } from "./types"
 import {YamlDraftController} from "./yamlDraft"
-import {EMessageTone, useConfigDocument, type IDocumentMessages} from "./useConfigDocument"
+import {
+    authorName,
+    EMessageTone,
+    useConfigDocument,
+    type IDocumentMessages,
+} from "./useConfigDocument"
 
 // A new `t` on every render, as i18next hands out when the language changes.
 jest.mock("react-i18next", () => ({
@@ -122,6 +127,41 @@ describe("useConfigDocument", () => {
         expect(controller.getState()).toEqual(
             expect.objectContaining({baseline: sent, dirty: true})
         )
+    })
+
+    it("after a save, names the author and time Harvest stored the revision with", async () => {
+        const api = fakeApi({
+            saveConfig: jest.fn(async () => ({
+                status: EMonitoringSaveStatus.SAVED as const,
+                revision: 8,
+                generation: 2,
+                warnings: [],
+                author: {id: "u-admin", name: "Admin admin"},
+                created_at: "2026-09-30T08:00:00Z",
+            })),
+        })
+        const {controller, hook} = await open(api)
+        controller.setText(`${TEXT}height: 3\n`)
+        await act(async () => {
+            await hook.result.current.save()
+        })
+        expect(hook.result.current.revision).toEqual({
+            revision: 8,
+            author: {id: "u-admin", name: "Admin admin"},
+            createdAt: "2026-09-30T08:00:00Z",
+        })
+        expect(authorName(hook.result.current.revision?.author)).toBe("Admin admin")
+    })
+
+    it("after a save to an older Harvest, which names no author, still dates it", async () => {
+        const {controller, hook} = await open(fakeApi())
+        controller.setText(`${TEXT}height: 3\n`)
+        await act(async () => {
+            await hook.result.current.save()
+        })
+        expect(hook.result.current.revision?.revision).toBe(8)
+        expect(hook.result.current.revision?.author).toBeUndefined()
+        expect(hook.result.current.revision?.createdAt).toEqual(expect.any(String))
     })
 
     it("shows the warnings a save let through", async () => {
