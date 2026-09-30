@@ -77,7 +77,8 @@ fn checks_a_document_against_the_rest_of_the_event() {
         "themes": {},
         "dashboards": {},
     });
-    let report = check_document("dashboard", "req-0260", REQ_0260, &set.to_string());
+    let report =
+        check_document("dashboard", "req-0260", REQ_0260, &set.to_string());
     let errors: Vec<_> = report
         .problems
         .iter()
