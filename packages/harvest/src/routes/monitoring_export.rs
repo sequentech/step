@@ -97,13 +97,14 @@ pub async fn export_monitoring(
     let to = parse_instant("to", input.to.as_deref())?;
     if let (Some(from), Some(to)) = (from, to) {
         if from >= to {
+            const MESSAGE: &str =
+                "The end of the range must come after its start.";
             let mut report = Report::default();
-            report.push(Problem::error(
-                Code::InvalidValue,
-                "to",
-                "The end of the range must come after its start.",
-            ));
-            return Err(MonitoringError::invalid(&report));
+            report.push(Problem::error(Code::InvalidValue, "to", MESSAGE));
+            return Err(MonitoringError {
+                message: MESSAGE.to_string(),
+                ..MonitoringError::invalid(&report)
+            });
         }
     }
     if live.is_none() {

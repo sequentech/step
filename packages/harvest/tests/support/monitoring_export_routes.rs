@@ -151,6 +151,13 @@ async fn a_pruned_run_is_gone_and_a_foreign_post_refused_before_anything_is_sent
     )
     .await;
     assert_eq!(status, Status::UnprocessableEntity, "{body}");
+    assert_eq!(body["extensions"]["code"], "MONITORING_INVALID");
+    // Said as what is wrong, not as a configuration problem.
+    assert_eq!(
+        body["message"], "The end of the range must come after its start.",
+        "{body}"
+    );
+    assert_eq!(body["extensions"]["problems"][0]["path"], "to", "{body}");
     assert!(services.tasks.sent().is_empty());
     assert!(services.ledger.tasks().is_empty());
 }
