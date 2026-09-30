@@ -116,3 +116,25 @@ fn issues_and_detections_can_be_broken_down_by_category() {
     }
     assert!(!DataSourceId::VoterTurnout.spec().may_group_by("category"));
 }
+
+/// A measure a source counts per hour is one it counts at all; each source
+/// that offers the timeseries template counts at least one per hour, and one
+/// that does not counts none.
+#[test]
+fn series_measures_are_measures_of_a_source_with_a_timeseries() {
+    for source in DataSourceId::iter() {
+        let spec = source.spec();
+        for measure in spec.series_measures {
+            assert!(spec.has_measure(*measure), "{source}: {measure}");
+        }
+        assert_eq!(
+            spec.has_template(QueryTemplate::Timeseries),
+            !spec.series_measures.is_empty(),
+            "{source}"
+        );
+    }
+    let turnout = DataSourceId::VoterTurnout.spec();
+    assert!(turnout.counts_per_hour(Measure::Voted));
+    assert!(!turnout.counts_per_hour(Measure::Registered));
+    assert!(!turnout.counts_per_hour(Measure::PreEnrolled));
+}

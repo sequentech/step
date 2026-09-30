@@ -369,6 +369,10 @@ pub struct SourceSpec {
     pub id: DataSourceId,
     pub counting_unit: CountingUnit,
     pub measures: &'static [Measure],
+    /// The measures counted per hour, as the timeseries template shows
+    /// them. The others are totals the producer never splits into hours,
+    /// such as the voters registered; empty without a timeseries template.
+    pub series_measures: &'static [Measure],
     pub templates: &'static [QueryTemplate],
     pub builtin_dimensions: &'static [BuiltinDimension],
     pub voter_dimensions: VoterDimensions,
@@ -414,6 +418,19 @@ impl DataSourceId {
                 PostState::TransmissionFailed,
             ],
             _ => &[],
+        };
+        let series_measures: &'static [Measure] = match self {
+            VoterTurnout => &[M::Voted],
+            TestVoting => &[M::TestVoted],
+            EnrollmentDecisions => &[M::Approved, M::Disapproved],
+            VotingCredentials => &[M::CredentialsIssued],
+            VotingEnrollmentActivity => &[M::Approved, M::Voted],
+            AccessSecurity => {
+                &[M::Logins, M::LoginFailures, M::PasswordResets]
+            }
+            AttackDetections => &[M::Detections],
+            Helpdesk => &[M::Issues],
+            PollStatus | FinalTestingLockdown | CountingTransmission => &[],
         };
         let (counting_unit, measures, templates, builtin, voter, producer): (
             CountingUnit,
@@ -516,6 +533,7 @@ impl DataSourceId {
             id: self,
             counting_unit,
             measures,
+            series_measures,
             templates,
             builtin_dimensions: builtin,
             voter_dimensions: voter,
@@ -528,6 +546,11 @@ impl DataSourceId {
 impl SourceSpec {
     pub fn has_measure(&self, measure: Measure) -> bool {
         self.measures.contains(&measure)
+    }
+
+    /// Whether the timeseries template can show `measure`.
+    pub fn counts_per_hour(&self, measure: Measure) -> bool {
+        self.series_measures.contains(&measure)
     }
 
     pub fn has_template(&self, template: QueryTemplate) -> bool {
