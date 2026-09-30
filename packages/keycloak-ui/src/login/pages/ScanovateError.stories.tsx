@@ -3,6 +3,7 @@
 import type {Meta, StoryObj} from "@storybook/react-vite"
 import {expect, userEvent, waitFor, within} from "storybook/test"
 import {createKcPageStory} from "../KcPageStory"
+import {expectStickyActions} from "../scanovate/stickyActions"
 
 const {KcPageStory} = createKcPageStory({pageId: "scanovate-error.ftl"})
 
@@ -28,6 +29,7 @@ export const Retryable: Story = {
         const form = retry.closest("form")!
         await expect(form).toHaveAttribute("method", "post")
         await expect(new FormData(form).get("action")).toBe("retry")
+        await expectStickyActions(retry)
         await expect(canvas.getByText("Q5KWeXSFuWKwRTRuA3R1FkF7")).toBeVisible()
     },
 }

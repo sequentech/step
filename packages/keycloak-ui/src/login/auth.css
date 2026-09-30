@@ -91,7 +91,8 @@
     overflow-wrap: anywhere;
 }
 .sequent-auth .auth-card {
-    padding: 40px;
+    --auth-card-padding: 40px;
+    padding: var(--auth-card-padding);
     border: 1px solid #dce7e7;
     border-radius: 22px;
     box-shadow: 0 24px 70px #061b2a40;
@@ -315,7 +316,8 @@
         font-size: 0.75rem;
     }
     .sequent-auth .auth-card {
-        padding: 28px 24px;
+        --auth-card-padding: 24px;
+        padding: 28px var(--auth-card-padding);
         border-radius: 18px;
     }
     .sequent-auth .auth-symbol {
@@ -338,7 +340,7 @@
 }
 @media (max-width: 360px) {
     .sequent-auth .auth-card {
-        padding-inline: 20px;
+        --auth-card-padding: 20px;
     }
     .sequent-auth .auth-brand img {
         width: 126px;
@@ -477,10 +479,19 @@
     height: 20px;
     margin-top: 1px;
 }
+/* The buttons that move the voter on stay at the bottom of the viewport while
+   the rest of the card scrolls, across the whole width of the card. */
 .sequent-auth .auth-actions {
+    position: sticky;
+    bottom: 0;
+    z-index: 1;
     display: flex;
     flex-direction: column;
     gap: 12px;
+    margin-inline: calc(-1 * var(--auth-card-padding, 0px));
+    padding: 16px var(--auth-card-padding, 0px) max(16px, env(safe-area-inset-bottom));
+    background: #ffffff;
+    box-shadow: 0 -16px 24px -24px #061b2a66;
 }
 .sequent-auth .auth-choice-note {
     margin: -4px 0 0;
