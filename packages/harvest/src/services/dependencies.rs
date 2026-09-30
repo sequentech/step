@@ -25,8 +25,10 @@ use crate::ports::vault::SecretVault;
 use crate::services::monitoring::{DrawFailure, DrawnChart};
 use crate::services::monitoring_cache::RenderCache;
 use crate::services::monitoring_config_cache::MonitoringConfigs;
+use sequent_core::monitoring::cadence::Cadence;
 use std::sync::Arc;
 use windmill::services::monitoring::audit::ElectoralLogConfigAudit;
+use windmill::services::monitoring::cadence;
 use windmill::services::monitoring::config_store::MonitoringConfigAudit;
 
 /// The charts monitoring widgets were drawn as.
@@ -44,6 +46,8 @@ pub struct HarvestServices {
     pub monitoring_audit: Arc<dyn MonitoringConfigAudit>,
     pub monitoring_cache: Arc<MonitoringCache>,
     pub monitoring_configs: Arc<MonitoringConfigs>,
+    /// How often figures are counted: what the dashboards poll at.
+    pub monitoring_cadence: Cadence,
     pub monitoring_renderer: Arc<dyn MonitoringRenderer>,
     pub monitoring_snapshots: Arc<dyn MonitoringSnapshots>,
     pub ledger: Arc<dyn TaskLedger>,
@@ -63,6 +67,7 @@ impl HarvestServices {
             monitoring_audit: Arc::new(ElectoralLogConfigAudit),
             monitoring_cache: Arc::new(MonitoringCache::from_env()),
             monitoring_configs: Arc::new(MonitoringConfigs::from_env()),
+            monitoring_cadence: cadence::from_env(),
             monitoring_renderer: Arc::new(HttpMonitoringRenderer::from_env()),
             monitoring_snapshots: Arc::new(WindmillMonitoringSnapshots {
                 databases,

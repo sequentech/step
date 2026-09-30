@@ -66,3 +66,21 @@ export const NoPresets: Story = {
         await expect(view.getByRole("button", {name: "Reset"})).toBeDisabled()
     },
 }
+
+/** The event's own preset is chosen first, so Reset alone never switches presets. */
+export const StartsOnTheEventsPreset: Story = {
+    parameters: {
+        api: (() => ({
+            listPresets: fn(async () => [
+                {id: "campus", version: 1, title: "Campus elections"},
+                {id: "comelec", version: 3, title: "COMELEC", current: true},
+            ]),
+        })) satisfies TApiOverrides,
+    },
+    play: async ({canvasElement}) => {
+        const view = await dialog(canvasElement)
+        await expect(await view.findByRole("radio", {name: "COMELEC · v3"})).toBeChecked()
+        await userEvent.click(view.getByRole("button", {name: "Reset"}))
+        await waitFor(() => expect(api.resetToPreset).toHaveBeenCalledWith("comelec"))
+    },
+}

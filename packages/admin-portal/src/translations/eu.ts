@@ -2848,6 +2848,8 @@ const basqueTranslation: TranslationType = {
                 lockedDown: "Hauteskunde-gertaera blokeatuta dago; beraz, hau ezin da aldatu.",
                 notFound: "Panel edo widget hau ez dago konfiguratuta jada. Kargatu berriro orria.",
                 badRequest: "Eskaera ez da onartu. Kargatu berriro orria eta saiatu berriro.",
+                conflict:
+                    "Beste norbaitek aldaketa bat gorde du lehenago. Kargatu berriro eta saiatu berriro.",
                 invalid: "Esportazioaren balio batzuk ez dira onartzen.",
                 unknown: "Zerbaitek huts egin du. Saiatu geroago.",
             },
@@ -2911,6 +2913,10 @@ const basqueTranslation: TranslationType = {
                     "Erregistratu gabeko erabiltzaile-izenen saiakerak ez dira inongo posturenak, eta, beraz, gertaera osorako soilik zenbatzen dira.",
                 UNREGISTERED_ATTEMPTS_EXCLUDED:
                     "Zifra hauek ez dituzte erregistratu gabeko erabiltzaile-izenen saiakerak barne hartzen; gertaera osorako zenbatzen dira.",
+                CONFIG_NEWER_THAN_SNAPSHOT:
+                    "Azken ezarpenekin marraztua; zifrak hurrengo zenbaketan zenbatzen dira haiekin.",
+                CONFIG_AT_SNAPSHOT_UNAVAILABLE:
+                    "Uneko ezarpenekin marraztua: zifrak zenbatzeko erabili ziren ezarpenak ez dira gordetzen.",
             },
             unavailable: {
                 notConnected: "Konektatu gabe · {{reason}}",

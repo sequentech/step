@@ -18,6 +18,9 @@
 //!
 //! See <https://github.com/sequentech/meta/issues/13624>.
 
+/// How often figures are counted, and how often every voter is read.
+pub mod cadence;
+
 /// Evaluating a query against the counts a snapshot holds.
 pub mod compute;
 

@@ -2878,6 +2878,8 @@ const frenchTranslation: TranslationType = {
                 notFound:
                     "Ce tableau de bord ou ce widget n'est plus configuré. Rechargez la page.",
                 badRequest: "La demande n'a pas été acceptée. Rechargez la page et réessayez.",
+                conflict:
+                    "Quelqu'un d'autre a enregistré une modification avant vous. Rechargez et réessayez.",
                 invalid: "Certaines valeurs de l'export ne sont pas acceptées.",
                 unknown: "Une erreur s'est produite. Réessayez plus tard.",
             },
@@ -2942,6 +2944,10 @@ const frenchTranslation: TranslationType = {
                     "Les tentatives avec des noms d'utilisateur non enregistrés n'appartiennent à aucun poste ; elles ne sont donc comptées que pour l'ensemble de l'événement.",
                 UNREGISTERED_ATTEMPTS_EXCLUDED:
                     "Ces chiffres excluent les tentatives avec des noms d'utilisateur non enregistrés ; elles sont comptées pour l'ensemble de l'événement.",
+                CONFIG_NEWER_THAN_SNAPSHOT:
+                    "Dessiné avec les derniers réglages ; les chiffres sont comptés avec eux au prochain passage.",
+                CONFIG_AT_SNAPSHOT_UNAVAILABLE:
+                    "Dessiné avec les réglages actuels : ceux avec lesquels les chiffres ont été comptés ne sont plus conservés.",
             },
             unavailable: {
                 notConnected: "Non connecté · {{reason}}",

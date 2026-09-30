@@ -2869,6 +2869,7 @@ const tagalogTranslation: TranslationType = {
                 notFound:
                     "Hindi na naka-configure ang dashboard o widget na ito. I-reload ang pahina.",
                 badRequest: "Hindi tinanggap ang kahilingan. I-reload ang pahina at subukan muli.",
+                conflict: "May ibang nag-save muna ng pagbabago. I-reload at subukan muli.",
                 invalid: "Hindi tinatanggap ang ilang halaga ng export.",
                 unknown: "May nangyaring mali. Subukan muli mamaya.",
             },
@@ -2931,6 +2932,10 @@ const tagalogTranslation: TranslationType = {
                     "Ang mga pagtatangka gamit ang hindi rehistradong username ay hindi kabilang sa anumang Post, kaya binibilang lamang ang mga ito para sa buong event.",
                 UNREGISTERED_ATTEMPTS_EXCLUDED:
                     "Hindi kasama sa mga bilang na ito ang mga pagtatangka gamit ang hindi rehistradong username; binibilang ang mga ito para sa buong event.",
+                CONFIG_NEWER_THAN_SNAPSHOT:
+                    "Iginuhit gamit ang pinakabagong setting; bibilangin ang mga numero gamit ito sa susunod na pagbilang.",
+                CONFIG_AT_SNAPSHOT_UNAVAILABLE:
+                    "Iginuhit gamit ang kasalukuyang setting: hindi na itinatago ang setting na ginamit sa pagbilang ng mga numero.",
             },
             unavailable: {
                 notConnected: "Hindi nakakonekta · {{reason}}",

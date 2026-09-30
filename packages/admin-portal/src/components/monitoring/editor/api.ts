@@ -12,6 +12,7 @@
 import {parseActionResponseBody} from "@/services/graphqlActionError"
 import type {IGraphQLActionError} from "@sequentech/ui-core"
 import {normalizeProblems} from "@/components/monitoring/lib/problems"
+import {EMonitoringErrorCode} from "@/components/monitoring/lib/errors"
 import {
     EMonitoringConfigKind,
     EMonitoringSaveStatus,
@@ -43,22 +44,6 @@ export interface IMonitoringEditorApi {
     listConfig(): Promise<IMonitoringConfigListEntry[]>
     listPresets(): Promise<IMonitoringPreset[]>
     resetToPreset(presetId: string): Promise<{generation: number}>
-}
-
-/** The codes Harvest's monitoring routes put in a refusal's `extensions.code`. */
-export enum EMonitoringErrorCode {
-    /** 409: someone saved first; `{current_revision, author, time}`. */
-    CONFLICT = "MONITORING_CONFLICT",
-    /** 422: the document breaks the policy; `{problems}`. */
-    INVALID = "MONITORING_INVALID",
-    /** 503: the chart engine could not check the change. */
-    CHECKS_UNAVAILABLE = "MONITORING_CHECKS_UNAVAILABLE",
-    /** 503 + Retry-After: another change to the event is being stored. */
-    BUSY = "MONITORING_BUSY",
-    /** 403: the event is locked down. */
-    LOCKED_DOWN = "MONITORING_LOCKED_DOWN",
-    /** 403: a region, Post or country the viewer may not see. */
-    FORBIDDEN_SCOPE = "MONITORING_FORBIDDEN_SCOPE",
 }
 
 /** Earlier spellings, still read so an older Harvest keeps working. */

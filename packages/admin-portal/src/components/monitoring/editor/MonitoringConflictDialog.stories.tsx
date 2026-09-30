@@ -53,6 +53,9 @@ export const Conflict: Story = {
         await expect(within(mine).getByText(/Turnout by voter group/)).toBeVisible()
         const saved = view.getByRole("region", {name: "Saved revision"})
         await expect(within(saved).getByText(/height: 300/)).toBeVisible()
+        // The YAML as written, not as a JSON list of its lines.
+        await expect(saved.textContent).toMatch(/^height: 300$/m)
+        await expect(mine.textContent).not.toMatch(/^\s*"/m)
 
         await userEvent.click(view.getByRole("button", {name: "Copy my YAML"}))
         expect(args.copyText).toHaveBeenCalledWith(args.mine)

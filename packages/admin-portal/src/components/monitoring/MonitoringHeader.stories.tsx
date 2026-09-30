@@ -4,6 +4,7 @@
 import type {Meta, StoryObj} from "@storybook/react-vite"
 import {expect, fn, userEvent, within} from "storybook/test"
 import {MonitoringHeader} from "./MonitoringHeader"
+import {MONITORING_DEFAULT_REFRESH_MS} from "./types"
 import {
     MONITORING_SNAPSHOT,
     listDashboardsResponse,
@@ -22,6 +23,7 @@ const meta = {
         requirements: overviewDashboard.requirements ?? [],
         snapshot: MONITORING_SNAPSHOT,
         timeZone: "Asia/Manila",
+        refreshMs: MONITORING_DEFAULT_REFRESH_MS,
         onExport: fn(),
     },
 } satisfies Meta<typeof MonitoringHeader>
@@ -57,5 +59,20 @@ export const NotCountedYet: Story = {
         const canvas = within(canvasElement)
         await expect(canvas.getByText("1 widget · Not counted yet · every 30 s")).toBeVisible()
         await expect(canvas.getByRole("button", {name: "Export"})).toBeDisabled()
+    },
+}
+
+export const ServerInterval: Story = {
+    args: {
+        snapshot: null,
+        onExport: undefined,
+        widgetCount: 1,
+        requirements: [],
+        refreshMs: 120_000,
+    },
+    play: async ({canvasElement}) => {
+        await expect(
+            within(canvasElement).getByText("1 widget · Not counted yet · every 120 s")
+        ).toBeVisible()
     },
 }

@@ -17,8 +17,9 @@ use crate::routes::monitoring::authorize_monitoring;
 use crate::services::dependencies::HarvestServices;
 use crate::services::monitoring::{
     author, event_ref, hasura_client, is_locked_down, live_config, problems,
-    refuse_when_locked_down, MonitoringError, MonitoringResult, ProblemView,
-    QueryTableView, RenderResponse, RenderState, TableView,
+    refuse_when_locked_down, request_body, MonitoringBody, MonitoringError,
+    MonitoringResult, ProblemView, QueryTableView, RenderResponse, RenderState,
+    TableView,
 };
 use crate::services::monitoring_checks::{
     check_boards, sample_board, RendererChecks,
@@ -160,12 +161,12 @@ fn verdict(
 #[instrument(skip(claims, services, body))]
 #[post("/monitoring/validate-config", format = "json", data = "<body>")]
 pub async fn validate_config(
-    body: Json<ValidateConfigInput>,
+    body: MonitoringBody<'_, ValidateConfigInput>,
     claims: JwtClaims,
     services: &State<HarvestServices>,
 ) -> MonitoringResult<Json<ValidateConfigOutput>> {
     configure(&claims)?;
-    let input = body.into_inner();
+    let input = request_body(body)?;
     let event = event_ref(&claims, &input.election_event_id)?;
     let (set, _) = live_set(services, event).await?;
     let checked = match check_edit(
@@ -278,6 +279,10 @@ pub struct SaveConfigInput {
 pub struct SaveConfigOutput {
     revision: i32,
     generation: i64,
+    /// Who the revision is by and when it was stored, as `get-config`
+    /// names them, so the editor shows them without reading it back.
+    author: AuthorView,
+    created_at: DateTime<Utc>,
     warnings: Vec<ProblemView>,
 }
 
@@ -325,12 +330,12 @@ fn save_error(error: SaveError) -> MonitoringError {
 #[instrument(skip(claims, services, body))]
 #[post("/monitoring/save-config", format = "json", data = "<body>")]
 pub async fn save_config(
-    body: Json<SaveConfigInput>,
+    body: MonitoringBody<'_, SaveConfigInput>,
     claims: JwtClaims,
     services: &State<HarvestServices>,
 ) -> MonitoringResult<Json<SaveConfigOutput>> {
     configure_and_write(&claims)?;
-    let input = body.into_inner();
+    let input = request_body(body)?;
     let event = event_ref(&claims, &input.election_event_id)?;
     let edit = match (input.change, input.yaml.as_deref()) {
         (ChangeInput::Upsert, Some(yaml)) => Edit::Upsert(yaml),
@@ -372,6 +377,8 @@ pub async fn save_config(
     Ok(Json(SaveConfigOutput {
         revision: revision.revision,
         generation: revision.config_generation,
+        author: AuthorView::from(&revision.author),
+        created_at: revision.created_at,
         warnings: problems(
             warnings
                 .problems
@@ -398,7 +405,7 @@ pub struct ResetToPresetInput {
 #[derive(Debug, Serialize)]
 pub struct GenerationOutput {
     generation: i64,
-    #[serde(skip_serializing_if = "Vec::is_empty")]
+    /// Always sent, even empty: Hasura passes a missing list on as missing.
     warnings: Vec<ProblemView>,
 }
 
@@ -412,12 +419,12 @@ async fn current_generation(
 #[instrument(skip(claims, services))]
 #[post("/monitoring/reset-to-preset", format = "json", data = "<body>")]
 pub async fn reset_config_to_preset(
-    body: Json<ResetToPresetInput>,
+    body: MonitoringBody<'_, ResetToPresetInput>,
     claims: JwtClaims,
     services: &State<HarvestServices>,
 ) -> MonitoringResult<Json<GenerationOutput>> {
     configure_and_write(&claims)?;
-    let input = body.into_inner();
+    let input = request_body(body)?;
     let event = event_ref(&claims, &input.election_event_id)?;
     let mut client = hasura_client(services).await?;
     check_not_locked_down(&mut client, event).await?;
@@ -479,11 +486,11 @@ pub struct ListPresetsOutput {
 #[instrument(skip(claims))]
 #[post("/monitoring/list-presets", format = "json", data = "<body>")]
 pub async fn list_presets(
-    body: Json<ListPresetsInput>,
+    body: MonitoringBody<'_, ListPresetsInput>,
     claims: JwtClaims,
 ) -> MonitoringResult<Json<ListPresetsOutput>> {
     configure(&claims)?;
-    let _ = body.into_inner();
+    request_body(body)?;
     let presets = PRESETS
         .iter()
         .filter_map(|source| presets::load(source.id)?.ok())
@@ -512,14 +519,16 @@ pub struct SetModeInput {
 #[instrument(skip(claims, services))]
 #[post("/monitoring/set-mode", format = "json", data = "<body>")]
 pub async fn set_dashboard_mode(
-    body: Json<SetModeInput>,
+    body: MonitoringBody<'_, SetModeInput>,
     claims: JwtClaims,
     services: &State<HarvestServices>,
 ) -> MonitoringResult<Json<SetModeOutput>> {
     configure_and_write(&claims)?;
-    let input = body.into_inner();
+    let input = request_body(body)?;
     let event = event_ref(&claims, &input.election_event_id)?;
     let mut client = hasura_client(services).await?;
+    // Which dashboard the event shows is part of its configuration.
+    check_not_locked_down(&mut client, event).await?;
     let outcome = set_mode(
         &mut client,
         services.monitoring_audit.as_ref(),
@@ -596,12 +605,12 @@ pub struct ListConfigOutput {
 #[instrument(skip(claims, services))]
 #[post("/monitoring/list-config", format = "json", data = "<body>")]
 pub async fn list_config(
-    body: Json<ListConfigInput>,
+    body: MonitoringBody<'_, ListConfigInput>,
     claims: JwtClaims,
     services: &State<HarvestServices>,
 ) -> MonitoringResult<Json<ListConfigOutput>> {
     configure(&claims)?;
-    let input = body.into_inner();
+    let input = request_body(body)?;
     let event = event_ref(&claims, &input.election_event_id)?;
     let mut client = hasura_client(services).await?;
     let transaction = client
@@ -680,12 +689,12 @@ pub struct GetConfigOutput {
 #[instrument(skip(claims, services))]
 #[post("/monitoring/get-config", format = "json", data = "<body>")]
 pub async fn get_config(
-    body: Json<GetConfigInput>,
+    body: MonitoringBody<'_, GetConfigInput>,
     claims: JwtClaims,
     services: &State<HarvestServices>,
 ) -> MonitoringResult<Json<GetConfigOutput>> {
     configure(&claims)?;
-    let input = body.into_inner();
+    let input = request_body(body)?;
     let event = event_ref(&claims, &input.election_event_id)?;
     let mut client = hasura_client(services).await?;
     let transaction = client
@@ -746,3 +755,23 @@ pub async fn get_config(
 #[cfg(test)]
 #[path = "../../tests/support/monitoring_config_routes.rs"]
 mod monitoring_config_routes;
+
+#[cfg(test)]
+mod generation_output_tests {
+    use super::GenerationOutput;
+    use serde_json::json;
+
+    /// Hasura passes an action's reply on as it is: a field left out is
+    /// missing from the answer, which Apollo reports as an error.
+    #[test]
+    fn a_reset_without_warnings_lists_none() {
+        let output = GenerationOutput {
+            generation: 3,
+            warnings: vec![],
+        };
+        assert_eq!(
+            serde_json::to_value(&output).unwrap(),
+            json!({"generation": 3, "warnings": []})
+        );
+    }
+}

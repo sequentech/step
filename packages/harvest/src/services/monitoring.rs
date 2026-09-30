@@ -23,6 +23,7 @@ use deadpool_postgres::Transaction;
 use indexmap::IndexMap;
 use rocket::http::{ContentType, Header, Status};
 use rocket::response::{self, Responder, Response};
+use rocket::serde::json::{self, Json};
 use rocket::Request;
 use sequent_core::ballot::{ElectionEventPresentation, LockedDown};
 use sequent_core::monitoring::compute::{evaluate, event_days, QueryResult};
@@ -158,6 +159,52 @@ impl<'r> Responder<'r, 'static> for MonitoringError {
 }
 
 pub type MonitoringResult<T> = Result<T, MonitoringError>;
+
+/// A monitoring route's body as Rocket reads it: kept even when it is not
+/// JSON or not what the route takes, so the route refuses it as it refuses
+/// anything else, rather than Rocket answering without a code.
+pub type MonitoringBody<'r, T> = Result<Json<T>, json::Error<'r>>;
+
+/// The body a route takes, or a MONITORING_BAD_REQUEST that says what is
+/// wrong with it: 400 when it is not JSON, 422 when it is JSON but not what
+/// the route takes (a field missing or of the wrong type).
+pub fn request_body<T>(body: MonitoringBody<'_, T>) -> MonitoringResult<T> {
+    match body {
+        Ok(body) => Ok(body.into_inner()),
+        Err(json::Error::Io(error)) => Err(MonitoringError::bad_request(
+            format!("The request body could not be read: {error}"),
+        )),
+        Err(json::Error::Parse(_, error)) if error.is_data() => {
+            Err(MonitoringError::unprocessable(format!(
+                "The request body is not what this route takes: {error}"
+            )))
+        }
+        Err(json::Error::Parse(_, error)) => Err(MonitoringError::bad_request(
+            format!("The request body is not JSON: {error}"),
+        )),
+    }
+}
+
+/// What a request under `/monitoring` that no route answered, or that
+/// failed before its route ran (no valid credentials, no such route, a
+/// body Rocket refused), is answered with: the monitoring refusal shape,
+/// never the bare "Unknown Error" Hasura cannot explain.
+#[catch(default)]
+pub fn monitoring_catcher(status: Status, _: &Request<'_>) -> MonitoringError {
+    let (code, message) = match status.code {
+        401 => ("Unauthorized", "The request carries no valid credentials."),
+        404 => (
+            "MONITORING_NOT_FOUND",
+            "No monitoring route takes this request; check its path and that its body is JSON.",
+        ),
+        400..=499 => (
+            "MONITORING_BAD_REQUEST",
+            "The request is not one this route takes.",
+        ),
+        _ => ("InternalServerError", "Internal error"),
+    };
+    MonitoringError::new(status, code, message)
+}
 
 // ---------------------------------------------------------------------------
 // Problems
@@ -548,10 +595,63 @@ impl SnapshotConfig {
     }
 }
 
-/// The configuration `head` was counted under, as an export reads it, so
-/// what is drawn is what the figures were counted for. The live one when
-/// there is no run, when that generation is no longer kept, or when it has
-/// not what `has` asks for (a widget added since); the latter two say so.
+/// The complete run `revision` a request pins. One the event no longer keeps
+/// is gone (410, MONITORING_SNAPSHOT_PRUNED, saying `gone`); one after the
+/// event's live run, or of an event with no run, was never issued (404).
+pub async fn pinned_snapshot(
+    services: &HarvestServices,
+    event: EventRef,
+    revision: i64,
+    gone: &'static str,
+) -> MonitoringResult<SnapshotHead> {
+    let snapshots = &services.monitoring_snapshots;
+    if let Some(head) = snapshots
+        .complete(event, revision)
+        .await
+        .map_err(MonitoringError::internal)?
+    {
+        return Ok(head);
+    }
+    let live = snapshots
+        .live(event)
+        .await
+        .map_err(MonitoringError::internal)?;
+    if live.map_or(true, |live| revision > live.revision) {
+        return Err(MonitoringError::not_found(
+            "There is no such snapshot: the event has not counted it yet.",
+        ));
+    }
+    Err(MonitoringError::new(
+        Status::Gone,
+        "MONITORING_SNAPSHOT_PRUNED",
+        gone,
+    ))
+}
+
+/// Whether the figures `head` counted are the ones the live configuration
+/// reads. A run counts every source, at every scope, for every election set,
+/// from the settings and the event's elections alone: no widget, dashboard or
+/// theme is read. Those only read the figures (their queries, measures,
+/// dimensions, grains and scopes are evaluated when drawn, and the dimensions
+/// they may group by are the settings'). So the figures serve the live
+/// configuration exactly when it has the settings revision they were counted
+/// with.
+pub fn counted_for_live(head: &SnapshotHead, live: &LiveConfig) -> bool {
+    revision_of(&live.documents, ConfigKind::Settings, SETTINGS_KEY)
+        == Some(head.settings_revision)
+}
+
+/// The configuration a dashboard draws `head` with. The live one when there
+/// is no run, or when the run's figures are the ones it reads
+/// ([`counted_for_live`]), so a saved title, chart, layout or theme shows at
+/// once. Otherwise (the settings changed since) the one the run was counted
+/// under, so what is drawn is what the figures were counted for; the live one
+/// again when that generation is no longer kept, or has not what `has` asks
+/// for (a widget added since), and those two say so.
+///
+/// Exports do not use this: an export of a run always reads the
+/// configuration that run was counted under, so exporting the same revision
+/// twice gives the same file.
 pub async fn config_at_snapshot(
     services: &HarvestServices,
     event: EventRef,
@@ -559,9 +659,10 @@ pub async fn config_at_snapshot(
     live: LiveConfig,
     has: impl Fn(&ConfigSet) -> bool,
 ) -> MonitoringResult<SnapshotConfig> {
-    let Some(head) =
-        head.filter(|head| head.config_generation != live.generation)
-    else {
+    let Some(head) = head.filter(|head| {
+        head.config_generation != live.generation
+            && !counted_for_live(head, &live)
+    }) else {
         return Ok(SnapshotConfig::live(live));
     };
     let at = config_at_generation(services, event, head.config_generation)

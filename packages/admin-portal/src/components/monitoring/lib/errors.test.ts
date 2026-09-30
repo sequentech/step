@@ -41,6 +41,15 @@ describe("Harvest's monitoring errors", () => {
         expect(monitoringErrorCode(text)).toBe(EMonitoringErrorCode.LOCKED_DOWN)
     })
 
+    it("reads the editor's codes too, from the one list the view and the editor share", () => {
+        expect(monitoringErrorCode(refusal({code: "MONITORING_CONFLICT"}))).toBe(
+            EMonitoringErrorCode.CONFLICT
+        )
+        expect(monitoringErrorMessage(refusal({code: "MONITORING_CONFLICT"}))).toBe(
+            "monitoring.errors.conflict"
+        )
+    })
+
     it("has no code for a network failure or an unknown code", () => {
         expect(monitoringErrorCode(new ApolloError({networkError: new Error("down")}))).toBe(
             undefined

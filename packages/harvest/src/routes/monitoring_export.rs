@@ -15,8 +15,8 @@
 use crate::routes::monitoring::{authorize_monitoring, viewer_and_config};
 use crate::services::dependencies::HarvestServices;
 use crate::services::monitoring::{
-    check_selector_values, hasura_client, parse_instant, MonitoringError,
-    MonitoringResult,
+    check_selector_values, hasura_client, parse_instant, pinned_snapshot,
+    request_body, MonitoringBody, MonitoringError, MonitoringResult,
 };
 use indexmap::IndexMap;
 use rocket::http::Status;
@@ -74,12 +74,12 @@ fn out_of_scope() -> MonitoringError {
 #[instrument(skip(claims, services))]
 #[post("/monitoring/export", format = "json", data = "<body>")]
 pub async fn export_monitoring(
-    body: Json<ExportInput>,
+    body: MonitoringBody<'_, ExportInput>,
     claims: JwtClaims,
     services: &State<HarvestServices>,
 ) -> MonitoringResult<Json<ExportOutput>> {
     authorize_monitoring(&claims, vec![Permissions::MONITORING_VIEW])?;
-    let input = body.into_inner();
+    let input = request_body(body)?;
     let (viewer, live) = viewer_and_config(
         services,
         &claims,
@@ -97,13 +97,14 @@ pub async fn export_monitoring(
     let to = parse_instant("to", input.to.as_deref())?;
     if let (Some(from), Some(to)) = (from, to) {
         if from >= to {
+            const MESSAGE: &str =
+                "The end of the range must come after its start.";
             let mut report = Report::default();
-            report.push(Problem::error(
-                Code::InvalidValue,
-                "to",
-                "The end of the range must come after its start.",
-            ));
-            return Err(MonitoringError::invalid(&report));
+            report.push(Problem::error(Code::InvalidValue, "to", MESSAGE));
+            return Err(MonitoringError {
+                message: MESSAGE.to_string(),
+                ..MonitoringError::invalid(&report)
+            });
         }
     }
     if live.is_none() {
@@ -113,17 +114,13 @@ pub async fn export_monitoring(
     }
 
     let snapshots = &services.monitoring_snapshots;
-    let kept = snapshots
-        .complete(viewer.event, input.snapshot_revision)
-        .await
-        .map_err(MonitoringError::internal)?;
-    let Some(kept) = kept else {
-        return Err(MonitoringError::new(
-            Status::Gone,
-            "MONITORING_SNAPSHOT_PRUNED",
-            "That snapshot is no longer kept; export the current one.",
-        ));
-    };
+    let kept = pinned_snapshot(
+        services,
+        viewer.event,
+        input.snapshot_revision,
+        "That snapshot is no longer kept; export the current one.",
+    )
+    .await?;
     let config = {
         let mut client = hasura_client(services).await?;
         let transaction = client
