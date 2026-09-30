@@ -2,8 +2,11 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {type ReactNode} from "react"
-import {Box, Button, Divider, IconButton, Stack, Tooltip, Typography} from "@mui/material"
+import {Box, Divider, IconButton, Stack, Tooltip, Typography} from "@mui/material"
+import DownloadIcon from "@mui/icons-material/Download"
+import EditIcon from "@mui/icons-material/Edit"
 import RefreshIcon from "@mui/icons-material/Refresh"
+import {Button} from "react-admin"
 import {useTranslation} from "react-i18next"
 import {type MonitoringDashboardSummary, type MonitoringSnapshot} from "./types"
 import {formatDateTime} from "./lib/format"
@@ -77,14 +80,24 @@ export function MonitoringHeader({
                     </>
                 ) : null}
                 <Box sx={{flexGrow: 1}} />
-                <Button variant="outlined" size="small" onClick={onExport} disabled={!onExport}>
-                    {t("monitoring.header.export")}
-                </Button>
-                {onEditDashboard ? (
-                    <Button variant="contained" size="small" onClick={onEditDashboard}>
-                        {t("monitoring.header.editDashboard")}
+                {/* The portal's top action buttons: outlined, joined, as in ListActions. */}
+                <div className="list-actions">
+                    <Button
+                        onClick={onExport}
+                        disabled={!onExport}
+                        label={t("monitoring.header.export")}
+                    >
+                        <DownloadIcon />
                     </Button>
-                ) : null}
+                    {onEditDashboard ? (
+                        <Button
+                            onClick={onEditDashboard}
+                            label={t("monitoring.header.editDashboard")}
+                        >
+                            <EditIcon />
+                        </Button>
+                    ) : null}
+                </div>
             </Stack>
             <Stack
                 direction={{xs: "column", md: "row"}}
