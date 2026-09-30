@@ -111,7 +111,11 @@ fn by_state() -> IndexMap<String, QueryResult> {
 }
 
 fn posts_widget(regions_coloured: bool) -> Widget {
-    let regions = if regions_coloured { ", color: group" } else { "" };
+    let regions = if regions_coloured {
+        ", color: group"
+    } else {
+        ""
+    };
     parse_widget(&format!(
         "id: w\ntitle: W\nsource: poll_status\nqueries:\n  states: {{template: by_group, group_by: state, measures: [posts]}}\n  regions: {{template: by_group, group_by: region, measures: [posts]}}\nchart:\n  charts:\n    states: {{type: donut, query: states, theta: posts, color: group}}\n    regions: {{type: bar, query: regions, x: group, y: posts{regions}}}\n  rows: [states, regions]\n"
     ))
@@ -144,7 +148,11 @@ fn a_theme_pin_reaches_a_board_only_when_its_coloured_charts_draw_the_value() {
         board["style"]["charts"]["category_colors"]["group"]["values"],
         json!({"Unknown": "dbt-grays.muted", "Opened": "category[2]"})
     );
-    let board = build_board(&posts_widget(false), Some(&pinning("{Unknown: dbt-grays.muted}")), &by_state());
+    let board = build_board(
+        &posts_widget(false),
+        Some(&pinning("{Unknown: dbt-grays.muted}")),
+        &by_state(),
+    );
     assert!(
         board["style"]["charts"].get("category_colors").is_none(),
         "{board}"

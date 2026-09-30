@@ -455,10 +455,13 @@ fn a_timeseries_needs_a_grain_and_only_a_timeseries_takes_one() {
 /// hourly would only ever say "not counted".
 #[test]
 fn a_timeseries_shows_only_measures_its_source_counts_per_hour() {
-    let turnout = VOTING_ACTIVITY
-        .replace("source: voting_enrollment_activity", "source: voter_turnout");
+    let turnout = VOTING_ACTIVITY.replace(
+        "source: voting_enrollment_activity",
+        "source: voter_turnout",
+    );
     assert_accepted(&widget_report(&turnout));
-    let stock = turnout.replace("measures: [voted]", "measures: [voted, registered]");
+    let stock =
+        turnout.replace("measures: [voted]", "measures: [voted, registered]");
     assert_refused(
         &widget_report(&stock),
         Code::UnsupportedBySource,

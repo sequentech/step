@@ -84,8 +84,10 @@ fn drawn_categories(
         let Some(result) = result else {
             continue;
         };
-        let Some(at) =
-            result.columns.iter().position(|column| column.name == field)
+        let Some(at) = result
+            .columns
+            .iter()
+            .position(|column| column.name == field)
         else {
             continue;
         };

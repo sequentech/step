@@ -425,9 +425,7 @@ impl DataSourceId {
             EnrollmentDecisions => &[M::Approved, M::Disapproved],
             VotingCredentials => &[M::CredentialsIssued],
             VotingEnrollmentActivity => &[M::Approved, M::Voted],
-            AccessSecurity => {
-                &[M::Logins, M::LoginFailures, M::PasswordResets]
-            }
+            AccessSecurity => &[M::Logins, M::LoginFailures, M::PasswordResets],
             AttackDetections => &[M::Detections],
             Helpdesk => &[M::Issues],
             PollStatus | FinalTestingLockdown | CountingTransmission => &[],
