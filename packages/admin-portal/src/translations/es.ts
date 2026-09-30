@@ -2924,6 +2924,10 @@ const spanishTranslation: TranslationType = {
                     "Los intentos con nombres de usuario no registrados no pertenecen a ningún puesto, por lo que solo se cuentan para todo el evento.",
                 UNREGISTERED_ATTEMPTS_EXCLUDED:
                     "Estas cifras no incluyen los intentos con nombres de usuario no registrados; se cuentan para todo el evento.",
+                CONFIG_NEWER_THAN_SNAPSHOT:
+                    "Dibujado con la configuración más reciente; las cifras se cuentan con ella en la próxima pasada.",
+                CONFIG_AT_SNAPSHOT_UNAVAILABLE:
+                    "Dibujado con la configuración actual: la configuración con la que se contaron las cifras ya no se conserva.",
             },
             unavailable: {
                 notConnected: "No conectado · {{reason}}",

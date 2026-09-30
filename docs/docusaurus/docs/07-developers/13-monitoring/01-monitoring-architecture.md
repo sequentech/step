@@ -98,12 +98,14 @@ preset and version. This is also how an event opts in. Settings are
 
 ## Snapshot job
 
-The beat task `refresh_monitoring_snapshots` runs every
-`monitoring_snapshot_interval` seconds (default 30) on the beat queue. It
-prunes old login-counter receipts and sends one
-`refresh_monitoring_event_snapshot` task per `CONFIGURED` event to the
-reports queue. That task takes `PgLock("monitoring_snapshot-<tenant>-<event>")`
-and skips the pass if another holds it.
+The beat task `refresh_monitoring_snapshots` runs once per snapshot interval
+(`MONITORING_SNAPSHOT_INTERVAL_SECONDS`, default 30; see
+[Snapshot cadence](#snapshot-cadence)) on the beat queue. It prunes old
+login-counter receipts and sends one `refresh_monitoring_event_snapshot`
+task per `CONFIGURED` event to the monitoring queue. Both messages expire
+after one interval: by then the next beat has asked again. The event task
+takes `PgLock("monitoring_snapshot-<tenant>-<event>")` and skips the pass if
+another holds it.
 
 A pass of an event:
 
@@ -274,9 +276,11 @@ README for the request and response bodies.
 `MonitoringDashboardTab` wraps the standard dashboard in the election event
 and election tabs. A user without `monitoring-view` gets the standard
 dashboard and no monitoring request; a `LEGACY` event, or a failed request,
-also shows it. `MonitoringGetDashboard` is polled every 30 seconds while the
-browser tab is visible and not in edit mode, and a widget re-renders only
-when the snapshot changes.
+also shows it. `MonitoringGetDashboard` is polled every `refresh_seconds`,
+the snapshot interval Harvest reports in `MonitoringListDashboards` and
+`MonitoringGetDashboard` (30 seconds when a server does not report it, never
+under 5), while the browser tab is visible and not in edit mode; the header
+shows that interval. A widget re-renders only when the snapshot changes.
 
 Charts are shown in an `iframe` with an empty `sandbox` attribute and a
 content security policy that allows no network requests; the SVG is
@@ -290,8 +294,8 @@ typing and from the server on preview and Validate.
 
 | Setting | Where | Default | Meaning |
 |---|---|---|---|
-| `-m`, `--monitoring-snapshot-interval` | Windmill `beat` | `30` | Seconds between snapshot beats. |
-| `MONITORING_VOTER_FULL_PASS_SECONDS` | Windmill | `300` | Seconds between full passes over the Keycloak voters. |
+| `MONITORING_SNAPSHOT_INTERVAL_SECONDS` | Windmill `beat` and workers, Harvest | `30`, within 5..=3600 | Seconds between snapshot passes; Harvest reports it as `refresh_seconds`. Beat's `-m`, `--monitoring-snapshot-interval` flag is the same setting. |
+| `MONITORING_VOTER_FULL_PASS_SECONDS` | Windmill workers | `300`, within the snapshot interval..=86400 | Seconds between full passes over the Keycloak voters. |
 | `KEYCLOAK_VOTER_GROUP_NAME` | Windmill | none; required | The Keycloak group whose members are voters. |
 | `HARVEST_MONITORING_RENDERER_URL` | Harvest | compose: `http://monitoring-renderer:8080` | The renderer's base URL. |
 | `HARVEST_MONITORING_RENDERER_TOKEN` | Harvest | none | Sent as `X-Renderer-Token`; must equal the renderer's `RENDERER_TOKEN`. Compose sets both from `MONITORING_RENDERER_TOKEN`. |
@@ -301,6 +305,45 @@ typing and from the server on preview and Validate.
 | `RENDERER_CONCURRENCY` | renderer | `2` | Draws running at once. |
 | `RENDERER_TIMEOUT_MS` | renderer | `4000` | Waiting plus drawing, after which a request gets 504. |
 | `RENDERER_CACHE_BYTES` | renderer | `67108864` | Size of the renderer's SVG cache. |
+
+### Snapshot cadence
+
+`sequent_core::monitoring::cadence` parses both settings, so beat, the
+workers and Harvest agree on them. Set them to the same values on the
+`beat`, `windmill` and `harvest` services (the compose files pass both
+through, defaulting to 30 and 300), otherwise the dashboards poll at a
+different cadence than figures are made. A value outside its bounds is
+clamped to the nearest bound, and a value that is not a whole number of
+seconds is replaced by the default; in both cases the service starts and
+logs a warning naming the variable and the value used. Every service logs
+the cadence it runs with at startup (`Monitoring cadence: ...`).
+
+The interval trades freshness against load on the sources. A pass reads the
+projection sources once per event, however many people watch the
+dashboards, so viewers add only cheap Harvest reads. What grows with the
+event is the pass itself:
+
+- Every pass reads each voter's latest application and first valid vote
+  from the backend tables, and counts every scope.
+- The **full voter pass** reads every voter of the event realm from the
+  Keycloak database. It is the expensive part and grows with the number of
+  voters; between full passes a voter change in Keycloak shows only at the
+  next full pass (a settings change forces one at once).
+
+A pass that takes longer than the interval is not stacked: the next beat
+finds the event's lock held and skips it, so the effective cadence becomes
+the pass duration. Watch the `Monitoring snapshot pass` log lines and keep
+the interval above the usual pass duration.
+
+| Event | `MONITORING_SNAPSHOT_INTERVAL_SECONDS` | `MONITORING_VOTER_FULL_PASS_SECONDS` |
+|---|---|---|
+| Small (up to about 10,000 voters) | `15`–`30` | `300` |
+| Medium (about 10,000–100,000 voters) | `30`–`60` | `600` |
+| Large (100,000 voters or more) | `60`–`120` | `1800`–`3600` |
+
+Shorter intervals than `15` are rarely worth it: figures change in steps
+of a pass anyway, and the portal never polls more often than every 5
+seconds.
 
 ## Running the tests
 

@@ -147,14 +147,14 @@ values behind a chart.
 ### Freshness
 
 Figures come from a snapshot, not from a live query. A background job counts
-every configured event about every 30 seconds and stores a new snapshot only
-when something changed. Every widget on the screen shows the same snapshot,
+every configured event at a fixed interval, 30 seconds unless the deployment
+sets another, and stores a new snapshot only when something changed. Every widget on the screen shows the same snapshot,
 and the header's **Updated** time says when it was counted, in the event's
 time zone. Before the first count finishes, the header shows **Not counted
 yet**.
 
-The dashboard checks for a new snapshot every 30 seconds while its browser
-tab is visible, and redraws a widget only when its figures changed. The
+The dashboard checks for a new snapshot at the same interval while its
+browser tab is visible (the header shows it, for example **every 30 s**), and redraws a widget only when its figures changed. The
 number of people watching a dashboard does not change how often the data is
 read.
 

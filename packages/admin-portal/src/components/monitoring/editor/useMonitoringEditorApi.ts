@@ -145,11 +145,18 @@ export const useMonitoringEditorApi = (electionEventId: string): IMonitoringEdit
                 return reply.documents ?? []
             },
             async listPresets() {
-                const reply = await query<{presets: IMonitoringPreset[] | null}>(
-                    MONITORING_EDITOR_LIST_PRESETS,
-                    {}
-                )
-                return reply.presets ?? []
+                const [reply, current] = await Promise.all([
+                    query<{presets: IMonitoringPreset[] | null}>(MONITORING_EDITOR_LIST_PRESETS, {}),
+                    // Which one the event uses only picks the first choice.
+                    query<{preset?: {id: string} | null}>(MONITORING_EDITOR_LIST_CONFIG, {}).then(
+                        (config) => config.preset?.id,
+                        () => undefined
+                    ),
+                ])
+                return (reply.presets ?? []).map((preset) => ({
+                    ...preset,
+                    current: preset.id === current,
+                }))
             },
             async resetToPreset(presetId) {
                 const reply = await mutate<{generation: number}>(

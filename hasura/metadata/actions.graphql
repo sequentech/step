@@ -2206,6 +2206,7 @@ type MonitoringListDashboardsOutput {
     mode: String!
     dashboards: [MonitoringDashboardSummary!]!
     snapshot: MonitoringSnapshot
+    refresh_seconds: Int
 }
 
 type MonitoringDocumentRef {
@@ -2244,6 +2245,7 @@ type MonitoringGetDashboardOutput {
     sources: jsonb!
     snapshot: MonitoringSnapshot
     event_days: [String!]!
+    refresh_seconds: Int
 }
 
 type MonitoringProblem {

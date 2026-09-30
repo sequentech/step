@@ -405,7 +405,7 @@ pub struct ResetToPresetInput {
 #[derive(Debug, Serialize)]
 pub struct GenerationOutput {
     generation: i64,
-    #[serde(skip_serializing_if = "Vec::is_empty")]
+    /// Always sent, even empty: Hasura passes a missing list on as missing.
     warnings: Vec<ProblemView>,
 }
 
@@ -755,3 +755,23 @@ pub async fn get_config(
 #[cfg(test)]
 #[path = "../../tests/support/monitoring_config_routes.rs"]
 mod monitoring_config_routes;
+
+#[cfg(test)]
+mod generation_output_tests {
+    use super::GenerationOutput;
+    use serde_json::json;
+
+    /// Hasura passes an action's reply on as it is: a field left out is
+    /// missing from the answer, which Apollo reports as an error.
+    #[test]
+    fn a_reset_without_warnings_lists_none() {
+        let output = GenerationOutput {
+            generation: 3,
+            warnings: vec![],
+        };
+        assert_eq!(
+            serde_json::to_value(&output).unwrap(),
+            json!({"generation": 3, "warnings": []})
+        );
+    }
+}

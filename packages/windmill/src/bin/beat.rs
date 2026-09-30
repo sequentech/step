@@ -9,12 +9,16 @@ use celery::beat::DeltaSchedule;
 use celery::prelude::Task;
 use clap::Parser;
 use dotenv::dotenv;
+use sequent_core::monitoring::cadence::{Cadence, SNAPSHOT_INTERVAL_ENV, VOTER_FULL_PASS_ENV};
 use sequent_core::util::init_log::init_log;
 use tokio::time::Duration;
 use windmill::services::celery_app::{set_is_app_active, Queue};
+use windmill::services::monitoring::cadence;
 use windmill::services::probe::{setup_probe, AppName};
 use windmill::tasks::electoral_log::electoral_log_batch_dispatcher;
-use windmill::tasks::refresh_monitoring_snapshot::refresh_monitoring_snapshots;
+use windmill::tasks::refresh_monitoring_snapshot::{
+    refresh_monitoring_snapshots, scheduled_fan_out,
+};
 use windmill::tasks::review_boards::review_boards;
 use windmill::tasks::review_cast_votes::review_cast_votes;
 use windmill::tasks::scheduled_events::scheduled_events;
@@ -33,8 +37,10 @@ struct CeleryOpt {
     review_cast_votes_interval: u64,
     #[arg(short = 'e', long, default_value = "5")]
     electoral_log_interval: u64,
-    #[arg(short = 'm', long, default_value = "30")]
-    monitoring_snapshot_interval: u64,
+    /// Seconds between two monitoring snapshot passes; bounds and default
+    /// in `sequent_core::monitoring::cadence`.
+    #[arg(short = 'm', long, env = SNAPSHOT_INTERVAL_ENV)]
+    monitoring_snapshot_interval: Option<String>,
 }
 
 #[tokio::main]
@@ -43,6 +49,11 @@ async fn main() -> Result<()> {
     init_log(true);
     setup_probe(AppName::BEAT).await;
     let slug = std::env::var("ENV_SLUG").with_context(|| "missing env var ENV_SLUG")?;
+    let monitoring_cadence = Cadence::parse(
+        CeleryOpt::parse().monitoring_snapshot_interval.as_deref(),
+        std::env::var(VOTER_FULL_PASS_ENV).ok().as_deref(),
+    );
+    cadence::log(&monitoring_cadence);
 
     let mut beat = celery::beat!(
         broker = AMQPBroker { std::env::var("AMQP_ADDR").unwrap_or_else(|_| "amqp://rabbitmq:5672".into()) },
@@ -72,11 +83,6 @@ async fn main() -> Result<()> {
                 schedule = DeltaSchedule::new(Duration::from_secs(CeleryOpt::parse().electoral_log_interval)),
                 args = (),
             },
-            refresh_monitoring_snapshots::NAME => {
-                refresh_monitoring_snapshots,
-                schedule = DeltaSchedule::new(Duration::from_secs(CeleryOpt::parse().monitoring_snapshot_interval)),
-                args = (),
-            },
         ],
         task_routes = [
             review_boards::NAME => &Queue::Beat.queue_name(&slug),
@@ -87,6 +93,14 @@ async fn main() -> Result<()> {
             refresh_monitoring_snapshots::NAME => &Queue::Beat.queue_name(&slug),
         ],
     ).await?;
+    // Scheduled outside the macro, which cannot give a message its expiry.
+    beat.schedule_named_task(
+        refresh_monitoring_snapshots::NAME.to_string(),
+        scheduled_fan_out(&monitoring_cadence),
+        DeltaSchedule::new(Duration::from_secs(
+            monitoring_cadence.snapshot_interval.seconds,
+        )),
+    );
 
     set_is_app_active(true);
     beat.start().await?;

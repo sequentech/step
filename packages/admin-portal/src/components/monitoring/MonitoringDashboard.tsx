@@ -24,6 +24,7 @@ import {
     monitoringErrorMessage,
 } from "./lib/errors"
 import {dashboardSelectorValues} from "./lib/selectors"
+import {monitoringRefreshMs} from "./lib/refresh"
 import {parseDashboard, parseWidgets} from "./lib/parseDefinitions"
 import {PINNED_BY_POST, scopeLabel} from "./lib/scopeLabel"
 import {useMonitoring} from "./MonitoringProvider"
@@ -40,6 +41,8 @@ export interface MonitoringDashboardProps {
     electionId?: string | null
     dashboards: MonitoringDashboardSummary[]
     configure: EMonitoringCapability
+    /** The snapshot interval list-dashboards reported, until this dashboard reports its own. */
+    refreshSeconds?: number | null
 }
 
 /** The scope a request carries: the dashboard's selectors only, with values the viewer may choose. */
@@ -74,6 +77,7 @@ export function MonitoringDashboard({
     electionId,
     dashboards,
     configure,
+    refreshSeconds,
 }: MonitoringDashboardProps) {
     const {t} = useTranslation()
     const {state, selectDashboard, setScope, actions, widgetValues} = useMonitoring()
@@ -94,22 +98,28 @@ export function MonitoringDashboard({
     })
     const reload = useCallback(() => void refetch().catch(() => undefined), [refetch])
 
-    // Every 30 s while the tab is shown and nobody is editing, and at once when
-    // the tab is shown again. Charts are drawn again only when the snapshot the
-    // poll reports is a new one; a widget that failed asks again on each poll.
-    const [pollCount, setPollCount] = useState(0)
-    useMonitoringPolling({
-        active: state.mode === EMonitoringViewMode.VIEW,
-        onPoll: () => {
-            reload()
-            setPollCount((count) => count + 1)
-        },
-    })
     // A poll that fails keeps this dashboard shown; the next one asks again.
     const shown = useRef<{dashboardId: string; data: MonitoringGetDashboardQuery} | null>(null)
     if (data) shown.current = {dashboardId, data}
     const kept =
         error && shown.current?.dashboardId === dashboardId ? shown.current.data : undefined
+
+    // As often as the server counts (every 30 s by default) while the tab is
+    // shown and nobody is editing, and at once when the tab is shown again.
+    // Charts are drawn again only when the snapshot the poll reports is a new
+    // one; a widget that failed asks again on each poll.
+    const refreshMs = monitoringRefreshMs(
+        (data ?? shown.current?.data)?.monitoringGetDashboard.refresh_seconds ?? refreshSeconds
+    )
+    const [pollCount, setPollCount] = useState(0)
+    useMonitoringPolling({
+        active: state.mode === EMonitoringViewMode.VIEW,
+        intervalMs: refreshMs,
+        onPoll: () => {
+            reload()
+            setPollCount((count) => count + 1)
+        },
+    })
 
     const busy =
         !data && !kept && monitoringErrorCode(error) === EMonitoringErrorCode.BUSY
@@ -217,6 +227,7 @@ export function MonitoringDashboard({
                 requirements={dashboard.requirements ?? []}
                 snapshot={snapshot}
                 timeZone={context.timeZone}
+                refreshMs={refreshMs}
                 onExport={snapshot ? () => setExporting(true) : undefined}
                 onEditDashboard={onEditDashboard}
             />

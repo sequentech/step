@@ -107,6 +107,14 @@ pub struct ListDashboardsOutput {
     mode: DashboardMode,
     dashboards: Vec<DashboardSummary>,
     snapshot: Option<SnapshotView>,
+    /// Seconds between two snapshot passes: how often a dashboard asks for
+    /// new figures.
+    refresh_seconds: u64,
+}
+
+/// Seconds between two snapshot passes, as this Harvest is configured.
+fn refresh_seconds(services: &HarvestServices) -> u64 {
+    services.monitoring_cadence.snapshot_interval.seconds
 }
 
 #[instrument(skip(claims, services))]
@@ -130,6 +138,7 @@ pub async fn list_dashboards(
             mode: DashboardMode::Legacy,
             dashboards: vec![],
             snapshot: None,
+            refresh_seconds: refresh_seconds(services),
         }));
     };
     let mut dashboards: Vec<_> =
@@ -158,6 +167,7 @@ pub async fn list_dashboards(
         mode: live.mode,
         dashboards,
         snapshot,
+        refresh_seconds: refresh_seconds(services),
     }))
 }
 
@@ -255,6 +265,9 @@ pub struct GetDashboardOutput {
     /// The days with activity, `YYYY-MM-DD` in the settings' time zone,
     /// oldest first: the options of a widget's Day selector.
     event_days: Vec<String>,
+    /// Seconds between two snapshot passes: how often the dashboard asks
+    /// for new figures.
+    refresh_seconds: u64,
 }
 
 fn json_of<T: Serialize>(value: &T) -> MonitoringResult<Value> {
@@ -453,6 +466,7 @@ pub async fn get_dashboard(
         sources: sources(settings),
         snapshot: snapshot.as_ref().map(SnapshotView::from),
         event_days,
+        refresh_seconds: refresh_seconds(services),
     }))
 }
 

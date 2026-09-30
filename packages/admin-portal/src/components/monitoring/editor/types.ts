@@ -175,6 +175,8 @@ export interface IMonitoringPreset {
     version: string | number
     title: string
     description?: string | null
+    /** The preset the event's configuration was last set from. */
+    current?: boolean
 }
 
 /** A data source as `get-dashboard` describes it: what a query may ask of it. */

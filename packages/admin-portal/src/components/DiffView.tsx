@@ -72,8 +72,17 @@ const DiffViewStyled = {
     `,
 }
 
+/** How DiffView shows the values it compares. */
+export enum EDiffFormat {
+    /** Values are serialized as indented JSON. */
+    JSON = "JSON",
+    /** Values are text, shown as they are written. */
+    TEXT = "TEXT",
+}
+
 type TDiffView<T> = {
     type?: "simple" | "modify"
+    format?: EDiffFormat
     diffTitle: string
     currentTitle: string
     current: T
@@ -85,6 +94,11 @@ enum TRUNCATION_STATE {
     NOT_NEEDED = 0,
     TRUNCATED = 1,
     UNTRUNCATED = 2,
+}
+
+const serialize = (value: unknown, format: EDiffFormat): string => {
+    if (format === EDiffFormat.TEXT) return typeof value === "string" ? value : ""
+    return value ? JSON.stringify(value, null, 2) : ""
 }
 
 // Truncate the strings if they are too long
@@ -103,6 +117,7 @@ const DiffViewMemo = React.memo(
         modify,
         diffTitle,
         type = "modify",
+        format = EDiffFormat.JSON,
         fetchAllPublishChanges,
     }: TDiffView<T>) => {
         const MAX_DIFF_LINES = convertToNumber(process.env.MAX_DIFF_LINES) ?? 500
@@ -117,14 +132,8 @@ const DiffViewMemo = React.memo(
             TRUNCATION_STATE.NOT_NEEDED
         )
 
-        const memoizedModify = useMemo(
-            () => (modify ? JSON.stringify(modify, null, 2) : ""),
-            [modify]
-        )
-        const memoizedCurrent = useMemo(
-            () => (current ? JSON.stringify(current, null, 2) : ""),
-            [current]
-        )
+        const memoizedModify = useMemo(() => serialize(modify, format), [modify, format])
+        const memoizedCurrent = useMemo(() => serialize(current, format), [current, format])
         useEffect(() => {
             if (!memoizedModify || truncationState !== TRUNCATION_STATE.NOT_NEEDED) return
             const lines = memoizedModify.split("\n")
