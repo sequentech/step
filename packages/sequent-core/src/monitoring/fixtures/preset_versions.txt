@@ -4,4 +4,4 @@
 
 # preset version digest
 campus 2 9beeb85c3b2690bd
-comelec 2 ff61ed4a9fd3c934
+comelec 3 b188325941dc1caa

@@ -36,8 +36,10 @@ chart:
           group: {label: Post}
           group_key: {visible: false}
           position: {visible: false}
-          registered: {label: Registered, format: integer, align: right}
-          pre_enrolled: {label: Pre-enrolled, format: integer, align: right}
+          # Short headers, so a half-width card at the narrowest width a chart
+          # is drawn at (360 px) keeps every header on one line.
+          registered: {label: Reg., format: integer, align: right}
+          pre_enrolled: {label: Pre-enr., format: integer, align: right}
           voted: {label: Voted, format: integer, align: right}
           numerator: {visible: false}
           denominator: {visible: false}

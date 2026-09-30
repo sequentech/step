@@ -5,7 +5,7 @@
 # The monitoring dashboards shipped for the Philippine overseas vote: an
 # overview and one dashboard per monitoring record.
 id: comelec
-version: 2
+version: 3
 title: COMELEC overseas voting
 description: An overview and a dashboard for each monitoring record of the overseas voting package.
 export_requirements: [SW-F-0270]

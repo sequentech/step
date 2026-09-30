@@ -29,12 +29,12 @@
           "pre_enrolled": {
             "align": "right",
             "format": "integer",
-            "label": "Pre-enrolled"
+            "label": "Pre-enr."
           },
           "registered": {
             "align": "right",
             "format": "integer",
-            "label": "Registered"
+            "label": "Reg."
           },
           "voted": {
             "align": "right",
