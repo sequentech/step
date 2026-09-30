@@ -299,7 +299,9 @@ the write protocols.
    counted yet**.
 4. **Unchanged passes.** Wait for two more beats without changing anything.
    *Expect* no new revision: the live run's `checked_at` moves forward
-   instead, and the Windmill log shows `Unchanged`.
+   instead, and the Windmill log shows `Unchanged { …, recount: Skipped }`
+   (nothing the pass counts from moved, so it did not count; `Done` when
+   something moved and counting gave the same figures).
 5. **Figures and ratios.** On **Voter turnout**, with no vote cast: Registered
    8, Pre-enrolled 0, Voted 0. The synthetic voters are not pre-enrolled
    (comelec reads `sequent.read-only.id-card-number-validated` = `VERIFIED`),

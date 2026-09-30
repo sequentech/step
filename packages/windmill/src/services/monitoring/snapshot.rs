@@ -10,12 +10,14 @@
 //! 2. records the set of every election of the event, then a RUNNING run
 //!    (each in its own transaction, so a failure can be recorded against
 //!    the run), after marking FAILED any run a crash left RUNNING;
-//! 3. in one REPEATABLE READ transaction, counts every source for every set
-//!    of elections viewers asked for, writes only the scopes whose figures
-//!    changed, records whether each source was counted, completes the run
-//!    and shows it. When nothing changed it writes nothing: it deletes its
-//!    run and marks the shown one checked instead, so viewers keep the
-//!    revision they have;
+//! 3. in one REPEATABLE READ transaction, reads digests of everything it
+//!    counts from ([`CountedInputs`]). When they are the shown run's, it
+//!    counts nothing. Otherwise it counts every source for every set of
+//!    elections viewers asked for, writes only the scopes whose figures
+//!    changed, records whether each source was counted and what from,
+//!    completes the run and shows it. When nothing changed it writes
+//!    nothing: it deletes its run and marks the shown one checked instead,
+//!    so viewers keep the revision they have;
 //! 4. prunes the runs replaced more than the export window ago, then the
 //!    figures and payloads no kept run holds (its own transaction).
 //!
@@ -31,7 +33,7 @@ use super::projection::{load_event_places, refresh_voter_projection};
 use crate::postgres::monitoring_config::EventRef;
 use crate::types::miru_plugin::{MiruServerDocumentStatus, MiruTallySessionData};
 use anyhow::{anyhow, Context, Result};
-use chrono::{DateTime, Duration, Utc};
+use chrono::{DateTime, Duration, NaiveDate, Utc};
 use deadpool_postgres::{Client, Transaction};
 use futures::TryStreamExt;
 use sequent_core::monitoring::config::{ConfigKind, Settings};
@@ -41,6 +43,7 @@ use sequent_core::monitoring::scope::{election_set_key, ScopeKey};
 use sequent_core::monitoring::sources::{DataSourceId, PendingProducer, PostState};
 use sequent_core::monitoring::voter::dimension_value;
 use sequent_core::types::ceremonies::TallyExecutionStatus;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, BTreeSet, HashMap};
@@ -58,6 +61,88 @@ pub const SET_KEPT_FOR: Duration = Duration::hours(24);
 
 /// How often a viewer asking for a set refreshes when it was last asked for.
 pub const SET_REQUEST_EVERY: Duration = Duration::minutes(5);
+
+/// How long a pass trusts that the inputs a run was counted from still give
+/// its figures: at least this often it counts again, so the figures follow
+/// what no digest covers, such as producers deployed without a new version.
+pub const RECOUNT_EVERY: Duration = Duration::minutes(10);
+
+/// What reads the inputs: a change to what a pass counts from, or to how,
+/// changes this, so no run recorded before is trusted.
+const INPUTS_READER: &str = concat!("1/", env!("CARGO_PKG_VERSION"));
+
+/// What a pass counts from, recorded with the run it showed
+/// (`monitoring_snapshot_run.counted_inputs`). Two passes that find the same
+/// inputs count the same figures: each digest covers rows [`load_facts`] or
+/// the sets of elections asked for read, in a set order, and the rest is
+/// what they are read under. A column the pass reads and a digest leaves out
+/// would let it keep figures it should have counted again.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CountedInputs {
+    pub version: String,
+    pub settings_revision: i32,
+    pub config_generation: i64,
+    /// Of the settings as the pass had them, whatever their revision says.
+    pub settings: String,
+    /// The day ages are counted on.
+    pub day: NaiveDate,
+    /// Every column of the event's `monitoring_voter` rows.
+    pub voters: String,
+    pub elections: String,
+    pub areas: String,
+    /// Which elections each area votes in.
+    pub area_elections: String,
+    pub tally_sessions: String,
+    /// Every column of the event's sign-in counters.
+    pub logins: String,
+    /// The sets of elections still asked for.
+    pub sets: String,
+    pub counted_at: DateTime<Utc>,
+}
+
+impl CountedInputs {
+    /// What moved since `earlier`, the inputs of the shown run; nothing when
+    /// counting again would count its figures.
+    pub fn moved_since(&self, earlier: &CountedInputs) -> Vec<&'static str> {
+        let fields: [(&'static str, bool); 12] = [
+            ("version", self.version != earlier.version),
+            (
+                "settings_revision",
+                self.settings_revision != earlier.settings_revision,
+            ),
+            (
+                "config_generation",
+                self.config_generation != earlier.config_generation,
+            ),
+            ("settings", self.settings != earlier.settings),
+            ("day", self.day != earlier.day),
+            ("voters", self.voters != earlier.voters),
+            ("elections", self.elections != earlier.elections),
+            ("areas", self.areas != earlier.areas),
+            (
+                "area_elections",
+                self.area_elections != earlier.area_elections,
+            ),
+            (
+                "tally_sessions",
+                self.tally_sessions != earlier.tally_sessions,
+            ),
+            ("logins", self.logins != earlier.logins),
+            ("sets", self.sets != earlier.sets),
+        ];
+        let mut moved: Vec<&'static str> = fields
+            .into_iter()
+            .filter(|(_, moved)| *moved)
+            .map(|(field, _)| field)
+            .collect();
+        // A clock that went back is as untrusted as one far ahead.
+        let age = self.counted_at - earlier.counted_at;
+        if age >= RECOUNT_EVERY || age < Duration::zero() {
+            moved.push("counted_at");
+        }
+        moved
+    }
+}
 
 /// A complete run.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -342,11 +427,23 @@ pub enum PassOutcome {
         figures_written: usize,
     },
     /// Nothing changed; the shown run was checked.
-    Unchanged { shown: Option<i64> },
+    Unchanged {
+        shown: Option<i64>,
+        recount: Recount,
+    },
     /// A later run completed first.
     Superseded { revision: i64 },
     /// Another pass got ahead while counting; the next pass retries.
     Conflicted { revision: i64 },
+}
+
+/// Whether a pass that changed nothing counted.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Recount {
+    /// Nothing it counts from moved since the shown run was counted.
+    Skipped,
+    /// Something moved, and counting gave the shown run's figures.
+    Done,
 }
 
 /// How a pass runs.
@@ -498,14 +595,15 @@ pub async fn count_run(
         )
         .await;
         match counted {
-            Ok(outcome @ PassOutcome::Completed { .. })
-            | Ok(outcome @ PassOutcome::Superseded { .. }) => match transaction.commit().await {
-                Ok(()) => Ok(outcome),
-                Err(error) => Err(anyhow::Error::from(error)),
-            },
-            Ok(outcome) => {
+            Ok(counted @ (PassOutcome::Completed { .. } | PassOutcome::Superseded { .. }, _)) => {
+                match transaction.commit().await {
+                    Ok(()) => Ok(counted),
+                    Err(error) => Err(anyhow::Error::from(error)),
+                }
+            }
+            Ok(counted) => {
                 transaction.rollback().await?;
-                Ok(outcome)
+                Ok(counted)
             }
             Err(error) => {
                 transaction.rollback().await.ok();
@@ -514,7 +612,7 @@ pub async fn count_run(
         }
     };
     match outcome {
-        Ok(PassOutcome::Unchanged { shown }) => {
+        Ok((PassOutcome::Unchanged { shown, recount }, inputs)) => {
             let transaction = hasura.transaction().await?;
             transaction
                 .execute(
@@ -533,11 +631,28 @@ pub async fn count_run(
                         &[&event.tenant_id, &event.election_event_id, &shown],
                     )
                     .await?;
+                // What the shown run's figures were just counted from again.
+                if let Some(inputs) = inputs {
+                    transaction
+                        .execute(
+                            "UPDATE sequent_backend.monitoring_snapshot_run
+                             SET counted_inputs = $4
+                             WHERE tenant_id = $1 AND election_event_id = $2 AND revision = $3
+                               AND status = 'COMPLETE'",
+                            &[
+                                &event.tenant_id,
+                                &event.election_event_id,
+                                &shown,
+                                &serde_json::to_value(&inputs)?,
+                            ],
+                        )
+                        .await?;
+                }
             }
             transaction.commit().await?;
-            Ok(PassOutcome::Unchanged { shown })
+            Ok(PassOutcome::Unchanged { shown, recount })
         }
-        Ok(outcome) => Ok(outcome),
+        Ok((outcome, _)) => Ok(outcome),
         Err(error) => {
             let conflicted = error
                 .chain()
@@ -648,8 +763,105 @@ fn count_and_store(facts: EventFacts, sets: Vec<ElectionSet>) -> Result<Counted>
     Ok(Counted { figures, sources })
 }
 
+/// Digests of what [`load_facts`] and `load_sets` read, in one statement.
+/// Each hashes the hash of each row, in key order, so no statement builds
+/// a string as large as the rows.
+const INPUT_DIGESTS: &str = "
+    SELECT
+        (SELECT md5(COALESCE(string_agg(md5(v::text), '' ORDER BY v.election_id, v.voter_id), ''))
+         FROM sequent_backend.monitoring_voter v
+         WHERE v.tenant_id = $1 AND v.election_event_id = $2) AS voters,
+        (SELECT md5(COALESCE(string_agg(md5(ROW(e.id, e.presentation, e.external_id,
+                    e.annotations, e.status, e.initialization_report_generated)::text), ''
+                    ORDER BY e.id), ''))
+         FROM sequent_backend.election e
+         WHERE e.tenant_id = $1 AND e.election_event_id = $2) AS elections,
+        (SELECT md5(COALESCE(string_agg(md5(ROW(a.id, a.annotations)::text), '' ORDER BY a.id),
+                    ''))
+         FROM sequent_backend.area a
+         WHERE a.tenant_id = $1 AND a.election_event_id = $2) AS areas,
+        (SELECT md5(COALESCE(string_agg(p.area_id::text || ':' || p.election_id::text, ','
+                    ORDER BY p.area_id, p.election_id), ''))
+         FROM (SELECT DISTINCT ac.area_id, c.election_id
+               FROM sequent_backend.area_contest ac
+               JOIN sequent_backend.contest c
+                 ON c.id = ac.contest_id AND c.tenant_id = ac.tenant_id
+                AND c.election_event_id = ac.election_event_id
+               WHERE ac.tenant_id = $1 AND ac.election_event_id = $2
+                 AND ac.area_id IS NOT NULL AND c.election_id IS NOT NULL) p) AS area_elections,
+        (SELECT md5(COALESCE(string_agg(md5(ROW(t.id, t.election_ids, t.execution_status,
+                    t.is_execution_completed, t.annotations)::text), '' ORDER BY t.id), ''))
+         FROM sequent_backend.tally_session t
+         WHERE t.tenant_id = $1 AND t.election_event_id = $2) AS tally_sessions,
+        (SELECT md5(COALESCE(string_agg(md5(l::text), ''
+                    ORDER BY l.bucket_start, l.event_type, l.registration, l.area_key), ''))
+         FROM sequent_backend.monitoring_login_counter l
+         WHERE l.tenant_id = $1 AND l.election_event_id = $2) AS logins,
+        (SELECT md5(COALESCE(string_agg(md5(ROW(s.election_set_key, s.election_ids)::text), ''
+                    ORDER BY s.election_set_key), ''))
+         FROM sequent_backend.monitoring_election_set s
+         WHERE s.tenant_id = $1 AND s.election_event_id = $2
+           AND s.requested_at > now() - make_interval(secs => $3)) AS sets";
+
+/// What the pass counts from, as its transaction sees it.
+async fn counted_inputs(
+    transaction: &Transaction<'_>,
+    event: EventRef,
+    settings: &Settings,
+    settings_revision: i32,
+    config_generation: i64,
+    now: DateTime<Utc>,
+) -> Result<CountedInputs> {
+    let kept = SET_KEPT_FOR.num_seconds() as f64;
+    let row = transaction
+        .query_one(
+            INPUT_DIGESTS,
+            &[&event.tenant_id, &event.election_event_id, &kept],
+        )
+        .await
+        .context("Failed to read what the pass counts from")?;
+    let settings = format!("{:x}", Sha256::digest(serde_json::to_vec(settings)?));
+    Ok(CountedInputs {
+        version: INPUTS_READER.to_string(),
+        settings_revision,
+        config_generation,
+        settings,
+        day: now.date_naive(),
+        voters: row.get("voters"),
+        elections: row.get("elections"),
+        areas: row.get("areas"),
+        area_elections: row.get("area_elections"),
+        tally_sessions: row.get("tally_sessions"),
+        logins: row.get("logins"),
+        sets: row.get("sets"),
+        counted_at: now,
+    })
+}
+
+/// What the run at `revision` records it was counted from; `None` when it
+/// records nothing this reader reads, as for runs completed before inputs
+/// were recorded.
+async fn recorded_inputs(
+    transaction: &Transaction<'_>,
+    event: EventRef,
+    revision: i64,
+) -> Result<Option<CountedInputs>> {
+    let recorded: Option<Value> = transaction
+        .query_opt(
+            "SELECT counted_inputs FROM sequent_backend.monitoring_snapshot_run
+             WHERE tenant_id = $1 AND election_event_id = $2 AND revision = $3
+               AND status = 'COMPLETE'",
+            &[&event.tenant_id, &event.election_event_id, &revision],
+        )
+        .await
+        .context("Failed to read what the shown run was counted from")?
+        .and_then(|row| row.get(0));
+    Ok(recorded.and_then(|recorded| serde_json::from_value(recorded).ok()))
+}
+
 /// Counts, writes what changed and completes the run, in the pass's
-/// transaction. `Unchanged` means the caller rolls back.
+/// transaction. `Unchanged` means the caller rolls back, then, when it
+/// counted, records the inputs it returns with the shown run.
 async fn count(
     transaction: &Transaction<'_>,
     event: EventRef,
@@ -657,7 +869,7 @@ async fn count(
     settings: &Settings,
     settings_revision: i32,
     config_generation: i64,
-) -> Result<PassOutcome> {
+) -> Result<(PassOutcome, Option<CountedInputs>)> {
     let params: [&(dyn tokio_postgres::types::ToSql + Sync); 2] =
         [&event.tenant_id, &event.election_event_id];
     let newer: bool = transaction
@@ -680,10 +892,43 @@ async fn count(
                 &[&event.tenant_id, &event.election_event_id, &revision],
             )
             .await?;
-        return Ok(PassOutcome::Superseded { revision });
+        return Ok((PassOutcome::Superseded { revision }, None));
     }
 
-    let facts = load_facts(transaction, event, settings).await?;
+    let now = Utc::now();
+    let inputs = counted_inputs(
+        transaction,
+        event,
+        settings,
+        settings_revision,
+        config_generation,
+        now,
+    )
+    .await?;
+    let shown = live_snapshot(transaction, event).await?;
+    if let Some(shown) = &shown {
+        match recorded_inputs(transaction, event, shown.revision).await? {
+            Some(earlier) => {
+                let moved = inputs.moved_since(&earlier);
+                if moved.is_empty() {
+                    return Ok((
+                        PassOutcome::Unchanged {
+                            shown: Some(shown.revision),
+                            recount: Recount::Skipped,
+                        },
+                        None,
+                    ));
+                }
+                info!(
+                    ?moved,
+                    "Counting: what the shown run was counted from moved"
+                );
+            }
+            None => info!("Counting: the shown run records nothing it was counted from"),
+        }
+    }
+
+    let facts = load_facts(transaction, event, settings, inputs.day).await?;
     let all: Vec<Uuid> = facts.posts.iter().map(|post| post.id).collect();
     let full_key =
         election_set_key(all.iter().map(Uuid::to_string)).map_err(|error| anyhow!("{error}"))?;
@@ -697,7 +942,6 @@ async fn count(
         .await
         .context("Counting the snapshot panicked")??;
 
-    let shown = live_snapshot(transaction, event).await?;
     let mut open: HashMap<FigureKey, Vec<u8>> = HashMap::new();
     for row in transaction
         .query(
@@ -731,9 +975,13 @@ async fn count(
         None => false,
     };
     if to_close.is_empty() && to_open.is_empty() && sources_unchanged {
-        return Ok(PassOutcome::Unchanged {
-            shown: shown.map(|shown| shown.revision),
-        });
+        return Ok((
+            PassOutcome::Unchanged {
+                shown: shown.map(|shown| shown.revision),
+                recount: Recount::Done,
+            },
+            Some(inputs),
+        ));
     }
 
     for chunk in to_close.chunks(BATCH) {
@@ -848,7 +1096,7 @@ async fn count(
         .execute(
             "UPDATE sequent_backend.monitoring_snapshot_run
              SET status = 'COMPLETE', finished_at = now(), as_of = now(),
-                 settings_revision = $4, config_generation = $5
+                 settings_revision = $4, config_generation = $5, counted_inputs = $6
              WHERE tenant_id = $1 AND election_event_id = $2 AND revision = $3",
             &[
                 &event.tenant_id,
@@ -856,6 +1104,7 @@ async fn count(
                 &revision,
                 &settings_revision,
                 &config_generation,
+                &serde_json::to_value(&inputs)?,
             ],
         )
         .await
@@ -875,10 +1124,13 @@ async fn count(
         closed = to_close.len(),
         "Completed a snapshot run"
     );
-    Ok(PassOutcome::Completed {
-        revision,
-        figures_written,
-    })
+    Ok((
+        PassOutcome::Completed {
+            revision,
+            figures_written,
+        },
+        None,
+    ))
 }
 
 type SourceRow = (String, String, String, Option<String>);
@@ -975,18 +1227,19 @@ fn enrollment(state: Option<&str>) -> Option<Enrollment> {
     }
 }
 
-/// Reads everything a pass counts from. The voters are streamed, so the
-/// rows read and the facts kept are never both in memory.
+/// Reads everything a pass counts from, with ages counted on `today`. The
+/// voters are streamed, so the rows read and the facts kept are never both
+/// in memory. What it reads is what [`CountedInputs`] digests.
 pub async fn load_facts(
     transaction: &Transaction<'_>,
     event: EventRef,
     settings: &Settings,
+    today: NaiveDate,
 ) -> Result<EventFacts> {
     let params: [&(dyn tokio_postgres::types::ToSql + Sync); 2] =
         [&event.tenant_id, &event.election_event_id];
     let counting = counting_states(transaction, event).await?;
     let places = load_event_places(transaction, event).await?;
-    let today = Utc::now().date_naive();
     let mapping = &settings.scope.region;
     let region_of = |raw: Option<&String>| dimension_value(mapping, raw.map(String::as_str), today);
 
@@ -1330,7 +1583,48 @@ pub async fn prune_snapshots(
 
 #[cfg(test)]
 mod tests {
-    use super::is_tallied;
+    use super::{is_tallied, CountedInputs, RECOUNT_EVERY};
+    use chrono::{Duration, NaiveDate, TimeZone, Utc};
+
+    fn inputs() -> CountedInputs {
+        CountedInputs {
+            version: "1/0.1.0".to_string(),
+            settings_revision: 1,
+            config_generation: 1,
+            settings: "s".to_string(),
+            day: NaiveDate::from_ymd_opt(2026, 9, 30).unwrap(),
+            voters: "v".to_string(),
+            elections: "e".to_string(),
+            areas: "a".to_string(),
+            area_elections: "ae".to_string(),
+            tally_sessions: "t".to_string(),
+            logins: "l".to_string(),
+            sets: "x".to_string(),
+            counted_at: Utc.with_ymd_and_hms(2026, 9, 30, 12, 0, 0).unwrap(),
+        }
+    }
+
+    #[test]
+    fn inputs_move_with_any_digest_the_day_and_the_clock() {
+        let earlier = inputs();
+        let mut later = inputs();
+        later.counted_at += RECOUNT_EVERY - Duration::seconds(1);
+        assert!(later.moved_since(&earlier).is_empty());
+        later.logins = "l2".to_string();
+        later.day = later.day.succ_opt().unwrap();
+        assert_eq!(later.moved_since(&earlier), vec!["day", "logins"]);
+
+        let mut old = inputs();
+        old.counted_at += RECOUNT_EVERY;
+        assert_eq!(old.moved_since(&earlier), vec!["counted_at"]);
+        let mut back = inputs();
+        back.counted_at -= Duration::seconds(1);
+        assert_eq!(
+            back.moved_since(&earlier),
+            vec!["counted_at"],
+            "a clock that went back"
+        );
+    }
 
     #[test]
     fn a_session_tallied_its_elections_once_it_succeeded_and_completed() {

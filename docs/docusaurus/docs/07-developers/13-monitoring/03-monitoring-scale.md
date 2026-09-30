@@ -33,9 +33,11 @@ snapshot job's own pass:
 
 1. a first pass, which reads every account;
 2. the activity refresh on its own, which finds nothing to change;
-3. a pass with nothing changed;
+3. a pass with nothing changed, which finds nothing it counts from moved
+   and counts nothing;
 4. a pass after 1% of the voters voted;
-5. a full pass over the accounts with nothing changed;
+5. a full pass over the accounts with nothing changed, which counts
+   nothing either;
 6. pruning every run but the current one;
 7. a CSV and a SQL export of each of the 21 comelec dashboards.
 
@@ -66,9 +68,9 @@ Measured on a development machine, release build:
 | --- | --- | --- | --- |
 | First pass | 0.8 s | 4.5 s | 16.4 s |
 | Activity refresh, nothing changed | < 0.1 s | < 0.1 s | 0.15 s |
-| Pass, nothing changed | 0.3 s | 0.9 s | 3.2 s |
+| Pass, nothing changed | < 0.1 s | 0.1 s | 0.5 s |
 | Pass after 1% voted | 0.3 s | 1.3 s | 4.3 s |
-| Full pass, nothing changed | 0.3 s | 1.3 s | 7.4 s |
+| Full pass, nothing changed | < 0.1 s | 0.5 s | 4.5 s |
 | Prune | < 0.1 s | < 0.1 s | 0.1 s (see below) |
 | Export, 21 dashboards, CSV and SQL each | 0.1 s | 0.1 s | 0.2 s |
 | Figures stored by the first pass | 2,775 | 10,671 | 27,940 |
@@ -90,9 +92,13 @@ What these show:
   five times on disk.
 - **A pass writes what changed.** An unchanged pass writes nothing; after
   1% of the voters vote, about 5% of the figures get a new payload.
-- **An unchanged pass still computes every figure.** It compares what it
-  computed with the open figures and writes nothing, but the computation is
-  most of its 3 s at 50,000 voters.
+- **An unchanged pass counts nothing.** It reads digests of everything it
+  counts from in one statement, after the projection's refresh, and,
+  finding the shown run's, only marks that run checked. Before, it computed
+  every figure, compared them with the open ones and wrote nothing: 0.9 s
+  at 10,000 voters and 3.2 s at 50,000, and a full pass over unchanged
+  accounts 1.2 s and 8 s. What is left of the full pass is reading the
+  accounts from Keycloak.
 - **Pruning right after bulk writes can be slow.** The first prune after
   the passes has, in some runs, taken up to 13 s at 50,000 voters: the
   foreign-key and payload-kept checks of each deleted row are planned from
