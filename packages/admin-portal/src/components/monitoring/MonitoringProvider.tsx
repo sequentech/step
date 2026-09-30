@@ -26,7 +26,8 @@ import type {EMonitoringViewMode, MonitoringScope, MonitoringState} from "./type
  * when given, so a viewer without the configure permission sees none.
  */
 export interface MonitoringEditorActions {
-    onConfigureWidget?: (widgetId: string) => void
+    /** `width`: the card's, so the editor previews the widget at the size it is shown. */
+    onConfigureWidget?: (widgetId: string, width?: number) => void
     onDuplicateWidget?: (widgetId: string) => void
     onEditDashboard?: (dashboardId: string) => void
 }

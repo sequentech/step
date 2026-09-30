@@ -3,7 +3,14 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {EColorScheme, MIN_RENDER_WIDTH_PX, WIDTH_BUCKET_PX} from "../types"
-import {CHART_CSP, chartDocument, hashString, sanitizeSvg, widthBucket} from "./chartDocument"
+import {
+    CHART_CSP,
+    chartDocument,
+    hashString,
+    previewWidth,
+    sanitizeSvg,
+    widthBucket,
+} from "./chartDocument"
 import {CHART_FONT_CSS} from "./chartFonts"
 
 const svg = (inner: string) =>
@@ -153,5 +160,21 @@ describe("widthBucket", () => {
         expect(widthBucket(10)).toBe(360)
         expect(widthBucket(0)).toBe(360)
         expect(widthBucket(-5)).toBe(360)
+    })
+})
+
+describe("previewWidth", () => {
+    it("draws a preview at the width of the card it was opened from", () => {
+        expect(previewWidth(880, 600)).toBe(880)
+    })
+
+    it("draws one opened from elsewhere at the width of the pane it shows in", () => {
+        expect(previewWidth(undefined, 613)).toBe(600)
+    })
+
+    it("draws no preview narrower than a card is ever drawn, whatever was measured", () => {
+        expect(previewWidth(undefined, null)).toBe(MIN_RENDER_WIDTH_PX)
+        expect(previewWidth(undefined, 200)).toBe(MIN_RENDER_WIDTH_PX)
+        expect(previewWidth(250, 600)).toBe(MIN_RENDER_WIDTH_PX)
     })
 })

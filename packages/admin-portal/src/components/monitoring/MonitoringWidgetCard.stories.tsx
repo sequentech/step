@@ -51,7 +51,7 @@ interface Scenario {
     render?: Partial<MonitoringRenderWidgetResponse>
     scenario?: ERenderScenario
     configure: EMonitoringCapability
-    onConfigureWidget: (widgetId: string) => void
+    onConfigureWidget: (widgetId: string, width?: number) => void
     onDuplicateWidget: (widgetId: string) => void
 }
 
@@ -409,7 +409,11 @@ export const Configurer: Story = {
         await userEvent.click(
             await within(document.body).findByRole("menuitem", {name: "Configure widget"})
         )
-        await expect(args.onConfigureWidget).toHaveBeenCalledWith("turnout-by-group")
+        // With the card's width, for the preview to draw what the card does.
+        await expect(args.onConfigureWidget).toHaveBeenCalledWith(
+            "turnout-by-group",
+            expect.any(Number)
+        )
     },
 }
 
