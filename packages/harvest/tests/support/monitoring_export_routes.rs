@@ -222,7 +222,10 @@ async fn the_dashboard_is_looked_up_at_the_runs_configuration() {
     let event = rows::event(&services.hasura).await;
     event.election(&services.hasura).await;
     configure(&client, &event).await;
-    // The run was counted under a configuration the event no longer has.
+    // The run was counted under a configuration the event no longer has,
+    // with the settings it still has. The dashboard draws such a run with
+    // the live configuration; an export always reads the run's own, so the
+    // same revision always exports the same file.
     services
         .monitoring_snapshots
         .head

@@ -560,10 +560,30 @@ impl SnapshotConfig {
     }
 }
 
-/// The configuration `head` was counted under, as an export reads it, so
-/// what is drawn is what the figures were counted for. The live one when
-/// there is no run, when that generation is no longer kept, or when it has
-/// not what `has` asks for (a widget added since); the latter two say so.
+/// Whether the figures `head` counted are the ones the live configuration
+/// reads. A run counts every source, at every scope, for every election set,
+/// from the settings and the event's elections alone: no widget, dashboard or
+/// theme is read. Those only read the figures (their queries, measures,
+/// dimensions, grains and scopes are evaluated when drawn, and the dimensions
+/// they may group by are the settings'). So the figures serve the live
+/// configuration exactly when it has the settings revision they were counted
+/// with.
+pub fn counted_for_live(head: &SnapshotHead, live: &LiveConfig) -> bool {
+    revision_of(&live.documents, ConfigKind::Settings, SETTINGS_KEY)
+        == Some(head.settings_revision)
+}
+
+/// The configuration a dashboard draws `head` with. The live one when there
+/// is no run, or when the run's figures are the ones it reads
+/// ([`counted_for_live`]), so a saved title, chart, layout or theme shows at
+/// once. Otherwise (the settings changed since) the one the run was counted
+/// under, so what is drawn is what the figures were counted for; the live one
+/// again when that generation is no longer kept, or has not what `has` asks
+/// for (a widget added since), and those two say so.
+///
+/// Exports do not use this: an export of a run always reads the
+/// configuration that run was counted under, so exporting the same revision
+/// twice gives the same file.
 pub async fn config_at_snapshot(
     services: &HarvestServices,
     event: EventRef,
@@ -571,9 +591,10 @@ pub async fn config_at_snapshot(
     live: LiveConfig,
     has: impl Fn(&ConfigSet) -> bool,
 ) -> MonitoringResult<SnapshotConfig> {
-    let Some(head) =
-        head.filter(|head| head.config_generation != live.generation)
-    else {
+    let Some(head) = head.filter(|head| {
+        head.config_generation != live.generation
+            && !counted_for_live(head, &live)
+    }) else {
         return Ok(SnapshotConfig::live(live));
     };
     let mut client = hasura_client(services).await?;

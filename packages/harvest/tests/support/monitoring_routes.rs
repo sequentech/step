@@ -490,9 +490,16 @@ async fn the_figures_windmill_counted_are_drawn_for_exactly_the_viewers_election
     assert_eq!(first(&body, "voted"), 1, "{body}");
 }
 
-/// Saves `key` with its title changed, as a configurator; the generation
-/// the save made.
-async fn retitle(client: &Client, event: &Event, key: &str) -> i64 {
+/// Saves the `kind` document `key` with `from` replaced by `to`, as a
+/// configurator; the generation the save made.
+async fn resave(
+    client: &Client,
+    event: &Event,
+    kind: &str,
+    key: &str,
+    from: &str,
+    to: &str,
+) -> i64 {
     let (status, body) = json(
         post(
             client,
@@ -500,7 +507,7 @@ async fn retitle(client: &Client, event: &Event, key: &str) -> i64 {
             &configurator(event),
             &json!({
                 "election_event_id": event.election_event_id,
-                "kind": "widget",
+                "kind": kind,
                 "key": key,
             }),
         )
@@ -509,8 +516,8 @@ async fn retitle(client: &Client, event: &Event, key: &str) -> i64 {
     .await;
     assert_eq!(status, Status::Ok, "{body}");
     let yaml = body["yaml"].as_str().unwrap();
-    let retitled = yaml.replacen("title: ", "title: Renamed ", 1);
-    assert_ne!(retitled, yaml);
+    let changed = yaml.replacen(from, to, 1);
+    assert_ne!(changed, yaml);
     let (status, body) = json(
         post(
             client,
@@ -518,9 +525,9 @@ async fn retitle(client: &Client, event: &Event, key: &str) -> i64 {
             &configurator(event),
             &json!({
                 "election_event_id": event.election_event_id,
-                "kind": "widget",
+                "kind": kind,
                 "key": key,
-                "yaml": retitled,
+                "yaml": changed,
                 "expected_revision": body["revision"],
                 "change": "UPSERT",
             }),
@@ -532,13 +539,62 @@ async fn retitle(client: &Client, event: &Event, key: &str) -> i64 {
     body["generation"].as_i64().unwrap()
 }
 
+/// Saves the widget `key` with its title and its first chart's label
+/// changed: what it shows, not what it reads.
+async fn retitle(client: &Client, event: &Event, key: &str) -> i64 {
+    resave(client, event, "widget", key, "title: ", "title: Renamed ").await;
+    resave(client, event, "widget", key, "label: ", "label: Renamed ").await
+}
+
+async fn reset_to(client: &Client, event: &Event, preset_id: &str) {
+    let (status, body) = json(
+        post(
+            client,
+            "/monitoring/reset-to-preset",
+            &configurator(event),
+            &json!({
+                "election_event_id": event.election_event_id,
+                "preset_id": preset_id,
+            }),
+        )
+        .await,
+    )
+    .await;
+    assert_eq!(status, Status::Ok, "{body}");
+}
+
+async fn settings_revision(client: &Client, event: &Event) -> i32 {
+    let (status, body) = json(
+        post(
+            client,
+            "/monitoring/get-config",
+            &configurator(event),
+            &json!({
+                "election_event_id": event.election_event_id,
+                "kind": "settings",
+                "key": "settings",
+            }),
+        )
+        .await,
+    )
+    .await;
+    assert_eq!(status, Status::Ok, "{body}");
+    body["revision"].as_i64().unwrap() as i32
+}
+
+/// The last board the renderer drew.
+fn last_drawn(services: &Services) -> String {
+    let boards = services.monitoring_renderer.boards();
+    serde_json::to_string(&boards.last().expect("a drawing").board).unwrap()
+}
+
 fn set_head(services: &Services, change: impl FnOnce(&mut SnapshotHead)) {
     let mut head = services.monitoring_snapshots.head.lock().unwrap();
     change(head.as_mut().expect("a live run"));
 }
 
 #[rocket::async_test]
-async fn a_widget_is_drawn_with_the_configuration_its_snapshot_was_counted_under(
+async fn a_saved_presentation_change_is_drawn_at_once_from_the_figures_already_counted(
 ) {
     let services = Services::on_test_database()
         .await
@@ -558,10 +614,12 @@ async fn a_widget_is_drawn_with_the_configuration_its_snapshot_was_counted_under
     .await;
     assert_eq!(body["state"], "RENDERED", "{status} {body}");
     assert_eq!(services.monitoring_renderer.renders(), 1);
+    assert!(!last_drawn(&services).contains("Renamed"));
 
-    // Saved after the run was counted: the run still shows what it was
-    // counted under, so the drawing is the one already made.
-    let generation = retitle(&client, &event, "turnout-summary").await;
+    // Saved after the run was counted, under the same settings: what the
+    // run counted is what the widget reads, so it is drawn as saved now,
+    // not after the next run.
+    retitle(&client, &event, "turnout-summary").await;
     let (_, body) = render(
         &client,
         &viewer(&event),
@@ -572,10 +630,57 @@ async fn a_widget_is_drawn_with_the_configuration_its_snapshot_was_counted_under
     .await;
     assert_eq!(body["state"], "RENDERED", "{body}");
     assert_eq!(body["notices"], json!([]), "{body}");
+    assert_eq!(body["snapshot_revision"], 7, "{body}");
+    assert_eq!(services.monitoring_renderer.renders(), 2);
+    assert!(last_drawn(&services).contains("Renamed"), "{body}");
+}
+
+#[rocket::async_test]
+async fn after_the_settings_change_a_widget_is_drawn_as_its_run_was_counted_until_the_next_run(
+) {
+    let services = Services::on_test_database()
+        .await
+        .with_monitoring_snapshots(MemorySnapshots::at(7, ScopeRead::Empty));
+    let client = services.client().await;
+    let event = rows::event(&services.hasura).await;
+    event.election(&services.hasura).await;
+    configure(&client, &event).await;
+    let (_, body) = render(
+        &client,
+        &viewer(&event),
+        &event,
+        "turnout-summary",
+        json!({}),
+    )
+    .await;
+    assert_eq!(body["state"], "RENDERED", "{body}");
     assert_eq!(services.monitoring_renderer.renders(), 1);
 
-    // The next run is counted under the save.
-    set_head(&services, |head| head.config_generation = generation);
+    // The settings decide what a run counts, and only a reset changes
+    // them: the run in hand was counted under the old ones, so the widget
+    // is drawn as it was then.
+    reset_to(&client, &event, "campus").await;
+    reset_to(&client, &event, "comelec").await;
+    let generation = retitle(&client, &event, "turnout-summary").await;
+    let settings_revision = settings_revision(&client, &event).await;
+    assert!(settings_revision > 1, "{settings_revision}");
+    let (_, body) = render(
+        &client,
+        &viewer(&event),
+        &event,
+        "turnout-summary",
+        json!({}),
+    )
+    .await;
+    assert_eq!(body["state"], "RENDERED", "{body}");
+    assert_eq!(body["notices"], json!([]), "{body}");
+    assert_eq!(services.monitoring_renderer.renders(), 1, "{body}");
+
+    // The next run is counted under them.
+    set_head(&services, |head| {
+        head.config_generation = generation;
+        head.settings_revision = settings_revision;
+    });
     let (_, body) = render(
         &client,
         &viewer(&event),
@@ -586,6 +691,7 @@ async fn a_widget_is_drawn_with_the_configuration_its_snapshot_was_counted_under
     .await;
     assert_eq!(body["state"], "RENDERED", "{body}");
     assert_eq!(services.monitoring_renderer.renders(), 2);
+    assert!(last_drawn(&services).contains("Renamed"), "{body}");
 }
 
 #[rocket::async_test]
@@ -598,7 +704,11 @@ async fn a_run_whose_configuration_is_gone_is_drawn_with_the_live_one_and_says_s
     let event = rows::event(&services.hasura).await;
     event.election(&services.hasura).await;
     configure(&client, &event).await;
-    set_head(&services, |head| head.config_generation = 99);
+    // Counted under other settings, at a generation no longer kept.
+    set_head(&services, |head| {
+        head.config_generation = 99;
+        head.settings_revision = 0;
+    });
 
     let (status, body) = render(
         &client,

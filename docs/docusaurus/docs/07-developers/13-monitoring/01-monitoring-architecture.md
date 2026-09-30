@@ -223,6 +223,19 @@ the queries with `compute::evaluate`, builds the board with
 `render_request::build_board` and posts it to the renderer with the
 `X-Renderer-Token` header, a 500 ms connect timeout and no retry.
 
+A run counts every source at every scope from the settings and the event's
+elections alone; widgets, dashboards and themes only read its figures. So
+`render-widget` draws with the live configuration whenever the run was
+counted with the live settings revision: a saved title, chart, query,
+layout or theme shows at once, without waiting for the next run. When the
+settings changed since the run, it draws with the configuration the run was
+counted under until the next run (a count the new settings add is
+`SCOPE_PENDING` with `SETTINGS_PENDING`); when that configuration is no
+longer kept, or lacks the widget, it falls back to the live one with the
+notice `CONFIG_AT_SNAPSHOT_UNAVAILABLE` or `CONFIG_NEWER_THAN_SNAPSHOT`. An
+export always reads the configuration its run was counted under, so the
+same revision always exports the same file.
+
 Drawn charts are cached in an LRU with single flight, so viewers asking for
 the same chart at once wait on one draw. The key covers the tenant and
 event, the revisions of the dashboard, widget, theme and settings, the
