@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Testing and Verifying Monitoring Dashboards | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-3408/docs/developers/monitoring/monitoring_testing_verification"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Testing and Verifying Monitoring Dashboards | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-3408/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3408/docs/developers/monitoring/monitoring_testing_verification"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3408/docs/developers/monitoring/monitoring_testing_verification" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3408/docs/developers/monitoring/monitoring_testing_verification" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Testing and verification","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-3408/docs/developers/monitoring/monitoring_testing_verification"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-3408/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/pr-preview/pr-3408/assets/js/runtime~main.b41163ea.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-3408/assets/js/runtime~main.cde453dd.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-3408/assets/js/main.52074a7c.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -209,7 +209,7 @@ without <code>monitoring-view</code> gets the standard dashboard and sends no
 <ol start="13">
 <li class=""><strong>View data.</strong> Widget <strong>⋯ → View data</strong>. <em>Expect</em> a table per query with
 exact values (8, 3, 37.5%) matching the chart.</li>
-<li class=""><strong>Export.</strong> Header <strong>Export</strong> (or <strong>⋯ → Export CSV</strong> for one widget).
+<li class=""><strong>Export.</strong> Header <strong>Export</strong> (or <strong>⋯ → Export</strong> for one widget).
 Choose <strong>CSV</strong>, a <strong>From</strong> and <strong>To</strong> around the votes of step 6, then
 <strong>Export</strong>. <em>Expect</em> an <strong>Export Monitoring Data</strong> task in the event&#x27;s
 <strong>Tasks</strong> tab and a download. The file is one long table: each row names
