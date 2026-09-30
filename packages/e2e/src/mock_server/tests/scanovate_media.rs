@@ -161,8 +161,8 @@ async fn upload_requires_the_capture_parts() {
     let client = client().await;
     create_session(&client, "missing", "success").await;
     let body = multipart(&[
-        ("front_image", "front_image.jpg", "image/jpeg", JPEG),
-        ("face_image", "face_image.jpg", "image/jpeg", &[]),
+        ("front_image", "front_image.jpg", "image/jpeg", &[]),
+        ("face_image", "face_image.jpg", "image/jpeg", JPEG),
     ]);
 
     let (status, body) = upload(&client, "missing", body, Some("Bearer jwt")).await;
@@ -170,13 +170,36 @@ async fn upload_requires_the_capture_parts() {
     assert_eq!(status, Status::BadRequest);
     let body = body.unwrap();
     assert_eq!(body["success"], false);
-    assert_eq!(body["data"], "missing parts: face_image");
+    assert_eq!(body["data"], "missing parts: front_image");
+}
+
+#[tokio::test]
+async fn document_only_capture_has_no_face_checks() {
+    // With the liveness face capture, Keycloak checks the face on premise and
+    // only sends the photos of the ID.
+    let client = client().await;
+    create_session(&client, "document-only", "success").await;
+    let body = multipart(&[
+        ("front_image", "front_image.jpg", "image/jpeg", JPEG),
+        ("back_image", "back_image.jpg", "image/jpeg", JPEG),
+    ]);
+
+    let (status, _) = upload(&client, "document-only", body, Some("Bearer jwt")).await;
+
+    assert_eq!(status, Status::Ok);
+    let results = results(&client, "document-only").await;
+    assert_eq!(results["data"]["success"], true);
+    let processes: Vec<&str> = results["data"]["resultsList"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|result| result["process"].as_str().unwrap())
+        .collect();
+    assert_eq!(processes, ["ocr", "document_liveness_plus"]);
 }
 
 #[tokio::test]
 async fn scan_video_is_optional() {
-    // With the liveness face capture, the face image comes from Liveness Plus and
-    // there is no video.
     let client = client().await;
     create_session(&client, "no-video", "success").await;
     let body = multipart(&[

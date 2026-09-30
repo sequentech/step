@@ -1,61 +1,96 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
 
-// The Scanovate Liveness Plus iframe that checks the voter's liveness. It only
-// tells us when it is done or failed, so that the page can move on: the verdict
-// reaches Keycloak server to server and is never taken from these messages.
+// Checks the voter's face frames with Liveness Plus. It only tells the page
+// whether to move on, keep capturing or show a problem: the verdict reaches
+// Keycloak server to server and is never taken from the browser.
+import type {MessageKey} from "../i18n"
+import {
+    LivenessApiError,
+    LivenessRejection,
+    LivenessStatus,
+    type LivenessAbort,
+    type LivenessApi,
+} from "./livenessApi"
 import {CaptureProblem} from "./types"
 
-export enum LivenessEventType {
-    Init = "init",
-    Done = "done",
-    Error = "error",
+export enum LivenessOutcomeKind {
+    Completed = "COMPLETED",
+    Retry = "RETRY",
+    Problem = "PROBLEM",
 }
 
-export type LivenessEvent = {type: LivenessEventType; errorCode: number | null}
+export type LivenessOutcome =
+    | {kind: LivenessOutcomeKind.Completed}
+    | {kind: LivenessOutcomeKind.Retry; guidance: MessageKey | null}
+    | {kind: LivenessOutcomeKind.Problem; problem: CaptureProblem}
 
-// Error codes of Liveness Plus.
-const CAMERA_DENIED = [1003, 1013]
-const CAMERA_NOT_FOUND = [1004]
-const CAMERA_FAILED = [1005, 1016]
-const CLOSED = [1009, 1010, 1015]
-const INVALID_TOKEN = 1014
+// Frame checks of Liveness Plus that the voter can fix.
+const GUIDANCE: Partial<Record<number, MessageKey>> = {
+    [LivenessStatus.TooManyFaces]: "scanovateGuideMultipleFaces",
+    [LivenessStatus.FaceNotFound]: "scanovateGuidePlaceFace",
+    [LivenessStatus.FaceTooSmall]: "scanovateGuideFaceTooFar",
+    [LivenessStatus.FaceTooLarge]: "scanovateGuideFaceTooClose",
+    [LivenessStatus.FaceTooCloseToBorder]: "scanovateGuideFaceOffCenter",
+    [LivenessStatus.FaceNotCentered]: "scanovateGuideFaceOffCenter",
+    [LivenessStatus.YawTooLarge]: "scanovateGuideTurnToCamera",
+    [LivenessStatus.PitchTooLarge]: "scanovateGuideTurnToCamera",
+    [LivenessStatus.RollTooLarge]: "scanovateGuideTurnToCamera",
+    [LivenessStatus.FaceNotInFocus]: "scanovateGuideFaceBlurry",
+    [LivenessStatus.BadlyLit]: "scanovateGuideTooDark",
+    [LivenessStatus.SunglassesDetected]: "scanovateIntroTipCoverings",
+    [LivenessStatus.MaskDetected]: "scanovateIntroTipCoverings",
+}
 
-const EVENT_TYPES = new Set<string>(Object.values(LivenessEventType))
+export function frameGuidance(code: number): MessageKey | undefined {
+    return GUIDANCE[code]
+}
 
-export function parseLivenessEvent(data: unknown): LivenessEvent | null {
-    let message = data
-    if (typeof message === "string") {
+const COMPLETED: LivenessOutcome = {kind: LivenessOutcomeKind.Completed}
+const failed = (problem = CaptureProblem.LivenessFailed): LivenessOutcome => ({
+    kind: LivenessOutcomeKind.Problem,
+    problem,
+})
+
+// One liveness session at a time, opened on the first frame and renewed once if it expired.
+export class LivenessCheck {
+    private session: string | null = null
+
+    constructor(private readonly api: LivenessApi) {}
+
+    async check(frame: Blob): Promise<LivenessOutcome> {
         try {
-            message = JSON.parse(message)
-        } catch {
-            return null
+            for (let renewed = false; ; renewed = true) {
+                this.session ??= await this.api.createSession()
+                const code = await this.api.checkFrame(this.session, frame)
+                if (code === LivenessStatus.SessionExpired && !renewed) {
+                    this.session = null
+                    continue
+                }
+                return await this.afterFrame(this.session, code)
+            }
+        } catch (error) {
+            this.session = null
+            const rejected =
+                error instanceof LivenessApiError &&
+                error.rejection === LivenessRejection.InvalidToken
+            return failed(rejected ? CaptureProblem.LivenessExpired : CaptureProblem.LivenessFailed)
         }
     }
-    if (typeof message !== "object" || message === null) return null
-    const {type, error_code: errorCode} = message as {type?: unknown; error_code?: unknown}
-    if (typeof type !== "string" || !EVENT_TYPES.has(type)) return null
-    const code = Number(errorCode)
-    return {
-        type: type as LivenessEventType,
-        errorCode: errorCode === undefined || Number.isNaN(code) ? null : code,
+
+    abort(reason: LivenessAbort): void {
+        if (this.session === null) return
+        void this.api.abort(this.session, reason)
+        this.session = null
     }
-}
 
-// The problem to show for a Liveness Plus error, or null when the voter closed it.
-export function livenessProblem(errorCode: number | null): CaptureProblem | null {
-    if (errorCode === null) return CaptureProblem.LivenessFailed
-    if (CLOSED.includes(errorCode)) return null
-    if (CAMERA_DENIED.includes(errorCode)) return CaptureProblem.CameraDenied
-    if (CAMERA_NOT_FOUND.includes(errorCode)) return CaptureProblem.CameraNotFound
-    if (CAMERA_FAILED.includes(errorCode)) return CaptureProblem.CameraFailed
-    if (errorCode === INVALID_TOKEN) return CaptureProblem.LivenessExpired
-    return CaptureProblem.LivenessFailed
-}
-
-// Adds the voter's language, if Liveness Plus has it, to the URL from Keycloak.
-export function livenessFrameUrl(url: string, languages: string[], languageTag: string): string {
-    const language = languageTag.split("-")[0]
-    if (!languages.includes(language)) return url
-    return `${url}${url.includes("?") ? "&" : "?"}translation_language=${encodeURIComponent(language)}`
+    private async afterFrame(session: string, code: number): Promise<LivenessOutcome> {
+        if (code === LivenessStatus.Ok) return {kind: LivenessOutcomeKind.Retry, guidance: null}
+        const guidance = frameGuidance(code)
+        if (guidance !== undefined) return {kind: LivenessOutcomeKind.Retry, guidance}
+        this.session = null
+        if (code !== LivenessStatus.ScanCompleted) return failed()
+        const completion = await this.api.completeSession(session)
+        return completion === LivenessStatus.SessionCompleted ? COMPLETED : failed()
+    }
 }

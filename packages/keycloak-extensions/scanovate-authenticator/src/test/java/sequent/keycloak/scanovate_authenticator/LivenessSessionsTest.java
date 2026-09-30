@@ -49,12 +49,28 @@ class LivenessSessionsTest {
   private final List<Long> sleeps = new ArrayList<>();
   private final LivenessSessions sessions = new LivenessSessions(store, sleeps::add);
 
+  /**
+   * Result callback of a session run in Liveness Plus PRESENTATION mode, where the injection check
+   * does not run and is reported as null.
+   */
   static String result(String status, boolean passed, byte[] image) {
-    String processingResult =
+    return result(status, passed, passed, "null", image);
+  }
+
+  static String result(
+      String status,
+      boolean livenessPassed,
+      boolean presentationPassed,
+      String injectionPassed,
+      byte[] image) {
+    String imageField =
         image == null
-            ? "{\"liveness_check_passed\": %s}".formatted(passed)
-            : "{\"liveness_check_passed\": %s, \"image\": \"%s\"}"
-                .formatted(passed, Base64.getEncoder().encodeToString(image));
+            ? ""
+            : ", \"image\": \"%s\"".formatted(Base64.getEncoder().encodeToString(image));
+    String processingResult =
+        ("{\"liveness_check_passed\": %s, \"presentation_attack_check_passed\": %s,"
+                + " \"injection_attack_check_passed\": %s%s}")
+            .formatted(livenessPassed, presentationPassed, injectionPassed, imageField);
     return """
         {"message_type": "result", "status": "%s",
          "scan": {"processing_result": %s},
@@ -138,6 +154,43 @@ class LivenessSessionsTest {
     LivenessResult result = sessions.awaitResult(token, 5).orElseThrow();
     assertFalse(result.passed());
     assertTrue(result.image().isEmpty());
+  }
+
+  @Test
+  void failedPresentationAttackCheckDoesNotPass() {
+    String token = sessions.create(CASE_ID, SECRET);
+    sessions.record(
+        token, SECRET, ScanovateResultsTest.json(result("completed", true, false, "null", JPEG)));
+
+    assertFalse(sessions.awaitResult(token, 5).orElseThrow().passed());
+  }
+
+  @Test
+  void failedInjectionAttackCheckDoesNotPass() {
+    String token = sessions.create(CASE_ID, SECRET);
+    sessions.record(
+        token, SECRET, ScanovateResultsTest.json(result("completed", true, true, "false", JPEG)));
+
+    assertFalse(sessions.awaitResult(token, 5).orElseThrow().passed());
+  }
+
+  @Test
+  void passedInjectionAttackCheckPasses() {
+    String token = sessions.create(CASE_ID, SECRET);
+    sessions.record(
+        token, SECRET, ScanovateResultsTest.json(result("completed", true, true, "true", JPEG)));
+
+    assertTrue(sessions.awaitResult(token, 5).orElseThrow().passed());
+  }
+
+  @Test
+  void missingPresentationAttackCheckDoesNotPass() {
+    String token = sessions.create(CASE_ID, SECRET);
+    JsonNode body = ScanovateResultsTest.json(result("completed", true, JPEG));
+    body.withObject("/scan/processing_result").remove("presentation_attack_check_passed");
+    sessions.record(token, SECRET, body);
+
+    assertFalse(sessions.awaitResult(token, 5).orElseThrow().passed());
   }
 
   @Test

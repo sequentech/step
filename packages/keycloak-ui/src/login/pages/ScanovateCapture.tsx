@@ -22,7 +22,6 @@ import {
 import type {MessageKey} from "../i18n"
 import {ScanovateSide} from "../KcContext"
 import CaptureCamera, {STEP_TITLES} from "../scanovate/CaptureCamera"
-import LivenessFrame from "../scanovate/LivenessFrame"
 import {AttemptsLeft, CheckList} from "../scanovate/parts"
 import {
     Phase,
@@ -34,14 +33,27 @@ import {
     stepsFor,
 } from "../scanovate/controller"
 import {useCaptureEnvironment} from "../scanovate/environment"
-import {CAPTURE_ACTION, CAPTURE_PARTS, MEDIA_STEPS, populateCaptureForm} from "../scanovate/form"
+import {CAPTURE_ACTION, CapturePart, populateCaptureForm} from "../scanovate/form"
 import {StageLayout} from "../scanovate/geometry"
+import {Tone, type Guidance} from "../scanovate/guidance"
+import {LivenessCheck, LivenessOutcomeKind} from "../scanovate/liveness"
+import {LivenessAbort} from "../scanovate/livenessApi"
 import {stopStream, cameraProblem} from "../scanovate/media"
 import type {ScanovatePageProps} from "../scanovate/pageProps"
 import {EnrollmentStep, documentName, enrollmentFrame, textFor, type Text} from "../scanovate/text"
-import {CameraFacing, CaptureProblem, CaptureStep, type Analyzers} from "../scanovate/types"
+import {
+    CameraFacing,
+    CaptureProblem,
+    CaptureStep,
+    FaceCheck,
+    VideoOutput,
+    type Analyzers,
+} from "../scanovate/types"
 
 const FLASH_MS = 700
+// How long the advice of Liveness Plus on a rejected face frame stays.
+const HINT_MS = 3000
+const CHECKING_FACE: Guidance = {message: "scanovateLivenessChecking", tone: Tone.Ok}
 const TICK_MS = 1000
 const PHONE_QUERY = "(max-width: 720px)"
 
@@ -101,12 +113,6 @@ const HELP: Record<CaptureStep, MessageKey[]> = {
         "scanovateHelpVideoFace",
         "scanovateHelpVideoStill",
     ],
-    [CaptureStep.Liveness]: [
-        "scanovateHelpFaceLevel",
-        "scanovateHelpFaceCoverings",
-        "scanovateHelpFaceLight",
-        "scanovateHelpFaceAlone",
-    ],
 }
 
 export default function ScanovateCapture(props: ScanovatePageProps<"scanovate-capture.ftl">) {
@@ -116,10 +122,12 @@ export default function ScanovateCapture(props: ScanovatePageProps<"scanovate-ca
     const text = textFor(kcContext, i18n)
     const phone = useMediaQuery(PHONE_QUERY, {noSsr: true})
     const liveness = scanovate.liveness
-    const steps = useMemo(
-        () => stepsFor(scanovate.sides, liveness !== undefined),
-        [scanovate.sides, liveness]
+    const faceCheck = liveness === undefined ? FaceCheck.Photo : FaceCheck.Liveness
+    const livenessCheck = useMemo(
+        () => (liveness === undefined ? null : new LivenessCheck(services.liveness(liveness))),
+        [services, liveness]
     )
+    const steps = useMemo(() => stepsFor(scanovate.sides), [scanovate.sides])
     const [state, dispatch] = useReducer(captureReducer, steps, (initial) =>
         startAt === undefined
             ? initialCaptureState(initial)
@@ -131,6 +139,12 @@ export default function ScanovateCapture(props: ScanovatePageProps<"scanovate-ca
     const [analyzerFailed, setAnalyzerFailed] = useState(false)
     const [analyzerAttempt, setAnalyzerAttempt] = useState(0)
     const [stream, setStream] = useState<MediaStream | null>(null)
+    // Liveness Plus checking a face frame, and its advice when it rejects one.
+    const [checkingFace, setCheckingFace] = useState(false)
+    const [faceHint, setFaceHint] = useState<Guidance | null>(null)
+    const [faceAttempt, setFaceAttempt] = useState(0)
+    // Bumped to ignore the answer to a face frame once the voter stopped.
+    const faceRun = useRef(0)
     const formRef = useRef<HTMLFormElement | null>(null)
     const cameraPhase = state.phase === Phase.Starting || state.phase === Phase.Capturing
     const problem =
@@ -203,22 +217,76 @@ export default function ScanovateCapture(props: ScanovatePageProps<"scanovate-ca
     }, [state.phase])
 
     useEffect(() => {
+        if (faceHint === null) return
+        const timer = setTimeout(() => setFaceHint(null), HINT_MS)
+        return () => clearTimeout(timer)
+    }, [faceHint])
+
+    // An open liveness session is ended when the voter leaves.
+    useEffect(() => {
+        if (livenessCheck === null) return
+        const leave = () => livenessCheck.abort(LivenessAbort.LeftPage)
+        window.addEventListener("pagehide", leave)
+        return () => {
+            window.removeEventListener("pagehide", leave)
+            leave()
+        }
+    }, [livenessCheck])
+
+    useEffect(() => {
         const form = formRef.current
         if (state.phase !== Phase.Checking || form === null) return
-        populateCaptureForm(form, state.captures)
+        populateCaptureForm(form, state.captures, faceCheck)
         // Safari before 16 has no requestSubmit.
         if ("requestSubmit" in form) {
             form.requestSubmit()
         } else {
             HTMLFormElement.prototype.submit.call(form)
         }
-    }, [state.phase, state.captures])
+    }, [state.phase, state.captures, faceCheck])
 
-    const onCaptured = (captured: CaptureStep, blob: Blob) => {
+    const accept = (captured: CaptureStep, blob: Blob) => {
         services.vibrate(60)
         dispatch({type: "captured", step: captured, blob, at: performance.now()})
     }
+    // With liveness, the face frame only counts once Liveness Plus scanned it.
+    const checkFace = async (check: LivenessCheck, blob: Blob) => {
+        const run = faceRun.current
+        setFaceHint(null)
+        setCheckingFace(true)
+        const outcome = await check.check(blob)
+        if (run !== faceRun.current) return
+        setCheckingFace(false)
+        switch (outcome.kind) {
+            case LivenessOutcomeKind.Completed:
+                accept(CaptureStep.Face, blob)
+                break
+            case LivenessOutcomeKind.Retry:
+                if (outcome.guidance !== null) {
+                    setFaceHint({message: outcome.guidance, tone: Tone.Guide})
+                }
+                setFaceAttempt((attempt) => attempt + 1)
+                break
+            case LivenessOutcomeKind.Problem:
+                dispatch({type: "problem", problem: outcome.problem})
+                break
+        }
+    }
+    const onCaptured = (captured: CaptureStep, blob: Blob) => {
+        if (livenessCheck !== null && captured === CaptureStep.Face) {
+            void checkFace(livenessCheck, blob)
+            return
+        }
+        accept(captured, blob)
+    }
     const onProblem = (next: CaptureProblem) => dispatch({type: "problem", problem: next})
+    const stop = () => {
+        faceRun.current += 1
+        setCheckingFace(false)
+        setFaceHint(null)
+        livenessCheck?.abort(LivenessAbort.PressedClose)
+        dispatch({type: "confirmStop"})
+    }
     const start = () => {
         // Only our own face video needs a recorder.
         if (liveness !== undefined || services.recorder.supported()) {
@@ -237,6 +305,8 @@ export default function ScanovateCapture(props: ScanovatePageProps<"scanovate-ca
             setAnalyzerFailed(false)
             setAnalyzerAttempt((attempt) => attempt + 1)
         }
+        faceRun.current += 1
+        setCheckingFace(false)
         dispatch({type: "retry"})
     }
     const verifyFrame = enrollmentFrame(kcContext, i18n, EnrollmentStep.VerifyIdentity)
@@ -284,7 +354,7 @@ export default function ScanovateCapture(props: ScanovatePageProps<"scanovate-ca
                     <Button
                         variant="outlined"
                         fullWidth
-                        onClick={() => dispatch({type: "confirmStop"})}
+                        onClick={stop}
                         lang={text("scanovateBackToStart").lang}
                     >
                         {text("scanovateBackToStart").text}
@@ -306,7 +376,6 @@ export default function ScanovateCapture(props: ScanovatePageProps<"scanovate-ca
                     text={text}
                     document={document}
                     bothSides={scanovate.sides.includes(ScanovateSide.Back)}
-                    liveness={liveness !== undefined}
                     attemptsLeft={
                         scanovate.attemptsLeft < scanovate.maxAttempts
                             ? scanovate.attemptsLeft
@@ -326,7 +395,7 @@ export default function ScanovateCapture(props: ScanovatePageProps<"scanovate-ca
                 headerNode={text("scanovateCheckingTitle").text}
                 titleLang={text("scanovateCheckingTitle").lang}
             >
-                <Checking text={text} liveness={liveness !== undefined} />
+                <Checking text={text} faceCheck={faceCheck} />
                 <form
                     ref={formRef}
                     method="post"
@@ -335,68 +404,16 @@ export default function ScanovateCapture(props: ScanovatePageProps<"scanovate-ca
                     hidden
                 >
                     <input type="hidden" name="action" value={CAPTURE_ACTION} />
-                    {MEDIA_STEPS.map((part) => (
+                    {Object.values(CapturePart).map((part) => (
                         <input
                             key={part}
                             type="file"
-                            name={CAPTURE_PARTS[part]}
+                            name={part}
                             tabIndex={-1}
                             aria-hidden="true"
                         />
                     ))}
                 </form>
-            </Template>
-        )
-    }
-
-    if (state.phase === Phase.Liveness && liveness !== undefined) {
-        const heading = text("scanovateCaptureLivenessHeading")
-        const body = text("scanovateCaptureLivenessText")
-        const stop = text("scanovateStop")
-        return (
-            <Template
-                {...card}
-                layout={phone ? TemplateLayout.Fullscreen : TemplateLayout.Wide}
-                headerNode={text(STEP_TITLES[CaptureStep.Liveness]).text}
-            >
-                <section
-                    className={phone ? "capture capture-liveness-page" : "capture-liveness-page"}
-                >
-                    {!phone && (
-                        <header className="capture-liveness-header">
-                            <h2 lang={heading.lang}>{heading.text}</h2>
-                            <p lang={body.lang}>{body.text}</p>
-                        </header>
-                    )}
-                    <LivenessFrame
-                        liveness={liveness}
-                        attempt={state.livenessAttempt}
-                        languageTag={i18n.currentLanguage.languageTag}
-                        title={text("scanovateLivenessFrameTitle").text}
-                        onDone={() => dispatch({type: "livenessDone"})}
-                        onProblem={(next) =>
-                            next === null
-                                ? dispatch({type: "confirmStop"})
-                                : dispatch({type: "problem", problem: next})
-                        }
-                    />
-                    {!phone && (
-                        <Button
-                            variant="outlined"
-                            fullWidth
-                            onClick={() => dispatch({type: "requestStop"})}
-                            lang={stop.lang}
-                        >
-                            {stop.text}
-                        </Button>
-                    )}
-                </section>
-                <StopDialog
-                    open={state.stopConfirmOpen}
-                    text={text}
-                    onCancel={() => dispatch({type: "cancelStop"})}
-                    onConfirm={() => dispatch({type: "confirmStop"})}
-                />
             </Template>
         )
     }
@@ -416,8 +433,13 @@ export default function ScanovateCapture(props: ScanovatePageProps<"scanovate-ca
                 analyzers={analyzers}
                 recorder={services.recorder}
                 videoSeconds={scanovate.videoSeconds}
+                videoOutput={
+                    faceCheck === FaceCheck.Liveness ? VideoOutput.Still : VideoOutput.Recording
+                }
+                attempt={faceAttempt}
+                hint={checkingFace ? CHECKING_FACE : faceHint}
                 layout={phone ? StageLayout.Phone : StageLayout.Desktop}
-                paused={state.helpOpen || state.stopConfirmOpen}
+                paused={state.helpOpen || state.stopConfirmOpen || checkingFace}
                 flash={state.justCaptured !== null}
                 text={text}
                 documentLabel={document}
@@ -456,7 +478,7 @@ export default function ScanovateCapture(props: ScanovatePageProps<"scanovate-ca
                 open={state.stopConfirmOpen}
                 text={text}
                 onCancel={() => dispatch({type: "cancelStop"})}
-                onConfirm={() => dispatch({type: "confirmStop"})}
+                onConfirm={stop}
             />
         </Template>
     )
@@ -513,26 +535,20 @@ function Intro(props: {
     text: Text
     document: TemplateLabel
     bothSides: boolean
-    liveness: boolean
     attemptsLeft: number | null
     onStart: () => void
 }) {
-    const {text, document, bothSides, liveness, attemptsLeft, onStart} = props
-    const lead = text(liveness ? "scanovateIntroLeadLiveness" : "scanovateIntroLead", document.text)
+    const {text, document, bothSides, attemptsLeft, onStart} = props
+    const lead = text("scanovateIntroLead", document.text)
     type Item = [() => ReactNode, MessageKey, MessageKey]
-    const face: Item[] = liveness
-        ? [[FaceIcon, "scanovateIntroFace", "scanovateIntroLivenessHint"]]
-        : [
-              [FaceIcon, "scanovateIntroFace", "scanovateIntroFaceHint"],
-              [VideoIcon, "scanovateIntroVideo", "scanovateIntroVideoHint"],
-          ]
     const items: Item[] = [
         [
             IdCardIcon,
             bothSides ? "scanovateIntroDocumentBothSides" : "scanovateIntroDocumentFrontSide",
             "scanovateIntroDocumentHint",
         ],
-        ...face,
+        [FaceIcon, "scanovateIntroFace", "scanovateIntroFaceHint"],
+        [VideoIcon, "scanovateIntroVideo", "scanovateIntroVideoHint"],
     ]
     const before = text("scanovateIntroBeforeTitle")
     const privacy = text("scanovateIntroPrivacy")
@@ -592,10 +608,15 @@ function Intro(props: {
     )
 }
 
-function Checking({text, liveness}: {text: Text; liveness: boolean}) {
+const RECEIVED: Record<FaceCheck, MessageKey> = {
+    [FaceCheck.Photo]: "scanovateCheckingReceived",
+    [FaceCheck.Liveness]: "scanovateCheckingReceivedLiveness",
+}
+
+function Checking({text, faceCheck}: {text: Text; faceCheck: FaceCheck}) {
     const lead = text("scanovateCheckingLead")
     const steps: [MessageKey, string][] = [
-        [liveness ? "scanovateCheckingReceivedLiveness" : "scanovateCheckingReceived", "done"],
+        [RECEIVED[faceCheck], "done"],
         ["scanovateCheckingVerifying", "current"],
         ["scanovateCheckingReading", ""],
     ]

@@ -567,12 +567,10 @@ services:
     environment:
       - PYTHONUNBUFFERED=1
 
-  # Scanovate on-premise services: Liveness Plus with its presentation and
-  # injection attack detection servers (opt-in `scanovate` profile), and the
-  # 1:N Face Match service with its Valkey vector database (opt-in
-  # `scanovate-face-match` profile, which Keycloak doesn't use yet). The images
-  # are private: pulling them needs a Docker Hub login (Liveness Plus) and an
-  # AWS ECR login (Face Match) with the access Scanovate provides. See
+  # Scanovate on-premise services (opt-in `scanovate` profile): Liveness Plus
+  # with its presentation attack detection server, and the Face Match service,
+  # used for 1:1 comparisons. The images are private on Docker Hub: pulling them
+  # needs a Docker Hub login with the access Scanovate provides. See
   # docs/docusaurus/docs/integrations/scanovate_on_premise_guide.md.
   # Service names use hyphens: Java HTTP clients (Keycloak) reject host names
   # with underscores.
@@ -586,15 +584,7 @@ services:
       # Must match the pipelines of the Liveness Plus service_config.json.
       IDFACE_SERVER_AVAILABLE_PIPELINES: pad-r-2,dfd-3
 
-  scanovate-injection-detection:
-    profiles: ["scanovate"]
-    container_name: ${DEVCONTAINER_NAME_PREFIX:-}scanovate-injection-detection
-    image: scanovate/liveness-injection-detection-service:release-2.6.2
-    restart: unless-stopped
-    environment:
-      SERVER_ALLOW_CORS: "true"
-
-  # Serves the liveness UI (/liveness/) to the voter's browser, so it's the only
+  # Serves the Liveness Plus API to Keycloak's capture page, so it's the only
   # liveness service published on the host.
   scanovate-liveness:
     profiles: ["scanovate"]
@@ -603,55 +593,37 @@ services:
     restart: unless-stopped
     environment:
       MODE: onprem
-      LIVENESS_MODE: full
+      # Our capture page sends plain JPEG frames: injection attack detection
+      # needs frames encrypted by Scanovate's own client, which we don't use.
+      LIVENESS_MODE: PRESENTATION
       JWT_SECRET_KEY: ${SCANOVATE_LIVENESS_JWT_SECRET_KEY}
       PRESENTATION_DETECTION_SERVER_URL: http://scanovate-presentation-detection:8080
-      INJECTION_DETECTION_SERVER_URL: http://scanovate-injection-detection:8080
-      # Voters reach the UI on Keycloak's origin, under /biometric/liveness/,
-      # through keycloak-nginx. The service serves its UI, assets and API under
-      # that prefix, so the proxy passes the path unchanged. The host port is
-      # only for direct checks such as /alive.
+      # The capture page calls the API on Keycloak's origin, under
+      # /biometric/liveness/, through keycloak-nginx. The service serves it
+      # under that prefix, so the proxy passes the path unchanged. The host port
+      # is only for direct checks such as /alive.
       CLIENT_BASE_URL_PREFIX: biometric/
     ports:
       - ${SCANOVATE_LIVENESS_PORT}:5050
-    # Our configuration: the sequent_ui theme and sequent translations that give
-    # the iframe the Sequent look, and Keycloak's token verification and result
-    # callback, which carry a secret the voter's browser never sees.
+    # Keycloak's token verification and result callback, which carry a secret
+    # the voter's browser never sees. The other configuration files are the
+    # image's own.
     volumes:
-      - ${LOCAL_WORKSPACE_FOLDER:-..}/.devcontainer/scanovate/liveness:/app/config:ro,z
+      - ${LOCAL_WORKSPACE_FOLDER:-..}/.devcontainer/scanovate/liveness/service_config.json:/app/config/service_config.json:ro,z
     depends_on:
       - scanovate-presentation-detection
-      - scanovate-injection-detection
 
-  scanovate-valkey:
-    profiles: ["scanovate-face-match"]
-    container_name: ${DEVCONTAINER_NAME_PREFIX:-}scanovate-valkey
-    image: valkey/valkey-extensions:8.1
-    restart: unless-stopped
-    command: valkey-server --loadmodule /usr/lib/valkey/libsearch.so --dir /data
-    volumes:
-      - scanovate_valkey_data:/data
-    healthcheck:
-      test: ["CMD", "valkey-cli", "ping"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-
+  # Keycloak calls its 1:1 API (/facematch11/) on the compose network. The host
+  # port is only for direct checks.
   scanovate-face-match:
-    profiles: ["scanovate-face-match"]
+    profiles: ["scanovate"]
     container_name: ${DEVCONTAINER_NAME_PREFIX:-}scanovate-face-match
-    image: 495947449196.dkr.ecr.eu-central-1.amazonaws.com/ngfacematch:version_3.9.0_ba58397_79
+    image: scanovate/ngfacematch:version_3.9.0_ba58397_79
     restart: unless-stopped
     environment:
       MODE: onprem
-      SUPPORT_1_TO_MANY: "true"
     ports:
       - ${SCANOVATE_FACE_MATCH_PORT}:3000
-    volumes:
-      - ${LOCAL_WORKSPACE_FOLDER:-..}/.devcontainer/scanovate/face-match:/app/config:ro,z
-    depends_on:
-      scanovate-valkey:
-        condition: service_healthy
 
   harvest:
     profiles: ["full", "base"]
@@ -1216,7 +1188,6 @@ volumes:
   b4v6_data:
   b4v6_db_data:
   b4v6_db_logs:
-  scanovate_valkey_data:
   # Created by initialize-command.sh and never removed by Compose, not even by
   # `down --volumes`.
   devcontainer-nix:

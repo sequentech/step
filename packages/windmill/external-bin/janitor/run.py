@@ -813,7 +813,8 @@ def gen_keycloak_context(excel_data, areas_dict):
 
     keycloak_settings_dict = {row["key"]: row["value"] for row in keycloak_settings}
 
-    # B-Trust biometric match scores go from 0.0 to 1.0
+    # Minimum Face Match similarity between the voter's live face and their ID,
+    # from 0.0 to 1.0, per document type
     score_mappings = {
         "philis_id_scanovate_min_biometric_score": "keycloak_scanovate_min_biometric_score_philis_id",
         "seaman_book_scanovate_min_biometric_score": "keycloak_scanovate_min_biometric_score_seaman_book",
@@ -832,7 +833,9 @@ def gen_keycloak_context(excel_data, areas_dict):
         "scanovate_client_id": ("keycloak_scanovate_client_id", ""),
         "scanovate_client_secret": ("keycloak_scanovate_client_secret", ""),
         "scanovate_flow_id": ("keycloak_scanovate_flow_id", ""),
-        "scanovate_execution_mode": ("keycloak_scanovate_execution_mode", "interactive"),
+        "scanovate_liveness_url": ("keycloak_scanovate_liveness_url", ""),
+        "scanovate_liveness_secret": ("keycloak_scanovate_liveness_secret", ""),
+        "scanovate_face_match_url": ("keycloak_scanovate_face_match_url", ""),
     }
     for context_key, (settings_key, default) in string_mappings.items():
         value = str(keycloak_settings_dict.get(settings_key, default))

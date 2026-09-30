@@ -121,16 +121,35 @@ public record CaptureSettings(
   }
 
   /**
-   * Files that the capture page must post, in upload order. With the liveness face capture, the
-   * face photo comes from Liveness Plus instead.
+   * Files that the capture page must post. With the liveness face capture, the voter's face is
+   * taken by Liveness Plus instead, and the page posts a photo of the voter holding the ID.
    */
   public List<MediaKind> requiredMedia() {
+    List<MediaKind> media = documentMedia();
+    switch (faceCapture) {
+      case PHOTO -> {
+        media.add(MediaKind.FACE_IMAGE);
+        media.add(MediaKind.SCAN_VIDEO);
+      }
+      case LIVENESS -> media.add(MediaKind.HOLDING_IMAGE);
+    }
+    return media;
+  }
+
+  /**
+   * Files sent to B-Trust, in upload order. With the liveness face capture, the voter's face is
+   * compared on premise, so only the document goes to B-Trust.
+   */
+  public List<MediaKind> uploadedMedia() {
+    return switch (faceCapture) {
+      case PHOTO -> requiredMedia();
+      case LIVENESS -> documentMedia();
+    };
+  }
+
+  private List<MediaKind> documentMedia() {
     List<MediaKind> media = new ArrayList<>();
     sides.forEach(side -> media.add(side.mediaKind()));
-    if (faceCapture == FaceCapture.PHOTO) {
-      media.add(MediaKind.FACE_IMAGE);
-      media.add(MediaKind.SCAN_VIDEO);
-    }
     return media;
   }
 

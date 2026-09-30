@@ -8,7 +8,12 @@ public enum MediaKind {
   FRONT_IMAGE("front", "front_image", MediaCategory.IMAGE),
   BACK_IMAGE("back", "back_image", MediaCategory.IMAGE),
   FACE_IMAGE("face", "face_image", MediaCategory.IMAGE),
-  SCAN_VIDEO("video", "scan_video", MediaCategory.VIDEO);
+  SCAN_VIDEO("video", "scan_video", MediaCategory.VIDEO),
+  /**
+   * The voter holding the ID next to their face, with the liveness face capture. Only compared with
+   * the voter's live face by Face Match, never sent to B-Trust.
+   */
+  HOLDING_IMAGE("holding", "holding_image", MediaCategory.IMAGE);
 
   private final String formPart;
   private final String uploadPart;

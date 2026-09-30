@@ -54,27 +54,30 @@ server {
     # Note: with optional_no_ca, $ssl_client_verify is "NONE" (no cert) or
     # "FAILED:..." (cert present but unverified). It is never "SUCCESS".
 
-    # Scanovate Liveness Plus (opt-in `scanovate` profile), served on Keycloak's
-    # origin so that its iframe in the login pages is same origin. With
-    # CLIENT_BASE_URL_PREFIX=biometric/ the service itself serves everything
-    # under /biometric/liveness/, so the path is passed unchanged: stripping
-    # the prefix makes it answer 404. Server-Sent Events must not be buffered.
-    # Without the profile running, only this path fails (502).
-    location /biometric/ {
+    # Scanovate Liveness Plus API (opt-in `scanovate` profile), called by the
+    # capture page on Keycloak's origin. With CLIENT_BASE_URL_PREFIX=biometric/
+    # the service itself serves everything under /biometric/liveness/, so the
+    # path is passed unchanged: stripping the prefix makes it answer 404. Only
+    # the endpoints the capture page uses are routed: the service's own UI,
+    # API docs and metrics stay internal. Without the profile running, only
+    # these paths fail (502).
+    location ~ ^/biometric/liveness/(create_session|check_liveness|client_session_data|client_error)$ {
         set $liveness_upstream http://scanovate-liveness:5050;
         proxy_pass $liveness_upstream;
 
         proxy_http_version 1.1;
         proxy_set_header Connection "";
-        proxy_buffering off;
-        proxy_cache off;
-        proxy_read_timeout 1h;
-        client_max_body_size 20m;
+        proxy_read_timeout 60s;
+        client_max_body_size 5m;
 
         proxy_set_header Host               $host;
         proxy_set_header X-Real-IP          $remote_addr;
         proxy_set_header X-Forwarded-For    $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto  https;
+    }
+
+    location /biometric/ {
+        return 404;
     }
 
     # Called by Liveness Plus on the internal network only, never by browsers.

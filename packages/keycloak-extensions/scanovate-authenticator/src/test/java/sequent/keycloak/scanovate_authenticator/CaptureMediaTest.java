@@ -56,6 +56,15 @@ class CaptureMediaTest {
         }
       };
 
+  /** Parts posted by the capture page with the liveness face capture. */
+  static Map<String, List<FormPartValue>> livenessParts(byte[] front, byte[] back, byte[] holding) {
+    Map<String, List<FormPartValue>> parts = parts(front, back, null, null);
+    if (holding != null) {
+      parts.put("holding", List.of(new BytesPart(holding)));
+    }
+    return parts;
+  }
+
   static Map<String, List<FormPartValue>> parts(
       byte[] front, byte[] back, byte[] face, byte[] video) {
     Map<String, List<FormPartValue>> parts = new HashMap<>();
@@ -193,30 +202,35 @@ class CaptureMediaTest {
     assertThrows(InvalidCaptureException.class, () -> CaptureMedia.fromParts(parts, BOTH_SIDES));
   }
 
+  private static final CaptureSettings LIVENESS =
+      new CaptureSettings(BOTH_SIDES.sides(), 5, 16, 16, FaceCapture.LIVENESS);
+
   @Test
-  void livenessImageIsAddedAsTheFacePhoto() throws InvalidCaptureException {
-    CaptureMedia media =
-        CaptureMedia.fromParts(
-                parts(JPEG, JPEG, null, null),
-                new CaptureSettings(BOTH_SIDES.sides(), 5, 16, 16, FaceCapture.LIVENESS))
-            .withImage(MediaKind.FACE_IMAGE, JPEG, 16);
+  void livenessCaptureHasTheSidesAndThePhotoHoldingTheDocument() throws InvalidCaptureException {
+    CaptureMedia media = CaptureMedia.fromParts(livenessParts(JPEG, JPEG, JPEG), LIVENESS);
 
     assertEquals(
-        List.of(MediaKind.FRONT_IMAGE, MediaKind.BACK_IMAGE, MediaKind.FACE_IMAGE),
+        List.of(MediaKind.FRONT_IMAGE, MediaKind.BACK_IMAGE, MediaKind.HOLDING_IMAGE),
         List.copyOf(media.files().keySet()));
-    assertEquals(MediaFormat.JPEG, media.files().get(MediaKind.FACE_IMAGE).format());
   }
 
   @Test
-  void invalidOrOversizedLivenessImagesAreRejected() throws InvalidCaptureException {
-    CaptureMedia media =
-        CaptureMedia.fromParts(
-            parts(JPEG, JPEG, null, null),
-            new CaptureSettings(BOTH_SIDES.sides(), 5, 16, 16, FaceCapture.LIVENESS));
+  void livenessCaptureWithoutThePhotoHoldingTheDocumentIsRejected() {
+    assertThrows(
+        InvalidCaptureException.class,
+        () -> CaptureMedia.fromParts(livenessParts(JPEG, JPEG, null), LIVENESS));
+    assertThrows(
+        InvalidCaptureException.class,
+        () -> CaptureMedia.fromParts(livenessParts(JPEG, JPEG, PNG), LIVENESS));
+  }
 
-    assertThrows(
-        InvalidCaptureException.class, () -> media.withImage(MediaKind.FACE_IMAGE, PNG, 16));
-    assertThrows(
-        InvalidCaptureException.class, () -> media.withImage(MediaKind.FACE_IMAGE, JPEG, 5));
+  @Test
+  void onlyKeepsTheGivenFiles() throws InvalidCaptureException {
+    CaptureMedia media =
+        CaptureMedia.fromParts(livenessParts(JPEG, JPEG, JPEG), LIVENESS)
+            .only(LIVENESS.uploadedMedia());
+
+    assertEquals(
+        List.of(MediaKind.FRONT_IMAGE, MediaKind.BACK_IMAGE), List.copyOf(media.files().keySet()));
   }
 }

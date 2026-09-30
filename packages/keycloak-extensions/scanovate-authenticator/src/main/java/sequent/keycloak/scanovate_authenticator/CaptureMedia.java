@@ -12,11 +12,13 @@ import java.util.Map;
 import org.keycloak.http.FormPartValue;
 
 /**
- * Files captured in the voter's browser, checked and ready to be sent to B-Trust.
+ * Files captured in the voter's browser, checked and ready to be compared or sent to B-Trust.
  *
  * <p>The browser only guides the voter: nothing it reports about the quality of the capture is
  * trusted. The server only checks that the expected files are there, that they are what they claim
- * to be and that they fit the size limits. B-Trust does the actual verification.
+ * to be and that they fit the size limits. B-Trust verifies the document and, with the photo face
+ * capture, the voter's face. With the liveness face capture, the voter's face is checked on premise
+ * instead, by Liveness Plus and Face Match.
  *
  * @param files captured files, in upload order
  */
@@ -64,25 +66,11 @@ public record CaptureMedia(Map<MediaKind, MediaFile> files) {
     return new CaptureMedia(files);
   }
 
-  /**
-   * Returns a copy with an image obtained by Keycloak itself, such as the voter's picture taken by
-   * Liveness Plus.
-   *
-   * @throws InvalidCaptureException if the image is too big or not of an accepted format
-   */
-  public CaptureMedia withImage(MediaKind kind, byte[] content, int maxBytes)
-      throws InvalidCaptureException {
-    if (content.length > maxBytes) {
-      throw new InvalidCaptureException(kind.formPart() + " is larger than " + maxBytes);
-    }
-    MediaFormat format =
-        MediaFormat.detect(MediaCategory.IMAGE, content)
-            .orElseThrow(
-                () -> new InvalidCaptureException(kind.formPart() + " has an invalid format"));
-    Map<MediaKind, MediaFile> updated = new EnumMap<>(MediaKind.class);
-    updated.putAll(files);
-    updated.put(kind, new MediaFile(format, content));
-    return new CaptureMedia(updated);
+  /** Returns a copy with only the given files, such as those sent to B-Trust. */
+  public CaptureMedia only(List<MediaKind> kinds) {
+    Map<MediaKind, MediaFile> kept = new EnumMap<>(MediaKind.class);
+    kinds.stream().filter(files::containsKey).forEach(kind -> kept.put(kind, files.get(kind)));
+    return new CaptureMedia(kept);
   }
 
   /**

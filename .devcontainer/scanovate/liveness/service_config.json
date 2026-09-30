@@ -48,9 +48,9 @@
     "default_parameters": {
       "scan_config": "scan_config",
       "video_config": "video_config",
-      "translation_variant": "sequent",
+      "translation_variant": "default",
       "translation_language": "en",
-      "ui_theme": "sequent_ui"
+      "ui_theme": "default_ui"
     }
   }
 }

@@ -89,6 +89,9 @@ impl FromStr for MockOutcome {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct UploadedMedia {
     back_image: bool,
+    // Without a face, B-Trust has no liveness or face match to report: Keycloak
+    // checks them on premise with the liveness face capture.
+    face_image: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -173,14 +176,11 @@ fn is_present(file: &Option<TempFile<'_>>) -> bool {
 
 impl MediaUpload<'_> {
     fn missing_parts(&self) -> Vec<&'static str> {
-        [
-            ("front_image", is_present(&self.front_image)),
-            ("face_image", is_present(&self.face_image)),
-        ]
-        .into_iter()
-        .filter(|(_, present)| !present)
-        .map(|(name, _)| name)
-        .collect()
+        [("front_image", is_present(&self.front_image))]
+            .into_iter()
+            .filter(|(_, present)| !present)
+            .map(|(name, _)| name)
+            .collect()
     }
 }
 
@@ -335,6 +335,7 @@ pub async fn upload_media(
     }
     let uploaded = UploadedMedia {
         back_image: is_present(&media.back_image),
+        face_image: is_present(&media.face_image),
     };
     if !sessions.set_media(&session, uploaded) {
         return Err(not_found(&session));
@@ -477,14 +478,19 @@ fn mock_results(process_id: &str, session: &MockSession, user: Option<User>) -> 
         "missingFields": []
     });
 
+    let face_checks = session.media.is_none_or(|media| media.face_image);
     let (success, error_code, error_message, results_list) = match session.outcome {
-        MockOutcome::Success | MockOutcome::LowBiometricScore => (
+        MockOutcome::Success | MockOutcome::LowBiometricScore if face_checks => (
             true,
             0,
             "",
             vec![ocr, liveness, biometric, document_liveness],
         ),
-        MockOutcome::LivenessFailed => (false, -1, "", vec![ocr, liveness]),
+        MockOutcome::Success | MockOutcome::LowBiometricScore => {
+            (true, 0, "", vec![ocr, document_liveness])
+        }
+        MockOutcome::LivenessFailed if face_checks => (false, -1, "", vec![ocr, liveness]),
+        MockOutcome::LivenessFailed => (false, -1, "", vec![ocr]),
         MockOutcome::DocumentAuthenticationFailed => {
             (false, 1026, "Document authentication failed", vec![ocr])
         }
@@ -588,7 +594,10 @@ mod tests {
     #[test]
     fn uploaded_back_image_is_listed_in_the_results() {
         let mut with_back = session(MockOutcome::Success);
-        with_back.media = Some(UploadedMedia { back_image: true });
+        with_back.media = Some(UploadedMedia {
+            back_image: true,
+            face_image: true,
+        });
         let results = mock_results("proc", &with_back, None);
         assert_eq!(
             results["data"]["resultsList"][0]["backImage"],
@@ -596,7 +605,10 @@ mod tests {
         );
 
         let mut front_only = session(MockOutcome::Success);
-        front_only.media = Some(UploadedMedia { back_image: false });
+        front_only.media = Some(UploadedMedia {
+            back_image: false,
+            face_image: true,
+        });
         let results = mock_results("proc", &front_only, None);
         assert!(results["data"]["resultsList"][0].get("backImage").is_none());
         let results = mock_results("proc", &session(MockOutcome::Success), None);

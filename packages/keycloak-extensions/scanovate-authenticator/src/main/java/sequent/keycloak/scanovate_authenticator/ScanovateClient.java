@@ -14,8 +14,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import lombok.extern.jbosslog.JBossLog;
-import sequent.keycloak.scanovate_authenticator.HttpTransport.HttpResult;
 import sequent.keycloak.scanovate_authenticator.HttpTransport.MultipartPart;
 
 /**
@@ -28,7 +26,6 @@ import sequent.keycloak.scanovate_authenticator.HttpTransport.MultipartPart;
  * <p>The media upload used by the embedded mode ({@link #uploadMedia}) is not part of v3.8.2: it is
  * a proposed endpoint, pending Scanovate's confirmation.
  */
-@JBossLog
 public class ScanovateClient {
   static final String AUTH_TOKEN_PATH = "/auth/token";
   static final String FLOW_LINK_PATH = "/flow/v3/link";
@@ -37,7 +34,6 @@ public class ScanovateClient {
   static final String FAST_RESULTS_SUFFIX = "/results_with_image_names";
   static final String MEDIA_SUFFIX = "/media";
   static final String PROCESS_ID_QUERY_PARAM = "process_id";
-  static final long BASE_RETRY_DELAY_MS = 1_000;
 
   /** Waits between retries; injectable so that tests don't sleep. */
   @FunctionalInterface
@@ -51,8 +47,7 @@ public class ScanovateClient {
   private final String baseUrl;
   private final String clientId;
   private final String clientSecret;
-  private final int maxRetries;
-  private final Sleeper sleeper;
+  private final RetryingRequests requests;
 
   public ScanovateClient(
       HttpTransport transport,
@@ -65,8 +60,7 @@ public class ScanovateClient {
     this.baseUrl = baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl;
     this.clientId = clientId;
     this.clientSecret = clientSecret;
-    this.maxRetries = Math.max(1, maxRetries);
-    this.sleeper = sleeper;
+    this.requests = new RetryingRequests(maxRetries, sleeper);
   }
 
   /** {@code POST /auth/token}. */
@@ -127,7 +121,8 @@ public class ScanovateClient {
                         file.getValue().content()))
             .toList();
     JsonNode response =
-        execute(path, () -> transport.postMultipart(baseUrl + path, bearer(accessToken), parts));
+        requests.execute(
+            path, () -> transport.postMultipart(baseUrl + path, bearer(accessToken), parts));
     requireSuccess(response, path);
   }
 
@@ -157,60 +152,13 @@ public class ScanovateClient {
   }
 
   private JsonNode get(String path, Map<String, String> headers) throws IOException {
-    return execute(path, () -> transport.get(baseUrl + path, headers));
+    return requests.execute(path, () -> transport.get(baseUrl + path, headers));
   }
 
   private JsonNode post(String path, Map<String, String> headers, JsonNode body)
       throws IOException {
     String payload = MAPPER.writeValueAsString(body);
-    return execute(path, () -> transport.postJson(baseUrl + path, headers, payload));
-  }
-
-  @FunctionalInterface
-  private interface Request {
-    HttpResult send() throws IOException;
-  }
-
-  /** Sends a request, retrying with exponential backoff on network and server errors. */
-  private JsonNode execute(String path, Request request) throws IOException {
-    IOException lastError = null;
-    for (int attempt = 0; attempt < maxRetries; attempt++) {
-      if (attempt > 0) {
-        backoff(attempt);
-      }
-      HttpResult result;
-      try {
-        result = request.send();
-      } catch (IOException e) {
-        log.warnv("{0}: attempt {1} failed: {2}", path, attempt + 1, e.getMessage());
-        lastError = e;
-        continue;
-      }
-      if (result.status() >= 500) {
-        log.warnv("{0}: attempt {1} got status {2}", path, attempt + 1, result.status());
-        lastError = new IOException(path + " returned status " + result.status());
-        continue;
-      }
-      if (result.status() != 200) {
-        throw new IOException(
-            String.format("%s returned status %d: %.200s", path, result.status(), result.body()));
-      }
-      try {
-        return MAPPER.readTree(result.body());
-      } catch (IOException e) {
-        throw new IOException(path + " returned an invalid JSON body", e);
-      }
-    }
-    throw new IOException(path + " failed after " + maxRetries + " attempts", lastError);
-  }
-
-  private void backoff(int attempt) throws IOException {
-    try {
-      sleeper.sleep(BASE_RETRY_DELAY_MS * (1L << (attempt - 1)));
-    } catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
-      throw new IOException("Interrupted while waiting to retry", e);
-    }
+    return requests.execute(path, () -> transport.postJson(baseUrl + path, headers, payload));
   }
 
   private static void requireSuccess(JsonNode response, String path) throws IOException {

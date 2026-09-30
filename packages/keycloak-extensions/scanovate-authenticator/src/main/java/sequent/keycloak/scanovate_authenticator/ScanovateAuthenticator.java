@@ -12,6 +12,7 @@ import java.net.URI;
 import java.time.LocalDate;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -20,12 +21,13 @@ import lombok.extern.jbosslog.JBossLog;
 import org.keycloak.authentication.AuthenticationFlowContext;
 import org.keycloak.authentication.Authenticator;
 import org.keycloak.forms.login.LoginFormsProvider;
-import org.keycloak.headers.SecurityHeadersProvider;
 import org.keycloak.models.AuthenticationExecutionModel;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
 import org.keycloak.sessions.AuthenticationSessionModel;
+import sequent.keycloak.scanovate_authenticator.FaceMatchClient.FaceComparison;
+import sequent.keycloak.scanovate_authenticator.FaceMatchClient.FaceMatchOutcome;
 import sequent.keycloak.scanovate_authenticator.LivenessSessions.LivenessResult;
 import sequent.keycloak.voter_enrollment.Utils;
 
@@ -36,9 +38,14 @@ import sequent.keycloak.voter_enrollment.Utils;
  * server to server, validated against the configured rules, and the extracted attributes are stored
  * as auth notes for the voter to confirm. In the embedded mode the voter captures the media in
  * Keycloak's own page instead, and Keycloak uploads it to the B-Trust session before fetching the
- * results. With the liveness face capture, the voter's liveness is checked by the on-premise
- * Liveness Plus service in an iframe of that page, and its picture of the voter is uploaded as the
- * face photo, see {@link LivenessSessions}.
+ * results.
+ *
+ * <p>With the liveness face capture, the voter's face never leaves our premises. The capture page
+ * checks the voter's liveness with the on-premise Liveness Plus API, whose verdict and picture of
+ * the voter reach Keycloak server to server (see {@link LivenessSessions}). Keycloak then compares
+ * that picture with the photo of the ID and with a photo of the voter holding it, using the
+ * on-premise Face Match service, and only uploads the photos of the ID to B-Trust, for OCR and
+ * document authenticity.
  */
 @JBossLog
 public class ScanovateAuthenticator implements Authenticator {
@@ -63,30 +70,49 @@ public class ScanovateAuthenticator implements Authenticator {
   static final String FTL_VIDEO_SECONDS = "videoSeconds";
   static final String FTL_LIVENESS = "liveness";
   static final String FTL_LIVENESS_URL = "url";
-  static final String FTL_LIVENESS_ORIGIN = "origin";
-  static final String FTL_LIVENESS_LANGUAGES = "languages";
+  static final String FTL_LIVENESS_TOKEN = "token";
+  static final String FTL_LIVENESS_CASE_ID = "caseId";
   static final String EVENT_ERROR = "scanovate_verification_failed";
   static final String EVENT_DETAIL_ERROR = "scanovate_error";
   static final String EVENT_DETAIL_PROCESS_ID = "scanovate_process_id";
+  static final String EVENT_DETAIL_FACE_MATCH_DOCUMENT = "scanovate_face_match_document";
+  static final String EVENT_DETAIL_FACE_MATCH_HOLDING = "scanovate_face_match_holding";
 
   private static final ObjectMapper MAPPER = new ObjectMapper();
 
   private final Function<Map<String, String>, ScanovateClient> clientFactory;
   private final Function<KeycloakSession, LivenessSessions> livenessFactory;
+  private final Function<FaceMatchSettings, FaceMatchClient> faceMatchFactory;
 
   public ScanovateAuthenticator() {
-    this(ScanovateAuthenticator::defaultClient, ScanovateAuthenticator::defaultLiveness);
+    this(
+        ScanovateAuthenticator::defaultClient,
+        ScanovateAuthenticator::defaultLiveness,
+        ScanovateAuthenticator::defaultFaceMatch);
   }
 
   ScanovateAuthenticator(Function<Map<String, String>, ScanovateClient> clientFactory) {
-    this(clientFactory, ScanovateAuthenticator::defaultLiveness);
+    this(
+        clientFactory,
+        ScanovateAuthenticator::defaultLiveness,
+        ScanovateAuthenticator::defaultFaceMatch);
   }
 
   ScanovateAuthenticator(
       Function<Map<String, String>, ScanovateClient> clientFactory,
-      Function<KeycloakSession, LivenessSessions> livenessFactory) {
+      Function<KeycloakSession, LivenessSessions> livenessFactory,
+      Function<FaceMatchSettings, FaceMatchClient> faceMatchFactory) {
     this.clientFactory = clientFactory;
     this.livenessFactory = livenessFactory;
+    this.faceMatchFactory = faceMatchFactory;
+  }
+
+  static FaceMatchClient defaultFaceMatch(FaceMatchSettings settings) {
+    return new FaceMatchClient(
+        new JdkHttpTransport(),
+        settings.url(),
+        ScanovateAuthenticatorFactory.DEFAULT_MAX_RETRIES,
+        Thread::sleep);
   }
 
   static LivenessSessions defaultLiveness(KeycloakSession session) {
@@ -181,6 +207,7 @@ public class ScanovateAuthenticator implements Authenticator {
               : Optional.empty();
       if (captureSettings.filter(s -> s.faceCapture() == FaceCapture.LIVENESS).isPresent()) {
         LivenessSettings.fromConfig(config);
+        FaceMatchSettings.fromConfig(config, documentType(config, authSession));
       }
       saveOption =
           SaveOption.fromValue(config.get(ScanovateAuthenticatorFactory.SAVE_OPTION))
@@ -261,7 +288,7 @@ public class ScanovateAuthenticator implements Authenticator {
         showError(context, ScanovateError.INTERNAL, false);
         return;
       }
-      capture.put(FTL_LIVENESS, livenessIframe(context, liveness));
+      capture.put(FTL_LIVENESS, livenessPage(context, liveness));
     }
 
     LoginFormsProvider form = context.form().setAttribute(FTL_SCANOVATE, capture);
@@ -270,10 +297,10 @@ public class ScanovateAuthenticator implements Authenticator {
   }
 
   /**
-   * Issues a new token for the Liveness Plus iframe, replacing any earlier one, and allows the
-   * iframe in the Content Security Policy of the page.
+   * Issues a new token for the capture page to start its Liveness Plus sessions with, replacing any
+   * earlier one.
    */
-  private Map<String, Object> livenessIframe(
+  private Map<String, Object> livenessPage(
       AuthenticationFlowContext context, LivenessSettings liveness) {
     AuthenticationSessionModel authSession = context.getAuthenticationSession();
     String caseId = authSession.getAuthNote(PROCESS_ID_NOTE);
@@ -281,17 +308,12 @@ public class ScanovateAuthenticator implements Authenticator {
     sessions.discard(authSession.getAuthNote(LIVENESS_TOKEN_NOTE));
     String token = sessions.create(caseId, liveness.secret());
     authSession.setAuthNote(LIVENESS_TOKEN_NOTE, token);
-    context
-        .getSession()
-        .getProvider(SecurityHeadersProvider.class)
-        .options()
-        .allowFrameSrc(liveness.origin());
 
-    Map<String, Object> iframe = new LinkedHashMap<>();
-    iframe.put(FTL_LIVENESS_URL, liveness.iframeUrl(token, caseId));
-    iframe.put(FTL_LIVENESS_ORIGIN, liveness.origin());
-    iframe.put(FTL_LIVENESS_LANGUAGES, liveness.languages());
-    return iframe;
+    Map<String, Object> page = new LinkedHashMap<>();
+    page.put(FTL_LIVENESS_URL, liveness.apiUrl());
+    page.put(FTL_LIVENESS_TOKEN, token);
+    page.put(FTL_LIVENESS_CASE_ID, caseId);
+    return page;
   }
 
   private void capture(AuthenticationFlowContext context) {
@@ -323,17 +345,14 @@ public class ScanovateAuthenticator implements Authenticator {
       return;
     }
 
-    if (settings.faceCapture() == FaceCapture.LIVENESS) {
-      Optional<CaptureMedia> withLiveness = addLivenessImage(context, config, settings, media);
-      if (withLiveness.isEmpty()) {
-        return;
-      }
-      media = withLiveness.get();
+    if (settings.faceCapture() == FaceCapture.LIVENESS && !checkFaceOnPremise(context, media)) {
+      return;
     }
 
     try {
       ScanovateClient client = clientFactory.apply(config);
-      client.uploadMedia(client.fetchAccessToken(), processId, media);
+      client.uploadMedia(
+          client.fetchAccessToken(), processId, media.only(settings.uploadedMedia()));
     } catch (IOException e) {
       log.error("capture: could not upload the capture to B-Trust", e);
       showError(context, ScanovateError.INTERNAL, true);
@@ -344,23 +363,23 @@ public class ScanovateAuthenticator implements Authenticator {
   }
 
   /**
-   * Adds the voter's picture taken by Liveness Plus to the capture, once the result callback of the
-   * voter's liveness session confirms that it passed. Otherwise, shows the error and returns empty.
+   * Checks the voter's face on premise: the result callback of the voter's Liveness Plus session
+   * must confirm that it passed, and its picture of the voter must match the photo of the ID and
+   * the photo of the voter holding it. Otherwise, shows the error and returns false.
    */
-  private Optional<CaptureMedia> addLivenessImage(
-      AuthenticationFlowContext context,
-      Map<String, String> config,
-      CaptureSettings settings,
-      CaptureMedia media) {
+  private boolean checkFaceOnPremise(AuthenticationFlowContext context, CaptureMedia media) {
+    Map<String, String> config = config(context);
     AuthenticationSessionModel authSession = context.getAuthenticationSession();
     String processId = authSession.getAuthNote(PROCESS_ID_NOTE);
     LivenessSettings liveness;
+    FaceMatchSettings faceMatch;
     try {
       liveness = LivenessSettings.fromConfig(config);
+      faceMatch = FaceMatchSettings.fromConfig(config, documentType(config, authSession));
     } catch (ScanovateException e) {
-      log.error("capture: invalid liveness configuration", e);
+      log.error("capture: invalid liveness or face match configuration", e);
       showError(context, ScanovateError.INTERNAL, false);
-      return Optional.empty();
+      return false;
     }
 
     String token = authSession.getAuthNote(LIVENESS_TOKEN_NOTE);
@@ -372,7 +391,7 @@ public class ScanovateAuthenticator implements Authenticator {
     if (result.isEmpty()) {
       log.errorv("capture: no liveness result for {0}", processId);
       showError(context, ScanovateError.INTERNAL, true);
-      return Optional.empty();
+      return false;
     }
     sessions.discard(token);
     authSession.removeAuthNote(LIVENESS_TOKEN_NOTE);
@@ -380,19 +399,66 @@ public class ScanovateAuthenticator implements Authenticator {
       log.warnv(
           "capture: liveness of {0} did not pass, status={1}", processId, result.get().status());
       failAttempt(context, ScanovateError.LIVENESS_FAILED.messageKey());
-      return Optional.empty();
+      return false;
     }
+
+    byte[] face = result.get().image().get();
+    FaceMatchClient client = faceMatchFactory.apply(faceMatch);
+    return facesMatch(
+            context,
+            client,
+            faceMatch,
+            media.files().get(MediaKind.FRONT_IMAGE).content(),
+            face,
+            EVENT_DETAIL_FACE_MATCH_DOCUMENT)
+        && facesMatch(
+            context,
+            client,
+            faceMatch,
+            media.files().get(MediaKind.HOLDING_IMAGE).content(),
+            face,
+            EVENT_DETAIL_FACE_MATCH_HOLDING);
+  }
+
+  /**
+   * Compares the voter's live face with a captured photo, recording the similarity in the event.
+   * Otherwise, shows the error and returns false.
+   */
+  private boolean facesMatch(
+      AuthenticationFlowContext context,
+      FaceMatchClient client,
+      FaceMatchSettings settings,
+      byte[] photo,
+      byte[] face,
+      String eventDetail) {
+    String processId = context.getAuthenticationSession().getAuthNote(PROCESS_ID_NOTE);
+    FaceComparison comparison;
     try {
-      return Optional.of(
-          media.withImage(
-              MediaKind.FACE_IMAGE,
-              result.get().image().get(),
-              settings.maxBytes(MediaCategory.IMAGE)));
-    } catch (InvalidCaptureException e) {
-      log.errorv("capture: invalid liveness picture for {0}: {1}", processId, e.getMessage());
+      comparison = client.compare(photo, face);
+    } catch (IOException e) {
+      log.error("capture: could not compare the faces with Face Match", e);
       showError(context, ScanovateError.INTERNAL, true);
-      return Optional.empty();
+      return false;
     }
+    String similarity = String.format(Locale.ROOT, "%.4f", comparison.similarity());
+    context.getEvent().detail(eventDetail, similarity);
+    FaceMatchOutcome outcome = comparison.outcome(settings.minSimilarity());
+    log.infov(
+        "capture: {0} of {1}: {2}, similarity={3}, statuses={4}/{5}",
+        eventDetail,
+        processId,
+        outcome,
+        similarity,
+        comparison.image1Status(),
+        comparison.image2Status());
+    switch (outcome) {
+      case MATCH -> {
+        return true;
+      }
+      case MISMATCH -> failAttempt(context, ScanovateError.FACE_MISMATCH.messageKey());
+      case FACE_NOT_FOUND -> failAttempt(context, ScanovateError.FACE_NOT_FOUND.messageKey());
+    }
+    return false;
   }
 
   private void processReturn(AuthenticationFlowContext context) {

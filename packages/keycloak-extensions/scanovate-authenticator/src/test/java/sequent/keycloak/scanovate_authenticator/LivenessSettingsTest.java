@@ -16,6 +16,7 @@ class LivenessSettingsTest {
     Map<String, String> config = new HashMap<>();
     config.put(ScanovateAuthenticatorFactory.LIVENESS_URL, "https://liveness.example.com:8443/");
     config.put(ScanovateAuthenticatorFactory.LIVENESS_SECRET, "callback-secret");
+    config.put(ScanovateAuthenticatorFactory.FACE_MATCH_URL, "http://face-match:3000");
     return config;
   }
 
@@ -24,43 +25,39 @@ class LivenessSettingsTest {
     LivenessSettings settings = LivenessSettings.fromConfig(livenessConfig());
 
     assertEquals("callback-secret", settings.secret());
-    assertEquals("https://liveness.example.com:8443", settings.origin());
-    assertEquals(List.of("en", "es"), settings.languages());
     assertEquals(
         ScanovateAuthenticatorFactory.DEFAULT_LIVENESS_RESULT_WAIT_SECONDS,
         settings.resultWaitSeconds());
   }
 
   @Test
-  void iframeUrlCarriesTheThemeAndTheOneTimeToken() throws ScanovateException {
-    LivenessSettings settings = LivenessSettings.fromConfig(livenessConfig());
-
+  void apiUrlIsTheLivenessPathOfTheService() throws ScanovateException {
     assertEquals(
-        "https://liveness.example.com:8443/liveness/?scan_config=scan_config"
-            + "&video_config=video_config&translation_variant=sequent&ui_theme=sequent_ui"
-            + "&case_id=proc%201&token=t0k-en_",
-        settings.iframeUrl("t0k-en_", "proc 1"));
+        "https://liveness.example.com:8443/liveness",
+        LivenessSettings.fromConfig(livenessConfig()).apiUrl());
   }
 
   @Test
   void configuredValuesAreRead() throws ScanovateException {
     Map<String, String> config = livenessConfig();
     config.put(ScanovateAuthenticatorFactory.LIVENESS_URL, "http://127.0.0.1:5050/biometric");
-    config.put(ScanovateAuthenticatorFactory.LIVENESS_UI_THEME, "tenant_ui");
-    config.put(ScanovateAuthenticatorFactory.LIVENESS_TRANSLATION_VARIANT, "tenant");
-    config.put(ScanovateAuthenticatorFactory.LIVENESS_LANGUAGES, " en , tl ,");
     config.put(ScanovateAuthenticatorFactory.LIVENESS_RESULT_WAIT_SECONDS, "30");
 
     LivenessSettings settings = LivenessSettings.fromConfig(config);
 
-    assertEquals("http://127.0.0.1:5050", settings.origin());
-    assertEquals(List.of("en", "tl"), settings.languages());
     assertEquals(30, settings.resultWaitSeconds());
+    assertEquals("http://127.0.0.1:5050/biometric/liveness", settings.apiUrl());
+  }
+
+  @Test
+  void settingsOfTheRemovedIframeAreIgnored() throws ScanovateException {
+    Map<String, String> config = livenessConfig();
+    config.put("liveness-ui-theme", "tenant_ui");
+    config.put("liveness-translation-variant", "tenant");
+    config.put("liveness-languages", "en,tl");
+
     assertEquals(
-        "http://127.0.0.1:5050/biometric/liveness/?scan_config=scan_config"
-            + "&video_config=video_config&translation_variant=tenant&ui_theme=tenant_ui"
-            + "&case_id=c&token=t",
-        settings.iframeUrl("t", "c"));
+        "https://liveness.example.com:8443/liveness", LivenessSettings.fromConfig(config).apiUrl());
   }
 
   @Test

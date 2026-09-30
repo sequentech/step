@@ -111,17 +111,38 @@ class CaptureSettingsTest {
   }
 
   @Test
-  void livenessOnlyNeedsTheDocumentSides() throws ScanovateException {
+  void livenessNeedsTheDocumentSidesAndThePhotoHoldingTheDocument() throws ScanovateException {
+    Map<String, String> config = new HashMap<>();
+    config.put(ScanovateAuthenticatorFactory.CAPTURE_SIDES, SIDES);
+    config.put(ScanovateAuthenticatorFactory.FACE_CAPTURE, FaceCapture.LIVENESS.value());
+
+    assertEquals(
+        List.of(MediaKind.FRONT_IMAGE, MediaKind.HOLDING_IMAGE),
+        CaptureSettings.fromConfig(config, "philSysID").requiredMedia());
+    assertEquals(
+        List.of(MediaKind.FRONT_IMAGE, MediaKind.BACK_IMAGE, MediaKind.HOLDING_IMAGE),
+        CaptureSettings.fromConfig(config, "driversLicense").requiredMedia());
+  }
+
+  @Test
+  void livenessOnlyUploadsTheDocumentSides() throws ScanovateException {
     Map<String, String> config = new HashMap<>();
     config.put(ScanovateAuthenticatorFactory.CAPTURE_SIDES, SIDES);
     config.put(ScanovateAuthenticatorFactory.FACE_CAPTURE, FaceCapture.LIVENESS.value());
 
     assertEquals(
         List.of(MediaKind.FRONT_IMAGE),
-        CaptureSettings.fromConfig(config, "philSysID").requiredMedia());
+        CaptureSettings.fromConfig(config, "philSysID").uploadedMedia());
     assertEquals(
         List.of(MediaKind.FRONT_IMAGE, MediaKind.BACK_IMAGE),
-        CaptureSettings.fromConfig(config, "driversLicense").requiredMedia());
+        CaptureSettings.fromConfig(config, "driversLicense").uploadedMedia());
+  }
+
+  @Test
+  void photoUploadsEverythingItCaptures() throws ScanovateException {
+    CaptureSettings settings = CaptureSettings.fromConfig(Map.of(), "x");
+
+    assertEquals(settings.requiredMedia(), settings.uploadedMedia());
   }
 
   @Test

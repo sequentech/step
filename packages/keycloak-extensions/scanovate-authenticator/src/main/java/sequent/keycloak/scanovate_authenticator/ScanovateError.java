@@ -13,7 +13,9 @@ public enum ScanovateError {
   SCORING("scanovateScoringError"),
   MAX_RETRIES("scanovateMaxRetriesError"),
   CAPTURE_INVALID("scanovateCaptureInvalidError"),
-  LIVENESS_FAILED("scanovateLivenessError");
+  LIVENESS_FAILED("scanovateLivenessError"),
+  FACE_MISMATCH("scanovateFaceMismatchError"),
+  FACE_NOT_FOUND("scanovateFaceNotFoundError");
 
   private final String messageKey;
 

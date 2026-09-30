@@ -9,10 +9,12 @@ import {CaptureEnvironmentContext} from "../scanovate/environment"
 import {
     SyntheticScene,
     failingCamera,
+    fakeLiveness,
     fakeServices,
     sceneForFacing,
     syntheticCamera,
 } from "../scanovate/fakes"
+import {LivenessRejection, LivenessStatus, type LivenessConnector} from "../scanovate/livenessApi"
 import {CaptureStep, DocumentStatus, FaceStatus, type CaptureServices} from "../scanovate/types"
 
 const {KcPageStory} = createKcPageStory({pageId: "scanovate-capture.ftl"})
@@ -424,22 +426,15 @@ export const AutomaticCapture: Story = {
     },
 }
 
-// A same-origin blank page stands in for Liveness Plus, and posts its messages.
+// Liveness Plus is faked: it answers the face frames with the given statuses.
 const livenessContext = (): CaptureContext => ({
     scanovate: {
-        liveness: {url: "about:blank", origin: window.location.origin, languages: []},
+        liveness: {url: "https://localhost/biometric/liveness", token: "token", caseId: "case"},
     },
 })
 
-async function postFromLiveness(canvasElement: HTMLElement, message: object) {
-    const frame = await waitFor(() => {
-        const found = canvasElement.querySelector<HTMLIFrameElement>(".capture-liveness iframe")
-        if (found?.contentWindow === null || found === null) throw new Error("no iframe yet")
-        return found
-    })
-    const inFrame = frame.contentWindow as unknown as {Function: FunctionConstructor}
-    inFrame.Function("message", "parent.postMessage(message, '*')")(message)
-}
+const faceReady = (liveness: LivenessConnector) =>
+    fakeServices({face: {statuses: [FaceStatus.Ready]}, liveness})
 
 export const LivenessIntro: Story = {
     args: {kcContext: livenessContext()},
@@ -447,82 +442,126 @@ export const LivenessIntro: Story = {
         const canvas = within(canvasElement)
         await expect(
             await canvas.findByText(
-                "We will take photos of your Driver’s License and then check your face with a short guided selfie to confirm it is you. It takes about 2 minutes."
+                "We will take photos of your Driver’s License and a short video of your face to confirm it is you. It takes about 2 minutes."
             )
         ).toBeVisible()
-        await expect(canvas.getByText("A short selfie check, guided on screen.")).toBeVisible()
-        await expect(canvas.queryByText("You holding your ID")).not.toBeInTheDocument()
+        await expect(canvas.getByText("Your face")).toBeVisible()
+        await expect(canvas.getByText("You holding your ID")).toBeVisible()
     },
 }
 
-export const LivenessCheck: Story = {
-    args: {kcContext: livenessContext(), startAt: CaptureStep.Liveness},
+export const LivenessAsksForABetterFrame: Story = {
+    args: {
+        kcContext: livenessContext(),
+        startAt: CaptureStep.Face,
+        services: faceReady(fakeLiveness([LivenessStatus.FaceTooSmall])),
+    },
     play: async ({canvasElement}) => {
-        const frame = await waitFor(() => {
-            const found = canvasElement.querySelector(".capture-liveness iframe")
-            if (found === null) throw new Error("no iframe yet")
-            return found
-        })
-        await expect(frame).toHaveAttribute("allow", "camera *; microphone *")
-        await expect(frame).toHaveAttribute("title", "Face check")
+        const canvas = within(canvasElement)
+        await canvas.findByRole("heading", {level: 1, name: "Your face"})
+        await pill(canvasElement, "Checking your face, hold still…")
+        await pill(canvasElement, "Move a little closer")
+        await expect(canvas.getByRole("heading", {level: 1, name: "Your face"})).toBeVisible()
     },
 }
 
-export const LivenessDoneSubmitsTheId: Story = {
-    args: {kcContext: livenessContext(), startAt: CaptureStep.Liveness},
+export const LivenessScannedMovesOn: Story = {
+    args: {
+        kcContext: livenessContext(),
+        startAt: CaptureStep.Face,
+        services: faceReady(fakeLiveness([LivenessStatus.Ok, LivenessStatus.ScanCompleted])),
+    },
     play: async ({canvasElement}) => {
-        const stop = keepSubmissions()
-        try {
-            await postFromLiveness(canvasElement, {type: "done", service_session_id: "s"})
-            const canvas = within(canvasElement)
-            await expect(
-                await canvas.findByRole("heading", {level: 1, name: "Checking your identity"})
-            ).toBeVisible()
-            await expect(canvas.getByText("Photos and face check received")).toBeVisible()
-            await waitFor(() => expect(submissions).toHaveLength(1))
-            const data = submissions[0]
-            await expect(data.get("action")).toBe("capture")
-            await expect(data.get("front")).toBeInstanceOf(File)
-            await expect(data.get("back")).toBeInstanceOf(File)
-            await expect(data.has("face")).toBe(false)
-            await expect(data.has("video")).toBe(false)
-        } finally {
-            stop()
-        }
+        const canvas = within(canvasElement)
+        await expect(
+            await canvas.findByRole(
+                "heading",
+                {level: 1, name: "You holding your ID"},
+                {timeout: 8000}
+            )
+        ).toBeVisible()
+        await expectDone(canvasElement, "Face", "Your face")
+    },
+}
+
+export const LivenessHoldingSubmitsPhoto: Story = {
+    args: {
+        kcContext: {
+            ...livenessContext(),
+            scanovate: {...livenessContext().scanovate, videoSeconds: 1},
+        },
+        startAt: CaptureStep.Video,
+        services: fakeServices({
+            camera: holdingId,
+            face: {statuses: [FaceStatus.Ready]},
+            document: {statuses: [DocumentStatus.HoldStill]},
+            recorder: {
+                supported: () => true,
+                start: () => {
+                    throw new Error("The voter holding the ID is a photo")
+                },
+            },
+        }),
+    },
+    beforeEach: keepSubmissions,
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await expect(
+            await canvas.findByRole(
+                "heading",
+                {level: 1, name: "Checking your identity"},
+                {timeout: 8000}
+            )
+        ).toBeVisible()
+        await expect(canvas.getByText("Photos and face check received")).toBeVisible()
+        await waitFor(() => expect(submissions).toHaveLength(1))
+        const data = submissions[0]
+        await expect(data.get("action")).toBe("capture")
+        await expect((data.get("front") as File).name).toBe("front.jpg")
+        await expect((data.get("back") as File).name).toBe("back.jpg")
+        const holding = data.get("holding") as File
+        await expect(holding.type).toBe("image/jpeg")
+        await expect(holding.size).toBeGreaterThan(0)
+        await expect(data.has("face")).toBe(false)
+        await expect(data.has("video")).toBe(false)
     },
 }
 
 export const LivenessFailed: Story = {
-    args: {kcContext: livenessContext(), startAt: CaptureStep.Liveness},
+    args: {
+        kcContext: livenessContext(),
+        startAt: CaptureStep.Face,
+        services: faceReady(fakeLiveness([LivenessStatus.ServerError])),
+    },
     play: async ({canvasElement}) => {
-        await postFromLiveness(canvasElement, {type: "error", error_code: 1006})
         const canvas = within(canvasElement)
         await expect(
-            await canvas.findByRole("heading", {level: 1, name: "The face check didn’t finish"})
+            await canvas.findByRole(
+                "heading",
+                {level: 1, name: "The face check didn’t finish"},
+                {timeout: 8000}
+            )
         ).toBeVisible()
         await userEvent.click(canvas.getByRole("button", {name: "Try again"}))
-        await waitFor(() =>
-            expect(canvasElement.querySelector(".capture-liveness iframe")).not.toBeNull()
-        )
+        await canvas.findByRole("heading", {level: 1, name: "Your face"})
     },
 }
 
-export const LivenessMessagesFromOtherOriginsAreIgnored: Story = {
+export const LivenessTokenUsedUp: Story = {
     args: {
-        kcContext: {
-            scanovate: {
-                liveness: {
-                    url: "about:blank",
-                    origin: "https://liveness.example.com",
-                    languages: [],
-                },
-            },
-        },
-        startAt: CaptureStep.Liveness,
+        kcContext: livenessContext(),
+        startAt: CaptureStep.Face,
+        services: faceReady(fakeLiveness([], LivenessRejection.InvalidToken)),
     },
     play: async ({canvasElement}) => {
-        await postFromLiveness(canvasElement, {type: "done"})
-        await new Promise((resolve) => setTimeout(resolve, 200))
-        await expect(canvasElement.querySelector(".capture-liveness iframe")).not.toBeNull()
+        const canvas = within(canvasElement)
+        await expect(
+            await canvas.findByRole(
+                "heading",
+                {level: 1, name: "Start the verification again"},
+                {timeout: 8000}
+            )
+        ).toBeVisible()
+        await expect(canvas.getByRole("button", {name: "Start over"})).toBeVisible()
     },
 }

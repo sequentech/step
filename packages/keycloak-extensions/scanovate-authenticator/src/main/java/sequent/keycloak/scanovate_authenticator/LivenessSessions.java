@@ -19,11 +19,12 @@ import sequent.keycloak.scanovate_authenticator.ScanovateClient.Sleeper;
  * One-time tokens that let a voter's browser open a Liveness Plus session, and the results that
  * Liveness Plus posts back for them.
  *
- * <p>Keycloak puts the token and the case id in the URL of the Liveness Plus iframe. Liveness Plus
- * checks the token with Keycloak before starting a session ({@link #verify}) and posts the start
- * and the result of the session to Keycloak ({@link #record}), server to server. Both calls carry a
- * shared secret that the browser never sees, as the token and the case id go through the browser.
- * The verdict is only ever taken from these callbacks, never from the browser.
+ * <p>Keycloak gives the token and the case id to the capture page, which starts a Liveness Plus
+ * session with them ({@code POST /create_session}) and sends it the frames of the voter's face.
+ * Liveness Plus checks the token with Keycloak before starting the session ({@link #verify}) and
+ * posts the start and the result of the session to Keycloak ({@link #record}), server to server.
+ * Both calls carry a shared secret that the browser never sees, as the token and the case id go
+ * through the browser. The verdict is only ever taken from these callbacks, never from the browser.
  */
 @JBossLog
 public class LivenessSessions {
@@ -58,7 +59,8 @@ public class LivenessSessions {
    * Final result of the last Liveness Plus session of a token.
    *
    * @param status final session status: completed, expired, aborted or client_error
-   * @param passed whether the session completed and passed the presentation and injection checks
+   * @param passed whether the session completed and passed the presentation attack check, and the
+   *     injection attack check unless Liveness Plus runs without it (PRESENTATION mode)
    * @param image the voter's picture taken during the session, only when passed
    */
   public record LivenessResult(String status, boolean passed, Optional<byte[]> image) {}
@@ -138,7 +140,9 @@ public class LivenessSessions {
       }
       boolean passed =
           STATUS_COMPLETED.equals(status.asText())
-              && processing.path("liveness_check_passed").asBoolean(false)
+              && isTrue(processing, "liveness_check_passed")
+              && isTrue(processing, "presentation_attack_check_passed")
+              && !isFalse(processing, "injection_attack_check_passed")
               && image.isPresent();
       updated.put(PASSED, String.valueOf(passed));
       if (passed) {
@@ -205,6 +209,17 @@ public class LivenessSessions {
     return expected != null
         && MessageDigest.isEqual(
             given.getBytes(StandardCharsets.UTF_8), expected.getBytes(StandardCharsets.UTF_8));
+  }
+
+  private static boolean isTrue(JsonNode node, String field) {
+    JsonNode value = node.get(field);
+    return value != null && value.isBoolean() && value.asBoolean();
+  }
+
+  /** Whether the check ran and failed: Liveness Plus reports checks it did not run as null. */
+  private static boolean isFalse(JsonNode node, String field) {
+    JsonNode value = node.get(field);
+    return value != null && !value.isNull() && !(value.isBoolean() && value.asBoolean());
   }
 
   private static Optional<String> text(JsonNode node, String field) {

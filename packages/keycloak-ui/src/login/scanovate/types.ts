@@ -1,6 +1,8 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
 
+import type {LivenessConnector} from "./livenessApi"
+
 // Frame analysis results returned by the id-capture WebAssembly module.
 export type Point = [number, number]
 
@@ -96,8 +98,20 @@ export enum CaptureStep {
     Back = "BACK",
     Face = "FACE",
     Video = "VIDEO",
-    // Checked by the Liveness Plus iframe instead of our own camera.
+}
+
+// How the voter's face is checked: Keycloak's face-capture policy.
+export enum FaceCheck {
+    // Our photo and video of the voter go to B-Trust.
+    Photo = "PHOTO",
+    // Liveness Plus checks our face frames, and the voter holding the ID is a photo.
     Liveness = "LIVENESS",
+}
+
+// What the step of the voter holding the ID produces.
+export enum VideoOutput {
+    Recording = "RECORDING",
+    Still = "STILL",
 }
 
 export enum CameraFacing {
@@ -114,7 +128,7 @@ export enum CaptureProblem {
     AnalyzerFailed = "ANALYZER_FAILED",
     RecorderUnsupported = "RECORDER_UNSUPPORTED",
     LivenessFailed = "LIVENESS_FAILED",
-    // The one-time token of the iframe is used up: only a new page gets a new one.
+    // Keycloak's one-time liveness token is used up: only a new page gets a new one.
     LivenessExpired = "LIVENESS_EXPIRED",
 }
 
@@ -135,6 +149,7 @@ export interface RecorderService {
 export interface CaptureServices {
     camera: CameraService
     recorder: RecorderService
+    liveness: LivenessConnector
     loadAnalyzers(): Promise<Analyzers>
     vibrate(pattern: number): void
 }

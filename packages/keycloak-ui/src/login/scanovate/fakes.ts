@@ -5,6 +5,13 @@
 // stories and tests. The camera paints a synthetic specimen scene.
 import {CARD_ASPECT} from "./geometry"
 import {
+    LivenessApiError,
+    LivenessRejection,
+    LivenessStatus,
+    type LivenessApi,
+    type LivenessConnector,
+} from "./livenessApi"
+import {
     CameraFacing,
     DocumentStatus,
     FaceStatus,
@@ -236,16 +243,44 @@ export const fakeRecorder: RecorderService = {
     }),
 }
 
+// Answers the face frames with the given statuses in order, repeating the last
+// one, or fails to open a session with the given rejection.
+export function fakeLiveness(
+    statuses: LivenessStatus[] = [LivenessStatus.ScanCompleted],
+    rejection?: LivenessRejection
+): LivenessConnector {
+    return (): LivenessApi => {
+        let frame = 0
+        return {
+            createSession: async () => {
+                if (rejection !== undefined) throw new LivenessApiError(rejection)
+                return "fake-session"
+            },
+            checkFrame: async () => {
+                // Long enough for the checking state to show.
+                await new Promise((resolve) => setTimeout(resolve, 300))
+                const status = statuses[Math.min(frame, statuses.length - 1)]
+                frame += 1
+                return status
+            },
+            completeSession: async () => LivenessStatus.SessionCompleted,
+            abort: async () => undefined,
+        }
+    }
+}
+
 export function fakeServices(options: {
     document?: Script<DocumentStatus>
     face?: Script<FaceStatus>
     camera?: CameraService
     recorder?: RecorderService
+    liveness?: LivenessConnector
     analyzersFail?: boolean
 }): CaptureServices {
     return {
         camera: options.camera ?? syntheticCamera(sceneForFacing),
         recorder: options.recorder ?? fakeRecorder,
+        liveness: options.liveness ?? fakeLiveness(),
         loadAnalyzers: async (): Promise<Analyzers> => {
             if (options.analyzersFail) {
                 throw new Error("Synthetic analyzer failure")

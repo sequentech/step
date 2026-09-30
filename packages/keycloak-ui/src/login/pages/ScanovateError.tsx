@@ -34,6 +34,16 @@ const TIPS: Record<string, MessageKey[]> = {
         "scanovateIntroTipLight",
     ],
     scanovateAttributesError: ["scanovateTipSameDocument", "scanovateTipCheckDetails"],
+    scanovateFaceMismatchError: [
+        "scanovateTipSameDocument",
+        "scanovateTipFaceUncovered",
+        "scanovateTipLookAtCamera",
+    ],
+    scanovateFaceNotFoundError: [
+        "scanovateTipLight",
+        "scanovateTipFaceUncovered",
+        "scanovateTipCorners",
+    ],
     scanovateMaxTrialsError: ["scanovateTipCamera", "scanovateTipConnection", "scanovateTipLight"],
     scanovateInternalError: ["scanovateTipWait", "scanovateTipConnection"],
 }

@@ -14,9 +14,10 @@ public enum FaceCapture {
    */
   PHOTO("photo"),
   /**
-   * The on-premise Scanovate Liveness Plus service checks the voter's liveness in an iframe, and
-   * its picture of the voter is sent to B-Trust as the face photo. Only the ID is captured by
-   * Keycloak's own page.
+   * Keycloak's own page checks the voter's liveness with the API of the on-premise Scanovate
+   * Liveness Plus service and takes a photo of the voter holding the ID. Keycloak compares Liveness
+   * Plus's picture of the voter with the photo of the ID and the photo holding it using the
+   * on-premise Scanovate Face Match service. Only the photos of the ID are sent to B-Trust.
    */
   LIVENESS("liveness");
 

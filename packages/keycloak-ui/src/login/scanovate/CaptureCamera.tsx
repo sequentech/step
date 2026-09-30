@@ -56,6 +56,7 @@ import {
     type RecorderService,
     type Recording,
     type Size,
+    VideoOutput,
 } from "./types"
 import {VideoCommand, idleVideo, trackVideo} from "./video"
 
@@ -74,7 +75,6 @@ export const STEP_TITLES: Record<CaptureStep, MessageKey> = {
     [CaptureStep.Back]: "scanovateCaptureBackTitle",
     [CaptureStep.Face]: "scanovateCaptureFaceTitle",
     [CaptureStep.Video]: "scanovateCaptureVideoTitle",
-    [CaptureStep.Liveness]: "scanovateCaptureLivenessTitle",
 }
 
 const STEP_HEADINGS: Record<CaptureStep, [MessageKey, MessageKey]> = {
@@ -82,7 +82,6 @@ const STEP_HEADINGS: Record<CaptureStep, [MessageKey, MessageKey]> = {
     [CaptureStep.Back]: ["scanovateCaptureBackHeading", "scanovateCaptureBackText"],
     [CaptureStep.Face]: ["scanovateCaptureFaceHeading", "scanovateCaptureFaceText"],
     [CaptureStep.Video]: ["scanovateCaptureVideoHeading", "scanovateCaptureVideoText"],
-    [CaptureStep.Liveness]: ["scanovateCaptureLivenessHeading", "scanovateCaptureLivenessText"],
 }
 
 const CHIPS: Partial<Record<CaptureStep, MessageKey>> = {
@@ -96,7 +95,6 @@ const STEP_ICONS: Record<CaptureStep, () => ReactNode> = {
     [CaptureStep.Back]: IdCardIcon,
     [CaptureStep.Face]: FaceIcon,
     [CaptureStep.Video]: VideoIcon,
-    [CaptureStep.Liveness]: FaceIcon,
 }
 
 type Live = {
@@ -127,7 +125,6 @@ export function guidanceFor(step: CaptureStep, live: Live): Guidance {
         case CaptureStep.Back:
             return documentGuidance(step, live.document)
         case CaptureStep.Face:
-        case CaptureStep.Liveness:
             return faceGuidance(live.face)
         case CaptureStep.Video:
             return videoGuidance(live.face, live.document, live.recordingSeconds !== null)
@@ -146,6 +143,11 @@ export type CaptureCameraProps = {
     analyzers: Analyzers | null
     recorder: RecorderService
     videoSeconds: number
+    videoOutput: VideoOutput
+    // Bumped to capture again after the captured frame was rejected.
+    attempt: number
+    // Shown instead of the live guidance, e.g. while a frame is being checked.
+    hint: Guidance | null
     layout: StageLayout
     paused: boolean
     flash: boolean
@@ -164,6 +166,7 @@ type LoopInput = {
     mirrored: boolean
     paused: boolean
     videoSeconds: number
+    videoOutput: VideoOutput
     onCaptured: (step: CaptureStep, blob: Blob) => void
     onProblem: (problem: CaptureProblem) => void
 }
@@ -177,6 +180,9 @@ export default function CaptureCamera(props: CaptureCameraProps) {
         analyzers,
         recorder,
         videoSeconds,
+        videoOutput,
+        attempt,
+        hint,
         layout,
         paused,
         flash,
@@ -197,6 +203,8 @@ export default function CaptureCamera(props: CaptureCameraProps) {
     const sheet = useElementSize(sheetRef)
     const [live, setLive] = useState<Live>(WAITING)
     const [photoStep, setPhotoStep] = useState<CaptureStep | null>(null)
+    // A rejected frame lets the voter take the photo again.
+    useEffect(() => setPhotoStep(null), [attempt])
     const phone = layout === StageLayout.Phone
 
     const overlay =
@@ -213,7 +221,16 @@ export default function CaptureCamera(props: CaptureCameraProps) {
 
     const input = useRef<LoopInput | null>(null)
     useLayoutEffect(() => {
-        input.current = {stage, overlay, mirrored, paused, videoSeconds, onCaptured, onProblem}
+        input.current = {
+            stage,
+            overlay,
+            mirrored,
+            paused,
+            videoSeconds,
+            videoOutput,
+            onCaptured,
+            onProblem,
+        }
     })
 
     useEffect(() => {
@@ -364,7 +381,8 @@ export default function CaptureCamera(props: CaptureCameraProps) {
                     seconds,
                 })
                 tracker = next.tracker
-                if (next.command === VideoCommand.Start) {
+                const still = state.videoOutput === VideoOutput.Still
+                if (next.command === VideoCommand.Start && !still) {
                     try {
                         recording = recorder.start(stream, seconds)
                     } catch {
@@ -375,6 +393,11 @@ export default function CaptureCamera(props: CaptureCameraProps) {
                     recording?.cancel()
                     recording = null
                     analyzers.face.reset()
+                } else if (next.command === VideoCommand.Finish && still) {
+                    // The voter holding the ID, taken once they held it for the whole time.
+                    publish({...current, recordingSeconds: seconds})
+                    void capture()
+                    return
                 } else if (next.command === VideoCommand.Finish && recording !== null) {
                     const finished = recording
                     recording = null
@@ -397,12 +420,12 @@ export default function CaptureCamera(props: CaptureCameraProps) {
             recording?.cancel()
             setLive(WAITING)
         }
-    }, [stream, step, analyzers, recorder])
+    }, [stream, step, analyzers, recorder, attempt])
 
     const guidance: Guidance =
         stream === null
             ? {message: "scanovateCameraStarting", tone: Tone.Guide}
-            : guidanceFor(step, live)
+            : (hint ?? guidanceFor(step, live))
     const guidanceText = text(guidance.message)
     const announcement = useThrottledAnnouncement(
         flash ? text("scanovateCaptured").text : guidanceText.text,

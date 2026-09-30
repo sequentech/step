@@ -182,14 +182,6 @@ export const scanovateEnglish = {
     scanovateConfirmDocument: "ID",
     scanovateConfirmSubmit: "Confirm and enroll",
     scanovateConfirmRetry: "Scan my ID again",
-    scanovateIntroLeadLiveness:
-        "We will take photos of your {0} and then check your face with a short guided selfie to confirm it is you. It takes about 2 minutes.",
-    scanovateIntroLivenessHint: "A short selfie check, guided on screen.",
-    scanovateCaptureLivenessTitle: "Your face",
-    scanovateCaptureLivenessHeading: "Now, a quick selfie check",
-    scanovateCaptureLivenessText:
-        "Follow the instructions on screen and keep your face in the frame until the check ends.",
-    scanovateLivenessFrameTitle: "Face check",
     scanovateLivenessFailedTitle: "The face check didn’t finish",
     scanovateLivenessFailedText:
         "Check your internet connection, stay in a well-lit place and try the face check again.",
@@ -200,6 +192,10 @@ export const scanovateEnglish = {
     scanovateCheckingReceivedLiveness: "Photos and face check received",
     scanovateLivenessError:
         "We could not confirm that it was you in front of the camera. Please try again.",
+    scanovateLivenessChecking: "Checking your face, hold still…",
+    scanovateFaceMismatchError: "The face in your photos doesn’t match the photo on your ID.",
+    scanovateFaceNotFoundError:
+        "We couldn’t find your face on your ID or in the photo of you holding it. Make sure the photo on your ID is clear and not covered.",
     dateOfBirth: "Date of birth",
     "sequent.read-only.id-card-number": "ID number",
 } as const
@@ -386,14 +382,6 @@ export const scanovateSpanish: Record<keyof typeof scanovateEnglish, string> = {
     scanovateConfirmDocument: "Documento",
     scanovateConfirmSubmit: "Confirmar e inscribirme",
     scanovateConfirmRetry: "Volver a escanear mi documento",
-    scanovateIntroLeadLiveness:
-        "Tomaremos fotos de su {0} y luego comprobaremos su cara con un breve selfi guiado para confirmar que es usted. Tarda unos 2 minutos.",
-    scanovateIntroLivenessHint: "Un breve selfi, guiado en pantalla.",
-    scanovateCaptureLivenessTitle: "Su cara",
-    scanovateCaptureLivenessHeading: "Ahora, un selfi rápido",
-    scanovateCaptureLivenessText:
-        "Siga las instrucciones en pantalla y mantenga la cara en el marco hasta que termine.",
-    scanovateLivenessFrameTitle: "Comprobación facial",
     scanovateLivenessFailedTitle: "La comprobación facial no terminó",
     scanovateLivenessFailedText:
         "Compruebe su conexión a internet, busque un lugar bien iluminado y vuelva a intentar la comprobación facial.",
@@ -404,6 +392,10 @@ export const scanovateSpanish: Record<keyof typeof scanovateEnglish, string> = {
     scanovateCheckingReceivedLiveness: "Fotos y comprobación facial recibidas",
     scanovateLivenessError:
         "No pudimos confirmar que era usted quien estaba frente a la cámara. Vuelva a intentarlo.",
+    scanovateLivenessChecking: "Comprobando su cara, no se mueva…",
+    scanovateFaceMismatchError: "La cara de sus fotos no coincide con la foto de su documento.",
+    scanovateFaceNotFoundError:
+        "No encontramos su cara en su documento ni en la foto en la que lo sostiene. Asegúrese de que la foto de su documento se vea bien y no esté tapada.",
     dateOfBirth: "Fecha de nacimiento",
     "sequent.read-only.id-card-number": "Número de documento",
 }

@@ -38,11 +38,12 @@ export enum ScanovateSide {
     Back = "BACK",
 }
 
-// The Liveness Plus iframe, when it checks the voter's face instead of our camera.
+// The Liveness Plus API that checks the voter's face frames, with Keycloak's
+// one-time token for it. Only present with the liveness face capture.
 export type ScanovateLiveness = {
     url: string
-    origin: string
-    languages: string[]
+    token: string
+    caseId: string
 }
 
 export type ScanovateCaptureSettings = {

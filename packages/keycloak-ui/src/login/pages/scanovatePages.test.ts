@@ -26,6 +26,8 @@ describe("tipsFor", () => {
     it("chooses tips for the reason of the failure", () => {
         expect(tipsFor("scanovateAttributesError")).toContain("scanovateTipSameDocument")
         expect(tipsFor("scanovateDocumentAuthenticationError")).toContain("scanovateTipCorners")
+        expect(tipsFor("scanovateFaceMismatchError")).toContain("scanovateTipSameDocument")
+        expect(tipsFor("scanovateFaceNotFoundError")).toContain("scanovateTipFaceUncovered")
     })
 
     it("falls back to the capture tips for other errors", () => {

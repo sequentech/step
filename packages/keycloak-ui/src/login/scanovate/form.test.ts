@@ -1,8 +1,8 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
 import {afterEach, describe, expect, it} from "vitest"
-import {CAPTURE_PARTS, captureFile, populateCaptureForm} from "./form"
-import {CaptureStep} from "./types"
+import {CapturePart, captureFile, populateCaptureForm} from "./form"
+import {CaptureStep, FaceCheck} from "./types"
 
 const jpeg = new Blob([new Uint8Array([0xff, 0xd8, 0xff])], {type: "image/jpeg"})
 const mp4 = new Blob([new Uint8Array([0, 0, 0, 0x18])], {type: "video/mp4"})
@@ -16,7 +16,7 @@ function captureForm(): HTMLFormElement {
     action.name = "action"
     action.value = "capture"
     form.append(action)
-    for (const part of Object.values(CAPTURE_PARTS)) {
+    for (const part of Object.values(CapturePart)) {
         const input = document.createElement("input")
         input.type = "file"
         input.name = part
@@ -32,9 +32,10 @@ afterEach(() => {
 
 describe("captureFile", () => {
     it("names every part so the server treats it as a file", () => {
-        expect(captureFile(CaptureStep.Front, jpeg).name).toBe("front.jpg")
-        expect(captureFile(CaptureStep.Video, mp4).name).toBe("video.mp4")
-        const webm = captureFile(CaptureStep.Video, new Blob([], {type: "video/webm;codecs=vp8"}))
+        expect(captureFile(CapturePart.Front, jpeg).name).toBe("front.jpg")
+        expect(captureFile(CapturePart.Video, mp4).name).toBe("video.mp4")
+        expect(captureFile(CapturePart.Holding, jpeg).name).toBe("holding.jpg")
+        const webm = captureFile(CapturePart.Video, new Blob([], {type: "video/webm;codecs=vp8"}))
         expect(webm.name).toBe("video.webm")
         expect(webm.type).toBe("video/webm")
     })
@@ -43,12 +44,16 @@ describe("captureFile", () => {
 describe("populateCaptureForm", () => {
     it("sends the photos and the video as multipart files", () => {
         const form = captureForm()
-        populateCaptureForm(form, {
-            [CaptureStep.Front]: jpeg,
-            [CaptureStep.Back]: jpeg,
-            [CaptureStep.Face]: jpeg,
-            [CaptureStep.Video]: mp4,
-        })
+        populateCaptureForm(
+            form,
+            {
+                [CaptureStep.Front]: jpeg,
+                [CaptureStep.Back]: jpeg,
+                [CaptureStep.Face]: jpeg,
+                [CaptureStep.Video]: mp4,
+            },
+            FaceCheck.Photo
+        )
         const data = new FormData(form)
         expect(data.get("action")).toBe("capture")
         for (const [part, name, type] of [
@@ -66,13 +71,39 @@ describe("populateCaptureForm", () => {
 
     it("leaves out the back when the document has none", () => {
         const form = captureForm()
-        populateCaptureForm(form, {
-            [CaptureStep.Front]: jpeg,
-            [CaptureStep.Face]: jpeg,
-            [CaptureStep.Video]: mp4,
-        })
+        populateCaptureForm(
+            form,
+            {
+                [CaptureStep.Front]: jpeg,
+                [CaptureStep.Face]: jpeg,
+                [CaptureStep.Video]: mp4,
+            },
+            FaceCheck.Photo
+        )
         const data = new FormData(form)
         expect(data.has("back")).toBe(false)
         expect(data.has("front")).toBe(true)
+    })
+
+    it("sends the ID and the photo holding it with liveness, not the face", () => {
+        const form = captureForm()
+        populateCaptureForm(
+            form,
+            {
+                [CaptureStep.Front]: jpeg,
+                [CaptureStep.Back]: jpeg,
+                [CaptureStep.Face]: jpeg,
+                [CaptureStep.Video]: jpeg,
+            },
+            FaceCheck.Liveness
+        )
+        const data = new FormData(form)
+        expect(data.has("face")).toBe(false)
+        expect(data.has("video")).toBe(false)
+        expect((data.get("front") as File).name).toBe("front.jpg")
+        expect((data.get("back") as File).name).toBe("back.jpg")
+        const holding = data.get("holding") as File
+        expect(holding.name).toBe("holding.jpg")
+        expect(holding.type).toBe("image/jpeg")
     })
 })
