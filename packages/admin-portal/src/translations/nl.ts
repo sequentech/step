@@ -2869,7 +2869,7 @@ const dutchTranslation: TranslationType = {
                 dashboard: "Dashboard",
                 widgets_one: "{{count}} widget",
                 widgets_other: "{{count}} widgets",
-                updated: "Bijgewerkt {{time}}",
+                updated: "Bijgewerkt {{time}} ({{timeZone}})",
                 notUpdated: "Nog niet geteld",
                 refresh: "elke {{seconds}} s",
                 export: "Exporteren",

@@ -2868,7 +2868,7 @@ const spanishTranslation: TranslationType = {
                 dashboard: "Panel",
                 widgets_one: "{{count}} widget",
                 widgets_other: "{{count}} widgets",
-                updated: "Actualizado {{time}}",
+                updated: "Actualizado {{time}} ({{timeZone}})",
                 notUpdated: "Aún sin recuento",
                 refresh: "cada {{seconds}} s",
                 export: "Exportar",

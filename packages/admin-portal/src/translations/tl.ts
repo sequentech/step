@@ -2877,7 +2877,7 @@ const tagalogTranslation: TranslationType = {
                 dashboard: "Dashboard",
                 widgets_one: "{{count}} widget",
                 widgets_other: "{{count}} widget",
-                updated: "Na-update {{time}}",
+                updated: "Na-update {{time}} ({{timeZone}})",
                 notUpdated: "Hindi pa nabibilang",
                 refresh: "bawat {{seconds}} s",
                 export: "I-export",

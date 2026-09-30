@@ -2857,7 +2857,7 @@ const basqueTranslation: TranslationType = {
                 dashboard: "Panela",
                 widgets_one: "Widget {{count}}",
                 widgets_other: "{{count}} widget",
-                updated: "Eguneratua: {{time}}",
+                updated: "Eguneratua: {{time}} ({{timeZone}})",
                 notUpdated: "Oraindik zenbatu gabe",
                 refresh: "{{seconds}} s-ro",
                 export: "Esportatu",

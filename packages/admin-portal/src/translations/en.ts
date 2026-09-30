@@ -2838,7 +2838,7 @@ const englishTranslation = {
                 dashboard: "Dashboard",
                 widgets_one: "{{count}} widget",
                 widgets_other: "{{count}} widgets",
-                updated: "Updated {{time}}",
+                updated: "Updated {{time}} ({{timeZone}})",
                 notUpdated: "Not counted yet",
                 refresh: "every {{seconds}} s",
                 export: "Export",

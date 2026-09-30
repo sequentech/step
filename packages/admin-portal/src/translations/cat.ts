@@ -2882,7 +2882,7 @@ const catalanTranslation: TranslationType = {
                 dashboard: "Tauler",
                 widgets_one: "{{count}} giny",
                 widgets_other: "{{count}} ginys",
-                updated: "Actualitzat {{time}}",
+                updated: "Actualitzat {{time}} ({{timeZone}})",
                 notUpdated: "Encara sense recompte",
                 refresh: "cada {{seconds}} s",
                 export: "Exportar",

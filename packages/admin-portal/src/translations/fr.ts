@@ -2887,7 +2887,7 @@ const frenchTranslation: TranslationType = {
                 dashboard: "Tableau de bord",
                 widgets_one: "{{count}} widget",
                 widgets_other: "{{count}} widgets",
-                updated: "Mis à jour {{time}}",
+                updated: "Mis à jour {{time}} ({{timeZone}})",
                 notUpdated: "Pas encore compté",
                 refresh: "toutes les {{seconds}} s",
                 export: "Exporter",

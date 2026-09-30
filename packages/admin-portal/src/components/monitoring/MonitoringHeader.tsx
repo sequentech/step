@@ -26,7 +26,7 @@ export interface MonitoringHeaderProps {
     onEditDashboard?: () => void
 }
 
-/** {dashboard} ▾ · {n} widgets · {requirement IDs} · Updated {time} · every {n} s · Export · Edit dashboard */
+/** {dashboard} ▾ · {n} widgets · {requirement IDs} · Updated {time} ({zone}) · every {n} s · Export · Edit dashboard */
 export function MonitoringHeader({
     title,
     dashboards,
@@ -47,6 +47,8 @@ export function MonitoringHeader({
         snapshot
             ? t("monitoring.header.updated", {
                   time: formatDateTime(snapshot.as_of, timeZone, i18n.language),
+                  // The event's zone, which is not necessarily the viewer's.
+                  timeZone,
               })
             : t("monitoring.header.notUpdated"),
         t("monitoring.header.refresh", {seconds: Math.round(refreshMs / 1000)}),
