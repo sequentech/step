@@ -550,7 +550,7 @@ def describe_plan(options: Options, realm: str, areas: Sequence[Area]) -> list[s
 EVENT = """query ($tenant: uuid!, $event: uuid!) {
   sequent_backend_election_event(
     where: {tenant_id: {_eq: $tenant}, id: {_eq: $event}}
-  ) { id name }
+  ) { id }
   sequent_backend_area(
     where: {tenant_id: {_eq: $tenant}, election_event_id: {_eq: $event}}
   ) { id name }
