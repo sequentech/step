@@ -40,3 +40,31 @@ omitted. A decrypted voter-export document remains restricted: downloading it ch
 Assign read and write independently where duties require it. For example, an import operator can
 receive secret-write without secret-read, while a support operator who must inspect a value can
 receive secret-read without permission to change it.
+
+## Monitoring Dashboard Permissions
+
+Once an election event is set up for monitoring, its **Dashboard** tab shows the event's monitoring
+dashboards, and each election's **Dashboard** tab shows them for that election's Post. Two
+permissions govern them:
+
+| Permission | Allows |
+|---|---|
+| `monitoring-view` | See the monitoring dashboards, view a widget's data and export it. |
+| `monitoring-configure` | Edit widgets, dashboards and themes, and reset the event to a preset. |
+
+The tab itself still needs `admin-dashboard-view` on the event, or `election-dashboard-tab` on an
+election. With the tab but without `monitoring-view`, a user sees the standard dashboard. Permission
+labels still apply: a user whose roles carry labels sees only the elections those labels allow, and
+cannot choose any other.
+
+Configuring changes the event, so it also needs `election-event-write`, and it is not possible once
+the event is locked down.
+
+New tenant realms come with both permissions: the default tenant realm template and the COMELEC
+template grant both to the `admin` group and only `monitoring-view` to `admin-light`. A deployment
+that stores the tenant template in S3 (`KEYCLOAK_TENANT_REALM_CONFIG_S3_KEY`) must upload the updated
+template before new tenants get them. Existing realms are not changed; grant the permissions to the
+intended roles by hand.
+
+See [Monitoring](../../02-election-event/02-election_management_election-event_monitoring.md) for what
+each permission shows and allows.

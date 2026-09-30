@@ -285,6 +285,12 @@ impl StatementHead {
                     ..default_head
                 }
             }
+            StatementBody::MonitoringConfigChanged(_, details) => StatementHead {
+                kind: StatementType::MonitoringConfigChanged,
+                event_type: StatementEventType::USER,
+                description: monitoring_config_description(details),
+                ..default_head
+            },
             StatementBody::ResultsPublicationAction(details) => {
                 let action = match details.action {
                     ResultsPublicationAction::Publish => "published",
@@ -307,6 +313,49 @@ impl StatementHead {
             }
         }
     }
+}
+
+fn monitoring_config_description(details: &MonitoringConfigChangeDetails) -> String {
+    let removed = details
+        .revisions
+        .iter()
+        .filter(|revision| revision.action == MonitoringConfigChangeAction::Delete)
+        .count();
+    let counts = match details.revisions.len() {
+        0 => "no document changed".to_string(),
+        written => {
+            let saved = written - removed;
+            let noun = if saved == 1 { "document" } else { "documents" };
+            format!("{saved} {noun} saved and {removed} removed")
+        }
+    };
+    let changes = match (
+        details.origin,
+        details.preset.as_ref(),
+        details.revisions.as_slice(),
+    ) {
+        (MonitoringConfigOrigin::Preset, Some(preset), _) => format!(
+            "reset to preset {} version {}, {counts}",
+            preset.id.0, preset.version
+        ),
+        (MonitoringConfigOrigin::Preset, None, _) => format!("reset to a preset, {counts}"),
+        (MonitoringConfigOrigin::Editor, _, []) => format!("Dashboard tab switched, {counts}"),
+        (MonitoringConfigOrigin::Editor, _, [revision]) => format!(
+            "{} {} revision {} {}",
+            revision.kind.0,
+            revision.key.0,
+            revision.revision,
+            match revision.action {
+                MonitoringConfigChangeAction::Upsert => "saved",
+                MonitoringConfigChangeAction::Delete => "removed",
+            }
+        ),
+        (MonitoringConfigOrigin::Editor, _, _) => counts,
+    };
+    format!(
+        "Monitoring configuration generation {} (dashboard {}): {changes}.",
+        details.generation, details.mode
+    )
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Deserialize, Serialize, Debug)]
@@ -437,6 +486,9 @@ pub enum StatementBody {
         ExternalReconciliationInputHashString,
         ExternalReconciliationOutputHashString,
     ),
+    /// Records a change to an election event's monitoring dashboards
+    /// configuration. The digests bind each entry to the stored document.
+    MonitoringConfigChanged(EventIdString, MonitoringConfigChangeDetails),
 }
 
 // Note: When creating new variants, consider that the length limit STATEMENT_KIND_VARCHAR_LENGTH is 40.
@@ -471,6 +523,7 @@ pub enum StatementType {
     ResultsPublicationAction,
     ExternalApiRequest,
     ExternalReconciliation,
+    MonitoringConfigChanged,
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Display, Deserialize, Serialize, Debug, Clone)]
@@ -492,3 +545,7 @@ pub enum StatementLogType {
 #[cfg(test)]
 #[path = "../../tests/support/statement_results_publication_tests.rs"]
 mod results_publication_tests;
+
+#[cfg(test)]
+#[path = "../../tests/support/statement_monitoring_config_tests.rs"]
+mod monitoring_config_tests;

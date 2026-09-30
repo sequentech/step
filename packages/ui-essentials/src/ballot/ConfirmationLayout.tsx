@@ -273,7 +273,9 @@ export const ConfirmationLayout: React.FC<IConfirmationLayoutProps> = ({
                                 className="ballot-id-value ballot-id-value-desktop"
                                 href={ballotIdHref}
                                 target={
-                                    ballotIdHref === undefined ? undefined : (ballotIdTarget ?? undefined)
+                                    ballotIdHref === undefined
+                                        ? undefined
+                                        : (ballotIdTarget ?? undefined)
                                 }
                                 sx={{display: {xs: "none", sm: "block"}}}
                                 onClick={onBallotIdClick}
@@ -286,7 +288,9 @@ export const ConfirmationLayout: React.FC<IConfirmationLayoutProps> = ({
                                 className="ballot-id-value ballot-id-value-mobile"
                                 href={ballotIdHref}
                                 target={
-                                    ballotIdHref === undefined ? undefined : (ballotIdTarget ?? undefined)
+                                    ballotIdHref === undefined
+                                        ? undefined
+                                        : (ballotIdTarget ?? undefined)
                                 }
                                 sx={{display: {xs: "block", sm: "none"}}}
                                 onClick={onBallotIdClick}

@@ -102,7 +102,7 @@
             ];
             buildPhase = ''
               echo 'Build: wasm-pack build'
-              wasm-pack build --out-name index --release --target web --features=wasmtest,default_features
+              wasm-pack build --out-name index --release --target web --features=wasmtest,default_features,monitoring
             '';
             installPhase = "
               # set HOME temporarily to fix npm pack

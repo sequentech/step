@@ -1,0 +1,36 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# Every Post in scope with its current state.
+id: status-by-post
+title: Status by Post
+description: The current state of each Post in scope.
+source: poll_status
+requirements: [SW-F-0256, SW-F-0257, SW-F-0258, SW-F-0262, SW-F-0368, SW-F-0369, SW-F-0370]
+query:
+  template: by_post
+  measures: [posts]
+  sort: {by: label, order: asc}
+height: 360
+chart:
+  charts:
+    posts:
+      type: table
+      query: data
+      style:
+        columns:
+          post: {label: Post}
+          post_id: {visible: false}
+          position: {visible: false}
+          region: {label: Region}
+          state: {visible: false}
+          state_label: {label: Status}
+          posts: {visible: false}
+      conditional_formatting:
+        state_label:
+          when:
+            - {eq: Opened, background: positive.bg}
+            - {eq: Paused, background: warning.bg}
+            - {eq: Closed, background: dbt-grays.border}
+  rows: [posts]

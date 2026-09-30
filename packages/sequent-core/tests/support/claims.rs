@@ -80,6 +80,13 @@ impl Claims {
         self
     }
 
+    /// The permission labels, in the Postgres array text Keycloak sends.
+    pub fn permission_labels(mut self, labels: &[&str]) -> Self {
+        self.0[HASURA_CLAIMS]["x-hasura-permission-labels"] =
+            json!(format!("{{{}}}", labels.join(",")));
+        self
+    }
+
     pub fn build(&self) -> JwtClaims {
         serde_json::from_value(self.0.clone())
             .expect("synthetic claims should match the public claims schema")

@@ -41,6 +41,7 @@ pub enum ETasksExecution {
     GENERATE_BALLOT_PUBLICATION,
     PUBLISH_BALLOT,
     VOTER_INFORMATION_LETTER,
+    EXPORT_MONITORING_DATA,
 }
 
 impl ETasksExecution {
@@ -81,6 +82,7 @@ impl ETasksExecution {
             ETasksExecution::GENERATE_BALLOT_PUBLICATION => "Generate Ballot Publication",
             ETasksExecution::PUBLISH_BALLOT => "Publish Ballot",
             ETasksExecution::VOTER_INFORMATION_LETTER => "Voter Information Letter",
+            ETasksExecution::EXPORT_MONITORING_DATA => "Export Monitoring Data",
         }
     }
 }

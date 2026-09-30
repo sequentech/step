@@ -1,0 +1,22 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# Failed sign-ins and password resets, for the helpdesk.
+id: sign-in-problems
+title: Sign-in problems
+description: Counted in attempts, not electors.
+source: access_security
+query:
+  template: by_measure
+  measures: [login_failures, password_resets]
+  labels: {login_failures: Failed sign-ins, password_resets: Password reset}
+height: 160
+chart:
+  charts:
+    problems:
+      type: spark_bar
+      query: data
+      x: value
+      y: label
+  rows: [problems]

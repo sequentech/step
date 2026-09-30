@@ -296,9 +296,9 @@ describe("contest external-ID CSS hooks", () => {
     it.each(["vote", "review"])(
         "preserves legacy classes and sanitizes external IDs on %s",
         (path) => {
-            const contests = mockState.ballotStyles["election-1"].ballot_eml.contests
+            const contests = mockState.ballotStyles["election-1"]!.ballot_eml.contests
             const externalIds = ["1001", " A /B_2- ", undefined, null, "", " / ", "x".repeat(50)]
-            mockState.ballotStyles["election-1"].ballot_eml.contests = externalIds.map(
+            mockState.ballotStyles["election-1"]!.ballot_eml.contests = externalIds.map(
                 (external_id, index) => ({
                     ...contests[0],
                     id: `imported-${index}`,
@@ -323,7 +323,7 @@ describe("contest external-ID CSS hooks", () => {
     )
 
     it("keeps external IDs across voting pages and reordered review contests", async () => {
-        const contests = mockState.ballotStyles["election-1"].ballot_eml.contests
+        const contests = mockState.ballotStyles["election-1"]!.ballot_eml.contests
         Object.assign(contests[0], {external_id: "1001"})
         Object.assign(contests[1], {external_id: "1002"})
         const vote = renderRoute(<VotingScreen />, "vote")

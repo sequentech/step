@@ -1,0 +1,343 @@
+{
+  "charts": {
+    "countries": {
+      "query": "data",
+      "style": {
+        "columns": {
+          "denominator": {
+            "visible": false
+          },
+          "group": {
+            "label": "Country"
+          },
+          "group_key": {
+            "visible": false
+          },
+          "numerator": {
+            "visible": false
+          },
+          "pct": {
+            "visible": false
+          },
+          "pct_label": {
+            "align": "right",
+            "label": "Share"
+          },
+          "position": {
+            "visible": false
+          },
+          "pre_enrolled": {
+            "align": "right",
+            "format": "integer",
+            "label": "Pre-enrolled"
+          },
+          "registered": {
+            "align": "right",
+            "format": "integer",
+            "label": "Registered"
+          },
+          "voted": {
+            "align": "right",
+            "format": "integer",
+            "label": "Voted"
+          }
+        },
+        "pagination": {
+          "enabled": false
+        }
+      },
+      "type": "table"
+    }
+  },
+  "queries": {
+    "data": {
+      "columns": [
+        "group",
+        "group_key",
+        "position",
+        "registered",
+        "pre_enrolled",
+        "voted",
+        "numerator",
+        "denominator",
+        "pct",
+        "pct_label"
+      ],
+      "values": [
+        [
+          "Qatar",
+          "Qatar",
+          1,
+          80,
+          31,
+          11,
+          2,
+          31,
+          0.06451612903225806,
+          "6.5%"
+        ],
+        [
+          "Australia",
+          "Australia",
+          2,
+          88,
+          34,
+          12,
+          2,
+          34,
+          0.058823529411764705,
+          "5.9%"
+        ],
+        [
+          "Japan",
+          "Japan",
+          3,
+          135,
+          36,
+          13,
+          2,
+          36,
+          0.05555555555555555,
+          "5.6%"
+        ],
+        [
+          "Singapore",
+          "Singapore",
+          4,
+          110,
+          42,
+          15,
+          2,
+          42,
+          0.047619047619047616,
+          "4.8%"
+        ],
+        [
+          "United States",
+          "United States",
+          5,
+          54,
+          21,
+          7,
+          1,
+          21,
+          0.047619047619047616,
+          "4.8%"
+        ],
+        [
+          "United Kingdom",
+          "United Kingdom",
+          6,
+          117,
+          45,
+          16,
+          2,
+          45,
+          0.044444444444444446,
+          "4.4%"
+        ],
+        [
+          "Spain",
+          "Spain",
+          7,
+          122,
+          47,
+          17,
+          2,
+          47,
+          0.0425531914893617,
+          "4.3%"
+        ],
+        [
+          "Kuwait",
+          "Kuwait",
+          8,
+          90,
+          24,
+          9,
+          1,
+          24,
+          0.041666666666666664,
+          "4.2%"
+        ],
+        [
+          "Italy",
+          "Italy",
+          9,
+          143,
+          54,
+          13,
+          2,
+          54,
+          0.037037037037037035,
+          "3.7%"
+        ],
+        [
+          "Canada",
+          "Canada",
+          10,
+          71,
+          27,
+          9,
+          1,
+          27,
+          0.037037037037037035,
+          "3.7%"
+        ],
+        [
+          "United Arab Emirates",
+          "United Arab Emirates",
+          11,
+          101,
+          38,
+          10,
+          1,
+          38,
+          0.02631578947368421,
+          "2.6%"
+        ],
+        [
+          "Unknown",
+          "__unknown__",
+          12,
+          59,
+          22,
+          6,
+          1,
+          22,
+          0.045454545454545456,
+          "4.5%"
+        ]
+      ]
+    }
+  },
+  "rows": [
+    "countries"
+  ],
+  "style": {
+    "accent": "#0F054C",
+    "charts": {
+      "axis": {
+        "title": {
+          "font": {
+            "case": "none"
+          }
+        }
+      },
+      "axis_quantitative": {
+        "labels": {
+          "font": {
+            "family": "'Inter Variable', Inter, system-ui, sans-serif"
+          }
+        }
+      },
+      "callout": {
+        "title": {
+          "font": {
+            "case": "none"
+          }
+        }
+      },
+      "category_colors": {
+        "group": {
+          "values": {
+            "Unknown": "dbt-grays.muted"
+          }
+        }
+      },
+      "color": {
+        "categorical": {
+          "palette": [
+            "#0F054C",
+            "#43E3A1",
+            "#7C6FE0",
+            "#F59E0B",
+            "#0EA5E9",
+            "#DC2626"
+          ],
+          "single_series_palette": [
+            "#0F054C"
+          ]
+        }
+      },
+      "kpi": {
+        "font": {
+          "family": "'Inter Variable', Inter, system-ui, sans-serif"
+        },
+        "label": {
+          "font": {
+            "case": "none"
+          }
+        },
+        "value": {
+          "font": {
+            "family": "'Inter Variable', Inter, system-ui, sans-serif"
+          }
+        }
+      },
+      "legend": {
+        "title": {
+          "visible": false
+        }
+      },
+      "pie": {
+        "total": {
+          "value": {
+            "font": {
+              "family": "'Inter Variable', Inter, system-ui, sans-serif"
+            }
+          }
+        }
+      },
+      "spark_bar": {
+        "bar": {
+          "height": 20
+        },
+        "count": {
+          "width": 64
+        },
+        "label": {
+          "width": 220
+        }
+      },
+      "support_table": {
+        "font": {
+          "family": "'Inter Variable', Inter, system-ui, sans-serif"
+        },
+        "label": {
+          "font": {
+            "case": "none"
+          }
+        }
+      },
+      "table": {
+        "header": {
+          "font": {
+            "case": "none"
+          }
+        }
+      }
+    },
+    "font": {
+      "family": "'Inter Variable', Inter, system-ui, sans-serif"
+    },
+    "footer": {
+      "visible": false
+    },
+    "text": {
+      "font": {
+        "family": "'Inter Variable', Inter, system-ui, sans-serif"
+      }
+    },
+    "timestamp": {
+      "visible": false
+    },
+    "title": {
+      "font": {
+        "case": "none",
+        "family": "'Inter Variable', Inter, system-ui, sans-serif"
+      }
+    }
+  },
+  "theme": "clarity"
+}

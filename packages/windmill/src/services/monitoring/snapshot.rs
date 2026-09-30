@@ -1,0 +1,1640 @@
+// SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
+//! The snapshot job's passes, and how Harvest and the export read what they
+//! counted.
+//!
+//! A pass of an event, under the event's lock:
+//! 1. brings `monitoring_voter` up to date (its own transaction);
+//! 2. records the set of every election of the event, then a RUNNING run
+//!    (each in its own transaction, so a failure can be recorded against
+//!    the run), after marking FAILED any run a crash left RUNNING;
+//! 3. in one REPEATABLE READ transaction, reads digests of everything it
+//!    counts from ([`CountedInputs`]). When they are the shown run's, it
+//!    counts nothing. Otherwise it counts every source for every set of
+//!    elections viewers asked for, writes only the scopes whose figures
+//!    changed, records whether each source was counted and what from,
+//!    completes the run and shows it. When nothing changed it writes
+//!    nothing: it deletes its run and marks the shown one checked instead,
+//!    so viewers keep the revision they have;
+//! 4. prunes the runs replaced more than the export window ago, then the
+//!    figures and payloads no kept run holds (its own transaction).
+//!
+//! The tables' triggers hold the protocol (see the migration); this module
+//! follows it.
+
+use super::config_store::get_live_config;
+use super::producers::{
+    poll_state, produce, voting_status, zone_of, ElectionSet, Enrollment, EventFacts, LoginRow,
+    Post, SourceFigures, SourceStatus, VoterRow,
+};
+use super::projection::{load_event_places, refresh_voter_projection};
+use crate::postgres::monitoring_config::EventRef;
+use crate::types::miru_plugin::{MiruServerDocumentStatus, MiruTallySessionData};
+use anyhow::{anyhow, Context, Result};
+use chrono::{DateTime, Duration, NaiveDate, Utc};
+use deadpool_postgres::{Client, Transaction};
+use futures::TryStreamExt;
+use sequent_core::monitoring::config::{ConfigKind, Settings};
+use sequent_core::monitoring::payload::ScopePayload;
+use sequent_core::monitoring::revision::DashboardMode;
+use sequent_core::monitoring::scope::{election_set_key, ScopeKey};
+use sequent_core::monitoring::sources::{DataSourceId, PendingProducer, PostState};
+use sequent_core::monitoring::voter::dimension_value;
+use sequent_core::types::ceremonies::TallyExecutionStatus;
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
+use sha2::{Digest, Sha256};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
+use tokio_postgres::error::SqlState;
+use tokio_postgres::IsolationLevel;
+use tracing::{error, info, instrument, warn};
+use uuid::Uuid;
+
+/// How long a run stays readable after a later one is shown: what an export
+/// of a figure a viewer saw can still name.
+pub const EXPORT_WINDOW: Duration = Duration::hours(2);
+
+/// How long a set of elections nobody asks for again is still counted.
+pub const SET_KEPT_FOR: Duration = Duration::hours(24);
+
+/// How often a viewer asking for a set refreshes when it was last asked for.
+pub const SET_REQUEST_EVERY: Duration = Duration::minutes(5);
+
+/// How long a pass trusts that the inputs a run was counted from still give
+/// its figures: at least this often it counts again, so the figures follow
+/// what no digest covers, such as producers deployed without a new version.
+pub const RECOUNT_EVERY: Duration = Duration::minutes(10);
+
+/// What reads the inputs and counts from them: a change to what a pass
+/// counts from, or to what the producers count (a new measure, say), bumps
+/// the leading number, so no run recorded before is trusted.
+const INPUTS_READER: &str = concat!("2/", env!("CARGO_PKG_VERSION"));
+
+/// What a pass counts from, recorded with the run it showed
+/// (`monitoring_snapshot_run.counted_inputs`). Two passes that find the same
+/// inputs count the same figures: each digest covers rows [`load_facts`] or
+/// the sets of elections asked for read, in a set order, and the rest is
+/// what they are read under. A column the pass reads and a digest leaves out
+/// would let it keep figures it should have counted again.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CountedInputs {
+    pub version: String,
+    pub settings_revision: i32,
+    pub config_generation: i64,
+    /// Of the settings as the pass had them, whatever their revision says.
+    pub settings: String,
+    /// The day ages are counted on.
+    pub day: NaiveDate,
+    /// Every column of the event's `monitoring_voter` rows.
+    pub voters: String,
+    pub elections: String,
+    pub areas: String,
+    /// Which elections each area votes in.
+    pub area_elections: String,
+    pub tally_sessions: String,
+    /// Every column of the event's sign-in counters.
+    pub logins: String,
+    /// The sets of elections still asked for.
+    pub sets: String,
+    pub counted_at: DateTime<Utc>,
+}
+
+impl CountedInputs {
+    /// What moved since `earlier`, the inputs of the shown run; nothing when
+    /// counting again would count its figures.
+    pub fn moved_since(&self, earlier: &CountedInputs) -> Vec<&'static str> {
+        let fields: [(&'static str, bool); 12] = [
+            ("version", self.version != earlier.version),
+            (
+                "settings_revision",
+                self.settings_revision != earlier.settings_revision,
+            ),
+            (
+                "config_generation",
+                self.config_generation != earlier.config_generation,
+            ),
+            ("settings", self.settings != earlier.settings),
+            ("day", self.day != earlier.day),
+            ("voters", self.voters != earlier.voters),
+            ("elections", self.elections != earlier.elections),
+            ("areas", self.areas != earlier.areas),
+            (
+                "area_elections",
+                self.area_elections != earlier.area_elections,
+            ),
+            (
+                "tally_sessions",
+                self.tally_sessions != earlier.tally_sessions,
+            ),
+            ("logins", self.logins != earlier.logins),
+            ("sets", self.sets != earlier.sets),
+        ];
+        let mut moved: Vec<&'static str> = fields
+            .into_iter()
+            .filter(|(_, moved)| *moved)
+            .map(|(field, _)| field)
+            .collect();
+        // A clock that went back is as untrusted as one far ahead.
+        let age = self.counted_at - earlier.counted_at;
+        if age >= RECOUNT_EVERY || age < Duration::zero() {
+            moved.push("counted_at");
+        }
+        moved
+    }
+}
+
+/// A complete run.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LiveSnapshot {
+    pub revision: i64,
+    pub as_of: DateTime<Utc>,
+    pub checked_at: Option<DateTime<Utc>>,
+    pub settings_revision: i32,
+    pub config_generation: i64,
+}
+
+fn live_from(row: &tokio_postgres::Row) -> LiveSnapshot {
+    LiveSnapshot {
+        revision: row.get("revision"),
+        as_of: row.get("as_of"),
+        checked_at: row.get("checked_at"),
+        settings_revision: row.get("settings_revision"),
+        config_generation: row.get("config_generation"),
+    }
+}
+
+/// The run viewers are shown; `None` before the first completes.
+#[instrument(err, skip(transaction))]
+pub async fn live_snapshot(
+    transaction: &Transaction<'_>,
+    event: EventRef,
+) -> Result<Option<LiveSnapshot>> {
+    let row = transaction
+        .query_opt(
+            "SELECT r.revision, r.as_of, r.checked_at, r.settings_revision, r.config_generation
+             FROM sequent_backend.monitoring_snapshot_state s
+             JOIN sequent_backend.monitoring_snapshot_run r
+               ON r.tenant_id = s.tenant_id AND r.election_event_id = s.election_event_id
+              AND r.revision = s.live_snapshot_revision
+             WHERE s.tenant_id = $1 AND s.election_event_id = $2",
+            &[&event.tenant_id, &event.election_event_id],
+        )
+        .await
+        .context("Failed to read the shown snapshot")?;
+    Ok(row.as_ref().map(live_from))
+}
+
+/// The run at `revision`, if it completed and is still kept.
+#[instrument(err, skip(transaction))]
+pub async fn complete_snapshot(
+    transaction: &Transaction<'_>,
+    event: EventRef,
+    revision: i64,
+) -> Result<Option<LiveSnapshot>> {
+    let row = transaction
+        .query_opt(
+            "SELECT revision, as_of, checked_at, settings_revision, config_generation
+             FROM sequent_backend.monitoring_snapshot_run
+             WHERE tenant_id = $1 AND election_event_id = $2 AND revision = $3
+               AND status = 'COMPLETE'",
+            &[&event.tenant_id, &event.election_event_id, &revision],
+        )
+        .await
+        .context("Failed to read a snapshot run")?;
+    Ok(row.as_ref().map(live_from))
+}
+
+/// What is kept of the run at a revision.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum KeptRun {
+    Complete(LiveSnapshot),
+    /// Kept, but running, failed or superseded: never a snapshot shown.
+    Incomplete,
+    /// No such run: pruned, dropped by a pass that found nothing new, or
+    /// never the event's.
+    Missing,
+}
+
+/// The run at `revision`, whatever became of it.
+#[instrument(err, skip(transaction))]
+pub async fn kept_run(
+    transaction: &Transaction<'_>,
+    event: EventRef,
+    revision: i64,
+) -> Result<KeptRun> {
+    let row = transaction
+        .query_opt(
+            "SELECT status, revision, as_of, checked_at, settings_revision, config_generation
+             FROM sequent_backend.monitoring_snapshot_run
+             WHERE tenant_id = $1 AND election_event_id = $2 AND revision = $3",
+            &[&event.tenant_id, &event.election_event_id, &revision],
+        )
+        .await
+        .context("Failed to read a snapshot run")?;
+    Ok(match row {
+        Some(row) if row.get::<_, String>("status") == "COMPLETE" => {
+            KeptRun::Complete(live_from(&row))
+        }
+        Some(_) => KeptRun::Incomplete,
+        None => KeptRun::Missing,
+    })
+}
+
+/// What a run holds for one source, set of elections and scope.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ScopeRead {
+    /// The set was not counted in the run: the next pass will.
+    NotCounted,
+    NotConnected {
+        reason: PendingProducer,
+    },
+    /// Counted, with nothing in the scope: zeros, [`empty_payload`].
+    Empty,
+    /// The payload as stored: the exact JSON its hash is of.
+    Payload {
+        sha256_hex: String,
+        text: String,
+    },
+}
+
+fn pending_producer(reason: &str) -> Option<PendingProducer> {
+    serde_json::from_value(Value::String(reason.to_string())).ok()
+}
+
+/// One statement, so a run pruned meanwhile is read whole or not at all.
+#[instrument(err, skip(transaction))]
+pub async fn read_scope(
+    transaction: &Transaction<'_>,
+    event: EventRef,
+    revision: i64,
+    source: DataSourceId,
+    election_set_key: &str,
+    scope_key: &str,
+) -> Result<ScopeRead> {
+    let row = transaction
+        .query_opt(
+            "SELECT s.producer_status, s.reason, encode(p.sha256, 'hex') AS sha256, p.payload
+             FROM sequent_backend.monitoring_snapshot_source s
+             JOIN sequent_backend.monitoring_snapshot_run r
+               ON r.tenant_id = s.tenant_id AND r.election_event_id = s.election_event_id
+              AND r.revision = s.revision AND r.status = 'COMPLETE'
+             LEFT JOIN sequent_backend.monitoring_snapshot_figure f
+               ON f.tenant_id = s.tenant_id AND f.election_event_id = s.election_event_id
+              AND f.source = s.source AND f.election_set_key = s.election_set_key
+              AND f.scope_key = $6 AND int8range(f.from_revision, f.to_revision) @> s.revision
+             LEFT JOIN sequent_backend.monitoring_snapshot_payload p
+               ON p.tenant_id = f.tenant_id AND p.election_event_id = f.election_event_id
+              AND p.sha256 = f.payload_sha256
+             WHERE s.tenant_id = $1 AND s.election_event_id = $2 AND s.revision = $3
+               AND s.source = $4 AND s.election_set_key = $5",
+            &[
+                &event.tenant_id,
+                &event.election_event_id,
+                &revision,
+                &source.to_string(),
+                &election_set_key,
+                &scope_key,
+            ],
+        )
+        .await
+        .context("Failed to read a snapshot figure")?;
+    let Some(row) = row else {
+        return Ok(ScopeRead::NotCounted);
+    };
+    let status: String = row.get("producer_status");
+    if status == "NOT_CONNECTED" {
+        let reason: Option<String> = row.get("reason");
+        let reason = reason
+            .as_deref()
+            .and_then(pending_producer)
+            .ok_or_else(|| anyhow!("A source is not connected for no known reason: {reason:?}"))?;
+        return Ok(ScopeRead::NotConnected { reason });
+    }
+    let sha256: Option<String> = row.get("sha256");
+    let text: Option<String> = row.get("payload");
+    Ok(match (sha256, text) {
+        (Some(sha256_hex), Some(text)) => ScopeRead::Payload { sha256_hex, text },
+        _ => ScopeRead::Empty,
+    })
+}
+
+pub use super::producers::empty_payload;
+
+/// The regions, Posts and countries a set of elections can be narrowed to.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct ScopeCatalogue {
+    pub regions: Vec<String>,
+    pub posts: Vec<Uuid>,
+    pub countries: Vec<String>,
+}
+
+/// From the scopes counted for the set at `revision`.
+#[instrument(err, skip(transaction))]
+pub async fn scope_catalogue(
+    transaction: &Transaction<'_>,
+    event: EventRef,
+    revision: i64,
+    election_set_key: &str,
+) -> Result<ScopeCatalogue> {
+    let rows = transaction
+        .query(
+            "SELECT DISTINCT f.scope_key
+             FROM sequent_backend.monitoring_snapshot_figure f
+             WHERE f.tenant_id = $1 AND f.election_event_id = $2 AND f.election_set_key = $3
+               AND int8range(f.from_revision, f.to_revision) @> $4::bigint
+               AND f.scope_key NOT LIKE '%&%'",
+            &[
+                &event.tenant_id,
+                &event.election_event_id,
+                &election_set_key,
+                &revision,
+            ],
+        )
+        .await
+        .context("Failed to read the scopes counted")?;
+    let mut regions = BTreeSet::new();
+    let mut posts = BTreeSet::new();
+    let mut countries = BTreeSet::new();
+    for row in rows {
+        let Some(key) = ScopeKey::from_canonical(row.get(0)) else {
+            continue;
+        };
+        if let Some(region) = key.region {
+            regions.insert(region);
+        }
+        if let Some(post) = key.post.and_then(|post| post.parse::<Uuid>().ok()) {
+            posts.insert(post);
+        }
+        if let Some(country) = key.country {
+            countries.insert(country);
+        }
+    }
+    Ok(ScopeCatalogue {
+        regions: regions.into_iter().collect(),
+        posts: posts.into_iter().collect(),
+        countries: countries.into_iter().collect(),
+    })
+}
+
+/// Records that a viewer asks for `election_ids`, so passes count the set;
+/// `requested_at` is refreshed at most every [`SET_REQUEST_EVERY`]. The set's
+/// key.
+#[instrument(err, skip(transaction))]
+pub async fn request_election_set(
+    transaction: &Transaction<'_>,
+    event: EventRef,
+    election_ids: &[Uuid],
+) -> Result<String> {
+    let ids: Vec<Uuid> = election_ids
+        .iter()
+        .copied()
+        .collect::<BTreeSet<Uuid>>()
+        .into_iter()
+        .collect();
+    let key =
+        election_set_key(ids.iter().map(Uuid::to_string)).map_err(|error| anyhow!("{error}"))?;
+    let every = SET_REQUEST_EVERY.num_seconds() as f64;
+    transaction
+        .execute(
+            "INSERT INTO sequent_backend.monitoring_election_set AS s
+                 (tenant_id, election_event_id, election_set_key, election_ids)
+             VALUES ($1, $2, $3, $4)
+             ON CONFLICT (tenant_id, election_event_id, election_set_key) DO UPDATE
+                 SET requested_at = now()
+                 WHERE s.requested_at < now() - make_interval(secs => $5)",
+            &[
+                &event.tenant_id,
+                &event.election_event_id,
+                &key,
+                &ids,
+                &every,
+            ],
+        )
+        .await
+        .context("Failed to record the set of elections asked for")?;
+    Ok(key)
+}
+
+/// What a pass of an event did.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum PassOutcome {
+    /// The event is not on configured dashboards.
+    NotConfigured,
+    /// A new run is shown.
+    Completed {
+        revision: i64,
+        figures_written: usize,
+    },
+    /// Nothing changed; the shown run was checked.
+    Unchanged {
+        shown: Option<i64>,
+        recount: Recount,
+    },
+    /// A later run completed first.
+    Superseded { revision: i64 },
+    /// Another pass got ahead while counting; the next pass retries.
+    Conflicted { revision: i64 },
+}
+
+/// Whether a pass that changed nothing counted.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Recount {
+    /// Nothing it counts from moved since the shown run was counted.
+    Skipped,
+    /// Something moved, and counting gave the shown run's figures.
+    Done,
+}
+
+/// How a pass runs.
+#[derive(Debug, Clone, Copy)]
+pub struct PassOptions<'a> {
+    pub voter_group: &'a str,
+    pub full_pass_every: Duration,
+    pub now: DateTime<Utc>,
+}
+
+/// One pass of `event`. The caller holds the event's lock.
+#[instrument(err, skip(hasura, keycloak, options), fields(event = ?event))]
+pub async fn refresh_event_snapshot(
+    hasura: &mut Client,
+    keycloak: &mut Client,
+    event: EventRef,
+    options: PassOptions<'_>,
+) -> Result<PassOutcome> {
+    let configured = {
+        let transaction = hasura.transaction().await?;
+        let live = get_live_config(&transaction, event).await?;
+        transaction.commit().await?;
+        live
+    };
+    let Some(config) = configured.filter(|config| config.mode == DashboardMode::Configured) else {
+        return Ok(PassOutcome::NotConfigured);
+    };
+    let Some(settings) = config.assembled.set.settings.clone() else {
+        warn!("A configured event without settings is not counted");
+        return Ok(PassOutcome::NotConfigured);
+    };
+    let settings_revision = config
+        .documents
+        .iter()
+        .find(|document| document.kind == ConfigKind::Settings)
+        .map(|document| document.revision)
+        .ok_or_else(|| anyhow!("The settings document has no revision"))?;
+
+    {
+        let transaction = hasura.transaction().await?;
+        let keycloak_transaction = keycloak.transaction().await?;
+        // Counting from the projection as it last stood could mix rows
+        // derived under older settings with this run's, so a pass whose
+        // refresh fails counts nothing.
+        if let Err(failure) = refresh_voter_projection(
+            &transaction,
+            &keycloak_transaction,
+            event,
+            &settings,
+            settings_revision,
+            options.voter_group,
+            options.now,
+            options.full_pass_every,
+        )
+        .await
+        {
+            error!(
+                ?event,
+                "Refreshing the monitoring voters failed: {failure:#}"
+            );
+            return Err(failure);
+        }
+        keycloak_transaction.rollback().await?;
+        transaction.commit().await?;
+    }
+
+    count_event(
+        hasura,
+        event,
+        &settings,
+        settings_revision,
+        config.generation,
+    )
+    .await
+}
+
+/// Counts `event` from its projection as it stands, and shows the result:
+/// steps 2 and 3 of a pass. The caller holds the event's lock.
+#[instrument(err, skip(hasura, settings), fields(event = ?event))]
+pub async fn count_event(
+    hasura: &mut Client,
+    event: EventRef,
+    settings: &Settings,
+    settings_revision: i32,
+    config_generation: i64,
+) -> Result<PassOutcome> {
+    record_full_set(hasura, event).await?;
+    let revision = start_run(hasura, event).await?;
+    count_run(
+        hasura,
+        event,
+        revision,
+        settings,
+        settings_revision,
+        config_generation,
+    )
+    .await
+}
+
+/// Records the set of every election of the event, in a transaction of its
+/// own: the counting transaction then only reads it, and never fails to
+/// serialize against a viewer recording the same set.
+async fn record_full_set(hasura: &mut Client, event: EventRef) -> Result<()> {
+    let transaction = hasura.transaction().await?;
+    let all = event_elections(&transaction, event).await?;
+    request_election_set(&transaction, event, &all).await?;
+    transaction.commit().await?;
+    Ok(())
+}
+
+async fn event_elections(transaction: &Transaction<'_>, event: EventRef) -> Result<Vec<Uuid>> {
+    Ok(transaction
+        .query(
+            "SELECT id FROM sequent_backend.election
+             WHERE tenant_id = $1 AND election_event_id = $2",
+            &[&event.tenant_id, &event.election_event_id],
+        )
+        .await
+        .context("Failed to read the event's elections")?
+        .iter()
+        .map(|row| row.get(0))
+        .collect())
+}
+
+/// Counts into the RUNNING run `revision` and shows it, or records why not.
+/// The caller holds the event's lock.
+#[instrument(err, skip(hasura, settings), fields(event = ?event))]
+pub async fn count_run(
+    hasura: &mut Client,
+    event: EventRef,
+    revision: i64,
+    settings: &Settings,
+    settings_revision: i32,
+    config_generation: i64,
+) -> Result<PassOutcome> {
+    let outcome = {
+        let transaction = hasura
+            .build_transaction()
+            .isolation_level(IsolationLevel::RepeatableRead)
+            .start()
+            .await?;
+        let counted = count(
+            &transaction,
+            event,
+            revision,
+            settings,
+            settings_revision,
+            config_generation,
+        )
+        .await;
+        match counted {
+            Ok(counted @ (PassOutcome::Completed { .. } | PassOutcome::Superseded { .. }, _)) => {
+                match transaction.commit().await {
+                    Ok(()) => Ok(counted),
+                    Err(error) => Err(anyhow::Error::from(error)),
+                }
+            }
+            Ok(counted) => {
+                transaction.rollback().await?;
+                Ok(counted)
+            }
+            Err(error) => {
+                transaction.rollback().await.ok();
+                Err(error)
+            }
+        }
+    };
+    match outcome {
+        Ok((PassOutcome::Unchanged { shown, recount }, inputs)) => {
+            let transaction = hasura.transaction().await?;
+            transaction
+                .execute(
+                    "DELETE FROM sequent_backend.monitoring_snapshot_run
+                     WHERE tenant_id = $1 AND election_event_id = $2 AND revision = $3
+                       AND status = 'RUNNING'",
+                    &[&event.tenant_id, &event.election_event_id, &revision],
+                )
+                .await?;
+            if let Some(shown) = shown {
+                transaction
+                    .execute(
+                        "UPDATE sequent_backend.monitoring_snapshot_run SET checked_at = now()
+                         WHERE tenant_id = $1 AND election_event_id = $2 AND revision = $3
+                           AND (checked_at IS NULL OR checked_at < now())",
+                        &[&event.tenant_id, &event.election_event_id, &shown],
+                    )
+                    .await?;
+                // What the shown run's figures were just counted from again.
+                if let Some(inputs) = inputs {
+                    transaction
+                        .execute(
+                            "UPDATE sequent_backend.monitoring_snapshot_run
+                             SET counted_inputs = $4
+                             WHERE tenant_id = $1 AND election_event_id = $2 AND revision = $3
+                               AND status = 'COMPLETE'",
+                            &[
+                                &event.tenant_id,
+                                &event.election_event_id,
+                                &shown,
+                                &serde_json::to_value(&inputs)?,
+                            ],
+                        )
+                        .await?;
+                }
+            }
+            transaction.commit().await?;
+            Ok(PassOutcome::Unchanged { shown, recount })
+        }
+        Ok((outcome, _)) => Ok(outcome),
+        Err(error) => {
+            let conflicted = error
+                .chain()
+                .filter_map(|cause| cause.downcast_ref::<tokio_postgres::Error>())
+                .any(|cause| cause.code() == Some(&SqlState::T_R_SERIALIZATION_FAILURE));
+            let message = if conflicted {
+                "another pass got ahead".to_string()
+            } else {
+                format!("{error:#}")
+            };
+            fail_run(hasura, event, revision, &message).await?;
+            if conflicted {
+                Ok(PassOutcome::Conflicted { revision })
+            } else {
+                Err(error)
+            }
+        }
+    }
+}
+
+/// Records a RUNNING run, after marking FAILED any run a crash left
+/// RUNNING. The caller holds the event's lock.
+pub async fn start_run(hasura: &mut Client, event: EventRef) -> Result<i64> {
+    let transaction = hasura.transaction().await?;
+    transaction
+        .execute(
+            "UPDATE sequent_backend.monitoring_snapshot_run
+             SET status = 'FAILED', finished_at = now(), error = 'abandoned by its pass'
+             WHERE tenant_id = $1 AND election_event_id = $2 AND status = 'RUNNING'",
+            &[&event.tenant_id, &event.election_event_id],
+        )
+        .await
+        .context("Failed to mark abandoned runs")?;
+    let revision: i64 = transaction
+        .query_one(
+            "INSERT INTO sequent_backend.monitoring_snapshot_run
+                 (tenant_id, election_event_id, status)
+             VALUES ($1, $2, 'RUNNING') RETURNING revision",
+            &[&event.tenant_id, &event.election_event_id],
+        )
+        .await
+        .context("Failed to record the run")?
+        .get(0);
+    transaction.commit().await?;
+    Ok(revision)
+}
+
+async fn fail_run(hasura: &mut Client, event: EventRef, revision: i64, error: &str) -> Result<()> {
+    let transaction = hasura.transaction().await?;
+    transaction
+        .execute(
+            "UPDATE sequent_backend.monitoring_snapshot_run
+             SET status = 'FAILED', finished_at = now(), error = $4
+             WHERE tenant_id = $1 AND election_event_id = $2 AND revision = $3
+               AND status = 'RUNNING'",
+            &[
+                &event.tenant_id,
+                &event.election_event_id,
+                &revision,
+                &error,
+            ],
+        )
+        .await
+        .context("Failed to record the failed run")?;
+    transaction.commit().await?;
+    Ok(())
+}
+
+/// A scope's figures as stored: the payload's exact text and its hash.
+struct Stored {
+    text: String,
+    sha256: Vec<u8>,
+}
+
+fn stored(payload: &ScopePayload) -> Result<Stored> {
+    let text = serde_json::to_string(payload)?.replace('\u{0}', "\u{FFFD}");
+    let sha256 = Sha256::digest(text.as_bytes()).to_vec();
+    Ok(Stored { text, sha256 })
+}
+
+type FigureKey = (String, String, String);
+
+/// How many rows one batched statement writes.
+const BATCH: usize = 1_000;
+
+/// What a pass counted, ready to compare and write.
+struct Counted {
+    figures: BTreeMap<FigureKey, Stored>,
+    sources: BTreeSet<SourceRow>,
+}
+
+/// Counts every source for every set and serializes each payload: the CPU
+/// part of a pass, run off the async runtime.
+fn count_and_store(facts: EventFacts, sets: Vec<ElectionSet>) -> Result<Counted> {
+    let produced = produce(&facts, &sets);
+    drop(facts);
+    let sources = wanted_sources(&produced);
+    let mut figures = BTreeMap::new();
+    for figure in produced {
+        let source = figure.source.to_string();
+        for (scope, payload) in figure.scopes {
+            figures.insert(
+                (source.clone(), figure.election_set_key.clone(), scope),
+                stored(&payload)?,
+            );
+        }
+    }
+    Ok(Counted { figures, sources })
+}
+
+/// Digests of what [`load_facts`] and `load_sets` read, in one statement.
+/// Each hashes the hash of each row, in key order, so no statement builds
+/// a string as large as the rows.
+const INPUT_DIGESTS: &str = "
+    SELECT
+        (SELECT md5(COALESCE(string_agg(md5(v::text), '' ORDER BY v.election_id, v.voter_id), ''))
+         FROM sequent_backend.monitoring_voter v
+         WHERE v.tenant_id = $1 AND v.election_event_id = $2) AS voters,
+        (SELECT md5(COALESCE(string_agg(md5(ROW(e.id, e.presentation, e.external_id,
+                    e.annotations, e.status, e.initialization_report_generated)::text), ''
+                    ORDER BY e.id), ''))
+         FROM sequent_backend.election e
+         WHERE e.tenant_id = $1 AND e.election_event_id = $2) AS elections,
+        (SELECT md5(COALESCE(string_agg(md5(ROW(a.id, a.annotations)::text), '' ORDER BY a.id),
+                    ''))
+         FROM sequent_backend.area a
+         WHERE a.tenant_id = $1 AND a.election_event_id = $2) AS areas,
+        (SELECT md5(COALESCE(string_agg(p.area_id::text || ':' || p.election_id::text, ','
+                    ORDER BY p.area_id, p.election_id), ''))
+         FROM (SELECT DISTINCT ac.area_id, c.election_id
+               FROM sequent_backend.area_contest ac
+               JOIN sequent_backend.contest c
+                 ON c.id = ac.contest_id AND c.tenant_id = ac.tenant_id
+                AND c.election_event_id = ac.election_event_id
+               WHERE ac.tenant_id = $1 AND ac.election_event_id = $2
+                 AND ac.area_id IS NOT NULL AND c.election_id IS NOT NULL) p) AS area_elections,
+        (SELECT md5(COALESCE(string_agg(md5(ROW(t.id, t.election_ids, t.execution_status,
+                    t.is_execution_completed, t.annotations)::text), '' ORDER BY t.id), ''))
+         FROM sequent_backend.tally_session t
+         WHERE t.tenant_id = $1 AND t.election_event_id = $2) AS tally_sessions,
+        (SELECT md5(COALESCE(string_agg(md5(l::text), ''
+                    ORDER BY l.bucket_start, l.event_type, l.registration, l.area_key), ''))
+         FROM sequent_backend.monitoring_login_counter l
+         WHERE l.tenant_id = $1 AND l.election_event_id = $2) AS logins,
+        (SELECT md5(COALESCE(string_agg(md5(ROW(s.election_set_key, s.election_ids)::text), ''
+                    ORDER BY s.election_set_key), ''))
+         FROM sequent_backend.monitoring_election_set s
+         WHERE s.tenant_id = $1 AND s.election_event_id = $2
+           AND s.requested_at > now() - make_interval(secs => $3)) AS sets";
+
+/// What the pass counts from, as its transaction sees it.
+async fn counted_inputs(
+    transaction: &Transaction<'_>,
+    event: EventRef,
+    settings: &Settings,
+    settings_revision: i32,
+    config_generation: i64,
+    now: DateTime<Utc>,
+) -> Result<CountedInputs> {
+    let kept = SET_KEPT_FOR.num_seconds() as f64;
+    let row = transaction
+        .query_one(
+            INPUT_DIGESTS,
+            &[&event.tenant_id, &event.election_event_id, &kept],
+        )
+        .await
+        .context("Failed to read what the pass counts from")?;
+    let settings = format!("{:x}", Sha256::digest(serde_json::to_vec(settings)?));
+    Ok(CountedInputs {
+        version: INPUTS_READER.to_string(),
+        settings_revision,
+        config_generation,
+        settings,
+        day: now.date_naive(),
+        voters: row.get("voters"),
+        elections: row.get("elections"),
+        areas: row.get("areas"),
+        area_elections: row.get("area_elections"),
+        tally_sessions: row.get("tally_sessions"),
+        logins: row.get("logins"),
+        sets: row.get("sets"),
+        counted_at: now,
+    })
+}
+
+/// What the run at `revision` records it was counted from; `None` when it
+/// records nothing this reader reads, as for runs completed before inputs
+/// were recorded.
+async fn recorded_inputs(
+    transaction: &Transaction<'_>,
+    event: EventRef,
+    revision: i64,
+) -> Result<Option<CountedInputs>> {
+    let recorded: Option<Value> = transaction
+        .query_opt(
+            "SELECT counted_inputs FROM sequent_backend.monitoring_snapshot_run
+             WHERE tenant_id = $1 AND election_event_id = $2 AND revision = $3
+               AND status = 'COMPLETE'",
+            &[&event.tenant_id, &event.election_event_id, &revision],
+        )
+        .await
+        .context("Failed to read what the shown run was counted from")?
+        .and_then(|row| row.get(0));
+    Ok(recorded.and_then(|recorded| serde_json::from_value(recorded).ok()))
+}
+
+/// Counts, writes what changed and completes the run, in the pass's
+/// transaction. `Unchanged` means the caller rolls back, then, when it
+/// counted, records the inputs it returns with the shown run.
+async fn count(
+    transaction: &Transaction<'_>,
+    event: EventRef,
+    revision: i64,
+    settings: &Settings,
+    settings_revision: i32,
+    config_generation: i64,
+) -> Result<(PassOutcome, Option<CountedInputs>)> {
+    let params: [&(dyn tokio_postgres::types::ToSql + Sync); 2] =
+        [&event.tenant_id, &event.election_event_id];
+    let newer: bool = transaction
+        .query_one(
+            "SELECT EXISTS (SELECT 1 FROM sequent_backend.monitoring_snapshot_run
+                            WHERE tenant_id = $1 AND election_event_id = $2
+                              AND revision > $3 AND status = 'COMPLETE')",
+            &[&event.tenant_id, &event.election_event_id, &revision],
+        )
+        .await?
+        .get(0);
+    if newer {
+        // A later pass marked this run abandoned when it started.
+        transaction
+            .execute(
+                "UPDATE sequent_backend.monitoring_snapshot_run
+                 SET status = 'FAILED', finished_at = now(), error = 'superseded by a later run'
+                 WHERE tenant_id = $1 AND election_event_id = $2 AND revision = $3
+                   AND status = 'RUNNING'",
+                &[&event.tenant_id, &event.election_event_id, &revision],
+            )
+            .await?;
+        return Ok((PassOutcome::Superseded { revision }, None));
+    }
+
+    let now = Utc::now();
+    let inputs = counted_inputs(
+        transaction,
+        event,
+        settings,
+        settings_revision,
+        config_generation,
+        now,
+    )
+    .await?;
+    let shown = live_snapshot(transaction, event).await?;
+    if let Some(shown) = &shown {
+        match recorded_inputs(transaction, event, shown.revision).await? {
+            Some(earlier) => {
+                let moved = inputs.moved_since(&earlier);
+                if moved.is_empty() {
+                    return Ok((
+                        PassOutcome::Unchanged {
+                            shown: Some(shown.revision),
+                            recount: Recount::Skipped,
+                        },
+                        None,
+                    ));
+                }
+                info!(
+                    ?moved,
+                    "Counting: what the shown run was counted from moved"
+                );
+            }
+            None => info!("Counting: the shown run records nothing it was counted from"),
+        }
+    }
+
+    let facts = load_facts(transaction, event, settings, inputs.day).await?;
+    let all: Vec<Uuid> = facts.posts.iter().map(|post| post.id).collect();
+    let full_key =
+        election_set_key(all.iter().map(Uuid::to_string)).map_err(|error| anyhow!("{error}"))?;
+    let mut sets = load_sets(transaction, event).await?;
+    if !sets.iter().any(|set| set.key == full_key) {
+        // An election added since the set was recorded.
+        request_election_set(transaction, event, &all).await?;
+        sets = load_sets(transaction, event).await?;
+    }
+    let counted = tokio::task::spawn_blocking(move || count_and_store(facts, sets))
+        .await
+        .context("Counting the snapshot panicked")??;
+
+    let mut open: HashMap<FigureKey, Vec<u8>> = HashMap::new();
+    for row in transaction
+        .query(
+            "SELECT source, election_set_key, scope_key, payload_sha256
+             FROM sequent_backend.monitoring_snapshot_figure
+             WHERE tenant_id = $1 AND election_event_id = $2 AND to_revision IS NULL",
+            &params,
+        )
+        .await?
+    {
+        open.insert((row.get(0), row.get(1), row.get(2)), row.get(3));
+    }
+
+    let wanted = &counted.figures;
+    let to_close: Vec<&FigureKey> = open
+        .iter()
+        .filter(|(key, sha256)| wanted.get(*key).map(|stored| &stored.sha256) != Some(*sha256))
+        .map(|(key, _)| key)
+        .collect();
+    let to_open: Vec<(&FigureKey, &Stored)> = wanted
+        .iter()
+        .filter(|(key, stored)| open.get(*key) != Some(&stored.sha256))
+        .collect();
+
+    let sources_unchanged = match &shown {
+        Some(shown) => {
+            shown.settings_revision == settings_revision
+                && shown.config_generation == config_generation
+                && source_rows(transaction, event, shown.revision).await? == counted.sources
+        }
+        None => false,
+    };
+    if to_close.is_empty() && to_open.is_empty() && sources_unchanged {
+        return Ok((
+            PassOutcome::Unchanged {
+                shown: shown.map(|shown| shown.revision),
+                recount: Recount::Done,
+            },
+            Some(inputs),
+        ));
+    }
+
+    for chunk in to_close.chunks(BATCH) {
+        let sources: Vec<&str> = chunk.iter().map(|key| key.0.as_str()).collect();
+        let sets: Vec<&str> = chunk.iter().map(|key| key.1.as_str()).collect();
+        let scopes: Vec<&str> = chunk.iter().map(|key| key.2.as_str()).collect();
+        transaction
+            .execute(
+                "UPDATE sequent_backend.monitoring_snapshot_figure f SET to_revision = $3
+                 FROM unnest($4::text[], $5::text[], $6::text[]) AS c(source, set_key, scope_key)
+                 WHERE f.tenant_id = $1 AND f.election_event_id = $2 AND f.source = c.source
+                   AND f.election_set_key = c.set_key AND f.scope_key = c.scope_key
+                   AND f.to_revision IS NULL",
+                &[
+                    &event.tenant_id,
+                    &event.election_event_id,
+                    &revision,
+                    &sources,
+                    &sets,
+                    &scopes,
+                ],
+            )
+            .await
+            .context("Failed to close figures")?;
+    }
+    let mut payloads: BTreeMap<&[u8], &str> = BTreeMap::new();
+    for (_, stored) in &to_open {
+        payloads.insert(&stored.sha256, &stored.text);
+    }
+    let payloads: Vec<(&[u8], &str)> = payloads.into_iter().collect();
+    for chunk in payloads.chunks(BATCH) {
+        let hashes: Vec<&[u8]> = chunk.iter().map(|(sha256, _)| *sha256).collect();
+        let texts: Vec<&str> = chunk.iter().map(|(_, text)| *text).collect();
+        transaction
+            .execute(
+                "INSERT INTO sequent_backend.monitoring_snapshot_payload
+                     (tenant_id, election_event_id, sha256, payload)
+                 SELECT $1, $2, p.sha256, p.payload
+                 FROM unnest($3::bytea[], $4::text[]) AS p(sha256, payload)
+                 ON CONFLICT DO NOTHING",
+                &[&event.tenant_id, &event.election_event_id, &hashes, &texts],
+            )
+            .await
+            .context("Failed to store payloads")?;
+        // A payload stored before is kept while this pass names it.
+        transaction
+            .execute(
+                "SELECT 1 FROM sequent_backend.monitoring_snapshot_payload
+                 WHERE tenant_id = $1 AND election_event_id = $2 AND sha256 = ANY($3)
+                 FOR KEY SHARE",
+                &[&event.tenant_id, &event.election_event_id, &hashes],
+            )
+            .await?;
+    }
+    for chunk in to_open.chunks(BATCH) {
+        let sources: Vec<&str> = chunk.iter().map(|(key, _)| key.0.as_str()).collect();
+        let sets: Vec<&str> = chunk.iter().map(|(key, _)| key.1.as_str()).collect();
+        let scopes: Vec<&str> = chunk.iter().map(|(key, _)| key.2.as_str()).collect();
+        let hashes: Vec<&[u8]> = chunk
+            .iter()
+            .map(|(_, stored)| stored.sha256.as_slice())
+            .collect();
+        transaction
+            .execute(
+                "INSERT INTO sequent_backend.monitoring_snapshot_figure
+                     (tenant_id, election_event_id, source, election_set_key, scope_key,
+                      from_revision, payload_sha256)
+                 SELECT $1, $2, f.source, f.set_key, f.scope_key, $3, f.sha256
+                 FROM unnest($4::text[], $5::text[], $6::text[], $7::bytea[])
+                     AS f(source, set_key, scope_key, sha256)",
+                &[
+                    &event.tenant_id,
+                    &event.election_event_id,
+                    &revision,
+                    &sources,
+                    &sets,
+                    &scopes,
+                    &hashes,
+                ],
+            )
+            .await
+            .context("Failed to open figures")?;
+    }
+    let rows: Vec<&SourceRow> = counted.sources.iter().collect();
+    for chunk in rows.chunks(BATCH) {
+        let sources: Vec<&str> = chunk.iter().map(|row| row.0.as_str()).collect();
+        let sets: Vec<&str> = chunk.iter().map(|row| row.1.as_str()).collect();
+        let statuses: Vec<&str> = chunk.iter().map(|row| row.2.as_str()).collect();
+        let reasons: Vec<Option<&str>> = chunk.iter().map(|row| row.3.as_deref()).collect();
+        transaction
+            .execute(
+                "INSERT INTO sequent_backend.monitoring_snapshot_source
+                     (tenant_id, election_event_id, revision, source, election_set_key,
+                      producer_status, reason)
+                 SELECT $1, $2, $3, s.source, s.set_key, s.status, s.reason
+                 FROM unnest($4::text[], $5::text[], $6::text[], $7::text[])
+                     AS s(source, set_key, status, reason)",
+                &[
+                    &event.tenant_id,
+                    &event.election_event_id,
+                    &revision,
+                    &sources,
+                    &sets,
+                    &statuses,
+                    &reasons,
+                ],
+            )
+            .await
+            .context("Failed to record the sources")?;
+    }
+    transaction
+        .execute(
+            "UPDATE sequent_backend.monitoring_snapshot_run
+             SET status = 'COMPLETE', finished_at = now(), as_of = now(),
+                 settings_revision = $4, config_generation = $5, counted_inputs = $6
+             WHERE tenant_id = $1 AND election_event_id = $2 AND revision = $3",
+            &[
+                &event.tenant_id,
+                &event.election_event_id,
+                &revision,
+                &settings_revision,
+                &config_generation,
+                &serde_json::to_value(&inputs)?,
+            ],
+        )
+        .await
+        .context("Failed to complete the run")?;
+    transaction
+        .execute(
+            "UPDATE sequent_backend.monitoring_snapshot_state SET live_snapshot_revision = $3
+             WHERE tenant_id = $1 AND election_event_id = $2",
+            &[&event.tenant_id, &event.election_event_id, &revision],
+        )
+        .await
+        .context("Failed to show the run")?;
+    let figures_written = to_open.len();
+    info!(
+        revision,
+        figures_written,
+        closed = to_close.len(),
+        "Completed a snapshot run"
+    );
+    Ok((
+        PassOutcome::Completed {
+            revision,
+            figures_written,
+        },
+        None,
+    ))
+}
+
+type SourceRow = (String, String, String, Option<String>);
+
+fn wanted_sources(figures: &[SourceFigures]) -> BTreeSet<SourceRow> {
+    figures
+        .iter()
+        .map(|figure| {
+            let (status, reason) = match figure.status {
+                SourceStatus::Connected => ("CONNECTED", None),
+                SourceStatus::NotConnected(pending) => ("NOT_CONNECTED", Some(pending.to_string())),
+            };
+            (
+                figure.source.to_string(),
+                figure.election_set_key.clone(),
+                status.to_string(),
+                reason,
+            )
+        })
+        .collect()
+}
+
+async fn source_rows(
+    transaction: &Transaction<'_>,
+    event: EventRef,
+    revision: i64,
+) -> Result<BTreeSet<SourceRow>> {
+    Ok(transaction
+        .query(
+            "SELECT source, election_set_key, producer_status, reason
+             FROM sequent_backend.monitoring_snapshot_source
+             WHERE tenant_id = $1 AND election_event_id = $2 AND revision = $3",
+            &[&event.tenant_id, &event.election_event_id, &revision],
+        )
+        .await?
+        .iter()
+        .map(|row| (row.get(0), row.get(1), row.get(2), row.get(3)))
+        .collect())
+}
+
+async fn load_sets(transaction: &Transaction<'_>, event: EventRef) -> Result<Vec<ElectionSet>> {
+    let kept = SET_KEPT_FOR.num_seconds() as f64;
+    Ok(transaction
+        .query(
+            "SELECT election_set_key, election_ids FROM sequent_backend.monitoring_election_set
+             WHERE tenant_id = $1 AND election_event_id = $2
+               AND requested_at > now() - make_interval(secs => $3)
+             ORDER BY election_set_key",
+            &[&event.tenant_id, &event.election_event_id, &kept],
+        )
+        .await
+        .context("Failed to read the sets of elections asked for")?
+        .iter()
+        .map(|row| ElectionSet {
+            key: row.get(0),
+            elections: row.get::<_, Vec<Uuid>>(1).into_iter().collect(),
+        })
+        .collect())
+}
+
+/// The name the portal shows for an election: its English alias or name,
+/// else any language's, else its external id, else its id.
+fn post_name(presentation: Option<Value>, external_id: Option<String>, id: Uuid) -> String {
+    let i18n = presentation
+        .as_ref()
+        .and_then(|presentation| presentation.get("i18n"))
+        .and_then(Value::as_object);
+    let field = |lang: &str, field: &str| {
+        i18n?
+            .get(lang)?
+            .get(field)?
+            .as_str()
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .map(str::to_string)
+    };
+    field("en", "alias")
+        .or_else(|| field("en", "name"))
+        .or_else(|| {
+            i18n?
+                .keys()
+                .find_map(|lang| field(lang, "alias").or_else(|| field(lang, "name")))
+        })
+        .or(external_id.filter(|external_id| !external_id.trim().is_empty()))
+        .unwrap_or_else(|| id.to_string())
+}
+
+fn enrollment(state: Option<&str>) -> Option<Enrollment> {
+    match state {
+        Some("PENDING") => Some(Enrollment::Pending),
+        Some("ACCEPTED") => Some(Enrollment::Accepted),
+        Some("REJECTED") => Some(Enrollment::Rejected),
+        _ => None,
+    }
+}
+
+/// Reads everything a pass counts from, with ages counted on `today`. The
+/// voters are streamed, so the rows read and the facts kept are never both
+/// in memory. What it reads is what [`CountedInputs`] digests.
+pub async fn load_facts(
+    transaction: &Transaction<'_>,
+    event: EventRef,
+    settings: &Settings,
+    today: NaiveDate,
+) -> Result<EventFacts> {
+    let params: [&(dyn tokio_postgres::types::ToSql + Sync); 2] =
+        [&event.tenant_id, &event.election_event_id];
+    let counting = counting_states(transaction, event).await?;
+    let places = load_event_places(transaction, event).await?;
+    let mapping = &settings.scope.region;
+    let region_of = |raw: Option<&String>| dimension_value(mapping, raw.map(String::as_str), today);
+
+    let mut voters = Vec::new();
+    let mut voter_regions: HashMap<Uuid, BTreeSet<String>> = HashMap::new();
+    let stream = transaction
+        .query_raw(
+            "SELECT voter_id, election_id, region, country, dims, pre_enrolled_at,
+                    first_voted_at, enrollment_state, enrollment_reason, enrollment_decided_at,
+                    credentials_at
+             FROM sequent_backend.monitoring_voter
+             WHERE tenant_id = $1 AND election_event_id = $2
+             ORDER BY voter_id, election_id",
+            params.iter().copied(),
+        )
+        .await
+        .context("Failed to read the monitoring voters")?;
+    futures::pin_mut!(stream);
+    while let Some(row) = stream
+        .try_next()
+        .await
+        .context("Failed to read a monitoring voter")?
+    {
+        let dims: Value = row.get("dims");
+        let state: Option<&str> = row.get("enrollment_state");
+        let voter = VoterRow {
+            voter_id: row.get("voter_id"),
+            election_id: row.get("election_id"),
+            region: row.get("region"),
+            country: row.get("country"),
+            dims: serde_json::from_value(dims).unwrap_or_default(),
+            pre_enrolled_at: row.get("pre_enrolled_at"),
+            first_voted_at: row.get("first_voted_at"),
+            enrollment: enrollment(state),
+            enrollment_reason: row.get("enrollment_reason"),
+            enrollment_decided_at: row.get("enrollment_decided_at"),
+            credentials_at: row.get("credentials_at"),
+        };
+        if let Some(region) = &voter.region {
+            if !voter_regions
+                .get(&voter.election_id)
+                .is_some_and(|regions| regions.contains(region))
+            {
+                voter_regions
+                    .entry(voter.election_id)
+                    .or_default()
+                    .insert(region.clone());
+            }
+        }
+        voters.push(voter);
+    }
+
+    // A Post is in the region its annotation names, in its areas' regions,
+    // and in the regions of its voters, whichever the settings read.
+    let area_regions: HashMap<Uuid, String> = match &mapping.area_annotation {
+        Some(key) => places
+            .areas
+            .iter()
+            .filter_map(|(area, (annotations, _))| Some((*area, region_of(annotations.get(key))?)))
+            .collect(),
+        None => HashMap::new(),
+    };
+    let mut post_regions: HashMap<Uuid, BTreeSet<String>> = voter_regions;
+    for (area, (_, elections)) in &places.areas {
+        if let Some(region) = area_regions.get(area) {
+            for election in elections {
+                post_regions
+                    .entry(*election)
+                    .or_default()
+                    .insert(region.clone());
+            }
+        }
+    }
+    let posts = transaction
+        .query(
+            "SELECT id, presentation, external_id, annotations, status,
+                    COALESCE(initialization_report_generated, false) AS initialized
+             FROM sequent_backend.election
+             WHERE tenant_id = $1 AND election_event_id = $2
+             ORDER BY id",
+            &params,
+        )
+        .await
+        .context("Failed to read the event's elections")?
+        .iter()
+        .map(|row| {
+            let id: Uuid = row.get("id");
+            let annotations: Option<Value> = row.get("annotations");
+            let status: Option<Value> = row.get("status");
+            let mut regions = post_regions.remove(&id).unwrap_or_default();
+            if let Some(key) = &mapping.election_annotation {
+                let raw = annotations
+                    .as_ref()
+                    .and_then(|annotations| annotations.get(key))
+                    .and_then(Value::as_str)
+                    .map(str::to_string);
+                regions.extend(region_of(raw.as_ref()));
+            }
+            Post {
+                id,
+                name: post_name(row.get("presentation"), row.get("external_id"), id),
+                regions,
+                poll: poll_state(Some(voting_status(status.as_ref())), row.get("initialized")),
+                counting: counting.get(&id).copied().unwrap_or(PostState::NotTallied),
+            }
+        })
+        .collect();
+    let logins = transaction
+        .query(
+            "SELECT bucket_start, event_type, registration, area_id, attempts
+             FROM sequent_backend.monitoring_login_counter
+             WHERE tenant_id = $1 AND election_event_id = $2",
+            &params,
+        )
+        .await
+        .context("Failed to read the sign-in counters")?
+        .iter()
+        .map(|row| {
+            let registration: String = row.get("registration");
+            let attempts: i64 = row.get("attempts");
+            LoginRow {
+                bucket_start: row.get("bucket_start"),
+                event_type: row.get("event_type"),
+                registered: registration == "REGISTERED",
+                area_id: row.get("area_id"),
+                attempts: u64::try_from(attempts).unwrap_or(0),
+            }
+        })
+        .collect();
+    let area_elections = places
+        .areas
+        .into_iter()
+        .map(|(area, (_, elections))| (area, elections))
+        .collect();
+    Ok(EventFacts {
+        settings: settings.clone(),
+        zone: zone_of(settings),
+        posts,
+        voters,
+        area_elections,
+        area_regions,
+        logins,
+    })
+}
+
+const TALLY_SESSION_DATA: &str = "miru:tally-session-data";
+
+/// Whether a tally session tallied its elections: it succeeded and
+/// completed, as [`crate::domain::tally_ceremony::is_recount_eligible`] has
+/// it. A cancelled session is neither.
+pub fn is_tallied(execution_status: Option<&str>, is_execution_completed: bool) -> bool {
+    execution_status == Some(TallyExecutionStatus::SUCCESS.to_string().as_str())
+        && is_execution_completed
+}
+
+/// Where each election stands in counting and transmission: tallied once a
+/// tally session of it succeeded; transmitted once every package of it was
+/// received by as many servers as its threshold asks; failed while one
+/// was refused and not yet received enough.
+async fn counting_states(
+    transaction: &Transaction<'_>,
+    event: EventRef,
+) -> Result<HashMap<Uuid, PostState>> {
+    let rows = transaction
+        .query(
+            "SELECT election_ids, execution_status, is_execution_completed, annotations
+             FROM sequent_backend.tally_session
+             WHERE tenant_id = $1 AND election_event_id = $2",
+            &[&event.tenant_id, &event.election_event_id],
+        )
+        .await
+        .context("Failed to read the tally sessions")?;
+    let mut tallied: BTreeSet<Uuid> = BTreeSet::new();
+    let mut packages: HashMap<Uuid, Vec<(bool, bool)>> = HashMap::new();
+    for row in rows {
+        let elections: Option<Vec<Uuid>> = row.get("election_ids");
+        let status: Option<String> = row.get("execution_status");
+        let completed: Option<bool> = row.get("is_execution_completed");
+        // As a recount has it: a session that succeeded and completed. A
+        // cancelled one is CANCELLED, and what it transmitted is not read.
+        if !is_tallied(status.as_deref(), completed.unwrap_or(false)) {
+            continue;
+        }
+        tallied.extend(elections.unwrap_or_default());
+        let annotations: Option<Value> = row.get("annotations");
+        let Some(data) = annotations
+            .as_ref()
+            .and_then(|annotations| annotations.get(TALLY_SESSION_DATA))
+            .and_then(Value::as_str)
+            .and_then(|text| serde_json::from_str::<MiruTallySessionData>(text).ok())
+        else {
+            continue;
+        };
+        for package in data {
+            let Ok(election) = package.election_id.parse::<Uuid>() else {
+                continue;
+            };
+            let latest = package
+                .documents
+                .iter()
+                .max_by(|a, b| a.created_at.cmp(&b.created_at));
+            let (received, refused) = latest
+                .map(|document| {
+                    let received: BTreeSet<&str> = document
+                        .servers_sent_to
+                        .iter()
+                        .filter(|sent| sent.status == MiruServerDocumentStatus::SUCCESS)
+                        .map(|sent| sent.name.as_str())
+                        .collect();
+                    let refused = document
+                        .servers_sent_to
+                        .iter()
+                        .any(|sent| sent.status == MiruServerDocumentStatus::ERROR);
+                    (received.len() as i64 >= package.threshold.max(1), refused)
+                })
+                .unwrap_or((false, false));
+            packages
+                .entry(election)
+                .or_default()
+                .push((received, refused));
+        }
+    }
+    Ok(tallied
+        .into_iter()
+        .map(|election| {
+            let sent = packages.get(&election);
+            let state = match sent {
+                Some(sent) if !sent.is_empty() && sent.iter().all(|(received, _)| *received) => {
+                    PostState::Transmitted
+                }
+                Some(sent) if sent.iter().any(|(received, refused)| *refused && !received) => {
+                    PostState::TransmissionFailed
+                }
+                _ => PostState::Tallied,
+            };
+            (election, state)
+        })
+        .collect())
+}
+
+/// What pruning removed.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct Pruned {
+    pub runs: u64,
+    pub figures: u64,
+    pub payloads: u64,
+}
+
+/// Removes the runs an export can no longer name, then the figures no
+/// remaining run holds, then the payloads no figure names. A complete run
+/// is kept while it is shown and for `window` after a later one replaced
+/// it, as a viewer may export what it showed until then; a failed run for
+/// `window` after it failed. The caller holds the event's lock.
+#[instrument(err, skip(hasura))]
+pub async fn prune_snapshots(
+    hasura: &mut Client,
+    event: EventRef,
+    window: Duration,
+) -> Result<Pruned> {
+    let seconds = window.num_seconds() as f64;
+    let transaction = hasura.transaction().await?;
+    transaction
+        .batch_execute("SET CONSTRAINTS ALL IMMEDIATE")
+        .await?;
+    let runs = transaction
+        .execute(
+            "DELETE FROM sequent_backend.monitoring_snapshot_run r
+             WHERE r.tenant_id = $1 AND r.election_event_id = $2
+               AND r.revision IS DISTINCT FROM (
+                   SELECT live_snapshot_revision FROM sequent_backend.monitoring_snapshot_state s
+                   WHERE s.tenant_id = r.tenant_id AND s.election_event_id = r.election_event_id
+               )
+               AND (
+                   (r.status = 'FAILED'
+                    AND r.finished_at < now() - make_interval(secs => $3))
+                   OR (r.status = 'COMPLETE' AND EXISTS (
+                       SELECT 1 FROM sequent_backend.monitoring_snapshot_run later
+                       WHERE later.tenant_id = r.tenant_id
+                         AND later.election_event_id = r.election_event_id
+                         AND later.revision > r.revision AND later.status = 'COMPLETE'
+                         AND later.finished_at < now() - make_interval(secs => $3)
+                   ))
+               )",
+            &[&event.tenant_id, &event.election_event_id, &seconds],
+        )
+        .await
+        .context("Failed to prune runs")?;
+    let released: Vec<Vec<u8>> = transaction
+        .query(
+            "DELETE FROM sequent_backend.monitoring_snapshot_figure f
+             WHERE f.tenant_id = $1 AND f.election_event_id = $2
+               AND f.to_revision IS NOT NULL
+               AND NOT EXISTS (
+                   SELECT 1 FROM sequent_backend.monitoring_snapshot_run r
+                   WHERE r.tenant_id = f.tenant_id AND r.election_event_id = f.election_event_id
+                     AND r.status IN ('COMPLETE', 'RUNNING')
+                     AND r.revision >= f.from_revision AND r.revision < f.to_revision
+               )
+             RETURNING f.payload_sha256",
+            &[&event.tenant_id, &event.election_event_id],
+        )
+        .await
+        .context("Failed to prune figures")?
+        .iter()
+        .map(|row| row.get(0))
+        .collect();
+    let figures = released.len() as u64;
+    let mut released: BTreeSet<Vec<u8>> = released.into_iter().collect();
+    // The hashes a remaining figure still names, read in one scan rather
+    // than looked up once per payload in the delete: while the statistics
+    // lag behind a pass's writes, the planner answers each lookup by
+    // scanning the event's figures.
+    let released_list: Vec<&[u8]> = released.iter().map(Vec::as_slice).collect();
+    for row in transaction
+        .query(
+            "SELECT DISTINCT payload_sha256 FROM sequent_backend.monitoring_snapshot_figure
+             WHERE tenant_id = $1 AND election_event_id = $2 AND payload_sha256 = ANY($3)",
+            &[&event.tenant_id, &event.election_event_id, &released_list],
+        )
+        .await
+        .context("Failed to read the payloads still named")?
+    {
+        released.remove(&row.get::<_, Vec<u8>>(0));
+    }
+    let released: Vec<Vec<u8>> = released.into_iter().collect();
+    // The event's lock keeps passes out meanwhile; a payload named after
+    // all is refused by its trigger rather than deleted.
+    let payloads = transaction
+        .execute(
+            "DELETE FROM sequent_backend.monitoring_snapshot_payload
+             WHERE tenant_id = $1 AND election_event_id = $2 AND sha256 = ANY($3)",
+            &[&event.tenant_id, &event.election_event_id, &released],
+        )
+        .await
+        .context("Failed to prune payloads")?;
+    transaction.commit().await?;
+    Ok(Pruned {
+        runs,
+        figures,
+        payloads,
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{is_tallied, CountedInputs, RECOUNT_EVERY};
+    use chrono::{Duration, NaiveDate, TimeZone, Utc};
+
+    fn inputs() -> CountedInputs {
+        CountedInputs {
+            version: "1/0.1.0".to_string(),
+            settings_revision: 1,
+            config_generation: 1,
+            settings: "s".to_string(),
+            day: NaiveDate::from_ymd_opt(2026, 9, 30).unwrap(),
+            voters: "v".to_string(),
+            elections: "e".to_string(),
+            areas: "a".to_string(),
+            area_elections: "ae".to_string(),
+            tally_sessions: "t".to_string(),
+            logins: "l".to_string(),
+            sets: "x".to_string(),
+            counted_at: Utc.with_ymd_and_hms(2026, 9, 30, 12, 0, 0).unwrap(),
+        }
+    }
+
+    #[test]
+    fn inputs_move_with_any_digest_the_day_and_the_clock() {
+        let earlier = inputs();
+        let mut later = inputs();
+        later.counted_at += RECOUNT_EVERY - Duration::seconds(1);
+        assert!(later.moved_since(&earlier).is_empty());
+        later.logins = "l2".to_string();
+        later.day = later.day.succ_opt().unwrap();
+        assert_eq!(later.moved_since(&earlier), vec!["day", "logins"]);
+
+        let mut old = inputs();
+        old.counted_at += RECOUNT_EVERY;
+        assert_eq!(old.moved_since(&earlier), vec!["counted_at"]);
+        let mut back = inputs();
+        back.counted_at -= Duration::seconds(1);
+        assert_eq!(
+            back.moved_since(&earlier),
+            vec!["counted_at"],
+            "a clock that went back"
+        );
+    }
+
+    #[test]
+    fn a_session_tallied_its_elections_once_it_succeeded_and_completed() {
+        assert!(is_tallied(Some("SUCCESS"), true));
+        assert!(!is_tallied(Some("SUCCESS"), false), "still finishing");
+        assert!(!is_tallied(Some("CANCELLED"), true), "cancelled");
+        assert!(!is_tallied(Some("IN_PROGRESS"), true));
+        assert!(!is_tallied(None, true));
+    }
+}

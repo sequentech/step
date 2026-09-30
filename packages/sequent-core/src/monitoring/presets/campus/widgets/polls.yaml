@@ -1,0 +1,32 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# How many polling stations have opened, and how many reached each step,
+# against all stations.
+id: polls
+title: Polling stations
+description: Stations that reached each step, against all stations.
+source: poll_status
+queries:
+  opened: {template: summary, ratio: [opened, posts]}
+  progress:
+    template: by_measure
+    measures: [posts, initialized, opened, closed]
+    labels: {posts: Stations, initialized: Ready, opened: Opened, closed: Closed}
+height: 240
+chart:
+  charts:
+    opened:
+      type: kpi
+      query: opened
+      value: numerator
+      label: Stations that have opened
+      style: {value: {format: integer}}
+      support: {value: pct_label, label: of the stations}
+    progress:
+      type: spark_bar
+      query: progress
+      x: value
+      y: label
+  rows: [opened, progress]

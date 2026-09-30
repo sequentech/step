@@ -693,6 +693,7 @@ impl ElectoralLog {
                 serde_json::to_string(&board_message)
                     .with_context(|| "Error serializing ElectoralLogMessage")?,
             ),
+            event_time_ms: None,
         };
 
         let celery_app = get_celery_app().await;
@@ -806,6 +807,7 @@ impl ElectoralLog {
                 serde_json::to_string(&board_message)
                     .with_context(|| "Error serializing ElectoralLogMessage")?,
             ),
+            event_time_ms: None,
         };
         let celery_app = get_celery_app().await;
         celery_app
@@ -858,6 +860,7 @@ impl ElectoralLog {
                 serde_json::to_string(&board_message)
                     .with_context(|| "Error serializing post cast vote")?,
             ),
+            event_time_ms: None,
         };
         let celery_app = get_celery_app().await;
         celery_app
@@ -945,6 +948,7 @@ impl ElectoralLog {
                 serde_json::to_string(&board_message)
                     .with_context(|| "Error serializing ElectoralLogMessage")?,
             ),
+            event_time_ms: None,
         };
         let celery_app = get_celery_app().await;
         celery_app
@@ -1000,6 +1004,26 @@ impl ElectoralLog {
         username: Option<String>,
     ) -> Result<()> {
         let message = Message::results_publication_action_message(
+            EventIdString(event_id),
+            details,
+            &self.sd,
+            user_id,
+            username,
+        )?;
+
+        self.post(&message).await
+    }
+
+    /// Posts a change to the election event's monitoring dashboards.
+    #[instrument(skip(self))]
+    pub async fn post_monitoring_config_changed(
+        &self,
+        event_id: String,
+        details: MonitoringConfigChangeDetails,
+        user_id: Option<String>,
+        username: Option<String>,
+    ) -> Result<()> {
+        let message = Message::monitoring_config_changed_message(
             EventIdString(event_id),
             details,
             &self.sd,
