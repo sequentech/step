@@ -3303,6 +3303,8 @@ const tagalogTranslation: TranslationType = {
                         "Naka-lock down ang event; hindi na mababago ang configuration ng monitoring nito.",
                     forbiddenScope:
                         "Hindi mo maaaring makita ang mga bilang para sa napiling rehiyon, posisyon o bansa.",
+                    badRequest:
+                        "Nagpadala ang editor ng kahilingang hindi mabasa ng server. I-reload ang pahina at subukan muli.",
                 },
                 duplicate: {
                     done: "Idinagdag sa dashboard ang {{id}}, isang kopya ng widget.",
