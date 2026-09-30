@@ -12,6 +12,7 @@ use crate::route_services::{json, post, Services};
 use crate::test_claims::Claims;
 use rocket::http::Status;
 use rocket::local::asynchronous::Client;
+use sequent_core::monitoring::cadence::Cadence;
 use sequent_core::types::permissions::Permissions;
 use serde_json::{json, Value};
 use uuid::Uuid;
@@ -105,7 +106,12 @@ async fn an_event_never_configured_shows_the_legacy_dashboard() {
     assert_eq!(status, Status::Ok, "{body}");
     assert_eq!(
         body,
-        json!({"mode": "LEGACY", "dashboards": [], "snapshot": null})
+        json!({
+            "mode": "LEGACY",
+            "dashboards": [],
+            "snapshot": null,
+            "refresh_seconds": 30,
+        })
     );
 
     let (status, body) = render(
@@ -181,6 +187,47 @@ async fn a_configured_event_lists_its_dashboards_and_draws_a_widget_once() {
         assert_eq!(body["snapshot_revision"], 7);
     }
     assert_eq!(services.monitoring_renderer.renders(), 1);
+}
+
+#[rocket::async_test]
+async fn the_dashboards_report_the_snapshot_interval_they_are_counted_at() {
+    let services = Services::on_test_database()
+        .await
+        .with_monitoring_cadence(Cadence::parse(Some("90"), None))
+        .with_monitoring_snapshots(MemorySnapshots::at(7, ScopeRead::Empty));
+    let client = services.client().await;
+    let event = rows::event(&services.hasura).await;
+    event.election(&services.hasura).await;
+    configure(&client, &event).await;
+
+    let (status, body) = json(
+        post(
+            &client,
+            "/monitoring/list-dashboards",
+            &viewer(&event),
+            &json!({"election_event_id": event.election_event_id}),
+        )
+        .await,
+    )
+    .await;
+    assert_eq!(status, Status::Ok, "{body}");
+    assert_eq!(body["refresh_seconds"], 90, "{body}");
+
+    let (status, body) = json(
+        post(
+            &client,
+            "/monitoring/get-dashboard",
+            &viewer(&event),
+            &json!({
+                "election_event_id": event.election_event_id,
+                "dashboard_id": "overview",
+            }),
+        )
+        .await,
+    )
+    .await;
+    assert_eq!(status, Status::Ok, "{body}");
+    assert_eq!(body["refresh_seconds"], 90, "{body}");
 }
 
 #[rocket::async_test]
