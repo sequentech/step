@@ -465,12 +465,30 @@ let MuiLink: Components["MuiLink"] = {
 }
 
 let MuiButtonBase: Components["MuiButtonBase"] = {
+    styleOverrides: {
+        root: {
+            "&.Mui-focusVisible": {
+                ...keyboardFocusStyle,
+                // Keep the ring inside tabs and menus with clipped overflow.
+                outlineOffset: "-4px",
+                boxShadow: `inset 0 0 0 2px ${palette.white}`,
+            },
+        },
+    },
     defaultProps: {
         LinkComponent: LinkBehavior,
     },
 }
 
 let MuiMenu: Components["MuiMenu"] = {
+    styleOverrides: {
+        root: {
+            // Menus dismiss on Tab; their empty modal focus guards are redundant.
+            '& > [data-testid="sentinelStart"], & > [data-testid="sentinelEnd"]': {
+                display: "none",
+            },
+        },
+    },
     defaultProps: {
         PaperProps: {
             style: {
