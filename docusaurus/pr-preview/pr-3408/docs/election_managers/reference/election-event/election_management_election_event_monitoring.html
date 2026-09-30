@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Monitoring | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-3408/docs/election_managers/reference/election-event/election_management_election_event_monitoring"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Monitoring | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-3408/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3408/docs/election_managers/reference/election-event/election_management_election_event_monitoring"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3408/docs/election_managers/reference/election-event/election_management_election_event_monitoring" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3408/docs/election_managers/reference/election-event/election_management_election_event_monitoring" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Monitoring","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-3408/docs/election_managers/reference/election-event/election_management_election_event_monitoring"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-3408/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/pr-preview/pr-3408/assets/js/runtime~main.d78ad0f4.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-3408/assets/js/runtime~main.b41163ea.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-3408/assets/js/main.52074a7c.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -46,21 +46,35 @@ user with the configure permissions does this with the
 <code>monitoringResetToPreset</code> GraphQL action; once an event shows monitoring,
 <a href="#reset-to-preset" class="">Reset to preset</a> in the dashboard editor does the same.
 The platform ships two presets:</p>
-<table><thead><tr><th>Preset</th><th>For</th></tr></thead><tbody><tr><td><code>comelec</code></td><td>An overview and one dashboard for each monitoring record of an overseas voting package.</td></tr><tr><td><code>campus</code></td><td>A university election: participation by faculty and role, and the day&#x27;s operations.</td></tr></tbody></table>
+<table><thead><tr><th>Preset</th><th>For</th></tr></thead><tbody><tr><td><code>comelec</code></td><td>An overview and a dashboard for each monitoring record of an overseas voting package, grouped by section.</td></tr><tr><td><code>campus</code></td><td>A university election: participation by faculty and role, and the day&#x27;s operations.</td></tr></tbody></table>
 <p>Switching the tab back to the standard dashboard keeps the configuration and
 its history; switching again shows the same dashboards.</p>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="viewing-a-dashboard">Viewing a dashboard<a href="#viewing-a-dashboard" class="hash-link" aria-label="Direct link to Viewing a dashboard" title="Direct link to Viewing a dashboard" translate="no">​</a></h2>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="header">Header<a href="#header" class="hash-link" aria-label="Direct link to Header" title="Direct link to Header" translate="no">​</a></h3>
-<p>The header shows, from left to right:</p>
+<p>The header has two rows:</p>
 <ul>
-<li class="">the dashboard&#x27;s title, with a menu to switch to another dashboard of the
-event;</li>
-<li class="">how many widgets it has, and the requirement IDs it answers, if any;</li>
-<li class=""><strong>Updated</strong> and a time: when the figures on screen were counted (see
-<a href="#freshness" class="">Freshness</a>);</li>
-<li class=""><strong>Export</strong>, to export the dashboard&#x27;s data;</li>
-<li class=""><strong>Edit dashboard</strong>, for users who may configure monitoring.</li>
+<li class="">the name of the preset the event&#x27;s dashboards came from (for example
+<strong>COMELEC overseas voting</strong>, marked <strong>Dashboard preset</strong>), with <strong>Export</strong>,
+to export the dashboard&#x27;s data, and <strong>Edit dashboard</strong>, for users who may
+configure monitoring;</li>
+<li class="">the <strong>Dashboard</strong> menu, to switch to another dashboard of the event, each
+listed under the heading of its section, then the
+<a href="#dashboard-selectors" class="">dashboard selectors</a>, and on the right <strong>Updated</strong>
+with a time: when the figures on screen were counted (see
+<a href="#freshness" class="">Freshness</a>) and how often the dashboard checks for new ones.
+The <strong>↻</strong> button checks at once.</li>
 </ul>
+<p>Below the header come the dashboard&#x27;s section, its title and a line saying
+what it shows, then its widgets. Under the widgets a footer repeats what the
+figures are of (for example &quot;All regions · Dubai PCG · All countries&quot;), when
+they were counted, and the requirement IDs the dashboard answers, if any.</p>
+<p>The <code>comelec</code> preset has an <strong>Overview</strong> and a dashboard for each monitoring
+record, listed under the section of the election it belongs to, in the order
+an election runs: Enrollment, Test voting, Final testing and lockdown,
+Voting, Voter turnout, Counting and transmission, Enrollment and voting
+rates, Access and security, and Helpdesk. A record&#x27;s dashboard opens on the
+figure it asks for; for example, <strong>Voted vs pre-enrolled</strong> opens Turnout by
+group on &quot;Voted of pre-enrolled&quot;.</p>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="dashboard-selectors">Dashboard selectors<a href="#dashboard-selectors" class="hash-link" aria-label="Direct link to Dashboard selectors" title="Direct link to Dashboard selectors" translate="no">​</a></h3>
 <p>A dashboard can offer up to three selectors that apply to every widget on it:</p>
 <table><thead><tr><th>Selector</th><th>Chooses</th><th>&quot;All&quot; option</th></tr></thead><tbody><tr><td><strong>Region</strong></td><td>A region of the event.</td><td>All regions</td></tr><tr><td><strong>Post</strong></td><td>An election of the event.</td><td>All Posts, or All authorized Posts for a restricted user</td></tr><tr><td><strong>Country</strong></td><td>The voters&#x27; country.</td><td>All countries</td></tr></tbody></table>
@@ -80,22 +94,30 @@ only Country remains. See
 fill a row and wrap to the next, and on a narrow screen they stack. A widget
 card shows:</p>
 <ul>
-<li class="">its title, its data source and the requirement IDs it answers;</li>
+<li class="">its title and, if it has one, a line saying what its figures are taken
+of, such as &quot;Percentages use pre-enrolled OVs.&quot;;</li>
 <li class="">its own <strong>widget selectors</strong>, if it has any: a dropdown or a toggle, such
-as Breakdown (Sex, Age, Status abroad), Show (which ratio), or Interval
-(Hourly, Daily). Some selectors appear only while another has a given
-value; for example, the Day picker shows only when Interval is Hourly;</li>
+as Breakdown (Sex, Age, Status abroad), Show (which ratio), or Resolution
+(Hour, Day). Some selectors appear only while another has a given
+value; for example, the Day picker shows only when Resolution is Hour;</li>
 <li class="">the chart;</li>
 <li class="">a <strong>⋯</strong> menu with <strong>Configure widget</strong>, <strong>View data</strong>, <strong>Export CSV</strong> and
 <strong>Duplicate</strong>. Configure widget and Duplicate appear only for users who may
 configure monitoring.</li>
 </ul>
-<p>A dashboard can open the same widget with different selector values. For
-example, a &quot;Voted vs pre-enrolled&quot; dashboard opens Turnout by group on
-&quot;Voted of pre-enrolled&quot;, while another dashboard opens it on &quot;Voted of
-registered&quot;. The values a viewer picks are kept while they stay in the
-browser tab.</p>
+<p>A dashboard can open the same widget with different selector values; for
+example, the Overview opens Voting activity by day and Enrollment and voting
+rates opens it by hour. The values a viewer picks are kept while they stay in
+the browser tab.</p>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="how-figures-are-counted">How figures are counted<a href="#how-figures-are-counted" class="hash-link" aria-label="Direct link to How figures are counted" title="Direct link to How figures are counted" translate="no">​</a></h3>
+<p><strong>Voting credentials</strong> are counted, until the platform records when
+credentials are issued, as issued when the voter&#x27;s password is set. The
+widget says so under its chart. Approved voters are those whose latest
+application was accepted, and those imported without an application.</p>
+<p><strong>Sign-ins</strong> are attempts, not people. Failed attempts are shown in total
+and by kind: a valid user whose authentication failed, or a username that
+names no account. Forgot-password requests (a new password sent) are shown
+beside the passwords reset.</p>
 <p>The counting rules belong to the data sources and are the same on every
 dashboard:</p>
 <ul>
@@ -138,9 +160,9 @@ read.</p>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="widget-states">Widget states<a href="#widget-states" class="hash-link" aria-label="Direct link to Widget states" title="Direct link to Widget states" translate="no">​</a></h3>
 <p>A widget that cannot show a chart says why:</p>
 <table><thead><tr><th>Message</th><th>Meaning</th></tr></thead><tbody><tr><td><strong>Not connected</strong> · reason. Nothing is shown until it is.</td><td>The data source&#x27;s producer is not available yet. The widget never shows zero in its place.</td></tr><tr><td><strong>Not counted yet</strong></td><td>No snapshot exists yet. The widget updates on its own.</td></tr><tr><td><strong>Counting this selection</strong></td><td>This combination of allowed elections has not been counted yet; it is counted in the next pass, within about a minute.</td></tr><tr><td><strong>The chart could not be drawn</strong></td><td>The chart engine failed or took too long. The figures are shown as a table instead.</td></tr><tr><td><strong>This widget cannot be shown</strong></td><td>Its configuration has a problem.</td></tr><tr><td><strong>This widget could not be loaded</strong></td><td>The request failed. It is tried again when the dashboard updates.</td></tr></tbody></table>
-<p>Five data sources are declared but not connected yet, so their widgets show
+<p>Four data sources are declared but not connected yet, so their widgets show
 <strong>Not connected</strong> with one of these reasons:</p>
-<table><thead><tr><th>Data source</th><th>Reason</th></tr></thead><tbody><tr><td>Test voting</td><td>Test elections cannot be marked yet.</td></tr><tr><td>Voting credentials</td><td>Issuing credentials is not recorded yet.</td></tr><tr><td>Final testing and lockdown</td><td>Final testing and lockdown are not recorded yet.</td></tr><tr><td>Attack detections</td><td>No attack detection feed is connected.</td></tr><tr><td>Helpdesk</td><td>No helpdesk system is connected.</td></tr></tbody></table>
+<table><thead><tr><th>Data source</th><th>Reason</th></tr></thead><tbody><tr><td>Test voting</td><td>Test elections cannot be marked yet.</td></tr><tr><td>Final testing and lockdown</td><td>Final testing and lockdown are not recorded yet.</td></tr><tr><td>Attack detections</td><td>No attack detection feed is connected.</td></tr><tr><td>Helpdesk</td><td>No helpdesk system is connected.</td></tr></tbody></table>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="view-data">View data<a href="#view-data" class="hash-link" aria-label="Direct link to View data" title="Direct link to View data" translate="no">​</a></h3>
 <p><strong>View data</strong> in a widget&#x27;s ⋯ menu opens a table of the rows the widget&#x27;s
 query returned, with exact values, for the snapshot and selections on
@@ -216,7 +238,7 @@ with other changes to the same event, or the chart engine cannot be reached,
 nothing is saved and the save can be tried again.</p>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="configure-widget">Configure widget<a href="#configure-widget" class="hash-link" aria-label="Direct link to Configure widget" title="Direct link to Configure widget" translate="no">​</a></h3>
 <p><strong>Configure widget</strong> opens the widget&#x27;s definition next to a live preview.
-The three tabs edit the same YAML:</p>
+The first three tabs edit the same YAML:</p>
 <ul>
 <li class=""><strong>Data &amp; query</strong>: title, data source, query template, measures,
 numerator and denominator, group by, sort and row limit, and which dashboard
@@ -228,6 +250,9 @@ source.&quot;</li>
 options and default. Selectors appear in the widget header; their values
 feed the query.</li>
 <li class=""><strong>YAML</strong>: the whole definition, including the dbt Charts <code>chart</code> block.</li>
+<li class=""><strong>Preview</strong>: the draft alone, across the dialog&#x27;s full width and at the
+widget&#x27;s own height, with its checks underneath. Beside the other tabs the
+preview is drawn at the width of the widget&#x27;s card.</li>
 </ul>
 <p>While the YAML has a syntax error, the form tabs are read-only; fix it in
 the YAML tab to use them again. Problems are listed under <strong>Checks</strong>, each
