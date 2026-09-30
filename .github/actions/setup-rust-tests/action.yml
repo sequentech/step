@@ -58,6 +58,21 @@ runs:
         sudo apt-get update
         sudo apt-get install -y build-essential pkg-config libssl-dev protobuf-compiler libprotobuf-dev
 
+    - name: Install Core database fixture dependencies
+      if: inputs.cargo-build-name == 'sequent-core'
+      shell: bash
+      run: sudo apt-get install -y postgresql libpq-dev
+
+    # Enforce the first production-module policy; test assertions are unrestricted.
+    # Existing crate-wide lint debt remains tracked in meta #11566.
+    - name: Check Sequent Core assurance lints
+      if: inputs.cargo-build-name == 'sequent-core'
+      shell: bash
+      working-directory: packages
+      env:
+        CARGO_BUILD_JOBS: '2'
+      run: cargo clippy --locked --no-deps --lib -p sequent-core --features default_features,keycloak
+
     - name: Install the local PDF test browser
       if: inputs.cargo-build-name == 'velvet'
       uses: ./.github/actions/setup-test-browser
