@@ -2202,8 +2202,14 @@ type MonitoringDashboardSummary {
     widget_count: Int!
 }
 
+type MonitoringPresetName {
+    id: String!
+    title: String!
+}
+
 type MonitoringListDashboardsOutput {
     mode: String!
+    preset: MonitoringPresetName
     dashboards: [MonitoringDashboardSummary!]!
     snapshot: MonitoringSnapshot
     refresh_seconds: Int

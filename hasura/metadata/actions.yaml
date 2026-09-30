@@ -2059,6 +2059,7 @@ custom_types:
     objects:
         - name: MonitoringSnapshot
         - name: MonitoringDashboardSummary
+        - name: MonitoringPresetName
         - name: MonitoringListDashboardsOutput
         - name: MonitoringDocumentRef
         - name: MonitoringScopeOption

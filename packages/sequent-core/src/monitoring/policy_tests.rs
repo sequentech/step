@@ -134,6 +134,44 @@ fn the_specification_set_is_consistent() {
     assert_accepted(&validate_set(&specification_set()));
 }
 
+// -- descriptions: a line under a title, for the reader --------------------
+
+#[test]
+fn a_widget_may_say_what_its_figures_are_taken_of() {
+    let yaml =
+        minimal_with("title: W\n", "title: W\ndescription: Of voters.\n");
+    let parsed = parse_widget(&yaml);
+    assert_accepted(&parsed.report);
+    assert_eq!(
+        parsed.value.expect("accepted").description.as_deref(),
+        Some("Of voters.")
+    );
+}
+
+#[test]
+fn a_blank_widget_description_is_refused() {
+    let yaml = minimal_with("title: W\n", "title: W\ndescription: \" \"\n");
+    assert_refused(&widget_report(&yaml), Code::InvalidValue, "description");
+}
+
+#[test]
+fn a_dashboard_may_say_what_it_shows() {
+    let yaml =
+        REQ_0260.replacen("\ntitle:", "\ndescription: Turnout.\ntitle:", 1);
+    let parsed = parse_dashboard(&yaml);
+    assert_accepted(&parsed.report);
+    assert_eq!(
+        parsed.value.expect("accepted").description.as_deref(),
+        Some("Turnout.")
+    );
+    let blank = REQ_0260.replacen("\ntitle:", "\ndescription: \"\"\ntitle:", 1);
+    assert_refused(
+        &dashboard_report(&blank),
+        Code::InvalidValue,
+        "description",
+    );
+}
+
 // -- content that reaches outside the governed data ------------------------
 
 #[derive(Deserialize)]

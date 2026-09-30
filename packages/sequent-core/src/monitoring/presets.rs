@@ -121,6 +121,13 @@ pub fn load(id: &str) -> Option<Result<Preset, Report>> {
         .map(PresetSource::load)
 }
 
+/// The manifest of the preset with this id, read without its documents: what
+/// a dashboard needs to name the preset it came from.
+pub fn manifest(id: &str) -> Option<PresetManifest> {
+    let source = PRESETS.iter().find(|source| source.id == id)?;
+    serde_yaml::from_str(source.manifest).ok()
+}
+
 /// `path` inside `file`, as a problem's path.
 fn within(file: &str, path: &str) -> String {
     if path.is_empty() {
