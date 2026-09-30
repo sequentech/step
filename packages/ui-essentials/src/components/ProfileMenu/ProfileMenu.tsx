@@ -18,6 +18,7 @@ import LogoutIcon from "@mui/icons-material/Logout"
 import {styled} from "@mui/material/styles"
 import theme from "../../services/theme"
 import {EVotingPortalCountdownPolicy} from "@sequentech/ui-core"
+import {useInertBackground} from "../../services/useInertBackground"
 
 const Span = styled("span")`
     font-size: 14px;
@@ -74,6 +75,7 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
 }) => {
     const {t} = useTranslation()
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null)
+    const setModalRoot = useInertBackground(Boolean(anchorEl))
     const [timeLeftText, setTimeLeftText] = useState("")
     const [timeLeft, setTimeLeft] = useState(0)
     const [totalDuration, setTotalDuration] = useState(0)
@@ -204,6 +206,9 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
                 </StyledButtonContainerWrapper>
             </StyledButtonTooltip>
             <Menu
+                ref={setModalRoot}
+                role="region"
+                aria-label={t("header.profile")}
                 className="profile-menu"
                 classes={{paper: "profile-menu-paper", list: "profile-menu-options"}}
                 id="menu-appbar"
