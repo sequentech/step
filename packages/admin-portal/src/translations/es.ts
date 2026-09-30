@@ -2891,7 +2891,7 @@ const spanishTranslation: TranslationType = {
                 menu: "Acciones de {{widget}}",
                 configure: "Configurar widget",
                 viewData: "Ver datos",
-                exportCsv: "Exportar CSV",
+                export: "Exportar",
                 duplicate: "Duplicar",
                 loading: "Cargando {{widget}}",
                 missing: "El panel nombra un widget que no existe: {{id}}",

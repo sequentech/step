@@ -2900,7 +2900,7 @@ const tagalogTranslation: TranslationType = {
                 menu: "Mga aksyon para sa {{widget}}",
                 configure: "I-configure ang widget",
                 viewData: "Tingnan ang datos",
-                exportCsv: "I-export ang CSV",
+                export: "I-export",
                 duplicate: "Doblehin",
                 loading: "Nilo-load ang {{widget}}",
                 missing: "May widget na wala sa dashboard: {{id}}",

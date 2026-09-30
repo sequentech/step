@@ -123,7 +123,7 @@ card shows:
   (Hour, Day). Some selectors appear only while another has a given
   value; for example, the Day picker shows only when Resolution is Hour;
 - the chart;
-- a **⋯** menu with **Configure widget**, **View data**, **Export CSV** and
+- a **⋯** menu with **Configure widget**, **View data**, **Export** and
   **Duplicate**. Configure widget and Duplicate appear only for users who may
   configure monitoring.
 
@@ -218,8 +218,8 @@ screen.
 
 ### Export
 
-**Export** in the header exports the dashboard's data; **Export CSV** in a
-widget's menu exports only that widget. The **Export monitoring data** dialog
+**Export** in the header exports the dashboard's data; **Export** in a
+widget's menu exports only that widget, in CSV unless you choose SQL. The **Export monitoring data** dialog
 asks for:
 
 - the format, **CSV** or **SQL** (`CREATE TABLE` and `INSERT` statements);

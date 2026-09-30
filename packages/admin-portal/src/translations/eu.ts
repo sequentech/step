@@ -2880,7 +2880,7 @@ const basqueTranslation: TranslationType = {
                 menu: "{{widget}} widgetaren ekintzak",
                 configure: "Konfiguratu widgeta",
                 viewData: "Ikusi datuak",
-                exportCsv: "Esportatu CSV",
+                export: "Esportatu",
                 duplicate: "Bikoiztu",
                 loading: "{{widget}} kargatzen",
                 missing: "Panelak existitzen ez den widget bat aipatzen du: {{id}}",

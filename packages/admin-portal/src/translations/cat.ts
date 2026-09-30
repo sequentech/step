@@ -2905,7 +2905,7 @@ const catalanTranslation: TranslationType = {
                 menu: "Accions de {{widget}}",
                 configure: "Configurar el giny",
                 viewData: "Veure les dades",
-                exportCsv: "Exportar CSV",
+                export: "Exportar",
                 duplicate: "Duplicar",
                 loading: "Carregant {{widget}}",
                 missing: "El tauler anomena un giny que no existeix: {{id}}",

@@ -2892,7 +2892,7 @@ const dutchTranslation: TranslationType = {
                 menu: "Acties voor {{widget}}",
                 configure: "Widget configureren",
                 viewData: "Gegevens bekijken",
-                exportCsv: "CSV exporteren",
+                export: "Exporteren",
                 duplicate: "Dupliceren",
                 loading: "{{widget}} laden",
                 missing: "Het dashboard noemt een widget die niet bestaat: {{id}}",

@@ -2910,7 +2910,7 @@ const frenchTranslation: TranslationType = {
                 menu: "Actions pour {{widget}}",
                 configure: "Configurer le widget",
                 viewData: "Voir les données",
-                exportCsv: "Exporter en CSV",
+                export: "Exporter",
                 duplicate: "Dupliquer",
                 loading: "Chargement de {{widget}}",
                 missing: "Le tableau de bord nomme un widget qui n'existe pas : {{id}}",
