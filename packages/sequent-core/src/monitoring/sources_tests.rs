@@ -137,4 +137,6 @@ fn series_measures_are_measures_of_a_source_with_a_timeseries() {
     assert!(turnout.counts_per_hour(Measure::Voted));
     assert!(!turnout.counts_per_hour(Measure::Registered));
     assert!(!turnout.counts_per_hour(Measure::PreEnrolled));
+    // The numerator of a share of the pre-enrolled, not a series of its own.
+    assert!(!turnout.counts_per_hour(Measure::VotedPreEnrolled));
 }

@@ -110,6 +110,10 @@ pub enum Measure {
     TestVoted,
     /// Voters with at least one valid vote. Revotes do not count again.
     Voted,
+    /// Pre-enrolled voters with at least one valid vote: the voters both
+    /// `pre_enrolled` and `voted` count, so a share of the pre-enrolled
+    /// that counts it never passes 100%.
+    VotedPreEnrolled,
     Applications,
     Pending,
     Approved,
@@ -141,6 +145,7 @@ impl Measure {
             Measure::CredentialsIssued => "Credentials issued",
             Measure::TestVoted => "Test voted",
             Measure::Voted => "Voted",
+            Measure::VotedPreEnrolled => "Pre-enrolled and voted",
             Measure::Applications => "Applications",
             Measure::Pending => "Pending",
             Measure::Approved => "Approved",
@@ -440,7 +445,7 @@ impl DataSourceId {
         ) = match self {
             VoterTurnout => (
                 CountingUnit::DistinctVoters,
-                &[M::Registered, M::PreEnrolled, M::Voted],
+                &[M::Registered, M::PreEnrolled, M::Voted, M::VotedPreEnrolled],
                 VOTER_TEMPLATES,
                 SCOPE,
                 VoterDimensions::Configured,

@@ -149,6 +149,46 @@ fn a_voter_of_two_posts_is_one_voter_of_the_event_and_the_region() {
 }
 
 #[test]
+fn a_voter_who_votes_without_pre_enrolling_is_not_a_pre_enrolled_voter_who_voted() {
+    let settings = settings();
+    let mut ana = voter("ana", 1, "Europe", Some("Spain"));
+    ana.pre_enrolled_at = Some(at(1, 9, 0));
+    ana.first_voted_at = Some(at(1, 10, 0));
+    let mut ben = voter("ben", 1, "Europe", Some("Spain"));
+    ben.first_voted_at = Some(at(1, 11, 0));
+    let mut cai = voter("cai", 1, "Europe", Some("Spain"));
+    cai.pre_enrolled_at = Some(at(1, 9, 0));
+    let facts = facts(&settings, vec![ana, ben, cai]);
+    let figures = produce(&facts, &[set(&[1, 2, 3])]);
+    let turnout = scopes(&figures, DataSourceId::VoterTurnout);
+
+    for scope in [
+        "event".to_string(),
+        "region=Europe".to_string(),
+        format!("post={}", id(1)),
+    ] {
+        let totals = &turnout[&scope].totals;
+        assert_eq!(totals[&Measure::PreEnrolled], 2, "{scope}");
+        assert_eq!(totals[&Measure::Voted], 2, "{scope}");
+        assert_eq!(totals[&Measure::VotedPreEnrolled], 1, "{scope}: ana only");
+    }
+    let event = &turnout["event"];
+    let madrid = event.groups["post"]
+        .iter()
+        .find(|row| row.key == id(1).to_string())
+        .unwrap();
+    assert_eq!(madrid.counts[&Measure::VotedPreEnrolled], 1);
+    let cells = &event.cube.as_ref().unwrap().cells;
+    assert_eq!(
+        cells
+            .iter()
+            .map(|cell| cell.counts[&Measure::VotedPreEnrolled])
+            .sum::<u64>(),
+        1
+    );
+}
+
+#[test]
 fn a_restricted_set_counts_only_its_posts() {
     let settings = settings();
     let facts = facts(

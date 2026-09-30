@@ -910,3 +910,63 @@ async fn an_event_off_configured_dashboards_is_pruned_until_only_its_live_run_is
         .unwrap()
         .contains(&event.event));
 }
+
+/// A voter who votes without pre-enrolling is one who voted but not a
+/// pre-enrolled voter who voted, so "Voted of pre-enrolled" stays within
+/// the pre-enrolled.
+#[tokio::test]
+async fn a_voter_who_votes_without_pre_enrolling_counts_as_voted_only() {
+    let pool = schema::pool().await;
+    let mut client = client(&pool).await;
+    let settings = settings();
+    let event = seed(&mut client).await;
+    for (voter, pre_enrolled, voted) in [
+        ("ana", true, true),
+        ("ben", false, true),
+        ("cai", true, false),
+    ] {
+        client
+            .execute(
+                "INSERT INTO sequent_backend.monitoring_voter
+                     (tenant_id, election_event_id, election_id, voter_id, region, country, dims,
+                      pre_enrolled_at, first_voted_at, attributes_hash, settings_revision)
+                 VALUES ($1, $2, $3, $4, 'Europe', 'Spain', '{\"sex\": \"F\"}',
+                         CASE WHEN $5 THEN now() - interval '2 hours' END,
+                         CASE WHEN $6 THEN now() - interval '1 hour' END, 'h', 1)",
+                &[
+                    &event.event.tenant_id,
+                    &event.event.election_event_id,
+                    &event.madrid,
+                    &voter,
+                    &pre_enrolled,
+                    &voted,
+                ],
+            )
+            .await
+            .unwrap();
+    }
+    let PassOutcome::Completed { revision, .. } = pass(&mut client, &event, &settings).await else {
+        panic!("the pass completes");
+    };
+    let set = full_set(&mut client, &event).await;
+    for scope in ["event".to_string(), format!("post={}", event.madrid)] {
+        let turnout = payload(
+            read(
+                &mut client,
+                &event,
+                revision,
+                DataSourceId::VoterTurnout,
+                &set,
+                &scope,
+            )
+            .await,
+        );
+        assert_eq!(turnout.totals[&Measure::PreEnrolled], 2, "{scope}");
+        assert_eq!(turnout.totals[&Measure::Voted], 2, "{scope}");
+        assert_eq!(
+            turnout.totals[&Measure::VotedPreEnrolled],
+            1,
+            "{scope}: ana only"
+        );
+    }
+}

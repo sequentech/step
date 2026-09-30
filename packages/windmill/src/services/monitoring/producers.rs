@@ -296,6 +296,10 @@ fn voter_counts(
                 (Measure::Registered, 1),
                 (Measure::PreEnrolled, one(facts.pre_enrolled_at.is_some())),
                 (Measure::Voted, one(facts.first_voted_at.is_some())),
+                (
+                    Measure::VotedPreEnrolled,
+                    one(facts.pre_enrolled_at.is_some() && facts.first_voted_at.is_some()),
+                ),
             ]
             .into()
         }
