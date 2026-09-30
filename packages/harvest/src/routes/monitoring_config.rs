@@ -17,8 +17,9 @@ use crate::routes::monitoring::authorize_monitoring;
 use crate::services::dependencies::HarvestServices;
 use crate::services::monitoring::{
     author, event_ref, hasura_client, is_locked_down, live_config, problems,
-    refuse_when_locked_down, MonitoringError, MonitoringResult, ProblemView,
-    QueryTableView, RenderResponse, RenderState, TableView,
+    refuse_when_locked_down, request_body, MonitoringBody, MonitoringError,
+    MonitoringResult, ProblemView, QueryTableView, RenderResponse, RenderState,
+    TableView,
 };
 use crate::services::monitoring_checks::{
     check_boards, sample_board, RendererChecks,
@@ -160,12 +161,12 @@ fn verdict(
 #[instrument(skip(claims, services, body))]
 #[post("/monitoring/validate-config", format = "json", data = "<body>")]
 pub async fn validate_config(
-    body: Json<ValidateConfigInput>,
+    body: MonitoringBody<'_, ValidateConfigInput>,
     claims: JwtClaims,
     services: &State<HarvestServices>,
 ) -> MonitoringResult<Json<ValidateConfigOutput>> {
     configure(&claims)?;
-    let input = body.into_inner();
+    let input = request_body(body)?;
     let event = event_ref(&claims, &input.election_event_id)?;
     let (set, _) = live_set(services, event).await?;
     let checked = match check_edit(
@@ -329,12 +330,12 @@ fn save_error(error: SaveError) -> MonitoringError {
 #[instrument(skip(claims, services, body))]
 #[post("/monitoring/save-config", format = "json", data = "<body>")]
 pub async fn save_config(
-    body: Json<SaveConfigInput>,
+    body: MonitoringBody<'_, SaveConfigInput>,
     claims: JwtClaims,
     services: &State<HarvestServices>,
 ) -> MonitoringResult<Json<SaveConfigOutput>> {
     configure_and_write(&claims)?;
-    let input = body.into_inner();
+    let input = request_body(body)?;
     let event = event_ref(&claims, &input.election_event_id)?;
     let edit = match (input.change, input.yaml.as_deref()) {
         (ChangeInput::Upsert, Some(yaml)) => Edit::Upsert(yaml),
@@ -418,12 +419,12 @@ async fn current_generation(
 #[instrument(skip(claims, services))]
 #[post("/monitoring/reset-to-preset", format = "json", data = "<body>")]
 pub async fn reset_config_to_preset(
-    body: Json<ResetToPresetInput>,
+    body: MonitoringBody<'_, ResetToPresetInput>,
     claims: JwtClaims,
     services: &State<HarvestServices>,
 ) -> MonitoringResult<Json<GenerationOutput>> {
     configure_and_write(&claims)?;
-    let input = body.into_inner();
+    let input = request_body(body)?;
     let event = event_ref(&claims, &input.election_event_id)?;
     let mut client = hasura_client(services).await?;
     check_not_locked_down(&mut client, event).await?;
@@ -485,11 +486,11 @@ pub struct ListPresetsOutput {
 #[instrument(skip(claims))]
 #[post("/monitoring/list-presets", format = "json", data = "<body>")]
 pub async fn list_presets(
-    body: Json<ListPresetsInput>,
+    body: MonitoringBody<'_, ListPresetsInput>,
     claims: JwtClaims,
 ) -> MonitoringResult<Json<ListPresetsOutput>> {
     configure(&claims)?;
-    let _ = body.into_inner();
+    request_body(body)?;
     let presets = PRESETS
         .iter()
         .filter_map(|source| presets::load(source.id)?.ok())
@@ -518,12 +519,12 @@ pub struct SetModeInput {
 #[instrument(skip(claims, services))]
 #[post("/monitoring/set-mode", format = "json", data = "<body>")]
 pub async fn set_dashboard_mode(
-    body: Json<SetModeInput>,
+    body: MonitoringBody<'_, SetModeInput>,
     claims: JwtClaims,
     services: &State<HarvestServices>,
 ) -> MonitoringResult<Json<SetModeOutput>> {
     configure_and_write(&claims)?;
-    let input = body.into_inner();
+    let input = request_body(body)?;
     let event = event_ref(&claims, &input.election_event_id)?;
     let mut client = hasura_client(services).await?;
     let outcome = set_mode(
@@ -602,12 +603,12 @@ pub struct ListConfigOutput {
 #[instrument(skip(claims, services))]
 #[post("/monitoring/list-config", format = "json", data = "<body>")]
 pub async fn list_config(
-    body: Json<ListConfigInput>,
+    body: MonitoringBody<'_, ListConfigInput>,
     claims: JwtClaims,
     services: &State<HarvestServices>,
 ) -> MonitoringResult<Json<ListConfigOutput>> {
     configure(&claims)?;
-    let input = body.into_inner();
+    let input = request_body(body)?;
     let event = event_ref(&claims, &input.election_event_id)?;
     let mut client = hasura_client(services).await?;
     let transaction = client
@@ -686,12 +687,12 @@ pub struct GetConfigOutput {
 #[instrument(skip(claims, services))]
 #[post("/monitoring/get-config", format = "json", data = "<body>")]
 pub async fn get_config(
-    body: Json<GetConfigInput>,
+    body: MonitoringBody<'_, GetConfigInput>,
     claims: JwtClaims,
     services: &State<HarvestServices>,
 ) -> MonitoringResult<Json<GetConfigOutput>> {
     configure(&claims)?;
-    let input = body.into_inner();
+    let input = request_body(body)?;
     let event = event_ref(&claims, &input.election_event_id)?;
     let mut client = hasura_client(services).await?;
     let transaction = client

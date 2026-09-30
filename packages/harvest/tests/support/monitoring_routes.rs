@@ -796,3 +796,98 @@ async fn a_drawn_widget_returns_every_querys_table_in_its_order() {
         "{body}"
     );
 }
+
+const MONITORING_ROUTES: [&str; 11] = [
+    "/monitoring/list-dashboards",
+    "/monitoring/get-dashboard",
+    "/monitoring/render-widget",
+    "/monitoring/validate-config",
+    "/monitoring/save-config",
+    "/monitoring/reset-to-preset",
+    "/monitoring/list-presets",
+    "/monitoring/set-mode",
+    "/monitoring/list-config",
+    "/monitoring/get-config",
+    "/monitoring/export",
+];
+
+/// POSTs `body` as it is, JSON or not.
+async fn post_raw(
+    client: &Client,
+    path: &'static str,
+    claims: Option<&Claims>,
+    body: &str,
+) -> (Status, Value) {
+    use crate::route_services::bearer;
+    use rocket::http::ContentType;
+    let mut request = client
+        .post(path)
+        .header(ContentType::JSON)
+        .body(body.to_string());
+    if let Some(claims) = claims {
+        request = request.header(bearer(claims));
+    }
+    json(request.dispatch().await).await
+}
+
+#[rocket::async_test]
+async fn a_malformed_request_is_refused_as_every_monitoring_refusal_is() {
+    let client = Services::without_database().client().await;
+    let claims = Claims::new("00000000-0000-0000-0000-00000000000a", "admin")
+        .username("admin")
+        .roles([
+            Permissions::MONITORING_VIEW,
+            Permissions::MONITORING_CONFIGURE,
+            Permissions::ELECTION_EVENT_WRITE,
+        ]);
+    for path in MONITORING_ROUTES {
+        let mut malformed = vec![
+            ("{not json", Status::BadRequest),
+            (r#"{"election_event_id": 7}"#, Status::UnprocessableEntity),
+        ];
+        // The presets are the same for every event, so it may be left out.
+        if path != "/monitoring/list-presets" {
+            malformed.push(("{}", Status::UnprocessableEntity));
+        }
+        for (body, expected) in malformed {
+            let (status, answer) =
+                post_raw(&client, path, Some(&claims), body).await;
+            assert_eq!(status, expected, "{path} {body}: {answer}");
+            assert_eq!(
+                answer["extensions"]["code"], "MONITORING_BAD_REQUEST",
+                "{path} {body}: {answer}"
+            );
+            assert!(
+                answer["message"].as_str().is_some_and(|m| !m.is_empty()),
+                "{path} {body}: {answer}"
+            );
+        }
+    }
+    // A missing field is named, so the portal can say what was wrong.
+    let (_, answer) =
+        post_raw(&client, "/monitoring/get-config", Some(&claims), "{}").await;
+    assert!(
+        answer["message"]
+            .as_str()
+            .unwrap()
+            .contains("election_event_id"),
+        "{answer}"
+    );
+
+    // What fails before a route runs keeps the same shape.
+    let (status, answer) =
+        post_raw(&client, "/monitoring/get-config", None, "{}").await;
+    assert_eq!(status, Status::Unauthorized, "{answer}");
+    assert_eq!(answer["extensions"]["code"], "Unauthorized", "{answer}");
+    let (status, answer) =
+        post_raw(&client, "/monitoring/no-such-route", Some(&claims), "{}")
+            .await;
+    assert_eq!(status, Status::NotFound, "{answer}");
+    assert_eq!(answer["extensions"]["code"], "MONITORING_NOT_FOUND");
+
+    // Other routes answer as they did.
+    let (status, answer) =
+        post_raw(&client, "/get-roles", Some(&claims), "{not json").await;
+    assert_eq!(status, Status::BadRequest, "{answer}");
+    assert_eq!(answer, json!({"message": "Unknown Error"}));
+}

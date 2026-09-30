@@ -15,8 +15,8 @@
 use crate::routes::monitoring::{authorize_monitoring, viewer_and_config};
 use crate::services::dependencies::HarvestServices;
 use crate::services::monitoring::{
-    check_selector_values, hasura_client, parse_instant, MonitoringError,
-    MonitoringResult,
+    check_selector_values, hasura_client, parse_instant, request_body,
+    MonitoringBody, MonitoringError, MonitoringResult,
 };
 use indexmap::IndexMap;
 use rocket::http::Status;
@@ -74,12 +74,12 @@ fn out_of_scope() -> MonitoringError {
 #[instrument(skip(claims, services))]
 #[post("/monitoring/export", format = "json", data = "<body>")]
 pub async fn export_monitoring(
-    body: Json<ExportInput>,
+    body: MonitoringBody<'_, ExportInput>,
     claims: JwtClaims,
     services: &State<HarvestServices>,
 ) -> MonitoringResult<Json<ExportOutput>> {
     authorize_monitoring(&claims, vec![Permissions::MONITORING_VIEW])?;
-    let input = body.into_inner();
+    let input = request_body(body)?;
     let (viewer, live) = viewer_and_config(
         services,
         &claims,

@@ -209,6 +209,13 @@ pins the Post.
 | `/monitoring/list-presets`, `/monitoring/list-config`, `/monitoring/get-config` | `monitoringListPresets`, `monitoringListConfig`, `monitoringGetConfig` | `monitoring-configure` |
 | `/monitoring/save-config`, `/monitoring/reset-to-preset`, `/monitoring/set-mode` | `monitoringSaveConfig`, `monitoringResetToPreset`, `monitoringSetMode` | `monitoring-configure` and `election-event-write`; refused while the event is locked down |
 
+Every refusal, from a route or from what fails before it runs, is JSON
+Hasura passes on: `{message, extensions: {code, ...}}`. A body that is not
+JSON answers 400 and one that lacks a field or has one of the wrong type
+answers 422, both with `MONITORING_BAD_REQUEST` and a message naming what is
+wrong; missing credentials answer 401 `Unauthorized`. A catcher registered
+for `/monitoring` only keeps other Harvest routes' answers as they are.
+
 `render-widget` answers a state: `RENDERED`, `NOT_CONNECTED` (the renderer is
 not called), `NO_SNAPSHOT`, `SCOPE_PENDING`, `RENDER_FAILED` (the table is
 still returned) or `INVALID`. Rendering resolves the selectors, evaluates

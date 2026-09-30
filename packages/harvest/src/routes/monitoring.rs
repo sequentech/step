@@ -18,8 +18,9 @@ use crate::services::dependencies::HarvestServices;
 use crate::services::monitoring::{
     config_at_snapshot, dashboard_theme_id, dimension_label, draft_revision,
     draft_theme, draft_widget, draw_widget, election_region, hasura_client,
-    live_config, revision_of, viewer, Draft, DrawPlan, MonitoringError,
-    MonitoringResult, RenderResponse, SnapshotConfig, SnapshotView, Viewer,
+    live_config, request_body, revision_of, viewer, Draft, DrawPlan,
+    MonitoringBody, MonitoringError, MonitoringResult, RenderResponse,
+    SnapshotConfig, SnapshotView, Viewer,
 };
 use indexmap::IndexMap;
 use rocket::http::Status;
@@ -111,12 +112,12 @@ pub struct ListDashboardsOutput {
 #[instrument(skip(claims, services))]
 #[post("/monitoring/list-dashboards", format = "json", data = "<body>")]
 pub async fn list_dashboards(
-    body: Json<ListDashboardsInput>,
+    body: MonitoringBody<'_, ListDashboardsInput>,
     claims: JwtClaims,
     services: &State<HarvestServices>,
 ) -> MonitoringResult<Json<ListDashboardsOutput>> {
     authorize_monitoring(&claims, vec![Permissions::MONITORING_VIEW])?;
-    let input = body.into_inner();
+    let input = request_body(body)?;
     let (viewer, live) = viewer_and_config(
         services,
         &claims,
@@ -298,12 +299,12 @@ fn sources(settings: Option<&Settings>) -> IndexMap<DataSourceId, SourceView> {
 #[instrument(skip(claims, services))]
 #[post("/monitoring/get-dashboard", format = "json", data = "<body>")]
 pub async fn get_dashboard(
-    body: Json<GetDashboardInput>,
+    body: MonitoringBody<'_, GetDashboardInput>,
     claims: JwtClaims,
     services: &State<HarvestServices>,
 ) -> MonitoringResult<Json<GetDashboardOutput>> {
     authorize_monitoring(&claims, vec![Permissions::MONITORING_VIEW])?;
-    let input = body.into_inner();
+    let input = request_body(body)?;
     let (viewer, live) = viewer_and_config(
         services,
         &claims,
@@ -550,11 +551,11 @@ pub struct RenderWidgetInput {
 #[instrument(skip(claims, services))]
 #[post("/monitoring/render-widget", format = "json", data = "<body>")]
 pub async fn render_widget(
-    body: Json<RenderWidgetInput>,
+    body: MonitoringBody<'_, RenderWidgetInput>,
     claims: JwtClaims,
     services: &State<HarvestServices>,
 ) -> MonitoringResult<Json<RenderResponse>> {
-    let input = body.into_inner();
+    let input = request_body(body)?;
     let draft = input.draft.clone().unwrap_or_default();
     let drafting = draft.widget_yaml.is_some() || draft.theme_yaml.is_some();
     let mut permissions = vec![Permissions::MONITORING_VIEW];

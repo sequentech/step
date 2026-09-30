@@ -23,6 +23,7 @@ use deadpool_postgres::Transaction;
 use indexmap::IndexMap;
 use rocket::http::{ContentType, Header, Status};
 use rocket::response::{self, Responder, Response};
+use rocket::serde::json::{self, Json};
 use rocket::Request;
 use sequent_core::ballot::{ElectionEventPresentation, LockedDown};
 use sequent_core::monitoring::compute::{evaluate, event_days, QueryResult};
@@ -158,6 +159,52 @@ impl<'r> Responder<'r, 'static> for MonitoringError {
 }
 
 pub type MonitoringResult<T> = Result<T, MonitoringError>;
+
+/// A monitoring route's body as Rocket reads it: kept even when it is not
+/// JSON or not what the route takes, so the route refuses it as it refuses
+/// anything else, rather than Rocket answering without a code.
+pub type MonitoringBody<'r, T> = Result<Json<T>, json::Error<'r>>;
+
+/// The body a route takes, or a MONITORING_BAD_REQUEST that says what is
+/// wrong with it: 400 when it is not JSON, 422 when it is JSON but not what
+/// the route takes (a field missing or of the wrong type).
+pub fn request_body<T>(body: MonitoringBody<'_, T>) -> MonitoringResult<T> {
+    match body {
+        Ok(body) => Ok(body.into_inner()),
+        Err(json::Error::Io(error)) => Err(MonitoringError::bad_request(
+            format!("The request body could not be read: {error}"),
+        )),
+        Err(json::Error::Parse(_, error)) if error.is_data() => {
+            Err(MonitoringError::unprocessable(format!(
+                "The request body is not what this route takes: {error}"
+            )))
+        }
+        Err(json::Error::Parse(_, error)) => Err(MonitoringError::bad_request(
+            format!("The request body is not JSON: {error}"),
+        )),
+    }
+}
+
+/// What a request under `/monitoring` that no route answered, or that
+/// failed before its route ran (no valid credentials, no such route, a
+/// body Rocket refused), is answered with: the monitoring refusal shape,
+/// never the bare "Unknown Error" Hasura cannot explain.
+#[catch(default)]
+pub fn monitoring_catcher(status: Status, _: &Request<'_>) -> MonitoringError {
+    let (code, message) = match status.code {
+        401 => ("Unauthorized", "The request carries no valid credentials."),
+        404 => (
+            "MONITORING_NOT_FOUND",
+            "No monitoring route takes this request; check its path and that its body is JSON.",
+        ),
+        400..=499 => (
+            "MONITORING_BAD_REQUEST",
+            "The request is not one this route takes.",
+        ),
+        _ => ("InternalServerError", "Internal error"),
+    };
+    MonitoringError::new(status, code, message)
+}
 
 // ---------------------------------------------------------------------------
 // Problems
