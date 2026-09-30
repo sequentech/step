@@ -27,10 +27,13 @@ import confirmationScreenDataReducer, {
 } from "../store/castVotes/confirmationScreenDataSlice"
 import {BALLOT_DATA_KEY} from "../store/castVotes/sessionBallotData"
 import VotingScreen from "./VotingScreen"
+import StartScreen from "./StartScreen"
+import AuditScreen from "./AuditScreen"
 import {ReviewScreen} from "./ReviewScreen"
 import ConfirmationScreen from "./ConfirmationScreen"
 
 jest.mock("react-i18next", () => ({
+    Trans: ({i18nKey}: {i18nKey: string}) => i18nKey,
     useTranslation: () => ({
         t: (key: string, values?: {ballotId?: string}) =>
             key === "ballotHash" ? `Ballot ID: ${values?.ballotId?.slice(0, 8)}` : key,
@@ -74,6 +77,14 @@ jest.mock(
         ).BallotHashCopyButton,
         theme: jest.requireActual("../../../ui-essentials/src/services/theme").default,
         Dialog: () => null,
+        WarnBox: jest.requireActual("../../../ui-essentials/src/components/WarnBox/WarnBox")
+            .default,
+        EWarnBoxAnnouncement: jest.requireActual(
+            "../../../ui-essentials/src/components/WarnBox/WarnBox"
+        ).EWarnBoxAnnouncement,
+        InfoDataBox: jest.requireActual(
+            "../../../ui-essentials/src/components/InfoDataBox/InfoDataBox"
+        ).default,
         QRCode: jest.requireActual("../../../ui-essentials/src/components/QRCode/QRCode").default,
     }),
     {virtual: true}
@@ -581,4 +592,275 @@ describe("Ballot ID copy visibility", () => {
             ).toBeInTheDocument()
         }
     )
+})
+
+describe("published summaries before ballot downloads", () => {
+    it("shows mandatory acknowledgement before any complete ballot is loaded", async () => {
+        mockDisableAuth = false
+        mockState.ballotStyles = {}
+        mockState.electionEvent = {
+            "event-1": {
+                id: "event-1",
+                presentation: {materials: {policy: "mandatory_for_voting"}},
+            } as any,
+        }
+        renderRoute(<SupportMaterialsScreen />, "materials")
+        expect(
+            await screen.findByRole("checkbox", {name: "materials.mandatory.checkboxLabel"})
+        ).toBeInTheDocument()
+        expect(
+            screen.getByRole("button", {name: "materials.mandatory.continueButton"})
+        ).toBeVisible()
+    })
+
+    const setRemainingElection = (channel: "online" | "kiosk" | "early", remainingOpen = true) => {
+        mockDisableAuth = false
+        mockIsKiosk = channel === "kiosk"
+        const status = {
+            voting_status: channel === "online" ? "OPEN" : "NOT_STARTED",
+            kiosk_voting_status: channel === "kiosk" ? "OPEN" : "CLOSED",
+            early_voting_status: channel === "early" ? "OPEN" : "CLOSED",
+        }
+        const election = {
+            ...mockState.elections["election-1"]!,
+            num_allowed_revotes: 1,
+            status,
+            voting_channels: {online: true, kiosk: true},
+        }
+        mockState.castVotes = {
+            "election-1": [
+                {
+                    id: "cast-1",
+                    tenant_id: "tenant-1",
+                    election_event_id: "event-1",
+                    election_id: "election-1",
+                    status: "valid" as any,
+                },
+            ],
+        }
+        mockVoterContext = {
+            loading: false,
+            data: {
+                sequent_backend_election: [
+                    election,
+                    {
+                        ...election,
+                        id: "election-2",
+                        status: remainingOpen
+                            ? status
+                            : {
+                                  voting_status: "CLOSED",
+                                  kiosk_voting_status: "CLOSED",
+                                  early_voting_status: "CLOSED",
+                              },
+                    },
+                ],
+                sequent_backend_election_event: [{id: "event-1", status}],
+            },
+            summaries: {
+                "election-2": {area_presentation: {allow_early_voting: "allow_early_voting"}},
+            },
+        }
+        // The remaining election has neither a complete ballot nor a Redux record.
+        expect(mockState.ballotStyles["election-2"]).toBeUndefined()
+        expect(mockState.elections["election-2"]).toBeUndefined()
+    }
+
+    it.each(["online", "kiosk", "early"] as const)(
+        "keeps the voter in the chooser for an unvisited %s election",
+        async (channel) => {
+            setRemainingElection(channel)
+            const {router} = renderRoute(<ConfirmationScreen />, "confirmation")
+            await userEvent
+                .setup()
+                .click(await screen.findByRole("button", {name: "confirmationScreen.finishButton"}))
+            expect(mockLogout).not.toHaveBeenCalled()
+            expect(router.state.location.pathname).toContain("election-chooser")
+        }
+    )
+
+    it.each(["online", "kiosk", "early"] as const)(
+        "finishes when the remaining %s election is closed",
+        async (channel) => {
+            setRemainingElection(channel, false)
+            renderRoute(<ConfirmationScreen />, "confirmation")
+            await userEvent
+                .setup()
+                .click(await screen.findByRole("button", {name: "confirmationScreen.finishButton"}))
+            expect(mockLogout).toHaveBeenCalledTimes(1)
+        }
+    )
+
+    it("counts earlier bootstrap votes together with the just-completed cast", async () => {
+        setRemainingElection("online")
+        mockVoterContext.data.sequent_backend_cast_vote = [
+            {id: "earlier-B", election_id: "election-2", status: "valid"},
+        ]
+        renderRoute(<ConfirmationScreen />, "confirmation")
+        await userEvent
+            .setup()
+            .click(await screen.findByRole("button", {name: "confirmationScreen.finishButton"}))
+        expect(mockLogout).toHaveBeenCalledTimes(1)
+    })
+
+    it("does not double-count the same vote in bootstrap and local state", async () => {
+        setRemainingElection("online", false)
+        mockVoterContext.data.sequent_backend_election[0].num_allowed_revotes = 2
+        mockVoterContext.data.sequent_backend_cast_vote = mockState.castVotes["election-1"]
+        const {router} = renderRoute(<ConfirmationScreen />, "confirmation")
+        await userEvent
+            .setup()
+            .click(await screen.findByRole("button", {name: "confirmationScreen.finishButton"}))
+        expect(mockLogout).not.toHaveBeenCalled()
+        expect(router.state.location.pathname).toContain("election-chooser")
+    })
+
+    it("waits for eligibility instead of logging out on a slow download", async () => {
+        mockDisableAuth = false
+        mockVoterContext = {loading: true}
+        renderRoute(<ConfirmationScreen />, "confirmation")
+        expect(
+            await screen.findByRole("button", {name: "confirmationScreen.finishButton"})
+        ).toBeDisabled()
+        expect(mockLogout).not.toHaveBeenCalled()
+    })
+
+    it.each(["online", "kiosk", "early"] as const)(
+        "retries a failed %s eligibility check without losing the receipt or casting again",
+        async (channel) => {
+            setRemainingElection(channel)
+            const recoveredContext = mockVoterContext
+            const retry = jest.fn()
+            let completeRetry!: () => void
+            const pendingRetry = new Promise<void>((resolve) => {
+                completeRetry = resolve
+            })
+            const Harness = () => {
+                const [phase, setPhase] = React.useState("error")
+                retry.mockImplementation(async () => {
+                    setPhase("loading")
+                    await pendingRetry
+                    setPhase("ready")
+                })
+                mockVoterContext =
+                    phase === "ready"
+                        ? recoveredContext
+                        : {
+                              loading: phase === "loading",
+                              error: phase === "error" ? new Error("download failed") : undefined,
+                              retry,
+                          }
+                return <ConfirmationScreen />
+            }
+            const {router} = renderRoute(<Harness />, "confirmation")
+            expect(await screen.findByRole("alert")).toHaveTextContent(
+                "confirmationScreen.remainingElectionsError"
+            )
+            expect(
+                screen.getByRole("button", {name: "confirmationScreen.finishButton"})
+            ).toBeDisabled()
+            await userEvent
+                .setup()
+                .click(screen.getByRole("button", {name: "confirmationScreen.retryButton"}))
+            expect(retry).toHaveBeenCalledTimes(1)
+            expect(screen.getByText("a11y.loading")).toBeInTheDocument()
+            expect(screen.getAllByTestId("ballot-id")[0]).toHaveTextContent(BALLOT_ID)
+            expect(
+                screen.getByRole("button", {name: "confirmationScreen.finishButton"})
+            ).toBeDisabled()
+            await act(async () => {
+                completeRetry()
+            })
+            await waitFor(() =>
+                expect(
+                    screen.getByRole("button", {name: "confirmationScreen.finishButton"})
+                ).toBeEnabled()
+            )
+            expect(screen.queryByRole("alert")).toBeNull()
+            expect(screen.getAllByTestId("ballot-id")[0]).toHaveTextContent(BALLOT_ID)
+            await userEvent
+                .setup()
+                .click(screen.getByRole("button", {name: "confirmationScreen.finishButton"}))
+            expect(router.state.location.pathname).toContain("election-chooser")
+            expect(mockLogout).not.toHaveBeenCalled()
+            expect(mockInsertCastVote).not.toHaveBeenCalled()
+        }
+    )
+})
+
+it("keeps the current contest page throughout a refresh of the same published ballot", async () => {
+    mockDisableAuth = false
+    const style = mockState.ballotStyles["election-1"]!
+    store.dispatch(setBallotStyle(style))
+    let beginRefresh!: () => void
+    let finishRefresh!: () => void
+    const Boundary = () => {
+        const [loading, setLoading] = React.useState(false)
+        const [revision, setRevision] = React.useState(0)
+        beginRefresh = () => setLoading(true)
+        finishRefresh = () => {
+            setRevision((value) => value + 1)
+            setLoading(false)
+        }
+        const data = React.useMemo(
+            () => ({
+                sequent_backend_election: [],
+                sequent_backend_election_event: [],
+                sequent_backend_ballot_style: [
+                    {...style, ballot_eml: JSON.stringify(style.ballot_eml)},
+                ],
+            }),
+            [revision]
+        )
+        mockVoterContext = loading ? {loading: true} : {data, loading: false}
+        return <PublishedBallot />
+    }
+    const router = createMemoryRouter(
+        [
+            {
+                path: "/tenant/:tenantId/event/:eventId/election/:electionId",
+                element: <Boundary />,
+                children: [{path: "vote", element: <VotingScreen />, action: () => null}],
+            },
+        ],
+        {initialEntries: [ELECTION_PATH + "/vote"]}
+    )
+    const view = render(
+        <ThemeProvider theme={theme}>
+            <RouterProvider router={router} />
+        </ThemeProvider>
+    )
+    await screen.findByRole("heading", {name: "First contest"})
+    await userEvent.setup().click(screen.getByRole("button", {name: "votingScreen.reviewButton"}))
+    expect(screen.getByRole("heading", {name: "Second contest"})).toBeVisible()
+    act(() => beginRefresh())
+    expect(screen.getByRole("heading", {name: "Second contest"})).toBeVisible()
+    act(() => finishRefresh())
+    expect(screen.getByRole("heading", {name: "Second contest"})).toBeVisible()
+    expect(store.getState().ballotStyles["election-1"]).toBe(style)
+    expect(mockLogout).not.toHaveBeenCalled()
+    expect(mockInsertCastVote).not.toHaveBeenCalled()
+    view.unmount()
+    store.dispatch(clearVoterSession())
+})
+
+it("exposes the three instruction steps as a named ordered list", () => {
+    renderRoute(<StartScreen />, "start")
+    const instructions = screen.getByRole("list", {name: "startScreen.instructionsTitle"})
+    expect(instructions.tagName).toBe("OL")
+    const steps = within(instructions).getAllByRole("listitem")
+    expect(steps).toHaveLength(3)
+    steps.forEach((step, index) => {
+        expect(within(step).getByRole("heading", {level: 3})).toHaveTextContent(
+            `startScreen.step${index + 1}Title`
+        )
+    })
+})
+
+it("keeps the audit download named when its mobile label is hidden", () => {
+    setUpState({})
+    renderRoute(<AuditScreen />, "audit")
+    const label = screen.getByText("auditScreen.downloadButton")
+    label.style.display = "none"
+    expect(screen.getByRole("button", {name: "auditScreen.downloadButton"})).toBeEnabled()
 })
