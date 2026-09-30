@@ -6,6 +6,7 @@
 # pre-enrolled voters (D1).
 id: test-voting
 title: Test voting
+description: Percentages use pre-enrolled OVs.
 source: test_voting
 requirements: [SW-F-0253, SW-F-0367]
 queries:

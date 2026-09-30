@@ -4,6 +4,7 @@
 
 id: operations
 title: Operations
+description: Where each poll stands, sign-in problems and participation by faculty.
 order: 1
 selectors: [region, post]
 layout:

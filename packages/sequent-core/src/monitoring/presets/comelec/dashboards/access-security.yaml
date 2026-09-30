@@ -1,0 +1,14 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# Sign-in attempts and their outcomes over time.
+id: access-security
+title: Access and security
+description: Sign-in attempts and their outcomes.
+requirements: [SW-F-0252, SW-F-0268, SW-F-0280, SW-F-0281]
+order: 8
+selectors: [region, post]
+layout:
+  - {widget: access-security, width: 12}
+  - {widget: login-outcomes, width: 12}

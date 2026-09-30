@@ -4,6 +4,7 @@
 
 id: test-voting-by-group
 title: Test voting by group
+description: Percentages use each group's pre-enrolled OVs.
 source: test_voting
 requirements: [SW-F-0367]
 selectors:

@@ -6,13 +6,13 @@
 # running total. The day picker shows only for hourly.
 id: voting-activity
 title: Voting activity
+description: Distinct OVs voting for the first time per period.
 source: voting_enrollment_activity
 requirements: [SW-F-0267]
 selectors:
   grain:
-    label: Interval
-    control: toggle
-    options: {hour: Hourly, day: Daily}
+    label: Resolution
+    options: {hour: Hour, day: Day}
     default: hour
   day:
     label: Day

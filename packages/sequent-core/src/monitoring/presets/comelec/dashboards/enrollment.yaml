@@ -1,0 +1,16 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# Enrollment decisions and the credentials they lead to.
+id: enrollment
+title: Enrollment
+description: Enrollment decisions and voting credentials.
+requirements: [SW-F-0249, SW-F-0366, SW-F-0250, SW-F-0251]
+order: 1
+selectors: [region, post, country]
+layout:
+  - {widget: enrollment-decisions, width: 6}
+  - {widget: credentials-issued, width: 6}
+  - {widget: disapproval-reasons, width: 12}
+  - {widget: credentials-by-post, width: 12}

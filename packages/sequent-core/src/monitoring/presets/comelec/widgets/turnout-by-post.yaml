@@ -5,6 +5,7 @@
 # Every Post in scope with its own counts and ratio, highest first.
 id: turnout-by-post
 title: Turnout by Post
+description: Each Post over its own denominator.
 source: voter_turnout
 requirements: [SW-F-0259, SW-F-0260, SW-F-0261]
 selectors:

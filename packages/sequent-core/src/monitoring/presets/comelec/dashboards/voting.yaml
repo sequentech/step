@@ -1,0 +1,14 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# Every poll milestone at once, and where each Post stands.
+id: voting
+title: Voting
+description: Posts initialized, opened and closed, and the state of each Post.
+requirements: [SW-F-0256, SW-F-0257, SW-F-0258, SW-F-0368, SW-F-0369, SW-F-0370, SW-F-0262]
+order: 4
+selectors: [region, post]
+layout:
+  - {widget: poll-status, width: 12}
+  - {widget: status-by-post, width: 12}

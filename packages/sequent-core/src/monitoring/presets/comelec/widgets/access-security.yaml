@@ -6,6 +6,7 @@
 # voters.
 id: access-security
 title: Access and security
+description: Counted in sign-in attempts, not OVs.
 source: access_security
 requirements: [SW-F-0252, SW-F-0268]
 query: {template: summary, measures: [logins, login_failures, password_resets]}

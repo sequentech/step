@@ -6,6 +6,7 @@
 # Post.
 id: helpdesk-issues
 title: Helpdesk issues
+description: Issues reported in the selected scope, and those still pending.
 source: helpdesk
 requirements: [SW-F-0269]
 selectors:

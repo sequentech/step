@@ -6,6 +6,7 @@
 # disapproval.
 id: enrollment-decisions
 title: Enrollment decisions
+description: The latest decision on each OV's application.
 source: enrollment_decisions
 requirements: [SW-F-0249, SW-F-0366]
 queries:

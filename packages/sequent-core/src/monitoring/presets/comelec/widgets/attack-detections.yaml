@@ -5,13 +5,13 @@
 # Attacks the platform detected, over time and by category.
 id: attack-detections
 title: Attack detections
+description: Bot and coordinated-attack detections.
 source: attack_detections
 requirements: [SW-F-0283]
 selectors:
   grain:
-    label: Interval
-    control: toggle
-    options: {hour: Hourly, day: Daily}
+    label: Resolution
+    options: {hour: Hour, day: Day}
     default: day
   day:
     label: Day

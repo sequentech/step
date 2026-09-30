@@ -1,0 +1,14 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# Newly pre-enrolled OVs and first votes, per hour or per day.
+id: activity
+title: Enrollment and voting rates
+description: Distinct newly pre-enrolled OVs and first votes per period.
+requirements: [SW-F-0282, SW-F-0267]
+order: 7
+selectors: [region, post, country]
+layout:
+  - {widget: enrollment-activity, width: 6}
+  - {widget: voting-activity, width: 6}

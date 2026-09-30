@@ -965,10 +965,11 @@ fn comelec_names_the_owners_of_the_six_records_it_leaves() {
     assert_eq!(owners, expected);
 }
 
-/// The three turnout ratios each have a dashboard that opens on them, and
-/// the poll milestones each on theirs.
+/// Each section opens on every figure its records ask for, with no choice to
+/// make: the three turnout ratios together, every poll milestone, both final
+/// testing records and both counting milestones.
 #[test]
-fn dashboards_open_on_the_figure_their_record_asks_for() {
+fn sections_open_on_every_figure_their_records_ask_for() {
     let preset = loaded("comelec");
     let opened_on = |dashboard: &str, widget: &str, query: &str| {
         let dashboard = &preset.set.dashboards[dashboard];
@@ -989,39 +990,7 @@ fn dashboards_open_on_the_figure_their_record_asks_for() {
     };
     use Measure::*;
     let ratio = |numerator, denominator| Some(Ratio(numerator, denominator));
-    assert_eq!(
-        opened_on("req-0259", "turnout-by-group", "data"),
-        ratio(Voted, Registered)
-    );
-    assert_eq!(
-        opened_on("req-0260", "turnout-by-group", "data"),
-        ratio(VotedPreEnrolled, PreEnrolled)
-    );
-    assert_eq!(
-        opened_on("req-0261", "turnout-by-group", "data"),
-        ratio(PreEnrolled, Registered)
-    );
-    assert_eq!(
-        opened_on("req-0256", "poll-status", "milestone"),
-        ratio(Initialized, Posts)
-    );
-    assert_eq!(
-        opened_on("req-0257", "poll-status", "milestone"),
-        ratio(Opened, Posts)
-    );
-    assert_eq!(
-        opened_on("req-0258", "poll-status", "milestone"),
-        ratio(Closed, Posts)
-    );
-    for (dashboard, figure) in [
-        ("req-0259", ratio(Voted, Registered)),
-        ("req-0260", ratio(VotedPreEnrolled, PreEnrolled)),
-        ("req-0261", ratio(PreEnrolled, Registered)),
-    ] {
-        assert_eq!(opened_on(dashboard, "turnout-by-post", "data"), figure);
-        // With a Post chosen, the countries under it.
-        assert_eq!(opened_on(dashboard, "turnout-by-country", "data"), figure);
-        // The summary shows all three figures on every turnout dashboard.
+    for dashboard in ["overview", "voter-turnout"] {
         assert_eq!(
             opened_on(dashboard, "turnout-summary", "voted_reg"),
             ratio(Voted, Registered)
@@ -1035,23 +1004,72 @@ fn dashboards_open_on_the_figure_their_record_asks_for() {
             ratio(PreEnrolled, Registered)
         );
     }
-    // Both of the dashboard's records at once, with no choice to make.
+    // The breakdowns open on the turnout of the registered and offer the
+    // other two ratios.
+    for widget in ["turnout-by-group", "turnout-by-post", "turnout-by-country"] {
+        assert_eq!(
+            opened_on("voter-turnout", widget, "data"),
+            ratio(Voted, Registered)
+        );
+    }
+    for (query, figure) in [
+        ("initialized", ratio(Initialized, Posts)),
+        ("opened", ratio(Opened, Posts)),
+        ("closed", ratio(Closed, Posts)),
+    ] {
+        assert_eq!(opened_on("voting", "poll-status", query), figure);
+    }
+    for (query, figure) in [
+        ("tested", ratio(Tested, Posts)),
+        ("locked_down", ratio(LockedDown, Posts)),
+    ] {
+        assert_eq!(
+            opened_on("final-testing-lockdown", "final-testing-lockdown", query),
+            figure
+        );
+    }
+    for (query, figure) in [
+        ("tallied", ratio(Tallied, Posts)),
+        ("transmitted", ratio(Transmitted, Posts)),
+    ] {
+        assert_eq!(
+            opened_on("counting-transmission", "counting-transmission", query),
+            figure
+        );
+    }
+}
+
+/// The sections come in the order an election runs, after the overview.
+#[test]
+fn comelec_s_sections_follow_the_election() {
+    let preset = loaded("comelec");
+    let mut dashboards: Vec<&Dashboard> = preset.set.dashboards.values().collect();
+    dashboards.sort_by_key(|dashboard| dashboard.order);
+    let ids: Vec<&str> =
+        dashboards.iter().map(|dashboard| dashboard.id.as_str()).collect();
     assert_eq!(
-        opened_on("req-0254", "final-testing-lockdown", "tested"),
-        ratio(Tested, Posts)
+        ids,
+        [
+            "overview",
+            "enrollment",
+            "test-voting",
+            "final-testing-lockdown",
+            "voting",
+            "voter-turnout",
+            "counting-transmission",
+            "activity",
+            "access-security",
+            "attack-detections",
+            "helpdesk",
+        ]
     );
-    assert_eq!(
-        opened_on("req-0254", "final-testing-lockdown", "locked_down"),
-        ratio(LockedDown, Posts)
-    );
-    assert_eq!(
-        opened_on("req-0263", "counting-transmission", "milestone"),
-        ratio(Tallied, Posts)
-    );
-    assert_eq!(
-        opened_on("req-0264", "counting-transmission", "milestone"),
-        ratio(Transmitted, Posts)
-    );
+    for dashboard in dashboards {
+        assert!(
+            dashboard.description.is_some(),
+            "{} says nothing under its heading",
+            dashboard.id
+        );
+    }
 }
 
 /// Each choice a viewer can make shows other figures: an option that draws
@@ -1392,4 +1410,12 @@ fn a_half_width_widget_has_room_for_each_chart_in_a_row() {
             }
         }
     }
+}
+
+/// A dashboard names the preset it came from without reading every document.
+#[test]
+fn a_preset_s_manifest_is_read_on_its_own() {
+    let comelec = manifest("comelec").expect("comelec ships");
+    assert_eq!(comelec, loaded("comelec").manifest);
+    assert_eq!(manifest("no-such-preset"), None);
 }

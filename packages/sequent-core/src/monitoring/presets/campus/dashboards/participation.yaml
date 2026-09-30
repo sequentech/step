@@ -4,6 +4,7 @@
 
 id: participation
 title: Participation
+description: Current participation across the selected elections.
 order: 0
 selectors: [region]
 layout:

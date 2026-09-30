@@ -44,6 +44,7 @@ its own selectors, and draws with a dbt Charts block.
 |---|---|---|---|
 | `id` | id | Yes | The widget's id; also the key it is stored under. |
 | `title` | text | Yes | Shown on the card. |
+| `description` | text | No | A line under the title saying what the figures are taken of, such as "Percentages use pre-enrolled OVs." Not empty when given. |
 | `source` | data source id | Yes | One of the [data sources](#data-sources). |
 | `requirements` | list of text | No | Requirement IDs this widget answers, for the catalog search. |
 | `follows` | list of `region`, `post`, `country` | No | Which dashboard selectors narrow this widget. Absent: every one its source can be narrowed by. An empty list: the widget always shows the whole event. Listing a selector the source cannot be narrowed by is an error. |
@@ -186,9 +187,8 @@ with `when`:
 ```yaml
 selectors:
   grain:
-    label: Interval
-    control: toggle
-    options: {hour: Hourly, day: Daily}
+    label: Resolution
+    options: {hour: Hour, day: Day}
     default: hour
   day:
     label: Day
@@ -208,9 +208,10 @@ Widgets on a 12-column grid, with the dashboard selectors they share.
 | Field | Type | Required | Meaning |
 |---|---|---|---|
 | `id` | id | Yes | The dashboard's id; also its key. |
-| `title` | text | Yes | Shown in the header and the switcher. |
-| `requirements` | list of text | No | Requirement IDs the dashboard answers. |
-| `order` | integer | No | Position in the dashboard switcher, lowest first. Default 0. |
+| `title` | text | Yes | Shown as the section's heading and in the **Section** menu. |
+| `description` | text | No | A line under the heading saying what the section shows. Not empty when given. |
+| `requirements` | list of text | No | Requirement IDs the dashboard answers, shown in its footer. |
+| `order` | integer | No | Position in the **Section** menu, lowest first. Default 0. |
 | `selectors` | list of `region`, `post`, `country` | No | The dashboard selectors shown. A selector that narrows none of the dashboard's widgets is a warning. |
 | `theme` | theme id | No | The theme merged into every widget. Absent: `default`. It must exist. |
 | `layout` | list of layout entries | Yes | At least one widget, in order. |
@@ -228,6 +229,7 @@ Example:
 ```yaml
 id: voted-vs-pre-enrolled
 title: Voted vs pre-enrolled
+description: Pre-enrolled OVs who voted, by group, Post and country.
 requirements: [REQ-12]
 order: 2
 selectors: [region, post, country]
@@ -270,6 +272,14 @@ style:
         values:
           Unknown: dbt-grays.muted
 ```
+
+The chart frame ships one typeface, `'Inter Variable'`. Any other family
+falls back to the viewer's system font, which may be a serif: the built-in
+themes name faces the frame does not have (Source Serif 4 on `clarity`, a
+tabular sans on the KPI, support-table, measure-axis and donut-total slots).
+The shipped presets set `font.family`, `text.font.family` and
+`title.font.family` and those slots to `'Inter Variable'`, so charts read in
+the portal's typeface.
 
 ## Settings
 
@@ -570,7 +580,7 @@ to decide how to count or what to show.
 
 | Preset | Contents |
 |---|---|
-| `comelec` | An overview and a dashboard for each monitoring record of an overseas voting package: turnout (three ratios, by group, by Post, by country), enrollment decisions and disapproval reasons, voting credentials, test voting, poll status and status by Post, final testing and lockdown, counting and transmission, voting and enrollment activity, access and security, attack detections and helpdesk. Time zone `Asia/Manila`; dimensions sex, age band and status abroad. |
+| `comelec` | An overview and a section for each part of an overseas vote, in the order it runs: enrollment (decisions, disapproval reasons, voting credentials), test voting, final testing and lockdown, voting (Posts initialized, opened and closed, and status by Post), voter turnout (three ratios, by group, by Post, by country), counting and transmission, enrollment and voting rates, access and security, attack detections and helpdesk. Every monitoring record of the package is answered by the section it belongs to. Time zone `Asia/Manila`; dimensions sex, age band and status abroad. |
 | `campus` | Participation and operations dashboards for a university election, with faculty and role dimensions, `Europe/Madrid` time, and its own names for the dashboard selectors. It runs on the same data sources with no code change. |
 
 Presets live in `packages/sequent-core/src/monitoring/presets/<id>/`: a

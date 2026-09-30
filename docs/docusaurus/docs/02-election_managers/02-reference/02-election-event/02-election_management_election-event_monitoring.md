@@ -50,7 +50,7 @@ The platform ships two presets:
 
 | Preset | For |
 |---|---|
-| `comelec` | An overview and one dashboard for each monitoring record of an overseas voting package. |
+| `comelec` | An overview and a section for each part of an overseas vote, from enrollment to transmission, answering every monitoring record of the package. |
 | `campus` | A university election: participation by faculty and role, and the day's operations. |
 
 Switching the tab back to the standard dashboard keeps the configuration and
@@ -60,15 +60,30 @@ its history; switching again shows the same dashboards.
 
 ### Header
 
-The header shows, from left to right:
+The header has two rows:
 
-- the dashboard's title, with a menu to switch to another dashboard of the
-  event;
-- how many widgets it has, and the requirement IDs it answers, if any;
-- **Updated** and a time: when the figures on screen were counted (see
-  [Freshness](#freshness));
-- **Export**, to export the dashboard's data;
-- **Edit dashboard**, for users who may configure monitoring.
+- the name of the preset the event's dashboards came from (for example
+  **COMELEC overseas voting**, marked **Dashboard preset**), with **Export**,
+  to export the dashboard's data, and **Edit dashboard**, for users who may
+  configure monitoring;
+- the **Section** menu, to switch to another dashboard of the event, the
+  [dashboard selectors](#dashboard-selectors), and on the right **Updated**
+  with a time: when the figures on screen were counted (see
+  [Freshness](#freshness)) and how often the dashboard checks for new ones.
+  The **↻** button checks at once.
+
+Below the header come the section's title and a line saying what it shows,
+then its widgets. Under the widgets a footer repeats what the figures are of
+(for example "All regions · Dubai PCG · All countries"), when they were
+counted, and the requirement IDs the section answers, if any.
+
+The `comelec` preset has an **Overview** and one section for each part of
+the election, in the order it runs: Enrollment, Test voting, Final testing
+and lockdown, Voting, Voter turnout, Counting and transmission, Enrollment
+and voting rates, Access and security, Attack detections and Helpdesk. Each
+section shows every figure its records ask for at once: Voter turnout shows
+the three turnout ratios together, and Voting shows the Posts initialized,
+opened and closed.
 
 ### Dashboard selectors
 
@@ -100,21 +115,21 @@ Widgets sit on a grid 12 columns wide. Each takes 1 to 12 columns; widgets
 fill a row and wrap to the next, and on a narrow screen they stack. A widget
 card shows:
 
-- its title, its data source and the requirement IDs it answers;
+- its title and, if it has one, a line saying what its figures are taken
+  of, such as "Percentages use pre-enrolled OVs.";
 - its own **widget selectors**, if it has any: a dropdown or a toggle, such
-  as Breakdown (Sex, Age, Status abroad), Show (which ratio), or Interval
-  (Hourly, Daily). Some selectors appear only while another has a given
-  value; for example, the Day picker shows only when Interval is Hourly;
+  as Breakdown (Sex, Age, Status abroad), Show (which ratio), or Resolution
+  (Hour, Day). Some selectors appear only while another has a given
+  value; for example, the Day picker shows only when Resolution is Hour;
 - the chart;
 - a **⋯** menu with **Configure widget**, **View data**, **Export CSV** and
   **Duplicate**. Configure widget and Duplicate appear only for users who may
   configure monitoring.
 
-A dashboard can open the same widget with different selector values. For
-example, a "Voted vs pre-enrolled" dashboard opens Turnout by group on
-"Voted of pre-enrolled", while another dashboard opens it on "Voted of
-registered". The values a viewer picks are kept while they stay in the
-browser tab.
+A dashboard can open the same widget with different selector values; for
+example, the Overview opens Voting activity by day and Enrollment and voting
+rates opens it by hour. The values a viewer picks are kept while they stay in
+the browser tab.
 
 ### How figures are counted
 

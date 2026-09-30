@@ -1,0 +1,14 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# Reported issues by category, and those still pending at each Post.
+id: helpdesk
+title: Helpdesk
+description: Reported issues by category and unresolved issues.
+requirements: [SW-F-0269]
+order: 10
+selectors: [region, post]
+layout:
+  - {widget: helpdesk-issues, width: 6}
+  - {widget: pending-issues-by-post, width: 6}

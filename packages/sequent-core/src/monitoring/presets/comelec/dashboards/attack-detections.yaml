@@ -2,9 +2,12 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
-id: req-0283
+# Detections are counted for the whole event: they belong to no Post, so the
+# section has no selectors.
+id: attack-detections
 title: Attack detections
+description: Bot and coordinated-attack detections for the whole event.
 requirements: [SW-F-0283]
-order: 33
+order: 9
 layout:
   - {widget: attack-detections, width: 12}

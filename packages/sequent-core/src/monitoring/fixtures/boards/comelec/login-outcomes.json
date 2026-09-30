@@ -313,12 +313,19 @@
     "outcomes"
   ],
   "style": {
-    "accent": "#1d4ed8",
+    "accent": "#0F054C",
     "charts": {
       "axis": {
         "title": {
           "font": {
             "case": "none"
+          }
+        }
+      },
+      "axis_quantitative": {
+        "labels": {
+          "font": {
+            "family": "'Inter Variable', Inter, system-ui, sans-serif"
           }
         }
       },
@@ -336,10 +343,33 @@
           }
         }
       },
+      "color": {
+        "categorical": {
+          "palette": [
+            "#0F054C",
+            "#43E3A1",
+            "#7C6FE0",
+            "#F59E0B",
+            "#0EA5E9",
+            "#DC2626"
+          ],
+          "single_series_palette": [
+            "#0F054C"
+          ]
+        }
+      },
       "kpi": {
+        "font": {
+          "family": "'Inter Variable', Inter, system-ui, sans-serif"
+        },
         "label": {
           "font": {
             "case": "none"
+          }
+        },
+        "value": {
+          "font": {
+            "family": "'Inter Variable', Inter, system-ui, sans-serif"
           }
         }
       },
@@ -348,7 +378,19 @@
           "visible": false
         }
       },
+      "pie": {
+        "total": {
+          "value": {
+            "font": {
+              "family": "'Inter Variable', Inter, system-ui, sans-serif"
+            }
+          }
+        }
+      },
       "support_table": {
+        "font": {
+          "family": "'Inter Variable', Inter, system-ui, sans-serif"
+        },
         "label": {
           "font": {
             "case": "none"
@@ -363,15 +405,24 @@
         }
       }
     },
+    "font": {
+      "family": "'Inter Variable', Inter, system-ui, sans-serif"
+    },
     "footer": {
       "visible": false
+    },
+    "text": {
+      "font": {
+        "family": "'Inter Variable', Inter, system-ui, sans-serif"
+      }
     },
     "timestamp": {
       "visible": false
     },
     "title": {
       "font": {
-        "case": "none"
+        "case": "none",
+        "family": "'Inter Variable', Inter, system-ui, sans-serif"
       }
     }
   },

@@ -6,13 +6,13 @@
 # running total. The day picker shows only for hourly.
 id: enrollment-activity
 title: Enrollment activity
+description: Distinct OVs approved per period, each at their first approval.
 source: voting_enrollment_activity
 requirements: [SW-F-0282]
 selectors:
   grain:
-    label: Interval
-    control: toggle
-    options: {hour: Hourly, day: Daily}
+    label: Resolution
+    options: {hour: Hour, day: Day}
     default: hour
   day:
     label: Day

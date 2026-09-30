@@ -6,6 +6,7 @@
 # scope.
 id: final-testing-lockdown
 title: Final testing and lockdown
+description: Percentages use the Posts in scope.
 source: final_testing_lockdown
 requirements: [SW-F-0254, SW-F-0255]
 queries:

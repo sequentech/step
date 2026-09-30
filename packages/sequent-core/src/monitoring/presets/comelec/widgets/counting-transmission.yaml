@@ -2,48 +2,45 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
-# Posts that have counted and transmitted their results, over the Posts in
-# scope, and those whose transmission failed.
+# Both milestones at once, over the Posts in scope, the Posts whose
+# transmission failed, and where each Post stands.
 id: counting-transmission
 title: Counting and transmission
+description: Percentages use the Posts in scope.
 source: counting_transmission
 requirements: [SW-F-0263, SW-F-0264, SW-F-0265]
-selectors:
-  milestone:
-    label: Milestone
-    control: toggle
-    options: {tallied: Counted, transmitted: Transmitted}
-    default: tallied
-    maps: {tallied: [tallied, posts], transmitted: [transmitted, posts]}
 queries:
-  milestone: {template: summary, ratio: {selector: milestone}}
+  tallied: {template: summary, ratio: [tallied, posts]}
+  transmitted: {template: summary, ratio: [transmitted, posts]}
   failed: {template: summary, measures: [transmission_failed]}
   posts: {template: by_post, measures: [posts], sort: {by: label, order: asc}}
 height: 460
 chart:
   charts:
-    reached:
+    tallied:
       type: kpi
-      query: milestone
+      query: tallied
       value: numerator
-      label: Posts at the milestone
+      label: Vote counting done
       style: {value: {format: integer}}
-      support: {value: pct_label, label: of the Posts in scope}
-    in_scope:
+      support: {value: pct_label, label: of Posts}
+    transmitted:
       type: kpi
-      query: milestone
-      value: denominator
-      label: Posts in scope
+      query: transmitted
+      value: numerator
+      label: Results transmitted
       style: {value: {format: integer}}
+      support: {value: pct_label, label: of Posts}
     failed:
       type: kpi
       query: failed
       value: transmission_failed
-      label: Transmission failed
+      label: Transmission errors
       style: {value: {format: integer}}
     posts:
       type: table
       query: posts
+      title: Posts
       style:
         columns:
           post: {label: Post}
@@ -58,6 +55,5 @@ chart:
           when:
             - {eq: Transmission failed, background: negative.bg}
   rows:
-    - {cols: [reached, in_scope]}
-    - failed
+    - {cols: [tallied, transmitted, failed]}
     - posts
