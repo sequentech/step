@@ -1,0 +1,155 @@
+# Configure Traefik with an SSH entrypoint on port 2222 for Gitea git-over-SSH access.
+apiVersion: helm.cattle.io/v1
+kind: HelmChartConfig
+metadata:
+  name: traefik
+  namespace: kube-system
+spec:
+  valuesContent: |-
+    ports:
+      ssh:
+        port: 2222
+        expose:
+          default: true
+        exposedPort: 2222
+        protocol: TCP
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRouteTCP
+metadata:
+  name: gitea-ssh
+  namespace: gitea
+spec:
+  entryPoints:
+    - ssh
+  routes:
+    - match: HostSNI(`*`)
+      services:
+        - name: gitea
+          port: 22
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: step-ingress
+  namespace: gitea
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts:
+        - gitea.local
+      secretName: step-tls-cert
+  rules:
+    - host: gitea.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: gitea
+                port:
+                  number: 3000
+---
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: storage-strip-prefix
+  namespace: step-infra
+spec:
+  stripPrefix:
+    prefixes:
+      - /storage
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: storage-ingress
+  namespace: step-infra
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.middlewares: step-infra-storage-strip-prefix@kubernetescrd
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts:
+        - portal.local
+      secretName: step-tls-cert
+  rules:
+    - host: portal.local
+      http:
+        paths:
+          - path: /storage
+            pathType: Prefix
+            backend:
+              service:
+                name: rustfs
+                port:
+                  number: 9000
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: keycloak-portal-ingress
+  namespace: step-infra
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts:
+        - portal.local
+      secretName: step-tls-cert
+  rules:
+    - host: portal.local
+      http:
+        paths:
+          - path: /realms
+            pathType: Prefix
+            backend:
+              service:
+                name: keycloak
+                port:
+                  number: 8090
+          - path: /resources
+            pathType: Prefix
+            backend:
+              service:
+                name: keycloak
+                port:
+                  number: 8090
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: app-ingress
+  namespace: step-apps
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.middlewares: step-apps-strip-prefix@kubernetescrd,step-apps-permissive-cors@kubernetescrd
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts:
+        - portal.local
+      secretName: step-tls-cert
+  rules:
+    - host: portal.local
+      http:
+        paths:
+          - path: /hasura
+            pathType: Prefix
+            backend:
+              service:
+                name: hasura
+                port:
+                  number: 8080
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: voting-portal
+                port:
+                  number: 80

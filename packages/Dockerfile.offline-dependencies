@@ -1,0 +1,25 @@
+# SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# Stage 1: Rust Dependencies
+FROM rust:1.90.0-slim-bookworm AS rust-deps
+WORKDIR /workspace
+COPY . .
+RUN mkdir -p /vendor-cache && \
+    cargo vendor /vendor-cache > /config.toml && \
+    mv /config.toml /vendor-cache/config.toml
+
+# Stage 2: Node Dependencies
+FROM node:20-bookworm-slim AS node-deps
+WORKDIR /workspace
+COPY . .
+RUN mkdir -p /npm-packages-offline-cache && \
+    echo 'yarn-offline-mirror "/npm-packages-offline-cache"' > .yarnrc && \
+    echo 'yarn-offline-mirror-pruning true' >> .yarnrc && \
+    yarn install --frozen-lockfile
+
+# Final Stage: Store offline caches
+FROM scratch
+COPY --from=rust-deps /vendor-cache /vendor-cache
+COPY --from=node-deps /npm-packages-offline-cache /npm-packages-offline-cache
