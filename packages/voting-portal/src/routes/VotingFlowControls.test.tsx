@@ -27,10 +27,13 @@ import confirmationScreenDataReducer, {
 } from "../store/castVotes/confirmationScreenDataSlice"
 import {BALLOT_DATA_KEY} from "../store/castVotes/sessionBallotData"
 import VotingScreen from "./VotingScreen"
+import StartScreen from "./StartScreen"
+import AuditScreen from "./AuditScreen"
 import {ReviewScreen} from "./ReviewScreen"
 import ConfirmationScreen from "./ConfirmationScreen"
 
 jest.mock("react-i18next", () => ({
+    Trans: ({i18nKey}: {i18nKey: string}) => i18nKey,
     useTranslation: () => ({
         t: (key: string, values?: {ballotId?: string}) =>
             key === "ballotHash" ? `Ballot ID: ${values?.ballotId?.slice(0, 8)}` : key,
@@ -74,6 +77,14 @@ jest.mock(
         ).BallotHashCopyButton,
         theme: jest.requireActual("../../../ui-essentials/src/services/theme").default,
         Dialog: () => null,
+        WarnBox: jest.requireActual("../../../ui-essentials/src/components/WarnBox/WarnBox")
+            .default,
+        EWarnBoxAnnouncement: jest.requireActual(
+            "../../../ui-essentials/src/components/WarnBox/WarnBox"
+        ).EWarnBoxAnnouncement,
+        InfoDataBox: jest.requireActual(
+            "../../../ui-essentials/src/components/InfoDataBox/InfoDataBox"
+        ).default,
         QRCode: jest.requireActual("../../../ui-essentials/src/components/QRCode/QRCode").default,
     }),
     {virtual: true}
@@ -84,7 +95,7 @@ jest.mock("../store/hooks", () => ({
 }))
 jest.mock("../providers/AuthContextProvider", () => ({
     AuthContext: jest.requireActual<typeof React>("react").createContext({
-        logout: (url: string) => mockLogout(url),
+        logout: (...args: unknown[]) => mockLogout(...args),
         isKiosk: () => mockIsKiosk,
         isGoldUser: () => mockIsGoldUser,
         reauthWithGold: (url: string) => mockReauthWithGold(url),
@@ -132,11 +143,11 @@ jest.mock("@apollo/client/react", () => ({
 }))
 
 const mockDispatch = jest.fn()
-const mockReauthWithGold = jest.fn()
 const mockLogout = jest.fn()
+let mockIsKiosk = false
+const mockReauthWithGold = jest.fn()
 const mockInsertCastVote = jest.fn()
 let mockIsGoldUser = false
-let mockIsKiosk = false
 let mockDisableAuth = true
 let mockElectionQueryData:
     | {
@@ -252,14 +263,62 @@ beforeEach(() => {
     mockInsertCastVote.mockResolvedValue({data: {insert_cast_vote: {id: "cast-vote-1"}}})
     mockReauthWithGold.mockResolvedValue(undefined)
     mockIsGoldUser = false
-    mockIsKiosk = false
     mockDisableAuth = true
+    mockIsKiosk = false
     mockElectionQueryData = undefined
     sessionStorage.clear()
     setUpState()
 })
 
 afterEach(() => sessionStorage.clear())
+
+describe("contest external-ID CSS hooks", () => {
+    it.each(["vote", "review"])(
+        "preserves legacy classes and sanitizes external IDs on %s",
+        (path) => {
+            const contests = mockState.ballotStyles["election-1"].ballot_eml.contests
+            const externalIds = ["1001", " A /B_2- ", undefined, null, "", " / ", "x".repeat(50)]
+            mockState.ballotStyles["election-1"].ballot_eml.contests = externalIds.map(
+                (external_id, index) => ({
+                    ...contests[0],
+                    id: `imported-${index}`,
+                    external_id,
+                    presentation: {pagination_policy: "all"},
+                })
+            )
+            const {container} = renderRoute(
+                path === "vote" ? <VotingScreen /> : <ReviewScreen />,
+                path
+            )
+            const wrappers = container.querySelectorAll(".contest-container")
+            expect(wrappers).toHaveLength(externalIds.length)
+            const expected = ["c-1001", "c-AB_2-", "", "", "", "", `c-${"x".repeat(38)}`]
+            wrappers.forEach((wrapper, index) => {
+                expect(wrapper).toHaveClass(`contest-${index}`)
+                expect(
+                    Array.from(wrapper.classList).filter((name) => name.startsWith("c-"))
+                ).toEqual(expected[index] ? [expected[index]] : [])
+            })
+        }
+    )
+
+    it("keeps external IDs across voting pages and reordered review contests", async () => {
+        const contests = mockState.ballotStyles["election-1"].ballot_eml.contests
+        Object.assign(contests[0], {external_id: "1001"})
+        Object.assign(contests[1], {external_id: "1002"})
+        const vote = renderRoute(<VotingScreen />, "vote")
+        expect(vote.container.querySelector(".contest-0")).toHaveClass("c-1001")
+        await userEvent
+            .setup()
+            .click(screen.getByRole("button", {name: "votingScreen.reviewButton"}))
+        expect(vote.container.querySelector(".contest-0")).toHaveClass("c-1002")
+        vote.unmount()
+        contests.reverse()
+        const review = renderRoute(<ReviewScreen />, "review")
+        expect(review.container.querySelector(".contest-0")).toHaveClass("c-1002")
+        expect(review.container.querySelector(".contest-1")).toHaveClass("c-1001")
+    })
+})
 
 describe("selection-screen Back", () => {
     it.each(["{Enter}", " "])(
@@ -535,4 +594,25 @@ describe("Ballot ID copy visibility", () => {
             ).toBeInTheDocument()
         }
     )
+})
+
+it("exposes the three instruction steps as a named ordered list", () => {
+    renderRoute(<StartScreen />, "start")
+    const instructions = screen.getByRole("list", {name: "startScreen.instructionsTitle"})
+    expect(instructions.tagName).toBe("OL")
+    const steps = within(instructions).getAllByRole("listitem")
+    expect(steps).toHaveLength(3)
+    steps.forEach((step, index) => {
+        expect(within(step).getByRole("heading", {level: 3})).toHaveTextContent(
+            `startScreen.step${index + 1}Title`
+        )
+    })
+})
+
+it("keeps the audit download named when its mobile label is hidden", () => {
+    setUpState({})
+    renderRoute(<AuditScreen />, "audit")
+    const label = screen.getByText("auditScreen.downloadButton")
+    label.style.display = "none"
+    expect(screen.getByRole("button", {name: "auditScreen.downloadButton"})).toBeEnabled()
 })

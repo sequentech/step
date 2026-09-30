@@ -2081,6 +2081,7 @@ const galegoTranslation: TranslationType = {
                     "Copia de Seguridade da Chave Privada Cifrada inválida, por favor intenta de novo",
                 errorEmptyFile: "Ficheiro baleiro ou non atopado",
                 verified: "Copia de seguridade verificada correctamente.",
+                alreadyRestored: "A túa chave xa fora restaurada.",
             },
         },
         miruExport: {
