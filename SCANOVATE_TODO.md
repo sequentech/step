@@ -11,8 +11,9 @@ Follow-ups of the Scanovate on-premise integration. See
 
 ## Agreed design
 
-On premise we only get the Scanovate APIs: Liveness Plus's own UI (the iframe)
-isn't available. With `face-capture=liveness`:
+On premise we only get the Scanovate APIs: their own UIs (the iframes) aren't
+available, and nothing is sent to any third party: B-Trust, Scanovate's cloud,
+isn't used.
 
 - **Photos:** our capture page takes them all, guided by the `id-capture` WASM
   analyzers: the front and back of the ID, the face, and the voter holding the
@@ -24,9 +25,9 @@ isn't available. With `face-capture=liveness`:
 - **Face comparisons:** Keycloak compares the liveness frame with the front of
   the ID and with the photo holding the ID, with the Face Match 1:1 API
   (`/facematch11/compare_images`, `allow_multiple_faces`).
-- **B-Trust:** only reads the ID (OCR) and checks that it's authentic. Keycloak
-  uploads the front and back only after the face checks pass. The voter's face
-  never leaves our network.
+- **Reading the ID:** Keycloak sends the front and back, only after the face
+  checks pass, to the OCR service (`/single_image_ocr`), which reads passports
+  and validates their MRZ check digits.
 - **Injection attacks:** Liveness Plus runs in `PRESENTATION` mode (PAD and
   deepfakes), since injection detection needs Scanovate's own capture client.
 
@@ -50,10 +51,16 @@ isn't available. With `face-capture=liveness`:
       `presentation_attack_check_passed`, `injection_attack_check_passed` not
       `false`) and compare faces with Face Match in Keycloak
       (`face-match-url`, `face-match-min-similarity`).
-- [x] Upload only the ID photos to B-Trust, and accept that in the mock server.
-- [x] Switch the COMELEC template to `embedded` with the `liveness` face
-      capture, with the per-document minimum scores as Face Match similarities,
-      and without the B-Trust `liveness_plus` and `biometric_match` rules.
+- [x] Read the ID with the on-premise OCR service, and remove B-Trust: its
+      client, the return endpoint, the `execution-mode`, `face-capture`
+      (photo), `save-option` and `link-params` settings, and its mock.
+- [x] Make the capture page liveness only, without the selfie and the video
+      recorder of the photo face capture.
+- [x] Switch the COMELEC template to the on-premise services, with the
+      per-document minimum scores as Face Match similarities and the passport
+      rules on the OCR fields.
+- [x] Run the OCR service in the `scanovate` profile of the dev container, and
+      point the dev realm and the sample election event to the services.
 
 ## Testing
 
@@ -63,8 +70,8 @@ isn't available. With `face-capture=liveness`:
       and on phones.
 - [x] Install the Scanovate pages in the dev React theme
       (`step-dev keycloak prepare`), which only installed the sign-in pages.
-- [x] Add `btrust.sh configure-liveness` to switch a realm to the on-premise
-      face checks.
+- [x] Add `configure-realm.sh configure` to point a realm to the on-premise
+      services.
 - [ ] Check that a photo, a screen, another person and a covered ID photo are
       rejected with the right message.
 - [ ] Tune `face-match-min-similarity` per document type with real documents:
@@ -72,18 +79,18 @@ isn't available. With `face-capture=liveness`:
 - [ ] Check that no service or page sends anything outside our network: run
       the profile on a network without internet access, and watch the
       browser's requests.
-- [ ] Extend the e2e mock server with a fake Liveness Plus API and Face Match,
-      so the flow can be tested end to end without the Scanovate images.
+- [ ] Check that the OCR service reads real Philippine passports, and that
+      the rules on its fields hold.
+- [ ] Extend the e2e mock server with a fake Liveness Plus API, Face Match and
+      OCR, so the flow can be tested end to end without the Scanovate images.
 
 ## Scanovate
 
 - [ ] Ask for a capture client (web SDK) that encrypts frames for injection
       attack detection on premise, usable from our own page.
-- [ ] Confirm that B-Trust accepts media captured outside its flow (the
-      proposed `POST /api/v3/mobile_interaction/{processId}/media`), now with
-      only the ID photos, and a flow with only OCR and Document Liveness Plus.
-- [ ] Ask whether they ship OCR and document authenticity on premise, so the
-      ID photos don't leave our network either.
+- [ ] Ask how the OCR service reads the Philippine driver's license, PhilSys
+      ID, IBP ID and Seafarer's Book: only its `regula` type could, through a
+      Regula Document Reader server we don't have.
 - [ ] Track the license baked into the PAD image, which expires on 2027-10-04,
       and ask how it's renewed.
 
@@ -92,16 +99,24 @@ isn't available. With `face-capture=liveness`:
 - [x] Resolve D8 of meta#13611: the Keycloak image ships the React login
       themes, and the COMELEC template selects `sequent-ui-voting`, which the
       capture page needs.
-- [ ] Set `keycloak_scanovate_liveness_url`,
+- [ ] Set `keycloak_scanovate_ocr_url`, `keycloak_scanovate_liveness_url`,
       `keycloak_scanovate_liveness_secret` and
       `keycloak_scanovate_face_match_url` in the janitor spreadsheets.
+- [ ] Decide how voters enroll with the documents the OCR service can't read
+      (only the passport is configured): a Regula server, manual entry with
+      officer review, or passport only.
 
 ## Production
 
 - [ ] Add the `/biometric/liveness/` API routes and the
       `/realms/*/identity-verification/liveness/` block to the production reverse proxy of
       Keycloak.
-- [ ] Use a secure random `JWT_SECRET_KEY` and `liveness-secret` from the
-      secrets store.
+- [ ] Use secure random `JWT_SECRET_KEY`s (Liveness Plus and OCR) and
+      `liveness-secret` from the secrets store.
 - [ ] Tune the PAD thresholds, the session expiry and `max_active_sessions`
       with real devices and the expected load.
+
+## Out of scope for now
+
+- Document authenticity (photocopies, screens, edited documents): none of the
+  on-premise images checks it.

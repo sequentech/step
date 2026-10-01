@@ -9,7 +9,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 Frame analysis for the guided identity capture (Scanovate `embedded` mode),
 compiled to WebAssembly and run on every camera frame in the voter's browser.
 The checks only guide the voter and decide when to take the photo; the server
-never trusts them and B-Trust performs the actual verification.
+never trusts them: the Scanovate services hosted on premise perform the actual
+verification.
 
 ## What it checks
 

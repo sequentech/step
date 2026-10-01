@@ -51,6 +51,32 @@ Reopening the folder with another configuration attaches to the running
 devcontainer without starting that mode's services: run `step-dev mode switch`,
 or **Dev Containers: Rebuild Container** and pick the configuration.
 
+### Opt-in Scanovate services
+
+The identity verification of enrollment (Liveness Plus with its PAD server, Face
+Match and OCR) belongs to the `scanovate` Compose profile, which no mode starts:
+its images are private, in our ECR mirror, and need about 18 GB of memory. To
+work on enrollment, start them next to `backend` or `full`, from the host, in the
+checkout:
+
+```sh
+aws sso login --profile sequent-ecr
+aws ecr get-login-password --profile sequent-ecr --region eu-west-1 \
+  | docker login --username AWS --password-stdin 133529410358.dkr.ecr.eu-west-1.amazonaws.com
+(cd .devcontainer && docker compose --profile scanovate up -d)
+
+# PAD and OCR load their models for a minute or two
+curl -s http://127.0.0.1:5050/alive http://127.0.0.1:5060/alive http://127.0.0.1:5070/alive
+
+# Free their memory when done
+(cd .devcontainer && docker compose --profile scanovate stop)
+```
+
+`step-dev mode status` lists them under `outsideModes`. The development realm
+and the sample enrollment event already point to them; see
+[Scanovate On-Premise Services](../../integrations/scanovate_on_premise_guide.md#running-them-in-the-development-environment)
+for the ECR access, the ports and the end-to-end test.
+
 Every checkout gets its own Compose project, `<folder>_devcontainer`. The one in
 a folder named `step` keeps `step_devcontainer` and unprefixed container names;
 any other prefixes them with `<folder>-`, so its `ui-only` mode runs next to
