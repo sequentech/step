@@ -455,3 +455,62 @@ async fn approving_a_voter_answers_its_signing_request() {
     .get(0);
     assert_eq!(application_status, "PENDING");
 }
+
+/// Rows the key step's transaction wrote, on the connection that holds the
+/// marker table.
+async fn markers(client: &deadpool_postgres::Object) -> i64 {
+    client
+        .query_one("SELECT count(*) FROM key_step_marker", &[])
+        .await
+        .unwrap()
+        .get(0)
+}
+
+/// A key step whose key share is not the trustee's records nothing and
+/// answers `is_valid: false`; a step that ran, or that waits for the
+/// trustee's signature, commits what it recorded and answers the request
+/// to sign, if any.
+#[rocket::async_test]
+async fn a_key_step_commits_its_outcome_and_answers_the_request_to_sign() {
+    use crate::routes::keys_ceremony::finish_key_share_step;
+    use windmill::services::signing::guard::SigningRequestSummary;
+    use windmill::services::signing::key_shares::KeyShareOutcome;
+
+    let services = Services::on_test_database().await;
+    let mut client = services.hasura.get().await.unwrap();
+    client
+        .batch_execute("CREATE TEMP TABLE key_step_marker (step text)")
+        .await
+        .unwrap();
+    let summary = SigningRequestSummary {
+        id: Uuid::new_v4(),
+        code: "7F3A-91C2".to_string(),
+        required: 1,
+        expires_at: Some(Utc::now()),
+    };
+    for (step, outcome, answer, recorded) in [
+        ("invalid", KeyShareOutcome::Invalid, (false, None), 0),
+        ("done", KeyShareOutcome::Done(None), (true, None), 1),
+        (
+            "done with a request",
+            KeyShareOutcome::Done(Some(json!({"request_id": summary.id}))),
+            (true, None),
+            2,
+        ),
+        (
+            "waiting for a signature",
+            KeyShareOutcome::SigningRequired(summary.clone()),
+            (true, Some(summary.clone())),
+            3,
+        ),
+    ] {
+        let transaction = client.transaction().await.unwrap();
+        transaction
+            .execute("INSERT INTO key_step_marker VALUES ($1)", &[&step])
+            .await
+            .unwrap();
+        let answered = finish_key_share_step(transaction, outcome).await;
+        assert_eq!(answered, Ok(answer), "{step}");
+        assert_eq!(markers(&client).await, recorded, "{step}");
+    }
+}
