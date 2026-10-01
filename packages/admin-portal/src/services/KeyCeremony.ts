@@ -23,6 +23,10 @@ export enum IKeysCeremonyTrusteeStatus {
     KEY_CHECKED = "KEY_CHECKED",
 }
 
+export const isKeysCeremonyTerminal = (status: IKeysCeremonyExecutionStatus): boolean =>
+    status === IKeysCeremonyExecutionStatus.SUCCESS ||
+    status === IKeysCeremonyExecutionStatus.CANCELLED
+
 export interface IKeysCeremonyTrustee {
     name: string
     status: IKeysCeremonyTrusteeStatus

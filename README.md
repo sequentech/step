@@ -56,6 +56,12 @@ using them and continue development:
   - To create the index db, run:
     `/workspaces/step/packages/target/debug/bb_helper --cache-dir /tmp/cache -s http://immudb:3322 -i indexdb -u immudb -p immudb upsert-init-db -l debug`
 
+The `minio` service uses [Silo](https://github.com/pgsty/silo), with the companion
+`pgsty/mc` client, both at `RELEASE.2026-09-16T00-00-00Z`. Development images are
+pinned by digest; airgap server images use the release tag for Docker save/load.
+Service names, ports, `MINIO_*` settings and `minio_storage` remain unchanged.
+Back up existing MinIO volumes before upgrading; do not delete them to rebuild.
+
 Additionally, this dev container comes with:
 
 - Relevant VS Code plugins installed
