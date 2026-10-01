@@ -25,7 +25,7 @@ ARG VENDOR_IMAGE=scratch
 FROM ${VENDOR_IMAGE} AS vendor
 
 # Start with a Maven base image to compile the Keycloak provider extensions.
-FROM maven:3-amazoncorretto-17 AS spis-build
+FROM maven:3-amazoncorretto-17@sha256:046784a9c83821fc3e9ded94c2f18155e0daf1981c8a0813d0ff693a9dc4a51b AS spis-build
 # Only install findutils if the base image lacks find, which current
 # maven:3-amazoncorretto-17 does not. Unconditional, this was a network fetch on
 # every build -- including offline ones, where it cannot succeed.
@@ -65,7 +65,7 @@ RUN --mount=from=beyond,source=.,target=/build/beyond-context,readonly \
         -exec cp -t /build/keycloak-provider-jars/ {} +
 
 # Build the oid4vp extension from source (requires Java 21)
-FROM maven:3-amazoncorretto-21 AS oid4vp-build
+FROM maven:3-amazoncorretto-21@sha256:efdf660ec74911594e2a7f642e177ffba21b741c8e848223bf41a6d0fc367692 AS oid4vp-build
 ARG OID4VP_VERSION
 ARG OID4VP_SHA256
 COPY --from=vendor / /vendor/
@@ -89,7 +89,7 @@ RUN set -eux; \
         mvn -B clean package -DskipTests; \
     fi
 
-FROM quay.io/keycloak/keycloak:26.6.1 AS builder
+FROM quay.io/keycloak/keycloak:26.6.1@sha256:dea26401d06341095cc4ea9d66896200b55de5ca1daa1d2fcbe58493afa6e0ad AS builder
 ARG OID4VP_VERSION
 
 # The extension OID4VP_VERSION v0.6.2 requires Keycloak 26.6.1 or later, as
@@ -104,17 +104,25 @@ ENV KC_DB=postgres
 
 WORKDIR /opt/keycloak
 
-# for demonstration purposes only, please make sure to use proper certificates
-# in production instead
-RUN keytool \
-   -genkeypair \
-   -storepass password \
-   -storetype PKCS12 \
-   -keyalg RSA \
-   -keysize 2048 \
-   -dname "CN=server" \
-   -alias keycloak-server -ext "SAN:c=DNS:localhost,IP:127.0.0.1" \
-   -keystore conf/server.keystore
+# No keystore is generated here, and none is generated at runtime either.
+#
+# This image previously ran keytool -genkeypair during the build "for
+# demonstration purposes", which produced a fresh random key in every image and
+# so made the image unreproducible -- meta#13625 requires random certificates to
+# be kept out of release outputs.
+#
+# It is removed rather than moved, because conf/server.keystore is only read when
+# Keycloak terminates TLS itself. It does not here: the airgap deployment runs it
+# on plain HTTP behind Traefik (KC_PROXY=edge, KC_HTTP_PORT=8090) and gitops runs
+# it behind the gateway with PROXY_HEADERS=xforwarded. Nothing in either tree sets
+# KC_HTTPS_* or references server.keystore, so the key was never used.
+#
+# Generating it at container start would have been worse than useless: each pod
+# has its own filesystem, so three replicas would hold three different keys and
+# every restart would mint another -- divergent TLS identities that look like
+# security material but are not. If Keycloak is ever to terminate TLS directly,
+# the certificate belongs in a mounted Secret provisioned at installation, which
+# is what meta#13625 requires of TLS material anyway.
 
 # Copy the compiled provider SPIs into the Keycloak providers directory
 # before calling `kc.sh build`
@@ -130,7 +138,7 @@ COPY --chown=keycloak:keycloak \
 
 RUN /opt/keycloak/bin/kc.sh build 
 
-FROM quay.io/keycloak/keycloak:26.6.1
+FROM quay.io/keycloak/keycloak:26.6.1@sha256:dea26401d06341095cc4ea9d66896200b55de5ca1daa1d2fcbe58493afa6e0ad
 COPY --from=builder /opt/keycloak/ /opt/keycloak/
 COPY --from=spis-build /build/keycloak-provider-conf/quarkus.properties /opt/keycloak/conf/quarkus.properties
 

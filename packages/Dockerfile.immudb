@@ -23,7 +23,7 @@ ARG VENDOR_IMAGE=scratch
 
 FROM ${VENDOR_IMAGE} AS vendor
 
-FROM --platform=$BUILDPLATFORM golang:1.22-alpine AS builder
+FROM --platform=$BUILDPLATFORM golang:1.22-alpine@sha256:1699c10032ca2582ec89a24a1312d986a3f094aed3d5c1147b19880afe40e052 AS builder
 
 # redeclare it so that the stage can use it
 ARG IMMUDB_VERSION
@@ -44,7 +44,8 @@ RUN if [ -f /vendor/immudb-bin/immudb ]; then \
         cp /vendor/immudb-bin/immudb /vendor/immudb-bin/immuadmin /src/ && \
         chmod +x /src/immudb /src/immuadmin; \
     else \
-        apk add --no-cache git make gcc musl-dev bash && \
+        apk add --no-cache git=2.47.3-r0 make=4.4.1-r2 gcc=14.2.0-r4 \
+            musl-dev=1.2.5-r11 bash=5.2.37-r0 && \
         git clone --depth 1 --branch "v${IMMUDB_VERSION}" https://github.com/codenotary/immudb.git . && \
         make immudb immuadmin; \
     fi
@@ -52,10 +53,16 @@ RUN if [ -f /vendor/immudb-bin/immudb ]; then \
 ###############################################################################
 # 2. ── RUNTIME STAGE (same as before, but copy from builder) ─────────────────
 ###############################################################################
-FROM --platform=$TARGETPLATFORM alpine:latest
+FROM --platform=$TARGETPLATFORM alpine:3.24@sha256:294b683cb724975bec92580e1e685676bd4b50bda910ddb8c51d4cabeaec77e6
 
-# minimal runtime deps
-RUN apk add --no-cache ca-certificates bash
+# Minimal runtime deps, pinned to exact versions so the same build inputs resolve
+# on a client's machine as on ours and the image hashes match (meta#13625).
+#
+# Alpine has no snapshot archive, so exact versions are the only lever; when one
+# is superseded the build fails loudly and the pin is bumped, which is a new
+# release identity rather than a silent change. Versions are per base image --
+# this stage is alpine:3.24, the builder above is Alpine 3.21 via golang:1.22.
+RUN apk add --no-cache ca-certificates=20260909-r0 bash=5.3.9-r1
 
 # copy freshly-built, arch-correct binaries
 COPY --from=builder /src/immudb /usr/sbin/immudb

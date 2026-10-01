@@ -15,7 +15,7 @@
 ARG VENDOR_IMAGE=scratch
 FROM ${VENDOR_IMAGE} AS vendor
 
-FROM node:20-alpine as builder
+FROM node:20-alpine@sha256:fb4cd12c85ee03686f6af5362a0b0d56d50c58a04632e6c0fb8363f609372293 as builder
 WORKDIR /usr/src/app/
 
 
@@ -49,9 +49,9 @@ RUN yarn build:${SPA_NAME}
 
 
 
-FROM nginx:alpine
+FROM nginx:alpine@sha256:df221db836e1754089190208cee7eeda94f233197056426eda74a43ab1abeac2
 # Install dependencies
-RUN apk add --no-cache jq
+RUN apk add --no-cache jq=1.8.2-r0
 # Remove default nginx static assets
 RUN rm -rf /usr/share/nginx/html/*
 # Copy custom NGINX config
