@@ -46,6 +46,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<artifactId>message-otp-authenticator</artifactId>
 			<version>${project.version}</version>
 		</dependency>
+		<dependency>
+			<groupId>sequent</groupId>
+			<artifactId>oauth2-client</artifactId>
+			<version>${project.version}</version>
+		</dependency>
         <dependency>
             <groupId>sequent</groupId>
             <artifactId>action-token-login-bridge</artifactId>
@@ -189,6 +194,7 @@ SPDX-License-Identifier: AGPL-3.0-only
                                     <include>javax:*</include>
                                     <include>software.amazon.awssdk:*</include>
                                     <include>org.reactivestreams:reactive-streams</include>
+                                    <include>sequent:oauth2-client</include>
                                 </includes>
                             </artifactSet>
                         </configuration>

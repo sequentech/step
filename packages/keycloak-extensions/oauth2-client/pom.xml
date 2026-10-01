@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <!--
-SPDX-FileCopyrightText: 2026 Sequent Tech <legal@sequentech.io>
+SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 
 SPDX-License-Identifier: AGPL-3.0-only
 -->
@@ -17,42 +17,29 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<version>1.0-SNAPSHOT</version>
 	</parent>
 
-	<artifactId>voter-enrollment</artifactId>
+	<artifactId>oauth2-client</artifactId>
 
 	<dependencies>
 		<dependency>
-			<groupId>sequent</groupId>
-			<artifactId>message-otp-authenticator</artifactId>
-			<version>${project.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>sequent</groupId>
-			<artifactId>oauth2-client</artifactId>
-			<version>${project.version}</version>
+			<groupId>org.keycloak</groupId>
+			<artifactId>keycloak-core</artifactId>
+			<version>${keycloak.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>org.junit.jupiter</groupId>
 			<artifactId>junit-jupiter</artifactId>
-			<version>6.0.3</version>
-			<scope>test</scope>
-		</dependency>
-		<dependency>
-			<groupId>org.mockito</groupId>
-			<artifactId>mockito-core</artifactId>
-			<version>5.19.0</version>
-			<scope>test</scope>
-		</dependency>
-		<!-- Supplies the JAX-RS RuntimeDelegate used by response-building unit tests. -->
-		<dependency>
-			<groupId>org.glassfish.jersey.core</groupId>
-			<artifactId>jersey-common</artifactId>
-			<version>3.1.6</version>
+			<version>5.13.4</version>
 			<scope>test</scope>
 		</dependency>
 	</dependencies>
 
 	<build>
 		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-surefire-plugin</artifactId>
+				<version>3.5.4</version>
+			</plugin>
 			<plugin>
 				<groupId>com.diffplug.spotless</groupId>
 				<artifactId>spotless-maven-plugin</artifactId>
