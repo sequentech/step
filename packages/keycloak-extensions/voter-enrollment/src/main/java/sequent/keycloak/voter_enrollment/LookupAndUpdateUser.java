@@ -83,6 +83,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
   private static final String MESSAGE_COURIER_ATTRIBUTE = "messageCourierAttribute";
   private static final String TEL_USER_ATTRIBUTE = "telUserAttribute";
   public static final String AUTO_2FA = "auto-2fa";
+  public static final String NO_MATCHING_VOTER_POLICY = "no-matching-voter-policy";
 
   public static final String VERIFICATION_COMPLETED = "verificationCompleted";
   public static final String VERIFICATION_STATUS = "verificationStatus";
@@ -217,6 +218,9 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
     annotationsMap.put(UNSET_ATTRIBUTES, unsetAttributes);
     annotationsMap.put("credentials", credentials);
     annotationsMap.put("sessionId", sessionId);
+    annotationsMap.put(
+        NO_MATCHING_VOTER_POLICY,
+        NoMatchingVoterPolicy.fromConfig(config.getConfig().get(NO_MATCHING_VOTER_POLICY)).name());
 
     MessageCourier messageCourier =
         MessageCourier.fromString(config.getConfig().get(MESSAGE_COURIER_ATTRIBUTE));
@@ -875,6 +879,18 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
             MessageCourier.EMAIL.name(),
             MessageCourier.NONE.name()));
 
+    ProviderConfigProperty noMatchingVoterPolicy =
+        new ProviderConfigProperty(
+            NO_MATCHING_VOTER_POLICY,
+            "No matching voter",
+            "What an enrollment whose identity matches no voter of the census becomes: REJECT"
+                + " rejects it, PENDING_APPROVAL leaves it pending in the election event's"
+                + " Approvals, for an election manager to review.",
+            ProviderConfigProperty.LIST_TYPE,
+            NoMatchingVoterPolicy.REJECT.name());
+    noMatchingVoterPolicy.setOptions(
+        Arrays.stream(NoMatchingVoterPolicy.values()).map(Enum::name).toList());
+
     // Define configuration properties
     return List.of(
         new ProviderConfigProperty(
@@ -913,7 +929,8 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
             "If enabled will configure the users 2FA to use the Email or SMS provided during registration.",
             ProviderConfigProperty.BOOLEAN_TYPE,
             false),
-        messageCourier);
+        messageCourier,
+        noMatchingVoterPolicy);
   }
 
   @Override

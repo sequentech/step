@@ -11,6 +11,7 @@ use crate::services::reports::utils::get_public_asset_template;
 use crate::services::temp_path::PUBLIC_ASSETS_I18N_DEFAULTS;
 use crate::tasks::send_template::{send_template, send_template_email_or_sms};
 use crate::types::application::ApplicationRejectReason;
+use crate::types::application::NoMatchingVoterPolicy;
 use crate::{
     postgres::application::{insert_application, update_application_status},
     types::application::ApplicationStatus,
@@ -121,6 +122,7 @@ pub async fn verify_application(
         mismatches: result.mismatches,
         fields_match: result.fields_match.clone(),
         manual_verify_reason: result.manual_verify_reason.clone(),
+        no_matching_voter_policy: annotations.no_matching_voter_policy.clone(),
     };
 
     let (mut permission_label, area_id) = get_permission_label_and_area_from_applicant_data(
@@ -314,6 +316,12 @@ pub struct ApplicationAnnotations {
     mismatches: Option<usize>,
     fields_match: Option<HashMap<String, bool>>,
     manual_verify_reason: Option<String>,
+    #[serde(
+        rename = "no-matching-voter-policy",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
+    no_matching_voter_policy: Option<NoMatchingVoterPolicy>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -472,6 +480,17 @@ fn automatic_verification(
             rejection_reason = Some(ApplicationRejectReason::NO_VOTER);
             rejection_message = None;
         }
+    }
+
+    // An identity that matches no voter of the census goes to review, if the
+    // realm asks for it, instead of being rejected.
+    if matched_status == ApplicationStatus::REJECTED
+        && rejection_reason == Some(ApplicationRejectReason::NO_VOTER)
+        && annotations.no_matching_voter_policy == Some(NoMatchingVoterPolicy::PENDING_APPROVAL)
+    {
+        matched_user = None;
+        matched_status = ApplicationStatus::PENDING;
+        matched_type = ApplicationType::MANUAL;
     }
 
     info!("matched_status: {}", matched_status.to_string());
@@ -1181,6 +1200,67 @@ fn is_fuzzy_match(applicant_value: Option<String>, user_value: Option<String>) -
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn census_annotations(policy: Option<NoMatchingVoterPolicy>) -> ApplicationAnnotations {
+        ApplicationAnnotations {
+            session_id: None,
+            credentials: None,
+            verified_by: None,
+            rejection_reason: None,
+            rejection_message: None,
+            unset_attributes: Some("email".to_string()),
+            search_attributes: Some("firstName,lastName,dateOfBirth".to_string()),
+            update_attributes: None,
+            mismatches: None,
+            fields_match: None,
+            manual_verify_reason: None,
+            no_matching_voter_policy: policy,
+        }
+    }
+
+    #[test]
+    fn test_no_matching_voter_is_rejected_by_default() {
+        let result =
+            automatic_verification(vec![], &census_annotations(None), &HashMap::new()).unwrap();
+        assert_eq!(result.application_status, ApplicationStatus::REJECTED);
+        assert_eq!(result.application_type, ApplicationType::AUTOMATIC);
+        assert_eq!(
+            result.rejection_reason,
+            Some(ApplicationRejectReason::NO_VOTER)
+        );
+    }
+
+    #[test]
+    fn test_no_matching_voter_goes_to_approval_with_its_policy() {
+        let result = automatic_verification(
+            vec![],
+            &census_annotations(Some(NoMatchingVoterPolicy::PENDING_APPROVAL)),
+            &HashMap::new(),
+        )
+        .unwrap();
+        assert_eq!(result.application_status, ApplicationStatus::PENDING);
+        assert_eq!(result.application_type, ApplicationType::MANUAL);
+        assert_eq!(
+            result.rejection_reason,
+            Some(ApplicationRejectReason::NO_VOTER)
+        );
+        assert_eq!(result.user_id, None);
+    }
+
+    #[test]
+    fn test_no_matching_voter_policy_annotation_is_optional() {
+        let absent: ApplicationAnnotations =
+            serde_json::from_str(r#"{"search-attributes": "firstName"}"#).unwrap();
+        assert_eq!(absent.no_matching_voter_policy, None);
+        let pending: ApplicationAnnotations = serde_json::from_str(
+            r#"{"search-attributes": "firstName", "no-matching-voter-policy": "PENDING_APPROVAL"}"#,
+        )
+        .unwrap();
+        assert_eq!(
+            pending.no_matching_voter_policy,
+            Some(NoMatchingVoterPolicy::PENDING_APPROVAL)
+        );
+    }
 
     #[test]
     fn test_accent_mark() {
