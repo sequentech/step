@@ -20,7 +20,7 @@ export interface DownloadDocumentProps {
     documentId: string
     electionEventId?: string
     withProgress?: boolean
-    onSucess?: () => void
+    onSuccess?: () => void
 }
 
 export const DownloadDocument: React.FC<DownloadDocumentProps> = ({
@@ -29,7 +29,7 @@ export const DownloadDocument: React.FC<DownloadDocumentProps> = ({
     documentId,
     electionEventId,
     withProgress,
-    onSucess,
+    onSuccess,
 }) => {
     const [downloaded, setDownloaded] = React.useState(false)
     const downloadStarted = useRef(false)

@@ -26,6 +26,72 @@ import {EditElectionEventApprovals} from "../ElectionEvent/EditElectionEventAppr
 import {Tabs} from "@/components/Tabs"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 
+// Keep these tab components at module level. Do not inline them back into ElectionTabs
+// as `component: () => (...)`: <Tabs> renders the selected tab as <SelectedComponent />,
+// so a component created during render is a new type on every re-render and the open
+// tab remounts, losing its state.
+// This bug was specific to release/9.0: #3032 backported that <Tabs> change (and the
+// stable ElectionEventTabs components) but not this file, which main converted in #2153.
+// The Data tab's EditBase then refetched on every mount, the refetch re-rendered
+// ElectionTabs, and the tab remounted in a loop, so its accordions could not stay open.
+// ElectionTabs.test.ts guards this.
+
+const DashboardTab: React.FC = () => (
+    <Suspense fallback={<div>Loading Dashboard...</div>}>
+        <DashboardElection />
+    </Suspense>
+)
+
+const MonitoringTab: React.FC = () => (
+    <Suspense fallback={<div>Loading Dashboard...</div>}>
+        <MonitoringDashboardElection />
+    </Suspense>
+)
+
+const DataTab: React.FC = () => (
+    <Suspense fallback={<div>Loading Data...</div>}>
+        <EditElectionData />
+    </Suspense>
+)
+
+const VotersTab: React.FC = () => {
+    const record = useRecordContext<Sequent_Backend_Election>()
+    return (
+        <Suspense fallback={<div>Loading Voters...</div>}>
+            <EditElectionEventUsers
+                electionEventId={record?.election_event_id}
+                electionId={record?.id}
+            />
+        </Suspense>
+    )
+}
+
+const PublishTab: React.FC<{tabKey: string}> = ({tabKey}) => {
+    const record = useRecordContext<Sequent_Backend_Election>()
+    return (
+        <Suspense fallback={<div>Loading Publish...</div>}>
+            <Publish
+                key={tabKey}
+                electionEventId={record?.election_event_id}
+                electionId={record?.id}
+                type={EPublishType.Election}
+            />
+        </Suspense>
+    )
+}
+
+const ApprovalsTab: React.FC = () => {
+    const record = useRecordContext<Sequent_Backend_Election>()
+    return (
+        <Suspense fallback={<div>Loading Approvals...</div>}>
+            <EditElectionEventApprovals
+                electionEventId={record?.election_event_id}
+                electionId={record?.id}
+            />
+        </Suspense>
+    )
+}
+
 export const ElectionTabs: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election>()
     const {t} = useTranslation()
@@ -105,11 +171,7 @@ export const ElectionTabs: React.FC = () => {
                         ? [
                               {
                                   label: t("electionScreen.tabs.dashboard"),
-                                  component: () => (
-                                      <Suspense fallback={<div>Loading Dashboard...</div>}>
-                                          <DashboardElection />
-                                      </Suspense>
-                                  ),
+                                  component: DashboardTab,
                               },
                           ]
                         : []),
@@ -117,11 +179,7 @@ export const ElectionTabs: React.FC = () => {
                         ? [
                               {
                                   label: t("electionScreen.tabs.monitoring"),
-                                  component: () => (
-                                      <Suspense fallback={<div>Loading Dashboard...</div>}>
-                                          <MonitoringDashboardElection />
-                                      </Suspense>
-                                  ),
+                                  component: MonitoringTab,
                               },
                           ]
                         : []),
@@ -129,11 +187,7 @@ export const ElectionTabs: React.FC = () => {
                         ? [
                               {
                                   label: t("electionScreen.tabs.data"),
-                                  component: () => (
-                                      <Suspense fallback={<div>Loading Data...</div>}>
-                                          <EditElectionData />
-                                      </Suspense>
-                                  ),
+                                  component: DataTab,
                               },
                           ]
                         : []),
@@ -141,14 +195,7 @@ export const ElectionTabs: React.FC = () => {
                         ? [
                               {
                                   label: t("electionScreen.tabs.voters"),
-                                  component: () => (
-                                      <Suspense fallback={<div>Loading Voters...</div>}>
-                                          <EditElectionEventUsers
-                                              electionEventId={record?.election_event_id}
-                                              electionId={record?.id}
-                                          />
-                                      </Suspense>
-                                  ),
+                                  component: VotersTab,
                               },
                           ]
                         : []),
@@ -156,16 +203,8 @@ export const ElectionTabs: React.FC = () => {
                         ? [
                               {
                                   label: t("electionScreen.tabs.publish"),
-                                  component: () => (
-                                      <Suspense fallback={<div>Loading Publish...</div>}>
-                                          <Publish
-                                              key={tabKey}
-                                              electionEventId={record?.election_event_id}
-                                              electionId={record?.id}
-                                              type={EPublishType.Election}
-                                          />
-                                      </Suspense>
-                                  ),
+                                  component: PublishTab,
+                                  props: {tabKey},
                                   action: (index: number) => {
                                       localStorage.setItem(
                                           "electionPublishTabIndex",
@@ -179,14 +218,7 @@ export const ElectionTabs: React.FC = () => {
                         ? [
                               {
                                   label: t("electionScreen.tabs.approvals"),
-                                  component: () => (
-                                      <Suspense fallback={<div>Loading Approvals...</div>}>
-                                          <EditElectionEventApprovals
-                                              electionEventId={record?.election_event_id}
-                                              electionId={record?.id}
-                                          />
-                                      </Suspense>
-                                  ),
+                                  component: ApprovalsTab,
                               },
                           ]
                         : []),
