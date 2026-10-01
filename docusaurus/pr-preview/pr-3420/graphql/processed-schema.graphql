@@ -193,11 +193,6 @@ type DataListElectoralLog {
   total: TotalAggregate!
 }
 
-type DataListPgAudit {
-  items: [PgAuditRow]!
-  total: TotalAggregate!
-}
-
 type DeleteCertificateAuthorityOutput {
   deleted_count: Int!
 }
@@ -714,10 +709,6 @@ type ListKeysCeremonyOutput {
   total: TotalAggregate!
 }
 
-type LogEventOutput {
-  electionEventId: String
-}
-
 type ManageElectionDatesOutput {
   error_msg: String
 }
@@ -736,46 +727,6 @@ type OptionalImportEvent {
 enum OrderDirection {
   asc
   desc
-}
-
-input PgAuditFilter {
-  audit_type: String
-  class: String
-  command: String
-  dbname: String
-  id: String
-  session_id: String
-  statement: String
-  user: String
-}
-
-input PgAuditOrderBy {
-  audit_type: OrderDirection
-  class: OrderDirection
-  command: OrderDirection
-  dbname: OrderDirection
-  id: OrderDirection
-  server_timestamp: OrderDirection
-  session_id: OrderDirection
-  statement: OrderDirection
-  user: OrderDirection
-}
-
-type PgAuditRow {
-  audit_type: String!
-  class: String!
-  command: String!
-  dbname: String!
-  id: Int!
-  server_timestamp: Int!
-  session_id: String!
-  statement: String!
-  user: String!
-}
-
-enum PgAuditTable {
-  pgaudit_hasura
-  pgaudit_keycloak
 }
 
 type PhoneBlacklistEntry {
@@ -5048,14 +4999,10 @@ type query_root {
   get_users(body: GetUsersInput!): GetUsersOutput!
   """List Electoral Log"""
   listElectoralLog(election_event_id: String, filter: ElectoralLogFilter, limit: Int, offset: Int, order_by: ElectoralLogOrderBy): DataListElectoralLog
-  """List PostgreSQL audit logs"""
-  listPgaudit(audit_table: PgAuditTable, filter: PgAuditFilter, limit: Int, offset: Int, order_by: PgAuditOrderBy): DataListPgAudit
   """List electoral log entries of statement_kind CastVote"""
   list_cast_vote_messages(ballot_id: String!, election_event_id: String!, election_id: String, limit: Int, offset: Int, order_by: ElectoralLogOrderBy, tenant_id: String!): ListCastVoteMessagesOutput
   list_keys_ceremony(election_event_id: String!): ListKeysCeremonyOutput
   list_user_roles(election_event_id: String, tenant_id: String!, user_id: String!): [KeycloakRole!]!
-  """log an event in immudb"""
-  logEvent(body: String!, election_event_id: String!, message_type: String!, user_id: String): LogEventOutput
   """
   Resolve the active results website publication for authenticated viewers
   """
