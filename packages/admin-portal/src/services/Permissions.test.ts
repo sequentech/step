@@ -46,3 +46,40 @@ it.each([undefined, "", "unknown", "toString", "constructor", "__proto__"])(
         expect(getOperationRole(operation(name), true)).toBe(IPermissions.ADMIN_USER)
     }
 )
+
+describe("staff without the admin-user role", () => {
+    const nonAdmin = (name?: string) => getOperationRole(operation(name), false, false)
+
+    it.each([
+        ["sequent_backend_election_event", IPermissions.ELECTION_EVENT_READ],
+        ["sequent_backend_area", IPermissions.AREA_READ],
+        ["sequent_backend_tenant", IPermissions.ELECTION_EVENT_READ],
+        ["election_events_tree", IPermissions.ELECTION_EVENT_READ],
+        ["candidate_tree", IPermissions.ELECTION_EVENT_READ],
+        ["getRoles", IPermissions.ROLE_READ],
+        ["getPermissions", IPermissions.USER_PERMISSION_READ],
+        ["SetRolePermission", IPermissions.ROLE_WRITE],
+        ["DeleteRolePermission", IPermissions.ROLE_WRITE],
+        ["getUsers", IPermissions.USER_READ],
+        // Post > Publish: an SBEI starts Open and Close voting, and Initialize voting.
+        ["UpdateElectionVotingStatus", IPermissions.ELECTION_STATE_WRITE],
+        ["CreateTallyCeremony", IPermissions.ADMIN_CEREMONY],
+    ])("query %s as %s", (name, role) => {
+        expect(nonAdmin(name)).toBe(role)
+    })
+
+    it.each([undefined, "", "unknown", "IntrospectionQuery", "toString", "__proto__"])(
+        "never borrow admin-user, even for %s",
+        (name) => {
+            expect(nonAdmin(name)).toBe(IPermissions.ELECTION_EVENT_READ)
+        }
+    )
+
+    it("keep admins on their current roles", () => {
+        expect(getOperationRole(operation("getRoles"))).toBe(IPermissions.ADMIN_USER)
+        expect(getOperationRole(operation("election_events_tree"))).toBe(IPermissions.ADMIN_USER)
+        expect(getOperationRole(operation("UpdateElectionVotingStatus"))).toBe(
+            IPermissions.ADMIN_USER
+        )
+    })
+})

@@ -53,3 +53,7 @@ export const roleRecords = (): RoleRecord[] => [
         client_roles: {},
     },
 ]
+
+/** A sign permission: role-write alone changes it, as it decides who can sign. */
+export const signPermissionRecord = (): PermissionRecord =>
+    permission(IPermissions.SIGN_CLOSE_VOTING, 6)

@@ -120,10 +120,10 @@ summary = "Dormant source fragment without a manifest"
 summary = "The beyond submodule, validated in its own repository"
 
 [units.harvest]
-test_inputs = ["hasura/migrations/backend-db/**", ".devcontainer/postgresql/init.sh"]
+test_inputs = ["hasura/migrations/backend-db/**", ".devcontainer/postgresql/init.sh", "hasura/metadata/databases/backend-db/tables/**"]
 
 [units.windmill]
-test_inputs = ["hasura/migrations/backend-db/**", ".devcontainer/postgresql/init.sh"]
+test_inputs = ["hasura/migrations/backend-db/**", ".devcontainer/postgresql/init.sh", "packages/admin-portal/src/translations/en.ts", ".devcontainer/keycloak/import/tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5.json"]
 
 [units.sequent-core]
 # The permission tests read the realm templates.
@@ -272,6 +272,11 @@ units = ["scripts-misc"]
 [[paths]]
 globs = ["packages/test-support/**"]
 units = ["test-support"]
+
+# Writes the synthetic signing certificates the admin portal tests read.
+[[paths]]
+globs = ["scripts/signing/**"]
+units = ["admin-portal"]
 
 # The authentication theme bundles the existing portal font assets.
 [[paths]]

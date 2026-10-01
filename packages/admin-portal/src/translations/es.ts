@@ -3742,6 +3742,94 @@ const spanishTranslation: TranslationType = {
             signaturePage: {
                 digitallySigned: "Digitally signed by {{name}}",
             },
+            widget: {
+                continue: "Continue",
+                done: "Done",
+                close: "Close",
+                retry: "Try again",
+                loading: "Loading the request…",
+                loadError: "The request could not be loaded.",
+                chooseFile: "Choose certificate file",
+                fileInput: "Certificate file",
+                fileSize: "{{size}} KB",
+                showPassword: "Show password",
+                hidePassword: "Hide password",
+                opening: "Opening the certificate…",
+                checking: "Checking the certificate…",
+                signing: "Signing…",
+                certificateCard: "Issued by {{issuer}} · valid until {{date}} · {{algorithm}}",
+                fingerprint: "SHA-256 {{fingerprint}}",
+                algorithms: {
+                    "rsa-pkcs1-sha256": "RSA",
+                    "ecdsa-p256-sha256": "EC P-256",
+                },
+                document: "{{type}} · SHA-256 {{hash}}",
+                documentPages: "{{type}} · {{pages}} pages · SHA-256 {{hash}}",
+                checksTitle: "Certificate checks",
+                untrustedIssuer: "{{issuer}} is not a trusted issuer for this election event",
+                registeredToSomeoneElse: "Registered to someone else",
+                checkPassedNoDetail: {
+                    "trusted-issuer": "Issued by a trusted issuer",
+                    "not-revoked": "Not revoked",
+                },
+                organization: "your organization",
+                cantSign: "This certificate can't sign this request.",
+                checkError: "The certificate could not be checked. Try again.",
+                fileErrors: {
+                    UNREADABLE_FILE:
+                        "This file is not a certificate file (.p12 or .pfx), or it is damaged.",
+                    UNSUPPORTED_ENCRYPTION:
+                        "This browser can't open the encryption this file uses.",
+                    NO_PRIVATE_KEY:
+                        "This file has no private key. Choose the certificate file from your security token.",
+                    NO_CERTIFICATE: "This file has no certificate.",
+                    UNSUPPORTED_KEY:
+                        "This certificate's key type is not supported. Use an RSA or EC P-256 certificate.",
+                    KEY_CERTIFICATE_MISMATCH:
+                        "The certificate in this file does not match its key.",
+                },
+                openError: "The certificate could not be opened. Try again.",
+                signError: "The signature could not be sent. Try again.",
+                refused: "The server refused the signature.",
+                stale: "The document changed while you were signing. Sign again.",
+                mismatch:
+                    "What would be signed does not match this request. Close the dialog and open the request again.",
+                documentMismatch: "The document does not match the one this request signs.",
+                documentError: "The document could not be downloaded. Try again.",
+                alreadySigned: "You have already signed this request.",
+                closed: {
+                    changed:
+                        "This request changed after you opened it. Close this window and check it again before you sign.",
+                    allSigned: "This request already has all its signatures.",
+                },
+                chooseCertificate: "Certificate to sign with",
+                renderError: "The signing request could not be shown. Close it and open it again.",
+                signedAt: "{{time}}",
+                panel: {
+                    completedAt: "Signed at {{time}}",
+                    expired:
+                        "This request expired. Signatures given for it no longer count. Start it again to sign.",
+                    failed: "All signatures are in, but the action failed. The log has the details.",
+                    details: "Details",
+                    close: "Close the request panel",
+                },
+                cancelDialog: {
+                    title: "Cancel this request?",
+                    body: "Signatures given for it no longer count. The person who started it starts again.",
+                    reason: "Reason (optional)",
+                    confirm: "Cancel request",
+                    back: "Keep it",
+                    error: "The request could not be cancelled. Try again.",
+                },
+                handoverDialog: {
+                    title: "Next member signs in",
+                    noExpiry:
+                        "You will be signed out. The next member signs in on this computer and returns to this request to sign.",
+                    confirm: "Sign out",
+                    back: "Stay signed in",
+                    error: "The handover could not be recorded. Try again.",
+                },
+            },
         },
     },
 }

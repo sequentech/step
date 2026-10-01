@@ -239,6 +239,7 @@ fn build_application_with(
                 routes::signing_certificates::register_staff_certificate_route,
                 routes::signing_certificates::revoke_staff_certificate_route,
                 routes::signing_certificates::check_signing_certificate,
+                routes::signing::prepare_signing_pdf,
             ],
         )
         .mount("/", routes![routes::plugins::plugin_routes])

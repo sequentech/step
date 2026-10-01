@@ -149,6 +149,13 @@ fn approval(request_id: Uuid) -> Value {
     })
 }
 
+fn pdf_prepare(request_id: Uuid) -> Value {
+    json!({
+        "request_id": request_id,
+        "chain_pem": ["-----BEGIN CERTIFICATE-----\nAA==\n-----END CERTIFICATE-----\n"],
+    })
+}
+
 async fn steps(pool: &Pool, event: &Event) -> Vec<String> {
     let (_, election_event) = ids(event);
     pool.get()
@@ -208,6 +215,16 @@ async fn a_missing_permission_is_forbidden() {
             &stranger,
             json!({"election_event_id": event.election_event_id}),
         ),
+        (
+            "/signing-requests/pdf-prepare",
+            &stranger,
+            pdf_prepare(request_id),
+        ),
+        (
+            "/signing-requests/pdf-prepare",
+            &other_post,
+            pdf_prepare(request_id),
+        ),
         ("/signing-rules/put", &rule_writer, rule.clone()),
         (
             "/signing-rules/capacity",
@@ -220,6 +237,19 @@ async fn a_missing_permission_is_forbidden() {
         assert_eq!(status, Status::Forbidden, "{path}: {body}");
         assert_eq!(body["extensions"]["code"], "forbidden", "{path}");
     }
+    // A signer of a request without a PDF has nothing to prepare.
+    let (status, body) = json(
+        post(
+            &client,
+            "/signing-requests/pdf-prepare",
+            &signer(&event, "maria", &[LABEL]),
+            &pdf_prepare(request_id),
+        )
+        .await,
+    )
+    .await;
+    assert_eq!(status, Status::BadRequest, "{body}");
+    assert_eq!(body["extensions"]["code"], "invalid");
     // Refused steps on the request are logged and committed: the two sign
     // attempts and the starter's cancel. The stranger's handover and open
     // failure, and Jose's cancel, come within the throttle of their own
@@ -464,6 +494,11 @@ fn each_refusal_has_its_status_and_code() {
             json!({"code": "conflict"}),
         ),
         (
+            SigningError::StaleRevision("prepare again".into()),
+            Status::Conflict,
+            json!({"code": "stale-revision"}),
+        ),
+        (
             SigningError::invalid(InvalidReason::LockedDown, "locked"),
             Status::Conflict,
             json!({"code": "locked-down"}),
@@ -486,4 +521,241 @@ fn each_refusal_has_its_status_and_code() {
         assert_eq!(body["extensions"], extensions);
         assert!(!body["message"].as_str().unwrap().contains("secret detail"));
     }
+}
+
+/// PDF documents in memory, as the object storage would keep them.
+#[derive(Default)]
+struct MemoryDocuments {
+    documents: std::sync::Mutex<std::collections::HashMap<Uuid, Vec<u8>>>,
+}
+
+#[rocket::async_trait]
+impl windmill::services::signing::pdf::RevisionStore for MemoryDocuments {
+    async fn load(
+        &self,
+        _tx: &Transaction<'_>,
+        _tenant_id: Uuid,
+        _election_event_id: Uuid,
+        document_id: Uuid,
+    ) -> anyhow::Result<Vec<u8>> {
+        self.documents
+            .lock()
+            .unwrap()
+            .get(&document_id)
+            .cloned()
+            .ok_or_else(|| anyhow::anyhow!("no document {document_id}"))
+    }
+
+    async fn store(
+        &self,
+        _tx: &Transaction<'_>,
+        _tenant_id: Uuid,
+        _election_event_id: Uuid,
+        _file_name: &str,
+        content: &[u8],
+    ) -> anyhow::Result<Uuid> {
+        let id = Uuid::new_v4();
+        self.documents.lock().unwrap().insert(id, content.to_vec());
+        Ok(id)
+    }
+
+    async fn link(
+        &self,
+        _tx: &Transaction<'_>,
+        _tenant_id: Uuid,
+        _election_event_id: Uuid,
+        _document_id: Uuid,
+    ) -> anyhow::Result<Option<windmill::services::signing::pdf::DocumentLink>>
+    {
+        Ok(None)
+    }
+}
+
+impl MemoryDocuments {
+    fn store_bytes(&self, content: &[u8]) -> Uuid {
+        let id = Uuid::new_v4();
+        self.documents.lock().unwrap().insert(id, content.to_vec());
+        id
+    }
+}
+
+/// A one-page PDF, written by hand.
+fn minimal_pdf() -> Vec<u8> {
+    let objects = [
+        "<< /Type /Catalog /Pages 2 0 R >>",
+        "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+        "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] >>",
+    ];
+    let mut out = b"%PDF-1.4\n".to_vec();
+    let mut offsets = vec![];
+    for (i, object) in objects.iter().enumerate() {
+        offsets.push(out.len());
+        out.extend(format!("{} 0 obj\n{object}\nendobj\n", i + 1).as_bytes());
+    }
+    let xref = out.len();
+    out.extend(
+        format!("xref\n0 {}\n0000000000 65535 f \n", objects.len() + 1)
+            .as_bytes(),
+    );
+    for offset in offsets {
+        out.extend(format!("{offset:010} 00000 n \n").as_bytes());
+    }
+    out.extend(
+        format!(
+            "trailer\n<< /Size {} /Root 1 0 R >>\nstartxref\n{xref}\n%%EOF\n",
+            objects.len() + 1
+        )
+        .as_bytes(),
+    );
+    out
+}
+
+fn self_signed_pem(common_name: &str) -> String {
+    use openssl::asn1::Asn1Time;
+    use openssl::hash::MessageDigest;
+    use openssl::pkey::PKey;
+    use openssl::rsa::Rsa;
+    use openssl::x509::{X509NameBuilder, X509};
+    let key = PKey::from_rsa(Rsa::generate(2048).unwrap()).unwrap();
+    let mut name = X509NameBuilder::new().unwrap();
+    name.append_entry_by_text("CN", common_name).unwrap();
+    let name = name.build();
+    let mut builder = X509::builder().unwrap();
+    builder.set_version(2).unwrap();
+    builder.set_subject_name(&name).unwrap();
+    builder.set_issuer_name(&name).unwrap();
+    builder.set_pubkey(&key).unwrap();
+    builder
+        .set_not_before(&Asn1Time::days_from_now(0).unwrap())
+        .unwrap();
+    builder
+        .set_not_after(&Asn1Time::days_from_now(30).unwrap())
+        .unwrap();
+    builder.sign(&key, MessageDigest::sha256()).unwrap();
+    String::from_utf8(builder.build().to_pem().unwrap()).unwrap()
+}
+
+#[rocket::async_test]
+async fn a_signer_prepares_the_pdf_of_a_waiting_request() {
+    use base64::Engine;
+    use sha2::{Digest, Sha256};
+    use windmill::services::signing::pades::append_signature_page;
+    use windmill::services::signing::pdf::{
+        signature_field_specs, signature_page_texts, PdfDocumentSigner,
+    };
+    const ER: SigningAction = SigningAction::GenerateElectionReturns;
+
+    let documents = Arc::new(MemoryDocuments::default());
+    let services =
+        Services::on_test_database()
+            .await
+            .with_signing(SigningServices {
+                verifier: Arc::new(UntrustedIssuer),
+                executors: SigningExecutorRegistry::default(),
+                documents: Arc::new(PdfDocumentSigner::new(documents.clone())),
+                exports: Arc::new(crate::route_services::RowOnlyExports),
+            });
+    let client = services.client().await;
+    let event = rows::event(&services.hasura).await;
+    let (tenant, election_event) = ids(&event);
+    let post_id = Uuid::new_v4();
+    let base = append_signature_page(
+        &minimal_pdf(),
+        &signature_field_specs(2),
+        &signature_page_texts(ER, "Test Organization").unwrap(),
+    )
+    .unwrap();
+    let sha256 = hex::encode(Sha256::digest(&base));
+    let document_id = documents.store_bytes(&base);
+    let mut db = services.hasura.get().await.unwrap();
+    let tx = db.transaction().await.unwrap();
+    tx.execute(
+        "INSERT INTO sequent_backend.election (id, tenant_id, election_event_id, permission_label)
+         VALUES ($1, $2, $3, $4)",
+        &[&post_id, &tenant, &election_event, &LABEL],
+    )
+    .await
+    .unwrap();
+    upsert_signing_rule(
+        &tx,
+        tenant,
+        election_event,
+        &SigningRule {
+            action: ER,
+            requirement: SigningRequirement::Required,
+            signatures: 2,
+            requester_signing: RequesterSigning::NotAllowed,
+            expires_minutes: None,
+            revision: 0,
+        },
+        0,
+        "manager",
+        None,
+    )
+    .await
+    .unwrap()
+    .unwrap();
+    let requester = SigningCaller::from_claims(&operator(&event).build());
+    let outcome = guard(
+        &tx,
+        &requester,
+        &GuardRequest {
+            action: ER,
+            scope: RequestScope {
+                tenant_id: tenant,
+                election_event_id: election_event,
+                election_id: Some(post_id),
+                area_id: None,
+                trustee_id: None,
+                subject_key: None,
+            },
+            subject: json!({
+                "report_type": "ELECTORAL_RESULTS",
+                "document_sha256": sha256,
+                "template_id": null,
+            }),
+            document: Some(
+                windmill::services::signing::guard::SigningDocument {
+                    document_id: Some(document_id),
+                    sha256: sha256.clone(),
+                },
+            ),
+            config_revision: None,
+        },
+    )
+    .await
+    .unwrap();
+    tx.commit().await.unwrap();
+    let GuardOutcome::SigningRequired(request) = outcome else {
+        panic!("{outcome:?}");
+    };
+
+    let maria = Claims::new(&event.tenant_id, "maria")
+        .username("maria")
+        .roles([ER.sign_permission()])
+        .permission_labels(&[LABEL]);
+    let body = json!({
+        "request_id": request.id,
+        "chain_pem": [self_signed_pem("Maria Santos")],
+    });
+    let (status, prepared) = json(
+        post(&client, "/signing-requests/pdf-prepare", &maria, &body).await,
+    )
+    .await;
+    assert_eq!(status, Status::Ok, "{prepared}");
+    assert_eq!(prepared["revision"], 1);
+    let digest = base64::engine::general_purpose::STANDARD
+        .decode(prepared["digest_b64"].as_str().unwrap())
+        .unwrap();
+    assert_eq!(digest.len(), 32);
+    assert!(chrono::DateTime::parse_from_rfc3339(
+        prepared["signing_time"].as_str().unwrap()
+    )
+    .is_ok());
+    // The same signer and certificate get the same revision again.
+    let (status, again) = json(
+        post(&client, "/signing-requests/pdf-prepare", &maria, &body).await,
+    )
+    .await;
+    assert_eq!((status, &again), (Status::Ok, &prepared));
 }

@@ -17,8 +17,9 @@ use super::requests::{
     cancel_request, expire_request, is_overdue, is_the_trustee, read_request, relock,
     stage_request_step,
 };
-use super::{action_title, SigningCaller, SigningError, SigningResult};
+use super::{action_title, InvalidReason, SigningCaller, SigningError, SigningResult};
 use crate::postgres::signing::*;
+use crate::postgres::signing_document_revision::signing_document_access_restricted;
 use anyhow::Context;
 use chrono::{DateTime, Duration, SubsecRound, Utc};
 use deadpool_postgres::Transaction;
@@ -256,6 +257,25 @@ pub async fn guard_at(
         .as_ref()
         .map(|document| document.sha256.clone());
     check_document(request, document_sha256.as_deref())?;
+    if let Some(document_id) = request
+        .document
+        .as_ref()
+        .and_then(|document| document.document_id)
+    {
+        if signing_document_access_restricted(
+            hasura_transaction,
+            scope.tenant_id,
+            scope.election_event_id,
+            document_id,
+        )
+        .await?
+        {
+            return Err(SigningError::invalid(
+                InvalidReason::Document,
+                "This document is password-protected or holds voter secrets: it can't be signed.",
+            ));
+        }
+    }
     let scope_key = scope.scope_key();
 
     // Signed already and about to run: that request stands.

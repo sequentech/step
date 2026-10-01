@@ -10,7 +10,9 @@
 //! missing permission), `not-found` (404), `invalid` (400, with a `reason`
 //! such as `over-capacity`), `locked-down` (409, a rule edit of a locked-down
 //! event), `conflict` (409, a stale rule revision),
-//! `request-closed` (409, with the request's `status`), and for a refused
+//! `request-closed` (409, with the request's `status`), `stale-revision`
+//! (409, the PDF revision a signer prepared no longer extends the document:
+//! prepare again), and for a refused
 //! signature, which is logged, `signing-refused` or `already-signed` (422,
 //! with the refusing `check`).
 //!
@@ -18,6 +20,7 @@
 //! | --- | --- |
 //! | `/signing-requests/get` | the requester, `sign-<action>` or `signing-requests-read` (Post by labels) |
 //! | `/signing-requests/approve` | `sign-<action>` (Post by labels) |
+//! | `/signing-requests/pdf-prepare` | `sign-<action>` (Post by labels) |
 //! | `/signing-requests/open-failures` | `sign-<action>` (Post by labels) |
 //! | `/signing-requests/handover` | the requester or `sign-<action>` |
 //! | `/signing-requests/cancel` | the requester or `signing-requests-cancel` (Post by labels) |
@@ -53,6 +56,7 @@ use windmill::services::signing::approve::{
 };
 use windmill::services::signing::crl::{refresh_chain_crls, HttpCrlFetcher};
 use windmill::services::signing::directory::KeycloakUserDirectory;
+use windmill::services::signing::pdf::PdfPrepared;
 use windmill::services::signing::requests::{
     cancel, export_requests, get_panel, handover, refusal_is_logged,
     report_open_failure, ExportFilter, SigningPanel,
@@ -85,6 +89,11 @@ pub fn signing_failure(error: SigningError) -> SigningFailure {
             SigningFailure::invalid(message).with("reason", reason.to_string())
         }
         SigningError::Conflict(message) => SigningFailure::conflict(message),
+        SigningError::StaleRevision(message) => SigningFailure::new(
+            Status::Conflict,
+            SigningErrorCode::StaleRevision,
+            message,
+        ),
         SigningError::Closed { status, message } => SigningFailure::new(
             Status::Conflict,
             SigningErrorCode::RequestClosed,
@@ -239,6 +248,7 @@ pub async fn get_signing_request(
     let panel = get_panel(
         &hasura_transaction,
         &keycloak_transaction,
+        services.signing.documents.as_ref(),
         &caller,
         tenant_id,
         request_id,
@@ -611,6 +621,42 @@ pub async fn signing_rule_capacity(
     .await
     .map_err(|error| signing_failure(SigningError::Internal(error)))?;
     Ok(Json(capacity))
+}
+
+#[derive(Debug, Deserialize)]
+pub struct PdfPrepareBody {
+    request_id: String,
+    /// The signing certificate first, then intermediates.
+    chain_pem: Vec<String>,
+}
+
+/// PDF mode: the revision that fills the caller's signature field, whose
+/// digest the browser signs. The `revision` goes back with the approval.
+#[instrument(skip(claims, services, body))]
+#[post("/signing-requests/pdf-prepare", format = "json", data = "<body>")]
+pub async fn prepare_signing_pdf(
+    claims: JwtClaims,
+    services: &State<HarvestServices>,
+    body: Json<PdfPrepareBody>,
+) -> SigningReply<PdfPrepared> {
+    let tenant_id = tenant_of(&claims)?;
+    let request_id = uuid_of(&body.request_id, "request_id")?;
+    let caller = writer(&claims, tenant_id, services).await?;
+    let mut client = hasura(services).await?;
+    let prepared = services
+        .signing
+        .documents
+        .prepare_pdf(
+            &mut client,
+            &caller,
+            tenant_id,
+            request_id,
+            &body.chain_pem,
+            Utc::now(),
+        )
+        .await
+        .map_err(signing_failure)?;
+    Ok(Json(prepared))
 }
 
 #[cfg(test)]

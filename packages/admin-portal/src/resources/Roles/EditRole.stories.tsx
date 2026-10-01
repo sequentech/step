@@ -10,20 +10,28 @@ import {i18n} from "@sequentech/ui-core"
 import {AdminStoryProvider, TENANT_ID, graphqlBoundary} from "@/__stories__/AdminStoryProvider"
 import type {WidgetMeta} from "@/__stories__/widgetStory"
 import {EditRole} from "./EditRole"
-import {AUDITOR_ROLE_ID, permissionRecords, roleRecords} from "./__stories__/RolesFixture"
+import {IPermissions} from "@/types/keycloak"
+import {
+    AUDITOR_ROLE_ID,
+    permissionRecords,
+    roleRecords,
+    signPermissionRecord,
+} from "./__stories__/RolesFixture"
 
 interface Scenario {
     /** Whether the role service rejects permission changes. */
     failure: boolean
     /** Whether the list of roles is still loading. */
     loading: boolean
+    /** The signed-in user's permissions. */
+    roles: string[]
     close: () => void
 }
 
 let boundary: ReturnType<typeof graphqlBoundary>
 
 /** The roles list the editor reads its role from, as ListRoles provides it. */
-function RoleList({loading, close}: Omit<Scenario, "failure">) {
+function RoleList({loading, close}: Omit<Scenario, "failure" | "roles">) {
     const list = useList({
         data: loading ? undefined : roleRecords(),
         isPending: loading,
@@ -31,7 +39,11 @@ function RoleList({loading, close}: Omit<Scenario, "failure">) {
     })
     return (
         <ListContextProvider value={list}>
-            <EditRole id={AUDITOR_ROLE_ID} close={close} permissions={permissionRecords()} />
+            <EditRole
+                id={AUDITOR_ROLE_ID}
+                close={close}
+                permissions={[...permissionRecords(), signPermissionRecord()]}
+            />
         </ListContextProvider>
     )
 }
@@ -41,7 +53,12 @@ const changed = {id: AUDITOR_ROLE_ID}
 const meta = {
     title: "Admin/Roles/EditRole",
     component: EditRole,
-    args: {failure: false, loading: false, close: fn()},
+    args: {
+        failure: false,
+        loading: false,
+        roles: [IPermissions.ROLE_WRITE, IPermissions.USER_PERMISSION_WRITE],
+        close: fn(),
+    },
     parameters: {
         expectedFailure: {
             reason: "The permission checkboxes of the grid have no accessible name.",
@@ -62,8 +79,8 @@ const meta = {
         )
         await boundary.ready
     },
-    render: ({failure: _failure, ...args}) => (
-        <AdminStoryProvider boundary={boundary}>
+    render: ({failure: _failure, roles, ...args}) => (
+        <AdminStoryProvider boundary={boundary} roles={roles}>
             <RoleList {...args} />
         </AdminStoryProvider>
     ),
@@ -158,5 +175,39 @@ export const WaitingForTheRoles: Story = {
     play: async ({canvasElement}) => {
         expect(within(canvasElement).queryByRole("textbox")).not.toBeInTheDocument()
         expect(within(canvasElement).queryByRole("grid")).not.toBeInTheDocument()
+    },
+}
+
+/** Role-write without user-permission-write changes only who can sign. */
+export const SignPermissionsOnly: Story = {
+    args: {roles: [IPermissions.ROLE_WRITE]},
+    play: async ({canvasElement}) => {
+        await expect(await permissionCheckbox(canvasElement, "role-write")).toBeDisabled()
+        await expect(await permissionCheckbox(canvasElement, "role-read")).toBeDisabled()
+        const sign = await permissionCheckbox(canvasElement, IPermissions.SIGN_CLOSE_VOTING)
+        await expect(sign).toBeEnabled()
+        await userEvent.click(sign)
+        await waitFor(() =>
+            expect(boundary.calls.map(({name, variables}) => [name, variables])).toEqual([
+                [
+                    "SetRolePermission",
+                    {
+                        tenantId: TENANT_ID,
+                        roleId: AUDITOR_ROLE_ID,
+                        permissionName: IPermissions.SIGN_CLOSE_VOTING,
+                    },
+                ],
+            ])
+        )
+    },
+}
+
+/** Without role-write the grid only shows the role's permissions. */
+export const ReadOnly: Story = {
+    args: {roles: [IPermissions.ROLE_READ, IPermissions.USER_PERMISSION_READ]},
+    play: async ({canvasElement}) => {
+        for (const name of ["role-read", "role-write", IPermissions.SIGN_CLOSE_VOTING]) {
+            await expect(await permissionCheckbox(canvasElement, name)).toBeDisabled()
+        }
     },
 }

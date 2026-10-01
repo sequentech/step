@@ -19,6 +19,7 @@ use serde_json::json;
 use signing::*;
 use std::sync::Arc;
 use uuid::Uuid;
+use windmill::services::signing::approve::NoDocumentSigner;
 use windmill::services::signing::guard::{GuardOutcome, GuardRequest, SigningDocument};
 use windmill::services::signing::requests::{
     cancel, export_requests, get_panel, handover, report_open_failure, ExportFilter, SignerStatus,
@@ -259,7 +260,7 @@ async fn the_panel_shows_who_signed_with_which_certificate_and_who_is_next() {
         keycloak_directory(&ktx, &format!("tenant-{}", w.tenant), label).await;
 
         let jose = w.signer("jose", ACTION);
-        let panel = get_panel(&htx, &ktx, &jose, w.tenant, request.id)
+        let panel = get_panel(&htx, &ktx, &NoDocumentSigner, &jose, w.tenant, request.id)
             .await
             .unwrap();
         assert_eq!((panel.count, panel.required), (1, 3));
@@ -351,7 +352,7 @@ async fn the_panel_shows_who_signed_with_which_certificate_and_who_is_next() {
                 false,
             ),
         ] {
-            let result = get_panel(&htx, &ktx, &who, w.tenant, request.id).await;
+            let result = get_panel(&htx, &ktx, &NoDocumentSigner, &who, w.tenant, request.id).await;
             assert_eq!(result.is_ok(), allowed, "{}: {result:?}", who.user_id);
             if !allowed {
                 assert!(matches!(result, Err(SigningError::Forbidden(_))));
@@ -359,7 +360,15 @@ async fn the_panel_shows_who_signed_with_which_certificate_and_who_is_next() {
         }
         // Another tenant doesn't find it.
         assert!(matches!(
-            get_panel(&htx, &ktx, &jose, Uuid::new_v4(), request.id).await,
+            get_panel(
+                &htx,
+                &ktx,
+                &NoDocumentSigner,
+                &jose,
+                Uuid::new_v4(),
+                request.id
+            )
+            .await,
             Err(SigningError::NotFound(_))
         ));
     }

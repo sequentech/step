@@ -193,6 +193,7 @@ fn cases() -> Vec<Case> {
         case!(Admin, "/delete-phone-blacklist-entry", {"id": "test-entry", "election_event_id": EVENT_ID}, [PHONE_BLACKLIST_DELETE], BACKEND, UNAUTHORIZED),
         case!(Admin, "/delete-role", {"tenant_id": TENANT_ID, "role_id": "test-role"}, [ROLE_WRITE], BACKEND_TEXT, UNAUTHORIZED),
         case!(Admin, "/delete-role-permission", {"tenant_id": TENANT_ID, "role_id": "test-role", "permission_name": "test-permission"}, [USER_PERMISSION_WRITE, ROLE_WRITE], BACKEND_TEXT, UNAUTHORIZED),
+        case!(UuidTenant, "/delete-role-permission", {"tenant_id": UUID_TENANT_ID, "role_id": "test-role", "permission_name": "sign-close-voting"}, [ROLE_WRITE], BACKEND, UNAUTHORIZED),
         // The task row is written before the permission check.
         case!(SuperAdmin, "/delete-tenant", {"tenant_id": TENANT_ID}, [TENANT_DELETE], BACKEND, BACKEND),
         case!(Admin, "/delete-user", {"tenant_id": TENANT_ID, "user_id": USER_ID}, [USER_WRITE], BACKEND_TEXT, UNAUTHORIZED),
@@ -332,6 +333,8 @@ fn cases() -> Vec<Case> {
         case!(Admin, "/scheduled-event", {"tenant_id": OTHER_TENANT_ID, "event_processor": "START_VOTING_PERIOD", "event_payload": {}}, [], BACKEND),
         case!(Admin, "/set-custom-url", {"origin": "https://origin.invalid", "redirect_to": "https://redirect.invalid", "dns_prefix": "test", "election_id": EVENT_ID, "key": "login"}, [ELECTION_EVENT_WRITE], BACKEND, FORBIDDEN),
         case!(Admin, "/set-role-permission", {"tenant_id": TENANT_ID, "role_id": "test-role", "permission_name": "test-permission"}, [USER_PERMISSION_WRITE, ROLE_WRITE], BACKEND_TEXT, UNAUTHORIZED),
+        // A sign permission also passes with role-write alone; the change opens the database first.
+        case!(UuidTenant, "/set-role-permission", {"tenant_id": UUID_TENANT_ID, "role_id": "test-role", "permission_name": "sign-close-voting"}, [ROLE_WRITE], BACKEND, UNAUTHORIZED),
         case!(Admin, "/set-user-role", {"tenant_id": TENANT_ID, "user_id": USER_ID, "role_id": "test-role"}, [USER_WRITE, ROLE_WRITE], BACKEND_TEXT, UNAUTHORIZED),
         // An empty permission list checked in the caller's own tenant.
         case!(Admin, "/set-voter-authentication", {"election_event_id": EVENT_ID, "enrollment": "enabled", "otp": "enabled"}, [], BACKEND),
@@ -362,6 +365,7 @@ fn cases() -> Vec<Case> {
         case!(UuidTenant, "/signing-rules/put", {"election_event_id": UUID_EVENT_ID, "action": "close-voting", "requirement": "required", "signatures": 2, "requester_signing": "not-allowed", "expires_minutes": 60, "expected_revision": 0}, [SIGNING_RULES_WRITE], BACKEND, FORBIDDEN_JSON),
         case!(UuidTenant, "/signing-rules/put", {"election_event_id": UUID_EVENT_ID, "action": "close-voting", "requirement": "required", "signatures": 2, "requester_signing": "not-allowed", "expires_minutes": 60, "roles": {"add": ["test-group"]}, "expected_revision": 0}, [SIGNING_RULES_WRITE, ROLE_READ, ROLE_WRITE], BACKEND, FORBIDDEN_JSON),
         case!(UuidTenant, "/signing-rules/capacity", {"election_event_id": UUID_EVENT_ID, "action": "close-voting"}, [SIGNING_RULES_READ], BACKEND, FORBIDDEN_JSON),
+        case!(UuidTenant, "/signing-requests/pdf-prepare", {"request_id": ELECTION_ID, "chain_pem": [PEM]}, [], BACKEND),
     ]
 }
 
