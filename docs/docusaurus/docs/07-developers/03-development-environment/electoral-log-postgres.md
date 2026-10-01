@@ -6,7 +6,7 @@ title: PostgreSQL electoral log
 
 The main/B4 electoral log uses a dedicated PostgreSQL database on the existing PostgreSQL server. Each client has a database and role named `<client>_electoral_log`, separate from Hasura, Keycloak and the bulletin board. This is a breaking change for fresh installations: there is no historical ImmuDB migration or release-branch backport.
 
-The separate legacy pgAudit API still uses ImmuDB through its external ingestion service. Retiring it or porting that producer is a separate scope decision; do not remove its storage based only on this electoral-log change.
+The obsolete pgAudit reader, hidden UI and unused logEvent action are retired on main/B4. Their collector was removed in 2025. ImmuDB crates, images and Compose services are no longer part of this application. PostgreSQL pgAudit session logging is independent and remains configured in development.
 
 ## Storage and message integrity
 
@@ -56,7 +56,7 @@ For cloud deployments, the companion GitOps modules create the password, role, d
 
 Stop old log producers and drain pending tasks before deploying all main/B4 producers and consumers together. Task payloads and storage configuration change. Create fresh election events in the new installation; old ImmuDB boards are not imported. Keep old storage and backups until retention requirements permit removal. Switching an old application image back does not transfer newly written PostgreSQL records to ImmuDB, so rollback after new writes needs an explicit operational decision.
 
-The internal Harvest path is `/electoral-log`; the corresponding Hasura action names and existing log-read authorization remain unchanged. CLI `export-cast-votes` reads the `ELECTORAL_LOG_PG_*` settings instead of accepting ImmuDB server/username/password flags.
+The internal Harvest path is `/electoral-log`; the existing listElectoralLog Hasura action uses the logs-read permission. CLI `export-cast-votes` reads the `ELECTORAL_LOG_PG_*` settings instead of accepting ImmuDB server/username/password flags.
 
 ## Focused verification
 

@@ -9,7 +9,7 @@ Parent issue: https://github.com/sequentech/meta/issues/13698
 
 Main/B4 only; breaking replacement with no historical ImmuDB migration. Use a dedicated electoral-log database on the existing PostgreSQL server. Preserve signed message encoding and the existing queue topology. Implementation and reviews cover this replacement, its configuration, documentation and focused correctness checks.
 
-The legacy pgAudit route and its external ingestion service are separate from electoral logging. They remain on ImmuDB pending an explicit decision to retire that API or port its producer/storage. This change does not claim complete removal of ImmuDB images or workspace packages while that consumer remains. No historical data is copied.
+The subsequent retirement removes the obsolete pgAudit reader/UI and unused logEvent action, together with the ImmuDB crates, Dockerfiles, build jobs and Compose services. Historical investigation found that the UI was hidden in February 2024 and its unused collector was removed in November 2025. No historical data is copied; existing data volumes and backups are preserved.
 
 ## Implementation steps
 
@@ -57,3 +57,11 @@ Additional verification passed:
 - Removed only older completed task-era incremental-cache variants, keeping current application builds and all data volumes. Free disk recovered to approximately 29 GiB before the final Harvest build and remained approximately 25 GiB afterward.
 
 Companion local commits on feat/meta-13698/main: Beyond b7d2579a2; GitOps fbd3261. No branches have been pushed and no PR/deployment/cloud apply has been performed.
+
+## ImmuDB retirement follow-up
+
+- Removed the unused ImmuDB dependency chain and narrowed all GraphQL snapshots/generated clients to the retired API fields and types.
+- Kept PostgreSQL pgAudit session logging independent of the removed ImmuDB reader.
+- Corrected main/B4 image paths, binary/features and offline configuration while removing the obsolete image jobs.
+- Removed the development ImmuDB containers without deleting their volumes; restarted watch services with two CPUs and two Cargo jobs each.
+- Beyond/GitOps deployment retirement remains a separate companion change. Older environments must upgrade before shared legacy infrastructure is retired.

@@ -22,8 +22,6 @@ COPY ./b4/Cargo.toml ./b4/Cargo.toml
 COPY ./electoral-log/Cargo.toml ./electoral-log/Cargo.toml
 COPY ./harvest/Cargo.toml ./harvest/Cargo.toml
 COPY ./strand/Cargo.toml ./strand/Cargo.toml
-COPY ./immu-board/Cargo.toml ./immu-board/Cargo.toml
-COPY ./immudb-rs/Cargo.toml ./immudb-rs/Cargo.toml
 COPY ./sequent-core/Cargo.toml ./sequent-core/Cargo.toml
 COPY ./velvet/Cargo.toml ./velvet/Cargo.toml
 COPY ./windmill/Cargo.toml ./windmill/Cargo.toml
@@ -39,10 +37,6 @@ COPY ./Cargo.lock ./Cargo.lock
 COPY ./.cargo ./.cargo
 RUN mkdir -p ./harvest/src \
     && echo "// dummy file" > ./harvest/src/lib.rs
-RUN mkdir -p ./immu-board/src \
-    && echo "// dummy file" > ./immu-board/src/lib.rs
-RUN mkdir -p ./immudb-rs/src \
-    && echo "// dummy file" > ./immudb-rs/src/lib.rs
 RUN mkdir -p ./windmill/src \
     && echo "// dummy file" > ./windmill/src/lib.rs
 RUN mkdir -p ./e2e/src \

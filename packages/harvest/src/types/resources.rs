@@ -1,8 +1,6 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use anyhow::anyhow;
-use immudb_rs::{sql_value::Value, Row};
 use serde::{Deserialize, Serialize};
 use strum_macros::{Display, EnumString};
 
@@ -35,20 +33,4 @@ pub struct SortPayload {
 pub struct DataList<T> {
     pub items: Vec<T>,
     pub total: TotalAggregate,
-}
-
-impl TryFrom<&Row> for Aggregate {
-    type Error = anyhow::Error;
-
-    fn try_from(row: &Row) -> Result<Self, Self::Error> {
-        let mut count = 0;
-
-        for value in &row.values {
-            match value.value.as_ref() {
-                Some(Value::N(inner)) => count = *inner,
-                _ => return Err(anyhow!("Invalid pgAudit count value")),
-            }
-        }
-        Ok(Aggregate { count })
-    }
 }

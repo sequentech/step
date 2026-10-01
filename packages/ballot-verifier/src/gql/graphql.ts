@@ -220,12 +220,6 @@ export type DataListElectoralLog = {
     total: TotalAggregate
 }
 
-export type DataListPgAudit = {
-    __typename?: "DataListPgAudit"
-    items: Array<Maybe<PgAuditRow>>
-    total: TotalAggregate
-}
-
 export type DeleteCertificateAuthorityOutput = {
     __typename?: "DeleteCertificateAuthorityOutput"
     deleted_count: Scalars["Int"]["output"]
@@ -791,11 +785,6 @@ export type ListKeysCeremonyOutput = {
     total: TotalAggregate
 }
 
-export type LogEventOutput = {
-    __typename?: "LogEventOutput"
-    electionEventId?: Maybe<Scalars["String"]["output"]>
-}
-
 export type ManageElectionDatesOutput = {
     __typename?: "ManageElectionDatesOutput"
     error_msg?: Maybe<Scalars["String"]["output"]>
@@ -817,47 +806,6 @@ export type OptionalImportEvent = {
 export enum OrderDirection {
     Asc = "asc",
     Desc = "desc",
-}
-
-export type PgAuditFilter = {
-    audit_type?: InputMaybe<Scalars["String"]["input"]>
-    class?: InputMaybe<Scalars["String"]["input"]>
-    command?: InputMaybe<Scalars["String"]["input"]>
-    dbname?: InputMaybe<Scalars["String"]["input"]>
-    id?: InputMaybe<Scalars["String"]["input"]>
-    session_id?: InputMaybe<Scalars["String"]["input"]>
-    statement?: InputMaybe<Scalars["String"]["input"]>
-    user?: InputMaybe<Scalars["String"]["input"]>
-}
-
-export type PgAuditOrderBy = {
-    audit_type?: InputMaybe<OrderDirection>
-    class?: InputMaybe<OrderDirection>
-    command?: InputMaybe<OrderDirection>
-    dbname?: InputMaybe<OrderDirection>
-    id?: InputMaybe<OrderDirection>
-    server_timestamp?: InputMaybe<OrderDirection>
-    session_id?: InputMaybe<OrderDirection>
-    statement?: InputMaybe<OrderDirection>
-    user?: InputMaybe<OrderDirection>
-}
-
-export type PgAuditRow = {
-    __typename?: "PgAuditRow"
-    audit_type: Scalars["String"]["output"]
-    class: Scalars["String"]["output"]
-    command: Scalars["String"]["output"]
-    dbname: Scalars["String"]["output"]
-    id: Scalars["Int"]["output"]
-    server_timestamp: Scalars["Int"]["output"]
-    session_id: Scalars["String"]["output"]
-    statement: Scalars["String"]["output"]
-    user: Scalars["String"]["output"]
-}
-
-export enum PgAuditTable {
-    PgauditHasura = "pgaudit_hasura",
-    PgauditKeycloak = "pgaudit_keycloak",
 }
 
 export type PhoneBlacklistEntry = {
@@ -5030,14 +4978,10 @@ export type Query_Root = {
     get_users: GetUsersOutput
     /** List Electoral Log */
     listElectoralLog?: Maybe<DataListElectoralLog>
-    /** List PostgreSQL audit logs */
-    listPgaudit?: Maybe<DataListPgAudit>
     /** List electoral log entries of statement_kind CastVote */
     list_cast_vote_messages?: Maybe<ListCastVoteMessagesOutput>
     list_keys_ceremony?: Maybe<ListKeysCeremonyOutput>
     list_user_roles: Array<KeycloakRole>
-    /** log an event in immudb */
-    logEvent?: Maybe<LogEventOutput>
     /** Resolve the active results website publication for authenticated viewers */
     resolveResultsPublication?: Maybe<ResolveResultsPublicationOutput>
     reveal_voter_secret_attribute: RevealVoterSecretAttributeOutput
@@ -5374,14 +5318,6 @@ export type Query_RootListElectoralLogArgs = {
     order_by?: InputMaybe<ElectoralLogOrderBy>
 }
 
-export type Query_RootListPgauditArgs = {
-    audit_table?: InputMaybe<PgAuditTable>
-    filter?: InputMaybe<PgAuditFilter>
-    limit?: InputMaybe<Scalars["Int"]["input"]>
-    offset?: InputMaybe<Scalars["Int"]["input"]>
-    order_by?: InputMaybe<PgAuditOrderBy>
-}
-
 export type Query_RootList_Cast_Vote_MessagesArgs = {
     ballot_id: Scalars["String"]["input"]
     election_event_id: Scalars["String"]["input"]
@@ -5400,13 +5336,6 @@ export type Query_RootList_User_RolesArgs = {
     election_event_id?: InputMaybe<Scalars["String"]["input"]>
     tenant_id: Scalars["String"]["input"]
     user_id: Scalars["String"]["input"]
-}
-
-export type Query_RootLogEventArgs = {
-    body: Scalars["String"]["input"]
-    election_event_id: Scalars["String"]["input"]
-    message_type: Scalars["String"]["input"]
-    user_id?: InputMaybe<Scalars["String"]["input"]>
 }
 
 export type Query_RootResolveResultsPublicationArgs = {
