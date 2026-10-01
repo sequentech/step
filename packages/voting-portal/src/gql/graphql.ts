@@ -800,6 +800,213 @@ export type ManageElectionDatesOutput = {
   error_msg?: Maybe<Scalars['String']['output']>;
 };
 
+export type MonitoringAuthor = {
+  __typename?: 'MonitoringAuthor';
+  id: Scalars['String']['output'];
+  name?: Maybe<Scalars['String']['output']>;
+};
+
+export type MonitoringDashboardSummary = {
+  __typename?: 'MonitoringDashboardSummary';
+  id: Scalars['String']['output'];
+  requirements: Array<Scalars['String']['output']>;
+  section?: Maybe<Scalars['String']['output']>;
+  title: Scalars['String']['output'];
+  widget_count: Scalars['Int']['output'];
+};
+
+export type MonitoringDocumentRef = {
+  __typename?: 'MonitoringDocumentRef';
+  id: Scalars['String']['output'];
+  revision: Scalars['Int']['output'];
+};
+
+export type MonitoringDocumentSummary = {
+  __typename?: 'MonitoringDocumentSummary';
+  author: MonitoringAuthor;
+  created_at: Scalars['String']['output'];
+  key: Scalars['String']['output'];
+  kind: Scalars['String']['output'];
+  origin: Scalars['String']['output'];
+  revision: Scalars['Int']['output'];
+  sha256?: Maybe<Scalars['String']['output']>;
+};
+
+export type MonitoringExportOutput = {
+  __typename?: 'MonitoringExportOutput';
+  document_id: Scalars['String']['output'];
+  task_execution?: Maybe<Tasks_Execution_Type>;
+};
+
+export type MonitoringGenerationOutput = {
+  __typename?: 'MonitoringGenerationOutput';
+  generation: Scalars['Int']['output'];
+  warnings?: Maybe<Array<MonitoringProblem>>;
+};
+
+export type MonitoringGetConfigOutput = {
+  __typename?: 'MonitoringGetConfigOutput';
+  author: MonitoringAuthor;
+  change: Scalars['String']['output'];
+  created_at: Scalars['String']['output'];
+  history: Array<MonitoringHistoryEntry>;
+  key: Scalars['String']['output'];
+  kind: Scalars['String']['output'];
+  origin: Scalars['String']['output'];
+  revision: Scalars['Int']['output'];
+  yaml?: Maybe<Scalars['String']['output']>;
+};
+
+export type MonitoringGetDashboardOutput = {
+  __typename?: 'MonitoringGetDashboardOutput';
+  catalog: Scalars['jsonb']['output'];
+  dashboard: Scalars['jsonb']['output'];
+  dashboard_revision: Scalars['Int']['output'];
+  event_days: Array<Scalars['String']['output']>;
+  pinned_post?: Maybe<Scalars['String']['output']>;
+  refresh_seconds?: Maybe<Scalars['Int']['output']>;
+  restricted: Scalars['Boolean']['output'];
+  scope_options: MonitoringScopeOptions;
+  settings: Scalars['jsonb']['output'];
+  settings_revision: Scalars['Int']['output'];
+  snapshot?: Maybe<MonitoringSnapshot>;
+  sources: Scalars['jsonb']['output'];
+  theme?: Maybe<MonitoringDocumentRef>;
+  widgets: Scalars['jsonb']['output'];
+};
+
+export type MonitoringHistoryEntry = {
+  __typename?: 'MonitoringHistoryEntry';
+  author: MonitoringAuthor;
+  change: Scalars['String']['output'];
+  created_at: Scalars['String']['output'];
+  generation: Scalars['Int']['output'];
+  origin: Scalars['String']['output'];
+  revision: Scalars['Int']['output'];
+  sha256?: Maybe<Scalars['String']['output']>;
+};
+
+export type MonitoringListConfigOutput = {
+  __typename?: 'MonitoringListConfigOutput';
+  documents: Array<MonitoringDocumentSummary>;
+  generation: Scalars['Int']['output'];
+  mode: Scalars['String']['output'];
+  preset?: Maybe<MonitoringPresetRef>;
+};
+
+export type MonitoringListDashboardsOutput = {
+  __typename?: 'MonitoringListDashboardsOutput';
+  dashboards: Array<MonitoringDashboardSummary>;
+  mode: Scalars['String']['output'];
+  preset?: Maybe<MonitoringPresetName>;
+  refresh_seconds?: Maybe<Scalars['Int']['output']>;
+  snapshot?: Maybe<MonitoringSnapshot>;
+};
+
+export type MonitoringListPresetsOutput = {
+  __typename?: 'MonitoringListPresetsOutput';
+  presets: Array<MonitoringPreset>;
+};
+
+export type MonitoringPostOption = {
+  __typename?: 'MonitoringPostOption';
+  key: Scalars['String']['output'];
+  label: Scalars['String']['output'];
+  region?: Maybe<Scalars['String']['output']>;
+};
+
+export type MonitoringPreset = {
+  __typename?: 'MonitoringPreset';
+  description?: Maybe<Scalars['String']['output']>;
+  id: Scalars['String']['output'];
+  title: Scalars['String']['output'];
+  version: Scalars['Int']['output'];
+};
+
+export type MonitoringPresetName = {
+  __typename?: 'MonitoringPresetName';
+  id: Scalars['String']['output'];
+  title: Scalars['String']['output'];
+};
+
+export type MonitoringPresetRef = {
+  __typename?: 'MonitoringPresetRef';
+  id: Scalars['String']['output'];
+  version: Scalars['Int']['output'];
+};
+
+export type MonitoringProblem = {
+  __typename?: 'MonitoringProblem';
+  code: Scalars['String']['output'];
+  engine_code?: Maybe<Scalars['String']['output']>;
+  message: Scalars['String']['output'];
+  path: Scalars['String']['output'];
+  severity: Scalars['String']['output'];
+};
+
+export type MonitoringQueryTable = {
+  __typename?: 'MonitoringQueryTable';
+  query: Scalars['String']['output'];
+  table: Scalars['jsonb']['output'];
+};
+
+export type MonitoringRenderWidgetOutput = {
+  __typename?: 'MonitoringRenderWidgetOutput';
+  as_of?: Maybe<Scalars['String']['output']>;
+  diagnostics: Array<MonitoringProblem>;
+  ignored_selectors: Array<Scalars['String']['output']>;
+  notices: Array<Scalars['String']['output']>;
+  reason?: Maybe<Scalars['String']['output']>;
+  render_ms?: Maybe<Scalars['Int']['output']>;
+  snapshot_revision?: Maybe<Scalars['Int']['output']>;
+  state: Scalars['String']['output'];
+  svg?: Maybe<Scalars['String']['output']>;
+  table?: Maybe<Scalars['jsonb']['output']>;
+  tables?: Maybe<Array<MonitoringQueryTable>>;
+};
+
+export type MonitoringSaveConfigOutput = {
+  __typename?: 'MonitoringSaveConfigOutput';
+  author?: Maybe<MonitoringAuthor>;
+  created_at?: Maybe<Scalars['String']['output']>;
+  generation: Scalars['Int']['output'];
+  revision: Scalars['Int']['output'];
+  warnings: Array<MonitoringProblem>;
+};
+
+export type MonitoringScopeOption = {
+  __typename?: 'MonitoringScopeOption';
+  key: Scalars['String']['output'];
+  label: Scalars['String']['output'];
+};
+
+export type MonitoringScopeOptions = {
+  __typename?: 'MonitoringScopeOptions';
+  countries: Array<MonitoringScopeOption>;
+  posts: Array<MonitoringPostOption>;
+  regions: Array<MonitoringScopeOption>;
+};
+
+export type MonitoringSetModeOutput = {
+  __typename?: 'MonitoringSetModeOutput';
+  generation: Scalars['Int']['output'];
+  mode: Scalars['String']['output'];
+};
+
+export type MonitoringSnapshot = {
+  __typename?: 'MonitoringSnapshot';
+  as_of: Scalars['String']['output'];
+  checked_at?: Maybe<Scalars['String']['output']>;
+  revision: Scalars['Int']['output'];
+};
+
+export type MonitoringValidateConfigOutput = {
+  __typename?: 'MonitoringValidateConfigOutput';
+  preview?: Maybe<MonitoringRenderWidgetOutput>;
+  problems: Array<MonitoringProblem>;
+  result: Scalars['String']['output'];
+};
+
 export type OptionalId = {
   __typename?: 'OptionalId';
   id?: Maybe<Scalars['String']['output']>;
@@ -1753,6 +1960,14 @@ export type Mutation_Root = {
   insert_sequent_backend_trustee_one?: Maybe<Sequent_Backend_Trustee>;
   limit_access_by_countries?: Maybe<LimitAccessByCountriesOutput>;
   manage_election_dates?: Maybe<ManageElectionDatesOutput>;
+  /** Export a monitoring dashboard's figures as CSV or SQL */
+  monitoringExport: MonitoringExportOutput;
+  /** Reset an event's monitoring configuration to a preset */
+  monitoringResetToPreset: MonitoringGenerationOutput;
+  /** Save or remove a monitoring configuration document */
+  monitoringSaveConfig: MonitoringSaveConfigOutput;
+  /** Switch the Dashboard tab between the legacy and the configured dashboards */
+  monitoringSetMode: MonitoringSetModeOutput;
   prepare_ballot_publication_preview?: Maybe<PrepareBallotPublicationPreviewOutput>;
   /** preview_tally_sheet_import */
   preview_tally_sheet_import?: Maybe<TallySheetImportPreviewActionOutput>;
@@ -2070,7 +2285,7 @@ export type Mutation_RootAcknowledge_Support_MaterialsArgs = {
 /** mutation root */
 export type Mutation_RootApply_External_Reconciliation_ChangesArgs = {
   diff_document_id: Scalars['String']['input'];
-  election_event_id: Scalars['String']['input'];
+  election_event_id: Scalars['uuid']['input'];
 };
 
 
@@ -2090,7 +2305,7 @@ export type Mutation_RootCheck_Private_KeyArgs = {
 /** mutation root */
 export type Mutation_RootConfigureResultsWebsitePolicyArgs = {
   access: ResultsWebsiteAccess;
-  election_event_id: Scalars['String']['input'];
+  election_event_id: Scalars['uuid']['input'];
   status: ResultsWebsiteStatus;
   visibility_scope: ResultsWebsiteVisibilityScope;
 };
@@ -2120,7 +2335,7 @@ export type Mutation_RootCreate_Ballot_ReceiptArgs = {
 /** mutation root */
 export type Mutation_RootCreate_ElectionArgs = {
   description?: InputMaybe<Scalars['String']['input']>;
-  election_event_id: Scalars['String']['input'];
+  election_event_id: Scalars['uuid']['input'];
   external_id: Scalars['String']['input'];
   presentation?: InputMaybe<Scalars['jsonb']['input']>;
 };
@@ -2129,7 +2344,7 @@ export type Mutation_RootCreate_ElectionArgs = {
 /** mutation root */
 export type Mutation_RootCreate_External_Reconciliation_ImportArgs = {
   document_id: Scalars['String']['input'];
-  election_event_id: Scalars['String']['input'];
+  election_event_id: Scalars['uuid']['input'];
 };
 
 
@@ -2145,7 +2360,7 @@ export type Mutation_RootCreate_New_Tally_SheetArgs = {
   channel: Scalars['String']['input'];
   content: Scalars['jsonb']['input'];
   contest_id: Scalars['String']['input'];
-  election_event_id: Scalars['String']['input'];
+  election_event_id: Scalars['uuid']['input'];
 };
 
 
@@ -2182,7 +2397,7 @@ export type Mutation_RootCreate_Tally_CeremonyArgs = {
 /** mutation root */
 export type Mutation_RootCreate_Tally_Sheet_ImportArgs = {
   document_id: Scalars['String']['input'];
-  election_event_id: Scalars['String']['input'];
+  election_event_id: Scalars['uuid']['input'];
   selected_channel: Scalars['String']['input'];
   sha256?: InputMaybe<Scalars['String']['input']>;
   source_format: Scalars['String']['input'];
@@ -2849,7 +3064,7 @@ export type Mutation_RootDelete_UsersArgs = {
   attributes?: InputMaybe<Scalars['json']['input']>;
   authorized_to_election_alias?: InputMaybe<Scalars['String']['input']>;
   election_event_id?: InputMaybe<Scalars['String']['input']>;
-  election_id?: InputMaybe<Scalars['String']['input']>;
+  election_id?: InputMaybe<Scalars['uuid']['input']>;
   email?: InputMaybe<Scalars['json']['input']>;
   email_verified?: InputMaybe<Scalars['Boolean']['input']>;
   enabled?: InputMaybe<Scalars['Boolean']['input']>;
@@ -2871,7 +3086,7 @@ export type Mutation_RootEdit_UserArgs = {
 
 /** mutation root */
 export type Mutation_RootEncrypt_ReportArgs = {
-  election_event_id: Scalars['String']['input'];
+  election_event_id: Scalars['uuid']['input'];
   password: Scalars['String']['input'];
   report_id?: InputMaybe<Scalars['String']['input']>;
 };
@@ -2886,7 +3101,7 @@ export type Mutation_RootExportTrusteesArgs = {
 /** mutation root */
 export type Mutation_RootExport_ApplicationArgs = {
   election_event_id?: InputMaybe<Scalars['String']['input']>;
-  election_id?: InputMaybe<Scalars['String']['input']>;
+  election_id?: InputMaybe<Scalars['uuid']['input']>;
   tenant_id: Scalars['String']['input'];
 };
 
@@ -2894,8 +3109,8 @@ export type Mutation_RootExport_ApplicationArgs = {
 /** mutation root */
 export type Mutation_RootExport_Ballot_PublicationArgs = {
   ballot_publication_id: Scalars['String']['input'];
-  election_event_id: Scalars['String']['input'];
-  election_id?: InputMaybe<Scalars['String']['input']>;
+  election_event_id: Scalars['uuid']['input'];
+  election_id?: InputMaybe<Scalars['uuid']['input']>;
   tenant_id: Scalars['String']['input'];
 };
 
@@ -2916,7 +3131,7 @@ export type Mutation_RootExport_Election_EventArgs = {
 
 /** mutation root */
 export type Mutation_RootExport_Election_Event_LogsArgs = {
-  election_event_id: Scalars['String']['input'];
+  election_event_id: Scalars['uuid']['input'];
   format: Scalars['String']['input'];
 };
 
@@ -2929,14 +3144,14 @@ export type Mutation_RootExport_Election_Event_TasksArgs = {
 
 /** mutation root */
 export type Mutation_RootExport_Tally_ResultsArgs = {
-  election_event_id: Scalars['String']['input'];
+  election_event_id: Scalars['uuid']['input'];
   tally_session_id: Scalars['String']['input'];
 };
 
 
 /** mutation root */
 export type Mutation_RootExport_Tasks_ExecutionArgs = {
-  election_event_id: Scalars['String']['input'];
+  election_event_id: Scalars['uuid']['input'];
   tenant_id: Scalars['String']['input'];
 };
 
@@ -2944,7 +3159,7 @@ export type Mutation_RootExport_Tasks_ExecutionArgs = {
 /** mutation root */
 export type Mutation_RootExport_TemplateArgs = {
   election_event_id?: InputMaybe<Scalars['String']['input']>;
-  election_id?: InputMaybe<Scalars['String']['input']>;
+  election_id?: InputMaybe<Scalars['uuid']['input']>;
   tenant_id: Scalars['String']['input'];
 };
 
@@ -2964,7 +3179,7 @@ export type Mutation_RootExport_Tenant_UsersArgs = {
 /** mutation root */
 export type Mutation_RootExport_UsersArgs = {
   election_event_id?: InputMaybe<Scalars['String']['input']>;
-  election_id?: InputMaybe<Scalars['String']['input']>;
+  election_id?: InputMaybe<Scalars['uuid']['input']>;
   include_secret_attributes?: InputMaybe<Scalars['Boolean']['input']>;
   tenant_id: Scalars['String']['input'];
 };
@@ -3006,7 +3221,7 @@ export type Mutation_RootGenerate_ReportArgs = {
 
 /** mutation root */
 export type Mutation_RootGenerate_TemplateArgs = {
-  election_event_id: Scalars['String']['input'];
+  election_event_id: Scalars['uuid']['input'];
   election_id: Scalars['String']['input'];
   tally_session_id: Scalars['String']['input'];
   type: Scalars['String']['input'];
@@ -3015,8 +3230,8 @@ export type Mutation_RootGenerate_TemplateArgs = {
 
 /** mutation root */
 export type Mutation_RootGenerate_Transmission_ReportArgs = {
-  election_event_id: Scalars['String']['input'];
-  election_id?: InputMaybe<Scalars['String']['input']>;
+  election_event_id: Scalars['uuid']['input'];
+  election_id?: InputMaybe<Scalars['uuid']['input']>;
   tally_session_id?: InputMaybe<Scalars['String']['input']>;
   tenant_id: Scalars['String']['input'];
 };
@@ -3024,7 +3239,7 @@ export type Mutation_RootGenerate_Transmission_ReportArgs = {
 
 /** mutation root */
 export type Mutation_RootGenerate_Voter_Information_LetterArgs = {
-  election_event_id: Scalars['String']['input'];
+  election_event_id: Scalars['uuid']['input'];
   voter_id: Scalars['String']['input'];
 };
 
@@ -3078,7 +3293,7 @@ export type Mutation_RootGet_User_TemplateArgs = {
 export type Mutation_RootImport_ApplicationArgs = {
   document_id: Scalars['String']['input'];
   election_event_id?: InputMaybe<Scalars['String']['input']>;
-  election_id?: InputMaybe<Scalars['String']['input']>;
+  election_id?: InputMaybe<Scalars['uuid']['input']>;
   sha256?: InputMaybe<Scalars['String']['input']>;
   tenant_id: Scalars['String']['input'];
 };
@@ -3087,7 +3302,7 @@ export type Mutation_RootImport_ApplicationArgs = {
 /** mutation root */
 export type Mutation_RootImport_AreasArgs = {
   document_id: Scalars['String']['input'];
-  election_event_id: Scalars['String']['input'];
+  election_event_id: Scalars['uuid']['input'];
   sha256?: InputMaybe<Scalars['String']['input']>;
 };
 
@@ -3095,7 +3310,7 @@ export type Mutation_RootImport_AreasArgs = {
 /** mutation root */
 export type Mutation_RootImport_CandidatesArgs = {
   document_id: Scalars['String']['input'];
-  election_event_id: Scalars['String']['input'];
+  election_event_id: Scalars['uuid']['input'];
   sha256?: InputMaybe<Scalars['String']['input']>;
 };
 
@@ -3774,8 +3989,8 @@ export type Mutation_RootLimit_Access_By_CountriesArgs = {
 
 /** mutation root */
 export type Mutation_RootManage_Election_DatesArgs = {
-  election_event_id: Scalars['String']['input'];
-  election_id?: InputMaybe<Scalars['String']['input']>;
+  election_event_id: Scalars['uuid']['input'];
+  election_id?: InputMaybe<Scalars['uuid']['input']>;
   event_processor: Scalars['String']['input'];
   scheduled_date?: InputMaybe<Scalars['String']['input']>;
   voting_channels?: InputMaybe<Array<VotingStatusChannel>>;
@@ -3783,16 +3998,58 @@ export type Mutation_RootManage_Election_DatesArgs = {
 
 
 /** mutation root */
+export type Mutation_RootMonitoringExportArgs = {
+  dashboard_id: Scalars['String']['input'];
+  election_event_id: Scalars['uuid']['input'];
+  election_id?: InputMaybe<Scalars['uuid']['input']>;
+  format: Scalars['String']['input'];
+  from?: InputMaybe<Scalars['String']['input']>;
+  scope?: InputMaybe<Scalars['jsonb']['input']>;
+  selector_values?: InputMaybe<Scalars['jsonb']['input']>;
+  snapshot_revision: Scalars['Int']['input'];
+  to?: InputMaybe<Scalars['String']['input']>;
+  widget_id?: InputMaybe<Scalars['String']['input']>;
+  widget_selector_values?: InputMaybe<Scalars['jsonb']['input']>;
+};
+
+
+/** mutation root */
+export type Mutation_RootMonitoringResetToPresetArgs = {
+  election_event_id: Scalars['uuid']['input'];
+  mode?: InputMaybe<Scalars['String']['input']>;
+  preset_id: Scalars['String']['input'];
+};
+
+
+/** mutation root */
+export type Mutation_RootMonitoringSaveConfigArgs = {
+  change: Scalars['String']['input'];
+  election_event_id: Scalars['uuid']['input'];
+  expected_revision?: InputMaybe<Scalars['Int']['input']>;
+  key: Scalars['String']['input'];
+  kind: Scalars['String']['input'];
+  yaml?: InputMaybe<Scalars['String']['input']>;
+};
+
+
+/** mutation root */
+export type Mutation_RootMonitoringSetModeArgs = {
+  election_event_id: Scalars['uuid']['input'];
+  mode: Scalars['String']['input'];
+};
+
+
+/** mutation root */
 export type Mutation_RootPrepare_Ballot_Publication_PreviewArgs = {
   ballot_publication_id: Scalars['String']['input'];
-  election_event_id: Scalars['String']['input'];
+  election_event_id: Scalars['uuid']['input'];
 };
 
 
 /** mutation root */
 export type Mutation_RootPreview_Tally_Sheet_ImportArgs = {
   document_id: Scalars['String']['input'];
-  election_event_id: Scalars['String']['input'];
+  election_event_id: Scalars['uuid']['input'];
   selected_channel: Scalars['String']['input'];
   sha256?: InputMaybe<Scalars['String']['input']>;
   source_format: Scalars['String']['input'];
@@ -3803,7 +4060,7 @@ export type Mutation_RootPreview_Tally_Sheet_ImportArgs = {
 export type Mutation_RootPublishResultsWebsiteArgs = {
   access: ResultsWebsiteAccess;
   contest_ids: Array<Scalars['String']['input']>;
-  election_event_id: Scalars['String']['input'];
+  election_event_id: Scalars['uuid']['input'];
   election_ids: Array<Scalars['String']['input']>;
   results_event_id: Scalars['String']['input'];
   route_election_id?: InputMaybe<Scalars['String']['input']>;
@@ -3830,7 +4087,7 @@ export type Mutation_RootRecount_Tally_SessionArgs = {
 
 /** mutation root */
 export type Mutation_RootRefreshResultsPublicationIndexArgs = {
-  election_event_id: Scalars['String']['input'];
+  election_event_id: Scalars['uuid']['input'];
 };
 
 
@@ -3850,7 +4107,7 @@ export type Mutation_RootRestore_Private_KeyArgs = {
 
 /** mutation root */
 export type Mutation_RootReview_Tally_SheetArgs = {
-  election_event_id: Scalars['String']['input'];
+  election_event_id: Scalars['uuid']['input'];
   new_status: Scalars['String']['input'];
   tally_sheet_id: Scalars['String']['input'];
 };
@@ -3859,14 +4116,14 @@ export type Mutation_RootReview_Tally_SheetArgs = {
 /** mutation root */
 export type Mutation_RootReview_Tally_Sheet_ImportArgs = {
   decision: Scalars['String']['input'];
-  election_event_id: Scalars['String']['input'];
+  election_event_id: Scalars['uuid']['input'];
   import_id: Scalars['String']['input'];
 };
 
 
 /** mutation root */
 export type Mutation_RootRevokeResultsPublicationArgs = {
-  election_event_id: Scalars['String']['input'];
+  election_event_id: Scalars['uuid']['input'];
   publication_id: Scalars['String']['input'];
 };
 
@@ -3907,7 +4164,7 @@ export type Mutation_RootSet_User_RoleArgs = {
 
 /** mutation root */
 export type Mutation_RootSet_Voter_AuthenticationArgs = {
-  election_event_id: Scalars['String']['input'];
+  election_event_id: Scalars['uuid']['input'];
   enrollment: Scalars['String']['input'];
   otp: Scalars['String']['input'];
 };
@@ -3941,13 +4198,13 @@ export type Mutation_RootUpdate_Event_Voting_StatusArgs = {
 /** mutation root */
 export type Mutation_RootUpdate_Realm_AttributesArgs = {
   attributes: Scalars['jsonb']['input'];
-  election_event_id: Scalars['String']['input'];
+  election_event_id: Scalars['uuid']['input'];
 };
 
 
 /** mutation root */
 export type Mutation_RootUpdate_Realm_Password_PolicyArgs = {
-  election_event_id: Scalars['String']['input'];
+  election_event_id: Scalars['uuid']['input'];
   include_digits: Scalars['Boolean']['input'];
   include_lowercase: Scalars['Boolean']['input'];
   include_special_characters: Scalars['Boolean']['input'];
@@ -5275,7 +5532,7 @@ export type Mutation_RootUpsert_AreaArgs = {
   annotations?: InputMaybe<Scalars['jsonb']['input']>;
   area_contest_ids?: InputMaybe<Array<InputMaybe<Scalars['String']['input']>>>;
   description?: InputMaybe<Scalars['String']['input']>;
-  election_event_id: Scalars['String']['input'];
+  election_event_id: Scalars['uuid']['input'];
   id?: InputMaybe<Scalars['String']['input']>;
   labels?: InputMaybe<Scalars['jsonb']['input']>;
   name: Scalars['String']['input'];
@@ -5354,6 +5611,20 @@ export type Query_Root = {
   list_user_roles: Array<KeycloakRole>;
   /** log an event in immudb */
   logEvent?: Maybe<LogEventOutput>;
+  /** Get a monitoring configuration document and its history */
+  monitoringGetConfig: MonitoringGetConfigOutput;
+  /** Get one monitoring dashboard with what its widgets need */
+  monitoringGetDashboard: MonitoringGetDashboardOutput;
+  /** List an event's monitoring configuration documents */
+  monitoringListConfig: MonitoringListConfigOutput;
+  /** List an election event's monitoring dashboards */
+  monitoringListDashboards: MonitoringListDashboardsOutput;
+  /** List the monitoring presets */
+  monitoringListPresets: MonitoringListPresetsOutput;
+  /** Draw one monitoring widget */
+  monitoringRenderWidget: MonitoringRenderWidgetOutput;
+  /** Check a monitoring configuration document */
+  monitoringValidateConfig: MonitoringValidateConfigOutput;
   /** Resolve the active results website publication for authenticated viewers */
   resolveResultsPublication?: Maybe<ResolveResultsPublicationOutput>;
   reveal_voter_secret_attribute: RevealVoterSecretAttributeOutput;
@@ -5630,8 +5901,8 @@ export type Query_RootFetchDocumentArgs = {
 
 
 export type Query_RootFetchResultsArtifactArgs = {
-  election_event_id: Scalars['String']['input'];
-  election_id?: InputMaybe<Scalars['String']['input']>;
+  election_event_id: Scalars['uuid']['input'];
+  election_id?: InputMaybe<Scalars['uuid']['input']>;
   publication_id: Scalars['String']['input'];
 };
 
@@ -5723,8 +5994,8 @@ export type Query_RootListPgauditArgs = {
 
 export type Query_RootList_Cast_Vote_MessagesArgs = {
   ballot_id: Scalars['String']['input'];
-  election_event_id: Scalars['String']['input'];
-  election_id?: InputMaybe<Scalars['String']['input']>;
+  election_event_id: Scalars['uuid']['input'];
+  election_id?: InputMaybe<Scalars['uuid']['input']>;
   limit?: InputMaybe<Scalars['Int']['input']>;
   offset?: InputMaybe<Scalars['Int']['input']>;
   order_by?: InputMaybe<ElectoralLogOrderBy>;
@@ -5746,21 +6017,77 @@ export type Query_RootList_User_RolesArgs = {
 
 export type Query_RootLogEventArgs = {
   body: Scalars['String']['input'];
-  election_event_id: Scalars['String']['input'];
+  election_event_id: Scalars['uuid']['input'];
   message_type: Scalars['String']['input'];
   user_id?: InputMaybe<Scalars['String']['input']>;
 };
 
 
+export type Query_RootMonitoringGetConfigArgs = {
+  before_revision?: InputMaybe<Scalars['Int']['input']>;
+  election_event_id: Scalars['uuid']['input'];
+  key: Scalars['String']['input'];
+  kind: Scalars['String']['input'];
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  revision?: InputMaybe<Scalars['Int']['input']>;
+};
+
+
+export type Query_RootMonitoringGetDashboardArgs = {
+  dashboard_id: Scalars['String']['input'];
+  election_event_id: Scalars['uuid']['input'];
+  election_id?: InputMaybe<Scalars['uuid']['input']>;
+};
+
+
+export type Query_RootMonitoringListConfigArgs = {
+  election_event_id: Scalars['uuid']['input'];
+};
+
+
+export type Query_RootMonitoringListDashboardsArgs = {
+  election_event_id: Scalars['uuid']['input'];
+  election_id?: InputMaybe<Scalars['uuid']['input']>;
+};
+
+
+export type Query_RootMonitoringListPresetsArgs = {
+  election_event_id?: InputMaybe<Scalars['uuid']['input']>;
+};
+
+
+export type Query_RootMonitoringRenderWidgetArgs = {
+  color_scheme?: InputMaybe<Scalars['String']['input']>;
+  dashboard_id: Scalars['String']['input'];
+  draft?: InputMaybe<Scalars['jsonb']['input']>;
+  election_event_id: Scalars['uuid']['input'];
+  election_id?: InputMaybe<Scalars['uuid']['input']>;
+  locale?: InputMaybe<Scalars['String']['input']>;
+  scope?: InputMaybe<Scalars['jsonb']['input']>;
+  selector_values?: InputMaybe<Scalars['jsonb']['input']>;
+  snapshot_revision?: InputMaybe<Scalars['Int']['input']>;
+  widget_id: Scalars['String']['input'];
+  width?: InputMaybe<Scalars['Int']['input']>;
+};
+
+
+export type Query_RootMonitoringValidateConfigArgs = {
+  election_event_id: Scalars['uuid']['input'];
+  key: Scalars['String']['input'];
+  kind: Scalars['String']['input'];
+  yaml: Scalars['String']['input'];
+};
+
+
 export type Query_RootResolveResultsPublicationArgs = {
   ee_id: Scalars['String']['input'];
-  election_id?: InputMaybe<Scalars['String']['input']>;
+  election_id?: InputMaybe<Scalars['uuid']['input']>;
 };
 
 
 export type Query_RootReveal_Voter_Secret_AttributeArgs = {
   attribute_name: Scalars['String']['input'];
-  election_event_id: Scalars['String']['input'];
+  election_event_id: Scalars['uuid']['input'];
   tenant_id: Scalars['String']['input'];
   user_id: Scalars['String']['input'];
 };
@@ -7883,6 +8210,13 @@ export type Sequent_Backend_Ballot_Publication_Mutation_Response = {
   returning: Array<Sequent_Backend_Ballot_Publication>;
 };
 
+/** input type for inserting object relation for remote table "sequent_backend.ballot_publication" */
+export type Sequent_Backend_Ballot_Publication_Obj_Rel_Insert_Input = {
+  data: Sequent_Backend_Ballot_Publication_Insert_Input;
+  /** upsert condition */
+  on_conflict?: InputMaybe<Sequent_Backend_Ballot_Publication_On_Conflict>;
+};
+
 /** on_conflict condition type for table "sequent_backend.ballot_publication" */
 export type Sequent_Backend_Ballot_Publication_On_Conflict = {
   constraint: Sequent_Backend_Ballot_Publication_Constraint;
@@ -8038,6 +8372,8 @@ export type Sequent_Backend_Ballot_Style = {
   annotations?: Maybe<Scalars['jsonb']['output']>;
   area_id?: Maybe<Scalars['uuid']['output']>;
   ballot_eml?: Maybe<Scalars['String']['output']>;
+  /** An object relationship */
+  ballot_publication?: Maybe<Sequent_Backend_Ballot_Publication>;
   ballot_publication_id: Scalars['uuid']['output'];
   ballot_signature?: Maybe<Scalars['bytea']['output']>;
   created_at?: Maybe<Scalars['timestamptz']['output']>;
@@ -8101,6 +8437,7 @@ export type Sequent_Backend_Ballot_Style_Bool_Exp = {
   annotations?: InputMaybe<Jsonb_Comparison_Exp>;
   area_id?: InputMaybe<Uuid_Comparison_Exp>;
   ballot_eml?: InputMaybe<String_Comparison_Exp>;
+  ballot_publication?: InputMaybe<Sequent_Backend_Ballot_Publication_Bool_Exp>;
   ballot_publication_id?: InputMaybe<Uuid_Comparison_Exp>;
   ballot_signature?: InputMaybe<Bytea_Comparison_Exp>;
   created_at?: InputMaybe<Timestamptz_Comparison_Exp>;
@@ -8144,6 +8481,7 @@ export type Sequent_Backend_Ballot_Style_Insert_Input = {
   annotations?: InputMaybe<Scalars['jsonb']['input']>;
   area_id?: InputMaybe<Scalars['uuid']['input']>;
   ballot_eml?: InputMaybe<Scalars['String']['input']>;
+  ballot_publication?: InputMaybe<Sequent_Backend_Ballot_Publication_Obj_Rel_Insert_Input>;
   ballot_publication_id?: InputMaybe<Scalars['uuid']['input']>;
   ballot_signature?: InputMaybe<Scalars['bytea']['input']>;
   created_at?: InputMaybe<Scalars['timestamptz']['input']>;
@@ -8211,6 +8549,7 @@ export type Sequent_Backend_Ballot_Style_Order_By = {
   annotations?: InputMaybe<Order_By>;
   area_id?: InputMaybe<Order_By>;
   ballot_eml?: InputMaybe<Order_By>;
+  ballot_publication?: InputMaybe<Sequent_Backend_Ballot_Publication_Order_By>;
   ballot_publication_id?: InputMaybe<Order_By>;
   ballot_signature?: InputMaybe<Order_By>;
   created_at?: InputMaybe<Order_By>;
@@ -25468,8 +25807,8 @@ export type InsertCastVoteMutation = { __typename?: 'mutation_root', insert_cast
 
 export type ListCastVoteMessagesQueryVariables = Exact<{
   tenantId: Scalars['String']['input'];
-  electionEventId: Scalars['String']['input'];
-  electionId?: InputMaybe<Scalars['String']['input']>;
+  electionEventId: Scalars['uuid']['input'];
+  electionId?: InputMaybe<Scalars['uuid']['input']>;
   ballotId: Scalars['String']['input'];
   limit?: InputMaybe<Scalars['Int']['input']>;
   offset?: InputMaybe<Scalars['Int']['input']>;
@@ -25493,4 +25832,4 @@ export const GetSupportMaterialsDocument = {"kind":"Document","definitions":[{"k
 export const GetSupportMaterialsAcknowledgmentDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"GetSupportMaterialsAcknowledgment"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"get_support_materials_acknowledgment"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"document_ids"}}]}}]}}]} as unknown as DocumentNode<GetSupportMaterialsAcknowledgmentQuery, GetSupportMaterialsAcknowledgmentQueryVariables>;
 export const GetVoterStatusDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"GetVoterStatus"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"get_ballot_files_urls"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}}}]},{"kind":"Field","name":{"kind":"Name","value":"sequent_backend_cast_vote"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"tenant_id"}},{"kind":"Field","name":{"kind":"Name","value":"election_id"}},{"kind":"Field","name":{"kind":"Name","value":"election_event_id"}},{"kind":"Field","name":{"kind":"Name","value":"status"}}]}}]}}]} as unknown as DocumentNode<GetVoterStatusQuery, GetVoterStatusQueryVariables>;
 export const InsertCastVoteDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"InsertCastVote"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"ballotId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"content"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"insert_cast_vote"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"election_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionId"}}},{"kind":"Argument","name":{"kind":"Name","value":"ballot_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"ballotId"}}},{"kind":"Argument","name":{"kind":"Name","value":"content"},"value":{"kind":"Variable","name":{"kind":"Name","value":"content"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"ballot_id"}},{"kind":"Field","name":{"kind":"Name","value":"election_id"}},{"kind":"Field","name":{"kind":"Name","value":"election_event_id"}},{"kind":"Field","name":{"kind":"Name","value":"tenant_id"}},{"kind":"Field","name":{"kind":"Name","value":"election_id"}},{"kind":"Field","name":{"kind":"Name","value":"area_id"}},{"kind":"Field","name":{"kind":"Name","value":"created_at"}},{"kind":"Field","name":{"kind":"Name","value":"last_updated_at"}},{"kind":"Field","name":{"kind":"Name","value":"labels"}},{"kind":"Field","name":{"kind":"Name","value":"annotations"}},{"kind":"Field","name":{"kind":"Name","value":"content"}},{"kind":"Field","name":{"kind":"Name","value":"cast_ballot_signature"}},{"kind":"Field","name":{"kind":"Name","value":"voter_id_string"}},{"kind":"Field","name":{"kind":"Name","value":"election_event_id"}}]}}]}}]} as unknown as DocumentNode<InsertCastVoteMutation, InsertCastVoteMutationVariables>;
-export const ListCastVoteMessagesDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"listCastVoteMessages"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"tenantId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionId"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"ballotId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"limit"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"Int"}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"offset"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"Int"}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"orderBy"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"ElectoralLogOrderBy"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"list_cast_vote_messages"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"tenant_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"tenantId"}}},{"kind":"Argument","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}}},{"kind":"Argument","name":{"kind":"Name","value":"election_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionId"}}},{"kind":"Argument","name":{"kind":"Name","value":"ballot_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"ballotId"}}},{"kind":"Argument","name":{"kind":"Name","value":"limit"},"value":{"kind":"Variable","name":{"kind":"Name","value":"limit"}}},{"kind":"Argument","name":{"kind":"Name","value":"offset"},"value":{"kind":"Variable","name":{"kind":"Name","value":"offset"}}},{"kind":"Argument","name":{"kind":"Name","value":"order_by"},"value":{"kind":"Variable","name":{"kind":"Name","value":"orderBy"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"list"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"statement_timestamp"}},{"kind":"Field","name":{"kind":"Name","value":"statement_kind"}},{"kind":"Field","name":{"kind":"Name","value":"ballot_id"}},{"kind":"Field","name":{"kind":"Name","value":"username"}},{"kind":"Field","name":{"kind":"Name","value":"message"}}]}},{"kind":"Field","name":{"kind":"Name","value":"total"}}]}}]}}]} as unknown as DocumentNode<ListCastVoteMessagesQuery, ListCastVoteMessagesQueryVariables>;
+export const ListCastVoteMessagesDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"listCastVoteMessages"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"tenantId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionId"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"ballotId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"limit"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"Int"}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"offset"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"Int"}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"orderBy"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"ElectoralLogOrderBy"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"list_cast_vote_messages"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"tenant_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"tenantId"}}},{"kind":"Argument","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}}},{"kind":"Argument","name":{"kind":"Name","value":"election_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionId"}}},{"kind":"Argument","name":{"kind":"Name","value":"ballot_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"ballotId"}}},{"kind":"Argument","name":{"kind":"Name","value":"limit"},"value":{"kind":"Variable","name":{"kind":"Name","value":"limit"}}},{"kind":"Argument","name":{"kind":"Name","value":"offset"},"value":{"kind":"Variable","name":{"kind":"Name","value":"offset"}}},{"kind":"Argument","name":{"kind":"Name","value":"order_by"},"value":{"kind":"Variable","name":{"kind":"Name","value":"orderBy"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"list"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"statement_timestamp"}},{"kind":"Field","name":{"kind":"Name","value":"statement_kind"}},{"kind":"Field","name":{"kind":"Name","value":"ballot_id"}},{"kind":"Field","name":{"kind":"Name","value":"username"}},{"kind":"Field","name":{"kind":"Name","value":"message"}}]}},{"kind":"Field","name":{"kind":"Name","value":"total"}}]}}]}}]} as unknown as DocumentNode<ListCastVoteMessagesQuery, ListCastVoteMessagesQueryVariables>;
