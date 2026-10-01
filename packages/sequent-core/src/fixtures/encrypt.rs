@@ -2,6 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+// Test-only sample data.
+// Coverage exclusion: scripts/coverage/profiles.toml.
+
 use crate::ballot::BallotStyle;
 use crate::plaintext::DecodedVoteContest;
 
