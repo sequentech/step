@@ -104,17 +104,15 @@ ENV KC_DB=postgres
 
 WORKDIR /opt/keycloak
 
-# for demonstration purposes only, please make sure to use proper certificates
-# in production instead
-RUN keytool \
-   -genkeypair \
-   -storepass password \
-   -storetype PKCS12 \
-   -keyalg RSA \
-   -keysize 2048 \
-   -dname "CN=server" \
-   -alias keycloak-server -ext "SAN:c=DNS:localhost,IP:127.0.0.1" \
-   -keystore conf/server.keystore
+# The demonstration keystore is NOT generated here. keytool -genkeypair produces a
+# fresh random key on every run, so building this image twice from the same commit
+# gave two different images -- which defeats any byte-for-byte comparison of
+# releases, and meta#13625 requires random certificates to be kept out of release
+# outputs entirely.
+#
+# It is created instead by the entrypoint below, on first start, if it is absent.
+# That keeps the image reproducible and the keystore out of a layer that gets
+# published, while leaving the behaviour an operator sees unchanged.
 
 # Copy the compiled provider SPIs into the Keycloak providers directory
 # before calling `kc.sh build`
@@ -134,5 +132,33 @@ FROM quay.io/keycloak/keycloak:26.6.1
 COPY --from=builder /opt/keycloak/ /opt/keycloak/
 COPY --from=spis-build /build/keycloak-provider-conf/quarkus.properties /opt/keycloak/conf/quarkus.properties
 
+# Generates the demonstration keystore on first start rather than at build time,
+# so the image contains no randomly generated key. Best-effort by design: if the
+# keystore already exists, or conf/ is read-only, or real certificates are
+# supplied, startup proceeds untouched. A demonstration keystore is not worth
+# refusing to boot over.
+#
+# For demonstration purposes only -- supply proper certificates in production.
+COPY --chown=keycloak:keycloak <<'ENTRYPOINT_SH' /opt/keycloak/bin/sequent-entrypoint.sh
+#!/bin/sh
+set -e
+keystore=/opt/keycloak/conf/server.keystore
+if [ ! -f "$keystore" ] && [ -w /opt/keycloak/conf ]; then
+    keytool -genkeypair \
+        -storepass password \
+        -storetype PKCS12 \
+        -keyalg RSA \
+        -keysize 2048 \
+        -dname "CN=server" \
+        -alias keycloak-server -ext "SAN:c=DNS:localhost,IP:127.0.0.1" \
+        -keystore "$keystore" \
+        || echo "warning: could not generate the demonstration keystore" >&2
+fi
+exec /opt/keycloak/bin/kc.sh "$@"
+ENTRYPOINT_SH
+RUN chmod +x /opt/keycloak/bin/sequent-entrypoint.sh
+
 ENV KC_DB=postgres
-ENTRYPOINT ["/opt/keycloak/bin/kc.sh"]
+# Arguments are forwarded to kc.sh unchanged, so existing `start`/`start-dev`
+# invocations and any args in a deployment keep working.
+ENTRYPOINT ["/opt/keycloak/bin/sequent-entrypoint.sh"]

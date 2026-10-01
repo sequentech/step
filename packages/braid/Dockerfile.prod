@@ -76,21 +76,29 @@ RUN cargo build --release --locked
 FROM debian:bookworm
 # Some shared libraries (extra-runtime-dependencies) may need to be installed:
 # Installing also AWS CLI and Vault CLI for trustee configuration
-# Set the default Vault version (put 'latest' for automatic substitution)
-ARG VAULT_VERSION=1.15.5
+# Pinned explicitly. There is deliberately no "latest" mode: resolving a version
+# by scraping releases.hashicorp.com during the build means two builds of the same
+# commit can ship different Vault binaries, which defeats any byte-for-byte
+# comparison of the images (sequentech/meta#13625).
+#
+# 2.1.1 is the current open-source release; the 1.21 line is enterprise-only.
+ARG VAULT_VERSION=2.1.1
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libssl3 \
     ca-certificates \
     curl \
     unzip \
-    && curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip" \
+    && arch="$(dpkg --print-architecture)" \
+    && case "$arch" in \
+        amd64) aws_arch=x86_64; vault_arch=amd64 ;; \
+        arm64) aws_arch=aarch64; vault_arch=arm64 ;; \
+        *) echo "unsupported architecture: $arch" >&2; exit 1 ;; \
+    esac \
+    && curl "https://awscli.amazonaws.com/awscli-exe-linux-${aws_arch}.zip" -o "awscliv2.zip" \
     && unzip -o awscliv2.zip \
     && ./aws/install \
     && rm -f awscliv2.zip \
-    && if [ "${VAULT_VERSION}" = "latest" ]; then \
-        VAULT_VERSION=$(curl -s https://releases.hashicorp.com/vault/ | grep -oP 'vault/\K[0-9.]+(?=/")' | head -n 1); \
-    fi \
-    && curl -o vault.zip https://releases.hashicorp.com/vault/${VAULT_VERSION}/vault_${VAULT_VERSION}_linux_amd64.zip \
+    && curl -o vault.zip "https://releases.hashicorp.com/vault/${VAULT_VERSION}/vault_${VAULT_VERSION}_linux_${vault_arch}.zip" \
     && unzip vault.zip -d /usr/local/bin/ \
     && rm -f vault.zip \
     && apt-get clean \
