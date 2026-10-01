@@ -41,6 +41,11 @@ const kcContextExtensionPerPage: KcContextExtensionPerPage = {
                 url: "/realms/storybook/identity-verification/capture",
                 token: "capture-token",
             },
+            liveness: {
+                url: "/biometric/liveness",
+                token: "liveness-token",
+                caseId: "storybook-case",
+            },
         },
     },
     "scanovate-error.ftl": {

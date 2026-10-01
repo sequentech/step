@@ -51,9 +51,6 @@ export const scanovateEnglish = {
     scanovateCameraFailedText: "Check that your camera works and try again.",
     scanovateAnalyzerFailedTitle: "We couldn’t prepare the camera check",
     scanovateAnalyzerFailedText: "Check your internet connection and try again.",
-    scanovateRecorderUnsupportedTitle: "This browser can’t record video",
-    scanovateRecorderUnsupportedText:
-        "Open this page in an up-to-date version of Chrome, Safari, Firefox or Edge.",
     scanovateTryAgain: "Try again",
     scanovateBackToStart: "Back to start",
 
@@ -136,7 +133,6 @@ export const scanovateEnglish = {
 
     scanovateCheckingTitle: "Checking your identity",
     scanovateCheckingLead: "This usually takes a few seconds. Keep this page open.",
-    scanovateCheckingReceived: "Photos and video received",
     scanovateCheckingVerifying: "Checking your ID and your face",
     scanovateCheckingReading: "Reading your details",
 
@@ -151,7 +147,6 @@ export const scanovateEnglish = {
     scanovateTipLookAtCamera: "Look straight at the camera during the video.",
     scanovateTipSameDocument: "Use the same ID you chose in the enrollment form.",
     scanovateTipCheckDetails: "Check that the details you entered match your ID.",
-    scanovateTipCamera: "Allow camera access for this page when your browser asks.",
     scanovateTipConnection: "Check your internet connection.",
     scanovateTipWait: "Wait a few minutes before trying again.",
     scanovateAttemptsLeft: "You can try {0} more times.",
@@ -165,16 +160,15 @@ export const scanovateEnglish = {
     scanovateVerificationFailedError: "We could not verify your identity. Please try again.",
     scanovateDocumentAuthenticationError:
         "We could not authenticate your identity document. Please make sure it is valid, well lit and fully visible, and try again.",
-    scanovateMaxTrialsError:
-        "The identity verification could not be completed after several tries. Please check your camera permissions and connection, and try again.",
+    scanovateDocumentUnreadableError:
+        "We couldn’t read your ID. Take the photos again with the whole ID in the frame, well lit and in focus.",
     scanovateAttributesError:
         "The information extracted by our system doesn’t match the details you provided in the form. Try again or restart registration and double-check your entries.",
     scanovateScoringError:
         "The quality of the provided images needs to be improved. Please try again.",
     scanovateMaxRetriesError:
         "Your identity could not be verified after the maximum number of attempts, resulting in an unsuccessful enrollment.",
-    scanovateCaptureInvalidError:
-        "We couldn’t use the photos or the video. Please take them again.",
+    scanovateCaptureInvalidError: "We couldn’t use the photos. Please take them again.",
 
     scanovateConfirmTitle: "Check the details from your ID",
     scanovateConfirmLead:
@@ -255,9 +249,6 @@ export const scanovateSpanish: Record<keyof typeof scanovateEnglish, string> = {
     scanovateCameraFailedText: "Compruebe que su cámara funciona y vuelva a intentarlo.",
     scanovateAnalyzerFailedTitle: "No pudimos preparar la comprobación de la cámara",
     scanovateAnalyzerFailedText: "Compruebe su conexión a internet y vuelva a intentarlo.",
-    scanovateRecorderUnsupportedTitle: "Este navegador no puede grabar vídeo",
-    scanovateRecorderUnsupportedText:
-        "Abra esta página en una versión actualizada de Chrome, Safari, Firefox o Edge.",
     scanovateTryAgain: "Volver a intentarlo",
     scanovateBackToStart: "Volver al inicio",
 
@@ -342,7 +333,6 @@ export const scanovateSpanish: Record<keyof typeof scanovateEnglish, string> = {
 
     scanovateCheckingTitle: "Comprobando su identidad",
     scanovateCheckingLead: "Suele tardar unos segundos. Mantenga esta página abierta.",
-    scanovateCheckingReceived: "Fotos y vídeo recibidos",
     scanovateCheckingVerifying: "Comprobando su documento y su cara",
     scanovateCheckingReading: "Leyendo sus datos",
 
@@ -357,7 +347,6 @@ export const scanovateSpanish: Record<keyof typeof scanovateEnglish, string> = {
     scanovateTipLookAtCamera: "Mire de frente a la cámara durante el vídeo.",
     scanovateTipSameDocument: "Use el mismo documento que eligió en el formulario de inscripción.",
     scanovateTipCheckDetails: "Compruebe que los datos que introdujo coinciden con su documento.",
-    scanovateTipCamera: "Permita el acceso a la cámara cuando su navegador lo pida.",
     scanovateTipConnection: "Compruebe su conexión a internet.",
     scanovateTipWait: "Espere unos minutos antes de volver a intentarlo.",
     scanovateAttemptsLeft: "Puede intentarlo {0} veces más.",
@@ -372,14 +361,14 @@ export const scanovateSpanish: Record<keyof typeof scanovateEnglish, string> = {
     scanovateVerificationFailedError: "No pudimos verificar su identidad. Vuelva a intentarlo.",
     scanovateDocumentAuthenticationError:
         "No pudimos autenticar su documento de identidad. Asegúrese de que es válido, está bien iluminado y se ve completo, y vuelva a intentarlo.",
-    scanovateMaxTrialsError:
-        "La verificación de identidad no pudo completarse tras varios intentos. Compruebe los permisos de la cámara y su conexión, y vuelva a intentarlo.",
+    scanovateDocumentUnreadableError:
+        "No pudimos leer su documento. Vuelva a hacer las fotos con todo el documento en el encuadre, bien iluminado y enfocado.",
     scanovateAttributesError:
         "Los datos extraídos de su documento no coinciden con los que introdujo en el formulario. Vuelva a intentarlo o reinicie la inscripción y revise sus datos.",
     scanovateScoringError: "Hay que mejorar la calidad de las imágenes. Vuelva a intentarlo.",
     scanovateMaxRetriesError:
         "No se pudo verificar su identidad tras el número máximo de intentos, por lo que la inscripción no se ha completado.",
-    scanovateCaptureInvalidError: "No pudimos usar las fotos o el vídeo. Vuelva a tomarlos.",
+    scanovateCaptureInvalidError: "No pudimos usar las fotos. Vuelva a tomarlas.",
 
     scanovateConfirmTitle: "Revise los datos de su documento",
     scanovateConfirmLead:

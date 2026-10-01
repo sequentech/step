@@ -101,20 +101,6 @@ export enum CaptureStep {
     Video = "VIDEO",
 }
 
-// How the voter's face is checked: Keycloak's face-capture policy.
-export enum FaceCheck {
-    // Our photo and video of the voter go to B-Trust.
-    Photo = "PHOTO",
-    // Liveness Plus checks our face frames, and the voter holding the ID is a photo.
-    Liveness = "LIVENESS",
-}
-
-// What the step of the voter holding the ID produces.
-export enum VideoOutput {
-    Recording = "RECORDING",
-    Still = "STILL",
-}
-
 export enum CameraFacing {
     Environment = "environment",
     User = "user",
@@ -127,7 +113,6 @@ export enum CaptureProblem {
     InsecureContext = "INSECURE_CONTEXT",
     CameraFailed = "CAMERA_FAILED",
     AnalyzerFailed = "ANALYZER_FAILED",
-    RecorderUnsupported = "RECORDER_UNSUPPORTED",
     LivenessFailed = "LIVENESS_FAILED",
     // Keycloak's one-time liveness token is used up: only a new page gets a new one.
     LivenessExpired = "LIVENESS_EXPIRED",
@@ -140,19 +125,8 @@ export interface CameraService {
     open(facing: CameraFacing): Promise<MediaStream>
 }
 
-export interface Recording {
-    stop(): Promise<Blob>
-    cancel(): void
-}
-
-export interface RecorderService {
-    supported(): boolean
-    start(stream: MediaStream, seconds: number): Recording
-}
-
 export interface CaptureServices {
     camera: CameraService
-    recorder: RecorderService
     liveness: LivenessConnector
     uploads: UploadConnector
     loadAnalyzers(): Promise<Analyzers>

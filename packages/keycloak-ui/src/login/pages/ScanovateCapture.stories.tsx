@@ -421,14 +421,14 @@ export const AutomaticCapture: Story = {
         await waitFor(() => expect(submissions).toHaveLength(1))
         await expect([...submissions[0].keys()]).toEqual(["action"])
         await expect(submissions[0].get("action")).toBe("capture")
+        // The voter's face reaches Keycloak from Liveness Plus, never from the page
         await expect(uploads.map(({part}) => part)).toEqual([
             CapturePart.Front,
             CapturePart.Back,
-            CapturePart.Face,
-            CapturePart.Video,
+            CapturePart.Holding,
         ])
         for (const {blob} of uploads) await expect(blob.size).toBeGreaterThan(0)
-        await expect(uploads[3].blob.type).toMatch(/^video\/webm/)
+        await expect(uploads[2].blob.type).toBe("image/jpeg")
     },
 }
 
@@ -553,12 +553,6 @@ export const LivenessHoldingSubmitsPhoto: Story = {
             face: {statuses: [FaceStatus.Ready]},
             document: {statuses: [DocumentStatus.HoldStill]},
             uploads: fakeUploads(uploads),
-            recorder: {
-                supported: () => true,
-                start: () => {
-                    throw new Error("The voter holding the ID is a photo")
-                },
-            },
         }),
     },
     beforeEach: keepSubmissions,

@@ -13,9 +13,8 @@ import {
 
 const SETTINGS = {url: "/realms/r/identity-verification/capture/", token: "capture-token"}
 const jpeg = new Blob([new Uint8Array([0xff, 0xd8, 0xff])], {type: "image/jpeg"})
-const webm = new Blob([new Uint8Array([0x1a, 0x45, 0xdf, 0xa3])], {
-    type: "video/webm;codecs=vp8",
-})
+// Media type parameters are left out of the upload
+const holding = new Blob([new Uint8Array([0xff, 0xd8, 0xff])], {type: "image/jpeg;q=0.9"})
 
 function stubFetch(...responses: (Response | Error)[]) {
     const fetchMock = vi.fn()
@@ -38,7 +37,7 @@ describe("fetchUploads", () => {
         const fetchMock = stubFetch(ok(), ok())
         const uploader = fetchUploads(SETTINGS)
         await uploader.upload(CapturePart.Front, jpeg)
-        await uploader.upload(CapturePart.Video, webm)
+        await uploader.upload(CapturePart.Holding, holding)
 
         const [url, init] = fetchMock.mock.calls[0]
         expect(url).toBe("/realms/r/identity-verification/capture/front")
@@ -49,9 +48,9 @@ describe("fetchUploads", () => {
         })
         expect(init.body).toBe(jpeg)
         expect(init.credentials).toBe("omit")
-        const [videoUrl, videoInit] = fetchMock.mock.calls[1]
-        expect(videoUrl).toBe("/realms/r/identity-verification/capture/video")
-        expect(videoInit.headers["Content-Type"]).toBe("video/webm")
+        const [holdingUrl, holdingInit] = fetchMock.mock.calls[1]
+        expect(holdingUrl).toBe("/realms/r/identity-verification/capture/holding")
+        expect(holdingInit.headers["Content-Type"]).toBe("image/jpeg")
     })
 
     it("rejects a stale token apart from other failures", async () => {

@@ -42,14 +42,7 @@ import {LivenessAbort} from "../scanovate/livenessApi"
 import {stopStream, cameraProblem} from "../scanovate/media"
 import type {ScanovatePageProps} from "../scanovate/pageProps"
 import {EnrollmentStep, documentName, enrollmentFrame, textFor, type Text} from "../scanovate/text"
-import {
-    CameraFacing,
-    CaptureProblem,
-    CaptureStep,
-    FaceCheck,
-    VideoOutput,
-    type Analyzers,
-} from "../scanovate/types"
+import {CameraFacing, CaptureProblem, CaptureStep, type Analyzers} from "../scanovate/types"
 
 const FLASH_MS = 700
 // How long the advice of Liveness Plus on a rejected face frame stays.
@@ -73,10 +66,6 @@ const PROBLEMS: Record<CaptureProblem, [MessageKey, MessageKey]> = {
     [CaptureProblem.AnalyzerFailed]: [
         "scanovateAnalyzerFailedTitle",
         "scanovateAnalyzerFailedText",
-    ],
-    [CaptureProblem.RecorderUnsupported]: [
-        "scanovateRecorderUnsupportedTitle",
-        "scanovateRecorderUnsupportedText",
     ],
     [CaptureProblem.LivenessFailed]: [
         "scanovateLivenessFailedTitle",
@@ -134,9 +123,8 @@ export default function ScanovateCapture(props: ScanovatePageProps<"scanovate-ca
     const text = textFor(kcContext, i18n)
     const phone = useMediaQuery(PHONE_QUERY, {noSsr: true})
     const liveness = scanovate.liveness
-    const faceCheck = liveness === undefined ? FaceCheck.Photo : FaceCheck.Liveness
     const livenessCheck = useMemo(
-        () => (liveness === undefined ? null : new LivenessCheck(services.liveness(liveness))),
+        () => new LivenessCheck(services.liveness(liveness)),
         [services, liveness]
     )
     const uploader = useMemo(() => services.uploads(scanovate.upload), [services, scanovate.upload])
@@ -237,7 +225,6 @@ export default function ScanovateCapture(props: ScanovatePageProps<"scanovate-ca
 
     // An open liveness session is ended when the voter leaves.
     useEffect(() => {
-        if (livenessCheck === null) return
         const leave = () => livenessCheck.abort(LivenessAbort.LeftPage)
         window.addEventListener("pagehide", leave)
         return () => {
@@ -252,7 +239,7 @@ export default function ScanovateCapture(props: ScanovatePageProps<"scanovate-ca
         if (state.phase !== Phase.Checking) return
         let active = true
         const send = async () => {
-            const failure = await uploadCaptures(uploader, captureParts(state.captures, faceCheck))
+            const failure = await uploadCaptures(uploader, captureParts(state.captures))
             const form = formRef.current
             if (!active || form === null) return
             if (failure !== null) {
@@ -270,7 +257,7 @@ export default function ScanovateCapture(props: ScanovatePageProps<"scanovate-ca
         return () => {
             active = false
         }
-    }, [state.phase, state.captures, faceCheck, uploader])
+    }, [state.phase, state.captures, uploader])
 
     const accept = (captured: CaptureStep, blob: Blob) => {
         services.vibrate(60)
@@ -300,7 +287,7 @@ export default function ScanovateCapture(props: ScanovatePageProps<"scanovate-ca
         }
     }
     const onCaptured = (captured: CaptureStep, blob: Blob) => {
-        if (livenessCheck !== null && captured === CaptureStep.Face) {
+        if (captured === CaptureStep.Face) {
             void checkFace(livenessCheck, blob)
             return
         }
@@ -311,17 +298,10 @@ export default function ScanovateCapture(props: ScanovatePageProps<"scanovate-ca
         faceRun.current += 1
         setCheckingFace(false)
         setFaceHint(null)
-        livenessCheck?.abort(LivenessAbort.PressedClose)
+        livenessCheck.abort(LivenessAbort.PressedClose)
         dispatch({type: "confirmStop"})
     }
-    const start = () => {
-        // Only our own face video needs a recorder.
-        if (liveness !== undefined || services.recorder.supported()) {
-            dispatch({type: "start"})
-        } else {
-            dispatch({type: "problem", problem: CaptureProblem.RecorderUnsupported})
-        }
-    }
+    const start = () => dispatch({type: "start"})
     const retry = () => {
         if (STALE_PAGE.has(problem)) {
             // A GET of the page renders it again with new one-time tokens.
@@ -350,7 +330,6 @@ export default function ScanovateCapture(props: ScanovatePageProps<"scanovate-ca
         const [titleKey, bodyKey] = PROBLEMS[problem]
         const title = text(titleKey)
         const body = text(bodyKey)
-        const canRetry = problem !== CaptureProblem.RecorderUnsupported
         const retryLabel = text(
             STALE_PAGE.has(problem) ? "scanovateStartOver" : "scanovateTryAgain"
         )
@@ -366,18 +345,16 @@ export default function ScanovateCapture(props: ScanovatePageProps<"scanovate-ca
                     {body.text}
                 </p>
                 <Box className="auth-actions">
-                    {canRetry && (
-                        <Button
-                            variant="contained"
-                            fullWidth
-                            className="auth-submit"
-                            endIcon={<ArrowIcon />}
-                            onClick={retry}
-                            lang={retryLabel.lang}
-                        >
-                            {retryLabel.text}
-                        </Button>
-                    )}
+                    <Button
+                        variant="contained"
+                        fullWidth
+                        className="auth-submit"
+                        endIcon={<ArrowIcon />}
+                        onClick={retry}
+                        lang={retryLabel.lang}
+                    >
+                        {retryLabel.text}
+                    </Button>
                     <Button
                         variant="outlined"
                         fullWidth
@@ -422,7 +399,7 @@ export default function ScanovateCapture(props: ScanovatePageProps<"scanovate-ca
                 headerNode={text("scanovateCheckingTitle").text}
                 titleLang={text("scanovateCheckingTitle").lang}
             >
-                <Checking text={text} faceCheck={faceCheck} />
+                <Checking text={text} />
                 <form ref={formRef} method="post" action={url.loginAction} hidden>
                     <input type="hidden" name="action" value={CAPTURE_ACTION} />
                 </form>
@@ -443,11 +420,7 @@ export default function ScanovateCapture(props: ScanovatePageProps<"scanovate-ca
                 stream={stream}
                 mirrored={facing === CameraFacing.User}
                 analyzers={analyzers}
-                recorder={services.recorder}
                 videoSeconds={scanovate.videoSeconds}
-                videoOutput={
-                    faceCheck === FaceCheck.Liveness ? VideoOutput.Still : VideoOutput.Recording
-                }
                 attempt={faceAttempt}
                 hint={checkingFace ? CHECKING_FACE : faceHint}
                 layout={phone ? StageLayout.Phone : StageLayout.Desktop}
@@ -620,15 +593,10 @@ function Intro(props: {
     )
 }
 
-const RECEIVED: Record<FaceCheck, MessageKey> = {
-    [FaceCheck.Photo]: "scanovateCheckingReceived",
-    [FaceCheck.Liveness]: "scanovateCheckingReceivedLiveness",
-}
-
-function Checking({text, faceCheck}: {text: Text; faceCheck: FaceCheck}) {
+function Checking({text}: {text: Text}) {
     const lead = text("scanovateCheckingLead")
     const steps: [MessageKey, string][] = [
-        [RECEIVED[faceCheck], "done"],
+        ["scanovateCheckingReceivedLiveness", "done"],
         ["scanovateCheckingVerifying", "current"],
         ["scanovateCheckingReading", ""],
     ]

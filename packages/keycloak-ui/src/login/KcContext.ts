@@ -39,7 +39,7 @@ export enum ScanovateSide {
 }
 
 // The Liveness Plus API that checks the voter's face frames, with Keycloak's
-// one-time token for it. Only present with the liveness face capture.
+// one-time token for it.
 export type ScanovateLiveness = {
     url: string
     token: string
@@ -60,7 +60,7 @@ export type ScanovateCaptureSettings = {
     attemptsLeft: number
     maxAttempts: number
     upload: ScanovateUpload
-    liveness?: ScanovateLiveness
+    liveness: ScanovateLiveness
 }
 
 export type ScanovateStoredAttribute = {

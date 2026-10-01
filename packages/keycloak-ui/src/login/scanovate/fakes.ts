@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
 
-// Stand-ins for the camera, the WebAssembly analyzers and the recorder, for
+// Stand-ins for the camera, the WebAssembly analyzers and Liveness Plus, for
 // stories and tests. The camera paints a synthetic specimen scene.
 import {CARD_ASPECT} from "./geometry"
 import {
@@ -29,11 +29,9 @@ import {
     type DocumentFrame,
     type FaceAnalyzer,
     type FaceFrame,
-    type RecorderService,
 } from "./types"
 
 // WebM's EBML magic number, so the video part looks like one.
-const WEBM_HEADER = new Uint8Array([0x1a, 0x45, 0xdf, 0xa3])
 
 export type Script<Status> = {statuses: Status[]; stability?: number}
 
@@ -243,14 +241,6 @@ export function failingCamera(name: string): CameraService {
     }
 }
 
-export const fakeRecorder: RecorderService = {
-    supported: () => true,
-    start: () => ({
-        stop: async () => new Blob([WEBM_HEADER], {type: "video/webm"}),
-        cancel: () => undefined,
-    }),
-}
-
 // Answers the face frames with the given statuses in order, repeating the last
 // one, or fails to open a session with the given rejection.
 export function fakeLiveness(
@@ -294,14 +284,12 @@ export function fakeServices(options: {
     document?: Script<DocumentStatus>
     face?: Script<FaceStatus>
     camera?: CameraService
-    recorder?: RecorderService
     liveness?: LivenessConnector
     uploads?: UploadConnector
     analyzersFail?: boolean
 }): CaptureServices {
     return {
         camera: options.camera ?? syntheticCamera(sceneForFacing),
-        recorder: options.recorder ?? fakeRecorder,
         liveness: options.liveness ?? fakeLiveness(),
         uploads: options.uploads ?? fakeUploads(),
         loadAnalyzers: async (): Promise<Analyzers> => {

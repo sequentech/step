@@ -21,6 +21,7 @@ const CAPTURE_TIPS: MessageKey[] = [
 // Tips for the reason the last attempt failed, by the error's message key.
 const TIPS: Record<string, MessageKey[]> = {
     scanovateDocumentAuthenticationError: CAPTURE_TIPS,
+    scanovateDocumentUnreadableError: CAPTURE_TIPS,
     scanovateScoringError: CAPTURE_TIPS,
     scanovateCaptureInvalidError: CAPTURE_TIPS,
     scanovateVerificationFailedError: [
@@ -44,7 +45,6 @@ const TIPS: Record<string, MessageKey[]> = {
         "scanovateTipFaceUncovered",
         "scanovateTipCorners",
     ],
-    scanovateMaxTrialsError: ["scanovateTipCamera", "scanovateTipConnection", "scanovateTipLight"],
     scanovateInternalError: ["scanovateTipWait", "scanovateTipConnection"],
 }
 

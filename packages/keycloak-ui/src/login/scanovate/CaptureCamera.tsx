@@ -53,10 +53,7 @@ import {
     type Analyzers,
     type Ellipse,
     type Rect,
-    type RecorderService,
-    type Recording,
     type Size,
-    VideoOutput,
 } from "./types"
 import {VideoCommand, idleVideo, trackVideo} from "./video"
 
@@ -141,9 +138,7 @@ export type CaptureCameraProps = {
     stream: MediaStream | null
     mirrored: boolean
     analyzers: Analyzers | null
-    recorder: RecorderService
     videoSeconds: number
-    videoOutput: VideoOutput
     // Bumped to capture again after the captured frame was rejected.
     attempt: number
     // Shown instead of the live guidance, e.g. while a frame is being checked.
@@ -166,7 +161,6 @@ type LoopInput = {
     mirrored: boolean
     paused: boolean
     videoSeconds: number
-    videoOutput: VideoOutput
     onCaptured: (step: CaptureStep, blob: Blob) => void
     onProblem: (problem: CaptureProblem) => void
 }
@@ -178,9 +172,7 @@ export default function CaptureCamera(props: CaptureCameraProps) {
         stream,
         mirrored,
         analyzers,
-        recorder,
         videoSeconds,
-        videoOutput,
         attempt,
         hint,
         layout,
@@ -227,7 +219,6 @@ export default function CaptureCamera(props: CaptureCameraProps) {
             mirrored,
             paused,
             videoSeconds,
-            videoOutput,
             onCaptured,
             onProblem,
         }
@@ -263,7 +254,6 @@ export default function CaptureCamera(props: CaptureCameraProps) {
         // The back is only taken once the front has left the frame.
         let armed = step !== CaptureStep.Back
         let tracker = idleVideo
-        let recording: Recording | null = null
         let documentStatus: DocumentStatus | null = null
         let current = WAITING
         analyzers.document.reset()
@@ -284,17 +274,6 @@ export default function CaptureCamera(props: CaptureCameraProps) {
                 busy = false
             }
         }
-        const finish = async (finished: Recording) => {
-            busy = true
-            try {
-                const blob = await finished.stop()
-                input.current?.onCaptured(step, blob)
-            } catch {
-                busy = false
-                analyzers.face.reset()
-            }
-        }
-
         const analyzeDocument = (guide: Rect, stageSize: Size, size: Size, flip: boolean) => {
             const image = documentSampler.sample(video, DOCUMENT_ANALYSIS_SIDE)
             if (image === null) return null
@@ -369,8 +348,6 @@ export default function CaptureCamera(props: CaptureCameraProps) {
             }
             const seconds = state.videoSeconds
             if (halted || !settled) {
-                recording?.cancel()
-                recording = null
                 tracker = idleVideo
             } else {
                 const next = trackVideo(tracker, {
@@ -381,28 +358,12 @@ export default function CaptureCamera(props: CaptureCameraProps) {
                     seconds,
                 })
                 tracker = next.tracker
-                const still = state.videoOutput === VideoOutput.Still
-                if (next.command === VideoCommand.Start && !still) {
-                    try {
-                        recording = recorder.start(stream, seconds)
-                    } catch {
-                        state.onProblem(CaptureProblem.RecorderUnsupported)
-                        return
-                    }
-                } else if (next.command === VideoCommand.Restart) {
-                    recording?.cancel()
-                    recording = null
+                if (next.command === VideoCommand.Restart) {
                     analyzers.face.reset()
-                } else if (next.command === VideoCommand.Finish && still) {
+                } else if (next.command === VideoCommand.Finish) {
                     // The voter holding the ID, taken once they held it for the whole time.
                     publish({...current, recordingSeconds: seconds})
                     void capture()
-                    return
-                } else if (next.command === VideoCommand.Finish && recording !== null) {
-                    const finished = recording
-                    recording = null
-                    publish({...current, recordingSeconds: seconds})
-                    void finish(finished)
                     return
                 }
             }
@@ -417,10 +378,9 @@ export default function CaptureCamera(props: CaptureCameraProps) {
         frameId = requestAnimationFrame(loop)
         return () => {
             cancelAnimationFrame(frameId)
-            recording?.cancel()
             setLive(WAITING)
         }
-    }, [stream, step, analyzers, recorder, attempt])
+    }, [stream, step, analyzers, attempt])
 
     const guidance: Guidance =
         stream === null
