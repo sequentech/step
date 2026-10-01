@@ -41,7 +41,7 @@ sequenceDiagram
     K->>V: 303 redirect to the flow URL
     V->>B: document scan, liveness, ...
     B->>V: redirect to redirect_url?processId=...&token=...
-    V->>K: GET /realms/{realm}/scanovate/return
+    V->>K: GET /realms/{realm}/identity-verification/return
     K->>V: 303 redirect to the login actions URL, without token
     V->>K: GET /realms/{realm}/login-actions/...?processId=...
     K->>B: POST /auth/token
@@ -57,11 +57,16 @@ Some design decisions to be aware of:
   redirect URL is ignored. Keycloak stores the process id in the authentication
   session and exchanges it for a session token server to server.
 - **Return endpoint.** The `redirect_url` sent to B-Trust is
-  `/realms/{realm}/scanovate/return`, not the login actions URL. Keycloak's
+  `/realms/{realm}/identity-verification/return`, not the login actions URL. Keycloak's
   registration endpoint reads a `token` query parameter as an action token, so
   the `token` that B-Trust appends would break the registration flow. The
   endpoint forwards only Keycloak's own parameters and the process id to the
   login actions URL of the same realm, and only for known flows.
+- **No vendor names on the wire.** The voter's browser sees every request to
+  Keycloak, so the realm resource is served at `identity-verification` and the
+  capture token travels in the `X-Capture-Token` header: neither names the
+  provider behind them. Keep any new browser-facing path, header or parameter
+  just as generic.
 - **Fast results.** Results are fetched from `results_with_image_names`, which
   returns file paths instead of base64 media, as the specs recommend. Images and
   videos are never downloaded.
@@ -109,7 +114,7 @@ sequenceDiagram
     B-->>K: flow URL with the process id (the URL is not used)
     K->>V: scanovate-capture.ftl (document type, sides, video length, attempts)
     V->>V: guided capture: front, back, selfie, video
-    V->>K: PUT /realms/{realm}/scanovate/capture/{front,back,face,video} (X-Scanovate-Capture token)
+    V->>K: PUT /realms/{realm}/identity-verification/capture/{front,back,face,video} (X-Capture-Token header)
     V->>K: POST login actions URL (action=capture)
     K->>K: check the uploaded parts, formats and sizes
     alt invalid capture
@@ -175,9 +180,9 @@ Some design decisions to be aware of:
   files: on every form post to the login actions URL it reads the whole form as
   text, which fails on file parts, and text fields are limited to 128 KiB
   (`quarkus.http.limits.max-form-attribute-size`). So the page uploads each
-  photo, and the video, to `PUT /realms/{realm}/scanovate/capture/{part}` as a
+  photo, and the video, to `PUT /realms/{realm}/identity-verification/capture/{part}` as a
   plain request body, with the one-time capture token that Keycloak issues with
-  each rendering of the page in the `X-Scanovate-Capture` header. Keycloak keeps
+  each rendering of the page in the `X-Capture-Token` header. Keycloak keeps
   them in its single-use object store, for the authentication session only,
   and the page then posts `action=capture` to the login actions URL. The upload
   endpoint answers `401` for an unknown token, `413` for a file over 8 MiB and
@@ -190,7 +195,7 @@ Some design decisions to be aware of:
   `max-image-bytes` (2 MiB) and `max-video-bytes` (3 MiB).
 - **Reverse proxies.** Any reverse proxy in front of Keycloak must accept
   request bodies up to the largest of these limits on
-  `/realms/{realm}/scanovate/capture/`, e.g. with nginx
+  `/realms/{realm}/identity-verification/capture/`, e.g. with nginx
   `client_max_body_size 8m;` in a `location` for that path, since nginx's
   default is 1 MiB. Otherwise it rejects the upload with `413` before it
   reaches Keycloak.
@@ -226,14 +231,14 @@ sequenceDiagram
     K->>V: capture page (Liveness Plus API URL, token, case id = process id)
     V->>V: guided photos of the front and back of the ID
     V->>L: POST /create_session (token, case_id)
-    L->>K: GET /realms/master/scanovate/liveness/verify?secret=... (X-token, case-id)
+    L->>K: GET /realms/master/identity-verification/liveness/verify?secret=... (X-token, case-id)
     K-->>L: 200, or 401
-    L->>K: POST /realms/master/scanovate/liveness/callback?secret=... (start)
+    L->>K: POST /realms/master/identity-verification/liveness/callback?secret=... (start)
     V->>L: POST /check_liveness (face frames, until the scan is completed)
     V->>L: GET /client_session_data
     L->>K: POST .../liveness/callback?secret=... (result, with the frame)
     V->>V: guided photo of the voter holding the ID
-    V->>K: PUT /realms/{realm}/scanovate/capture/{front,back,holding}
+    V->>K: PUT /realms/{realm}/identity-verification/capture/{front,back,holding}
     V->>K: POST login actions URL (action=capture)
     K->>K: wait for the result, reject the attempt unless it passed
     K->>F: POST /facematch11/compare_images (front of the ID, liveness frame)
@@ -272,7 +277,7 @@ sequenceDiagram
   alone can't authenticate Liveness Plus. Its `token_verification_url` and
   `callback_url` carry a `secret` query parameter that matches
   `liveness-secret`, which the browser never sees. The public reverse proxy
-  also answers `404` for `/realms/*/scanovate/liveness/`: only Liveness Plus
+  also answers `404` for `/realms/*/identity-verification/liveness/`: only Liveness Plus
   calls it, on the internal network. The endpoints aren't tied to a realm, so the
   `master` realm URL serves every realm.
 - **Failed checks count as attempts** (`scanovateLivenessError`,
@@ -679,7 +684,7 @@ flow with only OCR and Document Liveness Plus.
   endpoint that Keycloak calls fails with `Company {companyId} callback url not
   defined`.
 - If B-Trust restricts redirect URLs, allow
-  `https://<keycloak host>/realms/<realm>/scanovate/return` for each realm.
+  `https://<keycloak host>/realms/<realm>/identity-verification/return` for each realm.
 - Test documents, if available (see
   [Testing without your own documents](#testing-without-your-own-documents)).
 

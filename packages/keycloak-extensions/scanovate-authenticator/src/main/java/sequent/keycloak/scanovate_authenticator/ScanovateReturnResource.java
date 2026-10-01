@@ -40,7 +40,7 @@ public class ScanovateReturnResource implements RealmResourceProvider {
   static final String LIVENESS_CALLBACK_PATH = "liveness/callback";
   static final String SECRET_QUERY_PARAM = "secret";
   static final String CAPTURE_PATH = "capture";
-  static final String CAPTURE_TOKEN_HEADER = "X-Scanovate-Capture";
+  static final String CAPTURE_TOKEN_HEADER = "X-Capture-Token";
 
   private static final ObjectMapper MAPPER = new ObjectMapper();
 

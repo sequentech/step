@@ -37,7 +37,10 @@ const kcContextExtensionPerPage: KcContextExtensionPerPage = {
             videoSeconds: 5,
             attemptsLeft: 3,
             maxAttempts: 3,
-            upload: {url: "/realms/storybook/scanovate/capture", token: "capture-token"},
+            upload: {
+                url: "/realms/storybook/identity-verification/capture",
+                token: "capture-token",
+            },
         },
     },
     "scanovate-error.ftl": {

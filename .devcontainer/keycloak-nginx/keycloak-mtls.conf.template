@@ -80,10 +80,11 @@ server {
         return 404;
     }
 
-    # The capture page uploads each photo, or the video, to the scanovate
-    # realm resource before submitting the capture: allow bodies bigger than
-    # nginx's 1 MiB default, up to the authenticator's largest limit.
-    location ~ ^/realms/[^/]+/scanovate/capture/ {
+    # The capture page uploads each photo, or the video, to the identity
+    # verification realm resource before submitting the capture: allow bodies
+    # bigger than nginx's 1 MiB default, up to the authenticator's largest
+    # limit.
+    location ~ ^/realms/[^/]+/identity-verification/capture/ {
         set $keycloak_upstream http://keycloak:${KC_HTTP_PORT};
         proxy_pass $keycloak_upstream;
         client_max_body_size 8m;
@@ -97,7 +98,7 @@ server {
     }
 
     # Called by Liveness Plus on the internal network only, never by browsers.
-    location ~ ^/realms/[^/]+/scanovate/liveness/ {
+    location ~ ^/realms/[^/]+/identity-verification/liveness/ {
         return 404;
     }
 

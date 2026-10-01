@@ -84,7 +84,7 @@ sequenceDiagram
     V->>L: GET client_session_data
     L->>K: POST callback (result, with the frame)
     V->>V: photo of the voter holding the ID
-    V->>K: PUT scanovate/capture (front, back, holding)
+    V->>K: PUT identity-verification/capture (front, back, holding)
     V->>K: POST capture
     K->>K: wait for the result, reject unless it passed
     K->>F: compare_images (ID front, liveness frame)
@@ -479,8 +479,8 @@ default language of the image's texts. Its `onprem` section:
 
 | Key | Our value | Description |
 | --- | --- | --- |
-| `callback_url` | Keycloak's `.../scanovate/liveness/callback?secret=...` | Where the start and the result are posted. |
-| `token_verification_url` | Keycloak's `.../scanovate/liveness/verify?secret=...` | Where the session token is verified. **Empty accepts any token**, never do it. |
+| `callback_url` | Keycloak's `.../identity-verification/liveness/callback?secret=...` | Where the start and the result are posted. |
+| `token_verification_url` | Keycloak's `.../identity-verification/liveness/verify?secret=...` | Where the session token is verified. **Empty accepts any token**, never do it. |
 | `max_active_sessions` | `0` | Maximum concurrent sessions (`0`: no limit). |
 | `send_results_to_server` | `true` | Post the result to `callback_url`. |
 | `send_debug_results_to_server` | `false` | Also post the full internal session. |
@@ -562,8 +562,8 @@ Keycloak's endpoints, under any realm (the dev configuration uses `master`):
 
 | Endpoint | Answers |
 | --- | --- |
-| `GET /realms/{realm}/scanovate/liveness/verify?secret=...` | `200` if the `X-token` is known, matches the `case-id` and hasn't used its 3 sessions, `401` otherwise. |
-| `POST /realms/{realm}/scanovate/liveness/callback?secret=...` | `200` once the `start` or `result` message is recorded (other message types are ignored), `401` for an unknown token, a wrong secret or another case, `400` for a malformed body. The token is read from `x-token`, or from `onprem_params.token`. |
+| `GET /realms/{realm}/identity-verification/liveness/verify?secret=...` | `200` if the `X-token` is known, matches the `case-id` and hasn't used its 3 sessions, `401` otherwise. |
+| `POST /realms/{realm}/identity-verification/liveness/callback?secret=...` | `200` once the `start` or `result` message is recorded (other message types are ignored), `401` for an unknown token, a wrong secret or another case, `400` for a malformed body. The token is read from `x-token`, or from `onprem_params.token`. |
 
 The `secret` is the authenticator's `liveness-secret`, set in both URLs of
 `service_config.json`. Keycloak accepts the liveness check only if the result
@@ -635,7 +635,7 @@ We serve the Liveness Plus API on the same origin as Keycloak, under
 | --- | --- |
 | Liveness Plus API | `https://<keycloak host>/biometric/liveness/{create_session,check_liveness,client_session_data,client_error}` |
 | Authenticator `liveness-url` | `https://<keycloak host>/biometric` |
-| Keycloak endpoints for Liveness Plus | `http://<keycloak internal host>/realms/master/scanovate/liveness/{verify,callback}`, internal only |
+| Keycloak endpoints for Liveness Plus | `http://<keycloak internal host>/realms/master/identity-verification/liveness/{verify,callback}`, internal only |
 | Authenticator `face-match-url` | `http://<face match internal host>:3000`, internal only |
 
 `/biometric/` is vendor neutral, and none of Keycloak's own top-level paths
@@ -649,9 +649,9 @@ single origin.
   page, with the path unchanged: stripping the prefix makes the service answer
   `404`. The rest of the service (its UI, `/docs`, `/openapi.json`, `/metrics`),
   PAD and Face Match stay internal.
-- The same proxy answers `404` for `/realms/*/scanovate/liveness/`: only
+- The same proxy answers `404` for `/realms/*/identity-verification/liveness/`: only
   Liveness Plus calls those endpoints, on the internal network.
-- It accepts bodies of up to 8 MiB on `/realms/*/scanovate/capture/`, where the
+- It accepts bodies of up to 8 MiB on `/realms/*/identity-verification/capture/`, where the
   page uploads each photo (nginx's default is 1 MiB).
 
 The dev container does exactly this in `keycloak-nginx`
@@ -669,13 +669,13 @@ location /biometric/ {
     return 404;
 }
 
-location ~ ^/realms/[^/]+/scanovate/capture/ {
+location ~ ^/realms/[^/]+/identity-verification/capture/ {
     set $keycloak_upstream http://keycloak:${KC_HTTP_PORT};
     proxy_pass $keycloak_upstream;
     client_max_body_size 8m;
 }
 
-location ~ ^/realms/[^/]+/scanovate/liveness/ {
+location ~ ^/realms/[^/]+/identity-verification/liveness/ {
     return 404;
 }
 ```
@@ -690,7 +690,7 @@ location ~ ^/realms/[^/]+/scanovate/liveness/ {
 - Set `token_verification_url` and `callback_url` with a random `secret`, the
   same as the authenticator's `liveness-secret`, and test both before going
   live. Liveness Plus reaches Keycloak on the internal network.
-- Block `/realms/*/scanovate/liveness/` on the public proxy.
+- Block `/realms/*/identity-verification/liveness/` on the public proxy.
 - Use a secure random `JWT_SECRET_KEY`, and keep it in the secrets store.
 - Pull the images from our ECR mirror (see
   [Access to the images](#access-to-the-images)).

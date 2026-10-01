@@ -28,6 +28,13 @@ class ScanovateReturnResourceTest {
       new ScanovateReturnResource(
           mock(KeycloakSession.class), ignored -> sessions, ignored -> uploads);
 
+  /** The voter's browser sees these requests: they must not name the identity provider. */
+  @Test
+  void exposesVendorNeutralNames() {
+    assertEquals("identity-verification", new ScanovateReturnResourceFactory().getId());
+    assertEquals("X-Capture-Token", ScanovateReturnResource.CAPTURE_TOKEN_HEADER);
+  }
+
   @Test
   void verifiesValidTokens() {
     String token = sessions.create("proc-1", SECRET);

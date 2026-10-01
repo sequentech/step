@@ -99,7 +99,7 @@ isn't available. With `face-capture=liveness`:
 ## Production
 
 - [ ] Add the `/biometric/liveness/` API routes and the
-      `/realms/*/scanovate/liveness/` block to the production reverse proxy of
+      `/realms/*/identity-verification/liveness/` block to the production reverse proxy of
       Keycloak.
 - [ ] Use a secure random `JWT_SECRET_KEY` and `liveness-secret` from the
       secrets store.

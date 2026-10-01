@@ -23,7 +23,7 @@ class ReturnUrlTest {
 
     assertEquals(
         URI.create(
-            "https://kc/realms/r/scanovate/return?flow=registration&session_code=c&execution=e&client_id=voting-portal&tab_id=t&client_data=d%3D"),
+            "https://kc/realms/r/identity-verification/return?flow=registration&session_code=c&execution=e&client_id=voting-portal&tab_id=t&client_data=d%3D"),
         ReturnUrl.fromActionUrl(actionUrl));
   }
 

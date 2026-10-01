@@ -8,7 +8,7 @@ import type {ScanovateUpload} from "../KcContext"
 import type {CapturePart, CaptureUpload} from "./form"
 import {CaptureProblem} from "./types"
 
-export const UPLOAD_TOKEN_HEADER = "X-Scanovate-Capture"
+export const UPLOAD_TOKEN_HEADER = "X-Capture-Token"
 
 export enum UploadRejection {
     // Keycloak no longer knows the token: only a new page gets a new one.

@@ -38,8 +38,8 @@
     "mask_threshold": 0.5
   },
   "onprem": {
-    "callback_url": "http://keycloak:8090/realms/master/scanovate/liveness/callback?secret=liveness-dev-callback-secret",
-    "token_verification_url": "http://keycloak:8090/realms/master/scanovate/liveness/verify?secret=liveness-dev-callback-secret",
+    "callback_url": "http://keycloak:8090/realms/master/identity-verification/liveness/callback?secret=liveness-dev-callback-secret",
+    "token_verification_url": "http://keycloak:8090/realms/master/identity-verification/liveness/verify?secret=liveness-dev-callback-secret",
     "max_active_sessions": 0,
     "send_results_to_server": true,
     "send_debug_results_to_server": false,

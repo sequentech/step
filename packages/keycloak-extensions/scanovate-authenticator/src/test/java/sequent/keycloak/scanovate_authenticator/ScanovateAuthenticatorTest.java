@@ -204,7 +204,7 @@ class ScanovateAuthenticatorTest {
     verify(client).createSessionLink(eq("jwt"), request.capture());
     assertEquals(3659, request.getValue().flowId());
     assertEquals(
-        "https://kc/realms/r/scanovate/return?flow=authenticate&session_code=c&execution=e",
+        "https://kc/realms/r/identity-verification/return?flow=authenticate&session_code=c&execution=e",
         request.getValue().redirectUrl());
     assertEquals("123456789", request.getValue().idNumber());
     assertEquals(Map.of("country", "Spain"), request.getValue().params());
@@ -494,7 +494,7 @@ class ScanovateAuthenticatorTest {
                 ScanovateAuthenticator.FTL_UPLOAD,
                 Map.of(
                     ScanovateAuthenticator.FTL_UPLOAD_URL,
-                    "/realms/r/scanovate/capture",
+                    "/realms/r/identity-verification/capture",
                     ScanovateAuthenticator.FTL_UPLOAD_TOKEN,
                     authNotes.get(ScanovateAuthenticator.CAPTURE_TOKEN_NOTE)),
                 ScanovateAuthenticator.FTL_DOCUMENT_TYPE,

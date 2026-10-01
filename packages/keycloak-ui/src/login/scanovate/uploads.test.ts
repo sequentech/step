@@ -11,7 +11,7 @@ import {
     type CaptureUploader,
 } from "./uploads"
 
-const SETTINGS = {url: "/realms/r/scanovate/capture/", token: "capture-token"}
+const SETTINGS = {url: "/realms/r/identity-verification/capture/", token: "capture-token"}
 const jpeg = new Blob([new Uint8Array([0xff, 0xd8, 0xff])], {type: "image/jpeg"})
 const webm = new Blob([new Uint8Array([0x1a, 0x45, 0xdf, 0xa3])], {
     type: "video/webm;codecs=vp8",
@@ -41,16 +41,16 @@ describe("fetchUploads", () => {
         await uploader.upload(CapturePart.Video, webm)
 
         const [url, init] = fetchMock.mock.calls[0]
-        expect(url).toBe("/realms/r/scanovate/capture/front")
+        expect(url).toBe("/realms/r/identity-verification/capture/front")
         expect(init.method).toBe("PUT")
         expect(init.headers).toEqual({
-            "X-Scanovate-Capture": "capture-token",
+            "X-Capture-Token": "capture-token",
             "Content-Type": "image/jpeg",
         })
         expect(init.body).toBe(jpeg)
         expect(init.credentials).toBe("omit")
         const [videoUrl, videoInit] = fetchMock.mock.calls[1]
-        expect(videoUrl).toBe("/realms/r/scanovate/capture/video")
+        expect(videoUrl).toBe("/realms/r/identity-verification/capture/video")
         expect(videoInit.headers["Content-Type"]).toBe("video/webm")
     })
 

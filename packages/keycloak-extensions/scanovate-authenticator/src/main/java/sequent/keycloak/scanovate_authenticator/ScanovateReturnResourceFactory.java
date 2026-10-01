@@ -12,7 +12,7 @@ import org.keycloak.services.resource.RealmResourceProviderFactory;
 
 @AutoService(RealmResourceProviderFactory.class)
 public class ScanovateReturnResourceFactory implements RealmResourceProviderFactory {
-  static final String PROVIDER_ID = "scanovate";
+  static final String PROVIDER_ID = "identity-verification";
 
   @Override
   public RealmResourceProvider create(KeycloakSession session) {
