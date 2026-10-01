@@ -17,6 +17,7 @@ members = [
     "velvet",
     "windmill",
     "wrap-map-err",
+    "id-capture",
     "step-cli",
     "e2e/src/mock_server",
     "e2e",

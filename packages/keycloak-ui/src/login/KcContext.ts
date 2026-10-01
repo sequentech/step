@@ -33,6 +33,42 @@ export type KcContextExtension = {
     }
 }
 
+export enum ScanovateSide {
+    Front = "FRONT",
+    Back = "BACK",
+}
+
+// The Liveness Plus API that checks the voter's face frames, with Keycloak's
+// one-time token for it. Only present with the liveness face capture.
+export type ScanovateLiveness = {
+    url: string
+    token: string
+    caseId: string
+}
+
+// Where the page uploads its captures, with Keycloak's one-time token for it:
+// Keycloak can't take files on its login actions URL.
+export type ScanovateUpload = {
+    url: string
+    token: string
+}
+
+export type ScanovateCaptureSettings = {
+    documentType: string
+    sides: ScanovateSide[]
+    videoSeconds: number
+    attemptsLeft: number
+    maxAttempts: number
+    upload: ScanovateUpload
+    liveness?: ScanovateLiveness
+}
+
+export type ScanovateStoredAttribute = {
+    key: string
+    value: string
+    type: string
+}
+
 // context.ftl serializes the authenticator's Java enum as its wire value.
 export type KcContextExtensionPerPage = {
     "message-otp.login.ftl": {
@@ -43,6 +79,19 @@ export type KcContextExtensionPerPage = {
         resendTimer?: string
         ttl?: string
         codeLength?: string
+    }
+    "scanovate-capture.ftl": {
+        scanovate: ScanovateCaptureSettings
+    }
+    "scanovate-error.ftl": {
+        error: string
+        canRetry: boolean
+        code_id: string
+        attemptsLeft?: number
+    }
+    "scanovate-confirmation.ftl": {
+        storedAttributes: ScanovateStoredAttribute[]
+        documentType?: string
     }
 }
 

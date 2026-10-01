@@ -12,6 +12,9 @@ import Template from "./Template"
 const Login = lazy(() => import("./pages/Login"))
 const LoginUsername = lazy(() => import("./pages/LoginUsername"))
 const MessageOtpLogin = lazy(() => import("./pages/MessageOtpLogin"))
+const ScanovateCapture = lazy(() => import("./pages/ScanovateCapture"))
+const ScanovateError = lazy(() => import("./pages/ScanovateError"))
+const ScanovateConfirmation = lazy(() => import("./pages/ScanovateConfirmation"))
 const UserProfileFormFields = lazy(() => import("keycloakify/login/UserProfileFormFields"))
 
 const classes = {} satisfies {[key in ClassKey]?: string}
@@ -47,6 +50,36 @@ export default function KcPage(props: {kcContext: KcContext}) {
                     case "message-otp.login.ftl":
                         return (
                             <MessageOtpLogin
+                                kcContext={kcContext}
+                                i18n={i18n}
+                                Template={Template}
+                                doUseDefaultCss={false}
+                                classes={classes}
+                            />
+                        )
+                    case "scanovate-capture.ftl":
+                        return (
+                            <ScanovateCapture
+                                kcContext={kcContext}
+                                i18n={i18n}
+                                Template={Template}
+                                doUseDefaultCss={false}
+                                classes={classes}
+                            />
+                        )
+                    case "scanovate-error.ftl":
+                        return (
+                            <ScanovateError
+                                kcContext={kcContext}
+                                i18n={i18n}
+                                Template={Template}
+                                doUseDefaultCss={false}
+                                classes={classes}
+                            />
+                        )
+                    case "scanovate-confirmation.ftl":
+                        return (
+                            <ScanovateConfirmation
                                 kcContext={kcContext}
                                 i18n={i18n}
                                 Template={Template}

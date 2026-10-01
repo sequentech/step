@@ -49,7 +49,6 @@ path = [
 	"packages/windmill/src/graphql/**",
 	"packages/immudb-rs/proto/immudb/**",
 	"packages/keycloak-extensions/message-otp-authenticator/src/main/resources/theme-resources/templates/**",
-	"packages/keycloak-extensions/inetum-authenticator/src/main/resources/theme-resources/resources/inetum-sdk-4.0.3/**",
 	"packages/keycloak-extensions/conditional-authenticators/src/main/resources/META-INF/services/org.keycloak.protocol.ProtocolMapper",
 	"docs/assets/**",
 	"docs/docusaurus/**",
@@ -61,6 +60,12 @@ path = [
 ]
 precedence = "aggregate"
 SPDX-FileCopyrightText = "2025 Sequent Tech <legal@sequentech.io>"
+SPDX-License-Identifier = "AGPL-3.0-only"
+
+[[annotations]]
+path = ".devcontainer/scanovate/**"
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2026 Sequent Tech <legal@sequentech.io>"
 SPDX-License-Identifier = "AGPL-3.0-only"
 
 [[annotations]]
@@ -140,3 +145,23 @@ path = ["packages/sequent-core/src/monitoring/fixtures/boards/**"]
 precedence = "aggregate"
 SPDX-FileCopyrightText = "2026 Sequent Tech Inc <legal@sequentech.io>"
 SPDX-License-Identifier = "AGPL-3.0-only"
+
+[[annotations]]
+path = [
+	"packages/keycloak-ui/src/login/scanovate/capture-wasm/index.js",
+	"packages/keycloak-ui/src/login/scanovate/capture-wasm/index.d.ts",
+	"packages/keycloak-ui/src/login/scanovate/capture-wasm/index_bg.wasm",
+	"packages/keycloak-ui/src/login/scanovate/capture-wasm/index_bg.wasm.d.ts"
+]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2026 Sequent Tech Inc <legal@sequentech.io>"
+SPDX-License-Identifier = "AGPL-3.0-only"
+
+[[annotations]]
+path = [
+	"packages/id-capture/models/face_detection_yunet_2023mar.onnx",
+	"packages/keycloak-ui/src/login/scanovate/capture-wasm/face_detection_yunet.onnx"
+]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2020 Shiqi Yu <shiqi.yu@gmail.com>"
+SPDX-License-Identifier = "MIT"

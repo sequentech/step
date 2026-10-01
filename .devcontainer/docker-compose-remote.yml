@@ -32,6 +32,7 @@ services:
       dockerfile: Dockerfile.keycloak
       additional_contexts:
         beyond: ../beyond
+        scripts: ../scripts
     restart: always
     environment:
       AMQP_ADDR: ${AMQP_ADDR}
@@ -359,6 +360,13 @@ services:
       ROCKET_ADDRESS: ${ROCKET_ADDRESS}
       ROCKET_PORT: ${MOCK_SERVER_PORT}
       MOCK_SERVER_PORT: ${MOCK_SERVER_PORT}
+      MOCK_SERVER_PUBLIC_URL: ${MOCK_SERVER_PUBLIC_URL}
+    networks:
+      default:
+        # Java HTTP clients reject host names with underscores, e.g. Keycloak calling
+        # the mocked B-Trust API
+        aliases:
+          - mock-server
 
   janitor:
     profiles: ["full"]

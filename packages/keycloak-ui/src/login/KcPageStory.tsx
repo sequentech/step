@@ -9,6 +9,7 @@ import {
     LoginHintUsernamePolicy,
     LoginValidationPolicy,
     MessageCourier,
+    ScanovateSide,
     type KcContext,
     type KcContextExtension,
     type KcContextExtensionPerPage,
@@ -28,6 +29,34 @@ const kcContextExtensionPerPage: KcContextExtensionPerPage = {
     "message-otp.login.ftl": {
         ...KEYCLOAK_MESSAGE_OTP,
         courier: MessageCourier.Email,
+    },
+    "scanovate-capture.ftl": {
+        scanovate: {
+            documentType: "driversLicense",
+            sides: [ScanovateSide.Front, ScanovateSide.Back],
+            videoSeconds: 5,
+            attemptsLeft: 3,
+            maxAttempts: 3,
+            upload: {
+                url: "/realms/storybook/identity-verification/capture",
+                token: "capture-token",
+            },
+        },
+    },
+    "scanovate-error.ftl": {
+        error: "scanovateDocumentAuthenticationError",
+        canRetry: true,
+        code_id: "Q5KWeXSFuWKwRTRuA3R1FkF7",
+        attemptsLeft: 2,
+    },
+    "scanovate-confirmation.ftl": {
+        documentType: "driversLicense",
+        storedAttributes: [
+            {key: "firstName", value: "JUAN SANTOS", type: "text"},
+            {key: "lastName", value: "DELA CRUZ", type: "text"},
+            {key: "dateOfBirth", value: "1990-01-01", type: "date"},
+            {key: "sequent.read-only.id-card-number", value: "N01-23-456789", type: "text"},
+        ],
     },
 }
 

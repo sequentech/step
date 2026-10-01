@@ -24,7 +24,14 @@ PACKAGE = Path("packages/keycloak-ui")
 THEMES = Path(".cache/keycloak-ui/themes")
 SOURCE = Path("packages/keycloak-extensions/sequent-theme/src/main/resources/theme")
 OVERLAY = "docker-compose-keycloak-ui.yml"
-REACT_PAGES = ("login.ftl", "login-username.ftl", "message-otp.login.ftl")
+REACT_PAGES = (
+    "login.ftl",
+    "login-username.ftl",
+    "message-otp.login.ftl",
+    "scanovate-capture.ftl",
+    "scanovate-confirmation.ftl",
+    "scanovate-error.ftl",
+)
 HOT_CLIENT = '<script type="module" src="/@vite/client"></script>'
 HOT_SCRIPTS = (
     """<script type="module">

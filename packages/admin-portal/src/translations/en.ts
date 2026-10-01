@@ -4,10 +4,10 @@
 
 const englishTranslation = {
     translations: {
-        philippinePassport: "Philippine Passport",
-        seamanBook: "Seaman's Book",
+        philippinePassport: "Passport",
+        seamanBook: "Seafarer's Book",
         philSysID: "PhilSys ID",
-        iBP: "Integrated Bar of the Philippines (IBP)",
+        iBP: "Integrated Bar of the Philippines ID",
         driversLicense: "Driver's License",
         loading: "Loading...",
         loadingDataProvider: "Loading data provider...",

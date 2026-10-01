@@ -10,6 +10,20 @@ use rusqlite::{params, Connection};
 
 use crate::types::user::User;
 
+const CREATE_VOTERS_TABLE: &str = r#"
+    CREATE TABLE IF NOT EXISTS voters (
+        id TEXT PRIMARY KEY,
+        first_name TEXT,
+        last_name TEXT,
+        middle_name TEXT,
+        date_of_birth TEXT,
+        embassy TEXT,
+        country TEXT,
+        id_card_number TEXT,
+        id_card_type TEXT
+    );
+"#;
+
 pub fn load_users(csv_path: &str) -> Result<usize, anyhow::Error> {
     let mut rdr = ReaderBuilder::new()
         .has_headers(true)
@@ -20,24 +34,10 @@ pub fn load_users(csv_path: &str) -> Result<usize, anyhow::Error> {
         .context("Failed to open or create 'voters.db'")
         .context("Error creating sqlite connection")?;
 
-    conn.execute_batch(
-        r#"
-        CREATE TABLE IF NOT EXISTS voters (
-            id TEXT PRIMARY KEY,
-            first_name TEXT,
-            last_name TEXT,
-            middle_name TEXT,
-            date_of_birth TEXT,
-            embassy TEXT,
-            country TEXT,
-            id_card_number TEXT,
-            id_card_type TEXT
-        );
-
-        DELETE FROM voters;
-        "#,
-    )
-    .context("Failed to create 'voters' table")?;
+    conn.execute_batch(CREATE_VOTERS_TABLE)
+        .context("Failed to create 'voters' table")?;
+    conn.execute_batch("DELETE FROM voters;")
+        .context("Failed to empty 'voters' table")?;
 
     let mut inserted_count = 0_usize;
 
@@ -128,7 +128,12 @@ pub fn get_users_from_db() -> anyhow::Result<Vec<User>> {
 }
 
 pub fn random_user_by_country(country: &str) -> Result<Option<User>> {
-    let conn = Connection::open("voters.db")?;
+    random_user_by_country_in(&Connection::open("voters.db")?, country)
+}
+
+fn random_user_by_country_in(conn: &Connection, country: &str) -> Result<Option<User>> {
+    // Voters are only loaded through /upload-csv, before that there is no table
+    conn.execute_batch(CREATE_VOTERS_TABLE)?;
     let mut stmt = conn.prepare(
         " SELECT 
            id, first_name, last_name,
@@ -158,5 +163,18 @@ pub fn random_user_by_country(country: &str) -> Result<Option<User>> {
         let mut rng = rand::thread_rng();
         let idx = rng.gen_range(0..users.len());
         Ok(Some(users[idx].clone()))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn random_user_by_country_without_loaded_voters_is_none() {
+        let conn = Connection::open_in_memory().unwrap();
+        assert!(random_user_by_country_in(&conn, "Japan/Tokyo PE")
+            .unwrap()
+            .is_none());
     }
 }

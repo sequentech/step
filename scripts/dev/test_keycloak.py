@@ -60,6 +60,9 @@ class KeycloakThemeTests(unittest.TestCase):
                 "login.ftl",
                 "login-username.ftl",
                 "message-otp.login.ftl",
+                "scanovate-capture.ftl",
+                "scanovate-confirmation.ftl",
+                "scanovate-error.ftl",
                 "register.ftl",
             ):
                 jar.writestr("theme/sequent-ui-admin/login/" + page, HTML)
@@ -157,6 +160,21 @@ class KeycloakThemeTests(unittest.TestCase):
         self.assertIn('src="/src/main.tsx"', username)
         self.assertIn("window.kcContext.sequent", username)
         self.assertNotIn("sequent-login.ftl", username)
+
+    def test_identity_verification_pages_render_in_react(self):
+        # The Scanovate capture only exists in React: its FreeMarker fallback
+        # just says that the step needs this theme.
+        prepare(self.root, Runtime.BUILT, skip_build=True)
+        login = self.root / THEMES / "sequent-ui-admin/login"
+        for page in (
+            "scanovate-capture.ftl",
+            "scanovate-confirmation.ftl",
+            "scanovate-error.ftl",
+        ):
+            text = (login / page).read_text()
+            self.assertIn("/assets/app.js", text, page)
+            self.assertIn("window.kcContext.sequent", text, page)
+            self.assertNotIn("sequent-login.ftl", text, page)
 
     def test_built_pages_keep_compiled_entry_and_remove_dev_client(self):
         prepare(self.root, Runtime.HOT, skip_build=True)
