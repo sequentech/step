@@ -17,7 +17,12 @@ export {
 export {useForwardedRef} from "./utils/ref"
 export {sleep} from "./services/sleep"
 export * from "./services/WasmContext"
-export {stringToHtml} from "./services/stringToHtml"
+export {
+    stringToHtml,
+    stringToText,
+    escapeTranslationValues,
+    translateHtml,
+} from "./services/stringToHtml"
 export {isAcclaimedContest, areAllContestsAcclaimed} from "./services/acclamation"
 export * from "./types/LanguageConf"
 export * from "./types/TenantSettings"

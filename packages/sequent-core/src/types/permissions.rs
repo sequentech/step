@@ -17,6 +17,8 @@ pub enum Permissions {
     TENANT_READ,
     #[strum(serialize = "tenant-write")]
     TENANT_WRITE,
+    #[strum(serialize = "tenant-delete")]
+    TENANT_DELETE,
     #[strum(serialize = "election-event-create")]
     ELECTION_EVENT_CREATE,
     #[strum(serialize = "election-event-read")]

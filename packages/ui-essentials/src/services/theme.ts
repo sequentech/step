@@ -138,9 +138,17 @@ let breakpoints: BreakpointsOptions = {
     },
 }
 
+// A two-tone ring stays visible on light and dark tenant backgrounds.
+const keyboardFocusStyle = {
+    outline: `2px solid ${palette.black}`,
+    outlineOffset: "2px",
+    boxShadow: `0 0 0 2px ${palette.white}`,
+}
+
 let MuiButton: Components["MuiButton"] = {
     styleOverrides: {
         root: {
+            "&&.Mui-focusVisible": keyboardFocusStyle,
             "padding": "6px 12px",
             "display": "flex",
             "flexDirection": "row",
@@ -457,12 +465,30 @@ let MuiLink: Components["MuiLink"] = {
 }
 
 let MuiButtonBase: Components["MuiButtonBase"] = {
+    styleOverrides: {
+        root: {
+            "&.Mui-focusVisible": {
+                ...keyboardFocusStyle,
+                // Keep the ring inside tabs and menus with clipped overflow.
+                outlineOffset: "-4px",
+                boxShadow: `inset 0 0 0 2px ${palette.white}`,
+            },
+        },
+    },
     defaultProps: {
         LinkComponent: LinkBehavior,
     },
 }
 
 let MuiMenu: Components["MuiMenu"] = {
+    styleOverrides: {
+        root: {
+            // Menus dismiss on Tab; their empty modal focus guards are redundant.
+            '& > [data-testid="sentinelStart"], & > [data-testid="sentinelEnd"]': {
+                display: "none",
+            },
+        },
+    },
     defaultProps: {
         PaperProps: {
             style: {
@@ -600,13 +626,6 @@ let MuiDialog: Components["MuiDialog"] = {
             }
         },
     },
-}
-
-// A two-tone ring stays visible on light and dark tenant backgrounds.
-const keyboardFocusStyle = {
-    outline: `2px solid ${palette.black}`,
-    outlineOffset: "2px",
-    boxShadow: `0 0 0 2px ${palette.white}`,
 }
 
 let MuiIconButton: Components["MuiIconButton"] = {

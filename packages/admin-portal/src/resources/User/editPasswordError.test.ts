@@ -6,7 +6,6 @@ import {
     getPasswordPolicyMessage,
     getPasswordPolicyViolation,
     getVoterInformationLetterPasswordPolicyError,
-    hasGraphQLActionErrorCode,
     isPasswordPolicyNotConfiguredError,
     isPasswordPolicyViolationError,
     PASSWORD_POLICY_NOT_CONFIGURED_ERROR_CODE,
@@ -174,23 +173,6 @@ describe("isPasswordPolicyNotConfiguredError", () => {
                 ],
             })
         ).toBe(false)
-    })
-})
-
-describe("hasGraphQLActionErrorCode", () => {
-    it("recognizes an error code in a GraphQL error message", () => {
-        expect(
-            hasGraphQLActionErrorCode(
-                {
-                    graphQLErrors: [
-                        {
-                            message: `Request failed: ${PASSWORD_POLICY_NOT_CONFIGURED_ERROR_CODE}`,
-                        },
-                    ],
-                },
-                PASSWORD_POLICY_NOT_CONFIGURED_ERROR_CODE
-            )
-        ).toBe(true)
     })
 })
 

@@ -163,15 +163,26 @@ const StartScreen: React.FC = () => {
                     {stringToHtml(titleDescription)}
                 </Typography>
             ) : null}
-            <Typography className="instructions-title" variant="h5" component="h2">
+            <Typography
+                id="instructions-title"
+                className="instructions-title"
+                variant="h5"
+                component="h2"
+            >
                 {t("startScreen.instructionsTitle")}
             </Typography>
-            <Typography className="instructions-description" variant="body2">
-                {t("startScreen.instructionsDescription")}
+            <Typography className="instructions-description" variant="body2" component="div">
+                {stringToHtml(t("startScreen.instructionsDescription"))}
             </Typography>
             <Box
                 className="instructions-steps"
+                component="ol"
+                role="list"
+                aria-labelledby="instructions-title"
                 sx={{
+                    margin: 0,
+                    padding: 0,
+                    listStyle: "none",
                     display: "flex",
                     flexDirection: {xs: "column", md: "row"},
                     gap: {sm: 0, md: "15px"},
@@ -179,6 +190,7 @@ const StartScreen: React.FC = () => {
             >
                 <Box
                     className="instructions-step instructions-select-step"
+                    component="li"
                     sx={{width: {xs: "100%", md: "33.33333333%"}}}
                 >
                     <Typography
@@ -189,12 +201,17 @@ const StartScreen: React.FC = () => {
                     >
                         {t("startScreen.step1Title")}
                     </Typography>
-                    <Typography className="instructions-step-description" variant="body2">
-                        {t("startScreen.step1Description")}
+                    <Typography
+                        className="instructions-step-description"
+                        variant="body2"
+                        component="div"
+                    >
+                        {stringToHtml(t("startScreen.step1Description"))}
                     </Typography>
                 </Box>
                 <Box
                     className="instructions-step instructions-review-step"
+                    component="li"
                     sx={{width: {xs: "100%", md: "33.33333333%"}}}
                 >
                     <Typography
@@ -205,12 +222,17 @@ const StartScreen: React.FC = () => {
                     >
                         {t("startScreen.step2Title")}
                     </Typography>
-                    <Typography className="instructions-step-description" variant="body2">
-                        {t("startScreen.step2Description")}
+                    <Typography
+                        className="instructions-step-description"
+                        variant="body2"
+                        component="div"
+                    >
+                        {stringToHtml(t("startScreen.step2Description"))}
                     </Typography>
                 </Box>
                 <Box
                     className="instructions-step instructions-cast-step"
+                    component="li"
                     sx={{width: {xs: "100%", md: "33.33333333%"}}}
                 >
                     <Typography
@@ -221,8 +243,12 @@ const StartScreen: React.FC = () => {
                     >
                         {t("startScreen.step3Title")}
                     </Typography>
-                    <Typography className="instructions-step-description" variant="body2">
-                        {t("startScreen.step3Description")}
+                    <Typography
+                        className="instructions-step-description"
+                        variant="body2"
+                        component="div"
+                    >
+                        {stringToHtml(t("startScreen.step3Description"))}
                     </Typography>
                 </Box>
             </Box>

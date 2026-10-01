@@ -181,7 +181,7 @@ services:
   minio:
     profiles: ["full", "base"]
     container_name: minio
-    image: minio/minio
+    image: docker.io/pgsty/silo:RELEASE.2026-09-16T00-00-00Z@sha256:635197cb9f36d01bee221d34d1c7d7960f6a95c48b0b6c01d99cd13bdae51a46
     volumes:
       - minio_storage:/data
     environment:
@@ -418,6 +418,7 @@ services:
       KEYCLOAK_DB__MANAGER__RECYCLING_METHOD: ${KEYCLOAK_DB__MANAGER__RECYCLING_METHOD}
       AMQP_ADDR: ${AMQP_ADDR}
       KEYCLOAK_URL: ${KEYCLOAK_URL}
+      KEYCLOAK_PASSWORD_POLICY_CACHE_TTL_SECS: ${KEYCLOAK_PASSWORD_POLICY_CACHE_TTL_SECS:-30}
       KEYCLOAK_ADMIN_CLIENT_ID: ${KEYCLOAK_ADMIN_CLIENT_ID}
       KEYCLOAK_ADMIN_CLIENT_SECRET: ${KEYCLOAK_ADMIN_CLIENT_SECRET}
       KEYCLOAK_CLIENT_ID: ${KEYCLOAK_CLIENT_ID}
@@ -510,6 +511,12 @@ services:
     profiles: ["full", "base"]
     image: rabbitmq:3.12.11-management
     container_name: rabbitmq
+    healthcheck:
+      test: ["CMD-SHELL", "rabbitmq-diagnostics -q check_running && rabbitmq-diagnostics -q check_port_connectivity"]
+      interval: 5s
+      timeout: 10s
+      retries: 12
+      start_period: 20s
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
@@ -630,7 +637,7 @@ services:
       - ..:/workspaces/step:z
     depends_on:
       rabbitmq:
-        condition: service_started
+        condition: service_healthy
       configure-minio:
         condition: service_completed_successfully
     environment:
@@ -641,6 +648,7 @@ services:
       HASURA_ENDPOINT: ${HASURA_ENDPOINT}
       AMQP_ADDR: ${AMQP_ADDR}
       KEYCLOAK_URL: ${KEYCLOAK_URL}
+      KEYCLOAK_PASSWORD_POLICY_CACHE_TTL_SECS: ${KEYCLOAK_PASSWORD_POLICY_CACHE_TTL_SECS:-30}
       IMMUDB_SERVER_URL: ${IMMUDB_SERVER_URL}
       IMMUDB_USER: ${IMMUDB_USER}
       IMMUDB_PASSWORD: ${IMMUDB_PASSWORD}

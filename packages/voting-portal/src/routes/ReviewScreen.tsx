@@ -25,6 +25,7 @@ import {
 } from "@sequentech/ui-essentials"
 import {
     stringToHtml,
+    escapeTranslationValues,
     IAuditableBallot,
     EVotingPortalAuditButtonCfg,
     IGraphQLActionError,
@@ -36,6 +37,7 @@ import {
     EElectionEventContestEncryptionPolicy,
     IHashableBallot,
     areAllContestsAcclaimed,
+    getContestClassName,
 } from "@sequentech/ui-core"
 import {styled} from "@mui/material/styles"
 import Typography from "@mui/material/Typography"
@@ -658,11 +660,15 @@ export const ReviewScreen: React.FC = () => {
     }, [selectionState, isMultiContest, ballotStyle?.ballot_eml])
 
     if (ballotId && auditableBallot?.ballot_hash && ballotId !== auditableBallot?.ballot_hash) {
+        // errorMsg is rendered as HTML below, so its interpolated values are escaped
         setErrorMsg(
-            t("errors.encoding.writeInCharsExceeded", {
-                ballotId,
-                auditableBallotHash: auditableBallot.ballot_hash,
-            })
+            t(
+                "errors.encoding.writeInCharsExceeded",
+                escapeTranslationValues({
+                    ballotId,
+                    auditableBallotHash: auditableBallot.ballot_hash,
+                })
+            )
         )
     }
 
@@ -804,7 +810,7 @@ export const ReviewScreen: React.FC = () => {
                     variant="error"
                     announcement={EWarnBoxAnnouncement.ASSERTIVE}
                 >
-                    {errorMsg}
+                    {stringToHtml(errorMsg)}
                 </WarnBox>
                 <Box
                     className="review-error-actions"
@@ -933,7 +939,7 @@ export const ReviewScreen: React.FC = () => {
                     variant="error"
                     announcement={EWarnBoxAnnouncement.ASSERTIVE}
                 >
-                    {errorMsg}
+                    {stringToHtml(errorMsg)}
                 </WarnBox>
             )}
             <Typography
@@ -952,7 +958,10 @@ export const ReviewScreen: React.FC = () => {
                 )}
             </Typography>
             {contests.map((question, index) => (
-                <Box key={question.id} className={`contest-container contest-${index}`}>
+                <Box
+                    key={question.id}
+                    className={`contest-container contest-${index} ${getContestClassName(question.external_id)}`.trim()}
+                >
                     <Question
                         ballotStyle={ballotStyle}
                         question={question}

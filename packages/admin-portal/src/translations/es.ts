@@ -254,6 +254,7 @@ const spanishTranslation: TranslationType = {
                 logs: "Registros",
             },
             tasksExecution: {
+                DELETE_TENANT: "Eliminar organización",
                 PUBLISH_BALLOT: "Publicar papeleta",
                 VOTER_INFORMATION_LETTER: "Carta de información para el votante",
                 EXPORT_ELECTION_EVENT: "Exportar evento electoral",
@@ -803,6 +804,10 @@ const spanishTranslation: TranslationType = {
                 statusLabel: "Estado",
                 waitingKeys: "Esperando a la Generación de Claves..",
                 started: "Iniciada en",
+                actions: {
+                    participate: "Participar en la ceremonia de claves",
+                    view: "Ver la ceremonia de claves",
+                },
                 breadCrumbs: {
                     configure: "Configurar",
                     ceremony: "Ceremonia",
@@ -1310,6 +1315,7 @@ const spanishTranslation: TranslationType = {
                 "tenant-create": "Crear Inquilino",
                 "tenant-read": "Leer Inquilino",
                 "tenant-write": "Editar Inquilino",
+                "tenant-delete": "Eliminar Inquilino",
                 "election-event-create": "Crear Evento Electoral",
                 "election-event-read": "Leer Evento Electoral",
                 "election-event-write": "Editar Evento Electoral",
@@ -1550,6 +1556,8 @@ const spanishTranslation: TranslationType = {
                 createError: "Error al crear el Evento Programado",
                 editSuccess: "Evento Programado editado con éxito",
                 editError: "Error al editar el Evento Programado",
+                onlineWithEarlyVoting:
+                    "Una programación de inicio no puede abrir a la vez el voto en línea y el voto anticipado: el voto anticipado debe empezar antes que el voto en línea.",
             },
             eventType: {
                 label: "Tipo",
@@ -2049,8 +2057,12 @@ const spanishTranslation: TranslationType = {
                 subtitle:
                     "Para continuar, por favor descarga y guarda tu Clave Privada Encriptada en al menos dos dispositivos diferentes:",
                 downloadButton: "Descargar tu Clave Privada Encriptada",
-                errorDownloading: "Error de descarga: {{error}}",
+                downloaded: "Clave Privada Encriptada descargada correctamente.",
                 errorEmptyKey: "Error de descarga, fichero vacío",
+                unexpectedError: "No se pudo descargar la clave privada. Inténtalo de nuevo.",
+                alreadyVerified: "Tu clave privada ya se había descargado y verificado.",
+                unavailable:
+                    "La descarga de la clave privada ya no está disponible porque la ceremonia ha avanzado.",
                 confirmdDialog: {
                     ok: "Confirmar copias de seguridad y Continuar",
                     cancel: "Volver",
@@ -2065,13 +2077,14 @@ const spanishTranslation: TranslationType = {
             },
             checkStep: {
                 title: "Verifica tus Copias de Seguridad de tu Clave Privada Encriptada",
+                verifyButton: "Verificar clave",
                 subtitle:
                     "Sube la Copia de Seguridad de tu Clave Privada Encriptada para verificar que sea correcta. Puedes intentarlo tantas veces como sea necesario, desde tus diferentes copias de seguridad:",
                 errorUploading:
                     "Copa de Seguridad de la Clave Encriptada Privada inválida, por favor inténtalo de nuevo",
                 errorEmptyFile: "Fichero vacío o no encontrado",
                 verified: "Copia de seguridad verificada correctamente.",
-                downloaded: "Clave Encriptada Privada generada exitosamente.",
+                alreadyRestored: "Tu clave ya se había restaurado.",
             },
         },
         miruExport: {
@@ -2230,6 +2243,13 @@ const spanishTranslation: TranslationType = {
             generalInfoTitle: "Información General",
             trusteeTallyTitle: "Trustee",
             trusteeTallySubTitle: "Estado de importación del fragmento de clave",
+            eligibility: {
+                selectElection: "Selecciona al menos una elección.",
+                publishElection: "Publica cada elección seleccionada antes de crear su recuento.",
+                tallyDisallowed: "El recuento está deshabilitado para una elección seleccionada.",
+                endVoting:
+                    "Finaliza la votación en cada elección seleccionada y detén sus canales activos antes de crear el recuento.",
+            },
             createTallySuccess: "Recuento creado",
             createTallyError: "Error creando recuento",
             startTallySuccess: "Recuento iniciado",

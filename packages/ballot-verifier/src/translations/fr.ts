@@ -33,6 +33,9 @@ const frenchTranslation: TranslationType = {
                 "Il y a eu un problème lors de l'importation du vote auditable. Avez-vous choisi le bon fichier ?",
             importErrorMoreInfo: "Plus d'informations",
             importErrorTitle: "Erreur",
+            ciphertextErrorTitle: "La vérification du vote a échoué",
+            ciphertextErrorDescription:
+                "Le texte chiffré de ce vote auditable ne correspond pas au chiffrement du texte en clair et de l'aléa qu'il contient. Ce vote n'est pas fiable.",
             useSampleLink: "Utiliser un vote exemple",
             nextButton: "Continuer",
             ballotIdLabel: "ID du bulletin",
