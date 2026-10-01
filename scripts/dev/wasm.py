@@ -39,7 +39,7 @@ SCRIPT = Path(__file__).resolve()
 
 CRATE = "sequent-core"
 TARGET = "wasm32-unknown-unknown"
-FEATURES = ("wasmtest", "default_features")
+FEATURES = ("wasmtest", "default_features", "monitoring")
 PACKAGE_FILES = ("index.js", "index_bg.wasm", "index.d.ts")
 CONSUMERS = ("ui-core", "admin-portal", "voting-portal", "ballot-verifier")
 INPUTS_FILE = "build-inputs.json"

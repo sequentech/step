@@ -1,0 +1,43 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# Voters casting their first vote per hour or per day, each voter counted at their first one, with the
+# running total. The day picker shows only for hourly.
+id: voting-activity
+title: Voting activity
+description: Distinct OVs voting for the first time per period.
+source: voting_enrollment_activity
+requirements: [SW-F-0267]
+selectors:
+  grain:
+    label: Resolution
+    options: {hour: Hour, day: Day}
+    default: hour
+  day:
+    label: Day
+    options_from: event_days
+    when: {selector: grain, in: [hour]}
+query:
+  template: timeseries
+  measures: [voted]
+  grain: {selector: grain}
+  day: {selector: day}
+height: 320
+chart:
+  charts:
+    activity:
+      type: bar
+      query: data
+      x: bucket_label
+      y: voted
+      y_label: First votes
+      # In time order, which the labels alone are not when clocks go back.
+      sort: {by: bucket_utc, order: asc}
+      style: {orientation: vertical, number_format: number}
+      layers:
+        - type: line
+          y: voted_cumulative
+          label: Running total
+          axis_y: {position: right, title: Running total}
+  rows: [activity]

@@ -85,19 +85,25 @@ const tabLabels = (canvasElement: HTMLElement) =>
         .map((tab) => tab.textContent)
 
 /**
- * The first tab, the event dashboard, waits for its statistics.
+ * The first tab, the event dashboard: for an administrator with monitoring,
+ * it first asks whether the event's monitoring dashboards are configured, and
+ * shows its named loader until the answer.
  *
  * The dashboard is a lazy chunk, and the file's first story fetches it cold, alongside
  * the portal's Roboto faces: that takes longer than Testing Library's one second.
  */
 async function dashboardLoading(canvasElement: HTMLElement) {
     await expect(
-        await within(canvasElement).findByRole("progressbar", {}, {timeout: 5000})
+        await within(canvasElement).findByRole(
+            "progressbar",
+            {name: i18n.t("monitoring.loading")},
+            {timeout: 5000}
+        )
     ).toBeVisible()
     await waitFor(() =>
         expect(graphql.calls).toContainEqual(
             expect.objectContaining({
-                name: "GetElectionEventStats",
+                name: "MonitoringListDashboards",
                 variables: expect.objectContaining({electionEventId: EVENT_ID}),
             })
         )
@@ -108,6 +114,8 @@ const labels = (...keys: string[]) => keys.map((key) => i18n.t(`electionEventScr
 
 export const Populated: Story = {
     globals: {permissions: EStoryPermissions.ADMIN},
+    // The monitoring loader has a name.
+    parameters: {expectedFailure: null},
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
         await expect(await canvas.findByText("Council")).toBeVisible()
@@ -171,6 +179,7 @@ export const LoadError: Story = {
 export const LockedDownEvent: Story = {
     args: {lockedDown: true},
     globals: {permissions: EStoryPermissions.ADMIN},
+    parameters: {expectedFailure: null},
     play: async ({canvasElement}) => {
         await expect(await within(canvasElement).findByText("Council")).toBeVisible()
         expect(tabLabels(canvasElement)).toEqual(labels("dashboard", "voters", "logs", "reports"))

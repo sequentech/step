@@ -91,6 +91,17 @@
 /miru/create-transmission-package
 /miru/send-transmission-package
 /miru/upload-signature
+/monitoring/export
+/monitoring/get-config
+/monitoring/get-dashboard
+/monitoring/list-config
+/monitoring/list-dashboards
+/monitoring/list-presets
+/monitoring/render-widget
+/monitoring/reset-to-preset
+/monitoring/save-config
+/monitoring/set-mode
+/monitoring/validate-config
 /plugin
 /prepare-ballot-publication-preview
 /preview-tally-sheet-import

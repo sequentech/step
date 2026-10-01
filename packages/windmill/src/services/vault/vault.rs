@@ -235,6 +235,21 @@ pub async fn get_admin_user_signing_key(
     Ok(sk)
 }
 
+/// Whether the admin user has a signing key, without reading it.
+#[instrument(skip(hasura_transaction), err)]
+pub async fn admin_user_signing_key_exists(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    user_id: &str,
+) -> Result<bool> {
+    let lookup_key = admin_vault_lookup_key(tenant_id, user_id);
+    Ok(
+        get_secret_by_key(hasura_transaction, tenant_id, None, &lookup_key)
+            .await?
+            .is_some(),
+    )
+}
+
 fn voter_vault_lookup_key(tenant_id: &str, event_id: &str, user_id: &str) -> String {
     format!("voter_signing_key-{}-{}-{}", tenant_id, event_id, user_id)
 }

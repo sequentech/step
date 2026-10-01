@@ -1,0 +1,23 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# Where this deployment keeps each fact about a voter or a Post. Resetting to
+# the preset is the only way to change these: they decide who is counted.
+time_zone: Asia/Manila
+scope:
+  # A Post's region is an annotation of its election.
+  region: {election_annotation: "miru:geographical-region"}
+  # A voter's country is the first part of "Country/Embassy".
+  country: {voter_attribute: country, split: {separator: "/", part: 0}}
+pre_enrolled: {voter_attribute: sequent.read-only.id-card-number-validated, equals: VERIFIED}
+dimensions:
+  sex: {voter_attribute: sex, labels: {M: Male, F: Female}}
+  age_band:
+    voter_attribute: dateOfBirth
+    age_bands: [{label: "18-24", to: 24}, {label: "25-39", to: 39}, {label: "40-59", to: 59}, {label: "60+"}]
+  # Free text in the voter record; shown as written.
+  status: {voter_attribute: landBasedOrSeafarer}
+unknown_label: Unknown
+# The dashboard selectors keep the portal's words (Region, Post, Country),
+# translated and aware of what a viewer is allowed to see.

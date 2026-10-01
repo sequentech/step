@@ -125,6 +125,13 @@ class PlanTests(unittest.TestCase):
             self.assertIn(feature, rust["sequent-core"])
         self.assertFalse(plan["jobs"]["frontend-ui"])
 
+    def test_monitoring_selects_its_feature_gate(self):
+        plan = self.plan("packages/sequent-core/src/monitoring/policy.rs")
+        self.assertTrue(plan["jobs"]["feature-gates"])
+        rust = {row["service"]: row["extra"] for row in plan["rust"]}
+        features = rust["sequent-core"].removeprefix("--features ").split(",")
+        self.assertIn("monitoring", features)
+
     def test_step_cli_builder_does_not_check_core_gates(self):
         plan = self.plan("packages/step-cli/src/commands/build_election_event.rs")
         self.assertEqual([row["service"] for row in plan["rust"]], ["step-cli"])

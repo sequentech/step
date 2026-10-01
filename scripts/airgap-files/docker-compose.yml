@@ -344,6 +344,10 @@ services:
     image: 581718213778.dkr.ecr.us-east-1.amazonaws.com/harvest:STEP_VERSION
     pull_policy: never
     environment:
+      # Monitoring snapshot cadence, the same on beat, windmill and harvest:
+      # seconds between passes (5..3600), and between full voter reads.
+      MONITORING_SNAPSHOT_INTERVAL_SECONDS: ${MONITORING_SNAPSHOT_INTERVAL_SECONDS:-30}
+      MONITORING_VOTER_FULL_PASS_SECONDS: ${MONITORING_VOTER_FULL_PASS_SECONDS:-300}
       SUPER_ADMIN_TENANT_ID: ${SUPER_ADMIN_TENANT_ID}
       LOG_LEVEL: ${LOG_LEVEL}
       ROCKET_ADDRESS: ${ROCKET_ADDRESS}
@@ -412,8 +416,43 @@ services:
       B3_PG_PASSWORD: ${B3_PG_PASSWORD}
       B3_PG_DATABASE: ${B3_PG_DATABASE}
       DOC_RENDERER_BACKEND: ${DOC_RENDERER_BACKEND}
+      # The monitoring renderer, reached on the internal monitoring-renderer
+      # network only.
+      HARVEST_MONITORING_RENDERER_URL: ${HARVEST_MONITORING_RENDERER_URL:-http://monitoring-renderer:8080}
+      HARVEST_MONITORING_RENDERER_TOKEN: ${MONITORING_RENDERER_TOKEN}
+      HARVEST_MONITORING_RENDERER_TIMEOUT_MS: ${HARVEST_MONITORING_RENDERER_TIMEOUT_MS:-5000}
+    networks:
+      - default
+      - monitoring-renderer
     ports:
      - ${HARVEST_PORT}:${HARVEST_PORT}
+
+  # Draws monitoring widgets with dbt Charts. Internal only: no published
+  # ports, on a network with no route out, shared with harvest alone.
+  monitoring-renderer:
+    profiles: ["full", "base"]
+    container_name: monitoring-renderer
+    image: sequentech.local/monitoring-renderer
+    pull_policy: never
+    restart: always
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      RENDERER_TOKEN: ${MONITORING_RENDERER_TOKEN}
+      RENDERER_CONCURRENCY: ${MONITORING_RENDERER_CONCURRENCY:-2}
+    networks:
+      - monitoring-renderer
+    healthcheck:
+      test: ["CMD", "python", "-c", "import sys, urllib.request; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8080/ready', timeout=4).status == 200 else 1)"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
 
   b3:
     profiles: ["full", "base"]
@@ -538,6 +577,10 @@ services:
       configure-minio:
         condition: service_completed_successfully
     environment:
+      # Monitoring snapshot cadence, the same on beat, windmill and harvest:
+      # seconds between passes (5..3600), and between full voter reads.
+      MONITORING_SNAPSHOT_INTERVAL_SECONDS: ${MONITORING_SNAPSHOT_INTERVAL_SECONDS:-30}
+      MONITORING_VOTER_FULL_PASS_SECONDS: ${MONITORING_VOTER_FULL_PASS_SECONDS:-300}
       RUSTFLAGS: ${RUSTFLAGS}
       RUST_BACKTRACE: ${RUST_BACKTRACE}
       LOG_LEVEL: ${LOG_LEVEL}
@@ -634,6 +677,10 @@ services:
       rabbitmq:
         condition: service_healthy
     environment:
+      # Monitoring snapshot cadence, the same on beat, windmill and harvest:
+      # seconds between passes (5..3600), and between full voter reads.
+      MONITORING_SNAPSHOT_INTERVAL_SECONDS: ${MONITORING_SNAPSHOT_INTERVAL_SECONDS:-30}
+      MONITORING_VOTER_FULL_PASS_SECONDS: ${MONITORING_VOTER_FULL_PASS_SECONDS:-300}
       RUSTFLAGS: ${RUSTFLAGS}
       LOG_LEVEL: ${LOG_LEVEL}
       CARGO_TERM_COLOR: ${CARGO_TERM_COLOR}
@@ -642,6 +689,11 @@ services:
       BEAT_PROBE_ADDR: ${BEAT_PROBE_ADDR}
       BEAT_PROBE_LIVE_PATH: ${BEAT_PROBE_LIVE_PATH}
       BEAT_PROBE_READY_PATH: ${BEAT_PROBE_READY_PATH}
+
+networks:
+  # Harvest and the monitoring renderer only; no route out.
+  monitoring-renderer:
+    internal: true
 
 volumes:
   db_data:

@@ -721,7 +721,8 @@ class RepositoryTest(unittest.TestCase):
                     "packages",
                     "cargo test --locked -p sequent-core --features "
                     "keycloak,default_features,election_config_xlsx,"
-                    "election_config_templates,election_config_archive,sqlite "
+                    "election_config_templates,election_config_archive,"
+                    "monitoring,sqlite "
                     "--test sqlite_feature_boundaries",
                 )
             ],

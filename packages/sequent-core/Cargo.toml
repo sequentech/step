@@ -147,6 +147,14 @@ hmac = { version = "0.12", optional = true }
 # compile for a browser. Deflate is the only method an import archive uses.
 zip = { version = "2.1", default-features = false, features = ["deflate"], optional = true }
 
+# Monitoring dashboard configuration is authored as YAML and edited in the
+# Admin Portal, so the same parser runs on the server and in the browser.
+# unsafe-libyaml, its backend, is pure Rust and builds for wasm32. indexmap
+# keeps selector options in the order their author wrote them, which is the
+# order a dropdown shows them in.
+serde_yaml = { version = "0.9", optional = true }
+indexmap = { version = "2", features = ["serde"], optional = true }
+
 
 # WASM plugin management
 wasmtime = {version = "44.0.3", optional = true}
@@ -186,6 +194,9 @@ election_config_templates = ["default_features", "areas", "dep:handlebars"]
 # Writing the importable zip. Separate again: a front end that only validates an
 # existing bundle has nothing to write.
 election_config_archive = ["election_config_templates", "dep:zip"]
+# Monitoring dashboards: their configuration, its policy and its presets. Pure,
+# like election_config, so the Admin Portal can check an edit before saving it.
+monitoring = ["dep:serde_yaml", "dep:indexmap", "dep:sha2"]
 
 sqlite = ["dep:tokio", "dep:rusqlite"]
 time = ["dep:time"]

@@ -131,6 +131,12 @@ pub enum Permissions {
     ADMIN_CEREMONY,
     #[strum(serialize = "admin-dashboard-view")]
     ADMIN_DASHBOARD_VIEW,
+    // see the configurable monitoring dashboards
+    #[strum(serialize = "monitoring-view")]
+    MONITORING_VIEW,
+    // edit their widgets, dashboards and themes, or reset them to a preset
+    #[strum(serialize = "monitoring-configure")]
+    MONITORING_CONFIGURE,
     #[strum(serialize = "tally-sheet-view")]
     TALLY_SHEET_VIEW,
     #[strum(serialize = "tally-sheet-create")]
@@ -425,3 +431,7 @@ pub enum VoterPermissions {
     #[strum(serialize = "ack-support-materials")]
     ACK_SUPPORT_MATERIALS,
 }
+
+#[cfg(test)]
+#[path = "permissions_tests.rs"]
+mod permissions_tests;

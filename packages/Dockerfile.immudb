@@ -7,19 +7,47 @@
 #    • Uses the same Go tool-chain immudb’s official Dockerfile relies on
 #    • Compiles immudb / immuadmin for *TARGETPLATFORM* automatically
 ###############################################################################
+# Optional offline dependency source. The default, scratch, copies an empty
+# directory and leaves the online build unchanged. Point it at
+# packages/Dockerfile.offline-dependencies' output to take the immudb binaries it
+# compiled instead of cloning and building here.
+#
+# The runtime stage below still runs apk, so this alone is not enough for
+# --network=none. See the scope note in Dockerfile.offline-dependencies.
+# See sequentech/meta#13625.
+# Global build arguments. These must precede the first FROM: an ARG after a FROM
+# belongs to that stage only, and a later stage redeclaring it would then see an
+# empty value.
 ARG IMMUDB_VERSION=1.9.6
+ARG VENDOR_IMAGE=scratch
+
+FROM ${VENDOR_IMAGE} AS vendor
+
 FROM --platform=$BUILDPLATFORM golang:1.22-alpine AS builder
 
 # redeclare it so that the stage can use it
 ARG IMMUDB_VERSION
-# immudb needs git, make, gcc for cgo parts
-RUN apk add --no-cache git make gcc musl-dev bash
 
 WORKDIR /src
-# checkout the exact tag
-RUN git clone --depth 1 --branch "v${IMMUDB_VERSION}" https://github.com/codenotary/immudb.git .
-# compile the two binaries into /go/bin/ (Go’s default)
-RUN make immudb immuadmin
+COPY --from=vendor / /vendor/
+
+# With a vendor image, take the binaries it already compiled. Otherwise clone and
+# build as before.
+#
+# immudb is third-party upstream code, and building it needs git, a C toolchain
+# and the Go module proxy -- none of which can be reconstructed offline from a
+# source tree. So the vendor image compiles it while online and ships the
+# binaries, which the release manifest records as an accepted prebuilt upstream
+# input rather than as something the offline build produced.
+RUN if [ -f /vendor/immudb-bin/immudb ]; then \
+        echo "offline build: using prebuilt immudb binaries from the vendor image" && \
+        cp /vendor/immudb-bin/immudb /vendor/immudb-bin/immuadmin /src/ && \
+        chmod +x /src/immudb /src/immuadmin; \
+    else \
+        apk add --no-cache git make gcc musl-dev bash && \
+        git clone --depth 1 --branch "v${IMMUDB_VERSION}" https://github.com/codenotary/immudb.git . && \
+        make immudb immuadmin; \
+    fi
 
 ###############################################################################
 # 2. ── RUNTIME STAGE (same as before, but copy from builder) ─────────────────

@@ -441,6 +441,17 @@ impl Message {
         Self::from_body(event, body, sd, user_id, username, None, None, None)
     }
 
+    pub fn monitoring_config_changed_message(
+        event: EventIdString,
+        details: MonitoringConfigChangeDetails,
+        sd: &SigningData,
+        user_id: Option<String>,
+        username: Option<String>,
+    ) -> Result<Self> {
+        let body = StatementBody::MonitoringConfigChanged(event.clone(), details);
+        Self::from_body(event, body, sd, user_id, username, None, None, None)
+    }
+
     pub fn results_publication_action_message(
         event: EventIdString,
         details: ResultsPublicationDetails,
