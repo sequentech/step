@@ -70,3 +70,5 @@ pub mod voter_information_letter;
 pub mod voting_status;
 
 pub mod ballot_files;
+pub mod signing;
+pub mod signing_certificates;

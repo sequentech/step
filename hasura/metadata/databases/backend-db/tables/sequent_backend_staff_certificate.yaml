@@ -1,0 +1,39 @@
+table:
+    name: staff_certificate
+    schema: sequent_backend
+select_permissions:
+    - comment: ""
+      permission:
+          allow_aggregations: true
+          columns:
+              - id
+              - tenant_id
+              - election_event_id
+              - user_id
+              - username
+              - user_display_name
+              - election_id
+              - fingerprint_sha256
+              - spki_sha256
+              - holder_sha256
+              - serial
+              - subject
+              - issuer
+              - not_before
+              - not_after
+              - pem
+              - status
+              - registration
+              - linked_to
+              - registered_by
+              - registered_by_name
+              - registered_at
+              - revoked_by
+              - revoked_by_name
+              - revoked_at
+              - revoke_reason
+              - created_at
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: signing-certificates-read

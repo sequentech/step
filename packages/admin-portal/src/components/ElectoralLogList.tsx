@@ -269,10 +269,13 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
                             new Date(record.statement_timestamp * 1000).toLocaleString()
                         }
                     />
-                    <TextField source="statement_kind" />
+                    <TextField
+                        source="statement_kind"
+                        label={String(t("logsScreen.column.statement_kind"))}
+                    />
                     <FunctionField
                         source="event_type"
-                        label={String(t("logsScreen.column.statement_kind"))}
+                        label={String(t("logsScreen.column.event_type"))}
                         render={(record: any) => getHeadField(record, "event_type")}
                     />
                     <FunctionField

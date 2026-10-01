@@ -22,6 +22,7 @@ use crate::services::reports::template_renderer::{
     ReportOriginatedFrom, ReportOrigins, TemplateRenderer,
 };
 use crate::services::reports_vault::get_password;
+use crate::services::signing::issuers::staff_issuers_pem_bundle;
 use crate::tasks::export_election_event::ExportOptions;
 use crate::types::documents::EDocuments;
 
@@ -822,7 +823,9 @@ pub async fn process_export_zip(
     }
 
     if export_config.include_certificates {
-        let election_event_uuid = parse_uuid_v4(election_event_id)?;
+        // Any UUID: imported events keep the ids they had.
+        let election_event_uuid = Uuid::parse_str(election_event_id)
+            .map_err(|e| anyhow!("Invalid election event id: {e}"))?;
         let pems = get_certificate_authorities_pem(&hasura_transaction, election_event_uuid)
             .await
             .map_err(|e| anyhow!("Error fetching certificate authorities: {e:?}"))?;
@@ -839,6 +842,25 @@ pub async fn process_export_zip(
             zip_writer
                 .write_all(pem_bundle.as_bytes())
                 .map_err(|e| anyhow!("Error writing certificates to ZIP: {e:?}"))?;
+        }
+        // Staff issuers go in a file of their own, so an import keeps them
+        // apart from the voters' authorities.
+        if let Some(pem_bundle) =
+            staff_issuers_pem_bundle(&hasura_transaction, tenant_id, election_event_id)
+                .await
+                .map_err(|e| anyhow!("Error fetching staff issuers: {e:?}"))?
+        {
+            let issuers_filename = format!(
+                "{}-{}.pem",
+                EDocuments::STAFF_ISSUERS.to_file_name(),
+                election_event_id
+            );
+            zip_writer
+                .start_file(&issuers_filename, options)
+                .map_err(|e| anyhow!("Error starting staff issuers file in ZIP: {e:?}"))?;
+            zip_writer
+                .write_all(pem_bundle.as_bytes())
+                .map_err(|e| anyhow!("Error writing staff issuers to ZIP: {e:?}"))?;
         }
     }
 

@@ -29,7 +29,7 @@ const OTHER_TENANT_ID: &str = "tenant-b";
 const SUPER_ADMIN_TENANT_ID: &str = "fixture-super-admin";
 const USER_ID: &str = "test-user";
 // Update only with a reviewed change to the checked-in route inventory.
-const EXPECTED_GUARDED_POST_ROUTE_COUNT: usize = 128;
+const EXPECTED_GUARDED_POST_ROUTE_COUNT: usize = 140;
 
 const CHILD: &str = "HARVEST_ISOLATED_TEST_CHILD";
 
@@ -295,7 +295,7 @@ async fn sensitive_routes_require_authorization_before_reading_the_body_or_conta
     for path in paths {
         for authorization in [None, Some("Bearer fixture.e30.fixture")] {
             let mut request = client
-                .post(path)
+                .post(route_permissions::concrete(path))
                 .header(ContentType::JSON)
                 .body("{malformed body");
             if let Some(value) = authorization {

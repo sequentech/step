@@ -1729,9 +1729,8 @@ fn check_unique_ids(bundle: &ImportElectionEventSchema, report: &mut Report) {
 
 /// Whether a string is shaped like a hyphenated UUID.
 ///
-/// Deliberately not `Uuid::parse_str`: that crate is only enabled by the
-/// `keycloak` feature here, and pulling it into `default_features` would put
-/// `getrandom` in the WASM build to check a string's shape.
+/// Deliberately a shape check rather than `Uuid::parse_str`, which also
+/// accepts the simple, braced and URN forms.
 fn looks_like_uuid(value: &str) -> bool {
     let groups: Vec<&str> = value.split('-').collect();
     groups.len() == 5

@@ -106,7 +106,7 @@ impl Case {
         permissions: &[String],
     ) -> Result<Reply, String> {
         let request = client
-            .post(self.path)
+            .post(concrete(self.path))
             .header(ContentType::JSON)
             .header(bearer(&self.identity.claims().roles(permissions)))
             .body(self.body.to_string());
@@ -116,6 +116,11 @@ impl Case {
                 .map_err(|_| "no answer within 3 s".to_string())?;
         reply(&response)
     }
+}
+
+/// A route path as a request URL: a dynamic `<id>` segment takes a UUID.
+pub(super) fn concrete(path: &str) -> String {
+    path.replace("<id>", ELECTION_ID)
 }
 
 fn reply(
@@ -330,6 +335,13 @@ fn cases() -> Vec<Case> {
         case!(Admin, "/set-user-role", {"tenant_id": TENANT_ID, "user_id": USER_ID, "role_id": "test-role"}, [USER_WRITE, ROLE_WRITE], BACKEND_TEXT, UNAUTHORIZED),
         // An empty permission list checked in the caller's own tenant.
         case!(Admin, "/set-voter-authentication", {"election_event_id": EVENT_ID, "enrollment": "enabled", "otp": "enabled"}, [], BACKEND),
+        // Without any sign permission the request isn't found (it may not
+        // exist); the request's own sign permission is checked once loaded.
+        case!(UuidTenant, "/signing-requests/<id>/check-certificate", {"chain_pem": [PEM]}, [SIGN_CLOSE_VOTING], BACKEND, Reply::Json(Status::NotFound)),
+        // A certificate that doesn't parse is refused before any backend.
+        case!(UuidTenant, "/signing-issuers", {"election_event_id": UUID_EVENT_ID, "pem": PEM}, [SIGNING_ISSUERS_WRITE], Reply::Json(Status::BadRequest), FORBIDDEN_JSON),
+        case!(UuidTenant, "/staff-certificates", {"election_event_id": UUID_EVENT_ID, "user_id": USER_ID, "pem": PEM}, [SIGNING_CERTIFICATES_REGISTER], BACKEND, FORBIDDEN_JSON),
+        case!(UuidTenant, "/staff-certificates/<id>/revoke", {"election_event_id": UUID_EVENT_ID, "reason": "token lost"}, [SIGNING_CERTIFICATES_REVOKE], BACKEND, FORBIDDEN_JSON),
         case!(Admin, "/submit-tally-resolution", {"election_event_id": EVENT_ID, "tally_session_id": "test-session", "resolutions": [{"contest_id": "test-contest", "selected_candidate_id": "test-candidate"}]}, [TALLY_RESOLUTION_SUBMIT], BACKEND, UNAUTHORIZED),
         case!(Gold, "/update-election-voting-status", {"election_event_id": EVENT_ID, "election_id": "test-election", "voting_status": "OPEN"}, [ELECTION_STATE_WRITE], BACKEND, UNAUTHORIZED),
         case!(Gold, "/update-event-voting-status", {"election_event_id": EVENT_ID, "voting_status": "OPEN"}, [ELECTION_STATE_WRITE], BACKEND, UNAUTHORIZED),
@@ -339,6 +351,17 @@ fn cases() -> Vec<Case> {
         case!(Admin, "/upsert-area", {"name": "test-area", "election_event_id": UUID_EVENT_ID, "tenant_id": UUID_TENANT_ID, "area_contest_ids": []}, [AREA_CREATE], BACKEND, UNAUTHORIZED),
         case!(Admin, "/upsert-areas", {"election_event_id": EVENT_ID, "document_id": "test-document"}, [AREA_WRITE], BACKEND, UNAUTHORIZED),
         case!(Admin, "/verify-application", {"applicant_id": "test-applicant", "applicant_data": {}, "tenant_id": TENANT_ID, "election_event_id": EVENT_ID, "annotations": {}}, [SERVICE_ACCOUNT], BACKEND, UNAUTHORIZED_JSON),
+        // Who may act on a request depends on the request: the requester, its
+        // action's sign permission or a reader, checked after reading it.
+        case!(UuidTenant, "/signing-requests/get", {"request_id": ELECTION_ID}, [], BACKEND),
+        case!(UuidTenant, "/signing-requests/approve", {"request_id": ELECTION_ID, "chain_pem": [PEM], "algorithm": "rsa-pkcs1-sha256", "payload_signature_b64": "AA=="}, [], BACKEND),
+        case!(UuidTenant, "/signing-requests/open-failures", {"request_id": ELECTION_ID, "file_name": "test.p12", "reason": "wrong-password"}, [], BACKEND),
+        case!(UuidTenant, "/signing-requests/handover", {"request_id": ELECTION_ID}, [], BACKEND),
+        case!(UuidTenant, "/signing-requests/cancel", {"request_id": ELECTION_ID}, [], BACKEND),
+        case!(UuidTenant, "/signing-requests/export", {"election_event_id": UUID_EVENT_ID}, [SIGNING_REQUESTS_EXPORT], BACKEND, FORBIDDEN_JSON),
+        case!(UuidTenant, "/signing-rules/put", {"election_event_id": UUID_EVENT_ID, "action": "close-voting", "requirement": "required", "signatures": 2, "requester_signing": "not-allowed", "expires_minutes": 60, "expected_revision": 0}, [SIGNING_RULES_WRITE], BACKEND, FORBIDDEN_JSON),
+        case!(UuidTenant, "/signing-rules/put", {"election_event_id": UUID_EVENT_ID, "action": "close-voting", "requirement": "required", "signatures": 2, "requester_signing": "not-allowed", "expires_minutes": 60, "roles": {"add": ["test-group"]}, "expected_revision": 0}, [SIGNING_RULES_WRITE, ROLE_READ, ROLE_WRITE], BACKEND, FORBIDDEN_JSON),
+        case!(UuidTenant, "/signing-rules/capacity", {"election_event_id": UUID_EVENT_ID, "action": "close-voting"}, [SIGNING_RULES_READ], BACKEND, FORBIDDEN_JSON),
     ]
 }
 
@@ -493,4 +516,65 @@ async fn secret_attributes_outside_an_election_event_are_refused_before_the_perm
             .await;
         assert_eq!(reply(&response), Ok(UNAUTHORIZED_JSON), "{path}");
     }
+}
+
+/// The signing settings routes that aren't POST: a caller without a token is
+/// unauthorized (401) and one without the permission forbidden (403, the
+/// signing error body), before any backend.
+#[rocket::async_test]
+async fn signing_settings_routes_refuse_without_their_permission() {
+    use rocket::http::Method;
+    let client = client().await;
+    for (method, path, body) in [
+        (
+            Method::Put,
+            "/signing-checks".to_owned(),
+            json!({"election_event_id": UUID_EVENT_ID, "revocation_check": "check",
+                   "crl_unavailable": "refuse", "registration": "on-first-use",
+                   "post_binding": "one-post", "expected_revision": 0}),
+        ),
+        (
+            Method::Delete,
+            concrete("/signing-issuers/<id>"),
+            json!({"election_event_id": UUID_EVENT_ID}),
+        ),
+    ] {
+        let send = |claims: Claims| {
+            client
+                .req(method, path.clone())
+                .header(ContentType::JSON)
+                .header(bearer(&claims))
+                .body(body.to_string())
+                .dispatch()
+        };
+        // Every permission but the route's own.
+        let others = [
+            Permissions::SIGNING_CERTIFICATES_READ,
+            Permissions::CA_WRITE,
+        ];
+        let response =
+            send(Claims::new(UUID_TENANT_ID, USER_ID).roles(others)).await;
+        assert_eq!(response.status(), Status::Forbidden, "{method} {path}");
+        let answer: Value = response.into_json().await.unwrap();
+        assert_eq!(
+            answer["extensions"]["code"], "forbidden",
+            "{method} {path}"
+        );
+        // The tenant is the caller's own; without a token there is none.
+        let response = client
+            .req(method, path.clone())
+            .header(ContentType::JSON)
+            .body(body.to_string())
+            .dispatch()
+            .await;
+        assert_eq!(response.status(), Status::Unauthorized, "{method} {path}");
+    }
+    // Signed in is enough to read one's own registrations; signed out isn't.
+    let response = client
+        .get(format!(
+            "/staff-certificates/mine?election_event_id={UUID_EVENT_ID}"
+        ))
+        .dispatch()
+        .await;
+    assert_eq!(response.status(), Status::Unauthorized);
 }

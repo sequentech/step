@@ -1,0 +1,50 @@
+table:
+    name: signing_approval
+    schema: sequent_backend
+object_relationships:
+    - name: request
+      using:
+          manual_configuration:
+              column_mapping:
+                  request_id: id
+              insertion_order: null
+              remote_table:
+                  name: signing_request
+                  schema: sequent_backend
+select_permissions:
+    - comment: ""
+      permission:
+          allow_aggregations: true
+          columns:
+              - id
+              - tenant_id
+              - election_event_id
+              - request_id
+              - user_id
+              - username
+              - display_name
+              - auth_time
+              - certificate_id
+              - certificate_pem
+              - chain_pem
+              - fingerprint_sha256
+              - spki_sha256
+              - holder_sha256
+              - algorithm
+              - payload_signature
+              - document_signature
+              - pdf_cms
+              - revocation_status
+              - signed_at
+              - created_at
+          filter:
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - request:
+                        _or:
+                            - permission_label:
+                                  _is_null: true
+                            - permission_label:
+                                  _in: X-Hasura-Permission-Labels
+      role: signing-requests-read
