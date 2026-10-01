@@ -18,12 +18,11 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     env:
-      # Only used by the throwaway graphql-engine started below. The generate
-      # scripts of the portals use this admin secret.
-      HASURA_ADMIN_SECRET: admin
+      # Only used by the throwaway graphql-engine started below.
+      HASURA_ADMIN_SECRET: ci-admin-secret
     services:
       postgres:
-        image: postgres:15-bullseye
+        image: postgres:18-bookworm
         env:
           POSTGRES_PASSWORD: postgres
         ports:
@@ -36,6 +35,8 @@ jobs:
     steps:
       - name: Check out code
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -53,7 +54,7 @@ jobs:
       - name: Start Hasura with the committed migrations and metadata
         run: |
           # The image developers run, so the schema is generated the same way.
-          hasura_image="$(grep --only-matching --max-count=1 -E 'hasura/graphql-engine:[^[:space:]]+' .devcontainer/docker-compose.yml)"
+          hasura_image="$(grep --only-matching --max-count=1 -E 'hasura/graphql-engine:[^[:space:]]+' .devcontainer/docker-compose-base.yml)"
           docker run --detach --name hasura --network host \
             --volume "${GITHUB_WORKSPACE}/hasura/migrations:/hasura-migrations:ro" \
             --volume "${GITHUB_WORKSPACE}/hasura/metadata:/hasura-metadata:ro" \
@@ -64,7 +65,7 @@ jobs:
             --env HASURA_GRAPHQL_ADMIN_SECRET="${HASURA_ADMIN_SECRET}" \
             --env ACTIONS_ADMIN_SECRET="${HASURA_ADMIN_SECRET}" \
             --env HARVEST_DOMAIN=harvest:8400 \
-            "${hasura_image:?no graphql-engine image found in .devcontainer/docker-compose.yml}"
+            "${hasura_image:?no graphql-engine image found in .devcontainer/docker-compose-base.yml}"
           # generate-graphql.sh and the codegen configs reach Hasura as graphql-engine.
           echo "127.0.0.1 graphql-engine" | sudo tee --append /etc/hosts
 
@@ -89,7 +90,7 @@ jobs:
       - name: Check the committed schema and types are up to date
         run: |
           generated=(
-            graphql.schema.json
+            packages/graphql.schema.json
             packages/step-cli/src/graphql/schema.json
             packages/admin-portal/graphql.schema.json
             packages/admin-portal/src/gql
@@ -97,6 +98,8 @@ jobs:
             packages/voting-portal/src/gql
             packages/ballot-verifier/graphql.schema.json
             packages/ballot-verifier/src/gql
+            packages/results-portal/graphql.schema.json
+            packages/results-portal/src/gql
           )
           if [ -n "$(git status --porcelain -- "${generated[@]}")" ]; then
             git status --short -- "${generated[@]}"
