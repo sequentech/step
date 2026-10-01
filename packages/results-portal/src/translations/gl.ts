@@ -47,6 +47,9 @@ const galegoTranslation: TranslationType = {
             version: "Versión {{version}}",
             publicAccess: "Acceso público",
             signedInAccess: "Acceso con sesión iniciada",
+            acclaimed: "Elixido por aclamación",
+            acclamationNote:
+                "Elixido por aclamación. Este concurso resolveuse sen votación, polo que non se rexistrou ningún voto.",
             published: "Publicado",
             notPublishedYet: "Aínda non publicado",
             position: "{{count}} posto",
@@ -74,6 +77,7 @@ const galegoTranslation: TranslationType = {
                 totalVotesCounted: "Total de votos contados",
                 validVotes: "Votos válidos",
                 participation: "Participación",
+                totalBlankBallots: "Total de papeletas en branco",
             },
             resultsAndParticipation: {
                 participationSummary: "Resumo de participación",

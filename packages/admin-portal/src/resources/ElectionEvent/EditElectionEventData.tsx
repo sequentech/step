@@ -8,7 +8,6 @@ import {
     EditElectionEventDataForm,
     Sequent_Backend_Election_Event_Extended,
 } from "./EditElectionEventDataForm"
-import {Sequent_Backend_Election} from "@/gql/graphql"
 import {
     ElectionsOrder,
     IElectionEventPresentation,
@@ -19,33 +18,42 @@ export const EditElectionEventData: React.FC = () => {
     const [update] = useUpdate()
     const refresh = useRefresh()
 
-    function updateElectionsOrder(data: Sequent_Backend_Election_Event_Extended) {
-        data.electionsOrder?.map((election: Sequent_Backend_Election, index: number) => {
-            let electionEventPresentation = data.presentation as
-                | IElectionEventPresentation
-                | undefined
-            if (electionEventPresentation?.elections_order === ElectionsOrder.CUSTOM) {
-                let electionPresentation = (election.presentation ?? {}) as IElectionPresentation
-                return update("sequent_backend_election", {
-                    id: election.id,
-                    data: {
-                        presentation: {
-                            ...electionPresentation,
-                            sort_order: index,
+    async function updateElectionsOrder(data: Sequent_Backend_Election_Event_Extended) {
+        const electionEventPresentation = data.presentation as
+            | IElectionEventPresentation
+            | undefined
+        if (electionEventPresentation?.elections_order === ElectionsOrder.CUSTOM) {
+            const elections = data.electionsOrder ?? []
+            for (let index = 0; index < elections.length; index++) {
+                const election = elections[index]
+                const electionPresentation = (election.presentation ?? {}) as IElectionPresentation
+                if (electionPresentation.sort_order !== index) {
+                    await update(
+                        "sequent_backend_election",
+                        {
+                            id: election.id,
+                            data: {
+                                presentation: {
+                                    ...electionPresentation,
+                                    sort_order: index,
+                                },
+                            },
+                            previousData: election,
                         },
-                    },
-                    previousData: election,
-                })
+                        {returnPromise: true}
+                    )
+                }
             }
-            return null
-        })
+        }
     }
 
-    const transform = (data: Sequent_Backend_Election_Event_Extended): RaRecord<Identifier> => {
+    const transform = async (
+        data: Sequent_Backend_Election_Event_Extended
+    ): Promise<RaRecord<Identifier>> => {
         delete data.resultsWebsitePolicy
 
         //update elections
-        updateElectionsOrder(data)
+        await updateElectionsOrder(data)
 
         delete data.electionsOrder
 
@@ -103,7 +111,7 @@ export const EditElectionEventData: React.FC = () => {
             mutationMode="pessimistic"
             mutationOptions={{onSuccess}}
         >
-            <EditElectionEventDataForm />
+            <EditElectionEventDataForm transform={transform} />
         </EditBase>
     )
 }

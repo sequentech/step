@@ -47,6 +47,9 @@ const dutchTranslation: TranslationType = {
             version: "Versie {{version}}",
             publicAccess: "Openbare toegang",
             signedInAccess: "Toegang na inloggen",
+            acclaimed: "Bij acclamatie gekozen",
+            acclamationNote:
+                "Bij acclamatie gekozen. Deze stemming is zonder stemming beslist, dus er zijn geen stemmen geregistreerd.",
             published: "Gepubliceerd",
             notPublishedYet: "Nog niet gepubliceerd",
             position: "{{count}} positie",
@@ -74,6 +77,7 @@ const dutchTranslation: TranslationType = {
                 totalVotesCounted: "Totaal getelde stemmen",
                 validVotes: "Geldige stemmen",
                 participation: "Opkomst",
+                totalBlankBallots: "Totaal aantal blanco stembiljetten",
             },
             resultsAndParticipation: {
                 participationSummary: "Samenvatting deelname",

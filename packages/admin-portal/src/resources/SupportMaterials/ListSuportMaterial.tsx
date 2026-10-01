@@ -33,6 +33,7 @@ import VideoFileIcon from "@mui/icons-material/VideoFile"
 import AudioFileIcon from "@mui/icons-material/AudioFile"
 import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf"
 import ImageIcon from "@mui/icons-material/Image"
+import DescriptionIcon from "@mui/icons-material/Description"
 import {ResetFilters} from "@/components/ResetFilters"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {faPlus} from "@fortawesome/free-solid-svg-icons"
@@ -57,6 +58,10 @@ export const ListSupportMaterials: React.FC<ListAreaProps> = (props) => {
     const {t, i18n} = useTranslation()
     const {id} = useParams()
     const refresh = useRefresh()
+    // title_i18n/subtitle_i18n are keyed by bare language codes (e.g. "en"),
+    // but i18n.language can be a full locale (e.g. "en-US") when detected
+    // from the browser, so it must be normalized before use as a lookup key.
+    const primaryLanguage = i18n.language?.split("-")[0]?.toLowerCase()
 
     // const record = useRecordContext<Sequent_Backend_Support_Material>()
     const record = useRecordContext<Sequent_Backend_Election_Event>()
@@ -183,12 +188,12 @@ export const ListSupportMaterials: React.FC<ListAreaProps> = (props) => {
                         sortable={false}
                     />
                     <TextField
-                        source={`data.title_i18n[${i18n.language}]`}
+                        source={`data.title_i18n[${primaryLanguage}]`}
                         label={String(t("common.label.title"))}
                         sortable={false}
                     />
                     <TextField
-                        source={`data.subtitle_i18n[${i18n.language}]`}
+                        source={`data.subtitle_i18n[${primaryLanguage}]`}
                         label={String(t("common.label.subtitle"))}
                         sortable={false}
                     />
@@ -205,7 +210,9 @@ export const ListSupportMaterials: React.FC<ListAreaProps> = (props) => {
                                 <VideoFileIcon sx={{fontSize: "36px"}} />
                             ) : record.kind.includes("audio") ? (
                                 <AudioFileIcon sx={{fontSize: "36px"}} />
-                            ) : null
+                            ) : (
+                                <DescriptionIcon sx={{fontSize: "36px"}} />
+                            )
                         }}
                     />
 
@@ -219,7 +226,13 @@ export const ListSupportMaterials: React.FC<ListAreaProps> = (props) => {
                 open={openCreate}
                 onClose={handleCloseCreateDrawer}
                 PaperProps={{
-                    sx: {width: "40%"},
+                    sx: {
+                        "width": "40%",
+                        "scrollbarWidth": "thin",
+                        "&::-webkit-scrollbar": {
+                            width: "6px",
+                        },
+                    },
                 }}
             >
                 <CreateSupportMaterial record={record} close={handleCloseCreateDrawer} />
@@ -229,7 +242,13 @@ export const ListSupportMaterials: React.FC<ListAreaProps> = (props) => {
                 open={open}
                 onClose={handleCloseEditDrawer}
                 PaperProps={{
-                    sx: {width: "40%"},
+                    sx: {
+                        "width": "40%",
+                        "scrollbarWidth": "thin",
+                        "&::-webkit-scrollbar": {
+                            width: "6px",
+                        },
+                    },
                 }}
             >
                 <EditSupportMaterial

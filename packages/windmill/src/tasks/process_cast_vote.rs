@@ -90,9 +90,11 @@ pub async fn process_cast_vote(
 
 /// Runs the Datafix send while the per-voter lock is held: validates the
 /// event's Datafix configuration, resolves the voter, and sends `SetVoted`,
-/// transitioning the row to its terminal status. Any error response or
-/// transport failure leaves the vote `in-progress`: it is retried on the next
-/// beat and, if the situation persists, requires manual reconciliation.
+/// transitioning the row to its terminal status. Any definitive VoterView
+/// answer, including a rejection or a SOAP fault, makes the vote `valid`. The
+/// vote stays `in-progress`, to be retried on the next beat, when the request
+/// cannot be prepared or delivered, or when its outcome is ambiguous: it may
+/// have been delivered, but no usable answer came back.
 #[instrument(skip(lock), fields(cast_vote_id = %cast_vote_id), err)]
 async fn process_locked_cast_vote(
     tenant_id: &str,
@@ -257,8 +259,9 @@ async fn process_locked_cast_vote(
         }
         Err(SoapSendError::NotDispatched(err)) => {
             // Everything else being equal, a transport failure is treated as a transient error and the vote is left in-progress for the next beat to retry.
-            // A persistently erroring vote is caught and fixed by the
-            // manual daily reconciliation process, not by this pipeline.
+            // A persistently erroring vote is not fixed by this pipeline: it
+            // blocks the tally and reconciliation reports it as a row failure
+            // until an operator resolves it.
             let operation = format!(
                 "SetVoted NotDispatched: connection-error (template_sha256={template_sha256})"
             );
@@ -328,7 +331,7 @@ async fn load_election_event(cast_vote: &CastVote) -> Result<ElectionEvent> {
 }
 
 /// Returns whether the voter already has a `valid` vote for the event; a prior
-/// valid vote means this ballot must not be counted a second time.
+/// valid vote makes this a re-vote, promoted without sending `SetVoted` again.
 #[instrument(skip(cast_vote), fields(cast_vote_id = %cast_vote.id), err)]
 async fn has_prior_valid_vote(cast_vote: &CastVote, voter_id: &str) -> Result<bool> {
     let mut client: DbClient = get_hasura_pool()
@@ -391,8 +394,9 @@ async fn transition_cast_vote(
 }
 
 /// Promotes an in-progress vote and then records the Internet channel. A
-/// Keycloak failure is traced and left for the reconciliation process; it does
-/// not roll back the terminal Hasura status.
+/// Keycloak failure is only traced: it does not roll back the terminal Hasura
+/// status, and nothing records the channel afterwards unless the voter votes
+/// again. Until then a disable discards the ballot without owing `SetNotVoted`.
 #[instrument(
     skip(cast_vote),
     fields(cast_vote_id = %cast_vote.id),

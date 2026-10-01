@@ -8,9 +8,11 @@ use deadpool_postgres::{Client as DbClient, Transaction};
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::services::jwt::JwtClaims;
+use sequent_core::types::hasura::core::DocumentAnnotations;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
+use windmill::postgres::document::get_document;
 use windmill::services::{database::get_hasura_pool, documents};
 
 #[derive(Deserialize, Debug)]
@@ -55,6 +57,42 @@ pub async fn fetch_document(
             )
         },
     )?;
+
+    let document = get_document(
+        &hasura_transaction,
+        &claims.hasura_claims.tenant_id,
+        input.election_event_id.clone(),
+        &input.document_id,
+    )
+    .await
+    .map_err(|error| {
+        (
+            Status::InternalServerError,
+            format!("Error reading document: {error:?}"),
+        )
+    })?
+    .ok_or_else(|| (Status::NotFound, "Document not found".to_string()))?;
+    let requires_secret_read = document
+        .annotations
+        .map(serde_json::from_value::<DocumentAnnotations>)
+        .transpose()
+        .map_err(|error| {
+            (
+                Status::InternalServerError,
+                format!("Error reading document access policy: {error}"),
+            )
+        })?
+        .is_some_and(|annotations| {
+            annotations.requires_voter_secret_attribute_read()
+        });
+    if requires_secret_read {
+        authorize(
+            &claims,
+            true,
+            Some(claims.hasura_claims.tenant_id.clone()),
+            vec![Permissions::VOTER_SECRET_ATTRIBUTE_READ],
+        )?;
+    }
 
     let url = documents::get_document_url(
         &hasura_transaction,

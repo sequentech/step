@@ -1,0 +1,10 @@
+mutation ExportTenantConfigMutation($tenantId: String) {
+  export_tenant_config(tenant_id: $tenantId) {
+    document_id
+    error_msg
+    task_execution {
+      id
+      execution_status
+    }
+  }
+}

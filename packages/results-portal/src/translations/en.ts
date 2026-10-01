@@ -45,6 +45,9 @@ const englishTranslation = {
             version: "Version {{version}}",
             publicAccess: "Public access",
             signedInAccess: "Signed-in access",
+            acclaimed: "Won by acclamation",
+            acclamationNote:
+                "Won by acclamation. This contest was decided without a vote, so no votes were recorded for it.",
             published: "Published",
             notPublishedYet: "Not published yet",
             position: "{{count}} position",
@@ -72,6 +75,7 @@ const englishTranslation = {
                 totalVotesCounted: "Total votes counted",
                 validVotes: "Valid votes",
                 participation: "Participation",
+                totalBlankBallots: "Total blank ballots",
             },
             resultsAndParticipation: {
                 participationSummary: "Participation Summary",

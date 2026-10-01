@@ -73,6 +73,8 @@ import {
     ELanguageDetectionPolicy,
     getDefaultLanguageDetectionPolicy,
     REALM_ATTR_VOTER_CERTIFICATE_POLICY,
+    ESupportMaterialsPolicy,
+    getEffectiveSupportMaterialsPolicy,
 } from "@sequentech/ui-core"
 import {ListActions} from "@/components/ListActions"
 import {ImportDataDrawer} from "@/components/election-event/import-data/ImportDataDrawer"
@@ -233,7 +235,9 @@ const CustomDateTimeFormatInvalidNotifier: React.FC<{
     return null
 }
 
-export const EditElectionEventDataForm: React.FC = () => {
+export const EditElectionEventDataForm: React.FC<{
+    transform: (data: Sequent_Backend_Election_Event_Extended) => Promise<RaRecord<Identifier>>
+}> = ({transform}) => {
     const {t} = useTranslation()
     const [addWidget, setWidgetTaskId, updateWidgetFail] = useWidgetStore()
     const [tenantId] = useTenantStore()
@@ -364,6 +368,7 @@ export const EditElectionEventDataForm: React.FC = () => {
             tenant_id: record?.tenant_id,
             election_event_id: record?.id,
         },
+        pagination: {page: 1, perPage: 9999},
     })
 
     const [votingSettings] = useState<TVotingSetting>({
@@ -742,6 +747,13 @@ export const EditElectionEventDataForm: React.FC = () => {
         return Object.values(EElectionEventDecodedBallots).map((value) => ({
             id: value,
             name: t(`electionEventScreen.field.decodedBallots.options.${value}`),
+        }))
+    }
+
+    const supportMaterialsPolicyChoices = () => {
+        return Object.values(ESupportMaterialsPolicy).map((value) => ({
+            id: value,
+            name: t(`electionEventScreen.field.supportMaterialsPolicy.options.${value}`),
         }))
     }
 
@@ -1132,6 +1144,16 @@ export const EditElectionEventDataForm: React.FC = () => {
             },
         }
     }
+
+    const saveTransform = async (values: Sequent_Backend_Election_Event_Extended) => {
+        try {
+            return await transform(await onSave(values))
+        } catch (error) {
+            notify(error instanceof Error ? error.message : String(error), {type: "error"})
+            throw error
+        }
+    }
+
     return (
         <>
             <Box
@@ -1161,7 +1183,7 @@ export const EditElectionEventDataForm: React.FC = () => {
                         {canSave && (
                             <SaveButton
                                 type="button"
-                                transform={onSave}
+                                transform={saveTransform}
                                 alwaysEnable={activateSave}
                             />
                         )}
@@ -1319,6 +1341,11 @@ export const EditElectionEventDataForm: React.FC = () => {
                             resettable={true}
                             source={"presentation.redirect_finish_url"}
                             label={String(t("electionEventScreen.field.redirectFinishUrl"))}
+                        />
+                        <TextInput
+                            resettable={true}
+                            source={"presentation.kiosk_redirect_finish_url"}
+                            label={String(t("electionEventScreen.field.kioskRedirectFinishUrl"))}
                         />
                         <TextInput
                             resettable={true}
@@ -1580,11 +1607,25 @@ export const EditElectionEventDataForm: React.FC = () => {
                         </ElectionHeaderStyles.Wrapper>
                     </AccordionSummary>
                     <AccordionDetails>
-                        <BooleanInput
+                        <SelectInput
                             disabled={!canEdit}
-                            source={`presentation.materials.activated`}
-                            label={String(t(`electionEventScreen.field.materialActivated`))}
+                            source={`presentation.materials.policy`}
+                            choices={supportMaterialsPolicyChoices()}
+                            label={String(
+                                t(`electionEventScreen.field.supportMaterialsPolicy.label`)
+                            )}
+                            defaultValue={getEffectiveSupportMaterialsPolicy(
+                                record?.presentation?.materials
+                            )}
+                            validate={required()}
                         />
+                        <Typography
+                            variant="caption"
+                            color="text.secondary"
+                            sx={{display: "block"}}
+                        >
+                            {t("electionEventScreen.field.supportMaterialsPolicy.helperText")}
+                        </Typography>
                         <Tabs value={valueMaterials} onChange={handleChangeMaterials}>
                             {renderTabs(parsedValue, "materials")}
                         </Tabs>

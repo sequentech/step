@@ -413,8 +413,11 @@ select_permissions:
               - user_boards
               - voting_channels
           filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - id:
+                        _eq: X-Hasura-Election-Event-Id
       role: user
 update_permissions:
     - comment: ""

@@ -67,6 +67,7 @@ export interface ISendTemplateBody {
     sms?: ISmsConfig
     pdf_options?: IPdfOptions
     selected_methods?: IMethods
+    secret_attribute_names?: string[]
 }
 
 export interface ICommTemplates {

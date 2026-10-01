@@ -39,7 +39,7 @@ pub async fn generate_preview_url(
     authorize(
         &claims,
         true,
-        Some(claims.hasura_claims.tenant_id.clone()),
+        Some(body.tenant_id.clone()),
         vec![Permissions::GENERATE_PREVIEW],
     )?;
 

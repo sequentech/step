@@ -53,7 +53,15 @@ The development environment includes:
 - **Voting Portal** at http://127.0.0.1:3000
 - **Admin Portal** at http://127.0.0.1:3002
 - **ImmuDB Console** at http://127.0.0.1:3325
-- **MinIO** at http://127.0.0.1:9001
+- **Silo S3 console** at http://127.0.0.1:9001
+
+The `minio` service uses [Silo](https://github.com/pgsty/silo), an AGPLv3 MinIO fork,
+and `configure-minio` uses its companion `pgsty/mc` client. Service names, ports,
+`MINIO_*` settings and the `minio_storage` volume remain unchanged. Back up any
+existing MinIO volume before upgrading; do not delete it to rebuild the container.
+Both images use release `RELEASE.2026-09-16T00-00-00Z`. Development images are also
+pinned by digest; airgap server images use the same release tag so Docker's
+save/load archive retains the name required by `pull_policy: never`.
 
 For detailed setup instructions, see the [Documentation](https://docs.sequentech.io/docusaurus/main/).
 

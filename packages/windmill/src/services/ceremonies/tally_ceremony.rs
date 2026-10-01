@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use super::tally_validation::{validate_tally_elections, TallyValidationError};
 use crate::postgres::area::get_event_areas;
 use crate::postgres::area_contest::export_area_contests;
 use crate::postgres::ballot_style::get_ballot_styles_by_elections;
@@ -9,7 +10,7 @@ use crate::postgres::election::{export_elections, get_election_by_id};
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::keys_ceremony::get_keys_ceremony_by_id;
 use crate::postgres::tally_session::{
-    get_tally_session_by_id, insert_tally_session,
+    get_tally_session_by_id, insert_tally_session, lock_tally_session_for_update,
     set_tally_session_completed as set_tally_session_completed_in_db, update_tally_session_status,
 };
 use crate::postgres::tally_session_contest::{
@@ -21,21 +22,21 @@ use crate::postgres::tally_session_execution::{
 use crate::postgres::tally_sheet::get_approved_tally_sheets_by_event;
 use crate::services::ceremonies::keys_ceremony::find_trustee_private_key;
 use crate::services::ceremonies::serialize_logs::{
-    append_tally_trustee_log, generate_tally_initial_log,
+    append_tally_recount_log, append_tally_trustee_log, generate_tally_initial_log,
 };
-use crate::services::database::get_hasura_pool;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::election_event_status::get_election_status;
 use crate::services::electoral_log::ElectoralLog;
 use crate::services::protocol_manager::get_event_board;
 use anyhow::{anyhow, Context, Result};
 use b4::messages::newtypes::BatchNumber;
-use deadpool_postgres::{Client as DbClient, Transaction};
+use deadpool_postgres::Transaction;
 use futures::try_join;
 use sequent_core::ballot::{
-    AllowTallyStatus, BallotStyle as SequentBallotStyle, ContestEncryptionPolicy,
-    DecodedBallotsInclusionPolicy, DelegatedVotingPolicy, Weight, WeightedVotingPolicy,
+    BallotStyle as SequentBallotStyle, ContestEncryptionPolicy, DecodedBallotsInclusionPolicy,
+    DelegatedVotingPolicy, Weight, WeightedVotingPolicy,
 };
+use sequent_core::ballot_codec::multi_ballot::votable_contests;
 use sequent_core::serialization::deserialize_with_path::*;
 use sequent_core::services::area_tree::ContestsData;
 use sequent_core::services::area_tree::TreeNode;
@@ -146,14 +147,18 @@ pub async fn find_keys_ceremony(
 
     if 1 != keys_ceremonies_set.len() {
         if 0 == keys_ceremonies_set.len() {
-            return Err(anyhow!("Elections don't have  any keys ceremony"));
+            return Err(
+                TallyValidationError::new("The selected elections have no keys ceremony").into(),
+            );
         } else {
-            return Err(anyhow!("Elections have different keys ceremonies"));
+            return Err(
+                TallyValidationError::new("Elections have different keys ceremonies").into(),
+            );
         }
     }
 
     let Some(keys_ceremony_id) = elections[0].keys_ceremony_id.clone() else {
-        return Err(anyhow!("Election has no keys ceremony"));
+        return Err(TallyValidationError::new("Election has no keys ceremony").into());
     };
 
     let keys_ceremony = get_keys_ceremony_by_id(
@@ -168,7 +173,7 @@ pub async fn find_keys_ceremony(
     if KeysCeremonyExecutionStatus::from_str(&status_str).ok()
         != Some(KeysCeremonyExecutionStatus::SUCCESS)
     {
-        return Err(anyhow!("Invalid keys ceremony"));
+        return Err(TallyValidationError::new("Invalid keys ceremony").into());
     }
 
     Ok(keys_ceremony)
@@ -207,8 +212,7 @@ pub async fn insert_tally_session_contests(
     tenant_id: &str,
     election_event_id: &str,
     tally_session_id: &str,
-    relevant_area_contests: &HashSet<AreaContest>,
-    contests_map: &HashMap<String, Contest>,
+    published_ballot_styles: &[SequentBallotStyle],
     configuration: &TallySessionConfiguration,
 ) -> Result<()> {
     // Each contest area owns `VOTE_WEIGHT_BATCHES` consecutive batches starting
@@ -218,55 +222,58 @@ pub async fn insert_tally_session_contests(
     let mut batch: BatchNumber =
         get_tally_session_highest_batch(hasura_transaction, tenant_id, election_event_id).await?;
 
-    let contest_encryption_policy = configuration.get_contest_encryption_policy();
-
-    if ContestEncryptionPolicy::MULTIPLE_CONTESTS == contest_encryption_policy {
-        // (election id, area id)
-        let mut elections_set: HashSet<(String, String)> = HashSet::new();
-
-        for area_contest in relevant_area_contests {
-            let Some(contest) = contests_map.get(&area_contest.contest_id) else {
-                return Err(anyhow!("Contest not found {:?}", area_contest.contest_id));
-            };
-            let election_id = contest.election_id.clone();
-            let area_id = area_contest.area_id.clone();
-            if !elections_set.insert((election_id.clone(), area_id.clone())) {
-                continue;
-            }
-
-            let _tally_session_contest = insert_tally_session_contest(
-                hasura_transaction,
-                tenant_id,
-                election_event_id,
-                &area_contest.area_id,
-                None,
-                batch.clone(),
-                &tally_session_id,
-                &election_id,
-            )
-            .await?;
-            batch = batch + VOTE_WEIGHT_BATCHES as BatchNumber;
-        }
-    } else if ContestEncryptionPolicy::SINGLE_CONTEST == contest_encryption_policy {
-        for area_contest in relevant_area_contests {
-            let Some(contest) = contests_map.get(&area_contest.contest_id) else {
-                return Err(anyhow!("Contest not found {:?}", area_contest.contest_id));
-            };
-            let _tally_session_contest = insert_tally_session_contest(
-                hasura_transaction,
-                tenant_id,
-                election_event_id,
-                &area_contest.area_id,
-                Some(area_contest.contest_id.clone()),
-                batch.clone(),
-                &tally_session_id,
-                &contest.election_id,
-            )
-            .await?;
-            batch = batch + VOTE_WEIGHT_BATCHES as BatchNumber;
-        }
+    for (election_id, area_id, contest_id) in required_decryption_sets(
+        published_ballot_styles,
+        configuration.get_contest_encryption_policy(),
+    ) {
+        insert_tally_session_contest(
+            hasura_transaction,
+            tenant_id,
+            election_event_id,
+            &area_id,
+            contest_id,
+            batch,
+            tally_session_id,
+            &election_id,
+        )
+        .await?;
+        batch += VOTE_WEIGHT_BATCHES as BatchNumber;
     }
     Ok(())
+}
+
+/// Returns the encrypted payloads that must go through the decryption
+/// ceremony. Acclaimed contests are present in the published ballot style but
+/// deliberately absent from its ciphertext.
+fn required_decryption_sets(
+    ballot_styles: &[SequentBallotStyle],
+    policy: ContestEncryptionPolicy,
+) -> HashSet<(String, String, Option<String>)> {
+    match policy {
+        ContestEncryptionPolicy::SINGLE_CONTEST => ballot_styles
+            .iter()
+            .flat_map(|ballot_style| {
+                votable_contests(&ballot_style.contests).map(|contest| {
+                    (
+                        ballot_style.election_id.clone(),
+                        ballot_style.area_id.clone(),
+                        Some(contest.id.clone()),
+                    )
+                })
+            })
+            .collect(),
+        ContestEncryptionPolicy::MULTIPLE_CONTESTS => ballot_styles
+            .iter()
+            .filter(|ballot_style| votable_contests(&ballot_style.contests).next().is_some())
+            .map(|ballot_style| {
+                (
+                    ballot_style.election_id.clone(),
+                    ballot_style.area_id.clone(),
+                    None,
+                )
+            })
+            .collect(),
+    }
 }
 
 fn get_area_contests_for_election_ids(
@@ -301,18 +308,39 @@ pub async fn create_tally_ceremony(
         get_event_areas(&transaction, &tenant_id, &election_event_id),
         export_area_contests(&transaction, &tenant_id, &election_event_id),
     )?;
+    let parsed_tally_type = TallyType::try_from(tally_type.as_str())
+        .map_err(|_| TallyValidationError::new("Invalid tally type"))?;
+    validate_tally_elections(&all_elections, &election_ids, parsed_tally_type)?;
     let contest_encryption_policy = election_event.get_contest_encryption_policy();
     let decoded_ballots_inclusion_policy = election_event.get_decoded_ballots_inclusion_policy();
     let delegated_voting_policy = election_event.get_delegated_voting_policy();
     let weighted_voting_policy = election_event.get_weighted_voting_policy();
+    let published_ballot_style_rows =
+        get_ballot_styles_by_elections(transaction, &tenant_id, &election_event_id, &election_ids)
+            .await?;
+    let published_ballot_styles = published_ballot_style_rows
+        .iter()
+        .map(|published| {
+            let ballot_eml = published.ballot_eml.as_deref().ok_or_else(|| {
+                anyhow!("Published ballot style {} has no ballot EML", published.id)
+            })?;
+            deserialize_str(ballot_eml).map_err(|error| {
+                anyhow!(
+                    "Could not read published ballot style {}: {error:?}",
+                    published.id
+                )
+            })
+        })
+        .collect::<Result<Vec<SequentBallotStyle>>>()?;
     if weighted_voting_policy == WeightedVotingPolicy::VOTERS_WEIGHTED_VOTING {
         // A delegate's ballot has no defined weighted semantics, and applying
         // both would silently compute weight * (1 + delegate_count).
         if delegated_voting_policy == DelegatedVotingPolicy::ENABLED {
-            return Err(anyhow!(
+            return Err(TallyValidationError::new(
                 "Delegated voting and voter-weighted voting cannot both be \
-                 enabled on the same election event"
-            ));
+                 enabled on the same election event",
+            )
+            .into());
         }
         // The mix batch no longer repeats a ciphertext, but the tally still
         // expands each batch's plaintexts by that batch's multiplier, so the
@@ -322,11 +350,12 @@ pub async fn create_tally_ceremony(
         // appears in one batch per bit of its weight and every batch is
         // public.
         if decoded_ballots_inclusion_policy == DecodedBallotsInclusionPolicy::INCLUDED {
-            return Err(anyhow!(
+            return Err(TallyValidationError::new(format!(
                 "Decoded ballots cannot be included in the results when \
                  voter-weighted voting is enabled, because the repeated \
                  ballots would reveal each voter's weight"
-            ));
+            ))
+            .into());
         }
 
         // A tally sheet reports a count of paper ballots and has nowhere to
@@ -351,14 +380,15 @@ pub async fn create_tally_ceremony(
                 .filter(|sheet| election_ids.contains(&sheet.election_id))
                 .collect();
         if !approved_tally_sheets.is_empty() {
-            return Err(anyhow!(
+            return Err(TallyValidationError::new(format!(
                 "Approved tally sheets cannot be counted when voter-weighted \
                  voting is enabled: a tally sheet reports a ballot count with no \
                  weight, so its votes would be added to the weighted totals at a \
                  weight of one each. {} approved tally sheet(s) exist for this \
                  election event",
                 approved_tally_sheets.len()
-            ));
+            ))
+            .into());
         }
 
         // Nothing downstream stops an area weight being applied on top of the
@@ -367,27 +397,9 @@ pub async fn create_tally_ceremony(
         // that is the value velvet will use: clearing the live area row without
         // republishing would otherwise satisfy the check while the tally still
         // double-counted every ballot.
-        let published_ballot_styles = get_ballot_styles_by_elections(
-            &transaction,
-            &tenant_id,
-            &election_event_id,
-            &election_ids,
-        )
-        .await?;
         let mut weighted_areas: Vec<String> = Vec::new();
         let mut unsupported_contests: Vec<String> = Vec::new();
-        for published in &published_ballot_styles {
-            let Some(eml) = published.ballot_eml.clone().filter(|eml| !eml.is_empty()) else {
-                // No published ballot for this style, so nothing the tally will
-                // read from it and nothing to check.
-                continue;
-            };
-            let ballot_style: SequentBallotStyle = deserialize_str(&eml).map_err(|error| {
-                anyhow!(
-                    "Could not read published ballot style {}: {error:?}",
-                    published.id
-                )
-            })?;
+        for ballot_style in &published_ballot_styles {
             // An absent weight and an explicit 1 are the same value, so only a
             // weight that would actually multiply is a conflict.
             let is_weighted = ballot_style
@@ -404,7 +416,9 @@ pub async fn create_tally_ceremony(
             // accept repeated ballots with untested quota and elimination
             // behaviour. An unset algorithm resolves to plurality-at-large, and
             // could not have been published otherwise.
-            for contest in &ballot_style.contests {
+            // An acclaimed contest is never tallied, so its counting
+            // algorithm cannot make a ballot style unsupported.
+            for contest in votable_contests(&ballot_style.contests) {
                 if contest.get_counting_algorithm() != CountingAlgType::PluralityAtLarge
                     && !unsupported_contests.contains(&contest.id)
                 {
@@ -413,7 +427,7 @@ pub async fn create_tally_ceremony(
             }
         }
         if !weighted_areas.is_empty() {
-            return Err(anyhow!(
+            return Err(TallyValidationError::new(format!(
                 "Voter-weighted voting cannot be used while published ballots \
                  still carry an area weight, because the two would multiply: \
                  {}. This has to be corrected \
@@ -424,15 +438,17 @@ pub async fn create_tally_ceremony(
                  ballots cannot be republished, so at this point there is no \
                  remedy left",
                 weighted_areas.join(", ")
-            ));
+            ))
+            .into());
         }
 
         if !unsupported_contests.is_empty() {
-            return Err(anyhow!(
+            return Err(TallyValidationError::new(format!(
                 "Voter-weighted voting only supports the plurality-at-large \
                  counting algorithm. These contests use another algorithm: {}",
                 unsupported_contests.join(", ")
-            ));
+            ))
+            .into());
         }
     }
 
@@ -482,9 +498,10 @@ pub async fn create_tally_ceremony(
         .collect();
 
     if permission_label_filtered_elections.len() != election_ids.len() {
-        return Err(anyhow!(
-            "Some elections don't have the required permission label or are not published"
-        ));
+        return Err(TallyValidationError::new(
+            "Some elections don't have the required permission label or are not published",
+        )
+        .into());
     }
 
     // Convert HashSet to Vec if needed
@@ -572,6 +589,7 @@ pub async fn create_tally_ceremony(
         None,
         None,
         None,
+        TallyRunReason::NORMAL,
     )
     .await?;
 
@@ -580,8 +598,7 @@ pub async fn create_tally_ceremony(
         &tenant_id,
         &election_event_id,
         &tally_session_id,
-        &relevant_area_contests,
-        &contests_map,
+        &published_ballot_styles,
         &final_configuration,
     )
     .await?;
@@ -652,7 +669,32 @@ pub async fn update_tally_ceremony(
     };
 
     if !expected_status.contains(&new_execution_status) {
-        return Err(anyhow!("Unexpected status"));
+        return Err(TallyValidationError::new(format!(
+            "Cannot change tally status from {current_status} to {new_execution_status}."
+        ))
+        .into());
+    }
+
+    if new_execution_status == TallyExecutionStatus::IN_PROGRESS {
+        let elections = crate::postgres::election::get_elections_by_ids(
+            hasura_transaction,
+            &tenant_id,
+            &election_event_id,
+            &tally_session.election_ids.clone().unwrap_or_default(),
+        )
+        .await?;
+        let tally_type = tally_session
+            .tally_type
+            .as_deref()
+            .map(TallyType::try_from)
+            .transpose()
+            .map_err(|_| TallyValidationError::new("Invalid tally type"))?
+            .unwrap_or_default();
+        validate_tally_elections(
+            &elections,
+            &tally_session.election_ids.clone().unwrap_or_default(),
+            tally_type,
+        )?;
     }
 
     let Some((tally_session_execution, _, _, _)) =
@@ -680,11 +722,11 @@ pub async fn update_tally_ceremony(
     if tally_session.threshold > num_connected_trustees as i64
         && new_execution_status != TallyExecutionStatus::CANCELLED
     {
-        return Err(anyhow!(
+        return Err(TallyValidationError::new(format!(
             "Insufficient number of connected trustees {}. Required threshold {}.",
-            num_connected_trustees,
-            tally_session.threshold
-        ));
+            num_connected_trustees, tally_session.threshold
+        ))
+        .into());
     }
 
     println!(
@@ -737,7 +779,7 @@ pub async fn update_tally_ceremony(
     Ok(())
 }
 
-#[instrument(err, skip(transaction))]
+#[instrument(err, skip(transaction, claims, private_key_base64))]
 pub async fn set_private_key(
     transaction: &Transaction<'_>,
     claims: &JwtClaims,
@@ -745,7 +787,10 @@ pub async fn set_private_key(
     election_event_id: &str,
     tally_session_id: &str,
     private_key_base64: &str,
-) -> Result<bool> {
+) -> Result<RestorePrivateKeyOutcome> {
+    lock_tally_session_for_update(transaction, tenant_id, election_event_id, tally_session_id)
+        .await?;
+
     let tally_session = get_tally_session_by_id(
         transaction,
         &tenant_id,
@@ -782,12 +827,6 @@ pub async fn set_private_key(
         })
         .unwrap_or(TallyExecutionStatus::STARTED);
 
-    if TallyExecutionStatus::STARTED != current_status
-        && TallyExecutionStatus::CONNECTED != current_status
-    {
-        return Err(anyhow!("Unexpected status {}", current_status.to_string()));
-    }
-
     // get the keys ceremonies for this election event
     let keys_ceremony = get_keys_ceremony_by_id(
         transaction,
@@ -811,13 +850,6 @@ pub async fn set_private_key(
         ));
     };
 
-    if TallyTrusteeStatus::WAITING != found_trustee.status {
-        return Err(anyhow!(
-            "Unexpected trustee status {}",
-            found_trustee.status.to_string()
-        ));
-    }
-
     // get the encrypted private key
     let encrypted_private_key = find_trustee_private_key(
         transaction,
@@ -827,10 +859,27 @@ pub async fn set_private_key(
         &keys_ceremony,
     )
     .await?;
-    // FFF tally fix
 
-    if encrypted_private_key != private_key_base64 {
-        return Ok(false);
+    match classify_private_key_restore(
+        &encrypted_private_key,
+        private_key_base64,
+        &found_trustee.status,
+    ) {
+        RestorePrivateKeyOutcome::Restored => {}
+        outcome => return Ok(outcome),
+    }
+
+    if TallyExecutionStatus::STARTED != current_status
+        && TallyExecutionStatus::CONNECTED != current_status
+    {
+        return Err(anyhow!("Unexpected status {}", current_status.to_string()));
+    }
+
+    if TallyTrusteeStatus::WAITING != found_trustee.status {
+        return Err(anyhow!(
+            "Unexpected trustee status {}",
+            found_trustee.status.to_string()
+        ));
     }
     let mut new_status = tally_ceremony_status.clone();
     new_status.logs = append_tally_trustee_log(&new_status.logs, &trustee_name);
@@ -857,6 +906,7 @@ pub async fn set_private_key(
         None,
         None,
         None,
+        TallyRunReason::NORMAL,
     )
     .await?;
 
@@ -915,7 +965,21 @@ pub async fn set_private_key(
         .await
         .with_context(|| "error posting to the electoral log")?;
 
-    Ok(true)
+    Ok(RestorePrivateKeyOutcome::Restored)
+}
+
+fn classify_private_key_restore(
+    expected_private_key: &str,
+    submitted_private_key: &str,
+    trustee_status: &TallyTrusteeStatus,
+) -> RestorePrivateKeyOutcome {
+    if expected_private_key != submitted_private_key {
+        RestorePrivateKeyOutcome::Invalid
+    } else if trustee_status == &TallyTrusteeStatus::KEY_RESTORED {
+        RestorePrivateKeyOutcome::AlreadyRestored
+    } else {
+        RestorePrivateKeyOutcome::Restored
+    }
 }
 
 #[instrument(err, skip(hasura_transaction))]
@@ -990,37 +1054,220 @@ pub async fn set_tally_session_completed(
     Ok(())
 }
 
-/// Resets a tally session back to a completed `SUCCESS` state after a recount
-/// (manual or automatic) failed to enqueue its celery task, so the session
-/// isn't left stuck `IN_PROGRESS`.
-pub async fn reset_tally_session_status_after_failed_recount_task(
+/// Marks a completed tally session as `IN_PROGRESS` for a recount (manual or
+/// automatic): inserts a fresh `tally_session_execution` row with
+/// `elections_status` reset to `WAITING`/0% and a "recount launched" log
+/// entry appended, then flips the session status. Without this, the tally
+/// session details keep showing the previous completed run (status, progress,
+/// results) until the celery task produces its own first update, which can
+/// be a long time (or never, if it bails out early).
+///
+/// Returns `false` if the session is no longer completed and eligible, or has
+/// no `tally_session_execution` row at all.
+/// `insert_tally_session` and the first `insert_tally_session_execution`
+/// always land in the same transaction (see `create_tally_ceremony` below),
+/// so a session created here can't reach `SUCCESS`/completed without one;
+/// a session whose status disagrees with its execution history never
+/// actually ran, and so has nothing to recount.
+///
+#[instrument(skip(hasura_transaction), err)]
+pub async fn begin_tally_session_recount(
+    hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
     tally_session_id: &str,
-    task_error: &str,
-) -> Result<()> {
-    let mut reset_db_client: DbClient = get_hasura_pool().await.get().await.with_context(|| {
-        format!(
-            "failed to send recount task ({task_error}) and failed to get hasura db pool for reset"
-        )
-    })?;
-    let reset_transaction = reset_db_client.transaction().await.with_context(|| {
-        format!("failed to send recount task ({task_error}) and failed to start reset transaction")
-    })?;
-    update_tally_session_status(
-        &reset_transaction,
+    election_ids: &[String],
+) -> Result<bool> {
+    // Serialize the state transition with post-tally finalization. The task
+    // itself has a different, long-lived lock; this short row lock protects
+    // only writers that can change which execution is considered latest.
+    lock_tally_session_for_update(
+        hasura_transaction,
         tenant_id,
         election_event_id,
         tally_session_id,
-        TallyExecutionStatus::SUCCESS,
-        true,
     )
-    .await
-    .with_context(|| {
-        format!("failed to send recount task ({task_error}) and failed to reset tally status")
-    })?;
-    reset_transaction.commit().await.with_context(|| {
-        format!("failed to send recount task ({task_error}) and failed to commit reset")
-    })?;
-    Ok(())
+    .await?;
+
+    // Callers inspect the session before opening this transition, but another
+    // recount can complete that read and acquire the lock first. Re-check only
+    // after the lock is held so a stale caller cannot append a second marker.
+    let tally_session = get_tally_session_by_id(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        tally_session_id,
+    )
+    .await?;
+    if tally_session.execution_status.as_deref()
+        != Some(TallyExecutionStatus::SUCCESS.to_string().as_str())
+        || !tally_session.is_execution_completed
+    {
+        return Ok(false);
+    }
+
+    let Some(last_execution) = get_last_tally_session_execution(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        tally_session_id,
+    )
+    .await?
+    else {
+        return Ok(false);
+    };
+
+    let original_status = get_tally_ceremony_status(last_execution.status.clone())?;
+
+    let mut recount_status = original_status.clone();
+    let election_ids_vec = election_ids.to_vec();
+    recount_status.logs = append_tally_recount_log(&recount_status.logs, &election_ids_vec);
+    recount_status.elections_status = election_ids_vec
+        .iter()
+        .map(|election_id| TallyElection {
+            election_id: election_id.clone(),
+            status: TallyElectionStatus::WAITING,
+            progress: 0.0,
+        })
+        .collect();
+
+    insert_tally_session_execution(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        last_execution.current_message_id,
+        tally_session_id,
+        Some(recount_status),
+        None,
+        None,
+        None,
+        // The durable record that a recount was asked for. The celery message
+        // this function's callers send afterwards is only a nudge: if it is
+        // lost -- expired while no worker was consuming, or dropped because a
+        // concurrent run held the lock -- the next process_board tick reads
+        // this row and performs the recount anyway.
+        TallyRunReason::RECOUNT,
+    )
+    .await?;
+
+    update_tally_session_status(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        tally_session_id,
+        TallyExecutionStatus::IN_PROGRESS,
+        false,
+    )
+    .await?;
+
+    Ok(true)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use sequent_core::ballot::Contest as SequentContest;
+
+    fn contest(id: &str, is_acclaimed: bool) -> SequentContest {
+        SequentContest {
+            id: id.to_string(),
+            election_id: "election".to_string(),
+            is_acclaimed: Some(is_acclaimed),
+            ..Default::default()
+        }
+    }
+
+    fn ballot_style(area_id: &str, contests: Vec<SequentContest>) -> SequentBallotStyle {
+        SequentBallotStyle {
+            id: format!("style-{area_id}"),
+            tenant_id: "tenant".to_string(),
+            election_event_id: "event".to_string(),
+            election_id: "election".to_string(),
+            num_allowed_revotes: None,
+            description: None,
+            public_key: None,
+            area_id: area_id.to_string(),
+            area_presentation: None,
+            contests,
+            election_event_presentation: None,
+            election_presentation: None,
+            election_dates: None,
+            election_event_annotations: None,
+            election_annotations: None,
+            area_annotations: None,
+            multi_contest_encoding_mode: None,
+        }
+    }
+
+    #[test]
+    fn single_contest_decryption_sets_exclude_acclaimed_contests() {
+        let styles = vec![
+            ballot_style(
+                "mixed-area",
+                vec![contest("acclaimed", true), contest("votable", false)],
+            ),
+            ballot_style("acclaimed-area", vec![contest("also-acclaimed", true)]),
+        ];
+
+        assert_eq!(
+            HashSet::from([(
+                "election".to_string(),
+                "mixed-area".to_string(),
+                Some("votable".to_string()),
+            )]),
+            required_decryption_sets(&styles, ContestEncryptionPolicy::SINGLE_CONTEST)
+        );
+    }
+
+    #[test]
+    fn multi_contest_decryption_sets_exclude_fully_acclaimed_areas() {
+        let styles = vec![
+            ballot_style(
+                "mixed-area",
+                vec![contest("acclaimed", true), contest("votable", false)],
+            ),
+            ballot_style("acclaimed-area", vec![contest("also-acclaimed", true)]),
+        ];
+
+        assert_eq!(
+            HashSet::from([("election".to_string(), "mixed-area".to_string(), None,)]),
+            required_decryption_sets(&styles, ContestEncryptionPolicy::MULTIPLE_CONTESTS)
+        );
+    }
+
+    #[test]
+    fn private_key_restore_classifies_new_valid_key() {
+        assert_eq!(
+            RestorePrivateKeyOutcome::Restored,
+            classify_private_key_restore(
+                "private-key",
+                "private-key",
+                &TallyTrusteeStatus::WAITING
+            )
+        );
+    }
+
+    #[test]
+    fn private_key_restore_classifies_matching_restored_key_as_idempotent() {
+        assert_eq!(
+            RestorePrivateKeyOutcome::AlreadyRestored,
+            classify_private_key_restore(
+                "private-key",
+                "private-key",
+                &TallyTrusteeStatus::KEY_RESTORED,
+            )
+        );
+    }
+
+    #[test]
+    fn private_key_restore_rejects_wrong_key_even_when_already_restored() {
+        assert_eq!(
+            RestorePrivateKeyOutcome::Invalid,
+            classify_private_key_restore(
+                "private-key",
+                "different-key",
+                &TallyTrusteeStatus::KEY_RESTORED,
+            )
+        );
+    }
 }

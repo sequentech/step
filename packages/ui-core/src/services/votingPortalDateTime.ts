@@ -9,10 +9,11 @@ import {
     VotingPortalDateTimeFormat,
 } from "../types/ElectionEventPresentation"
 import {translateFromPresentation} from "./translate"
+import {ETranslationScope, filterTranslationOverrides} from "./translationScopes"
 
 /**
  * Localization key used to override the Voting Portal date/time format per
- * language, via `presentation.i18n[<lang>].votingPortalDateTimeFormat`.
+ * language, via a Voting Portal, global, or legacy translation override.
  */
 export const VOTING_PORTAL_DATETIME_FORMAT_KEY = "votingPortalDateTimeFormat"
 
@@ -201,7 +202,16 @@ const buildFormatter = (
     event: VotingPortalDateTimeEvent | null | undefined,
     lang: string
 ): Formatter => {
-    const override = translateFromPresentation(event, VOTING_PORTAL_DATETIME_FORMAT_KEY, lang)
+    const scopedI18n = filterTranslationOverrides(
+        event?.presentation?.i18n,
+        ETranslationScope.VOTING_PORTAL,
+        ETranslationScope.VOTING_PORTAL
+    )
+    const override = translateFromPresentation(
+        {i18n: scopedI18n},
+        VOTING_PORTAL_DATETIME_FORMAT_KEY,
+        lang
+    )
     if (override) {
         try {
             return parseVotingPortalDateTimePattern(override)
