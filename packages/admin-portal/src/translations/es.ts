@@ -254,6 +254,7 @@ const spanishTranslation: TranslationType = {
                 logs: "Registros",
             },
             tasksExecution: {
+                DELETE_TENANT: "Eliminar organización",
                 PUBLISH_BALLOT: "Publicar papeleta",
                 VOTER_INFORMATION_LETTER: "Carta de información para el votante",
                 EXPORT_ELECTION_EVENT: "Exportar evento electoral",
@@ -1314,6 +1315,7 @@ const spanishTranslation: TranslationType = {
                 "tenant-create": "Crear Inquilino",
                 "tenant-read": "Leer Inquilino",
                 "tenant-write": "Editar Inquilino",
+                "tenant-delete": "Eliminar Inquilino",
                 "election-event-create": "Crear Evento Electoral",
                 "election-event-read": "Leer Evento Electoral",
                 "election-event-write": "Editar Evento Electoral",
@@ -2082,6 +2084,7 @@ const spanishTranslation: TranslationType = {
                     "Copa de Seguridad de la Clave Encriptada Privada inválida, por favor inténtalo de nuevo",
                 errorEmptyFile: "Fichero vacío o no encontrado",
                 verified: "Copia de seguridad verificada correctamente.",
+                alreadyRestored: "Tu clave ya se había restaurado.",
             },
         },
         miruExport: {

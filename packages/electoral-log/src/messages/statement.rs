@@ -305,6 +305,21 @@ impl StatementHead {
                     ..default_head
                 }
             }
+            StatementBody::BallotPublicationFailure(details) => {
+                let stage = match details.stage {
+                    BallotPublicationStage::Generate => "generation",
+                    BallotPublicationStage::Publish => "publication",
+                };
+                StatementHead {
+                    kind: StatementType::BallotPublicationFailure,
+                    log_type: StatementLogType::ERROR,
+                    description: format!(
+                        "Ballot {stage} failed (publication {}, task {}): {}",
+                        details.publication_id.0, details.task_id, details.error.0,
+                    ),
+                    ..default_head
+                }
+            }
         }
     }
 }
@@ -437,6 +452,8 @@ pub enum StatementBody {
         ExternalReconciliationInputHashString,
         ExternalReconciliationOutputHashString,
     ),
+    // Append new variants so existing signed Borsh statements remain decodable.
+    BallotPublicationFailure(BallotPublicationFailure),
 }
 
 // Note: When creating new variants, consider that the length limit STATEMENT_KIND_VARCHAR_LENGTH is 40.
@@ -471,6 +488,7 @@ pub enum StatementType {
     ResultsPublicationAction,
     ExternalApiRequest,
     ExternalReconciliation,
+    BallotPublicationFailure,
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Display, Deserialize, Serialize, Debug, Clone)]

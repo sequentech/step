@@ -1,0 +1,10 @@
+mutation DeleteElectionEvent($electionEventId: String!) {
+    delete_election_event(election_event_id: $electionEventId) {
+        id
+        error_msg
+        task_execution {
+            id
+            execution_status
+        }
+    }
+}

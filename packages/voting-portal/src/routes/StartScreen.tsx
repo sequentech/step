@@ -163,7 +163,12 @@ const StartScreen: React.FC = () => {
                     {stringToHtml(titleDescription)}
                 </Typography>
             ) : null}
-            <Typography className="instructions-title" variant="h5" component="h2">
+            <Typography
+                id="instructions-title"
+                className="instructions-title"
+                variant="h5"
+                component="h2"
+            >
                 {t("startScreen.instructionsTitle")}
             </Typography>
             <Typography className="instructions-description" variant="body2" component="div">
@@ -171,7 +176,13 @@ const StartScreen: React.FC = () => {
             </Typography>
             <Box
                 className="instructions-steps"
+                component="ol"
+                role="list"
+                aria-labelledby="instructions-title"
                 sx={{
+                    margin: 0,
+                    padding: 0,
+                    listStyle: "none",
                     display: "flex",
                     flexDirection: {xs: "column", md: "row"},
                     gap: {sm: 0, md: "15px"},
@@ -179,6 +190,7 @@ const StartScreen: React.FC = () => {
             >
                 <Box
                     className="instructions-step instructions-select-step"
+                    component="li"
                     sx={{width: {xs: "100%", md: "33.33333333%"}}}
                 >
                     <Typography
@@ -199,6 +211,7 @@ const StartScreen: React.FC = () => {
                 </Box>
                 <Box
                     className="instructions-step instructions-review-step"
+                    component="li"
                     sx={{width: {xs: "100%", md: "33.33333333%"}}}
                 >
                     <Typography
@@ -219,6 +232,7 @@ const StartScreen: React.FC = () => {
                 </Box>
                 <Box
                     className="instructions-step instructions-cast-step"
+                    component="li"
                     sx={{width: {xs: "100%", md: "33.33333333%"}}}
                 >
                     <Typography
