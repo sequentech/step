@@ -47,7 +47,6 @@ describe("ivrKeypadHint", () => {
 
     it("has the any-digits wording in every language", () => {
         for (const lang of ["cat", "en", "es", "eu", "fr", "gl", "nl", "tl"]) {
-            // eslint-disable-next-line @typescript-eslint/no-require-imports
             const translations = require(`../translations/${lang}`).default
             const wording: string =
                 translations.translations.electionEventScreen.ivr.emulator.inputPlaceholderAnyKeys
@@ -59,7 +58,6 @@ describe("ivrKeypadHint", () => {
 
     it("names the keys and says 'or' in every language", () => {
         for (const lang of ["cat", "en", "es", "eu", "fr", "gl", "nl", "tl"]) {
-            // eslint-disable-next-line @typescript-eslint/no-require-imports
             const translations = require(`../translations/${lang}`).default
             const {inputPlaceholder, inputPlaceholderOr} =
                 translations.translations.electionEventScreen.ivr.emulator
