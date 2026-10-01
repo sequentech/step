@@ -16,6 +16,14 @@
 
 log_format mtls '$remote_addr - ssl_verify=$ssl_client_verify';
 
+# Development only: the dev voting portal sends voters to Keycloak on
+# http://localhost:8090, from where the Liveness Plus API below is another
+# origin. Local origins may call it; production serves both on one origin.
+map $http_origin $liveness_cors_origin {
+    default "";
+    "~^https?://(localhost|127\.0\.0\.1)(:[0-9]+)?$" $http_origin;
+}
+
 server {
     listen 8443 ssl;
     server_name localhost 127.0.0.1;
@@ -62,6 +70,17 @@ server {
     # API docs and metrics stay internal. Without the profile running, only
     # these paths fail (502).
     location ~ ^/biometric/liveness/(create_session|check_liveness|client_session_data|client_error)$ {
+        if ($request_method = OPTIONS) {
+            add_header Access-Control-Allow-Origin $liveness_cors_origin always;
+            add_header Access-Control-Allow-Methods "POST, OPTIONS" always;
+            add_header Access-Control-Allow-Headers "content-type, service-session-token" always;
+            add_header Access-Control-Max-Age 600 always;
+            add_header Vary Origin always;
+            return 204;
+        }
+        add_header Access-Control-Allow-Origin $liveness_cors_origin always;
+        add_header Vary Origin always;
+
         set $liveness_upstream http://scanovate-liveness:5050;
         proxy_pass $liveness_upstream;
 
