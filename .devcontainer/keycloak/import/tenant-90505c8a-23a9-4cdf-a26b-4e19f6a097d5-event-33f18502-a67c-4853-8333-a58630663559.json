@@ -4014,17 +4014,14 @@
       "id": "3b3c7e73-efd1-4f2c-8233-e5f62c3dbbf5",
       "alias": "scanovate-registration",
       "config": {
-        "base-url": "http://mock-server:8500",
-        "client-id": "mock-client",
-        "client-secret": "mock-secret",
-        "flow-id": "1",
-        "execution-mode": "interactive",
-        "link-params": "{\"country\": \"country\"}",
-        "doc-id": "sequent.read-only.id-card-number",
+        "ocr-url": "http://scanovate-ocr:5040",
+        "liveness-url": "https://localhost:8443/biometric",
+        "liveness-secret": "liveness-dev-callback-secret",
+        "face-match-url": "http://scanovate-face-match:3000",
         "doc-id-type": "sequent.read-only.id-card-type",
         "user-status": "sequent.read-only.id-card-number-validated",
-        "attributes-to-validate": "{\n  \"default\": [\n    {\n      \"type\": \"equalValue\",\n      \"equalValue\": \"true\",\n      \"process\": \"liveness_plus\",\n      \"attributePath\": \"/livenessCheck\",\n      \"errorMsg\": \"scanovateVerificationFailedError\"\n    },\n    {\n      \"type\": \"minValue\",\n      \"minValue\": \"0.67\",\n      \"process\": \"biometric_match\",\n      \"attributePath\": \"/score\",\n      \"errorMsg\": \"scanovateScoringError\"\n    },\n    {\n      \"type\": \"equalAuthnoteAttributeId\",\n      \"equalAuthnoteAttributeId\": \"sequent.read-only.id-card-number\",\n      \"process\": \"ocr\",\n      \"attributePath\": \"/idNumber\",\n      \"errorMsg\": \"scanovateAttributesError\"\n    }\n  ]\n}",
-        "attributes-to-store": "{\n  \"default\": [\n    {\n      \"UserAttribute\": \"firstName\",\n      \"process\": \"ocr\",\n      \"attributePath\": \"/firstName\",\n      \"type\": \"text\"\n    },\n    {\n      \"UserAttribute\": \"lastName\",\n      \"process\": \"ocr\",\n      \"attributePath\": \"/lastName\",\n      \"type\": \"text\"\n    },\n    {\n      \"UserAttribute\": \"dateOfBirth\",\n      \"process\": \"ocr\",\n      \"attributePath\": \"/dob\",\n      \"type\": \"date\",\n      \"sourceDateFormat\": \"dd.MM.yyyy\",\n      \"storeDateFormat\": \"yyyy-MM-dd\"\n    }\n  ]\n}",
+        "attributes-to-validate": "{\n  \"default\": [\n    {\n      \"type\": \"isBeforeDateValue\",\n      \"isBeforeDateValue\": \"now\",\n      \"process\": \"ocr\",\n      \"attributePath\": \"/date_of_expiry\",\n      \"sourceDateFormat\": \"yyyy-MM-dd\",\n      \"errorMsg\": \"scanovateAttributesError\"\n    }\n  ]\n}",
+        "attributes-to-store": "{\n  \"default\": [\n    {\n      \"UserAttribute\": \"firstName\",\n      \"process\": \"ocr\",\n      \"attributePath\": \"/first_name_english\",\n      \"type\": \"text\"\n    },\n    {\n      \"UserAttribute\": \"lastName\",\n      \"process\": \"ocr\",\n      \"attributePath\": \"/last_name_english\",\n      \"type\": \"text\"\n    },\n    {\n      \"UserAttribute\": \"dateOfBirth\",\n      \"process\": \"ocr\",\n      \"attributePath\": \"/date_of_birth\",\n      \"type\": \"date\",\n      \"sourceDateFormat\": \"yyyy-MM-dd\",\n      \"storeDateFormat\": \"yyyy-MM-dd\"\n    }\n  ]\n}",
         "max-attempts": "3"
       }
     },

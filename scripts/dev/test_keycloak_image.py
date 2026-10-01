@@ -50,16 +50,17 @@ class KeycloakImageTests(unittest.TestCase):
 
 
 class ComelecThemeTests(unittest.TestCase):
-    def test_embedded_capture_runs_on_a_react_login_theme(self):
+    def test_identity_verification_runs_on_a_react_login_theme(self):
         # The Scanovate capture page only exists in the React themes; the
         # FreeMarker one just says the step needs them.
         realm = comelec_realm()
-        embedded = [
-            config["alias"]
-            for config in realm["authenticatorConfig"]
-            if config["config"].get("execution-mode") == "embedded"
+        scanovate = [
+            execution
+            for flow in realm["authenticationFlows"]
+            for execution in flow["authenticationExecutions"]
+            if execution.get("authenticator") == "scanovate-authenticator"
         ]
-        self.assertTrue(embedded)
+        self.assertTrue(scanovate)
         self.assertEqual(realm["loginTheme"], "sequent-ui-voting")
         for client in realm["clients"]:
             theme = client.get("attributes", {}).get("login_theme")

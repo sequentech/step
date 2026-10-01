@@ -542,15 +542,8 @@ services:
       ROCKET_ADDRESS: ${ROCKET_ADDRESS}
       ROCKET_PORT: ${MOCK_SERVER_PORT}
       MOCK_SERVER_PORT: ${MOCK_SERVER_PORT}
-      MOCK_SERVER_PUBLIC_URL: ${MOCK_SERVER_PUBLIC_URL}
     ports:
      - ${MOCK_SERVER_PORT}:${MOCK_SERVER_PORT}
-    networks:
-      default:
-        # Java HTTP clients reject host names with underscores, e.g. Keycloak calling
-        # the mocked B-Trust API
-        aliases:
-          - mock-server
 
   janitor:
     profiles: ["full"]
@@ -567,8 +560,8 @@ services:
       - PYTHONUNBUFFERED=1
 
   # Scanovate on-premise services (opt-in `scanovate` profile): Liveness Plus
-  # with its presentation attack detection server, and the Face Match service,
-  # used for 1:1 comparisons. The images come from our private ECR mirror of
+  # with its presentation attack detection server, the Face Match service, used
+  # for 1:1 comparisons, and the OCR service, which reads the identity documents. The images come from our private ECR mirror of
   # Scanovate's images: pulling them needs an ECR login. See
   # docs/docusaurus/docs/integrations/scanovate_on_premise_guide.md.
   # Service names use hyphens: Java HTTP clients (Keycloak) reject host names
@@ -623,6 +616,19 @@ services:
       MODE: onprem
     ports:
       - ${SCANOVATE_FACE_MATCH_PORT}:3000
+
+  # Keycloak calls its single image API (/single_image_ocr) on the compose
+  # network. The host port is only for direct checks.
+  scanovate-ocr:
+    profiles: ["scanovate"]
+    container_name: ${DEVCONTAINER_NAME_PREFIX:-}scanovate-ocr
+    image: 133529410358.dkr.ecr.eu-west-1.amazonaws.com/scanovate/ocr:version_3.9.0_aefa131_285
+    restart: unless-stopped
+    environment:
+      MODE: onprem
+      JWT_SECRET_KEY: ${SCANOVATE_OCR_JWT_SECRET_KEY}
+    ports:
+      - ${SCANOVATE_OCR_PORT}:5040
 
   harvest:
     profiles: ["full", "base"]
