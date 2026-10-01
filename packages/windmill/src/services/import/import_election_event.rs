@@ -103,6 +103,7 @@ use crate::services::protocol_manager::{
     create_protocol_manager_keys, get_b3_pgsql_client, get_board_client,
 };
 use crate::services::signing::certificates::parse_chain;
+use crate::services::signing::configuration::import_bundle_signing;
 use crate::services::signing::issuers::{import_staff_issuers, SYSTEM_ACTOR};
 use crate::services::signing::log::Actor;
 use crate::services::signing::Allowance;
@@ -834,6 +835,19 @@ pub async fn process_election_event_file(
     )
     .await
     .with_context(|| "Error inserting area contests")?;
+
+    // After the areas, whose `miru:area-threshold` may imply the
+    // transmit-results rule.
+    import_bundle_signing(
+        hasura_transaction,
+        Uuid::parse_str(&tenant_id).with_context(|| "Error parsing the tenant id")?,
+        Uuid::parse_str(&election_event_id)
+            .with_context(|| "Error parsing the election event id")?,
+        &data,
+        object.importer.as_ref(),
+    )
+    .await
+    .with_context(|| "Error importing the signing configuration")?;
 
     if let Some(applications) = data.applications.clone() {
         insert_applications(hasura_transaction, &applications)

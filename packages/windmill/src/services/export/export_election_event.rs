@@ -22,6 +22,7 @@ use crate::services::reports::template_renderer::{
     ReportOriginatedFrom, ReportOrigins, TemplateRenderer,
 };
 use crate::services::reports_vault::get_password;
+use crate::services::signing::configuration::export_bundle_signing;
 use crate::services::signing::issuers::staff_issuers_pem_bundle;
 use crate::tasks::export_election_event::ExportOptions;
 use crate::types::documents::EDocuments;
@@ -162,7 +163,7 @@ pub async fn read_export_data(
     let version =
         std::env::var(ENV_VAR_APP_VERSION).unwrap_or_else(|_| DEV_APP_VERSION.to_string());
 
-    let import_election_event_schema = ImportElectionEventSchema {
+    let mut import_election_event_schema = ImportElectionEventSchema {
         // parse_uuid_v4 still runs: the schema now carries a String, but an
         // export must not emit a tenant id that is not a UUID.
         tenant_id: parse_uuid_v4(&tenant_id)?.to_string(),
@@ -178,8 +179,18 @@ pub async fn read_export_data(
         keys_ceremonies: Some(export_keys_ceremonies),
         applications: Some(export_applications),
         support_materials: Some(export_support_materials),
+        signing_rules: None,
+        signing_checks: None,
         version,
     };
+
+    export_bundle_signing(
+        &transaction,
+        Uuid::parse_str(tenant_id)?,
+        Uuid::parse_str(election_event_id)?,
+        &mut import_election_event_schema,
+    )
+    .await?;
 
     let images_files_path =
         process_event_images(&transaction, tenant_id, elections, contests, candidates).await?;

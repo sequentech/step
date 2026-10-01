@@ -356,6 +356,20 @@ fn the_default_checks_match_the_2025_behaviour() {
     );
 }
 
+/// Imported checks may leave out the revision, as a rule may.
+#[test]
+fn imported_checks_without_a_revision_start_at_zero() {
+    let checks: SigningChecks = serde_json::from_value(json!({
+        "revocation_check": "dont-check",
+        "crl_unavailable": "accept-unchecked",
+        "registration": "security-officer-only",
+        "post_binding": "any-post"
+    }))
+    .unwrap();
+    assert_eq!(checks.revision, 0);
+    assert_eq!(checks.post_binding, CertificatePostBinding::AnyPost);
+}
+
 #[test]
 fn policy_enums_use_kebab_case_values() {
     assert_wire(&[

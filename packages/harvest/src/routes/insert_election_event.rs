@@ -222,6 +222,26 @@ async fn refuse(
 }
 
 #[instrument(skip(claims))]
+/// What the import task learns from the caller's token, never from the
+/// request body: whether they may write encrypted voter attributes (and who
+/// does), and who started the import, whom its log entries name.
+fn stamp_initiators(
+    input: &mut import_election_event::ImportElectionEventBody,
+    claims: &JwtClaims,
+) {
+    input.may_write_secret_attributes = authorize(
+        claims,
+        true,
+        Some(input.tenant_id.clone()),
+        vec![Permissions::VOTER_SECRET_ATTRIBUTE_WRITE],
+    )
+    .is_ok();
+    input.secret_write_initiator = input
+        .may_write_secret_attributes
+        .then(|| ElectoralLogAdminContext::from_claims(claims));
+    input.importer = Some(ElectoralLogAdminContext::from_claims(claims));
+}
+
 #[post("/import-election-event", format = "json", data = "<body>")]
 pub async fn import_election_event_f(
     body: Json<import_election_event::ImportElectionEventBody>,
@@ -235,16 +255,7 @@ pub async fn import_election_event_f(
         .unwrap_or_else(|| claims.hasura_claims.user_id.clone());
 
     authorize(&claims, true, Some(input.tenant_id.clone()), vec![])?;
-    input.may_write_secret_attributes = authorize(
-        &claims,
-        true,
-        Some(input.tenant_id.clone()),
-        vec![Permissions::VOTER_SECRET_ATTRIBUTE_WRITE],
-    )
-    .is_ok();
-    input.secret_write_initiator = input
-        .may_write_secret_attributes
-        .then(|| ElectoralLogAdminContext::from_claims(&claims));
+    stamp_initiators(&mut input, &claims);
 
     let mut hasura_db_client: DbClient =
         get_hasura_pool().await.get().await.map_err(|err| {
@@ -418,6 +429,41 @@ mod tests {
             logs: None,
             executed_by_user: "admin".to_string(),
         }
+    }
+
+    fn body(tenant: &str) -> import_election_event::ImportElectionEventBody {
+        serde_json::from_value(serde_json::json!({
+            "tenant_id": tenant,
+            "document_id": "document",
+            // Forged by the caller: the token decides.
+            "may_write_secret_attributes": true,
+            "importer": {"user_id": "someone-else", "username": "someone-else"},
+        }))
+        .unwrap()
+    }
+
+    #[test]
+    fn the_importer_and_the_secret_writer_come_from_the_token() {
+        use crate::test_claims::Claims;
+
+        let mut input = body("tenant");
+        let claims =
+            Claims::new("tenant", "admin-id").username("admin").build();
+        stamp_initiators(&mut input, &claims);
+        let importer = input.importer.unwrap();
+        assert_eq!(importer.user_id, "admin-id");
+        assert_eq!(importer.username.as_deref(), Some("admin"));
+        assert!(!input.may_write_secret_attributes);
+        assert!(input.secret_write_initiator.is_none());
+
+        let mut input = body("tenant");
+        let writer = Claims::new("tenant", "writer-id")
+            .roles([Permissions::VOTER_SECRET_ATTRIBUTE_WRITE])
+            .build();
+        stamp_initiators(&mut input, &writer);
+        assert!(input.may_write_secret_attributes);
+        assert_eq!(input.secret_write_initiator.unwrap().user_id, "writer-id");
+        assert_eq!(input.importer.unwrap().user_id, "writer-id");
     }
 
     fn mismatch() -> Problem {

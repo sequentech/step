@@ -4,6 +4,9 @@
 
 use super::utils::get_public_asset_template;
 use crate::postgres::reports::{get_template_alias_for_report, Report, ReportType};
+use crate::postgres::signing_report_release::{
+    ReleaseEncryption, ReleaseTarget, ReportEmail, ReportRelease,
+};
 use crate::postgres::{election_event, template};
 use crate::services::celery_app::get_worker_threads;
 use crate::services::consolidation::aes_256_cbc_encrypt::encrypt_file_aes_256_cbc;
@@ -65,8 +68,9 @@ pub enum ReportOutcome {
     Released,
     /// Its action needs signatures: kept as a signing document only, to
     /// start a signing request with. The executed request releases the
-    /// signed document (and sends any scheduled email).
-    AwaitingSignatures(SigningBase),
+    /// signed document as `ReportRelease` says (and sends the scheduled
+    /// email it holds).
+    AwaitingSignatures(SigningBase, ReportRelease),
 }
 
 static GLOBAL_RT: Lazy<Runtime> = Lazy::new(|| {
@@ -888,27 +892,55 @@ pub trait TemplateRenderer: Debug {
                     "Report {} awaits {action} signatures before its release",
                     self.prefix()
                 );
-                if let Some(task) = task_execution_ref {
-                    let logs = serde_json::to_value(append_general_log(
-                        &task.logs,
-                        "Generated; awaiting signatures before its release",
-                    ))?;
-                    update_task(
-                        &task.tenant_id,
-                        &task.id,
-                        TasksExecutionStatus::SUCCESS,
-                        logs,
-                        None,
-                    )
-                    .await
-                    .context("Failed to update the task execution")?;
-                }
-                return Ok(ReportOutcome::AwaitingSignatures(SigningBase {
-                    action,
-                    document_id: Uuid::parse_str(&document.id)
-                        .context("The document to sign has no UUID")?,
-                    sha256: hex::encode(Sha256::digest(&base)),
-                }));
+                // The task succeeds once the report's signing request
+                // started (the report task does that).
+                // The e-mail a released report would send waits for the
+                // signatures with it.
+                let email = if self.should_send_email(is_scheduled_task) {
+                    let email_config = ext_cfg.communication_templates.email_config.clone();
+                    Some(ReportEmail {
+                        recipients: self
+                            .get_email_recipients(recipients, tenant_id, election_event_id)
+                            .await
+                            .map_err(|err| anyhow!("Error getting email receiver: {err:?}"))?,
+                        subject: email_config.subject,
+                        plaintext_body: email_config.plaintext_body,
+                        html_body: email_config.html_body,
+                    })
+                } else {
+                    None
+                };
+                let release = ReportRelease {
+                    report_id: report
+                        .as_ref()
+                        .map(|report| Uuid::parse_str(&report.id))
+                        .transpose()
+                        .context("The report has no UUID")?,
+                    target: ReleaseTarget::Report {
+                        document_id: Uuid::parse_str(document_id)
+                            .context("The report's document id is no UUID")?,
+                    },
+                    file_name: final_report_name.clone(),
+                    is_public: !contains_voter_secrets,
+                    // Released wrapped in its password, as it would have been.
+                    encryption: if report.as_ref().is_some_and(|report| {
+                        report.encryption_policy == EReportEncryption::ConfiguredPassword
+                    }) {
+                        ReleaseEncryption::ConfiguredPassword
+                    } else {
+                        ReleaseEncryption::NoEncryption
+                    },
+                    email,
+                };
+                return Ok(ReportOutcome::AwaitingSignatures(
+                    SigningBase {
+                        action,
+                        document_id: Uuid::parse_str(&document.id)
+                            .context("The document to sign has no UUID")?,
+                        sha256: hex::encode(Sha256::digest(&base)),
+                    },
+                    release,
+                ));
             }
             (ReportDelivery::AwaitSignatures, None) => {
                 return Err(anyhow!(

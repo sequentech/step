@@ -1532,6 +1532,83 @@ fn a_grandchild_area_inherits_the_contest_linked_two_levels_up() {
     );
 }
 
+// -- signing configuration ------------------------------------------------
+
+fn with_signing(rules: serde_json::Value) -> ImportElectionEventSchema {
+    let mut bundle = sound();
+    bundle.signing_rules = Some(serde_json::from_value(rules).unwrap());
+    bundle
+}
+
+fn signing_problem_ids(bundle: &ImportElectionEventSchema) -> Vec<String> {
+    validate(bundle)
+        .problems
+        .iter()
+        .filter(|problem| problem.severity == Severity::Error)
+        .filter_map(|problem| problem.id.clone())
+        .filter(|id| id.starts_with("signing."))
+        .collect()
+}
+
+#[test]
+fn sound_signing_rules_raise_nothing() {
+    let bundle = with_signing(serde_json::json!([
+        {"action": "open-voting", "requirement": "required", "signatures": 100,
+         "requester_signing": "allowed", "expires_minutes": 525600},
+        {"action": "approve-voter", "requirement": "required", "signatures": 1,
+         "requester_signing": "not-allowed", "expires_minutes": null},
+        {"action": "close-voting", "requirement": "required", "signatures": 2,
+         "requester_signing": "allowed", "expires_minutes": 1}
+    ]));
+    assert_eq!(signing_problem_ids(&bundle), Vec::<String>::new());
+}
+
+#[test]
+fn an_action_with_two_rules_is_refused() {
+    // Which one would win is anybody's guess, so neither does.
+    let bundle = with_signing(serde_json::json!([
+        {"action": "open-voting", "requirement": "required", "signatures": 2,
+         "requester_signing": "allowed"},
+        {"action": "open-voting", "requirement": "not-required", "signatures": 1,
+         "requester_signing": "allowed"}
+    ]));
+    assert_eq!(
+        signing_problem_ids(&bundle),
+        vec!["signing.duplicate-action"]
+    );
+    assert!(error_codes(&bundle).contains(&Code::DuplicateId));
+}
+
+#[test]
+fn signature_counts_outside_one_to_a_hundred_are_refused() {
+    for signatures in [0, 101] {
+        let bundle = with_signing(serde_json::json!([
+            {"action": "close-voting", "requirement": "required",
+             "signatures": signatures, "requester_signing": "allowed"}
+        ]));
+        assert_eq!(
+            signing_problem_ids(&bundle),
+            vec!["signing.signatures-out-of-range"],
+            "{signatures}"
+        );
+    }
+}
+
+#[test]
+fn expiries_outside_a_minute_to_a_year_are_refused() {
+    for minutes in [0, 525601] {
+        let bundle = with_signing(serde_json::json!([
+            {"action": "close-voting", "requirement": "required", "signatures": 2,
+             "requester_signing": "allowed", "expires_minutes": minutes}
+        ]));
+        assert_eq!(
+            signing_problem_ids(&bundle),
+            vec!["signing.expiry-out-of-range"],
+            "{minutes}"
+        );
+    }
+}
+
 /// Every id named in a source file, in order.
 fn ids_in(source: &str) -> Vec<&str> {
     let mut names = Vec::new();

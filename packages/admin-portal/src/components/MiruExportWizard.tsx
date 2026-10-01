@@ -5,6 +5,7 @@ import {
     Accordion,
     AccordionSummary,
     Box,
+    Button,
     CircularProgress,
     PaletteColor,
     TextField,
@@ -46,7 +47,7 @@ import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {IPermissions} from "@/types/keycloak"
-import {useMutation} from "@apollo/client"
+import {useApolloClient, useMutation} from "@apollo/client"
 import {SEND_TRANSMISSION_PACKAGE} from "@/queries/SendTransmissionPackage"
 import {UPLOAD_SIGNATURE} from "@/queries/UploadSignature"
 import {AuthContext} from "@/providers/AuthContextProvider"
@@ -62,6 +63,10 @@ import {WidgetProps} from "@/components/Widget"
 import {CancelButton} from "@/resources/Tally/styles"
 import ArrowBackIosIcon from "@mui/icons-material/ArrowBackIos"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
+import {useSigningRequest} from "@/components/signing/SigningProvider"
+import {SigningAction, SigningRequestStatus} from "@/lib/signing/types"
+import {useActionNeedsSignatures} from "@/components/signing/useSigningRule"
+import {createSigningApi} from "@/lib/signing/api"
 
 interface IMiruExportWizardProps {}
 
@@ -437,13 +442,92 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = () => {
         [selectedTallySessionData?.election_id, tallyData?.sequent_backend_election]
     )
 
+    const canSendMiru = authContext.hasRole(IPermissions.MIRU_SEND)
+
+    // With the transmit-results rule, the package waits for a signing
+    // request: its signatures are the request's, made in the signing panel.
+    const packageRequest = selectedTallySessionData?.signing_request ?? null
+    const signing = useSigningRequest()
+    // A request that ended without running (cancelled, expired, failed)
+    // no longer signs the package: the 2025 flow is back while the rule is
+    // off (the server refuses uploads otherwise).
+    const apolloClient = useApolloClient()
+    const [endedRequest, setEndedRequest] = useState<string | null>(null)
+    useEffect(() => {
+        if (!packageRequest) return
+        let current = true
+        createSigningApi(apolloClient)
+            .getRequest(packageRequest.id)
+            .then((panel) => {
+                const ended = [
+                    SigningRequestStatus.Cancelled,
+                    SigningRequestStatus.Expired,
+                    SigningRequestStatus.Failed,
+                ].includes(panel.request.status)
+                if (current) setEndedRequest(ended ? packageRequest.id : null)
+            })
+            .catch(() => {
+                // Unreadable for this viewer: the package keeps its request.
+            })
+        return () => {
+            current = false
+        }
+    }, [apolloClient, packageRequest?.id])
+    const signingRequest =
+        packageRequest && endedRequest !== packageRequest.id ? packageRequest : null
+    // An ended request while signatures are still needed (or the rule
+    // can't be read): the package is created again, no 2025 upload.
+    const requestEnded = !!packageRequest && endedRequest === packageRequest.id
+    const transmitNeedsSignatures = useActionNeedsSignatures(
+        electionEventId,
+        SigningAction.TransmitResults,
+        requestEnded
+    )
+    const recreateToSign = requestEnded && transmitNeedsSignatures !== false
+
     let minimumSignatures = () => {
-        return selectedTallySessionData?.threshold ?? 1
+        return signingRequest?.required ?? selectedTallySessionData?.threshold ?? 1
     }
 
+    // The signed package is the document the executed request added.
+    const packageSigned = !!signingRequest && signedCount() >= signingRequest.required
+
     const disableSendButton = useMemo(() => {
-        return serversTotalCount() === serverSentToCount() || signedCount() < minimumSignatures()
-    }, [serversTotalCount, serverSentToCount, signedCount, trusteeCount, minimumSignatures])
+        return (
+            serversTotalCount() === serverSentToCount() ||
+            (signingRequest ? !packageSigned : signedCount() < minimumSignatures())
+        )
+    }, [
+        serversTotalCount,
+        serverSentToCount,
+        signedCount,
+        trusteeCount,
+        minimumSignatures,
+        signingRequest,
+        packageSigned,
+    ])
+
+    // The panel's actions read the wizard as it stands, not as it was when
+    // the panel opened.
+    const sendable = useRef(false)
+    sendable.current = canSendMiru && !disableSendButton
+    const openSigningRequest = () => {
+        if (!signingRequest) return
+        signing.open(signingRequest.id, {
+            completionActions: (panel) =>
+                panel.request.status === SigningRequestStatus.Executed && sendable.current ? (
+                    <Button
+                        variant="contained"
+                        onClick={() => {
+                            signing.close()
+                            setConfirmSendMiruModal(true)
+                        }}
+                    >
+                        {t("signing.results.sendTo", {count: serversTotalCount()})}
+                    </Button>
+                ) : null,
+        })
+    }
 
     const [CreateTransmissionPackage] = useMutation<CreateTransmissionPackageMutation>(
         CREATE_TRANSMISSION_PACKAGE,
@@ -561,7 +645,6 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = () => {
     const eventName = aliasRenderer(election)
 
     const canDownloadMiru = authContext.hasRole(IPermissions.MIRU_DOWNLOAD)
-    const canSendMiru = authContext.hasRole(IPermissions.MIRU_SEND)
     const canCreateMiru = authContext.hasRole(IPermissions.MIRU_CREATE)
     const canSignMiru = authContext.hasRole(IPermissions.MIRU_SIGN)
 
@@ -653,7 +736,40 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = () => {
                     ) : null}
                 </TallyStyles.MiruToolbar>
             </TallyStyles.MiruHeader>
-            {isTrustee && canSignMiru && (
+            {signingRequest ? (
+                <Accordion sx={{width: "100%"}} expanded>
+                    <AccordionSummary>
+                        <Box className="flex flex-col items-start">
+                            <WizardStyles.AccordionTitle>
+                                {t("signing.results.transmission.title")}
+                            </WizardStyles.AccordionTitle>
+                            <WizardStyles.AccordionSubTitle>
+                                {t("signing.results.transmission.description", {
+                                    n: signingRequest.required,
+                                })}
+                            </WizardStyles.AccordionSubTitle>
+                        </Box>
+                    </AccordionSummary>
+                    <WizardStyles.AccordionDetails style={{zIndex: 100}}>
+                        <WizardStyles.AccordionSubTitle>
+                            {packageSigned
+                                ? t("signing.results.transmission.signed")
+                                : t("signing.results.transmission.waiting")}
+                        </WizardStyles.AccordionSubTitle>
+                        <Box sx={{mt: 1}}>
+                            <Button variant="outlined" onClick={openSigningRequest}>
+                                {t("signing.results.openRequest")}
+                            </Button>
+                        </Box>
+                    </WizardStyles.AccordionDetails>
+                </Accordion>
+            ) : null}
+            {recreateToSign ? (
+                <WizardStyles.AccordionSubTitle>
+                    {t("signing.results.transmission.ended")}
+                </WizardStyles.AccordionSubTitle>
+            ) : null}
+            {!signingRequest && !recreateToSign && isTrustee && canSignMiru && (
                 <Accordion
                     sx={{width: "100%"}}
                     expanded={expandedExports["tally-miru-upload"]}

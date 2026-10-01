@@ -152,6 +152,15 @@ export const ExportElectionMenu: React.FC<ExportElectionMenuProps> = (props) => 
     const isExportFormatDisabled = (documents: IResultDocuments, format: EExportFormat): boolean =>
         !getExportDocumentId(documents, format)
 
+    // A report the tally holds for its signatures has its results data but
+    // no rendering until its signed PDF is released.
+    const awaitingSignatures = (documents: IResultDocuments): boolean =>
+        (tallyType === ETallyType.ELECTORAL_RESULTS ||
+            tallyType === ETallyType.INITIALIZATION_REPORT) &&
+        !!documents.json &&
+        !documents.html &&
+        !documents.pdf
+
     const getMenuClassName = (
         format: EExportFormat,
         classType: string,
@@ -221,6 +230,11 @@ export const ExportElectionMenu: React.FC<ExportElectionMenuProps> = (props) => 
                 <StyledAppAtom>
                     {documentsList?.map((documents) => (
                         <React.Fragment key={documents.class_type + documents.name}>
+                            {awaitingSignatures(documents.documents) ? (
+                                <MenuItem disabled className="tally-document-item awaiting">
+                                    {t("signing.results.awaiting", {item: documents.name})}
+                                </MenuItem>
+                            ) : null}
                             {EXPORT_FORMATS.map((format) =>
                                 isExportFormatDisabled(documents.documents, format.value) ? null : (
                                     <React.Fragment

@@ -27,9 +27,13 @@ use crate::services::monitoring_cache::RenderCache;
 use crate::services::monitoring_config_cache::MonitoringConfigs;
 use sequent_core::monitoring::cadence::Cadence;
 use std::sync::Arc;
+use windmill::services::consolidation::signed_transmission_package::AnnotatedSbeis;
 use windmill::services::monitoring::audit::ElectoralLogConfigAudit;
 use windmill::services::monitoring::cadence;
 use windmill::services::monitoring::config_store::MonitoringConfigAudit;
+use windmill::services::signing::actions::eml::{
+    DocumentSigners, EmlDocumentSigner,
+};
 use windmill::services::signing::approve::SigningServices;
 use windmill::services::signing::certificates::OpensslCertificateVerifier;
 use windmill::services::signing::executors::default_registry;
@@ -90,9 +94,13 @@ impl HarvestServices {
             signing: SigningServices {
                 verifier: Arc::new(OpensslCertificateVerifier::default()),
                 executors: default_registry(),
-                documents: Arc::new(PdfDocumentSigner::new(Arc::new(
-                    S3RevisionStore,
-                ))),
+                documents: Arc::new(DocumentSigners::new(
+                    Arc::new(EmlDocumentSigner::new(
+                        Arc::new(S3RevisionStore),
+                        Arc::new(AnnotatedSbeis),
+                    )),
+                    Arc::new(PdfDocumentSigner::new(Arc::new(S3RevisionStore))),
+                )),
                 exports: Arc::new(DocumentExportStore),
             },
             signing_roles: Arc::new(KeycloakSigningRoleAdmin),

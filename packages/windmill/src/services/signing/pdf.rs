@@ -88,16 +88,28 @@ pub fn certification(wording: &PageWording, action: SigningAction) -> Option<&st
 /// The action whose signatures a report needs, when the rule asks for them.
 pub fn report_signing_action(report_type: &ReportType) -> Option<SigningAction> {
     match report_type {
-        ReportType::ELECTORAL_RESULTS => Some(SigningAction::GenerateElectionReturns),
-        ReportType::INITIALIZATION_REPORT
-        | ReportType::PARTICIPATION_REPORT
-        | ReportType::MANUAL_VERIFICATION => Some(SigningAction::GenerateReports),
-        // The activity logs are a zip of PDFs when generated for real: not
-        // signed as a PDF yet (a known gap).
-        ReportType::ACTIVITY_LOGS
+        ReportType::PARTICIPATION_REPORT => Some(SigningAction::GenerateReports),
+        // The election returns and the initialization report are signed
+        // where they are produced: the tally (`tally_signing_action`).
+        ReportType::ELECTORAL_RESULTS | ReportType::INITIALIZATION_REPORT => None,
+        // Not a Post's report (a voter's manual verification, the activity
+        // logs, credentials) or not one PDF: not signed (known gaps).
+        ReportType::MANUAL_VERIFICATION
+        | ReportType::ACTIVITY_LOGS
         | ReportType::BALLOT_IMAGES
         | ReportType::BALLOT_RECEIPT
         | ReportType::CREDENTIALS => None,
+    }
+}
+
+/// The protected action of a report the tally produces per Post: the
+/// election returns (per Post and country too) and the initialization
+/// report.
+pub fn tally_signing_action(report_type: &ReportType) -> Option<SigningAction> {
+    match report_type {
+        ReportType::ELECTORAL_RESULTS => Some(SigningAction::GenerateElectionReturns),
+        ReportType::INITIALIZATION_REPORT => Some(SigningAction::GenerateReports),
+        _ => None,
     }
 }
 

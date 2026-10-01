@@ -1579,7 +1579,8 @@ struct Printed {
     document: &'static str,
 }
 
-const PRINTED: [Printed; 1] = [Printed {
+const PRINTED: [Printed; 2] = [
+    Printed {
     language: "en",
     title: "Student Council: digital signatures",
     certification: "We certify that these election returns are true and correct. Each of us signed them with our digital certificate.",
@@ -1589,7 +1590,19 @@ const PRINTED: [Printed; 1] = [Printed {
     issuer: "Issuer: Test Individual CA",
     code: "Signing code: 7F3A-91C2",
     document: "Document SHA-256 before signatures: ",
-}];
+},
+    Printed {
+        language: "es",
+        title: "Student Council: firmas digitales",
+        certification: "Certificamos que estas actas electorales son verídicas y correctas. Cada uno de nosotros las firmó con su certificado digital.",
+        label: "Firma 2",
+        signed_by: "Firmado digitalmente por MARIA SANTOS",
+        date: "Fecha: 2026-09-30 12:01:05 UTC",
+        issuer: "Emisor: Test Individual CA",
+        code: "Código de firma: 7F3A-91C2",
+        document: "SHA-256 del documento antes de las firmas: ",
+    },
+];
 
 fn shipped(language: &str) -> &'static PageWording {
     &shipped_wordings().unwrap()[language]

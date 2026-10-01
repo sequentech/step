@@ -2,10 +2,14 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::postgres::reports::{get_all_active_reports, update_report_last_document_time, Report};
+use crate::postgres::reports::{
+    get_all_active_reports, update_report_last_document_time, Report, ReportType,
+};
+use crate::postgres::signing_report_release::report_awaits_signatures;
 use crate::services::celery_app::get_celery_app;
 use crate::services::database::get_hasura_pool;
 use crate::services::reports::template_renderer::GenerateReportMode;
+use crate::services::signing::actions::reports::held_by_the_tally;
 use crate::services::tasks_execution;
 use crate::tasks::generate_report::generate_report;
 use crate::types::error::Result;
@@ -15,6 +19,7 @@ use celery::error::TaskError;
 use chrono::{DateTime, Duration, Local, NaiveDateTime, Utc};
 use croner::Cron;
 use deadpool_postgres::Client as DbClient;
+use std::str::FromStr;
 use tracing::{error, event, info, instrument, Level};
 use uuid::Uuid;
 
@@ -132,6 +137,46 @@ pub async fn scheduled_reports(rate_seconds: u64) -> Result<()> {
             .clone()
             .ok_or_else(|| anyhow!("Cron config not found"))?;
 
+        // A report the tally holds while its rule needs signatures is never
+        // generated (nor mailed) on a schedule.
+        if let Ok(report_type) = ReportType::from_str(&report.report_type) {
+            if held_by_the_tally(
+                &hasura_transaction,
+                Uuid::parse_str(&report.tenant_id).map_err(|e| anyhow!("{e}"))?,
+                Uuid::parse_str(&report.election_event_id).map_err(|e| anyhow!("{e}"))?,
+                &report_type,
+            )
+            .await?
+            {
+                info!(
+                    report_id = %report.id,
+                    "skipping a scheduled report the tally holds for its signatures"
+                );
+                update_report_last_document_time(
+                    &hasura_transaction,
+                    &report.tenant_id,
+                    &report.id,
+                )
+                .await?;
+                continue;
+            }
+        }
+        // A report whose signing request waits keeps that request: its
+        // next run is skipped instead of replacing what is being signed.
+        if report_awaits_signatures(
+            &hasura_transaction,
+            Uuid::parse_str(&report.tenant_id).map_err(|e| anyhow!("{e}"))?,
+            Uuid::parse_str(&report.election_event_id).map_err(|e| anyhow!("{e}"))?,
+            Uuid::parse_str(&report.id).map_err(|e| anyhow!("{e}"))?,
+        )
+        .await?
+        {
+            info!(report_id = %report.id, "skipping a report whose signing request waits");
+            update_report_last_document_time(&hasura_transaction, &report.tenant_id, &report.id)
+                .await?;
+            continue;
+        }
+
         let document_id = Uuid::new_v4().to_string();
 
         // Create a task execution record for this report generation
@@ -155,6 +200,7 @@ pub async fn scheduled_reports(rate_seconds: u64) -> Result<()> {
                     Some(cron_config.executer_username),
                     None,
                     false,
+                    None,
                 )
                 .with_eta(datetime.with_timezone(&Utc))
                 .with_expires_in(120),

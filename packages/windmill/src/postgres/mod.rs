@@ -37,6 +37,7 @@ pub mod signing;
 pub mod signing_actions;
 pub mod signing_certificates;
 pub mod signing_document_revision;
+pub mod signing_report_release;
 pub mod tally_results_publication;
 pub mod tally_session;
 pub mod tally_session_contest;

@@ -457,6 +457,8 @@ pub struct SigningChecks {
     pub crl_unavailable: CrlUnavailablePolicy,
     pub registration: CertificateRegistration,
     pub post_binding: CertificatePostBinding,
+    /// Absent in an imported bundle: 0, like a rule's.
+    #[serde(default)]
     pub revision: i64,
 }
 

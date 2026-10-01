@@ -54,6 +54,9 @@ pub enum SigningErrorCode {
     LockedDown,
     /// 409: the change needs signatures; start the Post-level action.
     SigningRequired,
+    /// 409: a transmission package sent without a signing request has fewer
+    /// uploaded signatures than it needs.
+    SignaturesShort,
 }
 
 #[derive(Debug, Clone, PartialEq)]

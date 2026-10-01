@@ -57,8 +57,9 @@ use windmill::services::signing::page_texts::{
 use windmill::services::signing::pdf::StoredAppearance;
 use windmill::services::signing::pdf::{
     appearance_lines, latest_signed_document, prepare_pdf, report_delivery, report_signature_page,
-    report_signing_action, signer_title, DocumentLink, DocumentRevisionView, PdfDocumentSigner,
-    PdfPrepared, PdfSources, ReportDelivery, RevisionStore, SignatureFacts, SignerTitles,
+    report_signing_action, signer_title, tally_signing_action, DocumentLink, DocumentRevisionView,
+    PdfDocumentSigner, PdfPrepared, PdfSources, ReportDelivery, RevisionStore, SignatureFacts,
+    SignerTitles,
 };
 use windmill::services::signing::requests::{get_panel, SigningPanel};
 use windmill::services::signing::{InvalidReason, SigningCaller, SigningError, SigningResult};
@@ -1368,29 +1369,38 @@ async fn a_pdf_request_without_its_document_takes_no_signature() {
 
 #[test]
 fn reports_map_to_their_signing_action() {
+    // The Reports tab holds the participation report of a Post.
     assert_eq!(
-        report_signing_action(&ReportType::ELECTORAL_RESULTS),
+        report_signing_action(&ReportType::PARTICIPATION_REPORT),
+        Some(SigningAction::GenerateReports)
+    );
+    // The tally holds the election returns and the initialization report.
+    assert_eq!(
+        tally_signing_action(&ReportType::ELECTORAL_RESULTS),
         Some(ER)
     );
+    assert_eq!(
+        tally_signing_action(&ReportType::INITIALIZATION_REPORT),
+        Some(SigningAction::GenerateReports)
+    );
+    // Not signed: not a Post's report, or not one PDF (known gaps).
     for report in [
+        ReportType::ELECTORAL_RESULTS,
         ReportType::INITIALIZATION_REPORT,
-        ReportType::PARTICIPATION_REPORT,
         ReportType::MANUAL_VERIFICATION,
-    ] {
-        assert_eq!(
-            report_signing_action(&report),
-            Some(SigningAction::GenerateReports),
-            "{report}"
-        );
-    }
-    // The activity logs are a zip when generated for real: a known gap.
-    for report in [
         ReportType::ACTIVITY_LOGS,
         ReportType::BALLOT_IMAGES,
         ReportType::BALLOT_RECEIPT,
         ReportType::CREDENTIALS,
     ] {
         assert_eq!(report_signing_action(&report), None, "{report}");
+    }
+    for report in [
+        ReportType::PARTICIPATION_REPORT,
+        ReportType::MANUAL_VERIFICATION,
+        ReportType::ACTIVITY_LOGS,
+    ] {
+        assert_eq!(tally_signing_action(&report), None, "{report}");
     }
 }
 
@@ -1915,6 +1925,49 @@ async fn an_unknown_language_prints_the_page_in_english() {
         appearance.reason.as_deref(),
         english().certify.get(&ER).map(String::as_str)
     );
+}
+
+/// A Spanish event prints its page and signatures in Spanish; an event
+/// without a language, in its tenant's (French here).
+#[tokio::test]
+async fn a_spanish_event_prints_the_page_in_spanish() {
+    let w = world("madrid-pe").await;
+    w.rule(ER, 2, RequesterSigning::NotAllowed, None).await;
+    set_languages(&w, Some("es"), Some("fr")).await;
+    let base = signature_page(&w, ER, &report_pdf()).await.unwrap();
+    assert!(contains(
+        &base,
+        "Certificamos que estas actas electorales son"
+    ));
+    assert!(contains(&base, ": firmas digitales)"));
+    assert!(contains(&base, "(Firma 1)"));
+    assert!(!contains(&base, "We certify"));
+
+    let store = MemoryStore::default();
+    let signers = pdf_signers(&w, ER, 1).await;
+    let (request_id, code) = start_on(&w, &base, store.put(&base)).await.unwrap();
+    let prepared = prepare(&w, &store, &signers[0], request_id, at(1))
+        .await
+        .unwrap();
+    let row = revisions(&w, request_id)
+        .await
+        .into_iter()
+        .find(|row| row.revision == prepared.revision)
+        .unwrap();
+    let appearance: StoredAppearance = serde_json::from_value(row.appearance.unwrap()).unwrap();
+    assert_eq!(appearance.lines[0], "Firmado digitalmente por sbei-0");
+    assert!(appearance
+        .lines
+        .contains(&format!("Código de firma: {code}")));
+    assert!(appearance
+        .reason
+        .as_deref()
+        .unwrap()
+        .starts_with("Certificamos que estas actas electorales"));
+
+    set_languages(&w, None, Some("fr")).await;
+    let base = signature_page(&w, ER, &report_pdf()).await.unwrap();
+    assert!(contains(&base, "Nous certifions que ces proc"));
 }
 
 /// A signer's title is the one the signing panel shows: their `title`

@@ -338,7 +338,6 @@ const englishTranslation = {
                 helpLinks: "Help Links",
                 logoUrl: "Logo URL",
                 css: "Custom CSS",
-
                 displayName: "Display name",
                 displayNameHelp:
                     "The organization's name in messages that name it. Empty: the tenant's short name.",
@@ -4009,6 +4008,26 @@ const englishTranslation = {
                 recordedIn: "Recorded in",
                 recordedInCeremony: "The keys ceremony and the bulletin board",
                 recordedInTally: "The tally session",
+            },
+            results: {
+                signatures: "Signatures",
+                needs: "Needs {{n}}",
+                off: "Off",
+                openRequest: "Open the signing request",
+                downloadSigned: "Download signed PDF",
+                print: "Print",
+                transmit: "Transmit results",
+                sendTo: "Send to {{count}} destinations",
+                awaiting: "{{item}}: awaiting signatures",
+                transmission: {
+                    title: "Signatures",
+                    description:
+                        "Each signer signs the package's results with their digital certificate, in this browser. The package can be sent once {{n}} people have signed it.",
+                    waiting:
+                        "The package can be sent once its signing request has all its signatures.",
+                    signed: "The package carries all its signatures and can be sent.",
+                    ended: "This package's signing request ended. Create the package again to sign it.",
+                },
             },
             keyShare: {
                 signing:
