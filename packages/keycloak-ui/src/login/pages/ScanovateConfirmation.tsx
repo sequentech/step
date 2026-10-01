@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
-import {useState} from "react"
+import {useRef, useState, type FormEvent} from "react"
 import Box from "@mui/material/Box"
 import Button from "@mui/material/Button"
 import {ArrowIcon, IdCardIcon} from "../icons"
@@ -46,6 +46,14 @@ export default function ScanovateConfirmation(
     const {kcContext, i18n, Template, doUseDefaultCss, classes} = props
     const {url, storedAttributes, documentType} = kcContext
     const [submitting, setSubmitting] = useState(false)
+    const action = useRef<HTMLInputElement>(null)
+    // Disabling the buttons can reach some browsers before they collect the form, which then
+    // leaves out the clicked one: its action goes in a field of its own first.
+    const onSubmit = (event: FormEvent<HTMLFormElement>) => {
+        const submitter = (event.nativeEvent as SubmitEvent).submitter as HTMLButtonElement | null
+        if (action.current !== null && submitter !== null) action.current.value = submitter.value
+        setSubmitting(true)
+    }
     const text = textFor(kcContext, i18n)
     const title = text("scanovateConfirmTitle")
     const document = documentName(kcContext, i18n, documentType)
@@ -93,8 +101,9 @@ export default function ScanovateConfirmation(
                 method="post"
                 action={url.loginAction}
                 className="auth-actions"
-                onSubmit={() => setSubmitting(true)}
+                onSubmit={onSubmit}
             >
+                <input ref={action} type="hidden" name="action" />
                 <Button
                     type="submit"
                     name="action"

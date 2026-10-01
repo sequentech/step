@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
 import type {Meta, StoryObj} from "@storybook/react-vite"
-import {expect, userEvent, within} from "storybook/test"
+import {expect, userEvent, waitFor, within} from "storybook/test"
 import {createKcPageStory} from "../KcPageStory"
 import {expectStickyActions} from "../scanovate/stickyActions"
 
@@ -39,22 +39,37 @@ export const Details: Story = {
 }
 
 // The browser only sends the clicked button's name and value if it's still enabled when it
-// collects the form, after the submit handlers have run.
+// collects the form, after the submit handlers have run, and some browsers render the disabled
+// buttons first: the action is posted even then. Read what the browser actually posts.
 export const ConfirmSubmitsTheAction: Story = {
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
-        const submitted: (string | null)[] = []
-        const onSubmit = (event: SubmitEvent) => {
-            event.preventDefault()
-            const form = event.target as HTMLFormElement
-            submitted.push(new FormData(form, event.submitter).get("action") as string | null)
+        const confirm = await canvas.findByRole("button", {name: "Confirm and enroll"})
+        const form = confirm.closest("form")!
+        const sink = document.createElement("iframe")
+        sink.name = "confirm-submission"
+        sink.hidden = true
+        document.body.append(sink)
+        form.target = sink.name
+        // Keeps the post off the network.
+        form.action = "about:blank"
+        const posted: (string | null)[] = []
+        const onFormData = (event: FormDataEvent) => {
+            posted.push(event.formData.get("action") as string | null)
         }
-        window.addEventListener("submit", onSubmit)
+        form.addEventListener("formdata", onFormData)
+        // As in those browsers: the clicked button is disabled before the form is collected.
+        const disableSubmitter = (event: SubmitEvent) => {
+            ;(event.submitter as HTMLButtonElement).disabled = true
+        }
+        window.addEventListener("submit", disableSubmitter)
         try {
-            await userEvent.click(await canvas.findByRole("button", {name: "Confirm and enroll"}))
-            await expect(submitted).toEqual(["confirm"])
+            await userEvent.click(confirm)
+            await waitFor(() => expect(posted).toEqual(["confirm"]))
         } finally {
-            window.removeEventListener("submit", onSubmit)
+            window.removeEventListener("submit", disableSubmitter)
+            form.removeEventListener("formdata", onFormData)
+            sink.remove()
         }
     },
 }
