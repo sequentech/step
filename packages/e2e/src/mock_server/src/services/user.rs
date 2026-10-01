@@ -2,10 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result};
 use chrono::NaiveDate;
 use csv::ReaderBuilder;
-use rand::Rng;
 use rusqlite::{params, Connection};
 
 use crate::types::user::User;
@@ -125,56 +124,4 @@ pub fn get_users_from_db() -> anyhow::Result<Vec<User>> {
     }
 
     Ok(users)
-}
-
-pub fn random_user_by_country(country: &str) -> Result<Option<User>> {
-    random_user_by_country_in(&Connection::open("voters.db")?, country)
-}
-
-fn random_user_by_country_in(conn: &Connection, country: &str) -> Result<Option<User>> {
-    // Voters are only loaded through /upload-csv, before that there is no table
-    conn.execute_batch(CREATE_VOTERS_TABLE)?;
-    let mut stmt = conn.prepare(
-        " SELECT 
-           id, first_name, last_name,
-            middle_name, embassy, country, id_card_number, id_card_type, date_of_birth
-         FROM voters
-         WHERE country = ?1",
-    )?;
-
-    let rows = stmt.query_map([country], |row| {
-        Ok(User {
-            id: row.get::<_, String>(0)?,
-            first_name: row.get::<_, String>(1)?,
-            last_name: row.get::<_, String>(2)?,
-            middle_name: row.get::<_, String>(3)?,
-            embassy: row.get::<_, String>(4)?,
-            country: row.get::<_, String>(5)?,
-            id_card_number: row.get::<_, String>(6)?,
-            id_card_type: row.get::<_, String>(7)?,
-            date_of_birth: row.get::<_, String>(8)?,
-        })
-    })?;
-
-    let users: Vec<_> = rows.collect::<rusqlite::Result<_>>()?;
-    if users.is_empty() {
-        Ok(None)
-    } else {
-        let mut rng = rand::thread_rng();
-        let idx = rng.gen_range(0..users.len());
-        Ok(Some(users[idx].clone()))
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn random_user_by_country_without_loaded_voters_is_none() {
-        let conn = Connection::open_in_memory().unwrap();
-        assert!(random_user_by_country_in(&conn, "Japan/Tokyo PE")
-            .unwrap()
-            .is_none());
-    }
 }

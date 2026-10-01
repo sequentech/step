@@ -23,25 +23,15 @@ fn index() -> &'static str {
 async fn main() -> Result<(), rocket::Error> {
     let figment = rocket::Config::figment().merge((
         "limits",
-        Limits::new()
-            .limit("file", rocket::data::ByteUnit::Megabyte(600))
-            .limit("data-form", rocket::data::ByteUnit::Mebibyte(64)),
+        Limits::new().limit("file", rocket::data::ByteUnit::Megabyte(600)),
     ));
 
     let _rocket = rocket::custom(figment)
-        .manage(routes::scanovate::MockSessions::default())
         .mount(
             "/",
             routes![
                 index,
                 routes::user::users_list,
-                routes::scanovate::auth_token,
-                routes::scanovate::flow_link,
-                routes::scanovate::flow_page,
-                routes::scanovate::flow_complete,
-                routes::scanovate::upload_media,
-                routes::scanovate::session_token,
-                routes::scanovate::results_with_image_names,
                 routes::user::upload_csv,
             ],
         )
