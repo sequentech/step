@@ -3,10 +3,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import React from "react"
-import {render, screen} from "@testing-library/react"
+import {act, fireEvent, render, screen} from "@testing-library/react"
 import {ThemeProvider, createTheme} from "@mui/material/styles"
 import {TallyCeremonyTrustees} from "./TallyCeremonyTrustees"
 import {ITallyExecutionStatus, ITallyTrusteeStatus} from "@/types/ceremonies"
+import {RestorePrivateKeyOutcome} from "@/gql/graphql"
 
 const POLL_INTERVAL_MS = 5000
 const TRUSTEE_NAME = "trustee-1"
@@ -29,6 +30,8 @@ interface MockExecution {
 let mockTally: MockTallySession
 let mockExecutions: Array<MockExecution>
 const mockGetOneOptions = jest.fn()
+const mockRestorePrivateKey = jest.fn()
+let mockUploadKey: (files: FileList | null) => Promise<void>
 
 const tallySession = (
     execution_status: ITallyExecutionStatus,
@@ -72,14 +75,17 @@ jest.mock("@/providers/AuthContextProvider", () => ({
     AuthContext: require("react").createContext({trustee: "trustee-1"}),
 }))
 jest.mock("react-i18next", () => ({useTranslation: () => ({t: (key: string) => key})}))
-jest.mock("@apollo/client", () => ({useMutation: () => [jest.fn()]}))
+jest.mock("@apollo/client", () => ({useMutation: () => [mockRestorePrivateKey]}))
 jest.mock("@/queries/RestorePrivateKey", () => ({RESTORE_PRIVATE_KEY: "mutation"}))
 jest.mock(
     "@sequentech/ui-essentials",
     () => ({
         BreadCrumbSteps: () => null,
         BreadCrumbStepsVariant: {Circle: "Circle"},
-        DropFile: () => require("react").createElement("div", {"data-testid": "drop-file"}),
+        DropFile: ({handleFiles}: {handleFiles: (files: FileList | null) => Promise<void>}) => {
+            mockUploadKey = handleFiles
+            return require("react").createElement("div", {"data-testid": "drop-file"})
+        },
     }),
     {virtual: true}
 )
@@ -130,9 +136,27 @@ const renderTrustees = () =>
 describe("TallyCeremonyTrustees", () => {
     beforeEach(() => {
         mockGetOneOptions.mockClear()
+        mockRestorePrivateKey.mockReset()
         mockTally = tallySession(ITallyExecutionStatus.STARTED)
         mockExecutions = [execution(ITallyTrusteeStatus.WAITING)]
     })
+
+    const uploadKey = async (outcome: RestorePrivateKeyOutcome) => {
+        mockRestorePrivateKey.mockResolvedValueOnce({
+            data: {
+                restore_private_key: {
+                    is_valid: outcome !== RestorePrivateKeyOutcome.Invalid,
+                    outcome,
+                },
+            },
+        })
+        const key = new File(["encrypted-private-key"], "key.txt", {type: "text/plain"})
+        await act(async () => {
+            await mockUploadKey([key] as unknown as FileList)
+        })
+    }
+
+    const nextButton = () => screen.getByRole("button", {name: /tally\.common\.next/})
 
     const lastGetOneOptions = () =>
         mockGetOneOptions.mock.calls[mockGetOneOptions.mock.calls.length - 1][0]
@@ -188,6 +212,36 @@ describe("TallyCeremonyTrustees", () => {
         renderTrustees()
 
         expect(screen.queryByTestId("drop-file")).toBeNull()
+        expect(screen.getByTestId("status-step")).toBeDefined()
+    })
+
+    it.each([RestorePrivateKeyOutcome.Restored, RestorePrivateKeyOutcome.AlreadyRestored])(
+        "keeps the trustee on the upload step after a %s key until they choose Next",
+        async (outcome) => {
+            const {rerender} = renderTrustees()
+            await uploadKey(outcome)
+            expect(nextButton()).toHaveProperty("disabled", false)
+
+            mockExecutions = [execution(ITallyTrusteeStatus.KEY_RESTORED)]
+            rerender(React.createElement(TallyCeremonyTrustees))
+
+            expect(screen.queryByTestId("status-step")).toBeNull()
+            expect(nextButton()).toHaveProperty("disabled", false)
+
+            fireEvent.click(nextButton())
+
+            expect(screen.getByTestId("status-step")).toBeDefined()
+        }
+    )
+
+    it("still withdraws the key upload after an invalid key when the tally moves on", async () => {
+        const {rerender} = renderTrustees()
+        await uploadKey(RestorePrivateKeyOutcome.Invalid)
+        expect(screen.getByTestId("drop-file")).toBeDefined()
+
+        mockTally = tallySession(ITallyExecutionStatus.IN_PROGRESS)
+        rerender(React.createElement(TallyCeremonyTrustees))
+
         expect(screen.getByTestId("status-step")).toBeDefined()
     })
 })
