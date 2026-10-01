@@ -70,8 +70,7 @@
 /get-user-profile-configuration
 /get-user-template
 /get-users
-/immudb/electoral-log
-/immudb/pgaudit-list
+/electoral-log
 /import-application
 /import-areas
 /import-candidates

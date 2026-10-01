@@ -13,7 +13,7 @@ Cargo workspaces and Maven reactors before interpreting a package test run.
 | Area | Test entry point | Separate boundary |
 | --- | --- | --- |
 | Bulletin board and trustee protocol | [B4](./b4.md), [Braid](./braid.md) | Browser storage and remote transport |
-| ImmuDB client and board mapping | [Client](./immudb-rs.md), [row mapping](./immu-board.md) | Server/storage compatibility |
+| PostgreSQL electoral log | [Storage and delivery](./electoral-log.md) | Database and broker integration |
 | Frontends | [Results Portal](./results-portal.md), [Ballot Verifier](./ballot-verifier.md), [Admin Portal](./admin-portal.md) | Browser flows and live services |
 | Java utilities and extensions | [ECIES](./ecies-encryption.md), [Keycloak](./keycloak-extensions.md) | Certificate chains and deployed authentication |
 | Load-test helpers | [E2E helpers](./e2e-helpers.md) | Remote browser/load scenarios |

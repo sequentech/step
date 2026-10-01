@@ -164,10 +164,15 @@ services:
       dockerfile: Dockerfile
     restart: unless-stopped
     volumes:
+      - ./postgresql/init-electoral-log.sh:/docker-entrypoint-initdb.d/20-electoral-log.sh:ro
+      - ../packages/electoral-log/schema.sql:/electoral-log-schema.sql:ro
       - db_data:/var/lib/postgresql
       - db_logs:/logs
     environment:
       POSTGRES_PASSWORD: ${HASURA_PG_PASSWORD}
+      ELECTORAL_LOG_PG_USER: ${ELECTORAL_LOG_PG_USER}
+      ELECTORAL_LOG_PG_PASSWORD: ${ELECTORAL_LOG_PG_PASSWORD}
+      ELECTORAL_LOG_PG_DATABASE: ${ELECTORAL_LOG_PG_DATABASE}
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
@@ -319,22 +324,6 @@ services:
     depends_on:
       - postgres
 
-  immudb:
-    profiles: ["full", "base"]
-    container_name: immudb
-    image: sequentech.local/immudb
-    build:
-      context: ../packages/
-      dockerfile: ./Dockerfile.immudb
-    restart: always
-    environment:
-      - IMMUDB_PGSQL_SERVER=true
-    volumes:
-      - immudb_data:/var/lib/immudb
-      - immudb_logs:/var/log/immudb
-    depends_on:
-      - immudb-init
-
   mock_server:
     profiles: ["full"]
     stdin_open: true
@@ -407,9 +396,13 @@ services:
       ROCKET_PORT: ${HARVEST_PORT}
       RUSTFLAGS: ${RUSTFLAGS}
       CARGO_TERM_COLOR: ${CARGO_TERM_COLOR}
-      IMMUDB_USER: ${IMMUDB_USER}
-      IMMUDB_PASSWORD: ${IMMUDB_PASSWORD}
-      IMMUDB_SERVER_URL: ${IMMUDB_SERVER_URL}
+      ELECTORAL_LOG_PG_HOST: ${ELECTORAL_LOG_PG_HOST}
+      ELECTORAL_LOG_PG_PORT: ${ELECTORAL_LOG_PG_PORT}
+      ELECTORAL_LOG_PG_USER: ${ELECTORAL_LOG_PG_USER}
+      ELECTORAL_LOG_PG_PASSWORD: ${ELECTORAL_LOG_PG_PASSWORD}
+      ELECTORAL_LOG_PG_DATABASE: ${ELECTORAL_LOG_PG_DATABASE}
+      ELECTORAL_LOG_PG_SSLMODE: ${ELECTORAL_LOG_PG_SSLMODE}
+      ELECTORAL_LOG_PG_SSLROOTCERT: ${ELECTORAL_LOG_PG_SSLROOTCERT:-}
       SMS_TRANSPORT_NAME: ${SMS_TRANSPORT_NAME}
       AWS_SNS_ATTRIBUTES: ${AWS_SNS_ATTRIBUTES}
       EMAIL_TRANSPORT_NAME: ${EMAIL_TRANSPORT_NAME}
@@ -462,11 +455,11 @@ services:
       CLOUDFLARE_ZONE: ${CLOUDFLARE_ZONE}
       CLOUDFLARE_API_KEY: ${CLOUDFLARE_API_KEY}
       CUSTOM_URLS_IP_DNS_CONTENT: ${CUSTOM_URLS_IP_DNS_CONTENT}
-      B3_PG_HOST: ${B3_PG_HOST}
-      B3_PG_PORT: ${B3_PG_PORT}
-      B3_PG_USER: ${B3_PG_USER}
-      B3_PG_PASSWORD: ${B3_PG_PASSWORD}
-      B3_PG_DATABASE: ${B3_PG_DATABASE}
+      B4_PG_HOST: ${B4_PG_HOST}
+      B4_PG_PORT: ${B4_PG_PORT}
+      B4_PG_USER: ${B4_PG_USER}
+      B4_PG_PASSWORD: ${B4_PG_PASSWORD}
+      B4_PG_DATABASE: ${B4_PG_DATABASE}
       DOC_RENDERER_BACKEND: ${DOC_RENDERER_BACKEND}
       ENV_SLUG: ${ENV_SLUG}
 
@@ -487,10 +480,9 @@ services:
         SECRETS_BACKEND: ${SECRETS_BACKEND}
         VAULT_SERVER_URL: ${VAULT_SERVER_URL}
         VAULT_TOKEN: ${VAULT_TOKEN}
-        B3_URL: ${B3_URL}
+        B4_URL: ${B4_URL}
     depends_on:
-      - immudb
-      - b3
+      - b4
 
   trustee2:
     profiles: ["full"]
@@ -501,7 +493,6 @@ services:
       - trustee2_data:/opt/braid
     depends_on:
       - trustee1
-      - immudb
     environment:
         TRUSTEE_NAME: trustee2
         TRUSTEE_CONFIG_PATH: ${TRUSTEE2_CONFIG}
@@ -509,7 +500,7 @@ services:
         SECRETS_BACKEND: ${SECRETS_BACKEND}
         VAULT_SERVER_URL: ${VAULT_SERVER_URL}
         VAULT_TOKEN: ${VAULT_TOKEN}
-        B3_URL: ${B3_URL}
+        B4_URL: ${B4_URL}
 
   rabbitmq:
     profiles: ["full", "base"]
@@ -524,39 +515,6 @@ services:
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
-
-  immudb-init:
-    profiles: ["full", "base"]
-    stdin_open: true
-    image: sequentech.local/cargo-packages
-    container_name: immudb-init
-    depends_on:
-      harvest:
-        condition: service_started
-    volumes:
-      - ../packages/:/app:z
-    restart: always
-    working_dir: /app/immu-board
-    entrypoint: [
-      "cargo",
-      "run",
-      "--bin",
-      "bb_helper",
-      "--",
-      "--server-url",
-      "${IMMUDB_SERVER_URL}",
-      "--username",
-      "${IMMUDB_USER}",
-      "--password",
-      "${IMMUDB_PASSWORD}",
-      "--board-dbname",
-      "${IMMUDB_BOARD_DB_NAME}",
-      "--cache-dir",
-      "/tmp/immu-board",
-      "upsert-board-db"
-    ]
-    env_file:
-      - .env
 
   registry:
     profiles: ["full", "lambdas"]
@@ -657,10 +615,13 @@ services:
       AMQP_ADDR: ${AMQP_ADDR}
       KEYCLOAK_URL: ${KEYCLOAK_URL}
       KEYCLOAK_PASSWORD_POLICY_CACHE_TTL_SECS: ${KEYCLOAK_PASSWORD_POLICY_CACHE_TTL_SECS:-30}
-      IMMUDB_SERVER_URL: ${IMMUDB_SERVER_URL}
-      IMMUDB_USER: ${IMMUDB_USER}
-      IMMUDB_PASSWORD: ${IMMUDB_PASSWORD}
-      IMMUDB_INDEX_DB: ${IMMUDB_INDEX_DB}
+      ELECTORAL_LOG_PG_HOST: ${ELECTORAL_LOG_PG_HOST}
+      ELECTORAL_LOG_PG_PORT: ${ELECTORAL_LOG_PG_PORT}
+      ELECTORAL_LOG_PG_USER: ${ELECTORAL_LOG_PG_USER}
+      ELECTORAL_LOG_PG_PASSWORD: ${ELECTORAL_LOG_PG_PASSWORD}
+      ELECTORAL_LOG_PG_DATABASE: ${ELECTORAL_LOG_PG_DATABASE}
+      ELECTORAL_LOG_PG_SSLMODE: ${ELECTORAL_LOG_PG_SSLMODE}
+      ELECTORAL_LOG_PG_SSLROOTCERT: ${ELECTORAL_LOG_PG_SSLROOTCERT:-}
       AWS_S3_PRIVATE_URI: ${AWS_S3_PRIVATE_URI}
       AWS_S3_PUBLIC_URI: ${AWS_S3_PUBLIC_URI}
       AWS_S3_BUCKET: ${AWS_S3_BUCKET}
@@ -713,11 +674,11 @@ services:
       APP_HASH: ${APP_HASH}
       PUBLIC_ASSETS_PATH: ${PUBLIC_ASSETS_PATH}
       DEMO_PUBLIC_KEY: ${DEMO_PUBLIC_KEY}
-      B3_PG_HOST: ${B3_PG_HOST}
-      B3_PG_PORT: ${B3_PG_PORT}
-      B3_PG_USER: ${B3_PG_USER}
-      B3_PG_PASSWORD: ${B3_PG_PASSWORD}
-      B3_PG_DATABASE: ${B3_PG_DATABASE}
+      B4_PG_HOST: ${B4_PG_HOST}
+      B4_PG_PORT: ${B4_PG_PORT}
+      B4_PG_USER: ${B4_PG_USER}
+      B4_PG_PASSWORD: ${B4_PG_PASSWORD}
+      B4_PG_DATABASE: ${B4_PG_DATABASE}
       DOC_RENDERER_BACKEND: ${DOC_RENDERER_BACKEND}
       BALLOT_VERIFIER_URL: ${BALLOT_VERIFIER_URL}
       ENV_SLUG: ${ENV_SLUG}
@@ -766,7 +727,7 @@ services:
     image: sequentech.local/postgresql-b3
     container_name: postgres-b3
     build:
-      context: ./postgresql-b3
+      context: ./postgresql-b4
       dockerfile: Dockerfile
     restart: unless-stopped
     volumes:
@@ -774,7 +735,7 @@ services:
       - b3_db_logs:/logs
     command: postgres -c 'config_file=/etc/postgresql/postgresql.conf'
     environment:
-      POSTGRES_PASSWORD: ${B3_PG_PASSWORD}
+      POSTGRES_PASSWORD: ${B4_PG_PASSWORD}
     user: "999:999"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready  -U postgres"]
@@ -785,17 +746,17 @@ services:
     depends_on:
       - postgres-volume-init
 
-  b3:
+  b4:
     profiles: ["full", "base"]
     stdin_open: true
     image: sequentech.local/cargo-packages
-    container_name: b3
+    container_name: b4
     restart: always
     volumes:
       - ..:/workspaces/step:z
     depends_on:
       - postgres-b3
-    working_dir: /workspaces/step/packages/b3
+    working_dir: /workspaces/step/packages/b4
     entrypoint: [
       "cargo",
       "watch",
@@ -803,19 +764,26 @@ services:
       "--ignore",
       "rust-local-target/",
       "-x",
-      "run --bin server --features server sqlcopy -- --host $B3_PG_HOST --port $B3_PG_PORT --username $B3_PG_USER --password $B3_PG_PASSWORD --database $B3_PG_DATABASE --bind $B3_BIND",
+      "run --bin b4 --features native",
     ]
     environment:
       RUSTFLAGS: ${RUSTFLAGS}
       RUST_BACKTRACE: ${RUST_BACKTRACE}
       LOG_LEVEL: ${LOG_LEVEL}
       CARGO_TERM_COLOR: ${CARGO_TERM_COLOR}
-      B3_PG_HOST: ${B3_PG_HOST}
-      B3_PG_PORT: ${B3_PG_PORT}
-      B3_PG_USER: ${B3_PG_USER}
-      B3_PG_PASSWORD: ${B3_PG_PASSWORD}
-      B3_PG_DATABASE: ${B3_PG_DATABASE}
-      B3_BIND: ${B3_BIND}
+      B4_PG_HOST: ${B4_PG_HOST}
+      B4_PG_PORT: ${B4_PG_PORT}
+      B4_PG_USER: ${B4_PG_USER}
+      B4_PG_PASSWORD: ${B4_PG_PASSWORD}
+      B4_PG_DATABASE: ${B4_PG_DATABASE}
+      B4_BIND: ${B4_BIND}
+      AWS_REGION: ${AWS_REGION}
+      AWS_ACCESS_KEY_ID: ${AWS_S3_ACCESS_KEY}
+      AWS_SECRET_ACCESS_KEY: ${AWS_S3_ACCESS_SECRET}
+      AWS_ENDPOINT_URL: ${AWS_S3_PRIVATE_URI}
+      S3_BUCKET_NAME: ${AWS_S3_BUCKET}
+      AWS_S3_UPLOAD_EXPIRATION_SECS: ${AWS_S3_UPLOAD_EXPIRATION_SECS}
+      AWS_S3_FETCH_EXPIRATION_SECS: ${AWS_S3_FETCH_EXPIRATION_SECS}
 
   admin-portal:
     profiles: ["full"]
@@ -891,11 +859,7 @@ volumes:
   db_data:
   db_logs:
   keycloak_db_logs:
-  immudb_log_audit_data:
-  keycloak_immudb_log_audit_data:
   keycloak_db_data:
-  immudb_data:
-  immudb_logs:
   minio_storage:
   trustee1_data:
   trustee2_data:

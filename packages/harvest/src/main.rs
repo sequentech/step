@@ -106,7 +106,6 @@ fn build_application_with(
                 routes::election_event_stats::get_election_event_stats,
                 routes::election_stats::get_election_stats,
                 routes::scheduled_event::create_scheduled_event,
-                routes::immudb_log_audit::list_pgaudit,
                 routes::import_areas::import_areas_route,
                 routes::import_areas::upsert_areas_route,
                 routes::electoral_log::list_electoral_log,

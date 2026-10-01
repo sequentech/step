@@ -568,7 +568,7 @@ paths = ["scripts/dev/rust_cache.py"]
 
 [[checks]]
 id = "cargo-test:{unit}"
-for_each = ["immu-board", "immudb-rs", "e2e", "mock_server"]
+for_each = ["e2e", "mock_server"]
 kind = "test"
 runner = "cargo"
 cost = "fast"
@@ -578,8 +578,6 @@ focus = ["cargo", "test", "--locked", "-p", "{unit}"]
 actions = ["setup-rust-tests", "setup-rust-cache"]
 paths = ["scripts/dev/rust_cache.py"]
 [checks.also_workflows]
-immu-board = ["tests.yml", "additional-unit-tests.yml"]
-immudb-rs = ["tests.yml"]
 e2e = ["additional-unit-tests.yml"]
 mock_server = ["additional-unit-tests.yml"]
 
@@ -946,7 +944,7 @@ workflows = ["backend-database-contracts.yml"]
 
 [[checks]]
 id = "backend-e2e"
-units = ["scripts-e2e", "windmill", "harvest", "immu-board", "step-cli", "b4", "braid", "keycloak-extensions", "hasura", "devcontainer", "docker-images"]
+units = ["scripts-e2e", "windmill", "harvest", "step-cli", "b4", "braid", "keycloak-extensions", "hasura", "devcontainer", "docker-images"]
 kind = "test"
 runner = "shell"
 cost = "integration"
@@ -957,7 +955,7 @@ workflows = ["backend-e2e.yml"]
 
 [[checks]]
 id = "frontend-stack-e2e"
-units = ["ui-e2e", "scripts-e2e", "windmill", "harvest", "immu-board", "step-cli", "b4", "braid", "keycloak-extensions", "hasura", "devcontainer", "docker-images", "voting-portal", "admin-portal", "results-portal", "ballot-verifier"]
+units = ["ui-e2e", "scripts-e2e", "windmill", "harvest", "step-cli", "b4", "braid", "keycloak-extensions", "hasura", "devcontainer", "docker-images", "voting-portal", "admin-portal", "results-portal", "ballot-verifier"]
 kind = "test"
 runner = "shell"
 cost = "integration"

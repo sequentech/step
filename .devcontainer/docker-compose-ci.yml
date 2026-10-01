@@ -91,43 +91,6 @@ services:
       retries: 60
       start_period: 10s
 
-  immudb:
-    image: codenotary/immudb:1.9.6
-    build: !reset null
-    container_name: !reset null
-    ports: !reset []
-    depends_on: !reset []
-    healthcheck:
-      test: ["CMD", "/usr/local/bin/immuadmin", "status"]
-      interval: 2s
-      timeout: 10s
-      retries: 60
-      start_period: 5s
-
-  immudb-init:
-    image: ${STEP_E2E_RUNTIME_IMAGE:-step-backend-e2e-cargo-packages:local}
-    container_name: !reset null
-    restart: on-failure
-    env_file: !reset []
-    volumes:
-      - *e2e-binaries
-    entrypoint:
-      - /opt/step-e2e/bin/bb_helper
-      - --server-url
-      - ${IMMUDB_SERVER_URL}
-      - --username
-      - ${IMMUDB_USER}
-      - --password
-      - ${IMMUDB_PASSWORD}
-      - --board-dbname
-      - ${IMMUDB_BOARD_DB_NAME}
-      - --cache-dir
-      - /tmp/immu-board
-      - upsert-board-db
-    depends_on: !override
-      immudb:
-        condition: service_healthy
-
   data-connector-agent:
     container_name: !reset null
     ports: !reset []
@@ -220,8 +183,6 @@ services:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
-      immudb-init:
-        condition: service_completed_successfully
       postgres-b4:
         condition: service_healthy
 

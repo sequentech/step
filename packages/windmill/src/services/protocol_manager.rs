@@ -26,9 +26,11 @@ use tracing::{event, info, instrument, Level};
 
 use crate::services::vault;
 use b4::client::pgsql::B3MessageRow;
+use electoral_log::adapters::postgres::PostgresStore;
 use electoral_log::BoardClient;
-use immudb_rs::{sql_value::Value, Client, NamedParam, SqlValue};
+use std::sync::Arc;
 use strand::signature::{StrandSignaturePk, StrandSignatureSk};
+use tokio::sync::OnceCell;
 
 pub fn get_protocol_manager_secret_path(board_name: &str) -> String {
     format!("boards/{board_name}/protocol-manager")
@@ -414,15 +416,15 @@ pub async fn add_ballots_to_board<C: Ctx>(
     b3_client.insert_ballots::<C>(board_name, message).await
 }
 
-#[instrument(err)]
+static ELECTORAL_LOG_CLIENT: OnceCell<BoardClient> = OnceCell::const_new();
+
 pub async fn get_board_client() -> Result<BoardClient> {
-    let username = env::var("IMMUDB_USER").context("IMMUDB_USER must be set")?;
-    let password = env::var("IMMUDB_PASSWORD").context("IMMUDB_PASSWORD must be set")?;
-    let server_url = env::var("IMMUDB_SERVER_URL").context("IMMUDB_SERVER_URL must be set")?;
-
-    let board_client = BoardClient::new(&server_url, &username, &password).await?;
-
-    Ok(board_client)
+    let client = ELECTORAL_LOG_CLIENT
+        .get_or_try_init(|| async {
+            Ok::<_, anyhow::Error>(BoardClient::new(Arc::new(PostgresStore::from_env()?)))
+        })
+        .await?;
+    Ok(client.clone())
 }
 
 #[instrument(err)]
@@ -440,25 +442,6 @@ pub async fn get_b3_pgsql_client() -> Result<PgsqlB3Client> {
     let client = PgsqlB3Client::new(&c_db).await?;
 
     Ok(client)
-}
-
-#[instrument(err)]
-pub async fn get_immudb_client() -> Result<Client> {
-    let username = env::var("IMMUDB_USER").context("IMMUDB_USER must be set")?;
-    let password = env::var("IMMUDB_PASSWORD").context("IMMUDB_PASSWORD must be set")?;
-    let server_url = env::var("IMMUDB_SERVER_URL").context("IMMUDB_SERVER_URL must be set")?;
-
-    let mut client = Client::new(&server_url, &username, &password).await?;
-    client.login().await?;
-
-    Ok(client)
-}
-
-pub fn create_named_param(name: String, value: Value) -> NamedParam {
-    NamedParam {
-        name,
-        value: Some(SqlValue { value: Some(value) }),
-    }
 }
 
 pub fn get_event_board(tenant_id: &str, election_event_id: &str, slug: &str) -> String {

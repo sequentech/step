@@ -79,8 +79,6 @@ class PlanTests(unittest.TestCase):
                         "electoral-log",
                         "harvest",
                         "strand",
-                        "immu-board",
-                        "immudb-rs",
                         "sequent-core",
                         "step-cli",
                         "velvet",

@@ -165,8 +165,12 @@ async fn cancellation_requeues_unacknowledged_input_and_a_successful_retry_ackno
     Ok(())
 }
 
-#[path = "../../electoral-log/tests/support/immudb.rs"]
-mod immudb;
+async fn database() -> Result<electoral_log::BoardClient> {
+    let config = std::env::var("ELECTORAL_LOG_TEST_DATABASE_URL")?.parse()?;
+    let store = electoral_log::adapters::postgres::PostgresStore::new(config)?;
+    store.initialize().await?;
+    Ok(electoral_log::BoardClient::new(std::sync::Arc::new(store)))
+}
 
 fn audit_message(ballot: &str) -> electoral_log::ElectoralLogMessage {
     electoral_log::ElectoralLogMessage {
@@ -186,48 +190,23 @@ fn audit_message(ballot: &str) -> electoral_log::ElectoralLogMessage {
 }
 
 async fn persist_test_delivery(
-    database: &immudb::DatabaseServer,
+    client: &electoral_log::BoardClient,
     input: windmill::tasks::electoral_log::IdentifiedLogEvent,
-    force_conflict: bool,
 ) -> Result<()> {
-    electoral_log::retry_electoral_log_transaction(|| {
-        let input = &input;
-        async move {
-            let mut client = database.client().await?;
-            client.open_session(&input.input.election_event_id).await?;
-            client.ensure_electoral_log_delivery_receipts().await?;
-            let tx = client.new_tx(immudb_rs::TxMode::ReadWrite).await?;
-            client
-                .insert_electoral_log_delivery(
-                    &tx,
-                    &input.delivery_id,
-                    &input.payload_hash,
-                    &[audit_message("original")],
-                )
-                .await?;
-            if force_conflict {
-                let mut competitor = database.client().await?;
-                competitor
-                    .insert_electoral_log_messages(
-                        &input.input.election_event_id,
-                        &vec![audit_message("competing")],
-                    )
-                    .await?;
-            }
-            let result = client.commit(&tx).await;
-            client.close_session().await?;
-            result?;
-            Ok(())
-        }
-    })
+    let board = input.input.election_event_id.clone();
+    windmill::tasks::electoral_log::persist_electoral_log_board(
+        &board,
+        &[(input, vec![audit_message("original")])],
+        || async { Ok(client.clone()) },
+    )
     .await
 }
 
 #[tokio::test]
-async fn legacy_batch_redelivery_recovers_partial_uncertain_and_exhausted_commits() -> Result<()> {
+async fn legacy_batch_redelivery_recovers_partial_and_uncertain_commits() -> Result<()> {
     use windmill::tasks::electoral_log::decode_electoral_log_delivery;
     let broker = RabbitMq::start().await?;
-    let database = immudb::DatabaseServer::start().await?;
+    let client = database().await?;
     let publisher = broker.connection.create_channel().await?;
     publisher
         .queue_declare(
@@ -239,19 +218,12 @@ async fn legacy_batch_redelivery_recovers_partial_uncertain_and_exhausted_commit
             FieldTable::default(),
         )
         .await?;
-    for (case, failure) in ["partial", "uncertain", "exhausted"]
-        .into_iter()
-        .enumerate()
-    {
-        let boards = [
-            format!("{}{case}a", immudb::DATABASE),
-            format!("{}{case}b", immudb::DATABASE),
-        ];
-        let mut reader = database.client().await?;
+    for failure in ["partial", "uncertain"] {
+        let prefix = uuid::Uuid::new_v4();
+        let boards = [format!("{prefix}-a"), format!("{prefix}-b")];
         for board in &boards {
-            reader.upsert_electoral_log_db(board).await?;
+            client.create_board(board).await?;
         }
-        // Literal legacy Celery kwargs, with two distinct per-input receipt IDs.
         let body = serde_json::to_vec(&serde_json::json!([[], {"events": [
             {"tenant_id":"tenant", "election_event_id":boards[0], "message_type":"LOGIN", "user_id":"voter", "username":null, "body":"null"},
             {"tenant_id":"tenant", "election_event_id":boards[1], "message_type":"LOGIN", "user_id":"voter", "username":null, "body":"null"}
@@ -264,7 +236,7 @@ async fn legacy_batch_redelivery_recovers_partial_uncertain_and_exhausted_commit
                 &body,
                 BasicProperties::default()
                     .with_delivery_mode(2)
-                    .with_correlation_id(format!("legacy-{case}").into()),
+                    .with_correlation_id(format!("legacy-{prefix}").into()),
             )
             .await?
             .await?;
@@ -273,74 +245,57 @@ async fn legacy_batch_redelivery_recovers_partial_uncertain_and_exhausted_commit
             "legacy",
             10,
             |deliveries| {
-                let database = &database;
+                let client = &client;
                 async move {
                     for delivery in deliveries {
                         let inputs = decode_electoral_log_delivery(&delivery, true)?;
                         assert_ne!(inputs[0].delivery_id, inputs[1].delivery_id);
                         for (index, input) in inputs.into_iter().enumerate() {
-                            persist_test_delivery(database, input, failure == "exhausted").await?;
+                            persist_test_delivery(client, input).await?;
                             if failure == "partial" && index == 0 {
-                                return Err(
-                                    tonic::Status::unavailable("second board unavailable").into()
-                                );
+                                bail!("second board unavailable");
                             }
                         }
                     }
-                    // The real server has committed, but delivery processing receives
-                    // an error in place of the response. The broker must retain input.
-                    Err(tonic::Status::unavailable("commit response lost").into())
+                    bail!("commit response lost")
                 }
             },
         )
         .await;
-        let error = result.unwrap_err();
-        let status = error
-            .downcast_ref::<tonic::Status>()
-            .expect("original typed sink failure");
         assert_eq!(
-            status.message(),
-            match failure {
-                "partial" => "second board unavailable",
-                "uncertain" => "commit response lost",
-                _ => "tx read conflict",
+            result.unwrap_err().to_string(),
+            if failure == "partial" {
+                "second board unavailable"
+            } else {
+                "commit response lost"
             }
         );
-        let before_a = reader.get_electoral_log_messages(&boards[0]).await?;
-        let before_b = reader.get_electoral_log_messages(&boards[1]).await?;
         assert_eq!(
-            before_a
-                .iter()
-                .filter(|row| row.ballot_id.as_deref() == Some("original"))
-                .count(),
-            usize::from(failure != "exhausted")
+            client
+                .count_electoral_log_messages(&boards[0], None)
+                .await?,
+            1
         );
-        assert_eq!(before_b.len(), usize::from(failure == "uncertain"));
-        if failure == "exhausted" {
-            assert_eq!(
-                before_a.len(),
-                6,
-                "six real conflicting commits exhaust the bounded retry"
-            );
-        }
-        let observed = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
-        let recovered = observed.clone();
+        assert_eq!(
+            client
+                .count_electoral_log_messages(&boards[1], None)
+                .await?,
+            i64::from(failure == "uncertain")
+        );
         drain_electoral_log_queue(
             broker.connection.create_channel().await?,
             "legacy",
             10,
             |deliveries| {
-                let database = &database;
-                let recovered = recovered.clone();
+                let client = &client;
                 let body = &body;
                 async move {
                     assert_eq!(deliveries.len(), 1);
                     assert!(deliveries[0].redelivered);
                     assert_eq!(&deliveries[0].data, body);
-                    recovered.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
                     for delivery in deliveries {
                         for input in decode_electoral_log_delivery(&delivery, true)? {
-                            persist_test_delivery(database, input, false).await?;
+                            persist_test_delivery(client, input).await?;
                         }
                     }
                     Ok(())
@@ -348,16 +303,9 @@ async fn legacy_batch_redelivery_recovers_partial_uncertain_and_exhausted_commit
             },
         )
         .await?;
-        assert_eq!(observed.load(std::sync::atomic::Ordering::SeqCst), 1);
         for board in &boards {
-            let rows = reader.get_electoral_log_messages(board).await?;
-            assert_eq!(
-                rows.iter()
-                    .filter(|row| row.ballot_id.as_deref() == Some("original"))
-                    .count(),
-                1,
-                "{failure} must neither lose nor duplicate a board's audit entry"
-            );
+            assert_eq!(client.count_electoral_log_messages(board, None).await?, 1);
+            client.delete_board(board).await?;
         }
         assert!(publisher
             .basic_get("legacy", BasicGetOptions { no_ack: false })
@@ -466,26 +414,23 @@ async fn current_and_invalid_wire_envelopes_keep_stable_identity_and_fail_closed
 }
 
 #[tokio::test]
-async fn a_full_queue_batch_fits_in_bounded_transactions_and_replays_without_duplicates(
-) -> Result<()> {
+async fn a_full_queue_batch_is_atomic_and_replays_without_duplicates() -> Result<()> {
     use windmill::tasks::electoral_log::{
         persist_electoral_log_board, IdentifiedLogEvent, LogEventBody, LogEventInput,
         LogMessageType,
     };
     tokio::time::timeout(std::time::Duration::from_secs(120), async {
-        let database = immudb::DatabaseServer::start().await?;
-        let mut reader = database.client().await?;
-        reader.upsert_electoral_log_db("smallcontrol").await?;
-        reader.upsert_electoral_log_db("fullqueuebatch").await?;
-        // Communications deliveries contain two audit rows, plus one atomic receipt.
-        let deliveries: Vec<_> = (0..1000)
+        let client = database().await?;
+        let board = format!("batch-{}", uuid::Uuid::new_v4());
+        client.create_board(&board).await?;
+        let mut deliveries: Vec<_> = (0..1000)
             .map(|index| {
                 (
                     IdentifiedLogEvent {
                         delivery_id: format!("{index:064x}"),
                         payload_hash: format!("{:064x}", index + 1000),
                         input: LogEventInput {
-                            election_event_id: "event".into(),
+                            election_event_id: board.clone(),
                             tenant_id: "tenant".into(),
                             message_type: LogMessageType::Internal,
                             user_id: None,
@@ -501,65 +446,33 @@ async fn a_full_queue_batch_fits_in_bounded_transactions_and_replays_without_dup
                 )
             })
             .collect();
-        persist_electoral_log_board("smallcontrol", &deliveries[..16], || database.client())
+        persist_electoral_log_board(&board, &deliveries, || async { Ok(client.clone()) }).await?;
+        persist_electoral_log_board(&board, &deliveries, || async { Ok(client.clone()) }).await?;
+        let rows = client
+            .get_electoral_log_messages_batch(&board, 2500, 0)
             .await?;
-        assert_eq!(
-            reader
-                .count_electoral_log_messages("smallcontrol", None)
-                .await?,
-            32
-        );
-        persist_electoral_log_board("fullqueuebatch", &deliveries, || database.client()).await?;
-        assert_eq!(
-            reader
-                .count_electoral_log_messages("fullqueuebatch", None)
-                .await?,
-            2000
-        );
-        persist_electoral_log_board("fullqueuebatch", &deliveries, || database.client()).await?;
-        let rows = reader.get_electoral_log_messages("fullqueuebatch").await?;
         assert_eq!(rows.len(), 2000);
         let ballots: std::collections::HashSet<_> = rows
             .iter()
             .map(|row| row.ballot_id.as_deref().unwrap())
             .collect();
-        assert_eq!(ballots.len(), 2000);
         for index in 0..1000 {
             assert!(ballots.contains(format!("send-{index}").as_str()));
             assert!(ballots.contains(format!("event-{index}").as_str()));
         }
-        // A failure after the first confirmed chunk leaves the rest untouched.
-        // Redelivery may revisit that chunk, but its receipts prevent duplicates.
-        reader.upsert_electoral_log_db("partialchunk").await?;
-        let connections = std::cell::Cell::new(0);
-        let error = persist_electoral_log_board("partialchunk", &deliveries, || {
-            let attempt = connections.get() + 1;
-            connections.set(attempt);
-            let database = &database;
-            async move {
-                if attempt == 2 {
-                    bail!("injected later connection failure");
-                }
-                database.client().await
-            }
-        })
-        .await
-        .unwrap_err();
-        assert_eq!(error.to_string(), "injected later connection failure");
-        assert_eq!(connections.get(), 2);
+        // New rows preceding a conflicting delivery must be rolled back together.
+        deliveries[0].0.delivery_id = "new-input".into();
+        deliveries[1].0.payload_hash = "changed-input".into();
+        let error =
+            persist_electoral_log_board(&board, &deliveries, || async { Ok(client.clone()) })
+                .await
+                .unwrap_err();
+        assert!(format!("{error:#}").contains("different payload"));
         assert_eq!(
-            reader
-                .count_electoral_log_messages("partialchunk", None)
-                .await?,
-            32
-        );
-        persist_electoral_log_board("partialchunk", &deliveries, || database.client()).await?;
-        assert_eq!(
-            reader
-                .count_electoral_log_messages("partialchunk", None)
-                .await?,
+            client.count_electoral_log_messages(&board, None).await?,
             2000
         );
+        client.delete_board(&board).await?;
         Ok::<(), anyhow::Error>(())
     })
     .await??;

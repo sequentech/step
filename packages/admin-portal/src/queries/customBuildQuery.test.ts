@@ -267,7 +267,6 @@ describe("action-backed lists", () => {
         ["permission", "getPermissions", "get_permissions"],
         ["ip_address", "GetCastVotesByIp", "get_top_votes_by_ip"],
         ["electoral_log", "listElectoralLog", "listElectoralLog"],
-        ["pgaudit", "listPgaudit", "listPgaudit"],
     ])("%s reads its page from the %s action", (resource, operation, field) => {
         const built = list(resource, {filter: {election_event_id: EVENT, tenant_id: EVENT}})
         expect(operationName(built.query)).toBe(operation)
