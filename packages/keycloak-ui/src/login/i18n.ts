@@ -20,6 +20,10 @@ const englishMessages = {
     "system.hash": "Hash:",
     invalidCredentialsMessage: "The details you entered are incorrect.",
     "messageOtp.auth.address": "We sent a code to {0}.",
+    "messageOtp.auth.codeProgress": "Code {0} of {1}",
+    "messageOtp.auth.codeNext":
+        "You’ll get {0} codes, one after the other. After this one, we’ll send you the next.",
+    "messageOtp.auth.codeLast": "Your previous code was accepted. This is the last one.",
     "messageOtp.auth.title": "Enter your verification code",
     "messageOtp.auth.instructionBoth":
         "Enter the code we sent to your mobile device via sms or email.",
@@ -65,6 +69,10 @@ const {useI18n, ofTypeI18n} = i18nBuilder
             "system.hash": "Hash:",
             invalidCredentialsMessage: "Los datos introducidos no son correctos.",
             "messageOtp.auth.address": "Enviamos un código a {0}.",
+            "messageOtp.auth.codeProgress": "Código {0} de {1}",
+            "messageOtp.auth.codeNext":
+                "Recibirá {0} códigos, uno tras otro. Después de este, le enviaremos el siguiente.",
+            "messageOtp.auth.codeLast": "Su código anterior fue aceptado. Este es el último.",
             "messageOtp.auth.title": "Ingrese su código de verificación",
             "messageOtp.auth.instructionBoth":
                 "Ingrese el código que le enviamos a su dispositivo móvil por SMS o a su email.",

@@ -79,6 +79,9 @@ export type KcContextExtensionPerPage = {
         resendTimer?: string
         ttl?: string
         codeLength?: string
+        // With the code progress policy, which of the flow's codes this is, from 1.
+        codeRequest?: number
+        codeRequests?: number
     }
     "scanovate-capture.ftl": {
         scanovate: ScanovateCaptureSettings

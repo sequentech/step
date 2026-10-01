@@ -37,6 +37,7 @@ window.kcContext.courier = "${courier?string?js_string}";
     "otpDigit", "otpCodeLabel",
     "invalidCredentialsMessage", "messageOtp.auth.title", "messageOtp.otl.title",
     "messageOtp.auth.address", "messageOtp.auth.instructionBoth",
+    "messageOtp.auth.codeProgress", "messageOtp.auth.codeNext", "messageOtp.auth.codeLast",
     "messageOtp.auth.instructionSms", "messageOtp.auth.instructionEmail", "messageOtp.auth.ttlTime",
     "messageOtp.auth.resend.button", "messageOtp.auth.resend.timer", "messageOtp.otl.address",
     "messageOtp.otl.instructionBoth", "messageOtp.otl.instructionSms", "messageOtp.otl.instructionEmail",
