@@ -616,16 +616,6 @@ type Query {
 }
 
 type Query {
-    listPgaudit(
-        limit: Int
-        offset: Int
-        filter: PgAuditFilter
-        order_by: PgAuditOrderBy
-        audit_table: PgAuditTable
-    ): DataListPgAudit
-}
-
-type Query {
     list_cast_vote_messages(
         tenant_id: String!
         election_event_id: uuid!
@@ -647,15 +637,6 @@ type Query {
         user_id: String!
         election_event_id: String
     ): [KeycloakRole!]!
-}
-
-type Query {
-    logEvent(
-        election_event_id: uuid!
-        message_type: String!
-        user_id: String
-        body: String!
-    ): LogEventOutput
 }
 
 type Mutation {
@@ -874,11 +855,6 @@ enum OrderDirection {
     desc
 }
 
-enum PgAuditTable {
-    pgaudit_hasura
-    pgaudit_keycloak
-}
-
 enum VotingStatus {
     NOT_STARTED
     OPEN
@@ -896,29 +872,6 @@ enum VotingStatusChannel {
 input TemplateInput {
     template: String!
     format: String!
-}
-
-input PgAuditFilter {
-    id: String
-    audit_type: String
-    class: String
-    command: String
-    dbname: String
-    session_id: String
-    statement: String
-    user: String
-}
-
-input PgAuditOrderBy {
-    id: OrderDirection
-    audit_type: OrderDirection
-    class: OrderDirection
-    command: OrderDirection
-    dbname: OrderDirection
-    server_timestamp: OrderDirection
-    session_id: OrderDirection
-    statement: OrderDirection
-    user: OrderDirection
 }
 
 input ElectoralLogFilter {
@@ -1283,25 +1236,8 @@ type ScheduledEventOutput {
     created_by: String
 }
 
-type PgAuditRow {
-    id: Int!
-    audit_type: String!
-    class: String!
-    command: String!
-    dbname: String!
-    server_timestamp: Int!
-    session_id: String!
-    statement: String!
-    user: String!
-}
-
 type Aggregate {
     count: Int!
-}
-
-type DataListPgAudit {
-    items: [PgAuditRow]!
-    total: TotalAggregate!
 }
 
 type TotalAggregate {
@@ -1684,10 +1620,6 @@ type documentTaskOutput {
     error_msg: String
     task_execution: tasks_execution_type!
     document_id: String!
-}
-
-type LogEventOutput {
-    electionEventId: String
 }
 
 type SetCustomUrlOutput {

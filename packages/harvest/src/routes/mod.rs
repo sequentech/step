@@ -32,7 +32,6 @@ pub mod fetch_document;
 pub mod generate_preview_url;
 pub mod get_certificate_authorities_pem;
 pub mod google_meet;
-pub mod immudb_log_audit;
 pub mod import_application;
 pub mod import_areas;
 pub mod import_candidates;

@@ -28,7 +28,6 @@ rayon = "1.5"
 sequent-core = { path="../sequent-core", features = ["keycloak", "probe", "reports", "default_features", "election_config_xlsx", "election_config_archive"] }
 windmill = { path="../windmill" }
 strand = { path="../strand" }
-immudb-rs = { path="../immudb-rs" }
 electoral-log = { path="../electoral-log" }
 
 uuid = { version = "1.5", features = ["v4", "fast-rng"] }

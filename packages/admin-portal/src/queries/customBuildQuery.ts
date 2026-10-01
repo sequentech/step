@@ -4,7 +4,6 @@ import {Order_By} from "./../../../voting-portal/src/gql/graphql"
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import {buildQuery, buildVariables} from "ra-data-hasura"
-import {getPgauditVariables, getPgAudit} from "./ListPgAudit"
 import {getElectoralLogVariables, getElectoralLog} from "./ListElectoralLog"
 import {LIST_USERS, customBuildGetUsersVariables} from "./GetUsers"
 import {getPermissions} from "./GetPermissions"
@@ -91,28 +90,7 @@ export const customBuildQuery =
             }
         }
 
-        if (resourceName.startsWith("pgaudit") && raFetchType === "GET_LIST") {
-            const resource: any = {
-                type: {
-                    fields: [],
-                    name: resourceName,
-                },
-            }
-            return {
-                query: getPgAudit(params, resourceName),
-                variables: getPgauditVariables(
-                    buildVariables(introspectionResults)(resource, raFetchType, params, null)
-                ),
-                parseResponse: (res: any) => {
-                    const response = res.data.listPgaudit
-                    let output = {
-                        data: response.items,
-                        total: response.total.aggregate.count,
-                    }
-                    return output
-                },
-            }
-        } else if (resourceName === "electoral_log" && raFetchType === "GET_LIST") {
+        if (resourceName === "electoral_log" && raFetchType === "GET_LIST") {
             let validFilters = [
                 "election_event_id",
                 "user_id",

@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 # Vendors everything the product images fetch -- Cargo crates, Yarn packages,
-# Maven repositories, the oid4vp source archive and the immudb binaries -- into
+# Maven repositories, the oid4vp source archive -- into
 # one image, so those images can then be built with no network access at all.
 #
 # This exists for the offline/airgapped release pipeline (sequentech/meta#13625),
@@ -11,12 +11,11 @@
 # a physically separate disconnected one.
 #
 # SCOPE, precisely: this covers dependency resolution -- Cargo crates, Yarn
-# packages, Maven repositories, the oid4vp archive and the immudb binaries. It
+# packages, Maven repositories, the oid4vp archive. It
 # does NOT yet make the images fully buildable with --network=none, because the
 # runtime stages still install operating-system packages and download tools:
 #
 #   Dockerfile.prod            apk add jq                      (nginx:alpine)
-#   Dockerfile.immudb          apk add ca-certificates bash    (runtime stage)
 #   harvest, windmill          apt-get install ...; a JDK from download.java.net;
 #                              cargo-binstall from raw.githubusercontent.com
 #   b4, braid                  apt-get install ...; the AWS CLI; Vault
@@ -48,7 +47,7 @@
 
 # Global build arguments. These must precede the first FROM: an ARG after a FROM
 # belongs to that stage only, and a later stage redeclaring it would then see an
-# empty value -- which silently turned a pinned immudb tag into an empty one.
+# empty value.
 # Debian archive snapshot every apt call resolves against. Pinning the archive
 # state, rather than individual package versions, is what makes the dependency
 # closure identical on a client's machine and on ours: pinning only the packages
@@ -65,7 +64,6 @@
 # pinned snapshot also stops picking up security updates until it is bumped.
 ARG DEBIAN_SNAPSHOT=20260929T000000Z
 
-ARG IMMUDB_VERSION=1.9.6
 ARG OID4VP_VERSION=0.6.2
 ARG OID4VP_SHA256=f6cd968bc77fec4f8e1417d3caeefe4920941e01b119f152f1c9186bbd2b2e15
 
@@ -103,22 +101,6 @@ COPY . .
 RUN printf 'yarn-offline-mirror "/npm-packages-offline-cache"\nyarn-offline-mirror-pruning false\n' > .yarnrc \
     && yarn install --frozen-lockfile --non-interactive
 
-# immudb is third-party upstream code, fetched and compiled here rather than
-# vendored as source. Building it needs git, a C toolchain and the Go module
-# proxy, and none of that can be reconstructed offline from a source tree alone.
-# The binaries it produces are therefore an accepted prebuilt upstream input, in
-# the sense meta#13625 uses: they are not Sequent product code, and the release
-# manifest records them as upstream rather than as something the offline build
-# compiled.
-#
-# Built for BUILDPLATFORM, matching what Dockerfile.immudb's builder stage does.
-FROM --platform=$BUILDPLATFORM golang:1.22-alpine@sha256:1699c10032ca2582ec89a24a1312d986a3f094aed3d5c1147b19880afe40e052 AS immudb-build
-ARG IMMUDB_VERSION
-RUN apk add --no-cache git make gcc musl-dev bash
-WORKDIR /src
-RUN git clone --depth 1 --branch "v${IMMUDB_VERSION}" https://github.com/codenotary/immudb.git .
-RUN make immudb immuadmin
-
 # Maven dependencies for the Keycloak provider extensions.
 #
 # The whole build is run here with a local repository so that everything it
@@ -152,8 +134,6 @@ RUN curl -fsSL -o /tmp/oid4vp.tar.gz \
 FROM scratch
 COPY --from=rust-deps /vendor-cache /vendor-cache
 COPY --from=node-deps /npm-packages-offline-cache /npm-packages-offline-cache
-COPY --from=immudb-build /src/immudb /immudb-bin/immudb
-COPY --from=immudb-build /src/immuadmin /immudb-bin/immuadmin
 COPY --from=keycloak-m2 /m2-repo /m2-repo
 COPY --from=oid4vp-m2 /m2-repo /m2-repo-oid4vp
 COPY --from=oid4vp-m2 /oid4vp /oid4vp

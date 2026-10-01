@@ -1309,7 +1309,7 @@ actions:
     - name: listElectoralLog
       definition:
           kind: ""
-          handler: http://{{HARVEST_DOMAIN}}/immudb/electoral-log
+          handler: http://{{HARVEST_DOMAIN}}/electoral-log
           forward_client_headers: true
           request_transform:
               body:
@@ -1326,36 +1326,9 @@ actions:
               template_engine: Kriti
               version: 2
       permissions:
-          - role: immudb:log:read
+          - role: logs-read
           - role: admin-user
       comment: List Electoral Log
-    - name: listPgaudit
-      definition:
-          kind: ""
-          handler: http://{{HARVEST_DOMAIN}}/immudb/pgaudit-list
-          forward_client_headers: true
-          headers:
-              - name: X-Hasura-Admin-Secret
-                value_from_env: ACTIONS_ADMIN_SECRET
-          request_transform:
-              body:
-                  action: transform
-                  template: |-
-                      {
-                        "tenant_id": {{ head(removeNulls([$session_variables?['x-hasura-tenant-id'],""])) }},
-                        "election_event_id": {{ head(removeNulls([$session_variables?['x-hasura-election-event-id'],"defaultdb"])) }},
-                        "limit": {{$body.input?.limit}},
-                        "offset": {{$body.input?.offset}},
-                        "filter": {{$body.input?.filter}},
-                        "audit_table": {{$body.input?.audit_table}},
-                        "order_by": {{$body.input?.order_by}}
-                      }
-              template_engine: Kriti
-              version: 2
-      permissions:
-          - role: immudb:log:read
-          - role: admin-user
-      comment: List PostgreSQL audit logs
     - name: list_cast_vote_messages
       definition:
           kind: ""
@@ -1397,19 +1370,6 @@ actions:
               version: 2
       permissions:
           - role: admin-user
-    - name: logEvent
-      definition:
-          kind: ""
-          handler: http://{{HARVEST_DOMAIN}}/immudb/log-event
-          request_transform:
-              body:
-                  action: transform
-                  template: "{{$body.input}}"
-              template_engine: Kriti
-              version: 2
-      permissions:
-          - role: service-account
-      comment: log an event in immudb
     - name: manage_election_dates
       definition:
           kind: synchronous
@@ -1986,14 +1946,6 @@ custom_types:
               - description: null
                 is_deprecated: null
                 value: desc
-        - name: PgAuditTable
-          values:
-              - description: null
-                is_deprecated: null
-                value: pgaudit_hasura
-              - description: null
-                is_deprecated: null
-                value: pgaudit_keycloak
         - name: VotingStatus
           values:
               - description: null
@@ -2024,8 +1976,6 @@ custom_types:
                 value: TELEPHONE
     input_objects:
         - name: TemplateInput
-        - name: PgAuditFilter
-        - name: PgAuditOrderBy
         - name: ElectoralLogFilter
         - name: ElectoralLogOrderBy
         - name: SampleInput
@@ -2095,9 +2045,7 @@ custom_types:
         - name: TemplateOutput
         - name: FetchDocumentOutput
         - name: ScheduledEventOutput
-        - name: PgAuditRow
         - name: Aggregate
-        - name: DataListPgAudit
         - name: TotalAggregate
         - name: ElectoralLogRow
         - name: CastVoteEntry
@@ -2154,7 +2102,6 @@ custom_types:
         - name: tasks_execution_type
         - name: taskOutput
         - name: documentTaskOutput
-        - name: LogEventOutput
         - name: SetCustomUrlOutput
         - name: SetCustomUrlsOutput
         - name: DeleteElectionEvent

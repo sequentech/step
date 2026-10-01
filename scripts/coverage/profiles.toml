@@ -387,33 +387,31 @@ DEFAULT_SQL_BATCH_SIZE = "1000"
 
 [profiles.electoral-log]
 package = "electoral-log"
-features = ["immudb-tests"]
+features = ["postgres-tests"]
 limitations = [
-    "Native library, CLI subprocesses and ImmuDB 1.9.6 integration; each test owns its local database process and files.",
-    "Set ELECTORAL_LOG_TEST_IMMUDB_BINARY or install immudb on PATH; no production endpoint or credentials are accepted by the integration fixture.",
-    "Unit tests live outside src so test bodies do not count as production coverage. Native branch coverage and doctests are not measured.",
-    "The legacy ignored fixed-port test remains preserved; its behavior is covered by the owned-process integration suite.",
+    "Native message, CLI and PostgreSQL contracts; requires a disposable ELECTORAL_LOG_TEST_DATABASE_URL.",
+    "Native branch coverage and doctests are not measured.",
 ]
-issue = "https://github.com/sequentech/meta/issues/13302"
+issue = "https://github.com/sequentech/meta/issues/13698"
 
 [profiles.electoral-log.scope_exceptions]
-"src/client/mod.rs" = "Module declaration only."
+"src/adapters/mod.rs" = "Module declaration only."
+"src/ports.rs" = "Storage trait declarations only."
 "src/messages/mod.rs" = "Module declarations only."
 "src/messages/artifact.rs" = "Empty source file with license header only."
 
-# Compare like-for-like defaults; keep opt-in database counters separate.
 [profiles.electoral-log-native]
 package = "electoral-log"
 features = []
 limitations = [
-    "Comparable default-feature profile; actual PR base lacks the opt-in database-test feature.",
-    "Database integration is measured separately by electoral-log; inline tests on the historical base remain counted.",
-    "The legacy fixed-port integration test remains ignored; native branches and optional features require separate evidence.",
+    "Default-feature message and CLI contracts; PostgreSQL contracts are measured separately.",
+    "Native branch coverage and doctests are not measured.",
 ]
-issue = "https://github.com/sequentech/meta/issues/13302"
+issue = "https://github.com/sequentech/meta/issues/13698"
 
 [profiles.electoral-log-native.scope_exceptions]
-"src/client/mod.rs" = "Module declaration only."
+"src/adapters/mod.rs" = "Module declaration only."
+"src/ports.rs" = "Storage trait declarations only."
 "src/messages/mod.rs" = "Module declarations only."
 "src/messages/artifact.rs" = "Empty source file with license header only."
 
@@ -519,19 +517,3 @@ RAYON_NUM_THREADS = "2"
 "src/wasm/mod.rs" = "Browser-only implementation; requires separate WASM execution and measurement."
 "src/wasm/session.rs" = "Browser-only implementation; requires separate WASM execution and measurement."
 "src/wasm/verify.rs" = "Browser-only implementation; requires separate WASM execution and measurement."
-
-[profiles.immudb-rs]
-package = "immudb-rs"
-consumer_packages = ["electoral-log"]
-features = ["electoral-log/immudb-tests"]
-issue = "https://github.com/sequentech/meta/issues/13302"
-limitations = [
-    "Bounded local gRPC fixtures test client request mapping and error propagation; electoral-log supplies real owned ImmuDB consumer tests on both revisions.",
-    "Only immudb-rs source counters are reported; consumer tests do not inflate its denominator. Generated protocol transport is exercised through the client.",
-    "Actual Rust branches remain separately unmeasured."
-]
-[profiles.immudb-rs.test_environment]
-RUST_TEST_THREADS = "2"
-[profiles.immudb-rs.scope_exceptions]
-"src/lib.rs" = "Module declarations and re-exports only."
-"src/schema.rs" = "Includes generated protocol definitions from OUT_DIR; no handwritten executable source in this file."
