@@ -71,4 +71,14 @@ class OcrSettingsTest {
     config.remove(ScanovateAuthenticatorFactory.OCR_URL);
     assertThrows(ScanovateException.class, () -> OcrSettings.fromConfig(config, "passport"));
   }
+
+  /** Passports are read from an ICAO TD3 data page; other documents are ID-1 cards. */
+  @Test
+  void documentFormatFollowsTheOcrType() throws ScanovateException {
+    Map<String, String> ocrTypes =
+        config("{\"philippinePassport\": \"passport\", \"default\": \"regula\"}");
+    assertEquals(
+        DocumentFormat.TD3, OcrSettings.fromConfig(ocrTypes, "philippinePassport").format());
+    assertEquals(DocumentFormat.ID_1, OcrSettings.fromConfig(ocrTypes, "philSysID").format());
+  }
 }

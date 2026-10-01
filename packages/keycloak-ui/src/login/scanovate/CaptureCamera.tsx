@@ -24,6 +24,7 @@ import {
     videoSize,
 } from "./frames"
 import {
+    DocumentFormat,
     PILL_HEIGHT,
     RING_GAP,
     StageLayout,
@@ -148,6 +149,8 @@ export type CaptureCameraProps = {
     flash: boolean
     text: Text
     documentLabel: TemplateLabel
+    // The shape of the guide; ID-1 by default.
+    format?: DocumentFormat
     eyebrow: TemplateLabel
     onCaptured: (step: CaptureStep, blob: Blob) => void
     onProblem: (problem: CaptureProblem) => void
@@ -180,6 +183,7 @@ export default function CaptureCamera(props: CaptureCameraProps) {
         flash,
         text,
         documentLabel,
+        format,
         eyebrow,
         onCaptured,
         onProblem,
@@ -208,7 +212,8 @@ export default function CaptureCamera(props: CaptureCameraProps) {
                   phone
                       ? {top: (top?.height ?? 0) + 16, bottom: (sheet?.height ?? 0) + 8}
                       : {top: step === CaptureStep.Video ? DESKTOP_REC_SPACE : 24, bottom: 0},
-                  layout
+                  layout,
+                  format
               )
 
     const input = useRef<LoopInput | null>(null)

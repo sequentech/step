@@ -265,6 +265,7 @@ class ScanovateAuthenticatorTest {
         authNotes.getOrDefault(ScanovateAuthenticatorFactory.DEFAULT_DOC_ID_TYPE, "default"),
         page.get(ScanovateAuthenticator.FTL_DOCUMENT_TYPE));
     assertEquals(sides, page.get(ScanovateAuthenticator.FTL_SIDES));
+    assertEquals(DocumentFormat.TD3.name(), page.get(ScanovateAuthenticator.FTL_FORMAT));
     assertEquals(5, page.get(ScanovateAuthenticator.FTL_VIDEO_SECONDS));
     assertEquals(attemptsLeft, page.get(ScanovateAuthenticator.FTL_ATTEMPTS_LEFT));
     assertEquals(3, page.get(ScanovateAuthenticator.FTL_MAX_ATTEMPTS));

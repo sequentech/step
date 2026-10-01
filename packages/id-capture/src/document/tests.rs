@@ -31,6 +31,16 @@ fn analyze_once(canvas: &Canvas) -> DocumentFrame {
     analyze(&mut DocumentAnalyzer::new(), canvas)
 }
 
+/// The frame after holding the same scene for the stillness run.
+fn analyze_until_settled(canvas: &Canvas) -> DocumentFrame {
+    let mut analyzer = DocumentAnalyzer::new();
+    let mut last = analyze(&mut analyzer, canvas);
+    for _ in 1..STILL_FRAMES {
+        last = analyze(&mut analyzer, canvas);
+    }
+    last
+}
+
 fn assert_near(actual: Point, expected: Point, tolerance: f32) {
     assert!(
         distance(actual, expected) <= tolerance,
@@ -90,10 +100,33 @@ fn card_overflowing_the_frame_is_too_close() {
     assert_eq!(frame.corners, None);
 }
 
+/// The voter doesn't have to match the guide's size: a card noticeably smaller than the guide,
+/// farther from the camera, is still captured.
+#[test]
+fn smaller_centred_card_is_ready() {
+    let frame = analyze_until_settled(&frame_with_card(0.78, [0.0, 0.0], 0.0));
+    assert_eq!(frame.status, DocumentStatus::Ready, "{frame:?}");
+}
+
+#[test]
+fn slightly_larger_card_is_ready() {
+    let frame = analyze_until_settled(&frame_with_card(1.1, [0.0, 0.0], 0.0));
+    assert_eq!(frame.status, DocumentStatus::Ready, "{frame:?}");
+}
+
+/// Nor to put its corners on the guide's: a card off the centre, but inside the frame, is
+/// captured.
+#[test]
+fn slightly_shifted_card_is_ready() {
+    let shift = guide().width * 0.08;
+    let frame = analyze_until_settled(&frame_with_card(0.85, [shift, shift / 2.0], 0.0));
+    assert_eq!(frame.status, DocumentStatus::Ready, "{frame:?}");
+}
+
 #[test]
 fn shifted_card_is_not_aligned() {
-    let shift = guide().width * 0.15;
-    let frame = analyze_once(&frame_with_card(1.0, [shift, 0.0], 0.0));
+    let shift = guide().width * 0.2;
+    let frame = analyze_once(&frame_with_card(0.9, [shift, 0.0], 0.0));
     assert_eq!(frame.status, DocumentStatus::NotAligned, "{frame:?}");
     assert!(frame.corners.is_some());
 }

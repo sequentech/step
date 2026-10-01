@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import {describe, expect, it} from "vitest"
 import {
+    DocumentFormat,
     CARD_ASPECT,
     RING_GAP,
     StageLayout,
@@ -103,6 +104,26 @@ describe("overlayFor", () => {
         expect(overlay.pillTop).toBeGreaterThanOrEqual(INSETS.top)
         expect(overlay.pillTop).toBeLessThan(guide.y)
         expect(guide.y + guide.height).toBeLessThanOrEqual(PHONE.height - INSETS.bottom)
+    })
+
+    it("shapes the guide like a passport data page for TD3 documents", () => {
+        const guide = overlayFor(
+            CaptureStep.Front,
+            PHONE,
+            INSETS,
+            StageLayout.Phone,
+            DocumentFormat.Td3
+        ).guide!
+        expect(guide.width / guide.height).toBeCloseTo(125 / 88)
+        expect(guide.y + guide.height).toBeLessThanOrEqual(PHONE.height - INSETS.bottom)
+    })
+
+    // The analyzer takes a document well inside the guide: a smaller guide keeps it farther from
+    // the lens, where cameras focus.
+    it("leaves room around the guide so the document can be held farther away", () => {
+        const guide = overlayFor(CaptureStep.Front, PHONE, INSETS, StageLayout.Phone).guide!
+        expect(guide.width).toBeLessThanOrEqual((PHONE.width - 44) * 0.86)
+        expect(guide.x + guide.width / 2).toBeCloseTo(PHONE.width / 2)
     })
 
     it("keeps the oval and its ring clear of the top bar and the sheet", () => {

@@ -36,6 +36,11 @@ public record OcrSettings(URI url, String ocrType) {
         ocrType(config.get(ScanovateAuthenticatorFactory.OCR_TYPES), docType));
   }
 
+  /** The physical format of the documents this OCR type reads. */
+  public DocumentFormat format() {
+    return DocumentFormat.ofOcrType(ocrType);
+  }
+
   private static String ocrType(String configuration, String docType) throws ScanovateException {
     if (configuration == null || configuration.isBlank()) {
       return DEFAULT_OCR_TYPE;

@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
 import {loadAnalyzers} from "./analyzers"
+import {StageLayout} from "./geometry"
 import {CameraFacing, CaptureProblem, type CameraService, type CaptureServices} from "./types"
 import {fetchLiveness} from "./livenessApi"
 import {fetchUploads} from "./uploads"
@@ -32,6 +33,21 @@ export function cameraProblem(error: unknown): CaptureProblem {
         default:
             return CaptureProblem.CameraFailed
     }
+}
+
+/**
+ * Whether to mirror the preview of a camera, like a mirror for a camera facing the voter. Laptops
+ * open their webcam whichever camera is asked for, usually without saying which way it faces.
+ */
+export function previewMirrored(
+    requested: CameraFacing,
+    stream: MediaStream | null,
+    layout: StageLayout
+): boolean {
+    const facing = stream?.getVideoTracks()[0]?.getSettings().facingMode
+    if (facing === CameraFacing.User) return true
+    if (facing === CameraFacing.Environment) return false
+    return layout === StageLayout.Desktop || requested === CameraFacing.User
 }
 
 export function stopStream(stream: MediaStream): void {

@@ -67,6 +67,7 @@ public class ScanovateAuthenticator implements Authenticator {
   static final String FTL_MAX_ATTEMPTS = "maxAttempts";
   static final String FTL_SCANOVATE = "scanovate";
   static final String FTL_SIDES = "sides";
+  static final String FTL_FORMAT = "format";
   static final String FTL_VIDEO_SECONDS = "videoSeconds";
   static final String FTL_LIVENESS = "liveness";
   static final String FTL_LIVENESS_URL = "url";
@@ -240,6 +241,16 @@ public class ScanovateAuthenticator implements Authenticator {
     }
   }
 
+  /** The format of the voter's document, ID-1 when its OCR type isn't configured. */
+  private static DocumentFormat documentFormat(
+      Map<String, String> config, AuthenticationSessionModel authSession) {
+    try {
+      return OcrSettings.fromConfig(config, documentType(config, authSession)).format();
+    } catch (ScanovateException e) {
+      return DocumentFormat.ID_1;
+    }
+  }
+
   private void showCapture(
       AuthenticationFlowContext context, CaptureSettings settings, Optional<String> errorKey) {
     Map<String, String> config = config(context);
@@ -249,6 +260,7 @@ public class ScanovateAuthenticator implements Authenticator {
         FTL_DOCUMENT_TYPE,
         documentTypeName(documentType(config, context.getAuthenticationSession())));
     capture.put(FTL_SIDES, settings.sides().stream().map(DocumentSide::name).toList());
+    capture.put(FTL_FORMAT, documentFormat(config, context.getAuthenticationSession()).name());
     capture.put(FTL_VIDEO_SECONDS, settings.videoSeconds());
     capture.put(FTL_ATTEMPTS_LEFT, attemptsLeft(context, maxAttempts));
     capture.put(FTL_MAX_ATTEMPTS, maxAttempts);

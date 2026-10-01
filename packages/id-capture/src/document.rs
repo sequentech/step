@@ -43,13 +43,18 @@ const MIN_EDGE_COVERAGE: f32 = 0.6;
 /// A found side lying this far outside the guide (fraction of the guide size) means the card is
 /// larger than the guide.
 const OUTSIDE_MARGIN: f32 = 0.02;
-/// Card area over guide area below which the card is too far.
-const MIN_FILL: f32 = 0.8;
+/// Card area over guide area below which the card is too far. The guide only shows where to hold
+/// the card: the whole frame is uploaded, and the OCR finds the card in it, so a card well inside
+/// the guide is fine.
+const MIN_FILL: f32 = 0.5;
 /// Card area over guide area above which the card is too close.
-const MAX_FILL: f32 = 1.15;
-/// Largest distance between a card corner and the matching guide corner, as a fraction of the
-/// guide diagonal.
-const MAX_CORNER_OFFSET: f32 = 0.1;
+const MAX_FILL: f32 = 1.3;
+/// Largest distance between the card centre and the guide centre, as a fraction of the guide
+/// diagonal.
+const MAX_CENTRE_OFFSET: f32 = 0.15;
+/// Smallest distance between a card corner and the frame border, as a fraction of the frame size,
+/// so the OCR sees the whole card.
+const FRAME_MARGIN: f32 = 0.02;
 /// Largest relative difference between the card and the guide aspect ratios.
 const MAX_ASPECT_DEVIATION: f32 = 0.25;
 /// Mean luma in the guide below which the frame is too dark.
@@ -287,14 +292,17 @@ fn quad_failure(
         return Some(DocumentStatus::TooClose);
     }
     let (frame_width, frame_height) = (to_f32(width), to_f32(height));
+    let (margin_x, margin_y) = (FRAME_MARGIN * frame_width, FRAME_MARGIN * frame_height);
     let outside_frame = quad.corners.iter().any(|corner| {
-        corner[0] < 0.0 || corner[1] < 0.0 || corner[0] > frame_width || corner[1] > frame_height
+        corner[0] < margin_x
+            || corner[1] < margin_y
+            || corner[0] > frame_width - margin_x
+            || corner[1] > frame_height - margin_y
     });
-    let misplaced = quad
-        .corners
-        .iter()
-        .zip(guide.corners())
-        .any(|(corner, target)| distance(*corner, target) > MAX_CORNER_OFFSET * guide.diagonal());
+    let centre = quad.corners.iter().fold([0.0, 0.0], |sum, corner| {
+        [sum[0] + corner[0] / 4.0, sum[1] + corner[1] / 4.0]
+    });
+    let misplaced = distance(centre, guide.center()) > MAX_CENTRE_OFFSET * guide.diagonal();
     (outside_frame || misplaced).then_some(DocumentStatus::NotAligned)
 }
 

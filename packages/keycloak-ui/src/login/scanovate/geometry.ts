@@ -1,9 +1,21 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
+import {DocumentFormat} from "../KcContext"
 import {CaptureStep, type Ellipse, type Rect, type Size} from "./types"
+
+export {DocumentFormat}
 
 // ID-1 cards (driver's licenses, national IDs) are 85.60 × 53.98 mm.
 export const CARD_ASPECT = 1.585
+// TD3 passport data pages are 125 × 88 mm.
+export const PASSPORT_ASPECT = 125 / 88
+const ASPECTS: Record<DocumentFormat, number> = {
+    [DocumentFormat.Id1]: CARD_ASPECT,
+    [DocumentFormat.Td3]: PASSPORT_ASPECT,
+}
+// Share of the free width the document guide takes. The analyzer accepts a document well inside
+// the guide, so a smaller guide lets voters hold it farther from the lens, where cameras focus.
+const GUIDE_SCALE = 0.85
 export const OVAL_ASPECT = 1.3
 // The progress ring is drawn outside the oval by this many pixels.
 export const RING_GAP = 12
@@ -44,7 +56,8 @@ export function overlayFor(
     step: CaptureStep,
     stage: Size,
     insets: Insets,
-    layout: StageLayout
+    layout: StageLayout,
+    format: DocumentFormat = DocumentFormat.Id1
 ): Overlay {
     const top = insets.top
     const bottom = Math.max(stage.height - insets.bottom, top + 1)
@@ -54,11 +67,12 @@ export function overlayFor(
     if (isDocument(step)) {
         const available = bottom - top - pillSpace
         const margin = phone ? PHONE_MARGIN : PHONE_MARGIN * 2
+        const aspect = ASPECTS[format]
         const width = Math.max(
-            Math.min(stage.width - margin * 2, available * CARD_ASPECT),
-            CARD_ASPECT
+            Math.min(stage.width - margin * 2, available * aspect) * GUIDE_SCALE,
+            aspect
         )
-        const height = width / CARD_ASPECT
+        const height = width / aspect
         const x = (stage.width - width) / 2
         if (phone) {
             const y = top + pillSpace + (available - height) / 2

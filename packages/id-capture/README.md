@@ -20,12 +20,18 @@ side) and the on-screen guide rectangle:
 - finds the card edges: for each guide side, a restricted Hough transform over
   near-axis-aligned lines (up to ±12°) in a band around it, keeping long
   edges of consistent polarity, and intersects the four lines into corners;
-- `NO_DOCUMENT`, `TOO_FAR` / `TOO_CLOSE` (card area over guide area),
-  `NOT_ALIGNED` (missing side, corners outside the frame or away from the
-  guide corners), `TOO_DARK` / `TOO_BRIGHT` (mean luma in the guide), `GLARE`
+- `NO_DOCUMENT`, `TOO_FAR` / `TOO_CLOSE` (card area below half or above 1.3
+  times the guide area), `NOT_ALIGNED` (missing side, a corner within 2% of
+  the frame border, or the card centre more than 15% of the guide diagonal
+  from the guide centre), `TOO_DARK` / `TOO_BRIGHT` (mean luma in the guide), `GLARE`
   (largest connected blob of near-white, low-saturation pixels on the card),
   `BLURRY` (variance of the Laplacian over the luma variance on the card),
   then `HOLD_STILL` until the corners stay put for 9 frames and `READY`.
+
+The guide only shows where to hold the document. The whole camera frame is
+uploaded and the OCR service finds the document in it, so the geometry checks
+are loose: they keep the whole document in the frame and large enough, while
+the glare and sharpness checks protect what the OCR reads.
 
 `FaceAnalyzer` runs the OpenCV Zoo [YuNet][yunet] face detector
 (`face_detection_yunet_2023mar`, MIT) with [tract][tract] on the frame scaled to

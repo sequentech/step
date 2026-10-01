@@ -39,10 +39,10 @@ import {StageLayout} from "../scanovate/geometry"
 import {Tone, type Guidance} from "../scanovate/guidance"
 import {LivenessCheck, LivenessOutcomeKind} from "../scanovate/liveness"
 import {LivenessAbort} from "../scanovate/livenessApi"
-import {stopStream, cameraProblem} from "../scanovate/media"
+import {cameraProblem, previewMirrored, stopStream} from "../scanovate/media"
 import type {ScanovatePageProps} from "../scanovate/pageProps"
 import {EnrollmentStep, documentName, enrollmentFrame, textFor, type Text} from "../scanovate/text"
-import {CameraFacing, CaptureProblem, CaptureStep, type Analyzers} from "../scanovate/types"
+import {CaptureProblem, CaptureStep, type Analyzers} from "../scanovate/types"
 
 const FLASH_MS = 700
 // How long the advice of Liveness Plus on a rejected face frame stays.
@@ -418,7 +418,11 @@ export default function ScanovateCapture(props: ScanovatePageProps<"scanovate-ca
                 step={step}
                 steps={steps}
                 stream={stream}
-                mirrored={facing === CameraFacing.User}
+                mirrored={previewMirrored(
+                    facing,
+                    stream,
+                    phone ? StageLayout.Phone : StageLayout.Desktop
+                )}
                 analyzers={analyzers}
                 videoSeconds={scanovate.videoSeconds}
                 attempt={faceAttempt}
@@ -428,6 +432,7 @@ export default function ScanovateCapture(props: ScanovatePageProps<"scanovate-ca
                 flash={state.justCaptured !== null}
                 text={text}
                 documentLabel={document}
+                format={scanovate.format}
                 eyebrow={verifyFrame.eyebrow ?? text("scanovateStepVerifyIdentity")}
                 onCaptured={onCaptured}
                 onProblem={onProblem}

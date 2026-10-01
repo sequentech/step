@@ -53,8 +53,18 @@ export type ScanovateUpload = {
     token: string
 }
 
+// Physical format of the document, which the capture guide takes the shape of.
+export enum DocumentFormat {
+    // ISO/IEC 7810 ID-1 cards: national IDs, driver's licenses.
+    Id1 = "ID_1",
+    // ICAO 9303 TD3 passport data pages.
+    Td3 = "TD3",
+}
+
 export type ScanovateCaptureSettings = {
     documentType: string
+    // Absent on pages rendered by earlier authenticators: ID-1.
+    format?: DocumentFormat
     sides: ScanovateSide[]
     videoSeconds: number
     attemptsLeft: number
