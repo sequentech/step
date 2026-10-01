@@ -8,9 +8,9 @@ minimum_lines = 95
 
 [profiles.sequent-core]
 package = "sequent-core"
-features = ["default_features", "keycloak", "areas", "election_config_xlsx", "election_config_templates", "election_config_archive"]
+features = ["default_features", "keycloak", "areas", "election_config_xlsx", "election_config_templates", "election_config_archive", "monitoring"]
 limitations = [
-    "Native library and integration tests; matches the existing Rust CI feature selection, including the election_config workbook, template and archive gates.",
+    "Native library and integration tests; matches the existing Rust CI feature selection, including the election_config workbook, template and archive gates and the monitoring gate.",
     "Native application features are exercised by sequent-core-native; the browser test job executes WASM exports separately.",
     "Standalone test files and fixture builders are excluded; inline unit-test code remains in mixed source files, so this is not yet production-only coverage.",
     "Native stable coverage does not measure branch coverage or doctests.",
@@ -36,6 +36,22 @@ issue = "https://github.com/sequentech/meta/issues/13302"
 "src/election_config/time_tests.rs" = "Standalone unit-test module under cfg(test); the schedule time checker remains measured."
 "src/election_config/validate_tests.rs" = "Standalone unit-test module under cfg(test); the election configuration validator remains measured."
 "src/election_config/xlsx_write_tests.rs" = "Standalone unit-test module under cfg(test); the workbook writer remains measured."
+"src/monitoring/cadence_tests.rs" = "Standalone unit-test module under cfg(test); the refresh cadence remains measured."
+"src/monitoring/check_tests.rs" = "Standalone unit-test module under cfg(test); the document checker remains measured."
+"src/monitoring/compute_tests.rs" = "Standalone unit-test module under cfg(test); the widget computation remains measured."
+"src/monitoring/payload_tests.rs" = "Standalone unit-test module under cfg(test); the widget payload remains measured."
+"src/monitoring/policy_tests.rs" = "Standalone unit-test module under cfg(test); the monitoring policy remains measured."
+"src/monitoring/presets_tests.rs" = "Standalone unit-test module under cfg(test); the presets remain measured."
+"src/monitoring/presets_scale_tests.rs" = "Standalone unit-test module under cfg(test); the presets remain measured."
+"src/monitoring/problem_tests.rs" = "Standalone unit-test module under cfg(test); the problem report remains measured."
+"src/monitoring/render_request_tests.rs" = "Standalone unit-test module under cfg(test); the render request remains measured."
+"src/monitoring/resolve_tests.rs" = "Standalone unit-test module under cfg(test); the widget resolver remains measured."
+"src/monitoring/revision_tests.rs" = "Standalone unit-test module under cfg(test); the configuration revision remains measured."
+"src/monitoring/sample_tests.rs" = "Standalone unit-test module under cfg(test); the sample data remains measured."
+"src/monitoring/scope_tests.rs" = "Standalone unit-test module under cfg(test); the scope filter remains measured."
+"src/monitoring/sources_tests.rs" = "Standalone unit-test module under cfg(test); the data source catalogue remains measured."
+"src/monitoring/voter_tests.rs" = "Standalone unit-test module under cfg(test); the voter-facing view remains measured."
+"src/types/permissions_tests.rs" = "Standalone unit-test module under cfg(test); the permission names remain measured."
 
 # These files have no measured executable bodies. If one gains executable code,
 # the reporter rejects the exception instead of hiding its new implementation.
@@ -46,6 +62,8 @@ issue = "https://github.com/sequentech/meta/issues/13302"
 "src/election_config/wasm.rs" = "wasm-bindgen exports compiled only with the wasm feature, which native coverage cannot build. The election_config functions they call are measured here; the JavaScript bindings themselves have no wasm-bindgen test yet."
 "src/fixtures/mod.rs" = "Fixture module declarations only."
 "src/lib.rs" = "Crate and module declarations only."
+"src/monitoring/mod.rs" = "Module declarations and re-exports."
+"src/monitoring/wasm.rs" = "wasm-bindgen export compiled only with the wasm feature, which native coverage cannot build. The document checker it calls is measured here."
 "src/serialization/mod.rs" = "Serialization module declarations only."
 "src/services/mod.rs" = "Service module declarations only."
 "src/services/keycloak/mod.rs" = "Keycloak module declarations and re-exports."
@@ -55,9 +73,9 @@ issue = "https://github.com/sequentech/meta/issues/13302"
 
 [profiles.sequent-core-native]
 package = "sequent-core"
-features = ["default_features", "keycloak", "areas", "reports", "reports_sync", "s3", "probe", "log", "signatures", "sqlite", "plugins_wit", "election_config_xlsx", "election_config_templates", "election_config_archive"]
+features = ["default_features", "keycloak", "areas", "reports", "reports_sync", "s3", "probe", "log", "signatures", "sqlite", "plugins_wit", "election_config_xlsx", "election_config_templates", "election_config_archive", "monitoring"]
 limitations = [
-    "Enabled native application features, including SQLite, reports, S3, health probes, logging, signature adapters and generated plugin bindings.",
+    "Enabled native application features, including SQLite, reports, S3, health probes, logging, signature adapters, generated plugin bindings and monitoring.",
     "Synthetic in-memory SQLite and owned HTTP/PostgreSQL fixtures; native inline test code remains counted.",
     "WASM browser tests are executed separately; native LLVM regions are not branch coverage.",
 ]
@@ -83,6 +101,22 @@ issue = "https://github.com/sequentech/meta/issues/13302"
 "src/election_config/time_tests.rs" = "Standalone unit-test module under cfg(test); the schedule time checker remains measured."
 "src/election_config/validate_tests.rs" = "Standalone unit-test module under cfg(test); the election configuration validator remains measured."
 "src/election_config/xlsx_write_tests.rs" = "Standalone unit-test module under cfg(test); the workbook writer remains measured."
+"src/monitoring/cadence_tests.rs" = "Standalone unit-test module under cfg(test); the refresh cadence remains measured."
+"src/monitoring/check_tests.rs" = "Standalone unit-test module under cfg(test); the document checker remains measured."
+"src/monitoring/compute_tests.rs" = "Standalone unit-test module under cfg(test); the widget computation remains measured."
+"src/monitoring/payload_tests.rs" = "Standalone unit-test module under cfg(test); the widget payload remains measured."
+"src/monitoring/policy_tests.rs" = "Standalone unit-test module under cfg(test); the monitoring policy remains measured."
+"src/monitoring/presets_tests.rs" = "Standalone unit-test module under cfg(test); the presets remain measured."
+"src/monitoring/presets_scale_tests.rs" = "Standalone unit-test module under cfg(test); the presets remain measured."
+"src/monitoring/problem_tests.rs" = "Standalone unit-test module under cfg(test); the problem report remains measured."
+"src/monitoring/render_request_tests.rs" = "Standalone unit-test module under cfg(test); the render request remains measured."
+"src/monitoring/resolve_tests.rs" = "Standalone unit-test module under cfg(test); the widget resolver remains measured."
+"src/monitoring/revision_tests.rs" = "Standalone unit-test module under cfg(test); the configuration revision remains measured."
+"src/monitoring/sample_tests.rs" = "Standalone unit-test module under cfg(test); the sample data remains measured."
+"src/monitoring/scope_tests.rs" = "Standalone unit-test module under cfg(test); the scope filter remains measured."
+"src/monitoring/sources_tests.rs" = "Standalone unit-test module under cfg(test); the data source catalogue remains measured."
+"src/monitoring/voter_tests.rs" = "Standalone unit-test module under cfg(test); the voter-facing view remains measured."
+"src/types/permissions_tests.rs" = "Standalone unit-test module under cfg(test); the permission names remain measured."
 
 # These files have no measured executable bodies. If one gains executable code,
 # the reporter rejects the exception instead of hiding its new implementation.
@@ -93,6 +127,8 @@ issue = "https://github.com/sequentech/meta/issues/13302"
 "src/election_config/wasm.rs" = "wasm-bindgen exports compiled only with the wasm feature, which native coverage cannot build. The election_config functions they call are measured here; the JavaScript bindings themselves have no wasm-bindgen test yet."
 "src/fixtures/mod.rs" = "Fixture module declarations only."
 "src/lib.rs" = "Crate and module declarations only."
+"src/monitoring/mod.rs" = "Module declarations and re-exports."
+"src/monitoring/wasm.rs" = "wasm-bindgen export compiled only with the wasm feature, which native coverage cannot build. The document checker it calls is measured here."
 "src/serialization/mod.rs" = "Serialization module declarations only."
 "src/services/mod.rs" = "Service module declarations only."
 "src/services/keycloak/mod.rs" = "Keycloak module declarations and re-exports."
@@ -193,6 +229,7 @@ issue = "https://github.com/sequentech/meta/issues/13302"
 "src/ports/electoral_log.rs" = "Electoral log trait and message declarations only; implementations are measured in adapters."
 "src/ports/identity.rs" = "Identity admin trait declaration only; implementations are measured in adapters."
 "src/ports/mod.rs" = "Module declarations only."
+"src/ports/monitoring_snapshots.rs" = "Monitoring snapshot trait declaration and Windmill re-exports only; implementations are measured in adapters."
 "src/ports/task_ledger.rs" = "Task ledger trait declaration only; implementations are measured in adapters."
 "src/ports/user_tasks.rs" = "User task trait and data declarations only; implementations are measured in adapters."
 "src/ports/vault.rs" = "Secret vault trait declaration only; implementations are measured in adapters."
@@ -246,7 +283,10 @@ DEFAULT_SQL_BATCH_SIZE = "1000"
 "src/services/external/datafix_cast_vote_tests.rs" = "Standalone unit-test module under cfg(test); the Datafix vote use case remains measured."
 "src/services/insert_cast_vote_database_tests.rs" = "Standalone PostgreSQL test module under cfg(test); the cast-vote service and its queries remain measured."
 "src/services/insert_cast_vote_tests.rs" = "Standalone unit-test module under cfg(test); the cast-vote service remains measured."
+"src/services/monitoring/export_tests.rs" = "Standalone unit-test module under cfg(test); the monitoring export remains measured."
+"src/services/monitoring/producers_tests.rs" = "Standalone unit-test module under cfg(test); the monitoring snapshot producers remain measured."
 "src/services/results_publication_lifecycle_tests.rs" = "Standalone results publication lifecycle test module; no production code."
+"src/tasks/refresh_monitoring_snapshot_tests.rs" = "Standalone unit-test module under cfg(test); the snapshot refresh task remains measured."
 
 [profiles.windmill.scope_exceptions]
 "src/adapters/memory/mod.rs" = "Module declarations only; the in-memory adapters remain in the source inventory."
@@ -273,6 +313,7 @@ DEFAULT_SQL_BATCH_SIZE = "1000"
 "src/services/external/reconciliation/mod.rs" = "Module declarations and re-exports only; their implementations remain in the source inventory."
 "src/services/import/mod.rs" = "Module declarations and re-exports only; their implementations remain in the source inventory."
 "src/services/mod.rs" = "Module declarations and re-exports only; their implementations remain in the source inventory."
+"src/services/monitoring/mod.rs" = "Module declarations only; the monitoring services remain in the source inventory."
 "src/services/plugins_manager/mod.rs" = "Module declarations and re-exports only; their implementations remain in the source inventory."
 "src/services/providers/mod.rs" = "Module declarations and re-exports only; their implementations remain in the source inventory."
 "src/services/reports/mod.rs" = "Module declarations and re-exports only; their implementations remain in the source inventory."

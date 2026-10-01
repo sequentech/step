@@ -18,6 +18,10 @@ it.each([
     ["delete_sequent_backend_candidate", IPermissions.CANDIDATE_DELETE],
     ["sequent_backend_tally_results_publication", IPermissions.PUBLISH_RESULTS_READ],
     ["RevealVoterSecretAttribute", IPermissions.VOTER_READ],
+    ["MonitoringGetDashboard", IPermissions.MONITORING_VIEW],
+    ["MonitoringRenderWidget", IPermissions.MONITORING_VIEW],
+    ["MonitoringExport", IPermissions.MONITORING_VIEW],
+    ["MonitoringSaveConfig", IPermissions.MONITORING_CONFIGURE],
 ])("requires the role for %s in both modes", (name, role) => {
     expect(getOperationRole(operation(name))).toBe(role)
     expect(getOperationRole(operation(name), true)).toBe(role)

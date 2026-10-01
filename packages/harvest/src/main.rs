@@ -68,6 +68,10 @@ fn build_application_with(
             ],
         )
         .register(
+            "/monitoring",
+            catchers![services::monitoring::monitoring_catcher],
+        )
+        .register(
             "/api/datafix",
             catchers![
                 routes::error_catchers::datafix_invalid_request,
@@ -176,6 +180,17 @@ fn build_application_with(
                 routes::export_template::export_template,
                 routes::import_templates::import_templates_route,
                 routes::election_event_stats::get_election_event_top_votes_by_ip,
+                routes::monitoring::list_dashboards,
+                routes::monitoring::get_dashboard,
+                routes::monitoring::render_widget,
+                routes::monitoring_config::validate_config,
+                routes::monitoring_config::save_config,
+                routes::monitoring_config::reset_config_to_preset,
+                routes::monitoring_config::list_presets,
+                routes::monitoring_config::set_dashboard_mode,
+                routes::monitoring_config::list_config,
+                routes::monitoring_config::get_config,
+                routes::monitoring_export::export_monitoring,
                 routes::export_ballot_publication::export_ballot_publication_route,
                 routes::reports::render_document_pdf,
                 routes::reports::generate_template,

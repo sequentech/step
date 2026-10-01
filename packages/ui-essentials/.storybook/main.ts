@@ -94,6 +94,9 @@ const config: StorybookConfig = {
                 // Vitest otherwise discovers it and requires absent Vue peers.
                 exclude: ["sequent-core", "@vue/test-utils"],
             },
+            // staticDirs already copies public/ into the build. Vite's own copy of
+            // its default publicDir races it into the same directories (EEXIST).
+            build: {copyPublicDir: false},
         }),
 }
 

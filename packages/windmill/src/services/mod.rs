@@ -40,6 +40,7 @@ pub mod jwks;
 pub mod keycloak;
 pub mod keycloak_events;
 pub mod limit_access_by_countries;
+pub mod monitoring;
 pub mod password;
 pub mod pdf_encryption;
 pub mod pg_lock;

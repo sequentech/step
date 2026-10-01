@@ -1,0 +1,264 @@
+{
+  "charts": {
+    "groups": {
+      "layers": [
+        {
+          "label": "Still open",
+          "type": "bar",
+          "y": "pending_issues"
+        }
+      ],
+      "query": "groups",
+      "sort": {
+        "by": "position",
+        "order": "asc"
+      },
+      "style": {
+        "axis_y": {
+          "title": {
+            "visible": false
+          }
+        },
+        "number_format": "number",
+        "orientation": "horizontal"
+      },
+      "type": "bar",
+      "x": "group",
+      "y": "issues",
+      "y_label": "Reported"
+    },
+    "issues": {
+      "label": "Issues reported",
+      "query": "totals",
+      "style": {
+        "value": {
+          "format": "integer"
+        }
+      },
+      "type": "kpi",
+      "value": "issues"
+    },
+    "open": {
+      "label": "Still open",
+      "query": "open",
+      "support": {
+        "format": "integer",
+        "label": "open",
+        "value": "numerator"
+      },
+      "type": "kpi",
+      "value": "pct_label"
+    }
+  },
+  "queries": {
+    "groups": {
+      "columns": [
+        "group",
+        "group_key",
+        "position",
+        "issues",
+        "pending_issues"
+      ],
+      "values": [
+        [
+          "Sign-in",
+          "Sign-in",
+          1,
+          6,
+          1
+        ],
+        [
+          "Enrollment",
+          "Enrollment",
+          2,
+          6,
+          2
+        ],
+        [
+          "Ballot",
+          "Ballot",
+          3,
+          5,
+          1
+        ],
+        [
+          "Other",
+          "Other",
+          4,
+          5,
+          1
+        ],
+        [
+          "Unknown",
+          "__unknown__",
+          5,
+          3,
+          1
+        ]
+      ]
+    },
+    "open": {
+      "columns": [
+        "numerator",
+        "denominator",
+        "pct",
+        "pct_label"
+      ],
+      "values": [
+        [
+          6,
+          25,
+          0.24,
+          "24.0%"
+        ]
+      ]
+    },
+    "totals": {
+      "columns": [
+        "issues",
+        "pending_issues"
+      ],
+      "values": [
+        [
+          25,
+          6
+        ]
+      ]
+    }
+  },
+  "rows": [
+    {
+      "cols": [
+        "issues",
+        "open"
+      ]
+    },
+    "groups"
+  ],
+  "style": {
+    "accent": "#0F054C",
+    "charts": {
+      "axis": {
+        "title": {
+          "font": {
+            "case": "none"
+          }
+        }
+      },
+      "axis_quantitative": {
+        "labels": {
+          "font": {
+            "family": "'Inter Variable', Inter, system-ui, sans-serif"
+          }
+        }
+      },
+      "callout": {
+        "title": {
+          "font": {
+            "case": "none"
+          }
+        }
+      },
+      "category_colors": {
+        "group": {
+          "values": {
+            "Unknown": "dbt-grays.muted"
+          }
+        }
+      },
+      "color": {
+        "categorical": {
+          "palette": [
+            "#0F054C",
+            "#43E3A1",
+            "#7C6FE0",
+            "#F59E0B",
+            "#0EA5E9",
+            "#DC2626"
+          ],
+          "single_series_palette": [
+            "#0F054C"
+          ]
+        }
+      },
+      "kpi": {
+        "font": {
+          "family": "'Inter Variable', Inter, system-ui, sans-serif"
+        },
+        "label": {
+          "font": {
+            "case": "none"
+          }
+        },
+        "value": {
+          "font": {
+            "family": "'Inter Variable', Inter, system-ui, sans-serif"
+          }
+        }
+      },
+      "legend": {
+        "title": {
+          "visible": false
+        }
+      },
+      "pie": {
+        "total": {
+          "value": {
+            "font": {
+              "family": "'Inter Variable', Inter, system-ui, sans-serif"
+            }
+          }
+        }
+      },
+      "spark_bar": {
+        "bar": {
+          "height": 20
+        },
+        "count": {
+          "width": 64
+        },
+        "label": {
+          "width": 220
+        }
+      },
+      "support_table": {
+        "font": {
+          "family": "'Inter Variable', Inter, system-ui, sans-serif"
+        },
+        "label": {
+          "font": {
+            "case": "none"
+          }
+        }
+      },
+      "table": {
+        "header": {
+          "font": {
+            "case": "none"
+          }
+        }
+      }
+    },
+    "font": {
+      "family": "'Inter Variable', Inter, system-ui, sans-serif"
+    },
+    "footer": {
+      "visible": false
+    },
+    "text": {
+      "font": {
+        "family": "'Inter Variable', Inter, system-ui, sans-serif"
+      }
+    },
+    "timestamp": {
+      "visible": false
+    },
+    "title": {
+      "font": {
+        "case": "none",
+        "family": "'Inter Variable', Inter, system-ui, sans-serif"
+      }
+    }
+  },
+  "theme": "clarity"
+}

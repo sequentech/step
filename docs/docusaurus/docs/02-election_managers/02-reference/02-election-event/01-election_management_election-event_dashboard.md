@@ -11,6 +11,14 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 # Election Event Dashboard Overview
 
+:::note
+When the election event is set up for monitoring, users with the
+`monitoring-view` permission see its configurable
+[monitoring dashboards](./02-election_management_election-event_monitoring.md)
+in this tab instead. Everyone else, and every event not set up for
+monitoring, sees the dashboard described here.
+:::
+
 At the top of the **Data Display** section on the dashboard of an Election Event, there is a **Step Crumb** that indicates the status of the election event. These statuses are **sequential** and described below:
 
 ## Election Status Steps

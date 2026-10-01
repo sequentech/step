@@ -29,11 +29,17 @@ import {Box, CircularProgress} from "@mui/material"
 import {Tabs} from "@/components/Tabs"
 import {useNavigate, useLocation} from "react-router-dom"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
+import {monitoringLock} from "@/components/monitoring/useMonitoringPermissions"
 
 // ---------------------------------------------------------------------
 // Lazy load all tab contents
 // ---------------------------------------------------------------------
 const DashboardElectionEvent = lazy(() => import("@/components/dashboard/election-event/Dashboard"))
+const MonitoringDashboardTab = lazy(() =>
+    import("@/components/monitoring/MonitoringDashboardTab").then((m) => ({
+        default: m.MonitoringDashboardTab,
+    }))
+)
 const EditElectionEventData = lazy(() =>
     import("./EditElectionEventData").then((m) => ({default: m.EditElectionEventData}))
 )
@@ -93,13 +99,26 @@ interface ITabProps {
     handleChildMount: () => void
 }
 
-const DashboardTab: React.FC<ITabProps> = ({refreshRef, handleChildMount}) => (
-    <Suspense fallback={<div>Loading Dashboard...</div>}>
-        <Box sx={{overflowX: "auto"}}>
-            <DashboardElectionEvent refreshRef={refreshRef} onMount={handleChildMount} />
-        </Box>
-    </Suspense>
-)
+const DashboardTab: React.FC<ITabProps> = ({refreshRef, handleChildMount}) => {
+    const record = useRecordContext<Sequent_Backend_Election_Event>()
+    const lock = monitoringLock(record)
+    return (
+        <Suspense fallback={<div>Loading Dashboard...</div>}>
+            <MonitoringDashboardTab
+                electionEventId={record?.id}
+                lock={lock}
+                legacy={
+                    <Box sx={{overflowX: "auto"}}>
+                        <DashboardElectionEvent
+                            refreshRef={refreshRef}
+                            onMount={handleChildMount}
+                        />
+                    </Box>
+                }
+            />
+        </Suspense>
+    )
+}
 
 const DataTab: React.FC = () => (
     <Suspense fallback={<div>Loading Data...</div>}>

@@ -27,6 +27,7 @@ use crate::tasks::export_application::export_application;
 use crate::tasks::export_ballot_publication::export_ballot_publication;
 use crate::tasks::export_certificate_authority::export_certificate_authority;
 use crate::tasks::export_election_event::export_election_event;
+use crate::tasks::export_monitoring_data::export_monitoring_data;
 use crate::tasks::export_tally_results::export_tally_results_to_xlsx_task;
 use crate::tasks::export_tasks_execution::export_tasks_execution;
 use crate::tasks::export_templates::export_templates;
@@ -59,6 +60,9 @@ use crate::tasks::prepare_publication_preview::prepare_publication_preview;
 use crate::tasks::process_board::process_board;
 use crate::tasks::process_cast_vote::process_cast_vote;
 use crate::tasks::publish_results_website::publish_results_website_task;
+use crate::tasks::refresh_monitoring_snapshot::{
+    refresh_monitoring_event_snapshot, refresh_monitoring_snapshots,
+};
 use crate::tasks::render_document_pdf::render_document_pdf;
 use crate::tasks::render_report::render_report;
 use crate::tasks::review_boards::review_boards;
@@ -111,6 +115,10 @@ pub enum Queue {
     ElectoralLogBatch,
     #[strum(serialize = "electoral_log_event_queue")]
     ElectoralLogEvent,
+    /// The monitoring snapshot passes: long, CPU-bound counts that must not
+    /// hold up the reports voters wait for.
+    #[strum(serialize = "monitoring_queue")]
+    Monitoring,
 }
 
 impl Queue {
@@ -327,6 +335,9 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
             enqueue_electoral_log_event,
             process_electoral_log_events_batch,
             electoral_log_batch_dispatcher,
+            refresh_monitoring_snapshots,
+            refresh_monitoring_event_snapshot,
+            export_monitoring_data,
             process_cast_vote,
             edit_user,
             render_document_pdf,
@@ -389,6 +400,9 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
             enqueue_electoral_log_event::NAME => &Queue::ElectoralLogEvent.queue_name(&slug),
             process_electoral_log_events_batch::NAME => &Queue::ElectoralLogBatch.queue_name(&slug),
             electoral_log_batch_dispatcher::NAME => &Queue::ElectoralLogBeat.queue_name(&slug),
+            refresh_monitoring_snapshots::NAME => &Queue::Beat.queue_name(&slug),
+            refresh_monitoring_event_snapshot::NAME => &Queue::Monitoring.queue_name(&slug),
+            export_monitoring_data::NAME => &Queue::Reports.queue_name(&slug),
             execute_plugin_task::NAME => &Queue::Short.queue_name(&slug),
             prepare_publication_preview::NAME => &Queue::Beat.queue_name(&slug),
             export_tally_results_to_xlsx_task::NAME => &Queue::ImportExport.queue_name(&slug),

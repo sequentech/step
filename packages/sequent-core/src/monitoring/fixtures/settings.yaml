@@ -1,0 +1,15 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+time_zone: Asia/Manila
+scope:
+  region: {election_annotation: "miru:geographical-region"}
+  country: {voter_attribute: country, split: {separator: "/", part: 0}}
+pre_enrolled: {voter_attribute: sequent.read-only.id-card-number-validated, equals: VERIFIED}
+dimensions:
+  sex: {voter_attribute: sex, labels: {M: Male, F: Female}}
+  age_band:
+    voter_attribute: dateOfBirth
+    age_bands: [{label: "18-24", to: 24}, {label: "25-39", to: 39}, {label: "40-59", to: 59}, {label: "60+"}]
+  status: {voter_attribute: landBasedOrSeafarer}

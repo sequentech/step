@@ -27,6 +27,7 @@ import {
     BallotSelection,
     getDefaultVotingScreenBackPolicy,
     areAllContestsAcclaimed,
+    getContestClassName,
     isAcclaimedContest,
 } from "@sequentech/ui-core"
 import {faCircleQuestion} from "@fortawesome/free-solid-svg-icons"
@@ -231,7 +232,10 @@ const ContestPagination: React.FC<ContestPaginationProps> = ({
             </VisuallyHidden>
             {sortedContests &&
                 sortedContests.map((contest, index) => (
-                    <Box key={contest.id} className={`contest-container contest-${index}`}>
+                    <Box
+                        key={contest.id}
+                        className={`contest-container contest-${index} ${getContestClassName(contest.external_id)}`.trim()}
+                    >
                         <Question
                             ballotStyle={ballotStyle}
                             question={contest}

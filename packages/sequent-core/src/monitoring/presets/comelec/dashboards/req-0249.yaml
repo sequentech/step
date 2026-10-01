@@ -1,0 +1,13 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+id: req-0249
+title: Enrollment decisions
+description: The latest decision on each OV's application.
+section: Enrollment
+requirements: [SW-F-0249, SW-F-0366]
+order: 1
+selectors: [region, post, country]
+layout:
+  - {widget: enrollment-decisions, width: 12}

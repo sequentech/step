@@ -1,0 +1,49 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# Every Post in scope with its own counts and ratio, highest first.
+id: turnout-by-post
+title: Turnout by Post
+description: Each Post over its own denominator.
+source: voter_turnout
+requirements: [SW-F-0259, SW-F-0260, SW-F-0261]
+selectors:
+  measure:
+    label: Show
+    options: {voted_reg: Voted of registered, voted_pre: Voted of pre-enrolled, pre_reg: Pre-enrolled of registered}
+    default: voted_reg
+    maps: {voted_reg: [voted, registered], voted_pre: [voted_pre_enrolled, pre_enrolled], pre_reg: [pre_enrolled, registered]}
+  order:
+    label: Order
+    control: toggle
+    options: {ratio: Highest first, label: By name}
+    default: ratio
+    maps: {ratio: {by: ratio, order: desc}, label: {by: label, order: asc}}
+query:
+  template: by_group
+  group_by: post
+  measures: [registered, pre_enrolled, voted]
+  ratio: {selector: measure}
+  sort: {selector: order}
+height: 360
+chart:
+  charts:
+    posts:
+      type: table
+      query: data
+      style:
+        columns:
+          group: {label: Post}
+          group_key: {visible: false}
+          position: {visible: false}
+          # Short headers, so a half-width card at the narrowest width a chart
+          # is drawn at (360 px) keeps every header on one line.
+          registered: {label: Reg., format: integer, align: right}
+          pre_enrolled: {label: Pre-enr., format: integer, align: right}
+          voted: {label: Voted, format: integer, align: right}
+          numerator: {visible: false}
+          denominator: {visible: false}
+          pct: {visible: false}
+          pct_label: {label: Share, align: right}
+  rows: [posts]

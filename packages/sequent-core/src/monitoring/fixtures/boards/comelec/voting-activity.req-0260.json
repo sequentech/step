@@ -1,0 +1,186 @@
+{
+  "charts": {
+    "activity": {
+      "layers": [
+        {
+          "axis_y": {
+            "position": "right",
+            "title": "Running total"
+          },
+          "label": "Running total",
+          "type": "line",
+          "y": "voted_cumulative"
+        }
+      ],
+      "query": "data",
+      "sort": {
+        "by": "bucket_utc",
+        "order": "asc"
+      },
+      "style": {
+        "number_format": "number",
+        "orientation": "vertical"
+      },
+      "type": "bar",
+      "x": "bucket_label",
+      "y": "voted",
+      "y_label": "First votes"
+    }
+  },
+  "queries": {
+    "data": {
+      "columns": [
+        "bucket_start",
+        "bucket_label",
+        "bucket_utc",
+        "voted",
+        "voted_cumulative"
+      ],
+      "values": [
+        [
+          "2026-05-04T00:00:00",
+          "2026-05-04",
+          "2026-05-04T00:00:00Z",
+          93,
+          93
+        ],
+        [
+          "2026-05-05T00:00:00",
+          "2026-05-05",
+          "2026-05-05T00:00:00Z",
+          45,
+          138
+        ]
+      ]
+    }
+  },
+  "rows": [
+    "activity"
+  ],
+  "style": {
+    "accent": "#0F054C",
+    "charts": {
+      "axis": {
+        "title": {
+          "font": {
+            "case": "none"
+          }
+        }
+      },
+      "axis_quantitative": {
+        "labels": {
+          "font": {
+            "family": "'Inter Variable', Inter, system-ui, sans-serif"
+          }
+        }
+      },
+      "callout": {
+        "title": {
+          "font": {
+            "case": "none"
+          }
+        }
+      },
+      "category_colors": {
+        "group": {
+          "values": {
+            "Unknown": "dbt-grays.muted"
+          }
+        }
+      },
+      "color": {
+        "categorical": {
+          "palette": [
+            "#0F054C",
+            "#43E3A1",
+            "#7C6FE0",
+            "#F59E0B",
+            "#0EA5E9",
+            "#DC2626"
+          ],
+          "single_series_palette": [
+            "#0F054C"
+          ]
+        }
+      },
+      "kpi": {
+        "font": {
+          "family": "'Inter Variable', Inter, system-ui, sans-serif"
+        },
+        "label": {
+          "font": {
+            "case": "none"
+          }
+        },
+        "value": {
+          "font": {
+            "family": "'Inter Variable', Inter, system-ui, sans-serif"
+          }
+        }
+      },
+      "legend": {
+        "title": {
+          "visible": false
+        }
+      },
+      "pie": {
+        "total": {
+          "value": {
+            "font": {
+              "family": "'Inter Variable', Inter, system-ui, sans-serif"
+            }
+          }
+        }
+      },
+      "spark_bar": {
+        "bar": {
+          "height": 20
+        },
+        "count": {
+          "width": 64
+        },
+        "label": {
+          "width": 220
+        }
+      },
+      "support_table": {
+        "font": {
+          "family": "'Inter Variable', Inter, system-ui, sans-serif"
+        },
+        "label": {
+          "font": {
+            "case": "none"
+          }
+        }
+      },
+      "table": {
+        "header": {
+          "font": {
+            "case": "none"
+          }
+        }
+      }
+    },
+    "font": {
+      "family": "'Inter Variable', Inter, system-ui, sans-serif"
+    },
+    "footer": {
+      "visible": false
+    },
+    "text": {
+      "font": {
+        "family": "'Inter Variable', Inter, system-ui, sans-serif"
+      }
+    },
+    "timestamp": {
+      "visible": false
+    },
+    "title": {
+      "font": {
+        "case": "none",
+        "family": "'Inter Variable', Inter, system-ui, sans-serif"
+      }
+    }
+  },
+  "theme": "clarity"
+}

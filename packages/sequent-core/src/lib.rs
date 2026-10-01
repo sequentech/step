@@ -16,6 +16,11 @@ pub mod ballot_style;
 #[cfg(feature = "default_features")]
 pub mod election_config;
 
+/// Monitoring dashboards: what an administrator may configure, and what the
+/// platform refuses. Pure, so the server and the browser give the same answer.
+#[cfg(feature = "monitoring")]
+pub mod monitoring;
+
 #[cfg(feature = "default_features")]
 pub mod error;
 #[cfg(feature = "default_features")]

@@ -1,0 +1,115 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# The monitoring renderer (packages/monitoring-renderer): its tests, with
+# sockets disabled so any network use fails, an audit of its pinned Python
+# dependencies, and the hardened container answering /ready and drawing a
+# golden board with no network at all.
+name: Monitoring renderer
+on:
+  pull_request:
+    paths:
+      - 'packages/monitoring-renderer/**'
+      - 'packages/sequent-core/src/monitoring/dbt_charts_keys.txt'
+      - 'packages/sequent-core/src/monitoring/fixtures/**'
+      - '.github/workflows/monitoring-renderer.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'packages/monitoring-renderer/**'
+      - 'packages/sequent-core/src/monitoring/dbt_charts_keys.txt'
+      - 'packages/sequent-core/src/monitoring/fixtures/**'
+      - '.github/workflows/monitoring-renderer.yml'
+permissions:
+  contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: packages/monitoring-renderer
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install the pinned dependencies (hashes required)
+        run: |
+          python -m venv "$RUNNER_TEMP/venv"
+          "$RUNNER_TEMP/venv/bin/pip" install --no-deps --require-hashes -r requirements.txt -r requirements-dev.txt
+          "$RUNNER_TEMP/venv/bin/pip" check
+      - name: Run the tests (sockets disabled)
+        run: "$RUNNER_TEMP/venv/bin/python -m pytest -q"
+
+  audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: packages/monitoring-renderer
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Audit the runtime and test dependencies
+        run: |
+          python -m venv "$RUNNER_TEMP/audit"
+          "$RUNNER_TEMP/audit/bin/pip" install pip-audit==2.10.1
+          "$RUNNER_TEMP/audit/bin/pip-audit" --progress-spinner off --require-hashes --disable-pip -r requirements.txt
+          "$RUNNER_TEMP/audit/bin/pip-audit" --progress-spinner off --require-hashes --disable-pip -r requirements-dev.txt
+
+  container:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Build the image
+        run: docker build -t monitoring-renderer:ci packages/monitoring-renderer
+      - name: Run it hardened, with no network, and draw a golden board
+        run: |
+          docker run -d --name renderer-ci --network none --read-only --tmpfs /tmp \
+            --cap-drop ALL --security-opt no-new-privileges:true \
+            -e RENDERER_TOKEN=ci-renderer-token \
+            -v "$PWD/packages/sequent-core/src/monitoring/fixtures/boards:/boards:ro" \
+            monitoring-renderer:ci
+          for _ in $(seq 60); do
+            [ "$(docker inspect -f '{{.State.Health.Status}}' renderer-ci)" = healthy ] && break
+            sleep 2
+          done
+          docker exec -i renderer-ci python - <<'EOF'
+          import json, urllib.request
+          board = json.load(open("/boards/comelec/turnout-by-group.json"))
+          def call(path, body=None, token="ci-renderer-token"):
+              request = urllib.request.Request(f"http://127.0.0.1:8080{path}", method="POST" if body else "GET")
+              if body:
+                  request.data = json.dumps(body).encode()
+                  request.add_header("content-type", "application/json")
+                  request.add_header("x-renderer-token", token)
+              try:
+                  with urllib.request.urlopen(request, timeout=30) as response:
+                      return response.status, json.load(response)
+              except urllib.error.HTTPError as error:
+                  return error.code, json.load(error)
+          status, ready = call("/ready")
+          assert status == 200 and ready["status"] == "ready", ready
+          request = {"board": board, "width": 640, "color_scheme": "light", "locale": "en"}
+          assert call("/render", request, token="wrong")[0] == 401
+          status, rendered = call("/render", request)
+          assert status == 200 and rendered["svg"].startswith("<svg"), rendered
+          print("rendered", len(rendered["svg"]), "bytes in", rendered["render_ms"], "ms")
+          EOF
+      - name: Container logs
+        if: always()
+        run: docker logs renderer-ci || true

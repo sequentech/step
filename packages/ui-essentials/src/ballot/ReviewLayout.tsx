@@ -16,7 +16,7 @@ import type {IBallotStyle} from "./types"
 
 import BallotHash from "../components/BallotHash/BallotHash"
 import IconButton from "../components/IconButton/IconButton"
-import {stringToHtml} from "@sequentech/ui-core"
+import {getContestClassName, stringToHtml} from "@sequentech/ui-core"
 import {useTranslation} from "react-i18next"
 
 import PageLimit from "../components/PageLimit/PageLimit"
@@ -218,7 +218,10 @@ export const ReviewLayout: React.FC<IReviewLayoutProps> = ({
                 {stringToHtml(description)}
             </Typography>
             {contests.map((question, index) => (
-                <Box key={question.id} className={`contest-container contest-${index}`}>
+                <Box
+                    key={question.id}
+                    className={`contest-container contest-${index} ${getContestClassName(question.external_id)}`.trim()}
+                >
                     <Question
                         ballotStyle={ballotStyle}
                         question={question}
