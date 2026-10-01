@@ -8,7 +8,7 @@ public enum ScanovateError {
   INTERNAL("scanovateInternalError"),
   VERIFICATION_FAILED("scanovateVerificationFailedError"),
   DOCUMENT_AUTHENTICATION("scanovateDocumentAuthenticationError"),
-  MAX_TRIALS("scanovateMaxTrialsError"),
+  DOCUMENT_UNREADABLE("scanovateDocumentUnreadableError"),
   ATTRIBUTES("scanovateAttributesError"),
   SCORING("scanovateScoringError"),
   MAX_RETRIES("scanovateMaxRetriesError"),

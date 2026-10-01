@@ -10,7 +10,6 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.Base64;
 import java.util.Map;
-import sequent.keycloak.scanovate_authenticator.ScanovateClient.Sleeper;
 
 /**
  * Client for the 1:1 API of the on-premise Scanovate Face Match service, which compares the faces

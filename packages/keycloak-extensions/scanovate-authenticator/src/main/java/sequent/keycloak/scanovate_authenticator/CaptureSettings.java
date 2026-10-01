@@ -14,20 +14,13 @@ import java.util.Optional;
 import java.util.Set;
 
 /**
- * What the voter captures in the embedded mode for a document type, and the limits applied to it.
+ * What the voter captures for a document type, and the limits applied to it.
  *
  * @param sides document sides to capture, front first
- * @param videoSeconds length of the video holding the document
- * @param maxImageBytes size limit of each image
- * @param maxVideoBytes size limit of the video
- * @param faceCapture how the voter's face is captured
+ * @param videoSeconds seconds the voter holds the document next to their face before its photo
+ * @param maxImageBytes size limit of each photo
  */
-public record CaptureSettings(
-    List<DocumentSide> sides,
-    int videoSeconds,
-    int maxImageBytes,
-    int maxVideoBytes,
-    FaceCapture faceCapture) {
+public record CaptureSettings(List<DocumentSide> sides, int videoSeconds, int maxImageBytes) {
   static final List<DocumentSide> DEFAULT_SIDES = List.of(DocumentSide.FRONT, DocumentSide.BACK);
 
   private static final ObjectMapper MAPPER = new ObjectMapper();
@@ -52,26 +45,7 @@ public record CaptureSettings(
         positiveInt(
             config,
             ScanovateAuthenticatorFactory.MAX_IMAGE_BYTES,
-            ScanovateAuthenticatorFactory.DEFAULT_MAX_IMAGE_BYTES),
-        positiveInt(
-            config,
-            ScanovateAuthenticatorFactory.MAX_VIDEO_BYTES,
-            ScanovateAuthenticatorFactory.DEFAULT_MAX_VIDEO_BYTES),
-        faceCapture(config));
-  }
-
-  /**
-   * Reads the face capture from the authenticator configuration, photo when unset.
-   *
-   * @throws ScanovateException if the face capture is unknown
-   */
-  public static FaceCapture faceCapture(Map<String, String> config) throws ScanovateException {
-    String value = config.get(ScanovateAuthenticatorFactory.FACE_CAPTURE);
-    if (value == null || value.isBlank()) {
-      return FaceCapture.PHOTO;
-    }
-    return FaceCapture.fromValue(value.trim())
-        .orElseThrow(() -> new ScanovateException("Invalid face capture: " + value));
+            ScanovateAuthenticatorFactory.DEFAULT_MAX_IMAGE_BYTES));
   }
 
   /**
@@ -121,43 +95,20 @@ public record CaptureSettings(
   }
 
   /**
-   * Files that the capture page must post. With the liveness face capture, the voter's face is
-   * taken by Liveness Plus instead, and the page posts a photo of the voter holding the ID.
+   * Photos that the capture page must post: the document sides and the voter holding the document.
+   * The voter's face is taken by Liveness Plus instead.
    */
   public List<MediaKind> requiredMedia() {
     List<MediaKind> media = documentMedia();
-    switch (faceCapture) {
-      case PHOTO -> {
-        media.add(MediaKind.FACE_IMAGE);
-        media.add(MediaKind.SCAN_VIDEO);
-      }
-      case LIVENESS -> media.add(MediaKind.HOLDING_IMAGE);
-    }
+    media.add(MediaKind.HOLDING_IMAGE);
     return media;
   }
 
-  /**
-   * Files sent to B-Trust, in upload order. With the liveness face capture, the voter's face is
-   * compared on premise, so only the document goes to B-Trust.
-   */
-  public List<MediaKind> uploadedMedia() {
-    return switch (faceCapture) {
-      case PHOTO -> requiredMedia();
-      case LIVENESS -> documentMedia();
-    };
-  }
-
-  private List<MediaKind> documentMedia() {
+  /** Photos of the document sides, front first, read by the OCR service. */
+  public List<MediaKind> documentMedia() {
     List<MediaKind> media = new ArrayList<>();
     sides.forEach(side -> media.add(side.mediaKind()));
     return media;
-  }
-
-  public int maxBytes(MediaCategory category) {
-    return switch (category) {
-      case IMAGE -> maxImageBytes;
-      case VIDEO -> maxVideoBytes;
-    };
   }
 
   static int positiveInt(Map<String, String> config, String key, int defaultValue)

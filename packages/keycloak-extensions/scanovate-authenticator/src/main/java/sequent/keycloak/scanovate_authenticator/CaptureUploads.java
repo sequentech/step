@@ -78,7 +78,7 @@ public class CaptureUploads {
     if (content.length > MAX_UPLOAD_BYTES) {
       return UploadOutcome.TOO_LARGE;
     }
-    if (MediaFormat.detect(kind.get().category(), content).isEmpty()) {
+    if (MediaFormat.detect(content).isEmpty()) {
       return UploadOutcome.INVALID_FORMAT;
     }
     store.put(

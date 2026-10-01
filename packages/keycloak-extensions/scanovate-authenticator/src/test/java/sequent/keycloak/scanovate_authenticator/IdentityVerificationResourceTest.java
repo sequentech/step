@@ -18,21 +18,21 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.keycloak.models.KeycloakSession;
 
-class ScanovateReturnResourceTest {
+class IdentityVerificationResourceTest {
   private static final String SECRET = "callback-secret";
 
   private final LivenessSessions sessions =
       new LivenessSessions(new LivenessSessionsTest.MemoryStore(), millis -> {});
   private final CaptureUploads uploads = new CaptureUploads(new LivenessSessionsTest.MemoryStore());
-  private final ScanovateReturnResource resource =
-      new ScanovateReturnResource(
+  private final IdentityVerificationResource resource =
+      new IdentityVerificationResource(
           mock(KeycloakSession.class), ignored -> sessions, ignored -> uploads);
 
   /** The voter's browser sees these requests: they must not name the identity provider. */
   @Test
   void exposesVendorNeutralNames() {
-    assertEquals("identity-verification", new ScanovateReturnResourceFactory().getId());
-    assertEquals("X-Capture-Token", ScanovateReturnResource.CAPTURE_TOKEN_HEADER);
+    assertEquals("identity-verification", new IdentityVerificationResourceFactory().getId());
+    assertEquals("X-Capture-Token", IdentityVerificationResource.CAPTURE_TOKEN_HEADER);
   }
 
   @Test

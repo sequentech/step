@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 package sequent.keycloak.scanovate_authenticator;
 
-/** The files posted by the capture page cannot be sent to B-Trust. */
+/** The photos posted by the capture page are missing, too big or not JPEG images. */
 public class InvalidCaptureException extends Exception {
   public InvalidCaptureException(String message) {
     super(message);

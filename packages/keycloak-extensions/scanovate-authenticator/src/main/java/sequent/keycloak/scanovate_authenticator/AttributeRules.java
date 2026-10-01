@@ -19,7 +19,8 @@ import lombok.experimental.UtilityClass;
 import lombok.extern.jbosslog.JBossLog;
 
 /**
- * Applies the per document type rules configured in the authenticator to the B-Trust results.
+ * Applies the per document type rules configured in the authenticator to the results of the OCR
+ * service, see {@link OcrResults}.
  *
  * <p>Both the validation and the store configurations are JSON objects keyed by document type (the
  * value of the document type auth note), each holding a list of rules. A {@code default} key is
@@ -136,7 +137,7 @@ public class AttributeRules {
       String process = rule.path(PROCESS).asText(null);
       String error = rule.path(ERROR_MSG).asText(ScanovateError.ATTRIBUTES.messageKey());
 
-      Optional<String> sourceValue = ScanovateResults.resolveText(response, process, path);
+      Optional<String> sourceValue = OcrResults.resolveText(response, process, path);
       if (sourceValue.isEmpty()) {
         log.warnv("validate: no value for process={0} path={1}", process, path);
         return Optional.of(error);
@@ -167,7 +168,7 @@ public class AttributeRules {
           StoreType.fromValue(typeName)
               .orElseThrow(() -> new ScanovateException("Unknown store type " + typeName));
       String process = rule.path(PROCESS).asText(null);
-      String sourceValue = ScanovateResults.resolveText(response, process, path).orElse("");
+      String sourceValue = OcrResults.resolveText(response, process, path).orElse("");
 
       String value =
           switch (type) {

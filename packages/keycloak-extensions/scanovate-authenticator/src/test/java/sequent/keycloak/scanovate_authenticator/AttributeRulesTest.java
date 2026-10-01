@@ -6,8 +6,8 @@ package sequent.keycloak.scanovate_authenticator;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static sequent.keycloak.scanovate_authenticator.ScanovateResultsTest.SUCCESSFUL_RESULTS;
-import static sequent.keycloak.scanovate_authenticator.ScanovateResultsTest.json;
+import static sequent.keycloak.scanovate_authenticator.OcrResultsTest.SUCCESSFUL_RESULTS;
+import static sequent.keycloak.scanovate_authenticator.TestJson.json;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import java.time.LocalDate;
@@ -20,6 +20,8 @@ import org.junit.jupiter.api.Test;
 class AttributeRulesTest {
   private static final LocalDate TODAY = LocalDate.of(2026, 9, 26);
   private static final JsonNode RESULTS = json(SUCCESSFUL_RESULTS);
+  private static final JsonNode SCORES =
+      json("{\"ocr\": {\"score\": 0.80433, \"name\": \"JUAN\"}}");
   private static final Function<String, String> NO_AUTH_NOTES = key -> null;
 
   @Test
@@ -65,7 +67,8 @@ class AttributeRulesTest {
 
   @Test
   void equalValueMatchesIgnoringCaseAndAccents() throws ScanovateException {
-    assertEquals(Optional.empty(), validate(rule("equalValue", "juán", "ocr", "/firstName")));
+    assertEquals(
+        Optional.empty(), validate(rule("equalValue", "juán", "ocr", "/first_name_english")));
   }
 
   @Test
@@ -74,7 +77,7 @@ class AttributeRulesTest {
         json(
             """
             [{"type": "equalValue", "equalValue": "ESP", "process": "ocr",
-              "attributePath": "/nationality/alpha3", "errorMsg": "customError"}]
+              "attributePath": "/nationality_code", "errorMsg": "customError"}]
             """);
     assertEquals(Optional.of("customError"), validate(rules));
   }
@@ -83,54 +86,57 @@ class AttributeRulesTest {
   void equalValueWorksWithBooleanFields() throws ScanovateException {
     assertEquals(
         Optional.empty(),
-        validate(rule("equalValue", "true", "ocr", "/authentication/verify.expiryDate")));
+        validate(rule("equalValue", "true", "authentications", "/expiry_date_valid")));
   }
 
   @Test
   void missingSourceValueFailsWithDefaultError() throws ScanovateException {
     assertEquals(
         Optional.of(ScanovateError.ATTRIBUTES.messageKey()),
-        validate(rule("equalValue", "x", "ocr", "/lastName")));
+        validate(rule("equalValue", "x", "ocr", "/middle_name_english")));
   }
 
   @Test
   void minValueAcceptsScoreAtThreshold() throws ScanovateException {
     assertEquals(
-        Optional.empty(), validate(rule("minValue", "0.80433", "biometric_match", "/score")));
+        Optional.empty(),
+        AttributeRules.validate(
+            SCORES, rule("minValue", "0.80433", "ocr", "/score"), NO_AUTH_NOTES, TODAY));
   }
 
   @Test
   void minValueRejectsLowerScore() throws ScanovateException {
     assertEquals(
         Optional.of(ScanovateError.ATTRIBUTES.messageKey()),
-        validate(rule("minValue", "0.9", "biometric_match", "/score")));
+        AttributeRules.validate(
+            SCORES, rule("minValue", "0.9", "ocr", "/score"), NO_AUTH_NOTES, TODAY));
   }
 
   @Test
   void minValueRejectsNonNumericSourceValue() throws ScanovateException {
     assertEquals(
         Optional.of(ScanovateError.ATTRIBUTES.messageKey()),
-        validate(rule("minValue", "0.5", "ocr", "/firstName")));
+        validate(rule("minValue", "0.5", "ocr", "/first_name_english")));
   }
 
   @Test
   void minValueWithNonNumericConfigThrows() {
     assertThrows(
         ScanovateException.class,
-        () -> validate(rule("minValue", "high", "biometric_match", "/score")));
+        () -> validate(rule("minValue", "high", "ocr", "/document_number")));
   }
 
   @Test
   void equalAuthNoteMatches() throws ScanovateException {
-    JsonNode rules = rule("equalAuthnoteAttributeId", "id-card", "ocr", "/idNumber");
+    JsonNode rules = rule("equalAuthnoteAttributeId", "id-card", "ocr", "/document_number");
     assertEquals(
         Optional.empty(),
-        AttributeRules.validate(RESULTS, rules, Map.of("id-card", " 123456789 ")::get, TODAY));
+        AttributeRules.validate(RESULTS, rules, Map.of("id-card", " p1234567a ")::get, TODAY));
   }
 
   @Test
   void equalAuthNoteMismatchFails() throws ScanovateException {
-    JsonNode rules = rule("equalAuthnoteAttributeId", "id-card", "ocr", "/idNumber");
+    JsonNode rules = rule("equalAuthnoteAttributeId", "id-card", "ocr", "/document_number");
     assertEquals(
         Optional.of(ScanovateError.ATTRIBUTES.messageKey()),
         AttributeRules.validate(RESULTS, rules, Map.of("id-card", "999")::get, TODAY));
@@ -138,7 +144,7 @@ class AttributeRulesTest {
 
   @Test
   void equalAuthNoteMissingNoteFails() throws ScanovateException {
-    JsonNode rules = rule("equalAuthnoteAttributeId", "id-card", "ocr", "/idNumber");
+    JsonNode rules = rule("equalAuthnoteAttributeId", "id-card", "ocr", "/document_number");
     assertEquals(Optional.of(ScanovateError.ATTRIBUTES.messageKey()), validate(rules));
   }
 
@@ -148,15 +154,15 @@ class AttributeRulesTest {
         json(
             """
             [{"type": "equalDateAuthnoteAttributeId", "equalDateAuthnoteAttributeId": "dateOfBirth",
-              "valueDateFormat": "yyyy-MM-dd", "sourceDateFormat": "dd.MM.yyyy",
-              "process": "ocr", "attributePath": "/dob"}]
+              "valueDateFormat": "dd/MM/yyyy", "sourceDateFormat": "yyyy-MM-dd",
+              "process": "ocr", "attributePath": "/date_of_birth"}]
             """);
     assertEquals(
         Optional.empty(),
-        AttributeRules.validate(RESULTS, rules, Map.of("dateOfBirth", "2004-07-03")::get, TODAY));
+        AttributeRules.validate(RESULTS, rules, Map.of("dateOfBirth", "15/01/1990")::get, TODAY));
     assertEquals(
         Optional.of(ScanovateError.ATTRIBUTES.messageKey()),
-        AttributeRules.validate(RESULTS, rules, Map.of("dateOfBirth", "2004-07-04")::get, TODAY));
+        AttributeRules.validate(RESULTS, rules, Map.of("dateOfBirth", "16/01/1990")::get, TODAY));
   }
 
   @Test
@@ -165,8 +171,8 @@ class AttributeRulesTest {
         json(
             """
             [{"type": "equalDateAuthnoteAttributeId", "equalDateAuthnoteAttributeId": "dateOfBirth",
-              "valueDateFormat": "yyyy-MM-dd", "sourceDateFormat": "dd.MM.yyyy",
-              "process": "ocr", "attributePath": "/dob"}]
+              "valueDateFormat": "dd/MM/yyyy", "sourceDateFormat": "yyyy-MM-dd",
+              "process": "ocr", "attributePath": "/date_of_birth"}]
             """);
     assertEquals(
         Optional.of(ScanovateError.ATTRIBUTES.messageKey()),
@@ -175,18 +181,14 @@ class AttributeRulesTest {
 
   @Test
   void isBeforeDateNowAcceptsFutureExpiry() throws ScanovateException {
-    JsonNode response =
-        json(
-            "{\"data\": {\"resultsList\": [{\"process\": \"ocr\", \"success\": true, \"expiryDate\": \"09.08.2030\"}]}}");
+    JsonNode response = json("{\"ocr\": {\"date_of_expiry\": \"2030-08-09\"}}");
     JsonNode rules = expiryRule();
     assertEquals(Optional.empty(), AttributeRules.validate(response, rules, NO_AUTH_NOTES, TODAY));
   }
 
   @Test
   void isBeforeDateNowRejectsExpiredDocument() throws ScanovateException {
-    JsonNode response =
-        json(
-            "{\"data\": {\"resultsList\": [{\"process\": \"ocr\", \"success\": true, \"expiryDate\": \"09.08.2020\"}]}}");
+    JsonNode response = json("{\"ocr\": {\"date_of_expiry\": \"2020-08-09\"}}");
     assertEquals(
         Optional.of(ScanovateError.ATTRIBUTES.messageKey()),
         AttributeRules.validate(response, expiryRule(), NO_AUTH_NOTES, TODAY));
@@ -195,7 +197,8 @@ class AttributeRulesTest {
   @Test
   void unknownValidationTypeThrows() {
     assertThrows(
-        ScanovateException.class, () -> validate(rule("regex", ".*", "ocr", "/firstName")));
+        ScanovateException.class,
+        () -> validate(rule("regex", ".*", "ocr", "/first_name_english")));
   }
 
   @Test
@@ -218,14 +221,14 @@ class AttributeRulesTest {
         json(
             """
             [
-              {"type": "equalValue", "equalValue": "JUAN", "process": "ocr", "attributePath": "/firstName"},
-              {"type": "minValue", "minValue": "0.99", "process": "liveness_plus", "attributePath": "/score",
-               "errorMsg": "scoringError"},
-              {"type": "equalValue", "equalValue": "x", "process": "ocr", "attributePath": "/firstName",
+              {"type": "equalValue", "equalValue": "JUAN", "process": "ocr", "attributePath": "/first_name_english"},
+              {"type": "equalValue", "equalValue": "false", "process": "authentications",
+               "attributePath": "/expiry_date_valid", "errorMsg": "expiredError"},
+              {"type": "equalValue", "equalValue": "x", "process": "ocr", "attributePath": "/first_name_english",
                "errorMsg": "neverReached"}
             ]
             """);
-    assertEquals(Optional.of("scoringError"), validate(rules));
+    assertEquals(Optional.of("expiredError"), validate(rules));
   }
 
   @Test
@@ -234,15 +237,15 @@ class AttributeRulesTest {
         json(
             """
             [
-              {"UserAttribute": "firstName", "process": "ocr", "attributePath": "/firstName", "type": "text"},
-              {"UserAttribute": "dateOfBirth", "process": "ocr", "attributePath": "/dob", "type": "date",
-               "sourceDateFormat": "dd.MM.yyyy", "storeDateFormat": "yyyy-MM-dd"}
+              {"UserAttribute": "firstName", "process": "ocr", "attributePath": "/first_name_english", "type": "text"},
+              {"UserAttribute": "dateOfBirth", "process": "ocr", "attributePath": "/date_of_birth", "type": "date",
+               "sourceDateFormat": "yyyy-MM-dd", "storeDateFormat": "dd/MM/yyyy"}
             ]
             """);
     assertEquals(
         List.of(
             new StoredAttribute("firstName", "JUAN", "text"),
-            new StoredAttribute("dateOfBirth", "2004-07-03", "date")),
+            new StoredAttribute("dateOfBirth", "15/01/1990", "date")),
         AttributeRules.extract(RESULTS, rules));
   }
 
@@ -250,9 +253,9 @@ class AttributeRulesTest {
   void extractMissingValueStoresEmptyString() throws ScanovateException {
     JsonNode rules =
         json(
-            "[{\"UserAttribute\": \"lastName\", \"process\": \"ocr\", \"attributePath\": \"/lastName\", \"type\": \"text\"}]");
+            "[{\"UserAttribute\": \"middleName\", \"process\": \"ocr\", \"attributePath\": \"/middle_name_english\", \"type\": \"text\"}]");
     assertEquals(
-        List.of(new StoredAttribute("lastName", "", "text")),
+        List.of(new StoredAttribute("middleName", "", "text")),
         AttributeRules.extract(RESULTS, rules));
   }
 
@@ -261,8 +264,8 @@ class AttributeRulesTest {
     JsonNode rules =
         json(
             """
-            [{"UserAttribute": "dateOfBirth", "process": "ocr", "attributePath": "/firstName", "type": "date",
-              "sourceDateFormat": "dd.MM.yyyy", "storeDateFormat": "yyyy-MM-dd"}]
+            [{"UserAttribute": "dateOfBirth", "process": "ocr", "attributePath": "/first_name_english", "type": "date",
+              "sourceDateFormat": "yyyy-MM-dd", "storeDateFormat": "yyyy-MM-dd"}]
             """);
     assertThrows(ScanovateException.class, () -> AttributeRules.extract(RESULTS, rules));
   }
@@ -271,7 +274,7 @@ class AttributeRulesTest {
   void extractUnknownTypeThrows() {
     JsonNode rules =
         json(
-            "[{\"UserAttribute\": \"x\", \"process\": \"ocr\", \"attributePath\": \"/firstName\", \"type\": \"blob\"}]");
+            "[{\"UserAttribute\": \"x\", \"process\": \"ocr\", \"attributePath\": \"/first_name_english\", \"type\": \"blob\"}]");
     assertThrows(ScanovateException.class, () -> AttributeRules.extract(RESULTS, rules));
   }
 
@@ -295,8 +298,8 @@ class AttributeRulesTest {
   private static JsonNode expiryRule() {
     return json(
         """
-        [{"type": "isBeforeDateValue", "isBeforeDateValue": "now", "sourceDateFormat": "dd.MM.yyyy",
-          "process": "ocr", "attributePath": "/expiryDate"}]
+        [{"type": "isBeforeDateValue", "isBeforeDateValue": "now", "sourceDateFormat": "yyyy-MM-dd",
+          "process": "ocr", "attributePath": "/date_of_expiry"}]
         """);
   }
 }

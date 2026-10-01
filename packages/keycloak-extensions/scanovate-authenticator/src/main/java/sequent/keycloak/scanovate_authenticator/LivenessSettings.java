@@ -7,7 +7,7 @@ import java.net.URI;
 import java.util.Map;
 
 /**
- * How the capture page reaches Liveness Plus, for the {@link FaceCapture#LIVENESS} face capture.
+ * How the capture page reaches the on-premise Scanovate Liveness Plus service.
  *
  * <p>There is no Liveness Plus UI in on-premise deployments: the capture page calls the Liveness
  * Plus API itself, starting a session with a one-time token issued by Keycloak and sending it the

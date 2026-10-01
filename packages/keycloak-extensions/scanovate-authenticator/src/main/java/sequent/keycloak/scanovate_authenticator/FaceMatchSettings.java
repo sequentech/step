@@ -10,8 +10,7 @@ import java.net.URI;
 import java.util.Map;
 
 /**
- * How faces are compared with the on-premise Scanovate Face Match service, for the {@link
- * FaceCapture#LIVENESS} face capture.
+ * How faces are compared with the on-premise Scanovate Face Match service.
  *
  * @param url internal base URL of the Face Match service, only reached by Keycloak
  * @param minSimilarity minimum similarity, from 0 to 1, for the faces of the document type to match

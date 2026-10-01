@@ -8,7 +8,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import lombok.extern.jbosslog.JBossLog;
 import sequent.keycloak.scanovate_authenticator.HttpTransport.HttpResult;
-import sequent.keycloak.scanovate_authenticator.ScanovateClient.Sleeper;
 
 /**
  * Sends requests that answer JSON, retrying with exponential backoff on network and server errors.

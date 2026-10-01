@@ -3,28 +3,26 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 package sequent.keycloak.scanovate_authenticator;
 
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.RETURNS_SELF;
 import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static sequent.keycloak.scanovate_authenticator.CaptureMediaTest.JPEG;
 import static sequent.keycloak.scanovate_authenticator.CaptureMediaTest.PNG;
 import static sequent.keycloak.scanovate_authenticator.CaptureMediaTest.WEBM;
-import static sequent.keycloak.scanovate_authenticator.ScanovateResultsTest.SUCCESSFUL_RESULTS;
-import static sequent.keycloak.scanovate_authenticator.ScanovateResultsTest.json;
+import static sequent.keycloak.scanovate_authenticator.OcrResultsTest.PASSPORT_RESPONSE;
+import static sequent.keycloak.scanovate_authenticator.TestJson.json;
 
 import jakarta.ws.rs.core.HttpHeaders;
 import jakarta.ws.rs.core.MediaType;
@@ -60,53 +58,53 @@ import sequent.keycloak.scanovate_authenticator.FaceMatchClient.FaceComparison;
 import sequent.keycloak.voter_enrollment.Utils;
 
 class ScanovateAuthenticatorTest {
-  private static final String ACTION_URL =
-      "https://kc/realms/r/login-actions/authenticate?session_code=c&execution=e";
-  private static final String FLOW_URL = "https://btrust.example.com/flow?process_id=proc-1";
   private static final String STATUS_NOTE = "sequent.read-only.id-card-number-validated";
+  private static final byte[] FRONT_JPEG = {(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, 'f'};
+  private static final byte[] BACK_JPEG = {(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, 'b'};
+  private static final byte[] HOLDING_JPEG = {(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, 'h'};
 
   private final Map<String, String> config = new HashMap<>();
   private final Map<String, String> authNotes = new HashMap<>();
-  private final MultivaluedHashMap<String, String> queryParams = new MultivaluedHashMap<>();
   private final MultivaluedHashMap<String, String> formParams = new MultivaluedHashMap<>();
 
   private AuthenticationFlowContext context;
   private LoginFormsProvider form;
   private AuthenticationExecutionModel execution;
-  private ScanovateClient client;
   private ScanovateAuthenticator authenticator;
   private MockedStatic<Utils> utils;
-  private LivenessSessionsTest.MemoryStore livenessStore;
   private LivenessSessions livenessSessions;
   private CaptureUploads captureUploads;
   private HttpHeaders httpHeaders;
   private SecurityHeadersOptions securityHeaders;
   private EventBuilder event;
   private FaceMatchClient faceMatch;
+  private OcrClient ocr;
   private final List<FaceMatchSettings> faceMatchSettings = new ArrayList<>();
+  private final List<OcrSettings> ocrSettings = new ArrayList<>();
 
   @BeforeEach
   void setUp() throws IOException {
-    config.put(ScanovateAuthenticatorFactory.FLOW_ID, "3659");
-    config.put(ScanovateAuthenticatorFactory.LINK_PARAMS, "{\"country\": \"country\"}");
+    config.putAll(LivenessSettingsTest.livenessConfig());
+    config.put(ScanovateAuthenticatorFactory.OCR_URL, "http://ocr:5040");
+    config.put(
+        ScanovateAuthenticatorFactory.CAPTURE_SIDES,
+        "{\"philSysID\": [\"front\"], \"default\": [\"front\", \"back\"]}");
     config.put(
         ScanovateAuthenticatorFactory.ATTRIBUTES_TO_VALIDATE,
         """
         {"default": [
-          {"type": "minValue", "minValue": "0.5", "process": "biometric_match",
-           "attributePath": "/score", "errorMsg": "scanovateScoringError"}
+          {"type": "equalValue", "equalValue": "PHL", "process": "ocr",
+           "attributePath": "/issuing_country_code", "errorMsg": "scanovateAttributesError"}
         ]}
         """);
     config.put(
         ScanovateAuthenticatorFactory.ATTRIBUTES_TO_STORE,
         """
         {"default": [
-          {"UserAttribute": "firstName", "process": "ocr", "attributePath": "/firstName",
-           "type": "text"}
+          {"UserAttribute": "firstName", "process": "ocr",
+           "attributePath": "/first_name_english", "type": "text"}
         ]}
         """);
-    authNotes.put("country", "Spain");
-    authNotes.put(ScanovateAuthenticatorFactory.DEFAULT_DOC_ID, "123456789");
 
     context = mock(AuthenticationFlowContext.class);
     AuthenticatorConfigModel configModel = mock(AuthenticatorConfigModel.class);
@@ -127,7 +125,6 @@ class ScanovateAuthenticatorTest {
     event = mock(EventBuilder.class, RETURNS_SELF);
     when(context.getEvent()).thenReturn(event);
     KeycloakUriInfo uriInfo = mock(KeycloakUriInfo.class);
-    when(uriInfo.getQueryParameters()).thenReturn(queryParams);
     when(uriInfo.getBaseUri()).thenReturn(URI.create("https://kc/"));
     when(context.getUriInfo()).thenReturn(uriInfo);
     RealmModel realm = mock(RealmModel.class);
@@ -139,8 +136,6 @@ class ScanovateAuthenticatorTest {
     when(httpHeaders.getMediaType()).thenReturn(MediaType.APPLICATION_FORM_URLENCODED_TYPE);
     when(httpRequest.getHttpHeaders()).thenReturn(httpHeaders);
     when(context.getHttpRequest()).thenReturn(httpRequest);
-    when(context.generateAccessCode()).thenReturn("c");
-    when(context.getActionUrl("c")).thenReturn(URI.create(ACTION_URL));
 
     form = mock(LoginFormsProvider.class, RETURNS_SELF);
     when(form.createForm(anyString())).thenReturn(Response.ok().build());
@@ -149,19 +144,20 @@ class ScanovateAuthenticatorTest {
     execution = mock(AuthenticationExecutionModel.class);
     when(context.getExecution()).thenReturn(execution);
 
-    client = mock(ScanovateClient.class);
-    when(client.fetchAccessToken()).thenReturn("jwt");
-    when(client.createSessionLink(eq("jwt"), any()))
-        .thenReturn(new SessionLink(FLOW_URL, "proc-1"));
-    when(client.fetchResultsForProcess("proc-1")).thenReturn(json(SUCCESSFUL_RESULTS));
-    livenessStore = new LivenessSessionsTest.MemoryStore();
-    livenessSessions = new LivenessSessions(livenessStore, millis -> {});
+    livenessSessions = new LivenessSessions(new LivenessSessionsTest.MemoryStore(), millis -> {});
     captureUploads = new CaptureUploads(new LivenessSessionsTest.MemoryStore());
     faceMatch = mock(FaceMatchClient.class);
+    when(faceMatch.compare(any(), any())).thenReturn(match(0.9));
+    ocr = mock(OcrClient.class);
+    when(ocr.recognize(anyString(), any(), anyString())).thenReturn(json(PASSPORT_RESPONSE));
     faceMatchSettings.clear();
+    ocrSettings.clear();
     authenticator =
         new ScanovateAuthenticator(
-            ignored -> client,
+            settings -> {
+              ocrSettings.add(settings);
+              return ocr;
+            },
             ignored -> livenessSessions,
             settings -> {
               faceMatchSettings.add(settings);
@@ -184,8 +180,133 @@ class ScanovateAuthenticatorTest {
     utils.close();
   }
 
+  private static FaceComparison match(double similarity) {
+    return new FaceComparison(true, similarity, 0.67, 0, 0);
+  }
+
+  private String caseId() {
+    return authNotes.get(ScanovateAuthenticator.CASE_ID_NOTE);
+  }
+
+  /** Renders the capture page and returns the token its page gets for Liveness Plus. */
+  private String startCapture() {
+    authenticator.authenticate(context);
+    String token = authNotes.get(ScanovateAuthenticator.LIVENESS_TOKEN_NOTE);
+    assertNotNull(token);
+    return token;
+  }
+
+  private void livenessResult(String token, boolean passed) {
+    assertEquals(
+        LivenessSessions.RecordOutcome.RECORDED,
+        livenessSessions.record(
+            token,
+            "callback-secret",
+            json(
+                LivenessSessionsTest.result("completed", passed, JPEG)
+                    .replace("\"proc-1\"", "\"" + caseId() + "\""))));
+  }
+
+  /**
+   * The capture token of the rendered capture page. Tests that post a capture without rendering the
+   * page first get one as if it had been rendered.
+   */
+  private String captureToken() {
+    String token = authNotes.get(ScanovateAuthenticator.CAPTURE_TOKEN_NOTE);
+    if (token == null) {
+      token = captureUploads.create();
+      authNotes.put(ScanovateAuthenticator.CAPTURE_TOKEN_NOTE, token);
+    }
+    return token;
+  }
+
+  /**
+   * Uploads the parts through the capture endpoint, which refuses unknown parts and those of an
+   * unrecognised format, then posts the capture form.
+   */
+  private void upload(Map<String, byte[]> parts) {
+    String token = captureToken();
+    parts.forEach((part, content) -> captureUploads.store(token, part, content));
+    if (!formParams.containsKey(ScanovateAuthenticator.FORM_ACTION_PARAM)) {
+      formParams.add(ScanovateAuthenticator.FORM_ACTION_PARAM, FormAction.CAPTURE.value());
+    }
+  }
+
+  private void capture(byte[] front, byte[] back, byte[] holding) {
+    upload(CaptureMediaTest.parts(front, back, holding));
+  }
+
+  /** A voter whose liveness passed posts the photos of the document and the one holding it. */
+  private String passedCapture() {
+    String token = startCapture();
+    livenessResult(token, true);
+    capture(FRONT_JPEG, BACK_JPEG, HOLDING_JPEG);
+    return token;
+  }
+
+  @SuppressWarnings("unchecked")
+  private Map<String, Object> capturePage() {
+    ArgumentCaptor<Map<String, Object>> page = ArgumentCaptor.forClass(Map.class);
+    verify(form).setAttribute(eq(ScanovateAuthenticator.FTL_SCANOVATE), page.capture());
+    verify(form).createForm(ScanovateAuthenticator.CAPTURE_FORM);
+    return page.getValue();
+  }
+
+  private void verifyCapturePage(List<String> sides, int attemptsLeft) {
+    Map<String, Object> page = capturePage();
+    assertEquals(
+        Map.of(
+            ScanovateAuthenticator.FTL_UPLOAD_URL,
+            "/realms/r/identity-verification/capture",
+            ScanovateAuthenticator.FTL_UPLOAD_TOKEN,
+            authNotes.get(ScanovateAuthenticator.CAPTURE_TOKEN_NOTE)),
+        page.get(ScanovateAuthenticator.FTL_UPLOAD));
+    assertEquals(
+        authNotes.getOrDefault(ScanovateAuthenticatorFactory.DEFAULT_DOC_ID_TYPE, "default"),
+        page.get(ScanovateAuthenticator.FTL_DOCUMENT_TYPE));
+    assertEquals(sides, page.get(ScanovateAuthenticator.FTL_SIDES));
+    assertEquals(5, page.get(ScanovateAuthenticator.FTL_VIDEO_SECONDS));
+    assertEquals(attemptsLeft, page.get(ScanovateAuthenticator.FTL_ATTEMPTS_LEFT));
+    assertEquals(3, page.get(ScanovateAuthenticator.FTL_MAX_ATTEMPTS));
+    assertEquals(
+        Map.of(
+            ScanovateAuthenticator.FTL_LIVENESS_URL,
+            "https://liveness.example.com:8443/liveness",
+            ScanovateAuthenticator.FTL_LIVENESS_TOKEN,
+            authNotes.get(ScanovateAuthenticator.LIVENESS_TOKEN_NOTE),
+            ScanovateAuthenticator.FTL_LIVENESS_CASE_ID,
+            caseId()),
+        page.get(ScanovateAuthenticator.FTL_LIVENESS));
+  }
+
+  private void verifyError(ScanovateError error, boolean canRetry) {
+    verify(form).setAttribute(ScanovateAuthenticator.FTL_ERROR, error.messageKey());
+    verify(form).setAttribute(ScanovateAuthenticator.FTL_CAN_RETRY, canRetry);
+    verify(form).createForm(ScanovateAuthenticator.ERROR_FORM);
+  }
+
+  private void verifyFailedAttempt(String messageKey) throws IOException {
+    assertEquals("1", authNotes.get(ScanovateAuthenticator.ATTEMPTS_NOTE));
+    verify(form).setAttribute(ScanovateAuthenticator.FTL_ERROR, messageKey);
+    verify(form).setAttribute(ScanovateAuthenticator.FTL_CAN_RETRY, true);
+    verify(form).setAttribute(ScanovateAuthenticator.FTL_ATTEMPTS_LEFT, 2);
+    assertNull(caseId());
+    assertNull(authNotes.get(ScanovateAuthenticator.LIVENESS_TOKEN_NOTE));
+    assertNull(authNotes.get(STATUS_NOTE));
+    verify(context, never()).success();
+  }
+
+  private void verifyCaptureRejected() throws IOException {
+    verify(form).setError(ScanovateError.CAPTURE_INVALID.messageKey());
+    // Once when the capture started, and again with the error
+    verify(form, times(2)).createForm(ScanovateAuthenticator.CAPTURE_FORM);
+    verify(faceMatch, never()).compare(any(), any());
+    verify(ocr, never()).recognize(anyString(), any(), anyString());
+    assertNull(authNotes.get(ScanovateAuthenticator.ATTEMPTS_NOTE));
+  }
+
   @Test
-  void alreadyVerifiedUserSkipsVerification() throws IOException {
+  void alreadyVerifiedUserSkipsVerification() {
     UserModel user = mock(UserModel.class);
     when(user.getFirstAttribute(STATUS_NOTE)).thenReturn("VERIFIED");
     when(context.getUser()).thenReturn(user);
@@ -193,39 +314,126 @@ class ScanovateAuthenticatorTest {
     authenticator.authenticate(context);
 
     verify(context).success();
-    verify(client, never()).fetchAccessToken();
+    verify(form, never()).createForm(anyString());
   }
 
   @Test
-  void authenticateRedirectsToBTrustFlow() throws IOException {
+  void authenticateRendersTheCapturePage() throws IOException {
+    authNotes.put(ScanovateAuthenticatorFactory.DEFAULT_DOC_ID_TYPE, "philSysID");
+    authNotes.put(ScanovateAuthenticator.ATTEMPTS_NOTE, "1");
+
+    String token = startCapture();
+
+    assertNotNull(caseId());
+    verifyCapturePage(List.of("FRONT"), 2);
+    verify(securityHeaders, never()).allowFrameSrc(anyString());
+    assertEquals(true, livenessSessions.verify(token, caseId(), "callback-secret"));
+    verify(ocr, never()).recognize(anyString(), any(), anyString());
+  }
+
+  @Test
+  void capturePageDefaultsToBothSides() {
+    config.remove(ScanovateAuthenticatorFactory.CAPTURE_SIDES);
+
     authenticator.authenticate(context);
 
-    ArgumentCaptor<LinkRequest> request = ArgumentCaptor.forClass(LinkRequest.class);
-    verify(client).createSessionLink(eq("jwt"), request.capture());
-    assertEquals(3659, request.getValue().flowId());
-    assertEquals(
-        "https://kc/realms/r/identity-verification/return?flow=authenticate&session_code=c&execution=e",
-        request.getValue().redirectUrl());
-    assertEquals("123456789", request.getValue().idNumber());
-    assertEquals(Map.of("country", "Spain"), request.getValue().params());
-    assertEquals(SaveOption.DEFAULT, request.getValue().saveOption());
-    assertEquals("proc-1", authNotes.get(ScanovateAuthenticator.PROCESS_ID_NOTE));
-
-    ArgumentCaptor<Response> challenge = ArgumentCaptor.forClass(Response.class);
-    verify(context).challenge(challenge.capture());
-    assertEquals(303, challenge.getValue().getStatus());
-    assertEquals(URI.create(FLOW_URL), challenge.getValue().getLocation());
+    verifyCapturePage(List.of("FRONT", "BACK"), 3);
   }
 
   @Test
-  void returnFromBTrustShowsConfirmation() {
-    authNotes.put(ScanovateAuthenticator.PROCESS_ID_NOTE, "proc-1");
+  void everyCaptureHasItsOwnCaseId() {
+    startCapture();
+    String first = caseId();
+    authNotes.remove(ScanovateAuthenticator.CASE_ID_NOTE);
+
+    startCapture();
+
+    assertNotNull(first);
+    assertNotEquals(first, caseId());
+  }
+
+  @Test
+  void refreshingThePendingCaptureRendersItAgainWithANewLivenessToken() {
+    String first = startCapture();
+    String caseId = caseId();
+
+    authenticator.authenticate(context);
+
+    assertEquals(caseId, caseId());
+    String second = authNotes.get(ScanovateAuthenticator.LIVENESS_TOKEN_NOTE);
+    assertNotEquals(first, second);
+    assertEquals(false, livenessSessions.verify(first, caseId, "callback-secret"));
+    assertEquals(true, livenessSessions.verify(second, caseId, "callback-secret"));
+  }
+
+  @Test
+  void postsWithoutAFormActionShowThePendingCapture() {
+    startCapture();
+    String caseId = caseId();
 
     authenticator.action(context);
 
+    assertEquals(caseId, caseId());
+    verify(form, times(2)).createForm(ScanovateAuthenticator.CAPTURE_FORM);
+  }
+
+  @Test
+  void configurationErrorsAreInternalErrors() {
+    List<Map.Entry<String, String>> broken =
+        List.of(
+            Map.entry(ScanovateAuthenticatorFactory.CAPTURE_SIDES, "{\"default\": [\"top\"]}"),
+            Map.entry(ScanovateAuthenticatorFactory.LIVENESS_SECRET, ""),
+            Map.entry(ScanovateAuthenticatorFactory.FACE_MATCH_URL, ""),
+            Map.entry(ScanovateAuthenticatorFactory.FACE_MATCH_MIN_SIMILARITY, "high"),
+            Map.entry(ScanovateAuthenticatorFactory.OCR_URL, ""),
+            Map.entry(ScanovateAuthenticatorFactory.OCR_TYPES, "{\"iBP\": \"regula\"}"));
+    for (Map.Entry<String, String> setting : broken) {
+      Map<String, String> original = new HashMap<>(config);
+      config.put(setting.getKey(), setting.getValue());
+      form = mock(LoginFormsProvider.class, RETURNS_SELF);
+      when(context.form()).thenReturn(form);
+
+      authenticator.authenticate(context);
+
+      verify(form)
+          .setAttribute(ScanovateAuthenticator.FTL_ERROR, ScanovateError.INTERNAL.messageKey());
+      verify(form).setAttribute(ScanovateAuthenticator.FTL_CAN_RETRY, false);
+      verify(form, never()).createForm(ScanovateAuthenticator.CAPTURE_FORM);
+      assertNull(caseId(), setting.getKey());
+      config.clear();
+      config.putAll(original);
+    }
+  }
+
+  @Test
+  void alternativeExecutionFallsThroughOnError() {
+    when(execution.isAlternative()).thenReturn(true);
+    config.put(ScanovateAuthenticatorFactory.OCR_URL, "");
+
+    authenticator.authenticate(context);
+
+    verify(context).attempted();
+    verify(form, never()).createForm(anyString());
+  }
+
+  @Test
+  void matchingFacesReadTheDocumentOnPremiseAndShowTheConfirmation() throws IOException {
+    String token = passedCapture();
+    String caseId = caseId();
+    when(faceMatch.compare(FRONT_JPEG, JPEG)).thenReturn(match(0.9));
+    when(faceMatch.compare(HOLDING_JPEG, JPEG)).thenReturn(match(0.8));
+
+    authenticator.action(context);
+
+    verify(ocr).recognize("passport", FRONT_JPEG, caseId + "-front");
+    verify(ocr).recognize("passport", BACK_JPEG, caseId + "-back");
+    assertEquals(List.of(new OcrSettings(URI.create("http://ocr:5040"), "passport")), ocrSettings);
+    verify(event).detail(ScanovateAuthenticator.EVENT_DETAIL_CASE_ID, caseId);
+    verify(event).detail(ScanovateAuthenticator.EVENT_DETAIL_FACE_MATCH_DOCUMENT, "0.9000");
+    verify(event).detail(ScanovateAuthenticator.EVENT_DETAIL_FACE_MATCH_HOLDING, "0.8000");
     assertEquals("JUAN", authNotes.get("firstName"));
     assertEquals("VERIFIED", authNotes.get(STATUS_NOTE));
-    assertNull(authNotes.get(ScanovateAuthenticator.PROCESS_ID_NOTE));
+    assertNull(caseId());
     verify(form)
         .setAttribute(
             ScanovateAuthenticator.FTL_STORED_ATTRIBUTES,
@@ -233,45 +441,145 @@ class ScanovateAuthenticatorTest {
     verify(form).setAttribute(ScanovateAuthenticator.FTL_DOCUMENT_TYPE, "default");
     verify(form).createForm(ScanovateAuthenticator.CONFIRMATION_FORM);
     verify(context, never()).success();
+    assertNull(authNotes.get(ScanovateAuthenticator.LIVENESS_TOKEN_NOTE));
+    assertEquals(false, livenessSessions.verify(token, caseId, "callback-secret"));
   }
 
   @Test
-  void confirmationShowsTheDocumentType() {
+  void singleSidedDocumentsOnlyReadTheFront() throws IOException {
     authNotes.put(ScanovateAuthenticatorFactory.DEFAULT_DOC_ID_TYPE, "philSysID");
-    authNotes.put(ScanovateAuthenticator.PROCESS_ID_NOTE, "proc-1");
+    String token = startCapture();
+    livenessResult(token, true);
+    capture(FRONT_JPEG, null, HOLDING_JPEG);
 
     authenticator.action(context);
 
+    verify(ocr).recognize(eq("passport"), eq(FRONT_JPEG), anyString());
+    verify(ocr, never()).recognize(anyString(), eq(BACK_JPEG), anyString());
     verify(form).setAttribute(ScanovateAuthenticator.FTL_DOCUMENT_TYPE, "philSysID");
-  }
-
-  @Test
-  void returnHandledAsRefreshIsProcessedInAuthenticate() throws IOException {
-    authNotes.put(ScanovateAuthenticator.PROCESS_ID_NOTE, "proc-1");
-    queryParams.add(ScanovateAuthenticator.PROCESS_ID_QUERY_PARAM, "proc-1");
-
-    authenticator.authenticate(context);
-
-    verify(client).fetchResultsForProcess("proc-1");
-    verify(client, never()).createSessionLink(any(), any());
     verify(form).createForm(ScanovateAuthenticator.CONFIRMATION_FORM);
   }
 
   @Test
-  void unknownProcessIdInQueryStartsANewSession() throws IOException {
-    authNotes.put(ScanovateAuthenticator.PROCESS_ID_NOTE, "proc-1");
-    queryParams.add(ScanovateAuthenticator.PROCESS_ID_QUERY_PARAM, "someone-else");
+  void theDocumentTypeSelectsItsOcrType() throws IOException {
+    config.put(
+        ScanovateAuthenticatorFactory.OCR_TYPES,
+        "{\"philippinePassport\": \"passport\", \"default\": \"regula\"}");
+    authNotes.put(ScanovateAuthenticatorFactory.DEFAULT_DOC_ID_TYPE, "driversLicense");
+    passedCapture();
 
-    authenticator.authenticate(context);
+    authenticator.action(context);
 
-    verify(client, never()).fetchResultsForProcess(anyString());
-    verify(client).createSessionLink(eq("jwt"), any());
+    verify(ocr).recognize(eq("regula"), eq(FRONT_JPEG), anyString());
+    verify(ocr).recognize(eq("regula"), eq(BACK_JPEG), anyString());
   }
 
   @Test
-  void returnWithoutStoredAttributesSucceedsDirectly() {
+  void facePhotosPostedByTheBrowserAreNeverRead() throws IOException {
+    passedCapture();
+    upload(Map.of("face", JPEG, "video", WEBM));
+
+    authenticator.action(context);
+
+    verify(ocr).recognize(anyString(), eq(FRONT_JPEG), anyString());
+    verify(ocr).recognize(anyString(), eq(BACK_JPEG), anyString());
+    verify(ocr, never()).recognize(anyString(), eq(JPEG), anyString());
+    verify(form).createForm(ScanovateAuthenticator.CONFIRMATION_FORM);
+  }
+
+  @Test
+  void anUnreadableDocumentCountsAsAnAttempt() throws IOException {
+    when(ocr.recognize(anyString(), eq(BACK_JPEG), anyString()))
+        .thenReturn(
+            json(
+                """
+                {"status": "completed", "back": {"processing_result":
+                 {"status": "card_not_detected"}}}
+                """));
+    passedCapture();
+
+    authenticator.action(context);
+
+    verifyFailedAttempt(ScanovateError.DOCUMENT_UNREADABLE.messageKey());
+  }
+
+  @Test
+  void anUnreachableOcrServiceIsARetryableInternalError() throws IOException {
+    when(ocr.recognize(anyString(), any(), anyString())).thenThrow(new IOException("down"));
+    passedCapture();
+
+    authenticator.action(context);
+
+    verifyError(ScanovateError.INTERNAL, true);
+    verify(form).setAttribute(ScanovateAuthenticator.FTL_ATTEMPTS_LEFT, 3);
+    assertNull(authNotes.get(ScanovateAuthenticator.ATTEMPTS_NOTE));
+    assertNull(caseId());
+  }
+
+  @Test
+  void imagesTheOcrServiceCouldNotProcessAreARetryableInternalError() throws IOException {
+    when(ocr.recognize(anyString(), any(), anyString()))
+        .thenReturn(json("{\"status\": \"internal error\"}"));
+    passedCapture();
+
+    authenticator.action(context);
+
+    verifyError(ScanovateError.INTERNAL, true);
+    assertNull(authNotes.get(ScanovateAuthenticator.ATTEMPTS_NOTE));
+  }
+
+  @Test
+  void aFailedRuleCountsAsAnAttempt() throws IOException {
+    config.put(
+        ScanovateAuthenticatorFactory.ATTRIBUTES_TO_VALIDATE,
+        """
+        {"default": [{"type": "equalValue", "equalValue": "ESP", "process": "ocr",
+          "attributePath": "/issuing_country_code", "errorMsg": "customError"}]}
+        """);
+    passedCapture();
+
+    authenticator.action(context);
+
+    verifyFailedAttempt("customError");
+  }
+
+  @Test
+  void theLastAllowedAttemptRejectsTheVoter() throws IOException {
+    authNotes.put(ScanovateAuthenticator.ATTEMPTS_NOTE, "2");
+    when(ocr.recognize(anyString(), any(), anyString()))
+        .thenReturn(
+            json(
+                """
+                {"status": "completed", "front": {"processing_result":
+                 {"status": "fail_to_recognize_mrz"}}}
+                """));
+    passedCapture();
+
+    authenticator.action(context);
+
+    verify(form)
+        .setAttribute(ScanovateAuthenticator.FTL_ERROR, ScanovateError.MAX_RETRIES.messageKey());
+    verify(form).setAttribute(ScanovateAuthenticator.FTL_CAN_RETRY, false);
+    verify(form).setAttribute(ScanovateAuthenticator.FTL_ATTEMPTS_LEFT, 0);
+  }
+
+  @Test
+  void documentTypesWithoutRulesAreRejected() throws IOException {
+    config.put(ScanovateAuthenticatorFactory.ATTRIBUTES_TO_VALIDATE, "{\"passport\": []}");
+    authNotes.put(ScanovateAuthenticatorFactory.DEFAULT_DOC_ID_TYPE, "seamanBook");
+    passedCapture();
+
+    authenticator.action(context);
+
+    verify(context, never()).success();
+    assertNull(authNotes.get(STATUS_NOTE));
+    verifyError(ScanovateError.INTERNAL, false);
+  }
+
+  @Test
+  void withoutAttributesToStoreTheVerificationSucceedsDirectly() throws IOException {
     config.remove(ScanovateAuthenticatorFactory.ATTRIBUTES_TO_STORE);
-    authNotes.put(ScanovateAuthenticator.PROCESS_ID_NOTE, "proc-1");
+    passedCapture();
 
     authenticator.action(context);
 
@@ -290,765 +598,57 @@ class ScanovateAuthenticatorTest {
   }
 
   @Test
-  void forgedConfirmationDoesNotSucceed() throws IOException {
+  void forgedConfirmationStartsACapture() {
     formParams.add(ScanovateAuthenticator.FORM_ACTION_PARAM, FormAction.CONFIRM.value());
 
     authenticator.action(context);
 
     verify(context, never()).success();
-    verify(client).createSessionLink(eq("jwt"), any());
+    verifyCapturePage(List.of("FRONT", "BACK"), 3);
   }
 
   @Test
-  void failedRuleShowsRetryableError() throws IOException {
-    when(client.fetchResultsForProcess("proc-1"))
-        .thenReturn(
-            json(
-                "{\"success\": true, \"errorCode\": 0, \"data\": {\"success\": true, \"errorCode\": 0,"
-                    + " \"resultsList\": [{\"process\": \"biometric_match\", \"success\": true,"
-                    + " \"score\": 0.1}]}}"));
-    authNotes.put(ScanovateAuthenticator.PROCESS_ID_NOTE, "proc-1");
-
-    authenticator.action(context);
-
-    assertEquals("1", authNotes.get(ScanovateAuthenticator.ATTEMPTS_NOTE));
-    assertNull(authNotes.get(STATUS_NOTE));
-    verify(form).setAttribute(ScanovateAuthenticator.FTL_ERROR, "scanovateScoringError");
-    verify(form).setAttribute(ScanovateAuthenticator.FTL_CAN_RETRY, true);
-    verify(form).setAttribute(ScanovateAuthenticator.FTL_ATTEMPTS_LEFT, 2);
-    verify(form).createForm(ScanovateAuthenticator.ERROR_FORM);
-    verify(context, never()).success();
-  }
-
-  @Test
-  void flowFailureIsMappedToItsMessage() throws IOException {
-    when(client.fetchResultsForProcess("proc-1"))
-        .thenReturn(
-            json(
-                "{\"success\": true, \"errorCode\": 0, \"data\": {\"success\": false, \"errorCode\": 1026}}"));
-    authNotes.put(ScanovateAuthenticator.PROCESS_ID_NOTE, "proc-1");
-
-    authenticator.action(context);
-
-    verify(form)
-        .setAttribute(
-            ScanovateAuthenticator.FTL_ERROR, ScanovateError.DOCUMENT_AUTHENTICATION.messageKey());
-  }
-
-  @Test
-  void lastAllowedAttemptRejectsTheVoter() throws IOException {
-    when(client.fetchResultsForProcess("proc-1"))
-        .thenReturn(
-            json(
-                "{\"success\": true, \"errorCode\": 0, \"data\": {\"success\": false, \"errorCode\": 1030}}"));
-    authNotes.put(ScanovateAuthenticator.PROCESS_ID_NOTE, "proc-1");
-    authNotes.put(ScanovateAuthenticator.ATTEMPTS_NOTE, "2");
-
-    authenticator.action(context);
-
-    verify(form)
-        .setAttribute(ScanovateAuthenticator.FTL_ERROR, ScanovateError.MAX_RETRIES.messageKey());
-    verify(form).setAttribute(ScanovateAuthenticator.FTL_CAN_RETRY, false);
-    verify(form).setAttribute(ScanovateAuthenticator.FTL_ATTEMPTS_LEFT, 0);
-  }
-
-  @Test
-  void retryStartsANewSession() throws IOException {
+  void retryStartsANewCapture() {
     authNotes.put(ScanovateAuthenticator.ATTEMPTS_NOTE, "1");
     formParams.add(ScanovateAuthenticator.FORM_ACTION_PARAM, FormAction.RETRY.value());
 
     authenticator.action(context);
 
-    verify(client).createSessionLink(eq("jwt"), any());
+    verifyCapturePage(List.of("FRONT", "BACK"), 2);
   }
 
   @Test
-  void retryAfterMaxAttemptsIsRejected() throws IOException {
-    authNotes.put(ScanovateAuthenticator.ATTEMPTS_NOTE, "3");
-    formParams.add(ScanovateAuthenticator.FORM_ACTION_PARAM, FormAction.RETRY.value());
-
-    authenticator.action(context);
-
-    verify(client, never()).createSessionLink(any(), any());
-    verify(form)
-        .setAttribute(ScanovateAuthenticator.FTL_ERROR, ScanovateError.MAX_RETRIES.messageKey());
-  }
-
-  @Test
-  void autoCompleteModeFetchesResultsWithoutRedirect() throws IOException {
-    config.put(ScanovateAuthenticatorFactory.EXECUTION_MODE, ExecutionMode.AUTO_COMPLETE.value());
-
-    authenticator.authenticate(context);
-
-    verify(client).fetchResultsForProcess("proc-1");
-    verify(form).createForm(ScanovateAuthenticator.CONFIRMATION_FORM);
-  }
-
-  @Test
-  void missingFlowIdIsAnInternalError() throws IOException {
-    config.remove(ScanovateAuthenticatorFactory.FLOW_ID);
-
-    authenticator.authenticate(context);
-
-    verify(client, never()).fetchAccessToken();
-    verify(form)
-        .setAttribute(ScanovateAuthenticator.FTL_ERROR, ScanovateError.INTERNAL.messageKey());
-    verify(form).setAttribute(ScanovateAuthenticator.FTL_CAN_RETRY, false);
-  }
-
-  @Test
-  void apiFailureIsARetryableInternalError() throws IOException {
-    when(client.fetchAccessToken()).thenThrow(new IOException("down"));
-
-    authenticator.authenticate(context);
-
-    verify(form)
-        .setAttribute(ScanovateAuthenticator.FTL_ERROR, ScanovateError.INTERNAL.messageKey());
-    verify(form).setAttribute(ScanovateAuthenticator.FTL_CAN_RETRY, true);
-  }
-
-  @Test
-  void documentTypeWithoutRulesIsRejected() {
-    config.put(ScanovateAuthenticatorFactory.ATTRIBUTES_TO_VALIDATE, "{\"passport\": []}");
-    authNotes.put(ScanovateAuthenticatorFactory.DEFAULT_DOC_ID_TYPE, "seamanBook");
-    authNotes.put(ScanovateAuthenticator.PROCESS_ID_NOTE, "proc-1");
-
-    authenticator.action(context);
-
-    verify(context, never()).success();
-    assertNull(authNotes.get(STATUS_NOTE));
-    verify(form)
-        .setAttribute(ScanovateAuthenticator.FTL_ERROR, ScanovateError.INTERNAL.messageKey());
-  }
-
-  @Test
-  void alternativeExecutionFallsThroughOnError() throws IOException {
-    when(execution.isAlternative()).thenReturn(true);
-    when(client.fetchAccessToken()).thenThrow(new IOException("down"));
-
-    authenticator.authenticate(context);
-
-    verify(context).attempted();
-    verify(form, never()).createForm(anyString());
-  }
-
-  @Test
-  void linkParamsSkipsMissingAuthNotes() throws ScanovateException {
-    AuthenticationSessionModel authSession = context.getAuthenticationSession();
-    config.put(
-        ScanovateAuthenticatorFactory.LINK_PARAMS,
-        "{\"country\": \"country\", \"x\": \"missing\"}");
-    assertEquals(
-        Map.of("country", "Spain"), ScanovateAuthenticator.linkParams(config, authSession));
-  }
-
-  @Test
-  void linkParamsRejectsNonObject() {
-    AuthenticationSessionModel authSession = context.getAuthenticationSession();
-    config.put(ScanovateAuthenticatorFactory.LINK_PARAMS, "[]");
-    assertThrows(
-        ScanovateException.class, () -> ScanovateAuthenticator.linkParams(config, authSession));
-  }
-
-  private void embedded() {
-    config.put(ScanovateAuthenticatorFactory.EXECUTION_MODE, ExecutionMode.EMBEDDED.value());
-    config.put(
-        ScanovateAuthenticatorFactory.CAPTURE_SIDES,
-        "{\"philSysID\": [\"front\"], \"default\": [\"front\", \"back\"]}");
-  }
-
-  /**
-   * The capture token of the rendered capture page. Tests that post a capture without rendering the
-   * page first get one as if it had been rendered.
-   */
-  private String captureToken() {
-    String token = authNotes.get(ScanovateAuthenticator.CAPTURE_TOKEN_NOTE);
-    if (token == null) {
-      token = captureUploads.create();
-      authNotes.put(ScanovateAuthenticator.CAPTURE_TOKEN_NOTE, token);
-    }
-    return token;
-  }
-
-  /**
-   * Uploads the parts through the capture endpoint, which refuses those of an unrecognised format,
-   * then posts the capture form.
-   */
-  private void upload(Map<String, byte[]> parts) {
-    String token = captureToken();
-    parts.forEach((part, content) -> captureUploads.store(token, part, content));
-    if (!formParams.containsKey(ScanovateAuthenticator.FORM_ACTION_PARAM)) {
-      formParams.add(ScanovateAuthenticator.FORM_ACTION_PARAM, FormAction.CAPTURE.value());
-    }
-  }
-
-  private void capture(byte[] front, byte[] back, byte[] face, byte[] video) {
-    upload(CaptureMediaTest.parts(front, back, face, video));
-  }
-
-  private void verifyCapturePage(List<String> sides, int attemptsLeft) {
-    verify(form)
-        .setAttribute(
-            ScanovateAuthenticator.FTL_SCANOVATE,
-            Map.of(
-                ScanovateAuthenticator.FTL_UPLOAD,
-                Map.of(
-                    ScanovateAuthenticator.FTL_UPLOAD_URL,
-                    "/realms/r/identity-verification/capture",
-                    ScanovateAuthenticator.FTL_UPLOAD_TOKEN,
-                    authNotes.get(ScanovateAuthenticator.CAPTURE_TOKEN_NOTE)),
-                ScanovateAuthenticator.FTL_DOCUMENT_TYPE,
-                authNotes.getOrDefault(
-                    ScanovateAuthenticatorFactory.DEFAULT_DOC_ID_TYPE, "default"),
-                ScanovateAuthenticator.FTL_SIDES,
-                sides,
-                ScanovateAuthenticator.FTL_VIDEO_SECONDS,
-                5,
-                ScanovateAuthenticator.FTL_ATTEMPTS_LEFT,
-                attemptsLeft,
-                ScanovateAuthenticator.FTL_MAX_ATTEMPTS,
-                3));
-    verify(form).createForm(ScanovateAuthenticator.CAPTURE_FORM);
-  }
-
-  private void verifyCaptureRejected() throws IOException {
-    verify(form).setError(ScanovateError.CAPTURE_INVALID.messageKey());
-    verify(form).createForm(ScanovateAuthenticator.CAPTURE_FORM);
-    verify(client, never()).uploadMedia(any(), any(), any());
-    verify(client, never()).fetchResultsForProcess(anyString());
-    assertNull(authNotes.get(ScanovateAuthenticator.ATTEMPTS_NOTE));
-    assertEquals("proc-1", authNotes.get(ScanovateAuthenticator.PROCESS_ID_NOTE));
-  }
-
-  @Test
-  void embeddedModeRendersTheCapturePage() throws IOException {
-    embedded();
-    authNotes.put(ScanovateAuthenticatorFactory.DEFAULT_DOC_ID_TYPE, "philSysID");
-    authNotes.put(ScanovateAuthenticator.ATTEMPTS_NOTE, "1");
-
-    authenticator.authenticate(context);
-
-    verify(client).createSessionLink(eq("jwt"), any());
-    assertEquals("proc-1", authNotes.get(ScanovateAuthenticator.PROCESS_ID_NOTE));
-    verifyCapturePage(List.of("FRONT"), 2);
-    verify(client, never()).fetchResultsForProcess(anyString());
-  }
-
-  @Test
-  void embeddedModeDefaultsToBothSides() {
-    config.put(ScanovateAuthenticatorFactory.EXECUTION_MODE, ExecutionMode.EMBEDDED.value());
-
-    authenticator.authenticate(context);
-
-    verifyCapturePage(List.of("FRONT", "BACK"), 3);
-  }
-
-  @Test
-  void refreshingThePendingCaptureRendersItAgain() throws IOException {
-    embedded();
-    authNotes.put(ScanovateAuthenticator.PROCESS_ID_NOTE, "proc-1");
-
-    authenticator.authenticate(context);
-
-    verify(client, never()).createSessionLink(any(), any());
-    assertEquals("proc-1", authNotes.get(ScanovateAuthenticator.PROCESS_ID_NOTE));
-    verifyCapturePage(List.of("FRONT", "BACK"), 3);
-  }
-
-  @Test
-  void malformedCaptureSidesIsAnInternalError() throws IOException {
-    embedded();
-    config.put(ScanovateAuthenticatorFactory.CAPTURE_SIDES, "{\"default\": [\"top\"]}");
-
-    authenticator.authenticate(context);
-
-    verify(client, never()).createSessionLink(any(), any());
-    verify(form)
-        .setAttribute(ScanovateAuthenticator.FTL_ERROR, ScanovateError.INTERNAL.messageKey());
-    verify(form).setAttribute(ScanovateAuthenticator.FTL_CAN_RETRY, false);
-  }
-
-  @Test
-  void malformedCaptureSidesIsIgnoredOutsideEmbeddedMode() throws IOException {
-    config.put(ScanovateAuthenticatorFactory.CAPTURE_SIDES, "nope");
-
-    authenticator.authenticate(context);
-
-    verify(context).challenge(any());
-    verify(form, never()).createForm(anyString());
-  }
-
-  @Test
-  void captureUploadsTheMediaAndShowsTheConfirmation() throws IOException {
-    embedded();
-    authNotes.put(ScanovateAuthenticator.PROCESS_ID_NOTE, "proc-1");
-    capture(JPEG, JPEG, JPEG, WEBM);
-
-    authenticator.action(context);
-
-    ArgumentCaptor<CaptureMedia> media = ArgumentCaptor.forClass(CaptureMedia.class);
-    verify(client).uploadMedia(eq("jwt"), eq("proc-1"), media.capture());
-    assertEquals(
-        List.of(
-            MediaKind.FRONT_IMAGE,
-            MediaKind.BACK_IMAGE,
-            MediaKind.FACE_IMAGE,
-            MediaKind.SCAN_VIDEO),
-        List.copyOf(media.getValue().files().keySet()));
-    verify(client).fetchResultsForProcess("proc-1");
-    verify(form).createForm(ScanovateAuthenticator.CONFIRMATION_FORM);
-    assertEquals("VERIFIED", authNotes.get(STATUS_NOTE));
-    assertNull(authNotes.get(ScanovateAuthenticator.PROCESS_ID_NOTE));
-  }
-
-  @Test
-  void captureOfSingleSidedDocumentDoesNotNeedTheBack() throws IOException {
-    embedded();
-    authNotes.put(ScanovateAuthenticatorFactory.DEFAULT_DOC_ID_TYPE, "philSysID");
-    authNotes.put(ScanovateAuthenticator.PROCESS_ID_NOTE, "proc-1");
-    config.put(ScanovateAuthenticatorFactory.ATTRIBUTES_TO_VALIDATE, "{\"default\": []}");
-    capture(JPEG, null, JPEG, WEBM);
-
-    authenticator.action(context);
-
-    ArgumentCaptor<CaptureMedia> media = ArgumentCaptor.forClass(CaptureMedia.class);
-    verify(client).uploadMedia(eq("jwt"), eq("proc-1"), media.capture());
-    assertEquals(
-        List.of(MediaKind.FRONT_IMAGE, MediaKind.FACE_IMAGE, MediaKind.SCAN_VIDEO),
-        List.copyOf(media.getValue().files().keySet()));
-  }
-
-  @Test
-  void captureFailingTheRulesCountsAsAnAttempt() throws IOException {
-    embedded();
-    when(client.fetchResultsForProcess("proc-1"))
-        .thenReturn(
-            json(
-                "{\"success\": true, \"errorCode\": 0, \"data\": {\"success\": false, \"errorCode\": 1026}}"));
-    authNotes.put(ScanovateAuthenticator.PROCESS_ID_NOTE, "proc-1");
-    capture(JPEG, JPEG, JPEG, WEBM);
-
-    authenticator.action(context);
-
-    assertEquals("1", authNotes.get(ScanovateAuthenticator.ATTEMPTS_NOTE));
-    verify(form)
-        .setAttribute(
-            ScanovateAuthenticator.FTL_ERROR, ScanovateError.DOCUMENT_AUTHENTICATION.messageKey());
-    verify(form).setAttribute(ScanovateAuthenticator.FTL_ATTEMPTS_LEFT, 2);
-  }
-
-  @Test
-  void captureWithoutTheBackIsRejectedWithoutCountingAnAttempt() throws IOException {
-    embedded();
-    authNotes.put(ScanovateAuthenticator.PROCESS_ID_NOTE, "proc-1");
-    capture(JPEG, null, JPEG, WEBM);
-
-    authenticator.action(context);
-
-    verifyCaptureRejected();
-    verifyCapturePage(List.of("FRONT", "BACK"), 3);
-  }
-
-  @Test
-  void captureWithoutVideoIsRejected() throws IOException {
-    embedded();
-    authNotes.put(ScanovateAuthenticator.PROCESS_ID_NOTE, "proc-1");
-    capture(JPEG, JPEG, JPEG, null);
-
-    authenticator.action(context);
-
-    verifyCaptureRejected();
-  }
-
-  @Test
-  void captureWithWrongMagicBytesIsRejected() throws IOException {
-    embedded();
-    authNotes.put(ScanovateAuthenticator.PROCESS_ID_NOTE, "proc-1");
-    capture(JPEG, JPEG, PNG, WEBM);
-
-    authenticator.action(context);
-
-    verifyCaptureRejected();
-  }
-
-  @Test
-  void oversizedCaptureIsRejected() throws IOException {
-    embedded();
-    config.put(ScanovateAuthenticatorFactory.MAX_VIDEO_BYTES, "4");
-    authNotes.put(ScanovateAuthenticator.PROCESS_ID_NOTE, "proc-1");
-    capture(JPEG, JPEG, JPEG, WEBM);
-
-    authenticator.action(context);
-
-    verifyCaptureRejected();
-  }
-
-  @Test
-  void multipartCapturePostIsRejectedWithoutReadingTheForm() throws IOException {
-    embedded();
-    authNotes.put(ScanovateAuthenticator.PROCESS_ID_NOTE, "proc-1");
-    when(httpHeaders.getMediaType()).thenReturn(MediaType.MULTIPART_FORM_DATA_TYPE);
-
-    authenticator.action(context);
-
-    verify(context.getHttpRequest(), never()).getDecodedFormParameters();
-    verifyCaptureRejected();
-  }
-
-  @Test
-  void multipartPostWithoutPendingCaptureStartsOver() throws IOException {
-    embedded();
-    when(httpHeaders.getMediaType())
-        .thenReturn(MediaType.valueOf("multipart/form-data; boundary=x"));
-
-    authenticator.action(context);
-
-    verify(context.getHttpRequest(), never()).getDecodedFormParameters();
-    verify(client).createSessionLink(eq("jwt"), any());
-    verifyCapturePage(List.of("FRONT", "BACK"), 3);
-  }
-
-  @Test
-  void uploadsAreDiscardedOnceTheCaptureIsProcessed() throws IOException {
-    embedded();
-    authNotes.put(ScanovateAuthenticator.PROCESS_ID_NOTE, "proc-1");
-    capture(JPEG, JPEG, JPEG, WEBM);
-    String token = captureToken();
-
-    authenticator.action(context);
-
-    assertEquals(Optional.empty(), captureUploads.parts(token));
-    assertNull(authNotes.get(ScanovateAuthenticator.CAPTURE_TOKEN_NOTE));
-  }
-
-  @Test
-  void rejectedCaptureGetsAFreshUploadToken() throws IOException {
-    embedded();
-    authNotes.put(ScanovateAuthenticator.PROCESS_ID_NOTE, "proc-1");
-    capture(JPEG, null, JPEG, WEBM);
-    String token = captureToken();
-
-    authenticator.action(context);
-
-    verifyCaptureRejected();
-    assertEquals(Optional.empty(), captureUploads.parts(token));
-    String fresh = authNotes.get(ScanovateAuthenticator.CAPTURE_TOKEN_NOTE);
-    assertNotNull(fresh);
-    assertNotEquals(token, fresh);
-    assertEquals(Optional.of(Map.of()), captureUploads.parts(fresh));
-  }
-
-  @Test
-  void captureUploadFailureIsARetryableInternalError() throws IOException {
-    embedded();
-    authNotes.put(ScanovateAuthenticator.PROCESS_ID_NOTE, "proc-1");
-    capture(JPEG, JPEG, JPEG, WEBM);
-    doThrow(new IOException("down")).when(client).uploadMedia(any(), any(), any());
-
-    authenticator.action(context);
-
-    verify(client, never()).fetchResultsForProcess(anyString());
-    verify(form)
-        .setAttribute(ScanovateAuthenticator.FTL_ERROR, ScanovateError.INTERNAL.messageKey());
-    verify(form).setAttribute(ScanovateAuthenticator.FTL_CAN_RETRY, true);
-    verify(form).setAttribute(ScanovateAuthenticator.FTL_ATTEMPTS_LEFT, 3);
-    assertNull(authNotes.get(ScanovateAuthenticator.ATTEMPTS_NOTE));
-    assertNull(authNotes.get(ScanovateAuthenticator.PROCESS_ID_NOTE));
-  }
-
-  @Test
-  void captureWithoutPendingSessionStartsOver() throws IOException {
-    embedded();
-    capture(JPEG, JPEG, JPEG, WEBM);
-
-    authenticator.action(context);
-
-    verify(client, never()).uploadMedia(any(), any(), any());
-    verify(client).createSessionLink(eq("jwt"), any());
-    verifyCapturePage(List.of("FRONT", "BACK"), 3);
-  }
-
-  @Test
-  void captureOutsideEmbeddedModeStartsOver() throws IOException {
-    authNotes.put(ScanovateAuthenticator.PROCESS_ID_NOTE, "proc-1");
-    capture(JPEG, JPEG, JPEG, WEBM);
-
-    authenticator.action(context);
-
-    verify(client, never()).uploadMedia(any(), any(), any());
-    verify(client).createSessionLink(eq("jwt"), any());
-    verify(context).challenge(any());
-    verify(form, never()).createForm(anyString());
-  }
-
-  private void verifyMaxRetriesWithoutNewSession() throws IOException {
-    verify(client, never()).createSessionLink(any(), any());
-    verify(form)
-        .setAttribute(ScanovateAuthenticator.FTL_ERROR, ScanovateError.MAX_RETRIES.messageKey());
-    verify(form).setAttribute(ScanovateAuthenticator.FTL_CAN_RETRY, false);
-    verify(form).setAttribute(ScanovateAuthenticator.FTL_ATTEMPTS_LEFT, 0);
-    verify(form, never()).createForm(ScanovateAuthenticator.CAPTURE_FORM);
-  }
-
-  @Test
-  void refreshAfterMaxRetriesDoesNotCreateASession() throws IOException {
-    authNotes.put(ScanovateAuthenticator.ATTEMPTS_NOTE, "3");
-
-    authenticator.authenticate(context);
-
-    verifyMaxRetriesWithoutNewSession();
-    verify(context, never()).success();
-  }
-
-  @Test
-  void embeddedRefreshAfterMaxRetriesDoesNotCreateASession() throws IOException {
-    embedded();
-    authNotes.put(ScanovateAuthenticator.ATTEMPTS_NOTE, "3");
-
-    authenticator.authenticate(context);
-
-    verifyMaxRetriesWithoutNewSession();
-  }
-
-  @Test
-  void autoCompleteAfterMaxRetriesDoesNotCreateASession() throws IOException {
-    config.put(ScanovateAuthenticatorFactory.EXECUTION_MODE, ExecutionMode.AUTO_COMPLETE.value());
-    authNotes.put(ScanovateAuthenticator.ATTEMPTS_NOTE, "4");
-
-    authenticator.authenticate(context);
-
-    verifyMaxRetriesWithoutNewSession();
-    verify(client, never()).fetchResultsForProcess(anyString());
-  }
-
-  @Test
-  void captureWithoutSessionAfterMaxRetriesDoesNotCreateASession() throws IOException {
-    embedded();
-    authNotes.put(ScanovateAuthenticator.ATTEMPTS_NOTE, "3");
-    capture(JPEG, JPEG, JPEG, WEBM);
-
-    authenticator.action(context);
-
-    verifyMaxRetriesWithoutNewSession();
-    verify(client, never()).uploadMedia(any(), any(), any());
-  }
-
-  @Test
-  void forgedConfirmationAfterMaxRetriesDoesNotCreateASession() throws IOException {
-    authNotes.put(ScanovateAuthenticator.ATTEMPTS_NOTE, "3");
-    formParams.add(ScanovateAuthenticator.FORM_ACTION_PARAM, FormAction.CONFIRM.value());
-
-    authenticator.action(context);
-
-    verifyMaxRetriesWithoutNewSession();
-    verify(context, never()).success();
-  }
-
-  @Test
-  void sessionIsStillCreatedBeforeTheLastAttempt() throws IOException {
-    authNotes.put(ScanovateAuthenticator.ATTEMPTS_NOTE, "2");
-
-    authenticator.authenticate(context);
-
-    verify(client).createSessionLink(eq("jwt"), any());
-  }
-
-  private static final byte[] FRONT_JPEG = {(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, 'f'};
-  private static final byte[] HOLDING_JPEG = {(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, 'h'};
-
-  private static FaceComparison match(double similarity) {
-    return new FaceComparison(true, similarity, 0.67, 0, 0);
-  }
-
-  private void liveness() {
-    embedded();
-    config.put(ScanovateAuthenticatorFactory.FACE_CAPTURE, FaceCapture.LIVENESS.value());
-    config.putAll(LivenessSettingsTest.livenessConfig());
-  }
-
-  /** Starts the liveness capture and returns the token its page gets for Liveness Plus. */
-  private String startLiveness() {
-    authenticator.authenticate(context);
-    String token = authNotes.get(ScanovateAuthenticator.LIVENESS_TOKEN_NOTE);
-    assertNotNull(token);
-    return token;
-  }
-
-  private void livenessResult(String token, String status, boolean passed) {
-    assertEquals(
-        LivenessSessions.RecordOutcome.RECORDED,
-        livenessSessions.record(
-            token, "callback-secret", json(LivenessSessionsTest.result(status, passed, JPEG))));
-  }
-
-  private void livenessCapture(byte[] front, byte[] back, byte[] holding) {
-    upload(CaptureMediaTest.livenessParts(front, back, holding));
-  }
-
-  /** A voter whose liveness passed posts the photos of the document and the one holding it. */
-  private String passedLivenessCapture() {
-    liveness();
-    String token = startLiveness();
-    livenessResult(token, "completed", true);
-    livenessCapture(FRONT_JPEG, JPEG, HOLDING_JPEG);
-    return token;
-  }
-
-  private void verifyFailedAttempt(String messageKey) throws IOException {
-    verify(client, never()).uploadMedia(any(), any(), any());
-    assertEquals("1", authNotes.get(ScanovateAuthenticator.ATTEMPTS_NOTE));
-    verify(form).setAttribute(ScanovateAuthenticator.FTL_ERROR, messageKey);
-    verify(form).setAttribute(ScanovateAuthenticator.FTL_CAN_RETRY, true);
-    assertNull(authNotes.get(ScanovateAuthenticator.PROCESS_ID_NOTE));
-    assertNull(authNotes.get(ScanovateAuthenticator.LIVENESS_TOKEN_NOTE));
-  }
-
-  @Test
-  void livenessCapturePageGetsTheLivenessApiAndItsToken() throws IOException {
-    liveness();
-
-    String token = startLiveness();
-
-    @SuppressWarnings("unchecked")
-    ArgumentCaptor<Map<String, Object>> capture = ArgumentCaptor.forClass(Map.class);
-    verify(form).setAttribute(eq(ScanovateAuthenticator.FTL_SCANOVATE), capture.capture());
-    assertEquals(
-        Map.of(
-            ScanovateAuthenticator.FTL_LIVENESS_URL,
-            "https://liveness.example.com:8443/liveness",
-            ScanovateAuthenticator.FTL_LIVENESS_TOKEN,
-            token,
-            ScanovateAuthenticator.FTL_LIVENESS_CASE_ID,
-            "proc-1"),
-        capture.getValue().get(ScanovateAuthenticator.FTL_LIVENESS));
-    verify(securityHeaders, never()).allowFrameSrc(anyString());
-    verify(form).createForm(ScanovateAuthenticator.CAPTURE_FORM);
-    assertEquals(true, livenessSessions.verify(token, "proc-1", "callback-secret"));
-  }
-
-  @Test
-  void photoCapturePageHasNoLiveness() {
-    embedded();
-
-    authenticator.authenticate(context);
-
-    verifyCapturePage(List.of("FRONT", "BACK"), 3);
-    assertNull(authNotes.get(ScanovateAuthenticator.LIVENESS_TOKEN_NOTE));
-  }
-
-  @Test
-  void refreshingTheLivenessCaptureReplacesItsToken() {
-    liveness();
-    String first = startLiveness();
-
-    authenticator.authenticate(context);
-
-    String second = authNotes.get(ScanovateAuthenticator.LIVENESS_TOKEN_NOTE);
-    assertNotNull(second);
-    assertEquals(false, first.equals(second));
-    assertEquals(false, livenessSessions.verify(first, "proc-1", "callback-secret"));
-  }
-
-  private void verifyLivenessConfigurationError() throws IOException {
-    authenticator.authenticate(context);
-
-    verify(client, never()).createSessionLink(any(), any());
-    verify(form)
-        .setAttribute(ScanovateAuthenticator.FTL_ERROR, ScanovateError.INTERNAL.messageKey());
-    verify(form).setAttribute(ScanovateAuthenticator.FTL_CAN_RETRY, false);
-  }
-
-  @Test
-  void livenessWithoutItsSecretIsAnInternalError() throws IOException {
-    liveness();
-    config.remove(ScanovateAuthenticatorFactory.LIVENESS_SECRET);
-
-    verifyLivenessConfigurationError();
-  }
-
-  @Test
-  void livenessWithoutFaceMatchIsAnInternalError() throws IOException {
-    liveness();
-    config.remove(ScanovateAuthenticatorFactory.FACE_MATCH_URL);
-
-    verifyLivenessConfigurationError();
-  }
-
-  @Test
-  void malformedFaceMatchMinimumIsAnInternalError() throws IOException {
-    liveness();
-    config.put(ScanovateAuthenticatorFactory.FACE_MATCH_MIN_SIMILARITY, "high");
-
-    verifyLivenessConfigurationError();
-  }
-
-  @Test
-  void matchingFacesUploadOnlyTheDocumentToBTrust() throws IOException {
-    String token = passedLivenessCapture();
-    when(faceMatch.compare(FRONT_JPEG, JPEG)).thenReturn(match(0.9));
-    when(faceMatch.compare(HOLDING_JPEG, JPEG)).thenReturn(match(0.8));
-
-    authenticator.action(context);
-
-    ArgumentCaptor<CaptureMedia> media = ArgumentCaptor.forClass(CaptureMedia.class);
-    verify(client).uploadMedia(eq("jwt"), eq("proc-1"), media.capture());
-    assertEquals(
-        List.of(MediaKind.FRONT_IMAGE, MediaKind.BACK_IMAGE),
-        List.copyOf(media.getValue().files().keySet()));
-    assertArrayEquals(FRONT_JPEG, media.getValue().files().get(MediaKind.FRONT_IMAGE).content());
-    verify(event).detail(ScanovateAuthenticator.EVENT_DETAIL_FACE_MATCH_DOCUMENT, "0.9000");
-    verify(event).detail(ScanovateAuthenticator.EVENT_DETAIL_FACE_MATCH_HOLDING, "0.8000");
-    verify(form).createForm(ScanovateAuthenticator.CONFIRMATION_FORM);
-    assertNull(authNotes.get(ScanovateAuthenticator.LIVENESS_TOKEN_NOTE));
-    assertEquals(false, livenessSessions.verify(token, "proc-1", "callback-secret"));
-  }
-
-  @Test
-  void faceMatchUsesTheConfiguredServiceAndMinimum() throws IOException {
-    passedLivenessCapture();
-    authNotes.put(ScanovateAuthenticatorFactory.DEFAULT_DOC_ID_TYPE, "driversLicense");
-    config.put(
-        ScanovateAuthenticatorFactory.FACE_MATCH_MIN_SIMILARITY,
-        "{\"driversLicense\": 0.9, \"default\": 0.5}");
-    when(faceMatch.compare(any(), any())).thenReturn(match(0.85));
-
-    authenticator.action(context);
-
-    assertEquals(
-        new FaceMatchSettings(URI.create("http://face-match:3000"), 0.9), faceMatchSettings.get(0));
-    verifyFailedAttempt(ScanovateError.FACE_MISMATCH.messageKey());
-  }
-
-  @Test
-  void facePartsPostedByTheBrowserAreNeverUploaded() throws IOException {
-    passedLivenessCapture();
-    upload(CaptureMediaTest.parts(null, null, JPEG, WEBM));
-    when(faceMatch.compare(any(), any())).thenReturn(match(0.9));
-
-    authenticator.action(context);
-
-    ArgumentCaptor<CaptureMedia> media = ArgumentCaptor.forClass(CaptureMedia.class);
-    verify(client).uploadMedia(eq("jwt"), eq("proc-1"), media.capture());
-    assertEquals(
-        List.of(MediaKind.FRONT_IMAGE, MediaKind.BACK_IMAGE),
-        List.copyOf(media.getValue().files().keySet()));
-  }
-
-  @Test
-  void documentPhotoOfAnotherPersonCountsAsAnAttempt() throws IOException {
-    passedLivenessCapture();
+  void theFaceIsCheckedBeforeTheDocumentIsRead() throws IOException {
+    passedCapture();
     when(faceMatch.compare(FRONT_JPEG, JPEG)).thenReturn(match(0.3));
-    when(faceMatch.compare(HOLDING_JPEG, JPEG)).thenReturn(match(0.9));
 
     authenticator.action(context);
 
     verifyFailedAttempt(ScanovateError.FACE_MISMATCH.messageKey());
     verify(event).detail(ScanovateAuthenticator.EVENT_DETAIL_FACE_MATCH_DOCUMENT, "0.3000");
+    verify(ocr, never()).recognize(anyString(), any(), anyString());
+  }
+
+  @Test
+  void faceMatchUsesTheConfiguredServiceAndMinimum() throws IOException {
+    authNotes.put(ScanovateAuthenticatorFactory.DEFAULT_DOC_ID_TYPE, "driversLicense");
+    config.put(
+        ScanovateAuthenticatorFactory.FACE_MATCH_MIN_SIMILARITY,
+        "{\"driversLicense\": 0.9, \"default\": 0.5}");
+    passedCapture();
+    when(faceMatch.compare(any(), any())).thenReturn(match(0.85));
+
+    authenticator.action(context);
+
+    assertEquals(
+        new FaceMatchSettings(URI.create("http://face-match:3000"), 0.9),
+        faceMatchSettings.get(faceMatchSettings.size() - 1));
+    verifyFailedAttempt(ScanovateError.FACE_MISMATCH.messageKey());
   }
 
   @Test
   void anotherPersonHoldingTheDocumentCountsAsAnAttempt() throws IOException {
-    passedLivenessCapture();
+    passedCapture();
     when(faceMatch.compare(FRONT_JPEG, JPEG)).thenReturn(match(0.9));
     when(faceMatch.compare(HOLDING_JPEG, JPEG)).thenReturn(match(0.2));
 
@@ -1059,7 +659,7 @@ class ScanovateAuthenticatorTest {
 
   @Test
   void faceNotFoundCountsAsAnAttempt() throws IOException {
-    passedLivenessCapture();
+    passedCapture();
     when(faceMatch.compare(FRONT_JPEG, JPEG))
         .thenReturn(new FaceComparison(false, 0.0, 0.67, 1101, 0));
 
@@ -1071,72 +671,202 @@ class ScanovateAuthenticatorTest {
 
   @Test
   void unreachableFaceMatchIsARetryableInternalError() throws IOException {
-    passedLivenessCapture();
+    passedCapture();
     when(faceMatch.compare(any(), any())).thenThrow(new IOException("down"));
 
     authenticator.action(context);
 
-    verify(client, never()).uploadMedia(any(), any(), any());
+    verify(ocr, never()).recognize(anyString(), any(), anyString());
     assertNull(authNotes.get(ScanovateAuthenticator.ATTEMPTS_NOTE));
-    verify(form)
-        .setAttribute(ScanovateAuthenticator.FTL_ERROR, ScanovateError.INTERNAL.messageKey());
-    verify(form).setAttribute(ScanovateAuthenticator.FTL_CAN_RETRY, true);
+    verifyError(ScanovateError.INTERNAL, true);
   }
 
   @Test
   void failedLivenessCountsAsAnAttempt() throws IOException {
-    liveness();
-    String token = startLiveness();
-    livenessResult(token, "completed", false);
-    livenessCapture(FRONT_JPEG, JPEG, HOLDING_JPEG);
+    String token = startCapture();
+    livenessResult(token, false);
+    capture(FRONT_JPEG, BACK_JPEG, HOLDING_JPEG);
 
     authenticator.action(context);
 
     verifyFailedAttempt(ScanovateError.LIVENESS_FAILED.messageKey());
     verify(faceMatch, never()).compare(any(), any());
+    verify(ocr, never()).recognize(anyString(), any(), anyString());
   }
 
   @Test
   void missingLivenessResultIsARetryableInternalError() throws IOException {
-    liveness();
-    startLiveness();
-    livenessCapture(FRONT_JPEG, JPEG, HOLDING_JPEG);
+    startCapture();
+    capture(FRONT_JPEG, BACK_JPEG, HOLDING_JPEG);
 
     authenticator.action(context);
 
-    verify(client, never()).uploadMedia(any(), any(), any());
     verify(faceMatch, never()).compare(any(), any());
+    verify(ocr, never()).recognize(anyString(), any(), anyString());
     assertNull(authNotes.get(ScanovateAuthenticator.ATTEMPTS_NOTE));
+    verifyError(ScanovateError.INTERNAL, true);
+  }
+
+  @Test
+  void captureWithoutTheBackIsRejectedWithoutCountingAnAttempt() throws IOException {
+    String token = startCapture();
+    livenessResult(token, true);
+    capture(FRONT_JPEG, null, HOLDING_JPEG);
+
+    authenticator.action(context);
+
+    verifyCaptureRejected();
+  }
+
+  @Test
+  void captureWithoutThePhotoHoldingTheDocumentIsRejected() throws IOException {
+    String token = startCapture();
+    livenessResult(token, true);
+    capture(FRONT_JPEG, BACK_JPEG, null);
+
+    authenticator.action(context);
+
+    verifyCaptureRejected();
+  }
+
+  @Test
+  void captureWithWrongMagicBytesIsRejected() throws IOException {
+    String token = startCapture();
+    livenessResult(token, true);
+    capture(PNG, BACK_JPEG, HOLDING_JPEG);
+
+    authenticator.action(context);
+
+    verifyCaptureRejected();
+  }
+
+  @Test
+  void oversizedCaptureIsRejected() throws IOException {
+    config.put(ScanovateAuthenticatorFactory.MAX_IMAGE_BYTES, "3");
+    String token = startCapture();
+    livenessResult(token, true);
+    capture(FRONT_JPEG, BACK_JPEG, HOLDING_JPEG);
+
+    authenticator.action(context);
+
+    verifyCaptureRejected();
+  }
+
+  @Test
+  void multipartCapturePostIsRejectedWithoutReadingTheForm() throws IOException {
+    startCapture();
+    when(httpHeaders.getMediaType()).thenReturn(MediaType.MULTIPART_FORM_DATA_TYPE);
+
+    authenticator.action(context);
+
+    verify(context.getHttpRequest(), never()).getDecodedFormParameters();
+    verifyCaptureRejected();
+  }
+
+  @Test
+  void multipartPostWithoutPendingCaptureStartsOver() {
+    when(httpHeaders.getMediaType())
+        .thenReturn(MediaType.valueOf("multipart/form-data; boundary=x"));
+
+    authenticator.action(context);
+
+    verify(context.getHttpRequest(), never()).getDecodedFormParameters();
+    verifyCapturePage(List.of("FRONT", "BACK"), 3);
+  }
+
+  @Test
+  void uploadsAreDiscardedOnceTheCaptureIsProcessed() {
+    passedCapture();
+    String token = captureToken();
+
+    authenticator.action(context);
+
+    assertEquals(Optional.empty(), captureUploads.parts(token));
+    assertNull(authNotes.get(ScanovateAuthenticator.CAPTURE_TOKEN_NOTE));
+  }
+
+  @Test
+  void rejectedCaptureGetsAFreshUploadToken() throws IOException {
+    startCapture();
+    capture(FRONT_JPEG, null, HOLDING_JPEG);
+    String token = captureToken();
+
+    authenticator.action(context);
+
+    assertEquals(Optional.empty(), captureUploads.parts(token));
+    String fresh = authNotes.get(ScanovateAuthenticator.CAPTURE_TOKEN_NOTE);
+    assertNotNull(fresh);
+    assertNotEquals(token, fresh);
+    assertEquals(Optional.of(Map.of()), captureUploads.parts(fresh));
+  }
+
+  @Test
+  void captureWithoutAPendingCaptureStartsOver() throws IOException {
+    capture(FRONT_JPEG, BACK_JPEG, HOLDING_JPEG);
+
+    authenticator.action(context);
+
+    verify(ocr, never()).recognize(anyString(), any(), anyString());
+    verifyCapturePage(List.of("FRONT", "BACK"), 3);
+  }
+
+  private void verifyMaxRetriesWithoutNewCapture() {
     verify(form)
-        .setAttribute(ScanovateAuthenticator.FTL_ERROR, ScanovateError.INTERNAL.messageKey());
-    verify(form).setAttribute(ScanovateAuthenticator.FTL_CAN_RETRY, true);
+        .setAttribute(ScanovateAuthenticator.FTL_ERROR, ScanovateError.MAX_RETRIES.messageKey());
+    verify(form).setAttribute(ScanovateAuthenticator.FTL_CAN_RETRY, false);
+    verify(form).setAttribute(ScanovateAuthenticator.FTL_ATTEMPTS_LEFT, 0);
+    verify(form, never()).createForm(ScanovateAuthenticator.CAPTURE_FORM);
+    assertNull(caseId());
   }
 
   @Test
-  void invalidDocumentIsRejectedBeforeWaitingForLiveness() throws IOException {
-    liveness();
-    String token = startLiveness();
-    livenessResult(token, "completed", true);
-    livenessCapture(PNG, JPEG, HOLDING_JPEG);
+  void refreshAfterMaxRetriesDoesNotStartACapture() {
+    authNotes.put(ScanovateAuthenticator.ATTEMPTS_NOTE, "3");
 
-    authenticator.action(context);
+    authenticator.authenticate(context);
 
-    verify(form).setError(ScanovateError.CAPTURE_INVALID.messageKey());
-    verify(client, never()).uploadMedia(any(), any(), any());
-    verify(faceMatch, never()).compare(any(), any());
-    assertNull(authNotes.get(ScanovateAuthenticator.ATTEMPTS_NOTE));
+    verifyMaxRetriesWithoutNewCapture();
+    verify(context, never()).success();
   }
 
   @Test
-  void livenessCaptureWithoutThePhotoHoldingTheDocumentIsRejected() throws IOException {
-    liveness();
-    String token = startLiveness();
-    livenessResult(token, "completed", true);
-    livenessCapture(FRONT_JPEG, JPEG, null);
+  void retryAfterMaxRetriesIsRejected() {
+    authNotes.put(ScanovateAuthenticator.ATTEMPTS_NOTE, "3");
+    formParams.add(ScanovateAuthenticator.FORM_ACTION_PARAM, FormAction.RETRY.value());
 
     authenticator.action(context);
 
-    verify(form).setError(ScanovateError.CAPTURE_INVALID.messageKey());
-    verify(faceMatch, never()).compare(any(), any());
+    verifyMaxRetriesWithoutNewCapture();
+  }
+
+  @Test
+  void captureWithoutPendingCaptureAfterMaxRetriesIsRejected() throws IOException {
+    authNotes.put(ScanovateAuthenticator.ATTEMPTS_NOTE, "4");
+    capture(FRONT_JPEG, BACK_JPEG, HOLDING_JPEG);
+
+    authenticator.action(context);
+
+    verifyMaxRetriesWithoutNewCapture();
+    verify(ocr, never()).recognize(anyString(), any(), anyString());
+  }
+
+  @Test
+  void forgedConfirmationAfterMaxRetriesIsRejected() {
+    authNotes.put(ScanovateAuthenticator.ATTEMPTS_NOTE, "3");
+    formParams.add(ScanovateAuthenticator.FORM_ACTION_PARAM, FormAction.CONFIRM.value());
+
+    authenticator.action(context);
+
+    verifyMaxRetriesWithoutNewCapture();
+    verify(context, never()).success();
+  }
+
+  @Test
+  void aCaptureIsStillStartedBeforeTheLastAttempt() {
+    authNotes.put(ScanovateAuthenticator.ATTEMPTS_NOTE, "2");
+
+    authenticator.authenticate(context);
+
+    verifyCapturePage(List.of("FRONT", "BACK"), 1);
   }
 }

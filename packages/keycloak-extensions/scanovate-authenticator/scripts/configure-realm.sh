@@ -3,25 +3,19 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 #
-# Points the Scanovate B-Trust steps of a realm to a B-Trust environment (the
-# mock server, the Scanovate test environment or production), switches them to
-# the on-premise face checks (Liveness Plus and Face Match), and fetches the
-# results of a B-Trust session to check the configured rules against them.
+# Points the Scanovate identity verification steps of a realm to the Scanovate
+# services hosted on premise (OCR, Liveness Plus and Face Match), and removes
+# the settings of the B-Trust cloud integration that preceded them.
 #
 # Usage:
-#   btrust.sh configure <realm>
-#   btrust.sh configure-liveness <realm>
-#   btrust.sh results <processId>
+#   configure-realm.sh configure <realm>
 #
 # Environment:
-#   SCANOVATE_BASE_URL, SCANOVATE_CLIENT_ID, SCANOVATE_CLIENT_SECRET: B-Trust
-#     API and credentials. Required.
-#   SCANOVATE_FLOW_ID: B-Trust flow to launch. Required by configure.
-#   SCANOVATE_EXECUTION_MODE: interactive (default), auto-complete or embedded.
-#   SCANOVATE_SAVE_OPTION: empty (default), save or do_not_save.
+#   SCANOVATE_OCR_URL: OCR URL as Keycloak reaches it. Required.
 #   SCANOVATE_LIVENESS_URL, SCANOVATE_LIVENESS_SECRET, SCANOVATE_FACE_MATCH_URL:
 #     Liveness Plus URL as the browser reaches it, its callback secret, and
-#     the Face Match URL as Keycloak reaches it. Required by configure-liveness.
+#     the Face Match URL as Keycloak reaches it. Required.
+#   SCANOVATE_OCR_TYPES: ocr-types, default {"default": "passport"}.
 #   SCANOVATE_FACE_MATCH_MIN_SIMILARITY: face-match-min-similarity, default
 #     {"default": 0.67}.
 #   SCANOVATE_CAPTURE_SIDES: capture-sides, default the passport's front only
@@ -83,7 +77,7 @@ scanovate_config_ids() {
 
 configure() {
   local realm="$1"
-  require SCANOVATE_BASE_URL SCANOVATE_CLIENT_ID SCANOVATE_CLIENT_SECRET SCANOVATE_FLOW_ID
+  require SCANOVATE_OCR_URL SCANOVATE_LIVENESS_URL SCANOVATE_LIVENESS_SECRET SCANOVATE_FACE_MATCH_URL
   local token admin config_ids config_id config updated
   token="$(keycloak_admin_token)"
   admin="$KEYCLOAK_URL/admin/realms/$realm/authentication"
@@ -93,66 +87,36 @@ configure() {
     config="$(curl -sSf -H "Authorization: Bearer $token" "$admin/config/$config_id")"
     updated="$(
       jq \
-        --arg base_url "$SCANOVATE_BASE_URL" \
-        --arg client_id "$SCANOVATE_CLIENT_ID" \
-        --arg client_secret "$SCANOVATE_CLIENT_SECRET" \
-        --arg flow_id "$SCANOVATE_FLOW_ID" \
-        --arg execution_mode "${SCANOVATE_EXECUTION_MODE:-interactive}" \
-        --arg save_option "${SCANOVATE_SAVE_OPTION:-}" \
-        '.config += {
-          "base-url": $base_url,
-          "client-id": $client_id,
-          "client-secret": $client_secret,
-          "flow-id": $flow_id,
-          "execution-mode": $execution_mode,
-          "save-option": $save_option
-        }' <<<"$config"
-    )"
-    curl -sSf -X PUT -H "Authorization: Bearer $token" -H "Content-Type: application/json" \
-      --data "$updated" "$admin/config/$config_id"
-    echo "Updated $(jq -r .alias <<<"$config") in $realm: $SCANOVATE_BASE_URL, flow $SCANOVATE_FLOW_ID, ${SCANOVATE_EXECUTION_MODE:-interactive}"
-  done
-}
-
-# The embedded capture with the liveness face capture: B-Trust only reads and
-# authenticates the ID, so its rules on its own liveness and face match go.
-configure_liveness() {
-  local realm="$1"
-  require SCANOVATE_LIVENESS_URL SCANOVATE_LIVENESS_SECRET SCANOVATE_FACE_MATCH_URL
-  local token admin config_ids config_id config updated
-  token="$(keycloak_admin_token)"
-  admin="$KEYCLOAK_URL/admin/realms/$realm/authentication"
-  config_ids="$(scanovate_config_ids "$token" "$admin" "$realm")"
-
-  for config_id in $config_ids; do
-    config="$(curl -sSf -H "Authorization: Bearer $token" "$admin/config/$config_id")"
-    updated="$(
-      jq \
+        --arg ocr_url "$SCANOVATE_OCR_URL" \
+        --arg ocr_types "${SCANOVATE_OCR_TYPES:-{\"default\": \"passport\"\}}" \
         --arg liveness_url "$SCANOVATE_LIVENESS_URL" \
         --arg liveness_secret "$SCANOVATE_LIVENESS_SECRET" \
         --arg face_match_url "$SCANOVATE_FACE_MATCH_URL" \
         --arg min_similarity "${SCANOVATE_FACE_MATCH_MIN_SIMILARITY:-{\"default\": 0.67\}}" \
         --arg capture_sides "${SCANOVATE_CAPTURE_SIDES:-{\"philippinePassport\": [\"front\"], \"default\": [\"front\", \"back\"]\}}" \
-        '.config += {
-          "execution-mode": "embedded",
-          "face-capture": "liveness",
-          "liveness-url": $liveness_url,
-          "liveness-secret": $liveness_secret,
-          "face-match-url": $face_match_url,
-          "face-match-min-similarity": $min_similarity,
-          "capture-sides": $capture_sides
-        }
-        | if (.config["attributes-to-validate"] // "") != "" then
-            .config["attributes-to-validate"] |= (
-              fromjson
-              | map_values(map(select(.process != "liveness_plus" and .process != "biometric_match")))
-              | tojson
-            )
-          else . end' <<<"$config"
+        '.config |= (
+          del(."base-url", ."client-id", ."client-secret", ."flow-id", ."execution-mode",
+              ."save-option", ."link-params", ."doc-id", ."face-capture", ."max-retries",
+              ."max-video-bytes")
+          + {
+            "ocr-url": $ocr_url,
+            "ocr-types": $ocr_types,
+            "liveness-url": $liveness_url,
+            "liveness-secret": $liveness_secret,
+            "face-match-url": $face_match_url,
+            "face-match-min-similarity": $min_similarity,
+            "capture-sides": $capture_sides
+          })' <<<"$config"
     )"
     curl -sSf -X PUT -H "Authorization: Bearer $token" -H "Content-Type: application/json" \
       --data "$updated" "$admin/config/$config_id"
-    echo "Updated $(jq -r .alias <<<"$config") in $realm: embedded, liveness, $SCANOVATE_LIVENESS_URL, $SCANOVATE_FACE_MATCH_URL"
+    echo "Updated $(jq -r .alias <<<"$config") in $realm: $SCANOVATE_OCR_URL, $SCANOVATE_LIVENESS_URL, $SCANOVATE_FACE_MATCH_URL"
+    # Rules written for B-Trust read processes that no longer exist and fail every voter
+    if jq -e '[.config["attributes-to-validate"], .config["attributes-to-store"]]
+        | map(select(. != null and . != "") | fromjson | .[][] | .process // empty)
+        | any(. != "ocr" and . != "authentications")' <<<"$updated" >/dev/null; then
+      echo "warning: $(jq -r .alias <<<"$config") has rules on processes other than ocr and authentications; rewrite them for the OCR results" >&2
+    fi
   done
 
   if [ -n "${SCANOVATE_LOGIN_THEME:-}" ]; then
@@ -174,28 +138,8 @@ configure_liveness() {
   fi
 }
 
-results() {
-  local process_id="$1"
-  require SCANOVATE_BASE_URL SCANOVATE_CLIENT_ID SCANOVATE_CLIENT_SECRET
-  local access_token session_token
-  access_token="$(
-    curl -sSf -H "Content-Type: application/json" "$SCANOVATE_BASE_URL/auth/token" \
-      --data "$(jq -n --arg id "$SCANOVATE_CLIENT_ID" --arg secret "$SCANOVATE_CLIENT_SECRET" \
-        '{client_id: $id, client_secret: $secret}')" \
-      | jq -r .access_token
-  )"
-  session_token="$(
-    curl -sSf -H "Authorization: Bearer $access_token" \
-      "$SCANOVATE_BASE_URL/api/v3/mobile_interaction/$process_id/token" | jq -r .token
-  )"
-  curl -sSf -H "Authorization: Bearer $session_token" \
-    "$SCANOVATE_BASE_URL/api/v3/mobile_interaction/v2/$session_token/results_with_image_names" | jq .
-}
-
 [ $# -eq 2 ] || usage
 case "$1" in
   configure) configure "$2" ;;
-  configure-liveness) configure_liveness "$2" ;;
-  results) results "$2" ;;
   *) usage ;;
 esac

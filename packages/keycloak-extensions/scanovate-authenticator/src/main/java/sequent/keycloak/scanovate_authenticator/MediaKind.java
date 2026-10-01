@@ -6,26 +6,19 @@ package sequent.keycloak.scanovate_authenticator;
 import java.util.Arrays;
 import java.util.Optional;
 
-/** Files captured in the voter's browser in the embedded mode. */
+/** Photos captured in the voter's browser. */
 public enum MediaKind {
-  FRONT_IMAGE("front", "front_image", MediaCategory.IMAGE),
-  BACK_IMAGE("back", "back_image", MediaCategory.IMAGE),
-  FACE_IMAGE("face", "face_image", MediaCategory.IMAGE),
-  SCAN_VIDEO("video", "scan_video", MediaCategory.VIDEO),
-  /**
-   * The voter holding the ID next to their face, with the liveness face capture. Only compared with
-   * the voter's live face by Face Match, never sent to B-Trust.
-   */
-  HOLDING_IMAGE("holding", "holding_image", MediaCategory.IMAGE);
+  /** The front of the document, read by the OCR service and compared with the voter's face. */
+  FRONT_IMAGE("front"),
+  /** The back of the document, for documents with one, read by the OCR service. */
+  BACK_IMAGE("back"),
+  /** The voter holding the document next to their face, compared with the voter's face. */
+  HOLDING_IMAGE("holding");
 
   private final String formPart;
-  private final String uploadPart;
-  private final MediaCategory category;
 
-  MediaKind(String formPart, String uploadPart, MediaCategory category) {
+  MediaKind(String formPart) {
     this.formPart = formPart;
-    this.uploadPart = uploadPart;
-    this.category = category;
   }
 
   /** Name of the part the capture page uploads, see {@link CaptureUploads}. */
@@ -35,14 +28,5 @@ public enum MediaKind {
 
   public static Optional<MediaKind> fromFormPart(String formPart) {
     return Arrays.stream(values()).filter(kind -> kind.formPart.equals(formPart)).findFirst();
-  }
-
-  /** Name of the multipart part sent to B-Trust, see {@link ScanovateClient#uploadMedia}. */
-  public String uploadPart() {
-    return uploadPart;
-  }
-
-  public MediaCategory category() {
-    return category;
   }
 }

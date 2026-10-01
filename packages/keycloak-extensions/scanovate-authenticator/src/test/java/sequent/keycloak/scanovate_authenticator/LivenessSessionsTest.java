@@ -133,11 +133,10 @@ class LivenessSessionsTest {
   void recordsAPassedResultWithItsImage() {
     String token = sessions.create(CASE_ID, SECRET);
 
-    assertEquals(
-        RecordOutcome.RECORDED, sessions.record(token, SECRET, ScanovateResultsTest.json(START)));
+    assertEquals(RecordOutcome.RECORDED, sessions.record(token, SECRET, TestJson.json(START)));
     assertEquals(
         RecordOutcome.RECORDED,
-        sessions.record(token, SECRET, ScanovateResultsTest.json(result("completed", true, JPEG))));
+        sessions.record(token, SECRET, TestJson.json(result("completed", true, JPEG))));
 
     LivenessResult result = sessions.awaitResult(token, 5).orElseThrow();
     assertTrue(result.passed());
@@ -149,7 +148,7 @@ class LivenessSessionsTest {
   @Test
   void completedSessionsThatFailTheCheckDoNotPass() {
     String token = sessions.create(CASE_ID, SECRET);
-    sessions.record(token, SECRET, ScanovateResultsTest.json(result("completed", false, JPEG)));
+    sessions.record(token, SECRET, TestJson.json(result("completed", false, JPEG)));
 
     LivenessResult result = sessions.awaitResult(token, 5).orElseThrow();
     assertFalse(result.passed());
@@ -159,8 +158,7 @@ class LivenessSessionsTest {
   @Test
   void failedPresentationAttackCheckDoesNotPass() {
     String token = sessions.create(CASE_ID, SECRET);
-    sessions.record(
-        token, SECRET, ScanovateResultsTest.json(result("completed", true, false, "null", JPEG)));
+    sessions.record(token, SECRET, TestJson.json(result("completed", true, false, "null", JPEG)));
 
     assertFalse(sessions.awaitResult(token, 5).orElseThrow().passed());
   }
@@ -168,8 +166,7 @@ class LivenessSessionsTest {
   @Test
   void failedInjectionAttackCheckDoesNotPass() {
     String token = sessions.create(CASE_ID, SECRET);
-    sessions.record(
-        token, SECRET, ScanovateResultsTest.json(result("completed", true, true, "false", JPEG)));
+    sessions.record(token, SECRET, TestJson.json(result("completed", true, true, "false", JPEG)));
 
     assertFalse(sessions.awaitResult(token, 5).orElseThrow().passed());
   }
@@ -177,8 +174,7 @@ class LivenessSessionsTest {
   @Test
   void passedInjectionAttackCheckPasses() {
     String token = sessions.create(CASE_ID, SECRET);
-    sessions.record(
-        token, SECRET, ScanovateResultsTest.json(result("completed", true, true, "true", JPEG)));
+    sessions.record(token, SECRET, TestJson.json(result("completed", true, true, "true", JPEG)));
 
     assertTrue(sessions.awaitResult(token, 5).orElseThrow().passed());
   }
@@ -186,7 +182,7 @@ class LivenessSessionsTest {
   @Test
   void missingPresentationAttackCheckDoesNotPass() {
     String token = sessions.create(CASE_ID, SECRET);
-    JsonNode body = ScanovateResultsTest.json(result("completed", true, JPEG));
+    JsonNode body = TestJson.json(result("completed", true, JPEG));
     body.withObject("/scan/processing_result").remove("presentation_attack_check_passed");
     sessions.record(token, SECRET, body);
 
@@ -196,7 +192,7 @@ class LivenessSessionsTest {
   @Test
   void abortedSessionsDoNotPassEvenIfTheCheckDid() {
     String token = sessions.create(CASE_ID, SECRET);
-    sessions.record(token, SECRET, ScanovateResultsTest.json(result("aborted", true, JPEG)));
+    sessions.record(token, SECRET, TestJson.json(result("aborted", true, JPEG)));
 
     LivenessResult result = sessions.awaitResult(token, 5).orElseThrow();
     assertFalse(result.passed());
@@ -206,7 +202,7 @@ class LivenessSessionsTest {
   @Test
   void passedResultsWithoutAnImageDoNotPass() {
     String token = sessions.create(CASE_ID, SECRET);
-    sessions.record(token, SECRET, ScanovateResultsTest.json(result("completed", true, null)));
+    sessions.record(token, SECRET, TestJson.json(result("completed", true, null)));
 
     assertFalse(sessions.awaitResult(token, 5).orElseThrow().passed());
   }
@@ -214,9 +210,9 @@ class LivenessSessionsTest {
   @Test
   void aNewSessionReplacesAnEarlierFailure() {
     String token = sessions.create(CASE_ID, SECRET);
-    sessions.record(token, SECRET, ScanovateResultsTest.json(result("aborted", false, null)));
-    sessions.record(token, SECRET, ScanovateResultsTest.json(START));
-    sessions.record(token, SECRET, ScanovateResultsTest.json(result("completed", true, JPEG)));
+    sessions.record(token, SECRET, TestJson.json(result("aborted", false, null)));
+    sessions.record(token, SECRET, TestJson.json(START));
+    sessions.record(token, SECRET, TestJson.json(result("completed", true, JPEG)));
 
     assertTrue(sessions.awaitResult(token, 5).orElseThrow().passed());
   }
@@ -226,12 +222,9 @@ class LivenessSessionsTest {
     String token = sessions.create(CASE_ID, SECRET);
     String body = result("completed", true, JPEG);
 
+    assertEquals(RecordOutcome.UNAUTHORIZED, sessions.record(token, "wrong", TestJson.json(body)));
     assertEquals(
-        RecordOutcome.UNAUTHORIZED,
-        sessions.record(token, "wrong", ScanovateResultsTest.json(body)));
-    assertEquals(
-        RecordOutcome.UNAUTHORIZED,
-        sessions.record("unknown", SECRET, ScanovateResultsTest.json(body)));
+        RecordOutcome.UNAUTHORIZED, sessions.record("unknown", SECRET, TestJson.json(body)));
     assertEquals(Optional.empty(), sessions.awaitResult(token, 0));
   }
 
@@ -240,9 +233,7 @@ class LivenessSessionsTest {
     String token = sessions.create(CASE_ID, SECRET);
     String body = result("completed", true, JPEG).replace("proc-1", "proc-2");
 
-    assertEquals(
-        RecordOutcome.UNAUTHORIZED,
-        sessions.record(token, SECRET, ScanovateResultsTest.json(body)));
+    assertEquals(RecordOutcome.UNAUTHORIZED, sessions.record(token, SECRET, TestJson.json(body)));
   }
 
   @Test
@@ -254,8 +245,7 @@ class LivenessSessionsTest {
         sessions.record(
             token,
             SECRET,
-            ScanovateResultsTest.json(
-                "{\"message_type\": \"result_debug\", \"status\": \"completed\"}")));
+            TestJson.json("{\"message_type\": \"result_debug\", \"status\": \"completed\"}")));
     assertEquals(Optional.empty(), sessions.awaitResult(token, 0));
   }
 
@@ -267,10 +257,8 @@ class LivenessSessionsTest {
     assertEquals(
         RecordOutcome.INVALID,
         sessions.record(
-            token,
-            SECRET,
-            ScanovateResultsTest.json("{\"message_type\": \"result\", \"status\": 1}")));
-    JsonNode badImage = ScanovateResultsTest.json(result("completed", true, JPEG));
+            token, SECRET, TestJson.json("{\"message_type\": \"result\", \"status\": 1}")));
+    JsonNode badImage = TestJson.json(result("completed", true, JPEG));
     badImage.withObject("/scan/processing_result").put("image", "not base64!");
     assertEquals(RecordOutcome.INVALID, sessions.record(token, SECRET, badImage));
   }
@@ -278,7 +266,7 @@ class LivenessSessionsTest {
   @Test
   void waitsForTheResultUntilTheTimeout() {
     String token = sessions.create(CASE_ID, SECRET);
-    sessions.record(token, SECRET, ScanovateResultsTest.json(START));
+    sessions.record(token, SECRET, TestJson.json(START));
 
     assertEquals(Optional.empty(), sessions.awaitResult(token, 2));
     assertEquals(
@@ -297,8 +285,7 @@ class LivenessSessionsTest {
               sleeps.add(millis);
               if (sleeps.size() == 2) {
                 new LivenessSessions(store, ignored -> {})
-                    .record(
-                        token, SECRET, ScanovateResultsTest.json(result("completed", true, JPEG)));
+                    .record(token, SECRET, TestJson.json(result("completed", true, JPEG)));
               }
             });
 
@@ -312,9 +299,7 @@ class LivenessSessionsTest {
     sessions.discard(token);
 
     assertFalse(sessions.verify(token, CASE_ID, SECRET));
-    assertEquals(
-        RecordOutcome.UNAUTHORIZED,
-        sessions.record(token, SECRET, ScanovateResultsTest.json(START)));
+    assertEquals(RecordOutcome.UNAUTHORIZED, sessions.record(token, SECRET, TestJson.json(START)));
     sessions.discard(null);
   }
 }

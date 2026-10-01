@@ -17,25 +17,21 @@ import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.URI;
 import java.util.function.Function;
 import lombok.extern.jbosslog.JBossLog;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.services.resource.RealmResourceProvider;
-import org.keycloak.services.resources.LoginActionsService;
 
 /**
- * Endpoint B-Trust redirects the voter to, see {@link ReturnUrl}, the endpoint the capture page
- * uploads its files to, see {@link CaptureUploads}, and endpoints called server to server by the
- * Liveness Plus service, see {@link LivenessSessions}.
+ * The endpoint the capture page uploads its files to, see {@link CaptureUploads}, and endpoints
+ * called server to server by the Liveness Plus service, see {@link LivenessSessions}.
  *
  * <p>The liveness endpoints are only meant for Liveness Plus: they check a secret that the voter's
  * browser never sees, and should not be exposed by the public reverse proxy either. Their tokens
  * are not tied to a realm, so any realm can serve them. The same goes for the capture tokens.
  */
 @JBossLog
-public class ScanovateReturnResource implements RealmResourceProvider {
-  static final String RETURN_PATH = "return";
+public class IdentityVerificationResource implements RealmResourceProvider {
   static final String LIVENESS_VERIFY_PATH = "liveness/verify";
   static final String LIVENESS_CALLBACK_PATH = "liveness/callback";
   static final String SECRET_QUERY_PARAM = "secret";
@@ -48,11 +44,11 @@ public class ScanovateReturnResource implements RealmResourceProvider {
   private final Function<KeycloakSession, LivenessSessions> livenessFactory;
   private final Function<KeycloakSession, CaptureUploads> uploadsFactory;
 
-  public ScanovateReturnResource(KeycloakSession session) {
+  public IdentityVerificationResource(KeycloakSession session) {
     this(session, ScanovateAuthenticator::defaultLiveness, ScanovateAuthenticator::defaultUploads);
   }
 
-  ScanovateReturnResource(
+  IdentityVerificationResource(
       KeycloakSession session,
       Function<KeycloakSession, LivenessSessions> livenessFactory,
       Function<KeycloakSession, CaptureUploads> uploadsFactory) {
@@ -64,22 +60,6 @@ public class ScanovateReturnResource implements RealmResourceProvider {
   @Override
   public Object getResource() {
     return this;
-  }
-
-  @GET
-  @Path(RETURN_PATH)
-  public Response returnFromBTrust() {
-    URI loginActionsBase =
-        LoginActionsService.loginActionsBaseUrl(session.getContext().getUri())
-            .build(session.getContext().getRealm().getName());
-    return ReturnUrl.toActionUrl(
-            loginActionsBase, session.getContext().getUri().getQueryParameters())
-        .map(url -> Response.seeOther(url).build())
-        .orElseGet(
-            () -> {
-              log.warn("returnFromBTrust: invalid return URL");
-              return Response.status(Response.Status.BAD_REQUEST).build();
-            });
   }
 
   /**

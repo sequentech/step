@@ -25,12 +25,12 @@ class CaptureUploadsTest {
     String token = uploads.create();
 
     assertEquals(UploadOutcome.STORED, uploads.store(token, "front", JPEG));
-    assertEquals(UploadOutcome.STORED, uploads.store(token, "video", WEBM));
+    assertEquals(UploadOutcome.STORED, uploads.store(token, "holding", JPEG));
 
     Map<String, byte[]> parts = uploads.parts(token).orElseThrow();
     assertEquals(2, parts.size());
     assertArrayEquals(JPEG, parts.get("front"));
-    assertArrayEquals(WEBM, parts.get("video"));
+    assertArrayEquals(JPEG, parts.get("holding"));
   }
 
   @Test
@@ -69,13 +69,14 @@ class CaptureUploadsTest {
     System.arraycopy(JPEG, 0, oversized, 0, JPEG.length);
 
     assertEquals(UploadOutcome.UNKNOWN_PART, uploads.store(token, "selfie", JPEG));
+    assertEquals(UploadOutcome.UNKNOWN_PART, uploads.store(token, "face", JPEG));
+    assertEquals(UploadOutcome.UNKNOWN_PART, uploads.store(token, "video", WEBM));
     assertEquals(UploadOutcome.UNKNOWN_PART, uploads.store(token, null, JPEG));
     assertEquals(UploadOutcome.EMPTY, uploads.store(token, "front", new byte[0]));
     assertEquals(UploadOutcome.EMPTY, uploads.store(token, "front", null));
     assertEquals(UploadOutcome.TOO_LARGE, uploads.store(token, "front", oversized));
     assertEquals(UploadOutcome.INVALID_FORMAT, uploads.store(token, "front", PNG));
     assertEquals(UploadOutcome.INVALID_FORMAT, uploads.store(token, "front", WEBM));
-    assertEquals(UploadOutcome.INVALID_FORMAT, uploads.store(token, "video", JPEG));
     assertEquals(Optional.of(Map.of()), uploads.parts(token));
   }
 

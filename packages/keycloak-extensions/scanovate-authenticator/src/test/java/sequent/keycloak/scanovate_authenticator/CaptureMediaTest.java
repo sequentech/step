@@ -17,20 +17,10 @@ import org.junit.jupiter.api.Test;
 class CaptureMediaTest {
   static final byte[] JPEG = {(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, (byte) 0xE0, 0, 0x10};
   static final byte[] WEBM = {0x1A, 0x45, (byte) 0xDF, (byte) 0xA3, 0, 0};
-  static final byte[] MP4 = {0, 0, 0, 0x18, 'f', 't', 'y', 'p', 'm', 'p', '4', '2'};
   static final byte[] PNG = {(byte) 0x89, 'P', 'N', 'G', 0x0D, 0x0A};
 
-  /** Parts uploaded by the capture page with the liveness face capture. */
-  static Map<String, byte[]> livenessParts(byte[] front, byte[] back, byte[] holding) {
-    Map<String, byte[]> parts = parts(front, back, null, null);
-    if (holding != null) {
-      parts.put("holding", holding);
-    }
-    return parts;
-  }
-
   /** Parts uploaded by the capture page, by name. */
-  static Map<String, byte[]> parts(byte[] front, byte[] back, byte[] face, byte[] video) {
+  static Map<String, byte[]> parts(byte[] front, byte[] back, byte[] holding) {
     Map<String, byte[]> parts = new HashMap<>();
     if (front != null) {
       parts.put("front", front);
@@ -38,59 +28,46 @@ class CaptureMediaTest {
     if (back != null) {
       parts.put("back", back);
     }
-    if (face != null) {
-      parts.put("face", face);
-    }
-    if (video != null) {
-      parts.put("video", video);
+    if (holding != null) {
+      parts.put("holding", holding);
     }
     return parts;
   }
 
   private static CaptureSettings settings(List<DocumentSide> sides) {
-    return new CaptureSettings(sides, 5, 16, 16, FaceCapture.PHOTO);
+    return new CaptureSettings(sides, 5, 16);
   }
 
   private static final CaptureSettings BOTH_SIDES =
       settings(List.of(DocumentSide.FRONT, DocumentSide.BACK));
 
   @Test
-  void formatsAreDetectedFromMagicBytes() {
-    assertEquals(Optional.of(MediaFormat.JPEG), MediaFormat.detect(MediaCategory.IMAGE, JPEG));
-    assertEquals(Optional.of(MediaFormat.WEBM), MediaFormat.detect(MediaCategory.VIDEO, WEBM));
-    assertEquals(Optional.of(MediaFormat.MP4), MediaFormat.detect(MediaCategory.VIDEO, MP4));
-    assertEquals(Optional.empty(), MediaFormat.detect(MediaCategory.IMAGE, PNG));
-    assertEquals(Optional.empty(), MediaFormat.detect(MediaCategory.IMAGE, WEBM));
-    assertEquals(Optional.empty(), MediaFormat.detect(MediaCategory.VIDEO, JPEG));
-    assertEquals(Optional.empty(), MediaFormat.detect(MediaCategory.IMAGE, new byte[] {-1, -40}));
-    assertEquals(
-        Optional.empty(), MediaFormat.detect(MediaCategory.VIDEO, new byte[] {0, 0, 0, 0, 'f'}));
-    assertEquals(Optional.empty(), MediaFormat.detect(MediaCategory.VIDEO, new byte[0]));
+  void jpegIsDetectedFromItsMagicBytes() {
+    assertEquals(Optional.of(MediaFormat.JPEG), MediaFormat.detect(JPEG));
+    assertEquals(Optional.empty(), MediaFormat.detect(PNG));
+    assertEquals(Optional.empty(), MediaFormat.detect(WEBM));
+    assertEquals(Optional.empty(), MediaFormat.detect(new byte[] {-1, -40}));
+    assertEquals(Optional.empty(), MediaFormat.detect(new byte[0]));
   }
 
   @Test
   void validCaptureIsAccepted() throws InvalidCaptureException {
-    CaptureMedia media = CaptureMedia.fromUploads(parts(JPEG, JPEG, JPEG, MP4), BOTH_SIDES);
+    byte[] holding = {(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, 9};
+    CaptureMedia media = CaptureMedia.fromUploads(parts(JPEG, JPEG, holding), BOTH_SIDES);
 
     assertEquals(
-        List.of(
-            MediaKind.FRONT_IMAGE,
-            MediaKind.BACK_IMAGE,
-            MediaKind.FACE_IMAGE,
-            MediaKind.SCAN_VIDEO),
+        List.of(MediaKind.FRONT_IMAGE, MediaKind.BACK_IMAGE, MediaKind.HOLDING_IMAGE),
         List.copyOf(media.files().keySet()));
-    assertEquals(MediaFormat.MP4, media.files().get(MediaKind.SCAN_VIDEO).format());
-    assertArrayEquals(MP4, media.files().get(MediaKind.SCAN_VIDEO).content());
+    assertArrayEquals(holding, media.files().get(MediaKind.HOLDING_IMAGE));
   }
 
   @Test
   void backIsOnlyTakenWhenTheDocumentHasOne() throws InvalidCaptureException {
     CaptureMedia media =
-        CaptureMedia.fromUploads(
-            parts(JPEG, JPEG, JPEG, WEBM), settings(List.of(DocumentSide.FRONT)));
+        CaptureMedia.fromUploads(parts(JPEG, JPEG, JPEG), settings(List.of(DocumentSide.FRONT)));
 
     assertEquals(
-        List.of(MediaKind.FRONT_IMAGE, MediaKind.FACE_IMAGE, MediaKind.SCAN_VIDEO),
+        List.of(MediaKind.FRONT_IMAGE, MediaKind.HOLDING_IMAGE),
         List.copyOf(media.files().keySet()));
   }
 
@@ -98,13 +75,10 @@ class CaptureMediaTest {
   void missingPartsAreRejected() {
     assertThrows(
         InvalidCaptureException.class,
-        () -> CaptureMedia.fromUploads(parts(JPEG, null, JPEG, WEBM), BOTH_SIDES));
+        () -> CaptureMedia.fromUploads(parts(JPEG, null, JPEG), BOTH_SIDES));
     assertThrows(
         InvalidCaptureException.class,
-        () -> CaptureMedia.fromUploads(parts(JPEG, JPEG, null, WEBM), BOTH_SIDES));
-    assertThrows(
-        InvalidCaptureException.class,
-        () -> CaptureMedia.fromUploads(parts(JPEG, JPEG, JPEG, null), BOTH_SIDES));
+        () -> CaptureMedia.fromUploads(parts(JPEG, JPEG, null), BOTH_SIDES));
     assertThrows(
         InvalidCaptureException.class, () -> CaptureMedia.fromUploads(Map.of(), BOTH_SIDES));
   }
@@ -113,16 +87,13 @@ class CaptureMediaTest {
   void wrongFormatsAreRejected() {
     assertThrows(
         InvalidCaptureException.class,
-        () -> CaptureMedia.fromUploads(parts(PNG, JPEG, JPEG, WEBM), BOTH_SIDES));
+        () -> CaptureMedia.fromUploads(parts(PNG, JPEG, JPEG), BOTH_SIDES));
     assertThrows(
         InvalidCaptureException.class,
-        () -> CaptureMedia.fromUploads(parts(JPEG, JPEG, WEBM, WEBM), BOTH_SIDES));
+        () -> CaptureMedia.fromUploads(parts(JPEG, JPEG, WEBM), BOTH_SIDES));
     assertThrows(
         InvalidCaptureException.class,
-        () -> CaptureMedia.fromUploads(parts(JPEG, JPEG, JPEG, JPEG), BOTH_SIDES));
-    assertThrows(
-        InvalidCaptureException.class,
-        () -> CaptureMedia.fromUploads(parts(new byte[0], JPEG, JPEG, WEBM), BOTH_SIDES));
+        () -> CaptureMedia.fromUploads(parts(new byte[0], JPEG, JPEG), BOTH_SIDES));
   }
 
   @Test
@@ -134,52 +105,26 @@ class CaptureMediaTest {
 
     assertThrows(
         InvalidCaptureException.class,
-        () -> CaptureMedia.fromUploads(parts(bigJpeg, JPEG, JPEG, WEBM), BOTH_SIDES));
+        () -> CaptureMedia.fromUploads(parts(bigJpeg, JPEG, JPEG), BOTH_SIDES));
     assertThrows(
         InvalidCaptureException.class,
-        () ->
-            CaptureMedia.fromUploads(
-                parts(JPEG, JPEG, JPEG, WEBM),
-                new CaptureSettings(BOTH_SIDES.sides(), 5, 16, 5, FaceCapture.PHOTO)));
+        () -> CaptureMedia.fromUploads(parts(JPEG, JPEG, bigJpeg), BOTH_SIDES));
     assertEquals(
         16,
-        assertDoesNotThrow(
-                () -> CaptureMedia.fromUploads(parts(exactJpeg, JPEG, JPEG, WEBM), BOTH_SIDES))
+        assertDoesNotThrow(() -> CaptureMedia.fromUploads(parts(exactJpeg, JPEG, JPEG), BOTH_SIDES))
             .files()
             .get(MediaKind.FRONT_IMAGE)
-            .content()
             .length);
   }
 
-  private static final CaptureSettings LIVENESS =
-      new CaptureSettings(BOTH_SIDES.sides(), 5, 16, 16, FaceCapture.LIVENESS);
-
   @Test
-  void livenessCaptureHasTheSidesAndThePhotoHoldingTheDocument() throws InvalidCaptureException {
-    CaptureMedia media = CaptureMedia.fromUploads(livenessParts(JPEG, JPEG, JPEG), LIVENESS);
+  void partsThatAreNotCapturedAreIgnored() throws InvalidCaptureException {
+    Map<String, byte[]> parts = parts(JPEG, JPEG, JPEG);
+    parts.put("face", JPEG);
+    parts.put("video", WEBM);
 
     assertEquals(
         List.of(MediaKind.FRONT_IMAGE, MediaKind.BACK_IMAGE, MediaKind.HOLDING_IMAGE),
-        List.copyOf(media.files().keySet()));
-  }
-
-  @Test
-  void livenessCaptureWithoutThePhotoHoldingTheDocumentIsRejected() {
-    assertThrows(
-        InvalidCaptureException.class,
-        () -> CaptureMedia.fromUploads(livenessParts(JPEG, JPEG, null), LIVENESS));
-    assertThrows(
-        InvalidCaptureException.class,
-        () -> CaptureMedia.fromUploads(livenessParts(JPEG, JPEG, PNG), LIVENESS));
-  }
-
-  @Test
-  void onlyKeepsTheGivenFiles() throws InvalidCaptureException {
-    CaptureMedia media =
-        CaptureMedia.fromUploads(livenessParts(JPEG, JPEG, JPEG), LIVENESS)
-            .only(LIVENESS.uploadedMedia());
-
-    assertEquals(
-        List.of(MediaKind.FRONT_IMAGE, MediaKind.BACK_IMAGE), List.copyOf(media.files().keySet()));
+        List.copyOf(CaptureMedia.fromUploads(parts, BOTH_SIDES).files().keySet()));
   }
 }

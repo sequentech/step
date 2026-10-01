@@ -6,7 +6,7 @@ package sequent.keycloak.scanovate_authenticator;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static sequent.keycloak.scanovate_authenticator.CaptureMediaTest.JPEG;
-import static sequent.keycloak.scanovate_authenticator.ScanovateResultsTest.json;
+import static sequent.keycloak.scanovate_authenticator.TestJson.json;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import java.io.IOException;
@@ -17,8 +17,7 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 import sequent.keycloak.scanovate_authenticator.FaceMatchClient.FaceComparison;
 import sequent.keycloak.scanovate_authenticator.FaceMatchClient.FaceMatchOutcome;
-import sequent.keycloak.scanovate_authenticator.ScanovateClientTest.Call;
-import sequent.keycloak.scanovate_authenticator.ScanovateClientTest.FakeTransport;
+import sequent.keycloak.scanovate_authenticator.FakeTransport.Call;
 
 class FaceMatchClientTest {
   private static final byte[] OTHER_JPEG = {(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, 1, 2, 3};
@@ -45,7 +44,6 @@ class FaceMatchClientTest {
     FaceComparison comparison = client(transport).compare(JPEG, OTHER_JPEG);
 
     Call call = transport.calls.get(0);
-    assertEquals("POST", call.method());
     assertEquals("http://face-match:3000/facematch11/compare_images", call.url());
     JsonNode body = json(call.body());
     assertEquals(Base64.getEncoder().encodeToString(JPEG), body.get("image_1_base64").asText());
