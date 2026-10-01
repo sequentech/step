@@ -51,7 +51,7 @@ RUN yarn build:${SPA_NAME}
 
 FROM nginx:alpine@sha256:df221db836e1754089190208cee7eeda94f233197056426eda74a43ab1abeac2
 # Install dependencies
-RUN apk add --no-cache jq
+RUN apk add --no-cache jq=1.8.2-r0
 # Remove default nginx static assets
 RUN rm -rf /usr/share/nginx/html/*
 # Copy custom NGINX config
