@@ -160,7 +160,8 @@ Some design decisions to be aware of:
   React login themes (`packages/keycloak-ui`), e.g. `sequent-ui-voting`. The authenticator also ships a
   FreeMarker `scanovate-capture.ftl`, but it only tells the voter that the step
   needs that theme (`scanovateCaptureThemeRequired`). Only use `embedded` in
-  realms whose login theme is `sequent-ui`.
+  realms whose login theme is `sequent-ui`. The Keycloak image ships these
+  themes (see [React login and OTP development](../07-developers/06-keycloak/developers_keycloak.md#react-login-and-otp-development)).
 - **Browser checks are guidance only.** The quality checks run in the browser
   (framing, blur, glare, face position, ...) only help the voter take good
   photos. The server never trusts them: it only checks that the expected parts
@@ -471,11 +472,15 @@ Inetum's 0 to 100. The old `keycloak_inetum_min_value_*` settings, and
 Face Match settings have no usable default: until they're set, enrollment fails
 with `scanovateInternalError`.
 
-:::warning Login theme
-The capture page is part of the React login theme (`sequent-ui-voting`),
-which the COMELEC template doesn't select yet and the production Keycloak image
-doesn't ship yet (see decision D8 of meta#13611). Until then, COMELEC realms
-show `scanovateCaptureThemeRequired` at this step.
+:::note Login theme
+The capture page is part of the React login theme (`sequent-ui-voting`). The
+COMELEC template selects it as the realm's login theme and as the login theme of
+the `voting-portal`, `onsite-voting-portal` and `voting-portal-kiosk` clients;
+the account theme stays `sequent.voting-portal`. `sequent-ui-voting` inherits
+`sequent.voting-portal`, so the enrollment form and every other page not ported
+to React look as before. Import these realms only into a Keycloak image that
+ships the React themes: on an older image, Keycloak falls back to its built-in
+theme for the whole realm.
 :::
 
 ## Testing

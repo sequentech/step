@@ -267,29 +267,30 @@ curl -s http://127.0.0.1:8500/
 
 ### 2. Build Keycloak with the capture page
 
-The capture page is in the React login theme, which Keycloak only has with the
-`docker-compose-keycloak-ui.yml` overlay. In a `devenv shell` (it needs Node,
-Yarn and Maven), from the checkout:
-
-```bash
-scripts/dev/step-dev keycloak prepare --runtime built
-```
-
-This builds `packages/keycloak-ui` and installs the themes in
-`.cache/keycloak-ui/themes`. Then, from the host, rebuild Keycloak with this
-branch's extensions and `keycloak-nginx` with its proxy rules, and start
-Keycloak with the themes mounted:
+The capture page is in the React login theme, which the Keycloak image builds
+from `packages/keycloak-ui` and ships. From the host, rebuild Keycloak with this
+branch's extensions and themes, and `keycloak-nginx` with its proxy rules, then
+start them:
 
 ```bash
 cd .devcontainer
 docker compose build keycloak keycloak-nginx
+docker compose up -d keycloak keycloak-nginx
+```
+
+After changing `packages/keycloak-ui` or `packages/keycloak-extensions`,
+rebuild Keycloak. To iterate on the capture page without rebuilding, build the
+themes in a `devenv shell` (it needs Node, Yarn and Maven) and mount them over
+the image's with the `docker-compose-keycloak-ui.yml` overlay:
+
+```bash
+scripts/dev/step-dev keycloak prepare --runtime built
+cd .devcontainer
 docker compose -f docker-compose.yml -f docker-compose-keycloak-ui.yml up -d keycloak keycloak-nginx
 ```
 
-Recreating Keycloak without the overlay (a plain `docker compose up`)
-unmounts the themes: run the last command again. After changing
-`packages/keycloak-ui`, run `prepare` again and restart Keycloak; after
-changing `packages/keycloak-extensions`, rebuild it.
+Recreating Keycloak without the overlay (a plain `docker compose up`) goes back
+to the themes in the image.
 
 Check that the proxy only routes the API the page uses:
 

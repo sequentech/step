@@ -28,6 +28,7 @@ jobs:
             file: packages/Dockerfile.keycloak
             build_contexts: |
               beyond=./beyond
+              scripts=./scripts
 
           - service: voting-portal
             context: packages

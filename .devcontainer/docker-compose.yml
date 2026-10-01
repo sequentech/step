@@ -27,6 +27,7 @@ services:
       dockerfile: Dockerfile.keycloak
       additional_contexts:
         beyond: ../beyond
+        scripts: ../scripts
     restart: always
     ports:
       - 8090:8090

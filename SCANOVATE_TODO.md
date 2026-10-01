@@ -89,9 +89,9 @@ isn't available. With `face-capture=liveness`:
 
 ## COMELEC
 
-- [ ] Resolve D8 of meta#13611: the capture page needs the React login theme
-      (`sequent-ui-voting`), which the COMELEC template doesn't select and the
-      production Keycloak image doesn't ship yet.
+- [x] Resolve D8 of meta#13611: the Keycloak image ships the React login
+      themes, and the COMELEC template selects `sequent-ui-voting`, which the
+      capture page needs.
 - [ ] Set `keycloak_scanovate_liveness_url`,
       `keycloak_scanovate_liveness_secret` and
       `keycloak_scanovate_face_match_url` in the janitor spreadsheets.
