@@ -64,7 +64,7 @@ const ballotService = (ciphertextConsistent: boolean | Error): IBallotService =>
             return ciphertextConsistent
         }),
         verifyAuditableMultiBallotCiphertext: jest.fn(() => false),
-    }) as unknown as IBallotService
+    } as unknown as IBallotService)
 
 const ballotStylesMock = {
     request: {query: GET_BALLOT_STYLES},
