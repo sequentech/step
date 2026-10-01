@@ -58,7 +58,12 @@ describe("frameGuidance", () => {
         expect(frameGuidance(LivenessStatus.PitchTooLarge)).toBe("scanovateGuideTurnToCamera")
         expect(frameGuidance(LivenessStatus.FaceNotInFocus)).toBe("scanovateGuideFaceBlurry")
         expect(frameGuidance(LivenessStatus.BadlyLit)).toBe("scanovateGuideTooDark")
-        expect(frameGuidance(LivenessStatus.MaskDetected)).toBe("scanovateIntroTipCoverings")
+    })
+
+    // A voter told to take off sunglasses they aren't wearing can't tell what to fix.
+    it("tells sunglasses from face coverings", () => {
+        expect(frameGuidance(LivenessStatus.SunglassesDetected)).toBe("scanovateGuideSunglasses")
+        expect(frameGuidance(LivenessStatus.MaskDetected)).toBe("scanovateGuideFaceCovered")
     })
 
     it("has no guidance for other statuses", () => {

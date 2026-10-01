@@ -68,6 +68,7 @@ window.kcContext.courier = "${courier?string?js_string}";
     "scanovateGuideLoading", "scanovateGuidePlaceDocument", "scanovateGuideTurnDocument",
     "scanovateGuideDocumentTooFar", "scanovateGuideDocumentTooClose",
     "scanovateGuideDocumentNotAligned", "scanovateGuideTooDark", "scanovateGuideDocumentTooBright",
+    "scanovateGuideSunglasses", "scanovateGuideFaceCovered",
     "scanovateGuideGlare", "scanovateGuideDocumentBlurry", "scanovateGuideDocumentHoldStill",
     "scanovateGuidePlaceFace", "scanovateGuideMultipleFaces", "scanovateGuideFaceTooFar",
     "scanovateGuideFaceTooClose", "scanovateGuideFaceOffCenter", "scanovateGuideTurnToCamera",

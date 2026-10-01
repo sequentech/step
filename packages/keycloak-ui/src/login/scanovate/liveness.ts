@@ -38,8 +38,8 @@ const GUIDANCE: Partial<Record<number, MessageKey>> = {
     [LivenessStatus.RollTooLarge]: "scanovateGuideTurnToCamera",
     [LivenessStatus.FaceNotInFocus]: "scanovateGuideFaceBlurry",
     [LivenessStatus.BadlyLit]: "scanovateGuideTooDark",
-    [LivenessStatus.SunglassesDetected]: "scanovateIntroTipCoverings",
-    [LivenessStatus.MaskDetected]: "scanovateIntroTipCoverings",
+    [LivenessStatus.SunglassesDetected]: "scanovateGuideSunglasses",
+    [LivenessStatus.MaskDetected]: "scanovateGuideFaceCovered",
 }
 
 export function frameGuidance(code: number): MessageKey | undefined {

@@ -35,7 +35,7 @@
     "sharpness_threshold": 0.6,
     "illumination_threshold": 0.2,
     "sunglasses_threshold": 0.8,
-    "mask_threshold": 0.5
+    "mask_threshold": 0.8
   },
   "onprem": {
     "callback_url": "http://keycloak:8090/realms/master/identity-verification/liveness/callback?secret=liveness-dev-callback-secret",
