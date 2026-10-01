@@ -18,6 +18,7 @@ Validation of this OVCS revision is recorded below; results from the main-target
 - `cargo test --locked -p electoral-log --features postgres-tests -- --test-threads=1`: 71 tests passed, including five contracts against disposable PostgreSQL 17, signed messages, OVCS monitoring/wire compatibility and CLI validation.
 - `cargo clippy --locked -p electoral-log --all-targets --features postgres-tests`: completed with warnings; no lint errors.
 - `cargo fmt -p electoral-log -- --check`: passed. Changed caller Rust files were formatted separately.
+- `cargo check --locked -p windmill --tests --features rabbitmq-tests -p harvest -p step-cli`: passed with warnings, including the adapted delivery tests. The dispatcher materializes its already-prepared batch into an owned iterator before awaiting persistence, satisfying Celery task `Send` requirements.
 - Focused CI/e2e tooling: 37 tests passed. Coverage reporter/tooling: 100 tests passed (synthetic Git fixtures use unsigned commits and a canonical temporary path on macOS).
 - Development Compose, CI overlay and coverage overlay configuration checks passed. Changed YAML, JSON, TOML, GraphQL schemas, TypeScript syntax and shell syntax checks passed.
 - REUSE lint passed. Signed-message source and the Beyond gitlink are unchanged from OVCS.
