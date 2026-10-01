@@ -55,7 +55,7 @@ ARG OID4VP_SHA256=f6cd968bc77fec4f8e1417d3caeefe4920941e01b119f152f1c9186bbd2b2e
 
 # Cargo dependencies, including git dependencies and patched crates, which
 # cargo vendor resolves into the same directory.
-FROM rust:1.96.0-slim-bookworm AS rust-deps
+FROM rust:1.96.0-slim-bookworm@sha256:4732ca96fd086cb9be682050c3f0176288eebaac2b80aa2bcefccfaf198e1950 AS rust-deps
 RUN apt-get update \
     && apt-get install -y --no-install-recommends git ca-certificates \
     && rm -rf /var/lib/apt/lists/*
@@ -71,7 +71,7 @@ RUN cargo vendor /vendor-cache > /config.toml \
 
 # Yarn dependencies as an offline mirror: a directory of tarballs that
 # `yarn install --offline` resolves against without contacting a registry.
-FROM node:20-bookworm-slim AS node-deps
+FROM node:20-bookworm-slim@sha256:2cf067cfed83d5ea958367df9f966191a942351a2df77d6f0193e162b5febfc0 AS node-deps
 WORKDIR /workspace
 COPY . .
 RUN printf 'yarn-offline-mirror "/npm-packages-offline-cache"\nyarn-offline-mirror-pruning false\n' > .yarnrc \
@@ -86,7 +86,7 @@ RUN printf 'yarn-offline-mirror "/npm-packages-offline-cache"\nyarn-offline-mirr
 # compiled.
 #
 # Built for BUILDPLATFORM, matching what Dockerfile.immudb's builder stage does.
-FROM --platform=$BUILDPLATFORM golang:1.22-alpine AS immudb-build
+FROM --platform=$BUILDPLATFORM golang:1.22-alpine@sha256:1699c10032ca2582ec89a24a1312d986a3f094aed3d5c1147b19880afe40e052 AS immudb-build
 ARG IMMUDB_VERSION
 RUN apk add --no-cache git make gcc musl-dev bash
 WORKDIR /src
@@ -100,7 +100,7 @@ RUN make immudb immuadmin
 # that repository. dependency:go-offline is not enough: it resolves declared
 # dependencies but misses plugins pulled in during the lifecycle, and the offline
 # build then fails on something that was never downloaded.
-FROM maven:3-amazoncorretto-17 AS keycloak-m2
+FROM maven:3-amazoncorretto-17@sha256:046784a9c83821fc3e9ded94c2f18155e0daf1981c8a0813d0ff693a9dc4a51b AS keycloak-m2
 COPY ./keycloak-extensions/ /build/packages/keycloak-extensions/
 WORKDIR /build
 RUN mvn -B -Dmaven.repo.local=/m2-repo \
@@ -109,7 +109,7 @@ RUN mvn -B -Dmaven.repo.local=/m2-repo \
 
 # The oid4vp extension's source archive and its Maven closure. The tarball is
 # checksum-pinned upstream, so vendoring it changes nothing about what is trusted.
-FROM maven:3-amazoncorretto-21 AS oid4vp-m2
+FROM maven:3-amazoncorretto-21@sha256:efdf660ec74911594e2a7f642e177ffba21b741c8e848223bf41a6d0fc367692 AS oid4vp-m2
 ARG OID4VP_VERSION
 ARG OID4VP_SHA256
 RUN curl -fsSL -o /tmp/oid4vp.tar.gz \

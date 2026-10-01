@@ -15,7 +15,7 @@
 ARG VENDOR_IMAGE=scratch
 FROM ${VENDOR_IMAGE} AS vendor
 
-FROM rust:1.96.0-slim-bookworm AS builder
+FROM rust:1.96.0-slim-bookworm@sha256:4732ca96fd086cb9be682050c3f0176288eebaac2b80aa2bcefccfaf198e1950 AS builder
 
 WORKDIR /app
 
@@ -68,7 +68,7 @@ RUN cargo build --features=server --release --locked
 
 
 
-FROM debian:bookworm
+FROM debian:bookworm@sha256:f37a335e82bca302e955fa39f9dfe28f1be618f016f8a2b56318e5a5111afc26
 # Some shared libraries (extra-runtime-dependencies) may need to be installed:
 # Installing also AWS CLI and Vault CLI for trustee configuration
 # Pinned explicitly. There is deliberately no "latest" mode: resolving a version

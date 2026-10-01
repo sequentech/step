@@ -23,7 +23,7 @@ ARG VENDOR_IMAGE=scratch
 
 FROM ${VENDOR_IMAGE} AS vendor
 
-FROM --platform=$BUILDPLATFORM golang:1.22-alpine AS builder
+FROM --platform=$BUILDPLATFORM golang:1.22-alpine@sha256:1699c10032ca2582ec89a24a1312d986a3f094aed3d5c1147b19880afe40e052 AS builder
 
 # redeclare it so that the stage can use it
 ARG IMMUDB_VERSION
@@ -52,7 +52,7 @@ RUN if [ -f /vendor/immudb-bin/immudb ]; then \
 ###############################################################################
 # 2. ── RUNTIME STAGE (same as before, but copy from builder) ─────────────────
 ###############################################################################
-FROM --platform=$TARGETPLATFORM alpine:latest
+FROM --platform=$TARGETPLATFORM alpine:3.24@sha256:294b683cb724975bec92580e1e685676bd4b50bda910ddb8c51d4cabeaec77e6
 
 # minimal runtime deps
 RUN apk add --no-cache ca-certificates bash
