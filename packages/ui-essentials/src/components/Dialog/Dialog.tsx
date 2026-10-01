@@ -174,12 +174,20 @@ const Dialog: React.FC<DialogProps> = ({
 
     return (
         <MaterialDialog
+            ref={setModalRoot}
             onClose={closeDialog}
             open={open}
             slots={{backdrop: StyledBackdrop}}
             slotProps={{
                 backdrop: {className: "dialog-backdrop"},
-                paper: {className: "dialog-paper"},
+                paper: {className: "dialog-paper", ref: paperRef, tabIndex: -1},
+                container: {onKeyDown: handleTabKey},
+            }}
+            // Keyboard wrapping above replaces MUI's empty tabbable focus guards.
+            sx={{
+                '& > [data-testid="sentinelStart"], & > [data-testid="sentinelEnd"]': {
+                    display: "none",
+                },
             }}
             classes={{container: "dialog-container"}}
             fullWidth={fullWidth}
