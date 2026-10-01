@@ -2,8 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use anyhow::anyhow;
-use electoral_log::assign_value;
-use immudb_rs::{sql_value::Value, Client, NamedParam, Row, SqlValue};
+use immudb_rs::{sql_value::Value, Row};
 use serde::{Deserialize, Serialize};
 use strum_macros::{Display, EnumString};
 
@@ -44,9 +43,10 @@ impl TryFrom<&Row> for Aggregate {
     fn try_from(row: &Row) -> Result<Self, Self::Error> {
         let mut count = 0;
 
-        for (column, value) in row.columns.iter().zip(row.values.iter()) {
-            match column.as_str() {
-                _ => assign_value!(Value::N, value, count),
+        for value in &row.values {
+            match value.value.as_ref() {
+                Some(Value::N(inner)) => count = *inner,
+                _ => return Err(anyhow!("Invalid pgAudit count value")),
             }
         }
         Ok(Aggregate { count })

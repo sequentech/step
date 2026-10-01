@@ -15,8 +15,7 @@ use crate::types::error::{Error, Result};
 use anyhow::{anyhow, Context};
 use celery::error::TaskError;
 use deadpool_postgres::Client as DbClient;
-use electoral_log::client::board_client::ElectoralLogMessage;
-use immudb_rs::TxMode;
+use electoral_log::{ElectoralLogMessage, LogEntry};
 use sequent_core::serialization::deserialize_with_path::deserialize_str;
 use sequent_core::services::keycloak::get_event_realm;
 use serde::{Deserialize, Serialize};
@@ -112,6 +111,8 @@ impl<'de> Deserialize<'de> for LogEventBody {
 /// Represents an incoming log event.
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct LogEventInput {
+    #[serde(default)]
+    pub delivery_id: Option<String>,
     pub election_event_id: String,
     pub message_type: LogMessageType,
     pub user_id: Option<String>,
@@ -132,12 +133,12 @@ pub async fn enqueue_electoral_log_event(input: LogEventInput) -> Result<()> {
 
 /// Process a batch of electoral log events.
 /// Uses a single Hasura transaction to fetch event details and group messages by board,
-/// then for each board group, opens an immudb session/transaction to insert all messages.
+/// then atomically appends each board group using stable delivery IDs.
 #[instrument(skip_all, err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
-#[celery::task(max_retries = 0)]
+#[celery::task(max_retries = 5, retry_for_unexpected = true, acks_late = true)]
 pub async fn process_electoral_log_events_batch(events: Vec<LogEventInput>) -> Result<()> {
-    let mut messages_by_board: HashMap<String, Vec<ElectoralLogMessage>> = HashMap::new();
+    let mut messages_by_board: HashMap<String, Vec<LogEntry>> = HashMap::new();
 
     let mut hasura_db_client: DbClient = get_hasura_pool()
         .await
@@ -160,6 +161,11 @@ pub async fn process_electoral_log_events_batch(events: Vec<LogEventInput>) -> R
         .with_context(|| "Error starting keycloak transaction")?;
 
     for input in events.iter() {
+        let delivery_id = input
+            .delivery_id
+            .as_deref()
+            .filter(|id| !id.is_empty())
+            .context("Missing electoral-log delivery ID")?;
         let election_event =
             get_election_event_by_id(&hasura_tx, &input.tenant_id, &input.election_event_id)
                 .await
@@ -207,7 +213,10 @@ pub async fn process_electoral_log_events_batch(events: Vec<LogEventInput>) -> R
                     messages_by_board
                         .entry(board_name.clone())
                         .or_insert_with(Vec::new)
-                        .push(send_template_msg);
+                        .push(LogEntry {
+                            delivery_id: format!("{delivery_id}:communication"),
+                            message: send_template_msg,
+                        });
                 }
 
                 electoral_log
@@ -226,7 +235,10 @@ pub async fn process_electoral_log_events_batch(events: Vec<LogEventInput>) -> R
         messages_by_board
             .entry(board_name.clone())
             .or_insert_with(Vec::new)
-            .push(event_message);
+            .push(LogEntry {
+                delivery_id: format!("{delivery_id}:event"),
+                message: event_message,
+            });
     }
 
     hasura_tx
@@ -234,24 +246,12 @@ pub async fn process_electoral_log_events_batch(events: Vec<LogEventInput>) -> R
         .await
         .with_context(|| "Error committing Hasura transaction")?;
 
-    for (board, messages) in messages_by_board.into_iter() {
-        let mut board_client = get_board_client().await?;
-        board_client.open_session(&board).await?;
-        let immudb_tx = board_client.new_tx(TxMode::ReadWrite).await?;
-        board_client
-            .insert_electoral_log_messages_batch(&immudb_tx, &messages)
+    let client = get_board_client().await?;
+    for (board, messages) in messages_by_board {
+        client
+            .append(&board, &messages)
             .await
-            .with_context(|| {
-                format!(
-                    "Error inserting batch electoral log messages for board {}",
-                    board
-                )
-            })?;
-        board_client
-            .commit(&immudb_tx)
-            .await
-            .with_context(|| format!("Error committing immudb transaction for board {}", board))?;
-        board_client.close_session().await?;
+            .with_context(|| format!("Error appending electoral-log batch for board {board}"))?;
     }
 
     Ok(())
@@ -331,8 +331,9 @@ pub async fn electoral_log_batch_dispatcher() -> Result<()> {
                 let input_value = payload
                     .get("input")
                     .ok_or_else(|| anyhow!("Missing 'input' field in message payload"))?;
-                let event: LogEventInput = serde_json::from_value(input_value.clone())
+                let mut event: LogEventInput = serde_json::from_value(input_value.clone())
                     .with_context(|| "Error deserializing LogEventInput from input field")?;
+                retain_delivery_id(&mut event, &delivery.properties)?;
                 events.push(event);
             } else {
                 return Err("Invalid message format: expected JSON array".into());
@@ -358,4 +359,83 @@ pub async fn electoral_log_batch_dispatcher() -> Result<()> {
     }
     info!("finishing electoral_log_batch_dispatcher");
     Ok(())
+}
+
+/// Keycloak supplies the Celery header; internal producers persist an explicit ID.
+fn retain_delivery_id(
+    input: &mut LogEventInput,
+    properties: &lapin::BasicProperties,
+) -> anyhow::Result<()> {
+    if input.delivery_id.is_none() {
+        let headers = properties
+            .headers()
+            .as_ref()
+            .context("Missing electoral-log message headers")?;
+        let id = headers
+            .inner()
+            .get("id")
+            .and_then(|value| value.as_long_string())
+            .context("Missing original Celery delivery ID")?;
+        input.delivery_id = Some(
+            String::from_utf8(id.as_bytes().to_vec())
+                .context("Invalid Celery delivery ID encoding")?,
+        );
+    }
+    anyhow::ensure!(
+        input
+            .delivery_id
+            .as_deref()
+            .is_some_and(|id| !id.is_empty()),
+        "Empty electoral-log delivery ID"
+    );
+    Ok(())
+}
+
+#[cfg(test)]
+mod delivery_tests {
+    use super::*;
+    use celery::task::Task;
+    use lapin::types::{AMQPValue, LongString};
+
+    #[test]
+    fn original_delivery_identity_survives_dispatch_and_task_retry() {
+        let mut input = LogEventInput {
+            delivery_id: None,
+            tenant_id: "tenant".into(),
+            election_event_id: "event".into(),
+            message_type: LogMessageType::KeycloakEvent("LOGIN".into()),
+            user_id: None,
+            username: None,
+            body: LogEventBody::Plain("null".into()),
+        };
+        assert!(retain_delivery_id(&mut input, &lapin::BasicProperties::default()).is_err());
+        let mut headers = FieldTable::default();
+        headers.insert(
+            "id".into(),
+            AMQPValue::LongString(LongString::from("original-id")),
+        );
+        retain_delivery_id(
+            &mut input,
+            &lapin::BasicProperties::default().with_headers(headers),
+        )
+        .unwrap();
+        let encoded = serde_json::to_vec(&input).unwrap();
+        let mut retry: LogEventInput = serde_json::from_slice(&encoded).unwrap();
+        retain_delivery_id(&mut retry, &lapin::BasicProperties::default()).unwrap();
+        assert_eq!(retry.delivery_id.as_deref(), Some("original-id"));
+        retry.delivery_id = Some(String::new());
+        assert!(retain_delivery_id(&mut retry, &lapin::BasicProperties::default()).is_err());
+        assert_eq!(
+            process_electoral_log_events_batch::DEFAULTS.acks_late,
+            Some(true)
+        );
+        assert_eq!(
+            process_electoral_log_events_batch::DEFAULTS.max_retries,
+            Some(5)
+        );
+        assert_eq!(
+            process_electoral_log_events_batch::DEFAULTS.retry_for_unexpected,
+            Some(true)
+        );
+    }
 }

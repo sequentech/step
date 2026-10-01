@@ -8,8 +8,8 @@ use crate::services::tasks_execution::{update_complete, update_fail};
 use crate::{
     services::{
         delete_election_event::{
-            delete_election_event_immudb, delete_election_event_related_documents, delete_event_b3,
-            delete_keycloak_realm,
+            delete_election_event_electoral_log, delete_election_event_related_documents,
+            delete_event_b3, delete_keycloak_realm,
         },
         providers::transactions_provider::provide_hasura_transaction,
     },
@@ -28,11 +28,16 @@ async fn delete_election_event_related_data(
     realm: &str,
     election_ids: &Vec<String>,
 ) -> AnyhowResult<()> {
-    let immudb_future = delete_election_event_immudb(tenant_id, election_event_id);
+    let electoral_log_future = delete_election_event_electoral_log(tenant_id, election_event_id);
     let b3_future = delete_election_event_b3(tenant_id, election_event_id, election_ids);
     let documents_future = delete_election_event_related_documents(tenant_id, election_event_id);
     let keycloak_future = delete_keycloak_realm(realm);
-    try_join!(immudb_future, b3_future, documents_future, keycloak_future)?;
+    try_join!(
+        electoral_log_future,
+        b3_future,
+        documents_future,
+        keycloak_future
+    )?;
 
     Ok(())
 }

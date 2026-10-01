@@ -1309,7 +1309,7 @@ actions:
     - name: listElectoralLog
       definition:
           kind: ""
-          handler: http://{{HARVEST_DOMAIN}}/immudb/electoral-log
+          handler: http://{{HARVEST_DOMAIN}}/electoral-log
           forward_client_headers: true
           request_transform:
               body:
@@ -1409,7 +1409,7 @@ actions:
               version: 2
       permissions:
           - role: service-account
-      comment: log an event in immudb
+      comment: Append an electoral-log event
     - name: manage_election_dates
       definition:
           kind: synchronous

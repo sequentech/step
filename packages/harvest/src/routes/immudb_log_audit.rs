@@ -7,7 +7,6 @@ use crate::types::resources::{
     Aggregate, DataList, OrderDirection, TotalAggregate,
 };
 use anyhow::{anyhow, Context, Result};
-use electoral_log::assign_value;
 use immudb_rs::{sql_value::Value, Client, NamedParam, Row, SqlValue};
 use rocket::http::Status;
 use rocket::response::Debug;
@@ -34,6 +33,21 @@ pub async fn get_immudb_client() -> Result<Client> {
     client.login().await?;
 
     Ok(client)
+}
+
+macro_rules! assign_value {
+    ($enum_variant:path, $value:expr, $target:ident) => {
+        match $value.value.as_ref() {
+            Some($enum_variant(inner)) => {
+                $target = inner.clone();
+            }
+            _ => {
+                return Err(anyhow!(
+                    r#"invalid column value for `$enum_variant`, `$value`, `$target`"#
+                ));
+            }
+        }
+    };
 }
 
 // Helper function to create a NamedParam
