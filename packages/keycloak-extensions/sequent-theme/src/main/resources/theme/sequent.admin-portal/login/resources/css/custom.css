@@ -22,6 +22,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 html,
 body {
     overflow-x: hidden;
+    /* Clips like hidden without making body a scroll container, which would
+       keep sticky elements from sticking to the viewport. */
+    overflow-x: clip;
     width: 100%;
 }
 
@@ -186,6 +189,21 @@ body {
 
 .pf-c-button.pf-m-block {
     border-radius: 4px;
+}
+
+/* The buttons that submit a form stay at the bottom of the viewport while the
+   rest of the card scrolls, across the whole width of the card. A sticky
+   element only moves within its parent, so it's the form's child that holds
+   them, whether it's the buttons themselves or the group around them. */
+form > #kc-form-buttons,
+form > :has(> #kc-form-buttons) {
+    position: sticky;
+    bottom: 0;
+    z-index: 1;
+    margin-inline: -20px;
+    padding: 16px 20px max(16px, env(safe-area-inset-bottom));
+    background: #FFFFFF;
+    box-shadow: 0 -16px 24px -24px #061b2a66;
 }
 
 .pf-c-button.pf-m-primary:hover {
