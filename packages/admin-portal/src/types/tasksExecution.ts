@@ -35,4 +35,6 @@ export enum ETasksExecution {
     APPLY_RECONCILIATION_PATCH = "APPLY_RECONCILIATION_PATCH",
     PUBLISH_BALLOT = "PUBLISH_BALLOT",
     VOTER_INFORMATION_LETTER = "VOTER_INFORMATION_LETTER",
+    /** A protected action that runs once its signing request has every signature. */
+    RUN_SIGNED_ACTION = "RUN_SIGNED_ACTION",
 }

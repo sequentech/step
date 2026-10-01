@@ -20,6 +20,8 @@ import {answerOrPending, readsOf, recordsOrPending} from "./__stories__/Election
 import {jsonEditorDefects} from "./__stories__/IvrFixture"
 import {legacyMonitoring} from "@/components/monitoring/__stories__/MonitoringFixture"
 import {EStoryPermissions, useStoryGlobals} from "../../../../ui-essentials/.storybook/globals"
+import {SigningProvider} from "@/components/signing/SigningProvider"
+import {idleSigningApi} from "./Signatures/__stories__/SignaturesFixture"
 
 interface Scenario {
     /** Whether the event is locked down, which hides its editing tabs. */
@@ -31,9 +33,12 @@ interface Scenario {
      * route's query, so its edit forms find no cached record.
      */
     uncached?: boolean
+    /** Replaces the permissions global's roles, for a story about one permission. */
+    roles?: string[]
 }
 
 let graphql: ReturnType<typeof graphqlBoundary>
+const signingApi = idleSigningApi()
 let data: ReturnType<typeof recordsOrPending>
 
 /** An event with telephone voting and voter certificates, which show the IVR and CA tabs. */
@@ -51,27 +56,31 @@ const tabsEvent = (lockedDown: boolean) => {
     })
 }
 
-function Fixture({uncached}: Pick<Scenario, "uncached">) {
+function Fixture({uncached, roles}: Pick<Scenario, "uncached" | "roles">) {
     const {permissions, tenant} = useStoryGlobals()
     return (
         <AdminStoryProvider
             boundary={graphql}
             dataProvider={data.provider}
             role={permissions}
+            roles={roles}
             tenant={tenant}
         >
-            {/* As in the event's route, whose cached record the tabs' edit forms reuse. */}
-            <ResourceContextProvider value="sequent_backend_election_event">
-                {uncached ? (
-                    <RecordContextProvider value={tabsEvent(false)}>
-                        <ElectionEventTabs />
-                    </RecordContextProvider>
-                ) : (
-                    <ShowBase>
-                        <ElectionEventTabs />
-                    </ShowBase>
-                )}
-            </ResourceContextProvider>
+            {/* The portal mounts the signing widget around every screen. */}
+            <SigningProvider api={signingApi}>
+                {/* As in the event's route, whose cached record the tabs' edit forms reuse. */}
+                <ResourceContextProvider value="sequent_backend_election_event">
+                    {uncached ? (
+                        <RecordContextProvider value={tabsEvent(false)}>
+                            <ElectionEventTabs />
+                        </RecordContextProvider>
+                    ) : (
+                        <ShowBase>
+                            <ElectionEventTabs />
+                        </ShowBase>
+                    )}
+                </ResourceContextProvider>
+            </SigningProvider>
         </AdminStoryProvider>
     )
 }
@@ -100,7 +109,9 @@ const meta = {
         // The dashboard builds the voting portal addresses with sequent-core.
         await Promise.all([graphql.ready, initCore()])
     },
-    render: (args, {globals}) => <Fixture key={JSON.stringify(globals)} uncached={args.uncached} />,
+    render: (args, {globals}) => (
+        <Fixture key={JSON.stringify(globals)} uncached={args.uncached} roles={args.roles} />
+    ),
 } satisfies WidgetMeta<Scenario>
 export default meta
 type Story = StoryObj<Scenario>
@@ -113,6 +124,7 @@ const ADMIN_TABS = [
     "Voters",
     "Areas",
     "Keys",
+    "Signatures",
     "Certificates",
     "Tally",
     "Tally sheet imports",
@@ -219,6 +231,7 @@ export const LockedDownEvent: Story = {
             "Dashboard",
             "IVR",
             "Voters",
+            "Signatures",
             "Certificates",
             "Logs",
             "Reports",
@@ -258,6 +271,26 @@ export const TallySheetImportLink: Story = {
     },
     play: async ({canvasElement}) => {
         const tab = await within(canvasElement).findByRole("tab", {name: "Tally sheet imports"})
+        await waitFor(() => expect(tab).toHaveAttribute("aria-selected", "true"))
+    },
+}
+
+/**
+ * Publish's re-authentication returns with `tabId=publish`: the tab is found by
+ * id, not position, with the IVR, Signatures and CAs tabs before it.
+ */
+export const PublishLinkedById: Story = {
+    parameters: {
+        router: {
+            path: "/sequent_backend_election_event/:id/*",
+            initialEntries: [`/sequent_backend_election_event/${EVENT_ID}?tabId=publish`],
+        },
+        widgets: ["PublishTab"],
+    },
+    play: async ({canvasElement}) => {
+        const names = await tabNames(canvasElement)
+        expect(names).toEqual(expect.arrayContaining(["IVR", "Signatures", "Certificates"]))
+        const tab = await within(canvasElement).findByRole("tab", {name: "Publish"})
         await waitFor(() => expect(tab).toHaveAttribute("aria-selected", "true"))
     },
 }
@@ -318,6 +351,59 @@ export const Keys: Story = {
         reads: ["getList sequent_backend_keys_ceremony"],
         operations: ["TrusteeNames"],
     }),
+}
+
+/**
+ * The generated schema has no signing tables or actions yet: stories that open
+ * the Signatures tab answer without validating its operations against it.
+ */
+const withoutSchema: Pick<Story, "beforeEach"> = {
+    beforeEach: () => {
+        graphql = graphqlBoundary(answerOrPending(legacyMonitoring()))
+    },
+}
+
+export const Signatures: Story = {
+    ...withoutSchema,
+    parameters: {widgets: ["SignaturesTab"]},
+    play: tabPlay("Signatures", {
+        text: i18n.t("signing.tab.intro"),
+        operations: ["GetSigningRules", "GetSigningRuleCapacities"],
+    }),
+}
+
+export const SignaturesNeedAReadPermission: Story = {
+    args: {roles: ["election-event-signatures-tab", "election-event-logs-tab"]},
+    parameters: {widgets: []},
+    play: async ({canvasElement}) => {
+        expect(await tabNames(canvasElement)).toEqual(["Logs"])
+    },
+}
+
+export const SignaturesWithOneReadPermission: Story = {
+    ...withoutSchema,
+    args: {
+        roles: [
+            "election-event-signatures-tab",
+            "signing-requests-read",
+            "election-event-logs-tab",
+        ],
+    },
+    parameters: {widgets: ["SignaturesTab"]},
+    play: async ({canvasElement}) => {
+        const [eventTabs] = await within(canvasElement).findAllByRole("tablist")
+        await waitFor(() =>
+            expect(
+                within(eventTabs)
+                    .getAllByRole("tab")
+                    .map((tab) => tab.textContent)
+            ).toEqual(["Signatures", "Logs"])
+        )
+        // Only the sub-tab of the permission the role holds.
+        await expect(
+            await within(canvasElement).findByRole("tab", {name: i18n.t("signing.tab.requests")})
+        ).toBeVisible()
+    },
 }
 
 export const Certificates: Story = {

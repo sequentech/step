@@ -152,6 +152,23 @@ export interface ISignedRow {
     /** The server's label, used when `signing.details.<key>` has no translation. */
     label: string | null
     value: string
+    /** The name of what the signed id names (a server label, not signed), when known. */
+    name?: string | null
+}
+
+/** Subject fields of a trustee's request whose ids the panel names. */
+const CEREMONY_FIELDS = ["keys_ceremony_id", "tally_session_id"]
+const TRUSTEE_FIELD = "trustee_id"
+
+/** The panel's name for a signed id, only when the panel names that very id. */
+const nameOf = (data: ISigningPanelData, key: string, value: unknown): string | null => {
+    if (CEREMONY_FIELDS.includes(key) && data.ceremony_id && data.ceremony_id === value) {
+        return data.ceremony_name ?? null
+    }
+    if (key === TRUSTEE_FIELD && data.request.trustee_id && data.request.trustee_id === value) {
+        return data.trustee_name ?? null
+    }
+    return null
 }
 
 /** What the approval signs, read from the canonical payload itself. */
@@ -237,7 +254,11 @@ export const signedView = (data: ISigningPanelData): ISignedView => {
     const rest = Object.keys(subject)
         .filter((key) => !labelled.some((row) => row.key === key))
         .map((key) => ({key, label: null, value: displayValue(subject[key])}))
-    return {payload, subject, documentSha256, rows: [...labelled, ...rest]}
+    const rows = [...labelled, ...rest].map((row) => {
+        const name = nameOf(data, row.key, subject[row.key])
+        return name ? {...row, name} : row
+    })
+    return {payload, subject, documentSha256, rows}
 }
 
 /**

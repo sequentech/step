@@ -213,6 +213,8 @@ const TrusteeOperationMap: Record<string, IPermissions> = {
     sequent_backend_tally_session_execution: IPermissions.TRUSTEE_CEREMONY,
     sequent_backend_tally_session_executions: IPermissions.TRUSTEE_CEREMONY,
     getUsers: IPermissions.VOTER_READ,
+    // Whether the trustee's key step needs their signature
+    KeyShareSignatureStatus: IPermissions.TRUSTEE_CEREMONY,
 }
 
 /**

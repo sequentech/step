@@ -15,6 +15,7 @@ use sequent_core::ballot::VotingStatus;
 use sequent_core::ballot::VotingStatusChannel;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::types::hasura::core::Election;
+use sequent_core::types::hasura::core::ElectionEvent;
 use sequent_core::types::hasura::core::VotingChannels;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -54,55 +55,7 @@ pub async fn update_election_status(
     let mut event_status =
         get_election_event_status(election_event.status.clone()).unwrap_or(Default::default());
 
-    let voting_channels: Vec<VotingStatusChannel> = if let Some(channel) = voting_channels {
-        info!("Reading input voting channels {channel:?}");
-        channel.clone()
-    } else if let Some(channels) = election_event.voting_channels.clone() {
-        info!("Election voting channels {channels:?}");
-        let voting_channels: VotingChannels =
-            deserialize_value(channels).context("Failed to deserialize event voting_channels")?;
-
-        let mut election_channels = vec![];
-
-        if VotingStatusChannel::ONLINE
-            .channel_from(&voting_channels)
-            .unwrap_or(false)
-        {
-            election_channels.push(VotingStatusChannel::ONLINE)
-        }
-
-        if VotingStatusChannel::KIOSK
-            .channel_from(&voting_channels)
-            .unwrap_or(false)
-        {
-            election_channels.push(VotingStatusChannel::KIOSK)
-        }
-
-        if VotingStatusChannel::EARLY_VOTING
-            .channel_from(&voting_channels)
-            .unwrap_or(false)
-        {
-            election_channels.push(VotingStatusChannel::EARLY_VOTING)
-        }
-
-        if VotingStatusChannel::TELEPHONE
-            .channel_from(&voting_channels)
-            .unwrap_or(false)
-        {
-            election_channels.push(VotingStatusChannel::TELEPHONE)
-        }
-
-        election_channels
-    } else {
-        info!("Default voting channels");
-        // Update all if none are configured
-        vec![
-            VotingStatusChannel::ONLINE,
-            VotingStatusChannel::KIOSK,
-            VotingStatusChannel::EARLY_VOTING,
-            VotingStatusChannel::TELEPHONE,
-        ]
-    };
+    let voting_channels = resolve_voting_channels(&election_event, voting_channels)?;
 
     for voting_channel in voting_channels {
         election_event_status::update_election_voting_status_impl(
@@ -154,6 +107,63 @@ pub async fn update_election_status(
     .with_context(|| "Error updating election event status")?;
 
     Ok(())
+}
+
+/// The channels a status change applies to: the ones asked for, else the
+/// event's enabled channels, else all of them.
+pub fn resolve_voting_channels(
+    election_event: &ElectionEvent,
+    voting_channels: &Option<Vec<VotingStatusChannel>>,
+) -> Result<Vec<VotingStatusChannel>> {
+    Ok(if let Some(channel) = voting_channels {
+        info!("Reading input voting channels {channel:?}");
+        channel.clone()
+    } else if let Some(channels) = election_event.voting_channels.clone() {
+        info!("Election voting channels {channels:?}");
+        let voting_channels: VotingChannels =
+            deserialize_value(channels).context("Failed to deserialize event voting_channels")?;
+
+        let mut election_channels = vec![];
+
+        if VotingStatusChannel::ONLINE
+            .channel_from(&voting_channels)
+            .unwrap_or(false)
+        {
+            election_channels.push(VotingStatusChannel::ONLINE)
+        }
+
+        if VotingStatusChannel::KIOSK
+            .channel_from(&voting_channels)
+            .unwrap_or(false)
+        {
+            election_channels.push(VotingStatusChannel::KIOSK)
+        }
+
+        if VotingStatusChannel::EARLY_VOTING
+            .channel_from(&voting_channels)
+            .unwrap_or(false)
+        {
+            election_channels.push(VotingStatusChannel::EARLY_VOTING)
+        }
+
+        if VotingStatusChannel::TELEPHONE
+            .channel_from(&voting_channels)
+            .unwrap_or(false)
+        {
+            election_channels.push(VotingStatusChannel::TELEPHONE)
+        }
+
+        election_channels
+    } else {
+        info!("Default voting channels");
+        // Update all if none are configured
+        vec![
+            VotingStatusChannel::ONLINE,
+            VotingStatusChannel::KIOSK,
+            VotingStatusChannel::EARLY_VOTING,
+            VotingStatusChannel::TELEPHONE,
+        ]
+    })
 }
 
 #[instrument(err)]

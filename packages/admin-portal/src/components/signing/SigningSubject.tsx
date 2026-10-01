@@ -4,6 +4,7 @@
 
 import React, {useState} from "react"
 import {useTranslation} from "react-i18next"
+import type {TFunction} from "i18next"
 import {
     Alert,
     Box,
@@ -125,6 +126,32 @@ const DocumentCard: React.FC<{data: ISigningPanelData; view: ISignedView; api: I
     )
 }
 
+/** The subject field of open and close voting with each channel's status before. */
+const FROM_KEY = "from"
+
+/**
+ * A signed value in the organization's words: each code under
+ * `signing.values.<key>.<code>`, else the code as signed. A `from` entry
+ * reads `CHANNEL=STATUS`: "Online: Open".
+ */
+export const worded = (t: TFunction, key: string, raw: unknown, shown: string): string => {
+    const word = (code: unknown) => {
+        if (typeof code !== "string") return String(code)
+        const separator = code.indexOf("=")
+        if (key === FROM_KEY && separator > 0) {
+            const channel = code.slice(0, separator)
+            const status = code.slice(separator + 1)
+            return t("signing.values.channelStatus", {
+                channel: t(`signing.values.channels.${channel}`, {defaultValue: channel}),
+                status: t(`signing.values.statuses.${status}`, {defaultValue: status}),
+            })
+        }
+        return t(`signing.values.${key}.${code}`, {defaultValue: code})
+    }
+    if (Array.isArray(raw)) return raw.map(word).join(", ")
+    return typeof raw === "string" ? word(raw) : shown
+}
+
 /**
  * What is signed, read from the canonical payload the approval signs: the
  * document card (name, type, pages, SHA-256), or the details table for an
@@ -163,7 +190,22 @@ export const SigningSubject: React.FC<{
                                         defaultValue: row.label ?? row.key,
                                     })}
                                 </TableCell>
-                                <TableCell sx={{overflowWrap: "anywhere"}}>{row.value}</TableCell>
+                                <TableCell sx={{overflowWrap: "anywhere"}}>
+                                    {row.name ? (
+                                        <>
+                                            {row.name}
+                                            <Typography
+                                                variant="body2"
+                                                color="text.secondary"
+                                                component="div"
+                                            >
+                                                {row.value}
+                                            </Typography>
+                                        </>
+                                    ) : (
+                                        worded(t, row.key, view.subject[row.key], row.value)
+                                    )}
+                                </TableCell>
                             </TableRow>
                         ))}
                     </TableBody>

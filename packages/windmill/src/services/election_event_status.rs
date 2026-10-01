@@ -342,61 +342,12 @@ pub async fn update_election_voting_status_impl(
         return Ok(());
     }
 
-    let election_presentation = election.get_presentation().unwrap_or_default();
-
-    if VotingStatus::CLOSED == new_status
-        && VotingPeriodEnd::DISALLOWED
-            == election_presentation
-                .voting_period_end
-                .clone()
-                .unwrap_or_default()
-    {
-        return Err(anyhow!(
-            "election {:?} has the voting period end disallowed",
-            election_id,
-        ));
-    }
-
-    if new_status == VotingStatus::OPEN
-        && election_presentation
-            .initialization_report_policy
-            .unwrap_or(EInitializeReportPolicy::default())
-            == EInitializeReportPolicy::REQUIRED
-        && !election.initialization_report_generated.unwrap_or(false)
-    {
-        return Err(anyhow!(
-            "election {:?} initialization report must be generated before opening the election",
-            election_id,
-        ));
-    }
-
-    let expected_next_status = match current_voting_status {
-        VotingStatus::NOT_STARTED => {
-            vec![VotingStatus::OPEN]
-        }
-        VotingStatus::OPEN => {
-            vec![VotingStatus::PAUSED, VotingStatus::CLOSED]
-        }
-        VotingStatus::PAUSED => {
-            vec![VotingStatus::CLOSED, VotingStatus::OPEN]
-        }
-        VotingStatus::CLOSED => {
-            vec![VotingStatus::OPEN]
-        }
-    };
-
-    if !expected_next_status.contains(&new_status) {
-        return Err(anyhow!(
-            "Unexpected next status {new_status:?}, expected {expected_next_status:?}, current {current_voting_status:?}",
-        ));
-    }
-
-    if channel == VotingStatusChannel::EARLY_VOTING
-        && status.status_by_channel(VotingStatusChannel::ONLINE) != VotingStatus::NOT_STARTED
-    {
-        return Err(anyhow!(
-            "It is not allowed to start EARLY_VOTING channel because ONLINE channel was already started in the past.",
-        ));
+    if let Some(refusal) = voting_transition_refusal(&election, &status, channel, &new_status) {
+        return Err(anyhow!(refusal.message(
+            &election_id,
+            &new_status,
+            &current_voting_status
+        )));
     }
 
     status.close_early_voting_if_online_status_change(channel, new_status.clone());
@@ -430,6 +381,116 @@ pub async fn update_election_voting_status_impl(
     .with_context(|| "Error updating electoral board on status change")?;
 
     Ok(())
+}
+
+/// Why a channel of a Post can't change to a voting status now.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum TransitionRefusal {
+    /// The Post doesn't let voting end.
+    VotingPeriodEndDisallowed,
+    /// Opening needs the initialization report first.
+    InitializationReportRequired,
+    /// The status can't follow the current one.
+    UnexpectedNextStatus(Vec<VotingStatus>),
+    /// Early voting can't start once online voting has.
+    EarlyVotingAfterOnline,
+}
+
+impl TransitionRefusal {
+    /// A stable code for the refusal.
+    pub fn code(&self) -> &'static str {
+        match self {
+            TransitionRefusal::VotingPeriodEndDisallowed => "voting-period-end-disallowed",
+            TransitionRefusal::InitializationReportRequired => "initialization-report-required",
+            TransitionRefusal::UnexpectedNextStatus(_) => "unexpected-next-status",
+            TransitionRefusal::EarlyVotingAfterOnline => "early-voting-after-online",
+        }
+    }
+
+    /// The message the status change has always failed with.
+    pub fn message(
+        &self,
+        election_id: &str,
+        new_status: &VotingStatus,
+        current: &VotingStatus,
+    ) -> String {
+        match self {
+            TransitionRefusal::VotingPeriodEndDisallowed => {
+                format!("election {election_id:?} has the voting period end disallowed")
+            }
+            TransitionRefusal::InitializationReportRequired => format!(
+                "election {election_id:?} initialization report must be generated before opening the election"
+            ),
+            TransitionRefusal::UnexpectedNextStatus(expected) => format!(
+                "Unexpected next status {new_status:?}, expected {expected:?}, current {current:?}"
+            ),
+            TransitionRefusal::EarlyVotingAfterOnline => "It is not allowed to start EARLY_VOTING channel because ONLINE channel was already started in the past.".to_string(),
+        }
+    }
+}
+
+/// Whether `channel` of `election`, whose status is `status`, can't change to
+/// `new_status`; `None` when it can. A change to the current status is no
+/// change and is not refused.
+pub fn voting_transition_refusal(
+    election: &sequent_core::types::hasura::core::Election,
+    status: &ElectionStatus,
+    channel: VotingStatusChannel,
+    new_status: &VotingStatus,
+) -> Option<TransitionRefusal> {
+    let current_voting_status = status.status_by_channel(channel);
+    if *new_status == current_voting_status {
+        return None;
+    }
+    let election_presentation = election.get_presentation().unwrap_or_default();
+
+    if VotingStatus::CLOSED == *new_status
+        && VotingPeriodEnd::DISALLOWED
+            == election_presentation
+                .voting_period_end
+                .clone()
+                .unwrap_or_default()
+    {
+        return Some(TransitionRefusal::VotingPeriodEndDisallowed);
+    }
+
+    if *new_status == VotingStatus::OPEN
+        && election_presentation
+            .initialization_report_policy
+            .unwrap_or(EInitializeReportPolicy::default())
+            == EInitializeReportPolicy::REQUIRED
+        && !election.initialization_report_generated.unwrap_or(false)
+    {
+        return Some(TransitionRefusal::InitializationReportRequired);
+    }
+
+    let expected_next_status = match current_voting_status {
+        VotingStatus::NOT_STARTED => {
+            vec![VotingStatus::OPEN]
+        }
+        VotingStatus::OPEN => {
+            vec![VotingStatus::PAUSED, VotingStatus::CLOSED]
+        }
+        VotingStatus::PAUSED => {
+            vec![VotingStatus::CLOSED, VotingStatus::OPEN]
+        }
+        VotingStatus::CLOSED => {
+            vec![VotingStatus::OPEN]
+        }
+    };
+
+    if !expected_next_status.contains(new_status) {
+        return Some(TransitionRefusal::UnexpectedNextStatus(
+            expected_next_status,
+        ));
+    }
+
+    if channel == VotingStatusChannel::EARLY_VOTING
+        && status.status_by_channel(VotingStatusChannel::ONLINE) != VotingStatus::NOT_STARTED
+    {
+        return Some(TransitionRefusal::EarlyVotingAfterOnline);
+    }
+    None
 }
 
 /// Scheduled changes never reopen closed voting: a start opens channels that

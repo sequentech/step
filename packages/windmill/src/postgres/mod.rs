@@ -34,6 +34,7 @@ pub mod results_event;
 pub mod scheduled_event;
 pub mod secret;
 pub mod signing;
+pub mod signing_actions;
 pub mod signing_certificates;
 pub mod signing_document_revision;
 pub mod tally_results_publication;

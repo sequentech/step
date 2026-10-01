@@ -83,6 +83,7 @@
 /insert-cast-vote
 /insert-election-event
 /insert-tenant
+/key-share-signature-status
 /limit-access-by-countries
 /list-cast-vote-messages
 /list-keys-ceremonies

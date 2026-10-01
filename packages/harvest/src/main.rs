@@ -38,6 +38,10 @@ mod error_contracts;
 mod route_services;
 
 #[cfg(test)]
+#[path = "../tests/support/signing_action_routes.rs"]
+mod signing_action_routes;
+
+#[cfg(test)]
 #[path = "../tests/support/hasura_signing_permissions.rs"]
 mod hasura_signing_permissions;
 
@@ -158,6 +162,7 @@ fn build_application_with(
                 routes::keys_ceremony::list_keys_ceremonies,
                 routes::tally_ceremony::create_tally_ceremony,
                 routes::tally_ceremony::restore_private_key,
+                routes::keys_ceremony::key_share_signature_status,
                 routes::tally_ceremony::submit_tally_resolution,
                 routes::voting_status::update_event_status,
                 routes::voting_status::update_election_status,

@@ -36,6 +36,8 @@ import {
     type EStoryPermissions,
     type EStoryTenant,
 } from "../../../ui-essentials/.storybook/globals"
+import {SigningProvider} from "@/components/signing/SigningProvider"
+import type {ISigningApi} from "@/lib/signing/api"
 import {storyAuth} from "./storyAuth"
 import {registerBoundary} from "./storyNetwork"
 
@@ -194,6 +196,25 @@ function TenantLookAndFeel({tenant, children}: PropsWithChildren<{tenant: EStory
     )
 }
 
+/** A session storage of the story's own, so a handover note never leaks between stories. */
+function memorySessionStorage(): Storage {
+    const items = new Map<string, string>()
+    return {
+        get length() {
+            return items.size
+        },
+        clear: () => items.clear(),
+        getItem: (key) => items.get(key) ?? null,
+        key: (index) => Array.from(items.keys())[index] ?? null,
+        removeItem: (key) => {
+            items.delete(key)
+        },
+        setItem: (key, value) => {
+            items.set(key, String(value))
+        },
+    }
+}
+
 export function AdminStoryProvider({
     children,
     boundary,
@@ -205,6 +226,7 @@ export function AdminStoryProvider({
     tenantRecord,
     settings,
     store,
+    signingApi,
 }: PropsWithChildren<{
     boundary: ReturnType<typeof graphqlBoundary>
     dataProvider?: DataProvider
@@ -222,6 +244,11 @@ export function AdminStoryProvider({
     settings?: Partial<GlobalSettings>
     /** React-admin's preference store; each story starts from an empty memory store. */
     store?: Store
+    /**
+     * Mounts the portal's root SigningProvider with these Harvest calls, for
+     * a story that opens signing requests; other stories render without it.
+     */
+    signingApi?: ISigningApi
 }>) {
     const auth = useContext(AuthContext)
     const baseSettings = useContext(SettingsContext)
@@ -230,6 +257,7 @@ export function AdminStoryProvider({
             new QueryClient({defaultOptions: {queries: {retry: false}, mutations: {retry: false}}})
     )
     const [preferences] = useState(() => store ?? memoryStore())
+    const [signingStorage] = useState(memorySessionStorage)
     const signedIn = role ? storyAuth(role, TENANT_ID, auth) : auth
     const user: AuthContextValues = {
         ...signedIn,
@@ -243,11 +271,20 @@ export function AdminStoryProvider({
             : {}),
         ...authOverrides,
     }
+    // The portal's root SigningProvider, below the story's signed-in user,
+    // for the stories that opt in.
+    const signed = signingApi ? (
+        <SigningProvider api={signingApi} storage={signingStorage}>
+            {children}
+        </SigningProvider>
+    ) : (
+        children
+    )
     const content =
         role || roles || authOverrides ? (
-            <AuthContext.Provider value={user}>{children}</AuthContext.Provider>
+            <AuthContext.Provider value={user}>{signed}</AuthContext.Provider>
         ) : (
-            children
+            signed
         )
     return (
         <AdminContext

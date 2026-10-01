@@ -4,6 +4,7 @@
 
 //! Signing quorum for protected actions.
 
+pub mod actions;
 pub mod approve;
 pub mod certificates;
 pub mod context;
@@ -12,6 +13,7 @@ pub mod directory;
 pub mod executors;
 pub mod guard;
 pub mod issuers;
+pub mod key_shares;
 pub mod log;
 pub mod pades;
 pub mod page_texts;

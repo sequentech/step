@@ -153,6 +153,7 @@ export const EditRole: React.FC<EditRoleProps> = ({id, close, permissions}) => {
                 disableColumnFilter
                 disableColumnSelector
                 disableDensitySelector
+                showToolbar
                 slots={{toolbar: GridToolbar}}
                 slotProps={{
                     toolbar: {

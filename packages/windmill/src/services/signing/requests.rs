@@ -12,6 +12,7 @@
 
 use super::approve::{log_step_refusal, DocumentSigner, RefusedStep};
 use super::executors::SigningExecutorRegistry;
+use super::key_shares::{key_share_labels, KeyShareLabels};
 use super::log::{stage, Actor, LogStep, SystemOutcome};
 use super::pdf::DocumentRevisionView;
 use super::signers::{list_signers, GroupChange};
@@ -148,10 +149,10 @@ pub fn voided_approvals(approvals: &[SigningApprovalRow]) -> Value {
     )
 }
 
-/// Cancels a waiting request and stages its SigningRequestCancelled step,
-/// which lists the signatures that no longer count and, for a person's own
-/// cancel, what allowed it. The caller holds the event lock and the
-/// request's row lock.
+/// Cancels a waiting request, or a completed `Gate` request nobody used, and
+/// stages its SigningRequestCancelled step, which lists the signatures that
+/// no longer count and, for a person's own cancel, what allowed it. The
+/// caller holds the event lock and the request's row lock.
 pub async fn cancel_request(
     hasura_transaction: &Transaction<'_>,
     request: &SigningRequestRow,
@@ -164,9 +165,16 @@ pub async fn cancel_request(
         request.tenant_id,
         request.election_event_id,
         request.id,
-        &SigningRequestTransition::Cancel {
-            reason,
-            by: Some(by.user_id.clone()),
+        &if request.status == SigningRequestStatus::Completed {
+            SigningRequestTransition::CancelCompleted {
+                reason,
+                by: Some(by.user_id.clone()),
+            }
+        } else {
+            SigningRequestTransition::Cancel {
+                reason,
+                by: Some(by.user_id.clone()),
+            }
         },
     )
     .await?
@@ -536,6 +544,9 @@ pub struct SigningPanel {
     pub details: Vec<SigningDetail>,
     pub election_name: Option<String>,
     pub area_name: Option<String>,
+    /// For a trustee's request, the names beside its ceremony and trustee ids.
+    #[serde(flatten)]
+    pub key_share: KeyShareLabels,
 }
 
 /// The subject's fields in key order, lists joined with commas.
@@ -721,6 +732,7 @@ pub async fn get_panel(
         details: subject_details(&request.subject),
         election_name,
         area_name,
+        key_share: key_share_labels(hasura_transaction, &request).await?,
     })
 }
 

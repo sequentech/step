@@ -4,6 +4,7 @@
 import React from "react"
 import type {StoryObj} from "@storybook/react-vite"
 import {expect, fn, userEvent, waitFor, within} from "storybook/test"
+import englishTranslation from "@/translations/en"
 import {AdminStoryProvider, graphqlBoundary} from "@/__stories__/AdminStoryProvider"
 import {openedWindows} from "@/__stories__/storyNetwork"
 import type {WidgetMeta} from "@/__stories__/widgetStory"
@@ -178,11 +179,15 @@ export const CheckWithDetails: Story = {
         const view = await dialog()
         await expect(view.getByRole("heading", {name: "Sign the voter approval"})).toBeVisible()
         const table = view.getByRole("table", {name: "Details"})
-        // The rows are the payload's subject, labelled by the server.
+        // The rows are the payload's subject, labelled by the portal's
+        // words (the server's label only where it has none), and coded
+        // values worded too.
+        const words = englishTranslation.translations.signing
         await expect(within(table).getByText("APP-2028-118204")).toBeVisible()
-        await expect(within(table).getByText("Application")).toBeVisible()
-        await expect(within(table).getByText("Registry record")).toBeVisible()
-        await expect(within(table).getByText("decision")).toBeVisible()
+        await expect(within(table).getByText(words.details.application_id)).toBeVisible()
+        await expect(within(table).getByText(words.details.applicant_registry_id)).toBeVisible()
+        await expect(within(table).getByText(words.details.decision)).toBeVisible()
+        await expect(within(table).getByText(words.values.decision.approve)).toBeVisible()
         // Nothing to read through: no "I have checked" box.
         await expect(view.queryByRole("checkbox")).toBeNull()
         await waitFor(() => expect(view.getByRole("button", {name: "Continue"})).toBeEnabled())

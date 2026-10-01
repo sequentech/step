@@ -16,12 +16,14 @@ use deadpool_postgres::Transaction;
 use sequent_core::signing::{
     CancelReason, RequesterSigning, SigningAction, SigningRequestStatus, SigningRequirement,
 };
+use sequent_core::types::ceremonies::CeremoniesPolicy;
 use sequent_core::types::permissions::Permissions;
 use serde_json::json;
 use signing::*;
 use std::sync::Mutex;
 use uuid::Uuid;
 use windmill::postgres::signing::*;
+use windmill::postgres::signing_actions::count_published_configuration_versions;
 use windmill::services::signing::guard::{guard_at, GuardOutcome, GuardRequest};
 use windmill::services::signing::rules::{
     capacity, commit_rule, list_rules, save_rule, RuleWarning, SaveRuleInput, SigningRoleAdmin,
@@ -425,33 +427,43 @@ async fn capacity_counts_each_posts_signers() {
             .await
             .posts_short
             .is_empty());
-        // Published event-level publications count as configuration versions.
-        for (election_id, published) in [
-            (None, true),
-            (None, true),
-            (None, false),
-            (Some(w.post), true),
+        // Published event-level publications count as configuration versions,
+        // soft-deleted ones too: the whole publish history.
+        for (election_id, published, deleted) in [
+            (None, true, false),
+            (None, true, false),
+            (None, true, true),
+            (None, false, false),
+            (Some(w.post), true, false),
         ] {
             htx.execute(
                 "INSERT INTO sequent_backend.ballot_publication
-                     (id, tenant_id, election_event_id, is_generated, election_id, published_at)
-                 VALUES ($1, $2, $3, true, $4, CASE WHEN $5 THEN now() END)",
+                     (id, tenant_id, election_event_id, is_generated, election_id, published_at,
+                      deleted_at)
+                 VALUES ($1, $2, $3, true, $4, CASE WHEN $5 THEN now() END,
+                         CASE WHEN $6 THEN now() END)",
                 &[
                     &Uuid::new_v4(),
                     &w.tenant,
                     &w.event,
                     &election_id,
                     &published,
+                    &deleted,
                 ],
             )
             .await
             .unwrap();
         }
+        let version = capacity_of(&htx, &ktx, &w, ACTION, None, None)
+            .await
+            .config_version;
+        assert_eq!(version, 3);
+        // The same number an approve-configuration request carries.
         assert_eq!(
-            capacity_of(&htx, &ktx, &w, ACTION, None, None)
+            version,
+            count_published_configuration_versions(&htx, w.tenant, w.event)
                 .await
-                .config_version,
-            2
+                .unwrap()
         );
         // Event actions count every signer.
         let event = capacity_of(
@@ -933,4 +945,60 @@ async fn a_keycloak_failure_puts_back_what_was_sent_and_saves_nothing() {
         .unwrap()
         .is_none());
     assert!(steps_in(&tx, w.event).await.is_empty());
+}
+
+#[tokio::test]
+async fn a_trustee_rule_needs_manual_ceremonies() {
+    for (post, other) in LABELS {
+        let w = world(post).await;
+        let mut hasura = w.pool.get().await.unwrap();
+        let htx = hasura.transaction().await.unwrap();
+        let mut keycloak = w.pool.get().await.unwrap();
+        let ktx = keycloak.transaction().await.unwrap();
+        directory(&ktx, &realm(w.tenant), post, other).await;
+        let manager = caller("manager", &[Permissions::SIGNING_RULES_WRITE], &[]);
+        let policy = |policy: CeremoniesPolicy| json!({ "ceremonies_policy": policy.to_string() });
+        htx.execute(
+            "UPDATE sequent_backend.election_event SET presentation = $1 WHERE id = $2",
+            &[&policy(CeremoniesPolicy::AUTOMATED_CEREMONIES), &w.event],
+        )
+        .await
+        .unwrap();
+        for action in [
+            SigningAction::ConfirmKeyShare,
+            SigningAction::ContributeKeyShare,
+        ] {
+            let mut required = input(1, 0);
+            required.action = action;
+            // No trustee takes the step to sign it: the rule would be bypassed.
+            assert_eq!(
+                reason(save_rule(&htx, &ktx, &manager, w.tenant, w.event, &required).await),
+                InvalidReason::AutomatedCeremonies,
+                "{post}: {action}"
+            );
+            let mut off = required.clone();
+            off.requirement = SigningRequirement::NotRequired;
+            save_rule(&htx, &ktx, &manager, w.tenant, w.event, &off)
+                .await
+                .unwrap();
+        }
+        // Other actions don't depend on the ceremonies.
+        let mut close = input(1, 0);
+        close.action = ACTION;
+        save_rule(&htx, &ktx, &manager, w.tenant, w.event, &close)
+            .await
+            .unwrap();
+
+        htx.execute(
+            "UPDATE sequent_backend.election_event SET presentation = $1 WHERE id = $2",
+            &[&policy(CeremoniesPolicy::MANUAL_CEREMONIES), &w.event],
+        )
+        .await
+        .unwrap();
+        let mut required = input(1, 1);
+        required.action = SigningAction::ConfirmKeyShare;
+        save_rule(&htx, &ktx, &manager, w.tenant, w.event, &required)
+            .await
+            .unwrap();
+    }
 }

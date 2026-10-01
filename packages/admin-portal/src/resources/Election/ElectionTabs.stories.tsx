@@ -296,6 +296,26 @@ export const Publish: Story = {
     }),
 }
 
+/**
+ * Publish's re-authentication returns with `tabId=publish` in the page's
+ * address, which selects the tab by id whatever its position.
+ */
+export const PublishLinkedById: Story = {
+    parameters: {widgets: ["PublishTab"]},
+    beforeEach: () => {
+        const address = window.location.href
+        const linked = new URL(address)
+        linked.searchParams.set("tabId", "publish")
+        window.history.replaceState(window.history.state, "", linked)
+        return () => window.history.replaceState(window.history.state, "", address)
+    },
+    play: async ({canvasElement}) => {
+        const tab = await within(canvasElement).findByRole("tab", {name: tabLabel.publish()})
+        await waitFor(() => expect(tab).toHaveAttribute("aria-selected", "true"))
+        expect((await tabNames(canvasElement)).indexOf(tabLabel.publish())).toBeGreaterThan(0)
+    },
+}
+
 export const Approvals: Story = {
     parameters: {widgets: ["ApprovalsTab"]},
     play: tabPlay(tabLabel.approvals, {

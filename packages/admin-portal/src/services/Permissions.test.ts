@@ -34,6 +34,12 @@ it.each(["sequent_backend_keys_ceremony", "sequent_backend_tally_session_executi
         expect(getOperationRole(operation(name), true)).toBe(IPermissions.TRUSTEE_CEREMONY)
     }
 )
+it("asks whether a trustee's key step needs a signature with the trustee ceremony role", () => {
+    expect(getOperationRole(operation("KeyShareSignatureStatus"), true)).toBe(
+        IPermissions.TRUSTEE_CEREMONY
+    )
+    expect(getOperationRole(operation("KeyShareSignatureStatus"))).toBe(IPermissions.ADMIN_USER)
+})
 it("keeps the trustee user lookup separate from the admin fallback", () => {
     expect(getOperationRole(operation("getUsers"), true)).toBe(IPermissions.VOTER_READ)
     expect(getOperationRole(operation("getUsers"))).toBe(IPermissions.ADMIN_USER)

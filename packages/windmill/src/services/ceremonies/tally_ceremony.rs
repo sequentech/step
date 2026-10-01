@@ -10,13 +10,14 @@ use crate::adapters::tally_ceremony::{
 use crate::domain::tally_ceremony::{
     check_key_restore_status, check_status_change, check_trustee_quorum, is_recount_eligible,
     reaches_key_threshold, recount_elections_status, restore_trustee_key, restored_trustee_count,
-    tally_executer, tally_execution_status, waiting_trustee, EXECUTER_USERNAME_ANNOTATION,
+    restoring_trustee, tally_executer, tally_execution_status, EXECUTER_USERNAME_ANNOTATION,
     EXECUTER_USER_ID_ANNOTATION,
 };
 use crate::domain::tally_creation::{
     check_weighted_voting_ballot_styles, check_weighted_voting_policies,
     check_weighted_voting_tally_sheets, WeightedVotingStage,
 };
+use crate::domain::trustee_signatures::TrusteeSignatures;
 use crate::ports::clock::IdGenerator;
 use crate::ports::tally_ceremony::{
     DecryptionSet, ElectionEventReader, ElectionsById, EnvironmentSlug, KeysCeremonyReader,
@@ -738,9 +739,11 @@ pub struct TrusteeKeyRestore<'a> {
     pub election_event_id: &'a str,
     pub tally_session_id: &'a str,
     pub private_key_base64: &'a str,
+    /// Which restores count, when the rule makes trustees sign.
+    pub signatures: &'a TrusteeSignatures,
 }
 
-#[instrument(err, skip(transaction))]
+#[instrument(err, skip(transaction, claims, private_key_base64, signatures))]
 pub async fn set_private_key(
     transaction: &Transaction<'_>,
     claims: &JwtClaims,
@@ -748,6 +751,7 @@ pub async fn set_private_key(
     election_event_id: &str,
     tally_session_id: &str,
     private_key_base64: &str,
+    signatures: &TrusteeSignatures,
 ) -> Result<bool> {
     set_private_key_with(
         &PgTallySessions::new(transaction),
@@ -761,28 +765,35 @@ pub async fn set_private_key(
             election_event_id,
             tally_session_id,
             private_key_base64,
+            signatures,
         },
     )
     .await
 }
 
-/// Returns `false`, writing nothing, if the key is not the one the trustee
-/// stored on the board in the keys ceremony.
-pub async fn set_private_key_with(
+/// What restoring a trustee's key reads before it writes anything.
+struct KeyRestore {
+    trustee_name: String,
+    tally_session: TallySession,
+    tally_session_execution: TallySessionExecution,
+    tally_ceremony_status: TallyCeremonyStatus,
+    keys_ceremony: KeysCeremony,
+    found_trustee: TallyTrustee,
+    encrypted_private_key: String,
+}
+
+/// Reads the session, its last execution and the trustee's stored key,
+/// failing when the trustee can't restore their key now.
+async fn read_key_restore(
     sessions: &impl TallySessions,
     keys_ceremonies: &impl KeysCeremonyReader,
     private_keys: &impl TrusteePrivateKeys,
-    election_events: &impl ElectionEventReader,
-    audit: &impl TallyCeremonyAudit,
-    request: TrusteeKeyRestore<'_>,
-) -> Result<bool> {
-    let TrusteeKeyRestore {
-        claims,
-        tenant_id,
-        election_event_id,
-        tally_session_id,
-        private_key_base64,
-    } = request;
+    claims: &JwtClaims,
+    tenant_id: &str,
+    election_event_id: &str,
+    tally_session_id: &str,
+    signatures: &TrusteeSignatures,
+) -> Result<KeyRestore> {
     let tally_session = sessions
         .get(tenant_id, election_event_id, tally_session_id)
         .await?;
@@ -821,12 +832,112 @@ pub async fn set_private_key_with(
         .await?;
 
     let tally_ceremony_status = get_tally_ceremony_status(tally_session_execution.status.clone())?;
-    let found_trustee = waiting_trustee(&tally_ceremony_status, &trustee_name)?.clone();
+    let found_trustee =
+        restoring_trustee(&tally_ceremony_status, &trustee_name, signatures)?.clone();
 
     // get the encrypted private key
     let encrypted_private_key = private_keys
         .encrypted_private_key(tenant_id, election_event_id, &trustee_name, &keys_ceremony)
         .await?;
+
+    Ok(KeyRestore {
+        trustee_name,
+        tally_session,
+        tally_session_execution,
+        tally_ceremony_status,
+        keys_ceremony,
+        found_trustee,
+        encrypted_private_key,
+    })
+}
+
+/// Whether the key share is the one the trustee would restore, compared as
+/// [`set_private_key_with`] compares it, recording nothing. Fails as the
+/// restore fails when the trustee can't restore their key now.
+pub async fn trustee_key_share_matches_with(
+    sessions: &impl TallySessions,
+    keys_ceremonies: &impl KeysCeremonyReader,
+    private_keys: &impl TrusteePrivateKeys,
+    request: TrusteeKeyRestore<'_>,
+) -> Result<bool> {
+    let restore = read_key_restore(
+        sessions,
+        keys_ceremonies,
+        private_keys,
+        request.claims,
+        request.tenant_id,
+        request.election_event_id,
+        request.tally_session_id,
+        request.signatures,
+    )
+    .await?;
+    Ok(restore.encrypted_private_key == request.private_key_base64)
+}
+
+/// [`trustee_key_share_matches_with`] on the database and the board.
+#[instrument(err, skip(transaction, claims, private_key_base64, signatures))]
+pub async fn key_share_matches(
+    transaction: &Transaction<'_>,
+    claims: &JwtClaims,
+    tenant_id: &str,
+    election_event_id: &str,
+    tally_session_id: &str,
+    private_key_base64: &str,
+    signatures: &TrusteeSignatures,
+) -> Result<bool> {
+    trustee_key_share_matches_with(
+        &PgTallySessions::new(transaction),
+        &PgKeysCeremonies::new(transaction),
+        &BoardTrusteePrivateKeys::new(transaction),
+        TrusteeKeyRestore {
+            claims,
+            tenant_id,
+            election_event_id,
+            tally_session_id,
+            private_key_base64,
+            signatures,
+        },
+    )
+    .await
+}
+
+/// Returns `false`, writing nothing, if the key is not the one the trustee
+/// stored on the board in the keys ceremony.
+pub async fn set_private_key_with(
+    sessions: &impl TallySessions,
+    keys_ceremonies: &impl KeysCeremonyReader,
+    private_keys: &impl TrusteePrivateKeys,
+    election_events: &impl ElectionEventReader,
+    audit: &impl TallyCeremonyAudit,
+    request: TrusteeKeyRestore<'_>,
+) -> Result<bool> {
+    let TrusteeKeyRestore {
+        claims,
+        tenant_id,
+        election_event_id,
+        tally_session_id,
+        private_key_base64,
+        signatures,
+    } = request;
+    let KeyRestore {
+        trustee_name,
+        tally_session,
+        tally_session_execution,
+        tally_ceremony_status,
+        keys_ceremony,
+        found_trustee,
+        encrypted_private_key,
+    } = read_key_restore(
+        sessions,
+        keys_ceremonies,
+        private_keys,
+        claims,
+        tenant_id,
+        election_event_id,
+        tally_session_id,
+        signatures,
+    )
+    .await?;
 
     if encrypted_private_key != private_key_base64 {
         return Ok(false);
@@ -845,7 +956,7 @@ pub async fn set_private_key_with(
         .await?;
 
     // enough trustees connected, so change tally execution status to connected
-    if reaches_key_threshold(&new_status, keys_ceremony.threshold) {
+    if reaches_key_threshold(&new_status, keys_ceremony.threshold, signatures) {
         sessions
             .set_status(
                 tenant_id,
@@ -856,7 +967,6 @@ pub async fn set_private_key_with(
             )
             .await?;
     }
-    println!("after update status");
     // get the election event
     let election_event = election_events.get(tenant_id, election_event_id).await?;
 
