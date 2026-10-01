@@ -397,7 +397,7 @@ impl PreviewTallySheetImportCommand {
             Ok(document) => document,
             Err(err) => {
                 eprintln!("Error! Failed to prepare import source: {}", err);
-                return;
+                std::process::exit(1);
             }
         };
 
@@ -409,7 +409,10 @@ impl PreviewTallySheetImportCommand {
             self.selected_channel,
         ) {
             Ok(preview) => print_json("Success! Tally sheet import preview:", &preview),
-            Err(err) => eprintln!("Error! Failed to preview tally sheet import: {}", err),
+            Err(err) => {
+                eprintln!("Error! Failed to preview tally sheet import: {}", err);
+                std::process::exit(1);
+            }
         }
     }
 }
@@ -426,7 +429,7 @@ impl CreateTallySheetImportCommand {
             Ok(document) => document,
             Err(err) => {
                 eprintln!("Error! Failed to prepare import source: {}", err);
-                return;
+                std::process::exit(1);
             }
         };
 
@@ -438,7 +441,10 @@ impl CreateTallySheetImportCommand {
             self.selected_channel,
         ) {
             Ok(import) => print_json("Success! Created tally sheet import:", &import),
-            Err(err) => eprintln!("Error! Failed to create tally sheet import: {}", err),
+            Err(err) => {
+                eprintln!("Error! Failed to create tally sheet import: {}", err);
+                std::process::exit(1);
+            }
         }
     }
 }
@@ -767,6 +773,9 @@ fn resolve_import_document(
                 sha256: Some(actual_sha256),
             })
         }
+        (None, Some(existing_document_id)) if existing_document_id.trim().is_empty() => {
+            Err(Box::from("document id must not be empty"))
+        }
         (None, Some(existing_document_id)) => Ok(ImportDocument {
             document_id: existing_document_id.to_string(),
             sha256: normalize_sha256(sha256)?,
@@ -841,14 +850,15 @@ where
 }
 
 fn response_data<T>(response_body: Response<T>) -> Result<T, Box<dyn Error>> {
-    if let Some(data) = response_body.data {
-        Ok(data)
-    } else if let Some(errors) = response_body.errors {
+    // GraphQL may return data and errors together. A partial mutation result
+    // must not tell an operator that the requested import or approval succeeded.
+    if let Some(errors) = response_body.errors.filter(|errors| !errors.is_empty()) {
         let error_messages: Vec<String> = errors.into_iter().map(|e| e.message).collect();
-        Err(Box::from(error_messages.join(", ")))
-    } else {
-        Err(Box::from("Unknown error occurred"))
+        return Err(Box::from(error_messages.join(", ")));
     }
+    response_body
+        .data
+        .ok_or_else(|| Box::from("GraphQL response missing data"))
 }
 
 fn print_json(message: &str, value: &Value) {
@@ -858,3 +868,7 @@ fn print_json(message: &str, value: &Value) {
         Err(err) => eprintln!("Error! Failed to render JSON: {}", err),
     }
 }
+
+#[cfg(test)]
+#[path = "../../tests/support/tally_input_boundaries.rs"]
+mod boundary_tests;
