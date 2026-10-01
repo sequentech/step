@@ -1202,7 +1202,8 @@
                 "update-attributes": "sequent.read-only.id-card-number-validated,email,sequent.read-only.mobile-number,emailAndOrMobile,sequent.read-only.id-card-number,sequent.read-only.id-card-type",
                 "search-attributes": "firstName,middleName,lastName,embassy,dateOfBirth",
                 "auto-2fa": "true",
-                "unset-attributes": "email,sequent.read-only.mobile-number,sequent.read-only.id-card-number-validated"
+                "unset-attributes": "email,sequent.read-only.mobile-number,sequent.read-only.id-card-number-validated",
+                "no-matching-voter-policy": "PENDING_APPROVAL"
             },
             "id": "d51051b5-d9b5-414b-9fee-259a4de08ba3"
         },
@@ -1251,6 +1252,7 @@
         {
             "alias": "otp",
             "config": {
+                "code-progress-policy": "SHOW",
                 "telUserAttribute": "sequent.read-only.mobile-number",
                 "messageCourierAttribute": "BOTH",
                 "ttl": "300",
@@ -1266,6 +1268,7 @@
         {
             "alias": "otp-email",
             "config": {
+                "code-progress-policy": "SHOW",
                 "otpMethod": "email",
                 "length": "6",
                 "deferredUserAttribute": "true",
@@ -1280,6 +1283,7 @@
         {
             "alias": "otp-email",
             "config": {
+                "code-progress-policy": "SHOW",
                 "deferredUserAttribute": "true",
                 "ttl": "300",
                 "messageCourierAttribute": "EMAIL",
@@ -1292,6 +1296,7 @@
         {
             "alias": "otp-sms",
             "config": {
+                "code-progress-policy": "SHOW",
                 "length": "6",
                 "messageCourierAttribute": "BOTH",
                 "senderId": "Keycloak",
@@ -1305,6 +1310,7 @@
         {
             "alias": "otp-sms",
             "config": {
+                "code-progress-policy": "SHOW",
                 "telUserAttribute": "sequent.read-only.mobile-number",
                 "otpMethod": "sms",
                 "length": "6",
@@ -1318,6 +1324,7 @@
         {
             "alias": "otp-sms",
             "config": {
+                "code-progress-policy": "SHOW",
                 "deferredUserAttribute": "true",
                 "telUserAttribute": "sequent.read-only.mobile-number",
                 "senderId": "Keycloak",
