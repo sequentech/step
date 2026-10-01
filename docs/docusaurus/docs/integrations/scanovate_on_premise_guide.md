@@ -339,6 +339,20 @@ In the admin portal (http://127.0.0.1:3002), import the
 console (http://127.0.0.1:8090) lists. It already uses the `sequent-ui-voting`
 login theme and the services of the dev container.
 
+The import gives the election event a new id, not the one in the file, so read
+the realm name from the admin portal or the import's output. step-cli imports
+it the same way, with a configured `step-cli step config`:
+
+```bash
+step-cli step import-election --file-path packages/step-cli/data/scanovate-enrollment/election-event.json --is-local
+step-cli step import-voters --election-event-id <election event id> \
+  --file-path packages/step-cli/data/scanovate-enrollment/voters.csv --is-local
+```
+
+To run the enrollment again from scratch with the same document, delete the
+election event (`step-cli step delete-election-event --election-event-id <id>`)
+and import it and its voters again.
+
 ### 4. Load yourself as a voter
 
 Enrollment only succeeds if the names and date of birth read from your passport
@@ -383,8 +397,15 @@ settings of the Scanovate step.
 
 ### 6. Enroll
 
-Open the enrollment page on `https://localhost:8443`, the origin of the
-Liveness Plus API, and accept the development certificate:
+Open the enrollment page from the voting portal's **Enroll** link, or directly
+on `https://localhost:8443`, and accept the development certificate of
+`https://localhost:8443`, which serves the Liveness Plus API. The dev voting
+portal sends voters to Keycloak on `http://localhost:8090`, another origin than
+the API's, so `keycloak-nginx` answers the API's CORS preflights from local
+origins (`localhost` and `127.0.0.1`, any port) in development; without that,
+the face check fails with *Check your internet connection*. The
+`redirect_uri` can be any voting portal URL of the client, such as
+`http://localhost:3000/tenant/<tenant id>/event/<election event id>/login`:
 
 ```text
 https://localhost:8443/realms/<realm>/protocol/openid-connect/registrations?client_id=voting-portal&response_type=code&scope=openid&redirect_uri=http%3A%2F%2Flocalhost%3A3000%2F
@@ -392,9 +413,12 @@ https://localhost:8443/realms/<realm>/protocol/openid-connect/registrations?clie
 
 1. Fill in the form: **Passport**, **Japan/Tokyo PE** and **Tokyo PE**, an
    email, a phone and a password. The development senders don't deliver the
-   OTPs, and the codes aren't logged: to skip them, set the OTP steps of the
-   registration flow to **Disabled** (the `message-otp-authenticator` step and
-   the `deferred-otp-subflow*` subflows), and enable them again after the test.
+   codes, and the logs mask them (`Your OTP is ******`). To enter a fixed code,
+   set both `test-mode` to `true` and `test-mode-code` (e.g. `123456`) in the
+   settings of each `message-otp-authenticator` step of the registration flow,
+   including those in the `deferred-otp-subflow*` subflows: `test-mode` alone
+   accepts no code. Keycloak reads them when it checks the code, so they apply
+   to a code already sent. Never set them outside development.
 2. **Verify your identity**: allow the camera.
 3. **Front of the ID**: the data page of your passport, flat, with the four
    corners in the frame. It's taken automatically.
@@ -406,8 +430,9 @@ https://localhost:8443/realms/<realm>/protocol/openid-connect/registrations?clie
    with the passport and with the photo holding it, and has the OCR service
    read the passport.
 7. **Check the details from your ID**: your names, passport number and date of
-   birth. **Confirm and enroll**. The voting portal isn't running, so the final
-   redirect to `localhost:3000` fails; the enrollment is done by then.
+   birth. **Confirm and enroll**. Keycloak then redirects to the
+   `redirect_uri`; if the voting portal isn't running there, that page fails to
+   load, but the enrollment is done by then.
 
 Follow it in the logs, from `.devcontainer`:
 
@@ -481,8 +506,12 @@ creates a session.
 
 Our `service_config.json` is Scanovate's with the `onprem` section pointing to
 Keycloak (see [Integration contract](#integration-contract)), without the video
-in the results (`send_video_in_results: false`), and with English as the
-default language of the image's texts. Its `onprem` section:
+in the results (`send_video_in_results: false`), with English as the
+default language of the image's texts, and with `mask_threshold` raised from
+Scanovate's 0.5 to 0.8, like `sunglasses_threshold`: at 0.5, faces without
+any covering (a beard, side light) scored 0.64–0.74 and were asked to remove
+a face covering on every photo. Both scores are only quality hints; the PAD
+server catches presentation attacks. Its `onprem` section:
 
 | Key | Our value | Description |
 | --- | --- | --- |
@@ -716,9 +745,14 @@ single origin.
 - It accepts bodies of up to 8 MiB on `/realms/*/identity-verification/capture/`, where the
   page uploads each photo (nginx's default is 1 MiB).
 
-The dev container does exactly this in `keycloak-nginx`
+The dev container does this in `keycloak-nginx`
 (`.devcontainer/keycloak-nginx/keycloak-mtls.conf.template`), on
-`https://localhost:8443`:
+`https://localhost:8443`. Only for development, it also answers the CORS
+preflights of local origins on the Liveness Plus routes, because the dev voting
+portal sends voters to Keycloak on `http://localhost:8090`; production serves
+Keycloak and the API on one origin and needs no CORS. The template is built
+into the image: after changing it, run `docker compose build keycloak-nginx`
+and `docker compose up -d keycloak-nginx` from `.devcontainer`.
 
 ```nginx
 location ~ ^/biometric/liveness/(create_session|check_liveness|client_session_data|client_error)$ {

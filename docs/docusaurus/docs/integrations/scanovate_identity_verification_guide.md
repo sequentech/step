@@ -65,7 +65,14 @@ sequenceDiagram
    upload token and a one-time token for Liveness Plus.
 2. The page guides the voter through the photos of the front of the document
    and, for documents with one, its back. The camera is analysed in the browser
-   by the `id-capture` WebAssembly module; only the photos are kept.
+   by the `id-capture` WebAssembly module; only the photos are kept. The guide
+   takes the shape of the voter's document: a passport data page (ICAO TD3)
+   when its OCR type is `passport`, an ID-1 card otherwise (the page's
+   `format`). The photo is taken automatically once the whole document is in
+   the frame, about centred and at least half the guide's size, without glare,
+   sharp and still: the guide only shows where to hold it, since the whole
+   frame is uploaded and the OCR service finds the document in it. On a
+   desktop, the preview of a webcam is mirrored like a mirror.
 3. For the face, the page takes a photo once the face is steady in the oval and
    sends it to Liveness Plus, one photo at a time, until Liveness Plus completes
    the scan. Liveness Plus posts the verdict and the checked face to Keycloak,
@@ -96,6 +103,15 @@ Some design decisions to be aware of:
   capture token travels in the `X-Capture-Token` header and Liveness Plus is
   served under `/biometric/`: none names the provider behind them. Keep any new
   browser-facing path, header or parameter just as generic.
+- **Buttons stay in view.** The buttons that move the voter on (Start, Submit
+  on the code page, Confirm and enroll, Try again) and the submit button of
+  every FreeMarker form, such as Enroll on the enrollment form, stay at the
+  bottom of the viewport while the page scrolls, so a long page on a phone
+  never hides them.
+- **Confirmation always posts its action.** The confirmation page disables its
+  buttons once submitted. Some browsers apply that before collecting the form,
+  which would leave out the clicked button, so the page also posts the chosen
+  action (`confirm` or `retry`) in a field of its own.
 - **Fail closed.** Unknown rule types, malformed rules, document types without
   validation rules or without an OCR type, and missing service settings reject
   the verification instead of skipping checks.
@@ -373,6 +389,37 @@ only into a Keycloak image that ships the React themes: on an older image,
 Keycloak falls back to its built-in theme for the whole realm.
 :::
 
+### After the identity verification
+
+Once the voter confirms the details from their ID, the registration flow of
+the COMELEC template looks them up in the census (`lookup-and-update-user`),
+by the names and date of birth read from the document, which the Scanovate
+step stores in place of what the voter typed. The step's
+`no-matching-voter-policy` decides what an enrollment that matches no voter
+becomes:
+
+| Value | Enrollment that matches no voter of the census |
+| --- | --- |
+| `REJECT` (default) | Rejected automatically (`no-matching-voter`). |
+| `PENDING_APPROVAL` | Pending in the election event's **Approvals**, with the same reason, for an election manager to review. The voter sees that their enrollment needs a manual verification. |
+
+The COMELEC template and the sample election event use `PENDING_APPROVAL`.
+Approving a pending enrollment links it to a voter of the census, so a voter
+missing from it is added to the census first.
+
+### Several codes in a row
+
+The COMELEC registration flow asks for a code by email if the voter gave an
+email, by SMS if they gave a mobile number, and then for one more to the
+same contact details: an email-only voter gets two codes by email. So that
+the second doesn't look like the first one failed, the code steps of the
+template set `code-progress-policy` to `SHOW` (default `NONE`): with more than
+one code, the page shows *Code 1 of 2* and a progress bar, says that another
+code follows, and on the last one that the previous code was accepted. The
+count comes from the flow: each code step that runs for this voter, the
+conditional subflows evaluated with their own conditions. If a condition can't
+be evaluated, the page shows no count rather than a wrong one.
+
 ## Testing
 
 ### Unit tests
@@ -403,7 +450,7 @@ enrolls voters with the Scanovate services of the dev container:
 
 | File | Contents |
 | --- | --- |
-| `election-event.json` | The *Scanovate Enrollment Demo* election event: one area (`Japan - Tokyo PE`), one election and one contest. Its Keycloak realm is the COMELEC realm template with enrollment enabled, the `sequent-ui-voting` login theme, and `scanovate-registration` pointing to the services of the dev container (`http://scanovate-ocr:5040`, `https://localhost:8443/biometric` and `http://scanovate-face-match:3000`). |
+| `election-event.json` | The *Scanovate Enrollment Demo* election event: one area (`Japan - Tokyo PE`), one election and one contest. Its Keycloak realm is the COMELEC realm template with enrollment enabled, the `sequent-ui-voting` login theme, and `scanovate-registration` pointing to the services of the dev container (`http://scanovate-ocr:5040`, `https://localhost:8443/biometric` and `http://scanovate-face-match:3000`). Like the template, it reads passports with the `passport` OCR type and captures only their front (`ocr-types` and `capture-sides`). |
 | `voters.csv` | The voter registry: `JUAN DELA CRUZ`, born `1990-01-01`, registered at the Tokyo PE. |
 
 The data read from the document must match a voter of the registry, so to
