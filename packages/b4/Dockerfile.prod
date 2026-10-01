@@ -12,12 +12,38 @@
 # operating-system packages, and some download tools over HTTPS. See the scope
 # note in packages/Dockerfile.offline-dependencies for the full list.
 # See sequentech/meta#13625.
+# Debian archive snapshot every apt call resolves against. Pinning the archive
+# state, rather than individual package versions, is what makes the dependency
+# closure identical on a client's machine and on ours: pinning only the packages
+# we name leaves their dependencies to whatever the live mirror serves that day
+# (installing wget with its version pinned still resolves libpsl5 from the
+# mirror). See sequentech/meta#13625.
+#
+# http, not https: these base images ship no CA certificates, so an https source
+# fails before anything is installed. apt verifies the signed InRelease and the
+# per-file checksums regardless of transport.
+#
+# Bumping this is a deliberate release action, like bumping a base image digest:
+# it changes what the build contains, so it produces a new release identity. A
+# pinned snapshot also stops picking up security updates until it is bumped.
+ARG DEBIAN_SNAPSHOT=20260929T000000Z
+
 ARG VENDOR_IMAGE=scratch
 FROM ${VENDOR_IMAGE} AS vendor
 
 FROM rust:1.96.0-slim-bookworm@sha256:4732ca96fd086cb9be682050c3f0176288eebaac2b80aa2bcefccfaf198e1950 AS builder
 
 WORKDIR /app
+
+# Resolve apt against the pinned snapshot rather than the live mirror.
+ARG DEBIAN_SNAPSHOT
+RUN set -eux; \
+    rm -f /etc/apt/sources.list.d/debian.sources; \
+    { \
+      echo "deb [check-valid-until=no] http://snapshot.debian.org/archive/debian/${DEBIAN_SNAPSHOT} bookworm main"; \
+      echo "deb [check-valid-until=no] http://snapshot.debian.org/archive/debian/${DEBIAN_SNAPSHOT} bookworm-updates main"; \
+      echo "deb [check-valid-until=no] http://snapshot.debian.org/archive/debian-security/${DEBIAN_SNAPSHOT} bookworm-security main"; \
+    } > /etc/apt/sources.list
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     protobuf-compiler \
@@ -78,6 +104,16 @@ FROM debian:bookworm@sha256:f37a335e82bca302e955fa39f9dfe28f1be618f016f8a2b56318
 #
 # 2.1.1 is the current open-source release; the 1.21 line is enterprise-only.
 ARG VAULT_VERSION=2.1.1
+# Resolve apt against the pinned snapshot rather than the live mirror.
+ARG DEBIAN_SNAPSHOT
+RUN set -eux; \
+    rm -f /etc/apt/sources.list.d/debian.sources; \
+    { \
+      echo "deb [check-valid-until=no] http://snapshot.debian.org/archive/debian/${DEBIAN_SNAPSHOT} bookworm main"; \
+      echo "deb [check-valid-until=no] http://snapshot.debian.org/archive/debian/${DEBIAN_SNAPSHOT} bookworm-updates main"; \
+      echo "deb [check-valid-until=no] http://snapshot.debian.org/archive/debian-security/${DEBIAN_SNAPSHOT} bookworm-security main"; \
+    } > /etc/apt/sources.list
+
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libssl3 \
     ca-certificates \

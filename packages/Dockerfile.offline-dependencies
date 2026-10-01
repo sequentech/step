@@ -49,6 +49,22 @@
 # Global build arguments. These must precede the first FROM: an ARG after a FROM
 # belongs to that stage only, and a later stage redeclaring it would then see an
 # empty value -- which silently turned a pinned immudb tag into an empty one.
+# Debian archive snapshot every apt call resolves against. Pinning the archive
+# state, rather than individual package versions, is what makes the dependency
+# closure identical on a client's machine and on ours: pinning only the packages
+# we name leaves their dependencies to whatever the live mirror serves that day
+# (installing wget with its version pinned still resolves libpsl5 from the
+# mirror). See sequentech/meta#13625.
+#
+# http, not https: these base images ship no CA certificates, so an https source
+# fails before anything is installed. apt verifies the signed InRelease and the
+# per-file checksums regardless of transport.
+#
+# Bumping this is a deliberate release action, like bumping a base image digest:
+# it changes what the build contains, so it produces a new release identity. A
+# pinned snapshot also stops picking up security updates until it is bumped.
+ARG DEBIAN_SNAPSHOT=20260929T000000Z
+
 ARG IMMUDB_VERSION=1.9.6
 ARG OID4VP_VERSION=0.6.2
 ARG OID4VP_SHA256=f6cd968bc77fec4f8e1417d3caeefe4920941e01b119f152f1c9186bbd2b2e15
@@ -56,6 +72,16 @@ ARG OID4VP_SHA256=f6cd968bc77fec4f8e1417d3caeefe4920941e01b119f152f1c9186bbd2b2e
 # Cargo dependencies, including git dependencies and patched crates, which
 # cargo vendor resolves into the same directory.
 FROM rust:1.96.0-slim-bookworm@sha256:4732ca96fd086cb9be682050c3f0176288eebaac2b80aa2bcefccfaf198e1950 AS rust-deps
+# Resolve apt against the pinned snapshot rather than the live mirror.
+ARG DEBIAN_SNAPSHOT
+RUN set -eux; \
+    rm -f /etc/apt/sources.list.d/debian.sources; \
+    { \
+      echo "deb [check-valid-until=no] http://snapshot.debian.org/archive/debian/${DEBIAN_SNAPSHOT} bookworm main"; \
+      echo "deb [check-valid-until=no] http://snapshot.debian.org/archive/debian/${DEBIAN_SNAPSHOT} bookworm-updates main"; \
+      echo "deb [check-valid-until=no] http://snapshot.debian.org/archive/debian-security/${DEBIAN_SNAPSHOT} bookworm-security main"; \
+    } > /etc/apt/sources.list
+
 RUN apt-get update \
     && apt-get install -y --no-install-recommends git ca-certificates \
     && rm -rf /var/lib/apt/lists/*
