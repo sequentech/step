@@ -944,9 +944,16 @@ export type RestorePrivateKeyInput = {
   tally_session_id: Scalars['String']['input'];
 };
 
+export enum RestorePrivateKeyOutcome {
+  AlreadyRestored = 'ALREADY_RESTORED',
+  Invalid = 'INVALID',
+  Restored = 'RESTORED'
+}
+
 export type RestorePrivateKeyOutput = {
   __typename?: 'RestorePrivateKeyOutput';
   is_valid: Scalars['Boolean']['output'];
+  outcome: RestorePrivateKeyOutcome;
 };
 
 export enum ResultsPublicationStatus {
@@ -17802,6 +17809,8 @@ export type Sequent_Backend_Scheduled_Event_Bool_Exp = {
 
 /** unique or primary key constraints on table "sequent_backend.scheduled_event" */
 export enum Sequent_Backend_Scheduled_Event_Constraint {
+  /** unique or primary key constraint on columns "task_id", "tenant_id", "election_event_id" */
+  ScheduledEventActiveVotingTaskIdx = 'scheduled_event_active_voting_task_idx',
   /** unique or primary key constraint on columns "id" */
   ScheduledEventPkey = 'scheduled_event_pkey'
 }

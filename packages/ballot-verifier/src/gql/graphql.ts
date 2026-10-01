@@ -945,9 +945,16 @@ export type RestorePrivateKeyInput = {
     tally_session_id: Scalars["String"]["input"]
 }
 
+export enum RestorePrivateKeyOutcome {
+    AlreadyRestored = "ALREADY_RESTORED",
+    Invalid = "INVALID",
+    Restored = "RESTORED",
+}
+
 export type RestorePrivateKeyOutput = {
     __typename?: "RestorePrivateKeyOutput"
     is_valid: Scalars["Boolean"]["output"]
+    outcome: RestorePrivateKeyOutcome
 }
 
 export enum ResultsPublicationStatus {
@@ -5016,6 +5023,7 @@ export type Query_Root = {
     getElectionEventStats?: Maybe<ElectionEventStatsOutput>
     /** get election event stats */
     getElectionStats?: Maybe<ElectionStatsOutput>
+    get_ballot_files_urls: Scalars["jsonb"]["output"]
     get_document_password: DocumentPasswordOutput
     /** list permissions */
     get_permissions: GetPermissionsOutput
@@ -5322,6 +5330,10 @@ export type Query_RootGetElectionEventStatsArgs = {
 
 export type Query_RootGetElectionStatsArgs = {
     object: ElectionStatsInput
+}
+
+export type Query_RootGet_Ballot_Files_UrlsArgs = {
+    election_event_id: Scalars["String"]["input"]
 }
 
 export type Query_RootGet_Document_PasswordArgs = {
@@ -7555,6 +7567,8 @@ export type Sequent_Backend_Ballot_Style = {
     ballot_signature?: Maybe<Scalars["bytea"]["output"]>
     created_at?: Maybe<Scalars["timestamptz"]["output"]>
     deleted_at?: Maybe<Scalars["timestamptz"]["output"]>
+    /** An object relationship */
+    election?: Maybe<Sequent_Backend_Election>
     election_event_id: Scalars["uuid"]["output"]
     election_id: Scalars["uuid"]["output"]
     id: Scalars["uuid"]["output"]
@@ -7613,6 +7627,7 @@ export type Sequent_Backend_Ballot_Style_Bool_Exp = {
     ballot_signature?: InputMaybe<Bytea_Comparison_Exp>
     created_at?: InputMaybe<Timestamptz_Comparison_Exp>
     deleted_at?: InputMaybe<Timestamptz_Comparison_Exp>
+    election?: InputMaybe<Sequent_Backend_Election_Bool_Exp>
     election_event_id?: InputMaybe<Uuid_Comparison_Exp>
     election_id?: InputMaybe<Uuid_Comparison_Exp>
     id?: InputMaybe<Uuid_Comparison_Exp>
@@ -7655,6 +7670,7 @@ export type Sequent_Backend_Ballot_Style_Insert_Input = {
     ballot_signature?: InputMaybe<Scalars["bytea"]["input"]>
     created_at?: InputMaybe<Scalars["timestamptz"]["input"]>
     deleted_at?: InputMaybe<Scalars["timestamptz"]["input"]>
+    election?: InputMaybe<Sequent_Backend_Election_Obj_Rel_Insert_Input>
     election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
     election_id?: InputMaybe<Scalars["uuid"]["input"]>
     id?: InputMaybe<Scalars["uuid"]["input"]>
@@ -7721,6 +7737,7 @@ export type Sequent_Backend_Ballot_Style_Order_By = {
     ballot_signature?: InputMaybe<Order_By>
     created_at?: InputMaybe<Order_By>
     deleted_at?: InputMaybe<Order_By>
+    election?: InputMaybe<Sequent_Backend_Election_Order_By>
     election_event_id?: InputMaybe<Order_By>
     election_id?: InputMaybe<Order_By>
     id?: InputMaybe<Order_By>
@@ -10748,6 +10765,13 @@ export type Sequent_Backend_Election_Mutation_Response = {
     affected_rows: Scalars["Int"]["output"]
     /** data from the rows affected by the mutation */
     returning: Array<Sequent_Backend_Election>
+}
+
+/** input type for inserting object relation for remote table "sequent_backend.election" */
+export type Sequent_Backend_Election_Obj_Rel_Insert_Input = {
+    data: Sequent_Backend_Election_Insert_Input
+    /** upsert condition */
+    on_conflict?: InputMaybe<Sequent_Backend_Election_On_Conflict>
 }
 
 /** on_conflict condition type for table "sequent_backend.election" */
@@ -17203,6 +17227,8 @@ export type Sequent_Backend_Scheduled_Event_Bool_Exp = {
 
 /** unique or primary key constraints on table "sequent_backend.scheduled_event" */
 export enum Sequent_Backend_Scheduled_Event_Constraint {
+    /** unique or primary key constraint on columns "task_id", "tenant_id", "election_event_id" */
+    ScheduledEventActiveVotingTaskIdx = "scheduled_event_active_voting_task_idx",
     /** unique or primary key constraint on columns "id" */
     ScheduledEventPkey = "scheduled_event_pkey",
 }
