@@ -112,6 +112,9 @@ async function dashboardLoading(canvasElement: HTMLElement) {
 
 const labels = (...keys: string[]) => keys.map((key) => i18n.t(`electionEventScreen.tabs.${key}`))
 
+/** The Signatures tab, labelled by the signing feature's own key. */
+const signatures = () => i18n.t("signing.tab.title")
+
 export const Populated: Story = {
     globals: {permissions: EStoryPermissions.ADMIN},
     // The monitoring loader has a name.
@@ -119,14 +122,10 @@ export const Populated: Story = {
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
         await expect(await canvas.findByText("Council")).toBeVisible()
-        expect(tabLabels(canvasElement)).toEqual(
-            labels(
-                "dashboard",
-                "data",
-                "localization",
-                "voters",
-                "areas",
-                "keys",
+        expect(tabLabels(canvasElement)).toEqual([
+            ...labels("dashboard", "data", "localization", "voters", "areas", "keys"),
+            signatures(),
+            ...labels(
                 "tally",
                 "tallySheetImports",
                 "publish",
@@ -135,8 +134,8 @@ export const Populated: Story = {
                 "events",
                 "reports",
                 "approvals"
-            )
-        )
+            ),
+        ])
         expect(paramsOf(data, "getOne", RESOURCE)).toMatchObject({id: EVENT_ID})
         await dashboardLoading(canvasElement)
         // Once the event has loaded, the address returns to the event itself.
@@ -182,7 +181,12 @@ export const LockedDownEvent: Story = {
     parameters: {expectedFailure: null},
     play: async ({canvasElement}) => {
         await expect(await within(canvasElement).findByText("Council")).toBeVisible()
-        expect(tabLabels(canvasElement)).toEqual(labels("dashboard", "voters", "logs", "reports"))
+        // The Signatures tab stays, read-only, after lockdown.
+        expect(tabLabels(canvasElement)).toEqual([
+            ...labels("dashboard", "voters"),
+            signatures(),
+            ...labels("logs", "reports"),
+        ])
         await dashboardLoading(canvasElement)
     },
 }
