@@ -202,6 +202,8 @@ fn notice(world: &World, key: &str, destinations: BTreeMap<MessageChannel, Strin
         template_alias: Some("reminder".to_string()),
         logical_key: key.to_string(),
         expires_at: None,
+        account_id: None,
+        provider_template: None,
     }
 }
 

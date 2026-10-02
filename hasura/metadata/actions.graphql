@@ -2404,6 +2404,7 @@ type Mutation {
         purpose: String!
         destination: String!
         language: String
+        template: String
     ): TestMessagingAccountOutput
 }
 

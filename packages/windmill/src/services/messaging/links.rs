@@ -312,6 +312,8 @@ pub async fn bind_referral(
             template_alias: None,
             logical_key: format!("messenger-link:{}", link.id),
             expires_at: Some(link.expires_at),
+            account_id: Some(link.account_id),
+            provider_template: None,
         },
     )
     .await?;

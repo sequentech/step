@@ -1072,6 +1072,7 @@ pub async fn send_application_communication_response(
                 viber: None,
                 messenger: None,
                 channel_selection: ChannelSelection::SINGLE_CHANNEL,
+                send_id: None,
                 document: None,
                 name: None,
                 alias: None,

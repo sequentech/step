@@ -318,6 +318,8 @@ async fn apply_inbound(
             template_alias: Some(AUTO_REPLY_ALIAS.to_string()),
             logical_key: format!("{AUTO_REPLY_ALIAS}:{}:{digest}:{today}", account.id),
             expires_at: None,
+            account_id: Some(account.id),
+            provider_template: None,
         },
     )
     .await?;

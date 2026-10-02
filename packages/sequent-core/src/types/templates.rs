@@ -219,6 +219,10 @@ pub struct SendTemplateBody {
     pub messenger: Option<InstantMessageConfig>,
     #[serde(default)]
     pub channel_selection: ChannelSelection,
+    /// Identifies the send across its retries, so a voter already reached
+    /// is not messaged again. Set by the task itself.
+    #[serde(default)]
+    pub send_id: Option<String>,
     pub document: Option<String>,
     pub name: Option<String>,
     pub alias: Option<String>,

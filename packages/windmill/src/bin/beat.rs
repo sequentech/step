@@ -16,6 +16,7 @@ use windmill::services::celery_app::{set_is_app_active, Queue};
 use windmill::services::monitoring::cadence;
 use windmill::services::probe::{setup_probe, AppName};
 use windmill::tasks::electoral_log::electoral_log_batch_dispatcher;
+use windmill::tasks::reconcile_messages::reconcile_messages;
 use windmill::tasks::refresh_monitoring_snapshot::{
     refresh_monitoring_snapshots, scheduled_fan_out,
 };
@@ -37,6 +38,9 @@ struct CeleryOpt {
     review_cast_votes_interval: u64,
     #[arg(short = 'e', long, default_value = "5")]
     electoral_log_interval: u64,
+    /// Seconds between two passes resolving messages whose outcome is unknown.
+    #[arg(long, default_value = "300")]
+    reconcile_messages_interval: u64,
     /// Seconds between two monitoring snapshot passes; bounds and default
     /// in `sequent_core::monitoring::cadence`.
     #[arg(short = 'm', long, env = SNAPSHOT_INTERVAL_ENV)]
@@ -83,6 +87,11 @@ async fn main() -> Result<()> {
                 schedule = DeltaSchedule::new(Duration::from_secs(CeleryOpt::parse().electoral_log_interval)),
                 args = (),
             },
+            reconcile_messages::NAME => {
+                reconcile_messages,
+                schedule = DeltaSchedule::new(Duration::from_secs(CeleryOpt::parse().reconcile_messages_interval)),
+                args = (),
+            },
         ],
         task_routes = [
             review_boards::NAME => &Queue::Beat.queue_name(&slug),
@@ -91,6 +100,7 @@ async fn main() -> Result<()> {
             review_cast_votes::NAME => &Queue::Beat.queue_name(&slug),
             electoral_log_batch_dispatcher::NAME => &Queue::ElectoralLogBeat.queue_name(&slug),
             refresh_monitoring_snapshots::NAME => &Queue::Beat.queue_name(&slug),
+            reconcile_messages::NAME => &Queue::Communication.queue_name(&slug),
         ],
     ).await?;
     // Scheduled outside the macro, which cannot give a message its expiry.

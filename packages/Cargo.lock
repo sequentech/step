@@ -4584,6 +4584,7 @@ dependencies = [
  "indexmap 2.14.2",
  "keycloak",
  "lru",
+ "messaging",
  "quick-xml 0.32.0",
  "regex",
  "reqwest",

@@ -26,8 +26,9 @@ use messaging::sender::{
     preflight, ChannelSender, FailureKind, OutboundMessage, ProviderFailure, SendOutcome,
 };
 use sequent_core::types::messaging::{
-    AccountCheck, EventMessagingConfig, MessageAttemptState, MessageChannel, MessageContent,
-    MessageDirection, MessagePurpose, MessagingProvider, OutOfWindowPolicy, ProviderCapabilities,
+    AccountCheck, AccountSender, EventMessagingConfig, MessageAttemptState, MessageChannel,
+    MessageContent, MessageDirection, MessagePurpose, MessagingProvider, OutOfWindowPolicy,
+    ProviderCapabilities,
 };
 use std::collections::{BTreeMap, HashMap};
 use std::sync::{Arc, Mutex};
@@ -74,6 +75,11 @@ pub struct Delivery {
     /// Stable across retries of the same message.
     pub logical_key: String,
     pub expires_at: Option<DateTime<Utc>>,
+    /// Send through this account instead of the event's or the default,
+    /// such as for an administrator's test message.
+    pub account_id: Option<Uuid>,
+    /// Use this approved template instead of the event's binding.
+    pub provider_template: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -85,6 +91,8 @@ pub struct DeliveryResult {
     pub reason: Option<String>,
     /// Retry the same channel after this long.
     pub retry_after: Option<Duration>,
+    /// Shown in records instead of the address.
+    pub masked_destination: Option<String>,
 }
 
 impl DeliveryResult {
@@ -95,6 +103,7 @@ impl DeliveryResult {
             state: record.state,
             reason: record.error.clone(),
             retry_after: None,
+            masked_destination: Some(record.masked_destination.clone()),
         }
     }
 }
@@ -325,11 +334,17 @@ pub async fn deliver(
                         state: MessageAttemptState::FAILED,
                         reason: Some("no eligible channel".to_string()),
                         retry_after: None,
+                        masked_destination: None,
                     }));
             }
         };
 
-        let account = account_for(&tx, &delivery.tenant_id, config.as_ref(), channel).await?;
+        let account = match delivery.account_id {
+            Some(account_id) => get_messaging_account(&tx, &delivery.tenant_id, &account_id)
+                .await?
+                .filter(|account| account.channel == channel),
+            None => account_for(&tx, &delivery.tenant_id, config.as_ref(), channel).await?,
+        };
         let destination_key = tenant_key(&tx, &delivery.tenant_id, TenantKey::Destination).await?;
         let raw_destination = delivery.recipient.destinations.get(&channel);
         let destination = raw_destination.map(|raw| Destination::parse(channel, raw));
@@ -375,15 +390,31 @@ pub async fn deliver(
                     .cloned()
                     .ok_or_else(|| format!("no {channel} content"))?;
                 let channel_config = config.as_ref().and_then(|c| c.channel(channel));
-                let provider_template = channel_config.and_then(|c| {
-                    c.templates
-                        .iter()
-                        .find(|t| {
-                            t.purpose == delivery.purpose
-                                && Some(&t.language) == delivery.language.as_ref()
+                let provider_template = delivery
+                    .provider_template
+                    .clone()
+                    .or_else(|| {
+                        channel_config.and_then(|c| {
+                            c.templates
+                                .iter()
+                                .find(|t| {
+                                    t.purpose == delivery.purpose
+                                        && Some(&t.language) == delivery.language.as_ref()
+                                })
+                                .map(|t| t.provider_template.clone())
                         })
-                        .map(|t| t.provider_template.clone())
-                });
+                    })
+                    .or_else(|| match account.as_ref().map(|a| &a.sender) {
+                        Some(AccountSender::VIBER_INFOBIP {
+                            approved_templates, ..
+                        }) => approved_templates
+                            .get(&delivery.purpose)
+                            .and_then(|by_language| {
+                                by_language.get(delivery.language.as_deref().unwrap_or("en"))
+                            })
+                            .cloned(),
+                        _ => None,
+                    });
                 let (sender, last_inbound): (Box<dyn ChannelSender>, _) = match &account {
                     Some(account) => {
                         let runtime = runtime_account(&tx, account)
