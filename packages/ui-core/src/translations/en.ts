@@ -707,6 +707,10 @@ const englishTranslation = {
                         lead: "Not a time",
                         text: "Not a time — '{{value}}' in the manifest is not a date and time.",
                     },
+                    "report-template-missing": {
+                        lead: "Report template missing",
+                        text: "Report template missing — the {{report}} report is drawn with template '{{template}}', which isn't in the configuration, so its design can't be signed.",
+                    },
                     "revoked-approver": {
                         lead: "Approver's certificate revoked",
                         text: "Approver's certificate revoked — an approver's certificate has been revoked, so the approval doesn't count.",
@@ -780,6 +784,24 @@ const englishTranslation = {
                     "unreadable": {
                         lead: "Plan unreadable",
                         text: "Plan unreadable — {{error}}",
+                    },
+                },
+                reports: {
+                    "duplicate": {
+                        lead: "Report set twice",
+                        text: "Report set twice — the {{report}} report is set more than once for the same election.",
+                    },
+                    "no-copies": {
+                        lead: "No copies",
+                        text: "No copies — the {{report}} report is set to print no copies. Set at least one.",
+                    },
+                    "unknown-election": {
+                        lead: "Unknown election",
+                        text: "Unknown election — the {{report}} report is about election '{{election}}', which this plan doesn't have.",
+                    },
+                    "unsupported-format": {
+                        lead: "Format not available",
+                        text: "Format not available — the {{report}} report can't be generated as {{format}}.",
                     },
                 },
                 schedule: {

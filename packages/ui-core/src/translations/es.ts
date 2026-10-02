@@ -710,6 +710,10 @@ const spanishTranslation: TranslationType = {
                         lead: "No es una fecha y hora",
                         text: "No es una fecha y hora — «{{value}}» en el manifiesto no es una fecha y hora.",
                     },
+                    "report-template-missing": {
+                        lead: "Falta la plantilla del informe",
+                        text: "Falta la plantilla del informe — el informe {{report}} se genera con la plantilla «{{template}}», que no está en la configuración, así que su diseño no se puede firmar.",
+                    },
                     "revoked-approver": {
                         lead: "Certificado de aprobador revocado",
                         text: "Certificado de aprobador revocado — el certificado de un aprobador ha sido revocado, así que la aprobación no cuenta.",
@@ -783,6 +787,24 @@ const spanishTranslation: TranslationType = {
                     "unreadable": {
                         lead: "Plan ilegible",
                         text: "Plan ilegible — {{error}}",
+                    },
+                },
+                reports: {
+                    "duplicate": {
+                        lead: "Informe configurado dos veces",
+                        text: "Informe configurado dos veces — el informe {{report}} está configurado más de una vez para la misma elección.",
+                    },
+                    "no-copies": {
+                        lead: "Sin copias",
+                        text: "Sin copias — el informe {{report}} está configurado para no imprimir ninguna copia. Indique al menos una.",
+                    },
+                    "unknown-election": {
+                        lead: "Elección desconocida",
+                        text: "Elección desconocida — el informe {{report}} trata de la elección «{{election}}», que este plan no tiene.",
+                    },
+                    "unsupported-format": {
+                        lead: "Formato no disponible",
+                        text: "Formato no disponible — el informe {{report}} no se puede generar en {{format}}.",
                     },
                 },
                 schedule: {

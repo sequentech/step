@@ -23,7 +23,7 @@ use serde_json::{json, Map, Value};
 use std::collections::HashSet;
 use tokio_postgres::error::SqlState;
 use uuid::Uuid;
-use windmill::postgres::reports::{Report, ReportCronConfig, ReportType};
+use windmill::postgres::reports::{Report, ReportCronConfig, ReportFormat, ReportType};
 use windmill::postgres::{
     document, lock, render_report, reports, scheduled_event, tasks_execution,
 };
@@ -1281,6 +1281,8 @@ fn report(w: &World, n: u32) -> Report {
         }),
         created_at: utc(H10),
         permission_label: Some(vec!["north".into()]),
+        copies: Some(7),
+        output_formats: Some(vec![ReportFormat::Pdf, ReportFormat::Xml]),
     }
 }
 
@@ -1322,6 +1324,8 @@ async fn insert_reports_stores_every_report_with_its_columns() {
             "encryption_policy": "configured_password",
             "template_alias": "results-template",
             "permission_label": ["north"],
+            "copies": 7,
+            "output_formats": ["pdf", "xml"],
         })
     );
     let found = reports::get_report_by_id(&tx, &w.tenant, &w.id(11))
