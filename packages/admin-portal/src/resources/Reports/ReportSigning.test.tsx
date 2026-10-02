@@ -15,7 +15,15 @@ import {
 } from "@apollo/client"
 import {EReportType} from "@/types/reports"
 import {IPermissions} from "@/types/keycloak"
-import {useReportSignatures} from "./ReportSigning"
+import {useActionNeedsSignatures} from "@/components/signing/useSigningRule"
+import type {ISigningPanelData} from "@/lib/signing/api"
+import {SigningAction, SigningRequestStatus} from "@/lib/signing/types"
+import {
+    heldByReports,
+    releasedDocumentId,
+    reportSigningAction,
+    useReportSignatures,
+} from "./ReportSigning"
 
 jest.mock("@sequentech/ui-essentials", () => ({Dialog: () => null}), {virtual: true})
 jest.mock("react-i18next", () => ({
@@ -107,5 +115,81 @@ describe("useReportSignatures", () => {
         await new Promise((settle) => setTimeout(settle, 50))
         expect(operations).toEqual([])
         expect(result.current.known).toBe(false)
+    })
+})
+
+describe("report signing actions", () => {
+    it("signs each report type where it is produced", () => {
+        expect(reportSigningAction(EReportType.ELECTORAL_RESULTS)).toBe(
+            SigningAction.GenerateElectionReturns
+        )
+        expect(reportSigningAction(EReportType.INITIALIZATION_REPORT)).toBe(
+            SigningAction.GenerateReports
+        )
+        expect(reportSigningAction(EReportType.PARTICIPATION_REPORT)).toBe(
+            SigningAction.GenerateReports
+        )
+        expect(reportSigningAction(EReportType.CREDENTIALS)).toBeNull()
+        // The tally produces the election returns; the Reports tab holds only the participation report.
+        expect(heldByReports(EReportType.PARTICIPATION_REPORT)).toBe(true)
+        expect(heldByReports(EReportType.ELECTORAL_RESULTS)).toBe(false)
+    })
+
+    it("counts each report's signatures from its action's rule", async () => {
+        const {result} = renderSignatures(EVENT_ID)
+
+        await waitFor(() => expect(result.current.known).toBe(true))
+        expect(result.current.needs(EReportType.INITIALIZATION_REPORT)).toBe(2)
+        // No rule for the election returns: off.
+        expect(result.current.needs(EReportType.ELECTORAL_RESULTS)).toBe(0)
+        // A report that takes no signatures.
+        expect(result.current.needs(EReportType.CREDENTIALS)).toBeNull()
+    })
+
+    it("releases a report document only from an executed request", () => {
+        const panel = (status: SigningRequestStatus, result: Record<string, unknown> | null) =>
+            ({request: {status, execution_result: result}}) as unknown as ISigningPanelData
+
+        expect(releasedDocumentId(panel(SigningRequestStatus.Executed, {document_id: "doc"}))).toBe(
+            "doc"
+        )
+        expect(
+            releasedDocumentId(panel(SigningRequestStatus.Executed, {document_id: 7}))
+        ).toBeNull()
+        expect(releasedDocumentId(panel(SigningRequestStatus.Executed, null))).toBeNull()
+        expect(
+            releasedDocumentId(panel(SigningRequestStatus.Completed, {document_id: "doc"}))
+        ).toBeNull()
+    })
+})
+
+describe("useActionNeedsSignatures", () => {
+    const renderNeeds = (electionEventId: string, action: SigningAction, enabled?: boolean) =>
+        renderHook(() => useActionNeedsSignatures(electionEventId, action, enabled), {
+            wrapper: ({children}) => <ApolloProvider client={client}>{children}</ApolloProvider>,
+        })
+
+    it("says whether the event's rule for an action is required", async () => {
+        const required = renderNeeds(EVENT_ID, SigningAction.GenerateReports)
+        await waitFor(() => expect(required.result.current).toBe(true))
+        expect(operations[0].getContext().headers).toEqual({
+            "x-hasura-role": IPermissions.SIGNING_RULES_READ,
+        })
+
+        const off = renderNeeds(EVENT_ID, SigningAction.TransmitResults)
+        await waitFor(() => expect(off.result.current).toBe(false))
+    })
+
+    it("does not know without an event, the permission, or while disabled", async () => {
+        const noEvent = renderNeeds("", SigningAction.GenerateReports)
+        const disabled = renderNeeds(EVENT_ID, SigningAction.GenerateReports, false)
+        mockGranted = []
+        const unreadable = renderNeeds(EVENT_ID, SigningAction.GenerateReports)
+
+        await new Promise((settle) => setTimeout(settle, 50))
+        expect(operations).toEqual([])
+        expect(noEvent.result.current).toBeNull()
+        expect(disabled.result.current).toBeNull()
+        expect(unreadable.result.current).toBeNull()
     })
 })
