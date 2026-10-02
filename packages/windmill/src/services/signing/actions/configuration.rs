@@ -13,9 +13,9 @@
 //! scheduled events created since, and whether the ballots and contests
 //! changed. One request waits per target (the event, or the Post of an
 //! election-level publication). Generating a new publication cancels the
-//! one waiting for its target, and an event-level one every one waiting
-//! (PayloadChanged). The HSM/KMS signature of the configuration package
-//! stays with EMS-MANIFEST.
+//! one waiting for its target and the initializations waiting for its Post,
+//! and an event-level one every one waiting (PayloadChanged). The HSM/KMS
+//! signature of the configuration package stays with EMS-MANIFEST.
 
 use super::{event_ids, gate, refuse, subject_of, EffectProgress};
 use crate::adapters::publication_files::PgPublicationRows;
@@ -299,9 +299,12 @@ pub async fn gate_publication(
 }
 
 /// Cancels the requests a new publication supersedes (PayloadChanged): the
-/// one waiting for its target, or, for an event-level publication, every
-/// one waiting. It takes the event's signing lock first, so call it before
-/// the route takes the publication lock. How many it cancelled.
+/// configuration version waiting for its target and the initializations
+/// waiting for its Post, or, for an event-level publication, every one of
+/// them waiting. A new configuration version changes what initializing a
+/// Post would start from, so its initialization starts again. It takes the
+/// event's signing lock first, so call it before the route takes the
+/// publication lock. How many it cancelled.
 pub async fn cancel_for_new_publication(
     hasura_transaction: &Transaction<'_>,
     caller: &SigningCaller,
@@ -321,16 +324,31 @@ pub async fn cancel_for_new_publication(
         SigningAction::ApproveConfiguration,
     )
     .await?;
-    let mut cancelled = 0;
-    for candidate in waiting
+    let post = election_id.map(Uuid::parse_str).transpose().ok().flatten();
+    let initializations = list_waiting_signing_requests(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        SigningAction::InitializeVoting,
+    )
+    .await?;
+    let superseded = waiting
         .iter()
         .filter(|candidate| election_id.is_none() || candidate.scope_key == own_key)
-    {
+        .map(|candidate| (SigningAction::ApproveConfiguration, candidate))
+        .chain(
+            initializations
+                .iter()
+                .filter(|candidate| election_id.is_none() || candidate.election_id == post)
+                .map(|candidate| (SigningAction::InitializeVoting, candidate)),
+        );
+    let mut cancelled = 0;
+    for (action, candidate) in superseded {
         if let Some(request) = lock_waiting_signing_request(
             hasura_transaction,
             tenant_id,
             election_event_id,
-            SigningAction::ApproveConfiguration,
+            action,
             &candidate.scope_key,
         )
         .await?

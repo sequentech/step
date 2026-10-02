@@ -36,7 +36,7 @@ use uuid::Uuid;
 use windmill::services::signing::actions::configuration::{
     cancel_for_new_publication, gate_publication, publication_digest, publish, NO_CHANGES,
 };
-use windmill::services::signing::actions::initialize::gate_tally_creation;
+use windmill::services::signing::actions::initialize::{create_report_tally, gate_tally_creation};
 use windmill::services::signing::actions::voter::{
     approve, cancel_for_rejection, gate_voter_approval, VoterApprover,
 };
@@ -523,6 +523,142 @@ async fn a_new_publication_cancels_what_it_supersedes() {
             Some(CancelReason::PayloadChanged)
         );
     }
+}
+
+/// Generating a new publication (of `election`, or of the event), as the
+/// route does before it prepares it: how many waiting requests it cancelled.
+async fn new_publication(w: &World, who: &SigningCaller, election: Option<Uuid>) -> usize {
+    let mut client = w.pool.get().await.unwrap();
+    let tx = client.transaction().await.unwrap();
+    let cancelled = cancel_for_new_publication(
+        &tx,
+        who,
+        &w.tenant.to_string(),
+        &w.event.to_string(),
+        election.map(|id| id.to_string()).as_deref(),
+    )
+    .await
+    .unwrap();
+    tx.commit().await.unwrap();
+    cancelled
+}
+
+/// A new configuration version changes what initializing a Post would
+/// create its report from, so the Post's waiting initialization is
+/// cancelled (PayloadChanged) as it is generated, not refused later.
+#[tokio::test]
+async fn a_new_configuration_version_cancels_the_posts_waiting_initialization() {
+    for (label, required) in PRESETS {
+        let w = world(label).await;
+        let who = caller("sbei-chair", &[Permissions::ADMIN_CEREMONY], &[&w.label]);
+        w.rule(
+            SigningAction::InitializeVoting,
+            required,
+            RequesterSigning::Allowed,
+            Some(60),
+        )
+        .await;
+        publication(&w, true, true, None).await;
+        let post = vec![w.post.to_string()];
+        let first =
+            waiting_id(tally_gate(&w, &who, "INITIALIZATION_REPORT", post.clone(), false).await);
+
+        // Another Post's new publication leaves it waiting.
+        assert_eq!(new_publication(&w, &who, Some(Uuid::new_v4())).await, 0);
+        assert_eq!(w.request(first).await.status, SigningRequestStatus::Waiting);
+
+        // Its own Post's cancels it.
+        assert_eq!(new_publication(&w, &who, Some(w.post)).await, 1);
+        let cancelled = w.request(first).await;
+        assert_eq!(cancelled.status, SigningRequestStatus::Cancelled);
+        assert_eq!(cancelled.cancel_reason, Some(CancelReason::PayloadChanged));
+
+        // An event-level one cancels every Post's.
+        let again =
+            waiting_id(tally_gate(&w, &who, "INITIALIZATION_REPORT", post.clone(), false).await);
+        assert_ne!(again, first);
+        assert_eq!(new_publication(&w, &who, None).await, 1);
+        assert_eq!(
+            w.request(again).await.cancel_reason,
+            Some(CancelReason::PayloadChanged)
+        );
+        let cancels = w.entries("SigningRequestCancelled").await;
+        assert_eq!(cancels.len(), 2, "{cancels:?}");
+    }
+}
+
+/// The initialization runs only for the publication it signed: once the
+/// Post's published publication is another one, or none, it refuses
+/// before it acts.
+#[tokio::test]
+async fn initializing_refuses_once_the_posts_publication_changed() {
+    let w = world("init-changed").await;
+    let who = caller("sbei-chair", &[Permissions::ADMIN_CEREMONY], &[&w.label]);
+    w.rule(
+        SigningAction::InitializeVoting,
+        2,
+        RequesterSigning::Allowed,
+        Some(60),
+    )
+    .await;
+    let signed = publication(&w, true, true, None).await;
+    w.execute(
+        "UPDATE sequent_backend.ballot_publication
+         SET published_at = now() - interval '3 hours' WHERE id = $1",
+        &[&signed],
+    )
+    .await;
+    let id = waiting_id(
+        tally_gate(
+            &w,
+            &who,
+            "INITIALIZATION_REPORT",
+            vec![w.post.to_string()],
+            false,
+        )
+        .await,
+    );
+    let request = w.request(id).await;
+    let run = |request: windmill::postgres::signing::SigningRequestRow| {
+        let w = w.clone();
+        async move {
+            let mut client = w.pool.get().await.unwrap();
+            let tx = client.transaction().await.unwrap();
+            let progress = EffectProgress::default();
+            let outcome = create_report_tally(&tx, &request, &progress).await;
+            tx.rollback().await.unwrap();
+            (outcome, progress.reached_outside())
+        }
+    };
+
+    // Control: with the signed publication it goes on to create the tally
+    // (which this world can't), past the publication check.
+    let (outcome, _) = run(request.clone()).await;
+    if let Err(error) = &outcome {
+        assert!(
+            error
+                .downcast_ref::<EffectRefused>()
+                .map_or(true, |refused| refused.code != "publication-changed"),
+            "{error:#}"
+        );
+    }
+
+    // A newer publication of the Post was published meanwhile.
+    let newer = publication(&w, true, true, None).await;
+    let (outcome, reached) = run(request.clone()).await;
+    assert_eq!(refused_code(outcome), "publication-changed");
+    assert!(!reached);
+
+    // Or the Post has none any more.
+    w.execute(
+        "UPDATE sequent_backend.ballot_publication SET deleted_at = now()
+         WHERE id = ANY($1)",
+        &[&vec![signed, newer]],
+    )
+    .await;
+    let (outcome, reached) = run(request).await;
+    assert_eq!(refused_code(outcome), "publication-changed");
+    assert!(!reached);
 }
 
 /// An application of the world's area, which takes part in the Post
