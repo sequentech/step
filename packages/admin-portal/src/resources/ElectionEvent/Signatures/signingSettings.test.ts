@@ -9,6 +9,7 @@ import {
     SigningRequestStatus,
     SigningRequirement,
     StaffCertificateStatus,
+    MAX_SIGNATURES,
     type ISigningRequestListRow,
     type ISigningRule,
     type ISigningRuleCapacity,
@@ -20,7 +21,6 @@ import {
     certificateStatus,
     checkSignatures,
     commonName,
-    MAX_SIGNATURES,
     SigningErrorCode,
     afterLockdown,
     certificateFingerprint,
@@ -267,11 +267,13 @@ describe("checkSignatures", () => {
         })
     })
 
-    it("caps the number at the contract's range", () => {
-        expect(checkSignatures(MAX_SIGNATURES, undefined).problem).toBeNull()
-        expect(checkSignatures(MAX_SIGNATURES + 1, undefined)).toMatchObject({
+    it("caps the number at the server's maximum, the shared one", () => {
+        // sequent-core's MAX_SIGNATURES is 100; the drawer checks the same constant.
+        expect(MAX_SIGNATURES).toBe(100)
+        expect(checkSignatures(100, undefined).problem).toBeNull()
+        expect(checkSignatures(101, undefined)).toMatchObject({
             problem: SignaturesProblem.OutOfRange,
-            max: MAX_SIGNATURES,
+            max: 100,
         })
     })
 

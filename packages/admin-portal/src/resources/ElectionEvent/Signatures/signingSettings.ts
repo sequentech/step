@@ -14,6 +14,7 @@ import {
     CertificateRegistration,
     CrlUnavailablePolicy,
     ExecutionMode,
+    MAX_SIGNATURES,
     RequesterSigning,
     RevocationCheck,
     SIGNING_ACTIONS,
@@ -144,12 +145,9 @@ export enum SignaturesProblem {
     AtLeastOne = "at-least-one",
     /** More than the Post with most signers (or the event) can give. */
     TooMany = "too-many",
-    /** Beyond the contract's range (a u16). */
+    /** More than any rule may need (`MAX_SIGNATURES`, the server's own maximum). */
     OutOfRange = "out-of-range",
 }
-
-/** The most signatures a rule can ask for (design §1: a u16). */
-export const MAX_SIGNATURES = 65535
 
 /** Posts with the same number of signers, all fewer than the number asked for. */
 export interface IShortPosts {

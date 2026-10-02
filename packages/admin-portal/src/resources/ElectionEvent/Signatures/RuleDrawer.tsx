@@ -36,9 +36,9 @@ import {
     type ISaveSigningRuleOutput,
     type ISigningRule,
     type ISigningRuleCapacity,
+    MAX_SIGNATURES,
 } from "@/lib/signing/types"
 import {
-    MAX_SIGNATURES,
     SignaturesProblem,
     checkSignatures,
     draftChanged,
