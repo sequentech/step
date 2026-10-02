@@ -310,6 +310,12 @@ impl fmt::Debug for Rejected {
 impl std::error::Error for Rejected {}
 
 impl Report {
+    pub fn from_problem(problem: Problem) -> Self {
+        Report {
+            problems: vec![problem],
+        }
+    }
+
     pub fn push(&mut self, problem: Problem) {
         self.problems.push(problem);
     }

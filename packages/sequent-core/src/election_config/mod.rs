@@ -41,6 +41,12 @@ pub mod architect;
 pub mod branding;
 pub mod census_csv;
 
+/// A ballot design's digest, the same before and after an import. Needs
+/// `sha2`, which `default_features` brings; windmill computes it at
+/// publication with the same function.
+#[cfg(feature = "default_features")]
+pub mod design;
+
 /// Passwords a delivery generates from a seed the plan carries. Shares the
 /// architect's feature, since a recipe is a field of a plan.
 #[cfg(feature = "election_config_templates")]
@@ -57,6 +63,11 @@ pub mod profile;
 
 pub mod emit;
 pub mod ids;
+
+/// A signed configuration package: its manifest, how one is assembled and
+/// opened. Reads and writes zips, so it shares the archive's feature.
+#[cfg(feature = "election_config_archive")]
+pub mod manifest;
 
 /// What an importer says about a file that fails before, or beside, validation.
 pub mod import_problems;

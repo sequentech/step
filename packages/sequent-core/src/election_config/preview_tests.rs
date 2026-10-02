@@ -839,3 +839,175 @@ fn the_logo_previews_inline_and_a_link_that_is_not_a_picture_is_left_alone() {
         "a picture the bundle does not carry keeps its link"
     );
 }
+
+// -- ballot design digests -------------------------------------------------
+
+/// `two_areas()` plus a second election that only the north votes in.
+fn two_elections() -> Blueprint {
+    let mut plan = two_areas();
+    let mut auditors = plan.elections[0].clone();
+    auditors.external_id = "auditors".to_string();
+    auditors.name = Translated::new("Auditors");
+    let contest = &mut auditors.contests[0];
+    contest.external_id = "auditor".to_string();
+    contest.name = Translated::new("Auditor");
+    contest.areas = vec!["north".to_string()];
+    for candidate in &mut contest.candidates {
+        candidate.external_id = format!("auditor-{}", candidate.external_id);
+    }
+    plan.elections.push(auditors);
+    plan
+}
+
+/// What the importer does to a bundle: every UUID, wherever it appears,
+/// replaced by a new one.
+fn renumbered(bundle: &Bundle) -> Bundle {
+    fn renumber_text(text: &str, seen: &mut HashMap<String, String>) -> String {
+        let mut out = String::new();
+        let mut rest = text;
+        while !rest.is_empty() {
+            let head = rest
+                .get(..36)
+                .filter(|head| head.contains('-') && uuid::Uuid::parse_str(head).is_ok());
+            match head {
+                Some(head) => {
+                    let next = seen.len() as u128 + 1;
+                    let replacement = seen
+                        .entry(head.to_string())
+                        .or_insert_with(|| {
+                            uuid::Uuid::from_u128(0xfeed_0000 + next)
+                                .hyphenated()
+                                .to_string()
+                        })
+                        .clone();
+                    out.push_str(&replacement);
+                    rest = &rest[36..];
+                }
+                None => {
+                    let mut chars = rest.chars();
+                    if let Some(next) = chars.next() {
+                        out.push(next);
+                    }
+                    rest = chars.as_str();
+                }
+            }
+        }
+        out
+    }
+
+    fn walk(value: &Value, seen: &mut HashMap<String, String>) -> Value {
+        match value {
+            Value::String(text) => Value::String(renumber_text(text, seen)),
+            Value::Array(items) => {
+                Value::Array(items.iter().map(|item| walk(item, seen)).collect())
+            }
+            Value::Object(map) => Value::Object(
+                map.iter()
+                    .map(|(name, nested)| (renumber_text(name, seen), walk(nested, seen)))
+                    .collect(),
+            ),
+            other => other.clone(),
+        }
+    }
+
+    let mut seen = HashMap::new();
+    let mut copy = bundle.clone();
+    copy.export = walk(&bundle.export, &mut seen);
+    for image in &mut copy.images {
+        image.document_id = renumber_text(&image.document_id, &mut seen);
+    }
+    copy
+}
+
+#[test]
+fn a_bundle_has_one_design_per_area_and_election() {
+    let digests = ballot_design_digests(&built(&two_elections()))
+        .expect("a sound plan has designs");
+    let named: Vec<(&str, &str)> = digests
+        .iter()
+        .map(|digest| (digest.area.as_str(), digest.election.as_str()))
+        .collect();
+    assert_eq!(
+        named,
+        vec![
+            ("NORTH", "auditors"),
+            ("NORTH", "officers"),
+            ("SOUTH", "officers"),
+        ]
+    );
+    assert!(digests.iter().all(|digest| digest.sha256.len() == 64
+        && digest.sha256.chars().all(|c| c.is_ascii_hexdigit())));
+}
+
+#[test]
+fn the_same_plan_has_the_same_design_digests() {
+    assert_eq!(
+        ballot_design_digests(&built(&two_elections())).unwrap(),
+        ballot_design_digests(&built(&two_elections())).unwrap()
+    );
+}
+
+#[test]
+fn design_digests_survive_the_importer_renumbering_every_id() {
+    let mut plan = two_elections();
+    plan.elections[0].contests[0].candidates[0].image = Some(CandidateImage {
+        file_name: "face.png".to_string(),
+        bytes: vec![0x89, b'P', b'N', b'G', 1, 2, 3],
+    });
+    let workbook = workbook_of(&plan).unwrap();
+    let bundle = build(
+        &workbook,
+        &TemplateSet::builtin().unwrap(),
+        &BuildOptions {
+            images: plan_images(&plan, &sources_of(&plan)),
+            ..BuildOptions::default()
+        },
+        &Sources::default(),
+    )
+    .unwrap();
+    let imported = renumbered(&bundle);
+    assert_ne!(bundle.export, imported.export, "the renumbering changes the document");
+
+    assert_eq!(
+        ballot_design_digests(&bundle).unwrap(),
+        ballot_design_digests(&imported).unwrap()
+    );
+}
+
+#[test]
+fn a_raw_style_hash_does_not_survive_the_renumbering() {
+    // Why the digest normalises: the platform's own style, hashed as it is,
+    // changes on import although nothing a voter sees has.
+    let raw = |bundle: &Bundle| {
+        let preview = preview_publication(bundle, &PreviewOptions::default()).unwrap();
+        serde_json::to_string(&preview.ballot_styles[0].contests).unwrap()
+    };
+    let bundle = built(&two_elections());
+    assert_ne!(raw(&bundle), raw(&renumbered(&bundle)));
+}
+
+#[test]
+fn a_change_to_one_contest_changes_only_the_designs_it_is_on() {
+    let before = ballot_design_digests(&built(&two_elections())).unwrap();
+    let mut changed = two_elections();
+    changed.elections[1].contests[0].candidates[0].name = Translated::new("Alicia");
+    let after = ballot_design_digests(&built(&changed)).unwrap();
+
+    let moved: Vec<(&str, &str)> = before
+        .iter()
+        .zip(&after)
+        .filter(|(old, new)| old.sha256 != new.sha256)
+        .map(|(old, _)| (old.area.as_str(), old.election.as_str()))
+        .collect();
+    assert_eq!(moved, vec![("NORTH", "auditors")]);
+}
+
+#[test]
+fn the_design_digest_leaves_the_voting_window_to_the_schedule_file() {
+    let mut later = two_elections();
+    later.schedule.voting_opens = Some(at("2027-03-02T09:00"));
+    assert_eq!(
+        ballot_design_digests(&built(&two_elections())).unwrap(),
+        ballot_design_digests(&built(&later)).unwrap()
+    );
+}
