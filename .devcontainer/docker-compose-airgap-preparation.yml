@@ -580,6 +580,7 @@ services:
       DEMO_PUBLIC_KEY: ${DEMO_PUBLIC_KEY}
 
   beat:
+    restart: unless-stopped
     profiles: ["full"]
     stdin_open: true
     image: 581718213778.dkr.ecr.us-east-1.amazonaws.com/windmill:STEP_VERSION

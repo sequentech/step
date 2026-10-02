@@ -63,6 +63,16 @@ async fn postgres_delivery_contract() {
         .await
         .unwrap();
     let client = pool.get().await.unwrap();
+    // Preserve useful SQLSTATE diagnostics without exposing server error payloads.
+    let error = client
+        .simple_query(
+            "DO $$ BEGIN RAISE EXCEPTION 'private-voter-payload' USING ERRCODE = '53100'; END $$",
+        )
+        .await
+        .unwrap_err();
+    let diagnostic = db_error(deadpool_postgres::PoolError::Backend(error)).to_string();
+    assert!(diagnostic.contains("53100"));
+    assert!(!diagnostic.contains("private-voter-payload"));
     let message = Message::try_from(retry_once::new()).unwrap();
     // A producer rollback must not leave a job behind.
     let mut tx_client = pool.get().await.unwrap();

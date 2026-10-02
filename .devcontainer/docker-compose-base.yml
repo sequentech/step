@@ -846,8 +846,11 @@ services:
       "rust-local-target/",
       "--ignore",
       "windmill/core",
-      "-x",
-      "run --bin main consume -q beat short_queue tally_queue reports_queue communication_queue import_export_queue electoral_log_batch_queue electoral_log_beat_queue --prefetch-count 1"
+      "--",
+      "sh",
+      "../../.devcontainer/restart-worker.sh",
+      "cargo",
+      "run", "--bin", "main", "consume", "-q", "beat", "short_queue", "tally_queue", "reports_queue", "communication_queue", "import_export_queue", "electoral_log_batch_queue", "electoral_log_beat_queue", "--prefetch-count", "1"
     ]
     volumes_from:
       - devcontainer
@@ -951,6 +954,7 @@ services:
     stdin_open: true
     image: sequentech.local/cargo-packages
     container_name: beat
+    restart: unless-stopped
     volumes_from:
       - devcontainer
     # make sure to depend on the `harvest` container to ensure
@@ -973,8 +977,11 @@ services:
       # otherwise triggers a rebuild all the time (probably rust analyzer)
       "--ignore",
       "rust-local-target/",
-      "-x",
-      "run --bin beat"
+      "--",
+      "sh",
+      "../../.devcontainer/restart-worker.sh",
+      "cargo",
+      "run", "--bin", "beat"
     ]
     environment:
       KEYCLOAK_DB__MANAGER__RECYCLING_METHOD: ${KEYCLOAK_DB__MANAGER__RECYCLING_METHOD}

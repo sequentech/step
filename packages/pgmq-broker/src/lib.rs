@@ -29,9 +29,37 @@ const RENEW_SECONDS: u64 = 10;
 const QUERY_TIMEOUT: Duration = Duration::from_secs(5);
 const POLL_INTERVAL: Duration = Duration::from_millis(200);
 
-fn db_error(_: impl std::fmt::Display) -> BrokerError {
-    // Database errors can contain message payloads. Keep voter data out of broker logs.
-    BrokerError::IoError(std::io::Error::other("PGMQ database operation failed"))
+fn db_error(error: impl std::error::Error + 'static) -> BrokerError {
+    // Database messages/details can contain voter payloads. Keep only safe categories/codes.
+    let mut cause: Option<&(dyn std::error::Error + 'static)> = Some(&error);
+    let mut category = "database operation failed".to_string();
+    while let Some(error) = cause {
+        if let Some(error) = error.downcast_ref::<tokio_postgres::Error>() {
+            if let Some(db) = error.as_db_error() {
+                category = format!("PostgreSQL SQLSTATE {}", db.code().code());
+                break;
+            }
+            if error.is_closed() {
+                category = "connection closed".into();
+                break;
+            }
+        }
+        if error.is::<tokio::time::error::Elapsed>() {
+            category = "operation timed out".into();
+            break;
+        }
+        if let Some(error) = error.downcast_ref::<deadpool_postgres::PoolError>() {
+            if let deadpool_postgres::PoolError::Timeout(_) = error {
+                category = "connection pool timed out".into();
+                break;
+            }
+        }
+        if let Some(error) = error.downcast_ref::<std::io::Error>() {
+            category = format!("I/O {:?}", error.kind());
+        }
+        cause = error.source();
+    }
+    BrokerError::IoError(std::io::Error::other(format!("PGMQ {category}")))
 }
 
 fn lost_lease() -> BrokerError {

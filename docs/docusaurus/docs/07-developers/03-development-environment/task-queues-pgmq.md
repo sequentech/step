@@ -131,9 +131,13 @@ selected failed work, accounting for its original expiry, retry count and possib
 completed side effects. Do not replay all archived rows: successful jobs are also
 archived.
 
-Production workers and Beat require restart supervision. In development, `cargo
-watch` can remain alive after its child exits; restart that service if its worker
-has exited. Readiness checks verify PostgreSQL and the active subscribed consumers,
+Production workers and Beat require restart supervision. Development Compose wraps
+Windmill and Beat in a five-second restart loop under cargo-watch, so an exhausted
+reconnect budget or lost lease starts a fresh process even without a source change.
+The watcher retains process-group termination so old leased tasks stop before replacement.
+Broker errors expose SQLSTATE or timeout/connection categories without database payloads.
+For SQLSTATE 53100, restore database disk headroom before expecting recovery.
+Keep compiler caches from exhausting the development database filesystem. Readiness checks verify PostgreSQL and the active subscribed consumers,
 not merely the container state.
 
 The focused suite runs against a disposable database initialized from the same SQL:
@@ -149,5 +153,8 @@ Set `PGMQ_TEST_DATABASE_URL` through the test environment, not committed configu
 CI creates a separate `pgmq_test` database and runs these checks explicitly. They
 cover real worker/Beat delivery, retry, expiry, transaction rollback, lease renewal,
 claim fencing, abandoned-claim recovery, malformed messages and atomic batch handoff.
-The Java publisher has two focused transaction/envelope tests. These contracts do
+The Java publisher has two focused transaction/envelope tests.
+From the repository root, run the development supervision regression with
+`python3 .devcontainer/test-restart-worker.py`. It checks restart after failure
+and termination of the complete worker process group. These contracts do
 not execute every election business operation or certify external-effect idempotency.
