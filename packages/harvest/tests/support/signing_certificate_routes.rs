@@ -366,21 +366,6 @@ async fn a_security_officer_registers_and_revokes_certificates() {
         register(&client, &event, &officer, &maria, &pki.maria).await;
     assert_eq!((status, code(&body)), (Status::Conflict, "conflict"));
 
-    // Her own registrations.
-    let response = client
-        .get(format!(
-            "/staff-certificates/mine?election_event_id={}",
-            event.election_event_id
-        ))
-        .header(bearer(&caller(&event, &maria, &[])))
-        .dispatch()
-        .await;
-    let (status, mine) = json(response).await;
-    assert_eq!(status, Status::Ok);
-    assert_eq!(mine["certificates"][0]["id"], json!(certificate_id));
-    assert_eq!(mine["certificates"][0]["user_display_name"], "Maria Santos");
-    assert_eq!(mine["certificates"][0]["status"], "active");
-
     let client = &client;
     let revoke = |reason: &str| {
         let body = json!({"election_event_id": event.election_event_id, "reason": reason});
@@ -668,15 +653,18 @@ async fn the_routes_answer_500_when_the_database_is_unreachable() {
         tenant_id: Uuid::new_v4().to_string(),
         election_event_id: Uuid::new_v4().to_string(),
     };
-    let response = client
-        .get(format!(
-            "/staff-certificates/mine?election_event_id={}",
-            event.election_event_id
-        ))
-        .header(bearer(&caller(&event, "user", &[])))
-        .dispatch()
-        .await;
-    let (status, body) = json(response).await;
+    let claims =
+        caller(&event, "user", &[Permissions::SIGNING_CERTIFICATES_REVOKE]);
+    let body =
+        json!({"election_event_id": event.election_event_id, "reason": "lost"});
+    let (status, body) = send(
+        &client,
+        rocket::http::Method::Post,
+        format!("/staff-certificates/{}/revoke", Uuid::new_v4()),
+        &claims,
+        &body,
+    )
+    .await;
     assert_eq!(
         (status, code(&body)),
         (Status::InternalServerError, "internal")

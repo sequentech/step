@@ -61,8 +61,8 @@ use windmill::services::signing::issuers::{
 };
 use windmill::services::signing::log::Actor;
 use windmill::services::signing::staff_certificates::{
-    check_certificate, my_staff_certificates, register_staff_certificate, revoke_registration,
-    RegistrationRefusalReason, RevokeOutcome, StaffCertificateRegistrationInput,
+    check_certificate, register_staff_certificate, revoke_registration, RegistrationRefusalReason,
+    RevokeOutcome, StaffCertificateRegistrationInput,
 };
 use windmill::services::signing::Allowance;
 use windmill::tasks::refresh_staff_crls::refresh_all_staff_crls;
@@ -403,6 +403,21 @@ async fn outbox_details(tx: &Transaction<'_>, s: Scope, kind: &str) -> Vec<Value
     .unwrap()
     .iter()
     .map(|row| row.get(0))
+    .collect()
+}
+
+/// The registrations of `user` in the event.
+async fn registrations_of(tx: &Transaction<'_>, s: Scope, user: &str) -> Vec<StaffCertificateRow> {
+    tx.query(
+        "SELECT * FROM sequent_backend.staff_certificate
+         WHERE tenant_id = $1 AND election_event_id = $2 AND user_id = $3
+         ORDER BY registered_at DESC, id",
+        &[&s.tenant, &s.event, &user],
+    )
+    .await
+    .unwrap()
+    .into_iter()
+    .map(|row| StaffCertificateRow::try_from(row).unwrap())
     .collect()
 }
 
@@ -892,10 +907,7 @@ async fn first_use_registers_the_signer_and_binds_key_and_holder_tenant_wide() {
     let verification = verify(&tx, &input(&elsewhere, "maria", &pki.maria)).await;
     assert_eq!(verification.registration, RegistrationState::FirstUse);
 
-    let mine = my_staff_certificates(&tx, s.tenant, s.event, "maria")
-        .await
-        .unwrap();
-    assert_eq!(mine, vec![row]);
+    assert_eq!(registrations_of(&tx, s, "maria").await, vec![row]);
     tx.rollback().await.unwrap();
 }
 
@@ -1606,10 +1618,7 @@ async fn the_dry_run_downloads_the_chains_lists_outside_its_transaction_and_back
 
     // Nothing was registered; an untrusted chain downloads nothing.
     let tx = client.transaction().await.unwrap();
-    assert!(my_staff_certificates(&tx, s.tenant, s.event, "signer")
-        .await
-        .unwrap()
-        .is_empty());
+    assert!(registrations_of(&tx, s, "signer").await.is_empty());
     tx.rollback().await.unwrap();
     let foreign: &'static FakeFetcher = Box::leak(Box::new(FakeFetcher::default()));
     let verification = dry_run(foreign, &pki.foreign_signer).await;

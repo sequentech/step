@@ -569,12 +569,4 @@ async fn signing_settings_routes_refuse_without_their_permission() {
             .await;
         assert_eq!(response.status(), Status::Unauthorized, "{method} {path}");
     }
-    // Signed in is enough to read one's own registrations; signed out isn't.
-    let response = client
-        .get(format!(
-            "/staff-certificates/mine?election_event_id={UUID_EVENT_ID}"
-        ))
-        .dispatch()
-        .await;
-    assert_eq!(response.status(), Status::Unauthorized);
 }

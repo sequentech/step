@@ -54,28 +54,6 @@ pub async fn election_in_event(
         .is_some())
 }
 
-/// The registrations of one account in the event, newest first.
-#[instrument(skip(hasura_transaction), err)]
-pub async fn list_staff_certificates_of_user(
-    hasura_transaction: &Transaction<'_>,
-    tenant_id: Uuid,
-    election_event_id: Uuid,
-    user_id: &str,
-) -> Result<Vec<StaffCertificateRow>> {
-    hasura_transaction
-        .query(
-            "SELECT * FROM sequent_backend.staff_certificate
-             WHERE tenant_id = $1 AND election_event_id = $2 AND user_id = $3
-             ORDER BY registered_at DESC, id",
-            &[&tenant_id, &election_event_id, &user_id],
-        )
-        .await
-        .context("Error listing the staff certificates of the user")?
-        .into_iter()
-        .map(StaffCertificateRow::try_from)
-        .collect()
-}
-
 /// The active registrations of the event, for the revocation lists of
 /// their issuers.
 #[instrument(skip(hasura_transaction), err)]

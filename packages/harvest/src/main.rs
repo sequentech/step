@@ -238,7 +238,6 @@ fn build_application_with(
                 routes::signing_certificates::put_signing_checks,
                 routes::signing_certificates::register_staff_certificate_route,
                 routes::signing_certificates::revoke_staff_certificate_route,
-                routes::signing_certificates::my_staff_certificates_route,
                 routes::signing_certificates::check_signing_certificate,
             ],
         )

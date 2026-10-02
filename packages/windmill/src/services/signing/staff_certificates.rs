@@ -16,8 +16,8 @@ use crate::postgres::signing::{
     SigningRequestRow, SigningRequestTransition, StaffCertificateRow,
 };
 use crate::postgres::signing_certificates::{
-    election_in_event, get_staff_certificate, list_staff_certificates_of_user,
-    revoke_staff_certificates_of_key, waiting_requests_signed_by_key,
+    election_in_event, get_staff_certificate, revoke_staff_certificates_of_key,
+    waiting_requests_signed_by_key,
 };
 use crate::services::signing::allowed_by_permission;
 use crate::services::signing::certificates::{
@@ -588,16 +588,6 @@ async fn cancel_for_revocation(
     )
     .await?;
     Ok(Some(cancelled))
-}
-
-/// The signed-in person's registrations in the event, newest first.
-pub async fn my_staff_certificates(
-    hasura_transaction: &Transaction<'_>,
-    tenant_id: Uuid,
-    election_event_id: Uuid,
-    user_id: &str,
-) -> Result<Vec<StaffCertificateRow>> {
-    list_staff_certificates_of_user(hasura_transaction, tenant_id, election_event_id, user_id).await
 }
 
 /// The dry run the signing dialog shows before signing: downloads the

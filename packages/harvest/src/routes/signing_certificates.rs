@@ -29,7 +29,6 @@ use std::sync::Arc;
 use strum::IntoEnumIterator;
 use tracing::instrument;
 use uuid::Uuid;
-use windmill::postgres::signing::StaffCertificateRow;
 use windmill::postgres::signing_certificates::get_signing_request_in_tenant;
 use windmill::services::signing::certificates::{
     parse_pem_or_der, CertificateVerification, OpensslCertificateVerifier,
@@ -42,9 +41,9 @@ use windmill::services::signing::issuers::{
 };
 use windmill::services::signing::log::Actor;
 use windmill::services::signing::staff_certificates::{
-    check_certificate, my_staff_certificates, register_staff_certificate,
-    revoke_registration, RegistrationRefusalReason, RegistrationRefused,
-    RevokeOutcome, StaffCertificateRegistrationInput, MAX_REVOKE_REASON_CHARS,
+    check_certificate, register_staff_certificate, revoke_registration,
+    RegistrationRefusalReason, RegistrationRefused, RevokeOutcome,
+    StaffCertificateRegistrationInput, MAX_REVOKE_REASON_CHARS,
 };
 use windmill::services::signing::Allowance;
 
@@ -427,96 +426,6 @@ pub async fn revoke_staff_certificate_route(
             Err(SigningError::conflict("The certificate is already revoked"))
         }
     }
-}
-
-/// A registered staff certificate (`IStaffCertificate`).
-#[derive(Serialize, Deserialize, Debug, PartialEq)]
-pub struct StaffCertificateOutput {
-    pub id: Uuid,
-    pub user_id: String,
-    pub username: String,
-    pub user_display_name: Option<String>,
-    pub election_id: Option<Uuid>,
-    pub fingerprint_sha256: String,
-    pub spki_sha256: String,
-    pub holder_sha256: String,
-    pub serial: String,
-    pub subject: String,
-    pub issuer: String,
-    pub not_before: DateTime<Utc>,
-    pub not_after: DateTime<Utc>,
-    pub status: StaffCertificateStatus,
-    pub registration: StaffCertificateRegistration,
-    pub linked_to: Option<String>,
-    pub registered_by: String,
-    pub registered_by_name: Option<String>,
-    pub registered_at: DateTime<Utc>,
-    pub revoked_by: Option<String>,
-    pub revoked_by_name: Option<String>,
-    pub revoked_at: Option<DateTime<Utc>>,
-    pub revoke_reason: Option<String>,
-}
-
-impl From<StaffCertificateRow> for StaffCertificateOutput {
-    fn from(row: StaffCertificateRow) -> Self {
-        StaffCertificateOutput {
-            id: row.id,
-            user_id: row.user_id,
-            username: row.username,
-            user_display_name: row.user_display_name,
-            election_id: row.election_id,
-            fingerprint_sha256: row.fingerprint_sha256,
-            spki_sha256: row.spki_sha256,
-            holder_sha256: row.holder_sha256,
-            serial: row.serial,
-            subject: row.subject,
-            issuer: row.issuer,
-            not_before: row.not_before,
-            not_after: row.not_after,
-            status: row.status,
-            registration: row.registration,
-            linked_to: row.linked_to,
-            registered_by: row.registered_by,
-            registered_by_name: row.registered_by_name,
-            registered_at: row.registered_at,
-            revoked_by: row.revoked_by,
-            revoked_by_name: row.revoked_by_name,
-            revoked_at: row.revoked_at,
-            revoke_reason: row.revoke_reason,
-        }
-    }
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-pub struct MyStaffCertificatesOutput {
-    certificates: Vec<StaffCertificateOutput>,
-}
-
-/// The signed-in person's own registrations; no permission needed.
-#[instrument(skip(claims, services))]
-#[get("/staff-certificates/mine?<election_event_id>")]
-pub async fn my_staff_certificates_route(
-    claims: JwtClaims,
-    election_event_id: &str,
-    services: &State<HarvestServices>,
-) -> RouteResult<MyStaffCertificatesOutput> {
-    authorize(&claims, true, own_tenant(&claims), vec![])?;
-    let tenant_id = tenant_of(&claims)?;
-    let election_event_id = parse_id(election_event_id, "election_event_id")?;
-    let mut client = hasura(services).await?;
-    let transaction =
-        client.transaction().await.map_err(SigningError::internal)?;
-    let rows = my_staff_certificates(
-        &transaction,
-        tenant_id,
-        election_event_id,
-        &claims.hasura_claims.user_id,
-    )
-    .await
-    .map_err(SigningError::internal)?;
-    Ok(Json(MyStaffCertificatesOutput {
-        certificates: rows.into_iter().map(Into::into).collect(),
-    }))
 }
 
 // The dry run
