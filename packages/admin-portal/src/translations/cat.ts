@@ -2656,7 +2656,7 @@ const catalanTranslation: TranslationType = {
                 title: "Importar Plantilles",
                 subtitle: "Importar dades de plantilles",
                 paragraph:
-                    "Importa plantilles utilitzant un fitxer de full de càlcul en format de valors separats per comes (CSV). Descarrega un fitxer CSV d'exemple aquí.",
+                    "Importa un paquet ZIP amb les plantilles, la configuració i els fitxers adjunts.",
             },
         },
         materials: {

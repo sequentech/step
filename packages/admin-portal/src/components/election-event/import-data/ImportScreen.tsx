@@ -19,6 +19,7 @@ interface ImportScreenProps {
     errors: string | null
     disableImport?: boolean
     refresh?: string
+    accept?: string
 }
 
 export const ImportStyles = {
@@ -40,7 +41,7 @@ const PasswordInputStyle = styled(FormStyles.PasswordInput)`
 
 export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenProps>> = memo(
     (props: ImportScreenProps): React.JSX.Element => {
-        const {doCancel, uploadCallback, doImport, disableImport, refresh, errors} = props
+        const {doCancel, uploadCallback, doImport, disableImport, refresh, errors, accept} = props
         const {t} = useTranslation()
         const notify = useNotify()
         const [loading, setLoading] = useState<boolean>(false)
@@ -164,7 +165,7 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
                     }
                 />
 
-                <DropFile handleFiles={async (files) => handleFiles(files)} />
+                <DropFile accept={accept} handleFiles={async (files) => handleFiles(files)} />
 
                 <FormStyles.StatusBox>
                     {isWorking() ? <FormStyles.ShowProgress /> : null}

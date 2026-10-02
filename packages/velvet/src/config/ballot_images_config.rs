@@ -13,6 +13,8 @@ use tracing::instrument;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct PipeConfigBallotImages {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pre_render: Option<sequent_report_prerender::CachedPdf>,
     pub template: String,
     pub system_template: String,
     pub extra_data: Value,
@@ -37,6 +39,7 @@ impl PipeConfigBallotImages {
         let system_html = include_str!("../resources/ballot_images_system.hbs");
 
         Self {
+            pre_render: None,
             template: html.to_string(),
             system_template: system_html.to_string(),
             extra_data: json!({
@@ -60,6 +63,7 @@ impl Default for PipeConfigBallotImages {
         let system_html = include_str!("../resources/ballot_images_system.hbs");
 
         Self {
+            pre_render: None,
             template: html.to_string(),
             system_template: system_html.to_string(),
             extra_data: json!("{}"),

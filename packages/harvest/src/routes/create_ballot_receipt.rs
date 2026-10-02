@@ -14,6 +14,11 @@ use serde::{Deserialize, Serialize};
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
 use windmill::services::celery_app::get_celery_app;
+use windmill::services::database::get_hasura_pool;
+use windmill::services::reports::ballot_receipt::BallotTemplate;
+use windmill::services::reports::template_renderer::{
+    ReportOriginatedFrom, ReportOrigins, TemplateRenderer,
+};
 use windmill::services::tasks_execution::post;
 use windmill::types::tasks::ETasksExecution;
 
@@ -60,6 +65,51 @@ pub async fn create_ballot_receipt(
     };
 
     let voter_id = claims.hasura_claims.user_id.clone();
+    // Resolve the same effective assignment used by the receipt renderer.
+    // The native worker rechecks freshness and mode after the queued handoff.
+    let use_prerendered = {
+        let mut client =
+            get_hasura_pool().await.get().await.map_err(|error| {
+                (
+                    Status::InternalServerError,
+                    format!(
+                        "Failed to get receipt database connection: {error:?}"
+                    ),
+                )
+            })?;
+        let transaction = client.transaction().await.map_err(|error| {
+            (
+                Status::InternalServerError,
+                format!("Failed to start receipt transaction: {error:?}"),
+            )
+        })?;
+        let report = BallotTemplate::new(
+            ReportOrigins {
+                tenant_id: tenant_id.clone(),
+                election_event_id: input.election_event_id.clone(),
+                election_id: Some(input.election_id.clone()),
+                template_alias: None,
+                voter_id: None,
+                report_origin: ReportOriginatedFrom::VotingPortal,
+                executer_username: None,
+                tally_session_id: None,
+            },
+            None,
+        );
+        report
+            .get_custom_user_template_data(&transaction)
+            .await
+            .map_err(|error| {
+                (
+                    Status::InternalServerError,
+                    format!(
+                        "Failed to resolve ballot receipt template: {error:?}"
+                    ),
+                )
+            })?
+            .and_then(|template| template.pre_render)
+            .is_some_and(|options| options.enabled)
+    };
     let document_id: String = Uuid::new_v4().to_string();
     let celery_app = get_celery_app().await;
 
@@ -78,8 +128,25 @@ pub async fn create_ballot_receipt(
         )
     })?;
 
-    let celery_task_result = celery_app
-        .send_task(
+    let celery_task_result = if use_prerendered {
+        celery_app.send_task(
+            windmill::tasks::create_ballot_receipt::create_prerendered_ballot_receipt::new(
+                document_id.clone(),
+                input.ballot_id.clone(),
+                input.ballot_tracker_url,
+                tenant_id.clone(),
+                input.election_event_id,
+                input.election_id,
+                area_id,
+                voter_id,
+                input.time_zone,
+                input.date_format,
+                task_execution.clone(),
+            ),
+        )
+        .await.map(|_| ())
+    } else {
+        celery_app.send_task(
             windmill::tasks::create_ballot_receipt::create_ballot_receipt::new(
                 document_id.clone(),
                 input.ballot_id.clone(),
@@ -94,9 +161,10 @@ pub async fn create_ballot_receipt(
                 task_execution.clone(),
             ),
         )
-        .await;
+        .await.map(|_| ())
+    };
 
-    let task = match celery_task_result {
+    match celery_task_result {
         Ok(task) => task,
         Err(error) => {
             return Err((
@@ -106,7 +174,7 @@ pub async fn create_ballot_receipt(
         }
     };
 
-    info!("Sent task {:?} successfully", task);
+    info!("Sent ballot receipt task successfully");
 
     Ok(Json(CreateBallotReceiptOutput {
         id: document_id,

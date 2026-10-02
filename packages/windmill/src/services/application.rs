@@ -1069,10 +1069,12 @@ pub async fn send_application_communication_response(
                 email: email_config,
                 sms: sms_config,
                 document: None,
+                assets: Default::default(),
                 name: None,
                 alias: None,
                 pdf_options: None,
                 report_options: None,
+                pre_render: None,
             };
 
             let celery_app = get_celery_app().await;

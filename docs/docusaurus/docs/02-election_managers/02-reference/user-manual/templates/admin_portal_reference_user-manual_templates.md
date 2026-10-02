@@ -28,3 +28,10 @@ Templates allow you to customize HTML documents used in reports and communicatio
 The system will automatically use the created template when generating documents of that type (e.g., during the tally process or when exporting data).
 
 You can also use this template when manually [creating reports](../../../01-tutorials/18-reports_and_templates.md) in the Reports tab.
+
+
+## Importing and exporting template files
+
+Template import/export uses a ZIP bundle containing the template source, settings, metadata and attached files. Export the selected tenant's templates from the template list, or import a bundle created by Template Studio. Imports belong to the tenant currently selected in the application.
+
+In Template Studio, open **Workspace options → Files** to attach images, styles, scripts, fonts or data, assign relative paths and edit text files. Reference those paths in the template, for example `<img src="/images/logo.svg">`. Save the project and use **Export ZIP** to move it into Step. See the [template bundle reference](../../../../05-reference/template-renderer.md) for the format and limits.

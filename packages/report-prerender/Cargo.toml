@@ -1,0 +1,22 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+# SPDX-License-Identifier: AGPL-3.0-only
+[package]
+name = "sequent-report-prerender"
+version = "0.1.0"
+edition = "2021"
+license = "AGPL-3.0-only"
+[workspace]
+[dependencies]
+sequent-template-renderer = { path = "../template-renderer" }
+anyhow = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+lopdf = { version = "=0.38.0", default-features = false }
+qrcode = { version = "=0.14.1", default-features = false }
+ttf-parser = "=0.25.1"
+rustybuzz = "=0.20.1"
+sha2 = "0.10"
+base64 = "0.22"
+image = { version = "=0.25.8", default-features = false, features = ["png", "jpeg"] }
+[dev-dependencies]
+tempfile = "3"

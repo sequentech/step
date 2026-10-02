@@ -5348,6 +5348,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "intl_pluralrules"
+version = "7.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "078ea7b7c29a2b4df841a7f6ac8775ff6074020c6776d48491ce2268e068f972"
+dependencies = [
+ "unic-langid",
+]
+
+[[package]]
 name = "io-extras"
 version = "0.18.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7802,6 +7811,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "qrcode"
+version = "0.14.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d68782463e408eb1e668cf6152704bd856c78c5b6417adaee3203d8f4c1fc9ec"
+
+[[package]]
 name = "query_map"
 version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -9207,6 +9222,7 @@ dependencies = [
  "rocket",
  "rusqlite",
  "schemars 0.8.22",
+ "sequent-template-renderer",
  "serde",
  "serde-wasm-bindgen",
  "serde_json",
@@ -9233,6 +9249,48 @@ dependencies = [
  "wasmtime",
  "wasmtime-wasi",
  "web-sys",
+ "zip 2.4.2",
+]
+
+[[package]]
+name = "sequent-report-prerender"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "base64 0.22.1",
+ "image",
+ "lopdf 0.38.0",
+ "qrcode",
+ "rustybuzz",
+ "sequent-template-renderer",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "ttf-parser 0.25.1",
+]
+
+[[package]]
+name = "sequent-template-renderer"
+version = "0.1.0"
+dependencies = [
+ "ammonia",
+ "anyhow",
+ "base64 0.22.1",
+ "chrono",
+ "csv",
+ "handlebars",
+ "handlebars-chrono",
+ "intl_pluralrules",
+ "num-format",
+ "qrcode",
+ "regex",
+ "serde",
+ "serde_json",
+ "tracing",
+ "unic-langid",
+ "urlencoding",
+ "uuid",
+ "wasm-bindgen",
  "zip 2.4.2",
 ]
 
@@ -10367,6 +10425,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "42d3e9c45c09de15d06dd8acf5f4e0e399e85927b7f00711024eb7ae10fa4869"
 dependencies = [
  "displaydoc",
+ "serde_core",
  "zerovec",
 ]
 
@@ -10949,6 +11008,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "unic-langid"
+version = "0.9.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a28ba52c9b05311f4f6e62d5d9d46f094bd6e84cb8df7b3ef952748d752a7d05"
+dependencies = [
+ "unic-langid-impl",
+]
+
+[[package]]
+name = "unic-langid-impl"
+version = "0.9.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dce1bf08044d4b7a94028c93786f8566047edc11110595914de93362559bc658"
+dependencies = [
+ "tinystr",
+]
+
+[[package]]
 name = "unicase"
 version = "2.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -11219,6 +11296,7 @@ dependencies = [
  "rayon",
  "rusqlite",
  "sequent-core",
+ "sequent-report-prerender",
  "serde",
  "serde_json",
  "strand",
@@ -12122,6 +12200,7 @@ dependencies = [
  "rust_xlsxwriter",
  "rustls 0.23.35",
  "sequent-core",
+ "sequent-report-prerender",
  "serde",
  "serde_json",
  "serde_path_to_error",
@@ -12844,6 +12923,7 @@ version = "0.11.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6c28719294829477f525be0186d13efa9a3c602f7ec202ca9e353d310fb9a002"
 dependencies = [
+ "serde",
  "yoke",
  "zerofrom",
  "zerovec-derive",

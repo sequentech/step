@@ -4,6 +4,7 @@
 
 [workspace]
 resolver = "2"
+exclude = ["template-renderer", "report-prerender"]
 
 members = [
     "braid",

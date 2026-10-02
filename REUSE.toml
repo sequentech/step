@@ -113,3 +113,9 @@ path = "packages/admin-portal/src/services/generated/ivr_emulator_wasm.d.ts"
 precedence = "aggregate"
 SPDX-FileCopyrightText = ["", "2026 Sequent Tech Inc <legal@sequentech.io>"]
 SPDX-License-Identifier = "AGPL-3.0-only"
+
+[[annotations]]
+path = ["packages/template-renderer/Cargo.lock", "packages/template-renderer/catalog/**"]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2026 Sequent Tech Inc <legal@sequentech.io>"
+SPDX-License-Identifier = "AGPL-3.0-only"

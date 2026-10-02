@@ -59,3 +59,5 @@ pub mod set_public_key;
 pub mod update_election_event_ballot_styles;
 pub mod upsert_areas;
 pub mod voter_information_letter;
+
+pub mod prerender_reports;

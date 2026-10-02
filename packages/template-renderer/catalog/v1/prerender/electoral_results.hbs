@@ -1,0 +1,35 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>{{t "prerender_results"}}</title>
+<style>
+  /* All positions use PDF points. Runtime content cannot reflow this page. */
+  @page { size: 612pt 792pt; margin: 0; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; color: #151515; font-family: Arial, sans-serif; }
+  .page { position: relative; width: 612pt; height: 792pt; padding: 44pt; break-after: page; }
+  .page:last-child { break-after: auto; }
+  .eyebrow { font-size: 9pt; letter-spacing: 2pt; text-transform: uppercase; }
+  h1 { font-size: 25pt; margin: 12pt 0; }
+  .muted { color: #666; font-size: 10pt; }
+  .rule { height: 2pt; background: #151515; margin-top: 22pt; }
+  .footer { position: absolute; bottom: 36pt; font-size: 8pt; color: #666; }
+</style>
+</head><body>
+[[#each contests as |contest contestIndex|]]
+  {{pdf_page "/contests/[[id]]" page="[[add @index 1]]"}}
+  <section class="page" data-pdf-page="[[add @index 1]]">
+    <div class="eyebrow">[[../event.name]]</div>
+    <h1>{{t "prerender_results"}}</h1>
+    <p class="muted">{{t "prerender_results_description"}}</p>
+    <div class="rule"></div>
+    <h2 style="position:absolute;top:150pt;font-size:15pt">[[name]]</h2>
+    <p style="position:absolute;left:455pt;top:165pt;font-size:9pt">{{t "prerender_votes"}}</p>
+    [[#each candidates]]
+      <div style="position:absolute;left:44pt;top:[[add 212 (mul @index 38)]]pt;font-size:12pt">[[name]]</div>
+      <div style="position:absolute;left:44pt;top:[[add 239 (mul @index 38)]]pt;width:524pt;border-bottom:0.5pt solid #ddd"></div>
+      <!-- The result is deliberately absent from the cached background. -->
+      {{pdf_text "/results/[[id]]/votes" page="[[add contestIndex 1]]" x=455 y="[[add 212 (mul @index 38)]]" width=106 height=22 size=12}}
+    [[/each]]
+    <p class="footer">{{t "prerender_demo"}}</p>
+  </section>
+[[/each]]
+</body></html>

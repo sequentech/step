@@ -325,7 +325,7 @@ export const TemplateList: React.FC = () => {
             {exporting && exportDocumentId ? (
                 <DownloadDocument
                     documentId={exportDocumentId}
-                    fileName={`templates-export.csv`}
+                    fileName={`templates-export.zip`}
                     onDownload={() => {
                         console.log("onDownload called")
                         setExportDocumentId(undefined)
@@ -335,6 +335,7 @@ export const TemplateList: React.FC = () => {
                 />
             ) : null}
             <ImportDataDrawer
+                accept=".zip,application/zip"
                 open={openImportDrawer}
                 closeDrawer={() => setOpenImportDrawer(false)}
                 title="template.import.title"

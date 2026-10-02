@@ -310,6 +310,23 @@ impl GenerateReports {
             // TODO: Fix neededing to do a Map Err
             .map_err(|err| Error::UnexpectedError(format!("serialization error: {err:?}")))?;
 
+        if let Some(cached) = &config.pre_render {
+            let pdf = cached
+                .bytes(&serde_json::Value::Object(template_vars))
+                .map_err(|e| {
+                    Error::UnexpectedError(format!("Error filling results report: {e}"))
+                })?;
+            let html = reports::prerender::pdf_document(&pdf).into_bytes();
+            return Ok((
+                GeneratedReportsBytes {
+                    bytes_pdf: enable_pdfs.then_some(pdf),
+                    bytes_html: html,
+                    bytes_json,
+                },
+                results_hash,
+            ));
+        }
+
         let mut template_map = HashMap::new();
         let report_base_html = include_str!("../../resources/report_base_html.hbs");
         template_map.insert("report_base_html".to_string(), report_base_html.to_string());

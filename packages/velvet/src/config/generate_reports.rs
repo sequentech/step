@@ -18,6 +18,8 @@ use strum_macros::EnumString;
 
 #[derive(Serialize, Deserialize, Debug, Default)]
 pub struct PipeConfigGenerateReports {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pre_render: Option<sequent_report_prerender::CachedPdf>,
     pub enable_pdfs: bool,
     pub report_content_template: Option<String>,
     pub pdf_options: Option<PrintToPdfOptionsLocal>,
