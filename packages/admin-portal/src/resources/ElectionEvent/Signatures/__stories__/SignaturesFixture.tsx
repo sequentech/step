@@ -24,6 +24,7 @@ import {
     CrlUnavailablePolicy,
     RequesterSigning,
     RevocationCheck,
+    SIGNING_ACTIONS,
     SigningAction,
     SigningRequestStatus,
     SigningRequirement,
@@ -239,6 +240,9 @@ const certificate = (
     revoke_reason: null,
     ...overrides,
 })
+
+/** The Keycloak id of a person of the requests, who are named by username. */
+export const userIdOf = (username: string) => `user-${username}`
 
 const request = (
     index: number,
@@ -614,6 +618,28 @@ export function signingHandlers(
                 signingEventInfo: {time_zone: organization.timeZone, titles: organization.titles},
             },
         }),
+        // As Hasura answers a signer: the waiting requests of the action of the role sent.
+        GetWaitingSigningRequests: (operation) => {
+            const role = operation.getContext().headers?.["x-hasura-role"]
+            return {
+                data: {
+                    sequent_backend_signing_request: organization.requests
+                        .filter(
+                            (request) =>
+                                request.status === SigningRequestStatus.Waiting &&
+                                SIGNING_ACTIONS[request.action].signPermission === role
+                        )
+                        .map(({approvals, ...request}) => ({
+                            ...request,
+                            approvals: approvals.map(({id, username, signed_at}) => ({
+                                id,
+                                user_id: userIdOf(username),
+                                signed_at,
+                            })),
+                        })),
+                },
+            }
+        },
         SigningPutRule: write("SigningPutRule", "signingPutRule", ({variables}) => ({
             revision: Number(variables.expected_revision) + 1,
             cancelled: [],

@@ -4021,6 +4021,16 @@ const spanishTranslation: TranslationType = {
                     approve: "Approve",
                 },
             },
+            waiting: {
+                title: "Waiting for my signature",
+                buttonCount_one: "Waiting for my signature: {{count}} request to sign",
+                buttonCount_other: "Waiting for my signature: {{count}} requests to sign",
+                intro: "Requests waiting for the signatures of the actions you can sign, in your $t(signing.terms.posts).",
+                close: "Close the list",
+                empty: "Nothing is waiting for your signature.",
+                loadError: "The requests waiting for signatures couldn't be loaded.",
+                signedByYou: "Signed by you",
+            },
             notes: {
                 afterApproval: "After approval",
                 afterApprovalValue: "The voter's credentials are issued and sent to them",

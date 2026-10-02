@@ -582,6 +582,14 @@ export interface ISigningRequestListRow extends Pick<
     }>
 }
 
+/** A waiting request as a signer's list reads it, with who signed it so far. */
+export interface IWaitingSigningRequest extends Pick<
+    ISigningRequest,
+    "id" | "action" | "election_id" | "area_id" | "code" | "required" | "created_at" | "expires_at"
+> {
+    approvals: Array<{id: string; user_id: string; signed_at: string}>
+}
+
 /** `POST /signing-issuers`: one or more PEM certificates, or one DER (.cer/.der) in base64. */
 export interface IImportSigningIssuersInput {
     pem?: string | null

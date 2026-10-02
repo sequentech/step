@@ -24,6 +24,7 @@ import {
     useRevokeCertificate,
     useRuleCapacities,
     useSigningEventInfo,
+    useWaitingSigningRequests,
 } from "./useSigningSettings"
 
 // Keep the real shared predicate without loading the browser component barrel.
@@ -147,6 +148,56 @@ const holding = (client: ApolloClient<unknown>, held: IPermissions[]) => {
         </ApolloProvider>
     )
 }
+
+describe("the requests waiting for a signer", () => {
+    it("are read once per sign permission held, each as its own Hasura role", async () => {
+        const {client, sent} = roleClient({})
+        const wrapper = holding(client, [
+            IPermissions.SIGN_CLOSE_VOTING,
+            IPermissions.SIGN_APPROVE_VOTER,
+            // A trustee's requests aren't in Hasura; reading and admin roles don't sign.
+            IPermissions.SIGN_KEY_CEREMONY,
+            IPermissions.SIGN_TALLY_KEY,
+            IPermissions.SIGNING_REQUESTS_READ,
+            IPermissions.ADMIN_USER,
+        ])
+        const {result} = renderHook(() => useWaitingSigningRequests("event"), {wrapper})
+        await waitFor(() => expect(result.current.requests).toEqual([]))
+        expect(sent.map(({role}) => role).sort()).toEqual(
+            [IPermissions.SIGN_APPROVE_VOTER, IPermissions.SIGN_CLOSE_VOTING].sort()
+        )
+        expect(new Set(sent.map(({operation}) => operation))).toEqual(
+            new Set(["GetWaitingSigningRequests"])
+        )
+    })
+
+    it("lists each role's requests once, oldest first", async () => {
+        const {client} = roleClient({
+            [IPermissions.SIGN_CLOSE_VOTING]: [
+                {id: "b", created_at: "2028-05-08T11:00:00Z"},
+                {id: "a", created_at: "2028-05-08T10:00:00Z"},
+            ],
+            [IPermissions.SIGN_OPEN_VOTING]: [{id: "c", created_at: "2028-05-08T10:30:00Z"}],
+        })
+        const wrapper = holding(client, [
+            IPermissions.SIGN_CLOSE_VOTING,
+            IPermissions.SIGN_OPEN_VOTING,
+        ])
+        const {result} = renderHook(() => useWaitingSigningRequests("event"), {wrapper})
+        await waitFor(() =>
+            expect(result.current.requests?.map(({id}) => id)).toEqual(["a", "c", "b"])
+        )
+    })
+
+    it("reads nothing without a sign permission", async () => {
+        const {client, sent} = roleClient({})
+        const wrapper = holding(client, [IPermissions.SIGNING_REQUESTS_READ])
+        const {result} = renderHook(() => useWaitingSigningRequests("event"), {wrapper})
+        await waitFor(() => expect(result.current.requests).toEqual([]))
+        expect(sent).toEqual([])
+        expect(result.current.roles).toEqual([])
+    })
+})
 
 describe("the event's time zone and the signers' titles", () => {
     it.each<[string, IPermissions[], IPermissions | undefined]>([

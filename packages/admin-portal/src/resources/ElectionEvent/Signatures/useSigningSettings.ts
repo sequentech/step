@@ -7,8 +7,8 @@
 // role, so staff without admin-user don't get the portal's read-only default;
 // Posts (elections), countries (areas) and people come from the portal's
 // existing lists.
-import {useCallback, useContext, useMemo} from "react"
-import {useMutation, useQuery, type DocumentNode} from "@apollo/client"
+import {useCallback, useContext, useEffect, useMemo, useState} from "react"
+import {useApolloClient, useMutation, useQuery, type DocumentNode} from "@apollo/client"
 import {useGetList, useNotify} from "react-admin"
 import {useTranslation} from "react-i18next"
 import {AuthContext} from "@/providers/AuthContextProvider"
@@ -19,6 +19,7 @@ import type {Sequent_Backend_Area, Sequent_Backend_Election} from "@/gql/graphql
 import {
     SIGNING_ACTIONS,
     SigningAction,
+    SigningScope,
     type IImportSigningIssuersOutput,
     type ISaveSigningRuleOutput,
     type ISigningChecksRow,
@@ -29,12 +30,14 @@ import {
     type IStaffCertificate,
     type IStaffCrl,
     type IStaffIssuer,
+    type IWaitingSigningRequest,
 } from "@/lib/signing/types"
 import {
     GET_SIGNING_CERTIFICATES,
     GET_SIGNING_REQUESTS,
     GET_SIGNING_RULES,
     GET_SIGNING_RULE_CAPACITIES,
+    GET_WAITING_SIGNING_REQUESTS,
     SIGNING_EVENT_INFO,
     SIGNING_DELETE_ISSUER,
     SIGNING_EXPORT_REQUESTS,
@@ -126,6 +129,15 @@ export function useSigningRequests(electionEventId: string) {
     return {requests: data?.sequent_backend_signing_request, loading, error}
 }
 
+/**
+ * The sign permissions whose requests a signer finds in Hasura: every
+ * action's but a trustee's, whose requests the trustee's ceremony step reads
+ * through Harvest.
+ */
+export const LISTED_SIGN_PERMISSIONS: IPermissions[] = Object.values(SIGNING_ACTIONS)
+    .filter(({scope}) => scope !== SigningScope.Trustee)
+    .map(({signPermission}) => signPermission)
+
 /** The permissions the user holds in the selected tenant. */
 const useHolds = () => {
     const auth = useContext(AuthContext)
@@ -134,6 +146,63 @@ const useHolds = () => {
         (permission: IPermissions) => auth.isAuthorized(true, tenantId, permission),
         [auth, tenantId]
     )
+}
+
+/**
+ * The event's requests waiting for signatures of the actions the user may
+ * sign, in their Posts, oldest first: one query per `sign-<action>` they
+ * hold, each as that role (its select permission keeps to its action).
+ */
+/** The listed sign permissions the user holds ([`LISTED_SIGN_PERMISSIONS`]). */
+export function useListedSignPermissions() {
+    const holds = useHolds()
+    return useMemo(() => LISTED_SIGN_PERMISSIONS.filter(holds), [holds])
+}
+
+export function useWaitingSigningRequests(electionEventId: string) {
+    const client = useApolloClient()
+    const roles = useListedSignPermissions()
+    const [requests, setRequests] = useState<IWaitingSigningRequest[] | null>(null)
+    const [error, setError] = useState(false)
+    const [version, setVersion] = useState(0)
+    const reload = useCallback(() => setVersion((previous) => previous + 1), [])
+
+    useEffect(() => {
+        let current = true
+        Promise.all(
+            roles.map((role) =>
+                client.query<{sequent_backend_signing_request: IWaitingSigningRequest[]}>({
+                    query: GET_WAITING_SIGNING_REQUESTS,
+                    variables: {electionEventId},
+                    // The same query as each role: never merged in flight nor in the cache.
+                    context: {...asRole(role), queryDeduplication: false},
+                    fetchPolicy: "no-cache",
+                })
+            )
+        ).then(
+            (answers) => {
+                if (!current) return
+                const byId = new Map<string, IWaitingSigningRequest>()
+                for (const {data} of answers) {
+                    for (const request of data?.sequent_backend_signing_request ?? []) {
+                        byId.set(request.id, request)
+                    }
+                }
+                setError(false)
+                setRequests(
+                    Array.from(byId.values()).sort((a, b) =>
+                        a.created_at.localeCompare(b.created_at)
+                    )
+                )
+            },
+            () => current && setError(true)
+        )
+        return () => {
+            current = false
+        }
+    }, [client, electionEventId, roles, version])
+
+    return {requests, error, roles, reload}
 }
 
 /** The roles that read the event's signing information, the one that also gets the titles first. */

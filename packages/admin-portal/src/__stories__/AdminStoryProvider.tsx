@@ -76,12 +76,17 @@ export interface GraphqlBoundaryOptions {
      * mismatch is recorded in `unexpected`.
      */
     schema?: boolean
+    /**
+     * Operations the generated schema has no types for yet (the signing
+     * tables and actions): answered from their handlers without validation.
+     */
+    unvalidated?: string[]
 }
 
 /** A handler's promise answers when it settles; one that never settles keeps the query loading. */
 export function graphqlBoundary(
     handlers: Record<string, (operation: Operation) => FetchResult | Promise<FetchResult>>,
-    {schema = false}: GraphqlBoundaryOptions = {}
+    {schema = false, unvalidated = []}: GraphqlBoundaryOptions = {}
 ) {
     const calls: RecordedOperation[] = []
     const unexpected: string[] = []
@@ -130,9 +135,10 @@ export function graphqlBoundary(
                         return
                     }
                     try {
-                        const result = schema
-                            ? executed(operation)
-                            : handlers[operation.operationName](operation)
+                        const result =
+                            schema && !unvalidated.includes(operation.operationName)
+                                ? executed(operation)
+                                : handlers[operation.operationName](operation)
                         if (result instanceof Promise) {
                             result.then(
                                 (value) => {

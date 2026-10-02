@@ -244,6 +244,34 @@ export const GET_SIGNING_REQUESTS = gql`
 `
 
 /**
+ * The waiting requests of one action a signer may sign, in their Posts:
+ * queried as that action's `sign-<action>` role, whose select permission
+ * keeps to its action and the user's Post labels.
+ */
+export const GET_WAITING_SIGNING_REQUESTS = gql`
+    query GetWaitingSigningRequests($electionEventId: uuid!) {
+        sequent_backend_signing_request(
+            where: {election_event_id: {_eq: $electionEventId}, status: {_eq: "waiting"}}
+            order_by: {created_at: asc}
+        ) {
+            id
+            action
+            election_id
+            area_id
+            code
+            required
+            created_at
+            expires_at
+            approvals(order_by: {signed_at: asc}) {
+                id
+                user_id
+                signed_at
+            }
+        }
+    }
+`
+
+/**
  * `POST /signing-event-info`: the event's time zone (IANA) and, for a
  * reader of the certificates, the signers' titles by user id.
  */

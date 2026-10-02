@@ -105,7 +105,11 @@ const meta = {
                 ? {}
                 : {sequent_backend_election_event: [tabsEvent(args.lockedDown)]}
         )
-        graphql = graphqlBoundary(answerOrPending(legacyMonitoring()), {schema: true})
+        graphql = graphqlBoundary(answerOrPending(legacyMonitoring()), {
+            schema: true,
+            // The header's list for signers: the schema has no signing types yet.
+            unvalidated: ["GetWaitingSigningRequests", "SigningEventInfo"],
+        })
         // The dashboard builds the voting portal addresses with sequent-core.
         await Promise.all([graphql.ready, initCore()])
     },
@@ -403,6 +407,30 @@ export const SignaturesWithOneReadPermission: Story = {
         await expect(
             await within(canvasElement).findByRole("tab", {name: i18n.t("signing.tab.requests")})
         ).toBeVisible()
+    },
+}
+
+/**
+ * A signer without the Signatures tab (an SBEI) reaches the requests waiting
+ * for their signature from the event's header.
+ */
+export const SignerWithoutTheSignaturesTab: Story = {
+    args: {roles: ["sign-close-voting", "election-event-logs-tab"]},
+    parameters: {widgets: []},
+    play: async ({canvasElement}) => {
+        await expect(
+            await within(canvasElement).findByRole("button", {
+                name: i18n.t("signing.waiting.buttonCount", {count: 0}),
+            })
+        ).toBeVisible()
+        expect(await tabNames(canvasElement)).toEqual(["Logs"])
+        await waitFor(() =>
+            expect(
+                graphql.calls
+                    .filter(({name}) => name === "GetWaitingSigningRequests")
+                    .map(({headers}) => headers["x-hasura-role"])
+            ).toEqual(["sign-close-voting"])
+        )
     },
 }
 
