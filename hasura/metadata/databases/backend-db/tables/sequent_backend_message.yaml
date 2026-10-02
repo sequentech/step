@@ -1,0 +1,91 @@
+table:
+    name: message
+    schema: sequent_backend
+select_permissions:
+    - comment: ""
+      permission:
+          columns:
+              - accepted_at
+              - account_id
+              - attempt
+              - billing
+              - channel
+              - created_at
+              - delivered_at
+              - destination_country
+              - direction
+              - election_event_id
+              - error
+              - failed_at
+              - id
+              - language
+              - masked_destination
+              - provider_message_id
+              - purpose
+              - state
+              - template_alias
+              - tenant_id
+              - updated_at
+              - voter_id
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+          allow_aggregations: true
+      role: admin-user
+    - comment: ""
+      permission:
+          columns:
+              - accepted_at
+              - account_id
+              - attempt
+              - channel
+              - created_at
+              - delivered_at
+              - direction
+              - election_event_id
+              - error
+              - failed_at
+              - id
+              - language
+              - masked_destination
+              - purpose
+              - state
+              - template_alias
+              - tenant_id
+              - updated_at
+              - voter_id
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+          allow_aggregations: true
+      role: notification-read
+    - comment: ""
+      permission:
+          columns:
+              - accepted_at
+              - account_id
+              - attempt
+              - billing
+              - channel
+              - created_at
+              - delivered_at
+              - destination_country
+              - destination_digest
+              - direction
+              - election_event_id
+              - error
+              - failed_at
+              - id
+              - language
+              - logical_key
+              - masked_destination
+              - provider_message_id
+              - purpose
+              - state
+              - template_alias
+              - tenant_id
+              - updated_at
+              - voter_id
+          filter: {}
+          allow_aggregations: true
+      role: service-account

@@ -34,13 +34,14 @@ use sequent_core::services::translations::Name;
 use sequent_core::services::{keycloak, reports};
 use sequent_core::types::hasura::core::ElectionEvent;
 use sequent_core::types::keycloak::{User, UserArea, AREA_ID_ATTR_NAME};
+use sequent_core::types::messaging::MessageChannel;
 use sequent_core::types::templates::{
     AudienceSelection, EmailConfig, SendTemplateBody, SmsConfig, TemplateMethod,
 };
 use sequent_core::util::aws::get_from_env_aws_config;
 use serde_json::json;
 use serde_json::{Map, Value};
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::default::Default;
 use strand::info;
 use tracing::{event, info, instrument, Level};
@@ -170,41 +171,49 @@ pub async fn send_template_email(
     Ok(None)
 }
 
-#[derive(Default, Debug)]
+/// Messages sent per channel.
+#[derive(Default, Debug, PartialEq)]
 struct MetricsUnit {
-    num_emails_sent: i64,
-    num_sms_sent: i64,
+    sent: BTreeMap<MessageChannel, i64>,
 }
+
+impl MetricsUnit {
+    fn record(&mut self, channel: MessageChannel) {
+        *self.sent.entry(channel).or_default() += 1;
+    }
+
+    fn is_empty(&self) -> bool {
+        self.sent.values().all(|count| *count == 0)
+    }
+
+    /// Increments keyed by their `statistics` counter name.
+    fn statistics_increments(&self) -> BTreeMap<String, i64> {
+        self.sent
+            .iter()
+            .filter(|(_, count)| **count > 0)
+            .map(|(channel, count)| (channel.statistics_key().to_string(), *count))
+            .collect()
+    }
+}
+
 #[derive(Default, Debug)]
 struct Metrics {
     election_event: MetricsUnit,
     metrics_by_election_id: HashMap<String, MetricsUnit>,
 }
 
-fn update_metrics_unit(metrics_unit: &mut MetricsUnit, communication_method: &TemplateMethod) {
-    match communication_method {
-        TemplateMethod::EMAIL => {
-            metrics_unit.num_emails_sent += 1;
-        }
-        TemplateMethod::SMS => {
-            metrics_unit.num_sms_sent += 1;
-        }
-        TemplateMethod::DOCUMENT => {}
-    };
-}
-
 fn update_metrics(
     metrics: &mut Metrics,
     elections_by_area: &HashMap<String, Vec<String>>,
     user: &User,
-    communication_method: &TemplateMethod,
+    channel: MessageChannel,
     success: bool,
 ) {
     // if the op was not successful, then do not update
     if !success {
         return;
     }
-    update_metrics_unit(&mut metrics.election_event, communication_method);
+    metrics.election_event.record(channel);
     let Some(UserArea {
         id: Some(ref area_id),
         ..
@@ -226,12 +235,8 @@ fn update_metrics(
         metrics
             .metrics_by_election_id
             .entry(election_id.clone())
-            .and_modify(|metrics_unit| update_metrics_unit(metrics_unit, communication_method))
-            .or_insert_with(|| {
-                let mut metrics_unit = Default::default();
-                update_metrics_unit(&mut metrics_unit, communication_method);
-                metrics_unit
-            });
+            .or_default()
+            .record(channel);
     });
 }
 
@@ -244,28 +249,25 @@ async fn update_stats(
     let &Some(ref election_event_id) = election_event_id else {
         return Ok(());
     };
-    let totals = metrics.election_event.num_emails_sent + metrics.election_event.num_sms_sent;
-    if totals > 0 {
+    if !metrics.election_event.is_empty() {
         event!(Level::INFO, "updating election event statistics");
 
         update_election_event_statistics(
             hasura_transaction,
             tenant_id.as_str(),
             election_event_id.as_str(),
-            /* inc_emails_sent */ metrics.election_event.num_emails_sent,
-            /* inc_sms_sent */ metrics.election_event.num_sms_sent,
+            &metrics.election_event.statistics_increments(),
         )
         .await
         .with_context(|| "can't updated election event statistics")?;
     }
-    for (election_id, inc_emails_sent, inc_sms_sent) in election_statistics_increments(metrics) {
+    for (election_id, increments) in election_statistics_increments(metrics) {
         update_election_statistics(
             hasura_transaction,
             tenant_id.as_str(),
             election_event_id.as_str(),
             election_id,
-            inc_emails_sent,
-            inc_sms_sent,
+            &increments,
         )
         .await
         .with_context(|| "can't updated election statistics")?;
@@ -273,20 +275,13 @@ async fn update_stats(
     Ok(())
 }
 
-/// Per-election `(election_id, emails, sms)` increments, skipping elections
-/// with nothing sent.
-fn election_statistics_increments(metrics: &Metrics) -> Vec<(&str, i64, i64)> {
+/// Per-election counter increments, skipping elections with nothing sent.
+fn election_statistics_increments(metrics: &Metrics) -> Vec<(&str, BTreeMap<String, i64>)> {
     metrics
         .metrics_by_election_id
         .iter()
-        .filter(|(_, unit)| unit.num_emails_sent + unit.num_sms_sent > 0)
-        .map(|(election_id, unit)| {
-            (
-                election_id.as_str(),
-                unit.num_emails_sent,
-                unit.num_sms_sent,
-            )
-        })
+        .filter(|(_, unit)| !unit.is_empty())
+        .map(|(election_id, unit)| (election_id.as_str(), unit.statistics_increments()))
         .collect()
 }
 
@@ -524,16 +519,15 @@ pub async fn send_template(
 
         let email_sender = EmailSender::new().await?;
         let sms_sender = SmsSender::new().await?;
-        let mut metrics = Metrics {
-            election_event: MetricsUnit {
-                num_emails_sent: 0,
-                num_sms_sent: 0,
-            },
-            metrics_by_election_id: Default::default(),
-        };
+        let mut metrics = Metrics::default();
 
         let Some(communication_method) = body.communication_method.clone() else {
             return Err(Error::String("Missing template method".into()));
+        };
+        let Some(channel) = communication_method.channel() else {
+            return Err(Error::String(format!(
+                "Template method {communication_method} cannot be sent"
+            )));
         };
 
         for user in filtered_users.iter() {
@@ -575,7 +569,7 @@ pub async fn send_template(
                 &mut metrics,
                 &elections_by_area,
                 &user,
-                /* communication_method */ &communication_method,
+                channel,
                 /* success */ success.is_ok(),
             );
         }
@@ -742,31 +736,27 @@ mod tests {
     };
     use sequent_core::services::generate_urls::AuthAction;
     use sequent_core::types::keycloak::User;
+    use sequent_core::types::messaging::MessageChannel;
     use sequent_core::types::templates::AudienceSelection;
     use serde_json::json;
+    use std::collections::BTreeMap;
     use std::collections::HashMap;
 
     #[test]
     fn election_statistics_use_each_election_metrics() {
+        let unit = |counts: &[(MessageChannel, i64)]| MetricsUnit {
+            sent: counts.iter().copied().collect(),
+        };
         let metrics = Metrics {
-            election_event: MetricsUnit {
-                num_emails_sent: 5,
-                num_sms_sent: 3,
-            },
+            election_event: unit(&[(MessageChannel::EMAIL, 5), (MessageChannel::SMS, 3)]),
             metrics_by_election_id: HashMap::from([
                 (
                     "election-a".to_string(),
-                    MetricsUnit {
-                        num_emails_sent: 4,
-                        num_sms_sent: 0,
-                    },
+                    unit(&[(MessageChannel::EMAIL, 4)]),
                 ),
                 (
                     "election-b".to_string(),
-                    MetricsUnit {
-                        num_emails_sent: 1,
-                        num_sms_sent: 3,
-                    },
+                    unit(&[(MessageChannel::EMAIL, 1), (MessageChannel::VIBER, 3)]),
                 ),
                 ("election-c".to_string(), MetricsUnit::default()),
             ]),
@@ -775,9 +765,34 @@ mod tests {
         let mut increments = election_statistics_increments(&metrics);
         increments.sort();
 
+        let counters = |pairs: &[(&str, i64)]| -> BTreeMap<String, i64> {
+            pairs.iter().map(|(k, v)| (k.to_string(), *v)).collect()
+        };
         assert_eq!(
             increments,
-            vec![("election-a", 4, 0), ("election-b", 1, 3)]
+            vec![
+                ("election-a", counters(&[("num_emails_sent", 4)])),
+                (
+                    "election-b",
+                    counters(&[("num_emails_sent", 1), ("num_viber_sent", 3)])
+                ),
+            ]
+        );
+    }
+
+    #[test]
+    fn metrics_count_each_channel_under_its_statistics_key() {
+        let mut unit = MetricsUnit::default();
+        assert!(unit.is_empty());
+        unit.record(MessageChannel::WHATSAPP);
+        unit.record(MessageChannel::WHATSAPP);
+        unit.record(MessageChannel::MESSENGER);
+        assert_eq!(
+            unit.statistics_increments(),
+            BTreeMap::from([
+                ("num_messenger_sent".to_string(), 1),
+                ("num_whatsapp_sent".to_string(), 2),
+            ])
         );
     }
 

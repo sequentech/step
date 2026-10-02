@@ -5,6 +5,8 @@ use headless_chrome::types::PrintToPdfOptions;
 use serde::{Deserialize, Serialize};
 use strum_macros::{Display, EnumString};
 
+use super::messaging::MessageChannel;
+
 #[allow(non_camel_case_types)]
 #[derive(
     Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString,
@@ -54,6 +56,63 @@ pub enum TemplateMethod {
     SMS,
     #[strum(serialize = "DOCUMENT")]
     DOCUMENT,
+    #[strum(serialize = "WHATSAPP")]
+    WHATSAPP,
+    #[strum(serialize = "VIBER")]
+    VIBER,
+    #[strum(serialize = "MESSENGER")]
+    MESSENGER,
+}
+
+impl TemplateMethod {
+    /// The messaging channel this method sends through; `None` for
+    /// documents.
+    pub fn channel(&self) -> Option<MessageChannel> {
+        match self {
+            TemplateMethod::EMAIL => Some(MessageChannel::EMAIL),
+            TemplateMethod::SMS => Some(MessageChannel::SMS),
+            TemplateMethod::WHATSAPP => Some(MessageChannel::WHATSAPP),
+            TemplateMethod::VIBER => Some(MessageChannel::VIBER),
+            TemplateMethod::MESSENGER => Some(MessageChannel::MESSENGER),
+            TemplateMethod::DOCUMENT => None,
+        }
+    }
+}
+
+/// Which channel each voter is reached on by a bulk send.
+#[allow(non_camel_case_types)]
+#[derive(
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    Copy,
+    EnumString,
+    Default,
+)]
+pub enum ChannelSelection {
+    /// The method of the send (`communication_method`) for every voter.
+    #[default]
+    SINGLE_CHANNEL,
+    /// Each voter's preferred verified channel, falling back in the event's
+    /// notice fallback order on confirmed failure.
+    VOTER_PREFERENCE,
+}
+
+/// Content for WhatsApp, Viber and Messenger.
+///
+/// WhatsApp and Viber send provider-approved templates: `message` is the
+/// approved wording as a preview, and `parameters` fill the template's
+/// placeholders in order. Messenger sends `message` as in-conversation text.
+/// Every string is rendered per voter like email and SMS bodies.
+#[derive(Deserialize, Debug, Serialize, Clone, Default, PartialEq)]
+pub struct InstantMessageConfig {
+    pub message: String,
+    #[serde(default)]
+    pub parameters: Vec<String>,
 }
 
 #[derive(Deserialize, Debug, Serialize, Clone, Default)]
@@ -152,6 +211,14 @@ pub struct SendTemplateBody {
     pub schedule_date: Option<String>,
     pub email: Option<EmailConfig>,
     pub sms: Option<SmsConfig>,
+    #[serde(default)]
+    pub whatsapp: Option<InstantMessageConfig>,
+    #[serde(default)]
+    pub viber: Option<InstantMessageConfig>,
+    #[serde(default)]
+    pub messenger: Option<InstantMessageConfig>,
+    #[serde(default)]
+    pub channel_selection: ChannelSelection,
     pub document: Option<String>,
     pub name: Option<String>,
     pub alias: Option<String>,

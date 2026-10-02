@@ -1,0 +1,68 @@
+table:
+    name: messaging_account
+    schema: sequent_backend
+select_permissions:
+    - comment: ""
+      permission:
+          columns:
+              - channel
+              - created_at
+              - credentials
+              - id
+              - is_default
+              - limits
+              - name
+              - provider
+              - provider_approval
+              - sender
+              - status
+              - tenant_id
+              - updated_at
+              - webhook_key
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+          allow_aggregations: true
+      role: admin-user
+    - comment: ""
+      permission:
+          columns:
+              - channel
+              - created_at
+              - credentials
+              - id
+              - is_default
+              - limits
+              - name
+              - provider
+              - provider_approval
+              - sender
+              - status
+              - tenant_id
+              - updated_at
+              - webhook_key
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+          allow_aggregations: true
+      role: messaging-account-read
+    - comment: ""
+      permission:
+          columns:
+              - channel
+              - created_at
+              - credentials
+              - id
+              - is_default
+              - limits
+              - name
+              - provider
+              - provider_approval
+              - sender
+              - status
+              - tenant_id
+              - updated_at
+              - webhook_key
+          filter: {}
+          allow_aggregations: true
+      role: service-account
