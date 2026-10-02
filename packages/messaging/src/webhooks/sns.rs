@@ -101,12 +101,19 @@ impl SnsEnvelope {
 
 /// Only HTTPS certificates served by an SNS regional endpoint are trusted.
 pub fn is_trusted_certificate_url(url: &str) -> bool {
-    let Some(rest) = url.strip_prefix("https://") else {
-        return false;
-    };
-    let Some((host, path)) = rest.split_once('/') else {
-        return false;
-    };
+    sns_path(url).is_some_and(|path| path.ends_with(".pem"))
+}
+
+/// Whether `url` is an HTTPS URL of an SNS regional endpoint, such as a
+/// subscription confirmation link.
+pub fn is_sns_url(url: &str) -> bool {
+    sns_path(url).is_some()
+}
+
+/// The path of an HTTPS URL on an SNS regional endpoint.
+fn sns_path(url: &str) -> Option<&str> {
+    let rest = url.strip_prefix("https://")?;
+    let (host, path) = rest.split_once('/')?;
     let region = host.strip_prefix("sns.").and_then(|h| {
         h.strip_suffix(".amazonaws.com")
             .or_else(|| h.strip_suffix(".amazonaws.com.cn"))
@@ -118,7 +125,7 @@ pub fn is_trusted_certificate_url(url: &str) -> bool {
                     .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-')
         })
         .unwrap_or(false);
-    valid_region && path.ends_with(".pem") && !path.contains("..") && !host.contains('@')
+    (valid_region && !path.contains("..") && !host.contains('@')).then_some(path)
 }
 
 /// Delivery events of an SES notification. Transient bounces are left
@@ -248,6 +255,12 @@ mod tests {
         ] {
             assert!(!is_trusted_certificate_url(url), "{url}");
         }
+        assert!(is_sns_url(
+            "https://sns.eu-west-1.amazonaws.com/?Action=ConfirmSubscription&Token=t"
+        ));
+        assert!(!is_sns_url(
+            "https://sns.evil.example/?Action=ConfirmSubscription"
+        ));
     }
 
     #[test]

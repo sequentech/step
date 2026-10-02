@@ -18,5 +18,5 @@ pub mod rate_limit;
 pub mod sender;
 pub mod webhooks;
 
-#[cfg(test)]
-mod test_server;
+#[cfg(any(test, feature = "test-support"))]
+pub mod test_server;

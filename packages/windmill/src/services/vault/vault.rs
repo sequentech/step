@@ -148,6 +148,23 @@ pub async fn save_secret_and_return(
     .context("Error saving secret")
 }
 
+/// Encrypts short-lived data, such as a held Messenger code, with the
+/// master key.
+pub async fn encrypt_with_master_secret(plaintext: &[u8]) -> Result<Vec<u8>> {
+    let master_secret = get_master_secret().await?;
+    encrypt(master_secret, plaintext)
+        .context("Error encrypting data")?
+        .strand_serialize()
+        .context("Error serializing encrypted data")
+}
+
+pub async fn decrypt_with_master_secret(ciphertext: &[u8]) -> Result<Vec<u8>> {
+    let encrypted_data =
+        EncryptionData::strand_deserialize(ciphertext).context("Error deserializing data")?;
+    let master_secret = get_master_secret().await?;
+    decrypt(&master_secret, &encrypted_data).context("Error decrypting data")
+}
+
 /// Stores `value` under `key`, replacing the previous value if there is one.
 /// Used for credentials that rotate.
 #[instrument(skip(hasura_transaction, value), err)]

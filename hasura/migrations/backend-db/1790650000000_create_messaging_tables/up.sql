@@ -51,6 +51,7 @@ CREATE TABLE "sequent_backend"."message"
     "state"                 text        NOT NULL,
     "provider_message_id"   text,
     "error"                 text,
+    "failure"               text,
     "billing"               jsonb,
     "created_at"            timestamptz NOT NULL DEFAULT now(),
     "updated_at"            timestamptz NOT NULL DEFAULT now(),

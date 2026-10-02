@@ -7,6 +7,7 @@
 use anyhow::{anyhow, Context, Result};
 use chrono::{DateTime, Utc};
 use deadpool_postgres::Transaction;
+use messaging::sender::FailureKind;
 use sequent_core::types::messaging::{
     AccountCheck, AccountLimits, AccountSender, CredentialName, CredentialRecord,
     MessageAttemptState, MessageChannel, MessageDirection, MessagePurpose, MessagingProvider,
@@ -337,6 +338,7 @@ pub struct MessageRecord {
     pub state: MessageAttemptState,
     pub provider_message_id: Option<String>,
     pub error: Option<String>,
+    pub failure: Option<FailureKind>,
     pub billing: Option<Value>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
@@ -365,6 +367,7 @@ impl TryFrom<Row> for MessageRecord {
             state: parse_enum(&row, "state")?,
             provider_message_id: row.try_get("provider_message_id")?,
             error: row.try_get("error")?,
+            failure: parse_optional_enum(&row, "failure")?,
             billing: row.try_get("billing")?,
             created_at: row.try_get("created_at")?,
             updated_at: row.try_get("updated_at")?,
@@ -390,6 +393,9 @@ pub struct NewMessage {
     pub attempt: i32,
     pub state: MessageAttemptState,
     pub provider_message_id: Option<String>,
+    /// For attempts refused before reaching the provider.
+    pub error: Option<String>,
+    pub failure: Option<FailureKind>,
 }
 
 /// Inserts a message. With a logical key, a second insert of the same
@@ -404,8 +410,10 @@ pub async fn insert_message(
         INSERT INTO sequent_backend.message
             (tenant_id, election_event_id, voter_id, account_id, channel, direction,
              purpose, template_alias, language, masked_destination, destination_digest,
-             destination_country, logical_key, attempt, state, provider_message_id)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+             destination_country, logical_key, attempt, state, provider_message_id,
+             error, failure, failed_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16,
+                $17, $18, CASE WHEN $15 = 'FAILED' THEN now() END)
         ON CONFLICT (tenant_id, logical_key, attempt) DO NOTHING
         RETURNING *
         "#,
@@ -426,6 +434,8 @@ pub async fn insert_message(
             &message.attempt,
             &message.state.to_string(),
             &message.provider_message_id,
+            &message.error,
+            &message.failure.map(|f| f.to_string()),
         ],
     )
     .await?
@@ -466,6 +476,7 @@ fn predecessors(to: MessageAttemptState) -> Vec<String> {
 pub struct StateChange {
     pub provider_message_id: Option<String>,
     pub error: Option<String>,
+    pub failure: Option<FailureKind>,
     pub billing: Option<Value>,
 }
 
@@ -486,6 +497,7 @@ pub async fn transition_message(
             provider_message_id = COALESCE($4, provider_message_id),
             error = COALESCE($5, error),
             billing = COALESCE($6, billing),
+            failure = COALESCE($7, failure),
             updated_at = now(),
             accepted_at = CASE WHEN $2 = 'ACCEPTED' THEN now() ELSE accepted_at END,
             delivered_at = CASE WHEN $2 = 'DELIVERED' THEN now() ELSE delivered_at END,
@@ -500,6 +512,7 @@ pub async fn transition_message(
             &change.provider_message_id,
             &change.error,
             &change.billing,
+            &change.failure.map(|f| f.to_string()),
         ],
     )
     .await?
@@ -753,7 +766,8 @@ pub async fn get_pending_messenger_link(
     .transpose()
 }
 
-/// Moves a link on. Leaving PENDING or CODE_SENT deletes its code.
+/// Moves a link on. Leaving PENDING deletes its code: once handed to
+/// Messenger, replaced or expired, Step no longer holds it.
 #[instrument(skip(tx), err)]
 pub async fn update_messenger_link(
     tx: &Transaction<'_>,
@@ -768,7 +782,7 @@ pub async fn update_messenger_link(
         SET state = $2,
             page_scoped_id = COALESCE($3, page_scoped_id),
             message_id = COALESCE($4, message_id),
-            encrypted_payload = CASE WHEN $2 IN ('PENDING', 'CODE_SENT')
+            encrypted_payload = CASE WHEN $2 = 'PENDING'
                                      THEN encrypted_payload ELSE NULL END,
             updated_at = now()
         WHERE id = $1

@@ -16,6 +16,7 @@ select_permissions:
               - direction
               - election_event_id
               - error
+              - failure
               - failed_at
               - id
               - language
@@ -44,6 +45,7 @@ select_permissions:
               - direction
               - election_event_id
               - error
+              - failure
               - failed_at
               - id
               - language
@@ -74,6 +76,7 @@ select_permissions:
               - direction
               - election_event_id
               - error
+              - failure
               - failed_at
               - id
               - language

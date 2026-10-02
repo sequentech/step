@@ -272,6 +272,8 @@ fn attempt(world: &World, logical_key: &str, attempt: i32) -> NewMessage {
         attempt,
         state: MessageAttemptState::QUEUED,
         provider_message_id: None,
+        error: None,
+        failure: None,
     }
 }
 
@@ -526,7 +528,7 @@ async fn a_new_link_replaces_the_session_links_and_deletes_their_codes() {
         .unwrap()
         .unwrap();
     assert_eq!(sent.page_scoped_id.as_deref(), Some("psid-1"));
-    assert!(sent.encrypted_payload.is_some());
+    assert_eq!(sent.encrypted_payload, None);
     update_messenger_link(&tx, &by_word.id, MessengerLinkState::CONFIRMED, None, None)
         .await
         .unwrap();

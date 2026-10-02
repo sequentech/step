@@ -12,7 +12,7 @@ use sequent_core::types::messaging::{
     AccountCheck, AccountLimits, MessageAttemptState, MessageChannel, MessageContent,
     MessagePurpose, OutOfWindowPolicy, ProviderCapabilities,
 };
-use strum_macros::Display;
+use strum_macros::{Display, EnumString};
 
 /// One message, ready for a provider.
 #[derive(Debug, Clone)]
@@ -33,7 +33,7 @@ pub struct OutboundMessage {
     pub out_of_window: OutOfWindowPolicy,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Display)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Display, EnumString)]
 #[allow(non_camel_case_types)]
 pub enum FailureKind {
     /// Retrying will not help: invalid recipient, rejected template...
