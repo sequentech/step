@@ -27,6 +27,7 @@ COPY ./immudb-rs ./immudb-rs
 COPY ./sequent-core ./sequent-core
 COPY ./velvet ./velvet
 COPY ./windmill ./windmill
+COPY ./pgmq-broker ./pgmq-broker
 COPY ./e2e ./e2e
 COPY ./step-cli ./step-cli
 COPY ./orare ./orare

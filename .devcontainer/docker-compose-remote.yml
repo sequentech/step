@@ -34,7 +34,6 @@ services:
         beyond: ../beyond
     restart: always
     environment:
-      AMQP_ADDR: ${AMQP_ADDR}
       MASTER_SECRET: ${MASTER_SECRET}
       KC_HOSTNAME: ${KC_HOSTNAME}
       KC_HOSTNAME_STRICT: ${KC_HOSTNAME_STRICT}
@@ -304,6 +303,7 @@ services:
     container_name: postgres-keycloak
     restart: unless-stopped
     volumes:
+      - ./postgresql/pgmq-1.13.0.sql:/docker-entrypoint-initdb.d/20-pgmq.sql:ro
       - keycloak_db_data:/var/lib/postgresql
       - keycloak_db_logs:/logs
     command: postgres -c 'config_file=/etc/postgresql/postgresql.conf'
@@ -416,7 +416,6 @@ services:
       KEYCLOAK_DB__PORT: ${KEYCLOAK_DB__PORT}
       KEYCLOAK_DB__DBNAME: ${KEYCLOAK_DB__DBNAME}
       KEYCLOAK_DB__MANAGER__RECYCLING_METHOD: ${KEYCLOAK_DB__MANAGER__RECYCLING_METHOD}
-      AMQP_ADDR: ${AMQP_ADDR}
       KEYCLOAK_URL: ${KEYCLOAK_URL}
       KEYCLOAK_PASSWORD_POLICY_CACHE_TTL_SECS: ${KEYCLOAK_PASSWORD_POLICY_CACHE_TTL_SECS:-30}
       KEYCLOAK_ADMIN_CLIENT_ID: ${KEYCLOAK_ADMIN_CLIENT_ID}
@@ -506,20 +505,6 @@ services:
         VAULT_SERVER_URL: ${VAULT_SERVER_URL}
         VAULT_TOKEN: ${VAULT_TOKEN}
         B3_URL: ${B3_URL}
-
-  rabbitmq:
-    profiles: ["full", "base"]
-    image: rabbitmq:3.12.11-management
-    container_name: rabbitmq
-    healthcheck:
-      test: ["CMD-SHELL", "rabbitmq-diagnostics -q check_running && rabbitmq-diagnostics -q check_port_connectivity"]
-      interval: 5s
-      timeout: 10s
-      retries: 12
-      start_period: 20s
-    environment:
-      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
-      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
 
   immudb-init:
     profiles: ["full", "base"]
@@ -630,13 +615,16 @@ services:
       "rust-local-target/",
       "--ignore",
       "windmill/core",
-      "-x",
-      "run --bin main consume -q beat short_queue tally_queue reports_queue communication_queue import_export_queue electoral_log_batch_queue electoral_log_beat_queue --prefetch-count 1"
+      "--",
+      "sh",
+      "../../.devcontainer/restart-worker.sh",
+      "cargo",
+      "run", "--bin", "main", "consume", "-q", "beat", "short_queue", "tally_queue", "reports_queue", "communication_queue", "import_export_queue", "electoral_log_batch_queue", "electoral_log_beat_queue", "--prefetch-count", "1"
     ]
     volumes:
       - ..:/workspaces/step:z
     depends_on:
-      rabbitmq:
+      postgres-keycloak:
         condition: service_healthy
       configure-minio:
         condition: service_completed_successfully
@@ -646,7 +634,6 @@ services:
       LOG_LEVEL: ${LOG_LEVEL}
       CARGO_TERM_COLOR: ${CARGO_TERM_COLOR}
       HASURA_ENDPOINT: ${HASURA_ENDPOINT}
-      AMQP_ADDR: ${AMQP_ADDR}
       KEYCLOAK_URL: ${KEYCLOAK_URL}
       KEYCLOAK_PASSWORD_POLICY_CACHE_TTL_SECS: ${KEYCLOAK_PASSWORD_POLICY_CACHE_TTL_SECS:-30}
       IMMUDB_SERVER_URL: ${IMMUDB_SERVER_URL}
@@ -720,11 +707,12 @@ services:
     stdin_open: true
     image: sequentech.local/cargo-packages
     container_name: beat
+    restart: unless-stopped
     volumes:
       - ..:/workspaces/step:z
     depends_on:
-      rabbitmq:
-        condition: service_started
+      postgres-keycloak:
+        condition: service_healthy
       harvest:
         condition: service_started
     working_dir: /workspaces/step/packages/windmill
@@ -735,15 +723,23 @@ services:
       "--why",
       "--ignore",
       "rust-local-target/",
-      "-x",
-      "run --bin beat"
+      "--",
+      "sh",
+      "../../.devcontainer/restart-worker.sh",
+      "cargo",
+      "run", "--bin", "beat"
     ]
     environment:
+      KEYCLOAK_DB__MANAGER__RECYCLING_METHOD: ${KEYCLOAK_DB__MANAGER__RECYCLING_METHOD}
+      KEYCLOAK_DB__DBNAME: ${KEYCLOAK_DB__DBNAME}
+      KEYCLOAK_DB__PORT: ${KEYCLOAK_DB__PORT}
+      KEYCLOAK_DB__HOST: ${KEYCLOAK_DB__HOST}
+      KEYCLOAK_DB__PASSWORD: ${KEYCLOAK_DB__PASSWORD}
+      KEYCLOAK_DB__USER: ${KEYCLOAK_DB__USER}
       RUSTFLAGS: ${RUSTFLAGS}
       LOG_LEVEL: ${LOG_LEVEL}
       CARGO_TERM_COLOR: ${CARGO_TERM_COLOR}
       HASURA_ENDPOINT: ${HASURA_ENDPOINT}
-      AMQP_ADDR: ${AMQP_ADDR}
       BEAT_PROBE_ADDR: ${BEAT_PROBE_ADDR}
       BEAT_PROBE_LIVE_PATH: ${BEAT_PROBE_LIVE_PATH}
       BEAT_PROBE_READY_PATH: ${BEAT_PROBE_READY_PATH}

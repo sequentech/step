@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::postgres::election_event::get_election_event_by_id;
-use crate::services::celery_app::get_celery_connection;
 use crate::services::celery_app::Queue;
 use crate::services::database::get_hasura_pool;
 use crate::services::database::get_keycloak_pool;
@@ -21,12 +20,7 @@ use sequent_core::serialization::deserialize_with_path::deserialize_str;
 use sequent_core::services::keycloak::get_event_realm;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use tracing::{event, info, instrument};
-
-use lapin::{
-    options::{BasicAckOptions, BasicGetOptions, QueueDeclareOptions},
-    types::FieldTable,
-};
+use tracing::{event, instrument};
 
 /// Classifies the type of an incoming log event.
 ///
@@ -257,105 +251,206 @@ pub async fn process_electoral_log_events_batch(events: Vec<LogEventInput>) -> R
     Ok(())
 }
 
-/// Dispatcher: repeatedly reads batches of messages from the electoral_log_batch_queue and dispatches them
-/// to the processing task. Each batch is processed sequentially so that only a single batch is held in memory.
+/// Promote raw events into a processing task in the same PostgreSQL transaction.
+/// The raw-event queue is deliberately excluded from normal Celery consumers.
 #[instrument(skip_all, err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task(time_limit = 30, max_retries = 0, expires = 1)]
 pub async fn electoral_log_batch_dispatcher() -> Result<()> {
-    info!("starting electoral_log_batch_dispatcher");
-
-    // Reuse the global AMQP connection.
-    let connection_arc = get_celery_connection().await?;
-    let channel = connection_arc
-        .create_channel()
-        .await
-        .with_context(|| "Error creating RabbitMQ channel")?;
-
     let slug = std::env::var("ENV_SLUG").with_context(|| "missing env var ENV_SLUG")?;
-    let queue_name = Queue::ElectoralLogEvent.queue_name(&slug);
-    let _queue = channel
-        .queue_declare(
-            &queue_name,
-            QueueDeclareOptions {
-                durable: true,
-                ..Default::default()
-            },
-            FieldTable::default(),
-        )
-        .await
-        .with_context(|| "Error declaring electoral_log_batch_queue")?;
+    let batch_size = PgConfig::from_env()?.default_sql_batch_size;
+    dispatch_electoral_log_batches(get_keycloak_pool().await.as_ref(), &slug, batch_size).await
+}
 
-    // Get the batch size from PgConfig.
-    let batch_size: usize = PgConfig::from_env()?.default_sql_batch_size.try_into()?;
-
+async fn dispatch_electoral_log_batches(
+    pool: &deadpool_postgres::Pool,
+    slug: &str,
+    batch_size: i32,
+) -> Result<()> {
+    let source = pgmq_broker::queue_name(&Queue::ElectoralLogEvent.queue_name(slug));
+    let target = Queue::ElectoralLogBatch.queue_name(slug);
+    if batch_size <= 0 {
+        return Err(anyhow!("default_sql_batch_size must be positive").into());
+    }
     loop {
-        info!("starting a new batch for queue {queue_name}, max batch_size={batch_size}");
-        let mut batch_deliveries = Vec::with_capacity(batch_size);
-        for _ in 0..batch_size {
-            if let Some(delivery) = channel
-                .basic_get(&queue_name, BasicGetOptions { no_ack: false })
-                .await?
-            {
-                info!("adding delivery element to batch_deliveries");
-                batch_deliveries.push(delivery);
-            } else {
-                info!("not adding to batch_deliveries, break");
-                break;
-            }
-        }
-
-        if batch_deliveries.is_empty() {
-            info!("no more elements to process in queue");
+        let mut client = pool
+            .get()
+            .await
+            .context("Error obtaining PGMQ batch connection")?;
+        let tx = client.transaction().await?;
+        tx.batch_execute("SET LOCAL statement_timeout = '10s'")
+            .await?;
+        // pgmq.read retains row locks until commit, including while building the batch.
+        let rows = tx
+            .query(
+                "SELECT msg_id, message FROM pgmq.read($1, 60, $2)",
+                &[&source, &batch_size],
+            )
+            .await?;
+        if rows.is_empty() {
             break;
         }
-        info!(
-            "deserializing {len} elements for this batch",
-            len = batch_deliveries.len()
-        );
-
-        // Deserialize messages sequentially.
-        let mut events = Vec::with_capacity(batch_deliveries.len());
-        for delivery in &batch_deliveries {
-            // Parse the raw message into a JSON value.
-            let v: serde_json::Value = serde_json::from_slice(&delivery.data)
-                .with_context(|| "Error parsing Celery message as JSON")?;
-            // Expect the message to be an array.
-            if let serde_json::Value::Array(arr) = v {
-                if arr.len() < 2 {
-                    return Err(
-                        "Invalid message format: expected array with at least 2 elements".into(),
-                    );
+        let mut events = Vec::with_capacity(rows.len());
+        let mut ids = Vec::with_capacity(rows.len());
+        for row in rows {
+            let id: i64 = row.get("msg_id");
+            let decoded = (|| -> anyhow::Result<LogEventInput> {
+                let message = pgmq_broker::decode(
+                    row.get::<_, Option<serde_json::Value>>("message")
+                        .unwrap_or(serde_json::Value::Null),
+                )?;
+                if message.headers.task != "enqueue_electoral_log_event" {
+                    return Err(anyhow!("unexpected raw-event task"));
                 }
-                let payload = &arr[1];
-                let input_value = payload
-                    .get("input")
-                    .ok_or_else(|| anyhow!("Missing 'input' field in message payload"))?;
-                let event: LogEventInput = serde_json::from_value(input_value.clone())
-                    .with_context(|| "Error deserializing LogEventInput from input field")?;
-                events.push(event);
-            } else {
-                return Err("Invalid message format: expected JSON array".into());
+                let body: serde_json::Value = serde_json::from_slice(&message.raw_body)?;
+                let input = body
+                    .get(1)
+                    .and_then(|kwargs| kwargs.get("input"))
+                    .ok_or_else(|| anyhow!("missing event input"))?;
+                Ok(serde_json::from_value(input.clone())?)
+            })();
+            match decoded {
+                Ok(input) => {
+                    events.push(input);
+                    ids.push(id);
+                }
+                Err(_) => {
+                    tracing::error!(
+                        message_id = id,
+                        "Archiving malformed electoral-log queue message"
+                    );
+                    tx.query_one("SELECT pgmq.archive($1, $2::bigint)", &[&source, &id])
+                        .await?;
+                }
             }
         }
-
-        // Dispatch the processing task via the Celery app.
-        let celery_app = crate::services::celery_app::get_celery_app().await;
-        let celery_task = process_electoral_log_events_batch::new(events);
-        info!("sending processing task for current batch");
-        celery_app
-            .send_task(celery_task)
-            .await
-            .with_context(|| "Error sending process_electoral_log_events_batch task")?;
-
-        // Acknowledge all messages in the current batch.
-        for delivery in batch_deliveries {
-            channel
-                .basic_ack(delivery.delivery_tag, BasicAckOptions::default())
+        if !events.is_empty() {
+            let message = celery::protocol::Message::try_from(
+                process_electoral_log_events_batch::new(events),
+            )
+            .context("Error encoding electoral-log batch")?;
+            pgmq_broker::send(&*tx, &target, &message)
                 .await
-                .with_context(|| "Error acknowledging message")?;
+                .context("Error enqueueing electoral-log batch")?;
+            tx.query("SELECT pgmq.delete($1, $2::bigint[])", &[&source, &ids])
+                .await?;
         }
+        tx.commit().await?;
     }
-    info!("finishing electoral_log_batch_dispatcher");
     Ok(())
+}
+
+#[cfg(test)]
+mod pgmq_tests {
+    use super::*;
+    use celery::broker::{Broker, BrokerBuilder};
+    use pgmq_broker::PgmqBrokerBuilder;
+    use std::sync::Arc;
+
+    #[tokio::test]
+    #[ignore = "requires PGMQ_TEST_DATABASE_URL pointing to a disposable PGMQ database"]
+    async fn batch_handoff_is_atomic_and_quarantines_invalid_events() {
+        let config = deadpool_postgres::Config {
+            url: Some(std::env::var("PGMQ_TEST_DATABASE_URL").expect("PGMQ_TEST_DATABASE_URL")),
+            ..Default::default()
+        };
+        let pool = Arc::new(
+            config
+                .create_pool(
+                    Some(deadpool_postgres::Runtime::Tokio1),
+                    tokio_postgres::NoTls,
+                )
+                .unwrap(),
+        );
+        let slug = format!("batch_{}", uuid::Uuid::new_v4());
+        let source = Queue::ElectoralLogEvent.queue_name(&slug);
+        let target = Queue::ElectoralLogBatch.queue_name(&slug);
+        let broker = Box::new(PgmqBrokerBuilder::from_pool(pool.clone()))
+            .declare_queue(&source)
+            .declare_queue(&target)
+            .build(5)
+            .await
+            .unwrap();
+        for id in ["event-a", "event-b"] {
+            let input = LogEventInput {
+                election_event_id: id.into(),
+                message_type: LogMessageType::KeycloakEvent("LOGIN_ERROR".into()),
+                user_id: None,
+                username: None,
+                tenant_id: "test-tenant".into(),
+                body: LogEventBody::Plain("test".into()),
+            };
+            broker
+                .send(
+                    &celery::protocol::Message::try_from(enqueue_electoral_log_event::new(input))
+                        .unwrap(),
+                    &source,
+                )
+                .await
+                .unwrap();
+        }
+        let client = pool.get().await.unwrap();
+        let source = pgmq_broker::queue_name(&source);
+        let target = pgmq_broker::queue_name(&target);
+        client
+            .query_one(
+                "SELECT pgmq.send($1, $2)",
+                &[&source, &serde_json::json!({"invalid": true})],
+            )
+            .await
+            .unwrap();
+        client
+            .query_one("SELECT pgmq.drop_queue($1)", &[&target])
+            .await
+            .unwrap();
+        assert!(dispatch_electoral_log_batches(&pool, &slug, 10)
+            .await
+            .is_err());
+        let count = client
+            .query_one("SELECT queue_length FROM pgmq.metrics($1)", &[&source])
+            .await
+            .unwrap()
+            .get::<_, i64>(0);
+        assert_eq!(count, 3, "failed promotion must retain every source event");
+        client
+            .query_one("SELECT pgmq.create($1)", &[&target])
+            .await
+            .unwrap();
+        dispatch_electoral_log_batches(&pool, &slug, 10)
+            .await
+            .unwrap();
+        assert_eq!(
+            client
+                .query_one("SELECT queue_length FROM pgmq.metrics($1)", &[&source])
+                .await
+                .unwrap()
+                .get::<_, i64>(0),
+            0
+        );
+        let payload: serde_json::Value = client
+            .query_one(&format!("SELECT message FROM pgmq.q_{target}"), &[])
+            .await
+            .unwrap()
+            .get(0);
+        let message = pgmq_broker::decode(payload).unwrap();
+        assert_eq!(message.headers.task, "process_electoral_log_events_batch");
+        let body: serde_json::Value = serde_json::from_slice(&message.raw_body).unwrap();
+        assert_eq!(body[1]["events"].as_array().unwrap().len(), 2);
+        assert_eq!(
+            client
+                .query_one(&format!("SELECT count(*) FROM pgmq.a_{source}"), &[])
+                .await
+                .unwrap()
+                .get::<_, i64>(0),
+            1
+        );
+        client
+            .query_one("SELECT pgmq.drop_queue($1)", &[&source])
+            .await
+            .unwrap();
+        client
+            .query_one("SELECT pgmq.drop_queue($1)", &[&target])
+            .await
+            .unwrap();
+    }
 }

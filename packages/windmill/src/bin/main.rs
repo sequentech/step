@@ -35,7 +35,7 @@ enum CeleryOpt {
         queues: Vec<String>,
         #[arg(short, long, default_value = "100")]
         prefetch_count: u16,
-        #[arg(short, long)]
+        #[arg(short, long, default_value_t = true)]
         acks_late: bool,
         #[arg(short, long, default_value = "4")]
         task_max_retries: u32,
@@ -124,7 +124,7 @@ async fn async_main(opt: CeleryOpt) -> Result<()> {
             let queues: Vec<String> = queues_input
                 .iter()
                 .map(|queue_name| {
-                    if queue_name.starts_with(&slug) {
+                    if queue_name.starts_with(&format!("{slug}_")) {
                         queue_name.clone()
                     } else {
                         format!("{}_{}", slug, queue_name)
@@ -132,6 +132,11 @@ async fn async_main(opt: CeleryOpt) -> Result<()> {
                 })
                 .collect();
 
+            if queues.contains(&Queue::ElectoralLogEvent.queue_name(&slug)) {
+                return Err(anyhow!(
+                    "The raw electoral-log queue is consumed only by the batch dispatcher"
+                ));
+            }
             let vec_str: Vec<&str> = queues.iter().map(AsRef::as_ref).collect();
             let duplicates = find_duplicates(vec_str.clone());
             if !duplicates.is_empty() {

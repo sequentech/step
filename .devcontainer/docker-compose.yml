@@ -20,7 +20,6 @@ services:
     ports:
       - 8090:8090
     environment:
-      AMQP_ADDR: ${AMQP_ADDR}
       # Use the same voter-secret encryption key as Harvest and Windmill.
       MASTER_SECRET: ${MASTER_SECRET}
       KC_HOSTNAME: ${KC_HOSTNAME}

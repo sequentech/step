@@ -53,12 +53,15 @@ impl PgConfig {
 
 #[instrument(err)]
 pub async fn generate_keycloak_pool() -> Result<Arc<Pool>> {
-    let config = PgConfig::from_env()?;
+    let config: deadpool_postgres::Config = Config::builder()
+        .add_source(Environment::default().separator("__"))
+        .build()?
+        .get("keycloak_db")?;
 
     cfg_if::cfg_if! {
         if #[cfg(any(feature = "fips_core", feature = "fips_full"))] {
-            if  config.keycloak_db.ssl_mode == Some(SslMode::Prefer) ||
-                config.keycloak_db.ssl_mode == Some(SslMode::Require)
+            if  config.ssl_mode == Some(SslMode::Prefer) ||
+                config.ssl_mode == Some(SslMode::Require)
             {
                 let mut builder = SslConnector::builder(SslMethod::tls())
                     .map_err(|err|
@@ -76,7 +79,6 @@ pub async fn generate_keycloak_pool() -> Result<Arc<Pool>> {
                 let connector_tls = MakeTlsConnector::new(builder.build());
 
                 let pool = config
-                    .keycloak_db
                     .create_pool(Some(Runtime::Tokio1), connector_tls)
                     .map_err(|err|
                         anyhow!("error creating pool: {}", err)
@@ -84,7 +86,6 @@ pub async fn generate_keycloak_pool() -> Result<Arc<Pool>> {
                 Ok(Arc::new(pool))
             } else {
                 let pool = config
-                    .keycloak_db
                     .create_pool(Some(Runtime::Tokio1), tokio_postgres::NoTls)
                     .map_err(|err|
                         anyhow!("error creating pool: {}", err)
@@ -93,7 +94,6 @@ pub async fn generate_keycloak_pool() -> Result<Arc<Pool>> {
             }
         } else {
             let pool = config
-                .keycloak_db
                 .create_pool(Some(Runtime::Tokio1), tokio_postgres::NoTls)
                 .map_err(|err|
                     anyhow!("error creating pool: {}", err)

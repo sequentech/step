@@ -14,7 +14,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 ## Overview
 
 When a voter authenticates using an X.509 certificate, Keycloak fires a `LOGIN`
-or `LOGIN_ERROR` event that `CustomEventListenerProvider` publishes to RabbitMQ
+or `LOGIN_ERROR` event that `CustomEventListenerProvider` publishes to PGMQ
 and ultimately stores in immudb via `enqueue_electoral_log_event`. This document
 describes what information is captured in those events and why.
 
@@ -36,7 +36,7 @@ The relevant steps in the mTLS login flow are:
    certificate chain against the per-realm CA bundle provided by
    `UrlTruststoreProvider`.
 4. **`CustomEventListenerProvider`** — receives the resulting `LOGIN` or
-   `LOGIN_ERROR` event and publishes it to RabbitMQ.
+   `LOGIN_ERROR` event and publishes it to PGMQ.
 5. **`enqueue_electoral_log_event`** (Windmill) — consumes the queue and stores
    the event in immudb.
 
@@ -60,7 +60,7 @@ parsed, both fields are set to `"none"`.
 
 ## Event Body Format
 
-`CustomEventListenerProvider` constructs the `body` field of the RabbitMQ message
+`CustomEventListenerProvider` constructs the `body` field of the PGMQ message
 as follows for `LOGIN`/`LOGIN_ERROR` events where both cert fields are present:
 
 ```
@@ -150,7 +150,7 @@ Keycloak fires LOGIN / LOGIN_ERROR
 CustomEventListenerProvider.onEvent(Event event)
   body = "voter_cert_subject_dn=... ca_cert_issuer_cn=..."            // LOGIN
   body = error + " voter_cert_subject_dn=... ca_cert_issuer_cn=..."   // LOGIN_ERROR
-  → publish to RabbitMQ { body, user_id, username, ... }
+  → publish to PGMQ { body, user_id, username, ... }
         │
         ▼
 enqueue_electoral_log_event(LogEventInput { body: Plain(body), ... })
@@ -169,6 +169,6 @@ stored in immudb (ElectoralLogMessage)
 | File | Role |
 |---|---|
 | `packages/keycloak-extensions/conditional-authenticators/…/X509CertClassifierAuthenticator.java` | Sets `voter_cert_subject_dn` and `ca_cert_issuer_cn` event details |
-| `packages/keycloak-extensions/custom-event-listener/…/CustomEventListenerProvider.java` | Constructs the event body and publishes to RabbitMQ |
+| `packages/keycloak-extensions/custom-event-listener/…/CustomEventListenerProvider.java` | Constructs the event body and publishes to PGMQ |
 | `packages/keycloak-extensions/message-otp-authenticator/…/Utils.java` | Defines the shared `VOTER_CERT_SUBJECT_DN` and `CA_CERT_ISSUER_CN` constants |
 | `packages/keycloak-extensions/url-truststore-provider/…/UrlTruststoreProvider.java` | Supplies the per-realm CA bundle used during cert chain validation |

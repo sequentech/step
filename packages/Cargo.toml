@@ -16,6 +16,7 @@ members = [
     "sequent-core",
     "velvet",
     "windmill",
+    "pgmq-broker",
     "wrap-map-err",
     "step-cli",
     "e2e/src/mock_server",
@@ -33,7 +34,7 @@ anyhow = "1.0"
 
 
 [patch.crates-io]
-celery = { git = "https://github.com/Findeton/rusty-celery.git", rev = "b4145925aaaf742b7ba54499fff45313bcadfca1" }
+celery = { git = "https://github.com/Findeton/rusty-celery.git", rev = "c76b500a0fa444cd7e81d77de80ed21d1d929718" }
 
 [source.crates-io]
 replace-with = "vendored-sources"
