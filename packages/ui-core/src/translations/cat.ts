@@ -708,6 +708,10 @@ const catalanTranslation: TranslationType = {
                         lead: "No és una data i hora",
                         text: "No és una data i hora — «{{value}}» al manifest no és una data i hora.",
                     },
+                    "report-template-missing": {
+                        lead: "Falta la plantilla de l'informe",
+                        text: "Falta la plantilla de l'informe — l'informe {{report}} es genera amb la plantilla «{{template}}», que no és a la configuració, així que el seu disseny no es pot signar.",
+                    },
                     "revoked-approver": {
                         lead: "Certificat d'aprovador revocat",
                         text: "Certificat d'aprovador revocat — el certificat d'un aprovador s'ha revocat, així que l'aprovació no compta.",
@@ -781,6 +785,24 @@ const catalanTranslation: TranslationType = {
                     "unreadable": {
                         lead: "Pla il·legible",
                         text: "Pla il·legible — {{error}}",
+                    },
+                },
+                reports: {
+                    "duplicate": {
+                        lead: "Informe configurat dues vegades",
+                        text: "Informe configurat dues vegades — l'informe {{report}} està configurat més d'una vegada per a la mateixa elecció.",
+                    },
+                    "no-copies": {
+                        lead: "Sense còpies",
+                        text: "Sense còpies — l'informe {{report}} està configurat per no imprimir cap còpia. Indiqueu-ne almenys una.",
+                    },
+                    "unknown-election": {
+                        lead: "Elecció desconeguda",
+                        text: "Elecció desconeguda — l'informe {{report}} tracta de l'elecció «{{election}}», que aquest pla no té.",
+                    },
+                    "unsupported-format": {
+                        lead: "Format no disponible",
+                        text: "Format no disponible — l'informe {{report}} no es pot generar en {{format}}.",
                     },
                 },
                 schedule: {

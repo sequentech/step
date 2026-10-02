@@ -245,8 +245,9 @@ fn a_change_inside_a_nested_zip_is_named_inside_it() {
             Change {
                 subject: ChangeSubject::File,
                 kind: ChangeKind::Changed,
-                name: "official_election_setup.zip/export_election_event-1.json"
-                    .to_string(),
+                name:
+                    "official_election_setup.zip/export_election_event-1.json"
+                        .to_string(),
                 versions: None,
             },
             Change {
@@ -317,8 +318,10 @@ fn designs_and_reports_say_what_changed() {
         ]
     );
     let removed = changes(&after, &content());
-    assert!(removed.iter().any(|change| change.kind == ChangeKind::Removed
-        && change.subject == ChangeSubject::Report));
+    assert!(removed
+        .iter()
+        .any(|change| change.kind == ChangeKind::Removed
+            && change.subject == ChangeSubject::Report));
 }
 
 #[test]

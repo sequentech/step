@@ -712,6 +712,10 @@ const tagalogTranslation: TranslationType = {
                         lead: "Hindi petsa at oras",
                         text: "Hindi petsa at oras — hindi petsa at oras ang '{{value}}' sa manifest.",
                     },
+                    "report-template-missing": {
+                        lead: "Nawawala ang template ng report",
+                        text: "Nawawala ang template ng report — ginagawa ang report na {{report}} gamit ang template na '{{template}}', na wala sa configuration, kaya hindi ma-sign ang design nito.",
+                    },
                     "revoked-approver": {
                         lead: "Binawi ang certificate ng approver",
                         text: "Binawi ang certificate ng approver — binawi na ang certificate ng isang approver, kaya hindi bilang ang pag-apruba.",
@@ -785,6 +789,24 @@ const tagalogTranslation: TranslationType = {
                     "unreadable": {
                         lead: "Hindi mabasa ang plan",
                         text: "Hindi mabasa ang plan — {{error}}",
+                    },
+                },
+                reports: {
+                    "duplicate": {
+                        lead: "Dalawang beses itinakda ang report",
+                        text: "Dalawang beses itinakda ang report — itinakda nang higit sa isang beses ang report na {{report}} para sa iisang halalan.",
+                    },
+                    "no-copies": {
+                        lead: "Walang kopya",
+                        text: "Walang kopya — nakatakdang walang kopyang i-print ang report na {{report}}. Magtakda ng kahit isa.",
+                    },
+                    "unknown-election": {
+                        lead: "Hindi kilalang halalan",
+                        text: "Hindi kilalang halalan — tungkol sa halalang '{{election}}' ang report na {{report}}, na wala sa plan na ito.",
+                    },
+                    "unsupported-format": {
+                        lead: "Hindi available ang format",
+                        text: "Hindi available ang format — hindi magagawa ang report na {{report}} bilang {{format}}.",
                     },
                 },
                 schedule: {

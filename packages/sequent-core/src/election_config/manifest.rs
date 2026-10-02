@@ -123,17 +123,7 @@ pub struct FileEntry {
     pub members: Vec<FileEntry>,
 }
 
-/// The formats a report can be generated in.
-#[derive(
-    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize,
-)]
-#[serde(rename_all = "lowercase")]
-pub enum ReportFormat {
-    Pdf,
-    Csv,
-    Xml,
-    Sql,
-}
+pub use super::report::ReportFormat;
 
 /// How one report is generated.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -239,6 +229,93 @@ pub fn approval_code(payload: &str) -> String {
     crockford_code(leading)
 }
 
+/// What a revision of a compiled plan holds: the delivery's members and the
+/// content the approvers approve.
+#[derive(Debug, Clone)]
+pub struct RevisionContent {
+    /// The delivery zip's name, which the package keeps.
+    pub delivery_name: String,
+    pub members: Vec<Artifact>,
+    pub content: Content,
+}
+
+/// A compiled plan as a revision: its delivery's members, its ballot designs
+/// numbered against the last signed revision's, and its report settings
+/// with the digest of each report's template.
+pub fn revision_content(
+    plan: &super::architect::Blueprint,
+    compiled: &super::architect::Compiled,
+    previous_designs: &[BallotDesign],
+) -> Result<RevisionContent, super::problem::Report> {
+    use super::problem::Report;
+
+    let delivery = super::archive::delivery(&compiled.layout)
+        .map_err(Report::from_problem)?;
+    let members =
+        read_zip(&delivery.bytes, "delivery").map_err(Report::from_problem)?;
+    let files = file_entries(&members).map_err(Report::from_problem)?;
+    let digests = super::preview::ballot_design_digests(&compiled.bundle)?;
+    let ballot_designs = super::design::versioned(previous_designs, digests);
+
+    let mut report = Report::default();
+    let reports = plan
+        .reports
+        .iter()
+        .map(|planned| {
+            let template_sha256 = planned.template.as_ref().and_then(|alias| {
+                let found = compiled
+                    .bundle
+                    .templates
+                    .iter()
+                    .find(|template| template.alias == *alias);
+                if found.is_none() {
+                    report.push(
+                        Problem::error(
+                            Code::DanglingReference,
+                            "reports",
+                            format!(
+                                "the {} report is drawn with template '{alias}', \
+                                 which isn't in the configuration, so its design \
+                                 can't be signed",
+                                planned.report_type
+                            ),
+                        )
+                        .id("package.report-template-missing")
+                        .detail("report", &planned.report_type)
+                        .detail("template", alias),
+                    );
+                }
+                found.map(|template| sha256_hex(template.document.as_bytes()))
+            });
+            let formats = if planned.formats.is_empty() {
+                planned.report_type.formats()[..1].to_vec()
+            } else {
+                planned.formats.clone()
+            };
+            ReportSetting {
+                report_type: planned.report_type.to_string(),
+                formats,
+                copies: planned.copies,
+                template: planned.template.clone(),
+                template_sha256,
+            }
+        })
+        .collect();
+    if report.has_errors() {
+        return Err(report);
+    }
+
+    Ok(RevisionContent {
+        delivery_name: delivery.name,
+        members,
+        content: Content {
+            files,
+            ballot_designs,
+            reports,
+        },
+    })
+}
+
 /// What is added, changed or removed between two revisions.
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize,
@@ -279,8 +356,9 @@ pub fn changes(before: &Content, after: &Content) -> Vec<Change> {
     let mut all = Vec::new();
     file_changes(&before.files, &after.files, "", &mut all);
 
-    let design_name =
-        |design: &BallotDesign| format!("{} / {}", design.area, design.election);
+    let design_name = |design: &BallotDesign| {
+        format!("{} / {}", design.area, design.election)
+    };
     for design in &after.ballot_designs {
         let old = before.ballot_designs.iter().find(|old| {
             old.area == design.area && old.election == design.election

@@ -708,6 +708,10 @@ const dutchTranslation: TranslationType = {
                         lead: "Geen tijdstip",
                         text: "Geen tijdstip — '{{value}}' in het manifest is geen datum en tijd.",
                     },
+                    "report-template-missing": {
+                        lead: "Rapportsjabloon ontbreekt",
+                        text: "Rapportsjabloon ontbreekt — het rapport {{report}} wordt opgemaakt met sjabloon '{{template}}', dat niet in de configuratie staat, dus het ontwerp kan niet worden ondertekend.",
+                    },
                     "revoked-approver": {
                         lead: "Certificaat van goedkeurder ingetrokken",
                         text: "Certificaat van goedkeurder ingetrokken — het certificaat van een goedkeurder is ingetrokken, dus de goedkeuring telt niet.",
@@ -781,6 +785,24 @@ const dutchTranslation: TranslationType = {
                     "unreadable": {
                         lead: "Plan onleesbaar",
                         text: "Plan onleesbaar — {{error}}",
+                    },
+                },
+                reports: {
+                    "duplicate": {
+                        lead: "Rapport twee keer ingesteld",
+                        text: "Rapport twee keer ingesteld — het rapport {{report}} is meer dan eens ingesteld voor dezelfde verkiezing.",
+                    },
+                    "no-copies": {
+                        lead: "Geen exemplaren",
+                        text: "Geen exemplaren — het rapport {{report}} is ingesteld om geen exemplaren af te drukken. Stel er minstens één in.",
+                    },
+                    "unknown-election": {
+                        lead: "Onbekende verkiezing",
+                        text: "Onbekende verkiezing — het rapport {{report}} gaat over verkiezing '{{election}}', die dit plan niet heeft.",
+                    },
+                    "unsupported-format": {
+                        lead: "Formaat niet beschikbaar",
+                        text: "Formaat niet beschikbaar — het rapport {{report}} kan niet als {{format}} worden gemaakt.",
                     },
                 },
                 schedule: {

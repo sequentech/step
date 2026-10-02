@@ -15,6 +15,7 @@
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use std::str::FromStr;
 use strum_macros::{Display, EnumString, IntoStaticStr};
 
 /// How a generated report document is protected.
@@ -76,6 +77,90 @@ pub struct Report {
     pub cron_config: Option<ReportCronConfig>,
     pub created_at: DateTime<Utc>,
     pub permission_label: Option<Vec<String>>,
+    /// How many copies each generation prints. Absent means one.
+    #[serde(default)]
+    pub copies: Option<u32>,
+    /// The formats each generation writes. Absent means the platform's
+    /// default for the type.
+    #[serde(default)]
+    pub output_formats: Option<Vec<ReportFormat>>,
+}
+
+/// A format a report can be generated in.
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Serialize,
+    Deserialize,
+    Display,
+    EnumString,
+)]
+#[serde(rename_all = "lowercase")]
+#[strum(serialize_all = "lowercase")]
+pub enum ReportFormat {
+    Pdf,
+    Csv,
+    Xml,
+    Sql,
+}
+
+/// The `copies` cell of a reports CSV: empty or absent is `None`.
+pub fn parse_copies(cell: Option<&str>) -> Result<Option<u32>, String> {
+    match cell.map(str::trim).filter(|cell| !cell.is_empty()) {
+        None => Ok(None),
+        Some(text) => match text.parse::<u32>() {
+            Ok(count) if count > 0 => Ok(Some(count)),
+            _ => Err(format!(
+                "copies must be a whole number of at least 1, not '{text}'"
+            )),
+        },
+    }
+}
+
+/// The `output_formats` cell of a reports CSV, `|`-separated: empty or
+/// absent is `None`.
+pub fn parse_output_formats(
+    cell: Option<&str>,
+) -> Result<Option<Vec<ReportFormat>>, String> {
+    match cell.map(str::trim).filter(|cell| !cell.is_empty()) {
+        None => Ok(None),
+        Some(text) => text
+            .split(super::emit::MULTI_VALUE_SEPARATOR)
+            .map(|name| {
+                ReportFormat::from_str(name.trim())
+                    .map_err(|_| format!("'{name}' is not a report format"))
+            })
+            .collect::<Result<Vec<_>, _>>()
+            .map(Some),
+    }
+}
+
+impl ReportType {
+    /// The formats a report of this type can be generated in, the first
+    /// being its default: PDF and XML for the election returns, PDF, CSV
+    /// and SQL for the activity logs, and PDF for the rest.
+    pub fn formats(&self) -> &'static [ReportFormat] {
+        match self {
+            ReportType::ELECTORAL_RESULTS => {
+                &[ReportFormat::Pdf, ReportFormat::Xml]
+            }
+            ReportType::ACTIVITY_LOGS => {
+                &[ReportFormat::Pdf, ReportFormat::Csv, ReportFormat::Sql]
+            }
+            ReportType::INITIALIZATION_REPORT
+            | ReportType::BALLOT_IMAGES
+            | ReportType::BALLOT_RECEIPT
+            | ReportType::MANUAL_VERIFICATION
+            | ReportType::PARTICIPATION_REPORT
+            | ReportType::CREDENTIALS => &[ReportFormat::Pdf],
+        }
+    }
 }
 
 /// The kinds of report the platform can generate.
@@ -101,6 +186,64 @@ pub enum ReportType {
 mod tests {
     use super::*;
     use std::str::FromStr;
+
+    #[test]
+    fn each_report_type_offers_its_formats_default_first() {
+        assert_eq!(
+            ReportType::ELECTORAL_RESULTS.formats(),
+            &[ReportFormat::Pdf, ReportFormat::Xml]
+        );
+        assert_eq!(
+            ReportType::ACTIVITY_LOGS.formats(),
+            &[ReportFormat::Pdf, ReportFormat::Csv, ReportFormat::Sql]
+        );
+        assert_eq!(ReportType::BALLOT_RECEIPT.formats(), &[ReportFormat::Pdf]);
+    }
+
+    #[test]
+    fn a_format_reads_and_writes_lowercase() {
+        assert_eq!(ReportFormat::from_str("xml").unwrap(), ReportFormat::Xml);
+        assert!(ReportFormat::from_str("docx").is_err());
+        assert_eq!(
+            serde_json::to_string(&ReportFormat::Pdf).unwrap(),
+            "\"pdf\""
+        );
+    }
+
+    #[test]
+    fn the_csv_cells_read_back_what_the_builder_wrote() {
+        assert_eq!(parse_copies(None), Ok(None));
+        assert_eq!(parse_copies(Some("")), Ok(None));
+        assert_eq!(parse_copies(Some("7")), Ok(Some(7)));
+        assert!(parse_copies(Some("0")).is_err());
+        assert!(parse_copies(Some("seven")).is_err());
+
+        assert_eq!(parse_output_formats(Some("")), Ok(None));
+        assert_eq!(
+            parse_output_formats(Some("pdf|xml")),
+            Ok(Some(vec![ReportFormat::Pdf, ReportFormat::Xml]))
+        );
+        assert!(parse_output_formats(Some("pdf|docx")).is_err());
+    }
+
+    #[test]
+    fn a_report_without_copies_or_formats_still_reads() {
+        let report: Report = serde_json::from_value(serde_json::json!({
+            "id": "r",
+            "election_event_id": "e",
+            "tenant_id": "t",
+            "election_id": null,
+            "report_type": "ELECTORAL_RESULTS",
+            "template_alias": null,
+            "encryption_policy": "unencrypted",
+            "cron_config": null,
+            "created_at": "2026-01-01T00:00:00Z",
+            "permission_label": null
+        }))
+        .unwrap();
+        assert_eq!(report.copies, None);
+        assert_eq!(report.output_formats, None);
+    }
 
     #[test]
     fn encryption_policy_serializes_snake_case() {

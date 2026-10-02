@@ -128,6 +128,7 @@ use sequent_core::util::temp_path::{generate_temp_file, get_file_size};
 //                        Deserialized into the typed form where it is used.
 use super::rejection::reject;
 use sequent_core::election_config;
+use sequent_core::election_config::report::{parse_copies, parse_output_formats};
 pub use sequent_core::election_config::ImportElectionEventSchema;
 use sequent_core::election_config::{import_problems, Rejected};
 
@@ -965,6 +966,9 @@ pub async fn process_reports_file(
                     )
                 }
             }),
+            // Absent from a file written before these columns existed.
+            copies: parse_copies(record.get(8)).map_err(|err| anyhow!(err))?,
+            output_formats: parse_output_formats(record.get(9)).map_err(|err| anyhow!(err))?,
         };
 
         if let Some(password) = record

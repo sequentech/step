@@ -711,6 +711,10 @@ const galegoTranslation: TranslationType = {
                         lead: "Non é unha data e hora",
                         text: "Non é unha data e hora — «{{value}}» no manifesto non é unha data e hora.",
                     },
+                    "report-template-missing": {
+                        lead: "Falta o modelo do informe",
+                        text: "Falta o modelo do informe — o informe {{report}} xérase co modelo «{{template}}», que non está na configuración, así que o seu deseño non se pode asinar.",
+                    },
                     "revoked-approver": {
                         lead: "Certificado de aprobador revogado",
                         text: "Certificado de aprobador revogado — o certificado dun aprobador foi revogado, así que a aprobación non conta.",
@@ -784,6 +788,24 @@ const galegoTranslation: TranslationType = {
                     "unreadable": {
                         lead: "Plan ilexible",
                         text: "Plan ilexible — {{error}}",
+                    },
+                },
+                reports: {
+                    "duplicate": {
+                        lead: "Informe configurado dúas veces",
+                        text: "Informe configurado dúas veces — o informe {{report}} está configurado máis dunha vez para a mesma elección.",
+                    },
+                    "no-copies": {
+                        lead: "Sen copias",
+                        text: "Sen copias — o informe {{report}} está configurado para non imprimir ningunha copia. Indique polo menos unha.",
+                    },
+                    "unknown-election": {
+                        lead: "Elección descoñecida",
+                        text: "Elección descoñecida — o informe {{report}} trata da elección «{{election}}», que este plan non ten.",
+                    },
+                    "unsupported-format": {
+                        lead: "Formato non dispoñible",
+                        text: "Formato non dispoñible — o informe {{report}} non se pode xerar en {{format}}.",
                     },
                 },
                 schedule: {

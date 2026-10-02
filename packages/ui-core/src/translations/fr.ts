@@ -711,6 +711,10 @@ const frenchTranslation: TranslationType = {
                         lead: "Pas une date et heure",
                         text: "Pas une date et heure — '{{value}}' dans le manifeste n'est pas une date et heure.",
                     },
+                    "report-template-missing": {
+                        lead: "Modèle de rapport manquant",
+                        text: "Modèle de rapport manquant — le rapport {{report}} est produit avec le modèle '{{template}}', qui n'est pas dans la configuration, donc sa conception ne peut pas être signée.",
+                    },
                     "revoked-approver": {
                         lead: "Certificat d'approbateur révoqué",
                         text: "Certificat d'approbateur révoqué — le certificat d'un approbateur a été révoqué, donc l'approbation ne compte pas.",
@@ -784,6 +788,24 @@ const frenchTranslation: TranslationType = {
                     "unreadable": {
                         lead: "Plan illisible",
                         text: "Plan illisible — {{error}}",
+                    },
+                },
+                reports: {
+                    "duplicate": {
+                        lead: "Rapport configuré deux fois",
+                        text: "Rapport configuré deux fois — le rapport {{report}} est configuré plus d'une fois pour la même élection.",
+                    },
+                    "no-copies": {
+                        lead: "Aucun exemplaire",
+                        text: "Aucun exemplaire — le rapport {{report}} est configuré pour n'imprimer aucun exemplaire. Indiquez-en au moins un.",
+                    },
+                    "unknown-election": {
+                        lead: "Élection inconnue",
+                        text: "Élection inconnue — le rapport {{report}} porte sur l'élection '{{election}}', que ce plan ne contient pas.",
+                    },
+                    "unsupported-format": {
+                        lead: "Format non disponible",
+                        text: "Format non disponible — le rapport {{report}} ne peut pas être généré au format {{format}}.",
                     },
                 },
                 schedule: {

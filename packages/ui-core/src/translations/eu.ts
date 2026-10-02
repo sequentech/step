@@ -707,6 +707,10 @@ const basqueTranslation: TranslationType = {
                         lead: "Ez da data eta ordu bat",
                         text: 'Ez da data eta ordu bat — manifestuko "{{value}}" ez da data eta ordu bat.',
                     },
+                    "report-template-missing": {
+                        lead: "Txostenaren txantiloia falta da",
+                        text: 'Txostenaren txantiloia falta da — {{report}} txostena "{{template}}" txantiloiarekin sortzen da, eta txantiloi hori ez dago konfigurazioan; beraz, haren diseinua ezin da sinatu.',
+                    },
                     "revoked-approver": {
                         lead: "Onartzailearen ziurtagiria baliogabetuta",
                         text: "Onartzailearen ziurtagiria baliogabetuta — onartzaile baten ziurtagiria baliogabetu da, beraz, onarpenak ez du balio.",
@@ -780,6 +784,24 @@ const basqueTranslation: TranslationType = {
                     "unreadable": {
                         lead: "Plana ezin da irakurri",
                         text: "Plana ezin da irakurri — {{error}}",
+                    },
+                },
+                reports: {
+                    "duplicate": {
+                        lead: "Txostena bi aldiz ezarria",
+                        text: "Txostena bi aldiz ezarria — {{report}} txostena behin baino gehiagotan ezarri da hauteskunde berarentzat.",
+                    },
+                    "no-copies": {
+                        lead: "Kopiarik ez",
+                        text: "Kopiarik ez — {{report}} txostena kopiarik ez inprimatzeko ezarrita dago. Ezarri gutxienez bat.",
+                    },
+                    "unknown-election": {
+                        lead: "Hauteskunde ezezaguna",
+                        text: 'Hauteskunde ezezaguna — {{report}} txostena "{{election}}" hauteskundeari buruzkoa da, eta plan honetan ez dago hauteskunde hori.',
+                    },
+                    "unsupported-format": {
+                        lead: "Formatua ez dago erabilgarri",
+                        text: "Formatua ez dago erabilgarri — {{report}} txostena ezin da {{format}} formatuan sortu.",
                     },
                 },
                 schedule: {
