@@ -6,6 +6,7 @@ use crate::services::access::authorize_any;
 use crate::services::authorization::authorize;
 use crate::services::dependencies::HarvestServices;
 use crate::services::signing_gate::Guarded;
+use crate::services::signing_http::authorize_403;
 use crate::types::error_response::{ErrorCode, ErrorResponse, JsonError};
 use crate::types::resources::{Aggregate, DataList, TotalAggregate};
 use anyhow::anyhow;
@@ -189,9 +190,9 @@ pub async fn key_share_signature_status(
     claims: JwtClaims,
     services: &State<HarvestServices>,
 ) -> Result<Json<KeyShareSignatureStatus>, Guarded<(Status, String)>> {
-    authorize(
+    // A signing route: a missing permission is 403 with the signing error body.
+    authorize_403(
         &claims,
-        true,
         Some(claims.hasura_claims.tenant_id.clone()),
         vec![Permissions::TRUSTEE_CEREMONY],
     )?;
