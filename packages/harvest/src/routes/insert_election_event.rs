@@ -221,7 +221,6 @@ async fn refuse(
     Json(refusal.output(task_execution))
 }
 
-#[instrument(skip(claims))]
 /// What the import task learns from the caller's token, never from the
 /// request body: whether they may write encrypted voter attributes (and who
 /// does), and who started the import, whom its log entries name.
@@ -242,6 +241,7 @@ fn stamp_initiators(
     input.importer = Some(ElectoralLogAdminContext::from_claims(claims));
 }
 
+#[instrument(skip(claims))]
 #[post("/import-election-event", format = "json", data = "<body>")]
 pub async fn import_election_event_f(
     body: Json<import_election_event::ImportElectionEventBody>,
