@@ -54,6 +54,7 @@ use base64::engine::general_purpose::STANDARD;
 use base64::Engine;
 
 use super::build::{Bundle, JsonTable};
+use super::design::{self, DesignDigest, DesignKeys};
 use super::emit::{JsonField, SCHEDULED_EVENT_COLUMNS};
 use super::ids::IdFactory;
 use super::problem::{Code, Problem, Report};
@@ -327,8 +328,6 @@ pub fn preview_publication(
     bundle: &Bundle,
     options: &PreviewOptions,
 ) -> Result<PublicationPreview, Report> {
-    let mut report = Report::default();
-
     // Before the schema is read: a built bundle points at a candidate's photograph
     // in the public bucket, which is right for the ballot a voter opens after
     // import and resolves to nothing in a preview. Substituted on the copy that is
@@ -380,6 +379,53 @@ pub fn preview_publication(
                 Value::String(data);
         }
     }
+
+    let (schema, styles) = ballot_styles(bundle, document, options)?;
+
+    Ok(PublicationPreview {
+        ballot_styles: styles,
+        election_event: serde_json::to_value(&schema.election_event)
+            .unwrap_or(Value::Null),
+        elections: serde_json::to_value(&schema.elections)
+            .unwrap_or(Value::Array(Vec::new())),
+        support_materials: json!([]),
+        documents: json!([]),
+    })
+}
+
+/// The digest of every ballot design the bundle will publish.
+///
+/// Built from the bundle's own document, not the preview's: the preview
+/// inlines images, and windmill builds its styles from what was imported.
+pub fn ballot_design_digests(
+    bundle: &Bundle,
+) -> Result<Vec<DesignDigest>, Report> {
+    let (schema, styles) = ballot_styles(
+        bundle,
+        bundle.export.clone(),
+        &PreviewOptions::default(),
+    )?;
+    let keys = bundle.images.iter().fold(
+        DesignKeys::of_entities(
+            &schema.areas,
+            &schema.elections,
+            &schema.contests,
+            &schema.candidates,
+        )
+        .map_err(Report::from_problem)?,
+        |keys, image| keys.with_document(&image.document_id, &image.file_name),
+    );
+    design::ballot_design_digests(&styles, &keys)
+        .map_err(Report::from_problem)
+}
+
+/// The platform's ballot styles for `document`, one per area and election.
+fn ballot_styles(
+    bundle: &Bundle,
+    document: Value,
+    options: &PreviewOptions,
+) -> Result<(ImportElectionEventSchema, Vec<BallotStyle>), Report> {
+    let mut report = Report::default();
 
     let schema: ImportElectionEventSchema =
         match serde_json::from_value(document) {
@@ -570,15 +616,7 @@ pub fn preview_publication(
         return Err(report);
     }
 
-    Ok(PublicationPreview {
-        ballot_styles: styles,
-        election_event: serde_json::to_value(&schema.election_event)
-            .unwrap_or(Value::Null),
-        elections: serde_json::to_value(&schema.elections)
-            .unwrap_or(Value::Array(Vec::new())),
-        support_materials: json!([]),
-        documents: json!([]),
-    })
+    Ok((schema, styles))
 }
 
 /// The scheduled events, read back out of the rows the importer reads.
