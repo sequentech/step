@@ -118,7 +118,7 @@ public class Utils {
     formData.forEach(
         (key, value) -> {
           String values = Utils.serializeUserdataKeys(formData.get(key));
-          log.debug("storeUserDataInAuthSessionNotes: setAuthNote(" + key + ", " + values + ")");
+          log.debug("storeUserDataInAuthSessionNotes: setAuthNote(" + key + ")");
           sessionModel.setAuthNote(key, values);
         });
 

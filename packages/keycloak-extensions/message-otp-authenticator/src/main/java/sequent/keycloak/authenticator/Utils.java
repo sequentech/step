@@ -92,6 +92,8 @@ public class Utils {
   public final String SEND_CODE_EMAIL_SUBJECT = "messageOtp.sendCode.email.subject";
   public final String SEND_CODE_EMAIL_FTL = "send-code-email.ftl";
   public final String RESEND_ACTIVATION_TIMER = "resendCoudActivationTimer";
+  public final String MAX_CODE_ATTEMPTS = "max-code-attempts";
+  public final String CODE_ATTEMPTS = "code-attempts";
 
   // Default values for message-otp authenticator configuration. Referenced
   // from both MessageOTPAuthenticatorFactory (admin UI default) and
@@ -100,6 +102,20 @@ public class Utils {
   public final String CODE_LENGTH_DEFAULT = "6";
   public final String CODE_TTL_DEFAULT = "300";
   public final String RESEND_ACTIVATION_TIMER_DEFAULT = "60";
+  public final String MAX_CODE_ATTEMPTS_DEFAULT = "5";
+
+  /**
+   * Whether a new code may be sent, given the current code's expiry auth note (epoch millis) and
+   * the configured code TTL and resend timer (both in seconds).
+   */
+  public static boolean isResendAllowed(
+      String codeExpiryMillis, String codeTtlSeconds, String resendTimerSeconds, long nowMillis) {
+    if (codeExpiryMillis == null || codeTtlSeconds == null || resendTimerSeconds == null) {
+      return false;
+    }
+    long sentAt = Long.parseLong(codeExpiryMillis) - Long.parseLong(codeTtlSeconds) * 1000L;
+    return sentAt + Long.parseLong(resendTimerSeconds) * 1000L < nowMillis;
+  }
 
   public final String SEND_LINK_SMS_I18N_KEY = "messageOtp.sendLink.sms.text";
   public final String SEND_LINK_EMAIL_SUBJECT = "messageOtp.sendLink.email.subject";
@@ -284,6 +300,7 @@ public class Utils {
     int ttl = Integer.parseInt(configMap.get(Utils.CODE_TTL));
     authSession.setAuthNote(
         Utils.CODE_TTL, Long.toString(System.currentTimeMillis() + (ttl * 1000L)));
+    authSession.removeAuthNote(Utils.CODE_ATTEMPTS);
 
     // Handle OTL/OTP
     if (isOtl) {

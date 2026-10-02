@@ -32,7 +32,6 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
-import java.util.concurrent.CompletableFuture;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import lombok.extern.jbosslog.JBossLog;
@@ -62,11 +61,11 @@ import org.keycloak.provider.ProviderConfigProperty;
 import org.keycloak.representations.userprofile.config.UPAttribute;
 import org.keycloak.services.resources.LoginActionsService;
 import org.keycloak.theme.Theme;
-import org.keycloak.util.JsonSerialization;
 import sequent.keycloak.authenticator.MessageOTPAuthenticator;
 import sequent.keycloak.authenticator.Utils.MessageCourier;
 import sequent.keycloak.authenticator.credential.MessageOTPCredentialModel;
 import sequent.keycloak.authenticator.credential.MessageOTPCredentialProvider;
+import sequent.keycloak.authenticator.harvest.ServiceAccountTokenClient;
 
 /** Lookups an user using a field */
 @JBossLog
@@ -116,9 +115,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
     }
   }
 
-  private String keycloakUrl = System.getenv("KEYCLOAK_URL");
-  private String clientId = System.getenv("KEYCLOAK_CLIENT_ID");
-  private String clientSecret = System.getenv("KEYCLOAK_CLIENT_SECRET");
+  private final ServiceAccountTokenClient tokenClient = ServiceAccountTokenClient.fromEnvironment();
   private String harvestUrl = System.getenv("HARVEST_DOMAIN");
   private String access_token;
 
@@ -988,47 +985,13 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
   }
 
   public void authenticate(String tenantId) {
-    HttpClient client = HttpClient.newHttpClient();
-    String url =
-        this.keycloakUrl
-            + "/realms/"
-            + getTenantRealmName(tenantId)
-            + "/protocol/openid-connect/token";
-    Map<Object, Object> data = new HashMap<>();
-    data.put("client_id", this.clientId);
-    data.put("scope", "openid");
-    data.put("client_secret", this.clientSecret);
-    data.put("grant_type", "client_credentials");
-
-    String form =
-        data.entrySet().stream()
-            .map(entry -> entry.getKey() + "=" + entry.getValue())
-            .reduce((entry1, entry2) -> entry1 + "&" + entry2)
-            .orElse("");
-    log.info(form);
-    HttpRequest request =
-        HttpRequest.newBuilder()
-            .uri(URI.create(url))
-            .header("Content-Type", "application/x-www-form-urlencoded")
-            .POST(HttpRequest.BodyPublishers.ofString(form))
-            .build();
-
-    CompletableFuture<HttpResponse<String>> responseFuture;
-    responseFuture = client.sendAsync(request, HttpResponse.BodyHandlers.ofString());
-    String responseBody = responseFuture.join().body();
-    Object accessToken;
     try {
-      log.info("responseBody " + responseBody);
-      accessToken = JsonSerialization.readValue(responseBody, Map.class).get("access_token");
-      log.info("authenticate " + accessToken.toString());
-      this.access_token = accessToken.toString();
+      this.access_token =
+          tokenClient.fetchAccessToken(ServiceAccountTokenClient.tenantRealmName(tenantId));
     } catch (IOException e) {
-      e.printStackTrace();
+      log.error("authenticate(): could not obtain a service-account token");
+      this.access_token = null;
     }
-  }
-
-  private String getTenantRealmName(String tenantId) {
-    return "tenant-" + tenantId;
   }
 
   private String getElectionEventId(KeycloakSession session, String realmId) {

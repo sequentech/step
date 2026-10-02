@@ -165,6 +165,12 @@ public class MessageOTPAuthenticatorFactory
             ProviderConfigProperty.STRING_TYPE,
             Utils.RESEND_ACTIVATION_TIMER_DEFAULT),
         new ProviderConfigProperty(
+            Utils.MAX_CODE_ATTEMPTS,
+            "Maximum attempts per code",
+            "Wrong codes allowed before the code is invalidated and a new one must be requested",
+            ProviderConfigProperty.STRING_TYPE,
+            Utils.MAX_CODE_ATTEMPTS_DEFAULT),
+        new ProviderConfigProperty(
             Utils.TEST_MODE_ATTRIBUTE,
             "Test Mode",
             "If true, the otp will accept specific code that recive from Test Mode Code field",

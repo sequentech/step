@@ -258,22 +258,53 @@ async fn update_stats(
         .await
         .with_context(|| "can't updated election event statistics")?;
     }
-    for (election_id, election_metrics) in metrics.metrics_by_election_id.iter() {
-        let totals = election_metrics.num_emails_sent + election_metrics.num_sms_sent;
-        if totals > 0 {
-            update_election_statistics(
-                hasura_transaction,
-                tenant_id.as_str(),
-                election_event_id.as_str(),
-                election_id.as_str(),
-                /* inc_emails_sent */ metrics.election_event.num_emails_sent,
-                /* inc_sms_sent */ metrics.election_event.num_sms_sent,
-            )
-            .await
-            .with_context(|| "can't updated election event statistics")?;
-        }
+    for (election_id, inc_emails_sent, inc_sms_sent) in election_statistics_increments(metrics) {
+        update_election_statistics(
+            hasura_transaction,
+            tenant_id.as_str(),
+            election_event_id.as_str(),
+            election_id,
+            inc_emails_sent,
+            inc_sms_sent,
+        )
+        .await
+        .with_context(|| "can't updated election statistics")?;
     }
     Ok(())
+}
+
+/// Per-election `(election_id, emails, sms)` increments, skipping elections
+/// with nothing sent.
+fn election_statistics_increments(metrics: &Metrics) -> Vec<(&str, i64, i64)> {
+    metrics
+        .metrics_by_election_id
+        .iter()
+        .filter(|(_, unit)| unit.num_emails_sent + unit.num_sms_sent > 0)
+        .map(|(election_id, unit)| {
+            (
+                election_id.as_str(),
+                unit.num_emails_sent,
+                unit.num_sms_sent,
+            )
+        })
+        .collect()
+}
+
+/// The voter IDs that scope the audience. `SELECTED` must name at least one
+/// voter: an empty selection would otherwise reach the whole realm.
+fn audience_user_ids(
+    audience_selection: &AudienceSelection,
+    audience_voter_ids: &Option<Vec<String>>,
+) -> Result<Option<Vec<String>>> {
+    match audience_selection {
+        AudienceSelection::SELECTED => match audience_voter_ids {
+            Some(ids) if !ids.is_empty() => Ok(Some(ids.clone())),
+            _ => Err(Error::String(
+                "Audience SELECTED requires at least one voter id".to_string(),
+            )),
+        },
+        _ => Ok(None),
+    }
 }
 
 async fn on_success_send_message(
@@ -326,7 +357,7 @@ async fn on_success_send_message(
 
 #[instrument(skip_all, err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
-#[celery::task]
+#[celery::task(max_retries = 0)]
 pub async fn send_template(
     body: SendTemplateBody,
     tenant_id: String,
@@ -402,10 +433,7 @@ pub async fn send_template(
     let Some(audience_selection) = body.audience_selection.clone() else {
         return Err(Error::String("Missing audience selection".to_string()));
     };
-    let user_ids = match audience_selection {
-        AudienceSelection::SELECTED => body.audience_voter_ids.clone(),
-        _ => None,
-    };
+    let user_ids = audience_user_ids(&audience_selection, &body.audience_voter_ids)?;
 
     // perform listing in batches in a read-only repeatable transaction, and
     // perform stats updates in a new stats transaction each time - because for
@@ -708,11 +736,79 @@ pub async fn send_template_email_or_sms(
 
 #[cfg(test)]
 mod tests {
-    use super::{delivery_audit_message, get_variables};
+    use super::{
+        audience_user_ids, delivery_audit_message, election_statistics_increments, get_variables,
+        Metrics, MetricsUnit,
+    };
     use sequent_core::services::generate_urls::AuthAction;
     use sequent_core::types::keycloak::User;
+    use sequent_core::types::templates::AudienceSelection;
     use serde_json::json;
     use std::collections::HashMap;
+
+    #[test]
+    fn election_statistics_use_each_election_metrics() {
+        let metrics = Metrics {
+            election_event: MetricsUnit {
+                num_emails_sent: 5,
+                num_sms_sent: 3,
+            },
+            metrics_by_election_id: HashMap::from([
+                (
+                    "election-a".to_string(),
+                    MetricsUnit {
+                        num_emails_sent: 4,
+                        num_sms_sent: 0,
+                    },
+                ),
+                (
+                    "election-b".to_string(),
+                    MetricsUnit {
+                        num_emails_sent: 1,
+                        num_sms_sent: 3,
+                    },
+                ),
+                ("election-c".to_string(), MetricsUnit::default()),
+            ]),
+        };
+
+        let mut increments = election_statistics_increments(&metrics);
+        increments.sort();
+
+        assert_eq!(
+            increments,
+            vec![("election-a", 4, 0), ("election-b", 1, 3)]
+        );
+    }
+
+    #[test]
+    fn selected_audience_requires_voter_ids() {
+        assert!(audience_user_ids(&AudienceSelection::SELECTED, &None).is_err());
+        assert!(audience_user_ids(&AudienceSelection::SELECTED, &Some(vec![])).is_err());
+        assert_eq!(
+            audience_user_ids(
+                &AudienceSelection::SELECTED,
+                &Some(vec!["voter-1".to_string()])
+            )
+            .expect("selected voters"),
+            Some(vec!["voter-1".to_string()])
+        );
+    }
+
+    #[test]
+    fn non_selected_audiences_ignore_voter_ids() {
+        for selection in [
+            AudienceSelection::ALL_USERS,
+            AudienceSelection::NOT_VOTED,
+            AudienceSelection::VOTED,
+        ] {
+            assert_eq!(
+                audience_user_ids(&selection, &Some(vec!["voter-1".to_string()]))
+                    .expect("audience"),
+                None
+            );
+        }
+    }
 
     #[test]
     fn get_variables_exposes_dynamic_and_multivalued_user_attributes() {

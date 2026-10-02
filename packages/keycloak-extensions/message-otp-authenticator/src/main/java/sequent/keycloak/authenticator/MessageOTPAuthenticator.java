@@ -31,6 +31,7 @@ public class MessageOTPAuthenticator
   private static final String EMAIL_VERIFIED = "Email verified";
   public static final String INVALID_CODE = "invalid otp Code";
   public static final String EXPIRED_CODE = "Code expired";
+  public static final String TOO_MANY_ATTEMPTS = "Too many code attempts";
   public static final String INTERNAL_ERROR = "InternalError";
 
   @Override
@@ -185,24 +186,19 @@ public class MessageOTPAuthenticator
         }
       } else {
         // invalid
-
-        context.getEvent().error(INVALID_CODE);
+        boolean attemptsExhausted = registerFailedAttempt(authSession, configMap);
+        context.getEvent().error(attemptsExhausted ? TOO_MANY_ATTEMPTS : INVALID_CODE);
 
         AuthenticationExecutionModel execution = context.getExecution();
         String codeLength = configMap.get(Utils.CODE_LENGTH);
-        String resendTimer = configMap.get(Utils.RESEND_ACTIVATION_TIMER);
-        if (resendTimer == null) {
-          resendTimer = System.getenv("KC_OTP_RESEND_INTERVAL");
-        }
         if (execution.isRequired()) {
+          String errorKey =
+              attemptsExhausted ? "messageOtp.auth.tooManyAttempts" : "messageOtp.auth.codeInvalid";
           context.failureChallenge(
               AuthenticationFlowError.INVALID_CREDENTIALS,
               context
                   .form()
-                  .setError(
-                      context.form().getMessage("messageOtp.auth.codeInvalid")
-                          + "<br><br>code_id: "
-                          + sessionId)
+                  .setError(context.form().getMessage(errorKey) + "<br><br>code_id: " + sessionId)
                   .setAttribute("realm", context.getRealm())
                   .setAttribute("courier", messageCourier)
                   .setAttribute("isOtl", isOtl)
@@ -239,6 +235,30 @@ public class MessageOTPAuthenticator
               .setError(Utils.ERROR_MESSAGE_NOT_SENT, sessionId)
               .createErrorPage(Response.Status.INTERNAL_SERVER_ERROR));
     }
+  }
+
+  /**
+   * Counts a wrong code against the current code. Once the configured maximum is reached the code
+   * is invalidated, so the voter must request a new one, which is subject to the resend timer.
+   *
+   * @return true when this attempt exhausted the code
+   */
+  static boolean registerFailedAttempt(
+      AuthenticationSessionModel authSession, Map<String, String> configMap) {
+    String configuredMax = configMap.get(Utils.MAX_CODE_ATTEMPTS);
+    int maxAttempts =
+        Integer.parseInt(
+            configuredMax == null || configuredMax.isBlank()
+                ? Utils.MAX_CODE_ATTEMPTS_DEFAULT
+                : configuredMax);
+    String previous = authSession.getAuthNote(Utils.CODE_ATTEMPTS);
+    int attempts = (previous == null ? 0 : Integer.parseInt(previous)) + 1;
+    authSession.setAuthNote(Utils.CODE_ATTEMPTS, Integer.toString(attempts));
+    if (attempts < maxAttempts) {
+      return false;
+    }
+    authSession.removeAuthNote(Utils.CODE);
+    return true;
   }
 
   private void intiateForm(AuthenticationFlowContext context, boolean resend) {
@@ -305,18 +325,13 @@ public class MessageOTPAuthenticator
               + isOtl
               + ", currentTime="
               + currentTime);
-      boolean allowResend = false;
-      if (ttl != null && configTtl != null && resendTimer != null) {
-        long initDate = Long.parseLong(ttl) - Long.parseLong(configTtl) * 1000L;
-        long resendDate = initDate + Long.parseLong(resendTimer);
-        allowResend = resendDate < currentTime;
-        log.info(
-            "allowResend=" + allowResend + ", initDate=" + initDate + ", resendDate=" + resendDate);
-      } else {
-        log.info("allowResend IS FALSE");
-      }
+      boolean allowResend = Utils.isResendAllowed(ttl, configTtl, resendTimer, currentTime);
+      log.info("allowResend=" + allowResend);
 
-      if ((!resend && ((code == null && !isOtl) || ttl == null)) || (resend && allowResend)) {
+      // A code invalidated by too many attempts is only replaced through the resend timer.
+      boolean exhausted = code == null && authSession.getAuthNote(Utils.CODE_ATTEMPTS) != null;
+      boolean firstSend = !resend && !exhausted && ((code == null && !isOtl) || ttl == null);
+      if (firstSend || ((resend || exhausted) && allowResend)) {
         log.info("Send code from InitiateForm");
         Utils.sendCode(
             config,

@@ -238,15 +238,11 @@ public abstract class BaseResetMessageOTPRequiredAction implements RequiredActio
       String resendTimerStr =
           getConfigValue(
               config, Utils.RESEND_ACTIVATION_TIMER, Utils.RESEND_ACTIVATION_TIMER_DEFAULT);
-      long resendTimer = Long.parseLong(resendTimerStr);
-      long lastSent =
-          ttl != null
-              ? Long.parseLong(ttl)
-                  - Long.parseLong(getConfigValue(config, Utils.CODE_TTL, Utils.CODE_TTL_DEFAULT))
-                      * 1000L
-              : 0;
-      long now = System.currentTimeMillis();
-      if (now - lastSent < resendTimer) {
+      String codeTtlStr = getConfigValue(config, Utils.CODE_TTL, Utils.CODE_TTL_DEFAULT);
+      boolean allowResend =
+          ttl == null
+              || Utils.isResendAllowed(ttl, codeTtlStr, resendTimerStr, System.currentTimeMillis());
+      if (!allowResend) {
         context.challenge(
             createOTPForm(
                 context,
