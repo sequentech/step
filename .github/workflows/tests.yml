@@ -23,6 +23,7 @@ jobs:
         include:
           #- service: braid # these take too long!
           - service: electoral-log
+          - service: trellis
           - service: harvest
           - service: strand
           - service: sequent-core

@@ -56,7 +56,7 @@ Additional verification passed:
 - Watch supervisors are restored. Windmill, Beat and Harvest compiled and are running. Harvest returns HTTP 401 for an unauthenticated POST to the new /electoral-log route.
 - Removed only older completed task-era incremental-cache variants, keeping current application builds and all data volumes. Free disk recovered to approximately 29 GiB before the final Harvest build and remained approximately 25 GiB afterward.
 
-Companion local commits on feat/meta-13698/main: Beyond b7d2579a2; GitOps fbd3261. No branches have been pushed and no PR/deployment/cloud apply has been performed.
+Published PRs: Step #3420, Beyond #939 and GitOps #11138, all targeting main from feat/meta-13698/main. No production deployment or cloud apply has been performed.
 
 ## ImmuDB retirement follow-up
 
@@ -65,3 +65,23 @@ Companion local commits on feat/meta-13698/main: Beyond b7d2579a2; GitOps fbd326
 - Corrected main/B4 image paths, binary/features and offline configuration while removing the obsolete image jobs.
 - Removed the development ImmuDB containers without deleting their volumes; restarted watch services with two CPUs and two Cargo jobs each.
 - Beyond/GitOps deployment retirement remains a separate companion change. Older environments must upgrade before shared legacy infrastructure is retired.
+
+## Trellis integration
+
+- Imported `ruescasd/mrkl` branch `trellis` at `57ddd6d171ae6fc9f1545a1302f2d1e82f2defb7` into `packages/trellis`, retaining source provenance and the original tools behind an opt-in feature.
+- Added a PostgreSQL journal with one generation per board and ordered leaves linked to source record IDs. Appends share the existing message transaction and delivery deduplication.
+- Added versioned full-record hashing, checkpoint/inclusion/consistency operations and offline CLI verification. Existing message encoding, list queries and CSV exports remain unchanged.
+- Embedded the bounded processor and proof API in Harvest, reusing the existing electoral-log database configuration and deployment. Each replica rebuilds and catches up independently, including when no new messages arrive.
+- Updated workspace/image packaging and reused the existing PostgreSQL CI job. Added the imported tree tests to the Rust test matrix.
+- Development work uses the requested SSH checkout. Watchers were stopped during editing; compilation is serialized with one Cargo job and one CPU per active build. The contract runner is capped at 8 GiB and uses the existing target directory. Existing data volumes are preserved.
+
+Verification passed:
+
+- Eight imported Trellis tree tests and 11 existing signed-message compatibility tests.
+- Five PostgreSQL contracts, including the new combined Trellis append/proof/restart test. The final contract run used the current source and the workspace lockfile.
+- CLI checkpoint, inclusion, consistency and offline verification against disposable records; modifying a bundled record makes verification fail.
+- Live internal Harvest checkpoint/inclusion/consistency routes with synthetic test claims, automatic background catch-up, and rejection of requests without an authorization header. This exercises the internal API, not the external login flow.
+- Actual Harvest process restart reconstructs the identical checkpoint and produces a valid consistency proof from the earlier saved checkpoint. Temporary fixture boards were deleted afterward.
+- Formatting, whitespace, workspace metadata and changed-file REUSE metadata checks. The imported revision has no upstream license declaration; its provenance records that fact rather than assigning it a new license.
+
+Harvest and Windmill watch builds completed under one-CPU limits. This follow-up does not include a complete production/offline image build, a historical-data migration or a full election lifecycle test. A user-initiated machine restart also exposed a stale PGMQ SQL mount from the other branch; the Keycloak PostgreSQL container was recreated from this branch's Compose definition with its existing data volume.
