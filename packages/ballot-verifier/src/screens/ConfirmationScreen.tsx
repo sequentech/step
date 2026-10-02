@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2022 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useState, useEffect, PropsWithChildren, useContext} from "react"
+import React, {useState, useEffect, useMemo, PropsWithChildren, useContext} from "react"
 import Typography from "@mui/material/Typography"
 import Paper, {PaperProps} from "@mui/material/Paper"
 import Box from "@mui/material/Box"

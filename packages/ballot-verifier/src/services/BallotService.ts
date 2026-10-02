@@ -18,6 +18,8 @@ import {
     IAuditableSingleBallot,
     IContestLayoutProperties,
     IAuditableMultiBallot,
+    verifyAuditableBallotCiphertext,
+    verifyAuditableMultiBallotCiphertext,
 } from "@sequentech/ui-core"
 
 export interface IConfirmationBallot {
@@ -39,6 +41,8 @@ export interface IBallotService {
     getPoints: (question: IContest, answer: IDecodedVoteChoice) => number | null
     generateSampleAuditableBallot: () => IAuditableSingleBallot | null
     checkIsBlank: (contest: IDecodedVoteContest) => boolean | null
+    verifyAuditableBallotCiphertext: (auditableBallot: IAuditableSingleBallot) => boolean
+    verifyAuditableMultiBallotCiphertext: (auditableBallot: IAuditableMultiBallot) => boolean
 }
 
 export const provideBallotService = (): IBallotService => ({
@@ -50,4 +54,6 @@ export const provideBallotService = (): IBallotService => ({
     getPoints,
     generateSampleAuditableBallot,
     checkIsBlank,
+    verifyAuditableBallotCiphertext,
+    verifyAuditableMultiBallotCiphertext,
 })

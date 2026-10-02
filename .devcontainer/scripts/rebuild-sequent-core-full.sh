@@ -13,6 +13,10 @@ set -euo pipefail
 SEQUENT_CORE_DIR="$(pwd)"
 PACKAGES_DIR="$(dirname "$SEQUENT_CORE_DIR")"
 
+# The shared packages/target/ is owned by root (service containers build into
+# it), so build into a package-local, gitignored target dir instead.
+export CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$SEQUENT_CORE_DIR/rust-local-target}"
+
 echo "==> Checking versions..."
 rustc --version
 wasm-pack --version
