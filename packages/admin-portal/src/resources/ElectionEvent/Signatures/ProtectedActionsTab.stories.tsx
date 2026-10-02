@@ -19,6 +19,7 @@ import {
     organizationOf,
     signingHandlers,
     signingRecords,
+    type ISigningOrganization,
     type SigningRole,
 } from "./__stories__/SignaturesFixture"
 
@@ -27,6 +28,8 @@ interface Scenario {
     role: SigningRole
     /** Whether the event is locked down. */
     lockedDown: boolean
+    /** The event has published no configuration version yet. */
+    beforeFirstPublication?: boolean
 }
 
 let graphql: ReturnType<typeof graphqlBoundary>
@@ -41,7 +44,9 @@ const meta = {
         role: {control: "select", options: Object.keys(SIGNING_ROLES)},
     },
     beforeEach: ({args}) => {
-        const organization = organizationOf(args.organization)
+        const organization = args.beforeFirstPublication
+            ? unpublished(organizationOf(args.organization))
+            : organizationOf(args.organization)
         graphql = graphqlBoundary(signingHandlers(organization))
         data = signingRecords(organization)
         return applyOverrides(organization)
@@ -63,6 +68,18 @@ export default meta
 type Story = StoryObj<Scenario>
 
 const label = (key: string, options?: Record<string, unknown>) => i18n.t(`signing.${key}`, options)
+
+/** The organization's event before its first configuration version is published. */
+const unpublished = (organization: ISigningOrganization): ISigningOrganization => ({
+    ...organization,
+    configVersion: 0,
+    capacities: Object.fromEntries(
+        Object.entries(organization.capacities).map(([action, capacity]) => [
+            action,
+            capacity && {...capacity, config_version: 0},
+        ])
+    ),
+})
 
 /** The footer's version sentence followed by who saved the rules last. */
 const footer = (version: number, editor: string) =>
@@ -223,5 +240,22 @@ export const LockedDown: Story = {
         )
         const drawer = within(await within(document.body).findByRole("dialog", {name: action}))
         expect(drawer.queryByRole("button", {name: label("rule.save")})).toBeNull()
+    },
+}
+
+export const BeforeTheFirstPublication: Story = {
+    args: {beforeFirstPublication: true},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        const {editor} = organizationOf(Organization.Overseas)
+        // No "configuration version 0": the rules join the first version once it is published.
+        await expect(
+            await canvas.findByText(
+                new RegExp(
+                    `^${escapeRegExp(label("protectedActions.footerFirstVersion"))} .* ${escapeRegExp(editor)}\\.$`
+                )
+            )
+        ).toBeVisible()
+        expect(canvas.queryByText(/version 0\b/)).toBeNull()
     },
 }

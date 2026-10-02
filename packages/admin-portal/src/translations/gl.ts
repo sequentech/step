@@ -3497,7 +3497,7 @@ const galegoTranslation: TranslationType = {
                     object: "election returns",
                     appliesTo: "Each $t(signing.terms.post) and country",
                     description:
-                        "Started in Reports. Releases the signed election returns for printing and transmission.",
+                        "Started by the tally, one request per $t(signing.terms.post) and country. Releases the signed election returns for printing and transmission.",
                 },
                 "generate-reports": {
                     label: "Generate other election reports",
@@ -3506,7 +3506,7 @@ const galegoTranslation: TranslationType = {
                     object: "report",
                     appliesTo: "Each $t(signing.terms.post)",
                     description:
-                        "Started in Reports. Releases the signed report: initialization, participation, activity logs or manual verification.",
+                        "Started by the tally for the Initialization Report and in Reports for the participation report. Releases the signed report.",
                 },
                 "transmit-results": {
                     label: "Transmit results",
@@ -3567,6 +3567,8 @@ const galegoTranslation: TranslationType = {
                 eachTrustee: "Each trustee",
                 footerVersion:
                     "Signing rules are part of this event's configuration version {{version}}.",
+                footerFirstVersion:
+                    "Signing rules become part of this event's first configuration version when it is published.",
                 footerChanged: "Last changed {{date}}.",
                 footerChangedBy: "Last changed {{date}} by {{name}}.",
                 lockedDown:
@@ -3780,6 +3782,8 @@ const galegoTranslation: TranslationType = {
                 expiresAt: "Expires at {{time}}",
                 progress: "{{count}} of {{total}}",
                 openDocument: "Open the document",
+                configurationVersion: "Configuration version {{version}}",
+                configurationChanges: "Changes in this version",
             },
             dialog: {
                 title: "Sign the {{object}}",
@@ -3811,7 +3815,7 @@ const galegoTranslation: TranslationType = {
                         "registered": "Registered to you on {{date}}",
                         "registered-to-other": "Not registered to anyone else",
                         "already-signed": "Not used for this request yet",
-                        "post-binding": "Registered for this Post",
+                        "post-binding": "Registered for this $t(signing.terms.post)",
                         "signature": "The signature covers this request",
                     },
                     "failed": {
@@ -3822,7 +3826,7 @@ const galegoTranslation: TranslationType = {
                         "registered": "Not registered to you",
                         "registered-to-other": "Registered to {{name}}",
                         "already-signed": "Already used for this request",
-                        "post-binding": "Registered for another Post",
+                        "post-binding": "Registered for another $t(signing.terms.post)",
                         "signature": "The signature doesn't cover this request",
                     },
                     "first-use": "First use: it will be registered to you",
@@ -4004,9 +4008,22 @@ const galegoTranslation: TranslationType = {
                     CLOSED: "Closed",
                 },
                 channelStatus: "{{channel}}: {{status}}",
+                ruleChange: "{{action}}: {{rule}}",
+                ruleChangeFrom: "{{action}}: {{rule}} (was {{was}})",
+                ruleNeeds: "needs {{n}}",
+                ruleOff: "off",
                 decision: {
                     approve: "Approve",
                 },
+            },
+            notes: {
+                afterApproval: "After approval",
+                afterApprovalValue: "The voter's credentials are issued and sent to them",
+                keyShare: "Your key share",
+                keyShareChecked: "Checked: it is your key share for this ceremony",
+                recordedIn: "Recorded in",
+                recordedInCeremony: "The keys ceremony and the bulletin board",
+                recordedInTally: "The tally session",
             },
             keyShare: {
                 signing:

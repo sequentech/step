@@ -7,7 +7,7 @@ import {useTranslation} from "react-i18next"
 import type {TFunction} from "i18next"
 import type {Sequent_Backend_Tenant} from "@/gql/graphql"
 import {colonHex} from "@/lib/signing/der"
-import {DocumentKind, type SigningAction} from "@/lib/signing/types"
+import {DocumentKind, SigningAction} from "@/lib/signing/types"
 import type {ISigningPanelData} from "@/lib/signing/api"
 
 const parse = (value: string | Date | null | undefined): Date | null => {
@@ -104,9 +104,18 @@ export const shortFingerprint = (lowerHex: string): string => {
 export const documentTypeLabel = (kind: DocumentKind): string =>
     kind === DocumentKind.Eml ? "EML" : "PDF"
 
-/** "Election returns · Madrid PE · Spain": the action, then the Post and the country. */
+/** The action's short name; a configuration version's with its number. */
+const actionTitle = (t: TFunction, data: ISigningPanelData): string =>
+    data.request.action === SigningAction.ApproveConfiguration && data.request.config_revision
+        ? t("signing.panel.configurationVersion", {version: data.request.config_revision})
+        : t(`signing.actions.${data.request.action}.short`)
+
+/**
+ * "Election returns · Madrid PE · Spain": the action, then the Post and the
+ * country; "Configuration version 18" for the version a request publishes.
+ */
 export const requestTitle = (t: TFunction, data: ISigningPanelData): string =>
-    [t(`signing.actions.${data.request.action}.short`), data.election_name, data.area_name]
+    [actionTitle(t, data), data.election_name, data.area_name]
         .filter((part): part is string => !!part)
         .join(" · ")
 

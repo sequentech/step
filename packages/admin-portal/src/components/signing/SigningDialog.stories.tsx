@@ -188,6 +188,15 @@ export const CheckWithDetails: Story = {
         await expect(within(table).getByText(words.details.applicant_registry_id)).toBeVisible()
         await expect(within(table).getByText(words.details.decision)).toBeVisible()
         await expect(within(table).getByText(words.values.decision.approve)).toBeVisible()
+        // After the signed rows, what the approval leads to (draft Other staff 1).
+        const note = within(table).getByTestId("signing-note")
+        await expect(within(note).getByText(words.notes.afterApproval)).toBeVisible()
+        await expect(within(note).getByText(words.notes.afterApprovalValue)).toBeVisible()
+        // The signer's own Post, not the voter's: the panel doesn't know it, so none.
+        await expect(
+            view.getByText(`You are signing as ${JOSE.name} · ${JOSE.title}`)
+        ).toBeVisible()
+        await expect(view.queryByText(new RegExp(`${JOSE.title}, ${POST}`))).toBeNull()
         // Nothing to read through: no "I have checked" box.
         await expect(view.queryByRole("checkbox")).toBeNull()
         await waitFor(() => expect(view.getByRole("button", {name: "Continue"})).toBeEnabled())

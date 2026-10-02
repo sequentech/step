@@ -83,9 +83,12 @@ export const ProtectedActionsTab: React.FC<ISignaturesSubTabProps> = ({
     const changed = lastChange(rules)
     const changedOn = changed && new Date(changed.updated_at).toLocaleDateString(i18n.language)
     const footer = [
-        configVersion !== null
-            ? t("signing.protectedActions.footerVersion", {version: configVersion})
-            : null,
+        configVersion === null
+            ? null
+            : configVersion > 0
+              ? t("signing.protectedActions.footerVersion", {version: configVersion})
+              : // Before the first publication there is no version 0 to name.
+                t("signing.protectedActions.footerFirstVersion"),
         changed?.name
             ? t("signing.protectedActions.footerChangedBy", {date: changedOn, name: changed.name})
             : changed

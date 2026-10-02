@@ -76,6 +76,9 @@ const electionRecord = (votingStatus: Scenario["votingStatus"]) => ({
     presentation: {initialization_report_policy: "required"},
 })
 
+/** The configuration version a publication's request publishes. */
+const CONFIGURATION_VERSION = "18"
+
 /** What each protected action's request signs in these stories. */
 const SUBJECTS: Partial<Record<SigningAction, Record<string, unknown>>> = {
     [SigningAction.ApproveConfiguration]: {
@@ -83,7 +86,7 @@ const SUBJECTS: Partial<Record<SigningAction, Record<string, unknown>>> = {
         ballots_and_contests: "changed",
         digest: "5e2c19d0a4b1c7e3f9d2a8b6c4e0f1a3b5d7c9e1f3a5b7d9c1e3f5a7b9d77a4a",
         scheduled_events: 2,
-        signing_rules: ["transmit-results"],
+        signing_rules: ["transmit-results=1>2"],
     },
     [SigningAction.CloseVoting]: {channels: ["ONLINE"], from: ["ONLINE=OPEN"]},
     [SigningAction.InitializeVoting]: {publication_id: PUBLICATION_ID},
@@ -160,12 +163,15 @@ const meta = {
         voting: false,
     },
     beforeEach: async ({args}) => {
+        const panel = await makePanel({
+            action: args.signing ?? SigningAction.ApproveConfiguration,
+            subject: SUBJECTS[args.signing ?? SigningAction.ApproveConfiguration],
+            required: 2,
+        })
         signingApi = fakeApi(
-            await makePanel({
-                action: args.signing ?? SigningAction.ApproveConfiguration,
-                subject: SUBJECTS[args.signing ?? SigningAction.ApproveConfiguration],
-                required: 2,
-            })
+            panel.request.action === SigningAction.ApproveConfiguration
+                ? {...panel, request: {...panel.request, config_revision: CONFIGURATION_VERSION}}
+                : panel
         )
         sessionStorage.removeItem("pendingPublishAction")
         generationFails = args.generationFails
@@ -534,9 +540,16 @@ export const PublishingWaitsForSignatures: Story = {
         const subject = SUBJECTS[SigningAction.ApproveConfiguration]!
         const row = (label: string) =>
             panel.getByRole("rowheader", {name: label}).nextElementSibling?.textContent
-        // Codes in the organization's words.
+        // The version it publishes, and what changes in it (draft Other staff 2).
+        await expect(
+            panel.getByText(`Configuration version ${CONFIGURATION_VERSION}`, {exact: false})
+        ).toBeVisible()
+        await expect(panel.getByRole("heading", {name: "Changes in this version"})).toBeVisible()
+        // Codes in the organization's words: each rule after and before.
         const words = englishTranslation.translations.signing
-        expect(row("Signing rules")).toBe(words.actions["transmit-results"].label)
+        expect(row("Signing rules")).toBe(
+            `${words.actions["transmit-results"].label}: needs 2 (was 1)`
+        )
         expect(row("Ballots and contests")).toBe(words.values.ballots_and_contests.changed)
         expect(row("New scheduled events")).toBe(String(subject.scheduled_events))
         expect(row("Configuration SHA-256")).toBe(subject.digest)

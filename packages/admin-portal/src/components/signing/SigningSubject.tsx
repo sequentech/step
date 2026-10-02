@@ -26,7 +26,7 @@ import {
     documentKindOf,
     type ISignedView,
 } from "@/lib/signing/request"
-import {DocumentKind} from "@/lib/signing/types"
+import {DocumentKind, SigningAction} from "@/lib/signing/types"
 import {actionObject, documentTypeLabel, shortHash} from "./format"
 import {problemMessage, useSignedView} from "./useSignedView"
 
@@ -128,6 +128,30 @@ const DocumentCard: React.FC<{data: ISigningPanelData; view: ISignedView; api: I
 
 /** The subject field of open and close voting with each channel's status before. */
 const FROM_KEY = "from"
+/** The subject field of a configuration version with the signing rules it changes. */
+const SIGNING_RULES_KEY = "signing_rules"
+/** A rule's value in a `signing_rules` entry when it needs no signatures. */
+const RULE_OFF = "off"
+
+/**
+ * A `signing_rules` entry, `ACTION=BEFORE>AFTER` (or `ACTION=AFTER` when what
+ * it was is unknown; `ACTION` alone in requests started before entries carried
+ * numbers), each value `off` or the signatures needed: "Close voting: needs 2
+ * (was 1)".
+ */
+const ruleChange = (t: TFunction, code: string): string => {
+    const separator = code.indexOf("=")
+    const action = separator > 0 ? code.slice(0, separator) : code
+    const name = t(`signing.values.signing_rules.${action}`, {defaultValue: action})
+    if (separator <= 0) return name
+    const [before, after] = code.slice(separator + 1).split(">", 2)
+    const off = (value: string) => (value === RULE_OFF ? t("signing.values.ruleOff") : null)
+    const current = after ?? before
+    const now = off(current) ?? t("signing.values.ruleNeeds", {n: current})
+    return after !== undefined && after !== before
+        ? t("signing.values.ruleChangeFrom", {action: name, rule: now, was: off(before) ?? before})
+        : t("signing.values.ruleChange", {action: name, rule: now})
+}
 
 /**
  * A signed value in the organization's words: each code under
@@ -137,6 +161,7 @@ const FROM_KEY = "from"
 export const worded = (t: TFunction, key: string, raw: unknown, shown: string): string => {
     const word = (code: unknown) => {
         if (typeof code !== "string") return String(code)
+        if (key === SIGNING_RULES_KEY) return ruleChange(t, code)
         const separator = code.indexOf("=")
         if (key === FROM_KEY && separator > 0) {
             const channel = code.slice(0, separator)
@@ -152,6 +177,32 @@ export const worded = (t: TFunction, key: string, raw: unknown, shown: string): 
     return typeof raw === "string" ? word(raw) : shown
 }
 
+/** A row that explains an action beside what it signs; it is not signed. */
+export interface ISubjectNote {
+    label: string
+    value: string
+}
+
+/** The keys of each action's notes, under `signing.notes`. */
+const NOTES: Partial<Record<SigningAction, Array<[label: string, value: string]>>> = {
+    [SigningAction.ApproveVoter]: [["afterApproval", "afterApprovalValue"]],
+    [SigningAction.ConfirmKeyShare]: [
+        ["keyShare", "keyShareChecked"],
+        ["recordedIn", "recordedInCeremony"],
+    ],
+    [SigningAction.ContributeKeyShare]: [
+        ["keyShare", "keyShareChecked"],
+        ["recordedIn", "recordedInTally"],
+    ],
+}
+
+/** What the details table adds after the signed rows of `action` (drafts Other staff 1 and 3). */
+export const subjectNotes = (t: TFunction, action: SigningAction): ISubjectNote[] =>
+    (NOTES[action] ?? []).map(([label, value]) => ({
+        label: t(`signing.notes.${label}`),
+        value: t(`signing.notes.${value}`),
+    }))
+
 /**
  * What is signed, read from the canonical payload the approval signs: the
  * document card (name, type, pages, SHA-256), or the details table for an
@@ -166,6 +217,7 @@ export const SigningSubject: React.FC<{
     const {t} = useTranslation()
     const {view, problem} = useSignedView(data)
     const kind = documentKindOf(data.request)
+    const notes = subjectNotes(t, data.request.action)
 
     return (
         <Stack spacing={2}>
@@ -176,40 +228,59 @@ export const SigningSubject: React.FC<{
             ) : null}
             {view && kind !== DocumentKind.NoDocument ? (
                 <DocumentCard data={data} view={view} api={api} />
-            ) : view && view.rows.length ? (
-                <Table size="small" aria-label={t("signing.widget.panel.details")}>
-                    <TableBody>
-                        {view.rows.map((row) => (
-                            <TableRow key={row.key}>
-                                <TableCell
-                                    component="th"
-                                    scope="row"
-                                    sx={{color: "text.secondary", width: "40%"}}
-                                >
-                                    {t(`signing.details.${row.key}`, {
-                                        defaultValue: row.label ?? row.key,
-                                    })}
-                                </TableCell>
-                                <TableCell sx={{overflowWrap: "anywhere"}}>
-                                    {row.name ? (
-                                        <>
-                                            {row.name}
-                                            <Typography
-                                                variant="body2"
-                                                color="text.secondary"
-                                                component="div"
-                                            >
-                                                {row.value}
-                                            </Typography>
-                                        </>
-                                    ) : (
-                                        worded(t, row.key, view.subject[row.key], row.value)
-                                    )}
-                                </TableCell>
-                            </TableRow>
-                        ))}
-                    </TableBody>
-                </Table>
+            ) : view && (view.rows.length || notes.length) ? (
+                <Box>
+                    {data.request.action === SigningAction.ApproveConfiguration ? (
+                        <Typography variant="subtitle2" component="h3" sx={{mb: 1}}>
+                            {t("signing.panel.configurationChanges")}
+                        </Typography>
+                    ) : null}
+                    <Table size="small" aria-label={t("signing.widget.panel.details")}>
+                        <TableBody>
+                            {view.rows.map((row) => (
+                                <TableRow key={row.key}>
+                                    <TableCell
+                                        component="th"
+                                        scope="row"
+                                        sx={{color: "text.secondary", width: "40%"}}
+                                    >
+                                        {t(`signing.details.${row.key}`, {
+                                            defaultValue: row.label ?? row.key,
+                                        })}
+                                    </TableCell>
+                                    <TableCell sx={{overflowWrap: "anywhere"}}>
+                                        {row.name ? (
+                                            <>
+                                                {row.name}
+                                                <Typography
+                                                    variant="body2"
+                                                    color="text.secondary"
+                                                    component="div"
+                                                >
+                                                    {row.value}
+                                                </Typography>
+                                            </>
+                                        ) : (
+                                            worded(t, row.key, view.subject[row.key], row.value)
+                                        )}
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                            {notes.map((note) => (
+                                <TableRow key={note.label} data-testid="signing-note">
+                                    <TableCell
+                                        component="th"
+                                        scope="row"
+                                        sx={{color: "text.secondary", width: "40%"}}
+                                    >
+                                        {note.label}
+                                    </TableCell>
+                                    <TableCell>{note.value}</TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                </Box>
             ) : null}
             <Stack
                 direction={{xs: "column", sm: "row"}}
