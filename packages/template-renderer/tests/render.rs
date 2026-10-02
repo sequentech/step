@@ -20,13 +20,13 @@ fn invalid_template_returns_diagnostics() {
     assert_eq!(output["diagnostics"][0]["severity"], "error");
 }
 #[test]
-fn catalog_is_exactly_eight() {
+fn catalog_includes_all_release_template_families() {
     assert_eq!(
         execute(json!({"op":"catalog"}))["reports"]
             .as_array()
             .unwrap()
             .len(),
-        8
+        28
     );
 }
 #[test]
@@ -42,6 +42,9 @@ fn helper_fallback_is_visible_without_changing_production_output() {
     let result = execute(
         json!({"op":"render","reportType":"credentials","source":"{{format_u64 missing}}","wrapper":"{{{rendered_user_template}}}","data":{}}),
     );
-    assert_eq!(result["html"], "-");
+    assert_eq!(
+        assets::detach(result["html"].as_str().unwrap()).unwrap().0,
+        "-"
+    );
     assert_eq!(result["diagnostics"][0]["code"], "helper-fallback");
 }

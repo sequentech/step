@@ -199,3 +199,271 @@ pub fn compile(
         Ok(output)
     }
 }
+
+/// Compile authoring translations using only helpers available in STEP 10.0.
+/// Translation values are quoted native `with` arguments, so their braces cannot
+/// become executable Handlebars and runtime voter data is never materialized.
+pub fn compile_v10(
+    source: &str,
+    language: &str,
+    default: &str,
+    catalogs: &Value,
+    diagnostics: &mut Vec<Value>,
+    html: bool,
+) -> Result<String, String> {
+    use handlebars::template::{HelperTemplate, Parameter, TemplateElement};
+
+    const HELPERS: &[&str] = &[
+        "if",
+        "unless",
+        "each",
+        "with",
+        "lookup",
+        "raw",
+        "log",
+        "eq",
+        "ne",
+        "gt",
+        "gte",
+        "lt",
+        "lte",
+        "and",
+        "or",
+        "not",
+        "len",
+        "sanitize_html",
+        "format_u64",
+        "format_percentage",
+        "format_percentage_one",
+        "format_dec_percentage",
+        "format_date",
+        "let",
+        "expr",
+        "datetime",
+        "inc",
+        "inc2",
+        "to_json",
+        "url_encode",
+        "parse_i64",
+        "divide",
+        "multiply",
+        "sum",
+        "modulo",
+        "next",
+        "is_some",
+    ];
+
+    fn unsupported(name: &str) -> String {
+        match name {
+            "t" => "STEP 10.0 can export scalar {{t \"key\"}} translations only. Use a standalone translation with a literal key; keep dynamic values as native Handlebars fields.".into(),
+            "number" | "studio_number" => "STEP 10.0 has no localized number helper. Use native {{format_u64 value}} for English integer formatting, or supply a preformatted runtime field.".into(),
+            "date" | "studio_date" => "STEP 10.0 has no Studio date helper. Supply a preformatted runtime date (such as issue_date), or use the native datetime helper with its supported input format.".into(),
+            _ => format!("Helper '{name}' is unavailable in STEP 10.0. Replace it with a native STEP helper or a runtime data field before deployment."),
+        }
+    }
+    fn check_parameter(parameter: &Parameter) -> Result<(), String> {
+        if let Parameter::Subexpression(expression) = parameter {
+            match expression.as_element() {
+                TemplateElement::Expression(helper) | TemplateElement::HtmlExpression(helper) => {
+                    check_helper(helper, false)?;
+                }
+                _ => return Err("Unsupported STEP 10.0 subexpression".into()),
+            }
+        }
+        Ok(())
+    }
+    fn check_helper(helper: &HelperTemplate, translation: bool) -> Result<(), String> {
+        let name = helper
+            .name
+            .as_name()
+            .ok_or("Dynamic helper names are not supported by STEP 10.0 export")?;
+        if name == "t" && translation {
+            return Ok(());
+        }
+        if matches!(name, "t" | "number" | "date") || name.starts_with("studio_") {
+            return Err(unsupported(name));
+        }
+        if (!helper.params.is_empty() || !helper.hash.is_empty()) && !HELPERS.contains(&name) {
+            return Err(unsupported(name));
+        }
+        for parameter in helper.params.iter().chain(helper.hash.values()) {
+            check_parameter(parameter)?;
+        }
+        Ok(())
+    }
+
+    struct Compiler<'a> {
+        source: &'a str,
+        line_offsets: Vec<usize>,
+        language: &'a str,
+        default: &'a str,
+        catalogs: &'a Value,
+        diagnostics: &'a mut Vec<Value>,
+        html: bool,
+        replacements: Vec<(usize, usize, String)>,
+    }
+    impl Compiler<'_> {
+        fn walk(&mut self, template: &handlebars::Template) -> Result<(), String> {
+            for (index, element) in template.elements.iter().enumerate() {
+                match element {
+                    TemplateElement::Expression(helper)
+                    | TemplateElement::HtmlExpression(helper)
+                        if helper.name.as_name() == Some("t") =>
+                    {
+                        let Some(Parameter::Literal(Value::String(key))) = helper.params.first()
+                        else {
+                            return Err(unsupported("t"));
+                        };
+                        if helper.params.len() > 2 || !helper.hash.is_empty() {
+                            return Err(unsupported("t"));
+                        }
+                        let chain = language_chain(self.language, self.default);
+                        let resolved = chain.iter().find_map(|locale| {
+                            self.catalogs
+                                .get(locale)
+                                .and_then(|catalog| catalog.get(key))
+                                .map(|value| (locale, value))
+                        });
+                        let text = match resolved {
+                            Some((locale, Value::String(text))) => {
+                                if locale != self.language {
+                                    self.diagnostics.push(json!({"severity":"warning","code":"language-fallback","message":format!("Translation '{key}' uses {locale}")}));
+                                }
+                                text.clone()
+                            }
+                            Some(_) => return Err(format!("Translation '{key}' uses plural forms, which STEP 10.0 cannot evaluate. Choose a scalar translation and use a native count field, or provide preformatted runtime text.")),
+                            None => {
+                                self.diagnostics.push(json!({"severity":"warning","code":"missing-translation","message":format!("Missing translation '{key}' for {}", self.language)}));
+                                format!("[{key}]")
+                            }
+                        };
+                        let mapping = template
+                            .mapping
+                            .get(index)
+                            .ok_or("Missing Handlebars source location")?;
+                        let line_start = *self
+                            .line_offsets
+                            .get(mapping.0.saturating_sub(1))
+                            .ok_or("Invalid Handlebars source line")?;
+                        let column = self.source[line_start..]
+                            .char_indices()
+                            .nth(mapping.1.saturating_sub(1))
+                            .map(|(offset, _)| offset)
+                            .unwrap_or(0);
+                        let start = line_start + column;
+                        let end = tag_end(self.source, start)?;
+                        let tag = &self.source[start..end];
+                        let leading_trim = if tag.starts_with("{{~") || tag.starts_with("{{{~") {
+                            "~"
+                        } else {
+                            ""
+                        };
+                        let trailing_trim = if tag.ends_with("~}}") || tag.ends_with("~}}}") {
+                            "~"
+                        } else {
+                            ""
+                        };
+                        let value = serde_json::to_string(&text).map_err(|e| e.to_string())?;
+                        let field =
+                            if self.html && matches!(element, TemplateElement::Expression(_)) {
+                                "{{this}}"
+                            } else {
+                                "{{{this}}}"
+                            };
+                        self.replacements.push((start, end, format!("{{{{{leading_trim}#with {value}}}}}{field}{{{{/with{trailing_trim}}}}}")));
+                    }
+                    TemplateElement::Expression(helper)
+                    | TemplateElement::HtmlExpression(helper)
+                    | TemplateElement::HelperBlock(helper) => {
+                        check_helper(helper, false)?;
+                        if let Some(body) = &helper.template {
+                            self.walk(body)?;
+                        }
+                        if let Some(body) = &helper.inverse {
+                            self.walk(body)?;
+                        }
+                    }
+                    TemplateElement::DecoratorExpression(decorator)
+                    | TemplateElement::DecoratorBlock(decorator) => {
+                        if decorator.name.as_name() != Some("inline") {
+                            return Err(
+                                "STEP 10.0 only supports the native inline decorator".into()
+                            );
+                        }
+                        for parameter in &decorator.params {
+                            check_parameter(parameter)?;
+                        }
+                        if let Some(body) = &decorator.template {
+                            self.walk(body)?;
+                        }
+                    }
+                    TemplateElement::PartialExpression(partial)
+                    | TemplateElement::PartialBlock(partial) => {
+                        check_parameter(&partial.name)?;
+                        for parameter in partial.params.iter().chain(partial.hash.values()) {
+                            check_parameter(parameter)?;
+                        }
+                        if let Some(body) = &partial.template {
+                            self.walk(body)?;
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            Ok(())
+        }
+    }
+    fn tag_end(source: &str, start: usize) -> Result<usize, String> {
+        let text = source
+            .get(start..)
+            .ok_or("Invalid Handlebars source position")?;
+        let braces = if text.starts_with("{{{") {
+            3
+        } else if text.starts_with("{{") {
+            2
+        } else {
+            return Err("Invalid Handlebars translation position".into());
+        };
+        let mut quote = None;
+        let mut escaped = false;
+        for (offset, character) in text[braces..].char_indices() {
+            let offset = braces + offset;
+            if let Some(delimiter) = quote {
+                if escaped {
+                    escaped = false;
+                } else if character == '\\' {
+                    escaped = true;
+                } else if character == delimiter {
+                    quote = None;
+                }
+            } else if matches!(character, '\'' | '"') {
+                quote = Some(character);
+            } else if text[offset..].starts_with(&"}".repeat(braces)) {
+                return Ok(start + offset + braces);
+            }
+        }
+        Err("Unterminated translation expression".into())
+    }
+
+    let template = handlebars::Template::compile(source).map_err(|e| e.to_string())?;
+    let mut line_offsets = vec![0];
+    line_offsets.extend(source.match_indices('\n').map(|(index, _)| index + 1));
+    let mut compiler = Compiler {
+        source,
+        line_offsets,
+        language,
+        default,
+        catalogs,
+        diagnostics,
+        html,
+        replacements: Vec::new(),
+    };
+    compiler.walk(&template)?;
+    compiler.replacements.sort_by_key(|item| item.0);
+    let mut output = source.to_string();
+    for (start, end, replacement) in compiler.replacements.into_iter().rev() {
+        output.replace_range(start..end, &replacement);
+    }
+    handlebars::Template::compile(&output).map_err(|e| e.to_string())?;
+    Ok(output)
+}

@@ -40,6 +40,8 @@ pub fn execute(input: Value) -> Value {
             Err(e) => failure(e),
         },
         "render" => render(&input).unwrap_or_else(failure),
+        "export_v10" => exchange::export_v10(&input).unwrap_or_else(failure),
+        "import_v10" => exchange::import_v10(&input).unwrap_or_else(failure),
         "export" => exchange::export(&input).unwrap_or_else(failure),
         "import" => exchange::import(&input).unwrap_or_else(failure),
         "export_zip" => exchange::export_zip(&input).unwrap_or_else(failure),
@@ -77,9 +79,38 @@ fn render(input: &Value) -> Result<Value, String> {
     if !matches!(channel, "document" | "email" | "sms") {
         return Err("Unsupported template channel".into());
     }
-    let data = input["data"]
+    // Documents and independently sent messages have different production
+    // variable maps. A report's statistics are not available to send_template.
+    let data_value = if channel == "document" {
+        &input["data"]
+    } else if input["communicationData"].is_object() {
+        &input["communicationData"]
+    } else if ["user", "tenant_id", "election_event", "vote_url"]
+        .iter()
+        .any(|key| input["data"].get(*key).is_some())
+    {
+        &input["data"]
+    } else {
+        &report["communicationData"]
+    };
+    let data = data_value
         .as_object()
         .ok_or("Scenario must be a JSON object")?;
+    let communication_variables: serde_json::Map<String, Value> = data
+        .iter()
+        .filter(|(key, _)| {
+            matches!(
+                key.as_str(),
+                "user" | "tenant_id" | "election_event" | "vote_url"
+            )
+        })
+        .map(|(key, value)| (key.clone(), value.clone()))
+        .collect();
+    let data = if channel == "document" {
+        data
+    } else {
+        &communication_variables
+    };
     if channel == "document" && input["template"]["pre_render"]["enabled"] == true {
         let source = localization::language_chain(language, default)
             .iter()
@@ -92,12 +123,14 @@ fn render(input: &Value) -> Result<Value, String> {
         let width = options["paper_width"].as_f64().unwrap_or(8.2677165354) * 72.0;
         let height = options["paper_height"].as_f64().unwrap_or(11.6929133858) * 72.0;
         let html = prerender::preview(&prepared, &input["data"], width, height)?;
-        let assets = assets::from_value(&input["template"]["assets"])?;
+        let assets = preview_assets(report, input, &html)?;
         return Ok(
             json!({"html":assets::attach(&html, &assets)?,"diagnostics":diagnostics,"language":language,"direction":"ltr"}),
         );
     }
-    schema::validate(&report["schema"], &input["data"], "/data", &mut diagnostics);
+    if channel == "document" {
+        schema::validate(&report["schema"], data_value, "/data", &mut diagnostics);
+    }
     if diagnostics.iter().any(|d| d["severity"] == "error") {
         return Ok(json!({"html":null,"diagnostics":diagnostics}));
     }
@@ -113,10 +146,20 @@ fn render(input: &Value) -> Result<Value, String> {
             .find_map(|l| input["overrides"][l].as_str())
             .unwrap_or(input["source"].as_str().ok_or("Source must be text")?);
         let user = bounded_render(&reg, &compile(source)?, data)?;
-        let mut system = data.clone();
+        // Each release report prepares a separate SystemData struct. Keeping
+        // user variables out of it prevents previews from accepting wrapper
+        // bindings that will disappear in production.
+        let mut system = report["systemData"]
+            .as_object()
+            .cloned()
+            .unwrap_or_default();
+        if let Some(overrides) = input["systemData"].as_object() {
+            system.extend(overrides.clone());
+        }
         system.insert("rendered_user_template".into(), json!(user));
-        let wrapper = input["wrapper"]
+        let wrapper = input["template"]["system_template"]
             .as_str()
+            .or_else(|| input["wrapper"].as_str())
             .unwrap_or(report["wrapper"].as_str().unwrap());
         bounded_render(&reg, &compile(wrapper)?, &system)?
     } else {
@@ -124,12 +167,12 @@ fn render(input: &Value) -> Result<Value, String> {
             .get(channel)
             .filter(|value| value.is_object())
             .unwrap_or(&report["configuration"][channel]);
-        // Subject and SMS text must not become markup, including through runtime data.
-        let mut plain = helpers::get_registry();
-        plain.register_escape_fn(handlebars::no_escape);
+        // Release 10.0 uses the same escaped Handlebars registry for subject,
+        // plaintext body, HTML body, and SMS. Escape again only for displaying
+        // the rendered plaintext safely inside the preview HTML.
         if channel == "email" {
             let subject = bounded_render(
-                &plain,
+                &reg,
                 &compile(config["subject"].as_str().unwrap_or(""))?,
                 data,
             )?;
@@ -137,7 +180,7 @@ fn render(input: &Value) -> Result<Value, String> {
                 bounded_render(&reg, &compile(html)?, data)?
             } else {
                 let text = bounded_render(
-                    &plain,
+                    &reg,
                     &compile(config["plaintext_body"].as_str().unwrap_or(""))?,
                     data,
                 )?;
@@ -152,7 +195,7 @@ fn render(input: &Value) -> Result<Value, String> {
             )
         } else {
             let text = bounded_render(
-                &plain,
+                &reg,
                 &compile(config["message"].as_str().unwrap_or(""))?,
                 data,
             )?;
@@ -184,11 +227,25 @@ fn render(input: &Value) -> Result<Value, String> {
             ),
         )
         .into_owned();
-    let files = assets::from_value(&input["template"]["assets"])?;
+    let files = preview_assets(report, input, &html)?;
     let html = assets::attach(&html, &files)?;
     Ok(
         json!({"html":html,"diagnostics":diagnostics,"catalogVersion":1,"language":language,"direction":direction,"channel":channel}),
     )
+}
+
+fn preview_assets(
+    report: &Value,
+    input: &Value,
+    html: &str,
+) -> Result<assets::TemplateAssets, String> {
+    // Release resources are preview defaults only. They do not become custom
+    // template settings or depend on a public MinIO/network connection.
+    let mut files = assets::from_value(&report["previewAssets"])?;
+    files.retain(|path, _| html.contains(path.rsplit('/').next().unwrap_or(path)));
+    files.extend(assets::from_value(&input["template"]["assets"])?);
+    assets::decode(&files)?;
+    Ok(files)
 }
 
 fn bounded_render(

@@ -4,6 +4,31 @@
 
 `packages/template-renderer` owns the pure Handlebars renderer used by native reports and Template Studio's browser/server WASM bindings. `sequent-core::services::reports` re-exports its helpers, asset validation and ZIP codec. Windmill and Velvet retain the production helper and wrapper composition. HTML generation does not require Chromium; executing attached JavaScript and printing PDFs does.
 
+## Step 10.0 compatibility
+
+Studio defaults to the 28 template families from `release/10.0`, pinned to
+`4c97c734f67f648cb7fca93556fdb34ccdc7df38`. Eight families use the existing database
+report types; the other 20 are shipped legacy public assets. Each catalog entry
+records original source/configuration paths, hashes and any narrow corrections
+needed for valid image/QR rendering. The `credentials` family is the Voter
+Information Letter (VIL) from META-12621.
+
+Use `export_v10` for an unmodified Step 10.0 deployment. It emits the native
+10-column CSV for database templates, a MinIO public-assets ZIP for legacy or
+explicit system-template deployment, or both in a mixed package. `import_v10`
+reads these formats. CSV cannot change the system wrapper: the release loads it
+from MinIO. Runtime fields remain unevaluated; scalar translation keys compile to
+native Handlebars. Unknown settings, attached files, newer helper calls and active
+pre-render configurations are rejected with instructions for resolving them.
+The catalog's bundled images/QR libraries are offline preview resources, kept
+separate from authored attachments and exported database settings.
+
+The attached-file and versioned Studio ZIP contracts below describe the newer
+companion implementation in this branch. They are not supported by the unmodified
+`release/10.0` importer/PDF renderer. See the companion
+[Studio v10 deployment guide](https://github.com/sequentech/beyond/blob/feat/meta-13383-template-studio/main/docs/docusaurus/docs/engineering/template-studio/v10-compatibility.md)
+for the export choices, VIL secret/encryption boundary and recorded fixture fixes.
+
 ## Attached files
 
 The existing template JSON can include an `assets` map. No database migration is needed:

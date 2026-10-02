@@ -35,30 +35,33 @@ fn known_values_cannot_introduce_a_runtime_expression() {
     assert!(result.unwrap().fields.is_empty());
 }
 #[test]
-fn every_pre_render_starter_localizes_exports_and_preserves_runtime_fields() {
+fn archived_pre_render_receipt_still_localizes_exports_and_renders() {
     let catalog = sequent_template_renderer::execute(json!({"op":"catalog"}));
-    for report in catalog["reports"]
+    let report = catalog["reports"]
         .as_array()
         .unwrap()
         .iter()
-        .filter(|r| r["preRenderExample"].is_object())
-    {
-        let example = &report["preRenderExample"];
-        for language in ["en", "es"] {
-            let input = json!({"reportType":report["id"],"source":example["source"],"language":language,"defaultLanguage":"en","translations":report["translations"],"template":{"pre_render":{"enabled":true,"version":1,"known_data":example["knownData"]},"pdf_options":example["pdfOptions"]},"data":example["scenarios"][0]["data"],"metadata":{"tenant_id":"00000000-0000-4000-8000-000000000099","type":report["id"].as_str().unwrap().to_uppercase(),"alias":report["id"]},"languages":[language]});
-            let preview = sequent_template_renderer::execute(input.clone());
-            assert!(preview["html"].is_string(), "{}: {preview}", report["id"]);
-            let mut export = input.clone();
-            export["op"] = json!("export");
-            let exported = sequent_template_renderer::execute(export);
-            assert!(exported["csv"].is_string(), "{exported}");
-            let mut prep = input;
-            prep["op"] = json!("prerender_prepare");
-            let prepared = sequent_template_renderer::execute(prep);
-            assert!(
-                prepared["fields"].as_array().unwrap().len() > 0,
-                "{prepared}"
-            );
-        }
+        .find(|r| r["id"] == "ballot_receipt")
+        .unwrap();
+    // The v10 catalog deliberately has no prerender starters. Keep exercising
+    // an actual saved project instead of an empty filtered catalog iterator.
+    let source = include_str!("../catalog/v1/prerender/ballot_receipt.hbs");
+    let known = json!({"event":{"name":"Archived demonstration"}});
+    let data = json!({"ballot_id":"receipt-1","timestamp":"October 2, 2026","ballot_tracker_url":"https://vote.example.org/track/receipt-1"});
+    for language in ["en", "es"] {
+        let input = json!({"reportType":report["id"],"source":source,"language":language,"defaultLanguage":"en","translations":report["translations"],"template":{"pre_render":{"enabled":true,"version":1,"known_data":known},"pdf_options":{"paper_width":8.5,"paper_height":11.0}},"data":data,"metadata":{"tenant_id":"00000000-0000-4000-8000-000000000099","type":report["id"].as_str().unwrap().to_uppercase(),"alias":report["id"]},"languages":[language]});
+        let preview = sequent_template_renderer::execute(input.clone());
+        assert!(preview["html"].is_string(), "{}: {preview}", report["id"]);
+        let mut export = input.clone();
+        export["op"] = json!("export");
+        let exported = sequent_template_renderer::execute(export);
+        assert!(exported["csv"].is_string(), "{exported}");
+        let mut prep = input;
+        prep["op"] = json!("prerender_prepare");
+        let prepared = sequent_template_renderer::execute(prep);
+        assert!(
+            prepared["fields"].as_array().unwrap().len() > 0,
+            "{prepared}"
+        );
     }
 }

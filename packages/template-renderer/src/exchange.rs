@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::localization;
 use serde_json::{json, Value};
+#[path = "v10.rs"]
+mod v10;
+pub use v10::{export_v10, import_v10};
 const HEADERS: [&str; 10] = [
     "alias",
     "tenant_id",
