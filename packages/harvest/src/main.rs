@@ -37,6 +37,10 @@ mod error_contracts;
 #[path = "../tests/support/route_services.rs"]
 mod route_services;
 
+#[cfg(test)]
+#[path = "../tests/support/hasura_signing_permissions.rs"]
+mod hasura_signing_permissions;
+
 #[launch]
 async fn rocket() -> _ {
     dotenv().ok();
