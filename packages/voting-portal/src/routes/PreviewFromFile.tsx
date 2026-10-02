@@ -121,7 +121,6 @@ export const PreviewFromFile: React.FC = () => {
         } catch {
             sessionStorage.removeItem(PREVIEW_FILE_KEY)
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
 
     useEffect(() => {

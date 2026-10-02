@@ -296,11 +296,10 @@ export const mountErrors = (
         isVoted = false,
     }: MountErrorsOptions = {}
 ): RenderResult => {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
     const {InvalidErrorsList} = require("@sequentech/ui-essentials") as {
         InvalidErrorsList: React.FC<Record<string, unknown>>
     }
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
+
     const {MemoryRouter, Route, Routes} = require("react-router-dom") as {
         MemoryRouter: React.FC<Record<string, unknown>>
         Route: React.FC<Record<string, unknown>>
@@ -395,7 +394,6 @@ export const mountContest = (
     contest: IContest,
     {selection, isReview = false, isDeclineToVote, errors = []}: MountOptions = {}
 ): Mounted => {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
     const {Question} = require("@sequentech/ui-essentials") as {
         Question: React.FC<Record<string, unknown>>
     }

@@ -47,7 +47,6 @@ describe("noticeText", () => {
     })
 
     it.each(LANGUAGES)("has every notice in %s", (lang) => {
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
         const translations = require(`../../../translations/${lang}`).default
         for (const code of Object.values(EMonitoringNotice)) {
             expect(translations.translations.monitoring.notices[code]).toEqual(expect.any(String))
