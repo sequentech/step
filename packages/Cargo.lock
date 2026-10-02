@@ -6271,6 +6271,33 @@ dependencies = [
 ]
 
 [[package]]
+name = "messaging"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "aws-config",
+ "aws-credential-types",
+ "aws-sdk-sesv2",
+ "aws-sdk-sns",
+ "chrono",
+ "hex",
+ "hmac",
+ "lettre",
+ "openssl",
+ "rand 0.8.6",
+ "reqwest",
+ "sequent-core",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "strum_macros 0.27.2",
+ "tokio",
+ "tracing",
+ "urlencoding",
+]
+
+[[package]]
 name = "mime"
 version = "0.3.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -13041,8 +13068,3 @@ checksum = "29ce2c8a9384ad323cf564b67da86e21d3cfdff87908bc1223ed5c99bc792713"
 dependencies = [
  "zune-core",
 ]
-
-[[patch.unused]]
-name = "auto_generate_cdp"
-version = "0.4.4"
-source = "git+https://github.com/mdrokz/auto_generate_cdp?rev=634e636fd8edbe032d7191326527c721a2b51106#634e636fd8edbe032d7191326527c721a2b51106"

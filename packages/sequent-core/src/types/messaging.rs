@@ -206,12 +206,13 @@ impl MessagingProvider {
                     requires_provider_approval: false,
                 }
             }
+            // SNS reports SMS delivery to CloudWatch Logs, not to Step.
             MessagingProvider::AWS_SNS => ProviderCapabilities {
                 channel,
                 recipient: RecipientKind::PHONE_NUMBER,
                 purposes: both,
                 template_required_for: vec![],
-                delivery_feedback: DeliveryFeedback::PROVIDER_RECEIPTS,
+                delivery_feedback: DeliveryFeedback::UNAVAILABLE,
                 reconciliation: false,
                 conversation_window_hours: None,
                 requires_provider_approval: false,
@@ -849,6 +850,10 @@ pub enum AccountSender {
         from_address: String,
         from_name: Option<String>,
         region: Option<String>,
+        /// SNS topic SES publishes delivery and bounce events to.
+        /// Notifications from any other topic are refused.
+        #[serde(default)]
+        notification_topic_arn: Option<String>,
     },
     SMTP {
         from_address: String,
@@ -879,6 +884,11 @@ pub enum AccountSender {
         base_url: String,
         /// The Viber sender (service) name registered with Infobip.
         sender: String,
+        /// Templates the partner approved, per purpose, as language to
+        /// template ID. Entered by an administrator: Infobip's template
+        /// API is not generally available.
+        #[serde(default)]
+        approved_templates: BTreeMap<MessagePurpose, BTreeMap<String, String>>,
     },
     CONSOLE {},
 }
@@ -1027,9 +1037,10 @@ pub struct CredentialRecord {
 pub struct AccountLimits {
     pub messages_per_second: Option<u32>,
     pub otp_reserved_per_second: Option<u32>,
-    /// ISO 3166-1 alpha-2 codes this account may send to. Empty: any.
+    /// Country calling codes (digits, such as `63`) this account may send
+    /// phone messages to. Empty: any.
     #[serde(default)]
-    pub allowed_countries: Vec<String>,
+    pub allowed_calling_codes: Vec<String>,
 }
 
 /// Internal request from Keycloak or windmill to send one message.
