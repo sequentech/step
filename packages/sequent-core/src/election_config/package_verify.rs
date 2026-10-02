@@ -122,6 +122,140 @@ impl PackageTrust {
     }
 }
 
+/// The tenant setting that holds an installation's trust in configuration
+/// packages, under [`CONFIGURATION_SIGNING_SETTING`].
+pub const CONFIGURATION_SIGNING_SETTING: &str = "configuration_signing";
+
+/// Whether an installation imports configurations that aren't signed.
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum ConfigurationSigningPolicy {
+    /// A signed package is checked; an unsigned file imports as before.
+    #[default]
+    Optional,
+    /// Only a signed package that passes every check imports.
+    Required,
+}
+
+/// An installation's trust in configuration packages, set at deployment.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ConfigurationSigning {
+    #[serde(default)]
+    pub policy: ConfigurationSigningPolicy,
+    /// PEM: the roots a package's signing certificate chains to.
+    #[serde(default)]
+    pub package_roots: String,
+    /// PEM: the roots approvers' certificates chain to.
+    #[serde(default)]
+    pub staff_roots: String,
+    #[serde(default)]
+    pub required_approvals: u16,
+}
+
+impl ConfigurationSigning {
+    /// The trust these settings describe, with the revocation lists (DER)
+    /// the installation has seen.
+    pub fn trust(
+        &self,
+        revocation_lists: Vec<Vec<u8>>,
+    ) -> Result<PackageTrust, Problem> {
+        let read = |pem: &str, what: &str| {
+            if pem.trim().is_empty() {
+                Ok(Vec::new())
+            } else {
+                certificates_from_pem(pem)
+                    .map_err(|reason| unreadable_trust(what, reason))
+            }
+        };
+        Ok(PackageTrust {
+            package_roots: read(&self.package_roots, "package_roots")?,
+            staff_roots: read(&self.staff_roots, "staff_roots")?,
+            revocation_lists,
+            required_approvals: self.required_approvals,
+        })
+    }
+}
+
+/// What an importer may do with a file it was handed.
+#[derive(Debug, Clone)]
+pub enum Admission {
+    /// Not a configuration package, where the policy allows that: import it
+    /// as before.
+    Unsigned,
+    /// A package that passed every check.
+    Verified(Box<VerifiedPackage>),
+}
+
+/// The check an importer runs before reading anything in `bytes`: a signed
+/// package is verified, and an unsigned file is refused where the policy
+/// requires signatures. `revocation_lists` are the lists (DER) the
+/// installation has seen.
+pub fn admit(
+    bytes: &[u8],
+    settings: Option<&ConfigurationSigning>,
+    revocation_lists: Vec<Vec<u8>>,
+) -> Result<Admission, Report> {
+    let required = settings.is_some_and(|settings| {
+        settings.policy == ConfigurationSigningPolicy::Required
+    });
+    let signed = open_package(bytes)
+        .map(|opened| opened.is_signed())
+        .unwrap_or(false);
+    if !signed {
+        return if required {
+            Err(Report::from_problem(unsigned(&[
+                super::manifest::MANIFEST_MEMBER,
+                super::manifest::SIGNATURE_MEMBER,
+                super::manifest::CHAIN_MEMBER,
+            ])))
+        } else {
+            Ok(Admission::Unsigned)
+        };
+    }
+    let trust = settings
+        .cloned()
+        .unwrap_or_default()
+        .trust(revocation_lists)
+        .map_err(Report::from_problem)?;
+    verify_package(bytes, &trust)
+        .map(|verified| Admission::Verified(Box::new(verified)))
+}
+
+/// The importable archive inside a verified package.
+pub fn importable_member(package: &VerifiedPackage) -> Result<&[u8], Problem> {
+    package
+        .members
+        .iter()
+        .find(|member| member.name == super::archive::IMPORTABLE_MEMBER)
+        .map(|member| member.bytes.as_slice())
+        .ok_or_else(|| {
+            Problem::error(
+                Code::Unreadable,
+                super::archive::IMPORTABLE_MEMBER,
+                format!(
+                    "the package has no {}, so there is nothing to import",
+                    super::archive::IMPORTABLE_MEMBER
+                ),
+            )
+            .id("package.no-importable")
+        })
+}
+
+/// The package imported last for the same configuration, offered again.
+pub fn already_imported(revision: u64) -> Problem {
+    Problem::error(
+        Code::Rollback,
+        "manifest.configuration.revision",
+        format!(
+            "revision {revision} of this configuration is already imported"
+        ),
+    )
+    .id("package.already-imported")
+    .detail("revision", revision)
+}
+
 /// Who signed a certificate-checked signature.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CertificateIdentity {
@@ -195,13 +329,19 @@ pub fn verify_package(
     let produced_at =
         unix_time(&manifest.produced.at).map_err(Report::from_problem)?;
 
+    // A revocation list that can't be read would protect nothing without
+    // anyone being told, so it is refused rather than skipped. A list that
+    // reads is checked against its issuer by the path check.
     let mut crls = trust.revocation_lists.clone();
     for list in &manifest.revocation_lists {
-        // A list that doesn't parse protects nothing; one that does is
-        // checked against its issuer by the path check.
-        if let Ok(parsed) = crls_from_pem(list) {
-            crls.extend(parsed);
-        }
+        crls.extend(crls_from_pem(list).map_err(|reason| {
+            Report::from_problem(unreadable_revocation_list(reason))
+        })?);
+    }
+    for der in &crls {
+        check_revocation_list(der).map_err(|reason| {
+            Report::from_problem(unreadable_revocation_list(reason))
+        })?;
     }
 
     let chain = certificates_from_pem(&String::from_utf8_lossy(chain))
@@ -774,6 +914,24 @@ fn unreadable_chain(reason: String) -> Problem {
         format!("the signer's certificates could not be read: {reason}"),
     )
     .id("package.unreadable-chain")
+    .detail("reason", reason)
+}
+
+/// Whether a revocation list (DER) is one the checks can apply: one that
+/// isn't is refused wherever it appears, so refuse it when it is imported.
+pub fn check_revocation_list(der: &[u8]) -> Result<(), String> {
+    OwnedCertRevocationList::from_der(der)
+        .map(|_| ())
+        .map_err(|error| format!("{error:?}"))
+}
+
+fn unreadable_revocation_list(reason: String) -> Problem {
+    Problem::error(
+        Code::Unreadable,
+        "revocation_lists",
+        format!("a revocation list could not be read: {reason}"),
+    )
+    .id("package.unreadable-revocation-list")
     .detail("reason", reason)
 }
 

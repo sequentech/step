@@ -1,0 +1,10 @@
+/home/ereslibre/projects/sequentech/step/.claude/worktrees/keen-zooming-cat/packages/sequent-core/rust-local-target-wasm/debug/deps/autocfg-ad4e102107fbead6.d: /home/ereslibre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/autocfg-1.5.0/src/lib.rs /home/ereslibre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/autocfg-1.5.0/src/error.rs /home/ereslibre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/autocfg-1.5.0/src/rustc.rs /home/ereslibre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/autocfg-1.5.0/src/version.rs
+
+/home/ereslibre/projects/sequentech/step/.claude/worktrees/keen-zooming-cat/packages/sequent-core/rust-local-target-wasm/debug/deps/libautocfg-ad4e102107fbead6.rlib: /home/ereslibre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/autocfg-1.5.0/src/lib.rs /home/ereslibre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/autocfg-1.5.0/src/error.rs /home/ereslibre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/autocfg-1.5.0/src/rustc.rs /home/ereslibre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/autocfg-1.5.0/src/version.rs
+
+/home/ereslibre/projects/sequentech/step/.claude/worktrees/keen-zooming-cat/packages/sequent-core/rust-local-target-wasm/debug/deps/libautocfg-ad4e102107fbead6.rmeta: /home/ereslibre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/autocfg-1.5.0/src/lib.rs /home/ereslibre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/autocfg-1.5.0/src/error.rs /home/ereslibre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/autocfg-1.5.0/src/rustc.rs /home/ereslibre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/autocfg-1.5.0/src/version.rs
+
+/home/ereslibre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/autocfg-1.5.0/src/lib.rs:
+/home/ereslibre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/autocfg-1.5.0/src/error.rs:
+/home/ereslibre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/autocfg-1.5.0/src/rustc.rs:
+/home/ereslibre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/autocfg-1.5.0/src/version.rs:

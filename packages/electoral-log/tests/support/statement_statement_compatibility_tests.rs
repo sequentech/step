@@ -174,6 +174,51 @@ fn statement_type_borsh_discriminants_are_append_only() {
         borsh::to_vec(&StatementType::SigningRequestsExported).unwrap(),
         vec![45]
     );
+    assert_eq!(
+        borsh::to_vec(&StatementType::ConfigurationPackageImported).unwrap(),
+        vec![46]
+    );
+    assert_eq!(
+        borsh::to_vec(&StatementType::ConfigurationPublished).unwrap(),
+        vec![47]
+    );
+}
+
+fn configuration_package(action: ConfigurationPackageAction) -> StatementBody {
+    StatementBody::ConfigurationPackage(
+        EventIdString("event".to_string()),
+        ConfigurationPackageDetails {
+            action,
+            external_id: "ov-2028".to_string(),
+            revision: 8,
+            manifest_sha256: "ab".repeat(32),
+            ballot_publication_id: None,
+            design_digests: vec![ConfigurationDesignDigest {
+                area: "Post 1".to_string(),
+                election: "national".to_string(),
+                sha256: "cd".repeat(32),
+            }],
+        },
+    )
+}
+
+#[test]
+fn a_configuration_package_entry_is_appended_and_says_what_happened() {
+    let imported = configuration_package(ConfigurationPackageAction::Imported);
+    assert_eq!(borsh::to_vec(&imported).unwrap()[0], 31);
+    let head = StatementHead::from_body(EventIdString("event".to_string()), &imported);
+    assert!(matches!(
+        head.kind,
+        StatementType::ConfigurationPackageImported
+    ));
+    assert!(head.description.contains("ov-2028 revision 8 imported"));
+
+    let published = configuration_package(ConfigurationPackageAction::Published);
+    let head = StatementHead::from_body(EventIdString("event".to_string()), &published);
+    assert!(matches!(head.kind, StatementType::ConfigurationPublished));
+    assert!(head.description.contains("1 designs"));
+    let decoded: StatementBody = borsh::from_slice(&borsh::to_vec(&published).unwrap()).unwrap();
+    assert!(matches!(decoded, StatementBody::ConfigurationPackage(_, _)));
 }
 
 #[test]

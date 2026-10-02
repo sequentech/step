@@ -1,0 +1,10 @@
+/home/ereslibre/projects/sequentech/step/.claude/worktrees/keen-zooming-cat/packages/sequent-core/rust-local-target-wasm/wasm32-unknown-unknown/debug/deps/oid_registry-3f94cb0361142c35.d: /home/ereslibre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/oid-registry-0.8.1/src/lib.rs /home/ereslibre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/oid-registry-0.8.1/src/deprecated.rs /home/ereslibre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/oid-registry-0.8.1/src/load.rs /home/ereslibre/projects/sequentech/step/.claude/worktrees/keen-zooming-cat/packages/sequent-core/rust-local-target-wasm/wasm32-unknown-unknown/debug/build/oid-registry-5fe52042e26de943/out/oid_db.rs
+
+/home/ereslibre/projects/sequentech/step/.claude/worktrees/keen-zooming-cat/packages/sequent-core/rust-local-target-wasm/wasm32-unknown-unknown/debug/deps/liboid_registry-3f94cb0361142c35.rmeta: /home/ereslibre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/oid-registry-0.8.1/src/lib.rs /home/ereslibre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/oid-registry-0.8.1/src/deprecated.rs /home/ereslibre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/oid-registry-0.8.1/src/load.rs /home/ereslibre/projects/sequentech/step/.claude/worktrees/keen-zooming-cat/packages/sequent-core/rust-local-target-wasm/wasm32-unknown-unknown/debug/build/oid-registry-5fe52042e26de943/out/oid_db.rs
+
+/home/ereslibre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/oid-registry-0.8.1/src/lib.rs:
+/home/ereslibre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/oid-registry-0.8.1/src/deprecated.rs:
+/home/ereslibre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/oid-registry-0.8.1/src/load.rs:
+/home/ereslibre/projects/sequentech/step/.claude/worktrees/keen-zooming-cat/packages/sequent-core/rust-local-target-wasm/wasm32-unknown-unknown/debug/build/oid-registry-5fe52042e26de943/out/oid_db.rs:
+
+# env-dep:OUT_DIR=/home/ereslibre/projects/sequentech/step/.claude/worktrees/keen-zooming-cat/packages/sequent-core/rust-local-target-wasm/wasm32-unknown-unknown/debug/build/oid-registry-5fe52042e26de943/out

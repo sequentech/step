@@ -278,11 +278,9 @@ pub async fn import_election_event_f(
         )
     })?;
 
-    let (temp_file_path, _document, document_type) =
+    let (temp_file_path, _document, document_type, package) =
         match get_document(&hasura_transaction, input.clone(), None).await {
-            Ok((temp_file_path, document, document_type)) => {
-                (temp_file_path, document, document_type)
-            }
+            Ok(opened) => opened,
             Err(err) => {
                 return Ok(
                     refuse(task_execution, Refusal::of_document(&err)).await
@@ -290,7 +288,9 @@ pub async fn import_election_event_f(
             }
         };
 
-    match input.sha256.clone() {
+    // A verified package was checked file by file against its signed
+    // manifest, so a hand-typed checksum of the upload has nothing to add.
+    match input.sha256.clone().filter(|_| package.is_none()) {
         Some(hash) if !hash.is_empty() => {
             match integrity_check(&temp_file_path, hash) {
                 Ok(_) => {

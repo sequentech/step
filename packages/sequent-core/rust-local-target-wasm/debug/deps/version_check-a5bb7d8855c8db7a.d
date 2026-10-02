@@ -1,0 +1,10 @@
+/home/ereslibre/projects/sequentech/step/.claude/worktrees/keen-zooming-cat/packages/sequent-core/rust-local-target-wasm/debug/deps/version_check-a5bb7d8855c8db7a.d: /home/ereslibre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/version_check-0.9.5/src/lib.rs /home/ereslibre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/version_check-0.9.5/src/version.rs /home/ereslibre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/version_check-0.9.5/src/channel.rs /home/ereslibre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/version_check-0.9.5/src/date.rs
+
+/home/ereslibre/projects/sequentech/step/.claude/worktrees/keen-zooming-cat/packages/sequent-core/rust-local-target-wasm/debug/deps/libversion_check-a5bb7d8855c8db7a.rlib: /home/ereslibre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/version_check-0.9.5/src/lib.rs /home/ereslibre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/version_check-0.9.5/src/version.rs /home/ereslibre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/version_check-0.9.5/src/channel.rs /home/ereslibre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/version_check-0.9.5/src/date.rs
+
+/home/ereslibre/projects/sequentech/step/.claude/worktrees/keen-zooming-cat/packages/sequent-core/rust-local-target-wasm/debug/deps/libversion_check-a5bb7d8855c8db7a.rmeta: /home/ereslibre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/version_check-0.9.5/src/lib.rs /home/ereslibre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/version_check-0.9.5/src/version.rs /home/ereslibre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/version_check-0.9.5/src/channel.rs /home/ereslibre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/version_check-0.9.5/src/date.rs
+
+/home/ereslibre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/version_check-0.9.5/src/lib.rs:
+/home/ereslibre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/version_check-0.9.5/src/version.rs:
+/home/ereslibre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/version_check-0.9.5/src/channel.rs:
+/home/ereslibre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/version_check-0.9.5/src/date.rs:

@@ -1,0 +1,9 @@
+/home/ereslibre/projects/sequentech/step/.claude/worktrees/keen-zooming-cat/packages/sequent-core/rust-local-target-wasm/wasm32-unknown-unknown/debug/deps/js_sys-84ea940c268ca1e3.d: /home/ereslibre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/js-sys-0.3.105/src/lib.rs /home/ereslibre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/js-sys-0.3.105/src/futures/mod.rs /home/ereslibre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/js-sys-0.3.105/src/futures/jspi.rs /home/ereslibre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/js-sys-0.3.105/src/futures/queue.rs /home/ereslibre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/js-sys-0.3.105/src/futures/task/singlethread.rs
+
+/home/ereslibre/projects/sequentech/step/.claude/worktrees/keen-zooming-cat/packages/sequent-core/rust-local-target-wasm/wasm32-unknown-unknown/debug/deps/libjs_sys-84ea940c268ca1e3.rmeta: /home/ereslibre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/js-sys-0.3.105/src/lib.rs /home/ereslibre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/js-sys-0.3.105/src/futures/mod.rs /home/ereslibre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/js-sys-0.3.105/src/futures/jspi.rs /home/ereslibre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/js-sys-0.3.105/src/futures/queue.rs /home/ereslibre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/js-sys-0.3.105/src/futures/task/singlethread.rs
+
+/home/ereslibre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/js-sys-0.3.105/src/lib.rs:
+/home/ereslibre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/js-sys-0.3.105/src/futures/mod.rs:
+/home/ereslibre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/js-sys-0.3.105/src/futures/jspi.rs:
+/home/ereslibre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/js-sys-0.3.105/src/futures/queue.rs:
+/home/ereslibre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/js-sys-0.3.105/src/futures/task/singlethread.rs:

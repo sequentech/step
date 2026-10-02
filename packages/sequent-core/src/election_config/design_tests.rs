@@ -57,6 +57,35 @@ fn a_design_is_matched_by_area_and_election() {
 }
 
 #[test]
+fn the_approved_design_published_as_it_is_matches() {
+    assert!(mismatches(&[design(3, "aa")], &[digest("aa")]).is_empty());
+}
+
+#[test]
+fn a_design_edited_after_import_is_named() {
+    let found = mismatches(&[design(3, "aa")], &[digest("bb")]);
+    assert_eq!(
+        found,
+        vec![DesignMismatch {
+            area: "North".to_string(),
+            election: "officers".to_string(),
+            expected: Some("aa".to_string()),
+            actual: "bb".to_string(),
+        }]
+    );
+    assert!(found[0].to_string().contains("not the approved design"));
+}
+
+#[test]
+fn a_ballot_the_manifest_never_approved_is_named() {
+    let found = mismatches(&[], &[digest("aa")]);
+    assert_eq!(found[0].expected, None);
+    assert!(found[0]
+        .to_string()
+        .contains("not in the signed configuration"));
+}
+
+#[test]
 fn a_bucket_path_is_its_file_name() {
     assert_eq!(
         public_file_name("tenant-1/document-2/face.png"),

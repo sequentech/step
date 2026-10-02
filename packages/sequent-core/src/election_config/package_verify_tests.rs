@@ -749,6 +749,115 @@ fn a_signing_certificate_is_checked_before_it_is_used() {
     assert_eq!(problem.id.as_deref(), Some("package.untrusted-signer"));
 }
 
+fn settings(
+    world: &World,
+    policy: ConfigurationSigningPolicy,
+) -> ConfigurationSigning {
+    ConfigurationSigning {
+        policy,
+        package_roots: world.root.pem(),
+        staff_roots: world.staff_root.pem(),
+        required_approvals: 2,
+    }
+}
+
+#[test]
+fn the_setting_reads_from_the_tenants_json() {
+    let read: ConfigurationSigning =
+        serde_json::from_value(serde_json::json!({
+            "policy": "required",
+            "package_roots": "-----BEGIN CERTIFICATE-----",
+            "required_approvals": 2
+        }))
+        .unwrap();
+    assert_eq!(read.policy, ConfigurationSigningPolicy::Required);
+    assert_eq!(read.staff_roots, "");
+    let empty: ConfigurationSigning =
+        serde_json::from_value(serde_json::json!({})).unwrap();
+    assert_eq!(empty.policy, ConfigurationSigningPolicy::Optional);
+}
+
+#[test]
+fn an_unsigned_file_imports_as_before_unless_signatures_are_required() {
+    let world = world();
+    let plain = zip(&members()).unwrap();
+    assert!(matches!(
+        admit(&plain, None, Vec::new()),
+        Ok(Admission::Unsigned)
+    ));
+    assert!(matches!(
+        admit(
+            &plain,
+            Some(&settings(&world, ConfigurationSigningPolicy::Optional)),
+            Vec::new()
+        ),
+        Ok(Admission::Unsigned)
+    ));
+    let report = admit(
+        &plain,
+        Some(&settings(&world, ConfigurationSigningPolicy::Required)),
+        Vec::new(),
+    )
+    .unwrap_err();
+    assert_eq!(ids(&report), vec!["package.unsigned"]);
+    let not_a_zip = admit(
+        b"{}",
+        Some(&settings(&world, ConfigurationSigningPolicy::Required)),
+        Vec::new(),
+    )
+    .unwrap_err();
+    assert_eq!(ids(&not_a_zip), vec!["package.unsigned"]);
+}
+
+#[test]
+fn a_signed_package_is_always_checked() {
+    let world = world();
+    let bytes = signed(&approved(&world, 8), &world.key, &members());
+    let Ok(Admission::Verified(verified)) = admit(
+        &bytes,
+        Some(&settings(&world, ConfigurationSigningPolicy::Optional)),
+        Vec::new(),
+    ) else {
+        panic!("a good package is admitted");
+    };
+    assert_eq!(
+        importable_member(&verified).unwrap(),
+        members()[0].bytes.as_slice()
+    );
+
+    // Signed with no trust configured: refused, not imported unchecked.
+    let report = admit(&bytes, None, Vec::new()).unwrap_err();
+    assert_eq!(ids(&report), vec!["package.untrusted-signer"]);
+
+    // A revocation list the installation saw applies.
+    let lists = crls_from_pem(&crl(&world.root, &[world.key.serial])).unwrap();
+    let revoked = admit(
+        &bytes,
+        Some(&settings(&world, ConfigurationSigningPolicy::Optional)),
+        lists,
+    )
+    .unwrap_err();
+    assert_eq!(ids(&revoked), vec!["package.revoked-signer"]);
+}
+
+#[test]
+fn a_package_without_the_importable_archive_has_nothing_to_import() {
+    let world = world();
+    let only_plan = vec![members()[1].clone()];
+    let mut manifest = approved(&world, 8);
+    manifest.content.files = file_entries(&only_plan).unwrap();
+    manifest.content_sha256 = manifest.content.sha256().unwrap();
+    let mut fresh = unsigned_manifest(8);
+    fresh.content = manifest.content.clone();
+    fresh.content_sha256 = manifest.content_sha256.clone();
+    approve(&mut fresh, &world.manager, "Configuration Manager");
+    approve(&mut fresh, &world.officer, "Security Officer");
+    let bytes = signed(&fresh, &world.key, &only_plan);
+    let verified = verify_package(&bytes, &trust(&world)).unwrap();
+    let problem = importable_member(&verified).unwrap_err();
+    assert_eq!(problem.id.as_deref(), Some("package.no-importable"));
+}
+
 #[test]
 fn trust_settings_that_are_not_pem_are_reported() {
     let problem =

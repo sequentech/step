@@ -670,6 +670,10 @@ const spanishTranslation: TranslationType = {
                     },
                 },
                 package: {
+                    "already-imported": {
+                        lead: "Ya importada",
+                        text: "Ya importada — la revisión {{revision}} de esta configuración ya se importó; importa una revisión más reciente.",
+                    },
                     "approval-invalid": {
                         lead: "La aprobación no cuenta",
                         text: "La aprobación no cuenta — no se ha podido verificar la aprobación de {{name}}: {{reason}}",
@@ -710,6 +714,14 @@ const spanishTranslation: TranslationType = {
                         lead: "No es una fecha y hora",
                         text: "No es una fecha y hora — «{{value}}» en el manifiesto no es una fecha y hora.",
                     },
+                    "no-importable": {
+                        lead: "Nada que importar",
+                        text: "Nada que importar — el paquete no tiene official_election_setup.zip, el archivo comprimido que lee el importador.",
+                    },
+                    "report-template-changed": {
+                        lead: "La plantilla del informe ha cambiado",
+                        text: "La plantilla del informe ha cambiado — la plantilla del informe {{report}} no es la aprobada: su huella es {{actual}}, y la configuración firmada dice {{expected}}.",
+                    },
                     "report-template-missing": {
                         lead: "Falta la plantilla del informe",
                         text: "Falta la plantilla del informe — el informe {{report}} se genera con la plantilla «{{template}}», que no está en la configuración, así que su diseño no se puede firmar.",
@@ -749,6 +761,10 @@ const spanishTranslation: TranslationType = {
                     "unreadable-manifest": {
                         lead: "Manifiesto ilegible",
                         text: "Manifiesto ilegible — no se ha podido leer el manifiesto del paquete: {{reason}}",
+                    },
+                    "unreadable-revocation-list": {
+                        lead: "Lista de revocación ilegible",
+                        text: "Lista de revocación ilegible — no se ha podido leer una lista de revocación, así que no se puede aplicar: {{reason}}",
                     },
                     "unreadable-trust": {
                         lead: "Certificados de confianza ilegibles",

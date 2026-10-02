@@ -1,0 +1,10 @@
+/home/ereslibre/projects/sequentech/step/.claude/worktrees/keen-zooming-cat/packages/sequent-core/rust-local-target-wasm/wasm32-unknown-unknown/debug/deps/spki-48220454fea75bfb.d: /home/ereslibre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/spki-0.8.0/src/lib.rs /home/ereslibre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/spki-0.8.0/src/algorithm.rs /home/ereslibre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/spki-0.8.0/src/error.rs /home/ereslibre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/spki-0.8.0/src/spki.rs /home/ereslibre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/spki-0.8.0/src/traits.rs /home/ereslibre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/spki-0.8.0/src/../README.md
+
+/home/ereslibre/projects/sequentech/step/.claude/worktrees/keen-zooming-cat/packages/sequent-core/rust-local-target-wasm/wasm32-unknown-unknown/debug/deps/libspki-48220454fea75bfb.rmeta: /home/ereslibre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/spki-0.8.0/src/lib.rs /home/ereslibre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/spki-0.8.0/src/algorithm.rs /home/ereslibre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/spki-0.8.0/src/error.rs /home/ereslibre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/spki-0.8.0/src/spki.rs /home/ereslibre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/spki-0.8.0/src/traits.rs /home/ereslibre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/spki-0.8.0/src/../README.md
+
+/home/ereslibre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/spki-0.8.0/src/lib.rs:
+/home/ereslibre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/spki-0.8.0/src/algorithm.rs:
+/home/ereslibre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/spki-0.8.0/src/error.rs:
+/home/ereslibre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/spki-0.8.0/src/spki.rs:
+/home/ereslibre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/spki-0.8.0/src/traits.rs:
+/home/ereslibre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/spki-0.8.0/src/../README.md:

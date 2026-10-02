@@ -671,6 +671,10 @@ const galegoTranslation: TranslationType = {
                     },
                 },
                 package: {
+                    "already-imported": {
+                        lead: "Xa importada",
+                        text: "Xa importada — a revisión {{revision}} desta configuración xa se importou; importe unha revisión máis recente.",
+                    },
                     "approval-invalid": {
                         lead: "A aprobación non conta",
                         text: "A aprobación non conta — non se puido verificar a aprobación de {{name}}: {{reason}}",
@@ -711,6 +715,14 @@ const galegoTranslation: TranslationType = {
                         lead: "Non é unha data e hora",
                         text: "Non é unha data e hora — «{{value}}» no manifesto non é unha data e hora.",
                     },
+                    "no-importable": {
+                        lead: "Nada que importar",
+                        text: "Nada que importar — o paquete non ten official_election_setup.zip, o arquivo que le o importador.",
+                    },
+                    "report-template-changed": {
+                        lead: "O modelo do informe cambiou",
+                        text: "O modelo do informe cambiou — o modelo do informe {{report}} non é o aprobado: a súa pegada é {{actual}}, e a configuración asinada di {{expected}}.",
+                    },
                     "report-template-missing": {
                         lead: "Falta o modelo do informe",
                         text: "Falta o modelo do informe — o informe {{report}} xérase co modelo «{{template}}», que non está na configuración, así que o seu deseño non se pode asinar.",
@@ -750,6 +762,10 @@ const galegoTranslation: TranslationType = {
                     "unreadable-manifest": {
                         lead: "Manifesto ilexible",
                         text: "Manifesto ilexible — non se puido ler o manifesto do paquete: {{reason}}",
+                    },
+                    "unreadable-revocation-list": {
+                        lead: "Lista de revogación ilexible",
+                        text: "Lista de revogación ilexible — non se puido ler unha lista de revogación, así que non se pode aplicar: {{reason}}",
                     },
                     "unreadable-trust": {
                         lead: "Certificados de confianza ilexibles",
