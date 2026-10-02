@@ -74,6 +74,17 @@ pub enum Code {
     IncompatibleVersion,
     /// The file is not the one its checksum describes.
     IntegrityMismatch,
+    /// A configuration package has no signature where one is required.
+    Unsigned,
+    /// A configuration package's signature doesn't verify.
+    BadSignature,
+    /// A signer's or an approver's certificate isn't trusted, is revoked or
+    /// isn't made for signing.
+    UntrustedSigner,
+    /// A configuration package doesn't have the approvals it needs.
+    NotApproved,
+    /// A configuration package is not newer than the last one imported.
+    Rollback,
 }
 
 /// One thing wrong with a bundle.

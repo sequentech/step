@@ -49,3 +49,4 @@ pub mod update_event_voting_status;
 pub mod update_tally_status;
 pub mod update_voter;
 pub mod upload_document;
+pub mod verify_package;

@@ -415,8 +415,7 @@ pub fn ballot_design_digests(
         .map_err(Report::from_problem)?,
         |keys, image| keys.with_document(&image.document_id, &image.file_name),
     );
-    design::ballot_design_digests(&styles, &keys)
-        .map_err(Report::from_problem)
+    design::ballot_design_digests(&styles, &keys).map_err(Report::from_problem)
 }
 
 /// The platform's ballot styles for `document`, one per area and election.

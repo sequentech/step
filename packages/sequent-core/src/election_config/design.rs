@@ -265,7 +265,9 @@ pub fn versioned(
                 design.area == digest.area && design.election == digest.election
             });
             let version = match before {
-                Some(design) if design.sha256 == digest.sha256 => design.version,
+                Some(design) if design.sha256 == digest.sha256 => {
+                    design.version
+                }
                 Some(design) => design.version.saturating_add(1),
                 None => 1,
             };
@@ -285,7 +287,10 @@ fn normalise(value: Value, keys: &DesignKeys) -> Value {
             Value::String(keys.replacement(&text).unwrap_or(text))
         }
         Value::Array(items) => Value::Array(
-            items.into_iter().map(|item| normalise(item, keys)).collect(),
+            items
+                .into_iter()
+                .map(|item| normalise(item, keys))
+                .collect(),
         ),
         Value::Object(map) => {
             let mut out = Map::new();
@@ -323,7 +328,9 @@ fn sort_by_key(list: &mut Value) {
                 (id, text, item)
             })
             .collect();
-        keyed.sort_by(|left, right| (&left.0, &left.1).cmp(&(&right.0, &right.1)));
+        keyed.sort_by(|left, right| {
+            (&left.0, &left.1).cmp(&(&right.0, &right.1))
+        });
         items.extend(keyed.into_iter().map(|(_, _, item)| item));
     }
 }

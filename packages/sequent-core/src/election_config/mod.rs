@@ -69,6 +69,11 @@ pub mod ids;
 #[cfg(feature = "election_config_archive")]
 pub mod manifest;
 
+/// Checking a signed configuration package before anything in it is read:
+/// its signer, signature, files, approvals and revision.
+#[cfg(feature = "election_config_signing")]
+pub mod package_verify;
+
 /// What an importer says about a file that fails before, or beside, validation.
 pub mod import_problems;
 

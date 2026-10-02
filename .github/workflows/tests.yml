@@ -86,6 +86,9 @@ jobs:
           - gate: election_config_archive,election_config_xlsx
             cache: archive-xlsx
             features: election_config_archive,election_config_xlsx
+          - gate: election_config_signing
+            cache: signing
+            features: election_config_signing
           # The frontends' WASM package: `election_config::wasm` without the
           # template features. A native check catches a mis-gated import there.
           - gate: wasmtest,default_features

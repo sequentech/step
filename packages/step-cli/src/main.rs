@@ -85,6 +85,7 @@ enum StepCommands {
     DownloadDocument(commands::download_document::DownloadDocument),
     UploadDocument(commands::upload_document::UploadDocument),
     MigrateRealmPermissions(commands::migrate_realm_permissions::MigrateRealmPermissions),
+    VerifyPackage(commands::verify_package::VerifyPackage),
 }
 
 fn main() {
@@ -161,6 +162,7 @@ fn main() {
             StepCommands::MigrateRealmPermissions(migrate) => {
                 exit_on_error(migrate.run().map_err(|error| format!("{error:#}")))
             }
+            StepCommands::VerifyPackage(cmd) => cmd.run(),
         },
     }
 }
