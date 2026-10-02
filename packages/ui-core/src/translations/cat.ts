@@ -462,6 +462,16 @@ const catalanTranslation: TranslationType = {
                         text: "Sense arxiu importable — aquest zip té un pla però no l'arxiu que importa el Portal d'Administració, així que no conté el cens ni els fitxers que esmenta.",
                     },
                 },
+                design: {
+                    "no-stable-key": {
+                        lead: "Disseny de papereta sense clau",
+                        text: "Disseny de papereta sense clau — {{kind}} {{id}} no té nom ni identificador extern, així que els seus dissenys de papereta no es poden reconèixer després d'una importació.",
+                    },
+                    "unreadable-style": {
+                        lead: "Estil de papereta il·legible",
+                        text: "Estil de papereta il·legible — no s'ha pogut llegir l'estil de papereta de la plataforma per calcular l'empremta del seu disseny: {{reason}}",
+                    },
+                },
                 election: {
                     "channels-differ": {
                         lead: "L'elecció i l'esdeveniment no coincideixen",
@@ -655,6 +665,108 @@ const catalanTranslation: TranslationType = {
                     "no-seed": {
                         lead: "Contrasenyes sense llavor",
                         text: "Contrasenyes sense llavor — la llavor és el que fa que una reconstrucció produeixi les mateixes contrasenyes en lloc de noves.",
+                    },
+                },
+                package: {
+                    "approval-invalid": {
+                        lead: "L'aprovació no compta",
+                        text: "L'aprovació no compta — no s'ha pogut verificar l'aprovació de {{name}}: {{reason}}",
+                    },
+                    "approval-repeated": {
+                        lead: "La mateixa persona ha aprovat dues vegades",
+                        text: "La mateixa persona ha aprovat dues vegades — {{name}} ha aprovat més d'una vegada, i compta una sola vegada.",
+                    },
+                    "approver-key-usage": {
+                        lead: "L'aprovador no pot signar",
+                        text: "L'aprovador no pot signar — el certificat d'un aprovador no està fet per signar.",
+                    },
+                    "bad-signature": {
+                        lead: "La signatura no coincideix",
+                        text: "La signatura no coincideix — la signatura del paquet no es verifica, així que s'ha modificat després de signar-lo o l'ha signat una altra clau: {{reason}}",
+                    },
+                    "content-digest": {
+                        lead: "L'empremta del contingut no coincideix",
+                        text: "L'empremta del contingut no coincideix — el manifest diu {{expected}} i el seu contingut dona {{actual}}.",
+                    },
+                    "duplicate-member": {
+                        lead: "Nom de fitxer repetit",
+                        text: "Nom de fitxer repetit — «{{file}}» apareix dues vegades a {{archive}}, així que dos lectors podrien agafar fitxers diferents.",
+                    },
+                    "file-changed": {
+                        lead: "Modificat després de signar",
+                        text: "Modificat després de signar — {{file}} té SHA-256 {{actual}}, i el manifest diu {{expected}}. No s'ha llegit res del paquet.",
+                    },
+                    "file-extra": {
+                        lead: "Fitxer fora del manifest",
+                        text: "Fitxer fora del manifest — {{file}} és al paquet però no s'ha signat. No s'ha llegit res del paquet.",
+                    },
+                    "file-missing": {
+                        lead: "Falta un fitxer signat",
+                        text: "Falta un fitxer signat — {{file}} és al manifest i no al paquet. No s'ha llegit res del paquet.",
+                    },
+                    "invalid-time": {
+                        lead: "No és una data i hora",
+                        text: "No és una data i hora — «{{value}}» al manifest no és una data i hora.",
+                    },
+                    "revoked-approver": {
+                        lead: "Certificat d'aprovador revocat",
+                        text: "Certificat d'aprovador revocat — el certificat d'un aprovador s'ha revocat, així que l'aprovació no compta.",
+                    },
+                    "revoked-signer": {
+                        lead: "Clau de signatura revocada",
+                        text: "Clau de signatura revocada — la clau que ha signat aquest paquet s'ha revocat, i els seus paquets es rebutgen.",
+                    },
+                    "rollback": {
+                        lead: "No és una revisió més recent",
+                        text: "No és una revisió més recent — la revisió {{revision}} no és més recent que la revisió {{last}}, l'última importada.",
+                    },
+                    "signer-key-usage": {
+                        lead: "La clau de signatura no pot signar",
+                        text: "La clau de signatura no pot signar — el certificat de la clau que ha signat aquest paquet no està fet per signar.",
+                    },
+                    "too-few-approvals": {
+                        lead: "Massa poques aprovacions",
+                        text: "Massa poques aprovacions — {{count}} aprovacions vàlides de persones diferents, i se'n necessiten {{required}}.",
+                    },
+                    "unhashable-content": {
+                        lead: "No es pot calcular l'empremta",
+                        text: "No es pot calcular l'empremta — no s'ha pogut escriure el contingut de la configuració per calcular-ne l'empremta: {{reason}}",
+                    },
+                    "unknown-format": {
+                        lead: "Format de manifest desconegut",
+                        text: "Format de manifest desconegut — el manifest és en el format «{{format}}», que aquesta versió no pot llegir.",
+                    },
+                    "unreadable-chain": {
+                        lead: "Certificats del signant il·legibles",
+                        text: "Certificats del signant il·legibles — no s'ha pogut llegir la cadena de certificats del paquet: {{reason}}",
+                    },
+                    "unreadable-manifest": {
+                        lead: "Manifest il·legible",
+                        text: "Manifest il·legible — no s'ha pogut llegir el manifest del paquet: {{reason}}",
+                    },
+                    "unreadable-trust": {
+                        lead: "Certificats de confiança il·legibles",
+                        text: "Certificats de confiança il·legibles — no s'ha pogut llegir el paràmetre {{setting}}: {{reason}}",
+                    },
+                    "unreadable-zip": {
+                        lead: "Arxiu il·legible",
+                        text: "Arxiu il·legible — no s'ha pogut llegir {{archive}} com a zip: {{reason}}",
+                    },
+                    "unsigned": {
+                        lead: "Paquet sense signar",
+                        text: "Paquet sense signar — no té {{missing}}, i aquesta instal·lació només importa paquets signats.",
+                    },
+                    "untrusted-approver": {
+                        lead: "Aprovador no fiable",
+                        text: "Aprovador no fiable — el certificat d'un aprovador no és de confiança: {{reason}}",
+                    },
+                    "untrusted-signer": {
+                        lead: "Signant no fiable",
+                        text: "Signant no fiable — la clau que ha signat aquest paquet no és una de les que aquesta instal·lació considera de confiança: {{reason}}",
+                    },
+                    "unwritable-manifest": {
+                        lead: "No es pot escriure el manifest",
+                        text: "No es pot escriure el manifest — no s'ha pogut escriure el manifest: {{reason}}",
                     },
                 },
                 plan: {

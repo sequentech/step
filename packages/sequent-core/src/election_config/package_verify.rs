@@ -581,15 +581,15 @@ fn check_certificate(
         untrusted(format!("the certificate is unreadable: {error}"))
     })?;
     if !made_for_signing(&parsed) {
-        return Err(Problem::error(
+        let problem = Problem::error(
             Code::UntrustedSigner,
             role.path(),
             format!("{}'s certificate is not made for signing", role.who()),
-        )
-        .id(match role {
-            Role::PackageSigner => "package.signer-key-usage",
-            Role::Approver => "package.approver-key-usage",
-        }));
+        );
+        return Err(match role {
+            Role::PackageSigner => problem.id("package.signer-key-usage"),
+            Role::Approver => problem.id("package.approver-key-usage"),
+        });
     }
 
     Ok(CertificateIdentity {
@@ -770,28 +770,28 @@ fn unreadable_trust(what: &str, reason: String) -> Problem {
 }
 
 fn untrusted_signer(role: Role, reason: String) -> Problem {
-    Problem::error(
+    let problem = Problem::error(
         Code::UntrustedSigner,
         role.path(),
         format!("{} is not trusted: {reason}", role.who()),
-    )
-    .id(match role {
-        Role::PackageSigner => "package.untrusted-signer",
-        Role::Approver => "package.untrusted-approver",
-    })
+    );
+    match role {
+        Role::PackageSigner => problem.id("package.untrusted-signer"),
+        Role::Approver => problem.id("package.untrusted-approver"),
+    }
     .detail("reason", reason)
 }
 
 fn revoked_signer(role: Role) -> Problem {
-    Problem::error(
+    let problem = Problem::error(
         Code::UntrustedSigner,
         role.path(),
         format!("{}'s certificate has been revoked", role.who()),
-    )
-    .id(match role {
-        Role::PackageSigner => "package.revoked-signer",
-        Role::Approver => "package.revoked-approver",
-    })
+    );
+    match role {
+        Role::PackageSigner => problem.id("package.revoked-signer"),
+        Role::Approver => problem.id("package.revoked-approver"),
+    }
 }
 
 fn bad_signature(reason: String) -> Problem {

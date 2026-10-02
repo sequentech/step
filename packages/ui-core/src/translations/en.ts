@@ -461,6 +461,16 @@ const englishTranslation = {
                         text: "No importable archive — this zip has a plan but not the archive the Admin Portal imports, so the census and the files it names are not in it.",
                     },
                 },
+                design: {
+                    "no-stable-key": {
+                        lead: "Ballot design without a key",
+                        text: "Ballot design without a key — {{kind}} {{id}} has no name or external id, so its ballot designs can't be recognized after an import.",
+                    },
+                    "unreadable-style": {
+                        lead: "Ballot style unreadable",
+                        text: "Ballot style unreadable — the platform's ballot style could not be read to compute its design digest: {{reason}}",
+                    },
+                },
                 election: {
                     "channels-differ": {
                         lead: "Election and event disagree",
@@ -654,6 +664,108 @@ const englishTranslation = {
                     "no-seed": {
                         lead: "Passwords without a seed",
                         text: "Passwords without a seed — the seed is what makes a rebuild produce the same passwords rather than new ones.",
+                    },
+                },
+                package: {
+                    "approval-invalid": {
+                        lead: "Approval doesn't count",
+                        text: "Approval doesn't count — the approval by {{name}} could not be verified: {{reason}}",
+                    },
+                    "approval-repeated": {
+                        lead: "Same person approved twice",
+                        text: "Same person approved twice — {{name}} approved more than once, and counts once.",
+                    },
+                    "approver-key-usage": {
+                        lead: "Approver can't sign",
+                        text: "Approver can't sign — an approver's certificate is not made for signing.",
+                    },
+                    "bad-signature": {
+                        lead: "Signature doesn't match",
+                        text: "Signature doesn't match — the package's signature does not verify, so it was changed after signing or signed by another key: {{reason}}",
+                    },
+                    "content-digest": {
+                        lead: "Content digest doesn't match",
+                        text: "Content digest doesn't match — the manifest says {{expected}} and its content hashes to {{actual}}.",
+                    },
+                    "duplicate-member": {
+                        lead: "File name used twice",
+                        text: "File name used twice — '{{file}}' appears twice in {{archive}}, so two readers could take different files.",
+                    },
+                    "file-changed": {
+                        lead: "Changed after signing",
+                        text: "Changed after signing — {{file}} has SHA-256 {{actual}}, and the manifest says {{expected}}. Nothing in the package was read.",
+                    },
+                    "file-extra": {
+                        lead: "File not in the manifest",
+                        text: "File not in the manifest — {{file}} is in the package but was not signed. Nothing in the package was read.",
+                    },
+                    "file-missing": {
+                        lead: "Signed file missing",
+                        text: "Signed file missing — {{file}} is in the manifest and not in the package. Nothing in the package was read.",
+                    },
+                    "invalid-time": {
+                        lead: "Not a time",
+                        text: "Not a time — '{{value}}' in the manifest is not a date and time.",
+                    },
+                    "revoked-approver": {
+                        lead: "Approver's certificate revoked",
+                        text: "Approver's certificate revoked — an approver's certificate has been revoked, so the approval doesn't count.",
+                    },
+                    "revoked-signer": {
+                        lead: "Signing key revoked",
+                        text: "Signing key revoked — the key that signed this package has been revoked, and its packages are refused.",
+                    },
+                    "rollback": {
+                        lead: "Not a newer revision",
+                        text: "Not a newer revision — revision {{revision}} is not newer than revision {{last}}, the last one imported.",
+                    },
+                    "signer-key-usage": {
+                        lead: "Signing key can't sign",
+                        text: "Signing key can't sign — the certificate of the key that signed this package is not made for signing.",
+                    },
+                    "too-few-approvals": {
+                        lead: "Too few approvals",
+                        text: "Too few approvals — {{count}} valid approvals from different people, and {{required}} are needed.",
+                    },
+                    "unhashable-content": {
+                        lead: "Content can't be hashed",
+                        text: "Content can't be hashed — the configuration's content could not be written to be hashed: {{reason}}",
+                    },
+                    "unknown-format": {
+                        lead: "Unknown manifest format",
+                        text: "Unknown manifest format — the manifest is in format '{{format}}', which this version can't read.",
+                    },
+                    "unreadable-chain": {
+                        lead: "Signer's certificates unreadable",
+                        text: "Signer's certificates unreadable — the package's certificate chain could not be read: {{reason}}",
+                    },
+                    "unreadable-manifest": {
+                        lead: "Manifest unreadable",
+                        text: "Manifest unreadable — the package's manifest could not be read: {{reason}}",
+                    },
+                    "unreadable-trust": {
+                        lead: "Trusted certificates unreadable",
+                        text: "Trusted certificates unreadable — the {{setting}} setting could not be read: {{reason}}",
+                    },
+                    "unreadable-zip": {
+                        lead: "Archive unreadable",
+                        text: "Archive unreadable — {{archive}} could not be read as a zip: {{reason}}",
+                    },
+                    "unsigned": {
+                        lead: "Package not signed",
+                        text: "Package not signed — it has no {{missing}}, and this installation only imports signed packages.",
+                    },
+                    "untrusted-approver": {
+                        lead: "Approver not trusted",
+                        text: "Approver not trusted — an approver's certificate is not trusted: {{reason}}",
+                    },
+                    "untrusted-signer": {
+                        lead: "Signer not trusted",
+                        text: "Signer not trusted — the key that signed this package is not one this installation trusts: {{reason}}",
+                    },
+                    "unwritable-manifest": {
+                        lead: "Manifest can't be written",
+                        text: "Manifest can't be written — the manifest could not be written: {{reason}}",
                     },
                 },
                 plan: {
