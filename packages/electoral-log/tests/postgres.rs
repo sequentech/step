@@ -258,3 +258,69 @@ async fn visibility_and_user_filters_apply_to_both_list_and_count() -> Result<()
     client.delete_board(&board).await?;
     Ok(())
 }
+
+#[tokio::test]
+#[ignore = "requires ELECTORAL_LOG_TEST_DATABASE_URL"]
+async fn trellis_atomic_append_proofs_and_restart() -> Result<()> {
+    use electoral_log::{ports::ElectoralLogStore, proofs::leaf_hash};
+    let store = PostgresStore::new(std::env::var("ELECTORAL_LOG_TEST_DATABASE_URL")?.parse()?)?;
+    store.initialize().await?;
+    let board = format!("trellis-{}", Uuid::new_v4());
+    store.create_board(&board).await?;
+    let client = BoardClient::new(Arc::new(store.clone()));
+    let journal = store.journal();
+    let (empty, committed) = journal.checkpoint(&board).await?;
+    assert_eq!(committed, 0);
+    client.append(&board, &[entry("a", 1, None)]).await?;
+    let first = client.query(&board, &LogQuery::default()).await?.remove(0);
+    assert!(store
+        .record_proof(&journal, &board, first.id)
+        .await?
+        .is_none());
+    let bad = vec![entry("rolled-back", 2, None), entry("", 3, None)];
+    assert!(client.append(&board, &bad).await.is_err());
+    assert_eq!(journal.checkpoint(&board).await?.1, 1);
+    journal.process_once().await?;
+    let proof = store
+        .record_proof(&journal, &board, first.id)
+        .await?
+        .unwrap();
+    let old = proof.inclusion.checkpoint.clone();
+    proof.verify(&old)?;
+    journal.consistency(&empty).await?.verify(&empty)?;
+    let mut changed = proof.entry.clone();
+    changed.message.username = Some("changed".into());
+    assert!(proof
+        .inclusion
+        .verify(&leaf_hash(&board, &changed)?, &old)
+        .is_err());
+    let second = entry("b", 1, None);
+    let (a, b) = tokio::join!(
+        client.append(&board, std::slice::from_ref(&second)),
+        client.append(&board, std::slice::from_ref(&second))
+    );
+    a?;
+    b?;
+    assert_eq!(journal.checkpoint(&board).await?.1, 2);
+    journal.process_once().await?;
+    let consistency = journal.consistency(&old).await?;
+    consistency.verify(&old)?;
+    let mut wrong = old.clone();
+    wrong.tree_size += 1;
+    assert!(consistency.verify(&wrong).is_err());
+    let checkpoint = journal.checkpoint(&board).await?.0;
+    let restarted = store.journal();
+    restarted.process_once().await?;
+    assert_eq!(restarted.checkpoint(&board).await?.0, checkpoint);
+    restarted.consistency(&old).await?.verify(&old)?;
+    // Refresh an already-running replica even when another replica consumed the last write.
+    journal.process_once().await?;
+    assert_eq!(journal.checkpoint(&board).await?.0, checkpoint);
+    store.delete_board(&board).await?;
+    store.create_board(&board).await?;
+    restarted.process_once().await?;
+    assert!(restarted.consistency(&old).await.is_err());
+    assert_eq!(restarted.checkpoint(&board).await?.1, 0);
+    store.delete_board(&board).await?;
+    Ok(())
+}

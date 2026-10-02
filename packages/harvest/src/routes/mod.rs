@@ -66,3 +66,5 @@ pub mod voter_information_letter;
 pub mod voting_status;
 
 pub mod ballot_files;
+
+pub mod electoral_log_proofs;

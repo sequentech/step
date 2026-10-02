@@ -5,6 +5,7 @@ pub mod adapters;
 pub mod domain;
 pub mod messages;
 pub mod ports;
+pub mod proofs;
 pub mod service;
 pub mod util;
 

@@ -1,7 +1,11 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::{domain::*, ports::ElectoralLogStore};
+use crate::{
+    domain::*,
+    ports::ElectoralLogStore,
+    proofs::{leaf_hash, Journal, RecordProof},
+};
 use anyhow::{ensure, Context, Result};
 use async_trait::async_trait;
 use deadpool_postgres::{Manager, Pool};
@@ -12,6 +16,7 @@ use tokio_postgres::{types::ToSql, Config, Row};
 
 const COLUMNS: &str = "id, created, sender_pk, statement_timestamp, statement_kind, message, version, user_id, username, election_id, area_id, ballot_id";
 
+#[derive(Clone)]
 pub struct PostgresStore {
     pool: Pool,
 }
@@ -65,6 +70,30 @@ impl PostgresStore {
         }
         config.connect_timeout(Duration::from_secs(10));
         Self::with_tls(config, MakeTlsConnector::new(tls.build()))
+    }
+
+    pub fn journal(&self) -> Journal {
+        Journal::new(self.pool.clone())
+    }
+
+    pub async fn record_proof(
+        &self,
+        journal: &Journal,
+        board: &str,
+        id: i64,
+    ) -> Result<Option<RecordProof>> {
+        let row = self.pool.get().await?.query_opt(
+            &format!("SELECT {COLUMNS}, delivery_id FROM electoral_log_messages WHERE board_name=$1 AND id=$2"),
+            &[&board, &id]).await?.context("Electoral-log record does not exist")?;
+        let delivery_id = row.try_get("delivery_id")?;
+        let entry = LogEntry {
+            delivery_id,
+            message: decode(row)?,
+        };
+        let Some(inclusion) = journal.inclusion(board, id).await? else {
+            return Ok(None);
+        };
+        Ok(Some(RecordProof { entry, inclusion }))
     }
 
     /// Run with the database owner during provisioning, not on each request.
@@ -151,14 +180,19 @@ fn predicate(board: &str, query: &LogQuery) -> (String, Parameters) {
 impl ElectoralLogStore for PostgresStore {
     async fn create_board(&self, board: &str) -> Result<()> {
         ensure!(!board.is_empty(), "Electoral-log board must not be empty");
-        self.pool
-            .get()
-            .await?
-            .execute(
-                "INSERT INTO electoral_log_boards (board_name) VALUES ($1) ON CONFLICT DO NOTHING",
-                &[&board],
-            )
-            .await?;
+        let mut conn = self.pool.get().await?;
+        let tx = conn.transaction().await?;
+        tx.execute(
+            "INSERT INTO trellis_logs (name) VALUES ($1) ON CONFLICT DO NOTHING",
+            &[&board],
+        )
+        .await?;
+        tx.execute(
+            "INSERT INTO electoral_log_boards (board_name) VALUES ($1) ON CONFLICT DO NOTHING",
+            &[&board],
+        )
+        .await?;
+        tx.commit().await?;
         Ok(())
     }
 
@@ -166,10 +200,7 @@ impl ElectoralLogStore for PostgresStore {
         self.pool
             .get()
             .await?
-            .execute(
-                "DELETE FROM electoral_log_boards WHERE board_name = $1",
-                &[&board],
-            )
+            .execute("DELETE FROM trellis_logs WHERE name = $1", &[&board])
             .await?;
         Ok(())
     }
@@ -205,33 +236,38 @@ impl ElectoralLogStore for PostgresStore {
             .is_some(),
             "Electoral-log board does not exist"
         );
-        let insert = tx.prepare("INSERT INTO electoral_log_messages (board_name, delivery_id, created, sender_pk, statement_timestamp, statement_kind, message, version, user_id, username, election_id, area_id, ballot_id) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) ON CONFLICT (board_name, delivery_id) DO NOTHING").await?;
+        let insert = tx.prepare("INSERT INTO electoral_log_messages (board_name, delivery_id, created, sender_pk, statement_timestamp, statement_kind, message, version, user_id, username, election_id, area_id, ballot_id) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) ON CONFLICT (board_name, delivery_id) DO NOTHING RETURNING id").await?;
         for entry in entries {
-            let entry = entry?;
+            let mut entry = entry?;
             ensure!(
                 !entry.delivery_id.is_empty(),
                 "Electoral-log delivery ID must not be empty"
             );
             let m = &entry.message;
-            tx.execute(
-                &insert,
-                &[
-                    &board,
-                    &entry.delivery_id,
-                    &m.created,
-                    &m.sender_pk,
-                    &m.statement_timestamp,
-                    &m.statement_kind,
-                    &m.message,
-                    &m.version,
-                    &m.user_id,
-                    &m.username,
-                    &m.election_id,
-                    &m.area_id,
-                    &m.ballot_id,
-                ],
-            )
-            .await?;
+            let inserted = tx
+                .query_opt(
+                    &insert,
+                    &[
+                        &board,
+                        &entry.delivery_id,
+                        &m.created,
+                        &m.sender_pk,
+                        &m.statement_timestamp,
+                        &m.statement_kind,
+                        &m.message,
+                        &m.version,
+                        &m.user_id,
+                        &m.username,
+                        &m.election_id,
+                        &m.area_id,
+                        &m.ballot_id,
+                    ],
+                )
+                .await?;
+            if let Some(row) = inserted {
+                entry.message.id = row.try_get(0)?;
+                Journal::append(&tx, board, entry.message.id, &leaf_hash(board, &entry)?).await?;
+            }
         }
         tx.commit().await?;
         Ok(())
