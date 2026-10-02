@@ -548,7 +548,7 @@ export function applyOverrides(organization: ISigningOrganization) {
 
 const failed = () => ({errors: [new GraphQLError("Synthetic signing service failure")]})
 
-/** A refusal as Hasura forwards a signing route's typed error (api-contract.md). */
+/** A refusal as Hasura forwards a signing route's typed error (see lib/signing/api.ts). */
 export const refusal = (extensions: Record<string, unknown>) => ({
     errors: [new GraphQLError("Synthetic refusal", {extensions})],
 })

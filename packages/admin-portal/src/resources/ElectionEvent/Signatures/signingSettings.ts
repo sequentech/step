@@ -476,7 +476,7 @@ export function linkTarget(
     return holder ? (holder.linked_to ?? holder.user_id) : null
 }
 
-/** The error codes of the signing routes (api-contract.md), as the portal handles them. */
+/** The error codes of the signing routes (the contract in lib/signing/api.ts), as the portal handles them. */
 export enum SigningErrorCode {
     Forbidden = "forbidden",
     Invalid = "invalid",
