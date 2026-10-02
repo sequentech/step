@@ -14,6 +14,7 @@ pub mod guard;
 pub mod issuers;
 pub mod log;
 pub mod pades;
+pub mod page_texts;
 pub mod pdf;
 pub mod permissions;
 pub mod requests;

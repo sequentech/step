@@ -8,7 +8,7 @@
 use crate::services::database::get_keycloak_pool;
 use anyhow::{Context, Result};
 use async_trait::async_trait;
-use deadpool_postgres::{Pool, Transaction};
+use deadpool_postgres::{Object, Pool, Transaction};
 use sequent_core::services::keycloak::get_tenant_realm;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -112,6 +112,17 @@ impl KeycloakUserDirectory {
         KeycloakUserDirectory { pool: Some(pool) }
     }
 
+    /// A client of the Keycloak database.
+    pub async fn client(&self) -> Result<Object> {
+        let pool = match &self.pool {
+            Some(pool) => pool.clone(),
+            None => get_keycloak_pool().await,
+        };
+        pool.get()
+            .await
+            .context("Error getting a Keycloak database client")
+    }
+
     /// The users `user_ids` of the tenant's realm.
     pub async fn people(
         &self,
@@ -121,14 +132,7 @@ impl KeycloakUserDirectory {
         if user_ids.is_empty() {
             return Ok(HashMap::new());
         }
-        let pool = match &self.pool {
-            Some(pool) => pool.clone(),
-            None => get_keycloak_pool().await,
-        };
-        let mut client = pool
-            .get()
-            .await
-            .context("Error getting a Keycloak database client")?;
+        let mut client = self.client().await?;
         let transaction = client.transaction().await?;
         people_in_realm(
             &transaction,

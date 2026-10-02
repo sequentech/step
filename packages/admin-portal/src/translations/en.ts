@@ -3429,8 +3429,6 @@ const englishTranslation = {
                     appliesTo: "Each Post",
                     description:
                         "Started in Publish. Initializes the Post and generates its Initialization Report.",
-                    certify:
-                        "We certify that voting at this Post was initialized. Each of us signed it with our digital certificate.",
                 },
                 "open-voting": {
                     label: "Open voting",
@@ -3439,8 +3437,6 @@ const englishTranslation = {
                     object: "opening of voting",
                     appliesTo: "Each Post",
                     description: "Started in Publish with Start voting. Opens voting at the Post.",
-                    certify:
-                        "We certify that voting at this Post was opened. Each of us signed it with our digital certificate.",
                 },
                 "close-voting": {
                     label: "Close voting",
@@ -3450,8 +3446,6 @@ const englishTranslation = {
                     appliesTo: "Each Post",
                     description:
                         "Started in Publish with Stop voting. Closes voting and seals the ballots; the seal record lists the closing signatures.",
-                    certify:
-                        "We certify that voting at this Post was closed. Each of us signed it with our digital certificate.",
                 },
                 "generate-election-returns": {
                     label: "Generate election returns",
@@ -3461,8 +3455,6 @@ const englishTranslation = {
                     appliesTo: "Each Post and country",
                     description:
                         "Started in Reports. Releases the signed election returns for printing and transmission.",
-                    certify:
-                        "We certify that these election returns are true and correct. Each of us signed them with our digital certificate.",
                 },
                 "generate-reports": {
                     label: "Generate other election reports",
@@ -3472,8 +3464,6 @@ const englishTranslation = {
                     appliesTo: "Each Post",
                     description:
                         "Started in Reports. Releases the signed report: initialization, participation, activity logs or manual verification.",
-                    certify:
-                        "We certify that this report is true and correct. Each of us signed it with our digital certificate.",
                 },
                 "transmit-results": {
                     label: "Transmit results",
@@ -3483,8 +3473,6 @@ const englishTranslation = {
                     appliesTo: "Each Post and country",
                     description:
                         "Started in Tally, Transmission. Builds the signed results package for its destinations; the signatures fill its signature list.",
-                    certify:
-                        "We certify that this results package is true and correct. Each of us signed it with our digital certificate.",
                 },
                 "approve-voter": {
                     label: "Approve a voter manually",
@@ -3494,8 +3482,6 @@ const englishTranslation = {
                     appliesTo: "The voter's Post",
                     description:
                         "Started in Approvals. Approves the voter and issues their credentials.",
-                    certify:
-                        "We certify that this voter is approved. Each of us signed the approval with our digital certificate.",
                 },
                 "approve-configuration": {
                     label: "Approve a configuration version",
@@ -3504,8 +3490,6 @@ const englishTranslation = {
                     object: "configuration version",
                     appliesTo: "The election event",
                     description: "Started in Publish. Publishes the configuration version.",
-                    certify:
-                        "We certify that this configuration version is approved. Each of us signed it with our digital certificate.",
                 },
                 "key-ceremony": {
                     label: "Confirm a key share (key ceremony)",
@@ -3515,8 +3499,6 @@ const englishTranslation = {
                     appliesTo: "Each trustee",
                     description:
                         "Started in Keys by each trustee. Records the trustee's signature with the ceremony and the bulletin board.",
-                    certify:
-                        "I certify that this key share is mine and correct. I signed it with my digital certificate.",
                 },
                 "tally-key": {
                     label: "Contribute a key share (tally)",
@@ -3526,8 +3508,6 @@ const englishTranslation = {
                     appliesTo: "Each trustee",
                     description:
                         "Started in Tally by each trustee. Records the trustee's contribution.",
-                    certify:
-                        "I certify that this key share contribution is mine and correct. I signed it with my digital certificate.",
                 },
             },
             protectedActions: {
@@ -3704,9 +3684,6 @@ const englishTranslation = {
                 sign: "Sign",
                 back: "Back",
                 cancel: "Cancel",
-            },
-            signaturePage: {
-                digitallySigned: "Digitally signed by {{name}}",
             },
             widget: {
                 continue: "Continue",

@@ -31,6 +31,11 @@ use windmill::services::signing::pades::{
     signature_field_name, signature_fields, verify_cms, CmsTrust, PadesError, PreparedRevision,
     SignatureAppearance, SignatureFieldSpec, SignaturePageTexts, CMS_PLACEHOLDER_BYTES,
 };
+use windmill::services::signing::page_texts::{shipped_wordings, PageWording};
+use windmill::services::signing::pdf::{
+    appearance_lines as signature_lines, signature_field_specs, signature_page_texts,
+    SignatureFacts,
+};
 
 // ---------------------------------------------------------------- DER helpers
 
@@ -1556,4 +1561,139 @@ fn preparing_is_deterministic() {
     let two = prepare_revision(&latest, 1, &shown).unwrap();
     assert_eq!(one.bytes(), two.bytes());
     assert_eq!(one.digest_sha256(), two.digest_sha256());
+}
+
+// ------------------------------------------------- the product's page texts
+
+/// What the shipped texts print, by language: an independent copy of the
+/// table's sentences.
+struct Printed {
+    language: &'static str,
+    title: &'static str,
+    certification: &'static str,
+    label: &'static str,
+    signed_by: &'static str,
+    date: &'static str,
+    issuer: &'static str,
+    code: &'static str,
+    document: &'static str,
+}
+
+const PRINTED: [Printed; 1] = [Printed {
+    language: "en",
+    title: "Student Council: digital signatures",
+    certification: "We certify that these election returns are true and correct. Each of us signed them with our digital certificate.",
+    label: "Signature 2",
+    signed_by: "Digitally signed by MARIA SANTOS",
+    date: "Date: 2026-09-30 12:01:05 UTC",
+    issuer: "Issuer: Test Individual CA",
+    code: "Signing code: 7F3A-91C2",
+    document: "Document SHA-256 before signatures: ",
+}];
+
+fn shipped(language: &str) -> &'static PageWording {
+    &shipped_wordings().unwrap()[language]
+}
+
+fn full_facts(sha256: &str) -> SignatureFacts<'_> {
+    SignatureFacts {
+        certificate_name: "MARIA SANTOS",
+        display_name: "Maria Santos",
+        title: Some("Chairperson"),
+        issuer: Some("Test Individual CA"),
+        signing_time: signing_time(1),
+        zone: None,
+        code: CODE,
+        document_sha256: Some(sha256),
+    }
+}
+
+#[test]
+fn the_shipped_texts_print_on_the_page_and_in_each_signature() {
+    const ER: sequent_core::signing::SigningAction =
+        sequent_core::signing::SigningAction::GenerateElectionReturns;
+    for printed in &PRINTED {
+        let wording = shipped(printed.language);
+        let base = append_signature_page(
+            &report_pdf(XrefLayout::Table),
+            &signature_field_specs(wording, 3),
+            &signature_page_texts(wording, ER, "Student Council").unwrap(),
+        )
+        .unwrap();
+        let doc = Document::load_mem(&base).unwrap();
+        let page = shown_strings(&doc.get_page_content(last_page_id(&doc)).unwrap());
+        assert_eq!(page[0], latin1(printed.title), "{}", printed.language);
+        // The certification, wrapped into lines.
+        let text = page.join(&b' ');
+        assert!(
+            contains(&text, &latin1(printed.certification)),
+            "{}",
+            printed.language
+        );
+        assert!(
+            page.contains(&latin1(printed.label)),
+            "{}",
+            printed.language
+        );
+
+        let sha256 = hex::encode(Sha256::digest(&base));
+        let lines = signature_lines(wording, &full_facts(&sha256));
+        let expected = [
+            printed.signed_by.to_string(),
+            "Maria Santos".to_string(),
+            "Chairperson".to_string(),
+            printed.date.to_string(),
+            printed.issuer.to_string(),
+            printed.code.to_string(),
+            format!("{}{sha256}", printed.document),
+        ];
+        assert_eq!(lines, expected, "{}", printed.language);
+        let prepared = prepare_revision(
+            &base,
+            1,
+            &SignatureAppearance {
+                signer_name: "MARIA SANTOS".to_string(),
+                signing_time: signing_time(1),
+                reason: Some(printed.certification.to_string()),
+                lines,
+            },
+        )
+        .unwrap();
+        let shown = shown_strings(&appearance_stream(prepared.bytes(), 1));
+        let expected: Vec<Vec<u8>> = expected.iter().map(|line| latin1(line)).collect();
+        assert_eq!(shown, expected, "{}", printed.language);
+    }
+}
+
+/// Every line of a signature (the holder, the account's name, the title,
+/// the time, the issuer, the code and the document's SHA-256) prints at 7
+/// points or more.
+#[test]
+fn a_full_signature_prints_every_line_at_seven_points_or_more() {
+    let latest = base(XrefLayout::Table, &ENGLISH);
+    let sha256 = hex::encode(Sha256::digest(&latest));
+    let lines = signature_lines(shipped("en"), &full_facts(&sha256));
+    assert_eq!(lines.len(), 7);
+    let prepared = prepare_revision(
+        &latest,
+        0,
+        &SignatureAppearance {
+            signer_name: "MARIA SANTOS".to_string(),
+            signing_time: signing_time(1),
+            reason: None,
+            lines,
+        },
+    )
+    .unwrap();
+    let stream = appearance_stream(prepared.bytes(), 0);
+    let sizes: Vec<f32> = Content::decode(&stream)
+        .unwrap()
+        .operations
+        .into_iter()
+        .filter(|op| op.operator == "Tf")
+        .map(|op| op.operands[1].as_float().unwrap())
+        .collect();
+    assert_eq!(sizes.len(), 7);
+    assert!(sizes.iter().all(|size| *size >= 7.0), "{sizes:?}");
+    assert_eq!(shown_strings(&stream).len(), 7);
 }

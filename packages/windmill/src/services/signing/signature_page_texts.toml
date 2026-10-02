@@ -1,0 +1,23 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# The texts of the PDF signature page and of each signature's appearance, by
+# language code (the codes of the portals' languages). `{name}` placeholders
+# are filled in by the signing code (services::signing::page_texts). Every
+# language has every key, and a `certify` sentence for each action that signs
+# a PDF. English is the fallback.
+
+[en]
+title = "{organization}: digital signatures"
+signature = "Signature {n}"
+signature_of = "Signature {n} of {total}"
+signed_by = "Digitally signed by {name}"
+date = "Date: {time}"
+issuer = "Issuer: {issuer}"
+code = "Signing code: {code}"
+document = "Document SHA-256 before signatures: {sha256}"
+
+[en.certify]
+generate-election-returns = "We certify that these election returns are true and correct. Each of us signed them with our digital certificate."
+generate-reports = "We certify that this report is true and correct. Each of us signed it with our digital certificate."

@@ -86,7 +86,9 @@ const BODY_SIZE: f32 = 11.0;
 const LEADING: f32 = 1.3;
 const LABEL_SIZE: f32 = 10.0;
 const MIN_TEXT_SIZE: f32 = 6.0;
-const BOX_HEIGHT: f32 = 92.0;
+/// Tall enough for seven appearance lines at 7 points or more (a
+/// signature's holder, name, title, time, issuer, code and document hash).
+const BOX_HEIGHT: f32 = 100.0;
 const BOX_GAP: f32 = 14.0;
 /// Height of the label strip under each signature widget.
 const LABEL_STRIP: f32 = 22.0;

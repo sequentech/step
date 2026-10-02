@@ -640,10 +640,29 @@ async fn a_signer_prepares_the_pdf_of_a_waiting_request() {
     use base64::Engine;
     use sha2::{Digest, Sha256};
     use windmill::services::signing::pades::append_signature_page;
+    use windmill::services::signing::page_texts::{
+        shipped_wordings, FALLBACK_LANGUAGE,
+    };
     use windmill::services::signing::pdf::{
         signature_field_specs, signature_page_texts, PdfDocumentSigner,
+        SignerTitles,
     };
     const ER: SigningAction = SigningAction::GenerateElectionReturns;
+
+    /// A signer directory without titles.
+    struct NoTitles;
+
+    #[rocket::async_trait]
+    impl SignerTitles for NoTitles {
+        async fn title(
+            &self,
+            _tenant_id: Uuid,
+            _action: SigningAction,
+            _user_id: &str,
+        ) -> anyhow::Result<Option<String>> {
+            Ok(None)
+        }
+    }
 
     let documents = Arc::new(MemoryDocuments::default());
     let services =
@@ -652,17 +671,21 @@ async fn a_signer_prepares_the_pdf_of_a_waiting_request() {
             .with_signing(SigningServices {
                 verifier: Arc::new(UntrustedIssuer),
                 executors: SigningExecutorRegistry::default(),
-                documents: Arc::new(PdfDocumentSigner::new(documents.clone())),
+                documents: Arc::new(PdfDocumentSigner::with_titles(
+                    documents.clone(),
+                    Arc::new(NoTitles),
+                )),
                 exports: Arc::new(crate::route_services::RowOnlyExports),
             });
     let client = services.client().await;
     let event = rows::event(&services.hasura).await;
     let (tenant, election_event) = ids(&event);
     let post_id = Uuid::new_v4();
+    let english = &shipped_wordings().unwrap()[FALLBACK_LANGUAGE];
     let base = append_signature_page(
         &minimal_pdf(),
-        &signature_field_specs(2),
-        &signature_page_texts(ER, "Test Organization").unwrap(),
+        &signature_field_specs(english, 2),
+        &signature_page_texts(english, ER, "Test Organization").unwrap(),
     )
     .unwrap();
     let sha256 = hex::encode(Sha256::digest(&base));

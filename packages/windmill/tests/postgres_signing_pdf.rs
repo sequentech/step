@@ -51,11 +51,14 @@ use windmill::services::signing::approve::{
 };
 use windmill::services::signing::guard::{GuardOutcome, GuardRequest, SigningDocument};
 use windmill::services::signing::pades::{signature_fields, verify_cms, CmsTrust};
+use windmill::services::signing::page_texts::{
+    page_languages, shipped_wordings, PageWording, FALLBACK_LANGUAGE,
+};
 use windmill::services::signing::pdf::StoredAppearance;
 use windmill::services::signing::pdf::{
     appearance_lines, latest_signed_document, prepare_pdf, report_delivery, report_signature_page,
-    report_signing_action, DocumentLink, DocumentRevisionView, PdfDocumentSigner, PdfPrepared,
-    ReportDelivery, RevisionStore,
+    report_signing_action, signer_title, DocumentLink, DocumentRevisionView, PdfDocumentSigner,
+    PdfPrepared, PdfSources, ReportDelivery, RevisionStore, SignatureFacts, SignerTitles,
 };
 use windmill::services::signing::requests::{get_panel, SigningPanel};
 use windmill::services::signing::{InvalidReason, SigningCaller, SigningError, SigningResult};
@@ -453,6 +456,28 @@ async fn start_on(w: &World, base: &[u8], document_id: Uuid) -> SigningResult<(U
     }
 }
 
+/// The board's titles, as the signer directory gives them: the first
+/// signer is the chairperson; the others have none.
+struct BoardTitles;
+
+const CHAIRPERSON: &str = "Chairperson";
+
+#[async_trait]
+impl SignerTitles for BoardTitles {
+    async fn title(
+        &self,
+        _tenant_id: Uuid,
+        action: SigningAction,
+        user_id: &str,
+    ) -> anyhow::Result<Option<String>> {
+        Ok((action == ER && user_id == "sbei-0").then(|| CHAIRPERSON.to_owned()))
+    }
+}
+
+fn english() -> &'static PageWording {
+    &shipped_wordings().unwrap()[FALLBACK_LANGUAGE]
+}
+
 async fn prepare(
     w: &World,
     store: &MemoryStore,
@@ -463,7 +488,10 @@ async fn prepare(
     let mut client = w.pool.get().await.unwrap();
     prepare_pdf(
         &mut client,
-        store,
+        PdfSources {
+            store,
+            titles: &BoardTitles,
+        },
         &signer.caller,
         w.tenant,
         request_id,
@@ -587,18 +615,42 @@ async fn each_signer_adds_a_revision_and_every_revision_verifies() {
             let mut expected = vec![false; usize::from(required)];
             expected[..=i].fill(true);
             assert_eq!(signed, expected, "{label}: after signer {i}");
-            // The appearance prints the signer, the time and the code.
+            // The appearance prints the signer, their title, the time, the
+            // certificate's issuer, the code and the document before
+            // signatures (self-signed: the signer issued it).
             assert!(contains(
                 &bytes,
                 &format!("Digitally signed by {}", signer.caller.user_id)
             ));
             assert!(contains(&bytes, &signer.caller.display_name));
+            // Only the first signer has a title: printed once, in their
+            // revision and in every later one.
+            assert_eq!(
+                bytes
+                    .windows(CHAIRPERSON.len() + 2)
+                    .filter(|w| *w == format!("({CHAIRPERSON})").as_bytes())
+                    .count(),
+                1,
+                "{label}: signer {i}"
+            );
             assert!(contains(
                 &bytes,
                 &format!("Date: {}", at(1).format("%Y-%m-%d %H:%M:%S UTC"))
             ));
             assert!(
+                contains(&bytes, &format!("(Issuer: {})", signer.caller.user_id)),
+                "{label}"
+            );
+            assert!(
                 contains(&bytes, &format!("Signing code: {code}")),
+                "{label}"
+            );
+            let base_sha256 = w.request(request_id).await.document_sha256.unwrap();
+            assert!(
+                contains(
+                    &bytes,
+                    &format!("(Document SHA-256 before signatures: {base_sha256})")
+                ),
                 "{label}"
             );
         }
@@ -1243,12 +1295,25 @@ async fn the_signature_prints_the_time_in_the_events_zone() {
             .unwrap();
         let appearance: StoredAppearance = serde_json::from_value(row.appearance.unwrap()).unwrap();
         let tz: chrono_tz::Tz = zone.parse().unwrap();
+        let base_sha256 = w.request(request_id).await.document_sha256.unwrap();
         assert_eq!(
             appearance.lines,
-            appearance_lines("sbei-0", "sbei-0 display", at(1), Some(tz), &code)
+            appearance_lines(
+                english(),
+                &SignatureFacts {
+                    certificate_name: "sbei-0",
+                    display_name: "sbei-0 display",
+                    title: Some(CHAIRPERSON),
+                    issuer: Some("sbei-0"),
+                    signing_time: at(1),
+                    zone: Some(tz),
+                    code: &code,
+                    document_sha256: Some(&base_sha256),
+                }
+            )
         );
         let local = at(1).with_timezone(&tz).format("%Y-%m-%d %H:%M:%S");
-        assert_eq!(appearance.lines[2], format!("Date: {local} {zone}"));
+        assert_eq!(appearance.lines[3], format!("Date: {local} {zone}"));
         assert_eq!(appearance.signing_time, at(1));
     }
 }
@@ -1332,29 +1397,48 @@ fn reports_map_to_their_signing_action() {
 #[test]
 fn the_appearance_prints_the_time_in_the_events_zone_or_utc() {
     let time = Utc.with_ymd_and_hms(2026, 10, 1, 20, 30, 5).unwrap();
-    // The certificate's holder, then the account's name when it differs.
+    let sha256 = hex_sha(b"returns");
+    // The certificate's holder, the account's name when it differs, the
+    // title, the time, the issuer, the code and the unsigned document.
     assert_eq!(
         appearance_lines(
-            "MARIA SANTOS DELA CRUZ",
-            "Maria Santos",
-            time,
-            None,
-            "7F3A-91C2"
+            english(),
+            &SignatureFacts {
+                certificate_name: "MARIA SANTOS DELA CRUZ",
+                display_name: "Maria Santos",
+                title: Some("Chairperson"),
+                issuer: Some("PNPKI Individual CA"),
+                signing_time: time,
+                zone: None,
+                code: "7F3A-91C2",
+                document_sha256: Some(&sha256),
+            }
         ),
         [
-            "Digitally signed by MARIA SANTOS DELA CRUZ",
-            "Maria Santos",
-            "Date: 2026-10-01 20:30:05 UTC",
-            "Signing code: 7F3A-91C2",
+            "Digitally signed by MARIA SANTOS DELA CRUZ".to_owned(),
+            "Maria Santos".to_owned(),
+            "Chairperson".to_owned(),
+            "Date: 2026-10-01 20:30:05 UTC".to_owned(),
+            "Issuer: PNPKI Individual CA".to_owned(),
+            "Signing code: 7F3A-91C2".to_owned(),
+            format!("Document SHA-256 before signatures: {sha256}"),
         ]
     );
+    // Without a title, an issuer name or a document, those lines are left
+    // out; a blank one counts as none.
     assert_eq!(
         appearance_lines(
-            "Ana Reyes",
-            "Ana Reyes",
-            time,
-            Some(chrono_tz::Asia::Manila),
-            "ABCD-EFGH"
+            english(),
+            &SignatureFacts {
+                certificate_name: "Ana Reyes",
+                display_name: "Ana Reyes",
+                title: Some("  "),
+                issuer: None,
+                signing_time: time,
+                zone: Some(chrono_tz::Asia::Manila),
+                code: "ABCD-EFGH",
+                document_sha256: None,
+            }
         ),
         [
             "Digitally signed by Ana Reyes",
@@ -1750,4 +1834,129 @@ async fn the_revisions_keep_one_base_and_one_signature_per_field() {
         Err(Some("signing_document_revision_field_signed_once".into()))
     );
     assert!(insert(6, "signed", document, Some(1)).await.is_ok());
+}
+
+async fn set_languages(w: &World, event: Option<&str>, tenant: Option<&str>) {
+    let language_conf = |code: Option<&str>| {
+        code.map(|code| json!({ "language_conf": { "default_language_code": code } }))
+    };
+    w.execute(
+        "UPDATE sequent_backend.election_event SET presentation = $2 WHERE id = $1",
+        &[&w.event, &language_conf(event)],
+    )
+    .await;
+    w.execute(
+        "UPDATE sequent_backend.tenant SET settings = $2 WHERE id = $1",
+        &[&w.tenant, &language_conf(tenant)],
+    )
+    .await;
+}
+
+async fn languages_of(w: &World) -> Vec<String> {
+    let mut client = w.pool.get().await.unwrap();
+    let tx = client.transaction().await.unwrap();
+    page_languages(&tx, w.tenant, w.event).await.unwrap()
+}
+
+/// The page is in the event's default language, else the tenant's.
+#[tokio::test]
+async fn the_page_languages_are_the_events_then_the_tenants() {
+    let w = world("madrid-pe").await;
+    set_languages(&w, Some("es"), Some("fr")).await;
+    assert_eq!(languages_of(&w).await, ["es", "fr"]);
+    set_languages(&w, None, Some("fr")).await;
+    assert_eq!(languages_of(&w).await, ["fr"]);
+    set_languages(&w, Some(" "), None).await;
+    assert!(languages_of(&w).await.is_empty());
+    // Another tenant's event of the same id is not this event.
+    set_languages(&w, Some("es"), None).await;
+    let mut client = w.pool.get().await.unwrap();
+    let tx = client.transaction().await.unwrap();
+    let other_tenant = Uuid::new_v4();
+    tx.execute(
+        "INSERT INTO sequent_backend.tenant (id, slug) VALUES ($1, $2)",
+        &[&other_tenant, &format!("tenant-{other_tenant}")],
+    )
+    .await
+    .unwrap();
+    assert!(page_languages(&tx, other_tenant, w.event)
+        .await
+        .unwrap()
+        .is_empty());
+}
+
+/// A language the texts don't have prints the page in English.
+#[tokio::test]
+async fn an_unknown_language_prints_the_page_in_english() {
+    let w = world("madrid-pe").await;
+    set_languages(&w, Some("xx"), Some("yy")).await;
+    w.rule(ER, 2, RequesterSigning::NotAllowed, None).await;
+    let base = signature_page(&w, ER, &report_pdf()).await.unwrap();
+    assert!(contains(
+        &base,
+        "We certify that these election returns are true and correct."
+    ));
+    assert!(contains(&base, "(Signature 1)"));
+
+    let store = MemoryStore::default();
+    let signers = pdf_signers(&w, ER, 1).await;
+    let (request_id, _) = start_on(&w, &base, store.put(&base)).await.unwrap();
+    let prepared = prepare(&w, &store, &signers[0], request_id, at(1))
+        .await
+        .unwrap();
+    let row = revisions(&w, request_id)
+        .await
+        .into_iter()
+        .find(|row| row.revision == prepared.revision)
+        .unwrap();
+    let appearance: StoredAppearance = serde_json::from_value(row.appearance.unwrap()).unwrap();
+    assert_eq!(appearance.lines[0], "Digitally signed by sbei-0");
+    assert_eq!(
+        appearance.reason.as_deref(),
+        english().certify.get(&ER).map(String::as_str)
+    );
+}
+
+/// A signer's title is the one the signing panel shows: their `title`
+/// attribute, else the group that grants them the permission.
+#[tokio::test]
+async fn a_signers_title_comes_from_the_signer_directory() {
+    let w = world("madrid-pe").await;
+    let mut client = w.pool.get().await.unwrap();
+    let tx = client.transaction().await.unwrap();
+    keycloak_tables(&tx).await;
+    let sign = ER.sign_permission().to_string();
+    tx.batch_execute(&format!(
+        "INSERT INTO realm VALUES ('r', 'tenant-{tenant}');
+         INSERT INTO keycloak_role VALUES ('role', '{sign}', 'r');
+         INSERT INTO keycloak_group (id, name, realm_id) VALUES ('g', 'Board of Inspectors', 'r');
+         INSERT INTO group_role_mapping VALUES ('role', 'g');
+         INSERT INTO user_entity VALUES ('maria', 'maria', 'Maria', 'Santos', true, 'r', NULL),
+             ('jose', 'jose', 'Jose', 'Rizal', true, 'r', NULL),
+             ('outsider', 'outsider', 'Out', 'Sider', true, 'r', NULL);
+         INSERT INTO user_group_membership VALUES ('g', 'maria'), ('g', 'jose');
+         INSERT INTO user_attribute VALUES ('title', 'Chairperson', 'maria'),
+             ('title', 'Treasurer', 'outsider');",
+        tenant = w.tenant
+    ))
+    .await
+    .unwrap();
+    let realm = format!("tenant-{}", w.tenant);
+    let title = |user: &'static str| signer_title(&tx, &realm, ER, user);
+    assert_eq!(
+        title("maria").await.unwrap().as_deref(),
+        Some("Chairperson")
+    );
+    assert_eq!(
+        title("jose").await.unwrap().as_deref(),
+        Some("Board of Inspectors")
+    );
+    // Not a signer of the action: no title.
+    assert_eq!(title("outsider").await.unwrap(), None);
+    assert_eq!(
+        signer_title(&tx, &realm, SigningAction::GenerateReports, "maria")
+            .await
+            .unwrap(),
+        None
+    );
 }
