@@ -2,7 +2,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import {loadAnalyzers} from "./analyzers"
 import {StageLayout} from "./geometry"
-import {CameraFacing, CaptureProblem, type CameraService, type CaptureServices} from "./types"
+import {
+    CameraFacing,
+    CaptureProblem,
+    CaptureStep,
+    type CameraService,
+    type CaptureServices,
+} from "./types"
 import {fetchLiveness} from "./livenessApi"
 import {fetchUploads} from "./uploads"
 
@@ -38,12 +44,15 @@ export function cameraProblem(error: unknown): CaptureProblem {
 /**
  * Whether to mirror the preview of a camera, like a mirror for a camera facing the voter. Laptops
  * open their webcam whichever camera is asked for, usually without saying which way it faces.
+ * The document is never mirrored: its text would read backwards.
  */
 export function previewMirrored(
+    step: CaptureStep,
     requested: CameraFacing,
     stream: MediaStream | null,
     layout: StageLayout
 ): boolean {
+    if (step === CaptureStep.Front || step === CaptureStep.Back) return false
     const facing = stream?.getVideoTracks()[0]?.getSettings().facingMode
     if (facing === CameraFacing.User) return true
     if (facing === CameraFacing.Environment) return false

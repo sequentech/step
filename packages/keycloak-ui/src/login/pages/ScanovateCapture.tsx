@@ -419,6 +419,7 @@ export default function ScanovateCapture(props: ScanovatePageProps<"scanovate-ca
                 steps={steps}
                 stream={stream}
                 mirrored={previewMirrored(
+                    step,
                     facing,
                     stream,
                     phone ? StageLayout.Phone : StageLayout.Desktop
