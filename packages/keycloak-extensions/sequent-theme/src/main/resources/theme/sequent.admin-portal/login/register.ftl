@@ -13,6 +13,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 <#import "tel-input-widget.ftl" as telInputWidget>
 <#import "select-filter-widget.ftl" as selectFilterWidget>
 <#import "social-providers.ftl" as socialProviders>
+<#import "messaging-channel-choice.ftl" as messagingChannelChoice>
 <#assign loginMode = formMode?? && formMode == 'LOGIN'>
 <#assign passwordRequired = passwordRequired!false>
 <#--  An attribute that explicitly declares showPasswordAfterThis keeps its placement: that
@@ -165,6 +166,8 @@ SPDX-License-Identifier: AGPL-3.0-only
                     <@credentialFields/>
                 </#if>
             </@userProfileCommons.userProfileFormFields>
+
+            <@messagingChannelChoice.render/>
 
             <@registerCommons.termsAcceptance/>
 

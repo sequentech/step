@@ -23,6 +23,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.time.Instant;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -66,6 +67,7 @@ import sequent.keycloak.authenticator.Utils.MessageCourier;
 import sequent.keycloak.authenticator.credential.MessageOTPCredentialModel;
 import sequent.keycloak.authenticator.credential.MessageOTPCredentialProvider;
 import sequent.keycloak.authenticator.harvest.ServiceAccountTokenClient;
+import sequent.keycloak.authenticator.messaging.NoticeRecipient;
 
 /** Lookups an user using a field */
 @JBossLog
@@ -168,6 +170,9 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
           template = "registration-rejected-finish.ftl";
       }
 
+      if ("PENDING".equals(verificationStatus)) {
+        setNoticeChannel(context);
+      }
       Response form =
           context
               .form()
@@ -369,6 +374,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
 
       try {
         if ("PENDING".equals(verificationStatus)) {
+          setNoticeChannel(context);
           Response form =
               context
                   .form()
@@ -386,6 +392,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
               mobileNumber,
               rejectionReason,
               mismatchedFields,
+              enrollmentRecipient(context),
               context);
           return;
         }
@@ -421,6 +428,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
               mobileNumber,
               rejectionReason,
               mismatchedFields,
+              enrollmentRecipient(context),
               context);
           return;
         }
@@ -473,6 +481,12 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
     // for other authentication models in the authentication flow
     log.info("authenticate(): updating user attributes..");
     updateUserAttributes(user, context, updateAttributesList);
+    EnrollmentChannels.persist(
+        user,
+        context.getAuthenticationSession(),
+        telUserAttribute(context),
+        EnrollmentChannels.consentVersion(context.getRealm()),
+        Instant.now());
 
     // Set email to verified if it was validated
     if (context.getAuthenticationSession().getAuthNote(EMAIL_VERIFIED) != null
@@ -592,6 +606,32 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
       Response form = context.form().createForm("registration-finish.ftl");
       context.challenge(form);
     }
+  }
+
+  private static String telUserAttribute(AuthenticationFlowContext context) {
+    AuthenticatorConfigModel config = context.getAuthenticatorConfig();
+    String attribute = config == null ? null : config.getConfig().get(TEL_USER_ATTRIBUTE);
+    return attribute == null || attribute.isBlank()
+        ? MessageOTPAuthenticator.MOBILE_NUMBER_FIELD
+        : attribute;
+  }
+
+  private static NoticeRecipient enrollmentRecipient(AuthenticationFlowContext context) {
+    return NoticeRecipient.fromEnrollment(
+        context.getAuthenticationSession(), telUserAttribute(context));
+  }
+
+  /** Tells the pending page which channel the enrollment result will be sent to. */
+  private static void setNoticeChannel(AuthenticationFlowContext context) {
+    MessageCourier messageCourier =
+        MessageCourier.fromString(
+            context.getAuthenticatorConfig().getConfig().get(MESSAGE_COURIER_ATTRIBUTE));
+    if (MessageCourier.NONE.equals(messageCourier)) {
+      return;
+    }
+    enrollmentRecipient(context)
+        .expectedChannel(messageCourier)
+        .ifPresent(channel -> context.form().setAttribute("noticeChannel", channel.name()));
   }
 
   private HashMap<String, String> getMismatchedFields(
@@ -870,7 +910,8 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
             MessageCourier.BOTH.name(),
             MessageCourier.SMS.name(),
             MessageCourier.EMAIL.name(),
-            MessageCourier.NONE.name()));
+            MessageCourier.NONE.name(),
+            MessageCourier.CHOSEN.name()));
 
     // Define configuration properties
     return List.of(

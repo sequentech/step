@@ -37,6 +37,7 @@ import org.keycloak.services.messages.Messages;
 import org.keycloak.sessions.AuthenticationSessionCompoundId;
 import org.keycloak.sessions.AuthenticationSessionModel;
 import sequent.keycloak.authenticator.gateway.SmsSenderProvider;
+import sequent.keycloak.authenticator.messaging.NoticeRecipient;
 
 @JBossLog
 @AutoService(AuthenticatorFactory.class)
@@ -132,6 +133,17 @@ public class ResetCredentialNotification implements Authenticator, Authenticator
   private boolean sendNotification(
       AuthenticationFlowContext context, UserModel user, String link, long expirationInMinutes) {
     try {
+      if (sequent.keycloak.authenticator.Utils.sendNotice(
+          context.getSession(),
+          context.getRealm(),
+          user,
+          NoticeRecipient.fromUser(user, TEL_USER_ATTRIBUTE),
+          smsMessageKey,
+          () -> List.of(String.valueOf(expirationInMinutes), link),
+          context)) {
+        return true;
+      }
+
       // Check for email
       String email = user.getEmail();
       if (email != null && !email.trim().isEmpty()) {

@@ -20,6 +20,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.experimental.UtilityClass;
@@ -42,6 +43,7 @@ import org.keycloak.sessions.AuthenticationSessionModel;
 import org.keycloak.userprofile.UserProfile;
 import org.keycloak.userprofile.UserProfileContext;
 import org.keycloak.userprofile.UserProfileProvider;
+import sequent.keycloak.authenticator.messaging.MessagingAttributes;
 
 @UtilityClass
 @JBossLog
@@ -66,6 +68,32 @@ public class Utils {
   private static final List<String> DEFAULT_KEYS_USERDATA =
       List.of(UserModel.FIRST_NAME, UserModel.LAST_NAME, UserModel.EMAIL, UserModel.USERNAME);
   private static final String USER_ID = "userId";
+
+  /**
+   * Notes that only Keycloak sets: the code and its state, what a code verified and the
+   * verification outcome. A submitted form field with one of these names must not become a note, or
+   * it could plant a code or a verified contact.
+   */
+  private static final Set<String> RESERVED_NOTES =
+      Stream.concat(
+              MessagingAttributes.KEYCLOAK_NOTES.stream(),
+              Stream.of(
+                  sequent.keycloak.authenticator.Utils.CODE,
+                  sequent.keycloak.authenticator.Utils.CODE_TTL,
+                  sequent.keycloak.authenticator.Utils.CODE_ATTEMPTS,
+                  sequent.keycloak.authenticator.Utils.OTL_VISITED,
+                  "Email verified",
+                  "verificationCompleted",
+                  "verificationStatus",
+                  "verificationRejectionReason",
+                  "verificationMismatchedFields",
+                  "fields_match",
+                  KEYS_USERDATA))
+          .collect(Collectors.toUnmodifiableSet());
+
+  static boolean isFormNote(String key) {
+    return !RESERVED_NOTES.contains(key);
+  }
 
   String escapeJson(String value) {
     return value != null
@@ -117,6 +145,10 @@ public class Utils {
 
     formData.forEach(
         (key, value) -> {
+          if (!isFormNote(key)) {
+            log.warnv("storeUserDataInAuthSessionNotes: ignoring reserved field {0}", key);
+            return;
+          }
           String values = Utils.serializeUserdataKeys(formData.get(key));
           log.debug("storeUserDataInAuthSessionNotes: setAuthNote(" + key + ")");
           sessionModel.setAuthNote(key, values);

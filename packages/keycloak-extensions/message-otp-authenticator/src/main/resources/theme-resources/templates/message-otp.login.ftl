@@ -5,14 +5,70 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <#import "template.ftl" as layout>
-<@layout.registrationLayout displayInfo=true; section>
+<#assign choosingChannel = (otpView!'') == 'CHOOSE'>
+<@layout.registrationLayout displayInfo=!choosingChannel; section>
     <#if section = "header">
-            <#if isOtl>
+            <#if choosingChannel>
+                ${msg("messageOtp.choose.title")}
+            <#elseif isOtl>
                 ${msg("messageOtp.otl.address", address)}
+            <#elseif channel?? && (deliveryState!'') == 'UNKNOWN'>
+                <span role="status">${msg("messageOtp.delivery.unknown")}</span>
+            <#elseif channel?? && (deliveryState!'') == 'FAILED'>
+                <span role="alert">${msg("messageOtp.delivery.failed", msg("messageChannel." + channel))}</span>
+            <#elseif channel?? && channel == 'MESSENGER'>
+                ${msg("messageOtp.auth.title")}
+            <#elseif channel??>
+                <#if address?has_content>
+                    ${msg("messageOtp.auth.sentTo", msg("messageChannel." + channel), address)}
+                <#else>
+                    ${msg("messageOtp.auth.sentToChannel", msg("messageChannel." + channel))}
+                </#if>
             <#else>
                 ${msg("messageOtp.auth.address", address)}
             </#if>
+	<#elseif section = "form" && choosingChannel>
+		<form id="kc-message-code-channel-form" class="${properties.kcFormClass!}" action="${url.loginAction}" method="POST">
+			<p>${msg("messageOtp.choose.help")}</p>
+			<#list otherWayChannels as option>
+				<div class="${properties.kcFormGroupClass!}">
+					<button type="submit" name="channel" value="${option}" formnovalidate
+						class="${properties.kcButtonClass!} ${properties.kcButtonSecondaryClass!} ${properties.kcButtonBlockClass!}">
+						<#if (channelAddresses[option])?has_content>
+							${msg("messageOtp.choose.option", msg("messageChannel." + option), channelAddresses[option])}
+						<#else>
+							${msg("messageChannel." + option)}
+						</#if>
+					</button>
+				</div>
+			</#list>
+		</form>
 	<#elseif section = "form">
+		<#if channel?? && channel == 'MESSENGER'>
+			<div id="kc-messenger-connect" class="${properties.kcFormGroupClass!}">
+				<h2>${msg("messageOtp.messenger.title")}</h2>
+				<#if messengerPage??><p>${msg("messageOtp.messenger.intro", messengerPage)}</p></#if>
+				<ol>
+					<li>${msg("messageOtp.messenger.step1")}</li>
+					<li>${msg("messageOtp.messenger.step2")}</li>
+					<li>${msg("messageOtp.messenger.step3")}</li>
+				</ol>
+				<#if messengerLink??>
+					<a id="kc-messenger-link" href="${messengerLink}" target="_blank" rel="noopener noreferrer"
+						class="${properties.kcButtonClass!} ${properties.kcButtonPrimaryClass!} ${properties.kcButtonBlockClass!}">${msg("messageOtp.messenger.connect")}</a>
+				</#if>
+				<#if messengerWord?? && messengerPage??>
+					<p>${msg("messageOtp.messenger.word", messengerWord, messengerPage)}</p>
+				</#if>
+				<#if (messengerState!'') == 'CODE_SENT'>
+					<p role="status">${msg("messageOtp.messenger.codeSent")}</p>
+				<#elseif (messengerState!'') == 'EXPIRED' || (messengerState!'') == 'REPLACED'>
+					<p role="alert">${msg("messageOtp.messenger.expired")}</p>
+				<#elseif messengerState??>
+					<p role="status">${msg("messageOtp.messenger.pending")}</p>
+				</#if>
+			</div>
+		</#if>
 		<form
 			id="kc-message-code-login-form"
 			class="${properties.kcFormClass!}"
@@ -66,6 +122,24 @@ SPDX-License-Identifier: AGPL-3.0-only
                     >
                 </button>
             </div>
+            <#if channel?? && channel == 'MESSENGER'>
+                <div class="${properties.kcFormGroupClass!}">
+                    <button type="submit" name="messengerStatus" value="true" formnovalidate
+                        class="${properties.kcButtonClass!} ${properties.kcButtonSecondaryClass!}">${msg("messageOtp.messenger.check")}</button>
+                </div>
+            </#if>
+            <#if otherWayChannels?? && otherWayChannels?has_content>
+                <details id="kc-otp-other-way" class="${properties.kcFormGroupClass!}"<#if (deliveryState!'') == 'UNKNOWN' || (deliveryState!'') == 'FAILED'> open</#if>>
+                    <summary>${msg("messageOtp.otherWay.title")}</summary>
+                    <p>${msg("messageOtp.otherWay.help")}</p>
+                    <#list otherWayChannels as option>
+                        <button type="submit" name="channel" value="${option}" formnovalidate
+                            class="${properties.kcButtonClass!} ${properties.kcButtonSecondaryClass!}">
+                            ${msg("messageOtp.otherWay.send")}: ${msg("messageChannel." + option)}<#if (channelAddresses[option])?has_content>, ${channelAddresses[option]}</#if>
+                        </button>
+                    </#list>
+                </details>
+            </#if>
 
             <script>
                 <#if isOtl>
@@ -262,6 +336,12 @@ SPDX-License-Identifier: AGPL-3.0-only
                         ${msg("messageOtp.auth.instructionEmail")}
                     <#elseif courier = "BOTH" >
                         ${msg("messageOtp.auth.instructionBoth")}
+                    <#elseif channel?? && senderLabel?? && ['WHATSAPP', 'VIBER']?seq_contains(channel) && !['UNKNOWN', 'FAILED']?seq_contains(deliveryState!'')>
+                        ${msg("messageOtp.auth.openApp", msg("messageChannel." + channel), senderLabel)}
+                    <#elseif channel?? && channel = "EMAIL">
+                        ${msg("messageOtp.auth.instructionEmail")}
+                    <#elseif channel?? && channel = "SMS">
+                        ${msg("messageOtp.auth.instructionSms")}
                     </#if>
                 <#else>
                     ${msg("messageOtp.auth.instructionBoth")}

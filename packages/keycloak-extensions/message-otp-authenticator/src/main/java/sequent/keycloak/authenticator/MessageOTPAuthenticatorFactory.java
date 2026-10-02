@@ -99,14 +99,16 @@ public class MessageOTPAuthenticatorFactory
         new ProviderConfigProperty(
             Utils.MESSAGE_COURIER_ATTRIBUTE,
             "Message Courier",
-            "Choose if the message is going to be sent via email, sms or both.",
+            "Choose if the message is going to be sent via email, sms or both, or on the one"
+                + " channel the voter chooses among the event's channels for codes (CHOSEN).",
             ProviderConfigProperty.LIST_TYPE,
             Utils.MessageCourier.BOTH.name());
     messageCourier.setOptions(
         asList(
             Utils.MessageCourier.BOTH.name(),
             Utils.MessageCourier.SMS.name(),
-            Utils.MessageCourier.EMAIL.name()));
+            Utils.MessageCourier.EMAIL.name(),
+            Utils.MessageCourier.CHOSEN.name()));
     return List.of(
         new ProviderConfigProperty(
             Utils.ONE_TIME_LINK,

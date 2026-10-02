@@ -4,10 +4,14 @@
 
 package sequent.keycloak.authenticator;
 
+import jakarta.ws.rs.core.MultivaluedMap;
 import jakarta.ws.rs.core.Response;
 import java.io.IOException;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import lombok.extern.jbosslog.JBossLog;
 import org.keycloak.authentication.AuthenticationFlowContext;
 import org.keycloak.authentication.AuthenticationFlowError;
@@ -22,6 +26,14 @@ import org.keycloak.models.UserModel;
 import org.keycloak.sessions.AuthenticationSessionModel;
 import sequent.keycloak.authenticator.credential.MessageOTPCredentialModel;
 import sequent.keycloak.authenticator.credential.MessageOTPCredentialProvider;
+import sequent.keycloak.authenticator.messaging.MessageAttemptState;
+import sequent.keycloak.authenticator.messaging.MessageChannel;
+import sequent.keycloak.authenticator.messaging.MessageSenderProvider;
+import sequent.keycloak.authenticator.messaging.MessagingAttributes;
+import sequent.keycloak.authenticator.messaging.MessengerLinkState;
+import sequent.keycloak.authenticator.messaging.MessengerLinkStatus;
+import sequent.keycloak.authenticator.messaging.PublicMessagingChannels;
+import sequent.keycloak.authenticator.messaging.VoterChannels;
 
 @JBossLog
 public class MessageOTPAuthenticator
@@ -32,7 +44,35 @@ public class MessageOTPAuthenticator
   public static final String INVALID_CODE = "invalid otp Code";
   public static final String EXPIRED_CODE = "Code expired";
   public static final String TOO_MANY_ATTEMPTS = "Too many code attempts";
+  public static final String MESSENGER_NOT_CONFIRMED = "Messenger link not confirmed";
+  public static final String NO_CHANNEL = "No channel to send the code";
   public static final String INTERNAL_ERROR = "InternalError";
+
+  /** Form parameter asking for a code on another of the voter's channels. */
+  public static final String CHANNEL_PARAM = "channel";
+
+  /** Form parameter asking whether the voter interacted with the Messenger Page yet. */
+  public static final String MESSENGER_STATUS_PARAM = "messengerStatus";
+
+  /** What the code page shows: the code entry, or the choice of channel before any code. */
+  public enum OtpView {
+    CODE,
+    CHOOSE
+  }
+
+  private enum FormRequest {
+    SHOW,
+    RESEND,
+    SWITCH_CHANNEL,
+    CHECK_MESSENGER
+  }
+
+  /** The channels a voter may get the code on, and the one in use. */
+  record ChannelChoice(
+      List<MessageChannel> eligible,
+      Optional<MessageChannel> current,
+      Map<MessageChannel, String> contacts,
+      Optional<PublicMessagingChannels> projection) {}
 
   @Override
   public MessageOTPCredentialProvider getCredentialProvider(KeycloakSession session) {
@@ -49,19 +89,29 @@ public class MessageOTPAuthenticator
   @Override
   public void authenticate(AuthenticationFlowContext context) {
     log.info("authenticate() called");
-    intiateForm(context, /*resend*/ false);
+    intiateForm(context, FormRequest.SHOW, null);
   }
 
   @Override
   public void action(AuthenticationFlowContext context) {
     log.info("action() called");
     String sessionId = context.getAuthenticationSession().getParentSession().getId();
-    String resend = context.getHttpRequest().getDecodedFormParameters().getFirst("resend");
+    MultivaluedMap<String, String> parameters = context.getHttpRequest().getDecodedFormParameters();
+    String resend = parameters.getFirst("resend");
     UserModel user = context.getUser();
     Utils.buildEventDetails(context, this.getClass().getSimpleName());
 
     if (resend != null && resend.equals("true")) {
-      intiateForm(context, /*resend*/ true);
+      intiateForm(context, FormRequest.RESEND, null);
+      return;
+    }
+    String requestedChannel = parameters.getFirst(CHANNEL_PARAM);
+    if (requestedChannel != null) {
+      intiateForm(context, FormRequest.SWITCH_CHANNEL, requestedChannel);
+      return;
+    }
+    if ("true".equals(parameters.getFirst(MESSENGER_STATUS_PARAM))) {
+      intiateForm(context, FormRequest.CHECK_MESSENGER, null);
       return;
     }
 
@@ -111,7 +161,7 @@ public class MessageOTPAuthenticator
         }
       }
 
-      String enteredCode = context.getHttpRequest().getDecodedFormParameters().getFirst(Utils.CODE);
+      String enteredCode = parameters.getFirst(Utils.CODE);
       boolean isValid =
           enteredCode != null && Utils.constantTimeIsEqual(enteredCode.getBytes(), code.getBytes());
       boolean isValidTestMode =
@@ -147,12 +197,35 @@ public class MessageOTPAuthenticator
               isOtl);
 
         } else {
+          Optional<MessageChannel> verifiedChannel = verifiedChannel(messageCourier, authSession);
+          if (verifiedChannel.equals(Optional.of(MessageChannel.MESSENGER))
+              && !confirmMessenger(context, deferredUser, user)) {
+            Utils.clearMessengerLink(authSession);
+            context.getEvent().error(MESSENGER_NOT_CONFIRMED);
+            LoginFormsProvider form =
+                context
+                    .form()
+                    .setError(
+                        context.form().getMessage("messageOtp.messenger.notConfirmed")
+                            + "<br><br>code_id: "
+                            + sessionId);
+            context.failureChallenge(
+                AuthenticationFlowError.INVALID_CREDENTIALS,
+                codeForm(context, form, configMap, messageCourier, deferredUser, false));
+            return;
+          }
+
           // Set email as verified in the auth note only if we actually verified
           // the email or email and/or sms
           if (messageCourier == Utils.MessageCourier.BOTH
-              || messageCourier == Utils.MessageCourier.EMAIL) {
+              || messageCourier == Utils.MessageCourier.EMAIL
+              || verifiedChannel.equals(Optional.of(MessageChannel.EMAIL))) {
             authSession.setAuthNote(EMAIL_VERIFIED, "true");
           }
+          verifiedChannel.ifPresent(
+              channel ->
+                  authSession.setAuthNote(
+                      MessagingAttributes.NOTE_VERIFIED_CHANNEL, channel.name()));
 
           // If the user doesn't have a MessageOTPCredential yet, create one now
           // so that on subsequent logins the authenticator is "configured" and
@@ -190,26 +263,16 @@ public class MessageOTPAuthenticator
         context.getEvent().error(attemptsExhausted ? TOO_MANY_ATTEMPTS : INVALID_CODE);
 
         AuthenticationExecutionModel execution = context.getExecution();
-        String codeLength = configMap.get(Utils.CODE_LENGTH);
         if (execution.isRequired()) {
           String errorKey =
               attemptsExhausted ? "messageOtp.auth.tooManyAttempts" : "messageOtp.auth.codeInvalid";
-          context.failureChallenge(
-              AuthenticationFlowError.INVALID_CREDENTIALS,
+          LoginFormsProvider form =
               context
                   .form()
-                  .setError(context.form().getMessage(errorKey) + "<br><br>code_id: " + sessionId)
-                  .setAttribute("realm", context.getRealm())
-                  .setAttribute("courier", messageCourier)
-                  .setAttribute("isOtl", isOtl)
-                  .setAttribute("codeJustSent", false)
-                  .setAttribute(
-                      "address",
-                      Utils.getOtpAddress(messageCourier, deferredUser, config, authSession, user))
-                  .setAttribute("resendTimer", configMap.get(Utils.RESEND_ACTIVATION_TIMER))
-                  .setAttribute("ttl", configMap.get(Utils.CODE_TTL))
-                  .setAttribute("codeLength", codeLength)
-                  .createForm(TPL_CODE));
+                  .setError(context.form().getMessage(errorKey) + "<br><br>code_id: " + sessionId);
+          context.failureChallenge(
+              AuthenticationFlowError.INVALID_CREDENTIALS,
+              codeForm(context, form, configMap, messageCourier, deferredUser, false));
 
           Utils.sendFeedback(
               config,
@@ -237,6 +300,59 @@ public class MessageOTPAuthenticator
     }
   }
 
+  /** The channel a correct code proves; BOTH sends to two, so it proves neither. */
+  private static Optional<MessageChannel> verifiedChannel(
+      Utils.MessageCourier messageCourier, AuthenticationSessionModel authSession) {
+    return switch (messageCourier) {
+      case EMAIL -> Optional.of(MessageChannel.EMAIL);
+      case SMS -> Optional.of(MessageChannel.SMS);
+      case CHOSEN ->
+          MessageChannel.parse(authSession.getAuthNote(MessagingAttributes.FORM_OTP_CHANNEL));
+      case BOTH, NONE -> Optional.empty();
+    };
+  }
+
+  /**
+   * Confirms the Messenger link once the code was verified in this session. Harvest only confirms
+   * the live, unreplaced reference of this session and code. At sign-in the confirmed account must
+   * be the voter's; while enrolling it is kept for when the voter is saved.
+   */
+  private boolean confirmMessenger(
+      AuthenticationFlowContext context, boolean deferredUser, UserModel user) {
+    AuthenticationSessionModel authSession = context.getAuthenticationSession();
+    if (authSession.getAuthNote(MessagingAttributes.NOTE_MESSENGER_REFERENCE) == null) {
+      return false;
+    }
+    MessengerLinkStatus status;
+    try {
+      status =
+          VoterChannels.sender(context.getSession())
+              .confirmMessengerLink(Utils.messengerLinkRequest(authSession));
+    } catch (IOException e) {
+      log.warn("confirmMessenger(): harvest did not confirm the Messenger link");
+      return false;
+    }
+    String pageScopedId = status.pageScopedId();
+    if (status.linkState() != MessengerLinkState.CONFIRMED
+        || pageScopedId == null
+        || pageScopedId.isBlank()) {
+      return false;
+    }
+    if (deferredUser) {
+      authSession.setAuthNote(MessagingAttributes.NOTE_VERIFIED_MESSENGER_ID, pageScopedId);
+      if (status.pageId() != null) {
+        authSession.setAuthNote(MessagingAttributes.NOTE_VERIFIED_MESSENGER_PAGE, status.pageId());
+      }
+      return true;
+    }
+    if (user == null
+        || !pageScopedId.equals(user.getFirstAttribute(MessagingAttributes.MESSENGER_ID))) {
+      return false;
+    }
+    String page = user.getFirstAttribute(MessagingAttributes.MESSENGER_PAGE);
+    return page == null || page.equals(status.pageId());
+  }
+
   /**
    * Counts a wrong code against the current code. Once the configured maximum is reached the code
    * is invalidated, so the voter must request a new one, which is subject to the resend timer.
@@ -261,7 +377,49 @@ public class MessageOTPAuthenticator
     return true;
   }
 
-  private void intiateForm(AuthenticationFlowContext context, boolean resend) {
+  static ChannelChoice channelChoice(
+      KeycloakSession session,
+      RealmModel realm,
+      AuthenticatorConfigModel config,
+      UserModel user,
+      AuthenticationSessionModel authSession,
+      boolean deferredUser) {
+    String mobileAttribute = Utils.telUserAttribute(config);
+    MessageSenderProvider sender = VoterChannels.sender(session);
+    Optional<PublicMessagingChannels> projection = PublicMessagingChannels.fromRealm(realm);
+    Map<MessageChannel, String> contacts;
+    List<MessageChannel> eligible;
+    if (deferredUser) {
+      contacts = VoterChannels.enrollmentContacts(authSession, mobileAttribute);
+      String offered = authSession.getAuthNote(MessagingAttributes.NOTE_OFFERED_CHANNELS);
+      eligible =
+          VoterChannels.eligibleForOtp(
+              offered != null
+                  ? VoterChannels.parseList(offered)
+                  : VoterChannels.offeredForOtp(projection, Set.of()),
+              sender,
+              contacts,
+              Optional.empty());
+    } else {
+      contacts = VoterChannels.contacts(user, mobileAttribute);
+      eligible =
+          VoterChannels.eligibleForOtp(
+              VoterChannels.offeredForOtp(projection, VoterChannels.elections(user)),
+              sender,
+              contacts,
+              Optional.of(VoterChannels.verified(user, mobileAttribute)));
+    }
+    Optional<MessageChannel> current =
+        Optional.ofNullable(authSession)
+            .flatMap(
+                notes ->
+                    MessageChannel.parse(notes.getAuthNote(MessagingAttributes.FORM_OTP_CHANNEL)))
+            .filter(eligible::contains);
+    return new ChannelChoice(eligible, current, contacts, projection);
+  }
+
+  private void intiateForm(
+      AuthenticationFlowContext context, FormRequest request, String requestedChannel) {
     AuthenticatorConfigModel config = context.getAuthenticatorConfig();
     Map<String, String> configMap = MessageOTPAuthenticatorFactory.getConfigMap(config);
     KeycloakSession session = context.getSession();
@@ -270,6 +428,7 @@ public class MessageOTPAuthenticator
     Utils.MessageCourier messageCourier =
         Utils.MessageCourier.fromString(configMap.get(Utils.MESSAGE_COURIER_ATTRIBUTE));
     boolean deferredUser = "true".equals(configMap.get(Utils.DEFERRED_USER_ATTRIBUTE));
+    boolean resend = request == FormRequest.RESEND;
     boolean codeJustSent = false;
     UserModel user = context.getUser();
     // `requiresUser()` returns false so Keycloak may invoke this authenticator
@@ -297,14 +456,6 @@ public class MessageOTPAuthenticator
       return;
     }
 
-    LoginFormsProvider form =
-        context
-            .form()
-            .setAttribute("realm", context.getRealm())
-            .setAttribute("courier", messageCourier)
-            .setAttribute("isOtl", isOtl)
-            .setAttribute("ttl", configMap.get(Utils.CODE_TTL));
-
     try {
       // if we have a code in the session and it has not expired, then we don't
       // resend the message
@@ -312,7 +463,6 @@ public class MessageOTPAuthenticator
       String resendTimer = configMap.get(Utils.RESEND_ACTIVATION_TIMER);
       String configTtl = configMap.get(Utils.CODE_TTL);
       String ttl = authSession.getAuthNote(Utils.CODE_TTL);
-      String codeLength = configMap.get(Utils.CODE_LENGTH);
       long currentTime = System.currentTimeMillis();
       log.info(
           "ttl="
@@ -330,40 +480,87 @@ public class MessageOTPAuthenticator
 
       // A code invalidated by too many attempts is only replaced through the resend timer.
       boolean exhausted = code == null && authSession.getAuthNote(Utils.CODE_ATTEMPTS) != null;
-      boolean firstSend = !resend && !exhausted && ((code == null && !isOtl) || ttl == null);
-      if (firstSend || ((resend || exhausted) && allowResend)) {
+
+      // A replacement code on another channel is a resend: the same timer applies, so switching
+      // channels never yields more codes or attempts than resending would.
+      boolean replacement = false;
+      Optional<ChannelChoice> choice = Optional.empty();
+      if (messageCourier == Utils.MessageCourier.CHOSEN) {
+        ChannelChoice channels =
+            channelChoice(session, context.getRealm(), config, user, authSession, deferredUser);
+        if (channels.eligible().isEmpty()) {
+          context.getEvent().error(NO_CHANNEL);
+          context.failureChallenge(
+              AuthenticationFlowError.INVALID_USER,
+              context
+                  .form()
+                  .setError("messageOtp.auth.noChannel", sessionId)
+                  .createErrorPage(Response.Status.BAD_REQUEST));
+          return;
+        }
+        Optional<MessageChannel> requested =
+            MessageChannel.parse(requestedChannel).filter(channels.eligible()::contains);
+        if (request == FormRequest.SWITCH_CHANNEL && requested.isPresent()) {
+          if (ttl == null || allowResend) {
+            authSession.setAuthNote(MessagingAttributes.FORM_OTP_CHANNEL, requested.get().name());
+            replacement = true;
+          } else {
+            log.info("Channel change refused until the resend timer elapses");
+          }
+        } else if (channels.current().isEmpty() && channels.eligible().size() == 1) {
+          authSession.setAuthNote(
+              MessagingAttributes.FORM_OTP_CHANNEL, channels.eligible().get(0).name());
+        }
+        if (request == FormRequest.CHECK_MESSENGER) {
+          refreshMessengerState(context);
+        }
+        choice =
+            Optional.of(
+                channelChoice(
+                    session, context.getRealm(), config, user, authSession, deferredUser));
+      }
+      boolean needsChoice = choice.map(c -> c.current().isEmpty()).orElse(false);
+
+      boolean firstSend =
+          request == FormRequest.SHOW && !exhausted && ((code == null && !isOtl) || ttl == null);
+      boolean send =
+          !needsChoice && (firstSend || replacement || ((resend || exhausted) && allowResend));
+      if (send) {
         log.info("Send code from InitiateForm");
-        Utils.sendCode(
-            config,
-            session,
-            user,
-            authSession,
-            messageCourier,
-            deferredUser,
-            isOtl,
-            otlAuthNoteNames,
-            context);
+        MessageAttemptState state =
+            Utils.sendCode(
+                config,
+                session,
+                user,
+                authSession,
+                messageCourier,
+                deferredUser,
+                isOtl,
+                otlAuthNoteNames,
+                context);
+        authSession.setAuthNote(MessagingAttributes.NOTE_DELIVERY_STATE, state.name());
+        String via =
+            choice
+                .flatMap(ChannelChoice::current)
+                .or(
+                    () ->
+                        MessageChannel.parse(
+                            authSession.getAuthNote(MessagingAttributes.FORM_OTP_CHANNEL)))
+                .map(Enum::name)
+                .orElse(messageCourier.name());
         context
             .getEvent()
-            .detail("action", "send_code via " + messageCourier)
-            .detail("is_resend", String.valueOf(resend))
+            .detail("action", "send_code via " + via)
+            .detail("is_resend", String.valueOf(resend || replacement))
             .success();
         codeJustSent = true;
-        // after sending the code, we have a new ttl
-        ttl = authSession.getAuthNote(Utils.CODE_TTL);
         log.info("OTP resent successfully");
       } else {
         log.info("OTP not resent because we had another one already");
       }
 
       context.challenge(
-          form.setAttribute(
-                  "address",
-                  Utils.getOtpAddress(messageCourier, deferredUser, config, authSession, user))
-              .setAttribute("resendTimer", configMap.get(Utils.RESEND_ACTIVATION_TIMER))
-              .setAttribute("codeJustSent", codeJustSent)
-              .setAttribute("codeLength", codeLength)
-              .createForm(TPL_CODE));
+          codeForm(context, context.form(), configMap, messageCourier, deferredUser, codeJustSent));
     } catch (Exception error) {
       log.error("Error resending OTP");
       context.failureChallenge(
@@ -372,6 +569,106 @@ public class MessageOTPAuthenticator
               .form()
               .setError(Utils.ERROR_MESSAGE_NOT_SENT, sessionId)
               .createErrorPage(Response.Status.INTERNAL_SERVER_ERROR));
+    }
+  }
+
+  private void refreshMessengerState(AuthenticationFlowContext context) {
+    AuthenticationSessionModel authSession = context.getAuthenticationSession();
+    if (authSession.getAuthNote(MessagingAttributes.NOTE_MESSENGER_REFERENCE) == null) {
+      return;
+    }
+    try {
+      MessengerLinkStatus status =
+          VoterChannels.sender(context.getSession())
+              .messengerLinkStatus(Utils.messengerLinkRequest(authSession));
+      authSession.setAuthNote(MessagingAttributes.NOTE_MESSENGER_STATE, status.linkState().name());
+    } catch (IOException e) {
+      log.warn("refreshMessengerState(): harvest did not report the Messenger link");
+    }
+  }
+
+  private Response codeForm(
+      AuthenticationFlowContext context,
+      LoginFormsProvider form,
+      Map<String, String> configMap,
+      Utils.MessageCourier messageCourier,
+      boolean deferredUser,
+      boolean codeJustSent) {
+    AuthenticationSessionModel authSession = context.getAuthenticationSession();
+    AuthenticatorConfigModel config = context.getAuthenticatorConfig();
+    form.setAttribute("realm", context.getRealm())
+        .setAttribute("courier", messageCourier)
+        .setAttribute("isOtl", "true".equals(configMap.get(Utils.ONE_TIME_LINK)))
+        .setAttribute("ttl", configMap.get(Utils.CODE_TTL))
+        .setAttribute(
+            "address",
+            Utils.getOtpAddress(
+                messageCourier, deferredUser, config, authSession, context.getUser()))
+        .setAttribute("resendTimer", configMap.get(Utils.RESEND_ACTIVATION_TIMER))
+        .setAttribute("codeJustSent", codeJustSent)
+        .setAttribute("codeLength", configMap.get(Utils.CODE_LENGTH));
+    if (messageCourier == Utils.MessageCourier.CHOSEN) {
+      ChannelChoice choice =
+          channelChoice(
+              context.getSession(),
+              context.getRealm(),
+              config,
+              context.getUser(),
+              authSession,
+              deferredUser);
+      setChannelAttributes(form, choice, authSession);
+    }
+    return form.createForm(TPL_CODE);
+  }
+
+  private static void setChannelAttributes(
+      LoginFormsProvider form, ChannelChoice choice, AuthenticationSessionModel authSession) {
+    Map<String, String> addresses = new LinkedHashMap<>();
+    for (MessageChannel channel : choice.eligible()) {
+      addresses.put(channel.name(), VoterChannels.mask(channel, choice.contacts().get(channel)));
+    }
+    form.setAttribute(
+            "otpView", choice.current().isPresent() ? OtpView.CODE.name() : OtpView.CHOOSE.name())
+        .setAttribute(
+            "otherWayChannels",
+            VoterChannels.names(
+                choice.eligible().stream()
+                    .filter(channel -> choice.current().map(c -> c != channel).orElse(true))
+                    .toList()))
+        .setAttribute("channelAddresses", addresses);
+    if (choice.current().isEmpty()) {
+      return;
+    }
+    MessageChannel channel = choice.current().get();
+    form.setAttribute("channel", channel.name());
+    choice
+        .projection()
+        .flatMap(projection -> projection.senderLabel(channel))
+        .ifPresent(label -> form.setAttribute("senderLabel", label));
+    String deliveryState = authSession.getAuthNote(MessagingAttributes.NOTE_DELIVERY_STATE);
+    if (deliveryState != null) {
+      form.setAttribute("deliveryState", deliveryState);
+    }
+    if (channel == MessageChannel.MESSENGER) {
+      choice
+          .projection()
+          .flatMap(PublicMessagingChannels::messengerPage)
+          .ifPresent(page -> form.setAttribute("messengerPage", page.displayName()));
+      setNoteAttribute(form, "messengerLink", authSession, MessagingAttributes.NOTE_MESSENGER_LINK);
+      setNoteAttribute(form, "messengerWord", authSession, MessagingAttributes.NOTE_MESSENGER_WORD);
+      setNoteAttribute(
+          form, "messengerState", authSession, MessagingAttributes.NOTE_MESSENGER_STATE);
+    }
+  }
+
+  private static void setNoteAttribute(
+      LoginFormsProvider form,
+      String attribute,
+      AuthenticationSessionModel authSession,
+      String note) {
+    String value = authSession.getAuthNote(note);
+    if (value != null) {
+      form.setAttribute(attribute, value);
     }
   }
 
@@ -388,19 +685,34 @@ public class MessageOTPAuthenticator
     Map<String, String> configMap =
         MessageOTPAuthenticatorFactory.getConfigMap(config.orElse(null));
     boolean deferredUser = "true".equals(configMap.get(Utils.DEFERRED_USER_ATTRIBUTE));
+    boolean chosen =
+        Utils.MessageCourier.CHOSEN
+            == Utils.MessageCourier.fromString(configMap.get(Utils.MESSAGE_COURIER_ATTRIBUTE));
 
     String mobileNumber = null;
     String emailAddress = null;
+    boolean hasOtpAddress;
     if (deferredUser) {
       AuthenticationSessionModel authSession = session.getContext().getAuthenticationSession();
       String mobileNumberAttribute = configMap.get(Utils.TEL_USER_ATTRIBUTE);
       mobileNumber = authSession.getAuthNote(mobileNumberAttribute);
       emailAddress = authSession.getAuthNote("email");
-    } else if (user != null) {
-      mobileNumber = Utils.getMobile(config.orElse(null), user);
-      emailAddress = config.isPresent() ? user.getEmail() : null;
+      hasOtpAddress =
+          mobileNumber != null
+              || emailAddress != null
+              || (chosen && authSession.getAuthNote(MessagingAttributes.FORM_OTP_CHANNEL) != null);
+    } else if (user != null && chosen) {
+      hasOtpAddress =
+          !channelChoice(session, realm, config.orElse(null), user, null, false)
+              .eligible()
+              .isEmpty();
+    } else {
+      if (user != null) {
+        mobileNumber = Utils.getMobile(config.orElse(null), user);
+        emailAddress = config.isPresent() ? user.getEmail() : null;
+      }
+      hasOtpAddress = mobileNumber != null || emailAddress != null;
     }
-    boolean hasOtpAddress = mobileNumber != null || emailAddress != null;
 
     // In deferred mode the OTP address comes from the auth session notes (set during
     // deferred registration/login), not from a stored credential, so a
