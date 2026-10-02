@@ -878,11 +878,24 @@ async fn prepare_in(
             message.into(),
         )));
     }
+    // A document this step can't take: refused and logged, as approve
+    // refuses a document signature its action doesn't take.
     if found.action.document() != DocumentKind::Pdf {
-        return Err(SigningError::invalid(
+        let message = format!("A {} request signs no PDF.", found.action);
+        let request = relock(hasura_transaction, &found).await?;
+        log_refusal(
+            hasura_transaction,
+            &request,
+            caller,
+            &SignRefusal::Document.to_string(),
+            &message,
+            None,
+        )
+        .await?;
+        return Ok(PrepareStep::Refused(SigningError::invalid(
             InvalidReason::Document,
-            format!("A {} request signs no PDF.", found.action),
-        ));
+            message,
+        )));
     }
     let store = sources.store;
     let leaf = leaf_certificate(chain_pem)?;

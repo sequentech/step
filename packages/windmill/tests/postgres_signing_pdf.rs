@@ -1960,3 +1960,63 @@ async fn a_signers_title_comes_from_the_signer_directory() {
         None
     );
 }
+
+async fn refusal_checks(w: &World) -> Vec<String> {
+    w.pool
+        .get()
+        .await
+        .unwrap()
+        .query(
+            "SELECT body->'details'->>'check' FROM sequent_backend.signing_log_outbox
+             WHERE election_event_id = $1 AND statement_kind = 'SigningSignatureRefused'
+                 AND entry = 1 ORDER BY id",
+            &[&w.event],
+        )
+        .await
+        .unwrap()
+        .into_iter()
+        .map(|row| row.get(0))
+        .collect()
+}
+
+/// Preparing a PDF for a request whose action signs none is refused and
+/// logged, as approve refuses a document signature its action doesn't
+/// take; within the throttle, once.
+#[tokio::test]
+async fn preparing_a_pdf_for_an_action_without_one_is_refused_and_logged() {
+    for (label, required, _) in PRESETS {
+        let w = world(label).await;
+        let close = SigningAction::CloseVoting;
+        w.rule(close, required, RequesterSigning::NotAllowed, None)
+            .await;
+        let request = w
+            .start(
+                &caller("operator", &[], &[&w.label]),
+                close,
+                subject(1),
+                at(0),
+            )
+            .await;
+        let store = MemoryStore::default();
+        let signer = &pdf_signers(&w, close, 1).await[0];
+        for _ in 0..2 {
+            assert!(
+                matches!(
+                    prepare(&w, &store, signer, request.id, at(1)).await,
+                    Err(SigningError::Invalid {
+                        reason: InvalidReason::Document,
+                        ..
+                    })
+                ),
+                "{label}"
+            );
+        }
+        assert_eq!(refusal_checks(&w).await, ["document"], "{label}");
+        assert!(revisions(&w, request.id).await.is_empty());
+        assert_eq!(
+            w.request(request.id).await.status,
+            SigningRequestStatus::Waiting
+        );
+        w.assert_two_entries_per_step().await;
+    }
+}

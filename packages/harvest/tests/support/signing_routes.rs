@@ -237,7 +237,8 @@ async fn a_missing_permission_is_forbidden() {
         assert_eq!(status, Status::Forbidden, "{path}: {body}");
         assert_eq!(body["extensions"]["code"], "forbidden", "{path}");
     }
-    // A signer of a request without a PDF has nothing to prepare.
+    // A signer of a request without a PDF has nothing to prepare: refused
+    // and logged, as approve refuses a document it doesn't take.
     let (status, body) = json(
         post(
             &client,
@@ -251,13 +252,14 @@ async fn a_missing_permission_is_forbidden() {
     assert_eq!(status, Status::BadRequest, "{body}");
     assert_eq!(body["extensions"]["code"], "invalid");
     // Refused steps on the request are logged and committed: the two sign
-    // attempts and the starter's cancel. The stranger's handover and open
-    // failure, and Jose's cancel, come within the throttle of their own
-    // refusals. Reads are not logged.
+    // attempts, the starter's cancel and Maria's prepare. The stranger's
+    // handover and open failure, and Jose's cancel, come within the
+    // throttle of their own refusals. Reads are not logged.
     assert_eq!(
         steps(&services.hasura, &event).await,
         [
             "SigningRequestCreated",
+            "SigningSignatureRefused",
             "SigningSignatureRefused",
             "SigningSignatureRefused",
             "SigningSignatureRefused"
