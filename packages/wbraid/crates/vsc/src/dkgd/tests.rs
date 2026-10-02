@@ -73,6 +73,27 @@ fn test_dkgd_non_t_p256() {
     test_dkgd_all_participants::<PCtx, 1, 1, 2>();
 }
 
+/// Committees large enough that the Shamir exponent `position^j` no longer
+/// fits a machine integer: `position^(T-1)` first exceeds `2^32 - 1` at
+/// `T = P = 11` (`11^10`), and at position 12 for `T = 10` (`12^9`). Computed
+/// in `u32` these silently wrap in release builds and honest shares fail
+/// verification (`PROTOCOL-alignment.md`, C3). They exceed braid's
+/// `MAX_TRUSTEES` on purpose: the arithmetic must hold for every committee
+/// vsc admits (`P < 100`), not just the deployed bound.
+#[test]
+fn test_dkgd_large_committee_ristretto() {
+    test_dkgd::<RCtx, 11, 11, 2>();
+    test_dkgd::<RCtx, 10, 12, 2>();
+    test_dkgd_all_participants::<RCtx, 11, 11, 2>();
+}
+
+#[test]
+fn test_dkgd_large_committee_p256() {
+    test_dkgd::<PCtx, 11, 11, 2>();
+    test_dkgd::<PCtx, 10, 12, 2>();
+    test_dkgd_all_participants::<PCtx, 11, 11, 2>();
+}
+
 fn test_dkgd<C: Context, const T: usize, const P: usize, const W: usize>() {
     assert!(T <= P);
 
