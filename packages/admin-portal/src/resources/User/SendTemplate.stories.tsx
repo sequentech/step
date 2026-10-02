@@ -16,6 +16,14 @@ import type {WidgetMeta} from "@/__stories__/widgetStory"
 import {STORY_IDS, type StoryRecord, storyId} from "@/__stories__/fixtures"
 import type {Sequent_Backend_Template} from "@/gql/graphql"
 import {ITemplateMethod} from "@/types/templates"
+import {
+    EChannelSelection,
+    EMessageChannel,
+    EMessagePurpose,
+    EMessagingProvider,
+    EOutOfWindowPolicy,
+    MESSAGING_CONFIG_ANNOTATION,
+} from "@/types/messaging"
 import {AudienceSelection, SendTemplate} from "./SendTemplate"
 
 interface Scenario {
@@ -51,10 +59,85 @@ const template = (
     updated_at: "2026-01-01T00:00:00.000Z",
 })
 
+const whatsappReminder = {
+    message: "Hello {{1}}, voting opens tomorrow.",
+    parameters: ["user.first_name"],
+}
+
 const templates = [
     template(1, ITemplateMethod.EMAIL, "welcome", {email: welcome}),
     template(2, ITemplateMethod.SMS, "reminder", {sms: {message: "Remember to vote"}}),
+    template(3, ITemplateMethod.EMAIL, "voting-opens", {
+        selected_methods: {EMAIL: true, SMS: true, WHATSAPP: true},
+        email: welcome,
+        sms: {message: "Voting opens tomorrow"},
+        whatsapp: whatsappReminder,
+    }),
 ]
+
+const SMS_ACCOUNT_ID = storyId(9, 20)
+const EMAIL_ACCOUNT_ID = storyId(9, 21)
+
+const account = (
+    id: string,
+    channel: EMessageChannel,
+    provider: EMessagingProvider,
+    name: string
+) => ({
+    id,
+    tenant_id: TENANT_ID,
+    channel,
+    provider,
+    name,
+    sender: {provider},
+    credentials: {},
+    limits: {allowed_calling_codes: []},
+    provider_approval: "CONFIRMED",
+    status: {connected: true, production_access: true, approved_templates: {}},
+    webhook_key: null,
+    is_default: true,
+    created_at: "2026-01-01T00:00:00.000Z",
+    updated_at: "2026-01-01T00:00:00.000Z",
+})
+
+const accounts = [
+    account(
+        EMAIL_ACCOUNT_ID,
+        EMessageChannel.EMAIL,
+        EMessagingProvider.AWS_SES,
+        "Election office email"
+    ),
+    account(SMS_ACCOUNT_ID, EMessageChannel.SMS, EMessagingProvider.AWS_SNS, "Election office SMS"),
+]
+
+const messagingConfig = {
+    version: 1,
+    channels: [
+        {
+            channel: EMessageChannel.EMAIL,
+            account_id: EMAIL_ACCOUNT_ID,
+            purposes: [EMessagePurpose.OTP, EMessagePurpose.NOTICE],
+            templates: [],
+            out_of_window: EOutOfWindowPolicy.DISABLED,
+        },
+        {
+            channel: EMessageChannel.SMS,
+            account_id: SMS_ACCOUNT_ID,
+            purposes: [EMessagePurpose.NOTICE],
+            templates: [],
+            out_of_window: EOutOfWindowPolicy.DISABLED,
+        },
+    ],
+    notice_fallback: [EMessageChannel.SMS],
+    election_channels: {},
+    reply_text: {},
+}
+
+const electionEvent = {
+    id: EVENT_ID,
+    tenant_id: TENANT_ID,
+    annotations: {[MESSAGING_CONFIG_ANNOTATION]: JSON.stringify(messagingConfig)},
+}
 
 let graphql: ReturnType<typeof graphqlBoundary>
 let data: ReturnType<typeof resourceBoundary>
@@ -73,14 +156,20 @@ const meta = {
     beforeEach: async ({args}) => {
         graphql = graphqlBoundary(
             {
+                GetMessagingAccounts: () => ({
+                    data: {sequent_backend_messaging_account: accounts},
+                }),
                 CreateScheduledEvent: () => {
                     if (args.failure) throw new Error("Synthetic scheduler failure")
                     return {data: {createScheduledEvent: {id: storyId(9, 9)}}}
                 },
             },
-            {schema: true}
+            {schema: false}
         )
-        data = resourceBoundary({sequent_backend_template: templates})
+        data = resourceBoundary({
+            sequent_backend_template: templates,
+            sequent_backend_election_event: [electionEvent],
+        })
         await graphql.ready
     },
     render: ({ids, audienceSelection, secretAttributeNames, close}) => (
@@ -133,7 +222,9 @@ export const Populated: Story = {
                 expect.objectContaining({filter: {tenant_id: TENANT_ID}}),
             ])
         )
-        expect(graphql.calls).toEqual([])
+        expect(canvas.getByText("Each voter's channel")).toBeVisible()
+        await expect(await canvas.findByRole("cell", {name: "Election office SMS"})).toBeVisible()
+        expect(graphql.calls.map((call) => call.name)).toEqual(["GetMessagingAccounts"])
     },
 }
 
@@ -148,7 +239,7 @@ export const SendNowToTheSelectedVoters: Story = {
             eventPayload: {
                 audience_selection: AudienceSelection.SELECTED,
                 audience_voter_ids: [STORY_IDS.user, STORY_IDS.secondUser],
-                communication_method: ITemplateMethod.EMAIL,
+                channel_selection: EChannelSelection.VOTER_PREFERENCE,
                 schedule_now: true,
                 email: defaultEmail,
                 sms: {message: "Enter in {{vote_url}} to vote"},
@@ -204,7 +295,7 @@ export const EmailTemplateWithSecretAttribute: Story = {
 export const SmsMessage: Story = {
     play: async ({args, canvasElement}) => {
         const canvas = within(canvasElement)
-        await choose(canvasElement, "Email", "SMS")
+        await choose(canvasElement, "Each voter's channel", "SMS only")
         const message = await canvas.findByRole("textbox", {name: "SMS Message"})
         await userEvent.clear(message)
         await userEvent.type(message, "Polls close at 20:00")
@@ -212,9 +303,56 @@ export const SmsMessage: Story = {
         await send(canvasElement)
         await waitFor(() => expect(args.close).toHaveBeenCalledTimes(1))
         expect(sent()?.eventPayload).toMatchObject({
+            channel_selection: EChannelSelection.SINGLE_CHANNEL,
             communication_method: ITemplateMethod.SMS,
             sms: {message: "Polls close at 20:00"},
         })
+        expect(sent()?.eventPayload).not.toHaveProperty("email")
+    },
+}
+
+export const MultiMethodTemplateForSms: Story = {
+    // The open listbox hides the unnamed selects from the accessibility tree.
+    parameters: {expectedFailure: null},
+    play: async ({canvasElement}) => {
+        await choose(canvasElement, "Each voter's channel", "SMS only")
+        const [, , alias] = within(canvasElement).getAllByRole("combobox")
+        await userEvent.click(alias)
+        const options = within(await within(document.body).findByRole("listbox"))
+            .getAllByRole("option")
+            .map((option) => option.textContent)
+        expect(options).toEqual(["voting-opens", "reminder"])
+    },
+}
+
+export const WhatsAppOnly: Story = {
+    play: async ({args, canvasElement}) => {
+        const canvas = within(canvasElement)
+        await choose(canvasElement, "Each voter's channel", "WhatsApp only")
+        const [, , alias] = canvas.getAllByRole("combobox")
+        await userEvent.click(alias)
+        await userEvent.click(
+            await within(document.body).findByRole("option", {name: "voting-opens"})
+        )
+        await expect(await canvas.findByRole("textbox", {name: "WhatsApp"})).toHaveValue(
+            whatsappReminder.message
+        )
+        await send(canvasElement)
+        await waitFor(() => expect(args.close).toHaveBeenCalledTimes(1))
+        expect(sent()?.eventPayload).toMatchObject({
+            channel_selection: EChannelSelection.SINGLE_CHANNEL,
+            communication_method: ITemplateMethod.WHATSAPP,
+            whatsapp: whatsappReminder,
+        })
+    },
+}
+
+export const MissingChannelContent: Story = {
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        const smsMessage = await canvas.findByRole("textbox", {name: "SMS Message"})
+        await userEvent.clear(smsMessage)
+        await expect(await canvas.findByText(/has no content for SMS/)).toBeVisible()
     },
 }
 
@@ -225,7 +363,7 @@ export const ScheduleNeedsADate: Story = {
         expect(canvas.getByLabelText(/Date and time to start sending/)).toBeEnabled()
         await send(canvasElement)
         await expect(await canvas.findByText("Please choose a date")).toBeVisible()
-        expect(graphql.calls).toEqual([])
+        expect(graphql.calls.map((call) => call.name)).toEqual(["GetMessagingAccounts"])
         expect(args.close).not.toHaveBeenCalled()
     },
 }
@@ -237,7 +375,10 @@ export const SendFailure: Story = {
         await expect(
             await within(canvasElement).findByText(/Error sending the notification/)
         ).toBeVisible()
-        expect(graphql.calls.map((call) => call.name)).toEqual(["CreateScheduledEvent"])
+        expect(graphql.calls.map((call) => call.name)).toEqual([
+            "GetMessagingAccounts",
+            "CreateScheduledEvent",
+        ])
         expect(args.close).not.toHaveBeenCalled()
     },
 }

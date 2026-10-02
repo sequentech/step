@@ -355,8 +355,6 @@ const galegoTranslation: TranslationType = {
                 telephoneVoting: "Votación Telefónica",
                 settingTitle: "Configuracións",
                 settingSubtitle: "Configuración Xeral",
-                sms: "SMS",
-                mail: "Correos",
                 createNew: "Crear Tipo de Elección",
                 emptyHeader: "Aínda non hai Tipos de Elección.",
                 emptyBody: "¿Queres crear un?",
@@ -370,7 +368,6 @@ const galegoTranslation: TranslationType = {
             tabs: {
                 votingChannels: "CANLES DE VOTACIÓN",
                 electionTypes: "TIPOS DE ELECCIÓN",
-                templates: "MODELOS",
                 languages: "IDIOMAS",
                 localization: "LOCALIZACIÓN",
                 integrations: "Integracións",
@@ -1548,6 +1545,9 @@ const galegoTranslation: TranslationType = {
                 "phone-blacklist-delete": "Eliminar entradas da lista negra de teléfonos",
                 "election-event-voter-list-reconciliation":
                     "Reconciliar a lista de votantes do evento electoral",
+                "messaging-account-read": "Ver contas de mensaxería",
+                "messaging-account-write": "Xestionar contas de mensaxería",
+                "messaging-config-write": "Configurar a mensaxería do evento electoral",
             },
         },
         generalSettingsScreen: {
@@ -2528,6 +2528,9 @@ const galegoTranslation: TranslationType = {
             communicationMethod: {
                 EMAIL: "Correo",
                 SMS: "SMS",
+                WHATSAPP: "WhatsApp",
+                VIBER: "Viber",
+                MESSENGER: "Facebook Messenger",
             },
             communicationType: {
                 CREDENTIALS: "Credenciais",
@@ -2719,6 +2722,9 @@ const galegoTranslation: TranslationType = {
                 email: "Correo",
                 sms: "SMS",
                 document: "Documento",
+                whatsapp: "WhatsApp",
+                viber: "Viber",
+                messenger: "Facebook Messenger",
             },
             import: {
                 title: "Importar Plantillas",
@@ -3407,6 +3413,444 @@ const galegoTranslation: TranslationType = {
             confirmDelete: "Eliminar autoridade de certificación",
             confirmDeleteDescription:
                 '¿Está seguro de que quere eliminar o certificado "{{name}}" (pegada: {{fingerprint}})?',
+        },
+        messagingEvent: {
+            tab: "Mensaxería",
+            intro: "As canles que os votantes deste evento poden escoller para códigos e avisos, e a conta desde a que envía cada unha. As contas xestiónanse en Axustes > Mensaxería.",
+            readOnly:
+                "Pode ver estes axustes. Para cambialos precisa o permiso messaging-config-write.",
+            savingNote:
+                "Ao gardar tamén se actualizan as canles que as páxinas de inscrición ofrecen en cada Post.",
+            save: "Gardar",
+            saved: "Axustes de mensaxería gardados.",
+            saveRejected:
+                "Os axustes de mensaxería non se gardaron. Corrixa os problemas indicados.",
+            saveError: "Non se puideron gardar os axustes de mensaxería.",
+            accountLabel: "Conta de {{channel}}",
+            notUsed: "Sen usar",
+            missingAccount: "Conta non atopada",
+            noAccount: "Engada antes unha conta en Axustes > Mensaxería",
+            missing: "Falta: {{blockers}}",
+            purposeSwitch: "{{channel}}: {{purpose}}",
+            sections: {
+                channels: "Canles",
+                templates: "Modelos de WhatsApp e Viber",
+                fallback: "Orde alternativa para avisos",
+                posts: "Canles por Post",
+                postsCount: "Canles por Post ({{count}} Posts)",
+                reply: "Resposta ás mensaxes entrantes",
+                delivery: "Estado da entrega",
+            },
+            column: {
+                channel: "Canle",
+                account: "Envía desde",
+                purpose: "Finalidade",
+                language: "Idioma",
+                template: "Modelo aprobado",
+                status: "Estado",
+                post: "Post",
+            },
+            outOfWindow: {
+                label: "Pasadas 24 horas",
+                help: "Messenger só envía avisos nas 24 horas seguintes á última mensaxe do votante. O envío posterior segue desactivado ata que Meta confirme o mecanismo para esta páxina; mentres tanto, eses avisos van á seguinte canle dispoñible do votante.",
+                DISABLED: "Non enviar",
+                UTILITY_MESSAGES: "Mensaxes de utilidade",
+            },
+            templates: {
+                empty: "Active códigos ou avisos en WhatsApp ou Viber para escoller os seus modelos.",
+                help: "WhatsApp e Viber só envían modelos que o provedor aprobou para a conta. Indique o modelo aprobado de cada idioma; un idioma sen modelo aprobado non se pode enviar.",
+                label: "Modelo de {{purpose}} de {{channel}}, {{language}}",
+                approved: "Aprobado",
+                notApproved: "Non aprobado",
+            },
+            fallback: {
+                help: "Cando un aviso non pode chegar a un votante pola súa canle, pasa á seguinte canle desta orde que o votante verificase e que ofreza o seu Post. Os códigos nunca se reenvían sós: o votante escolle outra forma.",
+                empty: "Active os avisos dunha canle para engadila á orde alternativa.",
+                earlier: "Mover {{channel}} antes",
+                later: "Mover {{channel}} despois",
+            },
+            posts: {
+                noChannels:
+                    "Active códigos ou avisos nunha canle para escoller as canles de cada Post.",
+                help: "A inscrición mostra aos votantes de cada Post as canles marcadas aquí.",
+                restricted: "{{count}} Posts ofrecen menos das {{total}} canles.",
+                allChannels:
+                    "Todos os Posts ofrecen as {{total}} canles; desmarque unha canle no Post onde non funcione.",
+                search: "Buscar Posts",
+                cell: "{{post}}: {{channel}}",
+                showing: "Móstranse {{shown}} de {{total}} Posts. Busque para atopar outros.",
+            },
+            reply: {
+                help: "Envíase cando un votante escribe a unha das contas deste evento, como moito unha vez ao día por votante.",
+                label: "Resposta ({{language}})",
+            },
+            delivery: {
+                empty: "Non se usa ningunha canle.",
+                help: "Aceptado significa que o provedor aceptou a solicitude, non que o votante recibise ou verificase o código. Descoñecido significa que a entrega aínda non está confirmada. Un provedor sen informes de entrega mostra a entrega como non dispoñible.",
+            },
+            error: {
+                UNSUPPORTED_VERSION:
+                    "Esta configuración usa a versión {{version}}, que non se admite.",
+                DUPLICATE_CHANNEL: "{{channel}} está configurada máis dunha vez.",
+                UNKNOWN_ACCOUNT: "A conta de {{channel}} xa non existe. Escolla outra conta.",
+                ACCOUNT_OF_ANOTHER_TENANT: "A conta seleccionada pertence a outro inquilino.",
+                ACCOUNT_CHANNEL_MISMATCH: "A conta seleccionada non envía mensaxes de {{channel}}.",
+                PURPOSE_NOT_READY:
+                    "{{channel}} aínda non pode enviar {{purpose}}. Falta: {{blockers}}.",
+                TEMPLATE_NOT_APPROVED:
+                    "O modelo de {{channel}} para {{purpose}} en {{language}} non está aprobado polo provedor.",
+                OUT_OF_WINDOW_NOT_SUPPORTED:
+                    "{{channel}} non pode enviar fóra dunha xanela de conversa.",
+                FALLBACK_CHANNEL_NOT_ENABLED:
+                    "{{channel}} está na orde alternativa pero non envía avisos.",
+                DUPLICATE_FALLBACK_CHANNEL:
+                    "{{channel}} aparece máis dunha vez na orde alternativa.",
+                ELECTION_CHANNEL_NOT_ENABLED:
+                    "{{election}} ofrece {{channel}}, que este evento non usa.",
+                UNKNOWN_ELECTION: "{{election}} non é unha elección deste evento.",
+            },
+        },
+        messaging: {
+            channel: {
+                EMAIL: "Correo electrónico",
+                SMS: "SMS",
+                WHATSAPP: "WhatsApp",
+                VIBER: "Viber",
+                MESSENGER: "Facebook Messenger",
+            },
+            provider: {
+                AWS_SES: "Amazon SES",
+                SMTP: "Servidor SMTP",
+                AWS_SNS: "Amazon SNS",
+                WHATSAPP_CLOUD_API: "WhatsApp Cloud API (Meta)",
+                MESSENGER_SEND_API: "Messenger Platform (Meta)",
+                VIBER_INFOBIP: "Viber Business Messages (Infobip)",
+                CONSOLE: "Consola (só probas, non se envía nada)",
+            },
+            purpose: {
+                OTP: "Códigos",
+                NOTICE: "Avisos",
+            },
+            state: {
+                QUEUED: "En cola",
+                ACCEPTED: "Aceptado",
+                DELIVERED: "Entregado",
+                FAILED: "Fallido",
+                UNKNOWN: "Descoñecido",
+            },
+            stateHelp: {
+                QUEUED: "Pendente de entregar ao provedor.",
+                ACCEPTED:
+                    "O provedor aceptou a mensaxe. Isto non significa que o votante a recibise.",
+                DELIVERED: "O provedor informou de que a mensaxe se entregou.",
+                FAILED: "O provedor confirmou que a mensaxe non se entregou.",
+                UNKNOWN: "A entrega aínda non está confirmada.",
+            },
+            blocker: {
+                NOT_CONNECTED: "Sen conexión",
+                UNSUPPORTED_PURPOSE: "Este provedor non o admite",
+                NEEDS_PROVIDER_APPROVAL: "Precisa a aprobación do provedor",
+                NEEDS_PRODUCTION_ACCESS: "Precisa acceso de produción",
+                NEEDS_APPROVED_TEMPLATE: "Precisa un modelo aprobado",
+            },
+            readiness: {
+                connected: "Conectada",
+                notConnected: "Sen conexión",
+                readyOtp: "Lista para códigos",
+                readyNotice: "Lista para avisos",
+                notReady: "Non está lista",
+                lastCheck: "Comprobada {{date}}",
+                neverChecked: "Aínda non comprobada",
+            },
+            approval: {
+                PENDING: "Pendente de aprobación do provedor",
+                CONFIRMED: "Aprobación do provedor confirmada",
+            },
+            credential: {
+                ACCESS_TOKEN: "Token de acceso",
+                APP_SECRET: "Segredo da aplicación",
+                VERIFY_TOKEN: "Token de verificación",
+                API_KEY: "Clave de API",
+                SMTP_PASSWORD: "Contrasinal",
+                AWS_ACCESS_KEY_ID: "ID de clave de acceso de AWS",
+                AWS_SECRET_ACCESS_KEY: "Clave de acceso secreta de AWS",
+            },
+            deliveryUnavailable: "Entrega non dispoñible",
+            templates: {
+                noMethod: "Escolle polo menos un método para o modelo.",
+                parameters: "Parámetros do modelo",
+                parametersHelp:
+                    "O que enche cada marcador do modelo aprobado, en orde, como user.first_name ou vote_url.",
+                parameter: "Parámetro {{position}}",
+                removeParameter: "Quitar o parámetro {{position}}",
+                addParameter: "Engadir parámetro",
+                noAccount:
+                    "Aínda non hai ningunha conta de {{channel}}. Engade unha en Axustes > Mensaxería para ver que idiomas están aprobados.",
+                account: "Conta",
+                approvalTitle: "Modelos aprobados",
+                language: "Idioma",
+                approvalFor: "Aprobado para {{purpose}}",
+                approved: "Aprobado",
+                notApproved: "Non aprobado",
+                approvalHelp:
+                    "As aprobacións veñen do provedor e actualízanse coa comprobación de conexión da conta.",
+                messengerIntro:
+                    "Nas 24 horas seguintes á última mensaxe do votante, Messenger envía o texto seguinte.",
+                messengerMessage: "Mensaxe dentro das 24 horas",
+                messengerWindow:
+                    "Un destinatario de Messenger gardado non é permiso para enviar. Fóra da xanela de 24 horas Messenger non envía este aviso: vai ao seguinte canal dispoñible do votante ata que Meta confirme un mecanismo para esta páxina.",
+                intro: {
+                    WHATSAPP:
+                        "WhatsApp só envía modelos que Meta aprobou para a conta de WhatsApp Business. A mensaxe debe coincidir co modelo aprobado; escolle o que enche os seus parámetros.",
+                    VIBER: "Viber só envía códigos e mensaxes transaccionais con modelos aprobados polo socio de Viber. A mensaxe debe coincidir co modelo aprobado; escolle o que enche os seus parámetros.",
+                },
+                approvedWording: "Texto aprobado",
+                approvedWordingHelp:
+                    "Unha copia do modelo aprobado, usada como vista previa. Cambiala aquí non cambia o que envía o provedor.",
+            },
+            send: {
+                channel: "Canle",
+                eachVoter: "A canle de cada votante",
+                only: "Só {{channel}}",
+                eachVoterHelp:
+                    "Os fallos confirmados usan a seguinte canle verificada dispoñible. A entrega sen confirmar móstrase como Descoñecido.",
+                onlyHelp: "Esta notificación envíase a cada votante por {{channel}}.",
+                channelColumn: "Canle",
+                sendsFrom: "Envíase desde",
+                noAccount: "Sen conta",
+                missingContent: "Esta notificación non ten contido para {{channels}}.",
+                approvedTemplateHelp:
+                    "Envíase co modelo aprobado polo provedor. Edítao en Modelos.",
+            },
+            voter: {
+                title: "Mensaxería",
+                preferredChannel: "Canle preferida",
+                whatsappNumber: "Número de WhatsApp",
+                viberNumber: "Número de Viber",
+                messengerConnected: "Conectado",
+                messengerNotConnected: "Non conectado",
+                verifiedChannels: "Canles verificadas",
+                noneVerified: "Ningunha canle verificada",
+                notSet: "Sen definir",
+            },
+            logs: {
+                channel: "Canle",
+            },
+            stats: {
+                sent: {
+                    WHATSAPP: "Mensaxes de WhatsApp enviadas",
+                    VIBER: "Mensaxes de Viber enviadas",
+                    MESSENGER: "Mensaxes de Messenger enviadas",
+                },
+            },
+        },
+        messagingAccounts: {
+            tab: "MENSAXERÍA",
+            description:
+                "Contas que envían aos votantes os seus códigos e avisos. Cada evento electoral escolle a conta de cada canle; os eventos novos comezan coa conta predeterminada.",
+            list: {
+                title: "Contas de envío",
+                add: "Engadir conta",
+                loading: "Cargando contas",
+                loadError: "Non se puideron cargar as contas de envío.",
+                empty: "Aínda non hai contas de envío.",
+            },
+            column: {
+                channel: "Canle",
+                name: "Conta",
+                sender: "Envía como",
+                provider: "Provedor",
+                default: "Predeterminada",
+                isDefault: "Conta predeterminada",
+                lastCheck: "Última comprobación",
+                actions: "Accións",
+            },
+            action: {
+                edit: "Editar",
+                editNamed: "Editar {{name}}",
+                view: "Ver",
+                viewNamed: "Ver {{name}}",
+                check: "Comprobar conexión",
+                checkNamed: "Comprobar a conexión de {{name}}",
+                test: "Enviar mensaxe de proba",
+                testNamed: "Enviar unha mensaxe de proba desde {{name}}",
+                delete: "Eliminar",
+                deleteNamed: "Eliminar {{name}}",
+            },
+            check: {
+                done: "Comprobouse {{name}}. O seu estado está actualizado.",
+                error: "Non se puido comprobar {{name}}.",
+            },
+            delete: {
+                title: "Eliminar conta",
+                body: "Eliminar {{name}}? Os eventos electorais que a usan deixarán de enviar pola súa canle.",
+                success: "Conta eliminada",
+                error: "Non se puido eliminar a conta.",
+            },
+            editor: {
+                addTitle: "Engadir conta",
+                editTitle: "Editar conta de {{channel}}",
+                subtitle: "Os votantes reciben códigos e avisos desta conta nas canles que a usan.",
+                channel: "Canle",
+                provider: "Provedor",
+                save: "Gardar",
+                cancel: "Cancelar",
+                close: "Pechar",
+            },
+            field: {
+                name: "Nome da conta",
+                from_address: "Enderezo do remitente",
+                from_name: "Nome do remitente",
+                region: "Rexión de AWS",
+                notification_topic_arn: "Tema de notificacións de entrega (ARN de SNS)",
+                server_url: "Servidor e porto",
+                sender_id: "ID do remitente",
+                origination_number: "Número de orixe",
+                business_account_id: "ID da conta de WhatsApp Business",
+                phone_number_id: "ID do número de teléfono",
+                display_phone_number: "Número",
+                display_name: "Nome visible",
+                api_version: "Versión de Graph API",
+                page_id: "ID da páxina de Facebook",
+                page_name: "Nome da páxina",
+                page_username: "Nome de usuario da páxina",
+                base_url: "URL base da API",
+                sender: "Nome do remitente",
+                provider_approval: "Aprobación do provedor",
+                is_default: "Conta de {{channel}} predeterminada para novos eventos electorais",
+            },
+            fieldHelp: {
+                from_address:
+                    "O enderezo que ven os votantes. O seu dominio debe estar verificado co provedor.",
+                notification_topic_arn:
+                    "O tema de SNS no que SES publica os eventos de entrega e rebote. Rexéitanse as notificacións de calquera outro tema.",
+                sender_id: "Ata 11 letras e díxitos. Algúns países esixen rexistralo.",
+                origination_number:
+                    "Úsase en lugar do ID do remitente onde un país esixe un número.",
+                phone_number_id: "O número desde o que se envían as mensaxes.",
+                display_name: "O nome visible que Meta aprobou para o número.",
+                page_username:
+                    "Úsase na ligazón m.me que os votantes abren para obter o seu código.",
+                api_version: "Por exemplo, v23.0.",
+                base_url: "A URL base da API de Infobip da conta.",
+                sender: "O remitente aprobado que ven os votantes.",
+                provider_approval:
+                    "Meta só permite mensaxes de WhatsApp de gobernos mediante un acordo aprobado. Mentres a aprobación estea pendente, non se poden activar códigos nin avisos nesta conta.",
+            },
+            error: {
+                REQUIRED: "Obrigatorio",
+                NOT_A_COUNT: "Introduce un número enteiro",
+                OTP_ABOVE_TOTAL: "Non pode superar as mensaxes por segundo",
+                INVALID_CALLING_CODE:
+                    "Introduce prefixos telefónicos de país de 1 a 3 díxitos, como 63",
+                DUPLICATE_LANGUAGE: "Este idioma xa ten un modelo para este propósito",
+            },
+            warning: {
+                pageChange:
+                    "As conversas de Messenger pertencen a unha páxina. Tras cambiar a páxina, os votantes conectados a {{page}} só recibirán códigos despois de volver conectar Messenger.",
+                numberChange:
+                    "As mensaxes chegarán desde outro número. Os seus modelos deben estar aprobados nesa conta de empresa antes de poder enviar códigos, e os votantes verán un chat novo.",
+            },
+            viber: {
+                title: "Modelos aprobados",
+                description:
+                    "Introduce os modelos que Viber aprobou a través do socio, por propósito e idioma. A API de modelos do socio non está dispoñible, así que esta lista mantense a man e a comprobación de conexión lea.",
+                purpose: "Propósito",
+                language: "Idioma",
+                templateId: "ID do modelo do socio",
+                add: "Engadir modelo",
+                remove: "Quitar modelo",
+            },
+            limits: {
+                title: "Límites de envío",
+                messagesPerSecond: "Mensaxes por segundo",
+                otpReservedPerSecond: "Reservadas para códigos por segundo",
+                otpReservedHelp: "Mantéñense libres para os códigos durante os envíos masivos.",
+                allowedCallingCodes: "Destinos permitidos (prefixos telefónicos de país)",
+                allowedCallingCodesHelp:
+                    "Separados por comas, por exemplo 63, 971. Baleiro permite calquera destino.",
+            },
+            credentials: {
+                title: "Credenciais",
+                description:
+                    "As credenciais son só de escritura: despois de gardar, só se mostra a data en que se substituíu cada unha.",
+                set: "Configurada · substituída {{date}}. Gárdase cifrada e nunca se mostra.",
+                replace: "Substituír",
+                replaceNamed: "Substituír {{name}}",
+            },
+            credentialHelp: {
+                AWS_SES: {
+                    AWS_ACCESS_KEY_ID: "Opcional. Sen claves, úsase o rol propio do servizo.",
+                    AWS_SECRET_ACCESS_KEY: "Opcional. Configúraa xunto co ID de clave de acceso.",
+                },
+                AWS_SNS: {
+                    AWS_ACCESS_KEY_ID: "Opcional. Sen claves, úsase o rol propio do servizo.",
+                    AWS_SECRET_ACCESS_KEY: "Opcional. Configúraa xunto co ID de clave de acceso.",
+                },
+                SMTP: {
+                    SMTP_PASSWORD: "O contrasinal do servidor SMTP.",
+                },
+                WHATSAPP_CLOUD_API: {
+                    ACCESS_TOKEN:
+                        "Un token dun usuario do sistema da carteira empresarial do propietario, con whatsapp_business_messaging.",
+                    APP_SECRET: "Comproba que as chamadas ao webhook proceden de Meta.",
+                },
+                MESSENGER_SEND_API: {
+                    ACCESS_TOKEN: "Un token de acceso de páxina con pages_messaging.",
+                    APP_SECRET: "Comproba que as chamadas ao webhook proceden de Meta.",
+                },
+                VIBER_INFOBIP: {
+                    API_KEY: "A clave de API de Infobip.",
+                },
+            },
+            webhook: {
+                title: "Informes de entrega e respostas",
+                description:
+                    "Introduce este enderezo de retorno na configuración de webhooks do provedor. Os informes de entrega e as respostas dos votantes chegan alí.",
+                path: "Ruta de retorno",
+                pathHelp:
+                    "Engádea ao enderezo público dos webhooks de mensaxería desta plataforma.",
+                afterSaving: "Móstrase despois de gardar",
+                copyPath: "Copiar ruta de retorno",
+                tokenSet: "Configurado · substituído {{date}}",
+                tokenMissing: "Aínda non xerado",
+                tokenAfterSaving: "Xérase despois de gardar",
+                generate: "Xerar token de verificación",
+                tokenTitle: "Token de verificación",
+                tokenOnce:
+                    "Introduce agora este token na configuración de webhooks de Meta. Só se mostra unha vez.",
+                copyToken: "Copiar token de verificación",
+                tokenDone: "Feito",
+                tokenError: "Non se puido xerar o token de verificación.",
+            },
+            copy: {
+                success: "Copiado",
+                error: "Non se puido copiar",
+            },
+            save: {
+                success: "Conta gardada",
+                error: "Non se puido gardar a conta.",
+            },
+            test: {
+                title: "Enviar unha mensaxe de proba desde {{name}}",
+                description:
+                    "Envía unha mensaxe real para o propósito escollido a este destino. O resultado mostra o que informou o provedor.",
+                purpose: "Propósito",
+                destination: {
+                    EMAIL_ADDRESS: "Correo electrónico",
+                    PHONE_NUMBER: "Número de teléfono (E.164)",
+                    PAGE_SCOPED_ID: "ID de ámbito de páxina",
+                },
+                language: "Idioma",
+                send: "Enviar mensaxe de proba",
+                reason: "Motivo: {{reason}}",
+                error: "Non se puido enviar a mensaxe de proba.",
+                template: "Modelo aprobado",
+                templateHelp:
+                    "O nome do modelo de WhatsApp que o provedor aprobou para este propósito e idioma.",
+                viberTemplate:
+                    "Viber usa o modelo que esta conta indica como aprobado para o propósito e o idioma escollidos.",
+            },
         },
     },
 }

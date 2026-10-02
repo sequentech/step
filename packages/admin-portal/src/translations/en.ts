@@ -353,8 +353,6 @@ const englishTranslation = {
                 telephoneVoting: "Telephone Voting",
                 settingTitle: "Settings",
                 settingSubtitle: "General Configuration",
-                sms: "SMS",
-                mail: "Mails",
                 createNew: "Create Election Type",
                 emptyHeader: "No Election Types yet.",
                 emptyBody: "Do you want to create one?",
@@ -368,7 +366,6 @@ const englishTranslation = {
             tabs: {
                 votingChannels: "VOTING CHANELS",
                 electionTypes: "ELECTION TYPES",
-                templates: "TEMPLATES",
                 languages: "LANGUAGES",
                 localization: "LOCALIZATION",
                 integrations: "Integrations",
@@ -1527,6 +1524,9 @@ const englishTranslation = {
                 "phone-blacklist-update": "Edit phone blacklist entries",
                 "phone-blacklist-delete": "Delete phone blacklist entries",
                 "election-event-voter-list-reconciliation": "Reconcile election event voter list",
+                "messaging-account-read": "Read messaging accounts",
+                "messaging-account-write": "Manage messaging accounts",
+                "messaging-config-write": "Configure election event messaging",
             },
         },
         generalSettingsScreen: {
@@ -2500,6 +2500,9 @@ const englishTranslation = {
             communicationMethod: {
                 EMAIL: "Email",
                 SMS: "SMS",
+                WHATSAPP: "WhatsApp",
+                VIBER: "Viber",
+                MESSENGER: "Facebook Messenger",
             },
             communicationType: {
                 CREDENTIALS: "Credentials",
@@ -2691,6 +2694,9 @@ const englishTranslation = {
                 email: "Email",
                 sms: "SMS",
                 document: "Document",
+                whatsapp: "WhatsApp",
+                viber: "Viber",
+                messenger: "Facebook Messenger",
             },
             import: {
                 title: "Import Templates",
@@ -3378,6 +3384,442 @@ const englishTranslation = {
             confirmDelete: "Delete Certificate Authority",
             confirmDeleteDescription:
                 'Are you sure you want to delete the certificate "{{name}}" (fingerprint: {{fingerprint}})?',
+        },
+        messagingEvent: {
+            tab: "Messaging",
+            intro: "The channels voters of this event can choose for codes and notices, and the account each one sends from. Accounts are managed in Settings > Messaging.",
+            readOnly:
+                "You can view these settings. Changing them needs the messaging-config-write permission.",
+            savingNote:
+                "Saving also updates the channels the enrollment pages offer for each Post.",
+            save: "Save",
+            saved: "Messaging settings saved.",
+            saveRejected: "The messaging settings were not saved. Fix the problems shown.",
+            saveError: "Could not save the messaging settings.",
+            accountLabel: "{{channel}} account",
+            notUsed: "Not used",
+            missingAccount: "Account not found",
+            noAccount: "Add an account in Settings > Messaging first",
+            missing: "Missing: {{blockers}}",
+            purposeSwitch: "{{channel}}: {{purpose}}",
+            sections: {
+                channels: "Channels",
+                templates: "WhatsApp and Viber templates",
+                fallback: "Fallback order for notices",
+                posts: "Channels by Post",
+                postsCount: "Channels by Post ({{count}} Posts)",
+                reply: "Reply to incoming messages",
+                delivery: "Delivery status",
+            },
+            column: {
+                channel: "Channel",
+                account: "Sends from",
+                purpose: "Purpose",
+                language: "Language",
+                template: "Approved template",
+                status: "Status",
+                post: "Post",
+            },
+            outOfWindow: {
+                label: "After 24 hours",
+                help: "Messenger sends notices only within 24 hours of the voter's last message. Sending later stays off until Meta confirms the mechanism for this Page; until then those notices go to the voter's next eligible channel.",
+                DISABLED: "Do not send",
+                UTILITY_MESSAGES: "Utility messages",
+            },
+            templates: {
+                empty: "Enable codes or notices on WhatsApp or Viber to choose their templates.",
+                help: "WhatsApp and Viber send only templates the provider approved for the account. Enter the approved template for each language; a language without an approved template cannot be sent.",
+                label: "{{channel}} {{purpose}} template, {{language}}",
+                approved: "Approved",
+                notApproved: "Not approved",
+            },
+            fallback: {
+                help: "When a notice cannot reach a voter on their channel, it goes to the next channel in this order that the voter has verified and their Post offers. Codes are never resent on their own: the voter chooses another way.",
+                empty: "Turn on notices for a channel to add it to the fallback order.",
+                earlier: "Move {{channel}} earlier",
+                later: "Move {{channel}} later",
+            },
+            posts: {
+                noChannels:
+                    "Turn on codes or notices for a channel to choose the channels of each Post.",
+                help: "Enrollment shows each Post's voters the channels ticked here.",
+                restricted: "{{count}} Posts offer fewer than all {{total}} channels.",
+                allChannels:
+                    "Every Post offers all {{total}} channels; untick a channel for a Post where it does not work.",
+                search: "Search Posts",
+                cell: "{{post}}: {{channel}}",
+                showing: "Showing {{shown}} of {{total}} Posts. Search to find others.",
+            },
+            reply: {
+                help: "Sent when a voter writes to one of this event's accounts, at most once a day per voter.",
+                label: "Reply ({{language}})",
+            },
+            delivery: {
+                empty: "No channel is in use.",
+                help: "Accepted means the provider accepted the request, not that the voter received or verified the code. Unknown means delivery is not confirmed yet. A provider without delivery reports shows delivery as unavailable.",
+            },
+            error: {
+                UNSUPPORTED_VERSION:
+                    "This configuration uses version {{version}}, which is not supported.",
+                DUPLICATE_CHANNEL: "{{channel}} is configured more than once.",
+                UNKNOWN_ACCOUNT:
+                    "The {{channel}} account no longer exists. Choose another account.",
+                ACCOUNT_OF_ANOTHER_TENANT: "The selected account belongs to another tenant.",
+                ACCOUNT_CHANNEL_MISMATCH:
+                    "The selected account does not send {{channel}} messages.",
+                PURPOSE_NOT_READY:
+                    "{{channel}} cannot send {{purpose}} yet. Missing: {{blockers}}.",
+                TEMPLATE_NOT_APPROVED:
+                    "The {{channel}} template for {{purpose}} in {{language}} is not approved by the provider.",
+                OUT_OF_WINDOW_NOT_SUPPORTED:
+                    "{{channel}} cannot send outside a conversation window.",
+                FALLBACK_CHANNEL_NOT_ENABLED:
+                    "{{channel}} is in the fallback order but does not send notices.",
+                DUPLICATE_FALLBACK_CHANNEL: "{{channel}} is in the fallback order more than once.",
+                ELECTION_CHANNEL_NOT_ENABLED:
+                    "{{election}} offers {{channel}}, which this event does not use.",
+                UNKNOWN_ELECTION: "{{election}} is not an election of this event.",
+            },
+        },
+        messaging: {
+            channel: {
+                EMAIL: "Email",
+                SMS: "SMS",
+                WHATSAPP: "WhatsApp",
+                VIBER: "Viber",
+                MESSENGER: "Facebook Messenger",
+            },
+            provider: {
+                AWS_SES: "Amazon SES",
+                SMTP: "SMTP server",
+                AWS_SNS: "Amazon SNS",
+                WHATSAPP_CLOUD_API: "WhatsApp Cloud API (Meta)",
+                MESSENGER_SEND_API: "Messenger Platform (Meta)",
+                VIBER_INFOBIP: "Viber Business Messages (Infobip)",
+                CONSOLE: "Console (test only, nothing is sent)",
+            },
+            purpose: {
+                OTP: "OTPs",
+                NOTICE: "Notices",
+            },
+            state: {
+                QUEUED: "Queued",
+                ACCEPTED: "Accepted",
+                DELIVERED: "Delivered",
+                FAILED: "Failed",
+                UNKNOWN: "Unknown",
+            },
+            stateHelp: {
+                QUEUED: "Waiting to be handed to the provider.",
+                ACCEPTED:
+                    "The provider accepted the message. This does not mean the voter received it.",
+                DELIVERED: "The provider reported the message as delivered.",
+                FAILED: "The provider confirmed the message was not delivered.",
+                UNKNOWN: "Delivery is not confirmed yet.",
+            },
+            blocker: {
+                NOT_CONNECTED: "Not connected",
+                UNSUPPORTED_PURPOSE: "Not supported by this provider",
+                NEEDS_PROVIDER_APPROVAL: "Needs provider approval",
+                NEEDS_PRODUCTION_ACCESS: "Needs production access",
+                NEEDS_APPROVED_TEMPLATE: "Needs approved template",
+            },
+            readiness: {
+                connected: "Connected",
+                notConnected: "Not connected",
+                readyOtp: "Ready for OTP",
+                readyNotice: "Ready for notices",
+                notReady: "Not ready",
+                lastCheck: "Checked {{date}}",
+                neverChecked: "Not checked yet",
+            },
+            approval: {
+                PENDING: "Pending provider approval",
+                CONFIRMED: "Provider approval confirmed",
+            },
+            credential: {
+                ACCESS_TOKEN: "Access token",
+                APP_SECRET: "App secret",
+                VERIFY_TOKEN: "Verify token",
+                API_KEY: "API key",
+                SMTP_PASSWORD: "Password",
+                AWS_ACCESS_KEY_ID: "AWS access key ID",
+                AWS_SECRET_ACCESS_KEY: "AWS secret access key",
+            },
+            deliveryUnavailable: "Delivery unavailable",
+            templates: {
+                noMethod: "Choose at least one method for the template.",
+                parameters: "Template parameters",
+                parametersHelp:
+                    "What fills each placeholder of the approved template, in order, such as user.first_name or vote_url.",
+                parameter: "Parameter {{position}}",
+                removeParameter: "Remove parameter {{position}}",
+                addParameter: "Add parameter",
+                noAccount:
+                    "There is no {{channel}} account yet. Add one in Settings > Messaging to see which languages are approved.",
+                account: "Account",
+                approvalTitle: "Approved templates",
+                language: "Language",
+                approvalFor: "Approved for {{purpose}}",
+                approved: "Approved",
+                notApproved: "Not approved",
+                approvalHelp:
+                    "Approvals come from the provider and are updated by the account's connection check.",
+                messengerIntro:
+                    "Within 24 hours of the voter's last message, Messenger sends the text below.",
+                messengerMessage: "Message within 24 hours",
+                messengerWindow:
+                    "A saved Messenger recipient is not permission to send. Outside the 24-hour window Messenger does not send this notice: it goes to the voter's next eligible channel until Meta confirms a mechanism for this Page.",
+                intro: {
+                    WHATSAPP:
+                        "WhatsApp sends only templates that Meta approved for the account's WhatsApp Business Account. The message must match the approved template; choose what fills its parameters.",
+                    VIBER: "Viber sends codes and transactional messages only with templates the Viber partner approved. The message must match the approved template; choose what fills its parameters.",
+                },
+                approvedWording: "Approved wording",
+                approvedWordingHelp:
+                    "A copy of the approved template, used as a preview. Changing it here does not change what the provider sends.",
+            },
+            send: {
+                channel: "Channel",
+                eachVoter: "Each voter's channel",
+                only: "{{channel}} only",
+                eachVoterHelp:
+                    "Confirmed failures use the next eligible verified channel. Unconfirmed delivery is shown as Unknown.",
+                onlyHelp: "Every voter is sent this notification by {{channel}}.",
+                channelColumn: "Channel",
+                sendsFrom: "Sends from",
+                noAccount: "No account",
+                missingContent: "This notification has no content for {{channels}}.",
+                approvedTemplateHelp:
+                    "Sent with the provider-approved template. Edit it in Templates.",
+            },
+            voter: {
+                title: "Messaging",
+                preferredChannel: "Preferred channel",
+                whatsappNumber: "WhatsApp number",
+                viberNumber: "Viber number",
+                messengerConnected: "Connected",
+                messengerNotConnected: "Not connected",
+                verifiedChannels: "Verified channels",
+                noneVerified: "No verified channels",
+                notSet: "Not set",
+            },
+            logs: {
+                channel: "Channel",
+            },
+            stats: {
+                sent: {
+                    WHATSAPP: "WhatsApp messages sent",
+                    VIBER: "Viber messages sent",
+                    MESSENGER: "Messenger messages sent",
+                },
+            },
+        },
+        messagingAccounts: {
+            tab: "MESSAGING",
+            description:
+                "Accounts that send voters their codes and notices. Each election event chooses the account for each channel; new events start with the default account.",
+            list: {
+                title: "Sending accounts",
+                add: "Add account",
+                loading: "Loading accounts",
+                loadError: "The sending accounts could not be loaded.",
+                empty: "No sending accounts yet.",
+            },
+            column: {
+                channel: "Channel",
+                name: "Account",
+                sender: "Sends as",
+                provider: "Provider",
+                default: "Default",
+                isDefault: "Default account",
+                lastCheck: "Last check",
+                actions: "Actions",
+            },
+            action: {
+                edit: "Edit",
+                editNamed: "Edit {{name}}",
+                view: "View",
+                viewNamed: "View {{name}}",
+                check: "Check connection",
+                checkNamed: "Check the connection of {{name}}",
+                test: "Send test message",
+                testNamed: "Send a test message from {{name}}",
+                delete: "Delete",
+                deleteNamed: "Delete {{name}}",
+            },
+            check: {
+                done: "{{name}} was checked. Its status is updated.",
+                error: "{{name}} could not be checked.",
+            },
+            delete: {
+                title: "Delete account",
+                body: "Delete {{name}}? Election events that use it stop sending on its channel.",
+                success: "Account deleted",
+                error: "The account could not be deleted.",
+            },
+            editor: {
+                addTitle: "Add account",
+                editTitle: "Edit {{channel}} account",
+                subtitle:
+                    "Voters receive codes and notices from this account on the channels that use it.",
+                channel: "Channel",
+                provider: "Provider",
+                save: "Save",
+                cancel: "Cancel",
+                close: "Close",
+            },
+            field: {
+                name: "Account name",
+                from_address: "From address",
+                from_name: "From name",
+                region: "AWS region",
+                notification_topic_arn: "Delivery notifications topic (SNS ARN)",
+                server_url: "Server and port",
+                sender_id: "Sender ID",
+                origination_number: "Origination number",
+                business_account_id: "WhatsApp Business Account ID",
+                phone_number_id: "Phone number ID",
+                display_phone_number: "Number",
+                display_name: "Display name",
+                api_version: "Graph API version",
+                page_id: "Facebook Page ID",
+                page_name: "Page name",
+                page_username: "Page username",
+                base_url: "API base URL",
+                sender: "Sender name",
+                provider_approval: "Provider approval",
+                is_default: "Default {{channel}} account for new election events",
+            },
+            fieldHelp: {
+                from_address:
+                    "The address voters see. Its domain must be verified with the provider.",
+                notification_topic_arn:
+                    "The SNS topic SES publishes delivery and bounce events to. Notifications from any other topic are refused.",
+                sender_id: "Up to 11 letters and digits. Some countries require registration.",
+                origination_number:
+                    "Used instead of the sender ID where a country requires a number.",
+                phone_number_id: "The number messages are sent from.",
+                display_name: "The display name Meta approved for the number.",
+                page_username: "Used for the m.me link voters open to get their code.",
+                api_version: "For example v23.0.",
+                base_url: "The account's Infobip API base URL.",
+                sender: "The approved sender voters see.",
+                provider_approval:
+                    "Meta allows government messaging on WhatsApp only through an approved arrangement. While approval is pending, OTPs and notices cannot be enabled for this account.",
+            },
+            error: {
+                REQUIRED: "Required",
+                NOT_A_COUNT: "Enter a whole number",
+                OTP_ABOVE_TOTAL: "Cannot exceed the messages per second",
+                INVALID_CALLING_CODE: "Enter country calling codes of 1 to 3 digits, such as 63",
+                DUPLICATE_LANGUAGE: "This language already has a template for this purpose",
+            },
+            warning: {
+                pageChange:
+                    "Messenger conversations belong to a Page. After changing the Page, the voters connected to {{page}} get codes only after connecting Messenger again.",
+                numberChange:
+                    "Messages will come from another number. Its templates must be approved in that business account before it can send codes, and voters will see a new chat.",
+            },
+            viber: {
+                title: "Approved templates",
+                description:
+                    "Enter the templates Viber approved through the partner, per purpose and language. The partner's template API is not available, so this list is kept by hand and the connection check reads it.",
+                purpose: "Purpose",
+                language: "Language",
+                templateId: "Partner template ID",
+                add: "Add template",
+                remove: "Remove template",
+            },
+            limits: {
+                title: "Sending limits",
+                messagesPerSecond: "Messages per second",
+                otpReservedPerSecond: "Reserved for OTPs per second",
+                otpReservedHelp: "Kept free for codes during bulk sends.",
+                allowedCallingCodes: "Allowed destinations (country calling codes)",
+                allowedCallingCodesHelp:
+                    "Separated by commas, for example 63, 971. Empty allows any destination.",
+            },
+            credentials: {
+                title: "Credentials",
+                description:
+                    "Credentials are write-only: after saving, only the date each was last replaced is shown.",
+                set: "Set · replaced {{date}}. It is stored encrypted and never shown.",
+                replace: "Replace",
+                replaceNamed: "Replace {{name}}",
+            },
+            credentialHelp: {
+                AWS_SES: {
+                    AWS_ACCESS_KEY_ID: "Optional. Without keys, the service's own role is used.",
+                    AWS_SECRET_ACCESS_KEY: "Optional. Set it together with the access key ID.",
+                },
+                AWS_SNS: {
+                    AWS_ACCESS_KEY_ID: "Optional. Without keys, the service's own role is used.",
+                    AWS_SECRET_ACCESS_KEY: "Optional. Set it together with the access key ID.",
+                },
+                SMTP: {
+                    SMTP_PASSWORD: "The SMTP server's password.",
+                },
+                WHATSAPP_CLOUD_API: {
+                    ACCESS_TOKEN:
+                        "A token of a system user in the owner's business portfolio, with whatsapp_business_messaging.",
+                    APP_SECRET: "Checks that webhook calls come from Meta.",
+                },
+                MESSENGER_SEND_API: {
+                    ACCESS_TOKEN: "A Page access token with pages_messaging.",
+                    APP_SECRET: "Checks that webhook calls come from Meta.",
+                },
+                VIBER_INFOBIP: {
+                    API_KEY: "The Infobip API key.",
+                },
+            },
+            webhook: {
+                title: "Delivery reports and replies",
+                description:
+                    "Enter this callback in the provider's webhook settings. Delivery reports and voters' replies arrive there.",
+                path: "Callback path",
+                pathHelp: "Add it to the public address of this platform's messaging webhooks.",
+                afterSaving: "Shown after saving",
+                copyPath: "Copy callback path",
+                tokenSet: "Set · replaced {{date}}",
+                tokenMissing: "Not generated yet",
+                tokenAfterSaving: "Generated after saving",
+                generate: "Generate verify token",
+                tokenTitle: "Verify token",
+                tokenOnce:
+                    "Enter this token in Meta's webhook settings now. It is shown only once.",
+                copyToken: "Copy verify token",
+                tokenDone: "Done",
+                tokenError: "The verify token could not be generated.",
+            },
+            copy: {
+                success: "Copied",
+                error: "Could not copy",
+            },
+            save: {
+                success: "Account saved",
+                error: "The account could not be saved.",
+            },
+            test: {
+                title: "Send a test message from {{name}}",
+                description:
+                    "Sends a real message for the chosen purpose to this destination. The result shows what the provider reported.",
+                purpose: "Purpose",
+                destination: {
+                    EMAIL_ADDRESS: "Email address",
+                    PHONE_NUMBER: "Phone number (E.164)",
+                    PAGE_SCOPED_ID: "Page-scoped ID",
+                },
+                language: "Language",
+                send: "Send test message",
+                reason: "Reason: {{reason}}",
+                error: "The test message could not be sent.",
+                template: "Approved template",
+                templateHelp:
+                    "The WhatsApp template name the provider approved for this purpose and language.",
+                viberTemplate:
+                    "Viber uses the template this account lists as approved for the chosen purpose and language.",
+            },
         },
     },
 }

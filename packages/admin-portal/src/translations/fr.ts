@@ -356,8 +356,6 @@ const frenchTranslation: TranslationType = {
                 telephoneVoting: "Vote par Téléphone",
                 settingTitle: "Configuration",
                 settingSubtitle: "Paramètres généraux",
-                sms: "SMS",
-                mail: "Mails",
                 createNew: "Créer un Type d'Élection",
                 emptyHeader: "Aucun Type d'Élection pour l'instant.",
                 emptyBody: "Voulez-vous en créer un ?",
@@ -371,7 +369,6 @@ const frenchTranslation: TranslationType = {
             tabs: {
                 votingChannels: "CANAUX DE VOTE",
                 electionTypes: "TYPES D'ÉLECTION",
-                templates: "MODÈLES",
                 languages: "LANGUES",
                 localization: "LOCALISATION",
                 integrations: "INTÉGRATIONS",
@@ -1555,6 +1552,9 @@ const frenchTranslation: TranslationType = {
                 "phone-blacklist-delete": "Supprimer des entrées de la liste noire téléphonique",
                 "election-event-voter-list-reconciliation":
                     "Rapprocher la liste électorale de l’événement",
+                "messaging-account-read": "Voir les comptes de messagerie",
+                "messaging-account-write": "Gérer les comptes de messagerie",
+                "messaging-config-write": "Configurer la messagerie de l'événement électoral",
             },
         },
         generalSettingsScreen: {
@@ -2543,6 +2543,9 @@ const frenchTranslation: TranslationType = {
             communicationMethod: {
                 EMAIL: "Email",
                 SMS: "SMS",
+                WHATSAPP: "WhatsApp",
+                VIBER: "Viber",
+                MESSENGER: "Facebook Messenger",
             },
             communicationType: {
                 CREDENTIALS: "Identifiants",
@@ -2735,6 +2738,9 @@ const frenchTranslation: TranslationType = {
                 email: "Email",
                 sms: "SMS",
                 document: "Document",
+                whatsapp: "WhatsApp",
+                viber: "Viber",
+                messenger: "Facebook Messenger",
             },
             import: {
                 title: "Importer des Modèles",
@@ -3436,6 +3442,450 @@ const frenchTranslation: TranslationType = {
             confirmDelete: "Supprimer l'autorité de certification",
             confirmDeleteDescription:
                 'Êtes-vous sûr de vouloir supprimer le certificat "{{name}}" (empreinte : {{fingerprint}}) ?',
+        },
+        messagingEvent: {
+            tab: "Messagerie",
+            intro: "Les canaux que les électeurs de cet événement peuvent choisir pour les codes et les avis, et le compte depuis lequel chacun envoie. Les comptes se gèrent dans Paramètres > Messagerie.",
+            readOnly:
+                "Vous pouvez consulter ces paramètres. Les modifier nécessite l'autorisation messaging-config-write.",
+            savingNote:
+                "L'enregistrement met aussi à jour les canaux que les pages d'inscription proposent pour chaque Post.",
+            save: "Enregistrer",
+            saved: "Paramètres de messagerie enregistrés.",
+            saveRejected:
+                "Les paramètres de messagerie n'ont pas été enregistrés. Corrigez les problèmes indiqués.",
+            saveError: "Impossible d'enregistrer les paramètres de messagerie.",
+            accountLabel: "Compte {{channel}}",
+            notUsed: "Non utilisé",
+            missingAccount: "Compte introuvable",
+            noAccount: "Ajoutez d'abord un compte dans Paramètres > Messagerie",
+            missing: "Manque : {{blockers}}",
+            purposeSwitch: "{{channel}} : {{purpose}}",
+            sections: {
+                channels: "Canaux",
+                templates: "Modèles WhatsApp et Viber",
+                fallback: "Ordre de repli pour les avis",
+                posts: "Canaux par Post",
+                postsCount: "Canaux par Post ({{count}} Posts)",
+                reply: "Réponse aux messages entrants",
+                delivery: "État de la remise",
+            },
+            column: {
+                channel: "Canal",
+                account: "Envoie depuis",
+                purpose: "Usage",
+                language: "Langue",
+                template: "Modèle approuvé",
+                status: "État",
+                post: "Post",
+            },
+            outOfWindow: {
+                label: "Après 24 heures",
+                help: "Messenger n'envoie des avis que dans les 24 heures suivant le dernier message de l'électeur. L'envoi ultérieur reste désactivé jusqu'à ce que Meta confirme le mécanisme pour cette Page ; d'ici là, ces avis passent au canal disponible suivant de l'électeur.",
+                DISABLED: "Ne pas envoyer",
+                UTILITY_MESSAGES: "Messages utilitaires",
+            },
+            templates: {
+                empty: "Activez les codes ou les avis sur WhatsApp ou Viber pour choisir leurs modèles.",
+                help: "WhatsApp et Viber n'envoient que des modèles approuvés par le fournisseur pour le compte. Indiquez le modèle approuvé de chaque langue ; une langue sans modèle approuvé ne peut pas être envoyée.",
+                label: "Modèle {{purpose}} {{channel}}, {{language}}",
+                approved: "Approuvé",
+                notApproved: "Non approuvé",
+            },
+            fallback: {
+                help: "Lorsqu'un avis ne peut pas atteindre un électeur sur son canal, il passe au canal suivant de cet ordre que l'électeur a vérifié et que son Post propose. Les codes ne sont jamais renvoyés d'eux-mêmes : l'électeur choisit un autre moyen.",
+                empty: "Activez les avis d'un canal pour l'ajouter à l'ordre de repli.",
+                earlier: "Déplacer {{channel}} plus tôt",
+                later: "Déplacer {{channel}} plus tard",
+            },
+            posts: {
+                noChannels:
+                    "Activez les codes ou les avis d'un canal pour choisir les canaux de chaque Post.",
+                help: "L'inscription montre aux électeurs de chaque Post les canaux cochés ici.",
+                restricted: "{{count}} Posts proposent moins que les {{total}} canaux.",
+                allChannels:
+                    "Chaque Post propose les {{total}} canaux ; décochez un canal pour un Post où il ne fonctionne pas.",
+                search: "Rechercher des Posts",
+                cell: "{{post}} : {{channel}}",
+                showing:
+                    "{{shown}} Posts affichés sur {{total}}. Recherchez pour trouver les autres.",
+            },
+            reply: {
+                help: "Envoyée lorsqu'un électeur écrit à l'un des comptes de cet événement, au plus une fois par jour et par électeur.",
+                label: "Réponse ({{language}})",
+            },
+            delivery: {
+                empty: "Aucun canal n'est utilisé.",
+                help: "Accepté signifie que le fournisseur a accepté la demande, pas que l'électeur a reçu ou vérifié le code. Inconnu signifie que la remise n'est pas encore confirmée. Un fournisseur sans rapports de remise affiche la remise comme non disponible.",
+            },
+            error: {
+                UNSUPPORTED_VERSION:
+                    "Cette configuration utilise la version {{version}}, qui n'est pas prise en charge.",
+                DUPLICATE_CHANNEL: "{{channel}} est configuré plusieurs fois.",
+                UNKNOWN_ACCOUNT: "Le compte {{channel}} n'existe plus. Choisissez un autre compte.",
+                ACCOUNT_OF_ANOTHER_TENANT: "Le compte sélectionné appartient à un autre locataire.",
+                ACCOUNT_CHANNEL_MISMATCH:
+                    "Le compte sélectionné n'envoie pas de messages {{channel}}.",
+                PURPOSE_NOT_READY:
+                    "{{channel}} ne peut pas encore envoyer de {{purpose}}. Manque : {{blockers}}.",
+                TEMPLATE_NOT_APPROVED:
+                    "Le modèle {{channel}} pour {{purpose}} en {{language}} n'est pas approuvé par le fournisseur.",
+                OUT_OF_WINDOW_NOT_SUPPORTED:
+                    "{{channel}} ne peut pas envoyer hors d'une fenêtre de conversation.",
+                FALLBACK_CHANNEL_NOT_ENABLED:
+                    "{{channel}} est dans l'ordre de repli mais n'envoie pas d'avis.",
+                DUPLICATE_FALLBACK_CHANNEL:
+                    "{{channel}} figure plusieurs fois dans l'ordre de repli.",
+                ELECTION_CHANNEL_NOT_ENABLED:
+                    "{{election}} propose {{channel}}, que cet événement n'utilise pas.",
+                UNKNOWN_ELECTION: "{{election}} n'est pas une élection de cet événement.",
+            },
+        },
+        messaging: {
+            channel: {
+                EMAIL: "E-mail",
+                SMS: "SMS",
+                WHATSAPP: "WhatsApp",
+                VIBER: "Viber",
+                MESSENGER: "Facebook Messenger",
+            },
+            provider: {
+                AWS_SES: "Amazon SES",
+                SMTP: "Serveur SMTP",
+                AWS_SNS: "Amazon SNS",
+                WHATSAPP_CLOUD_API: "WhatsApp Cloud API (Meta)",
+                MESSENGER_SEND_API: "Messenger Platform (Meta)",
+                VIBER_INFOBIP: "Viber Business Messages (Infobip)",
+                CONSOLE: "Console (test uniquement, rien n'est envoyé)",
+            },
+            purpose: {
+                OTP: "Codes",
+                NOTICE: "Avis",
+            },
+            state: {
+                QUEUED: "En file",
+                ACCEPTED: "Accepté",
+                DELIVERED: "Remis",
+                FAILED: "Échec",
+                UNKNOWN: "Inconnu",
+            },
+            stateHelp: {
+                QUEUED: "En attente de transmission au fournisseur.",
+                ACCEPTED:
+                    "Le fournisseur a accepté le message. Cela ne signifie pas que l'électeur l'a reçu.",
+                DELIVERED: "Le fournisseur a signalé le message comme remis.",
+                FAILED: "Le fournisseur a confirmé que le message n'a pas été remis.",
+                UNKNOWN: "La remise n'est pas encore confirmée.",
+            },
+            blocker: {
+                NOT_CONNECTED: "Non connecté",
+                UNSUPPORTED_PURPOSE: "Non pris en charge par ce fournisseur",
+                NEEDS_PROVIDER_APPROVAL: "Nécessite l'approbation du fournisseur",
+                NEEDS_PRODUCTION_ACCESS: "Nécessite un accès de production",
+                NEEDS_APPROVED_TEMPLATE: "Nécessite un modèle approuvé",
+            },
+            readiness: {
+                connected: "Connecté",
+                notConnected: "Non connecté",
+                readyOtp: "Prêt pour les codes",
+                readyNotice: "Prêt pour les avis",
+                notReady: "Pas prêt",
+                lastCheck: "Vérifié {{date}}",
+                neverChecked: "Pas encore vérifié",
+            },
+            approval: {
+                PENDING: "Approbation du fournisseur en attente",
+                CONFIRMED: "Approbation du fournisseur confirmée",
+            },
+            credential: {
+                ACCESS_TOKEN: "Jeton d'accès",
+                APP_SECRET: "Secret de l'application",
+                VERIFY_TOKEN: "Jeton de vérification",
+                API_KEY: "Clé d'API",
+                SMTP_PASSWORD: "Mot de passe",
+                AWS_ACCESS_KEY_ID: "ID de clé d'accès AWS",
+                AWS_SECRET_ACCESS_KEY: "Clé d'accès secrète AWS",
+            },
+            deliveryUnavailable: "Remise non disponible",
+            templates: {
+                noMethod: "Choisissez au moins une méthode pour le modèle.",
+                parameters: "Paramètres du modèle",
+                parametersHelp:
+                    "Ce qui remplit chaque espace réservé du modèle approuvé, dans l'ordre, par exemple user.first_name ou vote_url.",
+                parameter: "Paramètre {{position}}",
+                removeParameter: "Retirer le paramètre {{position}}",
+                addParameter: "Ajouter un paramètre",
+                noAccount:
+                    "Il n'y a pas encore de compte {{channel}}. Ajoutez-en un dans Paramètres > Messagerie pour voir quelles langues sont approuvées.",
+                account: "Compte",
+                approvalTitle: "Modèles approuvés",
+                language: "Langue",
+                approvalFor: "Approuvé pour {{purpose}}",
+                approved: "Approuvé",
+                notApproved: "Non approuvé",
+                approvalHelp:
+                    "Les approbations viennent du fournisseur et sont mises à jour par la vérification de connexion du compte.",
+                messengerIntro:
+                    "Dans les 24 heures qui suivent le dernier message de l'électeur, Messenger envoie le texte ci-dessous.",
+                messengerMessage: "Message dans les 24 heures",
+                messengerWindow:
+                    "Un destinataire Messenger enregistré n'est pas une autorisation d'envoi. En dehors de la fenêtre de 24 heures, Messenger n'envoie pas cet avis : il passe au canal disponible suivant de l'électeur jusqu'à ce que Meta confirme un mécanisme pour cette Page.",
+                intro: {
+                    WHATSAPP:
+                        "WhatsApp n'envoie que les modèles approuvés par Meta pour le compte WhatsApp Business. Le message doit correspondre au modèle approuvé ; choisissez ce qui remplit ses paramètres.",
+                    VIBER: "Viber n'envoie les codes et messages transactionnels qu'avec des modèles approuvés par le partenaire Viber. Le message doit correspondre au modèle approuvé ; choisissez ce qui remplit ses paramètres.",
+                },
+                approvedWording: "Texte approuvé",
+                approvedWordingHelp:
+                    "Une copie du modèle approuvé, utilisée comme aperçu. La modifier ici ne change pas ce que le fournisseur envoie.",
+            },
+            send: {
+                channel: "Canal",
+                eachVoter: "Le canal de chaque électeur",
+                only: "{{channel}} uniquement",
+                eachVoterHelp:
+                    "Les échecs confirmés utilisent le canal vérifié disponible suivant. Une remise non confirmée est affichée comme Inconnue.",
+                onlyHelp: "Cette notification est envoyée à chaque électeur par {{channel}}.",
+                channelColumn: "Canal",
+                sendsFrom: "Envoyé depuis",
+                noAccount: "Aucun compte",
+                missingContent: "Cette notification n'a pas de contenu pour {{channels}}.",
+                approvedTemplateHelp:
+                    "Envoyé avec le modèle approuvé par le fournisseur. Modifiez-le dans Modèles.",
+            },
+            voter: {
+                title: "Messagerie",
+                preferredChannel: "Canal préféré",
+                whatsappNumber: "Numéro WhatsApp",
+                viberNumber: "Numéro Viber",
+                messengerConnected: "Connecté",
+                messengerNotConnected: "Non connecté",
+                verifiedChannels: "Canaux vérifiés",
+                noneVerified: "Aucun canal vérifié",
+                notSet: "Non défini",
+            },
+            logs: {
+                channel: "Canal",
+            },
+            stats: {
+                sent: {
+                    WHATSAPP: "Messages WhatsApp envoyés",
+                    VIBER: "Messages Viber envoyés",
+                    MESSENGER: "Messages Messenger envoyés",
+                },
+            },
+        },
+        messagingAccounts: {
+            tab: "MESSAGERIE",
+            description:
+                "Comptes qui envoient aux électeurs leurs codes et avis. Chaque événement électoral choisit le compte de chaque canal ; les nouveaux événements commencent avec le compte par défaut.",
+            list: {
+                title: "Comptes d'envoi",
+                add: "Ajouter un compte",
+                loading: "Chargement des comptes",
+                loadError: "Les comptes d'envoi n'ont pas pu être chargés.",
+                empty: "Aucun compte d'envoi pour le moment.",
+            },
+            column: {
+                channel: "Canal",
+                name: "Compte",
+                sender: "Envoie en tant que",
+                provider: "Fournisseur",
+                default: "Par défaut",
+                isDefault: "Compte par défaut",
+                lastCheck: "Dernière vérification",
+                actions: "Actions",
+            },
+            action: {
+                edit: "Modifier",
+                editNamed: "Modifier {{name}}",
+                view: "Afficher",
+                viewNamed: "Afficher {{name}}",
+                check: "Vérifier la connexion",
+                checkNamed: "Vérifier la connexion de {{name}}",
+                test: "Envoyer un message de test",
+                testNamed: "Envoyer un message de test depuis {{name}}",
+                delete: "Supprimer",
+                deleteNamed: "Supprimer {{name}}",
+            },
+            check: {
+                done: "{{name}} a été vérifié. Son état est à jour.",
+                error: "{{name}} n'a pas pu être vérifié.",
+            },
+            delete: {
+                title: "Supprimer le compte",
+                body: "Supprimer {{name}} ? Les événements électoraux qui l'utilisent cesseront d'envoyer sur son canal.",
+                success: "Compte supprimé",
+                error: "Le compte n'a pas pu être supprimé.",
+            },
+            editor: {
+                addTitle: "Ajouter un compte",
+                editTitle: "Modifier le compte {{channel}}",
+                subtitle:
+                    "Les électeurs reçoivent les codes et avis de ce compte sur les canaux qui l'utilisent.",
+                channel: "Canal",
+                provider: "Fournisseur",
+                save: "Enregistrer",
+                cancel: "Annuler",
+                close: "Fermer",
+            },
+            field: {
+                name: "Nom du compte",
+                from_address: "Adresse de l'expéditeur",
+                from_name: "Nom de l'expéditeur",
+                region: "Région AWS",
+                notification_topic_arn: "Rubrique des notifications de remise (ARN SNS)",
+                server_url: "Serveur et port",
+                sender_id: "ID d'expéditeur",
+                origination_number: "Numéro d'origine",
+                business_account_id: "ID du compte WhatsApp Business",
+                phone_number_id: "ID du numéro de téléphone",
+                display_phone_number: "Numéro",
+                display_name: "Nom affiché",
+                api_version: "Version de Graph API",
+                page_id: "ID de la page Facebook",
+                page_name: "Nom de la page",
+                page_username: "Nom d'utilisateur de la page",
+                base_url: "URL de base de l'API",
+                sender: "Nom de l'expéditeur",
+                provider_approval: "Approbation du fournisseur",
+                is_default: "Compte {{channel}} par défaut pour les nouveaux événements électoraux",
+            },
+            fieldHelp: {
+                from_address:
+                    "L'adresse que voient les électeurs. Son domaine doit être vérifié auprès du fournisseur.",
+                notification_topic_arn:
+                    "La rubrique SNS où SES publie les événements de remise et de rebond. Les notifications de toute autre rubrique sont refusées.",
+                sender_id:
+                    "Jusqu'à 11 lettres et chiffres. Certains pays exigent un enregistrement.",
+                origination_number:
+                    "Utilisé à la place de l'ID d'expéditeur lorsqu'un pays exige un numéro.",
+                phone_number_id: "Le numéro depuis lequel les messages sont envoyés.",
+                display_name: "Le nom affiché que Meta a approuvé pour le numéro.",
+                page_username:
+                    "Utilisé pour le lien m.me que les électeurs ouvrent pour obtenir leur code.",
+                api_version: "Par exemple v23.0.",
+                base_url: "L'URL de base de l'API Infobip du compte.",
+                sender: "L'expéditeur approuvé que voient les électeurs.",
+                provider_approval:
+                    "Meta n'autorise les messages WhatsApp des gouvernements que dans le cadre d'un accord approuvé. Tant que l'approbation est en attente, les codes et les avis ne peuvent pas être activés pour ce compte.",
+            },
+            error: {
+                REQUIRED: "Obligatoire",
+                NOT_A_COUNT: "Saisissez un nombre entier",
+                OTP_ABOVE_TOTAL: "Ne peut pas dépasser les messages par seconde",
+                INVALID_CALLING_CODE:
+                    "Saisissez des indicatifs téléphoniques de pays de 1 à 3 chiffres, comme 63",
+                DUPLICATE_LANGUAGE: "Cette langue a déjà un modèle pour cet usage",
+            },
+            warning: {
+                pageChange:
+                    "Les conversations Messenger appartiennent à une page. Après le changement de page, les électeurs connectés à {{page}} ne recevront des codes qu'après avoir reconnecté Messenger.",
+                numberChange:
+                    "Les messages viendront d'un autre numéro. Ses modèles doivent être approuvés dans ce compte professionnel avant de pouvoir envoyer des codes, et les électeurs verront une nouvelle discussion.",
+            },
+            viber: {
+                title: "Modèles approuvés",
+                description:
+                    "Saisissez les modèles que Viber a approuvés par l'intermédiaire du partenaire, par usage et par langue. L'API de modèles du partenaire n'est pas disponible : cette liste est tenue à la main et la vérification de connexion la lit.",
+                purpose: "Usage",
+                language: "Langue",
+                templateId: "ID du modèle chez le partenaire",
+                add: "Ajouter un modèle",
+                remove: "Retirer le modèle",
+            },
+            limits: {
+                title: "Limites d'envoi",
+                messagesPerSecond: "Messages par seconde",
+                otpReservedPerSecond: "Réservés aux codes par seconde",
+                otpReservedHelp: "Gardés libres pour les codes pendant les envois en masse.",
+                allowedCallingCodes: "Destinations autorisées (indicatifs téléphoniques de pays)",
+                allowedCallingCodesHelp:
+                    "Séparés par des virgules, par exemple 63, 971. Vide autorise toute destination.",
+            },
+            credentials: {
+                title: "Identifiants",
+                description:
+                    "Les identifiants sont en écriture seule : après l'enregistrement, seule la date de leur dernier remplacement est affichée.",
+                set: "Défini · remplacé {{date}}. Il est stocké chiffré et n'est jamais affiché.",
+                replace: "Remplacer",
+                replaceNamed: "Remplacer {{name}}",
+            },
+            credentialHelp: {
+                AWS_SES: {
+                    AWS_ACCESS_KEY_ID:
+                        "Facultatif. Sans clés, le rôle propre du service est utilisé.",
+                    AWS_SECRET_ACCESS_KEY: "Facultatif. À définir avec l'ID de clé d'accès.",
+                },
+                AWS_SNS: {
+                    AWS_ACCESS_KEY_ID:
+                        "Facultatif. Sans clés, le rôle propre du service est utilisé.",
+                    AWS_SECRET_ACCESS_KEY: "Facultatif. À définir avec l'ID de clé d'accès.",
+                },
+                SMTP: {
+                    SMTP_PASSWORD: "Le mot de passe du serveur SMTP.",
+                },
+                WHATSAPP_CLOUD_API: {
+                    ACCESS_TOKEN:
+                        "Un jeton d'un utilisateur système du portefeuille professionnel du propriétaire, avec whatsapp_business_messaging.",
+                    APP_SECRET: "Vérifie que les appels du webhook proviennent de Meta.",
+                },
+                MESSENGER_SEND_API: {
+                    ACCESS_TOKEN: "Un jeton d'accès de page avec pages_messaging.",
+                    APP_SECRET: "Vérifie que les appels du webhook proviennent de Meta.",
+                },
+                VIBER_INFOBIP: {
+                    API_KEY: "La clé d'API Infobip.",
+                },
+            },
+            webhook: {
+                title: "Rapports de remise et réponses",
+                description:
+                    "Saisissez ce rappel dans les paramètres de webhook du fournisseur. Les rapports de remise et les réponses des électeurs y arrivent.",
+                path: "Chemin de rappel",
+                pathHelp:
+                    "Ajoutez-le à l'adresse publique des webhooks de messagerie de cette plateforme.",
+                afterSaving: "Affiché après l'enregistrement",
+                copyPath: "Copier le chemin de rappel",
+                tokenSet: "Défini · remplacé {{date}}",
+                tokenMissing: "Pas encore généré",
+                tokenAfterSaving: "Généré après l'enregistrement",
+                generate: "Générer un jeton de vérification",
+                tokenTitle: "Jeton de vérification",
+                tokenOnce:
+                    "Saisissez maintenant ce jeton dans les paramètres de webhook de Meta. Il n'est affiché qu'une fois.",
+                copyToken: "Copier le jeton de vérification",
+                tokenDone: "Terminé",
+                tokenError: "Le jeton de vérification n'a pas pu être généré.",
+            },
+            copy: {
+                success: "Copié",
+                error: "Impossible de copier",
+            },
+            save: {
+                success: "Compte enregistré",
+                error: "Le compte n'a pas pu être enregistré.",
+            },
+            test: {
+                title: "Envoyer un message de test depuis {{name}}",
+                description:
+                    "Envoie un vrai message pour l'usage choisi à cette destination. Le résultat montre ce que le fournisseur a signalé.",
+                purpose: "Usage",
+                destination: {
+                    EMAIL_ADDRESS: "Adresse e-mail",
+                    PHONE_NUMBER: "Numéro de téléphone (E.164)",
+                    PAGE_SCOPED_ID: "ID propre à la page",
+                },
+                language: "Langue",
+                send: "Envoyer un message de test",
+                reason: "Motif : {{reason}}",
+                error: "Le message de test n'a pas pu être envoyé.",
+                template: "Modèle approuvé",
+                templateHelp:
+                    "Le nom du modèle WhatsApp que le fournisseur a approuvé pour cet usage et cette langue.",
+                viberTemplate:
+                    "Viber utilise le modèle que ce compte indique comme approuvé pour l'usage et la langue choisis.",
+            },
         },
     },
 }

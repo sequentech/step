@@ -356,8 +356,6 @@ const dutchTranslation: TranslationType = {
                 telephoneVoting: "Telefonisch Stemmen",
                 settingTitle: "Instellingen",
                 settingSubtitle: "Algemene Configuratie",
-                sms: "SMS",
-                mail: "E-mails",
                 createNew: "Verkiezingstype aanmaken",
                 emptyHeader: "Nog geen verkiezingstypes.",
                 emptyBody: "Wilt u er een aanmaken?",
@@ -371,7 +369,6 @@ const dutchTranslation: TranslationType = {
             tabs: {
                 votingChannels: "STEMKANALEN",
                 electionTypes: "VERKIEZINGSTYPES",
-                templates: "SJABLONEN",
                 languages: "TALEN",
                 localization: "LOCALISATIE",
                 integrations: "INTEGRATIES",
@@ -1546,6 +1543,9 @@ const dutchTranslation: TranslationType = {
                 "phone-blacklist-delete": "Vermeldingen uit de telefoonblokkadelijst verwijderen",
                 "election-event-voter-list-reconciliation":
                     "Kiezerslijst van verkiezingsevenement afstemmen",
+                "messaging-account-read": "Berichtenaccounts bekijken",
+                "messaging-account-write": "Berichtenaccounts beheren",
+                "messaging-config-write": "Berichten van het verkiezingsevenement instellen",
             },
         },
         generalSettingsScreen: {
@@ -2525,6 +2525,9 @@ const dutchTranslation: TranslationType = {
             communicationMethod: {
                 EMAIL: "E-mail",
                 SMS: "SMS",
+                WHATSAPP: "WhatsApp",
+                VIBER: "Viber",
+                MESSENGER: "Facebook Messenger",
             },
             communicationType: {
                 CREDENTIALS: "Inloggegevens",
@@ -2716,6 +2719,9 @@ const dutchTranslation: TranslationType = {
                 email: "E-mail",
                 sms: "SMS",
                 document: "Document",
+                whatsapp: "WhatsApp",
+                viber: "Viber",
+                messenger: "Facebook Messenger",
             },
             import: {
                 title: "Sjablonen Importeren",
@@ -3416,6 +3422,450 @@ const dutchTranslation: TranslationType = {
             confirmDelete: "Certificaatautoriteit verwijderen",
             confirmDeleteDescription:
                 'Weet u zeker dat u het certificaat "{{name}}" (vingerafdruk: {{fingerprint}}) wilt verwijderen?',
+        },
+        messagingEvent: {
+            tab: "Berichten",
+            intro: "De kanalen die kiezers van dit evenement kunnen kiezen voor codes en berichten, en het account waarvandaan elk kanaal verzendt. Accounts beheert u in Instellingen > Berichten.",
+            readOnly:
+                "U kunt deze instellingen bekijken. Wijzigen vereist de machtiging messaging-config-write.",
+            savingNote:
+                "Opslaan werkt ook de kanalen bij die de inschrijvingspagina's per Post aanbieden.",
+            save: "Opslaan",
+            saved: "Berichteninstellingen opgeslagen.",
+            saveRejected:
+                "De berichteninstellingen zijn niet opgeslagen. Los de getoonde problemen op.",
+            saveError: "De berichteninstellingen konden niet worden opgeslagen.",
+            accountLabel: "{{channel}}-account",
+            notUsed: "Niet gebruikt",
+            missingAccount: "Account niet gevonden",
+            noAccount: "Voeg eerst een account toe in Instellingen > Berichten",
+            missing: "Ontbreekt: {{blockers}}",
+            purposeSwitch: "{{channel}}: {{purpose}}",
+            sections: {
+                channels: "Kanalen",
+                templates: "WhatsApp- en Viber-sjablonen",
+                fallback: "Terugvalvolgorde voor berichten",
+                posts: "Kanalen per Post",
+                postsCount: "Kanalen per Post ({{count}} Posts)",
+                reply: "Antwoord op inkomende berichten",
+                delivery: "Afleverstatus",
+            },
+            column: {
+                channel: "Kanaal",
+                account: "Verzendt vanaf",
+                purpose: "Doel",
+                language: "Taal",
+                template: "Goedgekeurde sjabloon",
+                status: "Status",
+                post: "Post",
+            },
+            outOfWindow: {
+                label: "Na 24 uur",
+                help: "Messenger verzendt berichten alleen binnen 24 uur na het laatste bericht van de kiezer. Later verzenden blijft uit totdat Meta het mechanisme voor deze pagina bevestigt; tot die tijd gaan die berichten naar het volgende beschikbare kanaal van de kiezer.",
+                DISABLED: "Niet verzenden",
+                UTILITY_MESSAGES: "Hulpprogrammaberichten",
+            },
+            templates: {
+                empty: "Zet codes of berichten aan op WhatsApp of Viber om hun sjablonen te kiezen.",
+                help: "WhatsApp en Viber verzenden alleen sjablonen die de provider voor het account heeft goedgekeurd. Vul per taal de goedgekeurde sjabloon in; een taal zonder goedgekeurde sjabloon kan niet worden verzonden.",
+                label: "{{channel}}-sjabloon voor {{purpose}}, {{language}}",
+                approved: "Goedgekeurd",
+                notApproved: "Niet goedgekeurd",
+            },
+            fallback: {
+                help: "Als een bericht een kiezer niet via diens kanaal bereikt, gaat het naar het volgende kanaal in deze volgorde dat de kiezer heeft geverifieerd en diens Post aanbiedt. Codes worden nooit vanzelf opnieuw verzonden: de kiezer kiest een andere manier.",
+                empty: "Zet berichten aan voor een kanaal om het aan de terugvalvolgorde toe te voegen.",
+                earlier: "{{channel}} naar voren",
+                later: "{{channel}} naar achteren",
+            },
+            posts: {
+                noChannels:
+                    "Zet codes of berichten aan voor een kanaal om de kanalen per Post te kiezen.",
+                help: "De inschrijving toont de kiezers van elke Post de kanalen die hier zijn aangevinkt.",
+                restricted: "{{count}} Posts bieden minder dan alle {{total}} kanalen aan.",
+                allChannels:
+                    "Elke Post biedt alle {{total}} kanalen aan; vink een kanaal uit voor een Post waar het niet werkt.",
+                search: "Posts zoeken",
+                cell: "{{post}}: {{channel}}",
+                showing: "{{shown}} van {{total}} Posts getoond. Zoek om andere te vinden.",
+            },
+            reply: {
+                help: "Verzonden wanneer een kiezer naar een van de accounts van dit evenement schrijft, hooguit één keer per dag per kiezer.",
+                label: "Antwoord ({{language}})",
+            },
+            delivery: {
+                empty: "Er wordt geen kanaal gebruikt.",
+                help: "Geaccepteerd betekent dat de provider het verzoek heeft geaccepteerd, niet dat de kiezer de code heeft ontvangen of geverifieerd. Onbekend betekent dat de aflevering nog niet is bevestigd. Een provider zonder afleverrapporten toont de aflevering als niet beschikbaar.",
+            },
+            error: {
+                UNSUPPORTED_VERSION:
+                    "Deze configuratie gebruikt versie {{version}}, die niet wordt ondersteund.",
+                DUPLICATE_CHANNEL: "{{channel}} is meer dan eens geconfigureerd.",
+                UNKNOWN_ACCOUNT:
+                    "Het {{channel}}-account bestaat niet meer. Kies een ander account.",
+                ACCOUNT_OF_ANOTHER_TENANT: "Het gekozen account hoort bij een andere tenant.",
+                ACCOUNT_CHANNEL_MISMATCH:
+                    "Het gekozen account verzendt geen {{channel}}-berichten.",
+                PURPOSE_NOT_READY:
+                    "{{channel}} kan nog geen {{purpose}} verzenden. Ontbreekt: {{blockers}}.",
+                TEMPLATE_NOT_APPROVED:
+                    "De {{channel}}-sjabloon voor {{purpose}} in {{language}} is niet goedgekeurd door de provider.",
+                OUT_OF_WINDOW_NOT_SUPPORTED:
+                    "{{channel}} kan niet buiten een gespreksvenster verzenden.",
+                FALLBACK_CHANNEL_NOT_ENABLED:
+                    "{{channel}} staat in de terugvalvolgorde maar verzendt geen berichten.",
+                DUPLICATE_FALLBACK_CHANNEL:
+                    "{{channel}} staat meer dan eens in de terugvalvolgorde.",
+                ELECTION_CHANNEL_NOT_ENABLED:
+                    "{{election}} biedt {{channel}} aan, dat dit evenement niet gebruikt.",
+                UNKNOWN_ELECTION: "{{election}} is geen verkiezing van dit evenement.",
+            },
+        },
+        messaging: {
+            channel: {
+                EMAIL: "E-mail",
+                SMS: "Sms",
+                WHATSAPP: "WhatsApp",
+                VIBER: "Viber",
+                MESSENGER: "Facebook Messenger",
+            },
+            provider: {
+                AWS_SES: "Amazon SES",
+                SMTP: "SMTP-server",
+                AWS_SNS: "Amazon SNS",
+                WHATSAPP_CLOUD_API: "WhatsApp Cloud API (Meta)",
+                MESSENGER_SEND_API: "Messenger Platform (Meta)",
+                VIBER_INFOBIP: "Viber Business Messages (Infobip)",
+                CONSOLE: "Console (alleen test, er wordt niets verzonden)",
+            },
+            purpose: {
+                OTP: "Codes",
+                NOTICE: "Berichten",
+            },
+            state: {
+                QUEUED: "In wachtrij",
+                ACCEPTED: "Geaccepteerd",
+                DELIVERED: "Afgeleverd",
+                FAILED: "Mislukt",
+                UNKNOWN: "Onbekend",
+            },
+            stateHelp: {
+                QUEUED: "Wacht op overdracht aan de provider.",
+                ACCEPTED:
+                    "De provider heeft het bericht geaccepteerd. Dat betekent niet dat de kiezer het heeft ontvangen.",
+                DELIVERED: "De provider meldde het bericht als afgeleverd.",
+                FAILED: "De provider bevestigde dat het bericht niet is afgeleverd.",
+                UNKNOWN: "De aflevering is nog niet bevestigd.",
+            },
+            blocker: {
+                NOT_CONNECTED: "Niet verbonden",
+                UNSUPPORTED_PURPOSE: "Niet ondersteund door deze provider",
+                NEEDS_PROVIDER_APPROVAL: "Goedkeuring van de provider nodig",
+                NEEDS_PRODUCTION_ACCESS: "Productietoegang nodig",
+                NEEDS_APPROVED_TEMPLATE: "Goedgekeurde sjabloon nodig",
+            },
+            readiness: {
+                connected: "Verbonden",
+                notConnected: "Niet verbonden",
+                readyOtp: "Klaar voor codes",
+                readyNotice: "Klaar voor berichten",
+                notReady: "Niet klaar",
+                lastCheck: "Gecontroleerd {{date}}",
+                neverChecked: "Nog niet gecontroleerd",
+            },
+            approval: {
+                PENDING: "Wacht op goedkeuring van de provider",
+                CONFIRMED: "Goedkeuring van de provider bevestigd",
+            },
+            credential: {
+                ACCESS_TOKEN: "Toegangstoken",
+                APP_SECRET: "App-geheim",
+                VERIFY_TOKEN: "Verificatietoken",
+                API_KEY: "API-sleutel",
+                SMTP_PASSWORD: "Wachtwoord",
+                AWS_ACCESS_KEY_ID: "AWS-toegangssleutel-ID",
+                AWS_SECRET_ACCESS_KEY: "Geheime AWS-toegangssleutel",
+            },
+            deliveryUnavailable: "Aflevering niet beschikbaar",
+            templates: {
+                noMethod: "Kies minstens één methode voor de sjabloon.",
+                parameters: "Sjabloonparameters",
+                parametersHelp:
+                    "Wat elke plaatshouder van de goedgekeurde sjabloon vult, op volgorde, zoals user.first_name of vote_url.",
+                parameter: "Parameter {{position}}",
+                removeParameter: "Parameter {{position}} verwijderen",
+                addParameter: "Parameter toevoegen",
+                noAccount:
+                    "Er is nog geen {{channel}}-account. Voeg er een toe in Instellingen > Berichten om te zien welke talen zijn goedgekeurd.",
+                account: "Account",
+                approvalTitle: "Goedgekeurde sjablonen",
+                language: "Taal",
+                approvalFor: "Goedgekeurd voor {{purpose}}",
+                approved: "Goedgekeurd",
+                notApproved: "Niet goedgekeurd",
+                approvalHelp:
+                    "Goedkeuringen komen van de provider en worden bijgewerkt door de verbindingscontrole van het account.",
+                messengerIntro:
+                    "Binnen 24 uur na het laatste bericht van de kiezer stuurt Messenger de onderstaande tekst.",
+                messengerMessage: "Bericht binnen 24 uur",
+                messengerWindow:
+                    "Een opgeslagen Messenger-ontvanger is geen toestemming om te verzenden. Buiten het venster van 24 uur stuurt Messenger dit bericht niet: het gaat naar het volgende beschikbare kanaal van de kiezer totdat Meta een mechanisme voor deze pagina bevestigt.",
+                intro: {
+                    WHATSAPP:
+                        "WhatsApp verzendt alleen sjablonen die Meta heeft goedgekeurd voor het WhatsApp Business-account. Het bericht moet overeenkomen met de goedgekeurde sjabloon; kies wat de parameters vult.",
+                    VIBER: "Viber verzendt codes en transactionele berichten alleen met sjablonen die de Viber-partner heeft goedgekeurd. Het bericht moet overeenkomen met de goedgekeurde sjabloon; kies wat de parameters vult.",
+                },
+                approvedWording: "Goedgekeurde tekst",
+                approvedWordingHelp:
+                    "Een kopie van de goedgekeurde sjabloon, gebruikt als voorbeeld. Hier wijzigen verandert niet wat de provider verzendt.",
+            },
+            send: {
+                channel: "Kanaal",
+                eachVoter: "Het kanaal van elke kiezer",
+                only: "Alleen {{channel}}",
+                eachVoterHelp:
+                    "Bevestigde mislukkingen gebruiken het volgende beschikbare geverifieerde kanaal. Onbevestigde aflevering wordt getoond als Onbekend.",
+                onlyHelp: "Elke kiezer krijgt deze melding via {{channel}}.",
+                channelColumn: "Kanaal",
+                sendsFrom: "Verzonden vanaf",
+                noAccount: "Geen account",
+                missingContent: "Deze melding heeft geen inhoud voor {{channels}}.",
+                approvedTemplateHelp:
+                    "Verzonden met de door de provider goedgekeurde sjabloon. Bewerk deze in Sjablonen.",
+            },
+            voter: {
+                title: "Berichten",
+                preferredChannel: "Voorkeurskanaal",
+                whatsappNumber: "WhatsApp-nummer",
+                viberNumber: "Viber-nummer",
+                messengerConnected: "Verbonden",
+                messengerNotConnected: "Niet verbonden",
+                verifiedChannels: "Geverifieerde kanalen",
+                noneVerified: "Geen geverifieerde kanalen",
+                notSet: "Niet ingesteld",
+            },
+            logs: {
+                channel: "Kanaal",
+            },
+            stats: {
+                sent: {
+                    WHATSAPP: "Verzonden WhatsApp-berichten",
+                    VIBER: "Verzonden Viber-berichten",
+                    MESSENGER: "Verzonden Messenger-berichten",
+                },
+            },
+        },
+        messagingAccounts: {
+            tab: "BERICHTEN",
+            description:
+                "Accounts die kiezers hun codes en berichten sturen. Elk verkiezingsevenement kiest het account per kanaal; nieuwe evenementen beginnen met het standaardaccount.",
+            list: {
+                title: "Verzendaccounts",
+                add: "Account toevoegen",
+                loading: "Accounts laden",
+                loadError: "De verzendaccounts konden niet worden geladen.",
+                empty: "Nog geen verzendaccounts.",
+            },
+            column: {
+                channel: "Kanaal",
+                name: "Account",
+                sender: "Verzendt als",
+                provider: "Provider",
+                default: "Standaard",
+                isDefault: "Standaardaccount",
+                lastCheck: "Laatste controle",
+                actions: "Acties",
+            },
+            action: {
+                edit: "Bewerken",
+                editNamed: "{{name}} bewerken",
+                view: "Bekijken",
+                viewNamed: "{{name}} bekijken",
+                check: "Verbinding controleren",
+                checkNamed: "De verbinding van {{name}} controleren",
+                test: "Testbericht versturen",
+                testNamed: "Een testbericht versturen vanaf {{name}}",
+                delete: "Verwijderen",
+                deleteNamed: "{{name}} verwijderen",
+            },
+            check: {
+                done: "{{name}} is gecontroleerd. De status is bijgewerkt.",
+                error: "{{name}} kon niet worden gecontroleerd.",
+            },
+            delete: {
+                title: "Account verwijderen",
+                body: "{{name}} verwijderen? Verkiezingsevenementen die het gebruiken, versturen dan niets meer via dat kanaal.",
+                success: "Account verwijderd",
+                error: "Het account kon niet worden verwijderd.",
+            },
+            editor: {
+                addTitle: "Account toevoegen",
+                editTitle: "{{channel}}-account bewerken",
+                subtitle:
+                    "Kiezers ontvangen codes en berichten van dit account via de kanalen die het gebruiken.",
+                channel: "Kanaal",
+                provider: "Provider",
+                save: "Opslaan",
+                cancel: "Annuleren",
+                close: "Sluiten",
+            },
+            field: {
+                name: "Accountnaam",
+                from_address: "Afzenderadres",
+                from_name: "Afzendernaam",
+                region: "AWS-regio",
+                notification_topic_arn: "Onderwerp voor afleveringsmeldingen (SNS-ARN)",
+                server_url: "Server en poort",
+                sender_id: "Afzender-ID",
+                origination_number: "Afzendernummer",
+                business_account_id: "WhatsApp Business-account-ID",
+                phone_number_id: "Telefoonnummer-ID",
+                display_phone_number: "Nummer",
+                display_name: "Weergavenaam",
+                api_version: "Graph API-versie",
+                page_id: "Facebook-pagina-ID",
+                page_name: "Paginanaam",
+                page_username: "Gebruikersnaam van de pagina",
+                base_url: "Basis-URL van de API",
+                sender: "Afzendernaam",
+                provider_approval: "Goedkeuring van de provider",
+                is_default: "Standaard {{channel}}-account voor nieuwe verkiezingsevenementen",
+            },
+            fieldHelp: {
+                from_address:
+                    "Het adres dat kiezers zien. Het domein moet bij de provider geverifieerd zijn.",
+                notification_topic_arn:
+                    "Het SNS-onderwerp waarop SES aflever- en bounce-meldingen publiceert. Meldingen van een ander onderwerp worden geweigerd.",
+                sender_id: "Maximaal 11 letters en cijfers. Sommige landen vereisen registratie.",
+                origination_number:
+                    "Gebruikt in plaats van de afzender-ID waar een land een nummer vereist.",
+                phone_number_id: "Het nummer waarvandaan berichten worden verzonden.",
+                display_name: "De weergavenaam die Meta voor het nummer heeft goedgekeurd.",
+                page_username:
+                    "Gebruikt voor de m.me-link die kiezers openen om hun code te krijgen.",
+                api_version: "Bijvoorbeeld v23.0.",
+                base_url: "De basis-URL van de Infobip-API van het account.",
+                sender: "De goedgekeurde afzender die kiezers zien.",
+                provider_approval:
+                    "Meta staat berichten van overheden via WhatsApp alleen toe via een goedgekeurde regeling. Zolang de goedkeuring ontbreekt, kunnen codes en berichten voor dit account niet worden ingeschakeld.",
+            },
+            error: {
+                REQUIRED: "Verplicht",
+                NOT_A_COUNT: "Voer een geheel getal in",
+                OTP_ABOVE_TOTAL: "Mag niet hoger zijn dan het aantal berichten per seconde",
+                INVALID_CALLING_CODE: "Voer landnummers van 1 tot 3 cijfers in, zoals 63",
+                DUPLICATE_LANGUAGE: "Deze taal heeft al een sjabloon voor dit doel",
+            },
+            warning: {
+                pageChange:
+                    "Messenger-gesprekken horen bij een pagina. Na het wijzigen van de pagina krijgen de kiezers die met {{page}} verbonden zijn pas weer codes nadat ze Messenger opnieuw hebben verbonden.",
+                numberChange:
+                    "Berichten komen van een ander nummer. De sjablonen moeten in dat bedrijfsaccount zijn goedgekeurd voordat het codes kan versturen, en kiezers zien een nieuwe chat.",
+            },
+            viber: {
+                title: "Goedgekeurde sjablonen",
+                description:
+                    "Voer de sjablonen in die Viber via de partner heeft goedgekeurd, per doel en taal. De sjabloon-API van de partner is niet beschikbaar, dus deze lijst wordt handmatig bijgehouden en de verbindingscontrole leest hem.",
+                purpose: "Doel",
+                language: "Taal",
+                templateId: "Sjabloon-ID bij de partner",
+                add: "Sjabloon toevoegen",
+                remove: "Sjabloon verwijderen",
+            },
+            limits: {
+                title: "Verzendlimieten",
+                messagesPerSecond: "Berichten per seconde",
+                otpReservedPerSecond: "Gereserveerd voor codes per seconde",
+                otpReservedHelp: "Blijft vrij voor codes tijdens bulkverzendingen.",
+                allowedCallingCodes: "Toegestane bestemmingen (landnummers)",
+                allowedCallingCodesHelp:
+                    "Gescheiden door komma's, bijvoorbeeld 63, 971. Leeg staat elke bestemming toe.",
+            },
+            credentials: {
+                title: "Inloggegevens",
+                description:
+                    "Inloggegevens zijn alleen-schrijven: na het opslaan wordt alleen de datum van de laatste vervanging getoond.",
+                set: "Ingesteld · vervangen {{date}}. Het wordt versleuteld opgeslagen en nooit getoond.",
+                replace: "Vervangen",
+                replaceNamed: "{{name}} vervangen",
+            },
+            credentialHelp: {
+                AWS_SES: {
+                    AWS_ACCESS_KEY_ID:
+                        "Optioneel. Zonder sleutels wordt de eigen rol van de dienst gebruikt.",
+                    AWS_SECRET_ACCESS_KEY:
+                        "Optioneel. Stel het samen met de toegangssleutel-ID in.",
+                },
+                AWS_SNS: {
+                    AWS_ACCESS_KEY_ID:
+                        "Optioneel. Zonder sleutels wordt de eigen rol van de dienst gebruikt.",
+                    AWS_SECRET_ACCESS_KEY:
+                        "Optioneel. Stel het samen met de toegangssleutel-ID in.",
+                },
+                SMTP: {
+                    SMTP_PASSWORD: "Het wachtwoord van de SMTP-server.",
+                },
+                WHATSAPP_CLOUD_API: {
+                    ACCESS_TOKEN:
+                        "Een token van een systeemgebruiker in het bedrijfsportfolio van de eigenaar, met whatsapp_business_messaging.",
+                    APP_SECRET: "Controleert dat webhookaanroepen van Meta komen.",
+                },
+                MESSENGER_SEND_API: {
+                    ACCESS_TOKEN: "Een paginatoegangstoken met pages_messaging.",
+                    APP_SECRET: "Controleert dat webhookaanroepen van Meta komen.",
+                },
+                VIBER_INFOBIP: {
+                    API_KEY: "De Infobip-API-sleutel.",
+                },
+            },
+            webhook: {
+                title: "Afleveringsrapporten en antwoorden",
+                description:
+                    "Voer deze callback in bij de webhookinstellingen van de provider. Afleveringsrapporten en antwoorden van kiezers komen daar binnen.",
+                path: "Callbackpad",
+                pathHelp:
+                    "Voeg het toe aan het openbare adres van de berichtenwebhooks van dit platform.",
+                afterSaving: "Getoond na het opslaan",
+                copyPath: "Callbackpad kopiëren",
+                tokenSet: "Ingesteld · vervangen {{date}}",
+                tokenMissing: "Nog niet gegenereerd",
+                tokenAfterSaving: "Wordt na het opslaan gegenereerd",
+                generate: "Verificatietoken genereren",
+                tokenTitle: "Verificatietoken",
+                tokenOnce:
+                    "Voer dit token nu in bij de webhookinstellingen van Meta. Het wordt maar één keer getoond.",
+                copyToken: "Verificatietoken kopiëren",
+                tokenDone: "Klaar",
+                tokenError: "Het verificatietoken kon niet worden gegenereerd.",
+            },
+            copy: {
+                success: "Gekopieerd",
+                error: "Kopiëren mislukt",
+            },
+            save: {
+                success: "Account opgeslagen",
+                error: "Het account kon niet worden opgeslagen.",
+            },
+            test: {
+                title: "Een testbericht versturen vanaf {{name}}",
+                description:
+                    "Verstuurt een echt bericht voor het gekozen doel naar deze bestemming. Het resultaat toont wat de provider meldde.",
+                purpose: "Doel",
+                destination: {
+                    EMAIL_ADDRESS: "E-mailadres",
+                    PHONE_NUMBER: "Telefoonnummer (E.164)",
+                    PAGE_SCOPED_ID: "Paginagebonden ID",
+                },
+                language: "Taal",
+                send: "Testbericht versturen",
+                reason: "Reden: {{reason}}",
+                error: "Het testbericht kon niet worden verstuurd.",
+                template: "Goedgekeurde sjabloon",
+                templateHelp:
+                    "De naam van de WhatsApp-sjabloon die de provider voor dit doel en deze taal heeft goedgekeurd.",
+                viberTemplate:
+                    "Viber gebruikt de sjabloon die dit account als goedgekeurd vermeldt voor het gekozen doel en de gekozen taal.",
+            },
         },
     },
 }

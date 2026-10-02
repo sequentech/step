@@ -356,8 +356,6 @@ const basqueTranslation: TranslationType = {
                 telephoneVoting: "Telefono Bozketa",
                 settingTitle: "Ezarpenak",
                 settingSubtitle: "Konfigurazio Orokorra",
-                sms: "SMS",
-                mail: "Emailak",
                 createNew: "Sortu Hauteskunde Mota",
                 emptyHeader: "Ez dago Hauteskunde Motarik oraindik.",
                 emptyBody: "Bat sortu nahi duzu?",
@@ -371,7 +369,6 @@ const basqueTranslation: TranslationType = {
             tabs: {
                 votingChannels: "BOZKETA KANALAK",
                 electionTypes: "HAUTESKUNDE MOTAK",
-                templates: "TXANTILOIAK",
                 languages: "HIZKUNTZAK",
                 localization: "LOKALIZAZIOA",
                 integrations: "Integrazioak",
@@ -1540,6 +1537,9 @@ const basqueTranslation: TranslationType = {
                 "phone-blacklist-delete": "Ezabatu telefonoen zerrenda beltzeko sarrerak",
                 "election-event-voter-list-reconciliation":
                     "Berradiskidetu hauteskunde-gertaeraren bozkatzaile-zerrenda",
+                "messaging-account-read": "Mezularitza-kontuak ikusi",
+                "messaging-account-write": "Mezularitza-kontuak kudeatu",
+                "messaging-config-write": "Hauteskunde-gertaeraren mezularitza konfiguratu",
             },
         },
         generalSettingsScreen: {
@@ -2517,6 +2517,9 @@ const basqueTranslation: TranslationType = {
             communicationMethod: {
                 EMAIL: "Emaila",
                 SMS: "SMS",
+                WHATSAPP: "WhatsApp",
+                VIBER: "Viber",
+                MESSENGER: "Facebook Messenger",
             },
             communicationType: {
                 CREDENTIALS: "Kredentzialak",
@@ -2708,6 +2711,9 @@ const basqueTranslation: TranslationType = {
                 email: "Emaila",
                 sms: "SMS",
                 document: "Dokumentua",
+                whatsapp: "WhatsApp",
+                viber: "Viber",
+                messenger: "Facebook Messenger",
             },
             import: {
                 title: "Inportatu Txantiloiak",
@@ -3401,6 +3407,450 @@ const basqueTranslation: TranslationType = {
             confirmDelete: "Ziurtagiri-agintaritza ezabatu",
             confirmDeleteDescription:
                 'Ziur al zaude "{{name}}" ziurtagiria (hatz-marka: {{fingerprint}}) ezabatu nahi duzula?',
+        },
+        messagingEvent: {
+            tab: "Mezularitza",
+            intro: "Gertaera honetako hautesleek kodeetarako eta jakinarazpenetarako aukera ditzaketen kanalak, eta bakoitzak zein kontutatik bidaltzen duen. Kontuak Ezarpenak > Mezularitza atalean kudeatzen dira.",
+            readOnly:
+                "Ezarpen hauek ikus ditzakezu. Aldatzeko messaging-config-write baimena behar da.",
+            savingNote:
+                "Gordetzean, izen-emate orriek Post bakoitzean eskaintzen dituzten kanalak ere eguneratzen dira.",
+            save: "Gorde",
+            saved: "Mezularitza-ezarpenak gorde dira.",
+            saveRejected: "Ez dira mezularitza-ezarpenak gorde. Konpondu adierazitako arazoak.",
+            saveError: "Ezin izan dira mezularitza-ezarpenak gorde.",
+            accountLabel: "{{channel}} kontua",
+            notUsed: "Erabili gabe",
+            missingAccount: "Ez da kontua aurkitu",
+            noAccount: "Gehitu lehenik kontu bat Ezarpenak > Mezularitza atalean",
+            missing: "Falta da: {{blockers}}",
+            purposeSwitch: "{{channel}}: {{purpose}}",
+            sections: {
+                channels: "Kanalak",
+                templates: "WhatsApp eta Viber txantiloiak",
+                fallback: "Jakinarazpenen ordezko ordena",
+                posts: "Kanalak Post-eko",
+                postsCount: "Kanalak Post-eko ({{count}} Post)",
+                reply: "Sarrerako mezuei erantzuna",
+                delivery: "Entregaren egoera",
+            },
+            column: {
+                channel: "Kanala",
+                account: "Nondik bidaltzen du",
+                purpose: "Helburua",
+                language: "Hizkuntza",
+                template: "Txantiloi onartua",
+                status: "Egoera",
+                post: "Post",
+            },
+            outOfWindow: {
+                label: "24 orduren ondoren",
+                help: "Messenger-ek hautesleak bidalitako azken mezutik 24 orduko epean bakarrik bidaltzen ditu jakinarazpenak. Geroago bidaltzea desaktibatuta dago Meta-k orri honetarako mekanismoa berretsi arte; bitartean, jakinarazpen horiek hauteslearen hurrengo kanal erabilgarrira doaz.",
+                DISABLED: "Ez bidali",
+                UTILITY_MESSAGES: "Utilitate-mezuak",
+            },
+            templates: {
+                empty: "Aktibatu kodeak edo jakinarazpenak WhatsApp edo Viber-en haien txantiloiak aukeratzeko.",
+                help: "WhatsApp eta Viber-ek hornitzaileak kontuarentzat onartutako txantiloiak bakarrik bidaltzen dituzte. Idatzi hizkuntza bakoitzeko txantiloi onartua; txantiloi onarturik gabeko hizkuntza ezin da bidali.",
+                label: "{{channel}} {{purpose}} txantiloia, {{language}}",
+                approved: "Onartua",
+                notApproved: "Onartu gabea",
+            },
+            fallback: {
+                help: "Jakinarazpen batek hautesle bat bere kanalean iritsi ezin duenean, hautesleak egiaztatu duen eta bere Post-ak eskaintzen duen ordena honetako hurrengo kanalera doa. Kodeak ez dira inoiz berez berriro bidaltzen: hautesleak beste modu bat aukeratzen du.",
+                empty: "Aktibatu kanal baten jakinarazpenak ordezko ordenara gehitzeko.",
+                earlier: "Eraman {{channel}} aurrerago",
+                later: "Eraman {{channel}} atzerago",
+            },
+            posts: {
+                noChannels:
+                    "Aktibatu kanal baten kodeak edo jakinarazpenak Post bakoitzaren kanalak aukeratzeko.",
+                help: "Izen-emateak Post bakoitzeko hautesleei hemen markatutako kanalak erakusten dizkie.",
+                restricted:
+                    "{{count}} Post-ek {{total}} kanalak baino gutxiago eskaintzen dituzte.",
+                allChannels:
+                    "Post guztiek {{total}} kanalak eskaintzen dituzte; desmarkatu kanal bat funtzionatzen ez duen Post-ean.",
+                search: "Bilatu Post-ak",
+                cell: "{{post}}: {{channel}}",
+                showing:
+                    "{{total}} Post-etatik {{shown}} erakusten dira. Bilatu besteak aurkitzeko.",
+            },
+            reply: {
+                help: "Hautesle batek gertaera honetako kontu batera idazten duenean bidaltzen da, gehienez egunean behin hautesleko.",
+                label: "Erantzuna ({{language}})",
+            },
+            delivery: {
+                empty: "Ez da kanalik erabiltzen.",
+                help: "Onartua esan nahi du hornitzaileak eskaera onartu duela, ez hautesleak kodea jaso edo egiaztatu duela. Ezezaguna esan nahi du entrega ez dagoela oraindik berretsita. Entrega-txostenik gabeko hornitzaileak entrega ez erabilgarri gisa erakusten du.",
+            },
+            error: {
+                UNSUPPORTED_VERSION:
+                    "Konfigurazio honek {{version}} bertsioa erabiltzen du, eta ez da onartzen.",
+                DUPLICATE_CHANNEL: "{{channel}} behin baino gehiagotan dago konfiguratuta.",
+                UNKNOWN_ACCOUNT: "{{channel}} kontua ez dago jada. Aukeratu beste kontu bat.",
+                ACCOUNT_OF_ANOTHER_TENANT: "Hautatutako kontua beste maizter batena da.",
+                ACCOUNT_CHANNEL_MISMATCH:
+                    "Hautatutako kontuak ez du {{channel}} mezurik bidaltzen.",
+                PURPOSE_NOT_READY:
+                    "{{channel}}-ek ezin ditu oraindik {{purpose}} bidali. Falta da: {{blockers}}.",
+                TEMPLATE_NOT_APPROVED:
+                    "{{channel}} txantiloia ({{purpose}}, {{language}}) ez dago hornitzaileak onartuta.",
+                OUT_OF_WINDOW_NOT_SUPPORTED:
+                    "{{channel}}-ek ezin du elkarrizketa-leihotik kanpo bidali.",
+                FALLBACK_CHANNEL_NOT_ENABLED:
+                    "{{channel}} ordezko ordenan dago baina ez du jakinarazpenik bidaltzen.",
+                DUPLICATE_FALLBACK_CHANNEL:
+                    "{{channel}} behin baino gehiagotan dago ordezko ordenan.",
+                ELECTION_CHANNEL_NOT_ENABLED:
+                    "{{election}}-ek {{channel}} eskaintzen du, eta gertaera honek ez du erabiltzen.",
+                UNKNOWN_ELECTION: "{{election}} ez da gertaera honetako hauteskunde bat.",
+            },
+        },
+        messaging: {
+            channel: {
+                EMAIL: "Posta elektronikoa",
+                SMS: "SMS",
+                WHATSAPP: "WhatsApp",
+                VIBER: "Viber",
+                MESSENGER: "Facebook Messenger",
+            },
+            provider: {
+                AWS_SES: "Amazon SES",
+                SMTP: "SMTP zerbitzaria",
+                AWS_SNS: "Amazon SNS",
+                WHATSAPP_CLOUD_API: "WhatsApp Cloud API (Meta)",
+                MESSENGER_SEND_API: "Messenger Platform (Meta)",
+                VIBER_INFOBIP: "Viber Business Messages (Infobip)",
+                CONSOLE: "Kontsola (probak soilik, ez da ezer bidaltzen)",
+            },
+            purpose: {
+                OTP: "Kodeak",
+                NOTICE: "Jakinarazpenak",
+            },
+            state: {
+                QUEUED: "Ilaran",
+                ACCEPTED: "Onartua",
+                DELIVERED: "Entregatua",
+                FAILED: "Huts egin du",
+                UNKNOWN: "Ezezaguna",
+            },
+            stateHelp: {
+                QUEUED: "Hornitzaileari emateko zain.",
+                ACCEPTED:
+                    "Hornitzaileak mezua onartu du. Horrek ez du esan nahi hautesleak jaso duenik.",
+                DELIVERED: "Hornitzaileak mezua entregatu dela jakinarazi du.",
+                FAILED: "Hornitzaileak berretsi du mezua ez dela entregatu.",
+                UNKNOWN: "Entrega ez dago oraindik berretsita.",
+            },
+            blocker: {
+                NOT_CONNECTED: "Konektatu gabe",
+                UNSUPPORTED_PURPOSE: "Hornitzaile honek ez du onartzen",
+                NEEDS_PROVIDER_APPROVAL: "Hornitzailearen onarpena behar du",
+                NEEDS_PRODUCTION_ACCESS: "Ekoizpen-sarbidea behar du",
+                NEEDS_APPROVED_TEMPLATE: "Txantiloi onartua behar du",
+            },
+            readiness: {
+                connected: "Konektatuta",
+                notConnected: "Konektatu gabe",
+                readyOtp: "Kodeetarako prest",
+                readyNotice: "Jakinarazpenetarako prest",
+                notReady: "Ez dago prest",
+                lastCheck: "Egiaztatua: {{date}}",
+                neverChecked: "Oraindik egiaztatu gabe",
+            },
+            approval: {
+                PENDING: "Hornitzailearen onarpenaren zain",
+                CONFIRMED: "Hornitzailearen onarpena berretsita",
+            },
+            credential: {
+                ACCESS_TOKEN: "Sarbide-tokena",
+                APP_SECRET: "Aplikazioaren sekretua",
+                VERIFY_TOKEN: "Egiaztatze-tokena",
+                API_KEY: "API gakoa",
+                SMTP_PASSWORD: "Pasahitza",
+                AWS_ACCESS_KEY_ID: "AWS sarbide-gakoaren IDa",
+                AWS_SECRET_ACCESS_KEY: "AWS sarbide-gako sekretua",
+            },
+            deliveryUnavailable: "Entrega ez dago erabilgarri",
+            templates: {
+                noMethod: "Aukeratu gutxienez metodo bat txantiloirako.",
+                parameters: "Txantiloiaren parametroak",
+                parametersHelp:
+                    "Txantiloi onartuaren leku-marka bakoitza zerk betetzen duen, ordenan, adibidez user.first_name edo vote_url.",
+                parameter: "{{position}}. parametroa",
+                removeParameter: "Kendu {{position}}. parametroa",
+                addParameter: "Gehitu parametroa",
+                noAccount:
+                    "Oraindik ez dago {{channel}} konturik. Gehitu bat Ezarpenak > Mezularitza atalean zein hizkuntza dauden onartuta ikusteko.",
+                account: "Kontua",
+                approvalTitle: "Txantiloi onartuak",
+                language: "Hizkuntza",
+                approvalFor: "Onartua honetarako: {{purpose}}",
+                approved: "Onartua",
+                notApproved: "Onartu gabea",
+                approvalHelp:
+                    "Onarpenak hornitzailetik datoz eta kontuaren konexio-egiaztapenak eguneratzen ditu.",
+                messengerIntro:
+                    "Hautesleak azken mezua bidali eta 24 orduko epean, Messenger-ek beheko testua bidaltzen du.",
+                messengerMessage: "24 orduko epeko mezua",
+                messengerWindow:
+                    "Gordetako Messenger hartzaile bat ez da bidaltzeko baimena. 24 orduko leihotik kanpo Messenger-ek ez du jakinarazpen hau bidaltzen: hautesleak duen hurrengo kanal erabilgarrira doa, Meta-k orrialde honetarako mekanismo bat berretsi arte.",
+                intro: {
+                    WHATSAPP:
+                        "WhatsApp-ek Meta-k WhatsApp Business kontuarentzat onartutako txantiloiak soilik bidaltzen ditu. Mezuak txantiloi onartuarekin bat etorri behar du; aukeratu zerk betetzen dituen parametroak.",
+                    VIBER: "Viber-ek kodeak eta transakzio-mezuak Viber bazkideak onartutako txantiloiekin soilik bidaltzen ditu. Mezuak txantiloi onartuarekin bat etorri behar du; aukeratu zerk betetzen dituen parametroak.",
+                },
+                approvedWording: "Testu onartua",
+                approvedWordingHelp:
+                    "Txantiloi onartuaren kopia bat, aurrebista gisa erabilia. Hemen aldatzeak ez du aldatzen hornitzaileak bidaltzen duena.",
+            },
+            send: {
+                channel: "Kanala",
+                eachVoter: "Hautesle bakoitzaren kanala",
+                only: "{{channel}} soilik",
+                eachVoterHelp:
+                    "Berretsitako hutsegiteek hurrengo kanal egiaztatu erabilgarria erabiltzen dute. Berretsi gabeko entrega Ezezaguna gisa erakusten da.",
+                onlyHelp: "Jakinarazpen hau hautesle bakoitzari {{channel}} bidez bidaltzen zaio.",
+                channelColumn: "Kanala",
+                sendsFrom: "Honetatik bidaltzen da",
+                noAccount: "Konturik ez",
+                missingContent: "Jakinarazpen honek ez du edukirik honetarako: {{channels}}.",
+                approvedTemplateHelp:
+                    "Hornitzaileak onartutako txantiloiarekin bidaltzen da. Editatu Txantiloiak atalean.",
+            },
+            voter: {
+                title: "Mezularitza",
+                preferredChannel: "Kanal hobetsia",
+                whatsappNumber: "WhatsApp zenbakia",
+                viberNumber: "Viber zenbakia",
+                messengerConnected: "Konektatuta",
+                messengerNotConnected: "Konektatu gabe",
+                verifiedChannels: "Kanal egiaztatuak",
+                noneVerified: "Ez dago kanal egiaztaturik",
+                notSet: "Ezarri gabe",
+            },
+            logs: {
+                channel: "Kanala",
+            },
+            stats: {
+                sent: {
+                    WHATSAPP: "Bidalitako WhatsApp mezuak",
+                    VIBER: "Bidalitako Viber mezuak",
+                    MESSENGER: "Bidalitako Messenger mezuak",
+                },
+            },
+        },
+        messagingAccounts: {
+            tab: "MEZULARITZA",
+            description:
+                "Hautesleei beren kodeak eta jakinarazpenak bidaltzen dizkieten kontuak. Hauteskunde-gertaera bakoitzak kanal bakoitzeko kontua aukeratzen du; gertaera berriak kontu lehenetsiarekin hasten dira.",
+            list: {
+                title: "Bidalketa-kontuak",
+                add: "Gehitu kontua",
+                loading: "Kontuak kargatzen",
+                loadError: "Ezin izan dira bidalketa-kontuak kargatu.",
+                empty: "Oraindik ez dago bidalketa-konturik.",
+            },
+            column: {
+                channel: "Kanala",
+                name: "Kontua",
+                sender: "Honela bidaltzen du",
+                provider: "Hornitzailea",
+                default: "Lehenetsia",
+                isDefault: "Kontu lehenetsia",
+                lastCheck: "Azken egiaztapena",
+                actions: "Ekintzak",
+            },
+            action: {
+                edit: "Editatu",
+                editNamed: "Editatu {{name}}",
+                view: "Ikusi",
+                viewNamed: "Ikusi {{name}}",
+                check: "Egiaztatu konexioa",
+                checkNamed: "Egiaztatu {{name}} kontuaren konexioa",
+                test: "Bidali proba-mezua",
+                testNamed: "Bidali proba-mezu bat {{name}} kontutik",
+                delete: "Ezabatu",
+                deleteNamed: "Ezabatu {{name}}",
+            },
+            check: {
+                done: "{{name}} egiaztatu da. Bere egoera eguneratuta dago.",
+                error: "Ezin izan da {{name}} egiaztatu.",
+            },
+            delete: {
+                title: "Ezabatu kontua",
+                body: "{{name}} ezabatu? Erabiltzen duten hauteskunde-gertaerek bere kanaletik bidaltzeari utziko diote.",
+                success: "Kontua ezabatu da",
+                error: "Ezin izan da kontua ezabatu.",
+            },
+            editor: {
+                addTitle: "Gehitu kontua",
+                editTitle: "Editatu {{channel}} kontua",
+                subtitle:
+                    "Hautesleek kontu honen kodeak eta jakinarazpenak jasotzen dituzte hura erabiltzen duten kanaletan.",
+                channel: "Kanala",
+                provider: "Hornitzailea",
+                save: "Gorde",
+                cancel: "Utzi",
+                close: "Itxi",
+            },
+            field: {
+                name: "Kontuaren izena",
+                from_address: "Igorlearen helbidea",
+                from_name: "Igorlearen izena",
+                region: "AWS eskualdea",
+                notification_topic_arn: "Entrega-jakinarazpenen gaia (SNS ARN)",
+                server_url: "Zerbitzaria eta ataka",
+                sender_id: "Igorlearen IDa",
+                origination_number: "Jatorri-zenbakia",
+                business_account_id: "WhatsApp Business kontuaren IDa",
+                phone_number_id: "Telefono-zenbakiaren IDa",
+                display_phone_number: "Zenbakia",
+                display_name: "Bistaratzeko izena",
+                api_version: "Graph API bertsioa",
+                page_id: "Facebook orriaren IDa",
+                page_name: "Orriaren izena",
+                page_username: "Orriaren erabiltzaile-izena",
+                base_url: "APIaren oinarrizko URLa",
+                sender: "Igorlearen izena",
+                provider_approval: "Hornitzailearen onarpena",
+                is_default: "{{channel}} kontu lehenetsia hauteskunde-gertaera berrietarako",
+            },
+            fieldHelp: {
+                from_address:
+                    "Hautesleek ikusten duten helbidea. Bere domeinuak hornitzailearekin egiaztatuta egon behar du.",
+                notification_topic_arn:
+                    "SESek entrega- eta errebote-gertaerak argitaratzen dituen SNS gaia. Beste edozein gairen jakinarazpenak baztertu egiten dira.",
+                sender_id:
+                    "Gehienez 11 letra eta digitu. Herrialde batzuek erregistroa eskatzen dute.",
+                origination_number:
+                    "Igorlearen IDaren ordez erabiltzen da herrialde batek zenbaki bat eskatzen duenean.",
+                phone_number_id: "Mezuak bidaltzen diren zenbakia.",
+                display_name: "Metak zenbakirako onartutako bistaratzeko izena.",
+                page_username:
+                    "Hautesleek beren kodea lortzeko irekitzen duten m.me estekan erabiltzen da.",
+                api_version: "Adibidez, v23.0.",
+                base_url: "Kontuaren Infobip APIaren oinarrizko URLa.",
+                sender: "Hautesleek ikusten duten igorle onartua.",
+                provider_approval:
+                    "Metak gobernuen WhatsApp mezuak onartutako akordio baten bidez soilik baimentzen ditu. Onarpena zain dagoen bitartean, ezin dira kodeak eta jakinarazpenak gaitu kontu honetan.",
+            },
+            error: {
+                REQUIRED: "Derrigorrezkoa",
+                NOT_A_COUNT: "Idatzi zenbaki oso bat",
+                OTP_ABOVE_TOTAL: "Ezin du segundoko mezuen kopurua gainditu",
+                INVALID_CALLING_CODE:
+                    "Idatzi 1etik 3 digitura bitarteko herrialde-aurrezenbakiak, adibidez 63",
+                DUPLICATE_LANGUAGE:
+                    "Hizkuntza honek badu dagoeneko txantiloi bat helburu honetarako",
+            },
+            warning: {
+                pageChange:
+                    "Messenger elkarrizketak orri batenak dira. Orria aldatu ondoren, {{page}} orriarekin konektatutako hautesleek Messenger berriro konektatu ondoren soilik jasoko dituzte kodeak.",
+                numberChange:
+                    "Mezuak beste zenbaki batetik iritsiko dira. Bere txantiloiek enpresa-kontu horretan onartuta egon behar dute kodeak bidali ahal izateko, eta hautesleek txat berri bat ikusiko dute.",
+            },
+            viber: {
+                title: "Txantiloi onartuak",
+                description:
+                    "Idatzi Viberrek bazkidearen bidez onartutako txantiloiak, helburu eta hizkuntza bakoitzeko. Bazkidearen txantiloien APIa ez dago erabilgarri; beraz, zerrenda hau eskuz mantentzen da eta konexio-egiaztapenak irakurtzen du.",
+                purpose: "Helburua",
+                language: "Hizkuntza",
+                templateId: "Bazkidearen txantiloi-IDa",
+                add: "Gehitu txantiloia",
+                remove: "Kendu txantiloia",
+            },
+            limits: {
+                title: "Bidalketa-mugak",
+                messagesPerSecond: "Mezuak segundoko",
+                otpReservedPerSecond: "Kodeetarako gordeak segundoko",
+                otpReservedHelp: "Kodeetarako libre gordetzen dira bidalketa masiboetan.",
+                allowedCallingCodes: "Baimendutako helmugak (herrialde-aurrezenbakiak)",
+                allowedCallingCodesHelp:
+                    "Komaz bereizita, adibidez 63, 971. Hutsik badago, edozein helmuga baimentzen da.",
+            },
+            credentials: {
+                title: "Kredentzialak",
+                description:
+                    "Kredentzialak idazteko soilik dira: gorde ondoren, bakoitza azkenekoz noiz ordeztu zen soilik erakusten da.",
+                set: "Ezarrita · ordeztua {{date}}. Zifratuta gordetzen da eta ez da inoiz erakusten.",
+                replace: "Ordeztu",
+                replaceNamed: "Ordeztu {{name}}",
+            },
+            credentialHelp: {
+                AWS_SES: {
+                    AWS_ACCESS_KEY_ID:
+                        "Aukerakoa. Gakorik gabe, zerbitzuaren rol propioa erabiltzen da.",
+                    AWS_SECRET_ACCESS_KEY: "Aukerakoa. Ezarri sarbide-gakoaren IDarekin batera.",
+                },
+                AWS_SNS: {
+                    AWS_ACCESS_KEY_ID:
+                        "Aukerakoa. Gakorik gabe, zerbitzuaren rol propioa erabiltzen da.",
+                    AWS_SECRET_ACCESS_KEY: "Aukerakoa. Ezarri sarbide-gakoaren IDarekin batera.",
+                },
+                SMTP: {
+                    SMTP_PASSWORD: "SMTP zerbitzariaren pasahitza.",
+                },
+                WHATSAPP_CLOUD_API: {
+                    ACCESS_TOKEN:
+                        "Jabearen enpresa-zorroko sistema-erabiltzaile baten tokena, whatsapp_business_messaging baimenarekin.",
+                    APP_SECRET: "Webhook deiak Metatik datozela egiaztatzen du.",
+                },
+                MESSENGER_SEND_API: {
+                    ACCESS_TOKEN: "Orri-sarbiderako token bat, pages_messaging baimenarekin.",
+                    APP_SECRET: "Webhook deiak Metatik datozela egiaztatzen du.",
+                },
+                VIBER_INFOBIP: {
+                    API_KEY: "Infobip API gakoa.",
+                },
+            },
+            webhook: {
+                title: "Entrega-txostenak eta erantzunak",
+                description:
+                    "Idatzi itzulera-helbide hau hornitzailearen webhook ezarpenetan. Entrega-txostenak eta hautesleen erantzunak hara iristen dira.",
+                path: "Itzulera-bidea",
+                pathHelp: "Gehitu plataforma honen mezularitza-webhooken helbide publikoari.",
+                afterSaving: "Gorde ondoren erakusten da",
+                copyPath: "Kopiatu itzulera-bidea",
+                tokenSet: "Ezarrita · ordeztua {{date}}",
+                tokenMissing: "Oraindik sortu gabe",
+                tokenAfterSaving: "Gorde ondoren sortzen da",
+                generate: "Sortu egiaztatze-tokena",
+                tokenTitle: "Egiaztatze-tokena",
+                tokenOnce:
+                    "Idatzi orain token hau Metaren webhook ezarpenetan. Behin bakarrik erakusten da.",
+                copyToken: "Kopiatu egiaztatze-tokena",
+                tokenDone: "Eginda",
+                tokenError: "Ezin izan da egiaztatze-tokena sortu.",
+            },
+            copy: {
+                success: "Kopiatuta",
+                error: "Ezin izan da kopiatu",
+            },
+            save: {
+                success: "Kontua gorde da",
+                error: "Ezin izan da kontua gorde.",
+            },
+            test: {
+                title: "Bidali proba-mezu bat {{name}} kontutik",
+                description:
+                    "Aukeratutako helbururako benetako mezu bat bidaltzen du helmuga honetara. Emaitzak hornitzaileak jakinarazitakoa erakusten du.",
+                purpose: "Helburua",
+                destination: {
+                    EMAIL_ADDRESS: "Helbide elektronikoa",
+                    PHONE_NUMBER: "Telefono-zenbakia (E.164)",
+                    PAGE_SCOPED_ID: "Orriaren esparruko IDa",
+                },
+                language: "Hizkuntza",
+                send: "Bidali proba-mezua",
+                reason: "Arrazoia: {{reason}}",
+                error: "Ezin izan da proba-mezua bidali.",
+                template: "Txantiloi onartua",
+                templateHelp:
+                    "Hornitzaileak helburu eta hizkuntza honetarako onartutako WhatsApp txantiloiaren izena.",
+                viberTemplate:
+                    "Viber-ek kontu honek aukeratutako helburu eta hizkuntzarako onartutzat duen txantiloia erabiltzen du.",
+            },
         },
     },
 }

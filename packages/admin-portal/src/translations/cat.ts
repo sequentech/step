@@ -356,8 +356,6 @@ const catalanTranslation: TranslationType = {
                 telephoneVoting: "Votació Telefònica",
                 settingTitle: "Configuració",
                 settingSubtitle: "Ajustos generals",
-                sms: "SMS",
-                mail: "Correus",
                 createNew: "Crear un Tipus d'Elecció",
                 emptyHeader: "No hi ha Tipus d'Elecció encara.",
                 emptyBody: "Vols crear-ne un?",
@@ -371,7 +369,6 @@ const catalanTranslation: TranslationType = {
             tabs: {
                 votingChannels: "CANALS DE VOTACIÓ",
                 electionTypes: "TIPUS D'ELECCIÓ",
-                templates: "PLANTILLES",
                 localization: "LOCALITZACIÓ",
                 languages: "IDIOMES",
                 integrations: "INTEGRACIONS",
@@ -1560,6 +1557,9 @@ const catalanTranslation: TranslationType = {
                 "phone-blacklist-delete": "Suprimeix entrades de la llista negra de telèfons",
                 "election-event-voter-list-reconciliation":
                     "Concilia la llista de votants de l’esdeveniment electoral",
+                "messaging-account-read": "Veure comptes de missatgeria",
+                "messaging-account-write": "Gestionar comptes de missatgeria",
+                "messaging-config-write": "Configurar la missatgeria de l'esdeveniment electoral",
             },
         },
         generalSettingsScreen: {
@@ -2538,6 +2538,9 @@ const catalanTranslation: TranslationType = {
             communicationMethod: {
                 EMAIL: "Email",
                 SMS: "SMS",
+                WHATSAPP: "WhatsApp",
+                VIBER: "Viber",
+                MESSENGER: "Facebook Messenger",
             },
             communicationType: {
                 CREDENTIALS: "Credencials",
@@ -2729,6 +2732,9 @@ const catalanTranslation: TranslationType = {
                 email: "Email",
                 sms: "SMS",
                 document: "Document",
+                whatsapp: "WhatsApp",
+                viber: "Viber",
+                messenger: "Facebook Messenger",
             },
             import: {
                 title: "Importar Plantilles",
@@ -3425,6 +3431,448 @@ const catalanTranslation: TranslationType = {
             confirmDelete: "Eliminar autoritat de certificació",
             confirmDeleteDescription:
                 'Esteu segurs que voleu eliminar el certificat "{{name}}" (empremta: {{fingerprint}})?',
+        },
+        messagingEvent: {
+            tab: "Missatgeria",
+            intro: "Els canals que els votants d'aquest esdeveniment poden triar per a codis i avisos, i el compte des del qual envia cadascun. Els comptes es gestionen a Configuració > Missatgeria.",
+            readOnly:
+                "Podeu veure aquesta configuració. Per canviar-la cal el permís messaging-config-write.",
+            savingNote:
+                "En desar també s'actualitzen els canals que les pàgines d'inscripció ofereixen a cada Post.",
+            save: "Desa",
+            saved: "S'ha desat la configuració de missatgeria.",
+            saveRejected:
+                "No s'ha desat la configuració de missatgeria. Corregiu els problemes indicats.",
+            saveError: "No s'ha pogut desar la configuració de missatgeria.",
+            accountLabel: "Compte de {{channel}}",
+            notUsed: "Sense ús",
+            missingAccount: "Compte no trobat",
+            noAccount: "Afegiu primer un compte a Configuració > Missatgeria",
+            missing: "Falta: {{blockers}}",
+            purposeSwitch: "{{channel}}: {{purpose}}",
+            sections: {
+                channels: "Canals",
+                templates: "Plantilles de WhatsApp i Viber",
+                fallback: "Ordre alternatiu per als avisos",
+                posts: "Canals per Post",
+                postsCount: "Canals per Post ({{count}} Posts)",
+                reply: "Resposta als missatges entrants",
+                delivery: "Estat del lliurament",
+            },
+            column: {
+                channel: "Canal",
+                account: "Envia des de",
+                purpose: "Finalitat",
+                language: "Idioma",
+                template: "Plantilla aprovada",
+                status: "Estat",
+                post: "Post",
+            },
+            outOfWindow: {
+                label: "Passades 24 hores",
+                help: "Messenger només envia avisos durant les 24 hores posteriors a l'últim missatge del votant. L'enviament posterior continua desactivat fins que Meta confirmi el mecanisme per a aquesta pàgina; mentrestant, aquests avisos van al següent canal disponible del votant.",
+                DISABLED: "No enviar",
+                UTILITY_MESSAGES: "Missatges d'utilitat",
+            },
+            templates: {
+                empty: "Activeu codis o avisos a WhatsApp o Viber per triar-ne les plantilles.",
+                help: "WhatsApp i Viber només envien plantilles que el proveïdor ha aprovat per al compte. Indiqueu la plantilla aprovada de cada idioma; un idioma sense plantilla aprovada no es pot enviar.",
+                label: "Plantilla de {{purpose}} de {{channel}}, {{language}}",
+                approved: "Aprovada",
+                notApproved: "No aprovada",
+            },
+            fallback: {
+                help: "Quan un avís no pot arribar a un votant pel seu canal, passa al següent canal d'aquest ordre que el votant hagi verificat i que ofereixi el seu Post. Els codis mai no es reenvien sols: el votant tria una altra manera.",
+                empty: "Activeu els avisos d'un canal per afegir-lo a l'ordre alternatiu.",
+                earlier: "Mou {{channel}} abans",
+                later: "Mou {{channel}} després",
+            },
+            posts: {
+                noChannels: "Activeu codis o avisos en un canal per triar els canals de cada Post.",
+                help: "La inscripció mostra als votants de cada Post els canals marcats aquí.",
+                restricted: "{{count}} Posts ofereixen menys dels {{total}} canals.",
+                allChannels:
+                    "Tots els Posts ofereixen els {{total}} canals; desmarqueu un canal al Post on no funcioni.",
+                search: "Cerca Posts",
+                cell: "{{post}}: {{channel}}",
+                showing: "Es mostren {{shown}} de {{total}} Posts. Cerqueu per trobar-ne d'altres.",
+            },
+            reply: {
+                help: "S'envia quan un votant escriu a un dels comptes d'aquest esdeveniment, com a màxim un cop al dia per votant.",
+                label: "Resposta ({{language}})",
+            },
+            delivery: {
+                empty: "No s'utilitza cap canal.",
+                help: "Acceptat vol dir que el proveïdor ha acceptat la sol·licitud, no que el votant hagi rebut o verificat el codi. Desconegut vol dir que el lliurament encara no està confirmat. Un proveïdor sense informes de lliurament mostra el lliurament com a no disponible.",
+            },
+            error: {
+                UNSUPPORTED_VERSION:
+                    "Aquesta configuració utilitza la versió {{version}}, que no s'admet.",
+                DUPLICATE_CHANNEL: "{{channel}} està configurat més d'un cop.",
+                UNKNOWN_ACCOUNT: "El compte de {{channel}} ja no existeix. Trieu un altre compte.",
+                ACCOUNT_OF_ANOTHER_TENANT: "El compte seleccionat pertany a un altre inquilí.",
+                ACCOUNT_CHANNEL_MISMATCH:
+                    "El compte seleccionat no envia missatges de {{channel}}.",
+                PURPOSE_NOT_READY:
+                    "{{channel}} encara no pot enviar {{purpose}}. Falta: {{blockers}}.",
+                TEMPLATE_NOT_APPROVED:
+                    "La plantilla de {{channel}} per a {{purpose}} en {{language}} no està aprovada pel proveïdor.",
+                OUT_OF_WINDOW_NOT_SUPPORTED:
+                    "{{channel}} no pot enviar fora d'una finestra de conversa.",
+                FALLBACK_CHANNEL_NOT_ENABLED:
+                    "{{channel}} és a l'ordre alternatiu però no envia avisos.",
+                DUPLICATE_FALLBACK_CHANNEL:
+                    "{{channel}} apareix més d'un cop a l'ordre alternatiu.",
+                ELECTION_CHANNEL_NOT_ENABLED:
+                    "{{election}} ofereix {{channel}}, que aquest esdeveniment no utilitza.",
+                UNKNOWN_ELECTION: "{{election}} no és una elecció d'aquest esdeveniment.",
+            },
+        },
+        messaging: {
+            channel: {
+                EMAIL: "Correu electrònic",
+                SMS: "SMS",
+                WHATSAPP: "WhatsApp",
+                VIBER: "Viber",
+                MESSENGER: "Facebook Messenger",
+            },
+            provider: {
+                AWS_SES: "Amazon SES",
+                SMTP: "Servidor SMTP",
+                AWS_SNS: "Amazon SNS",
+                WHATSAPP_CLOUD_API: "WhatsApp Cloud API (Meta)",
+                MESSENGER_SEND_API: "Messenger Platform (Meta)",
+                VIBER_INFOBIP: "Viber Business Messages (Infobip)",
+                CONSOLE: "Consola (només proves, no s'envia res)",
+            },
+            purpose: {
+                OTP: "Codis",
+                NOTICE: "Avisos",
+            },
+            state: {
+                QUEUED: "En cua",
+                ACCEPTED: "Acceptat",
+                DELIVERED: "Lliurat",
+                FAILED: "Fallit",
+                UNKNOWN: "Desconegut",
+            },
+            stateHelp: {
+                QUEUED: "Pendent de lliurar al proveïdor.",
+                ACCEPTED:
+                    "El proveïdor ha acceptat el missatge. Això no vol dir que el votant l'hagi rebut.",
+                DELIVERED: "El proveïdor ha informat que el missatge s'ha lliurat.",
+                FAILED: "El proveïdor ha confirmat que el missatge no s'ha lliurat.",
+                UNKNOWN: "El lliurament encara no està confirmat.",
+            },
+            blocker: {
+                NOT_CONNECTED: "Sense connexió",
+                UNSUPPORTED_PURPOSE: "Aquest proveïdor no ho admet",
+                NEEDS_PROVIDER_APPROVAL: "Necessita l'aprovació del proveïdor",
+                NEEDS_PRODUCTION_ACCESS: "Necessita accés de producció",
+                NEEDS_APPROVED_TEMPLATE: "Necessita una plantilla aprovada",
+            },
+            readiness: {
+                connected: "Connectat",
+                notConnected: "Sense connexió",
+                readyOtp: "A punt per a codis",
+                readyNotice: "A punt per a avisos",
+                notReady: "No està a punt",
+                lastCheck: "Comprovat {{date}}",
+                neverChecked: "Encara no comprovat",
+            },
+            approval: {
+                PENDING: "Pendent d'aprovació del proveïdor",
+                CONFIRMED: "Aprovació del proveïdor confirmada",
+            },
+            credential: {
+                ACCESS_TOKEN: "Testimoni d'accés",
+                APP_SECRET: "Secret de l'aplicació",
+                VERIFY_TOKEN: "Testimoni de verificació",
+                API_KEY: "Clau d'API",
+                SMTP_PASSWORD: "Contrasenya",
+                AWS_ACCESS_KEY_ID: "ID de clau d'accés d'AWS",
+                AWS_SECRET_ACCESS_KEY: "Clau d'accés secreta d'AWS",
+            },
+            deliveryUnavailable: "Lliurament no disponible",
+            templates: {
+                noMethod: "Tria almenys un mètode per a la plantilla.",
+                parameters: "Paràmetres de la plantilla",
+                parametersHelp:
+                    "Què omple cada marcador de la plantilla aprovada, en ordre, com ara user.first_name o vote_url.",
+                parameter: "Paràmetre {{position}}",
+                removeParameter: "Treu el paràmetre {{position}}",
+                addParameter: "Afegeix un paràmetre",
+                noAccount:
+                    "Encara no hi ha cap compte de {{channel}}. Afegeix-ne un a Configuració > Missatgeria per veure quins idiomes estan aprovats.",
+                account: "Compte",
+                approvalTitle: "Plantilles aprovades",
+                language: "Idioma",
+                approvalFor: "Aprovada per a {{purpose}}",
+                approved: "Aprovada",
+                notApproved: "No aprovada",
+                approvalHelp:
+                    "Les aprovacions venen del proveïdor i s'actualitzen amb la comprovació de connexió del compte.",
+                messengerIntro:
+                    "En les 24 hores següents a l'últim missatge del votant, Messenger envia el text següent.",
+                messengerMessage: "Missatge dins de les 24 hores",
+                messengerWindow:
+                    "Un destinatari de Messenger desat no és permís per enviar. Fora de la finestra de 24 hores Messenger no envia aquest avís: va al següent canal disponible del votant fins que Meta confirmi un mecanisme per a aquesta pàgina.",
+                intro: {
+                    WHATSAPP:
+                        "WhatsApp només envia plantilles que Meta ha aprovat per al compte de WhatsApp Business. El missatge ha de coincidir amb la plantilla aprovada; tria què omple els seus paràmetres.",
+                    VIBER: "Viber només envia codis i missatges transaccionals amb plantilles aprovades pel soci de Viber. El missatge ha de coincidir amb la plantilla aprovada; tria què omple els seus paràmetres.",
+                },
+                approvedWording: "Text aprovat",
+                approvedWordingHelp:
+                    "Una còpia de la plantilla aprovada, feta servir com a previsualització. Canviar-la aquí no canvia el que envia el proveïdor.",
+            },
+            send: {
+                channel: "Canal",
+                eachVoter: "El canal de cada votant",
+                only: "Només {{channel}}",
+                eachVoterHelp:
+                    "Les fallades confirmades fan servir el següent canal verificat disponible. El lliurament sense confirmar es mostra com a Desconegut.",
+                onlyHelp: "Aquesta notificació s'envia a cada votant per {{channel}}.",
+                channelColumn: "Canal",
+                sendsFrom: "S'envia des de",
+                noAccount: "Sense compte",
+                missingContent: "Aquesta notificació no té contingut per a {{channels}}.",
+                approvedTemplateHelp:
+                    "S'envia amb la plantilla aprovada pel proveïdor. Edita-la a Plantilles.",
+            },
+            voter: {
+                title: "Missatgeria",
+                preferredChannel: "Canal preferit",
+                whatsappNumber: "Número de WhatsApp",
+                viberNumber: "Número de Viber",
+                messengerConnected: "Connectat",
+                messengerNotConnected: "No connectat",
+                verifiedChannels: "Canals verificats",
+                noneVerified: "Cap canal verificat",
+                notSet: "Sense definir",
+            },
+            logs: {
+                channel: "Canal",
+            },
+            stats: {
+                sent: {
+                    WHATSAPP: "Missatges de WhatsApp enviats",
+                    VIBER: "Missatges de Viber enviats",
+                    MESSENGER: "Missatges de Messenger enviats",
+                },
+            },
+        },
+        messagingAccounts: {
+            tab: "MISSATGERIA",
+            description:
+                "Comptes que envien als votants els seus codis i avisos. Cada esdeveniment electoral tria el compte de cada canal; els esdeveniments nous comencen amb el compte predeterminat.",
+            list: {
+                title: "Comptes d'enviament",
+                add: "Afegeix un compte",
+                loading: "S'estan carregant els comptes",
+                loadError: "No s'han pogut carregar els comptes d'enviament.",
+                empty: "Encara no hi ha comptes d'enviament.",
+            },
+            column: {
+                channel: "Canal",
+                name: "Compte",
+                sender: "Envia com a",
+                provider: "Proveïdor",
+                default: "Predeterminat",
+                isDefault: "Compte predeterminat",
+                lastCheck: "Darrera comprovació",
+                actions: "Accions",
+            },
+            action: {
+                edit: "Edita",
+                editNamed: "Edita {{name}}",
+                view: "Mostra",
+                viewNamed: "Mostra {{name}}",
+                check: "Comprova la connexió",
+                checkNamed: "Comprova la connexió de {{name}}",
+                test: "Envia un missatge de prova",
+                testNamed: "Envia un missatge de prova des de {{name}}",
+                delete: "Suprimeix",
+                deleteNamed: "Suprimeix {{name}}",
+            },
+            check: {
+                done: "S'ha comprovat {{name}}. El seu estat està actualitzat.",
+                error: "No s'ha pogut comprovar {{name}}.",
+            },
+            delete: {
+                title: "Suprimeix el compte",
+                body: "Voleu suprimir {{name}}? Els esdeveniments electorals que l'utilitzen deixaran d'enviar pel seu canal.",
+                success: "Compte suprimit",
+                error: "No s'ha pogut suprimir el compte.",
+            },
+            editor: {
+                addTitle: "Afegeix un compte",
+                editTitle: "Edita el compte de {{channel}}",
+                subtitle:
+                    "Els votants reben codis i avisos d'aquest compte als canals que l'utilitzen.",
+                channel: "Canal",
+                provider: "Proveïdor",
+                save: "Desa",
+                cancel: "Cancel·la",
+                close: "Tanca",
+            },
+            field: {
+                name: "Nom del compte",
+                from_address: "Adreça del remitent",
+                from_name: "Nom del remitent",
+                region: "Regió d'AWS",
+                notification_topic_arn: "Tema de notificacions de lliurament (ARN de SNS)",
+                server_url: "Servidor i port",
+                sender_id: "ID del remitent",
+                origination_number: "Número d'origen",
+                business_account_id: "ID del compte de WhatsApp Business",
+                phone_number_id: "ID del número de telèfon",
+                display_phone_number: "Número",
+                display_name: "Nom visible",
+                api_version: "Versió de Graph API",
+                page_id: "ID de la pàgina de Facebook",
+                page_name: "Nom de la pàgina",
+                page_username: "Nom d'usuari de la pàgina",
+                base_url: "URL base de l'API",
+                sender: "Nom del remitent",
+                provider_approval: "Aprovació del proveïdor",
+                is_default:
+                    "Compte de {{channel}} predeterminat per a nous esdeveniments electorals",
+            },
+            fieldHelp: {
+                from_address:
+                    "L'adreça que veuen els votants. El seu domini ha d'estar verificat amb el proveïdor.",
+                notification_topic_arn:
+                    "El tema de SNS on SES publica els esdeveniments de lliurament i rebot. Es rebutgen les notificacions de qualsevol altre tema.",
+                sender_id: "Fins a 11 lletres i dígits. Alguns països n'exigeixen el registre.",
+                origination_number:
+                    "S'utilitza en lloc de l'ID del remitent on un país exigeix un número.",
+                phone_number_id: "El número des del qual s'envien els missatges.",
+                display_name: "El nom visible que Meta ha aprovat per al número.",
+                page_username:
+                    "S'utilitza a l'enllaç m.me que els votants obren per obtenir el codi.",
+                api_version: "Per exemple, v23.0.",
+                base_url: "L'URL base de l'API d'Infobip del compte.",
+                sender: "El remitent aprovat que veuen els votants.",
+                provider_approval:
+                    "Meta només permet missatges de WhatsApp de governs mitjançant un acord aprovat. Mentre l'aprovació estigui pendent, no es poden activar codis ni avisos en aquest compte.",
+            },
+            error: {
+                REQUIRED: "Obligatori",
+                NOT_A_COUNT: "Introduïu un nombre enter",
+                OTP_ABOVE_TOTAL: "No pot superar els missatges per segon",
+                INVALID_CALLING_CODE:
+                    "Introduïu prefixos telefònics de país d'1 a 3 dígits, com 63",
+                DUPLICATE_LANGUAGE: "Aquest idioma ja té una plantilla per a aquest propòsit",
+            },
+            warning: {
+                pageChange:
+                    "Les converses de Messenger pertanyen a una pàgina. Després de canviar la pàgina, els votants connectats a {{page}} només rebran codis quan tornin a connectar Messenger.",
+                numberChange:
+                    "Els missatges arribaran des d'un altre número. Les seves plantilles han d'estar aprovades en aquest compte d'empresa abans de poder enviar codis, i els votants veuran un xat nou.",
+            },
+            viber: {
+                title: "Plantilles aprovades",
+                description:
+                    "Introduïu les plantilles que Viber ha aprovat a través del soci, per propòsit i idioma. L'API de plantilles del soci no està disponible, de manera que aquesta llista es manté a mà i la comprovació de connexió la llegeix.",
+                purpose: "Propòsit",
+                language: "Idioma",
+                templateId: "ID de plantilla del soci",
+                add: "Afegeix una plantilla",
+                remove: "Treu la plantilla",
+            },
+            limits: {
+                title: "Límits d'enviament",
+                messagesPerSecond: "Missatges per segon",
+                otpReservedPerSecond: "Reservats per a codis per segon",
+                otpReservedHelp: "Es mantenen lliures per als codis durant els enviaments massius.",
+                allowedCallingCodes: "Destinacions permeses (prefixos telefònics de país)",
+                allowedCallingCodesHelp:
+                    "Separats per comes, per exemple 63, 971. Buit permet qualsevol destinació.",
+            },
+            credentials: {
+                title: "Credencials",
+                description:
+                    "Les credencials són només d'escriptura: després de desar, només es mostra la data en què es va substituir cadascuna.",
+                set: "Configurada · substituïda {{date}}. Es desa xifrada i mai no es mostra.",
+                replace: "Substitueix",
+                replaceNamed: "Substitueix {{name}}",
+            },
+            credentialHelp: {
+                AWS_SES: {
+                    AWS_ACCESS_KEY_ID: "Opcional. Sense claus, s'utilitza el rol propi del servei.",
+                    AWS_SECRET_ACCESS_KEY:
+                        "Opcional. Configureu-la juntament amb l'ID de clau d'accés.",
+                },
+                AWS_SNS: {
+                    AWS_ACCESS_KEY_ID: "Opcional. Sense claus, s'utilitza el rol propi del servei.",
+                    AWS_SECRET_ACCESS_KEY:
+                        "Opcional. Configureu-la juntament amb l'ID de clau d'accés.",
+                },
+                SMTP: {
+                    SMTP_PASSWORD: "La contrasenya del servidor SMTP.",
+                },
+                WHATSAPP_CLOUD_API: {
+                    ACCESS_TOKEN:
+                        "Un testimoni d'un usuari del sistema del portafoli empresarial del propietari, amb whatsapp_business_messaging.",
+                    APP_SECRET: "Comprova que les crides al webhook provenen de Meta.",
+                },
+                MESSENGER_SEND_API: {
+                    ACCESS_TOKEN: "Un testimoni d'accés de pàgina amb pages_messaging.",
+                    APP_SECRET: "Comprova que les crides al webhook provenen de Meta.",
+                },
+                VIBER_INFOBIP: {
+                    API_KEY: "La clau d'API d'Infobip.",
+                },
+            },
+            webhook: {
+                title: "Informes de lliurament i respostes",
+                description:
+                    "Introduïu aquesta adreça de retorn a la configuració de webhooks del proveïdor. Els informes de lliurament i les respostes dels votants hi arriben.",
+                path: "Ruta de retorn",
+                pathHelp:
+                    "Afegiu-la a l'adreça pública dels webhooks de missatgeria d'aquesta plataforma.",
+                afterSaving: "Es mostra després de desar",
+                copyPath: "Copia la ruta de retorn",
+                tokenSet: "Configurat · substituït {{date}}",
+                tokenMissing: "Encara no s'ha generat",
+                tokenAfterSaving: "Es genera després de desar",
+                generate: "Genera un testimoni de verificació",
+                tokenTitle: "Testimoni de verificació",
+                tokenOnce:
+                    "Introduïu ara aquest testimoni a la configuració de webhooks de Meta. Només es mostra una vegada.",
+                copyToken: "Copia el testimoni de verificació",
+                tokenDone: "Fet",
+                tokenError: "No s'ha pogut generar el testimoni de verificació.",
+            },
+            copy: {
+                success: "Copiat",
+                error: "No s'ha pogut copiar",
+            },
+            save: {
+                success: "Compte desat",
+                error: "No s'ha pogut desar el compte.",
+            },
+            test: {
+                title: "Envia un missatge de prova des de {{name}}",
+                description:
+                    "Envia un missatge real per al propòsit triat a aquesta destinació. El resultat mostra el que ha informat el proveïdor.",
+                purpose: "Propòsit",
+                destination: {
+                    EMAIL_ADDRESS: "Adreça electrònica",
+                    PHONE_NUMBER: "Número de telèfon (E.164)",
+                    PAGE_SCOPED_ID: "ID d'àmbit de pàgina",
+                },
+                language: "Idioma",
+                send: "Envia un missatge de prova",
+                reason: "Motiu: {{reason}}",
+                error: "No s'ha pogut enviar el missatge de prova.",
+                template: "Plantilla aprovada",
+                templateHelp:
+                    "El nom de la plantilla de WhatsApp que el proveïdor ha aprovat per a aquest propòsit i idioma.",
+                viberTemplate:
+                    "Viber fa servir la plantilla que aquest compte indica com a aprovada per al propòsit i l'idioma triats.",
+            },
         },
     },
 }

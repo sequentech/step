@@ -20,7 +20,6 @@ const PREVIEW_URL = "https://voting.synthetic.example/preview/50000000"
 const TABS = [
     "ELECTION TYPES",
     "VOTING CHANELS",
-    "TEMPLATES",
     "LANGUAGES",
     "LOCALIZATION",
     "Integrations",
@@ -148,5 +147,29 @@ test.describe("with preview-read", () => {
         await openSettings(page, portal, "Previews")
         await expect(page.getByText("No Previews found", {exact: true})).toBeVisible()
         expect(portal.graphql.callsTo("sequent_backend_preview")).toHaveLength(1)
+    })
+})
+
+test.describe("with messaging account access", () => {
+    test.use({roles: [...SETTINGS_ROLES, "messaging-account-read"]})
+    test.beforeEach(({portal}) => {
+        mockTenant(portal)
+    })
+
+    test("shows the messaging tab after the voting channels", async ({page, portal}) => {
+        mockElectionTypes(portal)
+        portal.graphql.on("GetMessagingAccounts", () => ({
+            data: {sequent_backend_messaging_account: []},
+        }))
+        await openSettings(page, portal, "MESSAGING")
+        await expect(page.getByRole("tab")).toHaveText([
+            ...TABS.slice(0, 2),
+            "MESSAGING",
+            ...TABS.slice(2),
+        ])
+        await expect(page.getByText("No sending accounts yet.", {exact: true})).toBeVisible()
+        expect(portal.graphql.callsTo("GetMessagingAccounts")[0].variables).toEqual({
+            tenantId: TENANT_ID,
+        })
     })
 })
