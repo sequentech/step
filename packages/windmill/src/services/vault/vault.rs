@@ -2,7 +2,10 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::postgres::secret::{get_secret_by_id, get_secret_by_key, insert_secret, Secret};
+use crate::postgres::secret::{
+    delete_secret_by_key, get_secret_by_id, get_secret_by_key, insert_secret, update_secret_value,
+    Secret,
+};
 use crate::services::electoral_log::ElectoralLog;
 use crate::services::vault::{
     aws_secret_manager::AwsSecretManager, env_var_master_secret::EnvVarMasterSecret,
@@ -143,6 +146,37 @@ pub async fn save_secret_and_return(
     )
     .await
     .context("Error saving secret")
+}
+
+/// Stores `value` under `key`, replacing the previous value if there is one.
+/// Used for credentials that rotate.
+#[instrument(skip(hasura_transaction, value), err)]
+pub async fn replace_secret(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    key: &str,
+    value: &str,
+) -> Result<()> {
+    let master_secret = get_master_secret().await?;
+    let encrypted_bytes = encrypt(master_secret, value.as_bytes())
+        .context("Error encrypting secret")?
+        .strand_serialize()
+        .context("Error serializing encrypted data")?;
+    if !update_secret_value(hasura_transaction, tenant_id, key, &encrypted_bytes).await? {
+        insert_secret(hasura_transaction, tenant_id, None, key, &encrypted_bytes)
+            .await
+            .context("Error saving secret")?;
+    }
+    Ok(())
+}
+
+#[instrument(skip(hasura_transaction), err)]
+pub async fn delete_secret(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    key: &str,
+) -> Result<bool> {
+    delete_secret_by_key(hasura_transaction, tenant_id, key).await
 }
 
 async fn decrypt_stored_secret(secret: &Secret) -> Result<String> {
