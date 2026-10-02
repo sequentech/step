@@ -91,7 +91,7 @@ reuse lint                           # Every file must have SPDX headers
 - **braid** — Verifiable re-encryption mixnet (cryptographic shuffle). Features: `native`, `wasm`, `jemalloc`
 - **strand** — Cryptographic primitives (Curve25519/Ristretto, Ed25519, SHA2/SHA3). Features: `rayon`, `wasm`, `fips_core`
 - **sequent-core** — Shared core: ballot structures, crypto ops, PDF reports, Keycloak integration. Compiles to WASM for frontend. Features: `wasm`, `reports`, `keycloak`, `s3`, `sqlite`
-- **windmill** — Celery-based task execution engine (RabbitMQ, GraphQL client, WASM plugin mgmt)
+- **windmill** — Celery-based task execution engine (PGMQ/PostgreSQL, GraphQL client, WASM plugin mgmt)
 - **harvest** — Election management REST API (Rocket framework)
 - **immu-board** — Tamper-evident bulletin board
 - **velvet** — PDF/report generation CLI
@@ -108,14 +108,14 @@ reuse lint                           # Every file must have SPDX headers
 ### Infrastructure
 - **Hasura** — GraphQL API layer over PostgreSQL
 - **Keycloak** — Identity management (one realm per tenant + one per election event)
-- **RabbitMQ** — Task queue for Celery workers
+- **PGMQ** — PostgreSQL task queues for Celery workers in the Keycloak database
 - **ImmuDB** — Tamper-evident audit logging
 - **MinIO** — S3-compatible object storage
 
 ### Key Patterns
 - Rust crypto code compiles to WASM for browser use via `wasm-pack`
 - Extensive Cargo feature flags for conditional compilation — always check `[features]` in Cargo.toml
-- Celery + RabbitMQ for async task execution
+- Celery + PGMQ for async task execution
 - GraphQL codegen: queries live in `src/queries/`, types generated with `yarn generate:*`
 - After editing ui-essentials components: `yarn prettify:fix:ui-essentials && yarn build:ui-essentials`
 - **sequent-core WASM rebuild**: when changing `sequent-core`, the WASM package often needs rebuilding for frontend changes to take effect
@@ -199,7 +199,6 @@ Dev service URLs (inside dev container):
 - Admin Portal: http://127.0.0.1:3002
 - ImmuDB: http://127.0.0.1:3325 (immudb/immudb)
 - MinIO: http://127.0.0.1:9001
-- RabbitMQ: http://127.0.0.1:15672
 
 **Dev container tips**: When editing Rust code in harvest, windmill, or sequent-core, don't run `cargo build` to verify it — check the container logs (`docker logs windmill` / `docker logs harvest`) instead, since those services auto-rebuild on changes inside the dev container. See the note under Build Commands → Rust.
 

@@ -1,14 +1,15 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::services::database::get_keycloak_pool;
 use anyhow::{anyhow, Context, Result};
 use celery::prelude::Task;
 use celery::Celery;
-use lapin::{Connection, ConnectionProperties};
+use pgmq_broker::PgmqBrokerBuilder;
 use std::sync::{Arc, LazyLock, RwLock};
 use strum_macros::AsRefStr;
 use tokio::sync::OnceCell;
-use tracing::{event, info, instrument, Level};
+use tracing::{event, instrument, Level};
 
 use crate::services::plugins_manager::plugin_manager::init_plugin_manager;
 use crate::tasks::activity_logs_report::generate_activity_logs_report;
@@ -199,39 +200,6 @@ pub async fn get_celery_app() -> Arc<Celery> {
 }
 
 #[instrument]
-async fn create_connection() -> Result<(Arc<Connection>, String)> {
-    // you can use "amqp://rabbitmq2:5672,amqp://rabbitmq:5672" for $AMQP_ADDR to configure multiple nodes, separated by comma
-    let amqp_urls: Vec<String> = std::env::var("AMQP_ADDR")?
-        .split(',')
-        .map(String::from)
-        .collect();
-
-    let mut last_error = None;
-    for amqp_url in amqp_urls {
-        match Connection::connect(&amqp_url, ConnectionProperties::default())
-            .await
-            .with_context(|| format!("Failed to connect to any AMQP server {}", amqp_url))
-        {
-            Ok(connection) => {
-                let arc_conn = Arc::new(connection);
-                // Set the global connection so it can be reused.
-                let mut conn_guard = CELERY_CONNECTION.write().await;
-                *conn_guard = Some(arc_conn.clone());
-                return Ok((arc_conn, amqp_url));
-            }
-            Err(e) => {
-                // Log the error and try the next URL.
-                info!("Failed to connect to AMQP server '{}': {:?}", amqp_url, e);
-                last_error = Some(e);
-            }
-        }
-    }
-
-    // If no connection was successful, return an error.
-    Err(last_error.unwrap_or(anyhow!("Failed to connect to any AMQP server")))
-}
-
-#[instrument]
 pub async fn generate_celery_app() -> Result<Arc<Celery>> {
     let CeleryConfig {
         prefetch_count,
@@ -250,15 +218,16 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
         acks_late
     );
     let slug = std::env::var("ENV_SLUG").with_context(|| "missing env var ENV_SLUG")?;
-    let amqp_addr = create_connection()
-        .await
-        .with_context(|| "error creating rabbitmq connection")?
-        .1;
 
+    if !acks_late {
+        return Err(anyhow!(
+            "PGMQ requires late acknowledgement for recoverable task execution"
+        ));
+    }
     init_plugin_manager().await?;
 
     celery::app!(
-        broker = AMQPBroker { amqp_addr },
+        broker_builder = Box::new(PgmqBrokerBuilder::from_pool(get_keycloak_pool().await)),
         tasks = [
             create_keys,
             review_boards,
@@ -383,6 +352,7 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
             apply_reconciliation_patch::NAME => &Queue::ImportExport.queue_name(&slug),
             generate_voter_information_letter::NAME => &Queue::Reports.queue_name(&slug),
         ],
+        default_queue = &Queue::Short.queue_name(&slug),
         prefetch_count = prefetch_count,
         acks_late = acks_late,
         task_max_retries = task_max_retries,
@@ -391,30 +361,4 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
     )
     .await
     .map_err(|err| anyhow!("{:?}", err))
-}
-
-static CELERY_CONNECTION: tokio::sync::RwLock<Option<Arc<Connection>>> =
-    tokio::sync::RwLock::const_new(None);
-
-/// Returns a reused AMQP connection wrapped in an Arc.
-/// If no connection exists (or if it’s disconnected), a new connection is created and stored.
-#[instrument]
-pub async fn get_celery_connection() -> Result<Arc<Connection>> {
-    let conn_guard = CELERY_CONNECTION.read().await;
-
-    if let Some(conn) = conn_guard.as_ref() {
-        if !conn.status().connected() {
-            drop(conn_guard); // Release read lock before acquiring write lock
-
-            info!("Existing AMQP connection is disconnected, creating new connection");
-            // Create and return a new connection (this will replace the old one)
-            return create_connection().await.map(|(connection, _)| connection);
-        }
-        // Connection is still valid, return clone
-        return Ok(conn.clone());
-    }
-    drop(conn_guard); // Release read lock
-
-    // No connection exists, create a new one
-    create_connection().await.map(|(connection, _)| connection)
 }

@@ -55,9 +55,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<version>3.0.2</version>
 		</dependency>
 		<dependency>
-			<groupId>com.rabbitmq</groupId>
-			<artifactId>amqp-client</artifactId>
-			<version>5.33.1</version>
+			<groupId>org.keycloak</groupId>
+            <artifactId>keycloak-model-jpa</artifactId>
+            <version>${keycloak.version}</version>
+            <scope>provided</scope>
 		</dependency>
 		<dependency>
 			<groupId>org.freemarker</groupId>
@@ -137,7 +138,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 							<artifactSet>
 								<includes>
 									<include>org.reactivestreams:reactive-streams</include>
-									<include>com.rabbitmq:*</include>
 								</includes>
 							</artifactSet>
 						</configuration>

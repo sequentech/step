@@ -209,6 +209,7 @@ services:
     container_name: postgres-keycloak
     restart: unless-stopped
     volumes:
+      - ./pgmq-1.13.0.sql:/docker-entrypoint-initdb.d/20-pgmq.sql:ro
       - keycloak_db_data:/var/lib/postgresql/data
       - keycloak_db_logs:/logs
     command: postgres -c 'config_file=/etc/postgresql/postgresql.conf'
@@ -230,6 +231,7 @@ services:
     ports:
       - 8090:8090
     environment:
+      ENV_SLUG: ${ENV_SLUG}
       KC_HOSTNAME: ${KC_HOSTNAME}
       MASTER_SECRET: ${MASTER_SECRET}
       KC_HOSTNAME_STRICT: ${KC_HOSTNAME_STRICT}
@@ -344,6 +346,7 @@ services:
     image: 581718213778.dkr.ecr.us-east-1.amazonaws.com/harvest:STEP_VERSION
     pull_policy: never
     environment:
+      ENV_SLUG: ${ENV_SLUG}
       SUPER_ADMIN_TENANT_ID: ${SUPER_ADMIN_TENANT_ID}
       LOG_LEVEL: ${LOG_LEVEL}
       ROCKET_ADDRESS: ${ROCKET_ADDRESS}
@@ -359,7 +362,6 @@ services:
       KEYCLOAK_DB__PORT: ${KEYCLOAK_DB__PORT}
       KEYCLOAK_DB__DBNAME: ${KEYCLOAK_DB__DBNAME}
       KEYCLOAK_DB__MANAGER__RECYCLING_METHOD: ${KEYCLOAK_DB__MANAGER__RECYCLING_METHOD}
-      AMQP_ADDR: ${AMQP_ADDR}
       KEYCLOAK_URL: ${KEYCLOAK_URL}
       KEYCLOAK_PASSWORD_POLICY_CACHE_TTL_SECS: ${KEYCLOAK_PASSWORD_POLICY_CACHE_TTL_SECS:-30}
       KEYCLOAK_ADMIN_CLIENT_ID: ${KEYCLOAK_ADMIN_CLIENT_ID}
@@ -497,23 +499,6 @@ services:
         VAULT_TOKEN: ${VAULT_TOKEN}
         B3_URL: ${B3_URL}
 
-  rabbitmq:
-    profiles: ["full", "base"]
-    image: rabbitmq:3.12.11-management
-    pull_policy: never
-    container_name: rabbitmq
-    environment:
-      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
-      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
-    ports:
-      - "5672:5672"
-      - "15672:15672"
-    healthcheck:
-      test: rabbitmq-diagnostics -q ping
-      interval: 30s
-      timeout: 30s
-      retries: 3
-
   immudb-init:
     profiles: ["full", "base"]
     stdin_open: true
@@ -538,12 +523,12 @@ services:
       configure-minio:
         condition: service_completed_successfully
     environment:
+      ENV_SLUG: ${ENV_SLUG}
       RUSTFLAGS: ${RUSTFLAGS}
       RUST_BACKTRACE: ${RUST_BACKTRACE}
       LOG_LEVEL: ${LOG_LEVEL}
       CARGO_TERM_COLOR: ${CARGO_TERM_COLOR}
       HASURA_ENDPOINT: ${HASURA_ENDPOINT}
-      AMQP_ADDR: ${AMQP_ADDR}
       KEYCLOAK_URL: ${KEYCLOAK_URL}
       KEYCLOAK_PASSWORD_POLICY_CACHE_TTL_SECS: ${KEYCLOAK_PASSWORD_POLICY_CACHE_TTL_SECS:-30}
       IMMUDB_SERVER_URL: ${IMMUDB_SERVER_URL}
@@ -631,14 +616,20 @@ services:
     container_name: beat
     entrypoint: ["./beat"]
     depends_on:
-      rabbitmq:
+      postgres-keycloak:
         condition: service_healthy
     environment:
+      ENV_SLUG: ${ENV_SLUG}
+      KEYCLOAK_DB__MANAGER__RECYCLING_METHOD: ${KEYCLOAK_DB__MANAGER__RECYCLING_METHOD}
+      KEYCLOAK_DB__DBNAME: ${KEYCLOAK_DB__DBNAME}
+      KEYCLOAK_DB__PORT: ${KEYCLOAK_DB__PORT}
+      KEYCLOAK_DB__HOST: ${KEYCLOAK_DB__HOST}
+      KEYCLOAK_DB__PASSWORD: ${KEYCLOAK_DB__PASSWORD}
+      KEYCLOAK_DB__USER: ${KEYCLOAK_DB__USER}
       RUSTFLAGS: ${RUSTFLAGS}
       LOG_LEVEL: ${LOG_LEVEL}
       CARGO_TERM_COLOR: ${CARGO_TERM_COLOR}
       HASURA_ENDPOINT: ${HASURA_ENDPOINT}
-      AMQP_ADDR: ${AMQP_ADDR}
       BEAT_PROBE_ADDR: ${BEAT_PROBE_ADDR}
       BEAT_PROBE_LIVE_PATH: ${BEAT_PROBE_LIVE_PATH}
       BEAT_PROBE_READY_PATH: ${BEAT_PROBE_READY_PATH}

@@ -28,6 +28,8 @@ COPY ./immudb-rs/Cargo.toml ./immudb-rs/Cargo.toml
 COPY ./sequent-core/Cargo.toml ./sequent-core/Cargo.toml
 COPY ./velvet/Cargo.toml ./velvet/Cargo.toml
 COPY ./windmill/Cargo.toml ./windmill/Cargo.toml
+COPY ./pgmq-broker/Cargo.toml ./pgmq-broker/Cargo.toml
+RUN mkdir -p ./pgmq-broker/src && touch ./pgmq-broker/src/lib.rs
 COPY ./e2e/Cargo.toml ./e2e/Cargo.toml
 COPY ./e2e/src/mock_server/Cargo.toml ./e2e/src/mock_server/Cargo.toml
 COPY ./step-cli/Cargo.toml ./step-cli/Cargo.toml

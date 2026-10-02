@@ -90,6 +90,7 @@ add-database-init-to-tarball() {
     cat $PROJECT_ROOT/scripts/airgap-files/b3.sql > $tmpdir/initdb/b3.sql
 
     tar --append -C $tmpdir --file=$DELIVERABLE_TARBALL initdb
+    tar --append -C "$PROJECT_ROOT/.devcontainer/postgresql" --file="$DELIVERABLE_TARBALL" pgmq-1.13.0.sql PGMQ-LICENSE
 }
 
 add-readme-to-tarball() {

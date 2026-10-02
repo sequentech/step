@@ -126,6 +126,15 @@ jobs:
           cargo-build-path: packages/windmill/target
           cargo-lock-path: packages/windmill/Cargo.lock
 
+      - name: Run PGMQ transport contracts
+        env:
+          PGMQ_TEST_DATABASE_URL: postgres://test:test@127.0.0.1:3322/pgmq_test
+        run: |
+          docker exec ${{ job.services.postgres.id }} createdb -U test pgmq_test
+          docker exec -i ${{ job.services.postgres.id }} psql -U test -d pgmq_test -v ON_ERROR_STOP=1 --single-transaction < .devcontainer/postgresql/pgmq-1.13.0.sql
+          cargo test -p pgmq-broker --manifest-path packages/Cargo.toml -- --include-ignored --test-threads=1
+          cargo test -p windmill --manifest-path packages/Cargo.toml --lib tasks::electoral_log::pgmq_tests::batch_handoff_is_atomic_and_quarantines_invalid_events -- --ignored --exact
+
       - name: Run Windmill tests
         run: cargo test
         working-directory: packages/windmill

@@ -9,35 +9,38 @@ import org.keycloak.events.EventListenerProvider;
 import org.keycloak.events.EventListenerProviderFactory;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.KeycloakSessionFactory;
+import org.keycloak.models.utils.KeycloakModelUtils;
 
 @AutoService(EventListenerProviderFactory.class)
 public class CustomEventListenerProviderFactory implements EventListenerProviderFactory {
 
-  private final RabbitMqEventPublisher rabbitMqEventPublisher;
+  private PgmqEventPublisher pgmqEventPublisher;
 
-  public CustomEventListenerProviderFactory() {
-    this(RabbitMqEventPublisher.fromEnvironment());
-  }
+  // Quarkus instantiates factories during image augmentation without runtime configuration.
+  public CustomEventListenerProviderFactory() {}
 
-  CustomEventListenerProviderFactory(RabbitMqEventPublisher rabbitMqEventPublisher) {
-    this.rabbitMqEventPublisher = rabbitMqEventPublisher;
+  CustomEventListenerProviderFactory(PgmqEventPublisher pgmqEventPublisher) {
+    this.pgmqEventPublisher = pgmqEventPublisher;
   }
 
   @Override
   public EventListenerProvider create(KeycloakSession session) {
-    return new CustomEventListenerProvider(session, rabbitMqEventPublisher);
+    return new CustomEventListenerProvider(session, pgmqEventPublisher);
   }
 
   @Override
   public void init(Scope config) {}
 
   @Override
-  public void postInit(KeycloakSessionFactory factory) {}
+  public void postInit(KeycloakSessionFactory factory) {
+    if (pgmqEventPublisher == null) {
+      pgmqEventPublisher = PgmqEventPublisher.fromEnvironment();
+    }
+    KeycloakModelUtils.runJobInTransaction(factory, pgmqEventPublisher::initialize);
+  }
 
   @Override
-  public void close() {
-    rabbitMqEventPublisher.close();
-  }
+  public void close() {}
 
   @Override
   public String getId() {

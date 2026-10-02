@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::services::celery_app::{get_celery_app, get_celery_connection, get_queues, Queue};
+use crate::services::celery_app::{get_celery_app, get_queues};
 use crate::services::database::{get_hasura_pool, get_keycloak_pool};
 use crate::services::jwks::get_jwks_secret_path;
 use crate::services::providers::sms_sender::{SmsSender, SmsTransport};
@@ -34,7 +34,19 @@ const DB_TIMEOUTS: Timeouts = Timeouts {
 };
 
 #[instrument(ret)]
-async fn check_celery(_app_name: &AppName) -> Option<bool> {
+async fn check_celery(app_name: &AppName) -> Option<bool> {
+    if *app_name == AppName::BEAT {
+        let healthy = tokio::time::timeout(Duration::from_secs(5), async {
+            let pool = get_keycloak_pool().await;
+            let client = pool.get().await?;
+            client
+                .simple_query("SELECT 1 FROM pgmq.meta LIMIT 1")
+                .await?;
+            Ok::<(), anyhow::Error>(())
+        })
+        .await;
+        return Some(matches!(healthy, Ok(Ok(()))) && get_is_app_active());
+    }
     let celery_app = get_celery_app().await;
 
     // Check basic broker connection
@@ -47,20 +59,9 @@ async fn check_celery(_app_name: &AppName) -> Option<bool> {
 
     let queues_to_check = get_queues();
 
-    // If subscribed to ElectoralLogBeat, check the standalone rabbitmq connection
-    let slug = std::env::var("ENV_SLUG").unwrap_or("dev".to_string());
-    let queue_name = Queue::ElectoralLogBeat.queue_name(&slug);
-    if queues_to_check.contains(&queue_name) {
-        info!("Checking rabbitmq connection");
-        let conn = get_celery_connection().await;
-        if conn.is_err() {
-            error!("Failed to check consumer health: {:?}", conn);
-        }
-    }
-
     match celery_app.check_consumer_health(&queues_to_check).await {
         Ok(health_info) => {
-            let mut all_healthy = true;
+            let all_healthy = health_info.iter().all(|health| health.is_consuming);
 
             for health in &health_info {
                 info!(
@@ -70,10 +71,6 @@ async fn check_celery(_app_name: &AppName) -> Option<bool> {
                     health.message_count,
                     health.is_consuming
                 );
-
-                // A queue is considered unhealthy if it's supposed to have consumers but doesn't
-                // For now, we'll be permissive and only require that the connection works
-                // Individual queue health can be monitored separately
             }
 
             Some(all_healthy)

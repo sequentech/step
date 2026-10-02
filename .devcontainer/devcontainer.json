@@ -18,8 +18,6 @@
     "immudb:3322",
     "immudb:3324",
     "immudb:3325",
-    "rabbitmq:5672",
-    "rabbitmq:15672",
     "b4:50051",
     "simplesamlphp:8083",
     // wbraid's S3 emulator and bulletin board (opt-in profile;
