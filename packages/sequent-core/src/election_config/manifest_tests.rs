@@ -223,6 +223,105 @@ fn a_plain_delivery_opens_unsigned() {
 }
 
 #[test]
+fn the_same_content_has_no_changes() {
+    assert_eq!(changes(&content(), &content()), Vec::new());
+}
+
+#[test]
+fn a_change_inside_a_nested_zip_is_named_inside_it() {
+    let mut members = delivery_members();
+    members[0].bytes = zip(&[
+        artifact("export_election_event-1.json", b"{\"changed\":1}\n"),
+        artifact("export_areas-1.csv", b"id,name\n"),
+        artifact("export_reports-1.csv", b"id\n"),
+    ])
+    .unwrap();
+    let mut after = content();
+    after.files = file_entries(&members).unwrap();
+
+    assert_eq!(
+        changes(&content(), &after),
+        vec![
+            Change {
+                subject: ChangeSubject::File,
+                kind: ChangeKind::Changed,
+                name: "official_election_setup.zip/export_election_event-1.json"
+                    .to_string(),
+                versions: None,
+            },
+            Change {
+                subject: ChangeSubject::File,
+                kind: ChangeKind::Added,
+                name: "official_election_setup.zip/export_reports-1.csv"
+                    .to_string(),
+                versions: None,
+            },
+        ]
+    );
+}
+
+#[test]
+fn designs_and_reports_say_what_changed() {
+    let mut after = content();
+    after.ballot_designs[0].version = 2;
+    after.ballot_designs[0].sha256 = "ff".repeat(32);
+    after.ballot_designs.push(BallotDesign {
+        area: "South".to_string(),
+        election: "officers".to_string(),
+        version: 1,
+        sha256: "ee".repeat(32),
+    });
+    after.reports[0].copies = 3;
+    after.reports.push(ReportSetting {
+        report_type: "ACTIVITY_LOGS".to_string(),
+        formats: vec![ReportFormat::Csv],
+        copies: 1,
+        template: None,
+        template_sha256: None,
+    });
+
+    let summary: Vec<(ChangeSubject, ChangeKind, String, Option<(u32, u32)>)> =
+        changes(&content(), &after)
+            .into_iter()
+            .map(|change| {
+                (change.subject, change.kind, change.name, change.versions)
+            })
+            .collect();
+    assert_eq!(
+        summary,
+        vec![
+            (
+                ChangeSubject::BallotDesign,
+                ChangeKind::Changed,
+                "North / officers".to_string(),
+                Some((1, 2))
+            ),
+            (
+                ChangeSubject::BallotDesign,
+                ChangeKind::Added,
+                "South / officers".to_string(),
+                None
+            ),
+            (
+                ChangeSubject::Report,
+                ChangeKind::Changed,
+                "ELECTORAL_RESULTS".to_string(),
+                None
+            ),
+            (
+                ChangeSubject::Report,
+                ChangeKind::Added,
+                "ACTIVITY_LOGS".to_string(),
+                None
+            ),
+        ]
+    );
+    let removed = changes(&after, &content());
+    assert!(removed.iter().any(|change| change.kind == ChangeKind::Removed
+        && change.subject == ChangeSubject::Report));
+}
+
+#[test]
 fn packaging_the_same_members_gives_the_same_bytes() {
     let manifest = manifest().to_bytes().unwrap();
     let make = || {

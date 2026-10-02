@@ -50,7 +50,10 @@ fn a_changed_design_goes_up_by_one() {
 fn a_design_is_matched_by_area_and_election() {
     let mut other = design(7, "aa");
     other.area = "South".to_string();
-    assert_eq!(versioned(&[other], vec![digest("aa")]), vec![design(1, "aa")]);
+    assert_eq!(
+        versioned(&[other], vec![digest("aa")]),
+        vec![design(1, "aa")]
+    );
 }
 
 #[test]
@@ -132,7 +135,10 @@ fn a_real_change_is_not_normalised_away() {
 #[test]
 fn keys_are_sorted_whatever_the_map_order() {
     let mut out = Vec::new();
-    write_sorted(&json!({"b": 1, "a": [1.5, {"d": null, "c": true}]}), &mut out);
+    write_sorted(
+        &json!({"b": 1, "a": [1.5, {"d": null, "c": true}]}),
+        &mut out,
+    );
     assert_eq!(
         String::from_utf8(out).unwrap(),
         r#"{"a":[1.5,{"c":true,"d":null}],"b":1}"#

@@ -8,7 +8,7 @@ minimum_lines = 95
 
 [profiles.sequent-core]
 package = "sequent-core"
-features = ["default_features", "keycloak", "areas", "election_config_xlsx", "election_config_templates", "election_config_archive", "monitoring"]
+features = ["default_features", "keycloak", "areas", "election_config_xlsx", "election_config_templates", "election_config_archive", "election_config_signing", "monitoring"]
 limitations = [
     "Native library and integration tests; matches the existing Rust CI feature selection, including the election_config workbook, template and archive gates and the monitoring gate.",
     "Native application features are exercised by sequent-core-native; the browser test job executes WASM exports separately.",
@@ -24,8 +24,11 @@ issue = "https://github.com/sequentech/meta/issues/13302"
 "src/fixtures/encrypt.rs" = "Sample election data compiled only under cfg(test); no active test callers."
 "src/election_config/architect_tests.rs" = "Standalone unit-test module under cfg(test); the election blueprint planner remains measured."
 "src/election_config/build_tests.rs" = "Standalone unit-test module under cfg(test); the bundle builder remains measured."
+"src/election_config/design_tests.rs" = "Standalone unit-test module under cfg(test); the ballot design digest remains measured."
 "src/election_config/ivr_tests.rs" = "Standalone unit-test module under cfg(test); the telephone prompt rule remains measured."
+"src/election_config/manifest_tests.rs" = "Standalone unit-test module under cfg(test); the configuration manifest remains measured."
 "src/election_config/open_tests.rs" = "Standalone unit-test module under cfg(test); the bundle reader remains measured."
+"src/election_config/package_verify_tests.rs" = "Standalone unit-test module under cfg(test); the package verification remains measured."
 "src/election_config/password_tests.rs" = "Standalone unit-test module under cfg(test); the password policy remains measured."
 "src/election_config/plan_from_event_tests.rs" = "Standalone unit-test module under cfg(test); the event-to-plan conversion remains measured."
 "src/election_config/plan_from_workbook_tests.rs" = "Standalone unit-test module under cfg(test); the workbook-to-plan conversion remains measured."
@@ -77,7 +80,7 @@ issue = "https://github.com/sequentech/meta/issues/13302"
 
 [profiles.sequent-core-native]
 package = "sequent-core"
-features = ["default_features", "keycloak", "areas", "reports", "reports_sync", "s3", "probe", "log", "signatures", "sqlite", "plugins_wit", "election_config_xlsx", "election_config_templates", "election_config_archive", "monitoring"]
+features = ["default_features", "keycloak", "areas", "reports", "reports_sync", "s3", "probe", "log", "signatures", "sqlite", "plugins_wit", "election_config_xlsx", "election_config_templates", "election_config_archive", "election_config_signing", "monitoring"]
 limitations = [
     "Enabled native application features, including SQLite, reports, S3, health probes, logging, signature adapters, generated plugin bindings and monitoring.",
     "Synthetic in-memory SQLite and owned HTTP/PostgreSQL fixtures; native inline test code remains counted.",
@@ -93,8 +96,11 @@ issue = "https://github.com/sequentech/meta/issues/13302"
 "src/fixtures/encrypt.rs" = "Sample election data compiled only under cfg(test); no active test callers."
 "src/election_config/architect_tests.rs" = "Standalone unit-test module under cfg(test); the election blueprint planner remains measured."
 "src/election_config/build_tests.rs" = "Standalone unit-test module under cfg(test); the bundle builder remains measured."
+"src/election_config/design_tests.rs" = "Standalone unit-test module under cfg(test); the ballot design digest remains measured."
 "src/election_config/ivr_tests.rs" = "Standalone unit-test module under cfg(test); the telephone prompt rule remains measured."
+"src/election_config/manifest_tests.rs" = "Standalone unit-test module under cfg(test); the configuration manifest remains measured."
 "src/election_config/open_tests.rs" = "Standalone unit-test module under cfg(test); the bundle reader remains measured."
+"src/election_config/package_verify_tests.rs" = "Standalone unit-test module under cfg(test); the package verification remains measured."
 "src/election_config/password_tests.rs" = "Standalone unit-test module under cfg(test); the password policy remains measured."
 "src/election_config/plan_from_event_tests.rs" = "Standalone unit-test module under cfg(test); the event-to-plan conversion remains measured."
 "src/election_config/plan_from_workbook_tests.rs" = "Standalone unit-test module under cfg(test); the workbook-to-plan conversion remains measured."

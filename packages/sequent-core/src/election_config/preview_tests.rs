@@ -866,9 +866,9 @@ fn renumbered(bundle: &Bundle) -> Bundle {
         let mut out = String::new();
         let mut rest = text;
         while !rest.is_empty() {
-            let head = rest
-                .get(..36)
-                .filter(|head| head.contains('-') && uuid::Uuid::parse_str(head).is_ok());
+            let head = rest.get(..36).filter(|head| {
+                head.contains('-') && uuid::Uuid::parse_str(head).is_ok()
+            });
             match head {
                 Some(head) => {
                     let next = seen.len() as u128 + 1;
@@ -898,12 +898,14 @@ fn renumbered(bundle: &Bundle) -> Bundle {
     fn walk(value: &Value, seen: &mut HashMap<String, String>) -> Value {
         match value {
             Value::String(text) => Value::String(renumber_text(text, seen)),
-            Value::Array(items) => {
-                Value::Array(items.iter().map(|item| walk(item, seen)).collect())
-            }
+            Value::Array(items) => Value::Array(
+                items.iter().map(|item| walk(item, seen)).collect(),
+            ),
             Value::Object(map) => Value::Object(
                 map.iter()
-                    .map(|(name, nested)| (renumber_text(name, seen), walk(nested, seen)))
+                    .map(|(name, nested)| {
+                        (renumber_text(name, seen), walk(nested, seen))
+                    })
                     .collect(),
             ),
             other => other.clone(),
@@ -966,7 +968,10 @@ fn design_digests_survive_the_importer_renumbering_every_id() {
     )
     .unwrap();
     let imported = renumbered(&bundle);
-    assert_ne!(bundle.export, imported.export, "the renumbering changes the document");
+    assert_ne!(
+        bundle.export, imported.export,
+        "the renumbering changes the document"
+    );
 
     assert_eq!(
         ballot_design_digests(&bundle).unwrap(),
@@ -979,7 +984,8 @@ fn a_raw_style_hash_does_not_survive_the_renumbering() {
     // Why the digest normalises: the platform's own style, hashed as it is,
     // changes on import although nothing a voter sees has.
     let raw = |bundle: &Bundle| {
-        let preview = preview_publication(bundle, &PreviewOptions::default()).unwrap();
+        let preview =
+            preview_publication(bundle, &PreviewOptions::default()).unwrap();
         serde_json::to_string(&preview.ballot_styles[0].contests).unwrap()
     };
     let bundle = built(&two_elections());
@@ -990,7 +996,8 @@ fn a_raw_style_hash_does_not_survive_the_renumbering() {
 fn a_change_to_one_contest_changes_only_the_designs_it_is_on() {
     let before = ballot_design_digests(&built(&two_elections())).unwrap();
     let mut changed = two_elections();
-    changed.elections[1].contests[0].candidates[0].name = Translated::new("Alicia");
+    changed.elections[1].contests[0].candidates[0].name =
+        Translated::new("Alicia");
     let after = ballot_design_digests(&built(&changed)).unwrap();
 
     let moved: Vec<(&str, &str)> = before

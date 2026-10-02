@@ -239,6 +239,170 @@ pub fn approval_code(payload: &str) -> String {
     crockford_code(leading)
 }
 
+/// What is added, changed or removed between two revisions.
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum ChangeKind {
+    Added,
+    Changed,
+    Removed,
+}
+
+/// What a change is about.
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum ChangeSubject {
+    File,
+    BallotDesign,
+    Report,
+}
+
+/// One difference between a revision and the one it is compared with.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Change {
+    pub subject: ChangeSubject,
+    pub kind: ChangeKind,
+    /// A file's path (`outer.zip/inner.csv` inside a nested zip), a design's
+    /// `area / election`, or a report's type.
+    pub name: String,
+    /// A design's version before and after.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub versions: Option<(u32, u32)>,
+}
+
+/// What changed from `before` to `after`, in a stable order.
+pub fn changes(before: &Content, after: &Content) -> Vec<Change> {
+    let mut all = Vec::new();
+    file_changes(&before.files, &after.files, "", &mut all);
+
+    let design_name =
+        |design: &BallotDesign| format!("{} / {}", design.area, design.election);
+    for design in &after.ballot_designs {
+        let old = before.ballot_designs.iter().find(|old| {
+            old.area == design.area && old.election == design.election
+        });
+        match old {
+            None => all.push(Change {
+                subject: ChangeSubject::BallotDesign,
+                kind: ChangeKind::Added,
+                name: design_name(design),
+                versions: None,
+            }),
+            Some(old) if old.sha256 != design.sha256 => all.push(Change {
+                subject: ChangeSubject::BallotDesign,
+                kind: ChangeKind::Changed,
+                name: design_name(design),
+                versions: Some((old.version, design.version)),
+            }),
+            Some(_) => {}
+        }
+    }
+    for old in &before.ballot_designs {
+        if !after.ballot_designs.iter().any(|design| {
+            design.area == old.area && design.election == old.election
+        }) {
+            all.push(Change {
+                subject: ChangeSubject::BallotDesign,
+                kind: ChangeKind::Removed,
+                name: design_name(old),
+                versions: None,
+            });
+        }
+    }
+
+    for report in &after.reports {
+        match before
+            .reports
+            .iter()
+            .find(|old| old.report_type == report.report_type)
+        {
+            None => all.push(report_change(ChangeKind::Added, report)),
+            Some(old) if old != report => {
+                all.push(report_change(ChangeKind::Changed, report))
+            }
+            Some(_) => {}
+        }
+    }
+    for old in &before.reports {
+        if !after
+            .reports
+            .iter()
+            .any(|report| report.report_type == old.report_type)
+        {
+            all.push(report_change(ChangeKind::Removed, old));
+        }
+    }
+    all
+}
+
+fn report_change(kind: ChangeKind, report: &ReportSetting) -> Change {
+    Change {
+        subject: ChangeSubject::Report,
+        kind,
+        name: report.report_type.clone(),
+        versions: None,
+    }
+}
+
+fn file_changes(
+    before: &[FileEntry],
+    after: &[FileEntry],
+    within: &str,
+    all: &mut Vec<Change>,
+) {
+    let full = |path: &str| {
+        if within.is_empty() {
+            path.to_string()
+        } else {
+            format!("{within}/{path}")
+        }
+    };
+    for entry in after {
+        match before.iter().find(|old| old.path == entry.path) {
+            None => all.push(Change {
+                subject: ChangeSubject::File,
+                kind: ChangeKind::Added,
+                name: full(&entry.path),
+                versions: None,
+            }),
+            Some(old) if old.sha256 != entry.sha256 => {
+                // A nested zip is described by what changed inside it, and
+                // by itself only when nothing inside did.
+                let before_inner = all.len();
+                file_changes(
+                    &old.members,
+                    &entry.members,
+                    &full(&entry.path),
+                    all,
+                );
+                if all.len() == before_inner {
+                    all.push(Change {
+                        subject: ChangeSubject::File,
+                        kind: ChangeKind::Changed,
+                        name: full(&entry.path),
+                        versions: None,
+                    });
+                }
+            }
+            Some(_) => {}
+        }
+    }
+    for old in before {
+        if !after.iter().any(|entry| entry.path == old.path) {
+            all.push(Change {
+                subject: ChangeSubject::File,
+                kind: ChangeKind::Removed,
+                name: full(&old.path),
+                versions: None,
+            });
+        }
+    }
+}
+
 /// Every member's entry, with a nested zip's members listed under it, in
 /// path order.
 pub fn file_entries(members: &[Artifact]) -> Result<Vec<FileEntry>, Problem> {

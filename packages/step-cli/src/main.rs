@@ -84,6 +84,7 @@ enum StepCommands {
     CreateTrustee(commands::create_trustee::CreateTrustee),
     DownloadDocument(commands::download_document::DownloadDocument),
     UploadDocument(commands::upload_document::UploadDocument),
+    VerifyPackage(commands::verify_package::VerifyPackage),
 }
 
 fn main() {
@@ -157,6 +158,7 @@ fn main() {
             StepCommands::CreateTrustee(create) => exit_on_error(create.run()),
             StepCommands::DownloadDocument(download) => exit_on_error(download.run()),
             StepCommands::UploadDocument(upload) => exit_on_error(upload.run()),
+            StepCommands::VerifyPackage(cmd) => cmd.run(),
         },
     }
 }
