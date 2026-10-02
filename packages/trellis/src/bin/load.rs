@@ -696,6 +696,7 @@ async fn test_single_consistency_proof(
     client: &Client,
     log_name: String,
     old_root_hash: Vec<u8>,
+    old_tree_size: u64,
 ) -> ConsistencyProofResult {
     // Get consistency proof
     let proof = match client
@@ -714,7 +715,13 @@ async fn test_single_consistency_proof(
     };
 
     // Verify consistency proof
-    if let Err(e) = client.verify_consistency_proof(&old_root_hash, &proof) {
+    if let Err(e) = client.verify_consistency_proof(
+        &trellis::service::client::RootInfo {
+            root: old_root_hash,
+            tree_size: old_tree_size,
+        },
+        &proof,
+    ) {
         return ConsistencyProofResult {
             verified: false,
             error_message: Some(format!(
@@ -737,7 +744,7 @@ async fn test_consistency_proofs(
     max_concurrent: usize,
 ) {
     // Collect all roots to test across all logs
-    let roots_to_test: Vec<(String, Vec<u8>)> = {
+    let roots_to_test: Vec<(String, Vec<u8>, u64)> = {
         let state = state.lock().await;
         log_names
             .iter()
@@ -745,7 +752,7 @@ async fn test_consistency_proofs(
                 state
                     .sample_old_roots(log_name)
                     .into_iter()
-                    .map(|(root_hash, _size)| (log_name.clone(), root_hash))
+                    .map(|(root_hash, size)| (log_name.clone(), root_hash, size))
             })
             .collect()
     };
@@ -756,7 +763,9 @@ async fn test_consistency_proofs(
 
     // Process all consistency proofs concurrently with bounded concurrency
     let results: Vec<ConsistencyProofResult> = stream::iter(roots_to_test)
-        .map(|(log_name, root_hash)| test_single_consistency_proof(client, log_name, root_hash))
+        .map(|(log_name, root_hash, size)| {
+            test_single_consistency_proof(client, log_name, root_hash, size)
+        })
         .buffer_unordered(max_concurrent)
         .collect()
         .await;

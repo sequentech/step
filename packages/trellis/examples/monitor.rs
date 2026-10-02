@@ -19,17 +19,14 @@
 
 use anyhow::Result;
 use base64::Engine;
-use trellis::service::Client;
 use std::time::Duration;
+use trellis::{
+    service::{Client, client::RootInfo},
+    tree::CtMerkleTree,
+};
 
-/// Represents a snapshot of a merkle log's state at a point in time.
-#[derive(Debug)]
-struct LogState {
-    /// The size of the merkle tree (number of leaves).
-    size: u64,
-    /// The root hash of the merkle tree.
-    root: Vec<u8>,
-}
+/// A checkpoint always binds its root to its tree size.
+type LogState = RootInfo;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -89,19 +86,19 @@ async fn main() -> Result<()> {
 
         match fetch_log_state(&client, log_name).await {
             Ok(new_state) => {
-                if new_state.size != state.size {
+                if new_state.tree_size != state.tree_size {
                     println!(
                         "📊 [Check #{}] Size changed: {} → {}",
-                        check_count, state.size, new_state.size
+                        check_count, state.tree_size, new_state.tree_size
                     );
 
-                    // Verify consistency
-                    match verify_consistency(&client, log_name, &state, &new_state).await {
+                    let old_size = state.tree_size;
+                    match advance_state(&client, log_name, &mut state, new_state).await {
                         Ok(()) => {
                             println!("   ✅ Consistency proof VERIFIED");
                             println!(
                                 "   → Log correctly appended {} new entries",
-                                new_state.size - state.size
+                                state.tree_size - old_size
                             );
                         }
                         Err(e) => {
@@ -109,23 +106,20 @@ async fn main() -> Result<()> {
                         }
                     }
 
-                    print_state(&new_state);
+                    print_state(&state);
                     println!();
-
-                    // Update our tracked state
-                    state = new_state;
                 } else if new_state.root != state.root {
                     println!(
                         "⚠️  [Check #{check_count}] Root changed but size unchanged! (Possible issue)"
                     );
                     print_state(&new_state);
                     println!();
-                    state = new_state;
+                    // Keep the trusted checkpoint after a same-size root mismatch.
                 } else {
                     // No change - print periodic status
                     println!(
                         "💤 [Check #{}] No changes (size: {})",
-                        check_count, state.size
+                        check_count, state.tree_size
                     );
                 }
             }
@@ -136,120 +130,75 @@ async fn main() -> Result<()> {
     }
 }
 
-/// Fetches the current state (size and root) of a log
+/// Fetch a coherent root/size pair rather than combining two different snapshots.
 async fn fetch_log_state(client: &Client, log_name: &str) -> Result<LogState> {
-    let size = client.get_log_size(log_name).await?;
-    let root = if size > 0 {
-        client.get_root(log_name).await?.root
-    } else {
-        Vec::new()
-    };
-
-    Ok(LogState { size, root })
+    if client.get_log_size(log_name).await? == 0 {
+        return Ok(LogState {
+            tree_size: 0,
+            root: CtMerkleTree::new().root(),
+        });
+    }
+    client.get_root(log_name).await
 }
 
-/// Verifies that the new state is consistent with the old state
-///
-/// This function performs strict consistency verification that handles race conditions.
-/// If the tree continues growing during verification, it recursively validates the
-/// entire chain of observed states to ensure no fraudulent roots were observed.
+/// Advance only after verification; failures leave the saved checkpoint untouched.
+async fn advance_state(
+    client: &Client,
+    log_name: &str,
+    state: &mut LogState,
+    observed: LogState,
+) -> Result<()> {
+    verify_consistency(client, log_name, state, &observed).await?;
+    *state = observed;
+    Ok(())
+}
+
+/// Verify ordered checkpoints, including any intermediate roots seen during growth.
+/// Each proof is anchored to the saved size as well as its root. When requests race
+/// with appends, both observations must be ordered prefixes of a common successor.
+/// Continuous growth is retried on the next poll after a bounded number of requests.
 async fn verify_consistency(
     client: &Client,
     log_name: &str,
     old_state: &LogState,
     new_state: &LogState,
 ) -> Result<()> {
-    if old_state.size == 0 {
-        // No previous state to verify against
-        return Ok(());
-    }
-
-    if new_state.size < old_state.size {
-        // Log size decreased - this should never happen!
-        println!("   ⚠️  WARNING: Tree size decreased!");
-        anyhow::bail!("Tree size decreased from {} to {}", old_state.size, new_state.size);
-    }
-
-    if new_state.size == old_state.size {
-        // Same size, roots should match
-        if new_state.root == old_state.root {
+    let mut old = old_state.clone();
+    let mut new = new_state.clone();
+    for _ in 0..8 {
+        anyhow::ensure!(new.tree_size >= old.tree_size, "Tree size decreased");
+        anyhow::ensure!(new.root.len() == 32, "Invalid root length");
+        if new.tree_size == old.tree_size {
+            anyhow::ensure!(new.root == old.root, "Tree root mismatch with same size");
             return Ok(());
-        } else {
-            println!("   ⚠️  WARNING: Tree root mismatch with same size!");
-            anyhow::bail!("Tree root mismatch with same size {}", new_state.size);
         }
+        if old.tree_size == 0 {
+            anyhow::ensure!(
+                old.root == CtMerkleTree::new().root(),
+                "Invalid empty checkpoint"
+            );
+            return Ok(());
+        }
+        let successor = client.verify_tree_consistency(log_name, &old).await?;
+        anyhow::ensure!(
+            successor.tree_size >= new.tree_size,
+            "Proof successor precedes the observed checkpoint"
+        );
+        if successor.tree_size == new.tree_size {
+            anyhow::ensure!(successor.root == new.root, "Proof successor root mismatch");
+            return Ok(());
+        }
+        // Their authenticated sizes order old < new < successor. Now authenticate
+        // new as a prefix of that successor, retaining all metadata through races.
+        old = new;
+        new = successor;
     }
-
-    // Request consistency proof - does not check proof.new_root against observed new_state.root
-    // client
-    //    .verify_tree_consistency(log_name, old_state.root.clone())
-    //    .await?;
-
-    verify_strict(client, log_name, old_state.root.clone(), new_state.root.clone()).await?;
-
-    Ok(())
+    anyhow::bail!("Tree kept growing during verification; retaining trusted checkpoint")
 }
-
-/// Recursively verifies consistency between observed roots, handling race conditions
-///
-/// This function ensures that `new_root` is legitimately part of the append-only chain
-/// extending from `old_root`. If the tree has grown beyond `new_root` by the time we
-/// verify, it recursively validates the entire chain.
-///
-/// # Why This Matters
-///
-/// Consider this timeline:
-/// - T1: Monitor observes root R1
-/// - T2: Monitor observes root R2  
-/// - T3: Monitor requests consistency proof, but tree is now at R3
-///
-/// A simple verification would prove R1→R3, but wouldn't validate that R2 was
-/// actually part of the legitimate history. R2 could be a fabricated root.
-///
-/// `verify_strict` solves this by:
-/// 1. Requesting proof from R1 to current state (gets R3)
-/// 2. If R3 ≠ R2, recursively verify R2→R3
-/// 3. This proves the chain: R1→R2→R3, validating all observed states
-///
-/// # Arguments
-///
-/// * `client` - The Trellis client for making consistency proof requests
-/// * `log_name` - The name of the log to verify
-/// * `old_root` - The previous root hash we observed
-/// * `new_root` - The new root hash we observed (to be validated)
-///
-/// # Returns
-///
-/// `Ok(())` if the chain is valid, error otherwise.
-///
-/// # Note
-///
-/// This function is recursive and uses `Box::pin` to handle the recursive async call,
-/// as Rust requires boxed futures for recursive async functions.
-fn verify_strict<'a>(
-    client: &'a Client,
-    log_name: &'a str,
-    old_root: Vec<u8>,
-    new_root: Vec<u8>,
-) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<()>> + Send + 'a>> {
-    Box::pin(async move {
-        // Request consistency proof
-        let proof_new_root = client
-            .verify_tree_consistency(log_name, old_root)
-            .await?;
-
-        if proof_new_root == new_root {
-            Ok(())
-        } else {
-            verify_strict(client, log_name, new_root, proof_new_root).await
-        }
-    })
-}
-
 
 /// Prints a formatted representation of log state
 fn print_state(state: &LogState) {
-    println!("   Size: {}", state.size);
+    println!("   Size: {}", state.tree_size);
     if !state.root.is_empty() {
         let root_b64 = base64::engine::general_purpose::STANDARD.encode(&state.root);
         println!("   Root: {}...", &root_b64[..min(16, root_b64.len())]);
@@ -261,4 +210,183 @@ fn print_state(state: &LogState) {
 /// Returns the minimum of two values.
 const fn min(a: usize, b: usize) -> usize {
     if a < b { a } else { b }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use axum::{Json, Router, routing::get};
+    use std::{
+        collections::VecDeque,
+        sync::{
+            Arc, Mutex,
+            atomic::{AtomicUsize, Ordering},
+        },
+    };
+    use trellis::{
+        ConsistencyProof, LeafHash,
+        service::responses::{ApiResponse, ConsistencyProofResponse},
+    };
+
+    fn history(count: u8) -> (CtMerkleTree, Vec<LogState>) {
+        let mut tree = CtMerkleTree::new();
+        let mut states = vec![];
+        for leaf in 0..count {
+            tree.push(LeafHash::new(vec![leaf]));
+            states.push(LogState {
+                tree_size: tree.len(),
+                root: tree.root(),
+            });
+        }
+        (tree, states)
+    }
+
+    fn proof(tree: &CtMerkleTree, old: &LogState, new: &LogState) -> ConsistencyProof {
+        ConsistencyProof {
+            old_tree_size: old.tree_size,
+            new_tree_size: new.tree_size,
+            new_root: new.root.clone(),
+            proof_bytes: tree
+                .prove_consistency_between(&old.root, &new.root)
+                .expect("valid test fixture")
+                .as_bytes()
+                .to_vec(),
+        }
+    }
+
+    async fn server(
+        proofs: Vec<ConsistencyProof>,
+    ) -> (Client, tokio::task::JoinHandle<()>, Arc<AtomicUsize>) {
+        let pending = Arc::new(Mutex::new(VecDeque::from(proofs)));
+        let requests = Arc::new(AtomicUsize::new(0));
+        let count = requests.clone();
+        let app = Router::new().route(
+            "/logs/test/consistency",
+            get(move || {
+                let pending = pending.clone();
+                let count = count.clone();
+                async move {
+                    count.fetch_add(1, Ordering::SeqCst);
+                    Json(ApiResponse::success(ConsistencyProofResponse {
+                        log_name: "test".into(),
+                        proof: pending
+                            .lock()
+                            .expect("valid test fixture")
+                            .pop_front()
+                            .expect("unexpected proof request"),
+                    }))
+                }
+            }),
+        );
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+            .await
+            .expect("valid test fixture");
+        let client = Client::new(&format!(
+            "http://{}",
+            listener.local_addr().expect("valid test fixture")
+        ))
+        .expect("valid test fixture");
+        let task = tokio::spawn(async move {
+            axum::serve(listener, app)
+                .await
+                .expect("valid test fixture");
+        });
+        (client, task, requests)
+    }
+
+    #[tokio::test]
+    async fn rollback_via_common_successor_keeps_trusted_checkpoint() {
+        let (tree, states) = history(3);
+        let b = &states[0];
+        let a = &states[1];
+        // Both proofs are cryptographically valid: A->A and B->A. The observed
+        // root B is a rollback disguised as growth by claiming size three.
+        let same = proof(&tree, a, a);
+        let earlier = proof(&tree, b, a);
+        assert!(same.verify(&a.root, a.tree_size).is_ok());
+        assert!(earlier.verify(&b.root, b.tree_size).is_ok());
+        let (client, task, requests) = server(vec![same, earlier]).await;
+        let mut saved = a.clone();
+        let forged = LogState {
+            tree_size: 3,
+            root: b.root.clone(),
+        };
+        assert!(
+            advance_state(&client, "test", &mut saved, forged)
+                .await
+                .is_err()
+        );
+        assert_eq!(saved, *a);
+        assert_eq!(requests.load(Ordering::SeqCst), 1);
+        task.abort();
+    }
+
+    #[tokio::test]
+    async fn honest_growth_and_racing_successor_are_verified() {
+        let (tree, states) = history(4);
+        let (client, task, requests) = server(vec![
+            proof(&tree, &states[1], &states[3]),
+            proof(&tree, &states[2], &states[3]),
+            proof(&tree, &states[2], &states[3]),
+        ])
+        .await;
+        let mut saved = states[1].clone();
+        advance_state(&client, "test", &mut saved, states[2].clone())
+            .await
+            .expect("valid test fixture");
+        assert_eq!(saved, states[2]);
+        advance_state(&client, "test", &mut saved, states[3].clone())
+            .await
+            .expect("valid test fixture");
+        assert_eq!(saved, states[3]);
+        assert_eq!(requests.load(Ordering::SeqCst), 3);
+        task.abort();
+    }
+
+    #[tokio::test]
+    async fn invalid_observations_never_replace_the_saved_checkpoint() {
+        let (tree, states) = history(3);
+        let mut invalid = proof(&tree, &states[1], &states[2]);
+        invalid.proof_bytes = vec![0; 32];
+        let (client, task, _) = server(vec![invalid]).await;
+        let mut saved = states[1].clone();
+        for observation in [
+            states[0].clone(),
+            LogState {
+                tree_size: 2,
+                root: states[0].root.clone(),
+            },
+            states[2].clone(),
+        ] {
+            assert!(
+                advance_state(&client, "test", &mut saved, observation)
+                    .await
+                    .is_err()
+            );
+            assert_eq!(saved, states[1]);
+        }
+        // An unchanged authenticated state is harmless.
+        advance_state(&client, "test", &mut saved, states[1].clone())
+            .await
+            .expect("valid test fixture");
+        task.abort();
+    }
+
+    #[tokio::test]
+    async fn continuous_growth_is_bounded_and_retried_without_state_loss() {
+        let (tree, states) = history(11);
+        let proofs = (1..9)
+            .map(|i| proof(&tree, &states[i], &states[i + 2]))
+            .collect();
+        let (client, task, requests) = server(proofs).await;
+        let mut saved = states[1].clone();
+        assert!(
+            advance_state(&client, "test", &mut saved, states[2].clone())
+                .await
+                .is_err()
+        );
+        assert_eq!(saved, states[1]);
+        assert_eq!(requests.load(Ordering::SeqCst), 8);
+        task.abort();
+    }
 }

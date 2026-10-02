@@ -232,12 +232,11 @@ In the following example, the root of the log `my_log` is proved to be consisten
 with a previous root.
 
 ```rust
-// Get current root
-let old_root = client.get_root("my_log").await?;
+// Save both the root and its tree size as the trusted checkpoint.
+let old = client.get_root("my_log").await?;
 
-// Later, verify the log grew consistently
-let proof = client.get_consistency_proof("my_log", &old_root).await?;
-proof.verify(&old_root)?;
+// Later, verify growth and retain the complete verified successor.
+let new = client.verify_tree_consistency("my_log", &old).await?;
 ```
 A full consistency verification workflow can be seen in [examples/monitor.rs](examples/monitor.rs).
 

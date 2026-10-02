@@ -260,7 +260,7 @@ async fn test_consistency_proofs() -> Result<()> {
                 .await?;
 
             // Store root after each entry
-            let root = client.client.get_root("test_log_single_source").await?.root;
+            let root = client.client.get_root("test_log_single_source").await?;
             println!(
                 "📸 Storing intermediate root after entry {}-{}",
                 i + 1,
@@ -283,14 +283,14 @@ async fn test_consistency_proofs() -> Result<()> {
         .await?;
 
     // Get final tree state
-    let final_root = client.client.get_root("test_log_single_source").await?.root;
+    let final_root = client.client.get_root("test_log_single_source").await?;
 
     // Verify consistency between each historical root and final state
     for (i, historical_root) in historical_roots.iter().enumerate() {
         println!("🔍 Verifying consistency with batch {}", i + 1);
         let new_root = client
             .client
-            .verify_tree_consistency("test_log_single_source", historical_root.clone())
+            .verify_tree_consistency("test_log_single_source", historical_root)
             .await?;
         assert_eq!(
             new_root,
@@ -304,7 +304,7 @@ async fn test_consistency_proofs() -> Result<()> {
     println!("🔍 Testing consistency of root with itself (should succeed with empty proof)");
     let same_root_proof = client
         .client
-        .get_consistency_proof("test_log_single_source", final_root.clone())
+        .get_consistency_proof("test_log_single_source", final_root.root.clone())
         .await?;
     
     // Proof should be empty (trivially valid)
@@ -314,7 +314,7 @@ async fn test_consistency_proofs() -> Result<()> {
     );
     
     // Proof should verify successfully
-    same_root_proof.verify(&final_root)
+    same_root_proof.verify(&final_root.root, final_root.tree_size)
         .expect("Same root consistency proof should verify");
     println!("   ✓ Same root returns empty proof that verifies");
 

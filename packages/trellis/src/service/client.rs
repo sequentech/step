@@ -10,7 +10,7 @@ use sha2::{Digest, Sha256};
 use std::time::Duration;
 
 /// Root information returned by `get_root`
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RootInfo {
     /// The root hash bytes
     pub root: Vec<u8>,
@@ -158,29 +158,24 @@ impl Client {
         }
     }
 
-    /// Verifies that the current tree state is consistent with a previously observed state.
-    /// Returns the new root if the current tree is a descendant of `old_root` (i.e., old tree is a prefix).
+    /// Verify extension of a saved checkpoint and return the complete verified successor.
     ///
+    /// The caller must retain both root and size; neither may be replaced by response metadata.
     /// # Errors
-    ///
-    /// Returns an error if fetching the consistency proof or current root fails,
-    /// or if proof verification fails.
+    /// Returns an error if fetching or verifying the consistency proof fails.
     pub async fn verify_tree_consistency(
         &self,
         log_name: &str,
-        old_root: Vec<u8>,
-    ) -> Result<Vec<u8>> {
-        // Get consistency proof between the old root and current state
+        old: &RootInfo,
+    ) -> Result<RootInfo> {
         let proof = self
-            .get_consistency_proof(log_name, old_root.clone())
+            .get_consistency_proof(log_name, old.root.clone())
             .await?;
-
-        // Verify the proof cryptographically
-        proof
-            .verify(&old_root)
-            .map_err(|e| anyhow::anyhow!("Proof verification failed: {e}"))?;
-
-        Ok(proof.new_root)
+        self.verify_consistency_proof(old, &proof)?;
+        Ok(RootInfo {
+            root: proof.new_root,
+            tree_size: proof.new_tree_size,
+        })
     }
 
     /// Checks if a leaf (identified by its hash) exists in the log
@@ -238,18 +233,14 @@ impl Client {
             .map_err(|e| anyhow::anyhow!("Inclusion proof verification failed: {e}"))
     }
 
-    /// Verifies a consistency proof between an old root and the proof's new root
+    /// Verifies a consistency proof against a saved root and tree size
     ///
     /// # Errors
     ///
     /// Returns an error if proof verification fails due to cryptographic mismatch.
-    pub fn verify_consistency_proof(
-        &self,
-        old_root: &[u8],
-        proof: &ConsistencyProof,
-    ) -> Result<()> {
+    pub fn verify_consistency_proof(&self, old: &RootInfo, proof: &ConsistencyProof) -> Result<()> {
         proof
-            .verify(old_root)
+            .verify(&old.root, old.tree_size)
             .map_err(|e| anyhow::anyhow!("Consistency proof verification failed: {e}"))
     }
 

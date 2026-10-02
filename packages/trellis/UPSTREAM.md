@@ -12,3 +12,9 @@ Step uses the tree/proof implementation with `journal`, a transactional
 PostgreSQL adapter. The original source-table polling server and tools are
 available behind `upstream-service`; they are not started by Step.
 The package uses Step's workspace lockfile.
+
+Local correctness fixes require a trusted tree size when verifying consistency
+proofs. The upstream HTTP client retains complete root/size checkpoints, and the
+monitor validates their ordering, bounds growth-race retries, and keeps its last
+verified checkpoint after any failure. Run its adversarial HTTP regressions with
+`cargo test -p trellis --features upstream-service --example monitor`.

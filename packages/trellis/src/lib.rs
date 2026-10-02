@@ -110,14 +110,23 @@ pub struct ConsistencyProof {
 }
 
 impl ConsistencyProof {
-    /// Verifies this proof using ct-merkle's consistency proof verification
+    /// Verifies extension of a trusted root and tree size using ct-merkle.
     ///
     /// # Errors
     ///
-    /// - `MalformedProof`: if the old or new root hash lengths are invalid, or if the proof bytes are malformed
+    /// - `MalformedProof`: if sizes disagree with the trusted checkpoint, the tree shrinks,
+    ///   root lengths are invalid, or the proof bytes are malformed
     /// - `ConsistencyVerifError`: if the proof verification fails
     ///
-    pub fn verify(&self, old_root: &[u8]) -> Result<(), ct_merkle::ConsistencyVerifError> {
+    pub fn verify(
+        &self,
+        old_root: &[u8],
+        old_tree_size: u64,
+    ) -> Result<(), ct_merkle::ConsistencyVerifError> {
+        // Sizes are part of the checkpoint, not assertions the prover may replace.
+        if self.old_tree_size != old_tree_size || self.new_tree_size < old_tree_size {
+            return Err(ct_merkle::ConsistencyVerifError::MalformedProof);
+        }
         // Create digest from old root bytes
         let mut old_digest = Output::<Sha256>::default();
         if old_root.len() != old_digest.len() {
@@ -126,7 +135,7 @@ impl ConsistencyProof {
         old_digest.copy_from_slice(old_root);
 
         // Create old root hash with digest and size
-        let old_root_ = RootHash::<Sha256>::new(old_digest, self.old_tree_size);
+        let old_root_ = RootHash::<Sha256>::new(old_digest, old_tree_size);
 
         // Create digest from new root bytes
         let mut new_digest = Output::<Sha256>::default();
@@ -179,5 +188,45 @@ impl LeafHash {
 impl HashableLeaf for LeafHash {
     fn hash<H: Update>(&self, hasher: &mut H) {
         hasher.update(&self.hash);
+    }
+}
+
+#[cfg(test)]
+mod consistency_checkpoint_tests {
+    use super::{ConsistencyProof, LeafHash, tree::CtMerkleTree};
+
+    #[test]
+    fn consistency_requires_the_trusted_size() {
+        let mut tree = CtMerkleTree::new();
+        tree.push(LeafHash::new(b"first".to_vec()));
+        let one = tree.root();
+        tree.push(LeafHash::new(b"second".to_vec()));
+        let two = tree.root();
+        let proof = ConsistencyProof {
+            old_tree_size: 1,
+            new_tree_size: 2,
+            new_root: two.clone(),
+            proof_bytes: tree
+                .prove_consistency(&one)
+                .expect("known historical root")
+                .as_bytes()
+                .to_vec(),
+        };
+        assert!(proof.verify(&one, 1).is_ok());
+        assert!(proof.verify(&one, 2).is_err());
+        let forged_empty = ConsistencyProof {
+            old_tree_size: 0,
+            new_tree_size: 3,
+            new_root: one,
+            proof_bytes: vec![],
+        };
+        assert!(forged_empty.verify(&two, 2).is_err());
+        let rollback = ConsistencyProof {
+            old_tree_size: 2,
+            new_tree_size: 1,
+            new_root: two.clone(),
+            proof_bytes: vec![],
+        };
+        assert!(rollback.verify(&two, 2).is_err());
     }
 }

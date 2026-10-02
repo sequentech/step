@@ -36,6 +36,11 @@ tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] , optio
 rand = { version = "0.9.2", optional = true }
 num_cpus = { version = "1.16", optional = true }
 
+[[example]]
+name = "monitor"
+required-features = ["upstream-service"]
+path = "examples/monitor.rs"
+
 # Define our binaries
 [[bin]]
 name = "trellis-setup"

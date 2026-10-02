@@ -24,6 +24,7 @@ jobs:
           #- service: braid # these take too long!
           - service: electoral-log
           - service: trellis
+            extra: --features upstream-service --lib --example monitor
           - service: harvest
           - service: strand
           - service: sequent-core

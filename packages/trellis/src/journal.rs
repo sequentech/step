@@ -90,7 +90,7 @@ impl Consistency {
             "Proof checkpoint mismatch"
         );
         proof
-            .verify(&old.root)
+            .verify(&old.root, old.tree_size)
             .map_err(|e| anyhow!("Invalid consistency proof: {e:?}"))
     }
 }
