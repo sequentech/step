@@ -133,7 +133,9 @@ async fn async_main(opt: CeleryOpt) -> Result<()> {
                 .collect();
 
             if queues.contains(&Queue::ElectoralLogEvent.queue_name(&slug)) {
-                return Err(anyhow!("The raw electoral-log queue is consumed only by the batch dispatcher"));
+                return Err(anyhow!(
+                    "The raw electoral-log queue is consumed only by the batch dispatcher"
+                ));
             }
             let vec_str: Vec<&str> = queues.iter().map(AsRef::as_ref).collect();
             let duplicates = find_duplicates(vec_str.clone());
