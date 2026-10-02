@@ -137,9 +137,8 @@ pub async fn upsert_b3_and_elog(
 ) -> Result<Value> {
     let slug = std::env::var("ENV_SLUG").with_context(|| "missing env var ENV_SLUG")?;
     let board_name = get_event_board(tenant_id, election_event_id, &slug);
-    // FIXME must also create the electoral log board here
-    let mut immudb_client = get_board_client().await?;
-    immudb_client.upsert_electoral_log_db(&board_name).await?;
+    let electoral_log = get_board_client().await?;
+    electoral_log.create_board(&board_name).await?;
 
     let mut board_client = get_b3_pgsql_client().await?;
 

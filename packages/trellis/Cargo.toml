@@ -1,0 +1,93 @@
+[package]
+name = "trellis"
+autobins = false
+autoexamples = false
+autotests = false
+version = "0.1.0"
+edition = "2024"
+
+[features]
+default = []
+upstream-service = ["dep:dashmap", "dep:chrono", "dep:dotenv", "dep:axum", "dep:serde_json", "dep:parking_lot", "dep:base64", "dep:reqwest", "dep:serial_test", "dep:crossterm", "dep:clap", "dep:futures", "dep:tracing", "dep:tracing-subscriber", "dep:rand", "dep:num_cpus"]
+
+[dependencies]
+tokio = { version = "1", features = ["full"] }
+tokio-postgres = { version = "0.7.10", features = ["with-chrono-0_4"] }
+deadpool-postgres = "0.14"
+dashmap = { version = "6.0", optional = true }
+chrono = { version = "0.4", optional = true }
+sha2 = "0.10.8"
+dotenv = { version = "0.15.0", optional = true }
+anyhow = "1.0.82"
+axum = { version = "0.7", features = ["http2", "json", "macros"] , optional = true }
+serde_json = { version = "1.0", optional = true }
+parking_lot = { version = "0.12", optional = true }
+ct-merkle = { version = "0.2.0", features = ["serde"] }
+serde = { version = "1.0", features = ["derive"] }
+base64 = { version = "0.21", optional = true }
+digest = "0.10"
+reqwest = { version = "0.11", features = ["json"] , optional = true }
+serial_test = { version = "3.2.0", optional = true }
+crossterm = { version = "0.28", optional = true }
+clap = { version = "4.5", features = ["derive"] , optional = true }
+futures = { version = "0.3", optional = true }
+tracing = { version = "0.1", optional = true }
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] , optional = true }
+rand = { version = "0.9.2", optional = true }
+num_cpus = { version = "1.16", optional = true }
+
+[[example]]
+name = "monitor"
+required-features = ["upstream-service"]
+path = "examples/monitor.rs"
+
+# Define our binaries
+[[bin]]
+name = "trellis-setup"
+required-features = ["upstream-service"]
+path = "src/bin/setup.rs"
+
+[[bin]]
+name = "trellis-upstream"
+required-features = ["upstream-service"]
+path = "src/bin/main.rs"
+
+[[bin]]
+name = "trellis-dashboard"
+required-features = ["upstream-service"]
+path = "src/bin/dashboard.rs"
+
+[[bin]]
+name = "trellis-load"
+required-features = ["upstream-service"]
+path = "src/bin/load.rs"
+
+[lints.rust]
+missing_docs = "deny"
+unsafe_code = "forbid"
+private_interfaces = "deny"
+private_bounds = "deny"
+unnameable_types = "deny"
+# https://github.com/taiki-e/cargo-llvm-cov?tab=readme-ov-file#exclude-code-from-coverage
+# unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage,coverage_nightly)'] }
+
+[lints.clippy]
+missing_docs_in_private_items = "deny"
+missing_errors_doc = "deny"
+missing_panics_doc = "deny"
+doc_markdown = "deny"
+unwrap_used = "deny"
+panic = "deny"
+shadow_unrelated = "deny"
+print_stdout = "deny"
+print_stderr = "deny"
+indexing_slicing = "deny"
+missing_const_for_fn = "deny"
+future_not_send = "deny"
+arithmetic_side_effects = "deny"
+# groups, not a single lint
+suspicious = "deny"
+complexity = "deny"
+style = "deny"
+perf = "deny"
+pedantic = "deny"

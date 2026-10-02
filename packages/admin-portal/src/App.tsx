@@ -150,7 +150,6 @@ const App: React.FC<AppProps> = () => {
                         element={<Navigate to="/sequent_backend_election_event" replace />}
                         index
                     />
-                    {/* <Route path="/logs" element={<Logs />} /> */}
                     <Route path="/tenant" element={<SelectTenant />} />
                     <Route path="/user-roles" element={<UserAndRoles />} />
                     <Route path="/trustee" element={<TrusteeDashboard />} />

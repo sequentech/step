@@ -85,10 +85,15 @@ services:
       dockerfile: Dockerfile
     restart: unless-stopped
     volumes:
+      - ./postgresql/init-electoral-log.sh:/docker-entrypoint-initdb.d/20-electoral-log.sh:ro
+      - ../packages/electoral-log/schema.sql:/electoral-log-schema.sql:ro
       - db_data:/var/lib/postgresql
       - db_logs:/logs
     environment:
       POSTGRES_PASSWORD: ${HASURA_PG_PASSWORD}
+      ELECTORAL_LOG_PG_USER: ${ELECTORAL_LOG_PG_USER}
+      ELECTORAL_LOG_PG_PASSWORD: ${ELECTORAL_LOG_PG_PASSWORD}
+      ELECTORAL_LOG_PG_DATABASE: ${ELECTORAL_LOG_PG_DATABASE}
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
@@ -476,28 +481,6 @@ services:
   #   volumes:
   #      - ${LOCAL_WORKSPACE_FOLDER}/packages:/usr/src/app
 
-  immudb:
-    profiles: ["full", "base"]
-    container_name: immudb
-    image: sequentech.local/immudb
-    build:
-      context: ../packages/
-      dockerfile: ./Dockerfile.immudb
-    restart: always
-    environment:
-      - IMMUDB_PGSQL_SERVER=true
-    #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
-    #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
-    ports:
-      - 3322:3322 # immudb service
-      - 3324:9497 # prometheus
-      - 3325:8080 # web console
-    volumes:
-      - immudb_data:/var/lib/immudb
-      - immudb_logs:/var/log/immudb
-    depends_on:
-      - immudb-init
-
   mock_server:
     profiles: ["full"]
     stdin_open: true
@@ -574,9 +557,13 @@ services:
       ROCKET_PORT: ${HARVEST_PORT}
       RUSTFLAGS: ${RUSTFLAGS}
       CARGO_TERM_COLOR: ${CARGO_TERM_COLOR}
-      IMMUDB_USER: ${IMMUDB_USER}
-      IMMUDB_PASSWORD: ${IMMUDB_PASSWORD}
-      IMMUDB_SERVER_URL: ${IMMUDB_SERVER_URL}
+      ELECTORAL_LOG_PG_HOST: ${ELECTORAL_LOG_PG_HOST}
+      ELECTORAL_LOG_PG_PORT: ${ELECTORAL_LOG_PG_PORT}
+      ELECTORAL_LOG_PG_USER: ${ELECTORAL_LOG_PG_USER}
+      ELECTORAL_LOG_PG_PASSWORD: ${ELECTORAL_LOG_PG_PASSWORD}
+      ELECTORAL_LOG_PG_DATABASE: ${ELECTORAL_LOG_PG_DATABASE}
+      ELECTORAL_LOG_PG_SSLMODE: ${ELECTORAL_LOG_PG_SSLMODE}
+      ELECTORAL_LOG_PG_SSLROOTCERT: ${ELECTORAL_LOG_PG_SSLROOTCERT:-}
       SMS_TRANSPORT_NAME: ${SMS_TRANSPORT_NAME}
       AWS_SNS_ATTRIBUTES: ${AWS_SNS_ATTRIBUTES}
       EMAIL_TRANSPORT_NAME: ${EMAIL_TRANSPORT_NAME}
@@ -678,7 +665,6 @@ services:
         VAULT_TOKEN: ${VAULT_TOKEN}
         B4_URL: ${B4_URL}
     depends_on:
-      - immudb
       - b4
 
   trustee2:
@@ -693,7 +679,6 @@ services:
     # it:
     depends_on:
       - trustee1
-      - immudb
     environment:
         TRUSTEE_NAME: trustee2
         TRUSTEE_CONFIG_PATH: ${TRUSTEE2_CONFIG}
@@ -715,7 +700,6 @@ services:
   #   # it:
   #   depends_on:
   #     - trustee1
-  #     - immudb
   #   environment:
   #       TRUSTEE_NAME: trustee3
   #       TRUSTEE_CONFIG_PATH: ${TRUSTEE3_CONFIG}
@@ -741,42 +725,6 @@ services:
     ports:
       - "5672:5672"
       - "15672:15672"
-
-  immudb-init:
-    profiles: ["full", "base"]
-    stdin_open: true
-    image: sequentech.local/cargo-packages
-    container_name: immudb-init
-    # make sure to depend on the `harvest` container to ensure
-    # that the `sequentech.local/cargo-packages` image is locally build, so
-    # that we can reuse it:
-    depends_on:
-      harvest:
-        condition: service_started
-    volumes:
-      - ../packages/:/app:z
-    restart: always
-    working_dir: /app/immu-board
-    entrypoint: [
-      "cargo",
-      "run",
-      "--bin",
-      "bb_helper",
-      "--",
-      "--server-url",
-      "${IMMUDB_SERVER_URL}",
-      "--username",
-      "${IMMUDB_USER}",
-      "--password",
-      "${IMMUDB_PASSWORD}",
-      "--board-dbname",
-      "${IMMUDB_BOARD_DB_NAME}",
-      "--cache-dir",
-      "/tmp/immu-board",
-      "upsert-board-db"
-    ]
-    env_file:
-      - .env
 
   registry:
     profiles: ["full", "lambdas"]
@@ -886,10 +834,13 @@ services:
       AMQP_ADDR: ${AMQP_ADDR}
       KEYCLOAK_URL: ${KEYCLOAK_URL}
       KEYCLOAK_PASSWORD_POLICY_CACHE_TTL_SECS: ${KEYCLOAK_PASSWORD_POLICY_CACHE_TTL_SECS:-30}
-      IMMUDB_SERVER_URL: ${IMMUDB_SERVER_URL}
-      IMMUDB_USER: ${IMMUDB_USER}
-      IMMUDB_PASSWORD: ${IMMUDB_PASSWORD}
-      IMMUDB_INDEX_DB: ${IMMUDB_INDEX_DB}
+      ELECTORAL_LOG_PG_HOST: ${ELECTORAL_LOG_PG_HOST}
+      ELECTORAL_LOG_PG_PORT: ${ELECTORAL_LOG_PG_PORT}
+      ELECTORAL_LOG_PG_USER: ${ELECTORAL_LOG_PG_USER}
+      ELECTORAL_LOG_PG_PASSWORD: ${ELECTORAL_LOG_PG_PASSWORD}
+      ELECTORAL_LOG_PG_DATABASE: ${ELECTORAL_LOG_PG_DATABASE}
+      ELECTORAL_LOG_PG_SSLMODE: ${ELECTORAL_LOG_PG_SSLMODE}
+      ELECTORAL_LOG_PG_SSLROOTCERT: ${ELECTORAL_LOG_PG_SSLROOTCERT:-}
       AWS_S3_PRIVATE_URI: ${AWS_S3_PRIVATE_URI}
       AWS_S3_PUBLIC_URI: ${AWS_S3_PUBLIC_URI}
       AWS_S3_BUCKET: ${AWS_S3_BUCKET}
@@ -1077,11 +1028,7 @@ volumes:
   db_data:
   db_logs:
   keycloak_db_logs:
-  immudb_log_audit_data:
-  keycloak_immudb_log_audit_data:
   keycloak_db_data:
-  immudb_data:
-  immudb_logs:
   minio_storage:
   trustee1_data:
   trustee2_data:
