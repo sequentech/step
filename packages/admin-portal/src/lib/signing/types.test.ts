@@ -5,6 +5,8 @@ import {IPermissions} from "@/types/keycloak"
 import {
     CancelReason,
     CertificateCheckId,
+    MAX_EXPIRES_MINUTES,
+    MAX_SIGNATURES,
     SIGNING_ACTIONS,
     SIGNING_EXPIRY_OPTIONS,
     SigningAction,
@@ -15,6 +17,12 @@ import {
 const signing = englishTranslation.translations.signing
 
 describe("signing types", () => {
+    // sequent-core's MAX_SIGNATURES and MAX_EXPIRES_MINUTES: its test reads them here.
+    it("limits a rule as the server does", () => {
+        expect(MAX_SIGNATURES).toBe(100)
+        expect(MAX_EXPIRES_MINUTES).toBe(365 * 24 * 60)
+    })
+
     it("signs each action under sign-<action id>", () => {
         for (const action of Object.values(SigningAction)) {
             expect(SIGNING_ACTIONS[action].signPermission).toBe(`sign-${action}`)

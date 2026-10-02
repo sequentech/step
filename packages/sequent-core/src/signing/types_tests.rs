@@ -253,6 +253,36 @@ fn a_rule_needs_at_least_one_signature() {
     );
 }
 
+/// One maximum for every place a rule is checked: the server, an imported
+/// bundle, and the portal, whose mirror is
+/// `admin-portal/src/lib/signing/types.ts`.
+#[test]
+fn a_rule_has_one_maximum_for_the_server_and_the_portal() {
+    assert_eq!(MAX_SIGNATURES, 100);
+    assert_eq!(MAX_EXPIRES_MINUTES, 365 * 24 * 60);
+    let mirror = std::fs::read_to_string(
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../admin-portal/src/lib/signing/types.ts"),
+    )
+    .unwrap();
+    for (name, value) in [
+        ("MAX_SIGNATURES", u32::from(MAX_SIGNATURES)),
+        ("MAX_EXPIRES_MINUTES", MAX_EXPIRES_MINUTES),
+    ] {
+        let declared = mirror
+            .lines()
+            .find_map(|line| {
+                line.strip_prefix(&format!("export const {name} = "))
+            })
+            .unwrap_or_else(|| panic!("types.ts doesn't export {name}"));
+        assert_eq!(
+            declared.replace('_', "").trim().parse::<u32>(),
+            Ok(value),
+            "{name}"
+        );
+    }
+}
+
 #[test]
 fn a_rule_reads_and_writes_its_json() {
     let text = json!({

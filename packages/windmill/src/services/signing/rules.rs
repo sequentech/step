@@ -32,7 +32,7 @@ use electoral_log::messages::newtypes::SigningStatementKind;
 use sequent_core::services::keycloak::{get_tenant_realm, KeycloakAdminClient};
 use sequent_core::signing::{
     CancelReason, RequesterSigning, SigningAction, SigningRequirement, SigningRule,
-    SigningRuleError, SigningScope,
+    SigningRuleError, SigningScope, MAX_EXPIRES_MINUTES, MAX_SIGNATURES,
 };
 use sequent_core::types::permissions::Permissions;
 use serde::Serialize;
@@ -43,10 +43,6 @@ use strum_macros::Display;
 use tracing::{instrument, warn};
 use uuid::Uuid;
 
-/// The most signatures a rule may ask for.
-pub const MAX_SIGNATURES: u16 = 100;
-/// The longest a request may wait: a year.
-pub const MAX_EXPIRES_MINUTES: u32 = 525_600;
 /// How long Keycloak gets for a save's role changes.
 pub const ROLE_CHANGE_TIMEOUT: Duration = Duration::from_secs(15);
 

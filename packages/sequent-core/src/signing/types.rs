@@ -392,6 +392,13 @@ impl std::error::Error for SigningRuleError {}
 /// The expiry of a rule nobody has configured.
 pub const DEFAULT_EXPIRES_MINUTES: u32 = 60;
 
+/// The most signatures a rule may need, wherever a rule is checked: the
+/// Signatures tab, the server and an imported bundle.
+pub const MAX_SIGNATURES: u16 = 100;
+
+/// The longest expiry a rule may set: a year. `None` is no limit.
+pub const MAX_EXPIRES_MINUTES: u32 = 525_600;
+
 impl SigningRule {
     pub fn default_for(action: SigningAction) -> Self {
         SigningRule {

@@ -231,6 +231,12 @@ export const SIGNING_ACTIONS: Record<SigningAction, ISigningActionInfo> = {
     },
 }
 
+/** The most signatures a rule may need (sequent-core `MAX_SIGNATURES`). */
+export const MAX_SIGNATURES = 100
+
+/** The longest expiry a rule may set, in minutes: a year (sequent-core `MAX_EXPIRES_MINUTES`). */
+export const MAX_EXPIRES_MINUTES = 525_600
+
 /** The expiries the rule drawer offers, in minutes; `null` is no limit. */
 export const SIGNING_EXPIRY_OPTIONS: ReadonlyArray<number | null> = [30, 60, 120, 1440, null]
 
