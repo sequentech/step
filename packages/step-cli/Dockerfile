@@ -19,6 +19,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY ./braid ./braid
 COPY ./b4 ./b4
 COPY ./electoral-log ./electoral-log
+COPY ./trellis ./trellis
 COPY ./harvest ./harvest
 COPY ./strand ./strand
 COPY ./sequent-core ./sequent-core

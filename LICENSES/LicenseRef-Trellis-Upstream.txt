@@ -1,0 +1,8 @@
+Trellis upstream source
+
+Source: https://github.com/ruescasd/mrkl/tree/trellis
+Revision: 57ddd6d171ae6fc9f1545a1302f2d1e82f2defb7
+
+This upstream revision supplies no license file or package license declaration.
+This identifier records that absence; it does not grant additional rights or
+relicense the imported source. Step-specific additions carry their own headers.

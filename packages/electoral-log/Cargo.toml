@@ -8,6 +8,8 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+trellis = { path = "../trellis" }
+sha2 = "0.10"
 clap = { version = "4.0", features = ["derive"] }
 async-trait = "0.1"
 deadpool-postgres = { version = "0.14", features = ["rt_tokio_1"] }

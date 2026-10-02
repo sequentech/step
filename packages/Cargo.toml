@@ -9,6 +9,7 @@ members = [
     "braid",
     "b4",
     "electoral-log",
+    "trellis",
     "harvest",
     "strand",
     "sequent-core",
