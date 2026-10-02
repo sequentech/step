@@ -59,6 +59,30 @@ export const formatDate = (
         : ""
 }
 
+/** "May 8, 2028, 18:00 GMT+8": the date and the 24-hour time with the zone. */
+export const formatDateTime = (
+    value: string | Date | null | undefined,
+    locale: string,
+    timeZone?: string | null
+): string => {
+    const date = parse(value)
+    return date
+        ? formatter(
+              locale,
+              {
+                  day: "numeric",
+                  month: "short",
+                  year: "numeric",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                  hourCycle: "h23",
+                  timeZoneName: "short",
+              },
+              timeZone
+          ).format(date)
+        : ""
+}
+
 /** Times and dates in the election event's zone (the panel's `time_zone`), else the browser's. */
 export const useSigningFormat = (timeZone?: string | null) => {
     const {i18n} = useTranslation()
@@ -67,6 +91,8 @@ export const useSigningFormat = (timeZone?: string | null) => {
         () => ({
             time: (value: string | Date | null | undefined) => formatTime(value, locale, timeZone),
             date: (value: string | Date | null | undefined) => formatDate(value, locale, timeZone),
+            dateTime: (value: string | Date | null | undefined) =>
+                formatDateTime(value, locale, timeZone),
         }),
         [locale, timeZone]
     )

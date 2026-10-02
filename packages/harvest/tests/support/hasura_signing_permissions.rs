@@ -265,7 +265,8 @@ const OWN_CERTIFICATE_COLUMNS: [&str; 15] = [
 #[test]
 fn each_signer_reads_their_own_certificate_registrations() {
     let tables = tracked_tables();
-    let own = json!({"_and": [tenant(), {"user_id": {"_eq": "X-Hasura-User-Id"}}]});
+    let own =
+        json!({"_and": [tenant(), {"user_id": {"_eq": "X-Hasura-User-Id"}}]});
     for action in SigningAction::iter() {
         let role = action.sign_permission().to_string();
         let permission =

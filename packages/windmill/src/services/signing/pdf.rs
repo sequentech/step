@@ -279,7 +279,7 @@ pub fn appearance_lines(wording: &PageWording, facts: &SignatureFacts<'_>) -> Ve
 }
 
 /// The event's time zone: the one its monitoring settings name, if any.
-async fn event_time_zone(
+pub async fn event_time_zone(
     hasura_transaction: &Transaction<'_>,
     tenant_id: Uuid,
     election_event_id: Uuid,

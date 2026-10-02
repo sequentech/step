@@ -72,21 +72,36 @@ import {
     useRevokeCertificate,
     useScopeNames,
     useSigningCertificates,
+    useSigningEventInfo,
     useWriteError,
 } from "./useSigningSettings"
+import {useSigningFormat} from "@/components/signing/format"
 import {CERTIFICATE_FILES, FileButton, RegisterCertificateDialog} from "./RegisterCertificateDialog"
 import type {ISignaturesSubTabProps} from "./ProtectedActionsTab"
 
 const mono = {fontFamily: "monospace", fontSize: "0.75rem"}
 
-const useDates = () => {
-    const {i18n} = useTranslation()
-    return {
-        date: (iso: string) => new Date(iso).toLocaleDateString(i18n.language),
-        time: (iso: string) =>
-            new Date(iso).toLocaleString(i18n.language, {dateStyle: "medium", timeStyle: "short"}),
-    }
+/**
+ * Dates, and times with the zone's name, in the event's time zone, as the
+ * signing panel shows them; and the signers' titles.
+ */
+const useEventFormat = (electionEventId: string) => {
+    const {timeZone, titles} = useSigningEventInfo(electionEventId)
+    const format = useSigningFormat(timeZone)
+    return {date: format.date, time: format.dateTime, titles}
 }
+
+/** Under a person's name: their username when the name isn't it, and their title. */
+const PersonDetail: React.FC<{username: string | null; title: string | null}> = ({
+    username,
+    title,
+}) =>
+    username || title ? (
+        <Typography variant="body2" color="text.secondary">
+            {username ? <span>{username}</span> : null}
+            {title ? <span>{username ? ` · ${title}` : title}</span> : null}
+        </Typography>
+    ) : null
 
 /** A collapsible card; its region is named by its title. Without its write permission it's read-only. */
 const Card: React.FC<React.PropsWithChildren<{title: string; readOnly: boolean}>> = ({
@@ -129,7 +144,7 @@ const TrustedIssuersCard: React.FC<ICardProps & {issuers: IStaffIssuer[]}> = ({
 }) => {
     const {t} = useTranslation()
     const notify = useNotify()
-    const {date} = useDates()
+    const {date} = useEventFormat(electionEventId)
     const [importing, setImporting] = useState(false)
     const [file, setFile] = useState<({name: string} & ReturnType<typeof issuerUpload>) | null>(
         null
@@ -332,7 +347,7 @@ const ChecksCard: React.FC<ICardProps & {checks: ISigningChecks; crls: IStaffCrl
     const {t} = useTranslation()
     const notify = useNotify()
     const writeError = useWriteError()
-    const {time} = useDates()
+    const {time} = useEventFormat(electionEventId)
     const [putChecks] = usePutChecks()
     // What a save in flight shows until the refetch returns the stored checks.
     const [saving, setSaving] = useState<ISigningChecks | null>(null)
@@ -490,7 +505,7 @@ const RegisteredCertificatesCard: React.FC<ICardProps & {certificates: IStaffCer
 }) => {
     const {t} = useTranslation()
     const notify = useNotify()
-    const {date} = useDates()
+    const {date, titles} = useEventFormat(electionEventId)
     const {postName} = useScopeNames(electionEventId)
     const [search, setSearch] = useState("")
     const [status, setStatus] = useState<CertificateDisplayStatus | null>(null)
@@ -621,11 +636,15 @@ const RegisteredCertificatesCard: React.FC<ICardProps & {certificates: IStaffCer
                                             certificate.username
                                         )}
                                     </Box>
-                                    {certificate.user_display_name && (
-                                        <Typography variant="body2" color="text.secondary">
-                                            {certificate.username}
-                                        </Typography>
-                                    )}
+                                    {/* "username · title or role" (draft Settings 4). */}
+                                    <PersonDetail
+                                        username={
+                                            certificate.user_display_name
+                                                ? certificate.username
+                                                : null
+                                        }
+                                        title={titles[certificate.user_id] ?? null}
+                                    />
                                 </TableCell>
                                 <TableCell>{postOf(certificate.election_id)}</TableCell>
                                 <TableCell>

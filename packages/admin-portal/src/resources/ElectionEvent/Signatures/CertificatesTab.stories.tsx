@@ -163,17 +163,30 @@ export const SecurityOfficer: Story = {
         await expect(canvas.getByLabelText(label("checkRevocation"))).toBeChecked()
         await expect(canvas.getByLabelText(label("onePost"))).toBeChecked()
         await expect(canvas.getByLabelText(label("registration.on-first-use"))).toBeChecked()
-        // Each revocation list with its last download.
+        // Each revocation list with its last download, in the event's zone with its name
+        // (Asia/Manila: 10:00 UTC is 18:00 GMT+8), as the signing panel shows times.
         for (const crl of organization.crls) {
             await expect(canvas.getByText(new RegExp(`^${crl.url}: `))).toBeVisible()
         }
+        await expect(
+            canvas.getByText(
+                label("crlUpdated", {
+                    url: organization.crls[0].url,
+                    time: "May 8, 2028, 18:00 GMT+8",
+                })
+            )
+        ).toBeVisible()
         expect(await readOnlyCards(canvasElement)).toEqual([])
 
         // People by name with their username; certificates expiring within 30 days stand out.
         const [maria, , officer, revoked, soon] = organization.certificates
         const mariaRow = await certificateRow(canvasElement, maria.username)
         await expect(mariaRow.getByText(displayName(maria))).toBeVisible()
+        // "username · title or role" (draft Settings 4), the title as the signing panel shows it.
+        await expect(mariaRow.getByText(`· ${organization.titles[maria.user_id]}`)).toBeVisible()
         await expect(mariaRow.getByText(organization.posts[0].name)).toBeVisible()
+        // Dates as the signing panel writes them, in the event's zone.
+        await expect(mariaRow.getByText("Jan 11, 2030")).toBeVisible()
         await expect(
             (await certificateRow(canvasElement, soon.username)).getByText(
                 label("statuses.expires-soon")
@@ -187,8 +200,12 @@ export const SecurityOfficer: Story = {
         await expect(
             officerRow.getByText(label("registeredBy", {name: officer.registered_by_name}))
         ).toBeVisible()
-        expect(graphql.calls[0]).toMatchObject({
-            name: "GetSigningCertificates",
+        expect(mutation("GetSigningCertificates")[0]).toMatchObject({
+            headers: {"x-hasura-role": "signing-certificates-read"},
+        })
+        // The zone and the titles come with the reader's own permission.
+        expect(mutation("SigningEventInfo")[0]).toMatchObject({
+            variables: {electionEventId: EVENT_ID},
             headers: {"x-hasura-role": "signing-certificates-read"},
         })
     },
@@ -322,7 +339,10 @@ export const Auditor: Story = {
             revoke: false,
         })
         await expect(canvas.getByLabelText(label("registration.on-first-use"))).toBeDisabled()
-        expect(graphql.calls.map(({name}) => name)).toEqual(["GetSigningCertificates"])
+        // Reads only: the certificates, and the event's zone and the titles.
+        expect(new Set(graphql.calls.map(({name}) => name))).toEqual(
+            new Set(["GetSigningCertificates", "SigningEventInfo"])
+        )
     },
 }
 
@@ -406,11 +426,13 @@ export const SecondOrganization: Story = {
             canvas.getByRole("columnheader", {name: councilText("signing.terms.post")})
         ).toBeVisible()
         const [certificate] = council.certificates
+        const row = await certificateRow(canvasElement, certificate.username)
         await expect(
-            (await certificateRow(canvasElement, certificate.username)).getByText(
+            row.getByText(
                 council.posts.find(({id}) => id === certificate.election_id)?.name as string
             )
         ).toBeVisible()
+        await expect(row.getByText(`· ${council.titles[certificate.user_id]}`)).toBeVisible()
         // Its own checks.
         const switchState = (text: string) =>
             (canvas.getByLabelText(text) as HTMLInputElement).checked

@@ -112,6 +112,20 @@ export const Ofov: Story = {
             within(rows[0]).getByText(requests[0].requested_by_name as string)
         ).toBeVisible()
         await expect(within(rows[0]).getByText(requests[0].code)).toBeVisible()
+        // Times in the event's zone with its name, as the signing panel shows them
+        // (Asia/Manila: 11:02 UTC is 19:02 GMT+8).
+        await expect(within(rows[0]).getByText("May 8, 2028, 19:02 GMT+8")).toBeVisible()
+        await expect(
+            within(rows[0]).getByText(label("requests.expires", {time: "May 8, 2028, 19:32 GMT+8"}))
+        ).toBeVisible()
+        await expect(
+            within(rows[0]).getByText(
+                label("requests.lastSignatureBy", {
+                    name: requests[0].approvals[0].display_name,
+                    time: "May 8, 2028, 19:03 GMT+8",
+                })
+            )
+        ).toBeVisible()
         // A waiting request past its time shows as expired before the job marks it.
         const late = requests.findIndex(
             ({status, expires_at}) =>
@@ -138,8 +152,10 @@ export const Ofov: Story = {
         await expect(
             await within(document.body).findByRole("heading", {name: / · /, level: 2})
         ).toBeVisible()
-        expect(graphql.calls[0]).toMatchObject({
-            name: "GetSigningRequests",
+        expect(graphql.calls.find(({name}) => name === "GetSigningRequests")).toMatchObject({
+            headers: {"x-hasura-role": "signing-requests-read"},
+        })
+        expect(graphql.calls.find(({name}) => name === "SigningEventInfo")).toMatchObject({
             headers: {"x-hasura-role": "signing-requests-read"},
         })
     },
@@ -208,5 +224,7 @@ export const SecondOrganization: Story = {
                 name: `${label("actions.close-voting.short")} · ${posts[0].name}`,
             })
         ).toBeVisible()
+        // Its event's own zone (Europe/Madrid: 11:02 UTC is 13:02 GMT+2).
+        await expect(within(rows[0]).getByText("May 8, 2028, 13:02 GMT+2")).toBeVisible()
     },
 }

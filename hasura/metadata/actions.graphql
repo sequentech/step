@@ -2541,6 +2541,10 @@ type Query {
     ): SigningRuleCapacityOutput!
 }
 
+type Query {
+    signingEventInfo(election_event_id: uuid!): SigningEventInfoOutput!
+}
+
 type SigningGetRequestOutput {
     panel: jsonb!
 }
@@ -2568,6 +2572,11 @@ type SigningPutRuleOutput {
     rule: jsonb!
     short_posts: jsonb!
     warnings: [String!]!
+}
+
+type SigningEventInfoOutput {
+    time_zone: String
+    titles: jsonb!
 }
 
 type SigningRuleCapacityOutput {

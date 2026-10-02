@@ -65,6 +65,7 @@ const clientExporting = (url: string | null) =>
                     operations.push(operation.operationName)
                     const responses: Record<string, object> = {
                         GetSigningRequests: {sequent_backend_signing_request: []},
+                        SigningEventInfo: {signingEventInfo: {time_zone: null, titles: {}}},
                         SigningExportRequests: {
                             signingExportRequests: {
                                 document_id: "document",
@@ -115,7 +116,11 @@ it("downloads the export from its link, without the document routes", async () =
     await waitFor(() =>
         expect(screen.getByText("signing.requests.exportCsv").closest("button")).toBeEnabled()
     )
-    expect(operations).toEqual(["GetSigningRequests", "SigningExportRequests"])
+    // Beside the event's zone, which the times are shown in.
+    expect(operations.filter((name) => name !== "SigningEventInfo")).toEqual([
+        "GetSigningRequests",
+        "SigningExportRequests",
+    ])
 })
 
 it("downloads through the document routes when the export has no link", async () => {

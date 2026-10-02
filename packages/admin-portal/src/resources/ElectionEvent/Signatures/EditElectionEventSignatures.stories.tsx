@@ -70,8 +70,12 @@ async function subTabs(canvasElement: HTMLElement) {
         .map((tab) => tab.textContent)
 }
 
-/** The operations the story read, which the sub-tabs' permissions select. */
-const reads = () => graphql.calls.map(({name}) => name)
+/**
+ * The operations the story read, which the sub-tabs' permissions select;
+ * beside them each sub-tab reads the event's zone (SigningEventInfo).
+ */
+const reads = () =>
+    graphql.calls.map(({name}) => name).filter((name) => name !== "SigningEventInfo")
 
 export const ConfigurationManager: Story = {
     args: {role: "configurationManager"},

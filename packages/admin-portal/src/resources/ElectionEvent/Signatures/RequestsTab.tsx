@@ -32,9 +32,11 @@ import {filterRequests, lastSignature, personName, requestStatus} from "./signin
 import {
     useExportRequests,
     useScopeNames,
+    useSigningEventInfo,
     useSigningRequests,
     useWriteError,
 } from "./useSigningSettings"
+import {useSigningFormat} from "@/components/signing/format"
 import type {ISignaturesSubTabProps} from "./ProtectedActionsTab"
 
 const ALL = "all"
@@ -51,7 +53,7 @@ const STATUS_COLORS: Record<SigningRequestStatus, "success" | "error" | "default
 
 /** Every signing request of the event; each opens the signing request panel, where it can be cancelled. */
 export const RequestsTab: React.FC<ISignaturesSubTabProps> = ({electionEventId, access}) => {
-    const {t, i18n} = useTranslation()
+    const {t} = useTranslation()
     const writeError = useWriteError()
     const panel = useSigningRequest()
     const {requests, loading, error} = useSigningRequests(electionEventId)
@@ -59,8 +61,9 @@ export const RequestsTab: React.FC<ISignaturesSubTabProps> = ({electionEventId, 
     const [status, setStatus] = useState<SigningRequestStatus | null>(null)
     const [exported, setExported] = useState<string | null>(null)
     const [exportRequests, {loading: exporting}] = useExportRequests()
-    const time = (iso: string) =>
-        new Date(iso).toLocaleString(i18n.language, {dateStyle: "medium", timeStyle: "short"})
+    // In the event's zone with its name, as the signing panel shows times.
+    const {timeZone} = useSigningEventInfo(electionEventId)
+    const {dateTime: time} = useSigningFormat(timeZone)
 
     const runExport = async () => {
         try {

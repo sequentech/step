@@ -23,6 +23,7 @@ import {
     useRegisterCertificate,
     useRevokeCertificate,
     useRuleCapacities,
+    useSigningEventInfo,
 } from "./useSigningSettings"
 
 // Keep the real shared predicate without loading the browser component barrel.
@@ -103,5 +104,76 @@ describe.each(USERS)("the Signatures tab's role for %s", (_label, isAdminUser) =
             await result.current[0]({variables: {}})
         })
         expect(roles[operationName]).toBe(permission)
+    })
+})
+
+/** A client answering each role's rows, as Hasura filters them by action for `sign-<action>`. */
+const roleClient = (rowsByRole: Record<string, Array<{id: string; created_at: string}>>) => {
+    const sent: Array<{operation: string; role: string | undefined}> = []
+    const client = new ApolloClient({
+        cache: new InMemoryCache({addTypename: false}),
+        link: new ApolloLink((operation) => {
+            const role = operation.getContext().headers?.["x-hasura-role"]
+            sent.push({operation: operation.operationName, role})
+            return new Observable((observer) => {
+                observer.next({
+                    data: {
+                        sequent_backend_signing_request: (rowsByRole[role] ?? []).map((row) => ({
+                            action: "close-voting",
+                            election_id: null,
+                            area_id: null,
+                            code: "7F3A-91C2",
+                            required: 2,
+                            expires_at: null,
+                            approvals: [],
+                            ...row,
+                        })),
+                    },
+                })
+                observer.complete()
+            })
+        }),
+    })
+    return {client, sent}
+}
+
+const holding = (client: ApolloClient<unknown>, held: IPermissions[]) => {
+    const {AuthContext} = jest.requireMock("@/providers/AuthContextProvider")
+    const isAuthorized = (_: boolean, __: string, permission: IPermissions) =>
+        held.includes(permission)
+    return ({children}: {children: React.ReactNode}) => (
+        <ApolloProvider client={client}>
+            <AuthContext.Provider value={{isAuthorized}}>{children}</AuthContext.Provider>
+        </ApolloProvider>
+    )
+}
+
+describe("the event's time zone and the signers' titles", () => {
+    it.each<[string, IPermissions[], IPermissions | undefined]>([
+        [
+            "a certificates reader, who also gets the titles",
+            [IPermissions.SIGNING_REQUESTS_READ, IPermissions.SIGNING_CERTIFICATES_READ],
+            IPermissions.SIGNING_CERTIFICATES_READ,
+        ],
+        [
+            "a requests reader",
+            [IPermissions.SIGNING_REQUESTS_READ],
+            IPermissions.SIGNING_REQUESTS_READ,
+        ],
+        ["a rules reader", [IPermissions.SIGNING_RULES_READ], IPermissions.SIGNING_RULES_READ],
+        ["a signer", [IPermissions.SIGN_APPROVE_VOTER], IPermissions.SIGN_APPROVE_VOTER],
+    ])("are read by %s with a role it holds", async (_label, held, role) => {
+        const {client, sent} = roleClient({})
+        renderHook(() => useSigningEventInfo("event"), {wrapper: holding(client, held)})
+        await waitFor(() => expect(sent).toEqual([{operation: "SigningEventInfo", role}]))
+    })
+
+    it("are not read by someone holding none of those", async () => {
+        const {client, sent} = roleClient({})
+        const {result} = renderHook(() => useSigningEventInfo("event"), {
+            wrapper: holding(client, [IPermissions.ADMIN_USER]),
+        })
+        await waitFor(() => expect(result.current.timeZone).toBeNull())
+        expect(sent).toEqual([])
     })
 })

@@ -137,6 +137,10 @@ export interface ISigningOrganization {
     requests: ISigningRequestListRow[]
     /** Tenant translation overrides (English), as stored in the tenant's settings. */
     overrides: Record<string, string>
+    /** The event's time zone, which the event info route answers. */
+    timeZone: string
+    /** The signers' titles by user id, which the event info route answers. */
+    titles: Record<string, string>
 }
 
 const DAY = 24 * 60 * 60 * 1000
@@ -434,6 +438,13 @@ export const overseas = (): ISigningOrganization => {
             ),
         ],
         overrides: {},
+        timeZone: "Asia/Manila",
+        // The certificates' holders: a title, else the group that signs.
+        titles: {
+            [storyId(8, 1)]: "Chairperson",
+            [storyId(8, 2)]: "SBEI",
+            [storyId(8, 3)]: "OFOV",
+        },
     }
 }
 
@@ -521,6 +532,8 @@ export const studentCouncil = (): ISigningOrganization => {
             "adminPortal:signing.validation.shortPosts_one":
                 "{{posts}} can only give {{n}} of the {{required}} signatures.",
         },
+        timeZone: "Europe/Madrid",
+        titles: {[storyId(8, 6)]: "Returning Officer"},
     }
 }
 
@@ -595,6 +608,11 @@ export function signingHandlers(
         }),
         GetSigningRequests: () => ({
             data: {sequent_backend_signing_request: organization.requests},
+        }),
+        SigningEventInfo: () => ({
+            data: {
+                signingEventInfo: {time_zone: organization.timeZone, titles: organization.titles},
+            },
         }),
         SigningPutRule: write("SigningPutRule", "signingPutRule", ({variables}) => ({
             revision: Number(variables.expected_revision) + 1,

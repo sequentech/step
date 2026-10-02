@@ -2258,6 +2258,32 @@ actions:
           - role: admin-user
           - role: signing-rules-read
       comment: How many people can sign a protected action in each Post
+    - name: signingEventInfo
+      definition:
+          type: query
+          handler: http://{{HARVEST_DOMAIN}}/signing-event-info
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: signing-rules-read
+          - role: signing-certificates-read
+          - role: signing-requests-read
+          - role: sign-initialize-voting
+          - role: sign-open-voting
+          - role: sign-close-voting
+          - role: sign-generate-election-returns
+          - role: sign-generate-reports
+          - role: sign-transmit-results
+          - role: sign-approve-voter
+          - role: sign-approve-configuration
+          - role: sign-key-ceremony
+          - role: sign-tally-key
+      comment: "The election event's time zone and, for a reader of the certificates, the signers' titles"
     - name: signingPdfPrepare
       definition:
           kind: synchronous
@@ -2532,6 +2558,7 @@ custom_types:
         - name: SigningExportOutput
         - name: SigningPutRuleOutput
         - name: SigningRuleCapacityOutput
+        - name: SigningEventInfoOutput
         - name: SigningRequestSummary
         - name: SigningPdfPrepareOutput
     scalars: []

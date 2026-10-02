@@ -27,6 +27,7 @@
 //! | `/signing-requests/export` | `signing-requests-export` (Posts by labels) |
 //! | `/signing-rules/put` | `signing-rules-write` (+ `role-read` and `role-write` to change who signs) |
 //! | `/signing-rules/capacity` | `signing-rules-read` |
+//! | `/signing-event-info` | a `signing-*-read` or `sign-<action>`; the titles `signing-certificates-read` |
 
 use crate::services::dependencies::HarvestServices;
 use crate::services::signing_http::{
@@ -58,8 +59,9 @@ use windmill::services::signing::crl::{refresh_chain_crls, HttpCrlFetcher};
 use windmill::services::signing::directory::KeycloakUserDirectory;
 use windmill::services::signing::pdf::PdfPrepared;
 use windmill::services::signing::requests::{
-    cancel, export_requests, get_panel, handover, refusal_is_logged,
-    report_open_failure, ExportFilter, SigningPanel,
+    cancel, event_info, export_requests, get_panel, handover, reads_event_info,
+    refusal_is_logged, report_open_failure, ExportFilter, SigningEventInfo,
+    SigningPanel,
 };
 use windmill::services::signing::rules::{
     capacity, commit_rule, save_rule, SaveRuleInput, SaveRuleOutcome,
@@ -621,6 +623,50 @@ pub async fn signing_rule_capacity(
     .await
     .map_err(|error| signing_failure(SigningError::Internal(error)))?;
     Ok(Json(capacity))
+}
+
+#[derive(Debug, Deserialize)]
+pub struct EventInfoBody {
+    election_event_id: String,
+}
+
+/// The event's time zone, and for a reader of the certificates the
+/// signers' titles: what the Signatures tab and a signer's list of waiting
+/// requests show beside the rows Hasura gives them.
+#[instrument(skip(claims, services))]
+#[post("/signing-event-info", format = "json", data = "<body>")]
+pub async fn signing_event_info(
+    claims: JwtClaims,
+    services: &State<HarvestServices>,
+    body: Json<EventInfoBody>,
+) -> SigningReply<SigningEventInfo> {
+    require(&claims, vec![])?;
+    let caller = SigningCaller::from_claims(&claims);
+    // Any one of several permissions reads it.
+    if !reads_event_info(&caller) {
+        return Err(signing_failure(SigningError::Forbidden(
+            "Reading it needs a signing read or sign permission.".into(),
+        )));
+    }
+    let tenant_id = tenant_of(&claims)?;
+    let election_event_id =
+        uuid_of(&body.election_event_id, "election_event_id")?;
+    let mut hasura_client = hasura(services).await?;
+    let mut keycloak_client = keycloak(services).await?;
+    let hasura_transaction =
+        hasura_client.transaction().await.map_err(internal)?;
+    let keycloak_transaction =
+        keycloak_client.transaction().await.map_err(internal)?;
+    let info = event_info(
+        &hasura_transaction,
+        &keycloak_transaction,
+        &caller,
+        tenant_id,
+        election_event_id,
+    )
+    .await
+    .map_err(signing_failure)?;
+    Ok(Json(info))
 }
 
 #[derive(Debug, Deserialize)]

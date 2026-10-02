@@ -243,6 +243,19 @@ export const GET_SIGNING_REQUESTS = gql`
     }
 `
 
+/**
+ * `POST /signing-event-info`: the event's time zone (IANA) and, for a
+ * reader of the certificates, the signers' titles by user id.
+ */
+export const SIGNING_EVENT_INFO = gql`
+    query SigningEventInfo($electionEventId: uuid!) {
+        signingEventInfo(election_event_id: $electionEventId) {
+            time_zone
+            titles
+        }
+    }
+`
+
 /** `PUT /signing-rules/<action>`; `roles` (group ids) needs role-read and role-write. */
 export const SIGNING_PUT_RULE = gql`
     mutation SigningPutRule(

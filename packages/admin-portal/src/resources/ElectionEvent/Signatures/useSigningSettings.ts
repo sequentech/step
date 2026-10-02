@@ -17,6 +17,7 @@ import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 import {IPermissions} from "@/types/keycloak"
 import type {Sequent_Backend_Area, Sequent_Backend_Election} from "@/gql/graphql"
 import {
+    SIGNING_ACTIONS,
     SigningAction,
     type IImportSigningIssuersOutput,
     type ISaveSigningRuleOutput,
@@ -34,6 +35,7 @@ import {
     GET_SIGNING_REQUESTS,
     GET_SIGNING_RULES,
     GET_SIGNING_RULE_CAPACITIES,
+    SIGNING_EVENT_INFO,
     SIGNING_DELETE_ISSUER,
     SIGNING_EXPORT_REQUESTS,
     SIGNING_IMPORT_ISSUERS,
@@ -122,6 +124,45 @@ export function useSigningRequests(electionEventId: string) {
         fetchPolicy: "network-only",
     })
     return {requests: data?.sequent_backend_signing_request, loading, error}
+}
+
+/** The permissions the user holds in the selected tenant. */
+const useHolds = () => {
+    const auth = useContext(AuthContext)
+    const [tenantId] = useTenantStore()
+    return useCallback(
+        (permission: IPermissions) => auth.isAuthorized(true, tenantId, permission),
+        [auth, tenantId]
+    )
+}
+
+/** The roles that read the event's signing information, the one that also gets the titles first. */
+const EVENT_INFO_ROLES: IPermissions[] = [
+    IPermissions.SIGNING_CERTIFICATES_READ,
+    IPermissions.SIGNING_REQUESTS_READ,
+    IPermissions.SIGNING_RULES_READ,
+    ...Object.values(SIGNING_ACTIONS).map(({signPermission}) => signPermission),
+]
+
+/**
+ * The event's time zone, which the tab and a signer's list show times in
+ * (as the signing panel does), and the signers' titles for a reader of the
+ * certificates. `timeZone` is null until known, or without such a permission.
+ */
+export function useSigningEventInfo(electionEventId: string) {
+    const holds = useHolds()
+    const role = EVENT_INFO_ROLES.find(holds)
+    const {data} = useQuery<{
+        signingEventInfo?: {time_zone?: string | null; titles?: Record<string, string> | null}
+    }>(SIGNING_EVENT_INFO, {
+        variables: {electionEventId},
+        context: role ? asRole(role) : undefined,
+        skip: !role,
+    })
+    return {
+        timeZone: data?.signingEventInfo?.time_zone ?? null,
+        titles: data?.signingEventInfo?.titles ?? {},
+    }
 }
 
 /** A signing action of the tab, sent with its own permission as the Hasura role. */
