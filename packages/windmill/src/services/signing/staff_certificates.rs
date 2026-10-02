@@ -11,14 +11,15 @@ use crate::postgres::signing::{
     find_active_staff_certificates_by_fingerprint, find_active_staff_certificates_by_holder,
     find_active_staff_certificates_by_spki, find_revoked_staff_certificates_by_fingerprint,
     find_revoked_staff_certificates_by_spki, get_signing_checks, insert_staff_certificate,
-    lock_signing_event, lock_signing_request, lock_staff_certificate_for_update,
-    update_signing_request_status, NewStaffCertificate, SigningRequestRow,
-    SigningRequestTransition, StaffCertificateRow,
+    list_signing_approvals, lock_signing_event, lock_signing_request,
+    lock_staff_certificate_for_update, update_signing_request_status, NewStaffCertificate,
+    SigningRequestRow, SigningRequestTransition, StaffCertificateRow,
 };
 use crate::postgres::signing_certificates::{
     election_in_event, get_staff_certificate, list_staff_certificates_of_user,
     revoke_staff_certificates_of_key, waiting_requests_signed_by_key,
 };
+use crate::services::signing::allowed_by_permission;
 use crate::services::signing::certificates::{
     conflicting_registrations, key_usage_check, load_staff_anchors, lock_certificate_identities,
     lock_identity_keys, parse_chain, root_account, validity_check, verified_path,
@@ -27,12 +28,14 @@ use crate::services::signing::certificates::{
 };
 use crate::services::signing::crl::{refresh_chain_crls, CrlFetcher};
 use crate::services::signing::log::{stage, Actor, LogScope, LogStep, SystemOutcome};
+use crate::services::signing::requests::voided_approvals;
 use anyhow::Result;
 use chrono::{DateTime, Utc};
 use deadpool_postgres::{Client, Transaction};
 use electoral_log::messages::newtypes::SigningStatementKind;
 use openssl::x509::X509;
 use sequent_core::signing::{CancelReason, RevocationCheck, StaffCertificateRegistration};
+use sequent_core::types::permissions::Permissions;
 use serde::Serialize;
 use serde_json::json;
 use std::collections::{BTreeMap, BTreeSet};
@@ -333,6 +336,7 @@ pub async fn register_staff_certificate(
                 "username": row.username,
                 "registration": row.registration,
                 "linked_to": row.linked_to,
+                "allowed_by": allowed_by_permission(Permissions::SIGNING_CERTIFICATES_REGISTER),
             }),
         },
     )
@@ -498,6 +502,7 @@ pub async fn revoke_registration(
                     "key": target.spki_sha256,
                     "reason": reason,
                     "cancelled_requests": cancelled.iter().map(|request| request.id).collect::<Vec<_>>(),
+                    "allowed_by": allowed_by_permission(Permissions::SIGNING_CERTIFICATES_REVOKE),
                 }),
             },
         )
@@ -546,6 +551,13 @@ async fn cancel_for_revocation(
     else {
         return Ok(None);
     };
+    let approvals = list_signing_approvals(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        cancelled.id,
+    )
+    .await?;
     stage(
         hasura_transaction,
         &LogStep {
@@ -569,6 +581,8 @@ async fn cancel_for_revocation(
                 "request_id": cancelled.id,
                 "code": cancelled.code,
                 "reason": CancelReason::CertificateRevoked,
+                "voided_approvals": voided_approvals(&approvals),
+                "allowed_by": allowed_by_permission(Permissions::SIGNING_CERTIFICATES_REVOKE),
             }),
         },
     )

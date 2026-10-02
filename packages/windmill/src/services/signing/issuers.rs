@@ -16,12 +16,14 @@ use crate::postgres::signing::{
 use crate::services::certificate_authority::parse_certificate_pem;
 use crate::services::signing::certificates::is_ca;
 use crate::services::signing::log::{stage, Actor, LogScope, LogStep, SystemOutcome};
+use crate::services::signing::{allowed_by, allowed_by_permission, Allowance};
 use anyhow::{Context, Result};
 use chrono::{DateTime, Utc};
 use deadpool_postgres::Transaction;
 use electoral_log::messages::newtypes::SigningStatementKind;
 use openssl::x509::X509;
 use sequent_core::signing::SigningChecks;
+use sequent_core::types::permissions::Permissions;
 use serde_json::{json, Value};
 use tracing::instrument;
 use uuid::Uuid;
@@ -70,7 +72,8 @@ fn names(rows: &[StaffIssuerRow]) -> String {
 
 /// Trusts `certificates` as staff issuers of the event. Each must be a
 /// certificate authority that is not expired at `now`; one already trusted
-/// is skipped.
+/// is skipped. `allowance` is what let `actor` import them: the Security
+/// Officer's `signing-issuers-write`, or an election event import.
 #[instrument(skip(hasura_transaction, certificates), err)]
 pub async fn import_staff_issuers(
     hasura_transaction: &Transaction<'_>,
@@ -78,6 +81,7 @@ pub async fn import_staff_issuers(
     election_event_id: Uuid,
     certificates: &[X509],
     actor: &Actor,
+    allowance: Allowance,
     now: DateTime<Utc>,
 ) -> Result<IssuerImport> {
     lock_signing_event(hasura_transaction, tenant_id, election_event_id).await?;
@@ -142,6 +146,7 @@ pub async fn import_staff_issuers(
                 details: json!({
                     "change": "imported",
                     "issuers": import.imported.iter().map(issuer_details).collect::<Vec<_>>(),
+                    "allowed_by": allowed_by(&[allowance]),
                 }),
             },
         )
@@ -177,6 +182,7 @@ pub async fn remove_staff_issuer(
             details: json!({
                 "change": "removed",
                 "issuers": [issuer_details(&row)],
+                "allowed_by": allowed_by_permission(Permissions::SIGNING_ISSUERS_WRITE),
             }),
         },
     )
@@ -286,6 +292,7 @@ pub async fn update_signing_checks(
                 "before": before,
                 "after": row.checks,
                 "revision": row.checks.revision,
+                "allowed_by": allowed_by_permission(Permissions::SIGNING_CHECKS_WRITE),
             }),
         },
     )

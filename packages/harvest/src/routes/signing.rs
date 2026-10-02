@@ -33,7 +33,7 @@ use crate::services::signing_http::{
 use base64::engine::general_purpose::STANDARD as BASE64;
 use base64::Engine;
 use chrono::Utc;
-use deadpool_postgres::Client;
+use deadpool_postgres::{Client, Transaction};
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use rocket::State;
@@ -54,8 +54,8 @@ use windmill::services::signing::approve::{
 use windmill::services::signing::crl::{refresh_chain_crls, HttpCrlFetcher};
 use windmill::services::signing::directory::KeycloakUserDirectory;
 use windmill::services::signing::requests::{
-    cancel, export_requests, get_panel, handover, report_open_failure,
-    ExportFilter, SigningPanel,
+    cancel, export_requests, get_panel, handover, refusal_is_logged,
+    report_open_failure, ExportFilter, SigningPanel,
 };
 use windmill::services::signing::rules::{
     capacity, commit_rule, save_rule, SaveRuleInput, SaveRuleOutcome,
@@ -185,6 +185,24 @@ async fn writer(
     caller.display_name =
         caller_display_name(claims, tenant_id, &directory).await?;
     Ok(caller)
+}
+
+/// Ends a cancel, handover or open-failure report: commits it when it was
+/// taken, and when it was refused with a logged refusal (see
+/// [`refusal_is_logged`]); any other failure rolls it back.
+async fn finish_step<T>(
+    transaction: Transaction<'_>,
+    result: Result<T, SigningError>,
+) -> Result<T, SigningFailure> {
+    let keep = match &result {
+        Ok(_) => true,
+        Err(error) => refusal_is_logged(error),
+    };
+    if keep {
+        transaction.commit().await.map_err(internal)?;
+        kick_signing_log_outbox();
+    }
+    result.map_err(signing_failure)
 }
 
 #[derive(Debug, Deserialize)]
@@ -335,7 +353,7 @@ pub async fn report_signing_open_failure(
     let caller = writer(&claims, tenant_id, services).await?;
     let mut client = hasura(services).await?;
     let transaction = client.transaction().await.map_err(internal)?;
-    report_open_failure(
+    let result = report_open_failure(
         &transaction,
         &caller,
         tenant_id,
@@ -343,10 +361,8 @@ pub async fn report_signing_open_failure(
         &body.file_name,
         body.reason,
     )
-    .await
-    .map_err(signing_failure)?;
-    transaction.commit().await.map_err(internal)?;
-    kick_signing_log_outbox();
+    .await;
+    finish_step(transaction, result).await?;
     Ok(Json(RequestIdOutput { request_id }))
 }
 
@@ -362,11 +378,8 @@ pub async fn handover_signing_request(
     let caller = writer(&claims, tenant_id, services).await?;
     let mut client = hasura(services).await?;
     let transaction = client.transaction().await.map_err(internal)?;
-    handover(&transaction, &caller, tenant_id, request_id)
-        .await
-        .map_err(signing_failure)?;
-    transaction.commit().await.map_err(internal)?;
-    kick_signing_log_outbox();
+    let result = handover(&transaction, &caller, tenant_id, request_id).await;
+    finish_step(transaction, result).await?;
     Ok(Json(RequestIdOutput { request_id }))
 }
 
@@ -390,17 +403,15 @@ pub async fn cancel_signing_request(
     let caller = writer(&claims, tenant_id, services).await?;
     let mut client = hasura(services).await?;
     let transaction = client.transaction().await.map_err(internal)?;
-    cancel(
+    let result = cancel(
         &transaction,
         &caller,
         tenant_id,
         request_id,
         body.reason.as_deref(),
     )
-    .await
-    .map_err(signing_failure)?;
-    transaction.commit().await.map_err(internal)?;
-    kick_signing_log_outbox();
+    .await;
+    finish_step(transaction, result).await?;
     Ok(Json(RequestIdOutput { request_id }))
 }
 

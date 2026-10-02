@@ -37,7 +37,7 @@ use chrono::{DateTime, Utc};
 use deadpool_postgres::{Client, Transaction};
 use electoral_log::messages::newtypes::SigningStatementKind;
 use sequent_core::signing::{
-    CancelReason, CertificateCheckId, DocumentKind, ExecutionMode, RequesterSigning,
+    sha256_hex, CancelReason, CertificateCheckId, DocumentKind, ExecutionMode, RequesterSigning,
     SignatureAlgorithm, SigningRequestStatus, SigningRule, StaffCertificateStatus,
 };
 use serde::Serialize;
@@ -151,6 +151,24 @@ pub enum SignRefusal {
     RequesterNotAllowed,
     /// A trustee's request, and they are not that trustee.
     NotTheTrustee,
+    /// The request no longer takes signatures.
+    NotWaiting,
+    /// The request's time was up.
+    Expired,
+    /// The document signature doesn't fit the action, or this server
+    /// can't take signatures of its document.
+    Document,
+}
+
+/// The step of a request a refusal refused, as its log entry names it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Display)]
+#[strum(serialize_all = "kebab-case")]
+pub enum RefusedStep {
+    Sign,
+    Cancel,
+    Handover,
+    /// Reporting a certificate file that didn't open.
+    OpenFailure,
 }
 
 /// How the transaction ends.
@@ -211,6 +229,23 @@ fn certificate_details(certificate: &CertificateIdentity) -> Value {
     })
 }
 
+/// The document signature a signature entry carries: an EML's signature
+/// itself, or a PDF CMS's SHA-256 and the revision it signs.
+fn document_signature_details(request: &SigningRequestRow, input: &ApproveInput) -> Value {
+    match request.action.document() {
+        DocumentKind::Eml => json!({
+            "kind": DocumentKind::Eml,
+            "signature": input.document_signature.as_deref().map(|signature| BASE64.encode(signature)),
+        }),
+        DocumentKind::Pdf => json!({
+            "kind": DocumentKind::Pdf,
+            "cms_sha256": input.pdf_cms.as_deref().map(sha256_hex),
+            "revision": input.revision,
+        }),
+        DocumentKind::NoDocument => Value::Null,
+    }
+}
+
 /// Logs a refused signature, unless the caller had one logged on the
 /// request within the throttle, and answers `error`.
 async fn refusal(
@@ -222,7 +257,46 @@ async fn refusal(
     certificate: Option<&CertificateIdentity>,
     error: SigningError,
 ) -> SigningResult<Step> {
-    if !throttled(
+    log_refusal(transaction, request, caller, check, detail, certificate).await?;
+    Ok(Step::Refused(error))
+}
+
+/// Logs a refused signing step (SigningSignatureRefused, SYSTEM = ERROR),
+/// unless the caller had one logged on the request within the throttle.
+pub(crate) async fn log_refusal(
+    transaction: &Transaction<'_>,
+    request: &SigningRequestRow,
+    caller: &SigningCaller,
+    check: &str,
+    detail: &str,
+    certificate: Option<&CertificateIdentity>,
+) -> SigningResult<()> {
+    log_step_refusal(
+        transaction,
+        request,
+        caller,
+        RefusedStep::Sign,
+        check,
+        detail,
+        certificate,
+    )
+    .await
+}
+
+/// Logs that `step` on the request was refused (SigningSignatureRefused,
+/// SYSTEM = ERROR), unless the caller had a refusal logged on the request
+/// within the throttle ([`super::requests::LOG_THROTTLE_SECONDS`]). The
+/// caller commits its transaction to keep the entry.
+pub(crate) async fn log_step_refusal(
+    transaction: &Transaction<'_>,
+    request: &SigningRequestRow,
+    caller: &SigningCaller,
+    step: RefusedStep,
+    check: &str,
+    detail: &str,
+    certificate: Option<&CertificateIdentity>,
+) -> SigningResult<()> {
+    if throttled(
         transaction,
         request,
         SigningStatementKind::SigningSignatureRefused,
@@ -230,22 +304,33 @@ async fn refusal(
     )
     .await?
     {
-        stage_request_step(
-            transaction,
-            request,
-            SigningStatementKind::SigningSignatureRefused,
-            caller.actor(),
-            SystemOutcome::Error,
-            format!("Signature refused on {}: {}", request.code, check),
-            json!({
-                "check": check,
-                "detail": detail,
-                "certificate": certificate.map(certificate_details),
-            }),
-        )
-        .await?;
+        return Ok(());
     }
-    Ok(Step::Refused(error))
+    let description = match step {
+        RefusedStep::Sign => format!("Signature refused on {}: {}", request.code, check),
+        RefusedStep::Cancel => format!("Cancelling {} refused: {}", request.code, check),
+        RefusedStep::Handover => format!("Handover of {} refused: {}", request.code, check),
+        RefusedStep::OpenFailure => format!(
+            "Certificate file report on {} refused: {}",
+            request.code, check
+        ),
+    };
+    stage_request_step(
+        transaction,
+        request,
+        SigningStatementKind::SigningSignatureRefused,
+        caller.actor(),
+        SystemOutcome::Error,
+        description,
+        json!({
+            "step": step.to_string(),
+            "check": check,
+            "detail": detail,
+            "certificate": certificate.map(certificate_details),
+        }),
+    )
+    .await?;
+    Ok(())
 }
 
 /// A certificate check refused the signature: 422 with the check.
@@ -389,30 +474,63 @@ async fn approve_in(
         )
         .await;
     }
-    check_document_inputs(&found, input, services)?;
+    if let Err(error) = check_document_inputs(&found, input, services) {
+        let request = relock(transaction, &found).await?;
+        let detail = error.to_string();
+        return refusal(
+            transaction,
+            &request,
+            caller,
+            &SignRefusal::Document.to_string(),
+            &detail,
+            None,
+            error,
+        )
+        .await;
+    }
     let request = relock(transaction, &found).await?;
     let event_id = request.election_event_id;
 
     // 2. Only a waiting request within its time takes signatures.
     if request.status != SigningRequestStatus::Waiting {
-        return Err(SigningError::Closed {
-            status: request.status,
-            message: format!(
-                "Signing request {} is {}; it takes no more signatures.",
-                request.code, request.status
-            ),
-        });
+        let message = format!(
+            "Signing request {} is {}; it takes no more signatures.",
+            request.code, request.status
+        );
+        return refusal(
+            transaction,
+            &request,
+            caller,
+            &SignRefusal::NotWaiting.to_string(),
+            &message,
+            None,
+            SigningError::Closed {
+                status: request.status,
+                message: message.clone(),
+            },
+        )
+        .await;
     }
-    if is_overdue(transaction, &request).await?
-        && expire_request(transaction, &request).await?.is_some()
-    {
-        return Ok(Step::Refused(SigningError::Closed {
-            status: SigningRequestStatus::Expired,
-            message: format!(
+    if is_overdue(transaction, &request).await? {
+        if let Some(expired) = expire_request(transaction, &request).await? {
+            let message = format!(
                 "Signing request {} expired; it takes no more signatures.",
                 request.code
-            ),
-        }));
+            );
+            return refusal(
+                transaction,
+                &expired,
+                caller,
+                &SignRefusal::Expired.to_string(),
+                &message,
+                None,
+                SigningError::Closed {
+                    status: SigningRequestStatus::Expired,
+                    message: message.clone(),
+                },
+            )
+            .await;
+        }
     }
     let approvals = list_signing_approvals(transaction, tenant_id, event_id, request.id).await?;
     if approvals
@@ -550,12 +668,26 @@ async fn approve_in(
             .as_ref()
             .is_some_and(|row| row.status == StaffCertificateStatus::Active);
         if !active && id != certificate_id {
-            // A signature it counts no longer stands: the request ends.
+            // A signature it counts no longer stands: the request ends, as
+            // the officer who revoked the key would have ended it. The
+            // registration keeps the officer's id and display name.
+            let officer = locked
+                .as_ref()
+                .and_then(|row| {
+                    row.revoked_by.as_ref().map(|user_id| Actor {
+                        user_id: user_id.clone(),
+                        username: row
+                            .revoked_by_name
+                            .clone()
+                            .unwrap_or_else(|| user_id.clone()),
+                    })
+                })
+                .unwrap_or_else(|| caller.actor());
             cancel_request(
                 transaction,
                 &request,
                 CancelReason::CertificateRevoked,
-                caller.actor(),
+                officer,
                 None,
             )
             .await?;
@@ -659,8 +791,10 @@ async fn approve_in(
         json!({
             "certificate": certificate_details(&certificate),
             "signature": BASE64.encode(&input.payload_signature),
+            "document_signature": document_signature_details(&request, input),
             "algorithm": input.algorithm.to_string(),
             "revocation_status": verification.revocation_status.to_string(),
+            "checks": verification.checks,
             "count": count,
             "required": required,
         }),

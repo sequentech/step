@@ -400,6 +400,23 @@ async fn cancel_handover_and_open_failures_are_logged_for_who_may_take_them() {
     })
     .await;
     assert!(matches!(result, Err(SigningError::Forbidden(_))));
+    // Nor does someone who can't sign it.
+    let stranger = caller("stranger", &[], &["madrid-pe"]);
+    let result = in_tx(&w, |tx| {
+        Box::pin(async move {
+            report_open_failure(
+                tx,
+                &stranger,
+                tenant,
+                id,
+                "stranger.p12",
+                CertificateOpenFailure::Unreadable,
+            )
+            .await
+        })
+    })
+    .await;
+    assert!(matches!(result, Err(SigningError::Forbidden(_))));
     let j = jose.clone();
     in_tx(&w, |tx| {
         Box::pin(async move { handover(tx, &j, tenant, id).await })
@@ -512,11 +529,52 @@ async fn cancel_handover_and_open_failures_are_logged_for_who_may_take_them() {
         w.steps().await,
         [
             "SigningRequestCreated",
+            "SigningSignatureRefused",
+            "SigningSignatureRefused",
             "SigningHandover",
             "SigningCertificateOpenFailed",
+            "SigningSignatureRefused",
+            "SigningSignatureRefused",
             "SigningRequestCancelled"
         ]
     );
+    // Each forbidden step is logged as a refusal of that step.
+    let refused: Vec<(Option<String>, String, String)> = w
+        .entries("SigningSignatureRefused")
+        .await
+        .into_iter()
+        .map(|(user, details)| {
+            (
+                user,
+                details["step"].as_str().unwrap().to_string(),
+                details["check"].as_str().unwrap().to_string(),
+            )
+        })
+        .collect();
+    let entry = |user: &str, step: &str| {
+        (
+            Some(user.to_string()),
+            step.to_string(),
+            "forbidden".to_string(),
+        )
+    };
+    assert_eq!(
+        refused,
+        [
+            entry("outsider", "handover"),
+            entry("stranger", "open-failure"),
+            entry("jose", "cancel"),
+            entry("ofov", "cancel"),
+        ]
+    );
+    // An operator's cancel names the permission that allowed it.
+    let cancelled = w.entries("SigningRequestCancelled").await;
+    assert_eq!(cancelled[0].0.as_deref(), Some("ofov"));
+    assert_eq!(
+        cancelled[0].1["allowed_by"],
+        json!(["signing-requests-cancel"])
+    );
+    assert_eq!(cancelled[0].1["voided_approvals"], json!([]));
     w.assert_two_entries_per_step().await;
 }
 
@@ -608,6 +666,8 @@ async fn the_export_holds_the_requests_of_the_readers_posts_and_logs_its_hash() 
             .unwrap()
             .get(0);
         assert_eq!(logged, export.sha256);
+        let (_, details) = w.entries("SigningRequestsExported").await.pop().unwrap();
+        assert_eq!(details["allowed_by"], json!(["signing-requests-export"]));
     }
     // Filters: the waiting ones, and none cancelled.
     let auditor = caller(

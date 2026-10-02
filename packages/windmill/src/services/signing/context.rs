@@ -15,6 +15,7 @@ use sequent_core::services::jwt::{decode_permission_labels, JwtClaims};
 use sequent_core::signing::{CertificateCheckId, SigningAction, SigningRequestStatus};
 use sequent_core::types::permissions::Permissions;
 use serde::Serialize;
+use serde_json::Value;
 use std::collections::HashSet;
 use std::fmt;
 use strum_macros::Display;
@@ -132,6 +133,43 @@ impl SigningCaller {
     pub fn signs_for(&self, label: Option<&str>) -> bool {
         signers::signs_for(&self.labels, label)
     }
+}
+
+/// What let a person make a change, as its log entry records it in
+/// `allowed_by`, like the entries of Users and Roles.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Allowance {
+    /// A permission they hold.
+    Permission(Permissions),
+    /// They started the request, which its requester may cancel.
+    Requester,
+    /// An election event import, which needs no signing permission.
+    ElectionEventImport,
+}
+
+impl fmt::Display for Allowance {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Allowance::Permission(permission) => write!(f, "{permission}"),
+            Allowance::Requester => write!(f, "requester"),
+            Allowance::ElectionEventImport => write!(f, "election-event-import"),
+        }
+    }
+}
+
+/// The `allowed_by` of a log entry: what allowed the change, as text.
+pub fn allowed_by(allowances: &[Allowance]) -> Value {
+    Value::from(
+        allowances
+            .iter()
+            .map(ToString::to_string)
+            .collect::<Vec<_>>(),
+    )
+}
+
+/// The `allowed_by` of a change one permission allows.
+pub fn allowed_by_permission(permission: Permissions) -> Value {
+    allowed_by(&[Allowance::Permission(permission)])
 }
 
 /// Why a signing step was not taken. The Harvest routes answer each with its

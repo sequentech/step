@@ -10,10 +10,14 @@
 //! Every step takes the event's signing lock before the request's row lock
 //! (see [`lock_signing_event`]).
 
+use super::approve::{log_step_refusal, RefusedStep};
 use super::executors::SigningExecutorRegistry;
 use super::log::{stage, Actor, LogStep, SystemOutcome};
 use super::signers::{list_signers, GroupChange};
-use super::{action_title, log_scope, SigningCaller, SigningError, SigningResult};
+use super::{
+    action_title, allowed_by, allowed_by_permission, log_scope, Allowance, SigningCaller,
+    SigningError, SigningResult,
+};
 use crate::postgres::signing::*;
 use crate::postgres::signing_certificates::get_signing_request_in_tenant;
 use crate::services::documents::{get_document_url, upload_and_return_document};
@@ -109,8 +113,44 @@ fn cancel_reason_text(reason: CancelReason) -> &'static str {
     }
 }
 
-/// Cancels a waiting request and stages its SigningRequestCancelled step.
-/// The caller holds the event lock and the request's row lock.
+/// What allowed a cancel for `reason`, when a person's own step did; a
+/// request replaced by a new one is cancelled by whoever started that one.
+fn cancel_allowance(reason: CancelReason) -> Option<Allowance> {
+    match reason {
+        CancelReason::ByRequester => Some(Allowance::Requester),
+        CancelReason::ByOperator => {
+            Some(Allowance::Permission(Permissions::SIGNING_REQUESTS_CANCEL))
+        }
+        CancelReason::RuleChanged => Some(Allowance::Permission(Permissions::SIGNING_RULES_WRITE)),
+        CancelReason::CertificateRevoked => Some(Allowance::Permission(
+            Permissions::SIGNING_CERTIFICATES_REVOKE,
+        )),
+        CancelReason::PayloadChanged | CancelReason::Superseded => None,
+    }
+}
+
+/// The signatures of a cancelled request, which no longer count: each
+/// approval with its signer and certificate.
+pub fn voided_approvals(approvals: &[SigningApprovalRow]) -> Value {
+    Value::from(
+        approvals
+            .iter()
+            .map(|approval| {
+                json!({
+                    "approval_id": approval.id,
+                    "user_id": approval.user_id,
+                    "username": approval.username,
+                    "fingerprint": approval.fingerprint_sha256,
+                })
+            })
+            .collect::<Vec<_>>(),
+    )
+}
+
+/// Cancels a waiting request and stages its SigningRequestCancelled step,
+/// which lists the signatures that no longer count and, for a person's own
+/// cancel, what allowed it. The caller holds the event lock and the
+/// request's row lock.
 pub async fn cancel_request(
     hasura_transaction: &Transaction<'_>,
     request: &SigningRequestRow,
@@ -130,6 +170,21 @@ pub async fn cancel_request(
     )
     .await?
     .ok_or_else(|| anyhow!("signing request {} is not waiting", request.id))?;
+    let approvals = list_signing_approvals(
+        hasura_transaction,
+        cancelled.tenant_id,
+        cancelled.election_event_id,
+        cancelled.id,
+    )
+    .await?;
+    let mut details = json!({
+        "reason": reason.to_string(),
+        "note": note,
+        "voided_approvals": voided_approvals(&approvals),
+    });
+    if let Some(allowance) = cancel_allowance(reason) {
+        details["allowed_by"] = allowed_by(&[allowance]);
+    }
     stage_request_step(
         hasura_transaction,
         &cancelled,
@@ -141,7 +196,7 @@ pub async fn cancel_request(
             cancelled.code,
             cancel_reason_text(reason)
         ),
-        json!({ "reason": reason.to_string(), "note": note }),
+        details,
     )
     .await?;
     Ok(cancelled)
@@ -291,7 +346,9 @@ pub async fn may_sign(
 }
 
 /// Seconds within which a person's repeated step of one kind on a request
-/// is not logged again.
+/// is not logged again: a refused signature or step, a handover, a
+/// certificate file that didn't open. The step is still answered (and an
+/// open failure still counted); only its log entry is left out.
 pub const LOG_THROTTLE_SECONDS: i64 = 10;
 
 /// Whether the caller logged a step of `kind` on the request in the last
@@ -313,6 +370,36 @@ pub async fn throttled(
     )
     .await?
         > 0)
+}
+
+/// Whether a refused step's transaction is committed, to keep its logged
+/// refusal: a forbidden cancel, handover or open-failure report is logged
+/// (as a forbidden signature is). Any other error rolls the step back.
+pub fn refusal_is_logged(error: &SigningError) -> bool {
+    matches!(error, SigningError::Forbidden(_))
+}
+
+/// Logs that the caller may not take `step` on the request, after taking
+/// its locks, and answers `message` as forbidden.
+async fn forbid(
+    hasura_transaction: &Transaction<'_>,
+    caller: &SigningCaller,
+    found: &SigningRequestRow,
+    step: RefusedStep,
+    message: &str,
+) -> SigningResult<SigningError> {
+    let request = relock(hasura_transaction, found).await?;
+    log_step_refusal(
+        hasura_transaction,
+        &request,
+        caller,
+        step,
+        "forbidden",
+        message,
+        None,
+    )
+    .await?;
+    Ok(SigningError::Forbidden(message.into()))
 }
 
 fn require_waiting(request: &SigningRequestRow) -> SigningResult<()> {
@@ -650,9 +737,14 @@ pub async fn cancel(
     {
         CancelReason::ByOperator
     } else {
-        return Err(SigningError::Forbidden(
-            "You can't cancel this signing request.".into(),
-        ));
+        return Err(forbid(
+            hasura_transaction,
+            caller,
+            &found,
+            RefusedStep::Cancel,
+            "You can't cancel this signing request.",
+        )
+        .await?);
     };
     let request = relock(hasura_transaction, &found).await?;
     require_waiting(&request)?;
@@ -678,9 +770,14 @@ pub async fn handover(
 ) -> SigningResult<SigningRequestRow> {
     let found = read_request(hasura_transaction, tenant_id, request_id).await?;
     if !(is_requester(caller, &found) || may_sign(hasura_transaction, caller, &found).await?) {
-        return Err(SigningError::Forbidden(
-            "You can't hand over this signing request.".into(),
-        ));
+        return Err(forbid(
+            hasura_transaction,
+            caller,
+            &found,
+            RefusedStep::Handover,
+            "You can't hand over this signing request.",
+        )
+        .await?);
     }
     let request = relock(hasura_transaction, &found).await?;
     require_waiting(&request)?;
@@ -735,9 +832,14 @@ pub async fn report_open_failure(
 ) -> SigningResult<i32> {
     let found = read_request(hasura_transaction, tenant_id, request_id).await?;
     if !may_sign(hasura_transaction, caller, &found).await? {
-        return Err(SigningError::Forbidden(
-            "You can't sign this signing request.".into(),
-        ));
+        return Err(forbid(
+            hasura_transaction,
+            caller,
+            &found,
+            RefusedStep::OpenFailure,
+            "You can't sign this signing request.",
+        )
+        .await?);
     }
     let request = relock(hasura_transaction, &found).await?;
     require_waiting(&request)?;
@@ -1293,6 +1395,7 @@ pub async fn export_requests(
                 "labels": caller.labels,
                 "status": filter.status,
                 "action": filter.action,
+                "allowed_by": allowed_by_permission(Permissions::SIGNING_REQUESTS_EXPORT),
             }),
         },
     )

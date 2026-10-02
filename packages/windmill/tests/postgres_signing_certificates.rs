@@ -27,6 +27,7 @@ use sequent_core::signing::{
     CrlUnavailablePolicy, RevocationStatus, SignatureAlgorithm, SigningAction, SigningChecks,
     SigningRequestStatus, StaffCertificateRegistration, StaffCertificateStatus,
 };
+use sequent_core::types::permissions::Permissions;
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use signing_pki::{issued, pki_now, rsa_key, Issued, Pki, Spec, Usage, CRL_URL, ROOT_CRL_URL};
@@ -40,8 +41,8 @@ use windmill::postgres::certificate_authority::{
 };
 use windmill::postgres::signing::{
     get_signing_checks, get_signing_request, insert_signing_approval, insert_signing_request,
-    lock_signing_event, NewSigningApproval, NewSigningRequest, SigningRequestRow,
-    StaffCertificateRow,
+    list_signing_approvals, lock_signing_event, NewSigningApproval, NewSigningRequest,
+    SigningRequestRow, StaffCertificateRow,
 };
 use windmill::postgres::signing_certificates::{list_staff_crls, CrlDownload};
 use windmill::services::certificate_authority::parse_certificate_pem;
@@ -63,6 +64,7 @@ use windmill::services::signing::staff_certificates::{
     check_certificate, my_staff_certificates, register_staff_certificate, revoke_registration,
     RegistrationRefusalReason, RevokeOutcome, StaffCertificateRegistrationInput,
 };
+use windmill::services::signing::Allowance;
 use windmill::tasks::refresh_staff_crls::refresh_all_staff_crls;
 
 #[derive(Clone, Copy)]
@@ -212,6 +214,7 @@ async fn trust(tx: &Transaction<'_>, s: Scope) {
         s.event,
         &[pki.root.cert.clone(), pki.individual_ca.cert.clone()],
         &actor("officer"),
+        Allowance::Permission(Permissions::SIGNING_ISSUERS_WRITE),
         now(),
     )
     .await
@@ -610,6 +613,7 @@ async fn issuers_import_as_authorities_only_and_every_change_is_logged() {
             expired_ca.cert.clone(),
         ],
         &actor("officer"),
+        Allowance::Permission(Permissions::SIGNING_ISSUERS_WRITE),
         now(),
     )
     .await
@@ -635,6 +639,7 @@ async fn issuers_import_as_authorities_only_and_every_change_is_logged() {
         s.event,
         &[pki.root.cert.clone()],
         &actor("officer"),
+        Allowance::Permission(Permissions::SIGNING_ISSUERS_WRITE),
         now(),
     )
     .await
@@ -675,6 +680,9 @@ async fn issuers_import_as_authorities_only_and_every_change_is_logged() {
         fingerprint.as_str()
     );
     assert_eq!(details[1]["change"], "removed");
+    for entry in &details {
+        assert_eq!(entry["allowed_by"], json!(["signing-issuers-write"]));
+    }
     tx.rollback().await.unwrap();
 }
 
@@ -755,6 +763,9 @@ async fn checks_save_on_their_revision_and_log_what_changed() {
     let details = outbox_details(&tx, s, "SigningChecksChanged").await;
     assert_eq!(details[0]["before"]["registration"], "on-first-use");
     assert_eq!(details[0]["after"]["registration"], "security-officer-only");
+    for entry in &details {
+        assert_eq!(entry["allowed_by"], json!(["signing-checks-write"]));
+    }
     tx.rollback().await.unwrap();
 }
 
@@ -840,6 +851,11 @@ async fn first_use_registers_the_signer_and_binds_key_and_holder_tenant_wide() {
     assert_eq!(
         details[0]["certificate"]["fingerprint"],
         json!(row.fingerprint_sha256)
+    );
+    // First use registers it as signing the request allows.
+    assert_eq!(
+        details[0]["allowed_by"],
+        json!([close_a.action.sign_permission().to_string()])
     );
 
     // Bob can't use her certificate or a reissue of her key, here or in
@@ -1044,6 +1060,12 @@ async fn a_security_officer_links_a_persons_certificate_to_their_second_account_
     let details = outbox_details(&tx, s, "SigningCertificateRegistered").await;
     assert_eq!(details[1]["linked_to"], "maria");
     assert_eq!(details[1]["registration"], "security-officer");
+    for entry in &details {
+        assert_eq!(
+            entry["allowed_by"],
+            json!(["signing-certificates-register"])
+        );
+    }
     tx.rollback().await.unwrap();
 }
 
@@ -1217,7 +1239,28 @@ async fn a_revocation_is_of_the_key_everywhere_and_cancels_what_it_signed() {
     let mut expected = vec![here.id, there.id];
     expected.sort();
     assert_eq!(cancelled, expected);
-    for (scope, request) in [(s, &here), (other, &there)] {
+    for (scope, request, signed) in [(s, &here, &row), (other, &there, &reissue)] {
+        // Its signature no longer counts; the revocation names what allowed it.
+        let approvals = list_signing_approvals(&tx, scope.tenant, scope.event, request.id)
+            .await
+            .unwrap();
+        let cancelled = outbox_details(&tx, scope, "SigningRequestCancelled").await;
+        assert_eq!(
+            cancelled.last().unwrap()["voided_approvals"],
+            json!([{
+                "approval_id": approvals[0].id,
+                "user_id": "maria",
+                "username": signed.username,
+                "fingerprint": signed.fingerprint_sha256,
+            }])
+        );
+        assert_eq!(
+            outbox_details(&tx, scope, "SigningCertificateRevoked")
+                .await
+                .last()
+                .unwrap()["allowed_by"],
+            json!(["signing-certificates-revoke"])
+        );
         let row = get_signing_request(&tx, scope.tenant, scope.event, request.id)
             .await
             .unwrap()
@@ -1321,6 +1364,7 @@ async fn revocation_lists_refresh_and_never_roll_back() {
         s.event,
         &[pki.root.cert.clone(), pki.individual_ca.cert.clone()],
         &actor("officer"),
+        Allowance::Permission(Permissions::SIGNING_ISSUERS_WRITE),
         now(),
     )
     .await
@@ -1448,6 +1492,7 @@ async fn an_unavailable_list_is_refused_or_accepted_unchecked_per_the_event() {
         s.event,
         &[pki.individual_ca.cert.clone()],
         &actor("officer"),
+        Allowance::Permission(Permissions::SIGNING_ISSUERS_WRITE),
         now(),
     )
     .await
@@ -1490,6 +1535,7 @@ async fn committed_scope(client: &mut Client, seed: u32) -> (Scope, SigningReque
         s.event,
         &[pki.root.cert.clone(), pki.individual_ca.cert.clone()],
         &actor("officer"),
+        Allowance::Permission(Permissions::SIGNING_ISSUERS_WRITE),
         now(),
     )
     .await
@@ -1785,6 +1831,7 @@ async fn staff_issuers_export_for_events_with_any_uuid() {
         event_id,
         &[pki.root.cert.clone(), pki.individual_ca.cert.clone()],
         &actor("officer"),
+        Allowance::Permission(Permissions::SIGNING_ISSUERS_WRITE),
         now(),
     )
     .await

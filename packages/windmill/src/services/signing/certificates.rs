@@ -22,6 +22,7 @@ use crate::postgres::signing::{
     StaffCertificateRow,
 };
 use crate::postgres::signing_certificates::{list_staff_crls, posts_signed_by_key};
+use crate::services::signing::allowed_by_permission;
 use crate::services::signing::crl::{distribution_points, list_scope, ListScope};
 use crate::services::signing::directory::{KeycloakUserDirectory, UserDirectory};
 use crate::services::signing::log::{stage, Actor, LogScope, LogStep, SystemOutcome};
@@ -1204,6 +1205,7 @@ pub async fn register_first_use(
                 "username": row.username,
                 "registration": row.registration,
                 "post_election_id": row.election_id,
+                "allowed_by": allowed_by_permission(request.action.sign_permission()),
             }),
         },
     )

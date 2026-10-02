@@ -105,6 +105,7 @@ use crate::services::protocol_manager::{
 use crate::services::signing::certificates::parse_chain;
 use crate::services::signing::issuers::{import_staff_issuers, SYSTEM_ACTOR};
 use crate::services::signing::log::Actor;
+use crate::services::signing::Allowance;
 use crate::tasks::import_election_event::ImportElectionEventBody;
 use crate::types::documents::EDocuments;
 use regex::Regex;
@@ -1549,6 +1550,7 @@ pub async fn process_document(
                             user_id: SYSTEM_ACTOR.to_owned(),
                             username: SYSTEM_ACTOR.to_owned(),
                         },
+                        Allowance::ElectionEventImport,
                         Utc::now(),
                     )
                     .await

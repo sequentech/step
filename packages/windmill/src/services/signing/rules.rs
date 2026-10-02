@@ -21,7 +21,10 @@ use super::guard::effective_rule;
 use super::log::{stage, LogStep, SystemOutcome};
 use super::requests::cancel_request;
 use super::signers::{groups_by_id, list_signers, list_signing_groups, GroupChange, SigningGroup};
-use super::{action_title, log_scope, InvalidReason, SigningCaller, SigningError, SigningResult};
+use super::{
+    action_title, allowed_by_permission, log_scope, InvalidReason, SigningCaller, SigningError,
+    SigningResult,
+};
 use crate::postgres::signing::*;
 use crate::services::election::is_election_event_locked_down_in;
 use anyhow::{anyhow, Context, Result};
@@ -515,6 +518,7 @@ pub async fn save_rule(
         let details = json!({
             "action": action.to_string(),
             "permission": permission,
+            "allowed_by": allowed_by_permission(Permissions::ROLE_WRITE),
             "added": added.iter().map(|g| json!({"id": g.id, "name": g.name, "path": g.path})).collect::<Vec<_>>(),
             "removed": removed.iter().map(|g| json!({"id": g.id, "name": g.name, "path": g.path})).collect::<Vec<_>>(),
         });
@@ -594,6 +598,7 @@ pub async fn save_rule(
                 "old": old,
                 "new": saved.rule,
                 "cancelled": cancelled,
+                "allowed_by": allowed_by_permission(Permissions::SIGNING_RULES_WRITE),
             }),
         },
     )

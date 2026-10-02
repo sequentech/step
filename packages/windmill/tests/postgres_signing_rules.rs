@@ -17,6 +17,7 @@ use sequent_core::signing::{
     CancelReason, RequesterSigning, SigningAction, SigningRequestStatus, SigningRequirement,
 };
 use sequent_core::types::permissions::Permissions;
+use serde_json::json;
 use signing::*;
 use std::sync::Mutex;
 use uuid::Uuid;
@@ -523,6 +524,20 @@ async fn steps_in(tx: &Transaction<'_>, event: Uuid) -> Vec<(String, String)> {
     .collect()
 }
 
+/// The details of the USER entries of `kind` in `event`, in order.
+async fn details_in(tx: &Transaction<'_>, event: Uuid, kind: &str) -> Vec<serde_json::Value> {
+    tx.query(
+        "SELECT body->'details' FROM sequent_backend.signing_log_outbox
+         WHERE election_event_id = $1 AND statement_kind = $2 AND entry = 0 ORDER BY id",
+        &[&event, &kind],
+    )
+    .await
+    .unwrap()
+    .into_iter()
+    .map(|row| row.get(0))
+    .collect()
+}
+
 fn reason(result: Result<impl std::fmt::Debug, SigningError>) -> InvalidReason {
     match result {
         Err(SigningError::Invalid { reason, .. }) => reason,
@@ -645,6 +660,10 @@ async fn a_rule_save_is_checked_against_the_posts_and_cancels_waiting_requests()
                 "SigningRuleChanged"
             ]
         );
+        // Each change names the permission that allowed it.
+        for details in details_in(&htx, w.event, "SigningRuleChanged").await {
+            assert_eq!(details["allowed_by"], json!(["signing-rules-write"]));
+        }
         let rules = list_rules(&htx, w.tenant, w.event).await.unwrap();
         assert_eq!(rules.len(), 10);
         let close = rules.iter().find(|r| r.rule.action == ACTION).unwrap();
@@ -852,6 +871,16 @@ async fn changing_who_signs_is_checked_logged_everywhere_and_sent_to_keycloak_la
         assert_eq!(
             description,
             "Changed who can sign close voting: added auditors; removed none"
+        );
+        let htx = hasura.transaction().await.unwrap();
+        for event in [w.event, other_event] {
+            let details = details_in(&htx, event, "SigningPermissionChanged").await;
+            assert_eq!(details.len(), 1, "{event}");
+            assert_eq!(details[0]["allowed_by"], json!(["role-write"]));
+        }
+        assert_eq!(
+            details_in(&htx, w.event, "SigningRuleChanged").await[0]["allowed_by"],
+            json!(["signing-rules-write"])
         );
     }
 }

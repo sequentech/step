@@ -46,6 +46,7 @@ use windmill::services::signing::staff_certificates::{
     revoke_registration, RegistrationRefusalReason, RegistrationRefused,
     RevokeOutcome, StaffCertificateRegistrationInput, MAX_REVOKE_REASON_CHARS,
 };
+use windmill::services::signing::Allowance;
 
 type RouteResult<T> = SigningResult<Json<T>>;
 
@@ -134,6 +135,7 @@ pub async fn import_signing_issuers(
         input.election_event_id,
         &certificates,
         &actor(&claims),
+        Allowance::Permission(Permissions::SIGNING_ISSUERS_WRITE),
         Utc::now(),
     )
     .await

@@ -19,6 +19,7 @@ use sequent_core::signing::{
     CertificateCheckId, RequesterSigning, SigningAction, SigningRequestStatus,
     StaffCertificateRegistration,
 };
+use sequent_core::types::permissions::Permissions;
 use serde_json::json;
 use signing::*;
 use signing_pki::{Issued, Pki, CRL_URL, ROOT_CRL_URL};
@@ -35,7 +36,9 @@ use windmill::services::signing::directory::UserDirectory;
 use windmill::services::signing::executors::SigningExecutorRegistry;
 use windmill::services::signing::issuers::import_staff_issuers;
 use windmill::services::signing::log::Actor;
-use windmill::services::signing::{InvalidReason, SigningCaller, SigningError, SigningResult};
+use windmill::services::signing::{
+    Allowance, InvalidReason, SigningCaller, SigningError, SigningResult,
+};
 
 const ACTION: SigningAction = SigningAction::CloseVoting;
 
@@ -85,6 +88,7 @@ async fn trust(w: &World) {
         w.event,
         &[pki.root.cert.clone(), pki.individual_ca.cert.clone()],
         &actor,
+        Allowance::Permission(Permissions::SIGNING_ISSUERS_WRITE),
         at(0),
     )
     .await

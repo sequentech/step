@@ -24,6 +24,7 @@ use serde_json::json;
 use signing::*;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
+use strum::IntoEnumIterator;
 use uuid::Uuid;
 use windmill::postgres::signing::*;
 use windmill::services::signing::executors::{
@@ -136,6 +137,8 @@ async fn the_last_signature_runs_the_action_once_and_none_before_it() {
         ]);
         expected.push("SigningRequestCompleted".into());
         expected.push("SigningActionExecuted".into());
+        // The late signature is refused and logged.
+        expected.push("SigningSignatureRefused".into());
         assert_eq!(w.steps().await, expected, "{label}");
         w.assert_two_entries_per_step().await;
         let described: Vec<String> = w.outbox().await.into_iter().map(|row| row.5).collect();
@@ -147,6 +150,26 @@ async fn the_last_signature_runs_the_action_once_and_none_before_it() {
             "Signature verified on {code}: {required} of {required}"
         )));
         assert!(described.contains(&format!("Ran Close voting for signing request {code}")));
+        // Every signature entry lists the checks it passed; without a
+        // document there is no document signature.
+        for (_, details) in w.entries("SigningRequestSigned").await {
+            let checks: Vec<(String, bool)> = details["checks"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|check| {
+                    (
+                        check["id"].as_str().unwrap().to_string(),
+                        check["ok"].as_bool().unwrap(),
+                    )
+                })
+                .collect();
+            let expected: Vec<(String, bool)> = CertificateCheckId::iter()
+                .map(|id| (id.to_string(), true))
+                .collect();
+            assert_eq!(checks, expected, "{label}");
+            assert_eq!(details["document_signature"], json!(null), "{label}");
+        }
     }
 }
 
@@ -272,6 +295,24 @@ async fn expired_and_cancelled_requests_refuse_signatures_and_theirs_do_not_carr
         .steps()
         .await
         .contains(&"SigningRequestCancelled".to_string()));
+    // Both refused signatures are logged and committed.
+    assert_eq!(refusal_checks(&w).await, ["expired", "not-waiting"]);
+    // The cancel names what allowed it and the signature that no longer
+    // counts.
+    let approval = &w.approvals(again.id).await[0];
+    let cancelled = w.entries("SigningRequestCancelled").await;
+    assert_eq!(cancelled.len(), 1);
+    assert_eq!(cancelled[0].0.as_deref(), Some("operator"));
+    assert_eq!(cancelled[0].1["allowed_by"], json!(["requester"]));
+    assert_eq!(
+        cancelled[0].1["voided_approvals"],
+        json!([{
+            "approval_id": approval.id,
+            "user_id": "sbei-0",
+            "username": "sbei-0-name",
+            "fingerprint": signers[0].1.identity.fingerprint_sha256,
+        }])
+    );
 }
 
 #[tokio::test]
@@ -1043,6 +1084,8 @@ async fn a_document_signature_goes_only_with_its_kind_of_action() {
             })
         ));
     }
+    // Refused and logged, once within the throttle.
+    assert_eq!(refusal_checks(&w).await, ["document"]);
 
     // A PDF action fails closed while nothing takes PDF signatures.
     let reports = SigningAction::GenerateReports;
@@ -1092,6 +1135,76 @@ async fn a_document_signature_goes_only_with_its_kind_of_action() {
         })
     ));
     assert!(w.approvals(pdf.id).await.is_empty());
+    assert_eq!(refusal_checks(&w).await, ["document", "document"]);
+    w.assert_two_entries_per_step().await;
+}
+
+/// What a signature of a document's own kind logs of it: the EML
+/// signature itself, or the CMS's SHA-256 and the revision it signs.
+#[tokio::test]
+async fn a_signature_entry_carries_the_document_signature() {
+    let w = world("madrid-pe").await;
+    for (action, field, expected) in [
+        (
+            SigningAction::TransmitResults,
+            "eml_sha256",
+            json!({"kind": "eml", "signature": "AQ=="}),
+        ),
+        (
+            SigningAction::GenerateReports,
+            "document_sha256",
+            json!({
+                "kind": "pdf",
+                // SHA-256 of the one byte 0x01 the fixture signs with.
+                "cms_sha256": "4bf5122f344554c53bde2ebb8cd2b7e3d1600ad631c385a5d7cce23c7785459a",
+                "revision": 1,
+            }),
+        ),
+    ] {
+        w.rule(action, 2, RequesterSigning::NotAllowed, None).await;
+        let user = format!("signer-{action}");
+        let certificate = cert(&user, &user, &user);
+        w.register(&user, &certificate, None).await;
+        let services = services_taking_documents(FakeVerifier::knowing(&[&certificate]), vec![]);
+        let mut subject = serde_json::Map::new();
+        subject.insert(field.to_string(), json!(sha(&user)));
+        let started = w
+            .guard_request(
+                &caller("operator", &[], &[]),
+                &windmill::services::signing::guard::GuardRequest {
+                    action,
+                    scope: w.scope(action),
+                    subject: serde_json::Value::Object(subject),
+                    document: Some(windmill::services::signing::guard::SigningDocument {
+                        document_id: None,
+                        sha256: sha(&user),
+                    }),
+                    config_revision: None,
+                },
+                at(0),
+            )
+            .await
+            .unwrap();
+        let windmill::services::signing::guard::GuardOutcome::SigningRequired(started) = started
+        else {
+            panic!("{started:?}")
+        };
+        w.sign(
+            &services,
+            &w.signer(&user, action),
+            started.id,
+            &certificate,
+            at(1),
+        )
+        .await
+        .unwrap();
+        let signed = w.entries("SigningRequestSigned").await;
+        assert_eq!(
+            signed.last().unwrap().1["document_signature"],
+            expected,
+            "{action}"
+        );
+    }
 }
 
 #[tokio::test]
@@ -1136,6 +1249,25 @@ async fn a_revoked_certificate_of_a_counted_signature_cancels_the_request() {
     assert_eq!(
         w.steps().await.last().map(String::as_str),
         Some("SigningRequestCancelled")
+    );
+    // The officer who revoked the key cancelled it, not the signer who
+    // found it revoked; the revoked signature no longer counts.
+    let approval = &w.approvals(request.id).await[0];
+    let cancelled = w.entries("SigningRequestCancelled").await;
+    assert_eq!(cancelled.len(), 1);
+    assert_eq!(cancelled[0].0.as_deref(), Some("officer"));
+    assert_eq!(
+        cancelled[0].1["voided_approvals"],
+        json!([{
+            "approval_id": approval.id,
+            "user_id": "sbei-0",
+            "username": "sbei-0-name",
+            "fingerprint": signers[0].1.identity.fingerprint_sha256,
+        }])
+    );
+    assert_eq!(
+        w.request(request.id).await.cancelled_by.as_deref(),
+        Some("officer")
     );
     w.assert_two_entries_per_step().await;
 }

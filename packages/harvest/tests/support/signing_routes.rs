@@ -220,11 +220,15 @@ async fn a_missing_permission_is_forbidden() {
         assert_eq!(status, Status::Forbidden, "{path}: {body}");
         assert_eq!(body["extensions"]["code"], "forbidden", "{path}");
     }
-    // The two sign attempts are logged as refusals; nothing else is.
+    // Refused steps on the request are logged and committed: the two sign
+    // attempts and the starter's cancel. The stranger's handover and open
+    // failure, and Jose's cancel, come within the throttle of their own
+    // refusals. Reads are not logged.
     assert_eq!(
         steps(&services.hasura, &event).await,
         [
             "SigningRequestCreated",
+            "SigningSignatureRefused",
             "SigningSignatureRefused",
             "SigningSignatureRefused"
         ]
