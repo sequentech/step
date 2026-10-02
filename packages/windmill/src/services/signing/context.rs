@@ -20,7 +20,22 @@ use std::fmt;
 use strum_macros::Display;
 use uuid::Uuid;
 
-/// The signed-in person a signing step is taken by, as their token says.
+/// Which Posts a caller reaches: the Posts whose requests they start, read,
+/// export and cancel.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PostReach {
+    /// A person, by the labels of their token, as Hasura shows them Posts:
+    /// an unlabelled Post, and a labelled one whose label they hold. A
+    /// person without labels reaches only unlabelled Posts.
+    Labels,
+    /// The system, starting a request nobody started by hand (the tally's
+    /// reports, a scheduled report): every Post. It holds no permission,
+    /// so it never signs, reads or cancels.
+    AllPosts,
+}
+
+/// Who a signing step is taken by: a signed-in person, as their token says,
+/// or the system ([`SigningCaller::system`]).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SigningCaller {
     pub user_id: String,
@@ -29,11 +44,12 @@ pub struct SigningCaller {
     pub display_name: String,
     /// The Keycloak roles (permissions) the token carries.
     pub roles: HashSet<String>,
-    /// The `permission_labels` of the token; none means every Post.
+    /// The `permission_labels` of the token.
     pub labels: Vec<String>,
     pub auth_time: Option<DateTime<Utc>>,
     /// The trustee name of a trustee's token.
     pub trustee: Option<String>,
+    pub reach: PostReach,
 }
 
 impl SigningCaller {
@@ -69,6 +85,23 @@ impl SigningCaller {
                 .auth_time
                 .and_then(|seconds| DateTime::<Utc>::from_timestamp(seconds, 0)),
             trustee: claims.trustee.clone(),
+            reach: PostReach::Labels,
+        }
+    }
+
+    /// The system as the requester of a request nobody started by hand,
+    /// named `name` in the log: it reaches every Post and holds no
+    /// permission.
+    pub fn system(name: &str) -> Self {
+        SigningCaller {
+            user_id: name.into(),
+            username: name.into(),
+            display_name: name.into(),
+            roles: HashSet::new(),
+            labels: vec![],
+            auth_time: None,
+            trustee: None,
+            reach: PostReach::AllPosts,
         }
     }
 
@@ -83,14 +116,13 @@ impl SigningCaller {
         self.roles.contains(&permission.to_string())
     }
 
-    /// Whether the caller may start, read or cancel requests of a Post with
-    /// `label`: an unlabeled Post is everybody's, and a caller without labels
-    /// (such as the tally, which starts its reports' requests) acts on every
-    /// Post.
+    /// Whether the caller may start, read, export or cancel requests of a
+    /// Post with `label` ([`PostReach`]): a labelled Post is hidden from a
+    /// person without its label, as everywhere on the platform.
     pub fn reaches(&self, label: Option<&str>) -> bool {
-        match label {
-            None => true,
-            Some(label) => self.labels.is_empty() || self.labels.iter().any(|own| own == label),
+        match (self.reach, label) {
+            (PostReach::AllPosts, _) | (PostReach::Labels, None) => true,
+            (PostReach::Labels, Some(label)) => self.labels.iter().any(|own| own == label),
         }
     }
 

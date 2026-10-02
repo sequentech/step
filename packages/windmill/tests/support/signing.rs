@@ -40,7 +40,7 @@ use windmill::services::signing::guard::{
     guard_at, GuardOutcome, GuardRequest, RequestScope, SigningRequestSummary,
 };
 use windmill::services::signing::requests::{SigningExportStore, StoredExport};
-use windmill::services::signing::{SigningCaller, SigningResult};
+use windmill::services::signing::{PostReach, SigningCaller, SigningResult};
 
 pub fn sha(text: &str) -> String {
     hex::encode(Sha256::digest(text.as_bytes()))
@@ -405,6 +405,7 @@ pub fn caller(user: &str, roles: &[Permissions], labels: &[&str]) -> SigningCall
         labels: labels.iter().map(|label| label.to_string()).collect(),
         auth_time: Some(at(0)),
         trustee: None,
+        reach: PostReach::Labels,
     }
 }
 

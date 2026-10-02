@@ -345,8 +345,10 @@ async fn allowed_steps_commit_and_a_finished_request_takes_no_more() {
         (Status::NotFound, &json!("not-found"))
     );
 
+    // The request's Post is labelled: the auditor holds its label.
     let auditor = Claims::new(&event.tenant_id, "auditor")
-        .roles([Permissions::SIGNING_REQUESTS_EXPORT]);
+        .roles([Permissions::SIGNING_REQUESTS_EXPORT])
+        .permission_labels(&[LABEL]);
     let (status, export) = json(
         post(
             &client,
@@ -390,6 +392,20 @@ async fn allowed_steps_commit_and_a_finished_request_takes_no_more() {
             "SigningRequestsExported"
         ]
     );
+    // Without the Post's label, the export holds none of its requests.
+    let unlabelled = Claims::new(&event.tenant_id, "auditor")
+        .roles([Permissions::SIGNING_REQUESTS_EXPORT]);
+    let (status, export) = json(
+        post(
+            &client,
+            "/signing-requests/export",
+            &unlabelled,
+            &json!({"election_event_id": event.election_event_id}),
+        )
+        .await,
+    )
+    .await;
+    assert_eq!((status, &export["rows"]), (Status::Ok, &json!(0)));
 }
 
 #[test]

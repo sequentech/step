@@ -19,5 +19,5 @@ pub mod signers;
 pub mod staff_certificates;
 
 pub use context::{
-    action_title, log_scope, InvalidReason, SigningCaller, SigningError, SigningResult,
+    action_title, log_scope, InvalidReason, PostReach, SigningCaller, SigningError, SigningResult,
 };

@@ -337,6 +337,11 @@ async fn the_panel_shows_who_signed_with_which_certificate_and_who_is_next() {
                 ),
                 false,
             ),
+            // Without labels, no labelled Post is theirs.
+            (
+                caller("reader", &[Permissions::SIGNING_REQUESTS_READ], &[]),
+                false,
+            ),
             (
                 caller("signer", &[ACTION.sign_permission()], &["another-post"]),
                 false,
@@ -451,6 +456,13 @@ async fn cancel_handover_and_open_failures_are_logged_for_who_may_take_them() {
     })
     .await;
     assert!(matches!(result, Err(SigningError::Forbidden(_))));
+    // Nor can an operator without the Post's label.
+    let unlabelled = caller("ofov", &[Permissions::SIGNING_REQUESTS_CANCEL], &[]);
+    let result = in_tx(&w, |tx| {
+        Box::pin(async move { cancel(tx, &unlabelled, tenant, id, None).await })
+    })
+    .await;
+    assert!(matches!(result, Err(SigningError::Forbidden(_))));
     let operator = caller(
         "ofov",
         &[Permissions::SIGNING_REQUESTS_CANCEL],
@@ -532,11 +544,29 @@ async fn the_export_holds_the_requests_of_the_readers_posts_and_logs_its_hash() 
     let mut in_tokyo = returns(&w, "er-tokyo", None);
     in_tokyo.scope.election_id = Some(tokyo);
     let tokyo_request = summary(w.guard_request(&maria, &in_tokyo, at(0)).await.unwrap());
+    // A Post without a label is everybody's.
+    let open = Uuid::new_v4();
+    client
+        .execute(
+            "INSERT INTO sequent_backend.election (id, tenant_id, election_event_id, presentation)
+             VALUES ($1, $2, $3, $4)",
+            &[&open, &w.tenant, &w.event, &post_presentation("Post open")],
+        )
+        .await
+        .unwrap();
+    let mut in_open = returns(&w, "er-open", None);
+    in_open.scope.election_id = Some(open);
+    let open_request = summary(w.guard_request(&maria, &in_open, at(0)).await.unwrap());
 
     for (labels, expected) in [
-        (vec!["madrid-pe"], vec![madrid_request.id]),
-        (vec!["tokyo-pe"], vec![tokyo_request.id]),
-        (vec![], vec![madrid_request.id, tokyo_request.id]),
+        (vec!["madrid-pe"], vec![madrid_request.id, open_request.id]),
+        (vec!["tokyo-pe"], vec![tokyo_request.id, open_request.id]),
+        (
+            vec!["madrid-pe", "tokyo-pe"],
+            vec![madrid_request.id, tokyo_request.id, open_request.id],
+        ),
+        // Without labels, a reader sees no labelled Post, as in Hasura.
+        (vec![], vec![open_request.id]),
     ] {
         let auditor = caller("auditor", &[Permissions::SIGNING_REQUESTS_EXPORT], &labels);
         let mut client = w.pool.get().await.unwrap();
@@ -580,10 +610,14 @@ async fn the_export_holds_the_requests_of_the_readers_posts_and_logs_its_hash() 
         assert_eq!(logged, export.sha256);
     }
     // Filters: the waiting ones, and none cancelled.
-    let auditor = caller("auditor", &[Permissions::SIGNING_REQUESTS_EXPORT], &[]);
+    let auditor = caller(
+        "auditor",
+        &[Permissions::SIGNING_REQUESTS_EXPORT],
+        &["madrid-pe", "tokyo-pe"],
+    );
     let mut client = w.pool.get().await.unwrap();
     for (status, rows) in [
-        (SigningRequestStatus::Waiting, 2),
+        (SigningRequestStatus::Waiting, 3),
         (SigningRequestStatus::Cancelled, 0),
     ] {
         let tx = client.transaction().await.unwrap();
@@ -639,16 +673,47 @@ fn a_caller_is_read_from_the_token() {
     assert!(!caller.reaches(Some("faculty-of-law")));
     assert!(caller.signs_for(Some("tokyo-pe")) && caller.signs_for(None));
     assert!(!caller.signs_for(Some("faculty-of-law")));
-    // Without labels: a requester like the tally starts requests for every
-    // Post, but signs only for unlabelled ones, the Posts Hasura shows.
+    // Without labels, a person reaches and signs for unlabelled Posts
+    // only, the Posts Hasura shows them.
     let unlabelled = SigningCaller {
         labels: vec![],
         ..caller.clone()
     };
-    assert!(unlabelled.reaches(Some("tokyo-pe")));
+    assert!(!unlabelled.reaches(Some("tokyo-pe")));
+    assert!(unlabelled.reaches(None));
     assert!(!unlabelled.signs_for(Some("tokyo-pe")));
     assert!(unlabelled.signs_for(None));
     assert_eq!(caller.actor().username, "maria.santos");
+}
+
+/// The tally and the scheduled reports start requests with no token: the
+/// system reaches every Post, and holds no permission to sign or read.
+#[tokio::test]
+async fn the_system_requester_starts_requests_for_any_post() {
+    let system = SigningCaller::system("tally");
+    assert!(system.reaches(Some("tokyo-pe")) && system.reaches(None));
+    assert!(system.roles.is_empty() && system.labels.is_empty());
+    assert!(!system.signs_for(Some("tokyo-pe")));
+    assert_eq!(system.actor().username, "tally");
+
+    let w = world("madrid-pe").await;
+    w.rule(ACTION, 2, RequesterSigning::Allowed, None).await;
+    let started = summary(
+        w.guard_request(&system, &returns(&w, "er", None), at(0))
+            .await
+            .unwrap(),
+    );
+    let row = w.request(started.id).await;
+    assert_eq!(row.permission_label.as_deref(), Some("madrid-pe"));
+    assert_eq!(row.requested_by, "tally");
+    // Its own request, for a labelled Post, is cancelled by its requester.
+    let (tenant, id) = (w.tenant, started.id);
+    let cancelled = in_tx(&w, |tx| {
+        Box::pin(async move { cancel(tx, &system, tenant, id, None).await })
+    })
+    .await
+    .unwrap();
+    assert_eq!(cancelled.cancel_reason, Some(CancelReason::ByRequester));
 }
 
 #[test]
@@ -705,7 +770,11 @@ async fn a_cancel_note_is_capped_and_export_cells_never_read_as_formulas() {
         .unwrap()
         .get(0);
     assert_eq!(note.chars().count(), 500);
-    let auditor = caller("auditor", &[Permissions::SIGNING_REQUESTS_EXPORT], &[]);
+    let auditor = caller(
+        "auditor",
+        &[Permissions::SIGNING_REQUESTS_EXPORT],
+        &["madrid-pe"],
+    );
     let mut client = w.pool.get().await.unwrap();
     let tx = client.transaction().await.unwrap();
     let export = export_requests(
