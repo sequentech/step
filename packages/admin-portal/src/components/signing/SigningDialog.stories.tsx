@@ -215,12 +215,11 @@ export const CertificateChosen: Story = {
         await expect(masking()).toBe("disc")
         await userEvent.click(view.getByRole("button", {name: "Show password"}))
         await expect(masking()).toBe("none")
-        await expect(
-            view.getByText(
-                "The file and its password stay on this computer. Only your signature and the public certificate are sent."
-            )
-        ).toBeVisible()
+        // One note says the certificate stays on this computer: the step
+        // repeats it in no other line.
         await expect(view.getByText(LOCAL_NOTE)).toBeVisible()
+        await expect(view.getAllByTestId("LockOutlinedIcon")).toHaveLength(1)
+        await expect(view.queryByText(/stays? on this computer/)).toBeNull()
         await userEvent.click(view.getByRole("button", {name: "Back"}))
         await expect(view.getByRole("checkbox")).toBeChecked()
     },

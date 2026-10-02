@@ -3669,8 +3669,6 @@ const spanishTranslation: TranslationType = {
                     password: "Certificate password",
                     open: "Open certificate",
                     chooseAnother: "Choose another file",
-                    staysLocal:
-                        "The file and its password stay on this computer. Only your signature and the public certificate are sent.",
                 },
                 checks: {
                     "passed": {

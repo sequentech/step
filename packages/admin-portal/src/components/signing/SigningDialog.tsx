@@ -646,12 +646,6 @@ const CertificateStep: React.FC<{
                             },
                         }}
                     />
-                    <Stack direction="row" spacing={1} sx={{alignItems: "flex-start"}}>
-                        <LockOutlinedIcon fontSize="small" color="action" aria-hidden />
-                        <Typography variant="body2" color="text.secondary">
-                            {t("signing.dialog.certificate.staysLocal")}
-                        </Typography>
-                    </Stack>
                     {phase === CertificatePhase.Opening ? (
                         <Stack
                             direction="row"
