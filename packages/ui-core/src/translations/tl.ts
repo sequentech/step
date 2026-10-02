@@ -672,6 +672,10 @@ const tagalogTranslation: TranslationType = {
                     },
                 },
                 package: {
+                    "already-imported": {
+                        lead: "Na-import na",
+                        text: "Na-import na — na-import na dati ang revision {{revision}} ng configuration na ito; mag-import ng mas bagong revision.",
+                    },
                     "approval-invalid": {
                         lead: "Hindi bilang ang pag-apruba",
                         text: "Hindi bilang ang pag-apruba — hindi ma-verify ang pag-apruba ni {{name}}: {{reason}}",
@@ -712,6 +716,14 @@ const tagalogTranslation: TranslationType = {
                         lead: "Hindi petsa at oras",
                         text: "Hindi petsa at oras — hindi petsa at oras ang '{{value}}' sa manifest.",
                     },
+                    "no-importable": {
+                        lead: "Walang maiimport",
+                        text: "Walang maiimport — walang official_election_setup.zip ang package, ang archive na binabasa ng importer.",
+                    },
+                    "report-template-changed": {
+                        lead: "Binago ang template ng report",
+                        text: "Binago ang template ng report — hindi ang inaprubahan ang template ng report na {{report}}: {{actual}} ang digest nito, at {{expected}} ang sinasabi ng naka-sign na configuration.",
+                    },
                     "report-template-missing": {
                         lead: "Nawawala ang template ng report",
                         text: "Nawawala ang template ng report — ginagawa ang report na {{report}} gamit ang template na '{{template}}', na wala sa configuration, kaya hindi ma-sign ang design nito.",
@@ -751,6 +763,10 @@ const tagalogTranslation: TranslationType = {
                     "unreadable-manifest": {
                         lead: "Hindi mabasa ang manifest",
                         text: "Hindi mabasa ang manifest — hindi mabasa ang manifest ng package: {{reason}}",
+                    },
+                    "unreadable-revocation-list": {
+                        lead: "Hindi mabasa ang revocation list",
+                        text: "Hindi mabasa ang revocation list — hindi mabasa ang isang revocation list, kaya hindi ito mailalapat: {{reason}}",
                     },
                     "unreadable-trust": {
                         lead: "Hindi mabasa ang mga trusted certificate",

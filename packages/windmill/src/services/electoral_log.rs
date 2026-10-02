@@ -1034,6 +1034,26 @@ impl ElectoralLog {
         self.post(&message).await
     }
 
+    /// Posts a signed configuration package's import or publication.
+    #[instrument(skip(self))]
+    pub async fn post_configuration_package(
+        &self,
+        event_id: String,
+        details: ConfigurationPackageDetails,
+        user_id: Option<String>,
+        username: Option<String>,
+    ) -> Result<()> {
+        let message = Message::configuration_package_message(
+            EventIdString(event_id),
+            details,
+            &self.sd,
+            user_id,
+            username,
+        )?;
+
+        self.post(&message).await
+    }
+
     #[instrument(skip(self))]
     pub async fn post_election_published(
         &self,

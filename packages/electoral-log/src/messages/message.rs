@@ -452,6 +452,17 @@ impl Message {
         Self::from_body(event, body, sd, user_id, username, None, None, None)
     }
 
+    pub fn configuration_package_message(
+        event: EventIdString,
+        details: ConfigurationPackageDetails,
+        sd: &SigningData,
+        user_id: Option<String>,
+        username: Option<String>,
+    ) -> Result<Self> {
+        let body = StatementBody::ConfigurationPackage(event.clone(), details);
+        Self::from_body(event, body, sd, user_id, username, None, None, None)
+    }
+
     /// One entry of a signing step. The worker that posts the outbox calls
     /// it twice per step: for the USER entry with the person's user id and
     /// username, and for the SYSTEM entry without them. `timestamp` is when

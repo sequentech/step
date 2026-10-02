@@ -49,6 +49,31 @@ pub struct ExecutionAnnotations {
     pub app_hash: String,
     pub executer_username: Option<String>,
     pub results_hash: Option<String>,
+    /// For an event imported from a signed configuration package: its
+    /// revision and manifest digest, which the footer prints beside the
+    /// report and results hashes.
+    #[serde(default)]
+    pub configuration_revision: Option<String>,
+    #[serde(default)]
+    pub configuration_manifest_sha256: Option<String>,
+}
+
+/// The revision and manifest digest of the signed configuration package an
+/// event was imported from, if it was.
+pub async fn configuration_footer(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+) -> Result<Option<(String, String)>> {
+    Ok(crate::postgres::configuration_packages::manifest_of_event(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+    )
+    .await?
+    .map(|(manifest, manifest_sha256)| {
+        (manifest.configuration.revision.to_string(), manifest_sha256)
+    }))
 }
 
 pub fn get_app_hash() -> String {

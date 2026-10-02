@@ -671,6 +671,10 @@ const frenchTranslation: TranslationType = {
                     },
                 },
                 package: {
+                    "already-imported": {
+                        lead: "Déjà importée",
+                        text: "Déjà importée — la révision {{revision}} de cette configuration a déjà été importée ; importez une révision plus récente.",
+                    },
                     "approval-invalid": {
                         lead: "L'approbation ne compte pas",
                         text: "L'approbation ne compte pas — l'approbation de {{name}} n'a pas pu être vérifiée : {{reason}}",
@@ -711,6 +715,14 @@ const frenchTranslation: TranslationType = {
                         lead: "Pas une date et heure",
                         text: "Pas une date et heure — '{{value}}' dans le manifeste n'est pas une date et heure.",
                     },
+                    "no-importable": {
+                        lead: "Rien à importer",
+                        text: "Rien à importer — le paquet ne contient pas official_election_setup.zip, l'archive que lit l'importateur.",
+                    },
+                    "report-template-changed": {
+                        lead: "Modèle de rapport modifié",
+                        text: "Modèle de rapport modifié — le modèle du rapport {{report}} n'est pas celui qui a été approuvé : son empreinte est {{actual}}, et la configuration signée indique {{expected}}.",
+                    },
                     "report-template-missing": {
                         lead: "Modèle de rapport manquant",
                         text: "Modèle de rapport manquant — le rapport {{report}} est produit avec le modèle '{{template}}', qui n'est pas dans la configuration, donc sa conception ne peut pas être signée.",
@@ -750,6 +762,10 @@ const frenchTranslation: TranslationType = {
                     "unreadable-manifest": {
                         lead: "Manifeste illisible",
                         text: "Manifeste illisible — le manifeste du paquet n'a pas pu être lu : {{reason}}",
+                    },
+                    "unreadable-revocation-list": {
+                        lead: "Liste de révocation illisible",
+                        text: "Liste de révocation illisible — une liste de révocation n'a pas pu être lue, donc elle ne peut pas être appliquée : {{reason}}",
                     },
                     "unreadable-trust": {
                         lead: "Certificats de confiance illisibles",

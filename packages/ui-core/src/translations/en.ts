@@ -667,6 +667,10 @@ const englishTranslation = {
                     },
                 },
                 package: {
+                    "already-imported": {
+                        lead: "Already imported",
+                        text: "Already imported — revision {{revision}} of this configuration was imported before; import a newer revision instead.",
+                    },
                     "approval-invalid": {
                         lead: "Approval doesn't count",
                         text: "Approval doesn't count — the approval by {{name}} could not be verified: {{reason}}",
@@ -707,6 +711,14 @@ const englishTranslation = {
                         lead: "Not a time",
                         text: "Not a time — '{{value}}' in the manifest is not a date and time.",
                     },
+                    "no-importable": {
+                        lead: "Nothing to import",
+                        text: "Nothing to import — the package has no official_election_setup.zip, the archive the importer reads.",
+                    },
+                    "report-template-changed": {
+                        lead: "Report template changed",
+                        text: "Report template changed — the {{report}} report's template is not the approved one: its digest is {{actual}}, and the signed configuration says {{expected}}.",
+                    },
                     "report-template-missing": {
                         lead: "Report template missing",
                         text: "Report template missing — the {{report}} report is drawn with template '{{template}}', which isn't in the configuration, so its design can't be signed.",
@@ -746,6 +758,10 @@ const englishTranslation = {
                     "unreadable-manifest": {
                         lead: "Manifest unreadable",
                         text: "Manifest unreadable — the package's manifest could not be read: {{reason}}",
+                    },
+                    "unreadable-revocation-list": {
+                        lead: "Revocation list unreadable",
+                        text: "Revocation list unreadable — a revocation list could not be read, so it can't be applied: {{reason}}",
                     },
                     "unreadable-trust": {
                         lead: "Trusted certificates unreadable",

@@ -667,6 +667,10 @@ const basqueTranslation: TranslationType = {
                     },
                 },
                 package: {
+                    "already-imported": {
+                        lead: "Dagoeneko inportatuta",
+                        text: "Dagoeneko inportatuta — konfigurazio honen {{revision}} berrikuspena lehenago inportatu zen; inportatu berrikuspen berriago bat.",
+                    },
                     "approval-invalid": {
                         lead: "Onarpenak ez du balio",
                         text: "Onarpenak ez du balio — ezin izan da {{name}} pertsonaren onarpena egiaztatu: {{reason}}",
@@ -707,6 +711,14 @@ const basqueTranslation: TranslationType = {
                         lead: "Ez da data eta ordu bat",
                         text: 'Ez da data eta ordu bat — manifestuko "{{value}}" ez da data eta ordu bat.',
                     },
+                    "no-importable": {
+                        lead: "Ez dago inportatzeko ezer",
+                        text: "Ez dago inportatzeko ezer — paketeak ez du official_election_setup.zip, inportatzaileak irakurtzen duen artxiboa.",
+                    },
+                    "report-template-changed": {
+                        lead: "Txostenaren txantiloia aldatu da",
+                        text: "Txostenaren txantiloia aldatu da — {{report}} txostenaren txantiloia ez da onartutakoa: bere laburpena {{actual}} da, eta sinatutako konfigurazioak {{expected}} dio.",
+                    },
                     "report-template-missing": {
                         lead: "Txostenaren txantiloia falta da",
                         text: 'Txostenaren txantiloia falta da — {{report}} txostena "{{template}}" txantiloiarekin sortzen da, eta txantiloi hori ez dago konfigurazioan; beraz, haren diseinua ezin da sinatu.',
@@ -746,6 +758,10 @@ const basqueTranslation: TranslationType = {
                     "unreadable-manifest": {
                         lead: "Manifestua ezin da irakurri",
                         text: "Manifestua ezin da irakurri — ezin izan da paketearen manifestua irakurri: {{reason}}",
+                    },
+                    "unreadable-revocation-list": {
+                        lead: "Baliogabetze-zerrenda ezin da irakurri",
+                        text: "Baliogabetze-zerrenda ezin da irakurri — ezin izan da baliogabetze-zerrenda bat irakurri; beraz, ezin da aplikatu: {{reason}}",
                     },
                     "unreadable-trust": {
                         lead: "Ziurtagiri fidagarriak ezin dira irakurri",

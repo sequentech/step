@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use super::utils::get_public_asset_template;
+use crate::postgres::configuration_packages::manifest_of_event;
 use crate::postgres::reports::{get_template_alias_for_report, Report, ReportType};
 use crate::postgres::signing_report_release::{
     ReleaseEncryption, ReleaseTarget, ReportEmail, ReportRelease,
@@ -33,6 +34,8 @@ use futures::future::join_all;
 use once_cell::sync::Lazy;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use rayon::ThreadPoolBuilder;
+use sequent_core::election_config::archive::Artifact;
+use sequent_core::election_config::manifest::{report_manifest, report_stamp};
 use sequent_core::serialization::deserialize_with_path::{deserialize_str, deserialize_value};
 use sequent_core::services::keycloak::{self, get_event_realm, KeycloakAdminClient};
 use sequent_core::services::{pdf, reports};
@@ -689,6 +692,27 @@ pub trait TemplateRenderer: Debug {
                 anyhow!("Error providing the user template and extra config: {e:?}")
             })?;
 
+        // A report of an event imported from a signed configuration is drawn
+        // only with the template that configuration approved, and names it.
+        let stamp =
+            match manifest_of_event(hasura_transaction, tenant_id, election_event_id).await? {
+                Some((manifest, manifest_sha256)) => Some(
+                    report_stamp(
+                        &manifest,
+                        &manifest_sha256,
+                        &self.get_report_type().to_string(),
+                        &user_tpl_document,
+                    )
+                    .map_err(|problem| {
+                        if let Some(task) = task_execution_ref {
+                            block_on(update_fail(task, &problem.message)).ok();
+                        }
+                        anyhow!(problem.message)
+                    })?,
+                ),
+                None => None,
+            };
+
         let contains_voter_secrets =
             generate_mode == GenerateReportMode::REAL && !declared_secret_names.is_empty();
         let is_real = generate_mode == GenerateReportMode::REAL;
@@ -824,6 +848,19 @@ pub trait TemplateRenderer: Debug {
         } else {
             DocumentAnnotations::default()
         };
+        if let Some(stamp) = &stamp {
+            let bytes = std::fs::read(&final_file_path)
+                .with_context(|| "Error reading the report to hash it")?;
+            let written = report_manifest(
+                &self.get_report_type().to_string(),
+                stamp,
+                &[Artifact {
+                    name: final_report_name.clone(),
+                    bytes,
+                }],
+            );
+            annotations.report_manifest = Some(serde_json::to_value(&written)?);
+        }
 
         // A report whose action needs signatures gets its signature page,
         // and is kept as a signing document only.
