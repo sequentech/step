@@ -1029,8 +1029,34 @@ pub async fn finish_dispatched(
     Ok(true)
 }
 
+/// Who runs a request's action, as its SigningActionExecuted entry names
+/// them (the Logs table): its last signer, by `signed_at`. An action runs
+/// only once its request has every signature, so there is one; the
+/// requester stands in only for a request without any.
+pub async fn last_signer(
+    hasura_transaction: &Transaction<'_>,
+    request: &SigningRequestRow,
+) -> Result<Actor> {
+    let approvals = list_signing_approvals(
+        hasura_transaction,
+        request.tenant_id,
+        request.election_event_id,
+        request.id,
+    )
+    .await?;
+    Ok(approvals
+        .iter()
+        .max_by_key(|approval| (approval.signed_at, approval.created_at))
+        .map(|approval| Actor {
+            user_id: approval.user_id.clone(),
+            username: approval.username.clone(),
+        })
+        .unwrap_or_else(|| requester(request)))
+}
+
 /// Stages SigningActionExecuted for a request that ran (Info) or failed
-/// (Error), for its requester.
+/// (Error), for its last signer ([`last_signer`]), whether it ran with
+/// that signature or later in a task.
 pub async fn stage_executed(
     hasura_transaction: &Transaction<'_>,
     request: &SigningRequestRow,
@@ -1048,11 +1074,12 @@ pub async fn stage_executed(
             request.code
         ),
     };
+    let user = last_signer(hasura_transaction, request).await?;
     stage_request_step(
         hasura_transaction,
         request,
         SigningStatementKind::SigningActionExecuted,
-        requester(request),
+        user,
         system,
         description,
         json!({ "status": request.status.to_string(), "result": request.execution_result }),

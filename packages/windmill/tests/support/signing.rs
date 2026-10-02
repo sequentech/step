@@ -368,6 +368,25 @@ impl World {
             .collect()
     }
 
+    /// The USER entries of the steps of `kind`: who each names, and its
+    /// details, in order.
+    pub async fn entries(&self, kind: &str) -> Vec<(Option<String>, Value)> {
+        let client = self.pool.get().await.unwrap();
+        client
+            .query(
+                "SELECT user_id, body->'details' FROM sequent_backend.signing_log_outbox
+                 WHERE tenant_id = $1 AND election_event_id = $2 AND statement_kind = $3
+                     AND entry = 0
+                 ORDER BY id",
+                &[&self.tenant, &self.event, &kind],
+            )
+            .await
+            .unwrap()
+            .into_iter()
+            .map(|row| (row.get(0), row.get(1)))
+            .collect()
+    }
+
     /// The kinds of the steps logged, one per step, in order.
     pub async fn steps(&self) -> Vec<String> {
         let rows = self.outbox().await;

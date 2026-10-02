@@ -107,6 +107,11 @@ async fn the_last_signature_runs_the_action_once_and_none_before_it() {
             vec![(request.id, usize::from(required))],
             "{label}"
         );
+        // The Logs table: the action is run by its last signer.
+        let last = &signers.last().unwrap().0;
+        let executed = w.entries("SigningActionExecuted").await;
+        assert_eq!(executed.len(), 1);
+        assert_eq!(executed[0].0.as_deref(), Some(last.user_id.as_str()));
         let row = w.request(request.id).await;
         assert_eq!(row.status, SigningRequestStatus::Executed);
         assert_eq!(row.execution_result, Some(json!({"closed": true})));
@@ -545,6 +550,10 @@ async fn a_failing_executor_fails_the_request_and_keeps_its_signatures() {
                 ("SYSTEM".into(), "ERROR".into())
             ]
         );
+        assert_eq!(
+            w.entries("SigningActionExecuted").await[0].0.as_deref(),
+            Some(signers[1].0.user_id.as_str())
+        );
     }
 }
 
@@ -709,6 +718,10 @@ async fn a_dispatched_execution_is_claimed_once_and_reported_by_its_task() {
     assert_eq!(row.status, SigningRequestStatus::Executed);
     assert_eq!(row.execution_result, Some(json!({"done": 1})));
     assert_eq!(row.execution_attempts, 1);
+    // Reported by the task, still named for the signer who completed it.
+    let executed = w.entries("SigningActionExecuted").await;
+    assert_eq!(executed.len(), 1);
+    assert_eq!(executed[0].0.as_deref(), Some("sbei-0"));
     w.assert_two_entries_per_step().await;
 }
 
@@ -773,6 +786,9 @@ async fn the_sweeper_resends_only_unclaimed_stale_or_failed_executions_a_few_tim
         row.execution_result.unwrap()["error"]["code"],
         "execution-attempts-exhausted"
     );
+    let executed = w.entries("SigningActionExecuted").await;
+    assert_eq!(executed.len(), 1);
+    assert_eq!(executed[0].0.as_deref(), Some("sbei-0"));
     w.assert_two_entries_per_step().await;
 }
 
