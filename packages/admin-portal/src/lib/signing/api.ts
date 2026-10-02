@@ -39,7 +39,7 @@
 // read-only default.
 //
 // Errors: Harvest answers `{"message", "extensions": {"code", "check"?, "status"?}}`
-// (the source of truth is .agents/work/sbei-quorum/api-contract.md); Hasura
+// (the codes below, as harvest's signing routes answer them); Hasura
 // forwards `extensions` into the GraphQL error. The widget reads
 // `extensions.code` first and the HTTP status only when no code is given
 // (kept in extensions.internal.response).
