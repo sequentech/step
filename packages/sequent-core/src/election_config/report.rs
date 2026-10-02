@@ -142,6 +142,18 @@ pub fn parse_output_formats(
 }
 
 impl ReportType {
+    /// Every report type, in the order a screen lists them.
+    pub const ALL: [ReportType; 8] = [
+        ReportType::ELECTORAL_RESULTS,
+        ReportType::PARTICIPATION_REPORT,
+        ReportType::ACTIVITY_LOGS,
+        ReportType::INITIALIZATION_REPORT,
+        ReportType::BALLOT_IMAGES,
+        ReportType::BALLOT_RECEIPT,
+        ReportType::MANUAL_VERIFICATION,
+        ReportType::CREDENTIALS,
+    ];
+
     /// The formats a report of this type can be generated in, the first
     /// being its default: PDF and XML for the election returns, PDF, CSV
     /// and SQL for the activity logs, and PDF for the rest.
@@ -186,6 +198,16 @@ pub enum ReportType {
 mod tests {
     use super::*;
     use std::str::FromStr;
+
+    #[test]
+    fn every_report_type_is_listed_once() {
+        let names: std::collections::BTreeSet<String> =
+            ReportType::ALL.iter().map(ToString::to_string).collect();
+        assert_eq!(names.len(), ReportType::ALL.len());
+        for name in &names {
+            assert!(ReportType::from_str(name).is_ok());
+        }
+    }
 
     #[test]
     fn each_report_type_offers_its_formats_default_first() {

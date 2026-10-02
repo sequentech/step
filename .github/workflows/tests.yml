@@ -162,7 +162,7 @@ jobs:
           cargo-build-path: packages/target
           cargo-lock-path: packages/Cargo.lock
           profile: dev
-          features: ${{ matrix.service == 'sequent-core' && 'default_features,keycloak,election_config_xlsx,election_config_templates,election_config_archive' || 'default' }}
+          features: ${{ matrix.service == 'sequent-core' && 'default_features,keycloak,election_config_xlsx,election_config_templates,election_config_archive,election_config_signing' || 'default' }}
 
       - name: Check CLI automation and voter CSV contracts
         if: matrix.service == 'step-cli'
