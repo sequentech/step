@@ -5,8 +5,9 @@
 //! table files without a running Hasura. The portal queries as the Hasura
 //! role named after one permission, so a role reads the signing tables only
 //! through the permission for its part of the Signatures tab, or, for a
-//! signer, the requests of the action they sign; always with the tenant
-//! filter, and only for the user's Posts. Every write goes through Harvest.
+//! signer, the requests of the action they sign and their own certificate
+//! registrations; always with the tenant filter, and only for the user's
+//! Posts or rows. Every write goes through Harvest.
 
 use sequent_core::signing::{CertificateAuthorityPurpose, SigningAction};
 use serde_json::{json, Value};
@@ -198,7 +199,9 @@ fn each_signer_reads_the_requests_of_their_action() {
         .clone();
     for action in SigningAction::iter() {
         let role = action.sign_permission().to_string();
-        let readable = selectable(&tables, &role);
+        let mut readable = selectable(&tables, &role);
+        // Their own registrations: see the next test.
+        readable.remove("staff_certificate");
         if action.is_trustee() {
             assert!(readable.is_empty(), "{role} reads {readable:?}");
             continue;
@@ -234,9 +237,58 @@ fn each_signer_reads_the_requests_of_their_action() {
     }
 }
 
+/// What a signer reads of their own certificate registrations: which
+/// certificate, for which Post, until when and whether it is revoked;
+/// never the certificate itself, its key hashes nor who registered it.
+const OWN_CERTIFICATE_COLUMNS: [&str; 15] = [
+    "id",
+    "tenant_id",
+    "election_event_id",
+    "user_id",
+    "username",
+    "election_id",
+    "fingerprint_sha256",
+    "serial",
+    "subject",
+    "issuer",
+    "not_before",
+    "not_after",
+    "status",
+    "registration",
+    "registered_at",
+];
+
+/// Every signer, trustees included, reads their own certificate
+/// registrations (ticket: "a signer can read their own certificate
+/// registrations"): the Hasura session names the user, so the filter is
+/// theirs whatever their Posts.
+#[test]
+fn each_signer_reads_their_own_certificate_registrations() {
+    let tables = tracked_tables();
+    let own = json!({"_and": [tenant(), {"user_id": {"_eq": "X-Hasura-User-Id"}}]});
+    for action in SigningAction::iter() {
+        let role = action.sign_permission().to_string();
+        let permission =
+            grants(&tables["staff_certificate"], "select_permissions")
+                .remove(&role)
+                .unwrap_or_else(|| {
+                    panic!("{role} can't read its own registrations")
+                });
+        assert_eq!(permission["filter"], own, "{role}");
+        let expected: BTreeSet<String> = OWN_CERTIFICATE_COLUMNS
+            .iter()
+            .map(|column| column.to_string())
+            .collect();
+        assert_eq!(columns(&permission), expected, "{role}");
+        // Their own rows only: nothing to count across people.
+        assert_ne!(permission["allow_aggregations"], json!(true), "{role}");
+    }
+}
+
 /// No other role reads a signing table: not the tab, the write
-/// permissions, a trustee's sign permission, nor the portal's base roles;
-/// a signer reads only requests and their approvals.
+/// permissions, nor the portal's base roles; a signer reads only requests
+/// and their approvals, and their own certificate registrations (a
+/// trustee only these).
 #[test]
 fn no_other_role_reads_the_signing_tables() {
     let tables = tracked_tables();
@@ -250,6 +302,9 @@ fn no_other_role_reads_the_signing_tables() {
         .iter()
         .map(|action| action.sign_permission().to_string())
         .collect();
+    let every_signer: BTreeSet<String> = SigningAction::iter()
+        .map(|action| action.sign_permission().to_string())
+        .collect();
     for name in SIGNING_TABLES {
         let table = tables
             .get(name)
@@ -257,18 +312,27 @@ fn no_other_role_reads_the_signing_tables() {
         for role in grants(table, "select_permissions").keys() {
             let signer_reads = signers.contains(role)
                 && ["signing_request", "signing_approval"].contains(&name);
+            let own_registrations =
+                every_signer.contains(role) && name == "staff_certificate";
             assert!(
-                readers.contains(role.as_str()) || signer_reads,
+                readers.contains(role.as_str())
+                    || signer_reads
+                    || own_registrations,
                 "{role} reads {name}"
             );
         }
+    }
+    for role in ["sign-key-ceremony", "sign-tally-key"] {
+        let signing: Vec<String> = selectable(&tables, role)
+            .into_keys()
+            .filter(|table| SIGNING_TABLES.contains(&table.as_str()))
+            .collect();
+        assert_eq!(signing, ["staff_certificate"], "{role}");
     }
     for role in [
         "election-event-signatures-tab",
         "signing-rules-write",
         "signing-requests-export",
-        "sign-key-ceremony",
-        "sign-tally-key",
         "admin-user",
     ] {
         let signing: Vec<String> = selectable(&tables, role)
