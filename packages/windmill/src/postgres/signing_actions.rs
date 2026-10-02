@@ -13,6 +13,7 @@ use deadpool_postgres::Transaction;
 use sequent_core::signing::SigningRequestStatus;
 use sequent_core::types::hasura::extra::TasksExecutionStatus;
 use serde_json::Value;
+use std::collections::HashMap;
 use tracing::instrument;
 use uuid::Uuid;
 
@@ -139,6 +140,35 @@ pub async fn count_scheduled_events_since(
         .await
         .context("Error counting the scheduled events")?
         .try_get(0)?)
+}
+
+/// What each action's signing rule was before its first change logged
+/// after `since` (every logged change without one): the `old` rule of that
+/// SigningRuleChanged entry, by action id.
+#[instrument(skip(hasura_transaction), err)]
+pub async fn signing_rules_before(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: Uuid,
+    election_event_id: Uuid,
+    since: Option<DateTime<Utc>>,
+) -> Result<HashMap<String, Value>> {
+    Ok(hasura_transaction
+        .query(
+            "SELECT DISTINCT ON (body->'details'->>'action')
+                 body->'details'->>'action', body->'details'->'old'
+             FROM sequent_backend.signing_log_outbox
+             WHERE tenant_id = $1 AND election_event_id = $2
+                 AND statement_kind = 'SigningRuleChanged' AND entry = 0
+                 AND ($3::timestamptz IS NULL OR occurred_at > $3)
+                 AND body->'details' ? 'old'
+             ORDER BY body->'details'->>'action', id",
+            &[&tenant_id, &election_event_id, &since],
+        )
+        .await
+        .context("Error reading the signing rules' changes")?
+        .into_iter()
+        .map(|row| Ok((row.try_get(0)?, row.try_get(1)?)))
+        .collect::<Result<_>>()?)
 }
 
 /// What a voter approval signs about an application.

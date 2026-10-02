@@ -25,14 +25,17 @@ mod signing_actions;
 
 use async_trait::async_trait;
 use deadpool_postgres::Transaction;
+use electoral_log::messages::newtypes::SigningStatementKind;
 use sequent_core::ballot::{VotingStatus, VotingStatusChannel};
 use sequent_core::signing::{CancelReason, RequesterSigning, SigningAction, SigningRequestStatus};
+use sequent_core::signing::{SigningRequirement, SigningRule};
 use sequent_core::types::permissions::Permissions;
 use serde_json::json;
 use signing::*;
 use signing_actions::*;
 use std::sync::Mutex;
 use uuid::Uuid;
+use windmill::postgres::signing::{get_signing_rule, upsert_signing_rule};
 use windmill::services::signing::actions::configuration::{
     cancel_for_new_publication, gate_publication, publication_digest, publish, NO_CHANGES,
 };
@@ -43,6 +46,7 @@ use windmill::services::signing::actions::voter::{
 use windmill::services::signing::actions::voting::scheduled_change_needs_signatures;
 use windmill::services::signing::actions::{EffectProgress, EffectRefused};
 use windmill::services::signing::guard::GuardOutcome;
+use windmill::services::signing::log::{stage, LogScope, LogStep, SystemOutcome};
 use windmill::services::signing::{InvalidReason, SigningCaller, SigningError, SigningResult};
 
 /// Two configurations: a Post label and how many sign.
@@ -426,7 +430,8 @@ async fn a_configuration_version_signs_what_publishing_writes() {
         let id = waiting_id(publication_gate(&w, &who, &current.to_string()).await);
         let request = w.request(id).await;
         assert_eq!(request.election_id, None);
-        assert_eq!(request.config_revision.as_deref(), Some("2"));
+        // Two versions were published (one deleted later): this publishes the third.
+        assert_eq!(request.config_revision.as_deref(), Some("3"));
         let mut client = w.pool.get().await.unwrap();
         let tx = client.transaction().await.unwrap();
         let digest = publication_digest(&tx, w.tenant, w.event, current)
@@ -438,7 +443,8 @@ async fn a_configuration_version_signs_what_publishing_writes() {
             json!({
                 "ballot_publication_id": current.to_string(),
                 "digest": digest,
-                "signing_rules": ["approve-configuration"],
+                // Saved without a change log: what it needs now only.
+                "signing_rules": [format!("approve-configuration={required}")],
                 "scheduled_events": 0,
                 "ballots_and_contests": NO_CHANGES,
             })
@@ -466,6 +472,125 @@ async fn a_configuration_version_signs_what_publishing_writes() {
             invalid(publication_gate(&w, &who, &draft.to_string()).await),
             InvalidReason::Transition
         );
+    }
+}
+
+/// Saves `action`'s rule (`None`: off) and logs the change as the rule
+/// drawer's save does: the rule before and after.
+async fn save_rule(w: &World, action: SigningAction, signatures: Option<u16>) {
+    let mut client = w.pool.get().await.unwrap();
+    let tx = client.transaction().await.unwrap();
+    let current = get_signing_rule(&tx, w.tenant, w.event, action)
+        .await
+        .unwrap();
+    let old = current
+        .as_ref()
+        .map(|row| row.rule.clone())
+        .unwrap_or_else(|| SigningRule::default_for(action));
+    let saved = upsert_signing_rule(
+        &tx,
+        w.tenant,
+        w.event,
+        &SigningRule {
+            action,
+            requirement: match signatures {
+                Some(_) => SigningRequirement::Required,
+                None => SigningRequirement::NotRequired,
+            },
+            signatures: signatures.unwrap_or(1),
+            requester_signing: RequesterSigning::Allowed,
+            expires_minutes: None,
+            revision: 0,
+        },
+        current.map_or(0, |row| row.rule.revision),
+        "configuration-manager",
+        Some("Configuration Manager"),
+    )
+    .await
+    .unwrap()
+    .unwrap();
+    stage(
+        &tx,
+        &LogStep {
+            kind: SigningStatementKind::SigningRuleChanged,
+            user: caller("configuration-manager", &[], &[]).actor(),
+            system: SystemOutcome::Info,
+            scope: LogScope {
+                tenant_id: w.tenant,
+                election_event_id: w.event,
+                election_id: None,
+                area_id: None,
+            },
+            description: format!("Changed the signing rule of {action}"),
+            details: json!({"action": action.to_string(), "old": old, "new": saved.rule}),
+        },
+    )
+    .await
+    .unwrap();
+    tx.commit().await.unwrap();
+}
+
+/// A configuration version signs each signing rule saved since the last
+/// publication with what it needs now and what it needed then, from the
+/// first change logged since (`ACTION=BEFORE>AFTER`, `off` or the
+/// signatures); the version it publishes is the next one, or, for a Post's
+/// publication, the one in force.
+#[tokio::test]
+async fn a_configuration_version_signs_each_rule_before_and_after() {
+    for (label, required) in PRESETS {
+        let w = world(label).await;
+        let who = caller("configuration-manager", &[Permissions::PUBLISH_WRITE], &[]);
+        // Changed before the last publication: not part of this version.
+        save_rule(&w, SigningAction::OpenVoting, Some(5)).await;
+        w.execute(
+            "UPDATE sequent_backend.signing_log_outbox SET occurred_at = now() - interval '2 hours'
+             WHERE tenant_id = $1 AND election_event_id = $2",
+            &[&w.tenant, &w.event],
+        )
+        .await;
+        publication(&w, true, true, None).await;
+        // Since then.
+        save_rule(&w, SigningAction::ApproveConfiguration, Some(required)).await;
+        save_rule(&w, SigningAction::CloseVoting, Some(1)).await;
+        save_rule(&w, SigningAction::CloseVoting, Some(required)).await;
+        save_rule(&w, SigningAction::OpenVoting, Some(2)).await;
+        save_rule(&w, SigningAction::OpenVoting, None).await;
+        // Saved without a change log (e.g. imported).
+        w.rule(
+            SigningAction::TransmitResults,
+            2,
+            RequesterSigning::Allowed,
+            None,
+        )
+        .await;
+
+        let current = publication(&w, false, true, None).await;
+        let request = w
+            .request(waiting_id(
+                publication_gate(&w, &who, &current.to_string()).await,
+            ))
+            .await;
+        assert_eq!(request.config_revision.as_deref(), Some("2"));
+        let mut rules: Vec<String> =
+            serde_json::from_value(request.subject["signing_rules"].clone()).unwrap();
+        rules.sort();
+        assert_eq!(
+            rules,
+            [
+                format!("approve-configuration=off>{required}"),
+                format!("close-voting=off>{required}"),
+                "open-voting=5>off".to_string(),
+                "transmit-results=2".to_string(),
+            ]
+        );
+
+        let post_level = publication(&w, false, true, Some(w.post)).await;
+        let request = w
+            .request(waiting_id(
+                publication_gate(&w, &who, &post_level.to_string()).await,
+            ))
+            .await;
+        assert_eq!(request.config_revision.as_deref(), Some("1"));
     }
 }
 

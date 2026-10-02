@@ -9,10 +9,11 @@
 //! writes (the event, its elections and every ballot style, as the voter
 //! files hold them), recomputed and compared before it publishes. With them
 //! it signs what changed since the last publication of the same target, as
-//! codes the portal words: the signing rules saved since (action ids), the
-//! scheduled events created since, and whether the ballots and contests
-//! changed. One request waits per target (the event, or the Post of an
-//! election-level publication). Generating a new publication cancels the
+//! codes the portal words: the signing rules saved since (each with what it
+//! needed before and needs now), the scheduled events created since, and
+//! whether the ballots and contests changed. Its configuration version is
+//! the one publishing it makes. One request waits per target (the event, or
+//! the Post of an election-level publication). Generating a new publication cancels the
 //! one waiting for its target and the initializations waiting for its Post,
 //! and an event-level one every one waiting (PayloadChanged). The HSM/KMS
 //! signature of the configuration package stays with EMS-MANIFEST.
@@ -27,6 +28,7 @@ use crate::postgres::signing::{
 };
 use crate::postgres::signing_actions::{
     count_published_configuration_versions, count_scheduled_events_since, last_published_at,
+    signing_rules_before,
 };
 use crate::services::ballot_styles::ballot_publication::{
     get_ballot_publication_diff, update_publish_ballot, BallotPublicationValidationError,
@@ -37,7 +39,7 @@ use crate::services::signing::{SigningCaller, SigningError, SigningResult};
 use anyhow::{Context, Result};
 use deadpool_postgres::Transaction;
 use futures::TryStreamExt;
-use sequent_core::signing::{CancelReason, SigningAction};
+use sequent_core::signing::{CancelReason, SigningAction, SigningRequirement, SigningRule};
 use sequent_core::types::hasura::core::BallotPublication;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
@@ -56,7 +58,9 @@ pub struct ConfigurationSubject {
     pub ballot_publication_id: String,
     /// SHA-256 of what publishing writes; see [`publication_digest`].
     pub digest: String,
-    /// The actions whose signing rule was saved since the last publication.
+    /// The signing rules saved since the last publication, each
+    /// `ACTION=BEFORE>AFTER` ([`rule_change`]). Requests started before
+    /// carry the action id alone.
     pub signing_rules: Vec<String>,
     /// The active scheduled events created since the last publication.
     pub scheduled_events: i64,
@@ -183,6 +187,29 @@ pub fn ballots_change(diff: &Value) -> &'static str {
     }
 }
 
+/// A rule's value in a `signing_rules` entry: `off`, or the signatures it needs.
+fn rule_value(rule: &SigningRule) -> String {
+    match rule.requirement {
+        SigningRequirement::NotRequired => "off".to_owned(),
+        SigningRequirement::Required => rule.required().to_string(),
+    }
+}
+
+/// A `signing_rules` entry, which the portal words: `ACTION=BEFORE>AFTER`,
+/// or `ACTION=AFTER` when what it was is unknown (a rule saved without a
+/// logged change, e.g. imported).
+pub fn rule_change(rule: &SigningRule, before: Option<&SigningRule>) -> String {
+    match before {
+        Some(before) => format!(
+            "{}={}>{}",
+            rule.action,
+            rule_value(before),
+            rule_value(rule)
+        ),
+        None => format!("{}={}", rule.action, rule_value(rule)),
+    }
+}
+
 /// The subject of publishing `publication`.
 pub async fn configuration_subject(
     hasura_transaction: &Transaction<'_>,
@@ -207,11 +234,18 @@ pub async fn configuration_subject(
         .map(Uuid::parse_str)
         .transpose()?;
     let since = last_published_at(hasura_transaction, tenant_id, election_event_id, target).await?;
+    let before =
+        signing_rules_before(hasura_transaction, tenant_id, election_event_id, since).await?;
     let signing_rules = list_signing_rules(hasura_transaction, tenant_id, election_event_id)
         .await?
         .into_iter()
         .filter(|row| since.map_or(true, |since| row.updated_at > since))
-        .map(|row| row.rule.action.to_string())
+        .map(|row| {
+            let was = before
+                .get(&row.rule.action.to_string())
+                .and_then(|old| serde_json::from_value::<SigningRule>(old.clone()).ok());
+            rule_change(&row.rule, was.as_ref())
+        })
         .collect();
     let scheduled_events =
         count_scheduled_events_since(hasura_transaction, tenant_id, election_event_id, since)
@@ -276,12 +310,18 @@ pub async fn gate_publication(
                 &publication,
             )
             .await?;
-            let version = count_published_configuration_versions(
+            // The version publishing it makes: an event-level publication
+            // is the next one; a Post's joins the one in force.
+            let published = count_published_configuration_versions(
                 hasura_transaction,
                 tenant_id,
                 election_event_id,
             )
             .await?;
+            let version = match publication.election_id {
+                None => published + 1,
+                Some(_) => published,
+            };
             Ok(GuardRequest {
                 action: SigningAction::ApproveConfiguration,
                 scope: scope(
