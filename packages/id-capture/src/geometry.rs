@@ -246,6 +246,36 @@ impl Quad {
         )
     }
 
+    /// Mean length of the top and bottom sides.
+    pub(crate) fn width(&self) -> f32 {
+        let [top_left, top_right, bottom_right, bottom_left] = self.corners;
+        f32::midpoint(
+            distance(top_left, top_right),
+            distance(bottom_left, bottom_right),
+        )
+    }
+
+    /// Ratio of the longer to the shorter side in the most unequal pair of opposite sides: 1 for
+    /// a rectangle, more the more the quad is seen in perspective.
+    pub(crate) fn keystone(&self) -> f32 {
+        let [top_left, top_right, bottom_right, bottom_left] = self.corners;
+        let ratio = |a: f32, b: f32| {
+            if a.min(b) <= 0.0 {
+                f32::INFINITY
+            } else {
+                a.max(b) / a.min(b)
+            }
+        };
+        ratio(
+            distance(top_left, top_right),
+            distance(bottom_left, bottom_right),
+        )
+        .max(ratio(
+            distance(top_left, bottom_left),
+            distance(top_right, bottom_right),
+        ))
+    }
+
     /// Mean length of the top and bottom sides over the mean length of the left and right sides.
     pub(crate) fn aspect_ratio(&self) -> f32 {
         let [top_left, top_right, bottom_right, bottom_left] = self.corners;
@@ -277,6 +307,17 @@ mod tests {
         assert!(quad.contains([5.0, 5.0]));
         assert!(!quad.contains([11.0, 5.0]));
         assert!(!quad.contains([5.0, -1.0]));
+    }
+
+    #[test]
+    fn keystone_compares_opposite_sides() {
+        assert!((square().keystone() - 1.0).abs() < 1e-6);
+        assert!((square().width() - 10.0).abs() < 1e-6);
+        let trapezoid = Quad {
+            corners: [[2.0, 0.0], [8.0, 0.0], [10.0, 10.0], [0.0, 10.0]],
+        };
+        assert!((trapezoid.keystone() - 10.0 / 6.0).abs() < 1e-5);
+        assert!((trapezoid.width() - 8.0).abs() < 1e-6);
     }
 
     #[test]

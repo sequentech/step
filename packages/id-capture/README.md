@@ -23,15 +23,30 @@ side) and the on-screen guide rectangle:
 - `NO_DOCUMENT`, `TOO_FAR` / `TOO_CLOSE` (card area below half or above 1.3
   times the guide area), `NOT_ALIGNED` (missing side, a corner within 2% of
   the frame border, or the card centre more than 15% of the guide diagonal
-  from the guide centre), `TOO_DARK` / `TOO_BRIGHT` (mean luma in the guide), `GLARE`
+  from the guide centre), `TILTED` (opposite sides differing by more than 15%:
+  the card is seen at an angle and its text distorted), `TOO_DARK` /
+  `TOO_BRIGHT` (mean luma in the guide), `GLARE`
   (largest connected blob of near-white, low-saturation pixels on the card),
   `BLURRY` (variance of the Laplacian over the luma variance on the card),
   then `HOLD_STILL` until the corners stay put for 9 frames and `READY`.
 
 The guide only shows where to hold the document. The whole camera frame is
 uploaded and the OCR service finds the document in it, so the geometry checks
-are loose: they keep the whole document in the frame and large enough, while
-the glare and sharpness checks protect what the OCR reads.
+are loose: they keep the whole document in the frame, large enough and flat to
+the camera, while the glare and sharpness checks protect what the OCR reads.
+
+Those checks run on small frames, where blur and a low camera resolution go
+unnoticed, so `checkStill` checks the full resolution still before it is
+uploaded. It finds the card on the still downscaled like the live frames and
+runs the same checks, since the card may have moved since the last of them.
+Then the card must be at least 480 pixels wide in the still (`TOO_FAR`), or
+85% of the guide width when the camera can't give it that many, and its blur
+effect ([Crété-Roffet et al., 2007][blur-effect]: the share of the edge
+contrast left by a further box blur) at a 480 pixel card width at most 0.45
+(`BLURRY`). Measured at a fixed card width, blur is judged against the size of
+the text whatever the camera resolution, and the blur effect, unlike the
+Laplacian variance, doesn't depend on how much detail the card has. A failed
+still is not uploaded: the page shows its problem and takes another.
 
 `FaceAnalyzer` runs the OpenCV Zoo [YuNet][yunet] face detector
 (`face_detection_yunet_2023mar`, MIT) with [tract][tract] on the frame scaled to
@@ -54,6 +69,7 @@ import init, {DocumentAnalyzer, FaceAnalyzer} from "./capture-wasm/index.js"
 await init({module_or_path: wasmUrl})
 const doc = new DocumentAnalyzer()
 doc.analyze(rgba, width, height, guideX, guideY, guideWidth, guideHeight) // DocumentFrame
+doc.checkStill(rgba, width, height, guideX, guideY, guideWidth, guideHeight) // StillCheck
 const face = new FaceAnalyzer(modelBytes) // throws on an invalid model
 face.analyze(rgba, width, height, ovalCenterX, ovalCenterY, ovalRadiusX, ovalRadiusY) // FaceFrame
 ```
@@ -80,5 +96,6 @@ Tests run natively:
 cd packages && CARGO_TARGET_DIR=$PWD/id-capture/rust-local-target cargo test -p id-capture
 ```
 
+[blur-effect]: https://hal.science/hal-00232709
 [yunet]: https://github.com/opencv/opencv_zoo/tree/main/models/face_detection_yunet
 [tract]: https://github.com/sonos/tract

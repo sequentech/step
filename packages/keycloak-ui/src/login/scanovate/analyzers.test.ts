@@ -87,6 +87,36 @@ function analyzeDocument(analyzers: Analyzers, card: ((guide: Rect) => Rect) | n
     return status
 }
 
+// The still uploaded for the OCR, at the camera's resolution, with the card `scale` times the
+// guide.
+function checkStill(analyzers: Analyzers, video: Size, {blur = 0, scale = 1} = {}) {
+    const overlay = overlayFor(CaptureStep.Front, STAGE, INSETS, StageLayout.Phone)
+    if (overlay.guide === undefined) {
+        throw new Error("The front step has no guide")
+    }
+    const guide = rectToFrame(overlay.guide, STAGE, video, false, video)
+    const context = canvasOf(video)
+    context.filter = blur > 0 ? `blur(${blur}px)` : "none"
+    const width = guide.width * scale
+    const height = guide.height * scale
+    paintCard(context, {
+        x: guide.x + (guide.width - width) / 2,
+        y: guide.y + (guide.height - height) / 2,
+        width,
+        height,
+    })
+    const image = context.getImageData(0, 0, video.width, video.height)
+    return analyzers.document.checkStill(
+        image.data,
+        image.width,
+        image.height,
+        guide.x,
+        guide.y,
+        guide.width,
+        guide.height
+    )
+}
+
 describe("id-capture analyzers on the capture geometry", () => {
     let analyzers: Analyzers
 
@@ -114,6 +144,24 @@ describe("id-capture analyzers on the capture geometry", () => {
 
     it("finds no document in an empty frame", () => {
         expect(analyzeDocument(analyzers, null)).toBe(DocumentStatus.NoDocument)
+    })
+
+    it("lets a sharp still of the card through to the OCR", () => {
+        const still = checkStill(analyzers, VIDEO)
+        expect(still.status).toBe(DocumentStatus.Ready)
+        expect(still.cardWidth).toBeGreaterThan(400)
+    })
+
+    it("holds back a still too blurred for the OCR", () => {
+        expect(checkStill(analyzers, VIDEO, {blur: 6}).status).toBe(DocumentStatus.Blurry)
+    })
+
+    it("asks to come closer when the camera gives too few pixels of the card", () => {
+        const small = {scale: 0.75}
+        expect(checkStill(analyzers, {width: 1080, height: 1920}, small).status).toBe(
+            DocumentStatus.Ready
+        )
+        expect(checkStill(analyzers, VIDEO, small).status).toBe(DocumentStatus.TooFar)
     })
 
     it("finds no face in an empty frame", () => {

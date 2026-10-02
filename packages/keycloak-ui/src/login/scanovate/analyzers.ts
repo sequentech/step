@@ -27,6 +27,10 @@ function documentAnalyzer(analyzer: wasm.DocumentAnalyzer): DocumentAnalyzer {
             const frame = analyzer.analyze(...args)
             return {...frame, status: parseStatus(DocumentStatus, frame.status)}
         },
+        checkStill: (...args) => {
+            const still = analyzer.checkStill(...args)
+            return {...still, status: parseStatus(DocumentStatus, still.status)}
+        },
         reset: () => analyzer.reset(),
         free: () => analyzer.free(),
     }

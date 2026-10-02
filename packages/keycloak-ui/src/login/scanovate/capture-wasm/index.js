@@ -47,6 +47,39 @@ export class DocumentAnalyzer {
         }
     }
     /**
+     * Checks the full resolution RGBA still that is uploaded, against the guide rectangle in its
+     * pixel coordinates. The stillness history is left alone.
+     *
+     * # Errors
+     *
+     * Throws when the buffer does not hold `width * height` RGBA pixels or the guide is invalid.
+     * @param {Uint8Array | Uint8ClampedArray} rgba
+     * @param {number} width
+     * @param {number} height
+     * @param {number} guideX
+     * @param {number} guideY
+     * @param {number} guideWidth
+     * @param {number} guideHeight
+     * @returns {StillCheck}
+     */
+    checkStill(rgba, width, height, guideX, guideY, guideWidth, guideHeight) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            const ptr0 = passArray8ToWasm0(rgba, wasm.__wbindgen_export);
+            const len0 = WASM_VECTOR_LEN;
+            wasm.documentanalyzer_checkStill(retptr, this.__wbg_ptr, ptr0, len0, width, height, guideX, guideY, guideWidth, guideHeight);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+            if (r2) {
+                throw takeObject(r1);
+            }
+            return takeObject(r0);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
      * Analyzer with no history.
      */
     constructor() {

@@ -17,6 +17,7 @@ const DOCUMENT: Record<DocumentStatus, MessageKey> = {
     [DocumentStatus.TooFar]: "scanovateGuideDocumentTooFar",
     [DocumentStatus.TooClose]: "scanovateGuideDocumentTooClose",
     [DocumentStatus.NotAligned]: "scanovateGuideDocumentNotAligned",
+    [DocumentStatus.Tilted]: "scanovateGuideDocumentTilted",
     [DocumentStatus.TooDark]: "scanovateGuideTooDark",
     [DocumentStatus.TooBright]: "scanovateGuideDocumentTooBright",
     [DocumentStatus.Glare]: "scanovateGuideGlare",

@@ -81,7 +81,12 @@ impl Canvas {
 
     /// The default document test background.
     pub(crate) fn background() -> Self {
-        Self::new(WIDTH, HEIGHT, BACKGROUND)
+        Self::background_sized(WIDTH, HEIGHT)
+    }
+
+    /// The document test background at another size, e.g. a full resolution still.
+    pub(crate) fn background_sized(width: usize, height: usize) -> Self {
+        Self::new(width, height, BACKGROUND)
     }
 
     /// Draws a card of `width` pixels (ID-1 aspect) centred at `center`, rotated clockwise by
@@ -100,6 +105,36 @@ impl Canvas {
                         let py = to_f32(y) + dy - center[1];
                         let u = (px * cos + py * sin) / width + 0.5;
                         let v = (-px * sin + py * cos) / height + 0.5;
+                        if (0.0..1.0).contains(&u) && (0.0..1.0).contains(&v) {
+                            total += card_texture(u, v);
+                            covered += 1.0;
+                        }
+                    }
+                }
+                if covered > 0.0 {
+                    let pixel = &mut self.pixels[y * self.width + x];
+                    let old = pixel[0];
+                    let value = (total + old * (4.0 - covered)) / 4.0;
+                    *pixel = [value * 0.97, value, value * 1.03];
+                }
+            }
+        }
+    }
+
+    /// Draws a card seen in perspective, its corners (top-left, top-right, bottom-right,
+    /// bottom-left) at `corners`, with 2x2 supersampling.
+    pub(crate) fn draw_card_quad(&mut self, corners: [Point; 4]) {
+        let to_card = square_from_quad(corners);
+        let (x0, x1) = span(corners.map(|corner| corner[0]), self.width);
+        let (y0, y1) = span(corners.map(|corner| corner[1]), self.height);
+        let samples = [0.25, 0.75];
+        for y in y0..y1 {
+            for x in x0..x1 {
+                let mut total = 0.0;
+                let mut covered = 0.0;
+                for dy in samples {
+                    for dx in samples {
+                        let [u, v] = to_card([to_f32(x) + dx, to_f32(y) + dy]);
                         if (0.0..1.0).contains(&u) && (0.0..1.0).contains(&v) {
                             total += card_texture(u, v);
                             covered += 1.0;
@@ -186,13 +221,51 @@ impl Canvas {
     }
 }
 
+/// Pixel range `start..end` covering `values`, clamped to `0..limit`.
+#[expect(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+fn span(values: [f32; 4], limit: usize) -> (usize, usize) {
+    let min = values.iter().copied().fold(f32::INFINITY, f32::min);
+    let max = values.iter().copied().fold(f32::NEG_INFINITY, f32::max);
+    (
+        (min.floor().max(0.0) as usize).min(limit),
+        (max.ceil().max(0.0) as usize + 1).min(limit),
+    )
+}
+
+/// Maps frame points to card coordinates `[u, v]` (`0..1` on the card) for a card whose corners
+/// lie at `corners`: the inverse of the homography taking the unit square to the quad.
+fn square_from_quad(corners: [Point; 4]) -> impl Fn(Point) -> Point {
+    let [[x0, y0], [x1, y1], [x2, y2], [x3, y3]] = corners;
+    let (dx1, dx2, dx3) = (x1 - x2, x3 - x2, x0 - x1 + x2 - x3);
+    let (dy1, dy2, dy3) = (y1 - y2, y3 - y2, y0 - y1 + y2 - y3);
+    let denominator = dx1 * dy2 - dx2 * dy1;
+    // Forward map: x = (ax u + bx v + cx) / (px u + py v + 1), likewise for y.
+    let px = (dx3 * dy2 - dx2 * dy3) / denominator;
+    let py = (dx1 * dy3 - dx3 * dy1) / denominator;
+    let (ax, bx, cx) = (x1 - x0 + px * x1, x3 - x0 + py * x3, x0);
+    let (ay, by, cy) = (y1 - y0 + px * y1, y3 - y0 + py * y3, y0);
+    // Its inverse, by the adjugate of the 3x3 matrix.
+    move |[x, y]| {
+        let w = (ay * py - by * px) * x + (bx * px - ax * py) * y + (ax * by - bx * ay);
+        [
+            ((by - cy * py) * x + (cx * py - bx) * y + (bx * cy - cx * by)) / w,
+            ((cy * px - ay) * x + (ax - cx * px) * y + (cx * ay - ax * cy)) / w,
+        ]
+    }
+}
+
 /// Guide for the document tests: ID-1 aspect, 75 % of the frame height, centred.
 pub(crate) fn guide() -> Rect {
-    let height = to_f32(HEIGHT) * 0.75;
+    guide_in(WIDTH, HEIGHT)
+}
+
+/// The document test guide for a frame of another size.
+pub(crate) fn guide_in(frame_width: usize, frame_height: usize) -> Rect {
+    let height = to_f32(frame_height) * 0.75;
     let width = height * CARD_ASPECT;
     Rect::new(
-        (to_f32(WIDTH) - width) / 2.0,
-        (to_f32(HEIGHT) - height) / 2.0,
+        (to_f32(frame_width) - width) / 2.0,
+        (to_f32(frame_height) - height) / 2.0,
         width,
         height,
         "guide",

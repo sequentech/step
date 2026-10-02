@@ -4,6 +4,7 @@ export const memory: WebAssembly.Memory;
 export const __wbg_documentanalyzer_free: (a: number, b: number) => void;
 export const __wbg_faceanalyzer_free: (a: number, b: number) => void;
 export const documentanalyzer_analyze: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number) => void;
+export const documentanalyzer_checkStill: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number) => void;
 export const documentanalyzer_new: () => number;
 export const documentanalyzer_reset: (a: number) => void;
 export const faceanalyzer_analyze: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number) => void;

@@ -173,6 +173,38 @@ export const FrontGlare: Story = {
     },
 }
 
+export const FrontTilted: Story = {
+    args: {
+        startAt: CaptureStep.Front,
+        services: fakeServices({document: {statuses: [DocumentStatus.Tilted]}}),
+    },
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await canvas.findByRole("heading", {level: 1, name: "Front of your ID"})
+        await pill(canvasElement, "Hold your ID flat, facing the camera")
+        await expect(canvas.getByRole("button", {name: "Take photo"})).toBeDisabled()
+    },
+}
+
+/** A still too blurred for the OCR isn't kept: the voter is told why and the capture goes on. */
+export const BlurryStillIsRetaken: Story = {
+    args: {
+        startAt: CaptureStep.Front,
+        services: fakeServices({
+            document: {statuses: [DocumentStatus.Ready]},
+            still: {statuses: [DocumentStatus.Blurry, DocumentStatus.Ready]},
+        }),
+    },
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await canvas.findByRole("heading", {level: 1, name: "Front of your ID"})
+        await pill(canvasElement, "Hold steady so your ID is sharp")
+        await expect(
+            await canvas.findByRole("heading", {level: 1, name: "Back of your ID"}, {timeout: 5000})
+        ).toBeVisible()
+    },
+}
+
 const holdingStill = fakeServices({
     document: {statuses: [DocumentStatus.HoldStill], stability: 0.6},
 })

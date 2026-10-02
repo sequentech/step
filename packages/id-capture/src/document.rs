@@ -6,11 +6,14 @@
 //! Each guide side is searched in a band around it for a long, straight edge of consistent
 //! polarity with a restricted Hough transform over near-axis-aligned lines; the four lines are
 //! intersected into the card corners.
+//!
+//! The live frames are downscaled, so before the still is uploaded [`check_still`] runs the same
+//! checks on it, and measures that the OCR gets enough pixels of the card, sharp at that scale.
 
 use serde::Serialize;
 
 use crate::error::CaptureError;
-use crate::frame::{luma, LumaFrame, RGBA_CHANNELS};
+use crate::frame::{frame_dimensions, luma, resample_rgba, LumaFrame, RGBA_CHANNELS};
 use crate::geometry::{distance, to_f32, to_index, PixelRect, Point, Quad, Rect};
 use crate::stability::StillnessTracker;
 
@@ -57,6 +60,9 @@ const MAX_CENTRE_OFFSET: f32 = 0.15;
 const FRAME_MARGIN: f32 = 0.02;
 /// Largest relative difference between the card and the guide aspect ratios.
 const MAX_ASPECT_DEVIATION: f32 = 0.25;
+/// Largest ratio between opposite card sides: past it the card is seen at an angle, and its text
+/// too distorted for the OCR. A card held flat a hand's length from the camera stays below 1.1.
+const MAX_KEYSTONE: f32 = 1.15;
 /// Mean luma in the guide below which the frame is too dark.
 const MIN_BRIGHTNESS: f32 = 0.15;
 /// Mean luma in the guide above which the frame is too bright.
@@ -80,6 +86,20 @@ const STILL_TOLERANCE: f32 = 0.03;
 /// Consecutive frames with a problem that don't restart the stillness count: a hand-held document
 /// in front of a webcam flickers in and out of the checks.
 const MAX_MISSED_FRAMES: usize = 2;
+/// Long side the still is downscaled to for finding the card, the size of the live frames.
+const STILL_ANALYSIS_SIDE: f32 = 480.0;
+/// Card width, in still pixels, the OCR is given, and the card width the still's sharpness is
+/// measured at. Machine readable zone characters are then about 13 pixels tall on an ID-1 card and
+/// 9 on a passport page.
+pub(crate) const STILL_CARD_WIDTH: f32 = 480.0;
+/// Share of the guide width the card must span instead, when the guide is too few still pixels
+/// wide for [`STILL_CARD_WIDTH`]: low resolution cameras need the card closer, but never closer
+/// than the guide.
+const LOW_RESOLUTION_GUIDE_SHARE: f32 = 0.85;
+/// Blur effect of the card at [`STILL_CARD_WIDTH`] above which the still is blurry: a sharp card
+/// measures about 0.25, and 0.45 with a box blur 3 to 4 pixels across, where passport text starts
+/// to merge.
+const MAX_STILL_BLUR: f32 = 0.45;
 
 /// Outcome of a document frame, most important problem first.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
@@ -93,6 +113,8 @@ pub enum DocumentStatus {
     TooClose,
     /// The card is not lined up with the guide.
     NotAligned,
+    /// The card is seen at an angle instead of flat to the camera.
+    Tilted,
     /// The scene is too dark.
     TooDark,
     /// The scene is overexposed.
@@ -168,70 +190,14 @@ impl DocumentAnalyzer {
         height: u32,
         guide: Rect,
     ) -> Result<DocumentFrame, CaptureError> {
-        let luma = LumaFrame::from_rgba(rgba, width, height)?;
-        let guide_pixels = PixelRect::clamped(
-            [guide.x, guide.y],
-            [guide.right(), guide.bottom()],
-            luma.width(),
-            luma.height(),
-        )
-        .ok_or(CaptureError::InvalidGeometry("guide"))?;
-        let brightness = luma.mean(guide_pixels);
-        let gradients = Gradients::sobel(&luma);
-        let min_strength =
-            (RELATIVE_EDGE_STRENGTH * brightness).clamp(MIN_EDGE_STRENGTH, MAX_EDGE_STRENGTH);
-        let edges = [Side::Top, Side::Right, Side::Bottom, Side::Left]
-            .map(|side| find_edge(&gradients, &guide, side, min_strength));
-        let card = match edges {
-            [Some(top), Some(right), Some(bottom), Some(left)] => Some(Quad {
-                corners: [
-                    intersect(&top, &left),
-                    intersect(&top, &right),
-                    intersect(&bottom, &right),
-                    intersect(&bottom, &left),
-                ],
-            }),
-            _ => None,
-        };
-        let region = card.unwrap_or(Quad {
-            corners: guide.corners(),
-        });
-        let inset = region.scaled(CARD_INSET);
-        let (min, max) = inset.bounds();
-        let (sharpness, glare) = PixelRect::clamped(min, max, luma.width(), luma.height()).map_or(
-            (0.0, Glare::default()),
-            |pixels| {
-                (
-                    luma.region_stats(pixels, Some(&inset), SHARPNESS_SCALE)
-                        .sharpness,
-                    Glare::measure(rgba, luma.width(), pixels, &inset),
-                )
-            },
-        );
-        let fill = card.map_or(0.0, |quad| quad.area() / guide.area());
-        let found = edges.iter().flatten().count();
-        let failure = if let Some(quad) = card {
-            quad_failure(&quad, &guide, fill, luma.width(), luma.height())
-        } else if found < 2 {
-            Some(DocumentStatus::NoDocument)
-        } else if overflows_guide(&edges) {
-            Some(DocumentStatus::TooClose)
-        } else {
-            Some(DocumentStatus::NotAligned)
-        }
-        .or({
-            if brightness < MIN_BRIGHTNESS {
-                Some(DocumentStatus::TooDark)
-            } else if brightness > MAX_BRIGHTNESS {
-                Some(DocumentStatus::TooBright)
-            } else if glare.largest_blob > MAX_GLARE_BLOB {
-                Some(DocumentStatus::Glare)
-            } else if sharpness < MIN_SHARPNESS {
-                Some(DocumentStatus::Blurry)
-            } else {
-                None
-            }
-        });
+        let Inspection {
+            failure,
+            card,
+            fill,
+            sharpness,
+            glare,
+            brightness,
+        } = inspect(rgba, width, height, &guide)?;
         let (status, stability) = match (failure, card) {
             (None, Some(quad)) => {
                 let stability = self.stillness.observe(&quad.corners, guide.diagonal());
@@ -261,6 +227,226 @@ impl DocumentAnalyzer {
     }
 }
 
+/// A frame's card, if found, and its checks, before the stillness.
+struct Inspection {
+    /// First problem, if any.
+    failure: Option<DocumentStatus>,
+    /// The card, when all four sides are found.
+    card: Option<Quad>,
+    /// Card area over guide area.
+    fill: f32,
+    /// Normalised sharpness of the card (or the guide).
+    sharpness: f32,
+    /// Blown-out pixels on the card (or the guide).
+    glare: Glare,
+    /// Mean luma inside the guide.
+    brightness: f32,
+}
+
+/// Finds the card around the guide of an RGBA frame and checks it.
+fn inspect(rgba: &[u8], width: u32, height: u32, guide: &Rect) -> Result<Inspection, CaptureError> {
+    let luma = LumaFrame::from_rgba(rgba, width, height)?;
+    let guide_pixels = PixelRect::clamped(
+        [guide.x, guide.y],
+        [guide.right(), guide.bottom()],
+        luma.width(),
+        luma.height(),
+    )
+    .ok_or(CaptureError::InvalidGeometry("guide"))?;
+    let brightness = luma.mean(guide_pixels);
+    let gradients = Gradients::sobel(&luma);
+    let min_strength =
+        (RELATIVE_EDGE_STRENGTH * brightness).clamp(MIN_EDGE_STRENGTH, MAX_EDGE_STRENGTH);
+    let edges = [Side::Top, Side::Right, Side::Bottom, Side::Left]
+        .map(|side| find_edge(&gradients, guide, side, min_strength));
+    let card = match edges {
+        [Some(top), Some(right), Some(bottom), Some(left)] => Some(Quad {
+            corners: [
+                intersect(&top, &left),
+                intersect(&top, &right),
+                intersect(&bottom, &right),
+                intersect(&bottom, &left),
+            ],
+        }),
+        _ => None,
+    };
+    let region = card.unwrap_or(Quad {
+        corners: guide.corners(),
+    });
+    let inset = region.scaled(CARD_INSET);
+    let (min, max) = inset.bounds();
+    let (sharpness, glare) = PixelRect::clamped(min, max, luma.width(), luma.height()).map_or(
+        (0.0, Glare::default()),
+        |pixels| {
+            (
+                luma.region_stats(pixels, Some(&inset), SHARPNESS_SCALE)
+                    .sharpness,
+                Glare::measure(rgba, luma.width(), pixels, &inset),
+            )
+        },
+    );
+    let fill = card.map_or(0.0, |quad| quad.area() / guide.area());
+    let found = edges.iter().flatten().count();
+    let failure = if let Some(quad) = card {
+        quad_failure(&quad, guide, fill, luma.width(), luma.height())
+    } else if found < 2 {
+        Some(DocumentStatus::NoDocument)
+    } else if overflows_guide(&edges) {
+        Some(DocumentStatus::TooClose)
+    } else {
+        Some(DocumentStatus::NotAligned)
+    }
+    .or({
+        if brightness < MIN_BRIGHTNESS {
+            Some(DocumentStatus::TooDark)
+        } else if brightness > MAX_BRIGHTNESS {
+            Some(DocumentStatus::TooBright)
+        } else if glare.largest_blob > MAX_GLARE_BLOB {
+            Some(DocumentStatus::Glare)
+        } else if sharpness < MIN_SHARPNESS {
+            Some(DocumentStatus::Blurry)
+        } else {
+            None
+        }
+    });
+    Ok(Inspection {
+        failure,
+        card,
+        fill,
+        sharpness,
+        glare,
+        brightness,
+    })
+}
+
+/// Check of the full resolution still before it is uploaded.
+#[derive(Clone, Debug, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StillCheck {
+    /// [`DocumentStatus::Ready`] when the still can be uploaded, or its first problem.
+    pub status: DocumentStatus,
+    /// Card corners in still pixels, when all four sides are found.
+    pub corners: Option<[Point; 4]>,
+    /// Mean width of the card's top and bottom sides in still pixels, 0 without a card.
+    pub card_width: f32,
+    /// Blur effect of the card at [`STILL_CARD_WIDTH`], from 0 (sharp) to 1 (blurred); 1 when
+    /// it isn't measured.
+    pub blur: f32,
+}
+
+/// Checks the full resolution RGBA still that is uploaded, against the guide rectangle in its
+/// pixel coordinates.
+///
+/// The card is found and checked as in [`DocumentAnalyzer::analyze`], on the still downscaled
+/// like the live frames, since the card may have moved since the last of them. Then the card must
+/// be at least [`STILL_CARD_WIDTH`] pixels wide, or most of the guide when the camera can't give
+/// that many, and sharp at that width, where blur is measured against the size of its text
+/// whatever the camera resolution.
+///
+/// # Errors
+///
+/// Fails when the buffer does not match the dimensions or the guide is not a positive
+/// rectangle overlapping the still.
+pub fn check_still(
+    rgba: &[u8],
+    width: u32,
+    height: u32,
+    guide: Rect,
+) -> Result<StillCheck, CaptureError> {
+    let (columns, rows) = frame_dimensions(rgba, width, height)?;
+    let factor = (to_f32(columns.max(rows)) / STILL_ANALYSIS_SIDE).max(1.0);
+    let small_columns = to_index((to_f32(columns) / factor).round(), columns).max(1);
+    let small_rows = to_index((to_f32(rows) / factor).round(), rows).max(1);
+    let whole = PixelRect {
+        x0: 0,
+        y0: 0,
+        x1: columns,
+        y1: rows,
+    };
+    let small = resample_rgba(rgba, columns, whole, small_columns, small_rows);
+    let small_guide = Rect::new(
+        guide.x / factor,
+        guide.y / factor,
+        guide.width / factor,
+        guide.height / factor,
+        "guide",
+    )?;
+    let inspection = inspect(
+        &small,
+        u32::try_from(small_columns).map_err(|_| CaptureError::FrameTooLarge)?,
+        u32::try_from(small_rows).map_err(|_| CaptureError::FrameTooLarge)?,
+        &small_guide,
+    )?;
+    let card = inspection.card.map(|quad| Quad {
+        corners: quad
+            .corners
+            .map(|corner| [corner[0] * factor, corner[1] * factor]),
+    });
+    let card_width = card.map_or(0.0, |quad| quad.width());
+    let (status, blur) = match (inspection.failure, card) {
+        (Some(failure), _) => (failure, 1.0),
+        (None, None) => (DocumentStatus::NoDocument, 1.0),
+        (None, Some(_))
+            if card_width < STILL_CARD_WIDTH.min(LOW_RESOLUTION_GUIDE_SHARE * guide.width) =>
+        {
+            (DocumentStatus::TooFar, 1.0)
+        }
+        (None, Some(quad)) => {
+            let blur = card_blur(rgba, columns, rows, &quad);
+            let status = if blur > MAX_STILL_BLUR {
+                DocumentStatus::Blurry
+            } else {
+                DocumentStatus::Ready
+            };
+            (status, blur)
+        }
+    };
+    Ok(StillCheck {
+        status,
+        corners: card.map(|quad| quad.corners),
+        card_width,
+        blur,
+    })
+}
+
+/// Blur effect of a card in an RGBA still, with the card downscaled to [`STILL_CARD_WIDTH`].
+fn card_blur(rgba: &[u8], width: usize, height: usize, quad: &Quad) -> f32 {
+    let inset = quad.scaled(CARD_INSET);
+    let (min, max) = inset.bounds();
+    let Some(window) = PixelRect::clamped(min, max, width, height) else {
+        return 1.0;
+    };
+    let scale = (STILL_CARD_WIDTH / quad.width()).min(1.0);
+    let columns = to_index((to_f32(window.width()) * scale).round(), window.width()).max(1);
+    let rows = to_index((to_f32(window.height()) * scale).round(), window.height()).max(1);
+    let crop = resample_rgba(rgba, width, window, columns, rows);
+    let (scale_x, scale_y) = (
+        to_f32(columns) / to_f32(window.width()),
+        to_f32(rows) / to_f32(window.height()),
+    );
+    let local = Quad {
+        corners: inset.corners.map(|corner| {
+            [
+                (corner[0] - to_f32(window.x0)) * scale_x,
+                (corner[1] - to_f32(window.y0)) * scale_y,
+            ]
+        }),
+    };
+    let (Ok(narrow_columns), Ok(narrow_rows)) = (u32::try_from(columns), u32::try_from(rows))
+    else {
+        return 1.0;
+    };
+    LumaFrame::from_rgba(&crop, narrow_columns, narrow_rows).map_or(1.0, |luma| {
+        let whole = PixelRect {
+            x0: 0,
+            y0: 0,
+            x1: columns,
+            y1: rows,
+        };
+        luma.blur_effect(whole, Some(&local))
+    })
+}
+
 /// Whether the edges found (not all four) show a card larger than the guide: every found edge,
 /// or both edges of an opposite pair, lie outside the guide.
 fn overflows_guide(edges: &[Option<EdgeLine>; 4]) -> bool {
@@ -284,6 +470,9 @@ fn quad_failure(
     let aspect_deviation = (quad.aspect_ratio() / guide_aspect - 1.0).abs();
     if !quad.is_convex() || aspect_deviation > MAX_ASPECT_DEVIATION {
         return Some(DocumentStatus::NotAligned);
+    }
+    if quad.keystone() > MAX_KEYSTONE {
+        return Some(DocumentStatus::Tilted);
     }
     if fill < MIN_FILL {
         return Some(DocumentStatus::TooFar);

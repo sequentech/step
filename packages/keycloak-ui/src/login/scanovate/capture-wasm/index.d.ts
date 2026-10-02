@@ -3,7 +3,7 @@
 
 export type Point = [number, number];
 export type DocumentStatus =
-| "NO_DOCUMENT" | "TOO_FAR" | "TOO_CLOSE" | "NOT_ALIGNED"
+| "NO_DOCUMENT" | "TOO_FAR" | "TOO_CLOSE" | "NOT_ALIGNED" | "TILTED"
 | "TOO_DARK" | "TOO_BRIGHT" | "GLARE" | "BLURRY" | "HOLD_STILL" | "READY";
 export interface DocumentFrame {
     status: DocumentStatus;
@@ -13,6 +13,12 @@ export interface DocumentFrame {
     glare: number;
     brightness: number;
     stability: number;
+}
+export interface StillCheck {
+    status: DocumentStatus;
+    corners: Point[] | null;
+    cardWidth: number;
+    blur: number;
 }
 export type FaceStatus =
 | "NO_FACE" | "MULTIPLE_FACES" | "TOO_FAR" | "TOO_CLOSE" | "OFF_CENTER"
@@ -44,6 +50,15 @@ export class DocumentAnalyzer {
      * Throws when the buffer does not hold `width * height` RGBA pixels or the guide is invalid.
      */
     analyze(rgba: Uint8Array | Uint8ClampedArray, width: number, height: number, guideX: number, guideY: number, guideWidth: number, guideHeight: number): DocumentFrame;
+    /**
+     * Checks the full resolution RGBA still that is uploaded, against the guide rectangle in its
+     * pixel coordinates. The stillness history is left alone.
+     *
+     * # Errors
+     *
+     * Throws when the buffer does not hold `width * height` RGBA pixels or the guide is invalid.
+     */
+    checkStill(rgba: Uint8Array | Uint8ClampedArray, width: number, height: number, guideX: number, guideY: number, guideWidth: number, guideHeight: number): StillCheck;
     /**
      * Analyzer with no history.
      */
@@ -90,6 +105,7 @@ export interface InitOutput {
     readonly __wbg_documentanalyzer_free: (a: number, b: number) => void;
     readonly __wbg_faceanalyzer_free: (a: number, b: number) => void;
     readonly documentanalyzer_analyze: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number) => void;
+    readonly documentanalyzer_checkStill: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number) => void;
     readonly documentanalyzer_new: () => number;
     readonly documentanalyzer_reset: (a: number) => void;
     readonly faceanalyzer_analyze: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number) => void;

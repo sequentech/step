@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use super::*;
-use crate::synthetic::{guide, Canvas, HEIGHT, WIDTH};
+use crate::frame::resample_rgba;
+use crate::synthetic::{guide, guide_in, Canvas, HEIGHT, WIDTH};
 
 fn frame_with_card(scale: f32, shift: Point, degrees: f32) -> Canvas {
     let guide = guide();
@@ -149,6 +150,37 @@ fn slightly_tilted_card_is_found() {
     assert!((tilt - 6.0).abs() < 1.5, "tilt {tilt}");
 }
 
+/// A card filling the guide, seen with its top side `top` times as wide as its bottom one.
+fn keystoned_card(top: f32) -> Canvas {
+    let guide = guide();
+    let [center_x, _] = guide.center();
+    let half_bottom = guide.width / 2.0;
+    let half_top = half_bottom * top;
+    let mut canvas = Canvas::background();
+    canvas.draw_card_quad([
+        [center_x - half_top, guide.y],
+        [center_x + half_top, guide.y],
+        [center_x + half_bottom, guide.bottom()],
+        [center_x - half_bottom, guide.bottom()],
+    ]);
+    canvas
+}
+
+/// A card held at an angle to the camera shows its far side shorter: the OCR reads distorted text.
+#[test]
+fn card_seen_at_an_angle_is_tilted() {
+    let frame = analyze_once(&keystoned_card(0.78));
+    assert_eq!(frame.status, DocumentStatus::Tilted, "{frame:?}");
+    assert!(frame.corners.is_some());
+}
+
+/// A hand-held card is never perfectly flat to the camera, and needn't be.
+#[test]
+fn card_slightly_off_flat_is_ready() {
+    let frame = analyze_until_settled(&keystoned_card(0.93));
+    assert_eq!(frame.status, DocumentStatus::Ready, "{frame:?}");
+}
+
 #[test]
 fn blurred_card_is_blurry() {
     let mut canvas = frame_with_card(1.0, [0.0, 0.0], 0.0);
@@ -280,6 +312,118 @@ fn problems_and_reset_clear_the_stillness() {
         analyze(&mut analyzer, &good).status,
         DocumentStatus::HoldStill
     );
+}
+
+/// A full resolution still of a card filling the guide, `scale` times its width.
+fn still_with_card(width: usize, height: usize, scale: f32) -> (Canvas, Rect) {
+    let guide = guide_in(width, height);
+    let mut canvas = Canvas::background_sized(width, height);
+    canvas.draw_card(guide.center(), guide.width * scale, 0.0);
+    (canvas, guide)
+}
+
+fn check(canvas: &Canvas, guide: Rect) -> StillCheck {
+    check_still(
+        &canvas.rgba(),
+        u32::try_from(canvas.width).unwrap(),
+        u32::try_from(canvas.height).unwrap(),
+        guide,
+    )
+    .unwrap()
+}
+
+#[test]
+fn sharp_still_is_ready() {
+    let (canvas, guide) = still_with_card(1920, 1080, 1.0);
+    let still = check(&canvas, guide);
+    assert_eq!(still.status, DocumentStatus::Ready, "{still:?}");
+    assert!(
+        (still.card_width / guide.width - 1.0).abs() < 0.02,
+        "{still:?}"
+    );
+    for (corner, target) in still.corners.unwrap().iter().zip(guide.corners()) {
+        assert_near(*corner, target, 10.0);
+    }
+    assert!(still.blur <= MAX_STILL_BLUR, "{still:?}");
+}
+
+/// The analysis frame is a quarter of the still: blur that vanishes there still blurs the text
+/// the OCR reads.
+#[test]
+fn still_blurred_at_full_resolution_is_blurry() {
+    let (mut canvas, guide) = still_with_card(1920, 1080, 1.0);
+    canvas.box_blur(4);
+    let rgba = canvas.rgba();
+    let window = PixelRect::clamped([0.0, 0.0], [1920.0, 1080.0], 1920, 1080).unwrap();
+    let preview = resample_rgba(&rgba, 1920, window, WIDTH, HEIGHT);
+    let live = DocumentAnalyzer::new()
+        .analyze(
+            &preview,
+            u32::try_from(WIDTH).unwrap(),
+            u32::try_from(HEIGHT).unwrap(),
+            guide_in(WIDTH, HEIGHT),
+        )
+        .unwrap();
+    assert_eq!(live.status, DocumentStatus::HoldStill, "{live:?}");
+    let still = check(&canvas, guide);
+    assert_eq!(still.status, DocumentStatus::Blurry, "{still:?}");
+}
+
+/// Nor does a hint of softness, that leaves the text readable, block the capture.
+#[test]
+fn slightly_soft_still_is_ready() {
+    let (mut canvas, guide) = still_with_card(1920, 1080, 1.0);
+    canvas.box_blur(2);
+    let still = check(&canvas, guide);
+    assert_eq!(still.status, DocumentStatus::Ready, "{still:?}");
+}
+
+/// A card well inside the guide is captured when the camera gives it enough pixels for the OCR.
+#[test]
+fn smaller_card_in_a_high_resolution_still_is_ready() {
+    let (canvas, guide) = still_with_card(1920, 1080, 0.75);
+    let still = check(&canvas, guide);
+    assert_eq!(still.status, DocumentStatus::Ready, "{still:?}");
+}
+
+/// A low resolution camera gives the same card too few pixels: it has to fill most of the guide.
+#[test]
+fn smaller_card_in_a_low_resolution_still_is_too_far() {
+    let (canvas, guide) = still_with_card(640, 360, 0.75);
+    let still = check(&canvas, guide);
+    assert_eq!(still.status, DocumentStatus::TooFar, "{still:?}");
+    assert!(still.card_width < STILL_CARD_WIDTH, "{still:?}");
+    let (closer, closer_guide) = still_with_card(640, 360, 0.95);
+    assert_eq!(check(&closer, closer_guide).status, DocumentStatus::Ready);
+}
+
+#[test]
+fn still_without_a_card_has_no_document() {
+    let canvas = Canvas::background_sized(1920, 1080);
+    let still = check(&canvas, guide_in(1920, 1080));
+    assert_eq!(still.status, DocumentStatus::NoDocument, "{still:?}");
+    assert_eq!(still.corners, None);
+}
+
+#[test]
+fn still_with_glare_is_glare() {
+    let (mut canvas, guide) = still_with_card(1920, 1080, 1.0);
+    let center = guide.center();
+    canvas.disc([center[0] + 240.0, center[1]], 48.0, [1.0, 1.0, 1.0]);
+    assert_eq!(check(&canvas, guide).status, DocumentStatus::Glare);
+}
+
+#[test]
+fn still_rejects_invalid_input() {
+    assert!(matches!(
+        check_still(&[0; 10], 4, 4, guide()),
+        Err(CaptureError::FrameSizeMismatch { .. })
+    ));
+    let outside = Rect::new(1000.0, 1000.0, 10.0, 10.0, "guide").unwrap();
+    assert!(matches!(
+        check_still(&[0; 64], 4, 4, outside),
+        Err(CaptureError::InvalidGeometry("guide"))
+    ));
 }
 
 #[test]

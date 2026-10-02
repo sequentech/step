@@ -27,6 +27,7 @@ import {
     type CaptureServices,
     type DocumentAnalyzer,
     type DocumentFrame,
+    type StillCheck,
     type FaceAnalyzer,
     type FaceFrame,
 } from "./types"
@@ -50,8 +51,13 @@ function player<Status>(script: Script<Status>) {
     }
 }
 
-export function scriptedDocument(script: Script<DocumentStatus>): DocumentAnalyzer {
+// The stills pass their check unless `still` says otherwise; its statuses play on across resets.
+export function scriptedDocument(
+    script: Script<DocumentStatus>,
+    still: Script<DocumentStatus> = {statuses: [DocumentStatus.Ready]}
+): DocumentAnalyzer {
     const play = player(script)
+    const playStill = player(still)
     return {
         analyze: (): DocumentFrame => {
             const status = play.next()
@@ -65,6 +71,12 @@ export function scriptedDocument(script: Script<DocumentStatus>): DocumentAnalyz
                 stability: status === DocumentStatus.Ready ? 1 : (script.stability ?? 0),
             }
         },
+        checkStill: (): StillCheck => ({
+            status: playStill.next(),
+            corners: null,
+            cardWidth: 1000,
+            blur: 0.25,
+        }),
         reset: () => play.reset(),
         free: () => undefined,
     }
@@ -282,6 +294,7 @@ export function fakeUploads(
 
 export function fakeServices(options: {
     document?: Script<DocumentStatus>
+    still?: Script<DocumentStatus>
     face?: Script<FaceStatus>
     camera?: CameraService
     liveness?: LivenessConnector
@@ -298,7 +311,8 @@ export function fakeServices(options: {
             }
             return {
                 document: scriptedDocument(
-                    options.document ?? {statuses: [DocumentStatus.NoDocument]}
+                    options.document ?? {statuses: [DocumentStatus.NoDocument]},
+                    options.still
                 ),
                 face: scriptedFace(options.face ?? {statuses: [FaceStatus.NoFace]}),
             }

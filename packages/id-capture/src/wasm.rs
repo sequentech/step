@@ -6,7 +6,7 @@
 use serde::Serialize;
 use wasm_bindgen::prelude::{wasm_bindgen, JsError, JsValue};
 
-use crate::document::DocumentAnalyzer;
+use crate::document::{check_still, DocumentAnalyzer};
 use crate::face::{FaceAnalyzer, Oval};
 use crate::geometry::Rect;
 
@@ -14,7 +14,7 @@ use crate::geometry::Rect;
 const TYPESCRIPT_TYPES: &str = r#"
 export type Point = [number, number];
 export type DocumentStatus =
-  | "NO_DOCUMENT" | "TOO_FAR" | "TOO_CLOSE" | "NOT_ALIGNED"
+  | "NO_DOCUMENT" | "TOO_FAR" | "TOO_CLOSE" | "NOT_ALIGNED" | "TILTED"
   | "TOO_DARK" | "TOO_BRIGHT" | "GLARE" | "BLURRY" | "HOLD_STILL" | "READY";
 export interface DocumentFrame {
   status: DocumentStatus;
@@ -24,6 +24,12 @@ export interface DocumentFrame {
   glare: number;
   brightness: number;
   stability: number;
+}
+export interface StillCheck {
+  status: DocumentStatus;
+  corners: Point[] | null;
+  cardWidth: number;
+  blur: number;
 }
 export type FaceStatus =
   | "NO_FACE" | "MULTIPLE_FACES" | "TOO_FAR" | "TOO_CLOSE" | "OFF_CENTER"
@@ -88,6 +94,31 @@ impl JsDocumentAnalyzer {
     ) -> Result<JsValue, JsError> {
         let guide = Rect::new(guide_x, guide_y, guide_width, guide_height, "guide")?;
         to_js(&self.inner.analyze(rgba, width, height, guide)?)
+    }
+
+    /// Checks the full resolution RGBA still that is uploaded, against the guide rectangle in its
+    /// pixel coordinates. The stillness history is left alone.
+    ///
+    /// # Errors
+    ///
+    /// Throws when the buffer does not hold `width * height` RGBA pixels or the guide is invalid.
+    #[wasm_bindgen(js_name = checkStill, unchecked_return_type = "StillCheck")]
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "mirrors the JavaScript API, which passes the frame and geometry as numbers"
+    )]
+    pub fn check_still(
+        &self,
+        #[wasm_bindgen(unchecked_param_type = "Uint8Array | Uint8ClampedArray")] rgba: &[u8],
+        width: u32,
+        height: u32,
+        #[wasm_bindgen(js_name = guideX)] guide_x: f32,
+        #[wasm_bindgen(js_name = guideY)] guide_y: f32,
+        #[wasm_bindgen(js_name = guideWidth)] guide_width: f32,
+        #[wasm_bindgen(js_name = guideHeight)] guide_height: f32,
+    ) -> Result<JsValue, JsError> {
+        let guide = Rect::new(guide_x, guide_y, guide_width, guide_height, "guide")?;
+        to_js(&check_still(rgba, width, height, guide)?)
     }
 
     /// Forgets the stillness history.

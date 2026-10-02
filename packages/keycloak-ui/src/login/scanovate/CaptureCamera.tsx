@@ -20,6 +20,8 @@ import {
     DOCUMENT_ANALYSIS_SIDE,
     FACE_ANALYSIS_SIDE,
     FrameSampler,
+    drawStill,
+    encodeStill,
     grabStill,
     videoSize,
 } from "./frames"
@@ -64,6 +66,9 @@ const ANALYSIS_INTERVAL_MS = 66
 // and, for the back, the voter has not turned the ID over yet.
 const STEP_SETTLE_MS = 900
 const ANNOUNCE_INTERVAL_MS = 3000
+// A document photo that fails its check isn't uploaded: its problem shows this long, while the
+// analysis goes on, before the next one is taken.
+const STILL_PROBLEM_MS = 1500
 const GREEN = "#43e3a1"
 // Room above the oval for the REC badge on larger screens.
 const DESKTOP_REC_SPACE = 60
@@ -217,6 +222,8 @@ export default function CaptureCamera(props: CaptureCameraProps) {
               )
 
     const input = useRef<LoopInput | null>(null)
+    // Takes the document photo the shutter asks for; whether it was taken.
+    const shootDocument = useRef<(() => Promise<boolean>) | null>(null)
     useLayoutEffect(() => {
         input.current = {
             stage,
@@ -260,6 +267,7 @@ export default function CaptureCamera(props: CaptureCameraProps) {
         let armed = step !== CaptureStep.Back
         let tracker = idleVideo
         let documentStatus: DocumentStatus | null = null
+        let stillProblem: {status: DocumentStatus; until: number} | null = null
         let current = WAITING
         analyzers.document.reset()
         analyzers.face.reset()
@@ -279,6 +287,47 @@ export default function CaptureCamera(props: CaptureCameraProps) {
                 busy = false
             }
         }
+        // The live frames are small: the photo itself must show the whole document, sharp and
+        // large enough for the OCR, or it isn't uploaded.
+        const captureDocument = async (): Promise<boolean> => {
+            const state = input.current
+            const size = videoSize(video)
+            const guide = state?.overlay?.guide
+            if (busy || state === null || state.stage === null || !guide || size === null) {
+                return false
+            }
+            busy = true
+            try {
+                const still = drawStill(video)
+                const frame = rectToFrame(guide, state.stage, size, state.mirrored, still)
+                const check = analyzers.document.checkStill(
+                    still.data,
+                    still.width,
+                    still.height,
+                    frame.x,
+                    frame.y,
+                    frame.width,
+                    frame.height
+                )
+                if (check.status !== DocumentStatus.Ready) {
+                    analyzers.document.reset()
+                    stillProblem = {
+                        status: check.status,
+                        until: performance.now() + STILL_PROBLEM_MS,
+                    }
+                    publish({...WAITING, document: check.status})
+                    busy = false
+                    return false
+                }
+                const blob = await encodeStill(still)
+                input.current?.onCaptured(step, blob)
+                return true
+            } catch {
+                busy = false
+                return false
+            }
+        }
+        shootDocument.current = captureDocument
         const analyzeDocument = (guide: Rect, stageSize: Size, size: Size, flip: boolean) => {
             const image = documentSampler.sample(video, DOCUMENT_ANALYSIS_SIDE)
             if (image === null) return null
@@ -331,9 +380,14 @@ export default function CaptureCamera(props: CaptureCameraProps) {
                 const result = analyzeDocument(shape.guide, stageSize, size, flip)
                 if (result === null) return
                 armed ||= !documentGood(result.status)
+                if (stillProblem !== null && now < stillProblem.until) {
+                    publish({...WAITING, document: stillProblem.status})
+                    return
+                }
+                stillProblem = null
                 publish({...WAITING, document: result.status, progress: result.stability})
                 if (result.status === DocumentStatus.Ready && armed && settled && !halted) {
-                    void capture()
+                    void captureDocument()
                 }
                 return
             }
@@ -383,6 +437,7 @@ export default function CaptureCamera(props: CaptureCameraProps) {
         frameId = requestAnimationFrame(loop)
         return () => {
             cancelAnimationFrame(frameId)
+            shootDocument.current = null
             setLive(WAITING)
         }
     }, [stream, step, analyzers, attempt])
@@ -414,6 +469,11 @@ export default function CaptureCamera(props: CaptureCameraProps) {
         const video = videoRef.current
         if (video === null) return
         setPhotoStep(step)
+        if (isDocumentStep(step)) {
+            const taken = (await shootDocument.current?.()) ?? false
+            if (!taken) setPhotoStep(null)
+            return
+        }
         try {
             const blob = await grabStill(video)
             onCaptured(step, blob)

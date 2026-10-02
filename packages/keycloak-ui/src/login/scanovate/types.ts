@@ -12,6 +12,7 @@ export enum DocumentStatus {
     TooFar = "TOO_FAR",
     TooClose = "TOO_CLOSE",
     NotAligned = "NOT_ALIGNED",
+    Tilted = "TILTED",
     TooDark = "TOO_DARK",
     TooBright = "TOO_BRIGHT",
     Glare = "GLARE",
@@ -28,6 +29,14 @@ export interface DocumentFrame {
     glare: number
     brightness: number
     stability: number
+}
+
+// The check of the full resolution still, before it is uploaded for the OCR.
+export interface StillCheck {
+    status: DocumentStatus
+    corners: Point[] | null
+    cardWidth: number
+    blur: number
 }
 
 export enum FaceStatus {
@@ -67,6 +76,15 @@ export interface DocumentAnalyzer {
         guideWidth: number,
         guideHeight: number
     ): DocumentFrame
+    checkStill(
+        rgba: Pixels,
+        width: number,
+        height: number,
+        guideX: number,
+        guideY: number,
+        guideWidth: number,
+        guideHeight: number
+    ): StillCheck
     reset(): void
     free(): void
 }

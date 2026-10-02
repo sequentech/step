@@ -76,7 +76,7 @@ impl StillnessTracker {
     /// survives, or `None` once it's forgotten.
     pub(crate) fn miss(&mut self) -> Option<f32> {
         if self.anchor.is_some() && self.misses < self.max_misses {
-            self.misses += 1;
+            self.misses = self.misses.saturating_add(1);
             Some(self.stability())
         } else {
             self.reset();

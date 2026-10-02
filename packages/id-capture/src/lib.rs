@@ -20,7 +20,7 @@ mod synthetic;
 mod wasm;
 mod yunet;
 
-pub use document::{DocumentAnalyzer, DocumentFrame, DocumentStatus};
+pub use document::{check_still, DocumentAnalyzer, DocumentFrame, DocumentStatus, StillCheck};
 pub use error::CaptureError;
 pub use face::{FaceAnalyzer, FaceFrame, FaceStatus, Oval};
 pub use geometry::{Point, Rect};

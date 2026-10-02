@@ -36,6 +36,7 @@ describe("documentGuidance", () => {
             DocumentStatus.TooFar,
             DocumentStatus.TooClose,
             DocumentStatus.NotAligned,
+            DocumentStatus.Tilted,
             DocumentStatus.TooDark,
             DocumentStatus.TooBright,
             DocumentStatus.Glare,

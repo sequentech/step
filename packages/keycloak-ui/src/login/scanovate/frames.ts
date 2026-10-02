@@ -44,8 +44,8 @@ function encode(canvas: HTMLCanvasElement, quality: number): Promise<Blob> {
     })
 }
 
-/** A JPEG still of the current frame, at most 1920 px long and within the upload limit. */
-export async function grabStill(video: HTMLVideoElement): Promise<Blob> {
+/** The current frame, at most 1920 px long, as it is uploaded. */
+export function drawStill(video: HTMLVideoElement): ImageData {
     const size = videoSize(video)
     if (size === null) {
         throw new Error("The camera has no frame yet")
@@ -54,11 +54,29 @@ export async function grabStill(video: HTMLVideoElement): Promise<Blob> {
     const canvas = document.createElement("canvas")
     canvas.width = width
     canvas.height = height
-    const context = canvas.getContext("2d")
+    const context = canvas.getContext("2d", {willReadFrequently: true})
     if (context === null) {
         throw new Error("Canvas 2D is not available")
     }
     context.drawImage(video, 0, 0, width, height)
+    return context.getImageData(0, 0, width, height)
+}
+
+/** A JPEG of the current frame, at most 1920 px long and within the upload limit. */
+export async function grabStill(video: HTMLVideoElement): Promise<Blob> {
+    return encodeStill(drawStill(video))
+}
+
+/** A JPEG of a still within the upload limit. */
+export async function encodeStill(still: ImageData): Promise<Blob> {
+    const canvas = document.createElement("canvas")
+    canvas.width = still.width
+    canvas.height = still.height
+    const context = canvas.getContext("2d")
+    if (context === null) {
+        throw new Error("Canvas 2D is not available")
+    }
+    context.putImageData(still, 0, 0)
     let blob: Blob | null = null
     for (const quality of STILL_QUALITIES) {
         blob = await encode(canvas, quality)

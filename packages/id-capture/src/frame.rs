@@ -4,10 +4,15 @@
 //! RGBA frame validation, the luma plane and region statistics.
 
 use crate::error::CaptureError;
-use crate::geometry::{to_f32, PixelRect, Quad};
+use crate::geometry::{to_f32, to_index, PixelRect, Quad};
 
 /// Bytes per RGBA pixel.
 pub(crate) const RGBA_CHANNELS: usize = 4;
+
+/// Half width of the box blur the blur effect compares a region with.
+const BLUR_EFFECT_RADIUS: usize = 4;
+/// Luma variation of a region below which it has no edges to judge and counts as blurred.
+const MIN_BLUR_EFFECT_VARIATION: f64 = 1e-6;
 
 /// Floor for the luma variance when normalising the Laplacian variance, so flat regions read as
 /// not sharp instead of dividing by zero.
@@ -39,6 +44,83 @@ pub(crate) fn frame_dimensions(
         });
     }
     Ok((width, height))
+}
+
+/// Area-averaged resampling of the `window` of an RGBA frame `width` pixels wide to
+/// `out_width` x `out_height` pixels, for downscaling: each output pixel averages the source
+/// pixels it covers, weighted by how much of them it covers.
+pub(crate) fn resample_rgba(
+    rgba: &[u8],
+    width: usize,
+    window: PixelRect,
+    out_width: usize,
+    out_height: usize,
+) -> Vec<u8> {
+    let columns = coverage(window.x0, window.width(), out_width);
+    let rows = coverage(window.y0, window.height(), out_height);
+    let line = out_width.saturating_mul(RGBA_CHANNELS);
+    let mut horizontal = Vec::with_capacity(window.height().saturating_mul(line));
+    for row in rgba
+        .chunks_exact(width.saturating_mul(RGBA_CHANNELS))
+        .skip(window.y0)
+        .take(window.height())
+    {
+        for weights in &columns {
+            let mut sum = [0.0_f32; RGBA_CHANNELS];
+            for &(x, weight) in weights {
+                let start = x.saturating_mul(RGBA_CHANNELS);
+                if let Some(pixel) = row.get(start..start.saturating_add(RGBA_CHANNELS)) {
+                    for (total, &value) in sum.iter_mut().zip(pixel) {
+                        *total += weight * f32::from(value);
+                    }
+                }
+            }
+            horizontal.extend_from_slice(&sum);
+        }
+    }
+    let mut resampled = Vec::with_capacity(out_height.saturating_mul(line));
+    for weights in &rows {
+        let mut sum = vec![0.0_f32; line];
+        for &(y, weight) in weights {
+            let start = y.saturating_sub(window.y0).saturating_mul(line);
+            if let Some(source) = horizontal.get(start..start.saturating_add(line)) {
+                for (total, &value) in sum.iter_mut().zip(source) {
+                    *total += weight * value;
+                }
+            }
+        }
+        resampled.extend(sum.into_iter().map(to_byte));
+    }
+    resampled
+}
+
+/// For each of `count` output pixels spread over `size` source pixels from `start`, the source
+/// pixels it covers with the share of the output pixel each one takes.
+fn coverage(start: usize, size: usize, count: usize) -> Vec<Vec<(usize, f32)>> {
+    let step = to_f32(size) / to_f32(count.max(1));
+    (0..count)
+        .map(|index| {
+            let from = to_f32(index) * step;
+            let to = from + step;
+            (to_index(from.floor(), size)..to_index(to.ceil(), size))
+                .filter_map(|pixel| {
+                    let left = to_f32(pixel);
+                    let overlap = to.min(left + 1.0) - from.max(left);
+                    (overlap > 0.0).then(|| (start.saturating_add(pixel), overlap / step))
+                })
+                .collect()
+        })
+        .collect()
+}
+
+/// Rounds a channel value to a byte.
+#[expect(
+    clippy::cast_possible_truncation,
+    clippy::cast_sign_loss,
+    reason = "the value is clamped to 0..=255 before the conversion"
+)]
+fn to_byte(value: f32) -> u8 {
+    value.round().clamp(0.0, 255.0) as u8
 }
 
 /// Rec. 601 luma of an RGB pixel, in `0..=1`.
@@ -199,6 +281,81 @@ impl LumaFrame {
             sharpness: narrow(sharpness),
         }
     }
+
+    /// Blur of `rect`, restricted to `quad` when given, from 0 (sharp) to 1 (blurred).
+    ///
+    /// This is the blur effect of Crété-Roffet et al. (2007): the share of the luma variation
+    /// between neighbouring pixels that survives a further box blur, along rows and along columns,
+    /// whichever is blurrier, and 1 for a region without edges. A sharp region loses most of its
+    /// variation, a blurred one little.
+    /// Unlike the Laplacian variance it doesn't depend on how much detail the region has, only
+    /// on how crisp its edges are.
+    pub(crate) fn blur_effect(&self, rect: PixelRect, quad: Option<&Quad>) -> f32 {
+        let window = BLUR_EFFECT_RADIUS.saturating_mul(2).saturating_add(1);
+        let inside =
+            |x: usize, y: usize| quad.is_none_or(|quad| quad.contains([to_f32(x), to_f32(y)]));
+        let at = |x: usize, y: usize| {
+            y.checked_mul(self.width)
+                .and_then(|row| row.checked_add(x))
+                .and_then(|index| self.pixels.get(index))
+                .copied()
+        };
+        // A direction without edges, such as across stripes, has nothing to judge.
+        let mut blurs = [None; 2];
+        for (blur, along_rows) in blurs.iter_mut().zip([true, false]) {
+            let mut variation = 0.0_f64;
+            let mut lost = 0.0_f64;
+            for y in rect.y0..rect.y1 {
+                for x in rect.x0..rect.x1 {
+                    let (position, limit) = if along_rows {
+                        (x, self.width)
+                    } else {
+                        (y, self.height)
+                    };
+                    if position <= BLUR_EFFECT_RADIUS
+                        || position.saturating_add(BLUR_EFFECT_RADIUS) >= limit
+                        || !inside(x, y)
+                    {
+                        continue;
+                    }
+                    let step = |offset: usize, back: usize| {
+                        let shifted = |delta: usize, forward: bool| {
+                            let moved = if forward {
+                                position.checked_add(delta)
+                            } else {
+                                position.checked_sub(delta)
+                            }?;
+                            if along_rows {
+                                at(moved, y)
+                            } else {
+                                at(x, moved)
+                            }
+                        };
+                        Some((shifted(offset, true)?, shifted(back, false)?))
+                    };
+                    // |f(p) - f(p - 1)| and the same difference of the box blurred plane, which
+                    // slides from f(p - r - 1) to f(p + r).
+                    let (Some((current, previous)), Some((entering, leaving))) =
+                        (step(0, 1), step(BLUR_EFFECT_RADIUS, BLUR_EFFECT_RADIUS + 1))
+                    else {
+                        continue;
+                    };
+                    let sharp = f64::from((current - previous).abs());
+                    let blurred = f64::from((entering - leaving).abs())
+                        / f64::from(u32::try_from(window).unwrap_or(1));
+                    variation += sharp;
+                    lost += (sharp - blurred).max(0.0);
+                }
+            }
+            *blur =
+                (variation >= MIN_BLUR_EFFECT_VARIATION).then(|| (variation - lost) / variation);
+        }
+        blurs
+            .into_iter()
+            .flatten()
+            .reduce(f64::max)
+            .map_or(1.0, narrow)
+    }
 }
 
 /// Narrows a statistic computed in `f64` back to `f32`.
@@ -223,6 +380,40 @@ mod tests {
             }
         }
         rgba
+    }
+
+    #[test]
+    fn resampling_averages_the_covered_pixels() {
+        let rgba = gray(4, 2, |x, _| if x < 2 { 0 } else { 200 });
+        let all = PixelRect::clamped([0.0, 0.0], [4.0, 2.0], 4, 2).unwrap();
+        assert_eq!(
+            resample_rgba(&rgba, 4, all, 2, 1),
+            [0, 0, 0, 255, 200, 200, 200, 255]
+        );
+        let thirds = resample_rgba(&rgba, 4, all, 3, 1);
+        assert_eq!(thirds.get(4..8), Some([100, 100, 100, 255].as_slice()));
+        let right = PixelRect::clamped([2.0, 0.0], [4.0, 2.0], 4, 2).unwrap();
+        assert_eq!(resample_rgba(&rgba, 4, right, 1, 1), [200, 200, 200, 255]);
+    }
+
+    #[test]
+    fn blur_effect_tells_crisp_edges_from_soft_ones() {
+        let rect = PixelRect::clamped([0.0, 0.0], [40.0, 40.0], 40, 40).unwrap();
+        let blur = |rgba: &[u8]| {
+            LumaFrame::from_rgba(rgba, 40, 40)
+                .unwrap()
+                .blur_effect(rect, None)
+        };
+        let stripes = gray(40, 40, |x, _| if (x / 6) % 2 == 0 { 40 } else { 200 });
+        let soft = gray(40, 40, |x, _| {
+            let phase = f32::from(u8::try_from(x % 30).unwrap()) / 30.0;
+            let wave = (phase * std::f32::consts::TAU).sin();
+            u8::try_from(to_index(120.0 + 80.0 * wave, 255)).unwrap()
+        });
+        let flat = gray(40, 40, |_, _| 128);
+        assert!(blur(&stripes) < 0.3, "{}", blur(&stripes));
+        assert!(blur(&soft) > 0.5, "{}", blur(&soft));
+        assert!((blur(&flat) - 1.0).abs() < f32::EPSILON);
     }
 
     #[test]
