@@ -727,6 +727,29 @@ fn an_older_or_replayed_revision_is_a_rollback() {
 }
 
 #[test]
+fn a_signing_certificate_is_checked_before_it_is_used() {
+    let world = world();
+    let trust = trust(&world);
+    let identity = verify_signing_certificate(
+        &world.key.chain_pem,
+        &trust.package_roots,
+        &[],
+        "2026-06-15T08:00:00Z",
+    )
+    .unwrap();
+    assert_eq!(identity.subject, "CN=Configuration Signing Key");
+
+    let problem = verify_signing_certificate(
+        &world.manager.chain_pem,
+        &trust.package_roots,
+        &[],
+        "2026-06-15T08:00:00Z",
+    )
+    .unwrap_err();
+    assert_eq!(problem.id.as_deref(), Some("package.untrusted-signer"));
+}
+
+#[test]
 fn trust_settings_that_are_not_pem_are_reported() {
     let problem =
         PackageTrust::from_pem("not a certificate", "", &[], 2).unwrap_err();
