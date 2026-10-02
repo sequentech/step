@@ -465,6 +465,16 @@ const frenchTranslation: TranslationType = {
                         text: "Aucune archive importable — ce zip contient un plan mais pas l'archive que le Portail d'administration importe, donc le registre et les fichiers qu'il nomme n'y sont pas.",
                     },
                 },
+                design: {
+                    "no-stable-key": {
+                        lead: "Conception de bulletin sans clé",
+                        text: "Conception de bulletin sans clé — {{kind}} {{id}} n'a ni nom ni identifiant externe, donc ses conceptions de bulletin ne peuvent pas être reconnues après une importation.",
+                    },
+                    "unreadable-style": {
+                        lead: "Style de bulletin illisible",
+                        text: "Style de bulletin illisible — le style de bulletin de la plateforme n'a pas pu être lu pour calculer l'empreinte de sa conception : {{reason}}",
+                    },
+                },
                 election: {
                     "channels-differ": {
                         lead: "L'élection et l'événement divergent",
@@ -658,6 +668,108 @@ const frenchTranslation: TranslationType = {
                     "no-seed": {
                         lead: "Mots de passe sans graine",
                         text: "Mots de passe sans graine — c'est la graine qui fait qu'une nouvelle génération produit les mêmes mots de passe plutôt que de nouveaux.",
+                    },
+                },
+                package: {
+                    "approval-invalid": {
+                        lead: "L'approbation ne compte pas",
+                        text: "L'approbation ne compte pas — l'approbation de {{name}} n'a pas pu être vérifiée : {{reason}}",
+                    },
+                    "approval-repeated": {
+                        lead: "Approuvé deux fois par la même personne",
+                        text: "Approuvé deux fois par la même personne — {{name}} a approuvé plus d'une fois, et ne compte qu'une fois.",
+                    },
+                    "approver-key-usage": {
+                        lead: "L'approbateur ne peut pas signer",
+                        text: "L'approbateur ne peut pas signer — le certificat d'un approbateur n'est pas fait pour signer.",
+                    },
+                    "bad-signature": {
+                        lead: "La signature ne correspond pas",
+                        text: "La signature ne correspond pas — la signature du paquet ne se vérifie pas, donc il a été modifié après la signature ou signé par une autre clé : {{reason}}",
+                    },
+                    "content-digest": {
+                        lead: "L'empreinte du contenu ne correspond pas",
+                        text: "L'empreinte du contenu ne correspond pas — le manifeste indique {{expected}} et son contenu donne {{actual}}.",
+                    },
+                    "duplicate-member": {
+                        lead: "Nom de fichier utilisé deux fois",
+                        text: "Nom de fichier utilisé deux fois — '{{file}}' apparaît deux fois dans {{archive}}, donc deux lecteurs pourraient prendre des fichiers différents.",
+                    },
+                    "file-changed": {
+                        lead: "Modifié après la signature",
+                        text: "Modifié après la signature — {{file}} a le SHA-256 {{actual}}, et le manifeste indique {{expected}}. Rien dans le paquet n'a été lu.",
+                    },
+                    "file-extra": {
+                        lead: "Fichier absent du manifeste",
+                        text: "Fichier absent du manifeste — {{file}} est dans le paquet mais n'a pas été signé. Rien dans le paquet n'a été lu.",
+                    },
+                    "file-missing": {
+                        lead: "Fichier signé manquant",
+                        text: "Fichier signé manquant — {{file}} est dans le manifeste et pas dans le paquet. Rien dans le paquet n'a été lu.",
+                    },
+                    "invalid-time": {
+                        lead: "Pas une date et heure",
+                        text: "Pas une date et heure — '{{value}}' dans le manifeste n'est pas une date et heure.",
+                    },
+                    "revoked-approver": {
+                        lead: "Certificat d'approbateur révoqué",
+                        text: "Certificat d'approbateur révoqué — le certificat d'un approbateur a été révoqué, donc l'approbation ne compte pas.",
+                    },
+                    "revoked-signer": {
+                        lead: "Clé de signature révoquée",
+                        text: "Clé de signature révoquée — la clé qui a signé ce paquet a été révoquée, et ses paquets sont refusés.",
+                    },
+                    "rollback": {
+                        lead: "Pas une révision plus récente",
+                        text: "Pas une révision plus récente — la révision {{revision}} n'est pas plus récente que la révision {{last}}, la dernière importée.",
+                    },
+                    "signer-key-usage": {
+                        lead: "La clé de signature ne peut pas signer",
+                        text: "La clé de signature ne peut pas signer — le certificat de la clé qui a signé ce paquet n'est pas fait pour signer.",
+                    },
+                    "too-few-approvals": {
+                        lead: "Trop peu d'approbations",
+                        text: "Trop peu d'approbations — {{count}} approbations valides de personnes différentes, et il en faut {{required}}.",
+                    },
+                    "unhashable-content": {
+                        lead: "Contenu impossible à hacher",
+                        text: "Contenu impossible à hacher — le contenu de la configuration n'a pas pu être écrit pour être haché : {{reason}}",
+                    },
+                    "unknown-format": {
+                        lead: "Format de manifeste inconnu",
+                        text: "Format de manifeste inconnu — le manifeste est au format '{{format}}', que cette version ne sait pas lire.",
+                    },
+                    "unreadable-chain": {
+                        lead: "Certificats du signataire illisibles",
+                        text: "Certificats du signataire illisibles — la chaîne de certificats du paquet n'a pas pu être lue : {{reason}}",
+                    },
+                    "unreadable-manifest": {
+                        lead: "Manifeste illisible",
+                        text: "Manifeste illisible — le manifeste du paquet n'a pas pu être lu : {{reason}}",
+                    },
+                    "unreadable-trust": {
+                        lead: "Certificats de confiance illisibles",
+                        text: "Certificats de confiance illisibles — le paramètre {{setting}} n'a pas pu être lu : {{reason}}",
+                    },
+                    "unreadable-zip": {
+                        lead: "Archive illisible",
+                        text: "Archive illisible — {{archive}} n'a pas pu être lu comme un zip : {{reason}}",
+                    },
+                    "unsigned": {
+                        lead: "Paquet non signé",
+                        text: "Paquet non signé — il n'a pas de {{missing}}, et cette installation n'importe que des paquets signés.",
+                    },
+                    "untrusted-approver": {
+                        lead: "Approbateur non fiable",
+                        text: "Approbateur non fiable — le certificat d'un approbateur n'est pas de confiance : {{reason}}",
+                    },
+                    "untrusted-signer": {
+                        lead: "Signataire non fiable",
+                        text: "Signataire non fiable — la clé qui a signé ce paquet n'est pas une clé à laquelle cette installation fait confiance : {{reason}}",
+                    },
+                    "unwritable-manifest": {
+                        lead: "Manifeste impossible à écrire",
+                        text: "Manifeste impossible à écrire — le manifeste n'a pas pu être écrit : {{reason}}",
                     },
                 },
                 plan: {

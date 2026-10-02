@@ -465,6 +465,16 @@ const galegoTranslation: TranslationType = {
                         text: "Sen arquivo importable — este zip ten un plan pero non o arquivo que importa o Portal de Administración, así que non contén o censo nin os ficheiros que nomea.",
                     },
                 },
+                design: {
+                    "no-stable-key": {
+                        lead: "Deseño de papeleta sen clave",
+                        text: "Deseño de papeleta sen clave — {{kind}} {{id}} non ten nome nin id externo, así que os seus deseños de papeleta non se poden recoñecer despois dunha importación.",
+                    },
+                    "unreadable-style": {
+                        lead: "Estilo de papeleta ilexible",
+                        text: "Estilo de papeleta ilexible — non se puido ler o estilo de papeleta da plataforma para calcular a pegada do seu deseño: {{reason}}",
+                    },
+                },
                 election: {
                     "channels-differ": {
                         lead: "A elección e o evento non coinciden",
@@ -658,6 +668,108 @@ const galegoTranslation: TranslationType = {
                     "no-seed": {
                         lead: "Contrasinais sen semente",
                         text: "Contrasinais sen semente — a semente é o que fai que unha reconstrución produza os mesmos contrasinais en vez de novos.",
+                    },
+                },
+                package: {
+                    "approval-invalid": {
+                        lead: "A aprobación non conta",
+                        text: "A aprobación non conta — non se puido verificar a aprobación de {{name}}: {{reason}}",
+                    },
+                    "approval-repeated": {
+                        lead: "A mesma persoa aprobou dúas veces",
+                        text: "A mesma persoa aprobou dúas veces — {{name}} aprobou máis dunha vez, e conta unha soa vez.",
+                    },
+                    "approver-key-usage": {
+                        lead: "O aprobador non pode asinar",
+                        text: "O aprobador non pode asinar — o certificado dun aprobador non está feito para asinar.",
+                    },
+                    "bad-signature": {
+                        lead: "A sinatura non coincide",
+                        text: "A sinatura non coincide — a sinatura do paquete non se verifica, así que se modificou despois de asinalo ou asinouno outra chave: {{reason}}",
+                    },
+                    "content-digest": {
+                        lead: "A pegada do contido non coincide",
+                        text: "A pegada do contido non coincide — o manifesto di {{expected}} e o seu contido dá {{actual}}.",
+                    },
+                    "duplicate-member": {
+                        lead: "Nome de ficheiro repetido",
+                        text: "Nome de ficheiro repetido — «{{file}}» aparece dúas veces en {{archive}}, así que dous lectores poderían coller ficheiros distintos.",
+                    },
+                    "file-changed": {
+                        lead: "Modificado despois de asinar",
+                        text: "Modificado despois de asinar — {{file}} ten SHA-256 {{actual}}, e o manifesto di {{expected}}. Non se leu nada do paquete.",
+                    },
+                    "file-extra": {
+                        lead: "Ficheiro fóra do manifesto",
+                        text: "Ficheiro fóra do manifesto — {{file}} está no paquete pero non se asinou. Non se leu nada do paquete.",
+                    },
+                    "file-missing": {
+                        lead: "Falta un ficheiro asinado",
+                        text: "Falta un ficheiro asinado — {{file}} está no manifesto e non no paquete. Non se leu nada do paquete.",
+                    },
+                    "invalid-time": {
+                        lead: "Non é unha data e hora",
+                        text: "Non é unha data e hora — «{{value}}» no manifesto non é unha data e hora.",
+                    },
+                    "revoked-approver": {
+                        lead: "Certificado de aprobador revogado",
+                        text: "Certificado de aprobador revogado — o certificado dun aprobador foi revogado, así que a aprobación non conta.",
+                    },
+                    "revoked-signer": {
+                        lead: "Chave de sinatura revogada",
+                        text: "Chave de sinatura revogada — a chave que asinou este paquete foi revogada, e os seus paquetes rexéitanse.",
+                    },
+                    "rollback": {
+                        lead: "Non é unha revisión máis recente",
+                        text: "Non é unha revisión máis recente — a revisión {{revision}} non é máis recente cá revisión {{last}}, a última importada.",
+                    },
+                    "signer-key-usage": {
+                        lead: "A chave de sinatura non pode asinar",
+                        text: "A chave de sinatura non pode asinar — o certificado da chave que asinou este paquete non está feito para asinar.",
+                    },
+                    "too-few-approvals": {
+                        lead: "Moi poucas aprobacións",
+                        text: "Moi poucas aprobacións — {{count}} aprobacións válidas de persoas distintas, e fan falta {{required}}.",
+                    },
+                    "unhashable-content": {
+                        lead: "Non se pode calcular a pegada",
+                        text: "Non se pode calcular a pegada — non se puido escribir o contido da configuración para calcular a súa pegada: {{reason}}",
+                    },
+                    "unknown-format": {
+                        lead: "Formato de manifesto descoñecido",
+                        text: "Formato de manifesto descoñecido — o manifesto está no formato «{{format}}», que esta versión non pode ler.",
+                    },
+                    "unreadable-chain": {
+                        lead: "Certificados do asinante ilexibles",
+                        text: "Certificados do asinante ilexibles — non se puido ler a cadea de certificados do paquete: {{reason}}",
+                    },
+                    "unreadable-manifest": {
+                        lead: "Manifesto ilexible",
+                        text: "Manifesto ilexible — non se puido ler o manifesto do paquete: {{reason}}",
+                    },
+                    "unreadable-trust": {
+                        lead: "Certificados de confianza ilexibles",
+                        text: "Certificados de confianza ilexibles — non se puido ler o axuste {{setting}}: {{reason}}",
+                    },
+                    "unreadable-zip": {
+                        lead: "Arquivo ilexible",
+                        text: "Arquivo ilexible — non se puido ler {{archive}} como zip: {{reason}}",
+                    },
+                    "unsigned": {
+                        lead: "Paquete sen asinar",
+                        text: "Paquete sen asinar — non ten {{missing}}, e esta instalación só importa paquetes asinados.",
+                    },
+                    "untrusted-approver": {
+                        lead: "Aprobador non fiable",
+                        text: "Aprobador non fiable — o certificado dun aprobador non é de confianza: {{reason}}",
+                    },
+                    "untrusted-signer": {
+                        lead: "Asinante non fiable",
+                        text: "Asinante non fiable — a chave que asinou este paquete non é unha na que confíe esta instalación: {{reason}}",
+                    },
+                    "unwritable-manifest": {
+                        lead: "Non se pode escribir o manifesto",
+                        text: "Non se pode escribir o manifesto — non se puido escribir o manifesto: {{reason}}",
                     },
                 },
                 plan: {

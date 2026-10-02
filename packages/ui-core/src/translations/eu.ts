@@ -461,6 +461,16 @@ const basqueTranslation: TranslationType = {
                         text: "Artxibo inportagarririk ez — zip honek plan bat du, baina ez Administrazio Atariak inportatzen duen artxiboa, beraz, ez ditu errolda eta hark aipatzen dituen fitxategiak.",
                     },
                 },
+                design: {
+                    "no-stable-key": {
+                        lead: "Gakorik gabeko boto-txartel diseinua",
+                        text: "Gakorik gabeko boto-txartel diseinua — {{kind}} {{id}} elementuak ez du izenik ez kanpoko IDrik, beraz, bere boto-txartel diseinuak ezin dira ezagutu inportazio baten ondoren.",
+                    },
+                    "unreadable-style": {
+                        lead: "Boto-txartel estiloa ezin da irakurri",
+                        text: "Boto-txartel estiloa ezin da irakurri — ezin izan da plataformaren boto-txartel estiloa irakurri bere diseinuaren laburpena kalkulatzeko: {{reason}}",
+                    },
+                },
                 election: {
                     "channels-differ": {
                         lead: "Hauteskundea eta gertaera ez datoz bat",
@@ -654,6 +664,108 @@ const basqueTranslation: TranslationType = {
                     "no-seed": {
                         lead: "Hazirik gabeko pasahitzak",
                         text: "Hazirik gabeko pasahitzak — haziak eragiten du berreraikuntza batek pasahitz berak sortzea, berriak sortu beharrean.",
+                    },
+                },
+                package: {
+                    "approval-invalid": {
+                        lead: "Onarpenak ez du balio",
+                        text: "Onarpenak ez du balio — ezin izan da {{name}} pertsonaren onarpena egiaztatu: {{reason}}",
+                    },
+                    "approval-repeated": {
+                        lead: "Pertsona berak bi aldiz onartu du",
+                        text: "Pertsona berak bi aldiz onartu du — {{name}} pertsonak behin baino gehiagotan onartu du, eta behin bakarrik zenbatzen da.",
+                    },
+                    "approver-key-usage": {
+                        lead: "Onartzaileak ezin du sinatu",
+                        text: "Onartzaileak ezin du sinatu — onartzaile baten ziurtagiria ez dago sinatzeko egina.",
+                    },
+                    "bad-signature": {
+                        lead: "Sinadura ez dator bat",
+                        text: "Sinadura ez dator bat — paketearen sinadura ez da egiaztatzen, beraz, sinatu ondoren aldatu zen edo beste gako batek sinatu zuen: {{reason}}",
+                    },
+                    "content-digest": {
+                        lead: "Edukiaren laburpena ez dator bat",
+                        text: "Edukiaren laburpena ez dator bat — manifestuak {{expected}} dio, eta bere edukiaren hasha {{actual}} da.",
+                    },
+                    "duplicate-member": {
+                        lead: "Fitxategi-izena bi aldiz",
+                        text: 'Fitxategi-izena bi aldiz — "{{file}}" bi aldiz agertzen da {{archive}} artxiboan, beraz, bi irakurlek fitxategi desberdinak har litzakete.',
+                    },
+                    "file-changed": {
+                        lead: "Sinatu ondoren aldatua",
+                        text: "Sinatu ondoren aldatua — {{file}} fitxategiaren SHA-256 {{actual}} da, eta manifestuak {{expected}} dio. Ez da paketeko ezer irakurri.",
+                    },
+                    "file-extra": {
+                        lead: "Fitxategia ez dago manifestuan",
+                        text: "Fitxategia ez dago manifestuan — {{file}} paketean dago, baina ez zen sinatu. Ez da paketeko ezer irakurri.",
+                    },
+                    "file-missing": {
+                        lead: "Sinatutako fitxategia falta da",
+                        text: "Sinatutako fitxategia falta da — {{file}} manifestuan dago eta ez paketean. Ez da paketeko ezer irakurri.",
+                    },
+                    "invalid-time": {
+                        lead: "Ez da data eta ordu bat",
+                        text: 'Ez da data eta ordu bat — manifestuko "{{value}}" ez da data eta ordu bat.',
+                    },
+                    "revoked-approver": {
+                        lead: "Onartzailearen ziurtagiria baliogabetuta",
+                        text: "Onartzailearen ziurtagiria baliogabetuta — onartzaile baten ziurtagiria baliogabetu da, beraz, onarpenak ez du balio.",
+                    },
+                    "revoked-signer": {
+                        lead: "Sinatzeko gakoa baliogabetuta",
+                        text: "Sinatzeko gakoa baliogabetuta — pakete hau sinatu zuen gakoa baliogabetu da, eta bere paketeak baztertzen dira.",
+                    },
+                    "rollback": {
+                        lead: "Ez da berrikuspen berriagoa",
+                        text: "Ez da berrikuspen berriagoa — {{revision}} berrikuspena ez da {{last}} berrikuspena baino berriagoa, inportatutako azkena.",
+                    },
+                    "signer-key-usage": {
+                        lead: "Sinatzeko gakoak ezin du sinatu",
+                        text: "Sinatzeko gakoak ezin du sinatu — pakete hau sinatu zuen gakoaren ziurtagiria ez dago sinatzeko egina.",
+                    },
+                    "too-few-approvals": {
+                        lead: "Onarpen gutxiegi",
+                        text: "Onarpen gutxiegi — pertsona desberdinen {{count}} onarpen baliodun, eta {{required}} behar dira.",
+                    },
+                    "unhashable-content": {
+                        lead: "Ezin da edukiaren hasha kalkulatu",
+                        text: "Ezin da edukiaren hasha kalkulatu — ezin izan da konfigurazioaren edukia idatzi hasha kalkulatzeko: {{reason}}",
+                    },
+                    "unknown-format": {
+                        lead: "Manifestu-formatu ezezaguna",
+                        text: 'Manifestu-formatu ezezaguna — manifestua "{{format}}" formatuan dago, eta bertsio honek ezin du irakurri.',
+                    },
+                    "unreadable-chain": {
+                        lead: "Sinatzailearen ziurtagiriak ezin dira irakurri",
+                        text: "Sinatzailearen ziurtagiriak ezin dira irakurri — ezin izan da paketearen ziurtagiri-katea irakurri: {{reason}}",
+                    },
+                    "unreadable-manifest": {
+                        lead: "Manifestua ezin da irakurri",
+                        text: "Manifestua ezin da irakurri — ezin izan da paketearen manifestua irakurri: {{reason}}",
+                    },
+                    "unreadable-trust": {
+                        lead: "Ziurtagiri fidagarriak ezin dira irakurri",
+                        text: "Ziurtagiri fidagarriak ezin dira irakurri — ezin izan da {{setting}} ezarpena irakurri: {{reason}}",
+                    },
+                    "unreadable-zip": {
+                        lead: "Artxiboa ezin da irakurri",
+                        text: "Artxiboa ezin da irakurri — ezin izan da {{archive}} zip gisa irakurri: {{reason}}",
+                    },
+                    "unsigned": {
+                        lead: "Paketea ez dago sinatuta",
+                        text: "Paketea ez dago sinatuta — ez du {{missing}}, eta instalazio honek sinatutako paketeak bakarrik inportatzen ditu.",
+                    },
+                    "untrusted-approver": {
+                        lead: "Onartzailea ez da fidagarria",
+                        text: "Onartzailea ez da fidagarria — onartzaile baten ziurtagiria ez da fidagarria: {{reason}}",
+                    },
+                    "untrusted-signer": {
+                        lead: "Sinatzailea ez da fidagarria",
+                        text: "Sinatzailea ez da fidagarria — pakete hau sinatu zuen gakoa ez da instalazio honek fidagarritzat duenetako bat: {{reason}}",
+                    },
+                    "unwritable-manifest": {
+                        lead: "Manifestua ezin da idatzi",
+                        text: "Manifestua ezin da idatzi — ezin izan da manifestua idatzi: {{reason}}",
                     },
                 },
                 plan: {

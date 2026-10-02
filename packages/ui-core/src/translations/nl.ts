@@ -462,6 +462,16 @@ const dutchTranslation: TranslationType = {
                         text: "Geen importeerbaar archief — deze zip bevat een plan maar niet het archief dat het Beheerportaal importeert, dus het kiezersregister en de bestanden die het noemt zitten er niet in.",
                     },
                 },
+                design: {
+                    "no-stable-key": {
+                        lead: "Stembiljetontwerp zonder sleutel",
+                        text: "Stembiljetontwerp zonder sleutel — {{kind}} {{id}} heeft geen naam of externe id, dus de stembiljetontwerpen ervan zijn na een import niet te herkennen.",
+                    },
+                    "unreadable-style": {
+                        lead: "Stembiljetstijl onleesbaar",
+                        text: "Stembiljetstijl onleesbaar — de stembiljetstijl van het platform kon niet worden gelezen om de digest van het ontwerp te berekenen: {{reason}}",
+                    },
+                },
                 election: {
                     "channels-differ": {
                         lead: "Verkiezing en evenement verschillen",
@@ -655,6 +665,108 @@ const dutchTranslation: TranslationType = {
                     "no-seed": {
                         lead: "Wachtwoorden zonder seed",
                         text: "Wachtwoorden zonder seed — de seed zorgt ervoor dat een nieuwe build dezelfde wachtwoorden oplevert in plaats van nieuwe.",
+                    },
+                },
+                package: {
+                    "approval-invalid": {
+                        lead: "Goedkeuring telt niet",
+                        text: "Goedkeuring telt niet — de goedkeuring van {{name}} kon niet worden geverifieerd: {{reason}}",
+                    },
+                    "approval-repeated": {
+                        lead: "Dezelfde persoon keurde twee keer goed",
+                        text: "Dezelfde persoon keurde twee keer goed — {{name}} keurde meer dan eens goed, en telt één keer.",
+                    },
+                    "approver-key-usage": {
+                        lead: "Goedkeurder kan niet ondertekenen",
+                        text: "Goedkeurder kan niet ondertekenen — het certificaat van een goedkeurder is niet bedoeld om mee te ondertekenen.",
+                    },
+                    "bad-signature": {
+                        lead: "Handtekening klopt niet",
+                        text: "Handtekening klopt niet — de handtekening van het pakket verifieert niet, dus het is na ondertekening gewijzigd of met een andere sleutel ondertekend: {{reason}}",
+                    },
+                    "content-digest": {
+                        lead: "Inhoudsdigest klopt niet",
+                        text: "Inhoudsdigest klopt niet — het manifest zegt {{expected}} en de inhoud hasht naar {{actual}}.",
+                    },
+                    "duplicate-member": {
+                        lead: "Bestandsnaam twee keer gebruikt",
+                        text: "Bestandsnaam twee keer gebruikt — '{{file}}' komt twee keer voor in {{archive}}, dus twee lezers zouden verschillende bestanden kunnen nemen.",
+                    },
+                    "file-changed": {
+                        lead: "Gewijzigd na ondertekening",
+                        text: "Gewijzigd na ondertekening — {{file}} heeft SHA-256 {{actual}}, en het manifest zegt {{expected}}. Er is niets uit het pakket gelezen.",
+                    },
+                    "file-extra": {
+                        lead: "Bestand niet in het manifest",
+                        text: "Bestand niet in het manifest — {{file}} zit in het pakket maar is niet ondertekend. Er is niets uit het pakket gelezen.",
+                    },
+                    "file-missing": {
+                        lead: "Ondertekend bestand ontbreekt",
+                        text: "Ondertekend bestand ontbreekt — {{file}} staat in het manifest en niet in het pakket. Er is niets uit het pakket gelezen.",
+                    },
+                    "invalid-time": {
+                        lead: "Geen tijdstip",
+                        text: "Geen tijdstip — '{{value}}' in het manifest is geen datum en tijd.",
+                    },
+                    "revoked-approver": {
+                        lead: "Certificaat van goedkeurder ingetrokken",
+                        text: "Certificaat van goedkeurder ingetrokken — het certificaat van een goedkeurder is ingetrokken, dus de goedkeuring telt niet.",
+                    },
+                    "revoked-signer": {
+                        lead: "Ondertekeningssleutel ingetrokken",
+                        text: "Ondertekeningssleutel ingetrokken — de sleutel die dit pakket ondertekende is ingetrokken, en de pakketten ervan worden geweigerd.",
+                    },
+                    "rollback": {
+                        lead: "Geen nieuwere revisie",
+                        text: "Geen nieuwere revisie — revisie {{revision}} is niet nieuwer dan revisie {{last}}, de laatst geïmporteerde.",
+                    },
+                    "signer-key-usage": {
+                        lead: "Ondertekeningssleutel kan niet ondertekenen",
+                        text: "Ondertekeningssleutel kan niet ondertekenen — het certificaat van de sleutel die dit pakket ondertekende is niet bedoeld om mee te ondertekenen.",
+                    },
+                    "too-few-approvals": {
+                        lead: "Te weinig goedkeuringen",
+                        text: "Te weinig goedkeuringen — {{count}} geldige goedkeuringen van verschillende personen, en er zijn er {{required}} nodig.",
+                    },
+                    "unhashable-content": {
+                        lead: "Inhoud kan niet worden gehasht",
+                        text: "Inhoud kan niet worden gehasht — de inhoud van de configuratie kon niet worden weggeschreven om te hashen: {{reason}}",
+                    },
+                    "unknown-format": {
+                        lead: "Onbekend manifestformaat",
+                        text: "Onbekend manifestformaat — het manifest heeft formaat '{{format}}', dat deze versie niet kan lezen.",
+                    },
+                    "unreadable-chain": {
+                        lead: "Certificaten van ondertekenaar onleesbaar",
+                        text: "Certificaten van ondertekenaar onleesbaar — de certificaatketen van het pakket kon niet worden gelezen: {{reason}}",
+                    },
+                    "unreadable-manifest": {
+                        lead: "Manifest onleesbaar",
+                        text: "Manifest onleesbaar — het manifest van het pakket kon niet worden gelezen: {{reason}}",
+                    },
+                    "unreadable-trust": {
+                        lead: "Vertrouwde certificaten onleesbaar",
+                        text: "Vertrouwde certificaten onleesbaar — de instelling {{setting}} kon niet worden gelezen: {{reason}}",
+                    },
+                    "unreadable-zip": {
+                        lead: "Archief onleesbaar",
+                        text: "Archief onleesbaar — {{archive}} kon niet als zip worden gelezen: {{reason}}",
+                    },
+                    "unsigned": {
+                        lead: "Pakket niet ondertekend",
+                        text: "Pakket niet ondertekend — het heeft geen {{missing}}, en deze installatie importeert alleen ondertekende pakketten.",
+                    },
+                    "untrusted-approver": {
+                        lead: "Goedkeurder niet vertrouwd",
+                        text: "Goedkeurder niet vertrouwd — het certificaat van een goedkeurder wordt niet vertrouwd: {{reason}}",
+                    },
+                    "untrusted-signer": {
+                        lead: "Ondertekenaar niet vertrouwd",
+                        text: "Ondertekenaar niet vertrouwd — de sleutel die dit pakket ondertekende is er geen die deze installatie vertrouwt: {{reason}}",
+                    },
+                    "unwritable-manifest": {
+                        lead: "Manifest kan niet worden geschreven",
+                        text: "Manifest kan niet worden geschreven — het manifest kon niet worden geschreven: {{reason}}",
                     },
                 },
                 plan: {
