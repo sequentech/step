@@ -272,6 +272,25 @@ pub fn freshness(
     }
 }
 
+/// Checks a package signing certificate before it is used: its path to one
+/// of `roots` at `at` (RFC 3339), its revocation status in `revocation_lists`
+/// and its key usage, as [`verify_package`] will check them.
+pub fn verify_signing_certificate(
+    chain_pem: &str,
+    roots: &[Vec<u8>],
+    revocation_lists: &[Vec<u8>],
+    at: &str,
+) -> Result<CertificateIdentity, Problem> {
+    let chain = certificates_from_pem(chain_pem).map_err(unreadable_chain)?;
+    check_certificate(
+        &chain,
+        roots,
+        revocation_lists,
+        unix_time(at)?,
+        Role::PackageSigner,
+    )
+}
+
 /// Checks one approval on its own: its certificate against the staff roots
 /// at the time it was given, and its signature over the revision's payload.
 /// Whether the approvers are distinct and enough is the caller's.
