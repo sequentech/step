@@ -5,8 +5,8 @@
 use super::Result;
 use super::{CountingAlgorithm, Error};
 use crate::pipes::do_tally::{
-    counting_algorithm::utils::*, tally::Tally, tally::TallyBallot, BlankVotes, CandidateResult,
-    ContestResult, ExtendedMetricsContest, InvalidVotes,
+    add_count, counting_algorithm::utils::*, tally::Tally, tally::TallyBallot, BlankVotes,
+    CandidateResult, ContestResult, ExtendedMetricsContest, InvalidVotes,
 };
 use rand::prelude::IndexedRandom;
 use rand::seq::SliceRandom;
@@ -540,7 +540,7 @@ impl RunoffStatus {
     /// Returns true if the process should continue for a next round.
     /// Returns false if there is a winner or a tie was concluded.
     #[instrument(skip_all)]
-    pub fn run_next_round(&mut self, ballots_status: &mut BallotsStatus) -> bool {
+    pub fn run_next_round(&mut self, ballots_status: &mut BallotsStatus) -> Result<bool> {
         let mut round = Round::default();
         let mut candidates_wins = self.candidates_status.initialize_candidates_wins();
         let act_candidate_ids = self.candidates_status.get_active_candidate_ids();
@@ -559,7 +559,7 @@ impl RunoffStatus {
             let w = weight.unwrap_or_default();
             if let Some(candidate_id) = candidate_id {
                 if let Some(outcome) = candidates_wins.get_mut(&candidate_id) {
-                    outcome.wins += w;
+                    outcome.wins = add_count(outcome.wins, w, "candidate votes")?;
                 }
                 act_ballots += 1;
             } else {
@@ -578,7 +578,8 @@ impl RunoffStatus {
 
         // Check if there is a winner
         let max_wins = candidates_wins.values().map(|o| o.wins).max().unwrap_or(0);
-        if 2 * max_wins > act_ballots {
+        // A majority, 2 * max_wins > act_ballots, without the multiplication.
+        if max_wins > act_ballots / 2 {
             let winner_id = self
                 .filter_candidates_by_number_of_wins(&candidates_wins, max_wins)
                 .first()
@@ -632,7 +633,7 @@ impl RunoffStatus {
         self.rounds.push(round);
         self.round_count += 1;
 
-        return continue_next_round;
+        Ok(continue_next_round)
     }
 
     /// Order name_references to have the best results at the beginning
@@ -660,14 +661,15 @@ impl RunoffStatus {
     }
 
     #[instrument(skip_all)]
-    pub fn run(&mut self, ballots_status: &mut BallotsStatus) {
+    pub fn run(&mut self, ballots_status: &mut BallotsStatus) -> Result<()> {
         self.pending_tie_resolution = None;
 
         let mut iterations = 0;
-        while self.run_next_round(ballots_status) && iterations < self.max_rounds {
+        while self.run_next_round(ballots_status)? && iterations < self.max_rounds {
             iterations += 1;
         }
         self.name_references = self.order_name_references_by_result();
+        Ok(())
     }
 }
 
@@ -709,7 +711,7 @@ impl InstantRunoff {
             TallyOperation::SkipCandidateResults => (vec![], None),
             _ => {
                 let mut runoff = RunoffStatus::initialize_runoff(&contest);
-                runoff.run(&mut ballots_status);
+                runoff.run(&mut ballots_status)?;
 
                 let mut vote_count: HashMap<String, u64> = HashMap::new(); // vote_count has only the last round results or it could be left empty because the full results are in runoff_value
                 if let Some(results) = runoff.get_last_round() {
@@ -780,6 +782,7 @@ impl CountingAlgorithm for InstantRunoff {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::pipes::do_tally::{CountOverflow, MAX_COUNT};
     use sequent_core::ballot::CandidatePresentation;
     use sequent_core::types::{participation::VotesByChannel, tally_sheets::VotingChannel};
 
@@ -1056,5 +1059,25 @@ mod tests {
         assert!(tally
             .process_ballots(TallyOperation::ProcessBallotsAll)
             .is_err());
+    }
+
+    /// Area weights scale each ballot's vote in the runoff rounds, so a
+    /// candidate's round total is bounded like every other count instead of
+    /// wrapping.
+    #[test]
+    fn a_round_total_past_the_largest_exact_count_is_an_error() {
+        let mut tally = instant_runoff(vec![
+            vote_with_selected_ids(&["candidate_a"]),
+            vote_with_selected_ids(&["candidate_a"]),
+        ]);
+        let weight: Weight = serde_json::from_value(serde_json::json!(MAX_COUNT)).unwrap();
+        for ballot in &mut tally.tally.ballots {
+            ballot.weight = weight.clone();
+        }
+
+        assert!(matches!(
+            tally.process_ballots(TallyOperation::ProcessBallotsAll),
+            Err(Error::CountOverflow(CountOverflow("candidate votes")))
+        ));
     }
 }
