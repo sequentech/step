@@ -6,12 +6,14 @@ import {combineReducers, configureStore} from "@reduxjs/toolkit"
 import {ThemeProvider} from "@mui/material/styles"
 import {act, render, screen, within} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
+import {EMobileCandidateLists} from "@sequentech/ui-core"
 import i18next from "i18next"
 import {I18nextProvider} from "react-i18next"
 import {Provider} from "react-redux"
 import theme from "../../../../ui-essentials/src/services/theme"
 import {
     buildSlate,
+    buildSlates,
     buildSlatesBallot,
     buildSlatesBallotStyle,
     PRESIDENT,
@@ -24,6 +26,7 @@ import ballotSelectionsReducer, {
 } from "../../store/ballotSelections/ballotSelectionsSlice"
 import englishTranslation from "../../translations/en"
 import {SlateApplyAction} from "./SlateApplyAction"
+import {SlateChooser} from "./SlateChooser"
 
 const i18n = i18next.createInstance()
 void i18n.init({
@@ -143,5 +146,43 @@ describe("SlateApplyAction", () => {
         await userEvent.click(screen.getByRole("button", {name: "Choose slate Independent Voices"}))
         mark(TRUSTEES, "t-independent")
         expect(await screen.findByRole("status")).toBeEmptyDOMElement()
+    })
+})
+
+describe("SlateApplyAction in the slate cards", () => {
+    it("chooses the slate of the card it is in", async () => {
+        const store = configureStore({
+            reducer: combineReducers({ballotSelections: ballotSelectionsReducer}),
+        })
+        store.dispatch(resetBallotSelection({ballotStyle, force: true}))
+        render(
+            <I18nextProvider i18n={i18n}>
+                <ThemeProvider theme={theme}>
+                    <Provider store={store}>
+                        <SlateChooser
+                            slates={{
+                                mobileCandidateLists: EMobileCandidateLists.COLLAPSED,
+                                slates: buildSlates(ballot),
+                            }}
+                            defaultLanguage="en"
+                            renderActions={(slate) => (
+                                <SlateApplyAction ballotStyle={ballotStyle} slate={slate} />
+                            )}
+                        />
+                    </Provider>
+                </ThemeProvider>
+            </I18nextProvider>
+        )
+        const card = screen.getByRole("heading", {level: 3, name: "Members First"}).closest("li")
+        expect(card).not.toBeNull()
+        await userEvent.click(
+            within(card as HTMLElement).getByRole("button", {name: "Choose slate Members First"})
+        )
+        const selection = store.getState().ballotSelections[ballotStyle.election_id] ?? []
+        expect(
+            selection.flatMap((contest) =>
+                contest.choices.filter((choice) => choice.selected > -1).map((choice) => choice.id)
+            )
+        ).toEqual(["p-members", "s-members", "t-members-1", "t-members-2", "t-members-3"])
     })
 })
