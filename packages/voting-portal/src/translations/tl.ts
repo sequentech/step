@@ -449,6 +449,18 @@ const tagalogTranslation: TranslationType = {
                 "Ang slate ay isang pangkat ng mga kandidatong magkakasamang tumatakbo. Ipinapakita ng bawat kandidato ang slate na kinabibilangan nila.",
             independent: "Independiyente",
             contestMembers: "Mga kandidato ng {{slate}} para sa {{contest}}",
+            tabs: {
+                label: "Mga paraan ng pagsagot sa iyong balota",
+                slates: "Pumili ng slate",
+                candidates: "Mga indibidwal na kandidato",
+            },
+            selection: {
+                all: "Napili ang lahat ng {{total}}",
+                mixed: "Halo · {{selected}} sa {{total}} ang napili",
+                partly: "Bahagyang napili · {{selected}} sa {{total}}",
+                selected: "Napili",
+                edit: "Baguhin ang mga pinili",
+            },
         },
         ballotLocator: {
             title: "Hanapin ang Iyong Balota",

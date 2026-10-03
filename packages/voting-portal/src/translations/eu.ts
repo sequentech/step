@@ -450,6 +450,18 @@ const basqueTranslation: TranslationType = {
                 "Hautagai-zerrenda elkarrekin aurkezten diren hautagaien taldea da. Hautagai bakoitzak zein zerrendatakoa den erakusten du.",
             independent: "Independentea",
             contestMembers: "{{slate}} zerrendako hautagaiak: {{contest}}",
+            tabs: {
+                label: "Boto-papera betetzeko moduak",
+                slates: "Aukeratu zerrenda bat",
+                candidates: "Hautagaiak banaka",
+            },
+            selection: {
+                all: "{{total}}ak hautatuta",
+                mixed: "Mistoa · {{total}}tik {{selected}} hautatuta",
+                partly: "Zati bat hautatuta · {{total}}tik {{selected}}",
+                selected: "Hautatuta",
+                edit: "Editatu hautaketa",
+            },
         },
         ballotLocator: {
             title: "Bilatu zure Bozketa",

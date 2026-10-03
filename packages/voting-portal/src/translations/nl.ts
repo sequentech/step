@@ -450,6 +450,18 @@ const dutchTranslation: TranslationType = {
                 "Een lijst is een groep kandidaten die zich samen verkiesbaar stellen. Bij elke kandidaat staat de lijst waartoe die behoort.",
             independent: "Onafhankelijk",
             contestMembers: "Kandidaten van {{slate}} voor {{contest}}",
+            tabs: {
+                label: "Manieren om uw stembiljet in te vullen",
+                slates: "Kies een lijst",
+                candidates: "Individuele kandidaten",
+            },
+            selection: {
+                all: "Alle {{total}} geselecteerd",
+                mixed: "Gemengd · {{selected}} van {{total}} geselecteerd",
+                partly: "Gedeeltelijk geselecteerd · {{selected}} van {{total}}",
+                selected: "Geselecteerd",
+                edit: "Selectie bewerken",
+            },
         },
         ballotLocator: {
             title: "Zoek uw Stembiljet",
