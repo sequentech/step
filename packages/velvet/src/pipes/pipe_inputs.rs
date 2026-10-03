@@ -87,7 +87,8 @@ pub fn parse_batch_file_name(file_name: &str, candidate: &str) -> Result<Option<
 }
 
 /// Every batch file of `file_name` in `dir`, the plain one included, with the
-/// multiplier of each, ordered by multiplier. A missing directory has none.
+/// multiplier of each, ordered by multiplier. A missing directory has none, and
+/// a symbolic link among several batch files is an error.
 pub fn list_batch_files(dir: &Path, file_name: &str) -> Result<Vec<(PathBuf, u64)>> {
     if !dir.is_dir() {
         return Ok(vec![]);
@@ -103,6 +104,18 @@ pub fn list_batch_files(dir: &Path, file_name: &str) -> Result<Vec<(PathBuf, u64
         };
         if let Some(multiplier) = parse_batch_file_name(file_name, name)? {
             files.push((path, multiplier));
+        }
+    }
+    // Batches are written as files of their own. A link among several could
+    // name another batch's file and have its ballots counted at both
+    // multipliers.
+    if files.len() > 1 {
+        if let Some((path, _)) = files.iter().find(|(path, _)| path.is_symlink()) {
+            return Err(Error::UnexpectedError(format!(
+                "{} is a symbolic link. The ballots files of an area split into vote weight \
+                 batches must be regular files",
+                path.display()
+            )));
         }
     }
     files.sort_by_key(|(_, multiplier)| *multiplier);
@@ -605,6 +618,33 @@ mod tests {
             .is_empty());
         assert!(dir.path().join("area-config.json").is_file());
         assert!(remove_batch_files(&dir.path().join("missing"), BALLOTS_FILE).is_ok());
+    }
+
+    /// A link could name another batch's file and have its ballots counted at
+    /// two multipliers. A lone ballots file may still be a link.
+    #[cfg(unix)]
+    #[test]
+    fn a_linked_batch_file_is_refused_only_beside_other_batches() {
+        let batched = tempdir().unwrap();
+        fs::write(batched.path().join(BALLOTS_FILE), "").unwrap();
+        std::os::unix::fs::symlink(
+            batched.path().join(BALLOTS_FILE),
+            batched.path().join("ballots__x2.csv"),
+        )
+        .unwrap();
+        assert!(list_batch_files(batched.path(), BALLOTS_FILE).is_err());
+
+        let single = tempdir().unwrap();
+        fs::write(single.path().join("source.csv"), "").unwrap();
+        std::os::unix::fs::symlink(
+            single.path().join("source.csv"),
+            single.path().join(BALLOTS_FILE),
+        )
+        .unwrap();
+        assert_eq!(
+            list_batch_files(single.path(), BALLOTS_FILE).unwrap(),
+            vec![(single.path().join(BALLOTS_FILE), 1)]
+        );
     }
 
     #[test]
