@@ -445,6 +445,10 @@ const englishTranslation = {
                 button: "Choose this slate",
                 buttonLabel: "Choose slate {{slate}}",
                 chosen: "{{slate}} chosen. Candidates selected: {{candidates}}. Contests: {{contests}}.",
+                overMaximum:
+                    "{{slate}} cannot be chosen: it has {{candidates}} candidates for {{contest}}, which allows {{max}}. You can still choose candidates individually.",
+                unavailable:
+                    "{{slate}} cannot be chosen on this ballot. You can still choose candidates individually.",
                 replaceDialog: {
                     title: "Replace your current choices?",
                     content:

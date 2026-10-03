@@ -456,6 +456,10 @@ const spanishTranslation: TranslationType = {
                 button: "Elegir esta candidatura",
                 buttonLabel: "Elegir la candidatura {{slate}}",
                 chosen: "{{slate}} elegida. Candidatos seleccionados: {{candidates}}. Contiendas: {{contests}}.",
+                overMaximum:
+                    "{{slate}} no se puede elegir: tiene {{candidates}} candidaturas para {{contest}}, que permite {{max}}. Puede seguir eligiendo candidaturas individualmente.",
+                unavailable:
+                    "{{slate}} no se puede elegir en esta papeleta. Puede seguir eligiendo candidaturas individualmente.",
                 replaceDialog: {
                     title: "¿Reemplazar tus opciones actuales?",
                     content:

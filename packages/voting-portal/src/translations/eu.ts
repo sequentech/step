@@ -454,6 +454,10 @@ const basqueTranslation: TranslationType = {
                 button: "Aukeratu hautagai-zerrenda hau",
                 buttonLabel: "Aukeratu {{slate}} hautagai-zerrenda",
                 chosen: "{{slate}} aukeratuta. Hautatutako hautagaiak: {{candidates}}. Lehiak: {{contests}}.",
+                overMaximum:
+                    "{{slate}} ezin da aukeratu: {{candidates}} hautagai ditu {{contest}} lehiarako, eta {{max}} onartzen dira. Hautagaiak banaka aukeratzen jarrai dezakezu.",
+                unavailable:
+                    "{{slate}} ezin da aukeratu boto-paper honetan. Hautagaiak banaka aukeratzen jarrai dezakezu.",
                 replaceDialog: {
                     title: "Zure uneko aukerak ordeztu nahi dituzu?",
                     content:
