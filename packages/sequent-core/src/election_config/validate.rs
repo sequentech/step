@@ -24,6 +24,7 @@ use strum::VariantNames;
 
 use super::problem::{Code, Problem, Report};
 use super::schema::ImportElectionEventSchema;
+use crate::signing::{MAX_EXPIRES_MINUTES, MAX_SIGNATURES};
 use crate::types::ceremonies::CountingAlgType;
 
 /// Every value `CountingAlgType` accepts, from the enum itself.
@@ -163,8 +164,70 @@ pub fn validate(bundle: &ImportElectionEventSchema) -> Report {
     check_event_presentation(bundle, &mut report);
     check_permission_labels(bundle, &mut report);
     check_unique_ids(bundle, &mut report);
+    check_signing(bundle, &mut report);
 
     report
+}
+
+/// Whether the event's signing rules can be saved as written: one rule per
+/// action, between one and [`MAX_SIGNATURES`] signatures, and an expiry of
+/// a minute to [`MAX_EXPIRES_MINUTES`] or none. Refused here, the bundle
+/// never reaches the database, and the browser preview says why.
+fn check_signing(bundle: &ImportElectionEventSchema, report: &mut Report) {
+    let Some(rules) = bundle.signing_rules.as_ref() else {
+        return;
+    };
+    let mut seen = std::collections::BTreeSet::new();
+    for (index, rule) in rules.iter().enumerate() {
+        let at = format!("signing_rules[{index}]");
+        if !seen.insert(rule.action.to_string()) {
+            report.push(
+                Problem::error(
+                    Code::DuplicateId,
+                    format!("{at}.action"),
+                    format!(
+                        "{} has more than one signing rule; keep one",
+                        rule.action
+                    ),
+                )
+                .id("signing.duplicate-action")
+                .detail("action", rule.action),
+            );
+        }
+        if !(1..=MAX_SIGNATURES).contains(&rule.signatures) {
+            report.push(
+                Problem::error(
+                    Code::InvalidValue,
+                    format!("{at}.signatures"),
+                    format!(
+                        "a signing rule needs between 1 and {MAX_SIGNATURES} \
+                         signatures, not {}",
+                        rule.signatures
+                    ),
+                )
+                .id("signing.signatures-out-of-range")
+                .detail("action", rule.action)
+                .detail("min", 1)
+                .detail("max", MAX_SIGNATURES),
+            );
+        }
+        if rule.expires_minutes.is_some_and(|minutes| {
+            !(1..=MAX_EXPIRES_MINUTES).contains(&minutes)
+        }) {
+            report.push(
+                Problem::error(
+                    Code::InvalidValue,
+                    format!("{at}.expires_minutes"),
+                    format!(
+                        "a signing request expires after 1 to \
+                         {MAX_EXPIRES_MINUTES} minutes, or never (null)"
+                    ),
+                )
+                .id("signing.expiry-out-of-range")
+                .detail("action", rule.action),
+            );
+        }
+    }
 }
 
 /// Whether the telephone call the event describes can be placed at all.

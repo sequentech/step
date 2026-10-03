@@ -456,6 +456,37 @@ async fn approving_a_voter_answers_its_signing_request() {
     assert_eq!(application_status, "PENDING");
 }
 
+/// One short-send shape: a send refused for signatures answers 409 in the
+/// contract's error shape, `signing-required` while signing applies and
+/// `signatures-short` when a package without signing has too few uploaded
+/// signatures.
+#[test]
+fn a_refused_send_answers_its_code() {
+    use crate::routes::miru_plugin::transmission_failure;
+    use windmill::services::consolidation::send_transmission_package_service::TransmissionSignaturesShort;
+    use windmill::services::signing::actions::transmission::TransmissionRefusal;
+
+    let short = transmission_failure(&TransmissionRefusal::SignaturesShort(
+        TransmissionSignaturesShort {
+            signatures: 1,
+            threshold: 2,
+        },
+    ));
+    assert_eq!(short.status, Status::Conflict);
+    assert_eq!(short.code.to_string(), "signatures-short");
+    assert!(
+        short.message.contains("1 of the 2 signatures"),
+        "{}",
+        short.message
+    );
+    let unsigned = transmission_failure(&TransmissionRefusal::NotSigned {
+        code: None,
+        status: None,
+    });
+    assert_eq!(unsigned.status, Status::Conflict);
+    assert_eq!(unsigned.code.to_string(), "signing-required");
+}
+
 /// Rows the key step's transaction wrote, on the connection that holds the
 /// marker table.
 async fn markers(client: &deadpool_postgres::Object) -> i64 {

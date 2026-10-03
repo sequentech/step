@@ -2284,6 +2284,25 @@ actions:
           - role: sign-key-ceremony
           - role: sign-tally-key
       comment: "The election event's time zone and, for a reader of the certificates, the signers' titles"
+    - name: signingHeldReportRequests
+      definition:
+          type: query
+          handler: http://{{HARVEST_DOMAIN}}/signing-reports/requests
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: signing-requests-read
+          - role: sign-generate-election-returns
+          - role: sign-generate-reports
+          - role: report-read
+          - role: miru-create
+          - role: miru-send
+      comment: Safe held-report request references, filtered by action permissions and Post labels
     - name: signingPdfPrepare
       definition:
           kind: synchronous
@@ -2559,6 +2578,7 @@ custom_types:
         - name: SigningPutRuleOutput
         - name: SigningRuleCapacityOutput
         - name: SigningEventInfoOutput
+        - name: SigningHeldReportRequestsOutput
         - name: SigningRequestSummary
         - name: SigningPdfPrepareOutput
     scalars: []

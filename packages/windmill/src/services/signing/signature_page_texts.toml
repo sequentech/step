@@ -6,7 +6,8 @@
 # language code (the codes of the portals' languages). `{name}` placeholders
 # are filled in by the signing code (services::signing::page_texts). Every
 # language has every key, and a `certify` sentence for each action that signs
-# a PDF. English is the fallback.
+# a PDF. English is the fallback. The languages are the portals' (en, es, cat,
+# eu, fr, gl, nl, tl).
 
 [en]
 title = "{organization}: digital signatures"
@@ -21,3 +22,101 @@ document = "Document SHA-256 before signatures: {sha256}"
 [en.certify]
 generate-election-returns = "We certify that these election returns are true and correct. Each of us signed them with our digital certificate."
 generate-reports = "We certify that this report is true and correct. Each of us signed it with our digital certificate."
+
+[es]
+title = "{organization}: firmas digitales"
+signature = "Firma {n}"
+signature_of = "Firma {n} de {total}"
+signed_by = "Firmado digitalmente por {name}"
+date = "Fecha: {time}"
+issuer = "Emisor: {issuer}"
+code = "Código de firma: {code}"
+document = "SHA-256 del documento antes de las firmas: {sha256}"
+
+[es.certify]
+generate-election-returns = "Certificamos que estas actas electorales son verídicas y correctas. Cada uno de nosotros las firmó con su certificado digital."
+generate-reports = "Certificamos que este informe es verídico y correcto. Cada uno de nosotros lo firmó con su certificado digital."
+
+[cat]
+title = "{organization}: signatures digitals"
+signature = "Signatura {n}"
+signature_of = "Signatura {n} de {total}"
+signed_by = "Signat digitalment per {name}"
+date = "Data: {time}"
+issuer = "Emissor: {issuer}"
+code = "Codi de signatura: {code}"
+document = "SHA-256 del document abans de les signatures: {sha256}"
+
+[cat.certify]
+generate-election-returns = "Certifiquem que aquestes actes electorals són veraces i correctes. Cadascun de nosaltres les ha signat amb el seu certificat digital."
+generate-reports = "Certifiquem que aquest informe és veraç i correcte. Cadascun de nosaltres l'ha signat amb el seu certificat digital."
+
+[eu]
+title = "{organization}: sinadura digitalak"
+signature = "{n}. sinadura"
+signature_of = "{n}. sinadura, guztira {total}"
+signed_by = "{name}(e)k digitalki sinatua"
+date = "Data: {time}"
+issuer = "Jaulkitzailea: {issuer}"
+code = "Sinadura-kodea: {code}"
+document = "Dokumentuaren SHA-256 sinaduren aurretik: {sha256}"
+
+[eu.certify]
+generate-election-returns = "Ziurtatzen dugu hauteskunde-akta hauek egiazkoak eta zuzenak direla. Gutako bakoitzak bere ziurtagiri digitalarekin sinatu ditu."
+generate-reports = "Ziurtatzen dugu txosten hau egiazkoa eta zuzena dela. Gutako bakoitzak bere ziurtagiri digitalarekin sinatu du."
+
+[fr]
+title = "{organization} : signatures numériques"
+signature = "Signature {n}"
+signature_of = "Signature {n} sur {total}"
+signed_by = "Signé numériquement par {name}"
+date = "Date : {time}"
+issuer = "Émetteur : {issuer}"
+code = "Code de signature : {code}"
+document = "SHA-256 du document avant les signatures : {sha256}"
+
+[fr.certify]
+generate-election-returns = "Nous certifions que ces procès-verbaux électoraux sont sincères et exacts. Chacun de nous les a signés avec son certificat numérique."
+generate-reports = "Nous certifions que ce rapport est sincère et exact. Chacun de nous l'a signé avec son certificat numérique."
+
+[gl]
+title = "{organization}: sinaturas dixitais"
+signature = "Sinatura {n}"
+signature_of = "Sinatura {n} de {total}"
+signed_by = "Asinado dixitalmente por {name}"
+date = "Data: {time}"
+issuer = "Emisor: {issuer}"
+code = "Código de sinatura: {code}"
+document = "SHA-256 do documento antes das sinaturas: {sha256}"
+
+[gl.certify]
+generate-election-returns = "Certificamos que estas actas electorais son verídicas e correctas. Cada un de nós asinounas co seu certificado dixital."
+generate-reports = "Certificamos que este informe é verídico e correcto. Cada un de nós asinouno co seu certificado dixital."
+
+[nl]
+title = "{organization}: digitale handtekeningen"
+signature = "Handtekening {n}"
+signature_of = "Handtekening {n} van {total}"
+signed_by = "Digitaal ondertekend door {name}"
+date = "Datum: {time}"
+issuer = "Uitgever: {issuer}"
+code = "Ondertekeningscode: {code}"
+document = "SHA-256 van het document vóór de handtekeningen: {sha256}"
+
+[nl.certify]
+generate-election-returns = "Wij verklaren dat deze processen-verbaal waarheidsgetrouw en juist zijn. Ieder van ons heeft ze ondertekend met zijn digitale certificaat."
+generate-reports = "Wij verklaren dat dit rapport waarheidsgetrouw en juist is. Ieder van ons heeft het ondertekend met zijn digitale certificaat."
+
+[tl]
+title = "{organization}: mga digital na pirma"
+signature = "Pirma {n}"
+signature_of = "Pirma {n} sa {total}"
+signed_by = "Digital na pinirmahan ni {name}"
+date = "Petsa: {time}"
+issuer = "Issuer: {issuer}"
+code = "Code ng pagpirma: {code}"
+document = "SHA-256 ng dokumento bago ang mga pirma: {sha256}"
+
+[tl.certify]
+generate-election-returns = "Pinatutunayan namin na totoo at tama ang mga election return na ito. Pinirmahan ito ng bawat isa sa amin gamit ang aming digital na sertipiko."
+generate-reports = "Pinatutunayan namin na totoo at tama ang ulat na ito. Pinirmahan ito ng bawat isa sa amin gamit ang aming digital na sertipiko."

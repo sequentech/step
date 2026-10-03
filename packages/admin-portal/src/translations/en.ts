@@ -338,7 +338,6 @@ const englishTranslation = {
                 helpLinks: "Help Links",
                 logoUrl: "Logo URL",
                 css: "Custom CSS",
-
                 displayName: "Display name",
                 displayNameHelp:
                     "The organization's name in messages that name it. Empty: the tenant's short name.",
@@ -2169,6 +2168,9 @@ const englishTranslation = {
                             confirm: "Send Transmission Package",
                             cancel: "Close",
                         },
+
+                        disabled:
+                            "The required signatures are missing, or the transmission package has already been sent to every destination.",
                     },
                     regenerate: {
                         title: "Regenerate",
@@ -2218,12 +2220,12 @@ const englishTranslation = {
                     },
                 },
                 signatures: {
-                    title: "SBEI Signatures",
+                    title: "Signatures",
                     description:
-                        "SBEIs can sign the Transmission Package. The table below shows the signing status of each of the SBEI members.",
+                        "Members can sign the transmission package. The table shows each member’s signing status.",
                     status: "{{signed}} out of {{total}} Signed, {{minimum}} minimum",
                     table: {
-                        trusteeName: "SBEI id",
+                        trusteeName: "Member",
                         signed: "Has Signed",
                     },
                 },
@@ -3724,6 +3726,7 @@ const englishTranslation = {
                 },
             },
             reports: {
+                postRequired: "Select a Post to generate this report when signatures are required.",
                 generateNotice:
                     "{{post}}: the document is generated now. It can be printed and transmitted once {{n}} people have signed it.",
             },
@@ -4011,6 +4014,26 @@ const englishTranslation = {
                 recordedIn: "Recorded in",
                 recordedInCeremony: "The keys ceremony and the bulletin board",
                 recordedInTally: "The tally session",
+            },
+            results: {
+                signatures: "Signatures",
+                needs: "Needs {{n}}",
+                off: "Off",
+                openRequest: "Open the signing request",
+                downloadSigned: "Download signed PDF",
+                print: "Print",
+                transmit: "Transmit results",
+                sendTo: "Send to {{count}} destinations",
+                awaiting: "{{item}}: awaiting signatures",
+                transmission: {
+                    title: "Signatures",
+                    description:
+                        "Each signer signs the package's results with their digital certificate, in this browser. The package can be sent once {{n}} people have signed it.",
+                    waiting:
+                        "The package can be sent once its signing request has all its signatures.",
+                    signed: "The package carries all its signatures and can be sent.",
+                    ended: "This package's signing request ended. Create the package again to sign it.",
+                },
             },
             keyShare: {
                 signing:

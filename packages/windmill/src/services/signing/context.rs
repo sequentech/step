@@ -14,7 +14,7 @@ use chrono::{DateTime, Utc};
 use sequent_core::services::jwt::{decode_permission_labels, JwtClaims};
 use sequent_core::signing::{CertificateCheckId, SigningAction, SigningRequestStatus};
 use sequent_core::types::permissions::Permissions;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashSet;
 use std::fmt;
@@ -23,11 +23,13 @@ use uuid::Uuid;
 
 /// Which Posts a caller reaches: the Posts whose requests they start, read,
 /// export and cancel.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
 pub enum PostReach {
     /// A person, by the labels of their token, as Hasura shows them Posts:
     /// an unlabelled Post, and a labelled one whose label they hold. A
     /// person without labels reaches only unlabelled Posts.
+    #[default]
     Labels,
     /// The system, starting a request nobody started by hand (the tally's
     /// reports, a scheduled report): every Post. It holds no permission,
@@ -37,7 +39,7 @@ pub enum PostReach {
 
 /// Who a signing step is taken by: a signed-in person, as their token says,
 /// or the system ([`SigningCaller::system`]).
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SigningCaller {
     pub user_id: String,
     pub username: String,
@@ -50,6 +52,8 @@ pub struct SigningCaller {
     pub auth_time: Option<DateTime<Utc>>,
     /// The trustee name of a trustee's token.
     pub trustee: Option<String>,
+    /// A person's when a serialized caller leaves it out.
+    #[serde(default)]
     pub reach: PostReach,
 }
 

@@ -370,6 +370,8 @@ fn cases() -> Vec<Case> {
         // Any signing read or sign permission reads it; each alone is enough.
         case!(UuidTenant, "/signing-event-info", {"election_event_id": UUID_EVENT_ID}, [SIGNING_REQUESTS_READ], BACKEND, FORBIDDEN_JSON),
         case!(UuidTenant, "/signing-event-info", {"election_event_id": UUID_EVENT_ID}, [SIGN_CLOSE_VOTING], BACKEND, FORBIDDEN_JSON),
+        case!(UuidTenant, "/signing-reports/requests", {"election_event_id": UUID_EVENT_ID}, [SIGNING_REQUESTS_READ], BACKEND, FORBIDDEN_JSON),
+        case!(UuidTenant, "/signing-reports/requests", {"election_event_id": UUID_EVENT_ID}, [SIGN_GENERATE_ELECTION_RETURNS], BACKEND, FORBIDDEN_JSON),
         case!(UuidTenant, "/signing-requests/pdf-prepare", {"request_id": ELECTION_ID, "chain_pem": [PEM]}, [], BACKEND),
     ]
 }

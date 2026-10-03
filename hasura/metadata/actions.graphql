@@ -2543,6 +2543,9 @@ type Query {
 
 type Query {
     signingEventInfo(election_event_id: uuid!): SigningEventInfoOutput!
+    signingHeldReportRequests(
+        election_event_id: uuid!
+    ): SigningHeldReportRequestsOutput!
 }
 
 type SigningGetRequestOutput {
@@ -2607,4 +2610,8 @@ type SigningPdfPrepareOutput {
     revision: Int!
     digest_b64: String!
     signing_time: String!
+}
+
+type SigningHeldReportRequestsOutput {
+    requests: jsonb!
 }

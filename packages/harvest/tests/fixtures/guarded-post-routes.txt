@@ -146,3 +146,4 @@
 /signing-rules/capacity
 /signing-event-info
 /signing-requests/pdf-prepare
+/signing-reports/requests
