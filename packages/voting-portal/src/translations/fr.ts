@@ -167,6 +167,15 @@ const frenchTranslation: TranslationType = {
                 ok: "Oui, je veux déposer mon bulletin blanc",
                 cancel: "Annuler",
             },
+            unfilledContestsDialog: {
+                title: "Certaines sélections sont incomplètes",
+                content:
+                    "Vous pouvez laisser une sélection vide ou choisir moins d'options que le maximum autorisé. Vérifiez les éléments suivants avant de continuer.",
+                selected: "{{selected}} sur {{max}} sélectionnées",
+                nothingSelected: "Aucune sélection",
+                ok: "Continuer avec ces sélections",
+                cancel: "Revoir les sélections",
+            },
             error: {
                 NETWORK_ERROR:
                     "Un problème de réseau est survenu. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",

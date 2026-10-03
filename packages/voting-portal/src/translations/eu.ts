@@ -168,6 +168,15 @@ const basqueTranslation: TranslationType = {
                 ok: "Bai, nire boto-txartel zuria aurkeztu nahi dut",
                 cancel: "Ezeztatu",
             },
+            unfilledContestsDialog: {
+                title: "Hautaketa batzuk osatu gabe daude",
+                content:
+                    "Hautaketak hutsik utz ditzakezu edo baimendutakoak baino aukera gutxiago hauta ditzakezu. Berrikusi honako hau jarraitu aurretik.",
+                selected: "{{max}}tik {{selected}} hautatuta",
+                nothingSelected: "Hautaketarik ez",
+                ok: "Jarraitu hautaketa hauekin",
+                cancel: "Berrikusi hautaketak",
+            },
             error: {
                 NETWORK_ERROR:
                     "Sare arazoa izan da. Mesedez, saiatu berriro geroago edo jarri harremanetan laguntzarekin.",

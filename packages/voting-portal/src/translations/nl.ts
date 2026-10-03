@@ -168,6 +168,15 @@ const dutchTranslation: TranslationType = {
                 ok: "Ja, ik wil mijn blanco stembiljet uitbrengen",
                 cancel: "Annuleren",
             },
+            unfilledContestsDialog: {
+                title: "Sommige keuzes zijn niet ingevuld",
+                content:
+                    "U mag een keuze leeg laten of minder opties kiezen dan toegestaan. Controleer het volgende voordat u doorgaat.",
+                selected: "{{selected}} van {{max}} geselecteerd",
+                nothingSelected: "Niets geselecteerd",
+                ok: "Doorgaan met deze keuzes",
+                cancel: "Keuzes controleren",
+            },
             error: {
                 NETWORK_ERROR:
                     "Er was een netwerkprobleem. Probeer het later opnieuw of neem contact op met ondersteuning voor hulp.",

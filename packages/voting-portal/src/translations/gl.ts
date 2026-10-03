@@ -169,6 +169,15 @@ const galegoTranslation: TranslationType = {
                 ok: "Si, quero emitir a miña papeleta en branco",
                 cancel: "Cancelar",
             },
+            unfilledContestsDialog: {
+                title: "Hai seleccións sen completar",
+                content:
+                    "Pode deixar seleccións en branco ou escoller menos opcións das permitidas. Revise o seguinte antes de continuar.",
+                selected: "{{selected}} de {{max}} seleccionadas",
+                nothingSelected: "Sen selección",
+                ok: "Continuar con estas seleccións",
+                cancel: "Revisar seleccións",
+            },
             error: {
                 NETWORK_ERROR:
                     "Houbo un problema de rede. Inténtao de novo máis tarde ou contacta co soporte para obter axuda.",

@@ -168,6 +168,15 @@ const catalanTranslation: TranslationType = {
                 ok: "Sí, vull emetre la meva papereta en blanc",
                 cancel: "Cancel·lar",
             },
+            unfilledContestsDialog: {
+                title: "Hi ha seleccions sense completar",
+                content:
+                    "Podeu deixar seleccions en blanc o triar menys opcions de les permeses. Reviseu el següent abans de continuar.",
+                selected: "{{selected}} de {{max}} seleccionades",
+                nothingSelected: "Sense selecció",
+                ok: "Continuar amb aquestes seleccions",
+                cancel: "Revisar seleccions",
+            },
             error: {
                 NETWORK_ERROR:
                     "Hi ha hagut un problema de xarxa. Si us plau, torna-ho a intentar més tard o contacta amb el servei d'assistència.",

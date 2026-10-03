@@ -1923,6 +1923,7 @@ const frenchTranslation: TranslationType = {
                 "warn-only-in-review": "Avertir en Révision",
                 "warn": "Avertir",
                 "warn-and-alert": "Avertir et Alerter",
+                "warn-and-confirm-in-review": "Avertir et Confirmer en Révision",
             },
             invalidVotePolicy: {
                 "label": "Politique de vote invalide",

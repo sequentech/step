@@ -1912,6 +1912,7 @@ const dutchTranslation: TranslationType = {
                 "warn-only-in-review": "Waarschuwen bij Controle",
                 "warn": "Waarschuwen",
                 "warn-and-alert": "Waarschuwen en Melden",
+                "warn-and-confirm-in-review": "Waarschuwen en Bevestigen bij Controle",
             },
             invalidVotePolicy: {
                 "label": "Beleid Ongeldige Stem",
