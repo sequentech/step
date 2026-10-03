@@ -251,7 +251,7 @@ export const ChangeLanguage: Story = {
         const canvas = within(canvasElement)
         await userEvent.click(canvas.getByRole("button", {name: "Language: English"}))
         await userEvent.click(within(document.body).getByRole("menuitemradio", {name: "Español"}))
-        await expect(canvas.getByRole("button", {name: "Español"})).toBeVisible()
+        await expect(canvas.getByRole("button", {name: "Idioma: Español"})).toBeVisible()
         await expect(args.onAction).toHaveBeenCalledTimes(1)
         await expect(args.onAction).toHaveBeenLastCalledWith("es")
     },

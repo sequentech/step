@@ -152,7 +152,9 @@ export const ChangeTheLanguage: Story = {
         ).toEqual(["English", "Español"])
         await userEvent.click(within(menu).getByRole("menuitemradio", {name: "Español"}))
         await waitFor(() => expect(getValueFromCookie(USER_LANGUAGE_COOKIE_NAME)).toBe("es"))
-        await expect(within(canvasElement).getByRole("button", {name: "Español"})).toBeVisible()
+        await expect(
+            within(canvasElement).getByRole("button", {name: "Idioma: Español"})
+        ).toBeVisible()
     },
 }
 
