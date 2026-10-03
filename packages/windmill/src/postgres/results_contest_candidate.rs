@@ -35,9 +35,7 @@ impl TryFrom<Row> for ResultsContestCandidateWrapper {
             contest_id: item.try_get::<_, Uuid>("contest_id")?.to_string(),
             candidate_id: item.try_get::<_, Uuid>("candidate_id")?.to_string(),
             results_event_id: item.try_get::<_, Uuid>("results_event_id")?.to_string(),
-            cast_votes: item
-                .try_get::<_, Option<i32>>("cast_votes")?
-                .map(|val| val as i64),
+            cast_votes: item.try_get::<_, Option<i64>>("cast_votes")?,
             winning_position: item
                 .try_get::<_, Option<i32>>("winning_position")?
                 .map(|val| val as i64),
