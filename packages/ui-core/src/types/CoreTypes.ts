@@ -203,6 +203,18 @@ export interface IReceivedBallot {
     ballot_id: string
 }
 
+// The ballot box's signed statement that it has stored a ballot as cast.
+export interface ICastReceipt {
+    election_event_id: string
+    election_id: string
+    ballot_id: string
+    received_at: string
+    cast_at: string
+    key_id: string
+    cast_signature: string
+    cast_receipt_signature: string
+}
+
 export interface IAuditableBallot {
     version: number
     issue_date: string

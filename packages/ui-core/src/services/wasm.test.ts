@@ -41,6 +41,9 @@ jest.mock("sequent-core", () => {
         "verify_ballot_signature_js",
         "verify_multi_ballot_signature_js",
         "verify_received_ballot_js",
+        "sign_ballot_cast_js",
+        "forget_voter_signing_key_js",
+        "verify_cast_receipt_js",
         "normalize_ballot_id_js",
         "check_voting_not_allowed_next",
         "check_voting_error_dialog",
@@ -87,6 +90,16 @@ const receivedBallot = {
     key_id: "fd110d301d2f077d",
     received_signature: "ballot-box-signature",
     ballot_id: "FTBE-MHRX",
+}
+const castReceipt = {
+    election_event_id: "event-1",
+    election_id: "election-1",
+    ballot_id: "FTBE-MHRX",
+    received_at: "2028-05-08T03:00:00.000Z",
+    cast_at: "2028-05-08T03:04:05.678Z",
+    key_id: "fd110d301d2f077d",
+    cast_signature: "cast-signature",
+    cast_receipt_signature: "ballot-box-cast-signature",
 }
 const option = candidate("candidate-1")
 const question = contest({candidates: [option]})
@@ -279,6 +292,20 @@ const cases: AdapterCase[] = [
         result: "FTBE-MHRX",
     },
     {
+        name: "cast signature",
+        run: () => adapter.signBallotCast("election-1", "voter-key", "FTBE-MHRX"),
+        backend: backend.sign_ballot_cast_js,
+        args: ["election-1", "voter-key", "FTBE-MHRX"],
+        result: "cast-signature",
+    },
+    {
+        name: "cast receipt verification",
+        run: () => adapter.verifyCastReceipt(ballotBoxKey, castReceipt),
+        backend: backend.verify_cast_receipt_js,
+        args: [ballotBoxKey, castReceipt],
+        result: true,
+    },
+    {
         name: "typed ballot id",
         run: () => adapter.normalizeBallotId("ftbemhrx"),
         backend: backend.normalize_ballot_id_js,
@@ -399,6 +426,16 @@ it.each(cases)("preserves the $name failure policy", ({run, backend: implementat
     })
     if (failure === "null") expect(run()).toBeNull()
     else expect(run).toThrow(error)
+})
+
+it("forgets the voter's signing key of one election and survives a WASM failure", () => {
+    adapter.forgetVoterSigningKey("election-1")
+    expect(backend.forget_voter_signing_key_js).toHaveBeenCalledWith("election-1")
+
+    jest.mocked(backend.forget_voter_signing_key_js).mockImplementation(() => {
+        throw new Error("synthetic WASM error")
+    })
+    expect(() => adapter.forgetVoterSigningKey("election-1")).not.toThrow()
 })
 
 it("does not invoke WASM for empty collections or an absent counting algorithm", () => {

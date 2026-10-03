@@ -137,6 +137,10 @@ jest.mock("../hooks/useReceiveBallot", () => ({
         return mockReceiveBallotState
     },
 }))
+jest.mock("../hooks/useCastReceivedBallot", () => ({
+    signReceivedCast: (...args: unknown[]) => mockSignReceivedCast(...args),
+    useCastReceivedBallot: () => mockCastReceivedBallot,
+}))
 jest.mock("../hooks/root-back-link", () => ({
     useRootBackLink: () => "/tenant/tenant-1/event/event-1/election-chooser",
 }))
@@ -163,6 +167,8 @@ let mockIsKiosk = false
 const mockReauthWithGold = jest.fn()
 const mockInsertCastVote = jest.fn()
 const mockReceiveBallotParams = jest.fn()
+const mockSignReceivedCast = jest.fn()
+const mockCastReceivedBallot = jest.fn()
 let mockReceiveBallotState: IReceiveBallotState
 const routeAction = jest.fn(() => null)
 let mockEmptyHashTranslation = false
@@ -696,6 +702,19 @@ describe("ballot received by the ballot box at review", () => {
         received_signature: "ballot-box-signature",
         ballot_id: RECEIVED_BALLOT_ID,
     }
+    const ballotBoxKey = {key_id: "fd110d301d2f077d", public_key: "ballot-box-key"}
+    const receivedCast = {receivedBallot, ballotBoxKey, castSignature: "cast-signature"}
+    // The ballot box has the ballot under review and has published its key.
+    const receiveAtReview = () => {
+        mockDisableAuth = false
+        mockReceiveBallotState = received()
+        mockState = {...mockState, receivedBallots: {"election-1": receivedBallot}}
+        mockState.ballotStyles["election-1"]!.ballot_eml.ballot_box_key = ballotBoxKey
+    }
+    beforeEach(() => {
+        mockSignReceivedCast.mockReturnValue(receivedCast)
+        mockCastReceivedBallot.mockResolvedValue(true)
+    })
     const requireGoldLevel = () => {
         const election = mockState.elections["election-1"]!
         election.presentation = {
@@ -719,9 +738,8 @@ describe("ballot received by the ballot box at review", () => {
         expect(mockInsertCastVote).not.toHaveBeenCalled()
     })
 
-    it("shows the ballot box's Ballot ID once received and casts that ballot", async () => {
-        mockDisableAuth = false
-        mockReceiveBallotState = received()
+    it("shows the ballot box's Ballot ID once received and casts it by signature", async () => {
+        receiveAtReview()
         const {container} = renderRoute(<ReviewScreen />, "review")
 
         // The mocked translation shows the first eight characters.
@@ -733,10 +751,58 @@ describe("ballot received by the ballot box at review", () => {
         expect(cast).toBeEnabled()
         await userEvent.setup().click(cast)
         await waitFor(() => expect(routeAction).toHaveBeenCalledTimes(1))
-        // The ballot box finds the received ballot by the hash of what was sent.
-        expect(mockInsertCastVote).toHaveBeenCalledWith({
-            variables: {electionId: "election-1", ballotId: BALLOT_ID, content: "{}"},
+        expect(mockSignReceivedCast).toHaveBeenCalledWith(receivedBallot, ballotBoxKey)
+        expect(mockCastReceivedBallot).toHaveBeenCalledWith(receivedCast, expect.any(Function))
+        // The ballot is not sent again: the ballot box casts the one it has.
+        expect(mockInsertCastVote).not.toHaveBeenCalled()
+    })
+
+    it("stays on the review screen when the ballot box's cast receipt is not accepted", async () => {
+        receiveAtReview()
+        mockCastReceivedBallot.mockResolvedValue(false)
+        renderRoute(<ReviewScreen />, "review")
+
+        const cast = screen.getByRole("button", {name: "reviewScreen.castBallotButton"})
+        await userEvent.setup().click(cast)
+
+        await waitFor(() => expect(cast).toBeEnabled())
+        expect(mockCastReceivedBallot).toHaveBeenCalledTimes(1)
+        expect(mockInsertCastVote).not.toHaveBeenCalled()
+    })
+
+    it("returns to the ballot when the key that signed it is no longer in the page", async () => {
+        receiveAtReview()
+        mockSignReceivedCast.mockImplementation(() => {
+            throw new Error("The key that signed the ballot is no longer in memory")
         })
+        jest.spyOn(console, "error").mockImplementation(() => undefined)
+        const {router} = renderRoute(<ReviewScreen />, "review")
+
+        await userEvent
+            .setup()
+            .click(screen.getByRole("button", {name: "reviewScreen.castBallotButton"}))
+
+        await waitFor(() => expect(router.state.location.pathname).toBe(`${ELECTION_PATH}/vote`))
+        expect(mockCastReceivedBallot).not.toHaveBeenCalled()
+        expect(mockInsertCastVote).not.toHaveBeenCalled()
+        expect(routeAction).not.toHaveBeenCalled()
+    })
+
+    it("casts the ballot itself when a received ballot is of another review", async () => {
+        receiveAtReview()
+        mockState = {
+            ...mockState,
+            receivedBallots: {"election-1": {...receivedBallot, ballot_id: "0000-0000"}},
+        }
+        renderRoute(<ReviewScreen />, "review")
+
+        await userEvent
+            .setup()
+            .click(screen.getByRole("button", {name: "reviewScreen.castBallotButton"}))
+
+        await waitFor(() => expect(mockInsertCastVote).toHaveBeenCalledTimes(1))
+        expect(mockSignReceivedCast).not.toHaveBeenCalled()
+        expect(mockCastReceivedBallot).not.toHaveBeenCalled()
     })
 
     it("shows the error and cannot cast a ballot the ballot box did not receive", () => {
@@ -804,10 +870,9 @@ describe("ballot received by the ballot box at review", () => {
         )
     })
 
-    it("keeps the Ballot ID across the gold reauthentication and casts by the hash", async () => {
+    it("signs the cast before the gold reauthentication and casts with it after", async () => {
         requireGoldLevel()
-        mockDisableAuth = false
-        mockReceiveBallotState = received()
+        receiveAtReview()
         const review = renderRoute(<ReviewScreen />, "review")
         await userEvent
             .setup()
@@ -815,8 +880,9 @@ describe("ballot received by the ballot box at review", () => {
         await waitFor(() => expect(mockReauthWithGold).toHaveBeenCalledTimes(1))
         expect(JSON.parse(sessionStorage.getItem(BALLOT_DATA_KEY)!)).toMatchObject({
             ballotId: BALLOT_ID,
-            receivedBallotId: RECEIVED_BALLOT_ID,
+            receivedCast,
         })
+        expect(mockCastReceivedBallot).not.toHaveBeenCalled()
         review.unmount()
 
         mockState = store.getState()
@@ -847,9 +913,10 @@ describe("ballot received by the ballot box at review", () => {
                 })
             )
         )
-        expect(mockInsertCastVote).toHaveBeenCalledWith({
-            variables: {electionId: "election-1", ballotId: BALLOT_ID, content: "{}"},
-        })
+        // Only the signature crossed the reload: the page signs nothing again.
+        expect(mockSignReceivedCast).toHaveBeenCalledTimes(1)
+        expect(mockCastReceivedBallot).toHaveBeenCalledWith(receivedCast, expect.any(Function))
+        expect(mockInsertCastVote).not.toHaveBeenCalled()
     })
 
     it("confirms the cast with the ballot box's Ballot ID and locates the ballot by it", () => {

@@ -5,6 +5,12 @@ import React, {useEffect, useState, useContext, useMemo, useRef} from "react"
 import {castVoteErrorMessage} from "../services/CastVoteErrors"
 import {EReceiveBallotStatus, useReceiveBallot} from "../hooks/useReceiveBallot"
 import {
+    IReceivedCast,
+    signReceivedCast,
+    useCastReceivedBallot,
+} from "../hooks/useCastReceivedBallot"
+import {selectReceivedBallot} from "../store/receivedBallots/receivedBallotsSlice"
+import {
     Link as RouterLink,
     useNavigate,
     useParams,
@@ -278,6 +284,12 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
     const {isGoldUser, reauthWithGold} = authContext
     const addFakeCastVote = useAddFakeCastVote(tenantId, eventId)
     const tryInsertCastVote = useTryInsertCastVote()
+    const tryCastReceivedBallot = useCastReceivedBallot()
+    const storedReceivedBallot = useAppSelector(selectReceivedBallot(ballotStyle.election_id))
+    const receivedBallot =
+        receivedBallotId && storedReceivedBallot?.ballot_id === receivedBallotId
+            ? storedReceivedBallot
+            : undefined
     const dispatch = useAppDispatch()
 
     const handleClose = (value: boolean) => {
@@ -324,6 +336,10 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
             return submit({error: errorType}, {method: "post"})
         }
     }
+
+    const backNavigateTo = isDeclineToVote
+        ? `/tenant/${tenantId}/event/${eventId}/election/${ballotStyle.election_id}/start${location.search}`
+        : `/tenant/${tenantId}/event/${eventId}/election/${ballotStyle.election_id}/vote${location.search}`
 
     const castBallotAction = async () => {
         if (castingRef.current || castRefused) {
@@ -376,6 +392,21 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
             return submit({error: errorType}, {method: "post"})
         }
 
+        // With receipts on, the voter casts by signing the Ballot ID with the
+        // key that signed the ballot. A page that no longer holds that key
+        // goes back to the ballot, which signs and sends a new one.
+        let receivedCast: IReceivedCast | undefined
+        const ballotBoxKey = ballotStyle.ballot_eml.ballot_box_key
+        if (receivedBallot && ballotBoxKey) {
+            try {
+                receivedCast = signReceivedCast(receivedBallot, ballotBoxKey)
+            } catch (error) {
+                console.error("The key that signed the ballot is gone:", error)
+                setCasting(false)
+                return navigate(backNavigateTo)
+            }
+        }
+
         /**
          * For high-security elections (golden policy):
          * 1. Save ballot information to browser session storage
@@ -386,7 +417,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
             // Save contests to session storage and perform reauthentication
             const ballotData: SessionBallotData = {
                 ballotId,
-                receivedBallotId,
+                receivedCast,
                 auditButtonCfg,
                 electionId: ballotStyle.election_id,
                 isDemo,
@@ -396,23 +427,21 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
             return await storeBallotDataAndReauth(ballotData)
         }
 
-        if (
-            !(await tryInsertCastVote(
-                ballotStyle.election_id,
-                ballotId,
-                JSON.stringify(hashableBallot),
-                setErrorMsg
-            ))
-        ) {
+        const cast = receivedCast
+            ? await tryCastReceivedBallot(receivedCast, setErrorMsg)
+            : await tryInsertCastVote(
+                  ballotStyle.election_id,
+                  ballotId,
+                  JSON.stringify(hashableBallot),
+                  setErrorMsg
+              )
+        if (!cast) {
             setCasting(false)
             return submit({error: errorType}, {method: "post"})
         }
         return submit(null, {method: "post"})
     }
 
-    const backNavigateTo = isDeclineToVote
-        ? `/tenant/${tenantId}/event/${eventId}/election/${ballotStyle.election_id}/start${location.search}`
-        : `/tenant/${tenantId}/event/${eventId}/election/${ballotStyle.election_id}/vote${location.search}`
     return (
         <>
             {auditButtonCfg === EVotingPortalAuditButtonCfg.SHOW ? (
@@ -502,6 +531,7 @@ export const ReviewScreen: React.FC = () => {
     const dispatch = useAppDispatch()
     const addFakeCastVote = useAddFakeCastVote(tenantId, eventId)
     const tryInsertCastVote = useTryInsertCastVote()
+    const tryCastReceivedBallot = useCastReceivedBallot()
     const electionFromRedux = useAppSelector(selectElectionById(String(electionId)))
     const isDeclineToVote = useAppSelector(isDeclineToVoteByElectionId(String(electionId)))
     const {data: dataElections, error: errorElections} = useQuery<GetElectionsQuery>(
@@ -682,14 +712,15 @@ export const ReviewScreen: React.FC = () => {
             return submit(null, {method: "post"})
         }
 
-        if (
-            !(await tryInsertCastVote(
-                ballotData.electionId,
-                ballotData.ballotId,
-                ballotData.ballot,
-                setErrorMsg
-            ))
-        ) {
+        const cast = ballotData.receivedCast
+            ? await tryCastReceivedBallot(ballotData.receivedCast, setErrorMsg)
+            : await tryInsertCastVote(
+                  ballotData.electionId,
+                  ballotData.ballotId,
+                  ballotData.ballot,
+                  setErrorMsg
+              )
+        if (!cast) {
             setCasting(false)
             return submit({error: errorType}, {method: "post"})
         }
@@ -699,7 +730,8 @@ export const ReviewScreen: React.FC = () => {
             setConfirmationScreenData({
                 electionId: ballotData.electionId,
                 confirmationScreenData: {
-                    ballotId: ballotData.receivedBallotId ?? ballotData.ballotId,
+                    ballotId:
+                        ballotData.receivedCast?.receivedBallot.ballot_id ?? ballotData.ballotId,
                     isDemo: ballotData.isDemo,
                     auditButtonCfg: ballotData.auditButtonCfg,
                 },
