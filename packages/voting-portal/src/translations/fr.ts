@@ -457,6 +457,16 @@ const frenchTranslation: TranslationType = {
                 slates: "Choisir une liste",
                 candidates: "Candidatures individuelles",
             },
+            review: {
+                title: "Vos sélections",
+                total: "Candidatures sélectionnées : {{selected}} sur {{seats}}",
+                slate: "{{slate}} : {{status}}",
+                independent: "Candidatures indépendantes sélectionnées : {{count}}",
+                note: "Votre vote est enregistré pour chaque candidature sélectionnée. Une liste n'est pas un vote en soi.",
+                contestCount: "{{selected}} sur {{max}} sélectionnées",
+                edit: "Modifier",
+                editLabel: "Modifier {{contest}}",
+            },
             selection: {
                 all: "Les {{total}} sélectionnées",
                 mixed: "Mixte · {{selected}} sur {{total}} sélectionnées",

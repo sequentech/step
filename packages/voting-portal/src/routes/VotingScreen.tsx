@@ -11,6 +11,7 @@ import {
     BallotActions,
     BallotScreenLayout,
     BallotSlatesProvider,
+    contestTitleId,
     Dialog,
     IconButton,
     VisuallyHidden,
@@ -57,6 +58,7 @@ import {useBallotStyleSlates} from "../hooks/useBallotStyleSlates"
 import {SlateSelectionChooser} from "../components/SlateChooser/SlateSelectionChooser"
 import {ESlateBallotTab, SlateBallotTabs} from "../components/SlateChooser/SlateBallotTabs"
 import {SlateApplyAction} from "../components/SlateChooser/SlateApplyAction"
+import {getEditContestId} from "../services/EditContest"
 
 // `StyledTitle`, `ActionsContainer` and `StyledButton` were here. The heading is
 // `BallotScreenLayout` in `ui-essentials` now and the row of buttons is
@@ -134,6 +136,7 @@ interface ContestPaginationProps {
     slateChooser?: React.ReactNode
     slateTab: ESlateBallotTab
     onSlateTabChange: (tab: ESlateBallotTab) => void
+    editContestId?: string
 }
 
 const ContestPagination: React.FC<ContestPaginationProps> = ({
@@ -146,6 +149,7 @@ const ContestPagination: React.FC<ContestPaginationProps> = ({
     slateChooser,
     slateTab,
     onSlateTabChange,
+    editContestId,
 }) => {
     const dispatch = useAppDispatch()
     const submit = useSubmit()
@@ -163,6 +167,31 @@ const ContestPagination: React.FC<ContestPaginationProps> = ({
         }
         pageAnnouncementRef.current?.focus()
     }, [pageIndex])
+
+    // The review screen sends the voter back to edit one contest: its page is
+    // opened and its heading takes the focus.
+    const isEditContestShown = useRef(false)
+    useEffect(() => {
+        if (!editContestId || isEditContestShown.current) {
+            return
+        }
+        const editPageIndex = contests.findIndex((page) =>
+            page.some((contest) => contest.id === editContestId)
+        )
+        if (editPageIndex < 0) {
+            return
+        }
+        if (editPageIndex !== pageIndex) {
+            setPageIndex(editPageIndex)
+            return
+        }
+        isEditContestShown.current = true
+        const title = document.getElementById(contestTitleId(editContestId))
+        if (title) {
+            title.tabIndex = -1
+            title.focus()
+        }
+    }, [contests, pageIndex, editContestId])
     const sortedContests = sortContestList(contests[pageIndex], contestsOrderType)
     const ballotSelectionState = useAppSelector(
         selectBallotSelectionByElectionId(ballotStyle.election_id)
@@ -300,7 +329,11 @@ const VotingScreen: React.FC = () => {
     const [openNotVoted, setOpenNonVoted] = useState(false)
     const [hasInvalidErrors, setHasInvalidErrors] = useState<boolean>(false)
     const [contestsPerPage, setContestsPerPage] = useState<IContest[][]>([])
-    const [slateTab, setSlateTab] = useState(ESlateBallotTab.SLATES)
+    const location = useLocation()
+    const editContestId = getEditContestId(location.state)
+    const [slateTab, setSlateTab] = useState(
+        editContestId ? ESlateBallotTab.CANDIDATES : ESlateBallotTab.SLATES
+    )
 
     const {encryptAndStoreBallot} = useEncryptBallotForReview()
     const election = useAppSelector(selectElectionById(String(electionId)))
@@ -546,6 +579,7 @@ const VotingScreen: React.FC = () => {
                     }
                     slateTab={slateTab}
                     onSlateTabChange={setSlateTab}
+                    editContestId={editContestId}
                     ballotStyle={ballotStyle}
                     contests={contestsPerPage}
                     onSetDisableNext={onSetDisableNext}

@@ -146,7 +146,7 @@ export type {
     IvrEmulatorConfig,
     IvrEmulatorFailure,
 } from "./ballot/ivrEmulator"
-export {Question} from "./ballot/Question"
+export {Question, contestTitleId} from "./ballot/Question"
 export type {IQuestionProps} from "./ballot/Question"
 export {Answer} from "./ballot/Answer"
 export {AnswersList} from "./ballot/AnswersList"

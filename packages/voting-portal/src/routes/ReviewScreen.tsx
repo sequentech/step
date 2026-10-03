@@ -80,6 +80,10 @@ import {
 import {setConfirmationScreenData} from "../store/castVotes/confirmationScreenDataSlice"
 import {selectElectionById} from "../store/elections/electionsSlice"
 import {completeAcclaimedElection, isDeclineToVoteByElectionId} from "../store/extra/extraSlice"
+import {isSameBallotSelection} from "../services/BallotSelectionComparison"
+import {getBallotReviewSummary} from "../services/ReviewSummary"
+import {ReviewContestFooter} from "../components/ReviewSummary/ReviewContestFooter"
+import {ReviewSelectionSummary} from "../components/ReviewSummary/ReviewSelectionSummary"
 
 const StyledButton = styled(Button)`
     display: flex;
@@ -519,7 +523,12 @@ export const ReviewScreen: React.FC = () => {
     const [auditBallotHelp, setAuditBallotHelp] = useState<boolean>(false)
     const [openBallotIdHelp, setOpenBallotIdHelp] = useState(false)
     const [openReviewScreenHelp, setReviewScreenHelp] = useState(false)
-    const {interpretContestSelection, interpretMultiContestSelection} = provideBallotService()
+    const {
+        interpretContestSelection,
+        interpretMultiContestSelection,
+        decodeAuditableBallot,
+        decodeAuditableMultiBallot,
+    } = provideBallotService()
     const {t} = useTranslation()
     const backLink = useRootBackLink()
     const navigate = useNavigate()
@@ -602,14 +611,54 @@ export const ReviewScreen: React.FC = () => {
         selectionState?.length && selectionState.every((contest) => contest.is_blank_ballot)
     )
 
+    // The review shows the selections in the store and casts the encrypted
+    // ballot. They differ when the selections changed after encrypting, for
+    // example through the browser history.
+    const hasStaleBallot = useMemo(() => {
+        if (!auditableBallot || !selectionState) {
+            return false
+        }
+        try {
+            const encryptedSelection = isMultiContest
+                ? decodeAuditableMultiBallot(auditableBallot as IAuditableMultiBallot)
+                : decodeAuditableBallot(auditableBallot as IAuditableSingleBallot)
+            return (
+                !!encryptedSelection && !isSameBallotSelection(encryptedSelection, selectionState)
+            )
+        } catch (error) {
+            console.log(`Error decoding the ballot under review: ${error}`)
+            return false
+        }
+    }, [auditableBallot, selectionState, isMultiContest])
+
+    const votePath = `/tenant/${tenantId}/event/${eventId}/election/${electionId}/vote${location.search}`
+
+    useEffect(() => {
+        if (hasStaleBallot) {
+            navigate(votePath, {replace: true})
+        }
+    }, [hasStaleBallot, navigate, votePath])
+
     const errorSelectionState = useMemo(() => {
-        if (!selectionState || !ballotStyle || isFullyAcclaimed) {
+        if (!selectionState || !ballotStyle || isFullyAcclaimed || hasStaleBallot) {
             return []
         }
         return isMultiContest
             ? interpretMultiContestSelection(selectionState, ballotStyle.ballot_eml)
             : interpretContestSelection(selectionState, ballotStyle.ballot_eml)
-    }, [selectionState, isMultiContest, ballotStyle?.ballot_eml])
+    }, [selectionState, isMultiContest, ballotStyle?.ballot_eml, hasStaleBallot])
+
+    const reviewSummary = useMemo(
+        () =>
+            ballotStyle && slates.resolved?.slates.length && !isDeclineToVote && !isFullyAcclaimed
+                ? getBallotReviewSummary(
+                      ballotStyle.ballot_eml.contests,
+                      slates.resolved,
+                      selectionState
+                  )
+                : undefined,
+        [ballotStyle, slates.resolved, selectionState, isDeclineToVote, isFullyAcclaimed]
+    )
 
     const hasInconsistentHash = Boolean(
         ballotId && auditableBallot?.ballot_hash && ballotId !== auditableBallot.ballot_hash
@@ -753,6 +802,10 @@ export const ReviewScreen: React.FC = () => {
         }
     }, [ballotStyle, selectionState, auditableBallot, isGoldenPolicy, isFullyAcclaimed])
 
+    if (hasStaleBallot) {
+        return <CircularProgress className="review-progress" aria-label={t("a11y.loading")} />
+    }
+
     if (!ballotStyle || (!auditableBallot && !isFullyAcclaimed)) {
         return errorMsg ? (
             <Box className="review-error-screen" sx={{margin: "auto 0"}}>
@@ -792,6 +845,9 @@ export const ReviewScreen: React.FC = () => {
 
     const contestsOrderType = ballotStyle?.ballot_eml.election_presentation?.contests_order
     const contests = sortContestList(ballotStyle.ballot_eml.contests, contestsOrderType)
+    const defaultLanguageCode =
+        ballotStyle.ballot_eml.election_presentation?.language_conf?.default_language_code ??
+        ballotStyle.ballot_eml.election_event_presentation?.language_conf?.default_language_code
 
     return (
         // The arrangement is `ReviewLayout`, in `ui-essentials`, so that the
@@ -824,6 +880,20 @@ export const ReviewScreen: React.FC = () => {
                 errorSelectionState={errorSelectionState}
                 isDeclineToVote={isDeclineToVote}
                 isBlankBallot={isBlankBallot}
+                summary={
+                    reviewSummary ? (
+                        <ReviewSelectionSummary
+                            summary={reviewSummary}
+                            defaultLanguage={defaultLanguageCode}
+                        />
+                    ) : undefined
+                }
+                renderContestFooter={(contest) => {
+                    const count = reviewSummary?.contests[contest.id]
+                    return count ? (
+                        <ReviewContestFooter contest={contest} count={count} to={votePath} />
+                    ) : null
+                }}
                 actions={
                     isCasting ? undefined : (
                         <ActionButtons

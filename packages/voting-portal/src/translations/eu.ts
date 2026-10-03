@@ -459,6 +459,16 @@ const basqueTranslation: TranslationType = {
                 slates: "Aukeratu zerrenda bat",
                 candidates: "Hautagaiak banaka",
             },
+            review: {
+                title: "Zure hautaketak",
+                total: "Hautatutako hautagaiak: {{seats}}tik {{selected}}",
+                slate: "{{slate}}: {{status}}",
+                independent: "Hautatutako hautagai independenteak: {{count}}",
+                note: "Zure botoa hautatutako hautagai bakoitzarentzat erregistratzen da. Zerrenda bat ez da berez boto bat.",
+                contestCount: "{{max}}tik {{selected}} hautatuta",
+                edit: "Editatu",
+                editLabel: "Editatu {{contest}}",
+            },
             selection: {
                 all: "{{total}}ak hautatuta",
                 mixed: "Mistoa · {{total}}tik {{selected}} hautatuta",
