@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+import type {IDecodedVoteContest} from "sequent-core"
+
 export const SLATES_ANNOTATION = "sequent.slates"
 
 export enum EMobileCandidateLists {
@@ -30,4 +32,18 @@ export interface ISlateProblem {
     code: string
     path: string
     message: string
+}
+
+/** The marks a slate adds to and removes from one contest. */
+export interface ISlateContestChange {
+    contest_id: string
+    added: Array<string>
+    removed: Array<string>
+}
+
+/** The ballot that choosing a slate produces, and what it changes. */
+export interface ISlateChoices {
+    selection: Array<IDecodedVoteContest>
+    /** The contests whose marks change, in ballot order. */
+    changes: Array<ISlateContestChange>
 }

@@ -12,6 +12,10 @@ use sequent_core::ballot::{
 };
 use sequent_core::ballot_codec::multi_ballot::BallotChoices;
 use sequent_core::ballot_codec::PlaintextCodec;
+use sequent_core::election_config::slates::selection::apply_slate;
+use sequent_core::election_config::slates::{
+    ballot_style_slates, Slate, SLATES_ANNOTATION,
+};
 use sequent_core::encrypt::{
     encode_to_plaintext_decoded_multi_contest, encrypt_decoded_contest,
     encrypt_decoded_multi_contest, hash_ballot_style,
@@ -27,7 +31,6 @@ use serde_json::{json, Value};
 use std::collections::{BTreeMap, BTreeSet};
 use strand::backend::ristretto::RistrettoCtx;
 
-const SLATES_ANNOTATION: &str = "sequent.slates";
 const ELECTION: &str = "officers";
 
 const UNITED: &str = "slate-united";
@@ -157,17 +160,35 @@ fn style_with_slates() -> BallotStyle {
 
 /// The members of a slate, read from the published ballot style as a portal
 /// would read them.
-fn members(style: &BallotStyle, slate_id: &str) -> Marks {
-    let annotation =
-        &style.election_annotations.as_ref().unwrap()[SLATES_ANNOTATION];
-    let configuration: Value = serde_json::from_str(annotation).unwrap();
-    let slate = configuration["slates"]
-        .as_array()
+fn slate(style: &BallotStyle, slate_id: &str) -> Slate {
+    ballot_style_slates(style)
         .unwrap()
-        .iter()
-        .find(|slate| slate["id"] == slate_id)
-        .unwrap();
-    serde_json::from_value(slate["members"].clone()).unwrap()
+        .unwrap()
+        .slates
+        .into_iter()
+        .find(|slate| slate.id == slate_id)
+        .unwrap()
+}
+
+fn members(style: &BallotStyle, slate_id: &str) -> Marks {
+    slate(style, slate_id)
+        .members
+        .into_iter()
+        .map(|(contest, candidates)| {
+            (contest, candidates.into_iter().collect())
+        })
+        .collect()
+}
+
+/// The selection of a voter who opens the ballot and chooses a slate.
+fn chosen(style: &BallotStyle, slate_id: &str) -> Vec<DecodedVoteContest> {
+    apply_slate(
+        &slate(style, slate_id),
+        &style.contests,
+        &selection(style, &Marks::new()),
+    )
+    .unwrap()
+    .selection
 }
 
 fn marks(entries: &[(&str, &[&str])]) -> Marks {
@@ -296,13 +317,16 @@ fn a_slate_choice_is_the_selection_of_its_members() {
         ("secretary-treasurer", &["st-united"]),
         ("vice-president", &["vp-united"]),
     ]);
-    assert_eq!(
-        selection(&style, &members(&style, UNITED)),
-        selection(&style, &by_hand)
-    );
+    assert_eq!(chosen(&style, UNITED), selection(&style, &by_hand));
+    for slate_id in [UNITED, FORWARD, VOICES] {
+        assert_eq!(
+            chosen(&style, slate_id),
+            selection(&style, &members(&style, slate_id))
+        );
+    }
 
     // A partial slate leaves the contests it does not cover unmarked.
-    let voices = selection(&style, &members(&style, VOICES));
+    let voices = chosen(&style, VOICES);
     assert_eq!(
         marked(&voices),
         on_every_contest(
@@ -315,7 +339,7 @@ fn a_slate_choice_is_the_selection_of_its_members() {
 #[test]
 fn the_selection_and_the_encoded_ballot_have_no_slate_field() {
     let style = style_with_slates();
-    let united = selection(&style, &members(&style, UNITED));
+    let united = chosen(&style, UNITED);
 
     assert_eq!(
         keys(&united[0]),
