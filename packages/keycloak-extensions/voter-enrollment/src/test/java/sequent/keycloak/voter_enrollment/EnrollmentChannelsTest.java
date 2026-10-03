@@ -74,8 +74,46 @@ class EnrollmentChannelsTest {
             realm,
             Set.of("election-a")));
     assertEquals(
+        List.of(MessageChannel.EMAIL),
+        EnrollmentChannels.offered(session(Set.of()), realm, Set.of("election-a")));
+  }
+
+  @Test
+  void aPostWithoutRestrictionIsOfferedEveryDeliverableChannelOnceItIsLabelled() {
+    RealmModel realm = mock(RealmModel.class);
+    when(realm.getAttribute(PublicMessagingChannels.REALM_ATTRIBUTE))
+        .thenReturn(
+            PROJECTION.replace(
+                "\"election_channels\"",
+                "\"election_labels\": {\"election-b\": [\"Open Post\"]}, \"election_channels\""));
+    assertEquals(
         List.of(MessageChannel.EMAIL, MessageChannel.SMS),
-        EnrollmentChannels.offered(session(Set.of()), realm, Set.of("election-b")));
+        EnrollmentChannels.offered(session(Set.of()), realm, Set.of("open post")));
+    assertEquals(
+        List.of(MessageChannel.EMAIL),
+        EnrollmentChannels.offered(session(Set.of()), realm, Set.of("election-unknown")));
+  }
+
+  @Test
+  void thePostFieldMatchesItsElectionByLabel() {
+    RealmModel realm = mock(RealmModel.class);
+    when(realm.getAttribute(PublicMessagingChannels.REALM_ATTRIBUTE))
+        .thenReturn(
+            """
+            {"version": 1, "channels": [
+              {"channel": "EMAIL", "purposes": ["OTP"]},
+              {"channel": "SMS", "purposes": ["OTP"]},
+              {"channel": "WHATSAPP", "purposes": ["OTP"]}],
+             "election_channels": {"election-a": ["EMAIL", "WHATSAPP"], "election-b": ["EMAIL"]},
+             "election_labels": {"election-a": ["Synthetic Embassy"], "election-b": ["Other Post"]}}
+            """);
+    KeycloakSession session = session(Set.of(MessageChannel.WHATSAPP));
+    assertEquals(
+        List.of(MessageChannel.EMAIL, MessageChannel.WHATSAPP),
+        EnrollmentChannels.offered(session, realm, Set.of(" synthetic EMBASSY ")));
+    assertEquals(
+        List.of(MessageChannel.EMAIL),
+        EnrollmentChannels.offered(session, realm, Set.of("Unlisted Embassy")));
   }
 
   @Test

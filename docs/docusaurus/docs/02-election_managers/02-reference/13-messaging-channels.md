@@ -198,6 +198,11 @@ code shown, and taps Get Started (or types the linking word). The code
 arrives in that conversation and must be entered in the same browser
 session; only then is the Messenger contact saved.
 
+After enrollment, a signed-in voter adds or replaces a WhatsApp, Viber or
+Messenger contact through the `messaging-app-otp-ra` required action, which
+verifies the new contact with a code before saving it. The action must be
+registered and enabled in the event's realm.
+
 At sign-in only contacts the voter already verified are offered. **Get the
 code another way** replaces the code; the resend wait and the attempt limit
 still apply.

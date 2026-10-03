@@ -30,7 +30,6 @@ import sequent.keycloak.authenticator.messaging.MessageAttemptState;
 import sequent.keycloak.authenticator.messaging.MessageChannel;
 import sequent.keycloak.authenticator.messaging.MessageSenderProvider;
 import sequent.keycloak.authenticator.messaging.MessagingAttributes;
-import sequent.keycloak.authenticator.messaging.MessengerLinkState;
 import sequent.keycloak.authenticator.messaging.MessengerLinkStatus;
 import sequent.keycloak.authenticator.messaging.PublicMessagingChannels;
 import sequent.keycloak.authenticator.messaging.VoterChannels;
@@ -129,6 +128,22 @@ public class MessageOTPAuthenticator
     String testModeCode = configMap.get(Utils.TEST_MODE_CODE_ATTRIBUTE);
 
     try {
+      if (code == null && Utils.sendFailed(authSession)) {
+        context.getEvent().error(INVALID_CODE);
+        Utils.MessageCourier courier =
+            Utils.MessageCourier.fromString(configMap.get(Utils.MESSAGE_COURIER_ATTRIBUTE));
+        LoginFormsProvider form =
+            context
+                .form()
+                .setError(
+                    context.form().getMessage("messageOtp.auth.codeInvalid")
+                        + "<br><br>code_id: "
+                        + sessionId);
+        context.failureChallenge(
+            AuthenticationFlowError.INVALID_CREDENTIALS,
+            codeForm(context, form, configMap, courier, deferredUser, false));
+        return;
+      }
       if (code == null || ttl == null) {
         context.getEvent().error(INTERNAL_ERROR + " Missing ttl or code configurations");
         context.failureChallenge(
@@ -320,24 +335,13 @@ public class MessageOTPAuthenticator
   private boolean confirmMessenger(
       AuthenticationFlowContext context, boolean deferredUser, UserModel user) {
     AuthenticationSessionModel authSession = context.getAuthenticationSession();
-    if (authSession.getAuthNote(MessagingAttributes.NOTE_MESSENGER_REFERENCE) == null) {
+    Optional<MessengerLinkStatus> confirmed =
+        Utils.confirmedMessengerLink(context.getSession(), authSession);
+    if (confirmed.isEmpty()) {
       return false;
     }
-    MessengerLinkStatus status;
-    try {
-      status =
-          VoterChannels.sender(context.getSession())
-              .confirmMessengerLink(Utils.messengerLinkRequest(authSession));
-    } catch (IOException e) {
-      log.warn("confirmMessenger(): harvest did not confirm the Messenger link");
-      return false;
-    }
+    MessengerLinkStatus status = confirmed.get();
     String pageScopedId = status.pageScopedId();
-    if (status.linkState() != MessengerLinkState.CONFIRMED
-        || pageScopedId == null
-        || pageScopedId.isBlank()) {
-      return false;
-    }
     if (deferredUser) {
       authSession.setAuthNote(MessagingAttributes.NOTE_VERIFIED_MESSENGER_ID, pageScopedId);
       if (status.pageId() != null) {
@@ -475,7 +479,11 @@ public class MessageOTPAuthenticator
               + isOtl
               + ", currentTime="
               + currentTime);
-      boolean allowResend = Utils.isResendAllowed(ttl, configTtl, resendTimer, currentTime);
+      // A send that failed for certain delivered nothing and kept no code: it does not start the
+      // resend timer, and showing the page again does not repeat it.
+      boolean failedSend = Utils.sendFailed(authSession);
+      boolean allowResend =
+          failedSend || Utils.isResendAllowed(ttl, configTtl, resendTimer, currentTime);
       log.info("allowResend=" + allowResend);
 
       // A code invalidated by too many attempts is only replaced through the resend timer.
@@ -512,7 +520,7 @@ public class MessageOTPAuthenticator
               MessagingAttributes.FORM_OTP_CHANNEL, channels.eligible().get(0).name());
         }
         if (request == FormRequest.CHECK_MESSENGER) {
-          refreshMessengerState(context);
+          Utils.refreshMessengerState(session, authSession);
         }
         choice =
             Optional.of(
@@ -522,7 +530,10 @@ public class MessageOTPAuthenticator
       boolean needsChoice = choice.map(c -> c.current().isEmpty()).orElse(false);
 
       boolean firstSend =
-          request == FormRequest.SHOW && !exhausted && ((code == null && !isOtl) || ttl == null);
+          request == FormRequest.SHOW
+              && !exhausted
+              && !failedSend
+              && ((code == null && !isOtl) || ttl == null);
       boolean send =
           !needsChoice && (firstSend || replacement || ((resend || exhausted) && allowResend));
       if (send) {
@@ -553,7 +564,7 @@ public class MessageOTPAuthenticator
             .detail("action", "send_code via " + via)
             .detail("is_resend", String.valueOf(resend || replacement))
             .success();
-        codeJustSent = true;
+        codeJustSent = state != MessageAttemptState.FAILED;
         log.info("OTP resent successfully");
       } else {
         log.info("OTP not resent because we had another one already");
@@ -569,21 +580,6 @@ public class MessageOTPAuthenticator
               .form()
               .setError(Utils.ERROR_MESSAGE_NOT_SENT, sessionId)
               .createErrorPage(Response.Status.INTERNAL_SERVER_ERROR));
-    }
-  }
-
-  private void refreshMessengerState(AuthenticationFlowContext context) {
-    AuthenticationSessionModel authSession = context.getAuthenticationSession();
-    if (authSession.getAuthNote(MessagingAttributes.NOTE_MESSENGER_REFERENCE) == null) {
-      return;
-    }
-    try {
-      MessengerLinkStatus status =
-          VoterChannels.sender(context.getSession())
-              .messengerLinkStatus(Utils.messengerLinkRequest(authSession));
-      authSession.setAuthNote(MessagingAttributes.NOTE_MESSENGER_STATE, status.linkState().name());
-    } catch (IOException e) {
-      log.warn("refreshMessengerState(): harvest did not report the Messenger link");
     }
   }
 

@@ -26,6 +26,7 @@ type OtpContext = Extract<KcContext, {pageId: "message-otp.login.ftl"}>
 
 const DEFAULT_CODE_LENGTH = 6
 const DEFAULT_RESEND_SECONDS = 60
+const DEFAULT_CODE_LIFETIME_SECONDS = 300
 // Shared with message-otp.login.ftl, so switching themes keeps the countdown.
 const RESEND_END_KEY = "resendOtpEndTime"
 
@@ -52,9 +53,17 @@ function instructionFor(
 
 const channelLabelKey = (channel: MessageChannel) => `messageChannel.${channel}` as const
 
-function useResendCountdown(seconds: number, codeJustSent: boolean): number {
+// How often the page asks by itself whether the Messenger chat was opened.
+const MESSENGER_POLL_SECONDS = 5
+// Shared with messenger-status-poll.ftl: when the link of the current code was first shown.
+const MESSENGER_POLL_START_KEY = "messengerPollStart:"
+
+/** A code that was not sent starts no countdown, and ends the one of the code before it. */
+function useResendCountdown(seconds: number, codeJustSent: boolean, sendFailed: boolean): number {
     const [remaining, setRemaining] = useState(() => {
-        if (codeJustSent) {
+        if (sendFailed) {
+            localStorage.removeItem(RESEND_END_KEY)
+        } else if (codeJustSent) {
             localStorage.setItem(RESEND_END_KEY, String(Date.now() + seconds * 1000))
         }
         const end = Number(localStorage.getItem(RESEND_END_KEY) ?? 0)
@@ -120,6 +129,71 @@ function ChannelForm(props: {
                 {msgStr("messageOtp.otherWay.send")}
             </Button>
         </Box>
+    )
+}
+
+/** When checking by itself ends: the code's lifetime after its link was first shown. */
+function messengerPollDeadline(link: string, lifetimeSeconds: number): number {
+    const key = MESSENGER_POLL_START_KEY + link
+    let started = Number(sessionStorage.getItem(key) ?? 0)
+    if (started === 0) {
+        started = Date.now()
+        sessionStorage.setItem(key, String(started))
+    }
+    return started + lifetimeSeconds * 1000
+}
+
+/**
+ * Asks every few seconds whether the voter opened the Messenger chat, so the page moves on once
+ * the code was sent. It waits while the tab is hidden or the voter is typing a code, and stops
+ * when the code's lifetime is over; "Check again" stays for the voter.
+ */
+function MessengerStatusPoll(props: {
+    action: string
+    link: string
+    lifetimeSeconds: number
+    typing: boolean
+}) {
+    const {action, link, lifetimeSeconds, typing} = props
+    const form = useRef<HTMLFormElement | null>(null)
+    const paused = useRef(typing)
+    const [deadline] = useState(() => messengerPollDeadline(link, lifetimeSeconds))
+    const [active, setActive] = useState(() => Date.now() < deadline)
+    useEffect(() => {
+        paused.current = typing
+    }, [typing])
+    useEffect(() => {
+        if (!active) {
+            return
+        }
+        const interval = MESSENGER_POLL_SECONDS * 1000
+        const shown = Date.now()
+        const check = () => {
+            if (Date.now() >= deadline) {
+                setActive(false)
+            } else if (!document.hidden && !paused.current) {
+                form.current?.submit()
+            }
+        }
+        const onVisible = () => {
+            if (Date.now() - shown >= interval) {
+                check()
+            }
+        }
+        const timer = setInterval(check, interval)
+        document.addEventListener("visibilitychange", onVisible)
+        return () => {
+            clearInterval(timer)
+            document.removeEventListener("visibilitychange", onVisible)
+        }
+    }, [active, deadline])
+    if (!active) {
+        return null
+    }
+    return (
+        <form ref={form} id="messenger-poll" action={action} method="post" hidden>
+            <input type="hidden" name="messengerStatus" value="true" />
+        </form>
     )
 }
 
@@ -221,7 +295,8 @@ export default function MessageOtpLogin(props: PageProps<OtpContext, I18n>) {
     const [showOtherWay, setShowOtherWay] = useState(unconfirmed || failed)
     const remaining = useResendCountdown(
         Number(resendTimer ?? DEFAULT_RESEND_SECONDS),
-        codeJustSent === true
+        codeJustSent === true,
+        failed
     )
 
     const focusInput = (index: number) => {
@@ -395,6 +470,16 @@ export default function MessageOtpLogin(props: PageProps<OtpContext, I18n>) {
             {channel === MessageChannel.Messenger && (
                 <MessengerConnect kcContext={kcContext} i18n={i18n} />
             )}
+            {channel === MessageChannel.Messenger &&
+                kcContext.messengerState === MessengerLinkState.Pending &&
+                kcContext.messengerLink !== undefined && (
+                    <MessengerStatusPoll
+                        action={url.loginAction}
+                        link={kcContext.messengerLink}
+                        lifetimeSeconds={Number(ttl ?? DEFAULT_CODE_LIFETIME_SECONDS)}
+                        typing={digits.some((digit) => digit !== "")}
+                    />
+                )}
             <Box
                 component="form"
                 id="kc-message-code-login-form"

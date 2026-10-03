@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
 import type {Meta, StoryObj} from "@storybook/react-vite"
-import {expect, fireEvent, userEvent, waitFor, within} from "storybook/test"
+import {expect, fireEvent, spyOn, userEvent, waitFor, within} from "storybook/test"
 import {createKcPageStory, getKcContextMock} from "../KcPageStory"
 import {
     DeliveryState,
@@ -478,6 +478,93 @@ export const MessengerExpired: Story = {
             canvas.queryByRole("link", {name: "Connect Messenger"})
         ).not.toBeInTheDocument()
         await expect(canvas.queryByText(/MAPLE/)).not.toBeInTheDocument()
+    },
+}
+
+/** A code that was not sent starts no countdown: the voter can ask again at once. */
+export const FailedDeliveryCanRetryAtOnce: Story = {
+    args: {kcContext: {...WHATSAPP_CODE, deliveryState: DeliveryState.Failed}},
+    beforeEach: () => {
+        localStorage.setItem("resendOtpEndTime", String(Date.now() + 60_000))
+        return () => localStorage.removeItem("resendOtpEndTime")
+    },
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await canvas.findByRole("heading", {level: 1})
+        await expect(canvas.getByRole("button", {name: "Resend code"})).toBeEnabled()
+        await expect(canvas.getByRole("button", {name: "Send code"})).toBeEnabled()
+        await expect(localStorage.getItem("resendOtpEndTime")).toBeNull()
+    },
+}
+
+// Submitting a form would leave the story: the forms submitted without a click are recorded.
+const submittedForms: HTMLFormElement[] = []
+const recordFormSubmits = () => {
+    submittedForms.length = 0
+    sessionStorage.clear()
+    const submit = spyOn(HTMLFormElement.prototype, "submit").mockImplementation(function (
+        this: HTMLFormElement
+    ) {
+        submittedForms.push(this)
+    })
+    return () => submit.mockRestore()
+}
+
+/** While the chat is not open yet, the page asks again by itself every few seconds. */
+export const MessengerChecksAgainByItself: Story = {
+    args: {kcContext: {...MESSENGER, ttl: "300"}},
+    beforeEach: recordFormSubmits,
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await canvas.findByRole("heading", {level: 1})
+        const poll = canvasElement.querySelector<HTMLFormElement>("form#messenger-poll")!
+        await expect(poll).toHaveAttribute("method", "post")
+        await expect(new FormData(poll).get("messengerStatus")).toBe("true")
+        await expect(new FormData(poll).get("code")).toBeNull()
+        await expect(submittedForms).toHaveLength(0)
+        await waitFor(() => expect(submittedForms).toEqual([poll]), {timeout: 8000})
+        await expect(canvas.getByRole("button", {name: "Check again"})).toBeVisible()
+    },
+}
+
+/** A voter who is typing the code is never interrupted. */
+export const MessengerDoesNotCheckWhileTyping: Story = {
+    args: {kcContext: {...MESSENGER, ttl: "300"}},
+    beforeEach: recordFormSubmits,
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await canvas.findByRole("heading", {level: 1})
+        await userEvent.type(canvas.getByLabelText("Digit 1 of 6"), "1")
+        await new Promise((resolve) => setTimeout(resolve, 6000))
+        await expect(submittedForms).toHaveLength(0)
+    },
+}
+
+/** Once the code was sent there is nothing left to check. */
+export const MessengerStopsCheckingWhenTheCodeWasSent: Story = {
+    args: {kcContext: {...MESSENGER, ttl: "300", messengerState: MessengerLinkState.CodeSent}},
+    beforeEach: () => sessionStorage.clear(),
+    play: async ({canvasElement}) => {
+        await within(canvasElement).findByRole("heading", {level: 1})
+        await expect(canvasElement.querySelector("form#messenger-poll")).toBeNull()
+    },
+}
+
+/** Checking is bounded by the code's lifetime, counted from when the link was first shown. */
+export const MessengerStopsCheckingAfterTheCodeLifetime: Story = {
+    args: {kcContext: {...MESSENGER, ttl: "300"}},
+    beforeEach: () => {
+        sessionStorage.setItem(
+            `messengerPollStart:${MESSENGER.messengerLink}`,
+            String(Date.now() - 301_000)
+        )
+        return () => sessionStorage.clear()
+    },
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await canvas.findByRole("heading", {level: 1})
+        await expect(canvasElement.querySelector("form#messenger-poll")).toBeNull()
+        await expect(canvas.getByRole("button", {name: "Check again"})).toBeVisible()
     },
 }
 

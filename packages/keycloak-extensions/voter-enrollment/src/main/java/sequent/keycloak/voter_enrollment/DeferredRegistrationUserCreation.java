@@ -200,8 +200,8 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
         new ProviderConfigProperty(
             POST_ELECTION_ATTRIBUTE,
             "Post Election Attribute",
-            "Form field with the election ID of the voter's Post, which restricts the channels"
-                + " offered for codes. When empty, only channels every Post offers are shown.",
+            "Form field with the voter's Post: the ID or any label (name, alias, external ID) of its election, which restricts the channels"
+                + " offered for codes. When empty or matching no election, only channels every Post offers are shown.",
             ProviderConfigProperty.STRING_TYPE,
             ""),
         channelChoicePolicy,

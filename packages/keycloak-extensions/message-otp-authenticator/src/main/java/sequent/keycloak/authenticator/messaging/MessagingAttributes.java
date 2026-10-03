@@ -39,6 +39,9 @@ public class MessagingAttributes {
   public final String NOTE_MESSENGER_WORD = "sequent.messenger-word";
   public final String NOTE_MESSENGER_STATE = "sequent.messenger-state";
 
+  /** The messaging app an authenticated voter is adding or replacing, while its code is pending. */
+  public final String NOTE_RESET_CHANNEL = "sequent.reset-channel";
+
   /** Notes a submitted form must never set. */
   public final Set<String> KEYCLOAK_NOTES =
       Set.of(
@@ -51,7 +54,8 @@ public class MessagingAttributes {
           NOTE_MESSENGER_REFERENCE,
           NOTE_MESSENGER_LINK,
           NOTE_MESSENGER_WORD,
-          NOTE_MESSENGER_STATE);
+          NOTE_MESSENGER_STATE,
+          NOTE_RESET_CHANNEL);
 
   /** Realm attribute with the version of the consent wording shown at enrollment. */
   public final String CONSENT_VERSION_REALM_ATTRIBUTE = "sequent.message-consent-version";

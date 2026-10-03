@@ -11,8 +11,10 @@ import java.util.Collection;
 import java.util.EnumMap;
 import java.util.EnumSet;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -39,18 +41,34 @@ public final class PublicMessagingChannels {
     }
   }
 
+  /** What a Post that matches no election of the projection is offered. */
+  public enum UnmatchedPostPolicy {
+    /**
+     * Only channels that every restricted election offers: for a Post a voter enters, which may not
+     * be a known election.
+     */
+    COMMON_CHANNELS,
+    /**
+     * Every enabled channel: for the elections of a saved voter, where unlisted is unrestricted.
+     */
+    EVERY_CHANNEL
+  }
+
   private record Channel(Set<MessagePurpose> purposes, String senderLabel) {}
 
   private final Map<MessageChannel, Channel> channels;
   private final Map<String, Set<MessageChannel>> electionChannels;
+  private final Map<String, Set<String>> electionNames;
   private final MessengerPage messengerPage;
 
   private PublicMessagingChannels(
       Map<MessageChannel, Channel> channels,
       Map<String, Set<MessageChannel>> electionChannels,
+      Map<String, Set<String>> electionNames,
       MessengerPage messengerPage) {
     this.channels = channels;
     this.electionChannels = electionChannels;
+    this.electionNames = electionNames;
     this.messengerPage = messengerPage;
   }
 
@@ -108,7 +126,33 @@ public final class PublicMessagingChannels {
       }
       electionChannels.put(election.getKey(), allowed);
     }
-    return Optional.of(new PublicMessagingChannels(channels, electionChannels, page));
+    return Optional.of(
+        new PublicMessagingChannels(
+            channels, electionChannels, electionNames(root, electionChannels.keySet()), page));
+  }
+
+  /** Every ID and label an election is known by. A label that two elections share names both. */
+  private static Map<String, Set<String>> electionNames(JsonNode root, Set<String> restricted) {
+    Map<String, Set<String>> names = new HashMap<>();
+    for (String election : restricted) {
+      names.computeIfAbsent(normalize(election), key -> new HashSet<>()).add(election);
+    }
+    Iterator<Map.Entry<String, JsonNode>> elections = root.path("election_labels").fields();
+    while (elections.hasNext()) {
+      Map.Entry<String, JsonNode> election = elections.next();
+      String id = election.getKey();
+      names.computeIfAbsent(normalize(id), key -> new HashSet<>()).add(id);
+      for (JsonNode label : election.getValue()) {
+        if (text(label) != null) {
+          names.computeIfAbsent(normalize(label.asText()), key -> new HashSet<>()).add(id);
+        }
+      }
+    }
+    return names;
+  }
+
+  private static String normalize(String value) {
+    return value.trim().toLowerCase(Locale.ROOT);
   }
 
   private static String text(JsonNode node) {
@@ -116,29 +160,55 @@ public final class PublicMessagingChannels {
   }
 
   /**
-   * Channels enabled for the purpose that the voter's elections offer. When the voter's election is
-   * not known yet, only channels that every restricted election offers.
+   * Channels enabled for the purpose that the elections of a saved voter offer. An election the
+   * projection does not list has no restriction.
    */
-  public List<MessageChannel> channelsFor(MessagePurpose purpose, Collection<String> electionIds) {
+  public List<MessageChannel> channelsFor(MessagePurpose purpose, Collection<String> posts) {
+    return channelsFor(purpose, posts, UnmatchedPostPolicy.EVERY_CHANNEL);
+  }
+
+  /**
+   * Channels enabled for the purpose that the voter's Posts offer. A Post is the ID of its election
+   * or any of its labels, compared without case or surrounding spaces. When no Post is known yet,
+   * only channels that every restricted election offers.
+   */
+  public List<MessageChannel> channelsFor(
+      MessagePurpose purpose, Collection<String> posts, UnmatchedPostPolicy unmatched) {
     List<MessageChannel> result = new ArrayList<>();
     for (Map.Entry<MessageChannel, Channel> entry : channels.entrySet()) {
-      if (entry.getValue().purposes().contains(purpose) && offeredTo(entry.getKey(), electionIds)) {
+      if (entry.getValue().purposes().contains(purpose)
+          && offeredTo(entry.getKey(), posts, unmatched)) {
         result.add(entry.getKey());
       }
     }
     return result;
   }
 
-  private boolean offeredTo(MessageChannel channel, Collection<String> electionIds) {
-    if (electionIds == null || electionIds.isEmpty()) {
-      return electionChannels.values().stream().allMatch(allowed -> allowed.contains(channel));
+  private boolean offeredTo(
+      MessageChannel channel, Collection<String> posts, UnmatchedPostPolicy unmatched) {
+    if (posts == null || posts.isEmpty()) {
+      return everyRestrictedElectionOffers(channel);
     }
-    return electionIds.stream()
-        .anyMatch(
-            election -> {
-              Set<MessageChannel> allowed = electionChannels.get(election);
-              return allowed == null || allowed.contains(channel);
-            });
+    return posts.stream().anyMatch(post -> offeredToPost(channel, post, unmatched));
+  }
+
+  private boolean everyRestrictedElectionOffers(MessageChannel channel) {
+    return electionChannels.values().stream().allMatch(allowed -> allowed.contains(channel));
+  }
+
+  private boolean electionOffers(MessageChannel channel, String election) {
+    Set<MessageChannel> allowed = electionChannels.get(election);
+    return allowed == null || allowed.contains(channel);
+  }
+
+  private boolean offeredToPost(
+      MessageChannel channel, String post, UnmatchedPostPolicy unmatched) {
+    Set<String> elections = electionNames.get(normalize(post));
+    if (elections == null) {
+      return unmatched == UnmatchedPostPolicy.EVERY_CHANNEL
+          || everyRestrictedElectionOffers(channel);
+    }
+    return elections.stream().allMatch(election -> electionOffers(channel, election));
   }
 
   public Optional<String> senderLabel(MessageChannel channel) {

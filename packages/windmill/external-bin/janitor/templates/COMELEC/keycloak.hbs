@@ -1069,7 +1069,8 @@
             "alias": "drupc",
             "config": {
                 "user-status": "sequent.read-only.id-card-number-validated",
-                "channel-choice-policy": "OTP_CHANNELS"
+                "channel-choice-policy": "OTP_CHANNELS",
+                "post-election-attribute": "embassy"
             },
             "id": "f0f0bd0e-530e-4495-838f-f5230143a9c8"
         },
@@ -1077,7 +1078,8 @@
             "alias": "drupc",
             "config": {
                 "user-status": "sequent.read-only.id-card-number-validated",
-                "channel-choice-policy": "OTP_CHANNELS"
+                "channel-choice-policy": "OTP_CHANNELS",
+                "post-election-attribute": "embassy"
             },
             "id": "d2708c8b-05d7-4344-b1d2-1653e47ecd1b"
         },
@@ -3561,6 +3563,15 @@
             "name": "Verify Email using OTP",
             "priority": 1004,
             "providerId": "verify-email-otp-ra"
+        },
+        {
+            "alias": "messaging-app-otp-ra",
+            "config": {},
+            "defaultAction": false,
+            "enabled": true,
+            "name": "Add or replace a messaging app for codes",
+            "priority": 1005,
+            "providerId": "messaging-app-otp-ra"
         }
     ],
     "requiredCredentials": [

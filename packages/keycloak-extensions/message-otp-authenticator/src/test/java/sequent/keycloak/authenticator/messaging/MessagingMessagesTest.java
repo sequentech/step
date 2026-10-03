@@ -64,7 +64,25 @@ class MessagingMessagesTest {
                   "messaging.consent",
                   "messaging.consent.required",
                   "messaging.noticeChannel",
-                  "newPassword.message.text"))
+                  "newPassword.message.text",
+                  "forgotPassword.success.channel.message",
+                  "resetAppOtp.auth.enterContactTitle",
+                  "resetAppOtp.auth.sendCodeButton",
+                  "resetAppOtp.auth.enterOtpTitle",
+                  "resetAppOtp.auth.sentToContact",
+                  "resetAppOtp.auth.changeContact",
+                  "resetAppOtp.auth.verifyButton",
+                  "resetAppOtp.auth.resendTextPrefix.question",
+                  "resetAppOtp.auth.ttlTime",
+                  "resetAppOtp.auth.resend.timer",
+                  "resetAppOtp.auth.resend.button.link",
+                  "resetAppOtp.auth.error.invalidInput",
+                  "resetAppOtp.auth.error.sendError",
+                  "resetAppOtp.auth.error.resendTimer",
+                  "resetAppOtp.auth.error.codeExpired",
+                  "resetAppOtp.auth.error.codeInvalid",
+                  "resetAppOtp.auth.error.maxReceiverReuse",
+                  "resetAppOtp.auth.error.invalidCountry"))
           .toList();
 
   private static Properties load(String language) throws IOException {

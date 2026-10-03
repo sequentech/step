@@ -124,7 +124,8 @@ new link for the session replaces the previous one.
 | Setting | Where | Purpose |
 |---|---|---|
 | `HARVEST_PUBLIC_URL` | harvest, windmill | Public base URL providers call back; per-request callbacks are omitted without it |
-| `--spi-message-sender-provider=harvest` | Keycloak | Route messaging-app channels through harvest; `default` keeps email and SMS only |
+| `MESSAGE_SENDER_POLICY` or `--spi-message-sender-auto-policy` | Keycloak | `HARVEST_WHEN_CONFIGURED` (default) routes messaging-app channels through harvest when its address is known; `KEYCLOAK_ONLY` keeps email and SMS only. Read at run time by the `auto` sender, so the built image needs no rebuild. An unreadable value means `KEYCLOAK_ONLY` |
+| `sequent.message-sender-policy` | Realm attribute | The same two values for one realm; it cannot undo the deployment's `KEYCLOAK_ONLY` |
 | `--spi-message-sender-harvest-url` | Keycloak | Harvest base URL, `http://$HARVEST_DOMAIN` by default |
 | `--spi-message-sender-harvest-channels` | Keycloak | Channels sent through harvest, `WHATSAPP,VIBER,MESSENGER` by default |
 | `reconcile_messages_interval` | beat | Seconds between reconciliation passes, 300 by default |

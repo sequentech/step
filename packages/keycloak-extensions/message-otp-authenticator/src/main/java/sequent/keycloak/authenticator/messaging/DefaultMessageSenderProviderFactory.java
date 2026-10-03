@@ -32,7 +32,7 @@ public class DefaultMessageSenderProviderFactory implements MessageSenderProvide
     return PROVIDER_ID;
   }
 
-  /** Wins over harvest when no provider is configured. */
+  /** Above harvest and below auto, which is the sender when no provider is configured. */
   @Override
   public int order() {
     return 1;

@@ -109,7 +109,8 @@ class HarvestMessageSenderProviderTest {
         "en",
         new MessageContent(null, TEXT, null, List.of(CODE, "5"), CODE),
         "otp:synthetic-code-id",
-        "2026-10-02T10:05:00Z");
+        "2026-10-02T10:05:00Z",
+        "otp");
   }
 
   @Test
@@ -137,6 +138,7 @@ class HarvestMessageSenderProviderTest {
     assertEquals("OTP", body.get("purpose").asText());
     assertEquals(DESTINATION, body.get("destination").asText());
     assertEquals("en", body.get("language").asText());
+    assertEquals("otp", body.get("template_key").asText());
     assertEquals(TEXT, body.get("content").get("text").asText());
     assertEquals(CODE, body.get("content").get("code").asText());
     assertEquals(CODE, body.get("content").get("template_parameters").get(0).asText());

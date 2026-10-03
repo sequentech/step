@@ -151,7 +151,14 @@ SPDX-License-Identifier: AGPL-3.0-only
                 </#if>
                 let resendTimerTimeout = ${(resendTimer)!60};
                 let codeJustSent = "${((codeJustSent!false)?string('true', 'false'))}";
+                let sendFailed = "${((deliveryState!'') == 'FAILED')?string('true', 'false')}";
                 <#noparse>
+                    // A code that was not sent does not make the voter wait to ask again.
+                    if (sendFailed === "true") {
+                        localStorage.setItem('resendOtpEndTime', Date.now());
+                        localStorage.setItem('resendOtpDisabled', false);
+                    }
+
                     function resendOtp(resendTimerTimeout) {
                         let resendBtn = document.getElementById('resend-otp-btn');
                         let form = document.getElementById('kc-message-code-login-form');
@@ -313,6 +320,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 </style>
 		</form>
+		<#if channel?? && channel == 'MESSENGER'>
+			<#include "messenger-status-poll.ftl">
+		</#if>
 	<#elseif section = "info">
         <p id="otp-instructions" class="kc-message-otl-instructions">
             <#if isOtl>

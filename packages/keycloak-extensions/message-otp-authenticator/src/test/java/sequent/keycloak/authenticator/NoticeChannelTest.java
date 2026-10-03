@@ -4,6 +4,7 @@
 
 package sequent.keycloak.authenticator;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
@@ -118,7 +119,44 @@ class NoticeChannelTest {
     assertEquals(
         "Your enrollment is pending: INSUFFICIENT_INFORMATION",
         request.getValue().content().text());
+    assertEquals("messagePendingSms", request.getValue().templateKey());
+    assertEquals("en", request.getValue().language());
     verifyNoInteractions(sms);
+  }
+
+  @Test
+  void everyNoticeKeepsTheMessageKeyTheAdminPortalBindsTemplatesTo() {
+    assertEquals("messageSuccessSms", Utils.SEND_SUCCESS_SMS_I18N_KEY);
+    assertEquals("messageSuccessSmsKiosk", Utils.SEND_SUCCESS_SMS_I18N_KEY_KIOSK);
+    assertEquals("messagePendingSms", Utils.SEND_PENDING_SMS_I18N_KEY);
+    assertEquals("messageRejectedSms", Utils.SEND_REJECT_SMS_I18N_KEY);
+    assertEquals(
+        "forgotPassword.sms.text",
+        sequent.keycloak.authenticator.forgot_password.ResetCredentialNotification
+            .RESET_LINK_MESSAGE_KEY);
+    assertEquals(
+        "newPassword.message.text",
+        sequent.keycloak.authenticator.forgot_password.Utils.NEW_PASSWORD_MESSAGE_KEY);
+  }
+
+  @Test
+  void theResetLinkTextNamesTheChannelThatCarriedIt() {
+    org.keycloak.models.utils.FormMessage app =
+        sequent.keycloak.authenticator.forgot_password.ResetCredentialNotification.successMessage(
+            Optional.of(MessageChannel.WHATSAPP), "WhatsApp", "voter@example.test");
+    assertEquals("forgotPassword.success.channel.message", app.getMessage());
+    assertArrayEquals(new Object[] {"WhatsApp"}, app.getParameters());
+
+    org.keycloak.models.utils.FormMessage email =
+        sequent.keycloak.authenticator.forgot_password.ResetCredentialNotification.successMessage(
+            Optional.empty(), null, "voter@example.test");
+    assertEquals("forgotPassword.success.display.message", email.getMessage());
+    assertArrayEquals(new Object[] {"email"}, email.getParameters());
+
+    org.keycloak.models.utils.FormMessage sms =
+        sequent.keycloak.authenticator.forgot_password.ResetCredentialNotification.successMessage(
+            Optional.empty(), null, null);
+    assertArrayEquals(new Object[] {"sms"}, sms.getParameters());
   }
 
   @Test

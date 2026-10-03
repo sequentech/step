@@ -69,6 +69,27 @@ const englishMessages = {
     "messageOtp.messenger.pending": "Waiting for you to open the chat.",
     "messageOtp.messenger.codeSent": "We sent your code in the chat.",
     "messageOtp.messenger.expired": "This request has expired. Get the code another way.",
+    "forgotPassword.success.channel.message":
+        "You should receive a message on your {0} shortly with further instructions.",
+    "resetAppOtp.auth.enterContactTitle": "Add or change a messaging app",
+    "resetAppOtp.auth.sendCodeButton": "Send verification code",
+    "resetAppOtp.auth.enterOtpTitle": "Enter the code we sent you",
+    "resetAppOtp.auth.sentToContact": "Verification code sent to <strong>{0}</strong>",
+    "resetAppOtp.auth.changeContact": "Choose another way",
+    "resetAppOtp.auth.verifyButton": "Verify",
+    "resetAppOtp.auth.resendTextPrefix.question": "Didn't receive the code yet?",
+    "resetAppOtp.auth.ttlTime": "The code is valid for {0} minutes.",
+    "resetAppOtp.auth.resend.timer": "Wait {0} seconds to resend",
+    "resetAppOtp.auth.resend.button.link": "Click here to resend",
+    "resetAppOtp.auth.error.invalidInput": "Please enter a valid number.",
+    "resetAppOtp.auth.error.sendError": "Could not send verification code. Please try again.",
+    "resetAppOtp.auth.error.resendTimer": "Please wait before asking for another code.",
+    "resetAppOtp.auth.error.codeExpired": "The code has expired.",
+    "resetAppOtp.auth.error.codeInvalid": "Invalid code entered, please try again.",
+    "resetAppOtp.auth.error.maxReceiverReuse":
+        "Another voter already uses this contact. Contact administrator.",
+    "resetAppOtp.auth.error.invalidCountry":
+        "Invalid country code for phone number. Contact administrator.",
 } as const
 
 // Keycloakify resolves messages in the browser: keys that the server-side
@@ -146,6 +167,29 @@ const {useI18n, ofTypeI18n} = i18nBuilder
             "messageOtp.messenger.codeSent": "Le enviamos el código en el chat.",
             "messageOtp.messenger.expired":
                 "Esta solicitud ha caducado. Reciba el código de otra forma.",
+            "forgotPassword.success.channel.message":
+                "Debería recibir en breve un mensaje en su {0} con más instrucciones.",
+            "resetAppOtp.auth.enterContactTitle": "Añadir o cambiar una aplicación de mensajería",
+            "resetAppOtp.auth.sendCodeButton": "Enviar código de verificación",
+            "resetAppOtp.auth.enterOtpTitle": "Introduzca el código que le hemos enviado",
+            "resetAppOtp.auth.sentToContact":
+                "Código de verificación enviado a <strong>{0}</strong>",
+            "resetAppOtp.auth.changeContact": "Elegir otra forma",
+            "resetAppOtp.auth.verifyButton": "Verificar",
+            "resetAppOtp.auth.resendTextPrefix.question": "¿Aún no recibió el código?",
+            "resetAppOtp.auth.ttlTime": "El código es válido durante {0} minutos.",
+            "resetAppOtp.auth.resend.timer": "Espere {0} segundos para reenviar",
+            "resetAppOtp.auth.resend.button.link": "Haga clic aquí para reenviar",
+            "resetAppOtp.auth.error.invalidInput": "Por favor, introduzca un número válido.",
+            "resetAppOtp.auth.error.sendError":
+                "No se pudo enviar el código de verificación. Por favor, intente de nuevo.",
+            "resetAppOtp.auth.error.resendTimer": "Por favor, espere antes de pedir otro código.",
+            "resetAppOtp.auth.error.codeExpired": "El código ha expirado.",
+            "resetAppOtp.auth.error.codeInvalid": "Código inválido, por favor intente de nuevo.",
+            "resetAppOtp.auth.error.maxReceiverReuse":
+                "Otro votante ya usa este contacto. Contacte al administrador.",
+            "resetAppOtp.auth.error.invalidCountry":
+                "Código de país no válido para el número de teléfono. Contacte al administrador.",
         },
     })
     .build()

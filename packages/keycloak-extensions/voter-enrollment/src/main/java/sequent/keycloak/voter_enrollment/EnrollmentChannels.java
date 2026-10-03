@@ -3,16 +3,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 package sequent.keycloak.voter_enrollment;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import jakarta.ws.rs.core.MultivaluedMap;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.experimental.UtilityClass;
 import org.keycloak.models.KeycloakSession;
@@ -25,13 +21,12 @@ import sequent.keycloak.authenticator.messaging.MessageChannel;
 import sequent.keycloak.authenticator.messaging.MessageSenderProvider;
 import sequent.keycloak.authenticator.messaging.MessagingAttributes;
 import sequent.keycloak.authenticator.messaging.PublicMessagingChannels;
+import sequent.keycloak.authenticator.messaging.VerifiedContacts;
 import sequent.keycloak.authenticator.messaging.VoterChannels;
 
 /** The enrollment's choice of channel for codes, and saving the contact it verified. */
 @UtilityClass
 public class EnrollmentChannels {
-  private final Set<MessageChannel> MESSAGING_APPS =
-      Set.of(MessageChannel.WHATSAPP, MessageChannel.VIBER, MessageChannel.MESSENGER);
 
   /** Whether the registration form asks the voter how to get codes. */
   public enum ChannelChoicePolicy {
@@ -39,26 +34,30 @@ public class EnrollmentChannels {
     OTP_CHANNELS
   }
 
-  /** The channels the voter's Post offers codes on that this Keycloak can deliver. */
+  /**
+   * The channels the voter's Post offers codes on that this Keycloak can deliver. The Post is the
+   * ID or a label of its election; one that matches no election only gets the channels every
+   * restricted election offers.
+   */
   public List<MessageChannel> offered(
-      KeycloakSession session, RealmModel realm, Collection<String> electionIds) {
+      KeycloakSession session, RealmModel realm, Collection<String> posts) {
     MessageSenderProvider sender = VoterChannels.sender(session);
-    return VoterChannels.offeredForOtp(PublicMessagingChannels.fromRealm(realm), electionIds)
+    return VoterChannels.offeredForOtp(
+            PublicMessagingChannels.fromRealm(realm),
+            posts,
+            PublicMessagingChannels.UnmatchedPostPolicy.COMMON_CHANNELS)
         .stream()
         .filter(channel -> VoterChannels.deliverable(sender, channel))
         .collect(Collectors.toList());
   }
 
   public String consentVersion(RealmModel realm) {
-    String version = realm.getAttribute(MessagingAttributes.CONSENT_VERSION_REALM_ATTRIBUTE);
-    return version == null || version.isBlank()
-        ? MessagingAttributes.CONSENT_VERSION_DEFAULT
-        : version;
+    return VerifiedContacts.consentVersion(realm);
   }
 
   /** What the consent box submits: the wording it showed and the channel it named. */
   public String consentValue(String consentVersion, MessageChannel channel) {
-    return consentVersion + ":" + channel.name();
+    return VerifiedContacts.consentValue(consentVersion, channel);
   }
 
   /** Errors of the submitted channel choice, its contact and the consent it needs. */
@@ -95,7 +94,7 @@ public class EnrollmentChannels {
     if (channel.get() == MessageChannel.EMAIL && trimmed(formData.getFirst("email")) == null) {
       errors.add(new FormMessage("email", Messages.MISSING_EMAIL));
     }
-    if (MESSAGING_APPS.contains(channel.get())
+    if (VerifiedContacts.MESSAGING_APPS.contains(channel.get())
         && !consentValue(consentVersion, channel.get())
             .equals(formData.getFirst(MessagingAttributes.FORM_MESSAGE_CONSENT))) {
       errors.add(
@@ -118,60 +117,6 @@ public class EnrollmentChannels {
       String mobileAttribute,
       String consentVersion,
       Instant now) {
-    Optional<MessageChannel> verified =
-        MessageChannel.parse(authSession.getAuthNote(MessagingAttributes.NOTE_VERIFIED_CHANNEL));
-    if (verified.isEmpty()) {
-      return;
-    }
-    MessageChannel channel = verified.get();
-    switch (channel) {
-      case SMS -> setIfPresent(user, mobileAttribute, authSession.getAuthNote(mobileAttribute));
-      case WHATSAPP ->
-          setIfPresent(
-              user,
-              MessagingAttributes.WHATSAPP_NUMBER,
-              authSession.getAuthNote(MessagingAttributes.FORM_WHATSAPP_NUMBER));
-      case VIBER ->
-          setIfPresent(
-              user,
-              MessagingAttributes.VIBER_NUMBER,
-              authSession.getAuthNote(MessagingAttributes.FORM_VIBER_NUMBER));
-      case MESSENGER -> {
-        setIfPresent(
-            user,
-            MessagingAttributes.MESSENGER_ID,
-            authSession.getAuthNote(MessagingAttributes.NOTE_VERIFIED_MESSENGER_ID));
-        setIfPresent(
-            user,
-            MessagingAttributes.MESSENGER_PAGE,
-            authSession.getAuthNote(MessagingAttributes.NOTE_VERIFIED_MESSENGER_PAGE));
-      }
-      case EMAIL -> {}
-    }
-
-    Set<String> channels =
-        user.getAttributeStream(MessagingAttributes.VERIFIED_CHANNELS)
-            .collect(Collectors.toCollection(LinkedHashSet::new));
-    channels.add(channel.name());
-    user.setAttribute(MessagingAttributes.VERIFIED_CHANNELS, List.copyOf(channels));
-
-    if (channel.name().equals(authSession.getAuthNote(MessagingAttributes.FORM_NOTICE_CHANNEL))) {
-      user.setSingleAttribute(MessagingAttributes.MESSAGE_CHANNEL, channel.name());
-    }
-    if (MESSAGING_APPS.contains(channel)
-        && consentValue(consentVersion, channel)
-            .equals(authSession.getAuthNote(MessagingAttributes.FORM_MESSAGE_CONSENT))) {
-      ObjectNode consent = new ObjectMapper().createObjectNode();
-      consent.put("time", now.toString());
-      consent.put("wording_version", consentVersion);
-      consent.put("channel", channel.name());
-      user.setSingleAttribute(MessagingAttributes.MESSAGE_CONSENT, consent.toString());
-    }
-  }
-
-  private void setIfPresent(UserModel user, String attribute, String value) {
-    if (value != null && !value.isBlank()) {
-      user.setSingleAttribute(attribute, value.trim());
-    }
+    VerifiedContacts.persist(user, authSession, mobileAttribute, consentVersion, now);
   }
 }

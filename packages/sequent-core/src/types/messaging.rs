@@ -895,11 +895,13 @@ impl EventMessagingConfig {
             version: EVENT_MESSAGING_CONFIG_VERSION,
             channels,
             election_channels: self.election_channels.clone(),
-            election_labels: election_labels
-                .iter()
-                .filter(|(id, _)| self.election_channels.contains_key(*id))
-                .map(|(id, labels)| (id.clone(), labels.clone()))
-                .collect(),
+            // Every election once any is restricted, so that an
+            // unrestricted election is told apart from an unknown value.
+            election_labels: if self.election_channels.is_empty() {
+                BTreeMap::new()
+            } else {
+                election_labels.clone()
+            },
         }
     }
 }
@@ -2121,14 +2123,17 @@ mod tests {
         let json = serde_json::to_string(&projection).expect("json");
         assert!(!json.contains("messenger-account-secret-id"));
         assert_eq!(projection.channels.len(), 1);
-        // Only restricted elections need labels.
-        assert_eq!(
-            projection.election_labels,
-            BTreeMap::from([(
-                "election-1".to_string(),
-                vec!["Manila".to_string(), "PH-MNL".to_string()]
-            )])
-        );
+        // Every election is labelled once any is restricted, so that an
+        // unrestricted Post is told apart from an unknown one.
+        assert_eq!(projection.election_labels, labels);
+        let unrestricted = EventMessagingConfig {
+            election_channels: BTreeMap::new(),
+            ..config.clone()
+        };
+        assert!(unrestricted
+            .public_projection(&[], &labels)
+            .election_labels
+            .is_empty());
         assert_eq!(
             projection.channels[0].messenger_page,
             Some(PublicMessengerPage {

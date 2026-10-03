@@ -7,7 +7,11 @@ package sequent.keycloak.authenticator.messaging;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-/** Body of harvest's {@code POST /messages/send}. */
+/**
+ * Body of harvest's {@code POST /messages/send}. The template key says which message this is, so
+ * harvest picks the approved template bound to it: {@code otp}, {@code otl} or the message key of
+ * the notice.
+ */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record SendMessageRequest(
     @JsonProperty("tenant_id") String tenantId,
@@ -19,7 +23,8 @@ public record SendMessageRequest(
     @JsonProperty("language") String language,
     @JsonProperty("content") MessageContent content,
     @JsonProperty("logical_key") String logicalKey,
-    @JsonProperty("expires_at") String expiresAt) {
+    @JsonProperty("expires_at") String expiresAt,
+    @JsonProperty("template_key") String templateKey) {
 
   @Override
   public String toString() {

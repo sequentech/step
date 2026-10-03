@@ -455,4 +455,109 @@ class MessageOTPChannelFlowTest {
     verify(sender, never()).createMessengerLink(any());
     assertEquals("482619", notes.get(Utils.CODE));
   }
+
+  @Test
+  void aCodeNamesItsTemplateAndTheVotersLanguage() throws Exception {
+    when(session.getContext().resolveLocale(any())).thenReturn(Locale.forLanguageTag("tl"));
+    verified(MessageChannel.WHATSAPP);
+    authenticator.authenticate(context);
+
+    SendMessageRequest request = sentRequest();
+    assertEquals("otp", request.templateKey());
+    assertEquals("tl", request.language());
+  }
+
+  @Test
+  void aOneTimeLinkNamesItsOwnTemplate() {
+    assertEquals("otp", Utils.codeTemplateKey(false));
+    assertEquals("otl", Utils.codeTemplateKey(true));
+  }
+
+  @Test
+  void aLanguageIsAlwaysSent() throws Exception {
+    when(session.getContext().resolveLocale(any())).thenReturn(null);
+    when(realm.getDefaultLocale()).thenReturn("es");
+    assertEquals("es", Utils.languageCode(session, realm, user));
+
+    when(realm.getDefaultLocale()).thenReturn(null);
+    assertEquals("en", Utils.languageCode(session, realm, user));
+  }
+
+  @Test
+  void theMessengerLinkCarriesTheVotersLanguage() throws Exception {
+    when(session.getContext().resolveLocale(any())).thenReturn(Locale.forLanguageTag("tl"));
+    enrolling(MessageChannel.MESSENGER);
+    when(sender.createMessengerLink(any()))
+        .thenReturn(
+            new CreateMessengerLinkResponse(
+                "ref-1", "https://m.me/synthetic?ref=ref-1", "MAPLE", "2026-10-02T10:05:00Z"));
+    authenticator.authenticate(context);
+
+    ArgumentCaptor<CreateMessengerLinkRequest> captor =
+        ArgumentCaptor.forClass(CreateMessengerLinkRequest.class);
+    verify(sender).createMessengerLink(captor.capture());
+    assertEquals("tl", captor.getValue().language());
+  }
+
+  @Test
+  void aFailedSendDoesNotStartTheResendTimer() throws Exception {
+    verified(MessageChannel.EMAIL, MessageChannel.WHATSAPP);
+    when(sender.send(any())).thenReturn(new SendMessageResponse(null, "FAILED", "rejected-422"));
+    parameters.putSingle("channel", "WHATSAPP");
+    authenticator.action(context);
+
+    verify(form).setAttribute("deliveryState", "FAILED");
+    verify(form).setAttribute("codeJustSent", false);
+    assertNull(notes.get(Utils.CODE));
+
+    when(sender.send(any())).thenReturn(new SendMessageResponse("m-2", "ACCEPTED", null));
+    parameters.clear();
+    parameters.putSingle("resend", "true");
+    authenticator.action(context);
+
+    verify(sender, times(2)).send(any());
+    assertNotNull(notes.get(Utils.CODE));
+    verify(form).setAttribute("deliveryState", "ACCEPTED");
+    verify(form).setAttribute("codeJustSent", true);
+  }
+
+  @Test
+  void aFailedSendDoesNotRepeatItselfWhenThePageIsShownAgain() throws Exception {
+    verified(MessageChannel.EMAIL, MessageChannel.WHATSAPP);
+    when(sender.send(any())).thenReturn(new SendMessageResponse(null, "FAILED", "unreachable"));
+    parameters.putSingle("channel", "WHATSAPP");
+    authenticator.action(context);
+    authenticator.authenticate(context);
+    verify(sender, times(1)).send(any());
+  }
+
+  @Test
+  void aFailedSendLeavesNoCodeToGuess() throws Exception {
+    verified(MessageChannel.EMAIL, MessageChannel.WHATSAPP);
+    when(sender.send(any())).thenReturn(new SendMessageResponse(null, "FAILED", "unreachable"));
+    parameters.putSingle("channel", "WHATSAPP");
+    authenticator.action(context);
+
+    parameters.clear();
+    parameters.putSingle(Utils.CODE, "000000");
+    authenticator.action(context);
+    verify(context, never()).success();
+    verify(context).failureChallenge(eq(AuthenticationFlowError.INVALID_CREDENTIALS), any());
+  }
+
+  @Test
+  void anUnconfirmedSendStartsTheResendTimer() throws Exception {
+    verified(MessageChannel.EMAIL, MessageChannel.WHATSAPP);
+    when(sender.send(any())).thenReturn(new SendMessageResponse("m-1", "UNKNOWN", "timeout"));
+    parameters.putSingle("channel", "WHATSAPP");
+    authenticator.action(context);
+    verify(form).setAttribute("codeJustSent", true);
+    String code = notes.get(Utils.CODE);
+
+    parameters.clear();
+    parameters.putSingle("resend", "true");
+    authenticator.action(context);
+    verify(sender, times(1)).send(any());
+    assertEquals(code, notes.get(Utils.CODE));
+  }
 }

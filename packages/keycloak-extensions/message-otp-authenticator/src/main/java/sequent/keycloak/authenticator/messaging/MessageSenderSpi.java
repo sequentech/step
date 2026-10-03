@@ -9,7 +9,12 @@ import org.keycloak.provider.Provider;
 import org.keycloak.provider.ProviderFactory;
 import org.keycloak.provider.Spi;
 
-/** Selected with {@code --spi-message-sender-provider=default|harvest}; defaults to "default". */
+/**
+ * With no provider configured the sender is {@code auto}, which decides when Keycloak runs (see
+ * {@link AutoMessageSenderProviderFactory}). {@code --spi-message-sender-provider=default|harvest}
+ * is a build option: it only takes effect when the image is built with it, and then pins the
+ * sender.
+ */
 @AutoService(Spi.class)
 public class MessageSenderSpi implements Spi {
   public static final String NAME = "messageSender";

@@ -39,11 +39,23 @@ public class VoterChannels {
         || sender.delivers(channel);
   }
 
-  /** The channels the event offers codes on; email and SMS when it publishes no channels. */
+  /**
+   * The channels the event offers codes on to a saved voter's elections; email and SMS when it
+   * publishes no channels.
+   */
   public List<MessageChannel> offeredForOtp(
       Optional<PublicMessagingChannels> projection, Collection<String> electionIds) {
+    return offeredForOtp(
+        projection, electionIds, PublicMessagingChannels.UnmatchedPostPolicy.EVERY_CHANNEL);
+  }
+
+  /** The channels the event offers codes on to the Posts, given what an unknown Post is offered. */
+  public List<MessageChannel> offeredForOtp(
+      Optional<PublicMessagingChannels> projection,
+      Collection<String> posts,
+      PublicMessagingChannels.UnmatchedPostPolicy unmatched) {
     return projection
-        .map(channels -> channels.channelsFor(MessagePurpose.OTP, electionIds))
+        .map(channels -> channels.channelsFor(MessagePurpose.OTP, posts, unmatched))
         .orElse(LEGACY_OTP_CHANNELS);
   }
 

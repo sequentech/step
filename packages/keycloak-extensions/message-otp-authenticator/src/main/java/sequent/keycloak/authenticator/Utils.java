@@ -77,6 +77,7 @@ import sequent.keycloak.authenticator.messaging.MessageSenderProvider;
 import sequent.keycloak.authenticator.messaging.MessagingAttributes;
 import sequent.keycloak.authenticator.messaging.MessengerLinkRequest;
 import sequent.keycloak.authenticator.messaging.MessengerLinkState;
+import sequent.keycloak.authenticator.messaging.MessengerLinkStatus;
 import sequent.keycloak.authenticator.messaging.NoticeRecipient;
 import sequent.keycloak.authenticator.messaging.PublicMessagingChannels;
 import sequent.keycloak.authenticator.messaging.SendMessageRequest;
@@ -138,6 +139,47 @@ public class Utils {
     }
     long sentAt = Long.parseLong(codeExpiryMillis) - Long.parseLong(codeTtlSeconds) * 1000L;
     return sentAt + Long.parseLong(resendTimerSeconds) * 1000L < nowMillis;
+  }
+
+  /** Template keys of codes and one-time links; a notice uses its message key. */
+  public final String OTP_TEMPLATE_KEY = "otp";
+
+  public final String OTL_TEMPLATE_KEY = "otl";
+
+  public String codeTemplateKey(boolean isOtl) {
+    return isOtl ? OTL_TEMPLATE_KEY : OTP_TEMPLATE_KEY;
+  }
+
+  /** The voter's Keycloak locale code, e.g. {@code en} or {@code tl}; never empty. */
+  public String languageCode(KeycloakSession session, RealmModel realm, UserModel user) {
+    Locale locale = session.getContext().resolveLocale(user);
+    if (locale == null) {
+      String realmLocale = realm == null ? null : realm.getDefaultLocale();
+      locale =
+          realmLocale == null || realmLocale.isBlank()
+              ? Locale.ENGLISH
+              : Locale.forLanguageTag(realmLocale);
+    }
+    return locale.toLanguageTag();
+  }
+
+  /**
+   * Whether the last code was not sent for certain. No code is kept then, so none can be guessed,
+   * and the voter may ask again without waiting for the resend timer.
+   */
+  public boolean sendFailed(AuthenticationSessionModel authSession) {
+    return MessageAttemptState.FAILED
+        .name()
+        .equals(authSession.getAuthNote(MessagingAttributes.NOTE_DELIVERY_STATE));
+  }
+
+  private MessageAttemptState recordDelivery(
+      AuthenticationSessionModel authSession, MessageAttemptState state) {
+    authSession.setAuthNote(MessagingAttributes.NOTE_DELIVERY_STATE, state.name());
+    if (state == MessageAttemptState.FAILED) {
+      authSession.removeAuthNote(Utils.CODE);
+    }
+    return state;
   }
 
   public final String SEND_LINK_SMS_I18N_KEY = "messageOtp.sendLink.sms.text";
@@ -281,8 +323,7 @@ public class Utils {
 
     // Handle deferred user
     if (deferredUser) {
-      String mobileNumberAttribute = config.getConfig().get(Utils.TEL_USER_ATTRIBUTE);
-      mobileNumber = authSession.getAuthNote(mobileNumberAttribute);
+      mobileNumber = authSession.getAuthNote(telUserAttribute(config));
     } else {
       mobileNumber = Utils.getMobile(config, user);
     }
@@ -406,18 +447,20 @@ public class Utils {
     log.infov("sendCode(): messageCourier=`{0}`", messageCourier);
 
     if (chosenChannel.isPresent() && keycloakCourier == MessageCourier.NONE) {
-      return sendCodeThroughSender(
-          sender,
-          chosenChannel.get(),
-          config,
-          session,
-          user,
+      return recordDelivery(
           authSession,
-          deferredUser,
-          isOtl,
-          code,
-          ttl,
-          context);
+          sendCodeThroughSender(
+              sender,
+              chosenChannel.get(),
+              config,
+              session,
+              user,
+              authSession,
+              deferredUser,
+              isOtl,
+              code,
+              ttl,
+              context));
     }
 
     // Sending via SMS
@@ -479,7 +522,7 @@ public class Utils {
     } else {
       log.infov("sendCode(): NOT Sending email to=`{0}`", emailAddress);
     }
-    return MessageAttemptState.ACCEPTED;
+    return recordDelivery(authSession, MessageAttemptState.ACCEPTED);
   }
 
   private MessageAttemptState sendCodeThroughSender(
@@ -505,7 +548,7 @@ public class Utils {
         new MessageContent(null, text, null, List.of(code, minutes), isOtl ? null : code);
     String expiresAt =
         Instant.ofEpochMilli(Long.parseLong(authSession.getAuthNote(Utils.CODE_TTL))).toString();
-    String language = session.getContext().resolveLocale(user).toLanguageTag();
+    String language = languageCode(session, realm, user);
     String codeId = authSession.getAuthNote(MessagingAttributes.NOTE_CODE_ID);
 
     if (channel == MessageChannel.MESSENGER) {
@@ -555,7 +598,8 @@ public class Utils {
                 language,
                 content,
                 "otp:" + codeId,
-                expiresAt));
+                expiresAt,
+                codeTemplateKey(isOtl)));
     communicationsLog(
         context,
         sanitizedSend(
@@ -613,6 +657,48 @@ public class Utils {
         authSession.getAuthNote(MessagingAttributes.NOTE_MESSENGER_REFERENCE),
         sessionDigest(authSession),
         challengeDigest(authSession, authSession.getAuthNote(MessagingAttributes.NOTE_CODE_ID)));
+  }
+
+  /**
+   * Confirms the Messenger link once the code was verified in this session. Harvest only confirms
+   * the live, unreplaced reference of this session and code.
+   *
+   * @return the confirmed link with the voter's Page-scoped ID, or empty when it is not confirmed
+   */
+  Optional<MessengerLinkStatus> confirmedMessengerLink(
+      KeycloakSession session, AuthenticationSessionModel authSession) {
+    if (authSession.getAuthNote(MessagingAttributes.NOTE_MESSENGER_REFERENCE) == null) {
+      return Optional.empty();
+    }
+    MessengerLinkStatus status;
+    try {
+      status =
+          VoterChannels.sender(session).confirmMessengerLink(messengerLinkRequest(authSession));
+    } catch (IOException e) {
+      log.warn("confirmedMessengerLink(): harvest did not confirm the Messenger link");
+      return Optional.empty();
+    }
+    String pageScopedId = status.pageScopedId();
+    if (status.linkState() != MessengerLinkState.CONFIRMED
+        || pageScopedId == null
+        || pageScopedId.isBlank()) {
+      return Optional.empty();
+    }
+    return Optional.of(status);
+  }
+
+  /** Asks harvest whether the voter interacted with the Messenger Page yet. */
+  void refreshMessengerState(KeycloakSession session, AuthenticationSessionModel authSession) {
+    if (authSession.getAuthNote(MessagingAttributes.NOTE_MESSENGER_REFERENCE) == null) {
+      return;
+    }
+    try {
+      MessengerLinkStatus status =
+          VoterChannels.sender(session).messengerLinkStatus(messengerLinkRequest(authSession));
+      authSession.setAuthNote(MessagingAttributes.NOTE_MESSENGER_STATE, status.linkState().name());
+    } catch (IOException e) {
+      log.warn("refreshMessengerState(): harvest did not report the Messenger link");
+    }
   }
 
   /** Formats a message of the login theme, the way SMS texts are formatted. */
@@ -1219,11 +1305,27 @@ public class Utils {
       Supplier<List<String>> attributes,
       Object context)
       throws IOException {
+    return sendNoticeOn(session, realm, user, recipient, textKey, attributes, context).isPresent();
+  }
+
+  /**
+   * Like {@link #sendNotice}, telling which channel took the notice. The message key of the text is
+   * the template key harvest binds an approved template to.
+   */
+  public static Optional<MessageChannel> sendNoticeOn(
+      KeycloakSession session,
+      RealmModel realm,
+      UserModel user,
+      NoticeRecipient recipient,
+      String textKey,
+      Supplier<List<String>> attributes,
+      Object context)
+      throws IOException {
     MessageSenderProvider sender = VoterChannels.sender(session);
     Optional<MessageChannel> channel =
         recipient.messagingApp(sender, PublicMessagingChannels.fromRealm(realm));
     if (channel.isEmpty()) {
-      return false;
+      return Optional.empty();
     }
     List<String> parameters = attributes.get();
     String text = formatLoginMessage(session, realm, user, textKey, parameters);
@@ -1237,10 +1339,11 @@ public class Utils {
                 channel.get(),
                 MessagePurpose.NOTICE,
                 destination,
-                session.getContext().resolveLocale(user).toLanguageTag(),
+                languageCode(session, realm, user),
                 new MessageContent(null, text, null, parameters, null),
                 "notice:" + UUID.randomUUID(),
-                null));
+                null,
+                textKey));
     communicationsLog(
         context,
         sanitizedSend(
@@ -1248,7 +1351,7 @@ public class Utils {
             VoterChannels.mask(channel.get(), destination),
             response.messageId(),
             response.attemptState()));
-    return response.attemptState() != MessageAttemptState.FAILED;
+    return response.attemptState() == MessageAttemptState.FAILED ? Optional.empty() : channel;
   }
 
   public static void sendConfirmation(
