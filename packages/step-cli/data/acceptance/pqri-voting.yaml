@@ -1,0 +1,149 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# Voting stage of the post-qualification demonstration (PQRI D.4): the
+# failure conditions of D.4 and one witnessed check per Annex A D.4 condition.
+#
+# severity: critical (a failure, or no result, keeps the stage from passing)
+#           or advisory (a failure is only reported).
+# method:   automatic (`step-cli acceptance run` reads the election event's
+#           records with the named probe) or witnessed (a person observes it
+#           and `step-cli acceptance record` stores the result).
+id: pqri-voting
+title: PQRI D.4 Voting
+checks:
+  - id: voting.authentication
+    title: Enrolled voters authenticate
+    source: PQRI D.4
+    severity: critical
+    method: automatic
+    probe: voter-authenticated
+  - id: voting.ballot-published
+    title: A ballot is published for each voter's area
+    source: PQRI D.4
+    severity: critical
+    method: automatic
+    probe: ballot-published
+  - id: voting.ballot-displayed
+    title: The ballot is displayed to the voter after signing in
+    source: PQRI D.4
+    severity: critical
+    method: witnessed
+  - id: voting.ballot-cast
+    title: Voters cast their ballot
+    source: PQRI D.4
+    severity: critical
+    method: automatic
+    probe: ballot-cast
+  - id: voting.receipt
+    title: A confirmation or receipt with the Ballot ID is produced for each cast ballot
+    source: PQRI D.4
+    severity: critical
+    method: automatic
+    probe: receipt-produced
+  - id: voting.ballot-stored
+    title: Each cast ballot is stored as the ballot box recorded it
+    source: PQRI D.4
+    severity: critical
+    method: automatic
+    probe: ballot-stored
+  - id: annex-a.d.4.1.1
+    title: "Use the COMELEC-approved EMS configuration for the voting system."
+    source: PQRI Annex A D.4.1.1
+    severity: critical
+    method: witnessed
+  - id: annex-a.d.4.2.1
+    title: "Allow voting with any mobile, desktop, laptop or other Internet-connected device; voters may use different devices for enrollment, test voting and actual voting (2.1.1)."
+    source: PQRI Annex A D.4.2.1
+    severity: critical
+    method: witnessed
+  - id: annex-a.d.4.3.1
+    title: "Initialize the system according to EMS-OV user-access security requirements."
+    source: PQRI Annex A D.4.3.1
+    severity: critical
+    method: witnessed
+  - id: annex-a.d.4.3.2
+    title: "Generate a dated/time-stamped Initialization Report after successful initialization."
+    source: PQRI Annex A D.4.3.2
+    severity: critical
+    method: witnessed
+  - id: annex-a.d.4.3.3
+    title: "Allow voting to start and votes to be accepted after initialization is complete."
+    source: PQRI Annex A D.4.3.3
+    severity: critical
+    method: witnessed
+  - id: annex-a.d.4.4.1
+    title: "Allow only verified and successfully enrolled overseas voters to vote."
+    source: PQRI Annex A D.4.4.1
+    severity: critical
+    method: witnessed
+  - id: annex-a.d.4.4.2
+    title: "Verify voter identity before allowing access to voting."
+    source: PQRI Annex A D.4.4.2
+    severity: critical
+    method: witnessed
+  - id: annex-a.d.4.5.1
+    title: "Display the ballot after successful authentication."
+    source: PQRI Annex A D.4.5.1
+    severity: critical
+    method: witnessed
+  - id: annex-a.d.4.5.2
+    title: "Render the COMELEC-approved ballot design from EMS-OV."
+    source: PQRI Annex A D.4.5.2
+    severity: critical
+    method: witnessed
+  - id: annex-a.d.4.6.1
+    title: "Keep voter identity confidential and unlinkable to choices."
+    source: PQRI Annex A D.4.6.1
+    severity: critical
+    method: witnessed
+  - id: annex-a.d.4.6.2
+    title: "Ensure no cast vote is traceable to a voter."
+    source: PQRI Annex A D.4.6.2
+    severity: critical
+    method: witnessed
+  - id: annex-a.d.4.7.1
+    title: "Allow voters to edit selections until final submission."
+    source: PQRI Annex A D.4.7.1
+    severity: critical
+    method: witnessed
+  - id: annex-a.d.4.7.2
+    title: "Allow undervoting and abstention and notify the voter appropriately."
+    source: PQRI Annex A D.4.7.2
+    severity: critical
+    method: witnessed
+  - id: annex-a.d.4.7.3
+    title: "Prevent overvoting beyond the allowed seats."
+    source: PQRI Annex A D.4.7.3
+    severity: critical
+    method: witnessed
+  - id: annex-a.d.4.7.4
+    title: "Require express voter confirmation before final submission."
+    source: PQRI Annex A D.4.7.4
+    severity: critical
+    method: witnessed
+  - id: annex-a.d.4.8.1
+    title: "Encrypt cast votes with AES-256."
+    source: PQRI Annex A D.4.8.1
+    severity: critical
+    method: witnessed
+  - id: annex-a.d.4.8.2
+    title: "Generate zero-knowledge proofs for cast votes."
+    source: PQRI Annex A D.4.8.2
+    severity: critical
+    method: witnessed
+  - id: annex-a.d.4.8.3
+    title: "Apply secure mixing to produce anonymized ballots."
+    source: PQRI Annex A D.4.8.3
+    severity: critical
+    method: witnessed
+  - id: annex-a.d.4.9.1
+    title: "Ensure non-repudiation and auditability of vote casting."
+    source: PQRI Annex A D.4.9.1
+    severity: critical
+    method: witnessed
+  - id: annex-a.d.4.9.2
+    title: "Do not retain or access voter credentials."
+    source: PQRI Annex A D.4.9.2
+    severity: critical
+    method: witnessed
