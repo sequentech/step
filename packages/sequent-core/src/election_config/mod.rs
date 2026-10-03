@@ -196,7 +196,9 @@ pub use problem::{
 pub use profile::{apply_profile, ClientProfile, Profile};
 #[cfg(feature = "election_config_templates")]
 pub use render::TemplateSet;
-pub use report::{EReportEncryption, Report, ReportCronConfig, ReportType};
+pub use report::{
+    EReportEncryption, Report, ReportCronConfig, ReportFormat, ReportType,
+};
 pub use schema::ImportElectionEventSchema;
 pub use sheet::{Origin, Row, Sheet, Workbook};
 pub use time::Timestamp;
