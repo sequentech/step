@@ -130,6 +130,8 @@ const galegoTranslation: TranslationType = {
                     "Configuración de voto inválida: o concurso define {{count}} candidatos explicitamente inválidos, pero só se permite un.",
                 multipleExplicitBlankCandidates:
                     "Configuración de voto inválida: o concurso define {{count}} candidatos de voto en branco explícito, pero só se permite un.",
+                invalidSlateConfiguration:
+                    "Configuración de voto inválida: as candidaturas conxuntas non son válidas ({{reason}}).",
             },
         },
         ballotHash: "O teu ID de Papeleta: {{ballotId}}",

@@ -444,6 +444,13 @@ const basqueTranslation: TranslationType = {
                 error: "Arazoa izan da zure berrespena erregistratzean. Mesedez, saiatu berriro.",
             },
         },
+        slates: {
+            title: "Hautagai-zerrendak",
+            description:
+                "Hautagai-zerrenda elkarrekin aurkezten diren hautagaien taldea da. Hautagai bakoitzak zein zerrendatakoa den erakusten du.",
+            independent: "Independentea",
+            contestMembers: "{{slate}} zerrendako hautagaiak: {{contest}}",
+        },
         ballotLocator: {
             title: "Bilatu zure Bozketa",
             titleResult: "Zure Bozketa Bilaketak Emaitza",

@@ -444,6 +444,13 @@ const dutchTranslation: TranslationType = {
                 error: "Er was een probleem bij het registreren van uw bevestiging. Probeer het opnieuw.",
             },
         },
+        slates: {
+            title: "Lijsten",
+            description:
+                "Een lijst is een groep kandidaten die zich samen verkiesbaar stellen. Bij elke kandidaat staat de lijst waartoe die behoort.",
+            independent: "Onafhankelijk",
+            contestMembers: "Kandidaten van {{slate}} voor {{contest}}",
+        },
         ballotLocator: {
             title: "Zoek uw Stembiljet",
             titleResult: "Resultaat van uw Stembiljet Zoekopdracht",

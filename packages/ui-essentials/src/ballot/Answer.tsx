@@ -25,6 +25,7 @@ import {IBallotStyle} from "./types"
 import {useTranslation} from "react-i18next"
 import type {IDecodedVoteContest} from "@sequentech/ui-core"
 import {useBallotEngine} from "./engine"
+import {useCandidateSlateLabel} from "./slates"
 import {writeInErrorId} from "./InvalidErrorsList"
 import {ECandidatesIconCheckboxPolicy} from "@sequentech/ui-core"
 
@@ -89,6 +90,7 @@ export const Answer: React.FC<IAnswerProps> = ({
     const imageUrl = getImageUrl(answer)
     const infoUrl = getLinkUrl(answer)
     const {i18n} = useTranslation()
+    const slateLabel = useCandidateSlateLabel(ballotStyle, contest, answer)
     const isInvalidVote = useMemo(
         () => isInvalidVoteInput ?? checkIsInvalidVote(answer),
         [isInvalidVoteInput, answer]
@@ -237,6 +239,7 @@ export const Answer: React.FC<IAnswerProps> = ({
             totalCandidates={totalCandidates}
             maxVotes={contest.max_votes}
             title={translate(answer, "name", i18n.language)}
+            subtitle={slateLabel}
             description={stringToHtml(translate(answer, "description", i18n.language) || "")}
             isSelectable={isSelectable}
             checked={isChecked()}

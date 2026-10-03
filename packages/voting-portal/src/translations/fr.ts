@@ -442,6 +442,13 @@ const frenchTranslation: TranslationType = {
                 error: "Un problème est survenu lors de l'enregistrement de votre confirmation. Veuillez réessayer.",
             },
         },
+        slates: {
+            title: "Listes",
+            description:
+                "Une liste est un groupe de candidats qui se présentent ensemble. Chaque candidat indique la liste à laquelle il appartient.",
+            independent: "Indépendant",
+            contestMembers: "Candidats de {{slate}} pour {{contest}}",
+        },
         ballotLocator: {
             title: "Localisez votre bulletin de vote",
             titleResult: "Résultat de la recherche de votre Bulletin",
