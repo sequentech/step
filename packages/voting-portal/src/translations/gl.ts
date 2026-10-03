@@ -444,6 +444,13 @@ const galegoTranslation: TranslationType = {
                 error: "Houbo un problema ao rexistrar a túa confirmación. Inténtao de novo.",
             },
         },
+        slates: {
+            title: "Candidaturas conxuntas",
+            description:
+                "Unha candidatura conxunta é un grupo de candidatos que se presentan xuntos. Cada candidato mostra a candidatura á que pertence.",
+            independent: "Independente",
+            contestMembers: "Candidatos de {{slate}} para {{contest}}",
+        },
         ballotLocator: {
             title: "Busca a túa Papeleta",
             titleResult: "Resultado da túa busca de Papeleta",

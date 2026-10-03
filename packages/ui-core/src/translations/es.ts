@@ -130,6 +130,8 @@ const spanishTranslation: TranslationType = {
                     "Configuración de voto inválida: el concurso define {{count}} candidatos explícitamente inválidos, pero solo se permite uno.",
                 multipleExplicitBlankCandidates:
                     "Configuración de voto inválida: el concurso define {{count}} candidatos de voto en blanco explícito, pero solo se permite uno.",
+                invalidSlateConfiguration:
+                    "Configuración de voto inválida: las candidaturas conjuntas no son válidas ({{reason}}).",
             },
         },
         ballotHash: "Su Localizador de Voto: {{ballotId}}",

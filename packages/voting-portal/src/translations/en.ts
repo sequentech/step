@@ -435,6 +435,13 @@ const englishTranslation = {
                 error: "There was a problem recording your acknowledgment. Please try again.",
             },
         },
+        slates: {
+            title: "Slates",
+            description:
+                "A slate is a group of candidates running together. Each candidate shows the slate they belong to.",
+            independent: "Independent",
+            contestMembers: "{{slate}} candidates for {{contest}}",
+        },
         ballotLocator: {
             title: "Find your Ballot",
             titleResult: "Your Ballot Lookup Results",

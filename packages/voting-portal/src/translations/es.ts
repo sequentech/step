@@ -446,6 +446,13 @@ const spanishTranslation: TranslationType = {
                 error: "Hubo un problema al registrar tu confirmación. Por favor, inténtalo de nuevo.",
             },
         },
+        slates: {
+            title: "Candidaturas conjuntas",
+            description:
+                "Una candidatura conjunta es un grupo de candidatos que se presentan juntos. Cada candidato muestra la candidatura a la que pertenece.",
+            independent: "Independiente",
+            contestMembers: "Candidatos de {{slate}} para {{contest}}",
+        },
         ballotLocator: {
             title: "Encuentra tu Papeleta",
             titleResult: "Resultados de tu búsqueda de Papeleta",

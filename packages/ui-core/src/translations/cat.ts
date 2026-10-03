@@ -127,6 +127,8 @@ const catalanTranslation: TranslationType = {
                     "Configuració de vot invàlida: el concurs defineix {{count}} candidats explícitament invàlids, però només se'n permet un.",
                 multipleExplicitBlankCandidates:
                     "Configuració de vot invàlida: el concurs defineix {{count}} candidats de vot en blanc explícit, però només se'n permet un.",
+                invalidSlateConfiguration:
+                    "Configuració de vot invàlida: les candidatures conjuntes no són vàlides ({{reason}}).",
             },
         },
         ballotHash: "El teu Localitzador de Vot: {{ballotId}}",

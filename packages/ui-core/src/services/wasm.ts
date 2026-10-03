@@ -16,6 +16,7 @@ import SequentCoreLibInit, {
     get_default_blank_ballots_policy_js,
     get_default_voting_screen_back_policy_js,
     get_voting_screen_back_policy_values_js,
+    get_ballot_style_slates_js,
     IVotingScreenBackPolicy,
 } from "sequent-core"
 import {
@@ -65,6 +66,7 @@ import {
     ELanguageDetectionPolicy,
     EDeclineToVotePolicy,
     EBlankBallotsPolicy,
+    ISlatesConfig,
 } from ".."
 
 export type {
@@ -399,6 +401,19 @@ export const check_voting_error_dialog_bool = (
 ): boolean => {
     try {
         return check_voting_error_dialog(contests, decodedContests)
+    } catch (error) {
+        console.log(error)
+        throw error
+    }
+}
+
+/**
+ * The slates a ballot style carries, or null when its election has none.
+ * Throws the list of problems (ISlateProblem) of an invalid configuration.
+ */
+export const getBallotStyleSlates = (ballotStyle: IBallotStyle): ISlatesConfig | null => {
+    try {
+        return get_ballot_style_slates_js(ballotStyle) ?? null
     } catch (error) {
         console.log(error)
         throw error

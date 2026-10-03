@@ -443,6 +443,13 @@ const tagalogTranslation: TranslationType = {
                 error: "Nagkaroon ng problema sa pagre-record ng iyong kumpirmasyon. Pakisubukan muli.",
             },
         },
+        slates: {
+            title: "Mga slate",
+            description:
+                "Ang slate ay isang pangkat ng mga kandidatong magkakasamang tumatakbo. Ipinapakita ng bawat kandidato ang slate na kinabibilangan nila.",
+            independent: "Independiyente",
+            contestMembers: "Mga kandidato ng {{slate}} para sa {{contest}}",
+        },
         ballotLocator: {
             title: "Hanapin ang Iyong Balota",
             titleResult: "Resulta ng Iyong Paghahanap ng Balota",

@@ -447,6 +447,13 @@ const catalanTranslation: TranslationType = {
                 error: "Hi ha hagut un problema en registrar la teva confirmació. Si us plau, torna-ho a intentar.",
             },
         },
+        slates: {
+            title: "Candidatures conjuntes",
+            description:
+                "Una candidatura conjunta és un grup de candidats que es presenten junts. Cada candidat mostra la candidatura a la qual pertany.",
+            independent: "Independent",
+            contestMembers: "Candidats de {{slate}} per a {{contest}}",
+        },
         ballotLocator: {
             title: "Troba la teva Papereta",
             titleResult: "Resultats de la cerca de la teva Papereta",
