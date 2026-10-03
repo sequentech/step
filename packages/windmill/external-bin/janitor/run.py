@@ -11,6 +11,8 @@ import argparse
 import os
 import logging
 from pybars import Compiler
+
+import signing_preset
 import openpyxl
 import copy
 import csv
@@ -549,7 +551,8 @@ def create_tenant_files(excel_data, base_config):
     tenant_configuration_compiled = compiler.compile(tenant_configurations)
     tenant_configuration_context = {
         "UUID": base_config["tenant_id"],
-        "current_timestamp": current_timestamp
+        "current_timestamp": current_timestamp,
+        **signing_preset.tenant_context(client_tenant)
     }
     tenant_configurations_str = json.loads(tenant_configuration_compiled(tenant_configuration_context))
 
@@ -672,27 +675,8 @@ def process_excel_users(users, csv_data):
             "|".join(user_data["permission_labels"]),
             user_data["password"],
             user_data["group_name"],
-            user_data["trustee"]
-        ])
-
-def process_sbei_users(sbei_users, csv_data):
-    users_map = {}
-    for user in sbei_users:
-        username = user["username"]
-        users_map[username] = user
-    
-    for key_username in users_map.keys():
-        # deduplicate permission labels
-        permission_labels = list(set(users_map[key_username]["permission_label"]))
-        trustee_id = users_map[key_username]["trustee_id"]
-        csv_data.append([
-            True,
-            key_username,
-            key_username,
-            "|".join(permission_labels),
-            key_username,
-            "trustee" if key_username.startswith("trustee") else "sbei",
-            trustee_id,
+            user_data["trustee"],
+            ""
         ])
 
 def create_permissions_file(data):
@@ -721,17 +705,17 @@ def create_permissions_file(data):
     return csv_content
 
 
-def create_admins_file(sbei_users, excel_data_users):
+def create_admins_file(sbei_users, excel_data_users, preset):
     # Data to be written to the CSV file
     print("excel_data_users", excel_data_users)
     csv_data = [
         [
-            "enabled","first_name","username","permission_labels","password","group_name","trustee"
-            #true,Eduardo,admin2,BANGKOK|DHAKA,admin2,admin
+            "enabled","first_name","username","permission_labels","password","group_name","trustee","title"
+            #true,Eduardo,admin2,BANGKOK|DHAKA,admin2,admin,,
         ]
     ]
     process_excel_users(excel_data_users, csv_data)
-    process_sbei_users(sbei_users, csv_data)
+    csv_data.extend(signing_preset.sbei_admin_rows(sbei_users, preset))
 
 
     # Name of the output CSV file
@@ -1678,6 +1662,11 @@ try:
     
     with open('templates/COMELEC/keycloakAdmin.hbs', 'r') as file:
         keycloak_admin_template = file.read()
+
+    # The tenant's signing preset: the event's signing rules and certificate
+    # checks, and the titles of the SBEI accounts.
+    preset = signing_preset.load('templates/COMELEC/signing.json')
+    client_tenant = signing_preset.load('templates/COMELEC/tenant.json')
     
 
     logging.info("Loaded all templates successfully.")
@@ -1694,7 +1683,7 @@ multiply_factor = args.multiply_elections
 results = load_sqlite_query(script_dir)
 election_event, election_event_id, sbei_users = generate_election_event(excel_data, base_context, miru_data, results)
 create_tenant_files(excel_data, base_config)
-create_admins_file(sbei_users, excel_data["users"])
+create_admins_file(sbei_users, excel_data["users"], preset)
 
 areas, candidates, contests, area_contests, elections, keycloak, scheduled_events, reports = replace_placeholder_database(excel_data, election_event_id, miru_data, results, multiply_factor)
 keycloak = patch_keycloak(keycloak, base_config)
@@ -1711,6 +1700,7 @@ final_json = {
     "scheduled_events": scheduled_events,
     "reports": reports
 }
+signing_preset.add_to_bundle(final_json, preset)
 
 patch_json_with_excel(excel_data, final_json, "event")
 

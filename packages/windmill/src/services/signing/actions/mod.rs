@@ -3,8 +3,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 //! The protected actions the existing routes start: opening and closing
-//! voting, initializing it, approving a configuration version and approving
-//! a voter.
+//! voting, initializing it, approving a configuration version, approving
+//! a voter, generating the election returns and other reports, and
+//! transmitting the results.
 //!
 //! A route asks its gate before it acts. With the action's rule
 //! `NotRequired` the route runs as it always did; otherwise it answers the
@@ -30,7 +31,10 @@
 //! person decides what to do.
 
 pub mod configuration;
+pub mod eml;
 pub mod initialize;
+pub mod reports;
+pub mod transmission;
 pub mod voter;
 pub mod voting;
 
@@ -45,6 +49,8 @@ use crate::postgres::signing::{
 use crate::postgres::signing_actions::{
     insert_signed_action_task, set_signed_action_task_status, set_signing_effect_result,
 };
+use crate::services::consolidation::signed_transmission_package::StoredPackages;
+use crate::services::signing::pdf::S3RevisionStore;
 use crate::tasks::signing_log_outbox::kick_signing_log_outbox;
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
@@ -62,12 +68,15 @@ use tracing::{error, instrument, warn};
 use uuid::Uuid;
 
 /// The actions this module runs.
-pub const ACTIONS: [SigningAction; 5] = [
+pub const ACTIONS: [SigningAction; 8] = [
     SigningAction::InitializeVoting,
     SigningAction::OpenVoting,
     SigningAction::CloseVoting,
     SigningAction::ApproveConfiguration,
     SigningAction::ApproveVoter,
+    SigningAction::TransmitResults,
+    SigningAction::GenerateElectionReturns,
+    SigningAction::GenerateReports,
 ];
 
 /// The code of a failure after a call outside the database.
@@ -378,6 +387,26 @@ impl SignedActionEffects for ProductionEffects {
                     request,
                     approvals,
                     self.voters.as_ref(),
+                    progress,
+                )
+                .await
+            }
+            SigningAction::TransmitResults => {
+                transmission::sign_package(
+                    hasura_transaction,
+                    &StoredPackages,
+                    request,
+                    approvals,
+                    progress,
+                )
+                .await
+            }
+            SigningAction::GenerateElectionReturns | SigningAction::GenerateReports => {
+                reports::release_report(
+                    hasura_transaction,
+                    &S3RevisionStore,
+                    &reports::StoredReports,
+                    request,
                     progress,
                 )
                 .await

@@ -7,7 +7,11 @@
 //! has not reported back.
 
 use crate::services::database::get_hasura_pool;
+use crate::services::signing::actions::reports::{
+    start_all_held_tally_reports, sweep_held_mails, StoredReports,
+};
 use crate::services::signing::executors::default_registry;
+use crate::services::signing::pdf::S3RevisionStore;
 use crate::services::signing::requests::{expire_overdue_requests, redispatch_unexecuted_requests};
 use crate::types::error::Result;
 use anyhow::anyhow;
@@ -43,5 +47,11 @@ pub async fn sweep_signing_executions() -> Result<()> {
     let mut client = hasura_client().await?;
     let sent = redispatch_unexecuted_requests(&mut client, &default_registry()).await?;
     info!("sent {sent} signing executions again");
+    // Held tally reports whose request didn't start after their tally.
+    let started = start_all_held_tally_reports(&mut client).await?;
+    info!("started {started} held tally reports' signing requests");
+    // Held e-mails of released reports that no task sent.
+    let mailed = sweep_held_mails(&mut client, &S3RevisionStore, &StoredReports).await?;
+    info!("mailed {mailed} held reports");
     Ok(())
 }

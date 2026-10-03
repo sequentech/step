@@ -9,6 +9,7 @@ use super::eml_generator::{
     MIRU_AREA_THRESHOLD, MIRU_PLUGIN_PREPEND, MIRU_TALLY_SESSION_DATA,
 };
 use super::logs::create_transmission_package_log;
+use super::signed_transmission_package::{lock_transmission_data, transmission_timezone};
 use super::transmission_package::{
     create_logs_package, create_transmission_package, generate_base_compressed_xml,
 };
@@ -27,6 +28,8 @@ use crate::services::database::get_hasura_pool;
 use crate::services::documents::get_document_as_temp_file;
 use crate::services::documents::upload_and_return_document;
 use crate::services::folders::list_files;
+use crate::services::signing::actions::transmission::{guard_transmission_package, PackageToSign};
+use crate::services::signing::SigningCaller;
 use crate::types::miru_plugin::{
     MiruCcsServer, MiruDocument, MiruDocumentIds, MiruTransmissionPackageData,
 };
@@ -46,7 +49,6 @@ use sequent_core::types::ceremonies::Log;
 use sequent_core::types::date_time::TimeZone;
 use sequent_core::types::hasura::core::Document;
 use sequent_core::types::results::{ResultDocumentType, ResultDocuments};
-use sequent_core::util::date_time::PHILIPPINO_TIMEZONE;
 use sequent_core::util::temp_path::*;
 use tempfile::{tempdir, NamedTempFile};
 use tracing::{info, instrument};
@@ -238,6 +240,7 @@ pub async fn create_transmission_package_service(
     area_id: &str,
     tally_session_id: &str,
     force: bool,
+    requester: Option<SigningCaller>,
 ) -> Result<()> {
     let mut hasura_db_client: DbClient = get_hasura_pool()
         .await
@@ -261,13 +264,6 @@ pub async fn create_transmission_package_service(
     )
     .await
     .with_context(|| "Error fetching tally session")?;
-
-    let tally_annotations: Annotations = tally_session
-        .annotations
-        .clone()
-        .map(|value| deserialize_value(value))
-        .transpose()?
-        .unwrap_or_default();
 
     let transmission_data: MiruTallySessionData = tally_session.get_annotations().unwrap_or(vec![]);
 
@@ -325,8 +321,9 @@ pub async fn create_transmission_package_service(
 
     let tally_id = tally_session_id;
     let transaction_id = generate_transaction_id().to_string();
-    let time_zone = PHILIPPINO_TIMEZONE;
     let now_utc = Utc::now();
+    let time_zone =
+        transmission_timezone(&hasura_transaction, tenant_id, &election_event.id, now_utc).await?;
     let now_local = now_utc.with_timezone(&Local);
 
     let election_event_annotations = election_event.get_annotations()?;
@@ -360,6 +357,53 @@ pub async fn create_transmission_package_service(
     )
     .await?;
 
+    // With the transmit-results rule, the package waits for its signatures:
+    // its request starts before anything is stored, and takes the event's
+    // signing lock before the tally session's row lock below.
+    let parse = |value: &str, what: &str| {
+        Uuid::parse_str(value).with_context(|| format!("Error parsing the {what}"))
+    };
+    let eml_document_id = Uuid::new_v4();
+    let signing_request = guard_transmission_package(
+        &hasura_transaction,
+        requester.as_ref(),
+        &PackageToSign {
+            tenant_id: parse(tenant_id, "tenant id")?,
+            election_event_id: parse(&election_event.id, "election event id")?,
+            election_id: parse(election_id, "election id")?,
+            area_id: parse(area_id, "area id")?,
+            tally_session_id,
+            eml_document_id,
+            eml: eml.as_bytes(),
+            package: &base_compressed_xml,
+            servers: &ccs_servers,
+        },
+    )
+    .await
+    .map_err(|error| anyhow!("Error starting the package's signing request: {error}"))?;
+    // The package keeps the Post's 2025 threshold: a signed package's count
+    // is its request's (the send checks it); a package whose request ended
+    // without running goes back to the Post's minimum.
+
+    // The packages as they stand under the tally session's row lock: no
+    // other writer's change is lost.
+    let locked = lock_transmission_data(
+        &hasura_transaction,
+        tenant_id,
+        &election_event.id,
+        tally_session_id,
+    )
+    .await?;
+    let found_package = locked
+        .packages
+        .iter()
+        .find(|data| data.area_id == area_id && data.election_id == election_id)
+        .cloned();
+    if found_package.is_some() && !force {
+        info!("transmission package created meanwhile, skipping");
+        return Ok(());
+    }
+
     // upload .xz
     let xz_name = format!("er_{}.xz", transaction_id);
     let (temp_path, temp_path_string, file_size) =
@@ -389,7 +433,7 @@ pub async fn create_transmission_package_service(
         tenant_id,
         Some(election_event.id.to_string()),
         &eml_name,
-        None,
+        Some(eml_document_id.to_string()),
         false,
     )
     .await?;
@@ -445,6 +489,7 @@ pub async fn create_transmission_package_service(
         }],
         logs,
         threshold: threshold,
+        signing_request,
     };
     update_transmission_package_annotations(
         &hasura_transaction,
@@ -453,9 +498,9 @@ pub async fn create_transmission_package_service(
         tally_session_id,
         area_id,
         election_id,
-        transmission_data.clone(),
+        locked.packages,
         new_transmission_package_data,
-        tally_annotations.clone(),
+        locked.annotations,
     )
     .await?;
 

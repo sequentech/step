@@ -693,6 +693,20 @@ const dutchTranslation: TranslationType = {
                         text: "Stemperiode onvolledig — de periode moet handmatig worden geopend of gesloten in het Beheerportaal.",
                     },
                 },
+                signing: {
+                    "duplicate-action": {
+                        lead: "Twee regels voor één actie",
+                        text: "Twee regels voor één actie — '{{action}}' heeft meer dan één ondertekeningsregel. Houd er één.",
+                    },
+                    "signatures-out-of-range": {
+                        lead: "Handtekeningen buiten bereik",
+                        text: "Handtekeningen buiten bereik — de regel voor '{{action}}' moet tussen 1 en 1000 handtekeningen vragen.",
+                    },
+                    "expiry-out-of-range": {
+                        lead: "Vervaltijd buiten bereik",
+                        text: "Vervaltijd buiten bereik — een '{{action}}'-verzoek moet na 1 tot 525.600 minuten (een jaar) vervallen, of nooit.",
+                    },
+                },
                 threshold: {
                     "above-trustees": {
                         lead: "Drempel te hoog",

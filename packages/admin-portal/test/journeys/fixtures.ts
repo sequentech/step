@@ -7,7 +7,7 @@ import {fileURLToPath} from "node:url"
 import {serveDist} from "@sequentech/ui-test-kit/server/static"
 import {routePortal, type PortalServices} from "@sequentech/ui-test-kit/adapters/playwright"
 import {GraphQLMock, loadClientSchema} from "@sequentech/ui-test-kit/mocks/graphql"
-import {OidcMock} from "@sequentech/ui-test-kit/mocks/oidc"
+import {OidcMock, type OidcUser} from "@sequentech/ui-test-kit/mocks/oidc"
 import {S3Mock} from "@sequentech/ui-test-kit/mocks/s3"
 import {ViolationLog} from "@sequentech/ui-test-kit/mocks/violations"
 import {FIXED_TIME, IDS} from "@sequentech/ui-test-kit/fixtures"
@@ -17,6 +17,8 @@ export const TENANT_ID = IDS.tenant
 export const SECOND_TENANT_ID = "10000000-0000-4000-8000-000000000002"
 export interface AdminPortal extends PortalServices {
     now: number
+    /** Whom the identity provider signs in; changing it before a sign-in hands the laptop over. */
+    user: Omit<OidcUser, "attributes">
 }
 export const test = base.extend<
     {portal: AdminPortal; roles: string[]},
@@ -60,23 +62,22 @@ export const test = base.extend<
             realms: [TENANT_ID, SECOND_TENANT_ID].map((tenantId) => ({
                 name: `tenant-${tenantId}`,
                 clients: ["admin-portal"],
-                user: {
-                    id: IDS.voter,
-                    username: "synthetic-admin",
-                    attributes: {"tenant-id": [tenantId]},
+                get user() {
+                    return {...portal.user, attributes: {"tenant-id": [tenantId]}}
                 },
-                claims: () => ({
+                claims: ({user}) => ({
                     "https://hasura.io/jwt/claims": {
                         "x-hasura-default-role": "admin-user",
                         "x-hasura-allowed-roles": roles,
                         "x-hasura-tenant-id": tenantId,
-                        "x-hasura-user-id": IDS.voter,
+                        "x-hasura-user-id": user.id,
                     },
                 }),
             })),
         })
         const portal: AdminPortal = {
             now: Date.parse(FIXED_TIME),
+            user: {id: IDS.voter, username: "synthetic-admin"},
             origin,
             violations,
             s3,
@@ -97,6 +98,16 @@ export const test = base.extend<
             },
         }
         graphql.on("IntrospectionQuery", () => ({data: {}}))
+        // Default empty signing reads; signing journeys replace these with their own state.
+        graphql.on("GetWaitingSigningRequests", () => ({
+            data: {sequent_backend_signing_request: []},
+        }))
+        graphql.on("SigningEventInfo", () => ({
+            data: {signingEventInfo: {time_zone: null, titles: {}}},
+        }))
+        graphql.on("GetHeldReportRequests", () => ({
+            data: {signingHeldReportRequests: {requests: []}},
+        }))
         const tenant = {
             id: TENANT_ID,
             slug: "synthetic",

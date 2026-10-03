@@ -71,6 +71,15 @@ import {set} from "lodash"
 import {isArray} from "@sequentech/ui-core"
 import {EventProcessors} from "../ScheduledEvents/CreateScheduledEvent"
 import {ThreeStateDatagridHeader} from "@/components/ThreeStateDatagridHeader"
+import {useSignedAction} from "@/hooks/useSignedAction"
+import {
+    GenerateSignedReportDialog,
+    ReportSignaturesCell,
+    ReportRequestLinks,
+    heldByReports,
+    useReportSignatures,
+    useReportTaskSigningRequest,
+} from "./ReportSigning"
 
 const DataGridContainerStyle = styled(DatagridConfigurable)<{isOpenSideBar?: boolean}>`
     @media (min-width: ${({theme}) => theme.breakpoints.values.md}px) {
@@ -106,11 +115,12 @@ interface ActionsPopUpProps {
 const ActionsPopUp: React.FC<ActionsPopUpProps> = ({actions, report, canWriteReport}) => {
     const filteredActions = useMemo(() => {
         const reportConfig = reportTypeConfig[report.report_type]
+        const offered = (key: ReportActions) => !!reportConfig?.actions.includes(key)
 
         const isShowAction = (action: Action) => {
             return (
                 !action.key ||
-                !reportConfig?.actions.includes(action.key as ReportActions) ||
+                !offered(action.key as ReportActions) ||
                 ((action.key === ReportActions.EDIT || action.key === ReportActions.DELETE) &&
                     !canWriteReport)
             )
@@ -202,6 +212,40 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
         setSelectedReportId(id)
     }
 
+    // With its action's rule Required, a report the Reports tab generates
+    // waits for signatures: the dialog says so, and its task names the
+    // request whose panel opens (with what the released report offers).
+    const signatures = useReportSignatures(electionEventId)
+    const openSigned = useSignedAction()
+    const [signedGenerate, setSignedGenerate] = useState<Sequent_Backend_Report | null>(null)
+    const [reportTaskId, setReportTaskId] = useState<string | null>(null)
+    const reportSigningRequest = useReportTaskSigningRequest(reportTaskId)
+    useEffect(() => {
+        if (!reportSigningRequest) return
+        // Nothing to download before the signatures: the panel says what waits.
+        setReportTaskId(null)
+        setDocumentId(undefined)
+        openSigned({signing_request: {id: reportSigningRequest}})
+    }, [reportSigningRequest])
+
+    const startGenerateReport = async (id: Identifier, mode: EGenerateReportMode) => {
+        if (mode === EGenerateReportMode.REAL && signatures.known) {
+            try {
+                const {data: record} = await dataProvider.getOne<Sequent_Backend_Report>(
+                    "sequent_backend_report",
+                    {id}
+                )
+                if (heldByReports(record.report_type) && signatures.needs(record.report_type)) {
+                    setSignedGenerate(record)
+                    return
+                }
+            } catch {
+                // Generated as before; its task still says if it waits for signatures.
+            }
+        }
+        await handleGenerateReport(id, mode)
+    }
+
     const handleGenerateReport = async (id: Identifier, mode: EGenerateReportMode) => {
         setDocumentId(undefined)
         const currWidget: WidgetProps = addWidget(ETasksExecution.GENERATE_REPORT, undefined)
@@ -226,6 +270,7 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
             }
             setDocumentId(generatedDocumentId)
             setWidgetTaskId(currWidget.identifier, taskId)
+            setReportTaskId(taskId ?? null)
         } catch (e) {
             updateWidgetFail(currWidget.identifier)
             setSelectedReportId(null)
@@ -413,7 +458,7 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
             key: ReportActions.GENERATE,
             icon: <DescriptionIcon />,
             action: (id: Identifier) => {
-                handleGenerateReport(id, EGenerateReportMode.REAL)
+                void startGenerateReport(id, EGenerateReportMode.REAL)
             },
             showAction: () => canGenerateReports,
             label: t("reportsScreen.actions.generate"),
@@ -508,6 +553,22 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
                     />
 
                     <FunctionField
+                        label={String(t("signing.results.signatures"))}
+                        render={(record: Sequent_Backend_Report) => (
+                            <>
+                                <ReportSignaturesCell
+                                    needs={signatures.needs(record.report_type)}
+                                />
+                                <ReportRequestLinks
+                                    electionEventId={electionEventId}
+                                    reportType={record.report_type}
+                                    electionId={record.election_id}
+                                    reportId={record.id}
+                                />
+                            </>
+                        )}
+                    />
+                    <FunctionField
                         label={"encryption"}
                         source="encryption_policy"
                         render={getEncryptionPolicy}
@@ -551,6 +612,21 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
             </Drawer>
             {renderDeleteModal()}
             {renderDownloadDocumentHelper()}
+            {signedGenerate ? (
+                <GenerateSignedReportDialog
+                    open
+                    title={String(t(`template.type.${signedGenerate.report_type}`))}
+                    post={getElectionName(signedGenerate)}
+                    needs={signatures.needs(signedGenerate.report_type) ?? 0}
+                    onClose={(generate) => {
+                        const report = signedGenerate
+                        setSignedGenerate(null)
+                        if (generate) {
+                            void handleGenerateReport(report.id, EGenerateReportMode.REAL)
+                        }
+                    }}
+                />
+            ) : null}
         </>
     )
 }

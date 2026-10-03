@@ -42,6 +42,8 @@ function certificate(id: string, commonName: string, fields: Row): Row {
         serial_number: "01",
         pem: PEM,
         created_at: FIXED_TIME,
+        // Voter sign-in issuers; the staff signature issuers live in the Signatures tab.
+        purpose: "voter-sign-in",
         ...fields,
     }
 }

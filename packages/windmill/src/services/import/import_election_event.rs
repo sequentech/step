@@ -103,9 +103,7 @@ use crate::services::protocol_manager::{
     create_protocol_manager_keys, get_b3_pgsql_client, get_board_client,
 };
 use crate::services::signing::certificates::parse_chain;
-use crate::services::signing::issuers::{import_staff_issuers, SYSTEM_ACTOR};
-use crate::services::signing::log::Actor;
-use crate::services::signing::Allowance;
+use crate::services::signing::configuration::{import_bundle_signing, import_bundle_staff_issuers};
 use crate::tasks::import_election_event::ImportElectionEventBody;
 use crate::types::documents::EDocuments;
 use regex::Regex;
@@ -835,6 +833,19 @@ pub async fn process_election_event_file(
     .await
     .with_context(|| "Error inserting area contests")?;
 
+    // After the areas, whose `miru:area-threshold` may imply the
+    // transmit-results rule.
+    import_bundle_signing(
+        hasura_transaction,
+        Uuid::parse_str(&tenant_id).with_context(|| "Error parsing the tenant id")?,
+        Uuid::parse_str(&election_event_id)
+            .with_context(|| "Error parsing the election event id")?,
+        &data,
+        object.importer.as_ref(),
+    )
+    .await
+    .with_context(|| "Error importing the signing configuration")?;
+
     if let Some(applications) = data.applications.clone() {
         insert_applications(hasura_transaction, &applications)
             .await
@@ -1215,6 +1226,7 @@ pub async fn process_document(
     election_event_id: String,
     tenant_id: String,
 ) -> Result<()> {
+    let importer = object.importer.clone();
     let (temp_file_path, document, document_type) = get_document(
         hasura_transaction,
         object.clone(),
@@ -1541,16 +1553,12 @@ pub async fn process_document(
                     // Checked and logged as the Certificates settings import them.
                     let certificates =
                         parse_chain(&pem_chunks).context("Failed to parse the staff issuers")?;
-                    let import = import_staff_issuers(
+                    let import = import_bundle_staff_issuers(
                         hasura_transaction,
                         tenant_uuid,
                         election_event_uuid,
                         &certificates,
-                        &Actor {
-                            user_id: SYSTEM_ACTOR.to_owned(),
-                            username: SYSTEM_ACTOR.to_owned(),
-                        },
-                        Allowance::ElectionEventImport,
+                        importer.as_ref(),
                         Utc::now(),
                     )
                     .await

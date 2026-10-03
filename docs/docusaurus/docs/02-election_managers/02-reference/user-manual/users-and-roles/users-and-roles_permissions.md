@@ -123,3 +123,8 @@ Existing tenant realms get the permissions, with their labels, when Windmill's s
 after an upgrade, retrying for about 15 minutes if Keycloak isn't reachable yet;
 `step-cli step migrate-realm-permissions` does the same by hand. Only the permissions
 are added: no role receives them. Assign them to roles in **Users and Roles** > **Roles**.
+
+[Signature permissions](../../02-election-event/16-signatures/06-election_management_election-event_signatures_permissions.md)
+lists each of these permissions with its label in Users and Roles, and the sample preset's
+groups and rules; [Signatures](../../02-election-event/16-signatures/01-election_management_election-event_signatures.md)
+describes the tab.

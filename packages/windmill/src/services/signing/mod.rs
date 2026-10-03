@@ -7,6 +7,7 @@
 pub mod actions;
 pub mod approve;
 pub mod certificates;
+pub mod configuration;
 pub mod context;
 pub mod crl;
 pub mod directory;

@@ -234,6 +234,17 @@ generate-reports = "XX report"
         }
     }
 
+    /// The admin portal's languages (`getAllLangs`).
+    #[test]
+    fn signing_page_texts_ship_every_portal_language() {
+        let shipped: Vec<&str> = shipped_wordings()
+            .unwrap()
+            .keys()
+            .map(String::as_str)
+            .collect();
+        assert_eq!(shipped, ["cat", "en", "es", "eu", "fr", "gl", "nl", "tl"]);
+    }
+
     #[test]
     fn signing_page_language_is_the_first_the_table_carries() {
         let wordings = two_languages();

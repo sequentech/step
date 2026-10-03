@@ -697,6 +697,20 @@ const tagalogTranslation: TranslationType = {
                         text: "Kulang ang panahon ng botohan — kailangang manu-manong buksan o isara ang panahon sa Admin Portal.",
                     },
                 },
+                signing: {
+                    "duplicate-action": {
+                        lead: "Dalawang tuntunin sa isang aksyon",
+                        text: "Dalawang tuntunin sa isang aksyon — ang '{{action}}' ay may higit sa isang tuntunin sa paglagda. Isa lang ang itira.",
+                    },
+                    "signatures-out-of-range": {
+                        lead: "Bilang ng lagda wala sa saklaw",
+                        text: "Bilang ng lagda wala sa saklaw — ang tuntunin para sa '{{action}}' ay dapat humingi ng 1 hanggang 1000 lagda.",
+                    },
+                    "expiry-out-of-range": {
+                        lead: "Pag-expire wala sa saklaw",
+                        text: "Pag-expire wala sa saklaw — ang kahilingang '{{action}}' ay dapat mag-expire pagkalipas ng 1 hanggang 525,600 minuto (isang taon), o hindi kailanman.",
+                    },
+                },
                 threshold: {
                     "above-trustees": {
                         lead: "Masyadong mataas ang threshold",
