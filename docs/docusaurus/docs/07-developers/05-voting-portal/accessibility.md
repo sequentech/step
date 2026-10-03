@@ -152,6 +152,26 @@ To keep new UI working with them:
 with the attributes set on `<html>` at 1280 and 320 CSS px wide and check that
 `document.documentElement.scrollWidth` does not exceed its `clientWidth`.
 
+### Give each screen its spoken instructions
+
+Where the event enables them (`audio_instructions_policy`), `PortalChrome` renders
+`ScreenAudioInstructions` as the first thing in `<main>`. It maps the route to an
+`EAudioInstructionsScreen`, takes that screen's text from
+`audioInstructions.screens.<screen>` in `voting-portal/src/translations`, and looks for an
+uploaded recording among the event's support materials (`data.audio_instructions`, with a
+`screen` and a `language`). The shared `AudioInstructions` player in `ui-essentials` plays
+the recording, or speaks the text with the Web Speech API when there is none, and always
+offers the text as a transcript.
+
+When adding a voter screen:
+
+- add it to `EAudioInstructionsScreen` in `ui-core` and to `SCREEN_PATHS`;
+- write its text in every language file, describing the screen by what its controls do
+  rather than by their labels, which events can rename;
+- add the screen's name to the Admin Portal's `materials.audioInstructions.screens`.
+
+Never start audio without the voter asking (SC 1.4.2): it would talk over a screen reader.
+
 ## Known deviations
 
 Two things were deliberately left as they are. Both are recorded here so a future audit does

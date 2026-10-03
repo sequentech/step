@@ -74,3 +74,72 @@ html[data-a11y-contrast="high"] .election-title {
 
 Custom CSS that sets font sizes in `px` does not follow the **Text size** setting. Use `rem`
 or `em`.
+
+---
+
+## Audio instructions
+
+When enabled, every voter screen starts with a **Listen to the instructions** button. It
+explains, for that screen, what the screen is for and how to use it with a keyboard: how to
+move, select, continue and go back. It is meant for blind and low-vision voters, and for
+anyone who prefers to listen.
+
+The screens that have instructions are the election list, start, ballot, review, confirmation,
+audit, ballot locator and support materials.
+
+The voter can pause, resume and stop the audio. It never starts by itself, because a voter
+using a screen reader would hear two voices at once, and it stops when the voter leaves the
+screen or changes the language. **Read the instructions** shows the same text on screen, so it
+also reaches braille displays.
+
+### Where the audio comes from
+
+1. **A recording you upload.** This is the reliable path, and the one to use for an approved
+   script and voice.
+2. **The browser's own voice**, reading the screen's instruction text, where there is no
+   recording. Browsers do not have a voice for every language: Filipino, Basque and Galician
+   voices are missing from several. Where there is none, the voter is offered only the text.
+
+### Enabling audio instructions
+
+In **Election Event → Data → Ballot Design**, with the **Audio instructions** select:
+
+| Choice | Wire value | Behavior |
+|---|---|---|
+| **No audio instructions** (default) | `disabled` | No button. |
+| **Uploaded recordings only** | `recorded` | The button appears only on screens that have a recording. |
+| **Uploaded recordings, or the browser's voice where there is none** | `recorded-or-synthesized` | Every screen has the button. |
+
+The value is stored in the event's presentation as `audio_instructions_policy`. An event
+without the field behaves as `disabled`. Events created from the default template start with
+`recorded-or-synthesized`.
+
+### Uploading a recording
+
+Recordings are [support materials](../03-support-materials.md):
+
+1. In **Election Event → Data → Support Materials**, add a material and upload the audio file
+   (MP3 is played by every supported browser).
+2. Once the file is an audio file, two more fields appear. In **Audio instructions for
+   screen**, choose the screen. In **Language of the recording**, choose the language.
+3. Give it a title in each language and save. Leave **Is Hidden** off: a hidden material is
+   not sent to voters.
+
+A saved recording is available to voters at once. The policy itself reaches voters with the
+next publication of the event.
+
+Upload one file per screen and language. A voter hears the recording for the current screen in
+their language; if there is none, the one in the event's default language; if there is none
+either, the browser's voice or nothing, depending on the policy. If two files are assigned to
+the same screen and language, the first one found is played, so keep one.
+
+Recordings are played whether or not the support materials tab is shown to voters. When it is
+shown, they are listed there as well.
+
+### Changing the spoken text
+
+The text the browser reads, and that **Read the instructions** shows, can be replaced per
+language in the event's **Localization** tab, with the keys
+`audioInstructions.screens.<screen>`, where `<screen>` is `election-chooser`, `start`,
+`ballot`, `review`, `confirmation`, `audit`, `ballot-locator` or `support-materials`. Keep it
+in step with the recording.
