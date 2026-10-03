@@ -8,23 +8,26 @@
 
 use crate::postgres::cast_vote::get_cast_vote_id_of_received_ballot;
 use crate::postgres::received_ballot::{
-    format_cast_at, get_received_ballot_to_cast, ReceivedBallotStatus, ReceivedBallotToCast,
-    StoredCast,
+    format_cast_at, get_received_ballot_to_cast, mark_received_ballot_cast, ReceivedBallotStatus,
+    ReceivedBallotToCast, StoredCast, StoredReceivedBallot,
 };
 use crate::services::ballot_box_key::{get_ballot_box_signing_key, published_key};
 use crate::services::insert_cast_vote::{
     try_cast, CastOutcome, CastRequest, CastVoteError, InsertCastVoteInput, InsertCastVoteOutput,
-    InsertCastVoteResult, ReceivedCast,
+    InsertCastVoteResult,
 };
+use crate::services::receive_ballot::truncate_to_milliseconds;
+use chrono::{DateTime, Utc};
 use deadpool_postgres::Transaction;
 use sequent_core::ballot::VotingStatusChannel;
 use sequent_core::ballot_receipt::{
-    normalize_ballot_id, verify_cast_signature, CastReceipt, CastReceiptStatement,
+    normalize_ballot_id, sign_cast_receipt, verify_cast_signature, CastReceipt,
+    CastReceiptStatement,
 };
 use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::hasura::core::ElectionEvent;
 use serde::{Deserialize, Serialize};
-use strand::signature::StrandSignature;
+use strand::signature::{StrandSignature, StrandSignatureSk};
 use tracing::instrument;
 use uuid::Uuid;
 
@@ -112,8 +115,144 @@ fn cast_or_stored_receipt(
     }
 }
 
+/// A received ballot about to be cast: the voter's Cast signature over its
+/// Ballot ID, and the key the ballot box signs the receipt with.
+pub struct ReceivedCast {
+    pub received_ballot: StoredReceivedBallot,
+    pub cast_signature: String,
+    pub ballot_box_key: StrandSignatureSk,
+    pub key_id: String,
+}
+
+pub enum FoundCast {
+    /// The ballot waits to be cast; the Cast signature verifies.
+    ToCast(ReceivedBallotToCast, String),
+    /// The ballot box already stored this cast: the receipt it signed then.
+    AlreadyCast(CastBallotOutput),
+}
+
 /// Finds the ballot the voter asks to cast and checks the request against it.
 /// Another voter's Ballot ID is not found, as an unknown one.
+#[instrument(skip_all, err)]
+pub async fn find_received_cast(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &Uuid,
+    election_event_id: &Uuid,
+    voter_id: &str,
+    input: &CastBallotInput,
+) -> Result<FoundCast, CastVoteError> {
+    let ballot_id =
+        normalize_ballot_id(&input.ballot_id).ok_or(CastVoteError::BallotNotReceived)?;
+    let received_ballot = get_received_ballot_to_cast(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        &input.election_id,
+        voter_id,
+        &ballot_id,
+    )
+    .await
+    .map_err(|e| CastVoteError::InsertFailed(format!("{e:#}")))?
+    .ok_or(CastVoteError::BallotNotReceived)?;
+
+    let cast_signature = check_cast_signature(&received_ballot, &input.cast_signature)?;
+    let Some(receipt) = cast_or_stored_receipt(&received_ballot, &cast_signature)? else {
+        return Ok(FoundCast::ToCast(received_ballot, cast_signature));
+    };
+    let cast_vote_id = get_cast_vote_id_of_received_ballot(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        &input.election_id,
+        voter_id,
+        &received_ballot.stored.id,
+    )
+    .await
+    .map_err(|e| CastVoteError::InsertFailed(format!("{e:#}")))?
+    .ok_or(CastVoteError::BallotAlreadyCast)?;
+    Ok(FoundCast::AlreadyCast(CastBallotOutput {
+        receipt,
+        cast_vote_id: cast_vote_id.to_string(),
+    }))
+}
+
+/// What casting a received ballot takes: the ballot as it was received, and
+/// the key that signs the receipt.
+pub fn received_cast(
+    received_ballot: ReceivedBallotToCast,
+    cast_signature: String,
+    ballot_box_key: StrandSignatureSk,
+) -> Result<(InsertCastVoteInput, ReceivedCast), CastVoteError> {
+    let statement = &received_ballot.stored.received.statement;
+    let key_id = published_key(&ballot_box_key)
+        .map_err(|e| CastVoteError::BallotSignFailed(e.to_string()))?
+        .key_id;
+    // A stored receipt is read back with the key of its Received statement.
+    if key_id != statement.key_id {
+        return Err(CastVoteError::BallotSignFailed(
+            "The ballot box key is not the one that received the ballot".to_string(),
+        ));
+    }
+    let election_id = parse_uuid_v4(&statement.election_id)
+        .map_err(|e| CastVoteError::UuidParseFailed(e.to_string(), "election_id".to_string()))?;
+
+    Ok((
+        InsertCastVoteInput {
+            ballot_id: statement.ballot_hash.clone(),
+            election_id,
+            content: received_ballot.content,
+        },
+        ReceivedCast {
+            received_ballot: received_ballot.stored,
+            cast_signature,
+            ballot_box_key,
+            key_id,
+        },
+    ))
+}
+
+/// Marks the received ballot cast with the receipt the ballot box signs for
+/// it. The receipt is good only if the caller's transaction commits.
+#[instrument(skip_all, err)]
+pub async fn store_cast_receipt(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &Uuid,
+    election_event_id: &Uuid,
+    received_cast: &ReceivedCast,
+) -> Result<(DateTime<Utc>, CastReceipt), CastVoteError> {
+    let received = &received_cast.received_ballot.received;
+    let cast_at = truncate_to_milliseconds(Utc::now())?;
+    let receipt = sign_cast_receipt(
+        &received_cast.ballot_box_key,
+        CastReceiptStatement {
+            election_event_id: received.statement.election_event_id.clone(),
+            election_id: received.statement.election_id.clone(),
+            ballot_id: received.ballot_id.clone(),
+            received_at: received.statement.received_at.clone(),
+            cast_at: format_cast_at(&cast_at),
+            key_id: received_cast.key_id.clone(),
+            cast_signature: received_cast.cast_signature.clone(),
+        },
+    )
+    .map_err(|err| CastVoteError::BallotSignFailed(err.to_string()))?;
+
+    let cast_now = mark_received_ballot_cast(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        &received_cast.received_ballot.id,
+        &cast_at,
+        &received_cast.cast_signature,
+        &receipt.cast_receipt_signature,
+    )
+    .await
+    .map_err(|e| CastVoteError::InsertFailed(format!("{e:#}")))?;
+    if !cast_now {
+        return Err(CastVoteError::BallotAlreadyCast);
+    }
+    Ok((cast_at, receipt))
+}
+
 #[instrument(skip_all, err)]
 pub(crate) async fn prepare_received_cast(
     hasura_transaction: &Transaction<'_>,
@@ -125,40 +264,18 @@ pub(crate) async fn prepare_received_cast(
         parse_uuid_v4(value)
             .map_err(|e| CastVoteError::UuidParseFailed(e.to_string(), field.to_string()))
     };
-    let ballot_id =
-        normalize_ballot_id(&input.ballot_id).ok_or(CastVoteError::BallotNotReceived)?;
-    let tenant_uuid = parse_uuid(&election_event.tenant_id, "tenant_id")?;
-    let election_event_uuid = parse_uuid(&election_event.id, "election_event_id")?;
-    let received_ballot = get_received_ballot_to_cast(
+    let found = find_received_cast(
         hasura_transaction,
-        &tenant_uuid,
-        &election_event_uuid,
-        &input.election_id,
+        &parse_uuid(&election_event.tenant_id, "tenant_id")?,
+        &parse_uuid(&election_event.id, "election_event_id")?,
         voter_id,
-        &ballot_id,
+        input,
     )
-    .await
-    .map_err(|e| CastVoteError::InsertFailed(format!("{e:#}")))?
-    .ok_or(CastVoteError::BallotNotReceived)?;
-
-    let cast_signature = check_cast_signature(&received_ballot, &input.cast_signature)?;
-    if let Some(receipt) = cast_or_stored_receipt(&received_ballot, &cast_signature)? {
-        let cast_vote_id = get_cast_vote_id_of_received_ballot(
-            hasura_transaction,
-            &tenant_uuid,
-            &election_event_uuid,
-            &input.election_id,
-            voter_id,
-            &received_ballot.stored.id,
-        )
-        .await
-        .map_err(|e| CastVoteError::InsertFailed(format!("{e:#}")))?
-        .ok_or(CastVoteError::BallotAlreadyCast)?;
-        return Ok(PreparedCast::AlreadyCast(CastBallotOutput {
-            receipt,
-            cast_vote_id: cast_vote_id.to_string(),
-        }));
-    }
+    .await?;
+    let (received_ballot, cast_signature) = match found {
+        FoundCast::AlreadyCast(cast) => return Ok(PreparedCast::AlreadyCast(cast)),
+        FoundCast::ToCast(received_ballot, cast_signature) => (received_ballot, cast_signature),
+    };
 
     let ballot_box_key = get_ballot_box_signing_key(hasura_transaction, election_event)
         .await
@@ -166,34 +283,8 @@ pub(crate) async fn prepare_received_cast(
         .ok_or_else(|| {
             CastVoteError::BallotSignFailed("The election event has no ballot box key".to_string())
         })?;
-    let key_id = published_key(&ballot_box_key)
-        .map_err(|e| CastVoteError::BallotSignFailed(e.to_string()))?
-        .key_id;
-    // A stored receipt is read back with the key of its Received statement.
-    if key_id != received_ballot.stored.received.statement.key_id {
-        return Err(CastVoteError::BallotSignFailed(
-            "The ballot box key is not the one that received the ballot".to_string(),
-        ));
-    }
-
-    Ok(PreparedCast::ToCast(
-        InsertCastVoteInput {
-            ballot_id: received_ballot
-                .stored
-                .received
-                .statement
-                .ballot_hash
-                .clone(),
-            election_id: input.election_id,
-            content: received_ballot.content,
-        },
-        ReceivedCast {
-            received_ballot: received_ballot.stored,
-            cast_signature,
-            ballot_box_key,
-            key_id,
-        },
-    ))
+    let (input, received_cast) = received_cast(received_ballot, cast_signature, ballot_box_key)?;
+    Ok(PreparedCast::ToCast(input, received_cast))
 }
 
 #[instrument(skip(input), err)]

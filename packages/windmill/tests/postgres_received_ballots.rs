@@ -11,7 +11,11 @@ mod schema;
 use chrono::{DateTime, TimeZone, Utc};
 use deadpool_postgres::{Object, Transaction};
 use sequent_core::ballot::VotingStatusChannel;
-use sequent_core::ballot_receipt::{ReceivedBallot, ReceivedStatement};
+use sequent_core::ballot_receipt::{
+    sign_cast_statement, sign_received_ballot, verify_cast_receipt, ReceivedBallot,
+    ReceivedStatement,
+};
+use strand::signature::{StrandSignaturePk, StrandSignatureSk};
 use uuid::Uuid;
 use windmill::postgres::cast_vote::{self, CastVoteReceipt};
 use windmill::postgres::received_ballot::{
@@ -19,7 +23,12 @@ use windmill::postgres::received_ballot::{
     insert_received_ballot, mark_received_ballot_cast, ReceivedBallotScope, ReceivedBallotStatus,
     ReceivedBallotToCast, StoredCast,
 };
+use windmill::services::ballot_box_key::published_key;
+use windmill::services::cast_ballot::{
+    find_received_cast, received_cast, store_cast_receipt, CastBallotInput, FoundCast,
+};
 use windmill::services::cast_votes::CastVoteStatus;
+use windmill::services::insert_cast_vote::CastVoteError;
 
 const BALLOT_EML: &str = r#"{"id":"style"}"#;
 
@@ -645,4 +654,256 @@ async fn a_status_outside_the_known_ones_is_refused_by_the_table() {
         error.as_db_error().unwrap().constraint(),
         Some("received_ballot_status_check")
     );
+}
+
+/// A voter's device and the ballot box, with their own keys: the ballot is
+/// received with a signed receipt, as `receive_ballot` stores it.
+struct SignedBallot {
+    ballot_box_sk: StrandSignatureSk,
+    voter_sk: StrandSignatureSk,
+    received: ReceivedBallot,
+}
+
+impl SignedBallot {
+    async fn receive(tx: &Transaction<'_>, f: &Election, voter_id: &str) -> Self {
+        let ballot_box_sk = StrandSignatureSk::generate().unwrap();
+        let voter_sk = StrandSignatureSk::generate().unwrap();
+        let received = sign_received_ballot(
+            &ballot_box_sk,
+            ReceivedStatement {
+                tenant_id: f.tenant.to_string(),
+                election_event_id: f.event.to_string(),
+                election_id: f.election.to_string(),
+                ballot_hash: "hash".into(),
+                voter_signing_pk: StrandSignaturePk::from_sk(&voter_sk)
+                    .unwrap()
+                    .to_der_b64_string()
+                    .unwrap(),
+                voter_ballot_signature: voter_sk.sign(b"ballot").unwrap().to_b64_string().unwrap(),
+                received_at: "2028-05-08T03:00:00.007Z".into(),
+                key_id: published_key(&ballot_box_sk).unwrap().key_id,
+            },
+        )
+        .unwrap();
+        insert_received_ballot(
+            tx,
+            &f.scope(voter_id, "hash"),
+            &f.area,
+            "ciphertext",
+            &received_at(),
+            &received,
+        )
+        .await
+        .unwrap()
+        .unwrap();
+
+        Self {
+            ballot_box_sk,
+            voter_sk,
+            received,
+        }
+    }
+
+    fn cast_request(&self, f: &Election) -> CastBallotInput {
+        CastBallotInput {
+            election_id: f.election,
+            ballot_id: self.received.ballot_id.clone(),
+            cast_signature: sign_cast_statement(
+                &self.voter_sk,
+                &f.election.to_string(),
+                &self.received.ballot_id,
+            )
+            .unwrap(),
+        }
+    }
+}
+
+async fn find(
+    tx: &Transaction<'_>,
+    f: &Election,
+    voter_id: &str,
+    request: &CastBallotInput,
+) -> Result<FoundCast, CastVoteError> {
+    find_received_cast(tx, &f.tenant, &f.event, voter_id, request).await
+}
+
+#[tokio::test]
+async fn a_signed_cast_is_stored_with_a_receipt_and_a_retry_returns_the_same_receipt() {
+    let mut client = connect().await;
+    let tx = client.transaction().await.unwrap();
+    let f = Election::create(&tx).await;
+    let ballot = SignedBallot::receive(&tx, &f, "voter").await;
+    let request = ballot.cast_request(&f);
+
+    let Ok(FoundCast::ToCast(received_ballot, cast_signature)) =
+        find(&tx, &f, "voter", &request).await
+    else {
+        panic!("a received ballot with its voter's signature is to be cast");
+    };
+    assert_eq!(cast_signature, request.cast_signature);
+    let (input, cast) = received_cast(
+        received_ballot,
+        cast_signature,
+        ballot.ballot_box_sk.clone(),
+    )
+    .unwrap();
+    assert_eq!(input.ballot_id, "hash");
+    assert_eq!(input.election_id, f.election);
+    assert_eq!(input.content, "ciphertext");
+
+    let (cast_at, receipt) = store_cast_receipt(&tx, &f.tenant, &f.event, &cast)
+        .await
+        .unwrap();
+    verify_cast_receipt(&published_key(&ballot.ballot_box_sk).unwrap(), &receipt).unwrap();
+    assert_eq!(receipt.statement.ballot_id, ballot.received.ballot_id);
+    assert_eq!(receipt.statement.received_at, "2028-05-08T03:00:00.007Z");
+    assert_eq!(receipt.statement.cast_signature, request.cast_signature);
+    let cast_vote = cast_vote::insert_cast_vote(
+        &tx,
+        &f.tenant,
+        &f.event,
+        &f.election,
+        &f.area,
+        &input.content,
+        "voter",
+        &ballot.received.ballot_id,
+        &[0; 64],
+        &None,
+        &None,
+        VotingStatusChannel::ONLINE,
+        CastVoteStatus::Valid,
+        Some(&CastVoteReceipt {
+            received_ballot_id: &cast.received_ballot.id,
+            cast_at: &cast_at,
+            cast_receipt_signature: &receipt.cast_receipt_signature,
+        }),
+    )
+    .await
+    .unwrap();
+
+    // The receipt read back from storage is the one that was signed.
+    let Ok(FoundCast::AlreadyCast(again)) = find(&tx, &f, "voter", &request).await else {
+        panic!("the same cast again is answered with its receipt");
+    };
+    assert_eq!(again.receipt, receipt);
+    assert_eq!(again.cast_vote_id, cast_vote.id);
+
+    // The ballot is cast once, whatever the request.
+    assert!(matches!(
+        store_cast_receipt(&tx, &f.tenant, &f.event, &cast).await,
+        Err(CastVoteError::BallotAlreadyCast)
+    ));
+}
+
+#[tokio::test]
+async fn a_cast_is_refused_for_another_voter_an_unknown_id_and_a_bad_signature() {
+    let mut client = connect().await;
+    let tx = client.transaction().await.unwrap();
+    let f = Election::create(&tx).await;
+    let ballot = SignedBallot::receive(&tx, &f, "voter").await;
+    let request = ballot.cast_request(&f);
+    let with = |ballot_id: &str, cast_signature: &str| CastBallotInput {
+        election_id: f.election,
+        ballot_id: ballot_id.into(),
+        cast_signature: cast_signature.into(),
+    };
+    let another_key = StrandSignatureSk::generate().unwrap();
+    let forged = sign_cast_statement(
+        &another_key,
+        &f.election.to_string(),
+        &ballot.received.ballot_id,
+    )
+    .unwrap();
+
+    assert!(matches!(
+        find(&tx, &f, "another-voter", &request).await,
+        Err(CastVoteError::BallotNotReceived)
+    ));
+    for unknown in ["0000-0000", "not a ballot id", ""] {
+        assert!(
+            matches!(
+                find(&tx, &f, "voter", &with(unknown, &request.cast_signature)).await,
+                Err(CastVoteError::BallotNotReceived)
+            ),
+            "{unknown}"
+        );
+    }
+    assert!(matches!(
+        find(&tx, &f, "voter", &with(&ballot.received.ballot_id, &forged)).await,
+        Err(CastVoteError::BallotCastSignatureFailed(_))
+    ));
+
+    // A typed Ballot ID is read the way people write it.
+    let typed = ballot.received.ballot_id.replace('-', "").to_lowercase();
+    assert!(matches!(
+        find(&tx, &f, "voter", &with(&typed, &request.cast_signature)).await,
+        Ok(FoundCast::ToCast(..))
+    ));
+    assert_eq!(
+        f.to_cast(&tx, "voter", &ballot.received.ballot_id)
+            .await
+            .unwrap()
+            .cast,
+        None
+    );
+}
+
+#[tokio::test]
+async fn an_audited_ballot_and_a_ballot_cast_with_another_signature_are_refused() {
+    let mut client = connect().await;
+    let tx = client.transaction().await.unwrap();
+    let f = Election::create(&tx).await;
+    let ballot = SignedBallot::receive(&tx, &f, "voter").await;
+    let request = ballot.cast_request(&f);
+    let id = f
+        .to_cast(&tx, "voter", &ballot.received.ballot_id)
+        .await
+        .unwrap()
+        .stored
+        .id;
+
+    assert!(
+        f.cast(&tx, &id, "another-signature", "another-receipt")
+            .await
+    );
+    assert!(matches!(
+        find(&tx, &f, "voter", &request).await,
+        Err(CastVoteError::BallotAlreadyCast)
+    ));
+
+    tx.execute(
+        "UPDATE sequent_backend.received_ballot
+         SET status = 'audited', cast_at = NULL, cast_signature = NULL,
+             cast_receipt_signature = NULL
+         WHERE id = $1",
+        &[&id],
+    )
+    .await
+    .unwrap();
+    assert!(matches!(
+        find(&tx, &f, "voter", &request).await,
+        Err(CastVoteError::BallotAudited)
+    ));
+}
+
+#[tokio::test]
+async fn a_receipt_is_not_signed_with_a_key_other_than_the_one_that_received_the_ballot() {
+    let mut client = connect().await;
+    let tx = client.transaction().await.unwrap();
+    let f = Election::create(&tx).await;
+    let ballot = SignedBallot::receive(&tx, &f, "voter").await;
+    let Ok(FoundCast::ToCast(received_ballot, cast_signature)) =
+        find(&tx, &f, "voter", &ballot.cast_request(&f)).await
+    else {
+        panic!("the ballot is to be cast");
+    };
+
+    assert!(matches!(
+        received_cast(
+            received_ballot,
+            cast_signature,
+            StrandSignatureSk::generate().unwrap()
+        ),
+        Err(CastVoteError::BallotSignFailed(_))
+    ));
 }

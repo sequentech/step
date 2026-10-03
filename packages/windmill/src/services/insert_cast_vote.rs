@@ -6,11 +6,9 @@ use crate::postgres::area::get_area_by_id;
 use crate::postgres::cast_vote::CastVoteReceipt;
 use crate::postgres::election::{get_cast_vote_configuration, CastVoteConfiguration};
 use crate::postgres::election_event::get_election_event_by_id;
-use crate::postgres::received_ballot::{
-    format_cast_at, mark_received_ballot_cast, StoredReceivedBallot,
-};
 use crate::services::cast_ballot::{
-    prepare_received_cast, CastBallotInput, CastBallotOutput, PreparedCast,
+    prepare_received_cast, store_cast_receipt, CastBallotInput, CastBallotOutput, PreparedCast,
+    ReceivedCast,
 };
 use crate::services::cast_votes::{CastVote, CastVoteStatus};
 use crate::services::database::get_hasura_pool;
@@ -22,11 +20,11 @@ use crate::services::external::utils::{
 };
 use crate::services::pg_lock::PgLock;
 use crate::services::protocol_manager::get_protocol_manager;
-use crate::services::receive_ballot::{must_be_received, truncate_to_milliseconds};
+use crate::services::receive_ballot::must_be_received;
 use anyhow::{anyhow, Context, Result};
 use b4::messages::message::Signer;
 use base64::{engine::general_purpose, Engine as _};
-use chrono::{DateTime, Duration, Local, Utc};
+use chrono::{DateTime, Duration, Local};
 use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::Transaction;
 use electoral_log::messages::newtypes::*;
@@ -38,7 +36,7 @@ use sequent_core::ballot::{
     VotingPeriodDates, VotingStatus, VotingStatusChannel,
 };
 use sequent_core::ballot::{HashableBallot, HashableBallotContest, SignedHashableBallot};
-use sequent_core::ballot_receipt::{sign_cast_receipt, CastReceipt, CastReceiptStatement};
+use sequent_core::ballot_receipt::CastReceipt;
 use sequent_core::encrypt::hash_ballot;
 use sequent_core::encrypt::hash_ballot_sha512;
 use sequent_core::encrypt::hash_multi_ballot;
@@ -184,15 +182,6 @@ impl CastOutcome {
             receipt: None,
         }
     }
-}
-
-/// A received ballot about to be cast: the voter's Cast signature over its
-/// Ballot ID, and the key the ballot box signs the receipt with.
-pub(crate) struct ReceivedCast {
-    pub received_ballot: StoredReceivedBallot,
-    pub cast_signature: String,
-    pub ballot_box_key: StrandSignatureSk,
-    pub key_id: String,
 }
 
 /// Maps a freshly inserted row to its `InsertCastVoteResult` from the persisted
@@ -888,22 +877,13 @@ pub async fn insert_cast_vote_and_commit<'a>(
     // receipt leaves only with the commit.
     let cast = match received_cast {
         Some(received_cast) => {
-            let cast_at = truncate_to_milliseconds(Utc::now())?;
-            let receipt = sign_received_cast(received_cast, &cast_at)?;
-            let cast_now = mark_received_ballot_cast(
+            let (cast_at, receipt) = store_cast_receipt(
                 &hasura_transaction,
                 &tenant_uuid,
                 &election_event_uuid,
-                &received_cast.received_ballot.id,
-                &cast_at,
-                &received_cast.cast_signature,
-                &receipt.cast_receipt_signature,
+                received_cast,
             )
-            .await
-            .map_err(|e| CastVoteError::InsertFailed(format!("{e:#}")))?;
-            if !cast_now {
-                return Err(CastVoteError::BallotAlreadyCast);
-            }
+            .await?;
             Some((&received_cast.received_ballot, cast_at, receipt))
         }
         None => None,
@@ -954,26 +934,6 @@ pub async fn insert_cast_vote_and_commit<'a>(
         effective_voting_channel,
         cast.map(|(_, _, receipt)| receipt),
     ))
-}
-
-fn sign_received_cast(
-    received_cast: &ReceivedCast,
-    cast_at: &DateTime<Utc>,
-) -> Result<CastReceipt, CastVoteError> {
-    let received = &received_cast.received_ballot.received;
-    sign_cast_receipt(
-        &received_cast.ballot_box_key,
-        CastReceiptStatement {
-            election_event_id: received.statement.election_event_id.clone(),
-            election_id: received.statement.election_id.clone(),
-            ballot_id: received.ballot_id.clone(),
-            received_at: received.statement.received_at.clone(),
-            cast_at: format_cast_at(cast_at),
-            key_id: received_cast.key_id.clone(),
-            cast_signature: received_cast.cast_signature.clone(),
-        },
-    )
-    .map_err(|err| CastVoteError::BallotSignFailed(err.to_string()))
 }
 
 pub(crate) fn hash_voter_id(voter_id: &str) -> Result<Hash, StrandError> {
