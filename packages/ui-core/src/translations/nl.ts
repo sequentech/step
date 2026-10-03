@@ -36,6 +36,36 @@ const dutchTranslation: TranslationType = {
             preferenceLabel: "Voorkeur",
             writeInFor: "Naam van de geschreven kandidaat",
         },
+        accessibility: {
+            button: "Toegankelijkheid",
+            title: "Toegankelijkheidsinstellingen",
+            description: "Pas aan hoe deze site er op dit apparaat uitziet.",
+            textSize: {
+                label: "Tekstgrootte",
+                default: "Standaard",
+                large: "Groot",
+                larger: "Groter",
+            },
+            contrast: {
+                label: "Contrast",
+                default: "Standaard",
+                high: "Hoog contrast",
+            },
+            textSpacing: {
+                label: "Tekstafstand",
+                default: "Standaard",
+                wide: "Ruim",
+            },
+            motion: {
+                label: "Beweging",
+                default: "Standaard",
+                reduced: "Verminderd",
+            },
+            reset: "Instellingen herstellen",
+            close: "Sluiten",
+            applied: "{{setting}}: {{value}}",
+            resetDone: "Instellingen hersteld",
+        },
         candidate: {
             moreInformationLink: "More information",
             writeInsPlaceholder: "Type write-in candidate here",

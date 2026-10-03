@@ -36,6 +36,36 @@ const basqueTranslation: TranslationType = {
             preferenceLabel: "Lehentasuna",
             writeInFor: "Idatzitako hautagaiaren izena",
         },
+        accessibility: {
+            button: "Irisgarritasuna",
+            title: "Irisgarritasun-ezarpenak",
+            description: "Aldatu gune honen itxura gailu honetan.",
+            textSize: {
+                label: "Testuaren tamaina",
+                default: "Lehenetsia",
+                large: "Handia",
+                larger: "Handiagoa",
+            },
+            contrast: {
+                label: "Kontrastea",
+                default: "Lehenetsia",
+                high: "Kontraste handia",
+            },
+            textSpacing: {
+                label: "Testuaren tartea",
+                default: "Lehenetsia",
+                wide: "Zabala",
+            },
+            motion: {
+                label: "Mugimendua",
+                default: "Lehenetsia",
+                reduced: "Murriztua",
+            },
+            reset: "Berrezarri ezarpenak",
+            close: "Itxi",
+            applied: "{{setting}}: {{value}}",
+            resetDone: "Ezarpenak berrezarri dira",
+        },
         candidate: {
             moreInformationLink: "Informazio gehiago",
             writeInsPlaceholder: "Idatzi hautagaia hemen",

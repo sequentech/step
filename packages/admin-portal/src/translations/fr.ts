@@ -581,6 +581,14 @@ const frenchTranslation: TranslationType = {
                 css: "CSS personnalisé",
                 skipElectionList: "Passer l'écran pour choisir l'élection",
                 showUserProfile: "Afficher le profil utilisateur",
+                voterAccessibilitySettingsPolicy: {
+                    policyLabel: "Paramètres d'accessibilité de l'électeur",
+                    options: {
+                        disabled: "Masquer les paramètres d'accessibilité",
+                        enabled:
+                            "Proposer la taille du texte, le contraste, l'espacement et les animations",
+                    },
+                },
                 showCastVoteLogs: {
                     policyLabel: "Afficher les logs de vote",
                     options: {

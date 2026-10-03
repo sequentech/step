@@ -582,6 +582,13 @@ const catalanTranslation: TranslationType = {
                 css: "CSS personalitzat",
                 skipElectionList: "Saltar pantalla per escollir elecció",
                 showUserProfile: "Mostra el perfil de l'usuari",
+                voterAccessibilitySettingsPolicy: {
+                    policyLabel: "Configuració d'accessibilitat del votant",
+                    options: {
+                        disabled: "Amaga la configuració d'accessibilitat",
+                        enabled: "Ofereix la mida del text, el contrast, l'espaiat i el moviment",
+                    },
+                },
                 showCastVoteLogs: {
                     policyLabel: "Mostra els registres de votació",
                     options: {

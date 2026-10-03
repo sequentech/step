@@ -187,7 +187,7 @@ export const ConfirmationLayout: React.FC<IConfirmationLayoutProps> = ({
                 className="screen-title"
                 variant="h4"
                 component="h1"
-                fontSize="24px"
+                fontSize="1.5rem"
                 fontWeight="bold"
                 sx={{marginTop: "40px"}}
             >
@@ -207,7 +207,7 @@ export const ConfirmationLayout: React.FC<IConfirmationLayoutProps> = ({
                             lineHeight: "unset",
                             paddingBottom: "2px",
                         }}
-                        fontSize="16px"
+                        fontSize="1rem"
                         onClick={onTitleHelp}
                         ariaLabel={t("a11y.helpAbout", {
                             topic: t("confirmationScreen.confirmationHelpDialog.title"),
@@ -248,7 +248,7 @@ export const ConfirmationLayout: React.FC<IConfirmationLayoutProps> = ({
                             className="ballot-id-label"
                             variant="h5"
                             component="h2"
-                            fontSize="18px"
+                            fontSize="1.125rem"
                             fontWeight="bold"
                             sx={{display: {xs: "none", sm: "block"}}}
                         >
@@ -260,7 +260,7 @@ export const ConfirmationLayout: React.FC<IConfirmationLayoutProps> = ({
                                     className="ballot-id-check-icon"
                                     icon={faCheck}
                                     style={{
-                                        fontSize: "14px",
+                                        fontSize: "0.875rem",
                                         lineHeight: "unset",
                                         paddingBottom: "2px",
                                     }}
@@ -312,7 +312,7 @@ export const ConfirmationLayout: React.FC<IConfirmationLayoutProps> = ({
                                         lineHeight: "unset",
                                         marginLeft: ballotIdCopyLabels === undefined ? "16px" : 0,
                                     }}
-                                    fontSize="18px"
+                                    fontSize="1.125rem"
                                     onClick={onBallotIdHelp}
                                     ariaLabel={t("a11y.helpAbout", {
                                         topic: t("confirmationScreen.ballotId"),
@@ -325,7 +325,7 @@ export const ConfirmationLayout: React.FC<IConfirmationLayoutProps> = ({
                         className="ballot-verification-title"
                         variant="h5"
                         component="h2"
-                        fontSize="18px"
+                        fontSize="1.125rem"
                         fontWeight="bold"
                     >
                         {t("confirmationScreen.verifyCastTitle")}

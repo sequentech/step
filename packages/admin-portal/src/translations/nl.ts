@@ -583,6 +583,13 @@ const dutchTranslation: TranslationType = {
                 css: "Aangepaste CSS",
                 skipElectionList: "Scherm verkiezingslijst overslaan",
                 showUserProfile: "Gebruikersprofiel tonen",
+                voterAccessibilitySettingsPolicy: {
+                    policyLabel: "Toegankelijkheidsinstellingen voor de kiezer",
+                    options: {
+                        disabled: "Toegankelijkheidsinstellingen verbergen",
+                        enabled: "Tekstgrootte, contrast, tekstafstand en beweging aanbieden",
+                    },
+                },
                 showCastVoteLogs: {
                     policyLabel: "Logboeken stemmen tonen",
                     options: {

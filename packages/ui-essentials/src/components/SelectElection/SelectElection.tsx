@@ -170,7 +170,7 @@ const DatesUrlWrap = styled(Box)`
 `
 
 const StyledTitle = styled(Typography)<{component?: React.ElementType}>`
-    font-size: 18px;
+    font-size: 1.125rem;
     line-height: 20px;
     margin-top: 0;
     margin-bottom: 10px;
@@ -352,7 +352,7 @@ const SelectElection: React.FC<SelectElectionProps> = ({
                             />
                             <Typography
                                 className="election-vote-status-label"
-                                fontSize="14px"
+                                fontSize="0.875rem"
                                 margin={0}
                             >
                                 {t("selectElection.voted")}
@@ -371,7 +371,7 @@ const SelectElection: React.FC<SelectElectionProps> = ({
                             />
                             <Typography
                                 className="election-vote-status-label"
-                                fontSize="14px"
+                                fontSize="0.875rem"
                                 margin={0}
                             >
                                 {t("selectElection.notVoted")}
@@ -386,7 +386,7 @@ const SelectElection: React.FC<SelectElectionProps> = ({
                     <DatesContainer className="election-dates">
                         <Typography
                             className="election-open-date"
-                            fontSize="16px"
+                            fontSize="1rem"
                             lineHeight="23px"
                             margin={0}
                         >
@@ -395,7 +395,7 @@ const SelectElection: React.FC<SelectElectionProps> = ({
                         </Typography>
                         <Typography
                             className="election-close-date"
-                            fontSize="16px"
+                            fontSize="1rem"
                             lineHeight="23px"
                             margin={0}
                         >

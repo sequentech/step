@@ -575,6 +575,13 @@ const englishTranslation = {
                 css: "Custom CSS",
                 skipElectionList: "Skip Election List Screen",
                 showUserProfile: "Show User Profile",
+                voterAccessibilitySettingsPolicy: {
+                    policyLabel: "Voter accessibility settings",
+                    options: {
+                        disabled: "Hide the accessibility settings",
+                        enabled: "Offer text size, contrast, spacing and motion settings",
+                    },
+                },
                 showCastVoteLogs: {
                     policyLabel: "Show Cast Vote Logs Tab",
                     options: {
