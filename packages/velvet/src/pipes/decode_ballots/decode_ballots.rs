@@ -3,7 +3,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::pipes::error::{Error, Result};
-use crate::pipes::pipe_inputs::{batch_file_name, list_batch_files, PipeInputs, BALLOTS_FILE};
+use crate::pipes::pipe_inputs::{
+    batch_file_name, list_batch_files, remove_batch_files, PipeInputs, BALLOTS_FILE,
+};
 use crate::pipes::Pipe;
 use num_bigint::BigUint;
 use sequent_core::ballot::Contest;
@@ -95,6 +97,18 @@ impl Pipe for DecodeBallots {
                     Some(&area_input.id),
                 );
 
+                let output_dir = PipeInputs::build_path(
+                    self.pipe_inputs
+                        .cli
+                        .output_dir
+                        .join(PipeNameOutputDir::DecodeBallots.as_ref())
+                        .as_path(),
+                    &election_input.id,
+                    Some(&contest_input.id),
+                    Some(&area_input.id),
+                );
+                remove_batch_files(&output_dir, OUTPUT_DECODED_BALLOTS_FILE)?;
+
                 // One file, unless the area's ballots were split into weight
                 // batches: then one per batch, each decoded on its own and
                 // written under its batch's name for do_tally to count.
@@ -108,16 +122,6 @@ impl Pipe for DecodeBallots {
                     return Ok(());
                 }
 
-                let output_dir = PipeInputs::build_path(
-                    self.pipe_inputs
-                        .cli
-                        .output_dir
-                        .join(PipeNameOutputDir::DecodeBallots.as_ref())
-                        .as_path(),
-                    &election_input.id,
-                    Some(&contest_input.id),
-                    Some(&area_input.id),
-                );
                 fs::create_dir_all(&output_dir)?;
 
                 for (path_ballots, multiplier) in ballot_files {

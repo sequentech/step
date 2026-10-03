@@ -109,6 +109,17 @@ pub fn list_batch_files(dir: &Path, file_name: &str) -> Result<Vec<(PathBuf, u64
     Ok(files)
 }
 
+/// Removes `file_name` and its batch files from `dir`. A pipe calls it before
+/// writing an area's batches, so that a batch an earlier run wrote into the
+/// same output directory, and the current input no longer has, is not left
+/// for the next pipe to count.
+pub fn remove_batch_files(dir: &Path, file_name: &str) -> Result<()> {
+    for (path, _) in list_batch_files(dir, file_name)? {
+        fs::remove_file(&path).map_err(|e| Error::FileAccess(path.clone(), e))?;
+    }
+    Ok(())
+}
+
 /// Refuses ballot-by-ballot output for an area whose ballots were split into
 /// weight batches. A ballot there stands for several, so showing it once would
 /// misstate what was counted, and showing it once per batch would spell out
@@ -571,6 +582,27 @@ mod tests {
 
         fs::write(dir.path().join("ballots__x2.csv"), "").unwrap();
         assert!(ensure_unbatched(dir.path(), BALLOTS_FILE).is_err());
+    }
+
+    #[test]
+    fn removing_batch_files_keeps_every_other_file() {
+        let dir = tempdir().unwrap();
+        for name in [
+            BALLOTS_FILE,
+            "ballots__x2.csv",
+            "ballots__x8.csv",
+            "area-config.json",
+        ] {
+            fs::write(dir.path().join(name), "").unwrap();
+        }
+
+        remove_batch_files(dir.path(), BALLOTS_FILE).unwrap();
+
+        assert!(list_batch_files(dir.path(), BALLOTS_FILE)
+            .unwrap()
+            .is_empty());
+        assert!(dir.path().join("area-config.json").is_file());
+        assert!(remove_batch_files(&dir.path().join("missing"), BALLOTS_FILE).is_ok());
     }
 
     #[test]
