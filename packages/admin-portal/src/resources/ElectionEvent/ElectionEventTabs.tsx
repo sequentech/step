@@ -30,7 +30,6 @@ import {Tabs} from "@/components/Tabs"
 import {useNavigate, useLocation} from "react-router-dom"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 import {monitoringLock} from "@/components/monitoring/useMonitoringPermissions"
-import {WaitingForMySignature} from "./Signatures/WaitingForMySignature"
 
 // ---------------------------------------------------------------------
 // Lazy load all tab contents
@@ -623,24 +622,10 @@ export const ElectionEventTabs: React.FC = () => {
             }}
             className="events-box"
         >
-            <Box
-                sx={{
-                    display: "flex",
-                    alignItems: "flex-start",
-                    justifyContent: "space-between",
-                    flexWrap: "wrap",
-                    gap: 1,
-                }}
-            >
-                <ElectionHeader
-                    title={aliasRenderer(record)}
-                    subtitle="electionEventScreen.common.subtitle"
-                />
-                {/* A signer's entry to their requests, without the Signatures tab. */}
-                <Box sx={{pt: 2, pr: 2}}>
-                    <WaitingForMySignature electionEventId={record.id} />
-                </Box>
-            </Box>
+            <ElectionHeader
+                title={aliasRenderer(record)}
+                subtitle="electionEventScreen.common.subtitle"
+            />
             <Box sx={{bgcolor: "background.paper"}}>
                 <RecordContextProvider value={record}>
                     <Tabs

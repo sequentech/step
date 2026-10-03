@@ -18,6 +18,7 @@ import {
     ListItemText,
     Stack,
     Typography,
+    Tooltip,
 } from "@mui/material"
 import CloseIcon from "@mui/icons-material/Close"
 import DrawOutlinedIcon from "@mui/icons-material/DrawOutlined"
@@ -44,19 +45,27 @@ const isOpen = (request: IWaitingSigningRequest, now: Date) =>
  * dialog when they haven't signed it yet. Nothing shows without a sign
  * permission whose requests Hasura lists (a trustee signs in their ceremony).
  */
-export const WaitingForMySignature: React.FC<{electionEventId: string}> = ({electionEventId}) => {
+export const WaitingForMySignature: React.FC<{
+    electionEventId: string
+    presentation?: "button" | "header"
+}> = ({electionEventId, presentation = "button"}) => {
     const roles = useListedSignPermissions()
     const signing = useOptionalSigningRequest()
     // Nothing is read for someone who signs nothing listed here.
     return roles.length && signing ? (
-        <WaitingList electionEventId={electionEventId} signing={signing} />
+        <WaitingList
+            electionEventId={electionEventId}
+            signing={signing}
+            presentation={presentation}
+        />
     ) : null
 }
 
-const WaitingList: React.FC<{electionEventId: string; signing: ISigningRequestContext}> = ({
-    electionEventId,
-    signing,
-}) => {
+const WaitingList: React.FC<{
+    electionEventId: string
+    signing: ISigningRequestContext
+    presentation: "button" | "header"
+}> = ({electionEventId, signing, presentation}) => {
     const {t} = useTranslation()
     const {userId} = useContext(AuthContext)
     const {requests, error, reload} = useWaitingSigningRequests(electionEventId)
@@ -80,6 +89,11 @@ const WaitingList: React.FC<{electionEventId: string; signing: ISigningRequestCo
             .filter(Boolean)
             .join(" · ")
 
+    const openList = () => {
+        reload()
+        setOpen(true)
+    }
+
     const openRequest = (request: IWaitingSigningRequest) => {
         setOpen(false)
         signing.open(request.id, {
@@ -91,22 +105,35 @@ const WaitingList: React.FC<{electionEventId: string; signing: ISigningRequestCo
 
     return (
         <>
-            <Button
-                variant="outlined"
-                size="small"
-                onClick={() => {
-                    reload()
-                    setOpen(true)
-                }}
-                startIcon={
-                    <Badge badgeContent={toSign} color="warning">
-                        <DrawOutlinedIcon />
-                    </Badge>
-                }
-                aria-label={t("signing.waiting.buttonCount", {count: toSign})}
-            >
-                {t("signing.waiting.title")}
-            </Button>
+            {presentation === "header" ? (
+                <Tooltip title={t("signing.waiting.buttonCount", {count: toSign})}>
+                    <IconButton
+                        color="primary"
+                        size="small"
+                        sx={{width: 36, height: 36}}
+                        aria-label={t("signing.waiting.buttonCount", {count: toSign})}
+                        onClick={openList}
+                    >
+                        <Badge badgeContent={toSign} color="warning">
+                            <DrawOutlinedIcon />
+                        </Badge>
+                    </IconButton>
+                </Tooltip>
+            ) : (
+                <Button
+                    variant="outlined"
+                    size="small"
+                    onClick={openList}
+                    startIcon={
+                        <Badge badgeContent={toSign} color="warning">
+                            <DrawOutlinedIcon />
+                        </Badge>
+                    }
+                    aria-label={t("signing.waiting.buttonCount", {count: toSign})}
+                >
+                    {t("signing.waiting.title")}
+                </Button>
+            )}
             <Drawer
                 anchor="right"
                 open={open}

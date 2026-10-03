@@ -3452,6 +3452,8 @@ const spanishTranslation: TranslationType = {
             },
             loadError: "The signing settings couldn't be loaded. Reload the page to try again.",
             errors: {
+                automatedCeremonies:
+                    "Este evento utiliza ceremonias de claves automáticas. Los custodios no realizan estos pasos, por lo que no se pueden exigir sus firmas. Para exigir las firmas de los custodios, utiliza ceremonias de claves manuales.",
                 forbidden: "You don't have the permission for this change.",
                 invalid: "The server refused these values. Check them and try again.",
                 conflict: "Someone else changed this meanwhile. Reload the page and try again.",

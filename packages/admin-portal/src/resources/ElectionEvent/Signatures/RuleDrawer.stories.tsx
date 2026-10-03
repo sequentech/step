@@ -108,8 +108,8 @@ const savedRule = () => graphql.calls.filter(({name}) => name === "SigningPutRul
 
 /** Waits for a notification, which fades in. */
 async function notified(text: string) {
-    const message = await within(document.body).findByText(text)
-    await waitFor(() => expect(message).toBeVisible())
+    const messages = await within(document.body).findAllByText(text)
+    await waitFor(() => messages.forEach((message) => expect(message).toBeVisible()))
 }
 
 export const Editable: Story = {
@@ -167,6 +167,15 @@ export const RolesEditableWithRoleWrite: Story = {
         const panel = await drawer()
         const roles = panel.getByRole("combobox", {name: label("rule.whoCanSign")})
         await userEvent.click(roles)
+        const options = await within(document.body).findAllByRole("option")
+        expect(options.map((option) => option.textContent)).toEqual([
+            "Auditor",
+            "Configuration Manager",
+            "OFOV",
+            "SBEI",
+            "Security Officer",
+            "Trustee",
+        ])
         await userEvent.click(await within(document.body).findByRole("option", {name: "OFOV"}))
         await userEvent.click(panel.getByRole("button", {name: label("rule.save")}))
         await waitFor(() => expect(args.onSaved).toHaveBeenCalledOnce())
@@ -447,6 +456,11 @@ const refusedSave =
         await userEvent.click(panel.getByLabelText(label("rule.requesterSigning")))
         await userEvent.click(saveButton(panel))
         await notified(message)
+        const explanation = panel.getByText(message)
+        await expect(explanation).toBeVisible()
+        await expect(explanation.closest("[role=alert]")).toHaveClass(/MuiAlert-colorError/)
+        expect(within(document.body).getAllByText(message)).toHaveLength(1)
+        expect(document.querySelector(".MuiSnackbar-root")).toBeNull()
         expect(args.onSaved).not.toHaveBeenCalled()
     }
 
@@ -468,4 +482,39 @@ export const RefusedStaleRevision: Story = {
 export const RefusedLockedDown: Story = {
     args: {refuse: {code: "locked-down"}},
     play: refusedSave(label("errors.lockedDown")),
+}
+
+const automatedCeremoniesRefusal: Story["play"] = async ({args}) => {
+    const panel = await drawer()
+    const toggle = panel.getByLabelText(label("rule.trusteesSign"))
+    await userEvent.click(toggle)
+    await userEvent.click(saveButton(panel))
+    const message =
+        "This event uses automatic key ceremonies. Trustees do not perform these steps, so their signatures cannot be required. To require trustee signatures, use manual key ceremonies."
+    const alert = await panel.findByRole("alert")
+    await expect(alert).toHaveTextContent(message)
+    await expect(alert).toHaveClass(/MuiAlert-colorError/)
+    expect(within(document.body).getAllByText(message)).toHaveLength(1)
+    expect(document.querySelector(".MuiSnackbar-root")).toBeNull()
+    expect(args.onSaved).not.toHaveBeenCalled()
+    await userEvent.click(toggle)
+    expect(panel.queryByText(message)).toBeNull()
+}
+
+export const AutomaticKeyCeremonyRefused: Story = {
+    args: {
+        organization: Organization.StudentCouncil,
+        action: SigningAction.ConfirmKeyShare,
+        refuse: {code: "invalid", reason: "automated-ceremonies"},
+    },
+    play: automatedCeremoniesRefusal,
+}
+
+export const AutomaticTallyStepRefused: Story = {
+    args: {
+        organization: Organization.StudentCouncil,
+        action: SigningAction.ContributeKeyShare,
+        refuse: {code: "invalid", reason: "automated-ceremonies"},
+    },
+    play: automatedCeremoniesRefusal,
 }

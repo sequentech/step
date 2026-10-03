@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useId, useMemo, useState} from "react"
+import React, {useCallback, useId, useMemo, useState} from "react"
 import {useTranslation} from "react-i18next"
 import {useGetList, useNotify} from "react-admin"
 import {
@@ -47,11 +47,12 @@ import {
     isTrusteeAction,
     parseSignatures,
     rolesChanged,
+    sortRolesByName,
     ruleInputOf,
     type ISignaturesAccess,
     type IRuleDraft,
 } from "./signingSettings"
-import {usePutRule, useWriteError} from "./useSigningSettings"
+import {usePutRule, useWriteErrorMessage} from "./useSigningSettings"
 
 export interface IRuleDrawerProps {
     electionEventId: string
@@ -80,7 +81,7 @@ export const RuleDrawer: React.FC<IRuleDrawerProps> = ({
 }) => {
     const {t, i18n} = useTranslation()
     const notify = useNotify()
-    const writeError = useWriteError()
+    const writeErrorMessage = useWriteErrorMessage()
     const [tenantId] = useTenantStore()
     const readOnly = !access.rulesWrite
     // Needs role-read (the options) and role-write; without the capacity the current roles
@@ -91,6 +92,7 @@ export const RuleDrawer: React.FC<IRuleDrawerProps> = ({
     const initialRoles = useMemo(() => (capacity?.roles ?? []).map(({id}) => id), [capacity])
     const initial = useMemo(() => draftOf(rule, initialRoles), [rule, initialRoles])
     const [draft, setDraft] = useState<IRuleDraft>(initial)
+    const [saveError, setSaveError] = useState<string | null>(null)
     const titleId = useId()
     const [putRule, {loading: saving}] = usePutRule()
     const {data: roleRecords} = useGetList<IRole & {id: string}>(
@@ -104,7 +106,18 @@ export const RuleDrawer: React.FC<IRuleDrawerProps> = ({
         for (const {id, name} of roleRecords ?? []) if (name) names.set(id, name)
         return names
     }, [roleRecords, capacity])
-    const roleOptions = useMemo(() => Array.from(roleNames.keys()), [roleNames])
+    const sortRoleIds = useCallback(
+        (ids: string[]) =>
+            sortRolesByName(
+                ids.map((id) => ({id, name: roleNames.get(id) ?? id})),
+                i18n.language
+            ).map(({id}) => id),
+        [roleNames, i18n.language]
+    )
+    const roleOptions = useMemo(
+        () => sortRoleIds(Array.from(roleNames.keys())),
+        [roleNames, sortRoleIds]
+    )
     const roleName = (id: string) => roleNames.get(id) ?? id
 
     const action = t(`signing.actions.${rule.action}.label`)
@@ -145,16 +158,20 @@ export const RuleDrawer: React.FC<IRuleDrawerProps> = ({
     const valid = !required || trustee || check.problem === null
     const waiting = capacity?.waiting ?? 0
 
-    const update = (change: Partial<IRuleDraft>) => setDraft((current) => ({...current, ...change}))
+    const update = (change: Partial<IRuleDraft>) => {
+        setSaveError(null)
+        setDraft((current) => ({...current, ...change}))
+    }
 
     const save = async () => {
+        setSaveError(null)
         const input = ruleInputOf(electionEventId, rule, draft, initialRoles)
         let saved: ISaveSigningRuleOutput | undefined
         try {
             const {data} = await putRule({variables: {...input, roles: input.roles ?? null}})
             saved = data?.signingPutRule
         } catch (error) {
-            writeError(error, "signing.rule.saveError", {lockedDown})
+            setSaveError(writeErrorMessage(error, "signing.rule.saveError", {lockedDown}))
             return
         }
         // With new roles, the server tells which Posts can't reach the number yet.
@@ -182,10 +199,24 @@ export const RuleDrawer: React.FC<IRuleDrawerProps> = ({
             open
             onClose={onClose}
             slotProps={{paper: {"aria-labelledby": titleId}}}
+            sx={{
+                "& .MuiDrawer-paper": {
+                    width: {xs: "100%", sm: "max(560px, 50vw)"},
+                    maxWidth: "100%",
+                },
+            }}
         >
             <Box
                 component="section"
-                sx={{width: {xs: "100vw", sm: 560}, p: 3, display: "grid", gap: 3}}
+                sx={{
+                    width: "100%",
+                    minWidth: 0,
+                    boxSizing: "border-box",
+                    p: {xs: 2, sm: 3},
+                    display: "grid",
+                    gridTemplateColumns: "minmax(0, 1fr)",
+                    gap: 3,
+                }}
             >
                 <Box sx={{display: "flex", alignItems: "flex-start", gap: 1}}>
                     <Box sx={{flex: 1}}>
@@ -236,7 +267,7 @@ export const RuleDrawer: React.FC<IRuleDrawerProps> = ({
                                 <Autocomplete
                                     multiple
                                     options={roleOptions}
-                                    value={draft.roles}
+                                    value={sortRoleIds(draft.roles)}
                                     getOptionLabel={roleName}
                                     onChange={(_event, roles) => update({roles})}
                                     renderInput={(params) => (
@@ -256,7 +287,7 @@ export const RuleDrawer: React.FC<IRuleDrawerProps> = ({
                                     </Typography>
                                     <Box sx={{display: "flex", flexWrap: "wrap", gap: 0.5, my: 1}}>
                                         {initialRoles.length
-                                            ? initialRoles.map((role) => (
+                                            ? sortRoleIds(initialRoles).map((role) => (
                                                   <Chip
                                                       key={role}
                                                       size="small"
@@ -282,7 +313,7 @@ export const RuleDrawer: React.FC<IRuleDrawerProps> = ({
                             slotProps={{
                                 htmlInput: {min: 1, max: check.max ?? MAX_SIGNATURES, readOnly},
                             }}
-                            sx={{maxWidth: 280}}
+                            fullWidth
                         />
 
                         {check.problem === null && check.shortPosts.length > 0 && (
@@ -332,7 +363,7 @@ export const RuleDrawer: React.FC<IRuleDrawerProps> = ({
                             label={t("signing.rule.requesterSigning")}
                         />
 
-                        <FormControl sx={{maxWidth: 280}} disabled={readOnly}>
+                        <FormControl fullWidth disabled={readOnly}>
                             <InputLabel id="signing-rule-expiry">
                                 {t("signing.rule.expiresAfter")}
                             </InputLabel>
@@ -371,6 +402,8 @@ export const RuleDrawer: React.FC<IRuleDrawerProps> = ({
                 {!readOnly && waiting > 0 && (
                     <Alert severity="info">{t("signing.pendingRequests", {count: waiting})}</Alert>
                 )}
+
+                {saveError && <Alert severity="error">{saveError}</Alert>}
 
                 <Divider />
                 <Box sx={{display: "flex", justifyContent: "flex-end", gap: 1}}>

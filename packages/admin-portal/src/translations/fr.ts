@@ -3476,6 +3476,8 @@ const frenchTranslation: TranslationType = {
             },
             loadError: "The signing settings couldn't be loaded. Reload the page to try again.",
             errors: {
+                automatedCeremonies:
+                    "Cet événement utilise des cérémonies de clés automatiques. Les dépositaires ne réalisent pas ces étapes, leurs signatures ne peuvent donc pas être exigées. Pour exiger leurs signatures, utilisez des cérémonies de clés manuelles.",
                 forbidden: "You don't have the permission for this change.",
                 invalid: "The server refused these values. Check them and try again.",
                 conflict: "Someone else changed this meanwhile. Reload the page and try again.",

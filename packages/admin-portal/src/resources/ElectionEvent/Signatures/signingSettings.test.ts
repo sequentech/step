@@ -43,6 +43,7 @@ import {
     ruleOf,
     shortFingerprint,
     signaturesAccess,
+    sortRolesByName,
     toPem,
 } from "./signingSettings"
 
@@ -669,6 +670,28 @@ describe("server errors", () => {
         graphQLErrors: [{message: "refused", extensions}],
     })
 
+    it("retains the refusal reason without retaining the server error body", () => {
+        const message =
+            "The election event runs its key ceremonies automatically: trustees can't sign their key steps."
+        expect(
+            signingError({
+                graphQLErrors: [
+                    {
+                        message,
+                        extensions: {
+                            code: "invalid",
+                            reason: "automated-ceremonies",
+                        },
+                    },
+                ],
+            })
+        ).toEqual({
+            code: SigningErrorCode.Invalid,
+            check: null,
+            reason: "automated-ceremonies",
+        })
+    })
+
     it("classifies by extensions.code", () => {
         expect(signingError(graphQLError({code: "forbidden"}))).toMatchObject({
             code: SigningErrorCode.Forbidden,
@@ -720,5 +743,19 @@ describe("server errors", () => {
         expect(errorKey(SigningErrorCode.Conflict, false)).toBe("signing.errors.conflict")
         expect(errorKey(SigningErrorCode.NotFound, false)).toBe("signing.errors.notFound")
         expect(errorKey(SigningErrorCode.Other, false)).toBeNull()
+    })
+})
+
+describe("role display order", () => {
+    it("orders names naturally and consistently without changing the input", () => {
+        const roles = [
+            {id: "z", name: "Trustee 10"},
+            {id: "b", name: "auditor"},
+            {id: "y", name: "Trustee 2"},
+            {id: "a", name: "Auditor"},
+            {id: "s", name: "SBEI"},
+        ]
+        expect(sortRolesByName(roles, "en").map(({id}) => id)).toEqual(["a", "b", "s", "y", "z"])
+        expect(roles.map(({id}) => id)).toEqual(["z", "b", "y", "a", "s"])
     })
 })

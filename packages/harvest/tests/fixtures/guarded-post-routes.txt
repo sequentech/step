@@ -58,6 +58,7 @@
 /get-ballot-publication-changes
 /get-custom-url
 /get-document-password
+/get-manual-verification-pdf
 /get-permissions
 /get-private-key
 /get-realm-attributes

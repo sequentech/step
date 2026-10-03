@@ -3465,6 +3465,8 @@ const catalanTranslation: TranslationType = {
             },
             loadError: "The signing settings couldn't be loaded. Reload the page to try again.",
             errors: {
+                automatedCeremonies:
+                    "Aquest esdeveniment utilitza cerimònies de claus automàtiques. Els custodis no duen a terme aquests passos, per tant no es poden exigir les seves signatures. Per exigir les signatures dels custodis, utilitza cerimònies de claus manuals.",
                 forbidden: "You don't have the permission for this change.",
                 invalid: "The server refused these values. Check them and try again.",
                 conflict: "Someone else changed this meanwhile. Reload the page and try again.",

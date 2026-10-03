@@ -3456,6 +3456,8 @@ const dutchTranslation: TranslationType = {
             },
             loadError: "The signing settings couldn't be loaded. Reload the page to try again.",
             errors: {
+                automatedCeremonies:
+                    "Dit evenement gebruikt automatische sleutelceremonies. Beheerders voeren deze stappen niet uit, dus hun handtekeningen kunnen niet worden vereist. Gebruik handmatige sleutelceremonies om hun handtekeningen te vereisen.",
                 forbidden: "You don't have the permission for this change.",
                 invalid: "The server refused these values. Check them and try again.",
                 conflict: "Someone else changed this meanwhile. Reload the page and try again.",

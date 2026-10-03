@@ -319,16 +319,30 @@ export function usePeopleSearch(search: string) {
 /**
  * Tells the user why a write was refused: the permission, the input, someone
  * else's save, the lockdown or a missing record; otherwise the write's own
- * message.
+ * localized fallback. Formats the explanation without a notification so forms
+ * can show it once in an inline alert.
  */
-export function useWriteError() {
+export function useWriteErrorMessage() {
     const {t} = useTranslation()
+    return useCallback(
+        (error: unknown, fallbackKey: string, {lockedDown = false} = {}) => {
+            const refusal = signingError(error)
+            return t(errorKey(refusal.code, lockedDown, refusal.reason) ?? fallbackKey)
+        },
+        [t]
+    )
+}
+
+/** Shows the localized write explanation when there is no inline error display. */
+export function useWriteError() {
+    const messageOf = useWriteErrorMessage()
     const notify = useNotify()
     return useCallback(
-        (error: unknown, fallbackKey: string, {lockedDown = false} = {}) =>
-            notify(t(errorKey(signingError(error).code, lockedDown) ?? fallbackKey), {
-                type: "error",
-            }),
-        [notify, t]
+        (error: unknown, fallbackKey: string, {lockedDown = false} = {}) => {
+            const message = messageOf(error, fallbackKey, {lockedDown})
+            notify(message, {type: "error"})
+            return message
+        },
+        [messageOf, notify]
     )
 }

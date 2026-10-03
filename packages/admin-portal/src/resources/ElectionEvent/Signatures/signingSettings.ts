@@ -515,6 +515,7 @@ const objectOf = (value: unknown): Record<string, unknown> =>
 export interface ISigningError {
     code: SigningErrorCode
     check: string | null
+    reason?: string
     /** A registered-to-other refusal: the account holding the key or holder. */
     holder?: {userId: string; name: string | null}
 }
@@ -523,7 +524,9 @@ export interface ISigningError {
 export function signingError(error: unknown): ISigningError {
     const errors = objectOf(error).graphQLErrors
     for (const graphQLError of Array.isArray(errors) ? errors : []) {
-        const extensions = objectOf(objectOf(graphQLError).extensions)
+        const record = objectOf(graphQLError)
+        const extensions = objectOf(record.extensions)
+        const detail = typeof extensions.reason === "string" ? {reason: extensions.reason} : {}
         const check = typeof extensions.check === "string" ? extensions.check : null
         const holder =
             typeof extensions.user_id === "string"
@@ -536,9 +539,10 @@ export function signingError(error: unknown): ISigningError {
                   }
                 : undefined
         const code = typeof extensions.code === "string" ? CODES[extensions.code] : undefined
-        if (code) return holder ? {code, check, holder} : {code, check}
+        if (code) return holder ? {code, check, holder, ...detail} : {code, check, ...detail}
         const status = objectOf(objectOf(extensions.internal).response).status
-        if (typeof status === "number" && STATUSES[status]) return {code: STATUSES[status], check}
+        if (typeof status === "number" && STATUSES[status])
+            return {code: STATUSES[status], check, ...detail}
     }
     return {code: SigningErrorCode.Other, check: null}
 }
@@ -547,12 +551,19 @@ export function signingError(error: unknown): ISigningError {
  * The message of a refused write, or null for the write's own fallback. The
  * server refuses a rule edit of a locked-down event as invalid input.
  */
-export function errorKey(code: SigningErrorCode, lockedDown: boolean): string | null {
+export function errorKey(
+    code: SigningErrorCode,
+    lockedDown: boolean,
+    reason?: string
+): string | null {
     switch (code) {
         case SigningErrorCode.Forbidden:
             return "signing.errors.forbidden"
         case SigningErrorCode.Invalid:
-            return lockedDown ? "signing.errors.lockedDown" : "signing.errors.invalid"
+            if (lockedDown) return "signing.errors.lockedDown"
+            return reason === "automated-ceremonies"
+                ? "signing.errors.automatedCeremonies"
+                : "signing.errors.invalid"
         case SigningErrorCode.LockedDown:
             return "signing.errors.lockedDown"
         case SigningErrorCode.Conflict:
@@ -562,4 +573,15 @@ export function errorKey(code: SigningErrorCode, lockedDown: boolean): string | 
         default:
             return null
     }
+}
+
+/** Display roles by name in the UI language, without changing their identity or source order. */
+export function sortRolesByName<T extends {id: string; name: string}>(
+    roles: ReadonlyArray<T>,
+    language: string
+): T[] {
+    const collator = new Intl.Collator(language, {numeric: true, sensitivity: "base"})
+    return [...roles].sort(
+        (left, right) => collator.compare(left.name, right.name) || left.id.localeCompare(right.id)
+    )
 }

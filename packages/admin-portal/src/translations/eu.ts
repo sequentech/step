@@ -3441,6 +3441,8 @@ const basqueTranslation: TranslationType = {
             },
             loadError: "The signing settings couldn't be loaded. Reload the page to try again.",
             errors: {
+                automatedCeremonies:
+                    "Ekitaldi honek gakoen zeremonia automatikoak erabiltzen ditu. Zaindariek ez dituzte urrats hauek egiten; beraz, ezin dira haien sinadurak eskatu. Zaindarien sinadurak eskatzeko, erabili eskuzko gakoen zeremoniak.",
                 forbidden: "You don't have the permission for this change.",
                 invalid: "The server refused these values. Check them and try again.",
                 conflict: "Someone else changed this meanwhile. Reload the page and try again.",
