@@ -453,6 +453,22 @@ const catalanTranslation: TranslationType = {
                 "Una candidatura conjunta és un grup de candidats que es presenten junts. Cada candidat mostra la candidatura a la qual pertany.",
             independent: "Independent",
             contestMembers: "Candidats de {{slate}} per a {{contest}}",
+            candidateList: {
+                show: "Mostra les candidatures",
+                hide: "Amaga les candidatures",
+            },
+            tabs: {
+                label: "Maneres d'omplir la papereta",
+                slates: "Triar una llista",
+                candidates: "Candidatures individuals",
+            },
+            selection: {
+                all: "Les {{total}} seleccionades",
+                mixed: "Mixta · {{selected}} de {{total}} seleccionades",
+                partly: "Seleccionada en part · {{selected}} de {{total}}",
+                selected: "Seleccionada",
+                edit: "Editar la selecció",
+            },
             apply: {
                 button: "Tria aquesta candidatura",
                 buttonLabel: "Tria la candidatura {{slate}}",

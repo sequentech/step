@@ -450,6 +450,22 @@ const galegoTranslation: TranslationType = {
                 "Unha candidatura conxunta é un grupo de candidatos que se presentan xuntos. Cada candidato mostra a candidatura á que pertence.",
             independent: "Independente",
             contestMembers: "Candidatos de {{slate}} para {{contest}}",
+            candidateList: {
+                show: "Amosar candidaturas",
+                hide: "Agochar candidaturas",
+            },
+            tabs: {
+                label: "Formas de cubrir a súa papeleta",
+                slates: "Elixir unha lista",
+                candidates: "Candidaturas individuais",
+            },
+            selection: {
+                all: "As {{total}} seleccionadas",
+                mixed: "Mixta · {{selected}} de {{total}} seleccionadas",
+                partly: "Seleccionada en parte · {{selected}} de {{total}}",
+                selected: "Seleccionada",
+                edit: "Editar a selección",
+            },
             apply: {
                 button: "Elixir esta candidatura",
                 buttonLabel: "Elixir a candidatura {{slate}}",

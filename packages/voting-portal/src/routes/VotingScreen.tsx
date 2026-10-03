@@ -54,7 +54,8 @@ import {IDecodedVoteContest} from "@sequentech/ui-core"
 import {sortContestList} from "@sequentech/ui-core"
 import {useEncryptBallotForReview} from "../hooks/useEncryptBallotForReview"
 import {useBallotStyleSlates} from "../hooks/useBallotStyleSlates"
-import {SlateChooser} from "../components/SlateChooser/SlateChooser"
+import {SlateSelectionChooser} from "../components/SlateChooser/SlateSelectionChooser"
+import {ESlateBallotTab, SlateBallotTabs} from "../components/SlateChooser/SlateBallotTabs"
 import {SlateApplyAction} from "../components/SlateChooser/SlateApplyAction"
 
 // `StyledTitle`, `ActionsContainer` and `StyledButton` were here. The heading is
@@ -130,6 +131,9 @@ interface ContestPaginationProps {
     onSetDecodedContests: (id: string) => (value: IDecodedVoteContest) => void
     encryptAndReview: () => void
     disableNextButton: (contests?: IContest[]) => boolean
+    slateChooser?: React.ReactNode
+    slateTab: ESlateBallotTab
+    onSlateTabChange: (tab: ESlateBallotTab) => void
 }
 
 const ContestPagination: React.FC<ContestPaginationProps> = ({
@@ -139,6 +143,9 @@ const ContestPagination: React.FC<ContestPaginationProps> = ({
     onSetDecodedContests,
     encryptAndReview,
     disableNextButton,
+    slateChooser,
+    slateTab,
+    onSlateTabChange,
 }) => {
     const dispatch = useAppDispatch()
     const submit = useSubmit()
@@ -191,7 +198,11 @@ const ContestPagination: React.FC<ContestPaginationProps> = ({
     }, [ballotSelectionState, isMultiContest, ballotStyle.ballot_eml])
 
     const handleNext = () => {
-        if (pageIndex === contests.length - 1) {
+        // The contests of the later pages are only checked once they are
+        // shown, so a ballot with several pages goes through them.
+        if (slateChooser && slateTab === ESlateBallotTab.SLATES && contests.length > 1) {
+            onSlateTabChange(ESlateBallotTab.CANDIDATES)
+        } else if (pageIndex === contests.length - 1) {
             encryptAndReview()
         } else {
             setPageIndex(pageIndex + 1)
@@ -221,7 +232,7 @@ const ContestPagination: React.FC<ContestPaginationProps> = ({
         }
     }
 
-    return (
+    const contestList = (
         <>
             {/* Paging through a multi-page ballot swaps the contests in place
                 without a route change. Moving focus here both orients the voter
@@ -250,6 +261,21 @@ const ContestPagination: React.FC<ContestPaginationProps> = ({
                         />
                     </Box>
                 ))}
+        </>
+    )
+
+    return (
+        <>
+            {slateChooser ? (
+                <SlateBallotTabs
+                    value={slateTab}
+                    onChange={onSlateTabChange}
+                    slates={slateChooser}
+                    candidates={contestList}
+                />
+            ) : (
+                contestList
+            )}
             <ActionButtons
                 handleNext={handleNext}
                 handlePrev={handlePrev}
@@ -274,6 +300,7 @@ const VotingScreen: React.FC = () => {
     const [openNotVoted, setOpenNonVoted] = useState(false)
     const [hasInvalidErrors, setHasInvalidErrors] = useState<boolean>(false)
     const [contestsPerPage, setContestsPerPage] = useState<IContest[][]>([])
+    const [slateTab, setSlateTab] = useState(ESlateBallotTab.SLATES)
 
     const {encryptAndStoreBallot} = useEncryptBallotForReview()
     const election = useAppSelector(selectElectionById(String(electionId)))
@@ -503,16 +530,22 @@ const VotingScreen: React.FC = () => {
                 }
                 description={electionDescription ? stringToHtml(electionDescription) : undefined}
             >
-                {slates.resolved ? (
-                    <SlateChooser
-                        slates={slates.resolved}
-                        defaultLanguage={defaultLanguageCode}
-                        renderActions={(slate) => (
-                            <SlateApplyAction ballotStyle={ballotStyle} slate={slate} />
-                        )}
-                    />
-                ) : null}
                 <ContestPagination
+                    slateChooser={
+                        slates.resolved && slates.resolved.slates.length > 0 ? (
+                            <SlateSelectionChooser
+                                ballotStyle={ballotStyle}
+                                slates={slates.resolved}
+                                defaultLanguage={defaultLanguageCode}
+                                onEditSelections={() => setSlateTab(ESlateBallotTab.CANDIDATES)}
+                                renderApplyAction={(slate) => (
+                                    <SlateApplyAction ballotStyle={ballotStyle} slate={slate} />
+                                )}
+                            />
+                        ) : undefined
+                    }
+                    slateTab={slateTab}
+                    onSlateTabChange={setSlateTab}
                     ballotStyle={ballotStyle}
                     contests={contestsPerPage}
                     onSetDisableNext={onSetDisableNext}
