@@ -74,6 +74,8 @@ The Voting Portal does not show a ballot whose slates are invalid. It reports a 
 
 Slates are part of the published ballot. A change to the slates reaches voters with a new ballot publication.
 
+The Election adds rules of its own, such as contest limits, and the configuration is checked again when it is saved, imported, generated and published. See [Slate Configuration](./14-slates-configuration.md).
+
 ---
 
 ## Voting Portal

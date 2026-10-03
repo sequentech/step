@@ -1048,6 +1048,21 @@ const frenchTranslation: TranslationType = {
                     "no-gold-level": "No Gold level Authentication",
                 },
             },
+            slates: {
+                title: "Listes",
+                configuration: "Configuration des listes (JSON)",
+                helper: "Listes nommées et les candidats que chacune présente dans chaque scrutin. Laissez vide pour une élection sans listes.",
+                loading:
+                    "Les scrutins et les candidats de l'élection sont encore en cours de chargement. Réessayez dans un instant.",
+                mobileCandidateLists: {
+                    label: "Listes de candidats sur mobile",
+                    helper: "État initial de la liste de candidats de chaque liste sur mobile. L'électeur peut toujours l'ouvrir ou la fermer.",
+                    options: {
+                        collapsed: "Repliées",
+                        expanded: "Dépliées",
+                    },
+                },
+            },
             startScreenTitlePolicy: {
                 label: "Politique de titre de l'écran d'accueil",
                 options: {

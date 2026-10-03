@@ -1036,6 +1036,21 @@ const englishTranslation = {
                     "no-gold-level": "No Gold level Authentication",
                 },
             },
+            slates: {
+                title: "Slates",
+                configuration: "Slate configuration (JSON)",
+                helper: "Named slates and the candidates each one runs in each contest. Leave empty for an election without slates.",
+                loading:
+                    "The election's contests and candidates are still loading. Try again in a moment.",
+                mobileCandidateLists: {
+                    label: "Mobile candidate lists",
+                    helper: "How each slate's candidate list starts on phones. Voters can always open or close it.",
+                    options: {
+                        collapsed: "Collapsed",
+                        expanded: "Expanded",
+                    },
+                },
+            },
             startScreenTitlePolicy: {
                 label: "Start Screen Title Policy",
                 options: {
