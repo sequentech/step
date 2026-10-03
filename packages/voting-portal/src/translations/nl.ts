@@ -450,6 +450,20 @@ const dutchTranslation: TranslationType = {
                 "Een lijst is een groep kandidaten die zich samen verkiesbaar stellen. Bij elke kandidaat staat de lijst waartoe die behoort.",
             independent: "Onafhankelijk",
             contestMembers: "Kandidaten van {{slate}} voor {{contest}}",
+            apply: {
+                button: "Deze lijst kiezen",
+                buttonLabel: "Lijst {{slate}} kiezen",
+                chosen: "{{slate}} gekozen. Geselecteerde kandidaten: {{candidates}}. Verkiezingen: {{contests}}.",
+                replaceDialog: {
+                    title: "Uw huidige keuzes vervangen?",
+                    content:
+                        "Als u {{slate}} kiest, worden uw keuzes in de onderstaande verkiezingen vervangen. Uw andere keuzes blijven ongewijzigd.",
+                    removed: "Verwijderd:",
+                    added: "In plaats daarvan geselecteerd:",
+                    ok: "Keuzes vervangen",
+                    cancel: "Mijn keuzes behouden",
+                },
+            },
         },
         ballotLocator: {
             title: "Zoek uw Stembiljet",
