@@ -113,6 +113,9 @@ const InvalidBlankWrapper = styled("ul")<{columnCount: number}>`
         margin-top: 12px;
     }
 `
+/** The id of the heading of a contest, so a host can bring it into view. */
+export const contestTitleId = (contestId: string): string => `contest-${contestId}-title`
+
 export interface IQuestionProps {
     ballotStyle: IBallotStyle
     question: IContest
@@ -325,18 +328,14 @@ export const Question: React.FC<IQuestionProps> = ({
     }, [question.min_votes, question.max_votes, isReview, t])
 
     return (
-        <Box
-            className="contest"
-            component="section"
-            aria-labelledby={`contest-${question.id}-title`}
-        >
+        <Box className="contest" component="section" aria-labelledby={contestTitleId(question.id)}>
             <StyledTitle
                 className="contest-title"
                 variant="h5"
                 component="h2"
                 data-min={question.min_votes}
                 data-max={question.max_votes}
-                id={`contest-${question.id}-title`}
+                id={contestTitleId(question.id)}
             >
                 <Box className="contest-title-text" component="span" sx={{flexGrow: 1}}>
                     {translate(question, "name", i18n.language) || ""}

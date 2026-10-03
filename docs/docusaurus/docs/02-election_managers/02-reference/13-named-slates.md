@@ -82,7 +82,7 @@ When the Election has slates:
 
 - The voting screen lists the slates in their configured order. Each slate shows its name and its candidates, grouped by contest.
 - In every contest where a slate has candidates, each candidate shows the name of their slate under their own name. Candidates in no slate show **Independent**. Write-in, blank and invalid options show no label.
-- The review screen shows the same slate name, or **Independent**, next to each selected candidate.
+- The review screen shows the same slate name, or **Independent**, next to each selected candidate. See [Reviewing the ballot](#reviewing-the-ballot).
 
 The label always comes from the candidate, so the ballot, the list of slates and the review screen show the same name.
 
@@ -125,6 +125,22 @@ A slate that is fully selected offers **Edit selections** instead of **Choose th
 
 **Next** works on both tabs. On a ballot whose contests are split in several pages, pressing **Next** on **Choose a slate** opens **Individual candidates**, so the voter goes through every page before the review screen.
 
+### Reviewing the ballot
+
+When the Election has slates, the review screen lists every contest of the ballot and adds:
+
+- **Your selections**, above the contests: the number of selected candidates out of the maximum the ballot allows, one line for each slate that has selected candidates, and the number of selected independent candidates. The slate lines use the same words as **Choose a slate**: **All N selected**, **Mixed · n of N selected** or **Partly selected · n of N**.
+- Under each contest, the number of selected candidates out of the maximum of the contest, for example **2 of 3 selected**. A contest without a selection reads **0 of N selected**.
+- Under each contest, an **Edit** button. It opens **Individual candidates** on the page of that contest, with the contest in view.
+
+Like the slate cards, the summary is computed from the candidates on the ballot and not from the slate the voter pressed. A voter who chooses a slate and then replaces one of its candidates sees that slate as **Mixed**, and the replacement under its own slate or as **Independent**.
+
+Going back to the voting screen, with **Edit** or with **Back**, keeps every selection. Blank and invalid options are not counted as candidates. Acclaimed contests have no count and no **Edit** button, and a declined ballot shows neither the summary nor the counts.
+
+The review screen always shows the selections of the encrypted ballot it is about to cast. If the selections change after the ballot was encrypted, for example with the back and forward buttons of the browser, the Voting Portal returns to the voting screen with the current selections. The voter presses **Next** again to review them.
+
+Elections without slates keep the ordinary review screen.
+
 ### Candidate lists on phones
 
 On screens narrower than 750px, the candidates of each slate are in a list that the voter can show or hide. The `mobile_candidate_lists` field of the configuration decides how the lists start:
@@ -154,3 +170,12 @@ On wider screens the lists are always shown.
 | `slate-candidate-list` | The candidates of a slate |
 | `slate-card-actions` | Container of the actions of a slate |
 | `slate-edit-selections-button` | The **Edit selections** button |
+| `review-selection-summary` | The **Your selections** summary of the review screen |
+| `review-selection-title`, `review-selection-total`, `review-selection-note` | The heading, the total and the closing note of the summary |
+| `review-selection-lines` | The list of slates and independent candidates in the summary |
+| `review-selection-slate` | The line of a slate in the summary |
+| `review-selection-slate-all`, `review-selection-slate-mixed`, `review-selection-slate-partly` | The line of a slate, by state |
+| `review-selection-independent` | The line of the independent candidates in the summary |
+| `review-contest-footer` | Container of the count and the **Edit** button of a contest in review |
+| `review-contest-count` | The count of selected candidates of a contest |
+| `review-contest-edit` | The **Edit** button of a contest |

@@ -459,6 +459,16 @@ const dutchTranslation: TranslationType = {
                 slates: "Kies een lijst",
                 candidates: "Individuele kandidaten",
             },
+            review: {
+                title: "Uw selecties",
+                total: "Geselecteerde kandidaten: {{selected}} van {{seats}}",
+                slate: "{{slate}}: {{status}}",
+                independent: "Geselecteerde onafhankelijke kandidaten: {{count}}",
+                note: "Uw stem wordt geregistreerd voor elke geselecteerde kandidaat. Een lijst is op zichzelf geen stem.",
+                contestCount: "{{selected}} van {{max}} geselecteerd",
+                edit: "Bewerken",
+                editLabel: "{{contest}} bewerken",
+            },
             selection: {
                 all: "Alle {{total}} geselecteerd",
                 mixed: "Gemengd · {{selected}} van {{total}} geselecteerd",

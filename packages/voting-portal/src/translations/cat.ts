@@ -462,6 +462,16 @@ const catalanTranslation: TranslationType = {
                 slates: "Triar una llista",
                 candidates: "Candidatures individuals",
             },
+            review: {
+                title: "Les teves seleccions",
+                total: "Candidatures seleccionades: {{selected}} de {{seats}}",
+                slate: "{{slate}}: {{status}}",
+                independent: "Candidatures independents seleccionades: {{count}}",
+                note: "El teu vot es registra per a cada candidatura seleccionada. Una llista no és un vot per si mateixa.",
+                contestCount: "{{selected}} de {{max}} seleccionades",
+                edit: "Editar",
+                editLabel: "Editar {{contest}}",
+            },
             selection: {
                 all: "Les {{total}} seleccionades",
                 mixed: "Mixta · {{selected}} de {{total}} seleccionades",
