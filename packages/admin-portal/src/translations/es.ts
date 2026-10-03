@@ -2206,6 +2206,9 @@ const spanishTranslation: TranslationType = {
                             confirm: "Enviar Paquete de Transmisión",
                             cancel: "Cerrar",
                         },
+
+                        disabled:
+                            "Faltan las firmas requeridas o el paquete de transmisión ya se ha enviado a todos los destinos.",
                     },
                     regenerate: {
                         title: "Regenerar",
@@ -2242,11 +2245,11 @@ const spanishTranslation: TranslationType = {
                     },
                 },
                 signatures: {
-                    title: "Firmas SBEI",
+                    title: "Firmas",
                     description:
-                        "Los SBEIs pueden firmar el Paquete de Transmisión. La tabla a continuación muestra el estado de la firma de cada uno de los miembros del SBEI.",
+                        "Los miembros pueden firmar el paquete de transmisión. La tabla muestra el estado de firma de cada miembro.",
                     table: {
-                        trusteeName: "Nombre del Fideicomisario",
+                        trusteeName: "Miembro",
                         signed: "Ha Firmado",
                     },
                     status: "{{signed}} de {{total}} Han Firmado",

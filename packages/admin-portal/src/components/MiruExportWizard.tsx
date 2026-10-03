@@ -480,10 +480,11 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = () => {
     const requestEnded = !!packageRequest && endedRequest === packageRequest.id
     const transmitNeedsSignatures = useActionNeedsSignatures(
         electionEventId,
-        SigningAction.TransmitResults,
-        requestEnded
+        SigningAction.TransmitResults
     )
-    const recreateToSign = requestEnded && transmitNeedsSignatures !== false
+    const recreateToSign =
+        !signingRequest &&
+        (transmitNeedsSignatures === true || (requestEnded && transmitNeedsSignatures !== false))
 
     let minimumSignatures = () => {
         return signingRequest?.required ?? selectedTallySessionData?.threshold ?? 1
@@ -494,6 +495,7 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = () => {
 
     const disableSendButton = useMemo(() => {
         return (
+            recreateToSign ||
             serversTotalCount() === serverSentToCount() ||
             (signingRequest ? !packageSigned : signedCount() < minimumSignatures())
         )
@@ -505,6 +507,7 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = () => {
         minimumSignatures,
         signingRequest,
         packageSigned,
+        recreateToSign,
     ])
 
     // The panel's actions read the wizard as it stands, not as it was when
@@ -672,7 +675,7 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = () => {
                         <Tooltip
                             title={
                                 disableSendButton
-                                    ? "Have not reached minimum number of SBEI Member signatures or Transmission Package has already been sent to all servers"
+                                    ? t("tally.transmissionPackage.actions.send.disabled")
                                     : ""
                             }
                         >

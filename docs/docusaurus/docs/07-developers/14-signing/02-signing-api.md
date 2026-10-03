@@ -79,7 +79,8 @@ Its refusals are logged like the approve step's.
 - `document_revision` (PDF only): `{revision, sha256, signed_count, url}`, the document as it
   stands, for viewing only;
 - optional `election_name`, `area_name`, `document_name`, `details: [{key, label?, value}]`
-  and `time_zone`.
+  and `time_zone` (the event's IANA zone, from its monitoring settings, as the signed PDF
+  prints times; absent without one).
 
 The widget shows values from the parsed canonical payload and refuses mismatches, so the
 backend must satisfy:
@@ -97,6 +98,8 @@ backend must satisfy:
 |---|---|---|---|---|
 | `signingPutRule` | `POST /signing-rules/put` | `action`, `requirement`, `signatures`, `requester_signing`, `expires_minutes` (null = no limit), `expected_revision`, `roles?: {add: [group id], remove: [group id]}` | `{revision, cancelled: [uuid], rule, short_posts}` | `signing-rules-write`; with `roles`, also `role-read` and `role-write` |
 | `signingRuleCapacity` | `POST /signing-rules/capacity` | `action`, `signatures?` | `{max, posts, posts_short, roles: [{id, name, path}], waiting, config_version}` (`posts` entries are `{election_id, name, count}`) | `signing-rules-read` |
+| `signingEventInfo` | `POST /signing-event-info` | `election_event_id` | `{time_zone, titles: {user_id: title}}`; `titles` is empty without `signing-certificates-read` | any of `signing-rules-read`, `signing-certificates-read`, `signing-requests-read` or a `sign-<action>` |
+| `signingHeldReportRequests` | `POST /signing-reports/requests` | `election_event_id` | `{requests: [{request_id, code, report_type, election_id, area_id, report_id, results_event_id, tally_session_id, results_document_id, status, transmission_package?}]}` | `signing-requests-read`, either report-sign permission, `report-read`, `miru-create` or `miru-send`; returns only requests the caller may open in their labelled Posts |
 | `signingExportRequests` | `POST /signing-requests/export` | `filters?` | `{document_id, sha256, rows}` (a CSV document, downloaded like other documents) | `signing-requests-export` |
 | `signingImportIssuers` | `POST /signing-issuers` | `pem?` or `der_base64?` | `{imported, skipped, errors}` | `signing-issuers-write` |
 | `signingDeleteIssuer` | `DELETE /signing-issuers/<id>` | `issuer_id` | `{issuer_id}` | `signing-issuers-write` |
@@ -104,11 +107,26 @@ backend must satisfy:
 | `signingRegisterCertificate` | `POST /staff-certificates` | `user_id`, `election_id?`, `pem`, `linked_to?` | `{certificate_id}`; a `registered-to-other` refusal adds `extensions.user_id` and `display_name`, so the UI can offer the link | `signing-certificates-register` |
 | `signingRevokeCertificate` | `POST /staff-certificates/<id>/revoke` | `certificate_id`, `reason` | `{certificate_id}` | `signing-certificates-revoke` |
 
-`GET /staff-certificates/mine` lists the caller's own registrations. The tab reads the
-tables through Hasura selects with `x-hasura-role` set to the sub-tab's read permission;
-the tables carry display names written at write time (`updated_by_name`,
+The tab reads the tables through Hasura selects with `x-hasura-role` set to the sub-tab's
+read permission; the tables carry display names written at write time (`updated_by_name`,
 `requested_by_name`, `display_name`, `user_display_name`, `registered_by_name`,
-`revoked_by_name`).
+`revoked_by_name`). It shows times in the event's zone from `signingEventInfo`, and the
+Certificates sub-tab each holder's title from it (their `title` attribute, else the group
+that grants them a sign permission, as the panel's signers).
+
+Signers read without the tab. Each `sign-<action>` role but a trustee's selects
+`signing_request` and `signing_approval` rows of its action in the user's Posts (by permission
+label): the event header's "Waiting for my signature" list queries once per such role it
+holds, as that role. Every `sign-<action>` role, a trustee's included, selects the user's own
+`staff_certificate` rows (`user_id = X-Hasura-User-Id`), without the PEM or key hashes.
+
+Held-report references include waiting, completed and executed requests the caller
+may open, within the event and their Post labels. `results_document_id` ties a
+Tally row to its exact result document. `transmission_package` is omitted unless
+the caller holds `miru-create` or `miru-send`; when present, it is limited to that
+request's Post and country in the original tally. An executed election-returns
+request uses this reference to open its package or signing request. Creating a
+missing package still requires `miru-create` and uses the existing task flow.
 
 ## Existing routes
 
@@ -157,7 +175,7 @@ Subjects per action:
 | Election returns, other reports | `{report_type, document_sha256, template_id}` |
 | Transmit results | `{tally_session_id, package_sha256, eml_sha256, destinations}` |
 | Approve a voter | `{application_id, applicant_registry_id, decision: "approve", submitted_at, reason, registry_record}` |
-| Approve a configuration version | `{ballot_publication_id, digest, signing_rules, scheduled_events, ballots_and_contests}` |
+| Approve a configuration version | `{ballot_publication_id, digest, signing_rules, scheduled_events, ballots_and_contests}`; each `signing_rules` entry is `ACTION=BEFORE>AFTER` (`off` or the signatures needed; `BEFORE` from the first rule change logged since the last publication), or `ACTION=AFTER` without a logged change. The request's `config_revision` is the version publishing makes: the next one for an event-level publication, the one in force for a Post's. |
 | Key ceremony / tally key share | `{keys_ceremony_id or tally_session_id, trustee_id, key_share_sha256, ceremony_name, trustee_name}` |
 
 Everything the dialog shows is in the subject, so what is shown is what is signed.

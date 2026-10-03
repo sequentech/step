@@ -23,7 +23,8 @@ use deadpool_postgres::Transaction;
 use lopdf::content::{Content, Operation};
 use lopdf::{dictionary, Document, Object, Stream};
 use sequent_core::signing::{
-    DocumentKind, DocumentRevisionState, RequesterSigning, SigningAction, SigningRequestStatus,
+    CancelReason, DocumentKind, DocumentRevisionState, RequesterSigning, SigningAction,
+    SigningRequestStatus,
 };
 use sequent_core::types::permissions::Permissions;
 use serde_json::{json, Value};
@@ -40,9 +41,9 @@ use windmill::postgres::signing_report_release::{
     ReleasedDocument, ReportEmail, ReportRelease,
 };
 use windmill::services::signing::actions::reports::{
-    hold_tally_report, mail_held_report, release_report, start_held_tally_reports,
-    start_report_signing, sweep_held_mails, tally_subject_key, HeldMail, ReportPublisher,
-    ReportRenderer, ReportToSign, TallyReport, TallyRequester,
+    held_report_requests, hold_tally_report, mail_held_report, release_report,
+    start_held_tally_reports, start_report_signing, sweep_held_mails, tally_subject_key, HeldMail,
+    ReportPublisher, ReportRenderer, ReportToSign, TallyReport, TallyRequester,
 };
 use windmill::services::signing::actions::transmission::sha256_hex;
 use windmill::services::signing::actions::{
@@ -692,6 +693,18 @@ async fn a_failed_mail_is_kept_and_not_tried_again() {
             .collect();
     assert_eq!(errors.len(), 1, "{errors:?}");
     assert!(errors[0].contains("could not mail"), "{errors:?}");
+    let logged_actor: Option<String> = client
+        .query_one(
+            "SELECT user_id FROM sequent_backend.signing_log_outbox
+             WHERE tenant_id = $1 AND election_event_id = $2
+                 AND statement_kind = 'SigningActionExecuted' AND entry = 0
+                 AND body->'details'->>'step' = 'mail'",
+            &[&s.w.tenant, &s.w.event],
+        )
+        .await
+        .unwrap()
+        .get(0);
+    assert_eq!(logged_actor, Some(format!("sbei-{}", preset.required - 1)));
     // Never tried again.
     assert_eq!(
         mail_held_report(
@@ -865,6 +878,55 @@ async fn the_tally_holds_the_election_returns_of_each_post_and_country() {
         let documents = Documents::default();
         let results_event_id = Uuid::new_v4();
         let pdf = report_pdf("Election returns");
+        // References link back to this exact tally and result document; a
+        // transmitter sees only its package, never another country's.
+        let tally_session_id = Uuid::new_v4();
+        let keys_id = Uuid::new_v4();
+        w.execute(
+            "INSERT INTO sequent_backend.keys_ceremony
+             (id, tenant_id, election_event_id, trustee_ids, threshold)
+             VALUES ($1, $2, $3, '{}', 1)",
+            &[&keys_id, &w.tenant, &w.event],
+        )
+        .await;
+        let package = json!({"election_id": w.post, "area_id": w.area,
+            "documents": [], "servers": [], "logs": [], "threshold": preset.required});
+        let annotations = json!({"miru:tally-session-data": serde_json::to_string(&json!([
+            {"election_id": w.post, "area_id": Uuid::new_v4(), "documents": ["other-country"]},
+            package.clone()
+        ])).unwrap()});
+        w.execute(
+            "INSERT INTO sequent_backend.tally_session
+             (id, tenant_id, election_event_id, keys_ceremony_id, threshold, election_ids, annotations)
+             VALUES ($1, $2, $3, $4, 1, $5, $6)",
+            &[&tally_session_id, &w.tenant, &w.event, &keys_id, &vec![w.post], &annotations],
+        ).await;
+        w.execute(
+            "INSERT INTO sequent_backend.results_event (id, tenant_id, election_event_id)
+             VALUES ($1, $2, $3)",
+            &[&results_event_id, &w.tenant, &w.event],
+        )
+        .await;
+        w.execute(
+            "INSERT INTO sequent_backend.tally_session_execution
+             (id, tenant_id, election_event_id, current_message_id, tally_session_id, results_event_id)
+             VALUES ($1, $2, $3, 0, $4, $5)",
+            &[&Uuid::new_v4(), &w.tenant, &w.event, &tally_session_id, &results_event_id],
+        ).await;
+        w.execute(
+            "INSERT INTO sequent_backend.results_election
+             (id, tenant_id, election_event_id, results_event_id, election_id, total_voters_percent, documents)
+             VALUES ($1, $2, $3, $4, $5, 0, $6)",
+            &[&Uuid::new_v4(), &w.tenant, &w.event, &results_event_id, &w.post,
+              &json!({"json": "post-results.json"})],
+        ).await;
+        w.execute(
+            "INSERT INTO sequent_backend.results_election_area
+             (id, tenant_id, election_event_id, results_event_id, election_id, area_id, name, documents)
+             VALUES ($1, $2, $3, $4, $5, $6, 'Country', $7)",
+            &[&Uuid::new_v4(), &w.tenant, &w.event, &results_event_id, &w.post, &w.area,
+              &json!({"json": "country-results.json"})],
+        ).await;
         // Who ran the tally; a configuration of their own per preset.
         let executer = TallyRequester {
             user_id: format!("{}-tally-executer", preset.label),
@@ -920,6 +982,80 @@ async fn the_tally_holds_the_election_returns_of_each_post_and_country() {
             preset.label
         );
         let started = holds(&w).await;
+        let mut read_client = w.pool.get().await.unwrap();
+        let read = read_client.transaction().await.unwrap();
+        let signer = w.signer("report-signer", ER);
+        let found = held_report_requests(&read, &signer, w.tenant, w.event)
+            .await
+            .unwrap();
+        assert_eq!(found.len(), 2);
+        for entry in &found {
+            assert!(started[..2]
+                .iter()
+                .any(|hold| hold.2 == Some(entry.request_id)));
+            assert_eq!(entry.report_type, "ELECTORAL_RESULTS");
+            assert_eq!(entry.results_event_id, Some(results_event_id));
+            assert_eq!(entry.tally_session_id, Some(tally_session_id));
+            assert_eq!(
+                entry.results_document_id.as_deref(),
+                Some(if entry.area_id.is_some() {
+                    "country-results.json"
+                } else {
+                    "post-results.json"
+                })
+            );
+            assert!(entry.transmission_package.is_none());
+            assert!(serde_json::to_value(entry)
+                .unwrap()
+                .get("transmission_package")
+                .is_none());
+        }
+        let transmitter = caller(
+            "report-signer",
+            &[
+                Permissions::SIGN_GENERATE_ELECTION_RETURNS,
+                Permissions::MIRU_SEND,
+            ],
+            &[preset.label],
+        );
+        let transmitted = held_report_requests(&read, &transmitter, w.tenant, w.event)
+            .await
+            .unwrap();
+        assert_eq!(transmitted.len(), 2);
+        for entry in transmitted {
+            assert_eq!(
+                entry.transmission_package,
+                entry.area_id.map(|_| package.clone())
+            );
+        }
+        let unlabelled = caller(
+            "unlabelled",
+            &[Permissions::SIGN_GENERATE_ELECTION_RETURNS],
+            &[],
+        );
+        assert!(held_report_requests(&read, &unlabelled, w.tenant, w.event)
+            .await
+            .unwrap()
+            .is_empty());
+        let other_action = w.signer("other-action", SigningAction::GenerateReports);
+        assert!(
+            held_report_requests(&read, &other_action, w.tenant, w.event)
+                .await
+                .unwrap()
+                .is_empty()
+        );
+        let stranger = caller("stranger", &[], &[]);
+        assert!(matches!(
+            held_report_requests(&read, &stranger, w.tenant, w.event).await,
+            Err(SigningError::Forbidden(_))
+        ));
+        assert!(
+            held_report_requests(&read, &signer, Uuid::new_v4(), w.event)
+                .await
+                .unwrap()
+                .is_empty()
+        );
+        read.rollback().await.unwrap();
         // A country that doesn't vote in the Post keeps the reason.
         assert!(started[2].2.is_none());
         assert!(
@@ -1003,8 +1139,35 @@ async fn the_tally_holds_the_election_returns_of_each_post_and_country() {
         );
         let recount = holds(&w).await.last().unwrap().2.unwrap();
         assert_ne!(recount, country_request);
+        let superseded = w.request(country_request).await;
+        assert_eq!(superseded.status, SigningRequestStatus::Cancelled);
+        assert_eq!(superseded.cancel_reason, Some(CancelReason::PayloadChanged));
+        // A recount of this country does not replace the Post-wide report.
         assert_eq!(
-            w.request(country_request).await.status,
+            w.request(started[0].2.unwrap()).await.status,
+            SigningRequestStatus::Waiting
+        );
+        assert_eq!(
+            w.request(recount).await.status,
+            SigningRequestStatus::Waiting
+        );
+
+        // An old hold retried after the recount cannot revive stale returns or
+        // cancel the newer request. This models a delayed worker retry.
+        w.execute(
+            "UPDATE sequent_backend.signing_tally_hold
+             SET request_id = NULL, error = NULL WHERE request_id = $1",
+            &[&country_request],
+        )
+        .await;
+        assert_eq!(
+            start_held_tally_reports(&mut client, w.tenant, w.event)
+                .await
+                .unwrap(),
+            0
+        );
+        assert_eq!(
+            w.request(recount).await.status,
             SigningRequestStatus::Waiting
         );
 

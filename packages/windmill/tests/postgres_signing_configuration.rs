@@ -10,6 +10,8 @@
 
 #[path = "support/schema.rs"]
 mod schema;
+#[path = "support/signing_pki.rs"]
+mod signing_pki;
 
 use deadpool_postgres::Transaction;
 use sequent_core::election_config::ImportElectionEventSchema;
@@ -25,7 +27,7 @@ use windmill::services::electoral_log::ElectoralLogAdminContext;
 use windmill::services::import::import_election_event::get_election_event_schema;
 use windmill::services::signing::configuration::{
     event_transmission_threshold, export_bundle_signing, export_signing_configuration,
-    import_bundle_signing, import_signing_configuration,
+    import_bundle_signing, import_bundle_staff_issuers, import_signing_configuration,
 };
 use windmill::services::signing::log::Actor;
 
@@ -698,5 +700,44 @@ async fn a_bundle_with_unsavable_rules_is_refused_before_any_write() {
             .await
             .unwrap_err();
         assert!(format!("{error:#}").contains(why), "{error:#}");
+    }
+}
+
+#[tokio::test]
+async fn a_bundle_staff_issuer_import_names_its_importer() {
+    let mut client = schema::pool().await.get().await.unwrap();
+    let tx = &client.transaction().await.unwrap();
+    for (seed, identity) in [
+        (0x5c13_0010, Some("importing-officer")),
+        (0x5c13_0011, None),
+    ] {
+        let s = scope(tx, seed).await;
+        let importer = identity.map(|name| ElectoralLogAdminContext {
+            user_id: name.to_owned(),
+            username: Some(format!("{name}-name")),
+            authorized_election_ids: None,
+            area_id: None,
+        });
+        let import = import_bundle_staff_issuers(
+            tx,
+            s.tenant,
+            s.event,
+            &[signing_pki::Pki::get().root.cert.clone()],
+            importer.as_ref(),
+            chrono::Utc::now(),
+        )
+        .await
+        .unwrap();
+        assert!(import.errors.is_empty(), "{:?}", import.errors);
+        assert_eq!(import.imported.len(), 1);
+        let entries = logged(tx, s, "SigningIssuerChanged").await;
+        assert_eq!(entries.len(), 2);
+        let expected = identity.unwrap_or("system");
+        assert_eq!(entries[0].1.as_deref(), Some(expected));
+        assert_eq!(entries[1].1, None);
+        assert_eq!(
+            entries[0].2["details"]["allowed_by"],
+            json!(["election-event-import"])
+        );
     }
 }

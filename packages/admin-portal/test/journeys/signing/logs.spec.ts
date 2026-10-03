@@ -52,7 +52,7 @@ const STEPS: IStep[] = [
     },
     {
         kind: "SigningActionExecuted",
-        person: null,
+        person: JOSE,
         logType: "INFO",
         description: `Ran Close voting for signing request ${CODE}`,
     },
@@ -61,7 +61,7 @@ const STEPS: IStep[] = [
 /** The board's entries as listElectoralLog answers them: newest first, two per step. */
 function entries() {
     const rows = STEPS.flatMap((step, index) =>
-        (step.person ? ["USER", "SYSTEM"] : ["SYSTEM"]).map((eventType) => ({
+        ["USER", "SYSTEM"].map((eventType) => ({
             step,
             index,
             eventType,

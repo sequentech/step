@@ -2221,6 +2221,9 @@ const frenchTranslation: TranslationType = {
                             confirm: "Envoyer le Paquet de Transmission",
                             cancel: "Fermer",
                         },
+
+                        disabled:
+                            "Les signatures requises manquent ou le paquet de transmission a déjà été envoyé à toutes les destinations.",
                     },
                     regenerate: {
                         title: "Régénérer",
@@ -2257,11 +2260,11 @@ const frenchTranslation: TranslationType = {
                     },
                 },
                 signatures: {
-                    title: "Signatures SBEI",
+                    title: "Signatures",
                     description:
-                        "Les SBEI peuvent signer le Paquet de Transmission. Le tableau ci-dessous montre l'état de signature de chacun des membres du SBEI.",
+                        "Les membres peuvent signer le paquet de transmission. Le tableau indique le statut de signature de chaque membre.",
                     table: {
-                        trusteeName: "Nom du Fiduciaire",
+                        trusteeName: "Membre",
                         signed: "A Signé",
                     },
                     status: "{{signed}} sur {{total}} Ont Signé",

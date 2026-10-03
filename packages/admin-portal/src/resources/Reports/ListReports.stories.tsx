@@ -64,6 +64,7 @@ interface Scenario {
      * generated report's request is in this state; none: no rule is readable.
      */
     signing?: SigningRequestStatus
+    heldRequest?: boolean
 }
 
 const ELECTION_RETURNS_ID = storyId(1, 10)
@@ -179,6 +180,7 @@ const meta = {
                     ? [...REPORTS, ...(args.signing ? [electionReturns] : [])]
                     : [],
                 sequent_backend_template: TEMPLATES,
+                sequent_backend_area: [],
                 sequent_backend_election: ELECTIONS,
             },
             {reads: {sequent_backend_election: args.electionReads}}
@@ -218,6 +220,27 @@ const meta = {
                           }
                         : {}
                 ),
+                GetHeldReportRequests: () => ({
+                    data: {
+                        signingHeldReportRequests: {
+                            requests: args.heldRequest
+                                ? [
+                                      {
+                                          request_id: REQUEST_ID,
+                                          code: CODE,
+                                          report_type: EReportType.PARTICIPATION_REPORT,
+                                          election_id: STORY_IDS.election,
+                                          area_id: null,
+                                          report_id: REPORT_IDS.participation,
+                                          results_event_id: null,
+                                          tally_session_id: null,
+                                          status: SigningRequestStatus.Waiting,
+                                      },
+                                  ]
+                                : [],
+                        },
+                    },
+                }),
                 GetSigningRules: () => ({
                     data: {
                         sequent_backend_signing_rule: [
@@ -314,7 +337,7 @@ export const Populated: Story = {
         expect(cells(activity).slice(0, 3)).toEqual(["Activity Logs", "-", "-"])
         expect(canvas.getAllByRole("row")).toHaveLength(4)
         expect(data.writes).toEqual([])
-        expect(graphql.calls).toEqual([])
+        expect(graphql.calls.filter(({name}) => name !== "GetHeldReportRequests")).toEqual([])
     },
 }
 
@@ -399,7 +422,7 @@ export const GenerateAReport: Story = {
                 {name: "activity-logs.pdf", href: documentUrl(DOCUMENT_IDS.plain)},
             ])
         )
-        expect(graphql.calls[0]).toEqual({
+        expect(graphql.calls.find(({name}) => name === "GenerateReport")).toEqual({
             name: "GenerateReport",
             variables: {
                 reportId: REPORT_IDS.activityLogs,
@@ -432,7 +455,7 @@ export const PreviewAnEncryptedReport: Story = {
         expect(downloads).toEqual([
             {name: "participation.epdf", href: documentUrl(DOCUMENT_IDS.encrypted)},
         ])
-        expect(graphql.calls[0].variables).toMatchObject({
+        expect(graphql.calls.find(({name}) => name === "GenerateReport")?.variables).toMatchObject({
             reportId: REPORT_IDS.participation,
             reportMode: EGenerateReportMode.PREVIEW,
         })
@@ -446,7 +469,9 @@ export const GenerationFailure: Story = {
     play: async ({canvasElement}) => {
         await chooseAction(canvasElement, "Activity Logs", "Generate")
         await expect(await within(document.body).findByText("FAILED")).toBeVisible()
-        expect(graphql.calls.map(({name}) => name)).toEqual(["GenerateReport"])
+        expect(
+            graphql.calls.map(({name}) => name).filter((name) => name !== "GetHeldReportRequests")
+        ).toEqual(["GenerateReport"])
         expect(downloads).toEqual([])
     },
 }
@@ -604,7 +629,25 @@ export const WithoutReadableRulesReportsGenerateAsBefore: Story = {
             within(canvasElement).queryByRole("columnheader", {
                 name: i18n.t("signing.results.signatures"),
             })
-        ).toBeNull()
+        ).toBeVisible()
+        // References remain discoverable; an unreadable rule is shown as a dash.
         expect(graphql.calls.map(({name}) => name)).not.toContain("GetSigningRules")
+    },
+}
+
+export const AHeldReportOpensItsWaitingRequest: Story = {
+    // The accessible signing drawer hides the list's existing checkbox defects.
+    parameters: {expectedFailure: null},
+    args: {roles: SIGNING_ROLES, signing: SigningRequestStatus.Waiting, heldRequest: true},
+    play: async ({canvasElement}) => {
+        const row = await reportRow(canvasElement, "Participation Report")
+        await userEvent.click(
+            await within(row).findByRole("button", {name: i18n.t("signing.results.openRequest")})
+        )
+        await waitFor(() => expect(signingApi.getRequest).toHaveBeenCalledWith(REQUEST_ID))
+        await expect(await within(document.body).findByTestId("signing-code")).toHaveTextContent(
+            CODE
+        )
+        expect(graphql.calls.map(({name}) => name)).not.toContain("GenerateReport")
     },
 }

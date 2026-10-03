@@ -75,6 +75,7 @@ import {useSignedAction} from "@/hooks/useSignedAction"
 import {
     GenerateSignedReportDialog,
     ReportSignaturesCell,
+    ReportRequestLinks,
     heldByReports,
     useReportSignatures,
     useReportTaskSigningRequest,
@@ -551,16 +552,22 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
                         render={getElectionName}
                     />
 
-                    {signatures.known ? (
-                        <FunctionField
-                            label={String(t("signing.results.signatures"))}
-                            render={(record: Sequent_Backend_Report) => (
+                    <FunctionField
+                        label={String(t("signing.results.signatures"))}
+                        render={(record: Sequent_Backend_Report) => (
+                            <>
                                 <ReportSignaturesCell
                                     needs={signatures.needs(record.report_type)}
                                 />
-                            )}
-                        />
-                    ) : null}
+                                <ReportRequestLinks
+                                    electionEventId={electionEventId}
+                                    reportType={record.report_type}
+                                    electionId={record.election_id}
+                                    reportId={record.id}
+                                />
+                            </>
+                        )}
+                    />
                     <FunctionField
                         label={"encryption"}
                         source="encryption_policy"

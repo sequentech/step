@@ -57,8 +57,12 @@ The panel opens on the right. It shows:
 Its buttons are **Sign**, **Next member signs in** and, for the person who started it or
 an operator, **Cancel request**.
 
-To find a request later, open the place where the action is started again, or (with the
-permission) **Signatures** > **Requests**.
+To find a request later, use **Waiting for my signature** at the top of the election
+event: anyone who can sign an action sees it, with the number of requests left to sign.
+It lists the event's requests waiting for the actions you can sign, in your Posts, with
+their code, how many have signed, when they expire and whether you already signed. Choose
+one to open its panel. A trustee finds their key share in the ceremony instead. With the
+permission, **Signatures** > **Requests** lists every request.
 
 ## The signing dialog
 

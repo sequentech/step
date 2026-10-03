@@ -2168,6 +2168,9 @@ const englishTranslation = {
                             confirm: "Send Transmission Package",
                             cancel: "Close",
                         },
+
+                        disabled:
+                            "The required signatures are missing, or the transmission package has already been sent to every destination.",
                     },
                     regenerate: {
                         title: "Regenerate",
@@ -2217,12 +2220,12 @@ const englishTranslation = {
                     },
                 },
                 signatures: {
-                    title: "SBEI Signatures",
+                    title: "Signatures",
                     description:
-                        "SBEIs can sign the Transmission Package. The table below shows the signing status of each of the SBEI members.",
+                        "Members can sign the transmission package. The table shows each member’s signing status.",
                     status: "{{signed}} out of {{total}} Signed, {{minimum}} minimum",
                     table: {
-                        trusteeName: "SBEI id",
+                        trusteeName: "Member",
                         signed: "Has Signed",
                     },
                 },

@@ -23,6 +23,7 @@ import {GenerateReport} from "./GenerateReport"
 import {GeneratePDF} from "./GeneratePdf"
 import {GenerateResultsXlsx} from "./GenerateResultsXlsx"
 import {ExportMenuItem} from "./ExportMenuItem"
+import {ReportRequestLinks} from "@/resources/Reports/ReportSigning"
 import {getExportDocumentId} from "./exportDocuments"
 
 interface PerformDownloadProps {
@@ -231,9 +232,20 @@ export const ExportElectionMenu: React.FC<ExportElectionMenuProps> = (props) => 
                     {documentsList?.map((documents) => (
                         <React.Fragment key={documents.class_type + documents.name}>
                             {awaitingSignatures(documents.documents) ? (
-                                <MenuItem disabled className="tally-document-item awaiting">
-                                    {t("signing.results.awaiting", {item: documents.name})}
-                                </MenuItem>
+                                <>
+                                    <MenuItem disabled className="tally-document-item awaiting">
+                                        {t("signing.results.awaiting", {item: documents.name})}
+                                    </MenuItem>
+                                    <ReportRequestLinks
+                                        electionEventId={electionEventId}
+                                        reportType={tallyType ?? ""}
+                                        electionId={electionId}
+                                        resultsEventId={resultsEventId}
+                                        resultsDocumentId={documents.documents.json}
+                                        variant="menu"
+                                        onOpen={handleClose}
+                                    />
+                                </>
                             ) : null}
                             {EXPORT_FORMATS.map((format) =>
                                 isExportFormatDisabled(documents.documents, format.value) ? null : (

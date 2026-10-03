@@ -4,6 +4,11 @@ import type {Page} from "@playwright/test"
 import {test, expect} from "../fixtures"
 import {
     ANA,
+    MARIA,
+    JOSE,
+    ELECTION_ID,
+    SPAIN_ID,
+    mockSignaturesTab,
     ER_BASE,
     ER_REQUEST_ID,
     ER_ROLES,
@@ -124,4 +129,72 @@ test("the third SBEI checks the returns' hash and completes them with a PAdES re
     ])
     for (const operation of ["SigningCheckCertificate", "SigningPdfPrepare", "SigningApprove"])
         expectRole(portal, operation, "sign-generate-election-returns")
+})
+
+test("a reopened transmission request sends only its signed Post and country", async ({
+    page,
+    portal,
+}) => {
+    signInAs(portal, ANA)
+    const {server} = electionReturns(portal)
+    const tallyId = "77777777-7777-4777-8777-777777777777"
+    const requestId = "f3000000-0000-4000-8000-000000000002"
+    const eml = new TextEncoder().encode("<EML>signed transmission</EML>")
+    const state = server.add({
+        id: requestId,
+        action: "transmit-results",
+        code: "SEND-0002",
+        required: 2,
+        requestedBy: MARIA,
+        signers: [MARIA, JOSE],
+        signed: [MARIA, JOSE],
+        areaId: SPAIN_ID,
+        areaName: SPAIN,
+        document: {name: "results.xml", bytes: eml},
+        subject: {
+            tally_session_id: tallyId,
+            package_sha256: "00".repeat(32),
+            eml_sha256: sha256(eml),
+            destinations: ["east", "west"],
+        },
+    })
+    state.status = "executed"
+    state.completedAt = new Date(portal.now).toISOString()
+    state.executionResult = {tally_session_id: tallyId}
+    mockSignaturesTab(portal, {
+        rules: [],
+        capacities: {},
+        checks: [],
+        issuers: [],
+        certificates: [],
+        crls: [],
+        requests: () => [state.row],
+    })
+    portal.graphql.on("SendTransmissionPackage", ({variables}) => {
+        expect(variables).toEqual({
+            electionId: ELECTION_ID,
+            areaId: SPAIN_ID,
+            tallySessionId: tallyId,
+        })
+        return {data: {send_transmission_package: {id: tallyId}}}
+    })
+    const panel = await openRequest(page, portal, `Transmission · ${POST} · ${SPAIN}`)
+    await panel.getByRole("button", {name: "Send to 2 destinations"}).click()
+    expect(
+        portal.graphql.calls.filter(
+            ({operationName}) => operationName === "SendTransmissionPackage"
+        )
+    ).toHaveLength(0)
+    const confirm = page.getByRole("dialog")
+    await confirm.getByRole("button", {name: "Send Transmission Package", exact: true}).click()
+    await expect
+        .poll(
+            () =>
+                portal.graphql.calls.filter(
+                    ({operationName}) => operationName === "SendTransmissionPackage"
+                ).length
+        )
+        .toBe(1)
+    expectRole(portal, "SendTransmissionPackage", "miru-send")
+    await expect(panel.getByRole("button", {name: "Send to 2 destinations"})).toBeDisabled()
 })

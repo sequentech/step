@@ -61,6 +61,28 @@ pub fn importer_actor(importer: Option<&ElectoralLogAdminContext>) -> Actor {
     }
 }
 
+/// Imports the staff issuers carried by an election-event bundle, with
+/// the same checks and electoral log entries as the Certificates settings.
+pub async fn import_bundle_staff_issuers(
+    transaction: &Transaction<'_>,
+    tenant_id: Uuid,
+    election_event_id: Uuid,
+    certificates: &[openssl::x509::X509],
+    importer: Option<&ElectoralLogAdminContext>,
+    now: chrono::DateTime<chrono::Utc>,
+) -> Result<crate::services::signing::issuers::IssuerImport> {
+    crate::services::signing::issuers::import_staff_issuers(
+        transaction,
+        tenant_id,
+        election_event_id,
+        certificates,
+        &importer_actor(importer),
+        super::Allowance::ElectionEventImport,
+        now,
+    )
+    .await
+}
+
 /// A Post's `miru:area-threshold` annotation as written.
 fn threshold_annotation(area: &Area) -> Option<&Value> {
     area.annotations

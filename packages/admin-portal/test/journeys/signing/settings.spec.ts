@@ -351,7 +351,7 @@ test.describe("a security officer", () => {
             reason: "Token lost",
         })
         const mariaRow = registered.getByRole("row").filter({hasText: MARIA.username})
-        await expect(mariaRow).toContainText("Revoked 1/15/2026")
+        await expect(mariaRow).toContainText("Revoked Jan 15, 2026")
         await expect(
             mariaRow.getByRole("button", {name: `Revoke the certificate of ${displayName(MARIA)}`})
         ).toHaveCount(0)

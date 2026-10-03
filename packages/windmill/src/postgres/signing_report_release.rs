@@ -521,6 +521,34 @@ pub async fn lock_pending_tally_holds(
         .collect()
 }
 
+/// Whether a newer tally already held a report of this Post, country and
+/// type. A delayed retry must not revive the earlier tally's report.
+#[instrument(skip(hasura_transaction, hold), err)]
+pub async fn tally_hold_was_superseded(
+    hasura_transaction: &Transaction<'_>,
+    hold: &TallyHoldRow,
+) -> Result<bool> {
+    Ok(hasura_transaction
+        .query_one(
+            "SELECT EXISTS (
+                 SELECT 1 FROM sequent_backend.signing_tally_hold newer
+                 JOIN sequent_backend.signing_tally_hold current ON current.id = $1
+                 WHERE newer.tenant_id = current.tenant_id
+                     AND newer.election_event_id = current.election_event_id
+                     AND newer.action = current.action
+                     AND newer.report_type = current.report_type
+                     AND newer.election_id = current.election_id
+                     AND newer.area_id IS NOT DISTINCT FROM current.area_id
+                     AND newer.results_event_id <> current.results_event_id
+                     AND (newer.created_at, newer.id) > (current.created_at, current.id)
+             )",
+            &[&hold.id],
+        )
+        .await
+        .context("Error checking whether a held tally report was superseded")?
+        .try_get(0)?)
+}
+
 /// The events with held tally reports whose request hasn't started.
 #[instrument(skip(hasura_transaction), err)]
 pub async fn list_events_with_pending_tally_holds(

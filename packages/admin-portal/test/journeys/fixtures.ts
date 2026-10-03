@@ -98,6 +98,16 @@ export const test = base.extend<
             },
         }
         graphql.on("IntrospectionQuery", () => ({data: {}}))
+        // Default empty signing reads; signing journeys replace these with their own state.
+        graphql.on("GetWaitingSigningRequests", () => ({
+            data: {sequent_backend_signing_request: []},
+        }))
+        graphql.on("SigningEventInfo", () => ({
+            data: {signingEventInfo: {time_zone: null, titles: {}}},
+        }))
+        graphql.on("GetHeldReportRequests", () => ({
+            data: {signingHeldReportRequests: {requests: []}},
+        }))
         const tenant = {
             id: TENANT_ID,
             slug: "synthetic",

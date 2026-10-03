@@ -2191,6 +2191,9 @@ const dutchTranslation: TranslationType = {
                             confirm: "Transmissiepakket Verzenden",
                             cancel: "Sluiten",
                         },
+
+                        disabled:
+                            "De vereiste handtekeningen ontbreken, of het transmissiepakket is al naar alle bestemmingen verzonden.",
                     },
                     regenerate: {
                         title: "Regenereren",
@@ -2240,12 +2243,12 @@ const dutchTranslation: TranslationType = {
                     },
                 },
                 signatures: {
-                    title: "SBEI Handtekeningen",
+                    title: "Handtekeningen",
                     description:
-                        "SBEI's kunnen het Transmissiepakket ondertekenen. De onderstaande tabel toont de ondertekeningsstatus van elk van de SBEI-leden.",
+                        "Leden kunnen het transmissiepakket ondertekenen. De tabel toont de ondertekeningsstatus van elk lid.",
                     status: "{{signed}} van {{total}} Ondertekend, {{minimum}} minimum",
                     table: {
-                        trusteeName: "SBEI id",
+                        trusteeName: "Lid",
                         signed: "Heeft Ondertekend",
                     },
                 },

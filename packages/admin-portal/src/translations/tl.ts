@@ -2211,6 +2211,9 @@ const tagalogTranslation: TranslationType = {
                             confirm: "Ipadala ang Pakete ng Transmisyon",
                             cancel: "Isara",
                         },
+
+                        disabled:
+                            "Kulang ang mga kinakailangang lagda o naipadala na ang transmission package sa lahat ng destinasyon.",
                     },
                     regenerate: {
                         title: "I-regenerate",
@@ -2247,11 +2250,11 @@ const tagalogTranslation: TranslationType = {
                     },
                 },
                 signatures: {
-                    title: "SBEI Signatures",
+                    title: "Mga lagda",
                     description:
-                        "Maaaring pirmahan ng mga SBEI ang Pakete ng Transmisyon. Ipinapakita ng talahanayan sa ibaba ang katayuan ng pirma ng bawat isa sa mga miyembro ng SBEI.",
+                        "Maaaring lagdaan ng mga miyembro ang transmission package. Ipinapakita ng talahanayan ang katayuan ng paglagda ng bawat miyembro.",
                     table: {
-                        trusteeName: "ID ng SBEI",
+                        trusteeName: "Miyembro",
                         signed: "Napirmahan",
                     },
                     status: "{{signed}} sa {{total}} Napirmahan",

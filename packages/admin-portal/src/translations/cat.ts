@@ -2216,6 +2216,9 @@ const catalanTranslation: TranslationType = {
                             confirm: "Enviar Paquet de Transmissió",
                             cancel: "Tancar",
                         },
+
+                        disabled:
+                            "Falten les signatures necessàries o el paquet de transmissió ja s’ha enviat a totes les destinacions.",
                     },
                     regenerate: {
                         title: "Regenerar",
@@ -2252,11 +2255,11 @@ const catalanTranslation: TranslationType = {
                     },
                 },
                 signatures: {
-                    title: "Signatures SBEI",
+                    title: "Signatures",
                     description:
-                        "Els SBEIs poden signar el Paquet de Transmissió. La taula a continuació mostra l'estat de signatura de cada un dels membres del SBEI.",
+                        "Els membres poden signar el paquet de transmissió. La taula mostra l’estat de signatura de cada membre.",
                     table: {
-                        trusteeName: "Nom del Fiduciari",
+                        trusteeName: "Membre",
                         signed: "Ha Signat",
                     },
                     status: "{{signed}} de {{total}} Han Signat",

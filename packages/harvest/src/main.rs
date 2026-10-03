@@ -239,6 +239,7 @@ fn build_application_with(
                 routes::signing::save_signing_rule,
                 routes::signing::signing_rule_capacity,
                 routes::signing::signing_event_info,
+                routes::reports::signing_held_report_requests,
                 routes::signing_certificates::import_signing_issuers,
                 routes::signing_certificates::remove_signing_issuer,
                 routes::signing_certificates::put_signing_checks,

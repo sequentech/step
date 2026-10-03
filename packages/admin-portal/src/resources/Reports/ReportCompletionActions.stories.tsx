@@ -12,8 +12,10 @@ import type {WidgetMeta} from "@/__stories__/widgetStory"
 import {makePanel} from "@/components/signing/__stories__/fixtures"
 import type {ISigningPanelData} from "@/lib/signing/api"
 import {SigningAction, SigningRequestStatus} from "@/lib/signing/types"
+import {IPermissions} from "@/types/keycloak"
 import {ReportCompletionActions} from "./ReportSigning"
 
+const TALLY_ID = "77777777-7777-4777-8777-777777777770"
 const RELEASED_ID = "66666666-6666-4666-8666-666666666666"
 
 interface Scenario {
@@ -32,13 +34,53 @@ const meta = {
     component: ReportCompletionActions,
     args: {status: SigningRequestStatus.Executed, action: SigningAction.GenerateElectionReturns},
     beforeEach: async ({args}) => {
-        boundary = graphqlBoundary(documentHandlers({[RELEASED_ID]: {name: "report.pdf"}}))
+        boundary = graphqlBoundary({
+            ...documentHandlers({[RELEASED_ID]: {name: "report.pdf"}}),
+            GetHeldReportRequests: () => ({
+                data: {
+                    signingHeldReportRequests: {
+                        requests: [
+                            {
+                                request_id: panel.request.id,
+                                code: panel.request.code,
+                                report_type: "ELECTORAL_RESULTS",
+                                election_id: panel.request.election_id,
+                                area_id: panel.request.area_id,
+                                report_id: null,
+                                results_event_id: null,
+                                tally_session_id: TALLY_ID,
+                                status: panel.request.status,
+                            },
+                        ],
+                    },
+                },
+            }),
+            SendTransmissionPackage: () => ({data: {send_transmission_package: {id: TALLY_ID}}}),
+        })
         await boundary.ready
-        const made = await makePanel({action: args.action, status: args.status, required: 3})
+        const made = await makePanel({
+            action: args.action,
+            status: args.status,
+            required: 3,
+            ...(args.action === SigningAction.TransmitResults
+                ? {
+                      subject: {
+                          tally_session_id: TALLY_ID,
+                          package_sha256: "00".repeat(32),
+                          eml_sha256: "11".repeat(32),
+                          destinations: ["east", "west"],
+                      },
+                  }
+                : {}),
+        })
         panel = {
             ...made,
             request: {
                 ...made.request,
+                document_sha256:
+                    args.action === SigningAction.TransmitResults
+                        ? "11".repeat(32)
+                        : made.request.document_sha256,
                 execution_result:
                     args.status === SigningRequestStatus.Executed
                         ? {document_id: RELEASED_ID, protected: !!args.protected}
@@ -50,7 +92,14 @@ const meta = {
         return recorder.restore
     },
     render: () => (
-        <AdminStoryProvider boundary={boundary}>
+        <AdminStoryProvider
+            boundary={boundary}
+            roles={[
+                IPermissions.MIRU_CREATE,
+                IPermissions.MIRU_SEND,
+                IPermissions.SIGN_GENERATE_ELECTION_RETURNS,
+            ]}
+        >
             <ReportCompletionActions data={panel} />
         </AdminStoryProvider>
     ),

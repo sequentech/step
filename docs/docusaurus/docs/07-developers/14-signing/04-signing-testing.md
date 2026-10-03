@@ -76,27 +76,47 @@ Use a port of your own when several checkouts run tests at once.
 4. Check the request in **Signatures** > **Requests** and the USER and SYSTEM entries in
    **Logs**.
 
+## Repeated log entries
+
+A person's repeated step of the same statement kind on the same request within
+`LOG_THROTTLE_SECONDS` (10 seconds) is answered but is not logged again. This applies
+to refused steps (`SigningSignatureRefused`, one kind across refused sign, cancel,
+handover and open-failure steps), handovers and certificate files that did not open.
+The request's open-failure count still records every file-opening failure. No counter
+records how many log entries were suppressed. Signatures, completion and execution
+remain recorded with their USER and SYSTEM entries.
+
 ## Known gaps
 
-- **Activity logs** are generated as a zip of PDFs, which isn't signed with PAdES, so
-  Generate other election reports doesn't cover them.
-- **Election returns from the tally pipeline** (Velvet's report generation after a tally)
-  don't pass through the report hook, so they aren't held for signatures; only those
-  generated from Reports are.
-- **Event-level start and stop, and scheduled events,** open and close voting without the
-  Post rule. Whether a Post's signed close and the common close interact is an open
-  decision with the organization; until it is taken they aren't gated.
+- **Unsupported report formats and scopes.** Activity logs are a zip, per-voter manual
+  verification reports have no signing integration, and event/contest-level election
+  returns PDFs have no Post signing scope. When their report rule requires signatures,
+  these outputs are withheld; they are never released unsigned. The tally holds the
+  supported election returns per Post and country and Initialization Reports per Post.
 - **Group membership changes** (adding a user to a group that holds a `sign-<action>`
-  permission, or removing them) are not written to the election event's log; changes of a
-  role's permissions are.
+  permission, or removing them) are not written to the election event's log; changes of
+  a role's permissions are.
+- **Requester-only access.** An account holding only an action's start permission can
+  cancel its own request but has no general Hasura request list or handover role. Report
+  request references also permit a report reader to discover their own report requests.
+- **Trustees.** Their ceremony provides their request; the event-wide signer list omits
+  trustee actions because Hasura's session does not carry the trustee identity.
 - **The admin's public key** reaches the electoral log only through the first event board
   where `ElectoralLog::for_admin_user` creates the key; USER entries in other events are
-  signed with it but don't publish it again.
-- **Browsers and real files.** Opening certificate files is tested in Chromium. Safari,
-  and real files from national or commercial PKIs (their algorithms, key sizes, key usage
-  and policies), are untested. A smart-card token would need a local signing program.
+  signed with it but do not publish it again.
+- **Browsers, certificates and external validation.** Chromium tests use synthetic
+  certificates. Safari, real national or commercial PKI files, external CCS acceptance,
+  Adobe Reader validation and the offline demonstration profile still require validation.
+  A smart-card token would need a local signing program. Browser tests of the legacy RC2
+  and 3DES files and a standard PDF validator against product PDFs remain outstanding.
 - **Open-failure reasons** are `wrong-password`, `unreadable` and `no-key`; other file
   errors (unsupported encryption or key) are logged as `unreadable`.
-- **The configuration package's signature** by the organization's HSM or KMS key after a
-  configuration version is approved is a hook for its owner; signing approves and
-  publishes the version.
+- **Owned integrations and policy decisions.** The configuration package's HSM/KMS
+  signature is a hook for its owner. Close voting feeds closing signatures to the
+  `SealRecordSink`; `NoSeal` produces no seal. The relation between a Post close, common
+  close, Pause and direct Hasura changes remains an owning-feature policy decision.
+- **Role composition in presets.** A rule requiring two configuration approvals counts
+  two distinct people holding the permission; it does not enforce one person from each
+  of two named groups. Preset group assignments and certificate/title mappings need
+  confirmation with each organization. Permission changes taking effect at the next
+  sign-in are checked manually.

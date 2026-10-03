@@ -5938,6 +5938,7 @@
         "kind": "INPUT_OBJECT",
         "name": "KeyShareSignatureStatusInput",
         "description": null,
+        "specifiedByURL": null,
         "isOneOf": false,
         "fields": null,
         "inputFields": [
@@ -5990,6 +5991,7 @@
         "kind": "OBJECT",
         "name": "KeyShareSignatureStatusOutput",
         "description": null,
+        "specifiedByURL": null,
         "isOneOf": null,
         "fields": [
           {
@@ -8800,6 +8802,7 @@
         "kind": "OBJECT",
         "name": "SigningApproveOutput",
         "description": null,
+        "specifiedByURL": null,
         "isOneOf": null,
         "fields": [
           {
@@ -8860,6 +8863,7 @@
         "kind": "OBJECT",
         "name": "SigningCertificateIdOutput",
         "description": null,
+        "specifiedByURL": null,
         "isOneOf": null,
         "fields": [
           {
@@ -8888,6 +8892,7 @@
         "kind": "OBJECT",
         "name": "SigningCheckCertificateOutput",
         "description": null,
+        "specifiedByURL": null,
         "isOneOf": null,
         "fields": [
           {
@@ -8958,8 +8963,50 @@
       },
       {
         "kind": "OBJECT",
+        "name": "SigningEventInfoOutput",
+        "description": null,
+        "specifiedByURL": null,
+        "isOneOf": null,
+        "fields": [
+          {
+            "name": "time_zone",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "titles",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "jsonb",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "inputFields": null,
+        "interfaces": [],
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "OBJECT",
         "name": "SigningExportOutput",
         "description": null,
+        "specifiedByURL": null,
         "isOneOf": null,
         "fields": [
           {
@@ -9032,6 +9079,7 @@
         "kind": "OBJECT",
         "name": "SigningGetRequestOutput",
         "description": null,
+        "specifiedByURL": null,
         "isOneOf": null,
         "fields": [
           {
@@ -9058,8 +9106,38 @@
       },
       {
         "kind": "OBJECT",
+        "name": "SigningHeldReportRequestsOutput",
+        "description": null,
+        "specifiedByURL": null,
+        "isOneOf": null,
+        "fields": [
+          {
+            "name": "requests",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "jsonb",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "inputFields": null,
+        "interfaces": [],
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "OBJECT",
         "name": "SigningImportIssuersOutput",
         "description": null,
+        "specifiedByURL": null,
         "isOneOf": null,
         "fields": [
           {
@@ -9128,6 +9206,7 @@
         "kind": "OBJECT",
         "name": "SigningIssuerIdOutput",
         "description": null,
+        "specifiedByURL": null,
         "isOneOf": null,
         "fields": [
           {
@@ -9156,6 +9235,7 @@
         "kind": "OBJECT",
         "name": "SigningPdfPrepareOutput",
         "description": null,
+        "specifiedByURL": null,
         "isOneOf": null,
         "fields": [
           {
@@ -9216,6 +9296,7 @@
         "kind": "OBJECT",
         "name": "SigningPutChecksOutput",
         "description": null,
+        "specifiedByURL": null,
         "isOneOf": null,
         "fields": [
           {
@@ -9244,6 +9325,7 @@
         "kind": "OBJECT",
         "name": "SigningPutRuleOutput",
         "description": null,
+        "specifiedByURL": null,
         "isOneOf": null,
         "fields": [
           {
@@ -9352,6 +9434,7 @@
         "kind": "OBJECT",
         "name": "SigningRequestIdOutput",
         "description": null,
+        "specifiedByURL": null,
         "isOneOf": null,
         "fields": [
           {
@@ -9380,6 +9463,7 @@
         "kind": "OBJECT",
         "name": "SigningRequestSummary",
         "description": null,
+        "specifiedByURL": null,
         "isOneOf": null,
         "fields": [
           {
@@ -9452,6 +9536,7 @@
         "kind": "INPUT_OBJECT",
         "name": "SigningRoleChangesInput",
         "description": null,
+        "specifiedByURL": null,
         "isOneOf": false,
         "fields": null,
         "inputFields": [
@@ -9504,6 +9589,7 @@
         "kind": "OBJECT",
         "name": "SigningRuleCapacityOutput",
         "description": null,
+        "specifiedByURL": null,
         "isOneOf": null,
         "fields": [
           {
@@ -53563,6 +53649,39 @@
             "deprecationReason": null
           },
           {
+            "name": "signingEventInfo",
+            "description": "The election event's time zone and, for a reader of the certificates, the signers' titles",
+            "args": [
+              {
+                "name": "election_event_id",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "uuid",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              }
+            ],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "OBJECT",
+                "name": "SigningEventInfoOutput",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "signingGetRequest",
             "description": "A signing request's panel: the request, its rule, who signed and who can sign",
             "args": [
@@ -53589,6 +53708,39 @@
               "ofType": {
                 "kind": "OBJECT",
                 "name": "SigningGetRequestOutput",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "signingHeldReportRequests",
+            "description": "Safe held-report request references, filtered by action permissions and Post labels",
+            "args": [
+              {
+                "name": "election_event_id",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "uuid",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              }
+            ],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "OBJECT",
+                "name": "SigningHeldReportRequestsOutput",
                 "ofType": null
               }
             },
@@ -86149,6 +86301,47 @@
         ],
         "inputFields": null,
         "interfaces": [],
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "INPUT_OBJECT",
+        "name": "sequent_backend_election_obj_rel_insert_input",
+        "description": "input type for inserting object relation for remote table \"sequent_backend.election\"",
+        "specifiedByURL": null,
+        "isOneOf": false,
+        "fields": null,
+        "inputFields": [
+          {
+            "name": "data",
+            "description": null,
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "INPUT_OBJECT",
+                "name": "sequent_backend_election_insert_input",
+                "ofType": null
+              }
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "on_conflict",
+            "description": "upsert condition",
+            "type": {
+              "kind": "INPUT_OBJECT",
+              "name": "sequent_backend_election_on_conflict",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "interfaces": null,
         "enumValues": null,
         "possibleTypes": null
       },
@@ -136956,6 +137149,7 @@
         "kind": "OBJECT",
         "name": "sequent_backend_signing_approval",
         "description": "columns and relationships of \"sequent_backend.signing_approval\"",
+        "specifiedByURL": null,
         "isOneOf": null,
         "fields": [
           {
@@ -137300,6 +137494,7 @@
         "kind": "OBJECT",
         "name": "sequent_backend_signing_approval_aggregate",
         "description": "aggregated selection of \"sequent_backend.signing_approval\"",
+        "specifiedByURL": null,
         "isOneOf": null,
         "fields": [
           {
@@ -137348,6 +137543,7 @@
         "kind": "INPUT_OBJECT",
         "name": "sequent_backend_signing_approval_aggregate_bool_exp",
         "description": null,
+        "specifiedByURL": null,
         "isOneOf": false,
         "fields": null,
         "inputFields": [
@@ -137372,6 +137568,7 @@
         "kind": "INPUT_OBJECT",
         "name": "sequent_backend_signing_approval_aggregate_bool_exp_count",
         "description": null,
+        "specifiedByURL": null,
         "isOneOf": false,
         "fields": null,
         "inputFields": [
@@ -137444,6 +137641,7 @@
         "kind": "OBJECT",
         "name": "sequent_backend_signing_approval_aggregate_fields",
         "description": "aggregate fields of \"sequent_backend.signing_approval\"",
+        "specifiedByURL": null,
         "isOneOf": null,
         "fields": [
           {
@@ -137529,6 +137727,7 @@
         "kind": "INPUT_OBJECT",
         "name": "sequent_backend_signing_approval_aggregate_order_by",
         "description": "order by aggregate values of table \"sequent_backend.signing_approval\"",
+        "specifiedByURL": null,
         "isOneOf": false,
         "fields": null,
         "inputFields": [
@@ -137577,6 +137776,7 @@
         "kind": "INPUT_OBJECT",
         "name": "sequent_backend_signing_approval_arr_rel_insert_input",
         "description": "input type for inserting array relation for remote table \"sequent_backend.signing_approval\"",
+        "specifiedByURL": null,
         "isOneOf": false,
         "fields": null,
         "inputFields": [
@@ -137625,6 +137825,7 @@
         "kind": "INPUT_OBJECT",
         "name": "sequent_backend_signing_approval_bool_exp",
         "description": "Boolean expression to filter rows from the table \"sequent_backend.signing_approval\". All fields are combined with a logical 'AND'.",
+        "specifiedByURL": null,
         "isOneOf": false,
         "fields": null,
         "inputFields": [
@@ -137953,6 +138154,7 @@
         "kind": "ENUM",
         "name": "sequent_backend_signing_approval_constraint",
         "description": "unique or primary key constraints on table \"sequent_backend.signing_approval\"",
+        "specifiedByURL": null,
         "isOneOf": null,
         "fields": null,
         "inputFields": null,
@@ -137995,6 +138197,7 @@
         "kind": "INPUT_OBJECT",
         "name": "sequent_backend_signing_approval_insert_input",
         "description": "input type for inserting data into table \"sequent_backend.signing_approval\"",
+        "specifiedByURL": null,
         "isOneOf": false,
         "fields": null,
         "inputFields": [
@@ -138271,6 +138474,7 @@
         "kind": "OBJECT",
         "name": "sequent_backend_signing_approval_max_fields",
         "description": "aggregate max on columns",
+        "specifiedByURL": null,
         "isOneOf": null,
         "fields": [
           {
@@ -138499,6 +138703,7 @@
         "kind": "INPUT_OBJECT",
         "name": "sequent_backend_signing_approval_max_order_by",
         "description": "order by max() on columns of table \"sequent_backend.signing_approval\"",
+        "specifiedByURL": null,
         "isOneOf": false,
         "fields": null,
         "inputFields": [
@@ -138727,6 +138932,7 @@
         "kind": "OBJECT",
         "name": "sequent_backend_signing_approval_min_fields",
         "description": "aggregate min on columns",
+        "specifiedByURL": null,
         "isOneOf": null,
         "fields": [
           {
@@ -138955,6 +139161,7 @@
         "kind": "INPUT_OBJECT",
         "name": "sequent_backend_signing_approval_min_order_by",
         "description": "order by min() on columns of table \"sequent_backend.signing_approval\"",
+        "specifiedByURL": null,
         "isOneOf": false,
         "fields": null,
         "inputFields": [
@@ -139183,6 +139390,7 @@
         "kind": "OBJECT",
         "name": "sequent_backend_signing_approval_mutation_response",
         "description": "response of any mutation on the table \"sequent_backend.signing_approval\"",
+        "specifiedByURL": null,
         "isOneOf": null,
         "fields": [
           {
@@ -139235,6 +139443,7 @@
         "kind": "INPUT_OBJECT",
         "name": "sequent_backend_signing_approval_on_conflict",
         "description": "on_conflict condition type for table \"sequent_backend.signing_approval\"",
+        "specifiedByURL": null,
         "isOneOf": false,
         "fields": null,
         "inputFields": [
@@ -139299,6 +139508,7 @@
         "kind": "INPUT_OBJECT",
         "name": "sequent_backend_signing_approval_order_by",
         "description": "Ordering options when selecting data from \"sequent_backend.signing_approval\".",
+        "specifiedByURL": null,
         "isOneOf": false,
         "fields": null,
         "inputFields": [
@@ -139575,6 +139785,7 @@
         "kind": "INPUT_OBJECT",
         "name": "sequent_backend_signing_approval_pk_columns_input",
         "description": "primary key columns input for table: sequent_backend.signing_approval",
+        "specifiedByURL": null,
         "isOneOf": false,
         "fields": null,
         "inputFields": [
@@ -139603,6 +139814,7 @@
         "kind": "ENUM",
         "name": "sequent_backend_signing_approval_select_column",
         "description": "select columns of table \"sequent_backend.signing_approval\"",
+        "specifiedByURL": null,
         "isOneOf": null,
         "fields": null,
         "inputFields": null,
@@ -139741,6 +139953,7 @@
         "kind": "INPUT_OBJECT",
         "name": "sequent_backend_signing_approval_set_input",
         "description": "input type for updating data in table \"sequent_backend.signing_approval\"",
+        "specifiedByURL": null,
         "isOneOf": false,
         "fields": null,
         "inputFields": [
@@ -140005,6 +140218,7 @@
         "kind": "INPUT_OBJECT",
         "name": "sequent_backend_signing_approval_stream_cursor_input",
         "description": "Streaming cursor of the table \"sequent_backend_signing_approval\"",
+        "specifiedByURL": null,
         "isOneOf": false,
         "fields": null,
         "inputFields": [
@@ -140045,6 +140259,7 @@
         "kind": "INPUT_OBJECT",
         "name": "sequent_backend_signing_approval_stream_cursor_value_input",
         "description": "Initial value of the column from where the streaming should start",
+        "specifiedByURL": null,
         "isOneOf": false,
         "fields": null,
         "inputFields": [
@@ -140309,6 +140524,7 @@
         "kind": "ENUM",
         "name": "sequent_backend_signing_approval_update_column",
         "description": "update columns of table \"sequent_backend.signing_approval\"",
+        "specifiedByURL": null,
         "isOneOf": null,
         "fields": null,
         "inputFields": null,
@@ -140447,6 +140663,7 @@
         "kind": "INPUT_OBJECT",
         "name": "sequent_backend_signing_approval_updates",
         "description": null,
+        "specifiedByURL": null,
         "isOneOf": false,
         "fields": null,
         "inputFields": [
@@ -140487,6 +140704,7 @@
         "kind": "OBJECT",
         "name": "sequent_backend_signing_checks",
         "description": "columns and relationships of \"sequent_backend.signing_checks\"",
+        "specifiedByURL": null,
         "isOneOf": null,
         "fields": [
           {
@@ -140687,6 +140905,7 @@
         "kind": "OBJECT",
         "name": "sequent_backend_signing_checks_aggregate",
         "description": "aggregated selection of \"sequent_backend.signing_checks\"",
+        "specifiedByURL": null,
         "isOneOf": null,
         "fields": [
           {
@@ -140735,6 +140954,7 @@
         "kind": "OBJECT",
         "name": "sequent_backend_signing_checks_aggregate_fields",
         "description": "aggregate fields of \"sequent_backend.signing_checks\"",
+        "specifiedByURL": null,
         "isOneOf": null,
         "fields": [
           {
@@ -140916,6 +141136,7 @@
         "kind": "OBJECT",
         "name": "sequent_backend_signing_checks_avg_fields",
         "description": "aggregate avg on columns",
+        "specifiedByURL": null,
         "isOneOf": null,
         "fields": [
           {
@@ -140940,6 +141161,7 @@
         "kind": "INPUT_OBJECT",
         "name": "sequent_backend_signing_checks_bool_exp",
         "description": "Boolean expression to filter rows from the table \"sequent_backend.signing_checks\". All fields are combined with a logical 'AND'.",
+        "specifiedByURL": null,
         "isOneOf": false,
         "fields": null,
         "inputFields": [
@@ -141148,6 +141370,7 @@
         "kind": "ENUM",
         "name": "sequent_backend_signing_checks_constraint",
         "description": "unique or primary key constraints on table \"sequent_backend.signing_checks\"",
+        "specifiedByURL": null,
         "isOneOf": null,
         "fields": null,
         "inputFields": null,
@@ -141172,6 +141395,7 @@
         "kind": "INPUT_OBJECT",
         "name": "sequent_backend_signing_checks_inc_input",
         "description": "input type for incrementing numeric columns in table \"sequent_backend.signing_checks\"",
+        "specifiedByURL": null,
         "isOneOf": false,
         "fields": null,
         "inputFields": [
@@ -141196,6 +141420,7 @@
         "kind": "INPUT_OBJECT",
         "name": "sequent_backend_signing_checks_insert_input",
         "description": "input type for inserting data into table \"sequent_backend.signing_checks\"",
+        "specifiedByURL": null,
         "isOneOf": false,
         "fields": null,
         "inputFields": [
@@ -141352,6 +141577,7 @@
         "kind": "OBJECT",
         "name": "sequent_backend_signing_checks_max_fields",
         "description": "aggregate max on columns",
+        "specifiedByURL": null,
         "isOneOf": null,
         "fields": [
           {
@@ -141508,6 +141734,7 @@
         "kind": "OBJECT",
         "name": "sequent_backend_signing_checks_min_fields",
         "description": "aggregate min on columns",
+        "specifiedByURL": null,
         "isOneOf": null,
         "fields": [
           {
@@ -141664,6 +141891,7 @@
         "kind": "OBJECT",
         "name": "sequent_backend_signing_checks_mutation_response",
         "description": "response of any mutation on the table \"sequent_backend.signing_checks\"",
+        "specifiedByURL": null,
         "isOneOf": null,
         "fields": [
           {
@@ -141716,6 +141944,7 @@
         "kind": "INPUT_OBJECT",
         "name": "sequent_backend_signing_checks_on_conflict",
         "description": "on_conflict condition type for table \"sequent_backend.signing_checks\"",
+        "specifiedByURL": null,
         "isOneOf": false,
         "fields": null,
         "inputFields": [
@@ -141780,6 +142009,7 @@
         "kind": "INPUT_OBJECT",
         "name": "sequent_backend_signing_checks_order_by",
         "description": "Ordering options when selecting data from \"sequent_backend.signing_checks\".",
+        "specifiedByURL": null,
         "isOneOf": false,
         "fields": null,
         "inputFields": [
@@ -141936,6 +142166,7 @@
         "kind": "INPUT_OBJECT",
         "name": "sequent_backend_signing_checks_pk_columns_input",
         "description": "primary key columns input for table: sequent_backend.signing_checks",
+        "specifiedByURL": null,
         "isOneOf": false,
         "fields": null,
         "inputFields": [
@@ -141964,6 +142195,7 @@
         "kind": "ENUM",
         "name": "sequent_backend_signing_checks_select_column",
         "description": "select columns of table \"sequent_backend.signing_checks\"",
+        "specifiedByURL": null,
         "isOneOf": null,
         "fields": null,
         "inputFields": null,
@@ -142048,6 +142280,7 @@
         "kind": "INPUT_OBJECT",
         "name": "sequent_backend_signing_checks_set_input",
         "description": "input type for updating data in table \"sequent_backend.signing_checks\"",
+        "specifiedByURL": null,
         "isOneOf": false,
         "fields": null,
         "inputFields": [
@@ -142204,6 +142437,7 @@
         "kind": "OBJECT",
         "name": "sequent_backend_signing_checks_stddev_fields",
         "description": "aggregate stddev on columns",
+        "specifiedByURL": null,
         "isOneOf": null,
         "fields": [
           {
@@ -142228,6 +142462,7 @@
         "kind": "OBJECT",
         "name": "sequent_backend_signing_checks_stddev_pop_fields",
         "description": "aggregate stddev_pop on columns",
+        "specifiedByURL": null,
         "isOneOf": null,
         "fields": [
           {
@@ -142252,6 +142487,7 @@
         "kind": "OBJECT",
         "name": "sequent_backend_signing_checks_stddev_samp_fields",
         "description": "aggregate stddev_samp on columns",
+        "specifiedByURL": null,
         "isOneOf": null,
         "fields": [
           {
@@ -142276,6 +142512,7 @@
         "kind": "INPUT_OBJECT",
         "name": "sequent_backend_signing_checks_stream_cursor_input",
         "description": "Streaming cursor of the table \"sequent_backend_signing_checks\"",
+        "specifiedByURL": null,
         "isOneOf": false,
         "fields": null,
         "inputFields": [
@@ -142316,6 +142553,7 @@
         "kind": "INPUT_OBJECT",
         "name": "sequent_backend_signing_checks_stream_cursor_value_input",
         "description": "Initial value of the column from where the streaming should start",
+        "specifiedByURL": null,
         "isOneOf": false,
         "fields": null,
         "inputFields": [
@@ -142472,6 +142710,7 @@
         "kind": "OBJECT",
         "name": "sequent_backend_signing_checks_sum_fields",
         "description": "aggregate sum on columns",
+        "specifiedByURL": null,
         "isOneOf": null,
         "fields": [
           {
@@ -142496,6 +142735,7 @@
         "kind": "ENUM",
         "name": "sequent_backend_signing_checks_update_column",
         "description": "update columns of table \"sequent_backend.signing_checks\"",
+        "specifiedByURL": null,
         "isOneOf": null,
         "fields": null,
         "inputFields": null,
@@ -142580,6 +142820,7 @@
         "kind": "INPUT_OBJECT",
         "name": "sequent_backend_signing_checks_updates",
         "description": null,
+        "specifiedByURL": null,
         "isOneOf": false,
         "fields": null,
         "inputFields": [
@@ -142632,6 +142873,7 @@
         "kind": "OBJECT",
         "name": "sequent_backend_signing_checks_var_pop_fields",
         "description": "aggregate var_pop on columns",
+        "specifiedByURL": null,
         "isOneOf": null,
         "fields": [
           {
@@ -142656,6 +142898,7 @@
         "kind": "OBJECT",
         "name": "sequent_backend_signing_checks_var_samp_fields",
         "description": "aggregate var_samp on columns",
+        "specifiedByURL": null,
         "isOneOf": null,
         "fields": [
           {
@@ -142680,6 +142923,7 @@
         "kind": "OBJECT",
         "name": "sequent_backend_signing_checks_variance_fields",
         "description": "aggregate variance on columns",
+        "specifiedByURL": null,
         "isOneOf": null,
         "fields": [
           {
@@ -142704,6 +142948,7 @@
         "kind": "OBJECT",
         "name": "sequent_backend_signing_request",
         "description": "columns and relationships of \"sequent_backend.signing_request\"",
+        "specifiedByURL": null,
         "isOneOf": null,
         "fields": [
           {
@@ -143429,6 +143674,7 @@
         "kind": "OBJECT",
         "name": "sequent_backend_signing_request_aggregate",
         "description": "aggregated selection of \"sequent_backend.signing_request\"",
+        "specifiedByURL": null,
         "isOneOf": null,
         "fields": [
           {
@@ -143477,6 +143723,7 @@
         "kind": "OBJECT",
         "name": "sequent_backend_signing_request_aggregate_fields",
         "description": "aggregate fields of \"sequent_backend.signing_request\"",
+        "specifiedByURL": null,
         "isOneOf": null,
         "fields": [
           {
@@ -143658,6 +143905,7 @@
         "kind": "INPUT_OBJECT",
         "name": "sequent_backend_signing_request_append_input",
         "description": "append existing jsonb value of filtered columns with new jsonb value",
+        "specifiedByURL": null,
         "isOneOf": false,
         "fields": null,
         "inputFields": [
@@ -143706,6 +143954,7 @@
         "kind": "OBJECT",
         "name": "sequent_backend_signing_request_avg_fields",
         "description": "aggregate avg on columns",
+        "specifiedByURL": null,
         "isOneOf": null,
         "fields": [
           {
@@ -143766,6 +144015,7 @@
         "kind": "INPUT_OBJECT",
         "name": "sequent_backend_signing_request_bool_exp",
         "description": "Boolean expression to filter rows from the table \"sequent_backend.signing_request\". All fields are combined with a logical 'AND'.",
+        "specifiedByURL": null,
         "isOneOf": false,
         "fields": null,
         "inputFields": [
@@ -144262,6 +144512,7 @@
         "kind": "ENUM",
         "name": "sequent_backend_signing_request_constraint",
         "description": "unique or primary key constraints on table \"sequent_backend.signing_request\"",
+        "specifiedByURL": null,
         "isOneOf": null,
         "fields": null,
         "inputFields": null,
@@ -144292,6 +144543,7 @@
         "kind": "INPUT_OBJECT",
         "name": "sequent_backend_signing_request_delete_at_path_input",
         "description": "delete the field or element with specified path (for JSON arrays, negative integers count from the end)",
+        "specifiedByURL": null,
         "isOneOf": false,
         "fields": null,
         "inputFields": [
@@ -144364,6 +144616,7 @@
         "kind": "INPUT_OBJECT",
         "name": "sequent_backend_signing_request_delete_elem_input",
         "description": "delete the array element with specified index (negative integers count from the end). throws an error if top level container is not an array",
+        "specifiedByURL": null,
         "isOneOf": false,
         "fields": null,
         "inputFields": [
@@ -144412,6 +144665,7 @@
         "kind": "INPUT_OBJECT",
         "name": "sequent_backend_signing_request_delete_key_input",
         "description": "delete key/value pair or string element. key/value pairs are matched based on their key value",
+        "specifiedByURL": null,
         "isOneOf": false,
         "fields": null,
         "inputFields": [
@@ -144460,6 +144714,7 @@
         "kind": "INPUT_OBJECT",
         "name": "sequent_backend_signing_request_inc_input",
         "description": "input type for incrementing numeric columns in table \"sequent_backend.signing_request\"",
+        "specifiedByURL": null,
         "isOneOf": false,
         "fields": null,
         "inputFields": [
@@ -144520,6 +144775,7 @@
         "kind": "INPUT_OBJECT",
         "name": "sequent_backend_signing_request_insert_input",
         "description": "input type for inserting data into table \"sequent_backend.signing_request\"",
+        "specifiedByURL": null,
         "isOneOf": false,
         "fields": null,
         "inputFields": [
@@ -144952,6 +145208,7 @@
         "kind": "OBJECT",
         "name": "sequent_backend_signing_request_max_fields",
         "description": "aggregate max on columns",
+        "specifiedByURL": null,
         "isOneOf": null,
         "fields": [
           {
@@ -145336,6 +145593,7 @@
         "kind": "OBJECT",
         "name": "sequent_backend_signing_request_min_fields",
         "description": "aggregate min on columns",
+        "specifiedByURL": null,
         "isOneOf": null,
         "fields": [
           {
@@ -145720,6 +145978,7 @@
         "kind": "OBJECT",
         "name": "sequent_backend_signing_request_mutation_response",
         "description": "response of any mutation on the table \"sequent_backend.signing_request\"",
+        "specifiedByURL": null,
         "isOneOf": null,
         "fields": [
           {
@@ -145772,6 +146031,7 @@
         "kind": "INPUT_OBJECT",
         "name": "sequent_backend_signing_request_obj_rel_insert_input",
         "description": "input type for inserting object relation for remote table \"sequent_backend.signing_request\"",
+        "specifiedByURL": null,
         "isOneOf": false,
         "fields": null,
         "inputFields": [
@@ -145812,6 +146072,7 @@
         "kind": "INPUT_OBJECT",
         "name": "sequent_backend_signing_request_on_conflict",
         "description": "on_conflict condition type for table \"sequent_backend.signing_request\"",
+        "specifiedByURL": null,
         "isOneOf": false,
         "fields": null,
         "inputFields": [
@@ -145876,6 +146137,7 @@
         "kind": "INPUT_OBJECT",
         "name": "sequent_backend_signing_request_order_by",
         "description": "Ordering options when selecting data from \"sequent_backend.signing_request\".",
+        "specifiedByURL": null,
         "isOneOf": false,
         "fields": null,
         "inputFields": [
@@ -146308,6 +146570,7 @@
         "kind": "INPUT_OBJECT",
         "name": "sequent_backend_signing_request_pk_columns_input",
         "description": "primary key columns input for table: sequent_backend.signing_request",
+        "specifiedByURL": null,
         "isOneOf": false,
         "fields": null,
         "inputFields": [
@@ -146336,6 +146599,7 @@
         "kind": "INPUT_OBJECT",
         "name": "sequent_backend_signing_request_prepend_input",
         "description": "prepend existing jsonb value of filtered columns with new jsonb value",
+        "specifiedByURL": null,
         "isOneOf": false,
         "fields": null,
         "inputFields": [
@@ -146384,6 +146648,7 @@
         "kind": "ENUM",
         "name": "sequent_backend_signing_request_select_column",
         "description": "select columns of table \"sequent_backend.signing_request\"",
+        "specifiedByURL": null,
         "isOneOf": null,
         "fields": null,
         "inputFields": null,
@@ -146600,6 +146865,7 @@
         "kind": "INPUT_OBJECT",
         "name": "sequent_backend_signing_request_set_input",
         "description": "input type for updating data in table \"sequent_backend.signing_request\"",
+        "specifiedByURL": null,
         "isOneOf": false,
         "fields": null,
         "inputFields": [
@@ -147020,6 +147286,7 @@
         "kind": "OBJECT",
         "name": "sequent_backend_signing_request_stddev_fields",
         "description": "aggregate stddev on columns",
+        "specifiedByURL": null,
         "isOneOf": null,
         "fields": [
           {
@@ -147080,6 +147347,7 @@
         "kind": "OBJECT",
         "name": "sequent_backend_signing_request_stddev_pop_fields",
         "description": "aggregate stddev_pop on columns",
+        "specifiedByURL": null,
         "isOneOf": null,
         "fields": [
           {
@@ -147140,6 +147408,7 @@
         "kind": "OBJECT",
         "name": "sequent_backend_signing_request_stddev_samp_fields",
         "description": "aggregate stddev_samp on columns",
+        "specifiedByURL": null,
         "isOneOf": null,
         "fields": [
           {
@@ -147200,6 +147469,7 @@
         "kind": "INPUT_OBJECT",
         "name": "sequent_backend_signing_request_stream_cursor_input",
         "description": "Streaming cursor of the table \"sequent_backend_signing_request\"",
+        "specifiedByURL": null,
         "isOneOf": false,
         "fields": null,
         "inputFields": [
@@ -147240,6 +147510,7 @@
         "kind": "INPUT_OBJECT",
         "name": "sequent_backend_signing_request_stream_cursor_value_input",
         "description": "Initial value of the column from where the streaming should start",
+        "specifiedByURL": null,
         "isOneOf": false,
         "fields": null,
         "inputFields": [
@@ -147660,6 +147931,7 @@
         "kind": "OBJECT",
         "name": "sequent_backend_signing_request_sum_fields",
         "description": "aggregate sum on columns",
+        "specifiedByURL": null,
         "isOneOf": null,
         "fields": [
           {
@@ -147720,6 +147992,7 @@
         "kind": "ENUM",
         "name": "sequent_backend_signing_request_update_column",
         "description": "update columns of table \"sequent_backend.signing_request\"",
+        "specifiedByURL": null,
         "isOneOf": null,
         "fields": null,
         "inputFields": null,
@@ -147936,6 +148209,7 @@
         "kind": "INPUT_OBJECT",
         "name": "sequent_backend_signing_request_updates",
         "description": null,
+        "specifiedByURL": null,
         "isOneOf": false,
         "fields": null,
         "inputFields": [
@@ -148048,6 +148322,7 @@
         "kind": "OBJECT",
         "name": "sequent_backend_signing_request_var_pop_fields",
         "description": "aggregate var_pop on columns",
+        "specifiedByURL": null,
         "isOneOf": null,
         "fields": [
           {
@@ -148108,6 +148383,7 @@
         "kind": "OBJECT",
         "name": "sequent_backend_signing_request_var_samp_fields",
         "description": "aggregate var_samp on columns",
+        "specifiedByURL": null,
         "isOneOf": null,
         "fields": [
           {
@@ -148168,6 +148444,7 @@
         "kind": "OBJECT",
         "name": "sequent_backend_signing_request_variance_fields",
         "description": "aggregate variance on columns",
+        "specifiedByURL": null,
         "isOneOf": null,
         "fields": [
           {
@@ -148228,6 +148505,7 @@
         "kind": "OBJECT",
         "name": "sequent_backend_signing_rule",
         "description": "columns and relationships of \"sequent_backend.signing_rule\"",
+        "specifiedByURL": null,
         "isOneOf": null,
         "fields": [
           {
@@ -148440,6 +148718,7 @@
         "kind": "OBJECT",
         "name": "sequent_backend_signing_rule_aggregate",
         "description": "aggregated selection of \"sequent_backend.signing_rule\"",
+        "specifiedByURL": null,
         "isOneOf": null,
         "fields": [
           {
@@ -148488,6 +148767,7 @@
         "kind": "OBJECT",
         "name": "sequent_backend_signing_rule_aggregate_fields",
         "description": "aggregate fields of \"sequent_backend.signing_rule\"",
+        "specifiedByURL": null,
         "isOneOf": null,
         "fields": [
           {
@@ -148669,6 +148949,7 @@
         "kind": "OBJECT",
         "name": "sequent_backend_signing_rule_avg_fields",
         "description": "aggregate avg on columns",
+        "specifiedByURL": null,
         "isOneOf": null,
         "fields": [
           {
@@ -148717,6 +148998,7 @@
         "kind": "INPUT_OBJECT",
         "name": "sequent_backend_signing_rule_bool_exp",
         "description": "Boolean expression to filter rows from the table \"sequent_backend.signing_rule\". All fields are combined with a logical 'AND'.",
+        "specifiedByURL": null,
         "isOneOf": false,
         "fields": null,
         "inputFields": [
@@ -148937,6 +149219,7 @@
         "kind": "ENUM",
         "name": "sequent_backend_signing_rule_constraint",
         "description": "unique or primary key constraints on table \"sequent_backend.signing_rule\"",
+        "specifiedByURL": null,
         "isOneOf": null,
         "fields": null,
         "inputFields": null,
@@ -148961,6 +149244,7 @@
         "kind": "INPUT_OBJECT",
         "name": "sequent_backend_signing_rule_inc_input",
         "description": "input type for incrementing numeric columns in table \"sequent_backend.signing_rule\"",
+        "specifiedByURL": null,
         "isOneOf": false,
         "fields": null,
         "inputFields": [
@@ -149009,6 +149293,7 @@
         "kind": "INPUT_OBJECT",
         "name": "sequent_backend_signing_rule_insert_input",
         "description": "input type for inserting data into table \"sequent_backend.signing_rule\"",
+        "specifiedByURL": null,
         "isOneOf": false,
         "fields": null,
         "inputFields": [
@@ -149177,6 +149462,7 @@
         "kind": "OBJECT",
         "name": "sequent_backend_signing_rule_max_fields",
         "description": "aggregate max on columns",
+        "specifiedByURL": null,
         "isOneOf": null,
         "fields": [
           {
@@ -149345,6 +149631,7 @@
         "kind": "OBJECT",
         "name": "sequent_backend_signing_rule_min_fields",
         "description": "aggregate min on columns",
+        "specifiedByURL": null,
         "isOneOf": null,
         "fields": [
           {
@@ -149513,6 +149800,7 @@
         "kind": "OBJECT",
         "name": "sequent_backend_signing_rule_mutation_response",
         "description": "response of any mutation on the table \"sequent_backend.signing_rule\"",
+        "specifiedByURL": null,
         "isOneOf": null,
         "fields": [
           {
@@ -149565,6 +149853,7 @@
         "kind": "INPUT_OBJECT",
         "name": "sequent_backend_signing_rule_on_conflict",
         "description": "on_conflict condition type for table \"sequent_backend.signing_rule\"",
+        "specifiedByURL": null,
         "isOneOf": false,
         "fields": null,
         "inputFields": [
@@ -149629,6 +149918,7 @@
         "kind": "INPUT_OBJECT",
         "name": "sequent_backend_signing_rule_order_by",
         "description": "Ordering options when selecting data from \"sequent_backend.signing_rule\".",
+        "specifiedByURL": null,
         "isOneOf": false,
         "fields": null,
         "inputFields": [
@@ -149797,6 +150087,7 @@
         "kind": "INPUT_OBJECT",
         "name": "sequent_backend_signing_rule_pk_columns_input",
         "description": "primary key columns input for table: sequent_backend.signing_rule",
+        "specifiedByURL": null,
         "isOneOf": false,
         "fields": null,
         "inputFields": [
@@ -149825,6 +150116,7 @@
         "kind": "ENUM",
         "name": "sequent_backend_signing_rule_select_column",
         "description": "select columns of table \"sequent_backend.signing_rule\"",
+        "specifiedByURL": null,
         "isOneOf": null,
         "fields": null,
         "inputFields": null,
@@ -149915,6 +150207,7 @@
         "kind": "INPUT_OBJECT",
         "name": "sequent_backend_signing_rule_set_input",
         "description": "input type for updating data in table \"sequent_backend.signing_rule\"",
+        "specifiedByURL": null,
         "isOneOf": false,
         "fields": null,
         "inputFields": [
@@ -150083,6 +150376,7 @@
         "kind": "OBJECT",
         "name": "sequent_backend_signing_rule_stddev_fields",
         "description": "aggregate stddev on columns",
+        "specifiedByURL": null,
         "isOneOf": null,
         "fields": [
           {
@@ -150131,6 +150425,7 @@
         "kind": "OBJECT",
         "name": "sequent_backend_signing_rule_stddev_pop_fields",
         "description": "aggregate stddev_pop on columns",
+        "specifiedByURL": null,
         "isOneOf": null,
         "fields": [
           {
@@ -150179,6 +150474,7 @@
         "kind": "OBJECT",
         "name": "sequent_backend_signing_rule_stddev_samp_fields",
         "description": "aggregate stddev_samp on columns",
+        "specifiedByURL": null,
         "isOneOf": null,
         "fields": [
           {
@@ -150227,6 +150523,7 @@
         "kind": "INPUT_OBJECT",
         "name": "sequent_backend_signing_rule_stream_cursor_input",
         "description": "Streaming cursor of the table \"sequent_backend_signing_rule\"",
+        "specifiedByURL": null,
         "isOneOf": false,
         "fields": null,
         "inputFields": [
@@ -150267,6 +150564,7 @@
         "kind": "INPUT_OBJECT",
         "name": "sequent_backend_signing_rule_stream_cursor_value_input",
         "description": "Initial value of the column from where the streaming should start",
+        "specifiedByURL": null,
         "isOneOf": false,
         "fields": null,
         "inputFields": [
@@ -150435,6 +150733,7 @@
         "kind": "OBJECT",
         "name": "sequent_backend_signing_rule_sum_fields",
         "description": "aggregate sum on columns",
+        "specifiedByURL": null,
         "isOneOf": null,
         "fields": [
           {
@@ -150483,6 +150782,7 @@
         "kind": "ENUM",
         "name": "sequent_backend_signing_rule_update_column",
         "description": "update columns of table \"sequent_backend.signing_rule\"",
+        "specifiedByURL": null,
         "isOneOf": null,
         "fields": null,
         "inputFields": null,
@@ -150573,6 +150873,7 @@
         "kind": "INPUT_OBJECT",
         "name": "sequent_backend_signing_rule_updates",
         "description": null,
+        "specifiedByURL": null,
         "isOneOf": false,
         "fields": null,
         "inputFields": [
@@ -150625,6 +150926,7 @@
         "kind": "OBJECT",
         "name": "sequent_backend_signing_rule_var_pop_fields",
         "description": "aggregate var_pop on columns",
+        "specifiedByURL": null,
         "isOneOf": null,
         "fields": [
           {
@@ -150673,6 +150975,7 @@
         "kind": "OBJECT",
         "name": "sequent_backend_signing_rule_var_samp_fields",
         "description": "aggregate var_samp on columns",
+        "specifiedByURL": null,
         "isOneOf": null,
         "fields": [
           {
@@ -150721,6 +151024,7 @@
         "kind": "OBJECT",
         "name": "sequent_backend_signing_rule_variance_fields",
         "description": "aggregate variance on columns",
+        "specifiedByURL": null,
         "isOneOf": null,
         "fields": [
           {
@@ -150769,6 +151073,7 @@
         "kind": "OBJECT",
         "name": "sequent_backend_staff_certificate",
         "description": "columns and relationships of \"sequent_backend.staff_certificate\"",
+        "specifiedByURL": null,
         "isOneOf": null,
         "fields": [
           {
@@ -150783,6 +151088,18 @@
                 "name": "timestamptz",
                 "ofType": null
               }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "election",
+            "description": "An object relationship",
+            "args": [],
+            "type": {
+              "kind": "OBJECT",
+              "name": "sequent_backend_election",
+              "ofType": null
             },
             "isDeprecated": false,
             "deprecationReason": null
@@ -151181,6 +151498,7 @@
         "kind": "OBJECT",
         "name": "sequent_backend_staff_certificate_aggregate",
         "description": "aggregated selection of \"sequent_backend.staff_certificate\"",
+        "specifiedByURL": null,
         "isOneOf": null,
         "fields": [
           {
@@ -151229,6 +151547,7 @@
         "kind": "OBJECT",
         "name": "sequent_backend_staff_certificate_aggregate_fields",
         "description": "aggregate fields of \"sequent_backend.staff_certificate\"",
+        "specifiedByURL": null,
         "isOneOf": null,
         "fields": [
           {
@@ -151314,6 +151633,7 @@
         "kind": "INPUT_OBJECT",
         "name": "sequent_backend_staff_certificate_bool_exp",
         "description": "Boolean expression to filter rows from the table \"sequent_backend.staff_certificate\". All fields are combined with a logical 'AND'.",
+        "specifiedByURL": null,
         "isOneOf": false,
         "fields": null,
         "inputFields": [
@@ -151375,6 +151695,18 @@
             "type": {
               "kind": "INPUT_OBJECT",
               "name": "timestamptz_comparison_exp",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "election",
+            "description": null,
+            "type": {
+              "kind": "INPUT_OBJECT",
+              "name": "sequent_backend_election_bool_exp",
               "ofType": null
             },
             "defaultValue": null,
@@ -151702,6 +152034,7 @@
         "kind": "ENUM",
         "name": "sequent_backend_staff_certificate_constraint",
         "description": "unique or primary key constraints on table \"sequent_backend.staff_certificate\"",
+        "specifiedByURL": null,
         "isOneOf": null,
         "fields": null,
         "inputFields": null,
@@ -151738,6 +152071,7 @@
         "kind": "INPUT_OBJECT",
         "name": "sequent_backend_staff_certificate_insert_input",
         "description": "input type for inserting data into table \"sequent_backend.staff_certificate\"",
+        "specifiedByURL": null,
         "isOneOf": false,
         "fields": null,
         "inputFields": [
@@ -151747,6 +152081,18 @@
             "type": {
               "kind": "SCALAR",
               "name": "timestamptz",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "election",
+            "description": null,
+            "type": {
+              "kind": "INPUT_OBJECT",
+              "name": "sequent_backend_election_obj_rel_insert_input",
               "ofType": null
             },
             "defaultValue": null,
@@ -152074,6 +152420,7 @@
         "kind": "OBJECT",
         "name": "sequent_backend_staff_certificate_max_fields",
         "description": "aggregate max on columns",
+        "specifiedByURL": null,
         "isOneOf": null,
         "fields": [
           {
@@ -152410,6 +152757,7 @@
         "kind": "OBJECT",
         "name": "sequent_backend_staff_certificate_min_fields",
         "description": "aggregate min on columns",
+        "specifiedByURL": null,
         "isOneOf": null,
         "fields": [
           {
@@ -152746,6 +153094,7 @@
         "kind": "OBJECT",
         "name": "sequent_backend_staff_certificate_mutation_response",
         "description": "response of any mutation on the table \"sequent_backend.staff_certificate\"",
+        "specifiedByURL": null,
         "isOneOf": null,
         "fields": [
           {
@@ -152798,6 +153147,7 @@
         "kind": "INPUT_OBJECT",
         "name": "sequent_backend_staff_certificate_on_conflict",
         "description": "on_conflict condition type for table \"sequent_backend.staff_certificate\"",
+        "specifiedByURL": null,
         "isOneOf": false,
         "fields": null,
         "inputFields": [
@@ -152862,6 +153212,7 @@
         "kind": "INPUT_OBJECT",
         "name": "sequent_backend_staff_certificate_order_by",
         "description": "Ordering options when selecting data from \"sequent_backend.staff_certificate\".",
+        "specifiedByURL": null,
         "isOneOf": false,
         "fields": null,
         "inputFields": [
@@ -152871,6 +153222,18 @@
             "type": {
               "kind": "ENUM",
               "name": "order_by",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "election",
+            "description": null,
+            "type": {
+              "kind": "INPUT_OBJECT",
+              "name": "sequent_backend_election_order_by",
               "ofType": null
             },
             "defaultValue": null,
@@ -153198,6 +153561,7 @@
         "kind": "INPUT_OBJECT",
         "name": "sequent_backend_staff_certificate_pk_columns_input",
         "description": "primary key columns input for table: sequent_backend.staff_certificate",
+        "specifiedByURL": null,
         "isOneOf": false,
         "fields": null,
         "inputFields": [
@@ -153226,6 +153590,7 @@
         "kind": "ENUM",
         "name": "sequent_backend_staff_certificate_select_column",
         "description": "select columns of table \"sequent_backend.staff_certificate\"",
+        "specifiedByURL": null,
         "isOneOf": null,
         "fields": null,
         "inputFields": null,
@@ -153400,6 +153765,7 @@
         "kind": "INPUT_OBJECT",
         "name": "sequent_backend_staff_certificate_set_input",
         "description": "input type for updating data in table \"sequent_backend.staff_certificate\"",
+        "specifiedByURL": null,
         "isOneOf": false,
         "fields": null,
         "inputFields": [
@@ -153736,6 +154102,7 @@
         "kind": "INPUT_OBJECT",
         "name": "sequent_backend_staff_certificate_stream_cursor_input",
         "description": "Streaming cursor of the table \"sequent_backend_staff_certificate\"",
+        "specifiedByURL": null,
         "isOneOf": false,
         "fields": null,
         "inputFields": [
@@ -153776,6 +154143,7 @@
         "kind": "INPUT_OBJECT",
         "name": "sequent_backend_staff_certificate_stream_cursor_value_input",
         "description": "Initial value of the column from where the streaming should start",
+        "specifiedByURL": null,
         "isOneOf": false,
         "fields": null,
         "inputFields": [
@@ -154112,6 +154480,7 @@
         "kind": "ENUM",
         "name": "sequent_backend_staff_certificate_update_column",
         "description": "update columns of table \"sequent_backend.staff_certificate\"",
+        "specifiedByURL": null,
         "isOneOf": null,
         "fields": null,
         "inputFields": null,
@@ -154286,6 +154655,7 @@
         "kind": "INPUT_OBJECT",
         "name": "sequent_backend_staff_certificate_updates",
         "description": null,
+        "specifiedByURL": null,
         "isOneOf": false,
         "fields": null,
         "inputFields": [
@@ -154326,6 +154696,7 @@
         "kind": "OBJECT",
         "name": "sequent_backend_staff_crl",
         "description": "columns and relationships of \"sequent_backend.staff_crl\"",
+        "specifiedByURL": null,
         "isOneOf": null,
         "fields": [
           {
@@ -154542,6 +154913,7 @@
         "kind": "OBJECT",
         "name": "sequent_backend_staff_crl_aggregate",
         "description": "aggregated selection of \"sequent_backend.staff_crl\"",
+        "specifiedByURL": null,
         "isOneOf": null,
         "fields": [
           {
@@ -154590,6 +154962,7 @@
         "kind": "OBJECT",
         "name": "sequent_backend_staff_crl_aggregate_fields",
         "description": "aggregate fields of \"sequent_backend.staff_crl\"",
+        "specifiedByURL": null,
         "isOneOf": null,
         "fields": [
           {
@@ -154675,6 +155048,7 @@
         "kind": "INPUT_OBJECT",
         "name": "sequent_backend_staff_crl_bool_exp",
         "description": "Boolean expression to filter rows from the table \"sequent_backend.staff_crl\". All fields are combined with a logical 'AND'.",
+        "specifiedByURL": null,
         "isOneOf": false,
         "fields": null,
         "inputFields": [
@@ -154907,6 +155281,7 @@
         "kind": "ENUM",
         "name": "sequent_backend_staff_crl_constraint",
         "description": "unique or primary key constraints on table \"sequent_backend.staff_crl\"",
+        "specifiedByURL": null,
         "isOneOf": null,
         "fields": null,
         "inputFields": null,
@@ -154931,6 +155306,7 @@
         "kind": "INPUT_OBJECT",
         "name": "sequent_backend_staff_crl_insert_input",
         "description": "input type for inserting data into table \"sequent_backend.staff_crl\"",
+        "specifiedByURL": null,
         "isOneOf": false,
         "fields": null,
         "inputFields": [
@@ -155111,6 +155487,7 @@
         "kind": "OBJECT",
         "name": "sequent_backend_staff_crl_max_fields",
         "description": "aggregate max on columns",
+        "specifiedByURL": null,
         "isOneOf": null,
         "fields": [
           {
@@ -155279,6 +155656,7 @@
         "kind": "OBJECT",
         "name": "sequent_backend_staff_crl_min_fields",
         "description": "aggregate min on columns",
+        "specifiedByURL": null,
         "isOneOf": null,
         "fields": [
           {
@@ -155447,6 +155825,7 @@
         "kind": "OBJECT",
         "name": "sequent_backend_staff_crl_mutation_response",
         "description": "response of any mutation on the table \"sequent_backend.staff_crl\"",
+        "specifiedByURL": null,
         "isOneOf": null,
         "fields": [
           {
@@ -155499,6 +155878,7 @@
         "kind": "INPUT_OBJECT",
         "name": "sequent_backend_staff_crl_on_conflict",
         "description": "on_conflict condition type for table \"sequent_backend.staff_crl\"",
+        "specifiedByURL": null,
         "isOneOf": false,
         "fields": null,
         "inputFields": [
@@ -155563,6 +155943,7 @@
         "kind": "INPUT_OBJECT",
         "name": "sequent_backend_staff_crl_order_by",
         "description": "Ordering options when selecting data from \"sequent_backend.staff_crl\".",
+        "specifiedByURL": null,
         "isOneOf": false,
         "fields": null,
         "inputFields": [
@@ -155743,6 +156124,7 @@
         "kind": "INPUT_OBJECT",
         "name": "sequent_backend_staff_crl_pk_columns_input",
         "description": "primary key columns input for table: sequent_backend.staff_crl",
+        "specifiedByURL": null,
         "isOneOf": false,
         "fields": null,
         "inputFields": [
@@ -155771,6 +156153,7 @@
         "kind": "ENUM",
         "name": "sequent_backend_staff_crl_select_column",
         "description": "select columns of table \"sequent_backend.staff_crl\"",
+        "specifiedByURL": null,
         "isOneOf": null,
         "fields": null,
         "inputFields": null,
@@ -155867,6 +156250,7 @@
         "kind": "INPUT_OBJECT",
         "name": "sequent_backend_staff_crl_set_input",
         "description": "input type for updating data in table \"sequent_backend.staff_crl\"",
+        "specifiedByURL": null,
         "isOneOf": false,
         "fields": null,
         "inputFields": [
@@ -156047,6 +156431,7 @@
         "kind": "INPUT_OBJECT",
         "name": "sequent_backend_staff_crl_stream_cursor_input",
         "description": "Streaming cursor of the table \"sequent_backend_staff_crl\"",
+        "specifiedByURL": null,
         "isOneOf": false,
         "fields": null,
         "inputFields": [
@@ -156087,6 +156472,7 @@
         "kind": "INPUT_OBJECT",
         "name": "sequent_backend_staff_crl_stream_cursor_value_input",
         "description": "Initial value of the column from where the streaming should start",
+        "specifiedByURL": null,
         "isOneOf": false,
         "fields": null,
         "inputFields": [
@@ -156267,6 +156653,7 @@
         "kind": "ENUM",
         "name": "sequent_backend_staff_crl_update_column",
         "description": "update columns of table \"sequent_backend.staff_crl\"",
+        "specifiedByURL": null,
         "isOneOf": null,
         "fields": null,
         "inputFields": null,
@@ -156363,6 +156750,7 @@
         "kind": "INPUT_OBJECT",
         "name": "sequent_backend_staff_crl_updates",
         "description": null,
+        "specifiedByURL": null,
         "isOneOf": false,
         "fields": null,
         "inputFields": [

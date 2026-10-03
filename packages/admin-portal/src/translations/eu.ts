@@ -2186,6 +2186,9 @@ const basqueTranslation: TranslationType = {
                             confirm: "Bidali Transmisio Paketea",
                             cancel: "Itxi",
                         },
+
+                        disabled:
+                            "Beharrezko sinadurak falta dira, edo transmisio-paketea helmuga guztietara bidali da dagoeneko.",
                     },
                     regenerate: {
                         title: "Bersortu",
@@ -2235,12 +2238,12 @@ const basqueTranslation: TranslationType = {
                     },
                 },
                 signatures: {
-                    title: "SBEI Sinadurak",
+                    title: "Sinadurak",
                     description:
-                        "SBEIek Transmisio Paketea sinatu dezakete. Beheko taulak SBEI kide bakoitzaren sinadura egoera erakusten du.",
+                        "Kideek transmisio-paketea sina dezakete. Taulak kide bakoitzaren sinadura-egoera erakusten du.",
                     status: "{{signed}}/{{total}} Sinatuak, {{minimum}} gutxienez",
                     table: {
-                        trusteeName: "SBEI id",
+                        trusteeName: "Kidea",
                         signed: "Sinatua du",
                     },
                 },

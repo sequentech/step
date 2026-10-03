@@ -22,19 +22,22 @@ use super::super::log::SystemOutcome;
 use super::super::pdf::{
     latest_signed_document, report_signature_page, tally_signing_action, RevisionStore, SigningBase,
 };
-use super::super::requests::{requester, stage_request_step};
+use super::super::requests::{cancel_request, last_signer, stage_request_step};
 use super::super::{SigningCaller, SigningError, SigningResult};
 use super::transmission::sha256_hex;
 use super::{gate, refuse, EffectProgress, EFFECT_PARTIAL};
 use crate::postgres::reports::{get_reports_by_election_event_id, ReportType};
-use crate::postgres::signing::{get_signing_request, lock_signing_event, SigningRequestRow};
+use crate::postgres::signing::{
+    get_signing_request, list_waiting_signing_requests, lock_signing_event,
+    lock_waiting_signing_request, SigningRequestRow,
+};
 use crate::postgres::signing_document_revision::list_document_revisions;
 use crate::postgres::signing_report_release::{
     area_votes_in_post, claim_report_mail, fail_stale_mail_claims, finish_report_mail,
     finish_tally_hold, get_report_release, insert_report_release, insert_tally_hold,
     list_events_with_pending_tally_holds, list_unmailed_releases, lock_pending_tally_holds,
-    mark_report_released, set_result_pdf, ReleaseEncryption, ReleaseTarget, ReleasedDocument,
-    ReportEmail, ReportRelease, TallyHoldRow,
+    mark_report_released, set_result_pdf, tally_hold_was_superseded, ReleaseEncryption,
+    ReleaseTarget, ReleasedDocument, ReportEmail, ReportRelease, TallyHoldRow,
 };
 use crate::services::ceremonies::encrypter::encrypt_directory_contents_sql;
 use crate::services::consolidation::aes_256_cbc_encrypt::encrypt_file_aes_256_cbc;
@@ -50,10 +53,11 @@ use async_trait::async_trait;
 use deadpool_postgres::{Client, Transaction};
 use electoral_log::messages::newtypes::SigningStatementKind;
 use sequent_core::signing::{
-    DocumentKind, DocumentRevisionState, DocumentSubject, SigningAction, SigningScope,
+    CancelReason, DocumentKind, DocumentRevisionState, DocumentSubject, SigningAction, SigningScope,
 };
 use sequent_core::types::hasura::core::DocumentAnnotations;
 use sequent_core::util::temp_path::{generate_temp_file, get_file_size};
+use serde::Serialize;
 use serde_json::{json, Value};
 use std::str::FromStr;
 use tracing::{instrument, warn};
@@ -601,7 +605,7 @@ pub async fn mail_held_report(
                 &transaction,
                 &request,
                 SigningStatementKind::SigningActionExecuted,
-                requester(&request),
+                last_signer(&transaction, &request).await?,
                 SystemOutcome::Error,
                 format!(
                     "Released the signed report of signing request {} but could not mail it",
@@ -745,6 +749,82 @@ fn held_report(hold: &TallyHoldRow) -> Result<ReportToSign> {
     })
 }
 
+/// Cancels an earlier tally's waiting report for the same Post, country and
+/// report type. The caller already holds the event's signing lock. Keep this
+/// outside the new request's savepoint: a failed start must not leave
+/// superseded returns available to sign and release.
+async fn cancel_superseded_tally_reports(
+    transaction: &Transaction<'_>,
+    caller: &SigningCaller,
+    report: &ReportToSign,
+) -> Result<usize> {
+    let ReleaseTarget::TallyResult {
+        results_event_id,
+        election_id,
+        area_id,
+        report_type,
+    } = &report.release.target
+    else {
+        return Ok(0);
+    };
+    let waiting = list_waiting_signing_requests(
+        transaction,
+        report.tenant_id,
+        report.election_event_id,
+        report.base.action,
+    )
+    .await?;
+    let mut cancelled = 0;
+    for candidate in waiting {
+        let Some(release) = get_report_release(
+            transaction,
+            report.tenant_id,
+            report.election_event_id,
+            candidate.id,
+            false,
+        )
+        .await?
+        else {
+            continue;
+        };
+        let superseded = matches!(
+            &release.release.target,
+            ReleaseTarget::TallyResult {
+                results_event_id: previous_results,
+                election_id: previous_post,
+                area_id: previous_country,
+                report_type: previous_type,
+            } if previous_results != results_event_id
+                && previous_post == election_id
+                && previous_country == area_id
+                && previous_type == report_type
+        );
+        if !superseded {
+            continue;
+        }
+        if let Some(request) = lock_waiting_signing_request(
+            transaction,
+            report.tenant_id,
+            report.election_event_id,
+            report.base.action,
+            &candidate.scope_key,
+        )
+        .await?
+        {
+            cancel_request(
+                transaction,
+                &request,
+                CancelReason::PayloadChanged,
+                caller.actor(),
+                Some("The tally was recounted, so the report changed."),
+            )
+            .await?;
+            cancelled += 1;
+        }
+    }
+    Ok(cancelled)
+}
+
 /// Starts the requests of an event's held tally reports, oldest first, in
 /// one transaction that takes the event's signing lock before any row lock,
 /// each in its own savepoint so one Post's failure doesn't stop the others.
@@ -762,13 +842,25 @@ pub async fn start_held_tally_reports(
     lock_signing_event(&transaction, tenant_id, election_event_id).await?;
     let holds = lock_pending_tally_holds(&transaction, tenant_id, election_event_id).await?;
     let mut started = 0;
+    let mut cancelled = 0;
     for hold in holds {
+        if tally_hold_was_superseded(&transaction, &hold).await? {
+            finish_tally_hold(
+                &transaction,
+                hold.id,
+                None,
+                Some("The tally was recounted, so the report changed."),
+            )
+            .await?;
+            continue;
+        }
         let report = held_report(&hold)?;
         let requester = system_requester(&hold.requested_by_username);
         let requester = SigningCaller {
             user_id: hold.requested_by.clone(),
             ..requester
         };
+        cancelled += cancel_superseded_tally_reports(&transaction, &requester, &report).await?;
         let savepoint = transaction.savepoint("tally_hold").await?;
         let outcome = start_report_signing(&savepoint, &requester, &report).await;
         // The request must sign this base, never an older one's.
@@ -813,7 +905,7 @@ pub async fn start_held_tally_reports(
         }
     }
     transaction.commit().await?;
-    if started > 0 {
+    if started > 0 || cancelled > 0 {
         kick_signing_log_outbox();
     }
     Ok(started)
@@ -835,6 +927,146 @@ pub async fn start_all_held_tally_reports(client: &mut Client) -> Result<usize> 
         }
     }
     Ok(started)
+}
+
+/// Safe references to a report's signing request, without its document or payload.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct HeldReportRequest {
+    pub request_id: Uuid,
+    pub code: String,
+    pub report_type: String,
+    pub election_id: Option<Uuid>,
+    pub area_id: Option<Uuid>,
+    pub report_id: Option<Uuid>,
+    pub results_event_id: Option<Uuid>,
+    pub tally_session_id: Option<Uuid>,
+    pub results_document_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub transmission_package: Option<Value>,
+    pub status: sequent_core::signing::SigningRequestStatus,
+}
+
+/// Permissions that can discover report requests, still limited to the
+/// requests the caller may open and the Posts their labels reach.
+pub fn reads_report_requests(caller: &SigningCaller) -> bool {
+    use sequent_core::types::permissions::Permissions;
+    [
+        Permissions::SIGNING_REQUESTS_READ,
+        Permissions::SIGN_GENERATE_ELECTION_RETURNS,
+        Permissions::SIGN_GENERATE_REPORTS,
+        Permissions::REPORT_READ,
+        Permissions::MIRU_CREATE,
+        Permissions::MIRU_SEND,
+    ]
+    .into_iter()
+    .any(|permission| caller.has(permission))
+}
+
+pub async fn held_report_requests(
+    transaction: &Transaction<'_>,
+    caller: &SigningCaller,
+    tenant_id: Uuid,
+    election_event_id: Uuid,
+) -> SigningResult<Vec<HeldReportRequest>> {
+    use sequent_core::types::permissions::Permissions;
+    if !reads_report_requests(caller) {
+        return Err(SigningError::Forbidden(
+            "You can't read held report requests.".into(),
+        ));
+    }
+    let rows = transaction
+        .query(
+            "SELECT request.*, release.report_id, release.results_event_id,
+             COALESCE(release.report_type,
+                 request.canonical_payload::jsonb #>> '{subject,report_type}') AS held_report_type,
+             execution.tally_session_id AS held_tally_session_id,
+             execution.annotations AS held_tally_annotations,
+             CASE WHEN release.area_id IS NULL THEN post_result.documents::jsonb->>'json'
+                 ELSE country_result.documents::jsonb->>'json' END AS held_results_document_id
+         FROM sequent_backend.signing_request request
+         JOIN sequent_backend.signing_report_release release ON release.request_id = request.id
+             AND release.tenant_id = request.tenant_id
+             AND release.election_event_id = request.election_event_id
+         LEFT JOIN LATERAL (
+             SELECT step.tally_session_id, tally.annotations
+             FROM sequent_backend.tally_session_execution step
+             JOIN sequent_backend.tally_session tally ON tally.id = step.tally_session_id
+                 AND tally.tenant_id = request.tenant_id
+                 AND tally.election_event_id = request.election_event_id
+             WHERE step.tenant_id = request.tenant_id AND step.results_event_id = release.results_event_id
+             ORDER BY step.created_at DESC LIMIT 1
+         ) execution ON true
+         LEFT JOIN sequent_backend.results_election post_result
+             ON post_result.tenant_id = request.tenant_id
+             AND post_result.results_event_id = release.results_event_id
+             AND post_result.election_id = request.election_id
+             AND release.area_id IS NULL
+         LEFT JOIN sequent_backend.results_election_area country_result
+             ON country_result.tenant_id = request.tenant_id
+             AND country_result.results_event_id = release.results_event_id
+             AND country_result.election_id = request.election_id
+             AND country_result.area_id = release.area_id
+         WHERE request.tenant_id = $1 AND request.election_event_id = $2
+             AND request.action IN ('generate-election-returns', 'generate-reports')
+             AND request.status IN ('waiting', 'completed', 'executed')
+         ORDER BY request.created_at DESC, request.id",
+            &[&tenant_id, &election_event_id],
+        )
+        .await
+        .context("Error reading held report requests")?;
+    let mut found = Vec::new();
+    for row in rows {
+        let request = SigningRequestRow::try_from(row.clone())?;
+        if !caller.reaches(request.permission_label.as_deref())
+            || !(caller.user_id == request.requested_by
+                || caller.has(Permissions::SIGNING_REQUESTS_READ)
+                || caller.has(request.action.sign_permission()))
+        {
+            continue;
+        }
+        let transmission_package = if caller.has(Permissions::MIRU_CREATE)
+            || caller.has(Permissions::MIRU_SEND)
+        {
+            let annotations: Option<Value> = row.try_get("held_tally_annotations")?;
+            let packages = annotations
+                .as_ref()
+                .and_then(|value| value.get("miru:tally-session-data"))
+                .and_then(Value::as_str)
+                .and_then(|text| serde_json::from_str::<Value>(text).ok());
+            let post = request.election_id.map(|id| id.to_string());
+            let country = request.area_id.map(|id| id.to_string());
+            packages
+                .as_ref()
+                .and_then(Value::as_array)
+                .and_then(|packages| {
+                    packages.iter().find(|package| {
+                        post.is_some()
+                            && country.is_some()
+                            && package.get("election_id").and_then(Value::as_str) == post.as_deref()
+                            && package.get("area_id").and_then(Value::as_str) == country.as_deref()
+                    })
+                })
+                .cloned()
+        } else {
+            None
+        };
+        found.push(HeldReportRequest {
+            request_id: request.id,
+            code: request.code,
+            report_type: row
+                .try_get::<_, Option<String>>("held_report_type")?
+                .ok_or_else(|| anyhow!("A held report request names its report type"))?,
+            election_id: request.election_id,
+            area_id: request.area_id,
+            report_id: row.try_get("report_id")?,
+            results_event_id: row.try_get("results_event_id")?,
+            tally_session_id: row.try_get("held_tally_session_id")?,
+            results_document_id: row.try_get("held_results_document_id")?,
+            transmission_package,
+            status: request.status,
+        });
+    }
+    Ok(found)
 }
 
 /// Whether a report type is one the tally produces and holds, and its rule
@@ -887,7 +1119,7 @@ pub async fn sweep_held_mails(
                 &transaction,
                 &request,
                 SigningStatementKind::SigningActionExecuted,
-                requester(&request),
+                last_signer(&transaction, &request).await?,
                 SystemOutcome::Error,
                 format!(
                     "Released the signed report of signing request {} but its e-mail may not have been sent",

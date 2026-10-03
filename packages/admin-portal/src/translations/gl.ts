@@ -2192,6 +2192,9 @@ const galegoTranslation: TranslationType = {
                             confirm: "Enviar Paquete de Transmisión",
                             cancel: "Pechar",
                         },
+
+                        disabled:
+                            "Faltan as sinaturas requiridas ou o paquete de transmisión xa se enviou a todos os destinos.",
                     },
                     regenerate: {
                         title: "Rexenerar",
@@ -2241,12 +2244,12 @@ const galegoTranslation: TranslationType = {
                     },
                 },
                 signatures: {
-                    title: "Sinaturas SBEI",
+                    title: "Sinaturas",
                     description:
-                        "Os membros SBEI poden asinar o Paquete de Transmisión. A táboa a continuación mostra o estado de sinatura de cada un dos membros SBEI.",
+                        "Os membros poden asinar o paquete de transmisión. A táboa mostra o estado de sinatura de cada membro.",
                     status: "{{signed}} de {{total}} Asinados, mínimo de {{minimum}}",
                     table: {
-                        trusteeName: "Nome do Fiduciario",
+                        trusteeName: "Membro",
                         signed: "Asinou",
                     },
                 },

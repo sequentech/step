@@ -3,7 +3,7 @@
 
 // Signing journeys: the people, their certificate files, and a fake Harvest
 // that answers the signing actions the way the contract describes them
-// (.agents/work/sbei-quorum/api-contract.md). The browser opens the files,
+// (docs/docusaurus/docs/07-developers/14-signing/02-signing-api.md). The browser opens the files,
 // checks them and signs for real; this server verifies what it receives with
 // node's crypto, as Harvest does with OpenSSL.
 import {createHash, verify, X509Certificate} from "node:crypto"
@@ -444,6 +444,60 @@ export class SigningServer {
                 const next = this.scripted.get(operation)?.shift()
                 return next?.(call) ?? handle(call)
             })
+        on("GetWaitingSigningRequests", (call) => ({
+            data: {
+                sequent_backend_signing_request: Array.from(this.requests.values())
+                    .filter(
+                        (state) =>
+                            state.status === "waiting" &&
+                            `sign-${state.spec.action}` === call.headers["x-hasura-role"]
+                    )
+                    .map((state) => ({
+                        ...state.row,
+                        approvals: state.approvals.map((approval, index) => ({
+                            id: `${state.spec.id.slice(0, -3)}${String(index + 1).padStart(3, "0")}`,
+                            user_id: approval.person.userId,
+                            signed_at: approval.signedAt,
+                        })),
+                    })),
+            },
+        }))
+        on("SigningEventInfo", () => ({
+            data: {
+                signingEventInfo: {
+                    time_zone: "Asia/Manila",
+                    titles: Object.fromEntries(
+                        this.people.map((person) => [person.userId, person.title])
+                    ),
+                },
+            },
+        }))
+        on("GetHeldReportRequests", () => ({
+            data: {
+                signingHeldReportRequests: {
+                    requests: Array.from(this.requests.values())
+                        .filter((state) =>
+                            ["generate-election-returns", "generate-reports"].includes(
+                                state.spec.action
+                            )
+                        )
+                        .map((state) => ({
+                            request_id: state.spec.id,
+                            code: state.spec.code,
+                            report_type:
+                                state.spec.action === "generate-election-returns"
+                                    ? "ELECTORAL_RESULTS"
+                                    : "PARTICIPATION_REPORT",
+                            election_id: ELECTION_ID,
+                            area_id: SPAIN_ID,
+                            report_id: null,
+                            results_event_id: null,
+                            tally_session_id: null,
+                            status: state.status,
+                        })),
+                },
+            },
+        }))
         on("SigningGetRequest", (call) => {
             const state = this.state(call)
             return {data: {signingGetRequest: {panel: state.panel(this.caller(call)?.userId)}}}
@@ -934,7 +988,9 @@ export const ER_BASE = new TextEncoder().encode(
 export const ER_ROLES = sbeiRoles(
     "election-event-signatures-tab",
     "signing-requests-read",
-    "sign-generate-election-returns"
+    "sign-generate-election-returns",
+    "miru-create",
+    "miru-send"
 )
 
 /** The tally's election returns request for Madrid PE · Spain, signed so far by `signed`. */
