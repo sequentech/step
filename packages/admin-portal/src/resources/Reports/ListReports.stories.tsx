@@ -65,6 +65,7 @@ interface Scenario {
      */
     signing?: SigningRequestStatus
     heldRequest?: boolean
+    eventWide?: boolean
 }
 
 const ELECTION_RETURNS_ID = storyId(1, 10)
@@ -177,7 +178,14 @@ const meta = {
         data = resourceBoundary(
             {
                 sequent_backend_report: args.reports
-                    ? [...REPORTS, ...(args.signing ? [electionReturns] : [])]
+                    ? [
+                          ...REPORTS.map((report) =>
+                              args.eventWide && report.id === REPORT_IDS.participation
+                                  ? {...report, election_id: null}
+                                  : report
+                          ),
+                          ...(args.signing ? [electionReturns] : []),
+                      ]
                     : [],
                 sequent_backend_template: TEMPLATES,
                 sequent_backend_area: [],
@@ -649,5 +657,19 @@ export const AHeldReportOpensItsWaitingRequest: Story = {
             CODE
         )
         expect(graphql.calls.map(({name}) => name)).not.toContain("GenerateReport")
+    },
+}
+
+export const SignedEventWideReportExplainsTheRequiredPost: Story = {
+    args: {roles: SIGNING_ROLES, signing: SigningRequestStatus.Waiting, eventWide: true},
+    play: async ({canvasElement}) => {
+        await chooseAction(canvasElement, "Participation Report", "Generate")
+        await expect(
+            await within(document.body).findByText(
+                "Select a Post to generate this report when signatures are required."
+            )
+        ).toBeVisible()
+        expect(graphql.calls.some(({name}) => name === "GenerateReport")).toBe(false)
+        expect(within(document.body).queryByRole("dialog")).toBeNull()
     },
 }

@@ -162,6 +162,11 @@ Signed reports are not password-protected, because that would break the signatur
 all signatures are in, the panel offers **Download signed PDF**, **Print** and **Transmit
 results**. If a recount changes the election returns, the waiting request is cancelled.
 
+A participation report can cover the whole election event when **Generate other election
+reports** is Off. When signatures are required, select a Post in the report's **Election**
+field. An existing event-wide report must be edited to select a Post before generating it;
+the Reports screen explains this without starting a task. Preview remains available.
+
 **Transmit results.** In **Tally** > **Transmission**, creating the package starts a signing
 request for the Post and country instead of asking for a certificate file upload. Each
 signer signs the package's results. When everyone has signed, the package carries their

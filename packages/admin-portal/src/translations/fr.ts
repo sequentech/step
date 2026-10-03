@@ -3791,6 +3791,8 @@ const frenchTranslation: TranslationType = {
                 },
             },
             reports: {
+                postRequired:
+                    "Sélectionnez un poste pour générer ce rapport lorsque des signatures sont requises.",
                 generateNotice:
                     "{{post}} : le document est généré maintenant. Il pourra être imprimé et transmis une fois signé par {{n}} personnes.",
             },

@@ -3772,6 +3772,8 @@ const dutchTranslation: TranslationType = {
                 },
             },
             reports: {
+                postRequired:
+                    "Selecteer een post om dit rapport te genereren wanneer handtekeningen vereist zijn.",
                 generateNotice:
                     "{{post}}: het document wordt nu gegenereerd. Het kan worden afgedrukt en verzonden zodra {{n}} personen het hebben ondertekend.",
             },

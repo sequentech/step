@@ -3726,6 +3726,7 @@ const englishTranslation = {
                 },
             },
             reports: {
+                postRequired: "Select a Post to generate this report when signatures are required.",
                 generateNotice:
                     "{{post}}: the document is generated now. It can be printed and transmitted once {{n}} people have signed it.",
             },

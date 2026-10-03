@@ -10,6 +10,7 @@ import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {
     Box,
+    Alert,
     styled,
     Typography,
     Button,
@@ -218,6 +219,7 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
     const signatures = useReportSignatures(electionEventId)
     const openSigned = useSignedAction()
     const [signedGenerate, setSignedGenerate] = useState<Sequent_Backend_Report | null>(null)
+    const [reportScopeError, setReportScopeError] = useState(false)
     const [reportTaskId, setReportTaskId] = useState<string | null>(null)
     const reportSigningRequest = useReportTaskSigningRequest(reportTaskId)
     useEffect(() => {
@@ -229,6 +231,7 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
     }, [reportSigningRequest])
 
     const startGenerateReport = async (id: Identifier, mode: EGenerateReportMode) => {
+        setReportScopeError(false)
         if (mode === EGenerateReportMode.REAL && signatures.known) {
             try {
                 const {data: record} = await dataProvider.getOne<Sequent_Backend_Report>(
@@ -236,6 +239,10 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
                     {id}
                 )
                 if (heldByReports(record.report_type) && signatures.needs(record.report_type)) {
+                    if (!record.election_id) {
+                        setReportScopeError(true)
+                        return
+                    }
                     setSignedGenerate(record)
                     return
                 }
@@ -502,6 +509,11 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
                 title={String(t("reportsScreen.title"))}
                 subtitle={String(t("reportsScreen.subtitle"))}
             />
+            {reportScopeError && (
+                <Alert severity="warning" sx={{mb: 2}}>
+                    {t("signing.reports.postRequired")}
+                </Alert>
+            )}
             <List
                 resource="sequent_backend_report"
                 filter={listFilter}

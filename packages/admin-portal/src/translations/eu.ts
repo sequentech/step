@@ -3756,6 +3756,8 @@ const basqueTranslation: TranslationType = {
                 },
             },
             reports: {
+                postRequired:
+                    "Hautatu hauteskunde-postu bat txosten hau sortzeko sinadurak behar direnean.",
                 generateNotice:
                     "{{post}}: dokumentua orain sortzen da. {{n}} pertsonak sinatu ondoren inprimatu eta transmititu ahal izango da.",
             },

@@ -3782,6 +3782,8 @@ const tagalogTranslation: TranslationType = {
                 },
             },
             reports: {
+                postRequired:
+                    "Pumili ng Post upang buuin ang ulat na ito kapag kailangan ng mga lagda.",
                 generateNotice:
                     "{{post}}: binubuo na ngayon ang dokumento. Maaari itong i-print at i-transmit kapag napirmahan na ito ng {{n}} tao.",
             },

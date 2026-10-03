@@ -3765,6 +3765,8 @@ const spanishTranslation: TranslationType = {
                 },
             },
             reports: {
+                postRequired:
+                    "Selecciona un puesto para generar este informe cuando se requieren firmas.",
                 generateNotice:
                     "{{post}}: el documento se genera ahora. Se podrá imprimir y transmitir cuando lo hayan firmado {{n}} personas.",
             },

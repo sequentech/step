@@ -4,7 +4,7 @@
 
 import SelectElection from "@/components/election/SelectElection"
 import {EReportElectionPolicy, EReportType, ReportActions, reportTypeConfig} from "@/types/reports"
-import {Typography, Autocomplete, Chip, TextField, Box, InputLabel} from "@mui/material"
+import {Typography, Autocomplete, Chip, TextField, Box, InputLabel, Alert} from "@mui/material"
 import React, {useContext, useEffect, useMemo, useState} from "react"
 import {
     BooleanInput,
@@ -20,6 +20,7 @@ import {
     InputProps,
     AutocompleteArrayInput,
     choices,
+    required,
 } from "react-admin"
 import SelectTemplate from "../Template/SelectTemplate"
 import {useTranslation} from "react-i18next"
@@ -36,6 +37,7 @@ import {IPermissions} from "@/types/keycloak"
 import {CustomAutocompleteArrayInput, Dialog} from "@sequentech/ui-essentials"
 import {styled} from "@mui/material/styles"
 import {AuthContext} from "@/providers/AuthContextProvider"
+import {heldByReports, useReportSignatures} from "./ReportSigning"
 import {FormStyles} from "@/components/styles/FormStyles"
 
 type Choice = {
@@ -605,12 +607,17 @@ const FormContent: React.FC<CreateReportProps> = ({
             name: t(`template.type.${reportType}`),
         }))
 
+    const signatures = useReportSignatures(String(electionEventId ?? ""))
+    const requiresSigningPost =
+        !!reportType && heldByReports(reportType) && (signatures.needs(reportType) ?? 0) > 0
+
     const electionPolicy = useMemo((): EReportElectionPolicy => {
+        if (requiresSigningPost) return EReportElectionPolicy.ELECTION_REQUIRED
         if (!reportType) {
             return EReportElectionPolicy.ELECTION_ALLOWED
         }
         return reportTypeConfig[reportType].electionPolicy ?? EReportElectionPolicy.ELECTION_ALLOWED
-    }, [reportType])
+    }, [reportType, requiresSigningPost])
 
     const isTemplateRequired = useMemo((): boolean => {
         if (!reportType) {
@@ -705,6 +712,9 @@ const FormContent: React.FC<CreateReportProps> = ({
                 isRequired={true}
                 onChange={handleReportTypeChange}
             />
+            {requiresSigningPost && (
+                <Alert severity="info">{t("signing.reports.postRequired")}</Alert>
+            )}
             <SelectElection
                 tenantId={tenantId}
                 electionEventId={electionEventId}
@@ -713,6 +723,7 @@ const FormContent: React.FC<CreateReportProps> = ({
                 source="election_id"
                 value={electionId}
                 isRequired={electionPolicy === EReportElectionPolicy.ELECTION_REQUIRED}
+                validate={requiresSigningPost ? required() : undefined}
                 disabled={electionPolicy === EReportElectionPolicy.ELECTION_NOT_ALLOWED}
             />
             <SelectTemplate

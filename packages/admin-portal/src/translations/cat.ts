@@ -3778,6 +3778,8 @@ const catalanTranslation: TranslationType = {
                 },
             },
             reports: {
+                postRequired:
+                    "Selecciona un lloc per generar aquest informe quan es requereixen signatures.",
                 generateNotice:
                     "{{post}}: el document es genera ara. Es podrà imprimir i transmetre quan l'hagin signat {{n}} persones.",
             },

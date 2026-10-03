@@ -3758,6 +3758,8 @@ const galegoTranslation: TranslationType = {
                 },
             },
             reports: {
+                postRequired:
+                    "Selecciona un posto para xerar este informe cando se requiren sinaturas.",
                 generateNotice:
                     "{{post}}: o documento xérase agora. Poderase imprimir e transmitir cando o asinen {{n}} persoas.",
             },
