@@ -13,6 +13,7 @@ import {gql, useApolloClient, useMutation, useQuery} from "@apollo/client"
 import {useTranslation} from "react-i18next"
 import {Alert, Box, Button, MenuItem, Typography} from "@mui/material"
 import {Dialog} from "@sequentech/ui-essentials"
+import {ETaskExecutionStatus} from "@sequentech/ui-core"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {useTenantStore} from "@/providers/TenantContextProvider"
@@ -151,16 +152,39 @@ export const GenerateSignedReportDialog: React.FC<IGenerateSignedReportDialogPro
 /** The signing request a report task started, once the task says so. */
 export function useReportTaskSigningRequest(taskId: string | null): string | null {
     const {globalSettings} = useContext(SettingsContext)
-    const {data} = useQuery<GetTaskByIdQuery>(GET_TASK_BY_ID, {
+    const {data, startPolling, stopPolling} = useQuery<GetTaskByIdQuery>(GET_TASK_BY_ID, {
         variables: {task_id: taskId},
         skip: !taskId,
-        pollInterval: globalSettings.QUERY_FAST_POLL_INTERVAL_MS,
     })
-    const annotations = data?.sequent_backend_tasks_execution?.[0]?.annotations as
+    const task = data?.sequent_backend_tasks_execution?.find(({id}) => id === taskId)
+    const annotations = task?.annotations as
         | {signing_request?: {id?: string} | null}
         | null
         | undefined
-    return annotations?.signing_request?.id ?? null
+    const requestId = annotations?.signing_request?.id ?? null
+    const finished =
+        task?.execution_status === ETaskExecutionStatus.SUCCESS ||
+        task?.execution_status === ETaskExecutionStatus.FAILED ||
+        task?.execution_status === ETaskExecutionStatus.CANCELLED
+
+    useEffect(() => {
+        // Unsigned reports and previews finish without a signing annotation.
+        if (taskId && !requestId && !finished) {
+            startPolling(globalSettings.QUERY_FAST_POLL_INTERVAL_MS)
+        } else {
+            stopPolling()
+        }
+        return stopPolling
+    }, [
+        taskId,
+        requestId,
+        finished,
+        globalSettings.QUERY_FAST_POLL_INTERVAL_MS,
+        startPolling,
+        stopPolling,
+    ])
+
+    return requestId
 }
 
 /** The report document an executed request released. */

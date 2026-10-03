@@ -12,7 +12,7 @@ import frenchTranslation from "@/translations/fr"
 import galicianTranslation from "@/translations/gl"
 import dutchTranslation from "@/translations/nl"
 import tagalogTranslation from "@/translations/tl"
-import {fireEvent, render, renderHook, screen, waitFor} from "@testing-library/react"
+import {act, fireEvent, render, renderHook, screen, waitFor} from "@testing-library/react"
 import {
     ApolloClient,
     ApolloLink,
@@ -32,6 +32,7 @@ import {
     releasedDocumentId,
     reportSigningAction,
     useReportSignatures,
+    useReportTaskSigningRequest,
     TransmissionCompletionActions,
     ReportRequestLinks,
     ReportCompletionActions,
@@ -55,6 +56,7 @@ jest.mock(
     }),
     {virtual: true}
 )
+jest.mock("@sequentech/ui-core", () => require("../../../../ui-core/src/types/CoreTypes"))
 const mockNotify = jest.fn()
 jest.mock("react-admin", () => ({useNotify: () => mockNotify}))
 jest.mock("react-i18next", () => ({
@@ -100,7 +102,9 @@ jest.mock("@/providers/ElectionEventTallyProvider", () => ({
     }),
 }))
 jest.mock("@/providers/SettingsContextProvider", () => ({
-    SettingsContext: require("react").createContext({globalSettings: {}}),
+    SettingsContext: require("react").createContext({
+        globalSettings: {QUERY_FAST_POLL_INTERVAL_MS: 20},
+    }),
 }))
 
 const EVENT_ID = "2a33fce6-73bb-444b-9112-13d1d3a45fbb"
@@ -661,5 +665,119 @@ describe("report transmission entry point", () => {
             operations.some(({operationName}) => operationName === "CreateTransmissionPackage")
         ).toBe(false)
         expect(mockNavigate).not.toHaveBeenCalled()
+    })
+})
+
+describe("report task signing polling", () => {
+    beforeEach(() => jest.useFakeTimers())
+    afterEach(() => jest.useRealTimers())
+
+    const tick = async (milliseconds: number) => {
+        await act(async () => {
+            await jest.advanceTimersByTimeAsync(milliseconds)
+        })
+    }
+
+    function taskHook(status: string | string[], signingRequest: string | null = null) {
+        const calls: string[] = []
+        const taskClient = new ApolloClient({
+            cache: new InMemoryCache({addTypename: false}),
+            link: new ApolloLink(
+                (operation) =>
+                    new Observable((observer) => {
+                        calls.push(operation.variables.task_id)
+                        observer.next({
+                            data: {
+                                sequent_backend_tasks_execution: [
+                                    {
+                                        id: operation.variables.task_id,
+                                        election_event_id: EVENT_ID,
+                                        tenant_id: "tenant",
+                                        execution_status: Array.isArray(status)
+                                            ? status[Math.min(calls.length - 1, status.length - 1)]
+                                            : status,
+                                        type: "GENERATE_REPORT",
+                                        start_at: null,
+                                        end_at: null,
+                                        logs: [],
+                                        annotations: signingRequest
+                                            ? {signing_request: {id: signingRequest}}
+                                            : {},
+                                        executed_by_user: null,
+                                    },
+                                ],
+                            },
+                        })
+                        observer.complete()
+                    })
+            ),
+        })
+        const hook = renderHook(
+            ({taskId}: {taskId: string | null}) => useReportTaskSigningRequest(taskId),
+            {
+                initialProps: {taskId: "task-a" as string | null},
+                wrapper: ({children}) => (
+                    <ApolloProvider client={taskClient}>{children}</ApolloProvider>
+                ),
+            }
+        )
+        return {...hook, calls}
+    }
+
+    it.each(["SUCCESS", "FAILED", "CANCELLED"])(
+        "stops on %s without a signing annotation",
+        async (status) => {
+            const {calls, result} = taskHook(status)
+            await tick(1)
+            expect(result.current).toBeNull()
+            expect(calls).toHaveLength(1)
+            await tick(100)
+            expect(calls).toHaveLength(1)
+        }
+    )
+
+    it.each(["SUCCESS", "FAILED", "CANCELLED"])(
+        "stops when a running task becomes %s without an annotation",
+        async (status) => {
+            const {calls, result} = taskHook(["IN_PROGRESS", status])
+            await tick(1)
+            await tick(25)
+            expect(calls).toHaveLength(2)
+            expect(result.current).toBeNull()
+            await tick(100)
+            expect(calls).toHaveLength(2)
+        }
+    )
+
+    it.each(["IN_PROGRESS", "SUCCESS"])(
+        "returns the signing request and stops on %s",
+        async (status) => {
+            const {calls, result} = taskHook(status, "request-a")
+            await tick(1)
+            expect(result.current).toBe("request-a")
+            await tick(100)
+            expect(calls).toHaveLength(1)
+        }
+    )
+
+    it("keeps checking a running task and stops when the caller clears it", async () => {
+        const {calls, rerender} = taskHook("IN_PROGRESS")
+        await tick(1)
+        await tick(50)
+        expect(calls.length).toBeGreaterThan(1)
+        rerender({taskId: null})
+        const count = calls.length
+        await tick(100)
+        expect(calls).toHaveLength(count)
+    })
+
+    it("checks a new task after the preceding one finished", async () => {
+        const {calls, rerender} = taskHook("SUCCESS")
+        await tick(1)
+        rerender({taskId: "task-b"})
+        await tick(1)
+        expect(calls).toEqual(["task-a", "task-b"])
+        await tick(100)
+        expect(calls).toEqual(["task-a", "task-b"])
     })
 })
