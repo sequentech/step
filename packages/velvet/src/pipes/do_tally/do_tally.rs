@@ -166,19 +166,14 @@ fn participation_total(result: &ContestResult) -> Result<u64> {
         .map(|metrics| metrics.total_declined_to_vote)
         .unwrap_or_default();
 
-    result
-        .total_votes
-        .checked_add(result.auditable_votes)
-        .and_then(|total| total.checked_add(declined))
-        .ok_or_else(|| Error::UnexpectedError("Participation total overflow".to_string()))
+    let total = add_count(result.total_votes, result.auditable_votes, "participation")?;
+    Ok(add_count(total, declined, "participation")?)
 }
 
 fn merge_votes_by_channel(aggregate: &mut VotesByChannel, counts: &VotesByChannel) -> Result<()> {
     for (channel, count) in counts {
         let current = aggregate.entry(channel.clone()).or_default();
-        *current = current.checked_add(*count).ok_or_else(|| {
-            Error::UnexpectedError(format!("Voting channel count overflow for {channel}"))
-        })?;
+        *current = add_count(*current, *count, "votes by channel")?;
     }
     Ok(())
 }
@@ -249,9 +244,7 @@ fn validate_complete_votes_by_channel(result: &ContestResult) -> Result<()> {
         .into_iter()
         .flatten()
         .try_fold(0u64, |total, count| {
-            total
-                .checked_add(*count)
-                .ok_or_else(|| Error::UnexpectedError("Voting channel total overflow".to_string()))
+            add_count(total, *count, "votes over all channels")
         })?;
     let participation_total = participation_total(result)?;
 
@@ -710,14 +703,25 @@ impl Pipe for DoTally {
     }
 }
 
-/// A count that no longer fits in a `u64`. Returned instead of wrapping, which
-/// would publish a wrong count as if it were right.
+/// The largest count a tally produces: 2^53 - 1, the largest integer a JSON
+/// number holds exactly. The portals read results as JSON numbers (from
+/// Hasura) or JavaScript numbers (from SQLite), so a larger count would be
+/// shown rounded. Reaching it takes over two million voters at the maximum
+/// vote weight.
+pub const MAX_COUNT: u64 = (1 << 53) - 1;
+
+/// A count above [`MAX_COUNT`]. Returned instead of wrapping or rounding,
+/// which would publish a wrong count as if it were right.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct CountOverflow(pub &'static str);
 
 impl std::fmt::Display for CountOverflow {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Counting {} overflowed", self.0)
+        write!(
+            f,
+            "Counting {} went past {MAX_COUNT}, the largest count published exactly",
+            self.0
+        )
     }
 }
 
@@ -729,17 +733,30 @@ impl From<CountOverflow> for Error {
     }
 }
 
-/// `left + right`, failing instead of wrapping. `what` names the count.
+fn bounded(count: Option<u64>, what: &'static str) -> Result<u64, CountOverflow> {
+    count
+        .filter(|count| *count <= MAX_COUNT)
+        .ok_or(CountOverflow(what))
+}
+
+/// `left + right`, failing past [`MAX_COUNT`]. `what` names the count.
 pub fn add_count(left: u64, right: u64, what: &'static str) -> Result<u64, CountOverflow> {
-    left.checked_add(right).ok_or(CountOverflow(what))
+    bounded(left.checked_add(right), what)
 }
 
-/// `left * right`, failing instead of wrapping. `what` names the count.
+/// `left * right`, failing past [`MAX_COUNT`]. `what` names the count.
 pub fn multiply_count(left: u64, right: u64, what: &'static str) -> Result<u64, CountOverflow> {
-    left.checked_mul(right).ok_or(CountOverflow(what))
+    bounded(left.checked_mul(right), what)
 }
 
-/// `total + count * multiplier`, failing instead of wrapping: adds `count` for
+/// `count` as stored in a signed 64-bit column, failing past [`MAX_COUNT`]
+/// instead of storing a negative or rounded figure. `what` names the count.
+pub fn stored_count(count: u64, what: &'static str) -> Result<i64, CountOverflow> {
+    let count = bounded(Some(count), what)?;
+    i64::try_from(count).map_err(|_| CountOverflow(what))
+}
+
+/// `total + count * multiplier`, failing past [`MAX_COUNT`]: adds `count` for
 /// each of `multiplier` identical ballots. `what` names the count.
 pub fn add_multiplied(
     total: u64,
@@ -893,7 +910,7 @@ impl ExtendedMetricsContest {
         )?;
         for (channel, count) in &other.votes_by_channel {
             let current = result.votes_by_channel.entry(channel.clone()).or_default();
-            *current = add_count(*current, *count, "voting channel count")?;
+            *current = add_count(*current, *count, "votes by channel")?;
         }
         Ok(result)
     }
@@ -1108,7 +1125,8 @@ impl HasId for Candidate {
 mod tests {
     use super::*;
     use sequent_core::{
-        ballot::VotingStatusChannel, types::tally_sheets::VotingChannel as TallySheetVotingChannel,
+        ballot::VotingStatusChannel, types::participation::ParticipationChannel,
+        types::tally_sheets::VotingChannel as TallySheetVotingChannel,
     };
     use tempfile::tempdir;
 
@@ -1320,6 +1338,43 @@ mod tests {
         };
 
         assert!(validate_votes_by_channel(&result).is_err());
+    }
+
+    #[test]
+    fn counts_stop_at_the_largest_integer_a_json_number_holds_exactly() {
+        assert_eq!(MAX_COUNT, 9_007_199_254_740_991);
+        assert_eq!(add_count(MAX_COUNT - 1, 1, "votes"), Ok(MAX_COUNT));
+        assert_eq!(
+            add_count(MAX_COUNT, 1, "votes"),
+            Err(CountOverflow("votes"))
+        );
+        assert_eq!(multiply_count(1 << 31, 1 << 21, "votes"), Ok(1 << 52));
+        assert_eq!(
+            multiply_count(1 << 31, 1 << 22, "votes"),
+            Err(CountOverflow("votes"))
+        );
+    }
+
+    #[test]
+    fn a_stored_count_is_exact_or_an_error() {
+        assert_eq!(stored_count(0, "votes"), Ok(0));
+        assert_eq!(stored_count(MAX_COUNT, "votes"), Ok(9_007_199_254_740_991));
+        assert_eq!(
+            stored_count(MAX_COUNT + 1, "votes"),
+            Err(CountOverflow("votes"))
+        );
+        assert_eq!(stored_count(u64::MAX, "votes"), Err(CountOverflow("votes")));
+    }
+
+    #[test]
+    fn merging_a_channel_count_past_the_largest_exact_count_is_an_error() {
+        let counts = VotesByChannel::from([(
+            ParticipationChannel::CastVote(VotingStatusChannel::ONLINE),
+            MAX_COUNT,
+        )]);
+        let mut aggregate = counts.clone();
+
+        assert!(merge_votes_by_channel(&mut aggregate, &counts).is_err());
     }
 
     #[test]
