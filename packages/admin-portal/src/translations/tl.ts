@@ -3468,6 +3468,8 @@ const tagalogTranslation: TranslationType = {
             loadError:
                 "Hindi ma-load ang mga setting ng pagpirma. I-reload ang pahina para subukang muli.",
             errors: {
+                automatedCeremonies:
+                    "Gumagamit ang event na ito ng mga awtomatikong seremonya ng susi. Hindi ginagawa ng mga trustee ang mga hakbang na ito, kaya hindi maaaring hingin ang kanilang mga lagda. Gumamit ng mga manwal na seremonya ng susi upang hingin ang mga lagda ng trustee.",
                 forbidden: "Wala kang pahintulot para sa pagbabagong ito.",
                 invalid:
                     "Tinanggihan ng server ang mga value na ito. Suriin ang mga ito at subukang muli.",

@@ -29,6 +29,7 @@ import {
     isTrusteeAction,
     lastChange,
     ruleOf,
+    sortRolesByName,
 } from "./signingSettings"
 import type {ISignaturesAccess} from "./signingSettings"
 import {useRuleCapacities, useSigningRules} from "./useSigningSettings"
@@ -188,7 +189,10 @@ export const ProtectedActionsTab: React.FC<ISignaturesSubTabProps> = ({
                                                             gap: 0.5,
                                                         }}
                                                     >
-                                                        {capacity.roles.map(({id, name}) => (
+                                                        {sortRolesByName(
+                                                            capacity.roles,
+                                                            i18n.language
+                                                        ).map(({id, name}) => (
                                                             <Chip
                                                                 key={id}
                                                                 size="small"

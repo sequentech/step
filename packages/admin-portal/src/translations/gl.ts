@@ -3450,6 +3450,8 @@ const galegoTranslation: TranslationType = {
             loadError:
                 "Non se puido cargar a configuración de sinaturas. Recargue a páxina para tentalo de novo.",
             errors: {
+                automatedCeremonies:
+                    "Este evento utiliza cerimonias de claves automáticas. Os custodios non realizan estes pasos, polo que non se poden esixir as súas sinaturas. Para esixir as sinaturas dos custodios, utiliza cerimonias de claves manuais.",
                 forbidden: "Non ten permiso para este cambio.",
                 invalid: "O servidor rexeitou estes valores. Revíseos e ténteo de novo.",
                 conflict:

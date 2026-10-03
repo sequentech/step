@@ -3460,6 +3460,8 @@ const dutchTranslation: TranslationType = {
             loadError:
                 "De ondertekeningsinstellingen konden niet worden geladen. Laad de pagina opnieuw om het nogmaals te proberen.",
             errors: {
+                automatedCeremonies:
+                    "Dit evenement gebruikt automatische sleutelceremonies. Beheerders voeren deze stappen niet uit, dus hun handtekeningen kunnen niet worden vereist. Gebruik handmatige sleutelceremonies om hun handtekeningen te vereisen.",
                 forbidden: "U hebt geen toestemming voor deze wijziging.",
                 invalid:
                     "De server heeft deze waarden geweigerd. Controleer ze en probeer het opnieuw.",

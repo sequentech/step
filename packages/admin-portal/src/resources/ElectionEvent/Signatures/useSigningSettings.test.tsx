@@ -25,6 +25,8 @@ import {
     useRuleCapacities,
     useSigningEventInfo,
     useWaitingSigningRequests,
+    useWriteError,
+    useWriteErrorMessage,
 } from "./useSigningSettings"
 
 // Keep the real shared predicate without loading the browser component barrel.
@@ -32,7 +34,8 @@ jest.mock("@sequentech/ui-core", () => ({
     ...jest.requireActual("@sequentech/ui-core"),
     ...jest.requireActual("../../../../../ui-core/src/utils/typechecks"),
 }))
-jest.mock("react-admin", () => ({useGetList: () => ({data: []}), useNotify: () => jest.fn()}))
+const mockNotify = jest.fn()
+jest.mock("react-admin", () => ({useGetList: () => ({data: []}), useNotify: () => mockNotify}))
 jest.mock("react-i18next", () => ({useTranslation: () => ({t: (key: string) => key})}))
 jest.mock("@/hooks/useAliasRenderer", () => ({useAliasRenderer: () => () => ""}))
 jest.mock("@/providers/TenantContextProvider", () => ({useTenantStore: () => ["tenant"]}))
@@ -226,5 +229,72 @@ describe("the event's time zone and the signers' titles", () => {
         })
         await waitFor(() => expect(result.current.timeZone).toBeNull())
         expect(sent).toEqual([])
+    })
+})
+
+describe("signing write explanations", () => {
+    beforeEach(() => mockNotify.mockClear())
+
+    it("formats the trustee explanation for an inline alert without sending a notification", () => {
+        const {result} = renderHook(() => useWriteErrorMessage())
+        expect(
+            result.current(
+                {
+                    graphQLErrors: [
+                        {
+                            message: "Trustees cannot sign automatic steps.",
+                            extensions: {code: "invalid", reason: "automated-ceremonies"},
+                        },
+                    ],
+                },
+                "signing.rule.saveError"
+            )
+        ).toBe("signing.errors.automatedCeremonies")
+        expect(mockNotify).not.toHaveBeenCalled()
+    })
+
+    it("returns and notifies the specific automatic-ceremony explanation", () => {
+        const {result} = renderHook(() => useWriteError())
+        let message: string | undefined
+        act(() => {
+            message = result.current(
+                {
+                    graphQLErrors: [
+                        {
+                            message: "Trustees cannot sign automatic steps.",
+                            extensions: {code: "invalid", reason: "automated-ceremonies"},
+                        },
+                    ],
+                },
+                "signing.rule.saveError"
+            )
+        })
+        expect(message).toBe("signing.errors.automatedCeremonies")
+        expect(mockNotify).toHaveBeenCalledWith(message, {type: "error"})
+    })
+
+    it("uses a localized validation message instead of the server error body", () => {
+        const {result} = renderHook(() => useWriteError())
+        const message = "The expiry must be at least one minute."
+        expect(
+            result.current(
+                {graphQLErrors: [{message, extensions: {code: "invalid"}}]},
+                "signing.rule.saveError"
+            )
+        ).toBe("signing.errors.invalid")
+        expect(mockNotify).toHaveBeenCalledWith("signing.errors.invalid", {type: "error"})
+    })
+
+    it("keeps a translated fallback for unexpected or missing server detail", () => {
+        const {result} = renderHook(() => useWriteError())
+        expect(
+            result.current(new Error("Internal network stack detail"), "signing.rule.saveError")
+        ).toBe("signing.rule.saveError")
+        expect(
+            result.current(
+                {graphQLErrors: [{message: "  ", extensions: {code: "invalid"}}]},
+                "signing.rule.saveError"
+            )
+        ).toBe("signing.errors.invalid")
     })
 })

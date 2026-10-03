@@ -412,25 +412,19 @@ export const SignaturesWithOneReadPermission: Story = {
 
 /**
  * A signer without the Signatures tab (an SBEI) reaches the requests waiting
- * for their signature from the event's header.
+ * for their signature from the app header; the page itself keeps just its tabs.
  */
 export const SignerWithoutTheSignaturesTab: Story = {
     args: {roles: ["sign-close-voting", "election-event-logs-tab"]},
     parameters: {widgets: []},
     play: async ({canvasElement}) => {
-        await expect(
-            await within(canvasElement).findByRole("button", {
+        expect(await tabNames(canvasElement)).toEqual(["Logs"])
+        expect(
+            within(canvasElement).queryByRole("button", {
                 name: i18n.t("signing.waiting.buttonCount", {count: 0}),
             })
-        ).toBeVisible()
-        expect(await tabNames(canvasElement)).toEqual(["Logs"])
-        await waitFor(() =>
-            expect(
-                graphql.calls
-                    .filter(({name}) => name === "GetWaitingSigningRequests")
-                    .map(({headers}) => headers["x-hasura-role"])
-            ).toEqual(["sign-close-voting"])
-        )
+        ).toBeNull()
+        expect(graphql.calls.filter(({name}) => name === "GetWaitingSigningRequests")).toEqual([])
     },
 }
 

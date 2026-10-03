@@ -3455,6 +3455,8 @@ const spanishTranslation: TranslationType = {
             loadError:
                 "No se pudo cargar la configuración de firmas. Recargue la página para intentarlo de nuevo.",
             errors: {
+                automatedCeremonies:
+                    "Este evento utiliza ceremonias de claves automáticas. Los custodios no realizan estos pasos, por lo que no se pueden exigir sus firmas. Para exigir las firmas de los custodios, utiliza ceremonias de claves manuales.",
                 forbidden: "No tiene permiso para este cambio.",
                 invalid: "El servidor rechazó estos valores. Revíselos e inténtelo de nuevo.",
                 conflict:

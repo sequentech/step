@@ -8,16 +8,30 @@ import i18n from "i18next"
 import {USER_LANGUAGE_COOKIE_NAME, getValueFromCookie} from "@sequentech/ui-core"
 import SequentLogo from "@sequentech/ui-essentials/public/Sequent_logo.svg"
 import BlankLogoImg from "@sequentech/ui-essentials/public/blank_logo.svg"
-import {AdminStoryProvider, TENANT_ID, graphqlBoundary} from "@/__stories__/AdminStoryProvider"
+import {
+    AdminStoryProvider,
+    EVENT_ID,
+    TENANT_ID,
+    graphqlBoundary,
+} from "@/__stories__/AdminStoryProvider"
 import {tenantRecord} from "@/__stories__/fixtures"
 import {type ReadState, resourceBoundary} from "@/__stories__/resourceBoundary"
 import type {WidgetMeta} from "@/__stories__/widgetStory"
 import type {Sequent_Backend_Tenant} from "@/gql/graphql"
 import {CustomAppBar} from "./CustomAppBar"
+import {SigningProvider} from "./signing/SigningProvider"
+import {
+    idleSigningApi,
+    signingHandlers,
+    organizationOf,
+    Organization,
+} from "@/resources/ElectionEvent/Signatures/__stories__/SignaturesFixture"
 import {useStoryGlobals} from "../../../ui-essentials/.storybook/globals"
 
 interface Scenario {
     reads: ReadState
+    roles?: string[]
+    requests?: "empty" | "waiting"
     /** The tenant's own logo, when it has one. */
     logoUrl?: string
     signedIn: boolean
@@ -47,13 +61,14 @@ const tenant = (logoUrl?: string) =>
         annotations: logoUrl ? {logo_url: logoUrl} : {},
     }) as Sequent_Backend_Tenant
 
-function Fixture({logoUrl, signedIn, logout, openProfileLink}: Scenario) {
+function Fixture({logoUrl, signedIn, logout, openProfileLink, roles}: Scenario) {
     const {permissions} = useStoryGlobals()
     return (
         <AdminStoryProvider
             boundary={graphql}
             dataProvider={data.provider}
             role={permissions}
+            roles={roles}
             tenantRecord={tenant(logoUrl)}
             auth={{
                 isAuthenticated: signedIn,
@@ -62,7 +77,9 @@ function Fixture({logoUrl, signedIn, logout, openProfileLink}: Scenario) {
                 openProfileLink,
             }}
         >
-            <CustomAppBar />
+            <SigningProvider api={idleSigningApi()}>
+                <CustomAppBar />
+            </SigningProvider>
         </AdminStoryProvider>
     )
 }
@@ -79,11 +96,25 @@ const meta = {
     argTypes: {reads: {control: "inline-radio", options: ["records", "loading", "error"]}},
     parameters: {expectedFailure: nestedBanners()},
     beforeEach: async ({args}) => {
+        const organization = organizationOf(Organization.Overseas)
         data = resourceBoundary(
-            {sequent_backend_tenant: [tenant(args.logoUrl) as typeof tenantRecord]},
+            {
+                sequent_backend_tenant: [tenant(args.logoUrl) as typeof tenantRecord],
+                sequent_backend_election: organization.posts.map(({id, name}) => ({id, name})),
+                sequent_backend_area: organization.countries.map(({id, name}) => ({id, name})),
+            },
             {reads: args.reads}
         )
-        graphql = graphqlBoundary({}, {schema: true})
+        graphql = graphqlBoundary(
+            {
+                GetWaitingSigningRequests:
+                    args.requests === "waiting"
+                        ? signingHandlers(organization).GetWaitingSigningRequests
+                        : () => ({data: {sequent_backend_signing_request: []}}),
+                SigningEventInfo: () => ({data: {signingEventInfo: {time_zone: null, titles: {}}}}),
+            },
+            {schema: true}
+        )
         await graphql.ready
         const cookie = getValueFromCookie(USER_LANGUAGE_COOKIE_NAME)
         // The language menu changes the page's language and remembers it in a cookie.
@@ -193,5 +224,66 @@ export const SignedOut: Story = {
         await userEvent.click(profileButton(canvasElement))
         const menu = await within(document.body).findByRole("menu")
         expect(within(menu).queryByRole("menuitem", {name: "Logout"})).toBeNull()
+    },
+}
+
+const eventHeader = {
+    router: {
+        path: "/sequent_backend_election_event/:id/*",
+        initialEntries: [`/sequent_backend_election_event/${EVENT_ID}`],
+    },
+}
+
+export const SignaturesInTheHeader: Story = {
+    args: {roles: ["sign-close-voting"]},
+    // Opening the drawer hides the header's existing nested banner landmarks.
+    parameters: {...eventHeader, expectedFailure: null},
+    play: async ({canvasElement}) => {
+        const button = await within(canvasElement).findByRole("button", {
+            name: i18n.t("signing.waiting.buttonCount", {count: 0}),
+        })
+        expect(button.closest(".header-actions")).not.toBeNull()
+        expect(button.querySelector(".MuiBox-root")).toBeNull()
+        await expect(button.querySelector(".MuiBadge-badge")).toHaveClass(/MuiBadge-invisible/)
+        await userEvent.click(button)
+        const panel = within(
+            await within(document.body).findByRole("dialog", {
+                name: i18n.t("signing.waiting.title"),
+            })
+        )
+        await expect(await panel.findByText(i18n.t("signing.waiting.empty"))).toBeVisible()
+    },
+}
+
+export const NoSignatureActionWithoutPermission: Story = {
+    args: {roles: ["election-event-read"]},
+    parameters: eventHeader,
+    play: async ({canvasElement}) => {
+        expect(
+            within(canvasElement).queryByRole("button", {
+                name: i18n.t("signing.waiting.buttonCount", {count: 0}),
+            })
+        ).toBeNull()
+        expect(graphql.calls.some(({name}) => name === "GetWaitingSigningRequests")).toBe(false)
+    },
+}
+
+export const PendingSignaturesInTheHeader: Story = {
+    args: {roles: ["sign-close-voting", "sign-generate-election-returns"], requests: "waiting"},
+    parameters: {...eventHeader, expectedFailure: null},
+    play: async ({canvasElement}) => {
+        const button = await within(canvasElement).findByRole("button", {
+            name: i18n.t("signing.waiting.buttonCount", {count: 2}),
+        })
+        expect(button.closest(".header-actions")).not.toBeNull()
+        expect(button.textContent?.trim()).toBe("2")
+        await expect(within(button).getByText("2")).toBeVisible()
+        await userEvent.click(button)
+        const panel = within(
+            await within(document.body).findByRole("dialog", {
+                name: i18n.t("signing.waiting.title"),
+            })
+        )
+        expect(await panel.findAllByRole("listitem")).toHaveLength(2)
     },
 }

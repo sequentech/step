@@ -3444,6 +3444,8 @@ const basqueTranslation: TranslationType = {
             loadError:
                 "Ezin izan da sinadura-ezarpenak kargatu. Kargatu berriro orria berriro saiatzeko.",
             errors: {
+                automatedCeremonies:
+                    "Ekitaldi honek gakoen zeremonia automatikoak erabiltzen ditu. Zaindariek ez dituzte urrats hauek egiten; beraz, ezin dira haien sinadurak eskatu. Zaindarien sinadurak eskatzeko, erabili eskuzko gakoen zeremoniak.",
                 forbidden: "Ez duzu aldaketa hau egiteko baimenik.",
                 invalid: "Zerbitzariak balio hauek baztertu ditu. Egiaztatu eta saiatu berriro.",
                 conflict:

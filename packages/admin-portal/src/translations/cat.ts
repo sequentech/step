@@ -3468,6 +3468,8 @@ const catalanTranslation: TranslationType = {
             loadError:
                 "No s'ha pogut carregar la configuració de signatures. Recarregueu la pàgina per tornar-ho a provar.",
             errors: {
+                automatedCeremonies:
+                    "Aquest esdeveniment utilitza cerimònies de claus automàtiques. Els custodis no duen a terme aquests passos, per tant no es poden exigir les seves signatures. Per exigir les signatures dels custodis, utilitza cerimònies de claus manuals.",
                 forbidden: "No teniu permís per fer aquest canvi.",
                 invalid:
                     "El servidor ha rebutjat aquests valors. Reviseu-los i torneu-ho a provar.",

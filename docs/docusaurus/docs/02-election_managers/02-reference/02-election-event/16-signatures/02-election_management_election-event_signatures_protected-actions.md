@@ -52,6 +52,12 @@ step, and the key ceremony sets how many trustees take part.
 **Save** stays disabled until something changes. Saving stores the rule as a new revision
 and logs `SigningRuleChanged` with the old and new values.
 
+If the server refuses a save, the drawer keeps one red alert with the localized explanation
+beside the save controls, without a duplicate notification. It clears when you change the form or retry. For an event
+with automatic key ceremonies, trustee signing cannot be enabled: trustees do not
+perform those steps. The alert explains that manual key ceremonies are needed to
+require trustee signatures. The failed save does not change the rule.
+
 ### Waiting requests are cancelled
 
 A rule change applies to new requests only. When the action has waiting requests, the

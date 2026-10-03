@@ -3480,6 +3480,8 @@ const frenchTranslation: TranslationType = {
             loadError:
                 "Les paramètres de signature n'ont pas pu être chargés. Rechargez la page pour réessayer.",
             errors: {
+                automatedCeremonies:
+                    "Cet événement utilise des cérémonies de clés automatiques. Les dépositaires ne réalisent pas ces étapes, leurs signatures ne peuvent donc pas être exigées. Pour exiger leurs signatures, utilisez des cérémonies de clés manuelles.",
                 forbidden: "Vous n'avez pas l'autorisation d'effectuer cette modification.",
                 invalid: "Le serveur a refusé ces valeurs. Vérifiez-les et réessayez.",
                 conflict:

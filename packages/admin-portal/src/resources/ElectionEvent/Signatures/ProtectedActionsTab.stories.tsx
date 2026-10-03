@@ -114,7 +114,12 @@ async function expectRules(canvasElement: HTMLElement, organization: Organizatio
             ])
             continue
         }
-        expect(whoCanSign).toBe((capacities[action]?.roles ?? []).map(({name}) => name).join(""))
+        expect(whoCanSign).toBe(
+            (capacities[action]?.roles ?? [])
+                .map(({name}) => name)
+                .sort()
+                .join("")
+        )
         if (
             action === SigningAction.ConfirmKeyShare ||
             action === SigningAction.ContributeKeyShare
@@ -169,8 +174,28 @@ export const EditARule: Story = {
                 name: label("protectedActions.edit", {action}),
             })
         )
-        const drawer = within(await within(document.body).findByRole("dialog", {name: action}))
+        const paper = await within(document.body).findByRole("dialog", {name: action})
+        const drawer = within(paper)
         await expect(drawer.getByText(label("pendingRequests", {count: 2}))).toBeVisible()
+        // Contents and fields follow the drawer's available width at every viewport.
+        const content = paper.querySelector("section")!
+        const contentStyle = getComputedStyle(content)
+        const availableWidth =
+            content.clientWidth -
+            parseFloat(contentStyle.paddingLeft) -
+            parseFloat(contentStyle.paddingRight)
+        expect(Math.abs(content.getBoundingClientRect().width - paper.clientWidth)).toBeLessThan(1)
+        for (const field of [
+            drawer.getByRole("spinbutton", {name: label("rule.signaturesNeeded")}),
+            drawer.getByRole("combobox", {name: label("rule.expiresAfter")}),
+        ]) {
+            const control = field.closest(".MuiFormControl-root")!
+            expect(Math.abs(control.getBoundingClientRect().width - availableWidth)).toBeLessThan(1)
+        }
+        expect(paper.scrollWidth).toBeLessThanOrEqual(paper.clientWidth)
+        if (window.innerWidth < 600) {
+            expect(paper.clientWidth).toBe(window.innerWidth)
+        }
         await userEvent.click(drawer.getByRole("button", {name: label("rule.cancel")}))
         await waitFor(() => expect(within(document.body).queryByRole("dialog")).toBeNull())
     },
@@ -211,6 +236,7 @@ export const SecondOrganization: Story = {
         expect(whoCanSign).toBe(
             council.capacities[SigningAction.GenerateElectionReturns]?.roles
                 .map(({name}) => name)
+                .sort()
                 .join("")
         )
         const approval = await actionRow(
