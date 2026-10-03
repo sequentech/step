@@ -1045,6 +1045,21 @@ const galegoTranslation: TranslationType = {
                     "no-gold-level": "No Gold level Authentication",
                 },
             },
+            slates: {
+                title: "Candidaturas",
+                configuration: "Configuración de candidaturas (JSON)",
+                helper: "Candidaturas con nome e os candidatos que cada unha presenta en cada contenda. Déixao baleiro para unha elección sen candidaturas.",
+                loading:
+                    "As contendas e os candidatos da elección aínda se están a cargar. Téntao de novo nun momento.",
+                mobileCandidateLists: {
+                    label: "Listas de candidatos no móbil",
+                    helper: "Como aparece inicialmente a lista de candidatos de cada candidatura no móbil. O votante sempre pode abrila ou pechala.",
+                    options: {
+                        collapsed: "Contraídas",
+                        expanded: "Despregadas",
+                    },
+                },
+            },
             startScreenTitlePolicy: {
                 label: "Política de título da pantalla de inicio",
                 options: {

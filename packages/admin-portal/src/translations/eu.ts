@@ -1042,6 +1042,21 @@ const basqueTranslation: TranslationType = {
                     "no-gold-level": "Ez da Urre maila Autentifikaziorik",
                 },
             },
+            slates: {
+                title: "Hautagai-zerrendak",
+                configuration: "Hautagai-zerrenden konfigurazioa (JSON)",
+                helper: "Izendun hautagai-zerrendak eta bakoitzak lehia bakoitzean aurkezten dituen hautagaiak. Utzi hutsik hautagai-zerrendarik gabeko hauteskunde baterako.",
+                loading:
+                    "Hauteskundearen lehiak eta hautagaiak kargatzen ari dira oraindik. Saiatu berriro une batean.",
+                mobileCandidateLists: {
+                    label: "Hautagaien zerrendak mugikorrean",
+                    helper: "Nola agertzen den hasieran hautagai-zerrenda bakoitzaren hautagaien zerrenda mugikorrean. Hautesleak beti ireki edo itxi dezake.",
+                    options: {
+                        collapsed: "Tolestuta",
+                        expanded: "Zabalduta",
+                    },
+                },
+            },
             startScreenTitlePolicy: {
                 label: "Hasierako pantailaren titulu politika",
                 options: {
