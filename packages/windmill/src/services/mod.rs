@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 pub mod application;
+pub mod ballot_box_key;
 pub mod ballot_styles;
 pub mod cast_votes;
 pub mod celery_app;
@@ -50,6 +51,7 @@ pub mod probe;
 pub mod protocol_manager;
 pub mod providers;
 pub mod public_keys;
+pub mod receive_ballot;
 pub mod reports;
 pub mod reports_vault;
 pub mod results_publication;

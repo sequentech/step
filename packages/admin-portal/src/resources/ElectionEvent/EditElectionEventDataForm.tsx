@@ -121,6 +121,8 @@ import {
     PasswordPolicyAccordionHandle,
 } from "@/components/election-event/PasswordPolicyAccordion"
 import {SettingsLanguageSelector} from "../../components/SettingsLanguageSelector"
+import {BallotReceiptsInput} from "./BallotReceiptsInput"
+import {VOTER_SIGNING_POLICY_SOURCE, areReceiptsSignedByBallotBox} from "@/services/BallotReceipts"
 import {
     CONFIGURE_RESULTS_WEBSITE_POLICY,
     ConfigureResultsWebsitePolicyData,
@@ -1654,6 +1656,31 @@ export const EditElectionEventDataForm: React.FC<{
                     </AccordionDetails>
                 </Accordion>
 
+                <Accordion
+                    sx={{width: "100%"}}
+                    expanded={expanded === "election-event-data-ballot-receipts"}
+                    onChange={() =>
+                        setExpanded((prev) =>
+                            prev === "election-event-data-ballot-receipts"
+                                ? ""
+                                : "election-event-data-ballot-receipts"
+                        )
+                    }
+                >
+                    <AccordionSummary
+                        expandIcon={<ExpandMoreIcon id="election-event-data-ballot-receipts" />}
+                    >
+                        <ElectionHeaderStyles.Wrapper>
+                            <ElectionHeaderStyles.Title>
+                                {t("electionEventScreen.edit.ballotReceipts")}
+                            </ElectionHeaderStyles.Title>
+                        </ElectionHeaderStyles.Wrapper>
+                    </AccordionSummary>
+                    <AccordionDetails>
+                        <BallotReceiptsInput canEdit={canEdit} status={record?.status} />
+                    </AccordionDetails>
+                </Accordion>
+
                 {canReadPasswordPolicy && (
                     <PasswordPolicyAccordion
                         ref={passwordPolicyRef}
@@ -1822,16 +1849,24 @@ export const EditElectionEventDataForm: React.FC<{
                             emptyText={undefined}
                             validate={required()}
                         />
-                        <SelectInput
-                            source={"presentation.voter_signing_policy"}
-                            choices={voterSigningPolicyChoices()}
-                            label={String(
-                                t("electionEventScreen.field.voterSigningPolicy.policyLabel")
+                        <FormDataConsumer>
+                            {({formData}) => (
+                                <SelectInput
+                                    source={VOTER_SIGNING_POLICY_SOURCE}
+                                    choices={voterSigningPolicyChoices()}
+                                    label={String(
+                                        t(
+                                            "electionEventScreen.field.voterSigningPolicy.policyLabel"
+                                        )
+                                    )}
+                                    defaultValue={EVoterSigningPolicy.NO_SIGNATURE}
+                                    emptyText={undefined}
+                                    validate={required()}
+                                    // The ballot box receives only signed ballots.
+                                    disabled={areReceiptsSignedByBallotBox(formData?.presentation)}
+                                />
                             )}
-                            defaultValue={EVoterSigningPolicy.NO_SIGNATURE}
-                            emptyText={undefined}
-                            validate={required()}
-                        />
+                        </FormDataConsumer>
                         <SelectInput
                             source={"presentation.voter_certificate_policy"}
                             choices={VoterCertificatePolicyChoices()}

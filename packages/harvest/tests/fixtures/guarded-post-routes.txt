@@ -107,6 +107,7 @@
 /preview-tally-sheet-import
 /publish-ballot
 /publish-results-website
+/receive-ballot
 /recount-tally-session
 /refresh-results-publication-index
 /render-document-pdf

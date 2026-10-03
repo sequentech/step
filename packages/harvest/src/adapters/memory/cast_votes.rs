@@ -9,6 +9,9 @@ use std::sync::Mutex;
 use windmill::services::insert_cast_vote::{
     CastVoteError, InsertCastVoteInput, InsertCastVoteResult,
 };
+use windmill::services::receive_ballot::{
+    ReceiveBallotInput, ReceiveBallotOutput,
+};
 
 /// Who cast a vote, as the insertion received it.
 #[derive(Clone, Debug, PartialEq)]
@@ -31,9 +34,26 @@ pub struct Attempt {
 pub struct ScriptedCastVotes {
     outcomes: Mutex<VecDeque<Result<InsertCastVoteResult, CastVoteError>>>,
     attempts: Mutex<Vec<Attempt>>,
+    receipts: Mutex<VecDeque<Result<ReceiveBallotOutput, CastVoteError>>>,
+    receive_attempts: Mutex<Vec<Attempt>>,
 }
 
 impl ScriptedCastVotes {
+    pub fn receiving(
+        receipts: impl IntoIterator<
+            Item = Result<ReceiveBallotOutput, CastVoteError>,
+        >,
+    ) -> Self {
+        Self {
+            receipts: Mutex::new(receipts.into_iter().collect()),
+            ..Default::default()
+        }
+    }
+
+    pub fn receive_attempts(&self) -> Vec<Attempt> {
+        self.receive_attempts.lock().unwrap().clone()
+    }
+
     pub fn answering(
         outcomes: impl IntoIterator<
             Item = Result<InsertCastVoteResult, CastVoteError>,
@@ -75,5 +95,30 @@ impl CastVotes for ScriptedCastVotes {
             .unwrap()
             .pop_front()
             .expect("a scripted outcome for every attempt")
+    }
+
+    async fn try_receive(
+        &self,
+        input: ReceiveBallotInput,
+        voter: CastVoter<'_>,
+    ) -> Result<ReceiveBallotOutput, CastVoteError> {
+        self.receive_attempts.lock().unwrap().push(Attempt {
+            ballot_id: input.ballot_id,
+            election_id: input.election_id.to_string(),
+            content: input.content,
+            tenant_id: voter.tenant_id.to_string(),
+            auth_time: *voter.auth_time,
+            username: voter.username.clone(),
+            voter_id: voter.voter_id.to_string(),
+            area_id: voter.area_id.to_string(),
+            voting_channel: voter.voting_channel,
+            voter_ip: voter.voter_ip.clone(),
+            voter_country: voter.voter_country.clone(),
+        });
+        self.receipts
+            .lock()
+            .unwrap()
+            .pop_front()
+            .expect("a scripted receipt for every received ballot")
     }
 }

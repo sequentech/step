@@ -30,6 +30,7 @@ Each section serves a specific purpose and provides a comprehensive breakdown of
 - **Voting Channels Allowed**: Applicable voting methods.
 - **Custom URLs Prefix**: Define custom URLs for the Voting / Enrollment portals and SAML endpoint.
 - **Support Materials**: Documents available in the Voting Portal for voters to review.
+- **Ballot receipts**: Whether the ballot box receives and signs each ballot at review. See [Ballot Receipts](../13-ballot-receipts.md).
 - **Advanced Configurations**: Enable system lockdown, Voting Portal session timeout, and forced logout.
 
 Detailed descriptions of each section are provided below.

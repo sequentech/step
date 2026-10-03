@@ -471,6 +471,7 @@ const galegoTranslation: TranslationType = {
                 language: "Idioma",
                 allowed: "Canles de Votación Permitidas",
                 materials: "Materiais de Soporte",
+                ballotReceipts: "Recibos de papeleta",
                 ballotDesign: "Deseño da Papeleta",
                 templates: "Modelos",
                 reorder: "Reordenar eleccións",
@@ -641,6 +642,14 @@ const galegoTranslation: TranslationType = {
                     "policyLabel": "Política de Firma de Votantes",
                     "no-signature": "Sin firma",
                     "with-signature": "Con firma",
+                },
+                receiptsPolicy: {
+                    "policyLabel": "Recibos asinados pola urna",
+                    "disabled": "Desactivado",
+                    "signed-by-ballot-box": "Asinados pola urna",
+                    "helperText":
+                        "Cando está activado, a urna almacena e asina cada papeleta na pantalla de revisión, e o votante ve un ID de papeleta só cando a urna a recibiu. Os votantes asinan as súas papeletas. Volva publicar as papeletas despois de cambialo.",
+                    "lockedHelperText": "Non se pode cambiar unha vez iniciada a votación.",
                 },
                 VoterCertificatePolicy: {
                     policyLabel: "Voter Digital Certificate Policy",

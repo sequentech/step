@@ -162,6 +162,7 @@ pub async fn insert_cast_vote(
     voter_country: &Option<String>,
     voting_channel: VotingStatusChannel,
     initial_status: CastVoteStatus,
+    received_ballot_id: Option<&Uuid>,
 ) -> Result<CastVote> {
     let status = initial_status.to_string();
     let statement = hasura_transaction
@@ -169,7 +170,7 @@ pub async fn insert_cast_vote(
             r#"
                 INSERT INTO
                     sequent_backend.cast_vote
-                (tenant_id, election_event_id, election_id, area_id, voter_id_string, ballot_id, content, cast_ballot_signature, annotations, status)
+                (tenant_id, election_event_id, election_id, area_id, voter_id_string, ballot_id, content, cast_ballot_signature, annotations, status, received_ballot_id)
                 VALUES(
                     $1,
                     $2,
@@ -180,7 +181,8 @@ pub async fn insert_cast_vote(
                     $7,
                     $8,
                     COALESCE($9::jsonb, '{}'),
-                    $10
+                    $10,
+                    $11
                 )
                 RETURNING
                     id, ballot_id, election_id, election_event_id, tenant_id,
@@ -206,6 +208,7 @@ pub async fn insert_cast_vote(
                 &cast_ballot_signature,
                 &annotations,
                 &status,
+                &received_ballot_id,
             ],
         )
         .await

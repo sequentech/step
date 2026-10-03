@@ -350,9 +350,27 @@ fn error_answers() -> Vec<(CastVoteError, Status, &'static str, &'static str)> {
         ),
         (
             BallotVoterSignatureFailed(detail()),
-            Status::InternalServerError,
-            "InternalServerError",
-            "InternalServerError",
+            Status::BadRequest,
+            "PokValidationFailed",
+            "PokValidationFailed",
+        ),
+        (
+            BallotVoterSignatureRequired,
+            Status::BadRequest,
+            "PokValidationFailed",
+            "PokValidationFailed",
+        ),
+        (
+            BallotStyleMismatch(detail()),
+            Status::BadRequest,
+            "PokValidationFailed",
+            "PokValidationFailed",
+        ),
+        (
+            BallotNotReceived,
+            Status::BadRequest,
+            "PokValidationFailed",
+            "PokValidationFailed",
         ),
         (
             UuidParseFailed(detail(), detail()),

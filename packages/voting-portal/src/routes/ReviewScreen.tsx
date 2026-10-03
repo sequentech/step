@@ -2,8 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useEffect, useState, useContext, useMemo, useRef} from "react"
-import {CombinedGraphQLErrors} from "@apollo/client/errors"
-import {isApolloTransportError} from "../services/ApolloErrors"
+import {castVoteErrorMessage} from "../services/CastVoteErrors"
+import {EReceiveBallotStatus, useReceiveBallot} from "../hooks/useReceiveBallot"
 import {
     Link as RouterLink,
     useNavigate,
@@ -28,10 +28,6 @@ import {
     escapeTranslationValues,
     IAuditableBallot,
     EVotingPortalAuditButtonCfg,
-    IGraphQLActionError,
-    IExtensionError,
-    EGraphQLInternalErrorMessage,
-    EGraphQLErrorCode,
     IAuditableSingleBallot,
     IAuditableMultiBallot,
     ECastVoteGoldLevelPolicy,
@@ -214,40 +210,7 @@ const useTryInsertCastVote = () => {
             return true
         } catch (error) {
             console.log(error)
-            let castError = error as IGraphQLActionError
-            let errorExtensions = (
-                CombinedGraphQLErrors.is(error)
-                    ? error.errors[0]?.extensions
-                    : castError?.graphQLErrors?.[0]?.extensions
-            ) as IExtensionError | undefined
-            if (castError?.message?.includes("internal error")) {
-                setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.INTERNAL_ERROR}`)) // can happen if the backend panics
-            } else if (errorExtensions?.code) {
-                let errorCode = errorExtensions?.code
-                console.log(castError.name, castError.message)
-                let internalErrMessage = errorExtensions?.internal?.error?.message
-                console.log(errorCode, internalErrMessage)
-                if (
-                    errorCode === EGraphQLErrorCode.UNEXPECTED &&
-                    internalErrMessage === EGraphQLInternalErrorMessage.TIMEOUT_ERROR
-                ) {
-                    setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.CAST_VOTE_TIMEOUT}`))
-                } else {
-                    setErrorMsg(
-                        t(`reviewScreen.error.${CastBallotsErrorType.CAST_VOTE}_${errorCode}`)
-                    )
-                }
-            } else if (
-                isApolloTransportError(error instanceof Error ? error : undefined) ||
-                (error &&
-                    typeof error === "object" &&
-                    "networkError" in error &&
-                    error.networkError)
-            ) {
-                setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.NETWORK_ERROR}`))
-            } else {
-                setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.CAST_VOTE}`)) // Generic error
-            }
+            setErrorMsg(castVoteErrorMessage(error, t))
             return false
         }
     }
@@ -278,6 +241,9 @@ interface ActionButtonProps {
     isBlankBallot: boolean
     isFullyAcclaimed: boolean
     hasInconsistentHash: boolean
+    // The ballot box has not yet stored and signed this ballot.
+    isAwaitingReceipt: boolean
+    receivedBallotId?: string
 }
 
 const ActionButtons: React.FC<ActionButtonProps> = ({
@@ -293,7 +259,10 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
     isBlankBallot,
     isFullyAcclaimed,
     hasInconsistentHash,
+    isAwaitingReceipt,
+    receivedBallotId,
 }) => {
+    const castRefused = hasInconsistentHash || isAwaitingReceipt
     const {t} = useTranslation()
     const navigate = useNavigate()
     const location = useLocation()
@@ -357,7 +326,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
     }
 
     const castBallotAction = async () => {
-        if (castingRef.current || hasInconsistentHash) {
+        if (castingRef.current || castRefused) {
             return
         }
         // A fully acclaimed election produces no ballot, so there is nothing
@@ -417,6 +386,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
             // Save contests to session storage and perform reauthentication
             const ballotData: SessionBallotData = {
                 ballotId,
+                receivedBallotId,
                 auditButtonCfg,
                 electionId: ballotStyle.election_id,
                 isDemo,
@@ -462,10 +432,11 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
                 backComponent={RouterLink}
                 backTo={backNavigateTo}
                 onAudit={() => setAuditBallotHelp(true)}
-                // A detected hash mismatch refuses the cast; leaving the handler
-                // out is what disables the button.
+                // A detected hash mismatch refuses the cast, and so does a ballot
+                // the ballot box has not received; leaving the handler out is
+                // what disables the button.
                 onCast={
-                    hasInconsistentHash
+                    castRefused
                         ? undefined
                         : () =>
                               castVoteConfirmModal && !isFullyAcclaimed
@@ -620,7 +591,23 @@ export const ReviewScreen: React.FC = () => {
               })
           )
         : undefined
-    const displayedErrorMsg = hashErrorMsg ?? errorMsg
+    const receipt = useReceiveBallot({
+        ballotStyle,
+        auditableBallot,
+        ballotHash: ballotId,
+        isMultiContest,
+        skip:
+            !!ballotStyle?.ballot_eml?.public_key?.is_demo ||
+            globalSettings.DISABLE_AUTH ||
+            isFullyAcclaimed ||
+            hasInconsistentHash,
+    })
+    const isReceiptRequired = receipt.status !== EReceiveBallotStatus.NOT_REQUIRED
+    const isAwaitingReceipt = isReceiptRequired && receipt.status !== EReceiveBallotStatus.RECEIVED
+    // With receipts on, the Ballot ID is the ballot box's: there is none to
+    // show until the ballot box has stored and signed the ballot.
+    const shownBallotId = isReceiptRequired ? receipt.ballotId : ballotId || ""
+    const displayedErrorMsg = hashErrorMsg ?? receipt.errorMsg ?? errorMsg
 
     const handleCloseDialogAuditHelp = (value: boolean) => {
         setAuditBallotHelp(false)
@@ -712,7 +699,7 @@ export const ReviewScreen: React.FC = () => {
             setConfirmationScreenData({
                 electionId: ballotData.electionId,
                 confirmationScreenData: {
-                    ballotId: ballotData.ballotId,
+                    ballotId: ballotData.receivedBallotId ?? ballotData.ballotId,
                     isDemo: ballotData.isDemo,
                     auditButtonCfg: ballotData.auditButtonCfg,
                 },
@@ -801,7 +788,7 @@ export const ReviewScreen: React.FC = () => {
             ballotId={
                 auditButtonCfg === EVotingPortalAuditButtonCfg.NOT_SHOW || isFullyAcclaimed
                     ? undefined
-                    : ballotId || ""
+                    : shownBallotId
             }
             onBallotIdHelp={() => setOpenBallotIdHelp(true)}
             steps={<Stepper selected={2} />}
@@ -830,6 +817,8 @@ export const ReviewScreen: React.FC = () => {
                         ballotId={ballotId ?? ""}
                         setErrorMsg={setErrorMsg}
                         hasInconsistentHash={hasInconsistentHash}
+                        isAwaitingReceipt={isAwaitingReceipt}
+                        receivedBallotId={receipt.ballotId}
                         isGoldenPolicy={isGoldenPolicy ?? false}
                         isMultiContest={isMultiContest}
                         isDeclineToVote={isDeclineToVote}

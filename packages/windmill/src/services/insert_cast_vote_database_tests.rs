@@ -62,6 +62,7 @@ impl ElectionFixture {
             &None,
             VotingStatusChannel::ONLINE,
             CastVoteStatus::Valid,
+            None,
         )
         .await
     }

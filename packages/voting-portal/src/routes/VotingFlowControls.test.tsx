@@ -31,6 +31,8 @@ import {
     BALLOT_DATA_KEY,
     SessionBallotData,
 } from "../store/castVotes/sessionBallotData"
+import {EReceiveBallotStatus} from "../hooks/useReceiveBallot"
+import type {IReceiveBallotState} from "../hooks/useReceiveBallot"
 import VotingScreen from "./VotingScreen"
 import {ReviewScreen} from "./ReviewScreen"
 import ConfirmationScreen from "./ConfirmationScreen"
@@ -128,6 +130,13 @@ jest.mock("../services/BallotService", () => ({
 jest.mock("../hooks/useEncryptBallotForReview", () => ({
     useEncryptBallotForReview: () => ({encryptAndStoreBallot: jest.fn()}),
 }))
+jest.mock("../hooks/useReceiveBallot", () => ({
+    ...jest.requireActual("../hooks/useReceiveBallot"),
+    useReceiveBallot: (params: unknown) => {
+        mockReceiveBallotParams(params)
+        return mockReceiveBallotState
+    },
+}))
 jest.mock("../hooks/root-back-link", () => ({
     useRootBackLink: () => "/tenant/tenant-1/event/event-1/election-chooser",
 }))
@@ -153,6 +162,8 @@ const mockLogout = jest.fn()
 let mockIsKiosk = false
 const mockReauthWithGold = jest.fn()
 const mockInsertCastVote = jest.fn()
+const mockReceiveBallotParams = jest.fn()
+let mockReceiveBallotState: IReceiveBallotState
 const routeAction = jest.fn(() => null)
 let mockEmptyHashTranslation = false
 let mockIsGoldUser = false
@@ -286,6 +297,7 @@ beforeEach(() => {
     mockDisableAuth = true
     mockIsKiosk = false
     mockElectionQueryData = undefined
+    mockReceiveBallotState = {status: EReceiveBallotStatus.NOT_REQUIRED}
     sessionStorage.clear()
     setUpState()
 })
@@ -663,6 +675,206 @@ describe("pending cast", () => {
         resolveCastVote()
         await waitFor(() => expect(routeAction).toHaveBeenCalledTimes(1))
         expect(mockInsertCastVote).toHaveBeenCalledTimes(1)
+    })
+})
+
+describe("ballot received by the ballot box at review", () => {
+    const RECEIVED_BALLOT_ID = "FTBE-MHRX"
+    const received = (): IReceiveBallotState => ({
+        status: EReceiveBallotStatus.RECEIVED,
+        ballotId: RECEIVED_BALLOT_ID,
+    })
+    const receivedBallot = {
+        tenant_id: "tenant-1",
+        election_event_id: "event-1",
+        election_id: "election-1",
+        ballot_hash: BALLOT_ID,
+        voter_signing_pk: "voter-key",
+        voter_ballot_signature: "voter-signature",
+        received_at: "2028-05-08T03:00:00.000Z",
+        key_id: "fd110d301d2f077d",
+        received_signature: "ballot-box-signature",
+        ballot_id: RECEIVED_BALLOT_ID,
+    }
+    const requireGoldLevel = () => {
+        const election = mockState.elections["election-1"]!
+        election.presentation = {
+            ...election.presentation,
+            consolidated_report_policy: EConsolidatedReportPolicy.DO_NOT_GENERATE,
+            cast_vote_gold_level: ECastVoteGoldLevelPolicy.GOLD_LEVEL,
+        }
+    }
+
+    it("shows no Ballot ID and cannot cast until the ballot box has answered", () => {
+        mockDisableAuth = false
+        mockReceiveBallotState = {status: EReceiveBallotStatus.PENDING}
+        const {container} = renderRoute(<ReviewScreen />, "review")
+
+        expect(container.querySelector(".hash-container")).toBeNull()
+        expect(screen.queryByText(BALLOT_ID)).toBeNull()
+        expect(screen.queryByRole("alert")).toBeNull()
+        const cast = screen.getByRole("button", {name: "reviewScreen.castBallotButton"})
+        expect(cast).toBeDisabled()
+        fireEvent.click(cast)
+        expect(mockInsertCastVote).not.toHaveBeenCalled()
+    })
+
+    it("shows the ballot box's Ballot ID once received and casts that ballot", async () => {
+        mockDisableAuth = false
+        mockReceiveBallotState = received()
+        const {container} = renderRoute(<ReviewScreen />, "review")
+
+        // The mocked translation shows the first eight characters.
+        expect(container.querySelector(".hash-text")).toHaveTextContent(
+            `Ballot ID: ${RECEIVED_BALLOT_ID.slice(0, 8)}`
+        )
+        expect(container.querySelector(".hash-text")).not.toHaveTextContent(BALLOT_ID.slice(0, 8))
+        const cast = screen.getByRole("button", {name: "reviewScreen.castBallotButton"})
+        expect(cast).toBeEnabled()
+        await userEvent.setup().click(cast)
+        await waitFor(() => expect(routeAction).toHaveBeenCalledTimes(1))
+        // The ballot box finds the received ballot by the hash of what was sent.
+        expect(mockInsertCastVote).toHaveBeenCalledWith({
+            variables: {electionId: "election-1", ballotId: BALLOT_ID, content: "{}"},
+        })
+    })
+
+    it("shows the error and cannot cast a ballot the ballot box did not receive", () => {
+        mockDisableAuth = false
+        mockReceiveBallotState = {
+            status: EReceiveBallotStatus.FAILED,
+            errorMsg: "reviewScreen.error.NETWORK_ERROR",
+        }
+        const {container} = renderRoute(<ReviewScreen />, "review")
+
+        expect(screen.getByRole("alert")).toHaveTextContent("reviewScreen.error.NETWORK_ERROR")
+        expect(container.querySelector(".hash-container")).toBeNull()
+        const cast = screen.getByRole("button", {name: "reviewScreen.castBallotButton"})
+        expect(cast).toBeDisabled()
+        fireEvent.click(cast)
+        expect(mockInsertCastVote).not.toHaveBeenCalled()
+        expect(screen.getByRole("link", {name: "reviewScreen.backButton"})).toHaveAttribute(
+            "href",
+            `${ELECTION_PATH}/vote?preview=true`
+        )
+    })
+
+    it.each([
+        ["a demo ballot", true, false, false],
+        ["a portal without authentication", false, true, false],
+        ["an election decided by acclamation", false, false, true],
+    ])("sends nothing to the ballot box for %s", (_, isDemo, disableAuth, isFullyAcclaimed) => {
+        setUpState({isFullyAcclaimed})
+        mockDisableAuth = disableAuth
+        mockState.ballotStyles["election-1"]!.ballot_eml.public_key = {
+            public_key: "key",
+            is_demo: isDemo,
+        }
+        renderRoute(<ReviewScreen />, "review")
+
+        expect(mockReceiveBallotParams).toHaveBeenLastCalledWith(
+            expect.objectContaining({skip: true})
+        )
+    })
+
+    it("sends a real ballot with the hash this device computed", () => {
+        mockDisableAuth = false
+        mockState.ballotStyles["election-1"]!.ballot_eml.public_key = {
+            public_key: "key",
+            is_demo: false,
+        }
+        renderRoute(<ReviewScreen />, "review")
+
+        expect(mockReceiveBallotParams).toHaveBeenLastCalledWith({
+            ballotStyle: mockState.ballotStyles["election-1"],
+            auditableBallot: mockState.auditableBallots["election-1"]!.auditableBallot,
+            ballotHash: BALLOT_ID,
+            isMultiContest: false,
+            skip: false,
+        })
+    })
+
+    it("does not send a ballot whose hash is inconsistent", () => {
+        mockDisableAuth = false
+        mockState.auditableBallots["election-1"]!.auditableBallot.ballot_hash = "f".repeat(64)
+        renderRoute(<ReviewScreen />, "review")
+
+        expect(mockReceiveBallotParams).toHaveBeenLastCalledWith(
+            expect.objectContaining({skip: true})
+        )
+    })
+
+    it("keeps the Ballot ID across the gold reauthentication and casts by the hash", async () => {
+        requireGoldLevel()
+        mockDisableAuth = false
+        mockReceiveBallotState = received()
+        const review = renderRoute(<ReviewScreen />, "review")
+        await userEvent
+            .setup()
+            .click(screen.getByRole("button", {name: "reviewScreen.castBallotButton"}))
+        await waitFor(() => expect(mockReauthWithGold).toHaveBeenCalledTimes(1))
+        expect(JSON.parse(sessionStorage.getItem(BALLOT_DATA_KEY)!)).toMatchObject({
+            ballotId: BALLOT_ID,
+            receivedBallotId: RECEIVED_BALLOT_ID,
+        })
+        review.unmount()
+
+        mockState = store.getState()
+        mockIsGoldUser = true
+        mockElectionQueryData = {
+            sequent_backend_election: [
+                {
+                    id: "election-1",
+                    presentation: {
+                        consolidated_report_policy: EConsolidatedReportPolicy.DO_NOT_GENERATE,
+                        cast_vote_gold_level: ECastVoteGoldLevelPolicy.GOLD_LEVEL,
+                    },
+                    status: {voting_status: "open"},
+                },
+            ],
+        }
+        renderRoute(<ReviewScreen />, "review")
+
+        await waitFor(() =>
+            expect(mockDispatch).toHaveBeenCalledWith(
+                setConfirmationScreenData({
+                    electionId: "election-1",
+                    confirmationScreenData: {
+                        ballotId: RECEIVED_BALLOT_ID,
+                        isDemo: false,
+                        auditButtonCfg: EVotingPortalAuditButtonCfg.SHOW,
+                    },
+                })
+            )
+        )
+        expect(mockInsertCastVote).toHaveBeenCalledWith({
+            variables: {electionId: "election-1", ballotId: BALLOT_ID, content: "{}"},
+        })
+    })
+
+    it("confirms the cast with the ballot box's Ballot ID and locates the ballot by it", () => {
+        mockState = {...mockState, receivedBallots: {"election-1": receivedBallot}}
+        renderRoute(<ConfirmationScreen />, "confirmation")
+
+        expect(screen.getByText(RECEIVED_BALLOT_ID)).toBeInTheDocument()
+        expect(screen.queryByText(BALLOT_ID)).toBeNull()
+        for (const link of screen.getAllByTestId("ballot-id")) {
+            expect(link).toHaveAttribute(
+                "href",
+                `${window.location.origin}${ELECTION_PATH}/ballot-locator/${RECEIVED_BALLOT_ID}`
+            )
+        }
+    })
+
+    it("confirms with the ballot's hash when the receipt is of another ballot", () => {
+        mockState = {
+            ...mockState,
+            receivedBallots: {"election-1": {...receivedBallot, ballot_hash: "earlier-ballot"}},
+        }
+        renderRoute(<ConfirmationScreen />, "confirmation")
+
+        expect(screen.getByText(BALLOT_ID)).toBeInTheDocument()
+        expect(screen.queryByText(RECEIVED_BALLOT_ID)).toBeNull()
     })
 })
 

@@ -42,6 +42,8 @@ import {
     check_voting_error_dialog,
     verify_ballot_signature_js,
     verify_multi_ballot_signature_js,
+    verify_received_ballot_js,
+    normalize_ballot_id_js,
     get_default_duplicated_rank_policy_js,
     get_default_preference_gaps_policy_js,
 } from "sequent-core"
@@ -51,12 +53,14 @@ import {
     ElectionsOrder,
     IAuditableSingleBallot,
     IAuditableMultiBallot,
+    IBallotBoxKey,
     IBallotStyle,
     ICandidate,
     IContest,
     IElection,
     IHashableSingleBallot,
     IHashableMultiBallot,
+    IReceivedBallot,
     ISignedContent,
     ICountingAlgorithm,
     EDuplicatedRankPolicy,
@@ -378,6 +382,31 @@ export const verifyMultiBallotSignature = (
     } catch (error) {
         console.log(error)
         throw error
+    }
+}
+
+// Returns the Ballot ID when the published ballot box key signed the receipt;
+// throws otherwise.
+export const verifyReceivedBallot = (
+    ballotBoxKey: IBallotBoxKey,
+    receivedBallot: IReceivedBallot
+): string => {
+    try {
+        return verify_received_ballot_js(ballotBoxKey, receivedBallot)
+    } catch (error) {
+        console.log(error)
+        throw error
+    }
+}
+
+// Reads a typed Ballot ID the way the ballot box writes it; null when the text
+// cannot be one.
+export const normalizeBallotId = (typed: string): string | null => {
+    try {
+        return normalize_ballot_id_js(typed) ?? null
+    } catch (error) {
+        console.log(error)
+        return null
     }
 }
 
