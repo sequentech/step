@@ -115,3 +115,13 @@ voting, and all three to sign the election returns:
 
 The rules are part of the election event's configuration version. While the event is
 locked down, the sub-tab says so and the rules can't be edited.
+
+
+Lockdown is checked by the backend, including for administrators. It is not an immutable
+security boundary against an administrator who can edit the election event: that person
+can change the lockdown setting through the event API. Before lockdown, a user with
+`signing-rules-write` can disable or reduce requirements without other people's approval,
+including **Approve a configuration version** itself. Changes cancel waiting requests and
+are logged. This implementation trusts the people who administer these settings; it does
+not require a quorum to weaken signing requirements or unlock an event. Publishing an
+approved configuration does not itself provide an editor for locked rules.

@@ -278,6 +278,30 @@ On execution the latest signed revision is released as the report's document; it
 goes in `SigningActionExecuted`. A base PDF must have exactly `required` empty fields, and
 documents with voter secrets or a password are refused as signing documents.
 
+## Report storage and access
+
+Report definitions configure generation and scheduling; they are not a history of outputs.
+Every generation, including Preview, uploads a document and records its ID. Without signing,
+that document is released immediately. With signing, the private base and accepted signed
+revisions remain stored; prepared revisions store reconstruction metadata rather than PDF
+bytes. Successful execution publishes a final copy at the output ID allocated for that run.
+Configured encryption wraps that copy after signing, preserving the inner PDF signatures.
+
+Regeneration does not delete earlier documents. Cancelling or expiring a request preserves
+its documents and approvals without releasing the held report. Deleting a report definition
+removes its configuration/schedule, not its generated files. There is no report-specific
+age-based cleanup in this flow. Download-link expiry is not document expiry. Event cleanup
+deletes the event storage prefix, but public document keys use a tenant/document prefix;
+public report objects can therefore remain after event deletion.
+
+The completed panel is available to any authorized request reader, not only its last signer.
+Its download needs document access. The Requests tab can reopen executed requests; the
+header list and `ReportRequestLinks` expose pending requests only. Reports has no generated
+output history. A signer without Requests-tab access has no normal Reports/header route
+back to an executed report. `useReportTaskSigningRequest` stops polling on a request ID or
+SUCCESS/FAILED/CANCELLED, while retaining an annotation returned with the final response.
+The header badge uses explicit reloads, with no subscription or periodic polling.
+
 ## Admin Portal widget
 
 - `lib/signing/certificate.ts` opens the file with node-forge (PBES2/AES, 3DES, RC2;

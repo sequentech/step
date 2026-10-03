@@ -88,11 +88,13 @@ remain recorded with their USER and SYSTEM entries.
 
 ## Known gaps
 
-- **Unsupported report formats and scopes.** Activity logs are a zip, per-voter manual
-  verification reports have no signing integration, and event/contest-level election
-  returns PDFs have no Post signing scope. When their report rule requires signatures,
-  these outputs are withheld; they are never released unsigned. The tally holds the
-  supported election returns per Post and country and Initialization Reports per Post.
+- **Unsupported report formats and scopes.** Activity logs and per-voter manual
+  verification have no signing integration: their renderer returns no signing action,
+  and their existing outputs can be released unsigned even when GenerateReports is
+  Required. The signing rule must not be described as covering these paths. By contrast,
+  event/contest-level tally HTML/PDF renderings are removed when report signing is active,
+  because they have no Post signing scope. The tally holds supported election returns
+  per Post and country and Initialization Reports per Post.
 - **Group membership changes** (adding a user to a group that holds a `sign-<action>`
   permission, or removing them) are not written to the election event's log; changes of
   a role's permissions are.
@@ -120,3 +122,22 @@ remain recorded with their USER and SYSTEM entries.
   of two named groups. Preset group assignments and certificate/title mappings need
   confirmation with each organization. Permission changes taking effect at the next
   sign-in are checked manually.
+
+
+## Additional implementation limits
+
+- Non-admin trustee role selection currently chooses `NonAdminOperationMap` before trustee
+  overrides. Existing ceremony reads can consequently use admin-ceremony, and getUsers can
+  use user-read, even when the trustee holds only the mapped trustee/voter roles. Regression
+  coverage must include isTrustee=true together with isAdminUser=false; this is not only
+  the fallback limitation for unknown operations.
+- `hold_tally_reports` logs rendering or hold-storage failures and continues into HTML/PDF
+  cleanup. If storage failed before a hold row was recorded, the sweeper has no row from
+  which to recover the report. The current code therefore does not guarantee durable holds
+  for every rendered target. Missing report.html remains an intentionally skipped case;
+  other failures need propagation before cleanup to preserve recoverability.
+- Administrators who can edit rules and election-event presentation remain trusted to
+  change requirements or clear lockdown. Audit logging does not impose multi-person approval.
+- Completed report downloads require a reachable request panel. Test an authorized reader
+  reopening Done through Requests, not only the last signer's completion screen. The Reports
+  links and header waiting list currently omit executed requests.

@@ -43,7 +43,7 @@ to both the person's account and their certificate.
 | Open voting | Post > **Publish**, **Start voting** | The Post and the channel | Opens voting at the Post. |
 | Close voting | Post > **Publish**, **Stop voting** | The Post and its channels | Closes voting. The closing record lists the closing signatures. |
 | Generate election returns | **Reports** | The election returns PDF of a Post and country | Releases the signed PDF for download, printing and transmission. |
-| Generate other election reports | **Reports** | The report PDF (initialization, participation, manual verification; not yet the activity logs) | Releases the signed report. |
+| Generate other election reports | **Reports** | The Initialization Report or participation report PDF; per-voter manual verification and activity logs are not integrated | Releases the signed report. |
 | Transmit results | **Tally** > **Transmission** | The results package of a Post and country, and its destinations | Builds the signed package; it can then be sent. |
 | Approve a voter manually | **Approvals** | The application, the registry record and the decision | Approves the voter and issues their credentials. |
 | Approve a configuration version | **Publish** | The changes in the version and their digest | Publishes the version. |

@@ -41,8 +41,8 @@ for these permissions, and how existing tenants get them, are in
 | `sign-tally-key` | Sign: contribute a key share | Sign one's own key share contribution in the tally. |
 
 A `sign-<action>` permission is what **Who can sign** shows for the action. Signing also
-needs access to the request's Post through the user's permission labels (users without
-labels reach every Post), and, for the trustees' steps, being the request's trustee.
+needs access to the request's Post through the user's permission labels (an unlabelled
+Post is accessible without a label; a labelled Post requires a matching label), and, for the trustees' steps, being the request's trustee.
 Signers need no permission on the Signatures tab: the request panel gives them what they
 need.
 

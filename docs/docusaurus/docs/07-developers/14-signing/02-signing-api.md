@@ -189,3 +189,25 @@ Everything the dialog shows is in the subject, so what is shown is what is signe
   canonical payload bytes. PDF actions add `pdf_cms`; a transmission adds
   `document_signature` over the EML bytes, which the results package carries per signer
   with the signer's public key.
+
+
+## Configuration approval boundaries
+
+The configuration subject signs the publication ID, a digest of the event, elections and
+ballot styles used for publication, plus the displayed change summary. `signing_rules`
+encodes Off/signature-count changes only; it is not a complete snapshot of role membership,
+requester eligibility, expiry or certificate settings. Publication recomputes its digest.
+Rule edits require `signing-rules-write` and are refused while the event is locked down,
+but editing the event's presentation can clear that flag. Changing rules or unlocking does
+not itself require signatures. The HSM/KMS package signature remains a separate owner hook.
+
+## Generated report tasks
+
+A task's `annotations.signing_request` is present when a report is held for signatures and
+a request has been created. The worker writes that annotation with SUCCESS. Ordinary
+unsigned reports, previews and failed tasks need not have it. Clients must stop polling on
+a terminal task status as well as on the annotation, and process an annotation arriving in
+the terminal response. Real participation reports require a Post when GenerateReports is
+Required; the report API rejects event-wide generation before enqueueing it. The form and
+Reports list explain this when the caller can read the rules. Preview and unsigned
+participation reports can cover the whole event.

@@ -66,6 +66,10 @@ their code, how many have signed, when they expire and whether you already signe
 one to open its panel. A trustee finds their key share in the ceremony instead. With the
 permission, **Signatures** > **Requests** lists every request.
 
+The header count refreshes when entering or switching election events, opening the
+list, or changing a request opened from that list. It does not automatically track
+changes made by other users. Open the icon or refresh the page to update it.
+
 ## The signing dialog
 
 **Sign** opens the dialog "Sign the *object*" with three steps.
@@ -149,18 +153,37 @@ other election reports**.
 **Open voting and Close voting.** Started with **Start voting** and **Stop voting** in a
 Post's **Publish** tab. When enough members have signed, voting opens or closes at the
 Post. After closing, the panel shows the closing time, the closing signatures and the
-code; this closing record goes into the log. Pausing, and starting or stopping voting for
-the whole election event or from scheduled events, don't ask for signatures.
+code; this closing record goes into the log. Pausing and whole-event manual controls
+do not open this signing dialog. Scheduled opening or closing is refused and logged
+when the corresponding action requires signatures; people must complete the protected
+transition instead.
 
 **Generate election returns and other reports.** In **Reports**, the **Signatures** column
-says how many signatures each report needs ("Needs 3") or **Off**. For election returns,
-choose the country when generating. The PDF is generated at once, with a final page that
-has one signature field per required signer, but it can't be downloaded, printed or
-transmitted until everyone has signed. Each signature fills its field with "Digitally
-signed by *name*", the time and the code, and PDF readers can validate each signature.
-Signed reports are not password-protected, because that would break the signatures. When
-all signatures are in, the panel offers **Download signed PDF**, **Print** and **Transmit
-results**. If a recount changes the election returns, the waiting request is cancelled.
+says how many signatures each report needs ("Needs 3") or **Off**. The tally produces
+election returns per Post and country and Initialization Reports per Post; when signatures
+are required, these are signed through their requests rather than regenerated in Reports.
+Participation reports are generated from Reports. Their held PDFs have a final page with
+one field per required signer. Signers can inspect the document, but its released copy
+cannot be downloaded, printed or transmitted until the request has executed successfully.
+Each signature fills its field with the name, time and code, and PDF readers can validate it.
+
+A report's configured password protection is applied after signing, as an encrypted file
+containing the signed PDF. Download uses the password flow; direct **Print** is unavailable
+for a protected report. The last signature alone does not mean release has finished:
+wait for **Done**. The panel then offers **Download signed PDF**, and **Print** for an
+unprotected report. **Transmit results** is offered for election returns when permitted.
+A recount cancels an older waiting request whose report changed.
+
+The download button is not restricted to the last signer. Anyone with access to the
+completed request and the document-download permission can reopen it in **Signatures** >
+**Requests** and download. The header and Reports request links show pending work, so they
+do not provide a route back to an executed report. Staff without access to Requests need
+that access to use this route. Reports does not list a history of generated files;
+**Generate** creates another output and may require another set of signatures.
+
+Generate other election reports currently protects participation reports and the tally's
+Initialization Reports. Per-voter manual verification and activity logs have no signing
+integration and continue through their existing unsigned generation paths.
 
 A participation report can cover the whole election event when **Generate other election
 reports** is Off. When signatures are required, select a Post in the report's **Election**
@@ -180,7 +203,9 @@ credentials. Rejecting an application doesn't ask for signatures.
 
 **Approve a configuration version.** In **Publish**, publishing starts a request whose
 details list the changes in the version: its digest, the signing rules changed since the
-last publication, new scheduled events and whether ballots and contests changed. When the
+last publication, new scheduled events and whether ballots and contests changed.
+The rule summary covers Off/signature-count changes, not a complete copy of signer roles,
+requester eligibility, expiry or certificate checks. When the
 configured officials have signed, the version is published. Generating a new version
 cancels the waiting request.
 
