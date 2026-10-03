@@ -767,11 +767,15 @@ pub fn multiply_count(left: u64, right: u64, what: &'static str) -> Result<u64, 
     bounded(left.checked_mul(right), what)
 }
 
+/// `count` itself, failing past [`MAX_COUNT`]. `what` names the count.
+pub fn exact_count(count: u64, what: &'static str) -> Result<u64, CountOverflow> {
+    bounded(Some(count), what)
+}
+
 /// `count` as stored in a signed 64-bit column, failing past [`MAX_COUNT`]
 /// instead of storing a negative or rounded figure. `what` names the count.
 pub fn stored_count(count: u64, what: &'static str) -> Result<i64, CountOverflow> {
-    let count = bounded(Some(count), what)?;
-    i64::try_from(count).map_err(|_| CountOverflow(what))
+    i64::try_from(exact_count(count, what)?).map_err(|_| CountOverflow(what))
 }
 
 /// `total + count * multiplier`, failing past [`MAX_COUNT`]: adds `count` for
@@ -905,6 +909,9 @@ impl ExtendedMetricsContest {
         other: &ExtendedMetricsContest,
     ) -> Result<ExtendedMetricsContest, CountOverflow> {
         let mut result = self.clone();
+        for count in result.votes_by_channel.values() {
+            exact_count(*count, "votes by channel")?;
+        }
         result.over_votes = add_count(result.over_votes, other.over_votes, "over votes")?;
         result.under_votes = add_count(result.under_votes, other.under_votes, "under votes")?;
         result.votes_actually =
@@ -1064,8 +1071,9 @@ impl ContestResult {
         Ok(self.aggregate(other, add_census)?)
     }
 
-    /// Adds `other` to this result. Fails rather than wrapping if any count,
-    /// candidate total or the weight they are a percentage of overflows.
+    /// Adds `other` to this result. Fails rather than wrapping or rounding if
+    /// any count, candidate total or the weight they are a percentage of
+    /// passes [`MAX_COUNT`], including a candidate only one side has.
     #[instrument(skip_all)]
     pub fn aggregate(
         &self,
@@ -1106,6 +1114,7 @@ impl ContestResult {
         let mut candidate_map: HashMap<String, CandidateResult> = HashMap::new();
 
         for candidate_result in &self.candidate_result {
+            exact_count(candidate_result.total_count, "candidate votes")?;
             candidate_map.insert(
                 candidate_result.candidate.id.clone(),
                 candidate_result.clone(),
@@ -1122,6 +1131,7 @@ impl ContestResult {
                     )?;
                 }
                 None => {
+                    exact_count(candidate_result.total_count, "candidate votes")?;
                     candidate_map.insert(
                         candidate_result.candidate.id.clone(),
                         candidate_result.clone(),
@@ -1409,6 +1419,49 @@ mod tests {
         let mut aggregate = counts.clone();
 
         assert!(merge_votes_by_channel(&mut aggregate, &counts).is_err());
+    }
+
+    #[test]
+    fn aggregating_a_candidate_seen_once_past_the_largest_exact_count_is_an_error() {
+        let past_the_bound = ContestResult {
+            candidate_result: vec![CandidateResult {
+                candidate: Candidate {
+                    id: "candidate".to_string(),
+                    ..Candidate::default()
+                },
+                percentage_votes: 100.0,
+                total_count: MAX_COUNT + 1,
+            }],
+            ..ContestResult::default()
+        };
+        let empty = ContestResult::default();
+
+        assert_eq!(
+            empty.aggregate(&past_the_bound, false).err(),
+            Some(CountOverflow("candidate votes"))
+        );
+        assert_eq!(
+            past_the_bound.aggregate(&empty, false).err(),
+            Some(CountOverflow("candidate votes"))
+        );
+    }
+
+    #[test]
+    fn aggregating_a_channel_seen_once_past_the_largest_exact_count_is_an_error() {
+        let past_the_bound = ExtendedMetricsContest {
+            votes_by_channel: VotesByChannel::from([(
+                ParticipationChannel::CastVote(VotingStatusChannel::ONLINE),
+                MAX_COUNT + 1,
+            )]),
+            ..Default::default()
+        };
+
+        assert_eq!(
+            past_the_bound
+                .aggregate(&ExtendedMetricsContest::default())
+                .err(),
+            Some(CountOverflow("votes by channel"))
+        );
     }
 
     #[test]
