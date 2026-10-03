@@ -30,9 +30,10 @@ use std::sync::Arc;
 use windmill::services::monitoring::audit::ElectoralLogConfigAudit;
 use windmill::services::monitoring::cadence;
 use windmill::services::monitoring::config_store::MonitoringConfigAudit;
-use windmill::services::signing::approve::{NoDocumentSigner, SigningServices};
+use windmill::services::signing::approve::SigningServices;
 use windmill::services::signing::certificates::OpensslCertificateVerifier;
 use windmill::services::signing::executors::default_registry;
+use windmill::services::signing::pdf::{PdfDocumentSigner, S3RevisionStore};
 use windmill::services::signing::requests::DocumentExportStore;
 use windmill::services::signing::rules::{
     KeycloakSigningRoleAdmin, SigningRoleAdmin,
@@ -89,7 +90,9 @@ impl HarvestServices {
             signing: SigningServices {
                 verifier: Arc::new(OpensslCertificateVerifier::default()),
                 executors: default_registry(),
-                documents: Arc::new(NoDocumentSigner),
+                documents: Arc::new(PdfDocumentSigner::new(Arc::new(
+                    S3RevisionStore,
+                ))),
                 exports: Arc::new(DocumentExportStore),
             },
             signing_roles: Arc::new(KeycloakSigningRoleAdmin),

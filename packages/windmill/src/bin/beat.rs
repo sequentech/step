@@ -16,6 +16,7 @@ use windmill::services::celery_app::{set_is_app_active, Queue};
 use windmill::services::monitoring::cadence;
 use windmill::services::probe::{setup_probe, AppName};
 use windmill::tasks::electoral_log::electoral_log_batch_dispatcher;
+use windmill::tasks::migrate_realm_permissions::{migrate_realm_permissions, RunOnce};
 use windmill::tasks::refresh_monitoring_snapshot::{
     refresh_monitoring_snapshots, scheduled_fan_out,
 };
@@ -122,6 +123,7 @@ async fn main() -> Result<()> {
             review_cast_votes::NAME => &Queue::Beat.queue_name(&slug),
             electoral_log_batch_dispatcher::NAME => &Queue::ElectoralLogBeat.queue_name(&slug),
             refresh_monitoring_snapshots::NAME => &Queue::Beat.queue_name(&slug),
+            migrate_realm_permissions::NAME => &Queue::Short.queue_name(&slug),
             post_signing_log_outbox::NAME => &Queue::ElectoralLogBeat.queue_name(&slug),
             expire_signing_requests::NAME => &Queue::Beat.queue_name(&slug),
             sweep_signing_executions::NAME => &Queue::Beat.queue_name(&slug),
@@ -136,6 +138,9 @@ async fn main() -> Result<()> {
             monitoring_cadence.snapshot_interval.seconds,
         )),
     );
+    // Tenant realms made before a release get its new permissions once,
+    // whenever beat starts; the migration skips the roles a realm has.
+    beat.schedule_task(migrate_realm_permissions::new(), RunOnce);
 
     set_is_app_active(true);
     beat.start().await?;

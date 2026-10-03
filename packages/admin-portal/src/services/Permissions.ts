@@ -215,13 +215,46 @@ const TrusteeOperationMap: Record<string, IPermissions> = {
     getUsers: IPermissions.VOTER_READ,
 }
 
-export const getOperationRole = (operation: GraphQLRequest, isTrustee = false): IPermissions => {
+/**
+ * Staff without the `admin-user` Hasura role (the Signatures tab's own groups) query with
+ * the fine-grained role of each operation, and with read-only `election-event-read` for
+ * the rest: navigating to an event, the sidebar tree and the tenant. Hasura grants that
+ * role no writes, so an operation it can't serve fails instead of borrowing `admin-user`.
+ */
+const NonAdminOperationMap: Record<string, IPermissions> = {
+    ...AdminOperationMap,
+    sequent_backend_tenant: IPermissions.ELECTION_EVENT_READ,
+    election_events_tree: IPermissions.ELECTION_EVENT_READ,
+    election_tree: IPermissions.ELECTION_EVENT_READ,
+    contest_tree: IPermissions.ELECTION_EVENT_READ,
+    candidate_tree: IPermissions.ELECTION_EVENT_READ,
+    // Users and Roles: Harvest checks the permission again
+    getRoles: IPermissions.ROLE_READ,
+    getPermissions: IPermissions.USER_PERMISSION_READ,
+    SetRolePermission: IPermissions.ROLE_WRITE,
+    DeleteRolePermission: IPermissions.ROLE_WRITE,
+    getUsers: IPermissions.USER_READ,
+    // Post > Publish: Start and Stop voting, and Initialize voting (its report)
+    UpdateElectionVotingStatus: IPermissions.ELECTION_STATE_WRITE,
+    CreateTallyCeremony: IPermissions.ADMIN_CEREMONY,
+}
+
+export const getOperationRole = (
+    operation: GraphQLRequest,
+    isTrustee = false,
+    isAdminUser = true
+): IPermissions => {
+    const OperationMap = !isAdminUser
+        ? NonAdminOperationMap
+        : isTrustee
+          ? TrusteeOperationMap
+          : AdminOperationMap
+    const fallback = isAdminUser ? IPermissions.ADMIN_USER : IPermissions.ELECTION_EVENT_READ
     let operationName = operation?.operationName
     if (isUndefined(operationName)) {
-        return IPermissions.ADMIN_USER
+        return fallback
     }
-    let OperationMap = isTrustee ? TrusteeOperationMap : AdminOperationMap
     return Object.prototype.hasOwnProperty.call(OperationMap, operationName)
         ? OperationMap[operationName]
-        : IPermissions.ADMIN_USER
+        : fallback
 }

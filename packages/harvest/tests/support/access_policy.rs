@@ -417,3 +417,67 @@ fn keys_ceremonies_are_listed_for_admins_or_trustees() {
         ))
     );
 }
+
+#[test]
+fn role_write_alone_edits_only_sign_permissions() {
+    for (permission, holds_user_permission_write, edit, required) in [
+        (
+            "sign-close-voting",
+            false,
+            RolePermissionEdit::SignPermission,
+            vec![ROLE_WRITE],
+        ),
+        (
+            "sign-tally-key",
+            false,
+            RolePermissionEdit::SignPermission,
+            vec![ROLE_WRITE],
+        ),
+        // Someone with both edits any permission, sign permissions included.
+        (
+            "sign-close-voting",
+            true,
+            RolePermissionEdit::AnyPermission,
+            vec![USER_PERMISSION_WRITE, ROLE_WRITE],
+        ),
+        (
+            "signing-rules-write",
+            false,
+            RolePermissionEdit::AnyPermission,
+            vec![USER_PERMISSION_WRITE, ROLE_WRITE],
+        ),
+        (
+            "role-write",
+            false,
+            RolePermissionEdit::AnyPermission,
+            vec![USER_PERMISSION_WRITE, ROLE_WRITE],
+        ),
+        (
+            "sign-",
+            false,
+            RolePermissionEdit::AnyPermission,
+            vec![USER_PERMISSION_WRITE, ROLE_WRITE],
+        ),
+    ] {
+        let actual =
+            RolePermissionEdit::of(permission, holds_user_permission_write);
+        assert_eq!(actual, edit, "{permission}");
+        assert_eq!(actual.required(), required, "{permission}");
+    }
+}
+
+#[test]
+fn only_permissions_the_platform_does_not_define_can_be_deleted() {
+    for built_in in [
+        "sign-close-voting",
+        "signing-requests-read",
+        "role-write",
+        "admin-user",
+    ] {
+        assert_eq!(
+            deletable_permission(built_in),
+            Err(BuiltInPermission(built_in.to_string()))
+        );
+    }
+    assert_eq!(deletable_permission("test-permission"), Ok(()));
+}

@@ -52,6 +52,7 @@ use crate::tasks::manage_election_event_lockdown::manage_election_event_lockdown
 use crate::tasks::manage_election_init_report::manage_election_init_report;
 use crate::tasks::manage_election_voting_period_end::manage_election_voting_period_end;
 use crate::tasks::manual_verification_report::generate_manual_verification_report;
+use crate::tasks::migrate_realm_permissions::migrate_realm_permissions;
 use crate::tasks::miru_plugin_tasks::create_transmission_package_task;
 use crate::tasks::miru_plugin_tasks::send_transmission_package_task;
 use crate::tasks::plugins_tasks::execute_plugin_task;
@@ -353,6 +354,7 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
             generate_reconciliation_patches,
             apply_reconciliation_patch,
             generate_voter_information_letter,
+            migrate_realm_permissions,
             post_signing_log_outbox,
             expire_signing_requests,
             sweep_signing_executions,
@@ -424,6 +426,7 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
             generate_reconciliation_patches::NAME => &Queue::ImportExport.queue_name(&slug),
             apply_reconciliation_patch::NAME => &Queue::ImportExport.queue_name(&slug),
             generate_voter_information_letter::NAME => &Queue::Reports.queue_name(&slug),
+            migrate_realm_permissions::NAME => &Queue::Short.queue_name(&slug),
             post_signing_log_outbox::NAME => &Queue::ElectoralLogBeat.queue_name(&slug),
             expire_signing_requests::NAME => &Queue::Beat.queue_name(&slug),
             sweep_signing_executions::NAME => &Queue::Beat.queue_name(&slug),

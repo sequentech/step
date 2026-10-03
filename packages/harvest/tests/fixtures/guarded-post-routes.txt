@@ -143,3 +143,4 @@
 /signing-requests/export
 /signing-rules/put
 /signing-rules/capacity
+/signing-requests/pdf-prepare

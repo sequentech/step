@@ -12,7 +12,11 @@ use crate::services::database::get_hasura_pool;
 use crate::services::documents::upload_and_return_document_with_annotations;
 use crate::services::providers::email_sender::{Attachment, EmailSender};
 use crate::services::reports_vault::get_report_secret_key;
-use crate::services::tasks_execution::{update_complete, update_fail};
+use crate::services::serialize_tasks_logs::append_general_log;
+use crate::services::signing::pdf::{
+    report_delivery, report_signature_page, report_signing_action, ReportDelivery, SigningBase,
+};
+use crate::services::tasks_execution::{update as update_task, update_complete, update_fail};
 use crate::services::temp_path::PUBLIC_ASSETS_QRCODE_LIB;
 use crate::services::vault;
 use crate::services::voter_secret_attributes::{
@@ -29,7 +33,9 @@ use rayon::ThreadPoolBuilder;
 use sequent_core::serialization::deserialize_with_path::{deserialize_str, deserialize_value};
 use sequent_core::services::keycloak::{self, get_event_realm, KeycloakAdminClient};
 use sequent_core::services::{pdf, reports};
+use sequent_core::signing::SigningAction;
 use sequent_core::types::hasura::core::{DocumentAnnotations, TasksExecution};
+use sequent_core::types::hasura::extra::TasksExecutionStatus;
 use sequent_core::types::templates::{
     CommunicationTemplatesExtraConfig, EmailConfig, PrintToPdfOptionsLocal, ReportExtraConfig,
     ReportOptions, SendTemplateBody, SmsConfig,
@@ -38,6 +44,7 @@ use sequent_core::types::to_map::ToMap;
 use sequent_core::util::temp_path::*;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
+use sha2::{Digest, Sha256};
 use std::collections::HashSet;
 use std::fmt::Debug;
 use std::fs;
@@ -47,6 +54,20 @@ use tempfile::tempdir;
 use tempfile::{NamedTempFile, TempPath};
 use tokio::runtime::Runtime;
 use tracing::{debug, info, instrument, warn};
+use uuid::Uuid;
+
+const PDF_MEDIA_TYPE: &str = "application/pdf";
+
+/// What became of a generated report.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ReportOutcome {
+    /// Uploaded as the report's document (and mailed when due).
+    Released,
+    /// Its action needs signatures: kept as a signing document only, to
+    /// start a signing request with. The executed request releases the
+    /// signed document (and sends any scheduled email).
+    AwaitingSignatures(SigningBase),
+}
 
 static GLOBAL_RT: Lazy<Runtime> = Lazy::new(|| {
     tokio::runtime::Builder::new_multi_thread()
@@ -142,6 +163,12 @@ pub trait TemplateRenderer: Debug {
 
     fn contains_sensitive_data(&self) -> bool {
         false
+    }
+
+    /// The protected action whose signatures this report needs when the
+    /// event's rule asks for them; the report then gets a signature page.
+    fn signing_action(&self) -> Option<SigningAction> {
+        report_signing_action(&self.get_report_type())
     }
 
     /// Can be None when a report is generated with no template assigned to it,
@@ -607,6 +634,41 @@ pub trait TemplateRenderer: Debug {
         task_execution: Option<TasksExecution>,
         may_read_secret_attributes: bool,
     ) -> Result<()> {
+        self.execute_report_outcome(
+            document_id,
+            tenant_id,
+            election_event_id,
+            is_scheduled_task,
+            recipients,
+            generate_mode,
+            report,
+            hasura_transaction,
+            keycloak_transaction,
+            task_execution,
+            may_read_secret_attributes,
+        )
+        .await
+        .map(|_| ())
+    }
+
+    /// [`Self::execute_report_inner`], saying whether the report was
+    /// released or awaits signatures (then it is kept as a signing
+    /// document only: not the report's document, not mailed).
+    #[instrument(err, skip_all)]
+    async fn execute_report_outcome(
+        &self,
+        document_id: &str,
+        tenant_id: &str,
+        election_event_id: &str,
+        is_scheduled_task: bool,
+        recipients: Vec<String>,
+        generate_mode: GenerateReportMode,
+        report: Option<Report>,
+        hasura_transaction: &Transaction<'_>,
+        keycloak_transaction: &Transaction<'_>,
+        task_execution: Option<TasksExecution>,
+        may_read_secret_attributes: bool,
+    ) -> Result<ReportOutcome> {
         let task_execution_ref = task_execution.as_ref();
         let (user_tpl_document, ext_cfg, declared_secret_names) = self
             .user_tpl_and_extra_cfg_provider(hasura_transaction)
@@ -625,6 +687,7 @@ pub trait TemplateRenderer: Debug {
 
         let contains_voter_secrets =
             generate_mode == GenerateReportMode::REAL && !declared_secret_names.is_empty();
+        let is_real = generate_mode == GenerateReportMode::REAL;
         let items_count = self.count_items(&hasura_transaction).await?.unwrap_or(0);
         let report_options = ext_cfg.report_options.clone();
         let per_report_limit = report_options
@@ -752,18 +815,115 @@ pub trait TemplateRenderer: Debug {
             .map_err(|e| anyhow::anyhow!("Error in generate_single_report: {}", e))?
         };
 
-        info!(
-            "Final file info: path = {}, size = {}, name = {}, mimetype = {}",
-            final_file_path, file_size, final_report_name, mimetype
-        );
-
         let mut annotations = if contains_voter_secrets {
             DocumentAnnotations::voter_secret_export()
         } else {
             DocumentAnnotations::default()
         };
+
+        // A report whose action needs signatures gets its signature page,
+        // and is kept as a signing document only.
+        let signing_action = self
+            .signing_action()
+            .filter(|_| is_real && mimetype == PDF_MEDIA_TYPE);
+        let signing_base = match signing_action {
+            Some(action) => {
+                let rendered = fs::read(&final_file_path)
+                    .with_context(|| "Error reading the report to add its signature page")?;
+                let tenant_uuid = Uuid::parse_str(tenant_id).context("Invalid tenant id")?;
+                let event_uuid = Uuid::parse_str(election_event_id).context("Invalid event id")?;
+                report_signature_page(
+                    hasura_transaction,
+                    tenant_uuid,
+                    event_uuid,
+                    action,
+                    &rendered,
+                )
+                .await?
+                .map(|base| (action, base))
+            }
+            None => None,
+        };
+        let delivery = report_delivery(
+            signing_base.is_some(),
+            report.as_ref().is_some_and(|report| {
+                report.encryption_policy == EReportEncryption::ConfiguredPassword
+            }),
+            self.should_send_email(is_scheduled_task),
+        );
+        let (encrypt, send_email) = match (delivery, signing_base) {
+            (
+                ReportDelivery::Release {
+                    encrypt,
+                    send_email,
+                },
+                _,
+            ) => (encrypt, send_email),
+            (ReportDelivery::AwaitSignatures, Some((action, base))) => {
+                let name = format!("{}-to-sign.pdf", self.prefix());
+                let (_temp_path, path, size) = write_into_named_temp_file(
+                    &base,
+                    &format!("{}-to-sign-", self.prefix()),
+                    ".pdf",
+                )?;
+                // Its own document, never the report's: nothing is
+                // released, mailed or printed before the signatures. A
+                // document with voter secrets keeps its annotation, which
+                // the signing guard refuses.
+                let document = upload_and_return_document_with_annotations(
+                    hasura_transaction,
+                    &path,
+                    size,
+                    PDF_MEDIA_TYPE,
+                    tenant_id,
+                    Some(election_event_id.to_string()),
+                    &name,
+                    None,
+                    false,
+                    &annotations,
+                )
+                .await
+                .map_err(|err| anyhow!("Error uploading the document to sign: {err:?}"))?;
+                info!(
+                    "Report {} awaits {action} signatures before its release",
+                    self.prefix()
+                );
+                if let Some(task) = task_execution_ref {
+                    let logs = serde_json::to_value(append_general_log(
+                        &task.logs,
+                        "Generated; awaiting signatures before its release",
+                    ))?;
+                    update_task(
+                        &task.tenant_id,
+                        &task.id,
+                        TasksExecutionStatus::SUCCESS,
+                        logs,
+                        None,
+                    )
+                    .await
+                    .context("Failed to update the task execution")?;
+                }
+                return Ok(ReportOutcome::AwaitingSignatures(SigningBase {
+                    action,
+                    document_id: Uuid::parse_str(&document.id)
+                        .context("The document to sign has no UUID")?,
+                    sha256: hex::encode(Sha256::digest(&base)),
+                }));
+            }
+            (ReportDelivery::AwaitSignatures, None) => {
+                return Err(anyhow!(
+                    "A report awaits signatures without its signature page"
+                ));
+            }
+        };
+
+        info!(
+            "Final file info: path = {}, size = {}, name = {}, mimetype = {}",
+            final_file_path, file_size, final_report_name, mimetype
+        );
+
         let encrypted_temp_data: Option<TempPath> = if let Some(report) = &report {
-            if report.encryption_policy == EReportEncryption::ConfiguredPassword {
+            if encrypt {
                 let secret_key =
                     get_report_secret_key(&tenant_id, &election_event_id, Some(report.id.clone()));
                 let encryption_password = vault::read_secret(
@@ -832,7 +992,7 @@ pub trait TemplateRenderer: Debug {
             .await
             .map_err(|err| anyhow!("Error uploading document: {err:?}"))?;
 
-            if self.should_send_email(is_scheduled_task) {
+            if send_email {
                 let email_config = ext_cfg.communication_templates.email_config;
                 let email_recipients = self
                     .get_email_recipients(recipients, tenant_id, election_event_id)
@@ -873,7 +1033,7 @@ pub trait TemplateRenderer: Debug {
             .await
             .map_err(|err| anyhow!("Error uploading document: {err:?}"))?;
 
-            if self.should_send_email(is_scheduled_task) {
+            if send_email {
                 let email_config = ext_cfg.communication_templates.email_config;
                 let email_recipients = self
                     .get_email_recipients(recipients, tenant_id, election_event_id)
@@ -907,7 +1067,7 @@ pub trait TemplateRenderer: Debug {
                 .context("Failed to update task execution status to COMPLETED")?;
         }
 
-        Ok(())
+        Ok(ReportOutcome::Released)
     }
 
     async fn generate_single_report(
@@ -966,7 +1126,7 @@ pub trait TemplateRenderer: Debug {
             final_path,
             file_size,
             report_name.clone(),
-            format!("application/{}", extension_suffix),
+            PDF_MEDIA_TYPE.to_string(),
         ))
     }
 
