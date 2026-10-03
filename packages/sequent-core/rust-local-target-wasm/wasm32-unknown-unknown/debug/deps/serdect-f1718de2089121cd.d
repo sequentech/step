@@ -1,9 +1,0 @@
-/home/ereslibre/projects/sequentech/step/.claude/worktrees/keen-zooming-cat/packages/sequent-core/rust-local-target-wasm/wasm32-unknown-unknown/debug/deps/serdect-f1718de2089121cd.d: /home/ereslibre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serdect-0.4.3/src/lib.rs /home/ereslibre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serdect-0.4.3/src/array.rs /home/ereslibre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serdect-0.4.3/src/common.rs /home/ereslibre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serdect-0.4.3/src/slice.rs /home/ereslibre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serdect-0.4.3/src/../README.md
-
-/home/ereslibre/projects/sequentech/step/.claude/worktrees/keen-zooming-cat/packages/sequent-core/rust-local-target-wasm/wasm32-unknown-unknown/debug/deps/libserdect-f1718de2089121cd.rmeta: /home/ereslibre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serdect-0.4.3/src/lib.rs /home/ereslibre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serdect-0.4.3/src/array.rs /home/ereslibre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serdect-0.4.3/src/common.rs /home/ereslibre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serdect-0.4.3/src/slice.rs /home/ereslibre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serdect-0.4.3/src/../README.md
-
-/home/ereslibre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serdect-0.4.3/src/lib.rs:
-/home/ereslibre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serdect-0.4.3/src/array.rs:
-/home/ereslibre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serdect-0.4.3/src/common.rs:
-/home/ereslibre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serdect-0.4.3/src/slice.rs:
-/home/ereslibre/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serdect-0.4.3/src/../README.md:
