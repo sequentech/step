@@ -187,7 +187,7 @@ impl Pipe for BallotImages {
                         Some(&contest_input.id),
                         Some(&area_input.id),
                     );
-                    ensure_unbatched(&area_dir, OUTPUT_DECODED_BALLOTS_FILE)?;
+                    ensure_unbatched(&area_dir, OUTPUT_DECODED_BALLOTS_FILE, "Ballot images")?;
                     let decoded_ballots_file = area_dir.join(OUTPUT_DECODED_BALLOTS_FILE);
 
                     if decoded_ballots_file.exists() {

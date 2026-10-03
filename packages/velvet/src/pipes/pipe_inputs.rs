@@ -120,17 +120,17 @@ pub fn remove_batch_files(dir: &Path, file_name: &str) -> Result<()> {
     Ok(())
 }
 
-/// Refuses ballot-by-ballot output for an area whose ballots were split into
-/// weight batches. A ballot there stands for several, so showing it once would
-/// misstate what was counted, and showing it once per batch would spell out
-/// its voter's weight.
-pub fn ensure_unbatched(dir: &Path, file_name: &str) -> Result<()> {
+/// Refuses ballot-by-ballot `output`, such as "Ballot images", for an area
+/// whose ballots were split into weight batches. A ballot there stands for
+/// several, so showing it once would misstate what was counted, and showing it
+/// once per batch would spell out its voter's weight.
+pub fn ensure_unbatched(dir: &Path, file_name: &str, output: &str) -> Result<()> {
     match list_batch_files(dir, file_name)?
         .into_iter()
         .find(|(_, multiplier)| *multiplier != 1)
     {
         Some((path, multiplier)) => Err(Error::UnexpectedError(format!(
-            "{} holds ballots that each count {multiplier} times. Ballot images are not \
+            "{} holds ballots that each count {multiplier} times. {output} are not \
              available for ballots split into vote weight batches",
             path.display()
         ))),
@@ -577,11 +577,13 @@ mod tests {
     fn ballot_by_ballot_output_is_refused_only_for_multiplied_batches() {
         let dir = tempdir().unwrap();
         fs::write(dir.path().join(BALLOTS_FILE), "").unwrap();
-        assert!(ensure_unbatched(dir.path(), BALLOTS_FILE).is_ok());
-        assert!(ensure_unbatched(&dir.path().join("missing"), BALLOTS_FILE).is_ok());
+        assert!(ensure_unbatched(dir.path(), BALLOTS_FILE, "Ballot images").is_ok());
+        assert!(
+            ensure_unbatched(&dir.path().join("missing"), BALLOTS_FILE, "Ballot images").is_ok()
+        );
 
         fs::write(dir.path().join("ballots__x2.csv"), "").unwrap();
-        assert!(ensure_unbatched(dir.path(), BALLOTS_FILE).is_err());
+        assert!(ensure_unbatched(dir.path(), BALLOTS_FILE, "Ballot images").is_err());
     }
 
     #[test]
