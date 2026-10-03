@@ -448,6 +448,11 @@ const catalanTranslation: TranslationType = {
             },
         },
         slates: {
+            title: "Candidatures conjuntes",
+            description:
+                "Una candidatura conjunta és un grup de candidats que es presenten junts. Cada candidat mostra la candidatura a la qual pertany.",
+            independent: "Independent",
+            contestMembers: "Candidats de {{slate}} per a {{contest}}",
             apply: {
                 button: "Tria aquesta candidatura",
                 buttonLabel: "Tria la candidatura {{slate}}",

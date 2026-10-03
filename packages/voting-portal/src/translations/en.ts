@@ -436,6 +436,11 @@ const englishTranslation = {
             },
         },
         slates: {
+            title: "Slates",
+            description:
+                "A slate is a group of candidates running together. Each candidate shows the slate they belong to.",
+            independent: "Independent",
+            contestMembers: "{{slate}} candidates for {{contest}}",
             apply: {
                 button: "Choose this slate",
                 buttonLabel: "Choose slate {{slate}}",

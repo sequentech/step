@@ -447,6 +447,11 @@ const spanishTranslation: TranslationType = {
             },
         },
         slates: {
+            title: "Candidaturas conjuntas",
+            description:
+                "Una candidatura conjunta es un grupo de candidatos que se presentan juntos. Cada candidato muestra la candidatura a la que pertenece.",
+            independent: "Independiente",
+            contestMembers: "Candidatos de {{slate}} para {{contest}}",
             apply: {
                 button: "Elegir esta candidatura",
                 buttonLabel: "Elegir la candidatura {{slate}}",

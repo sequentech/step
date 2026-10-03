@@ -443,6 +443,11 @@ const frenchTranslation: TranslationType = {
             },
         },
         slates: {
+            title: "Listes",
+            description:
+                "Une liste est un groupe de candidats qui se présentent ensemble. Chaque candidat indique la liste à laquelle il appartient.",
+            independent: "Indépendant",
+            contestMembers: "Candidats de {{slate}} pour {{contest}}",
             apply: {
                 button: "Choisir cette liste",
                 buttonLabel: "Choisir la liste {{slate}}",

@@ -444,6 +444,11 @@ const tagalogTranslation: TranslationType = {
             },
         },
         slates: {
+            title: "Mga slate",
+            description:
+                "Ang slate ay isang pangkat ng mga kandidatong magkakasamang tumatakbo. Ipinapakita ng bawat kandidato ang slate na kinabibilangan nila.",
+            independent: "Independiyente",
+            contestMembers: "Mga kandidato ng {{slate}} para sa {{contest}}",
             apply: {
                 button: "Piliin ang slate na ito",
                 buttonLabel: "Piliin ang slate na {{slate}}",

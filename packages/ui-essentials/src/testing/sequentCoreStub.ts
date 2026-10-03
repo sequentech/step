@@ -144,5 +144,32 @@ export const get_voting_screen_back_policy_values_js = (): Array<string> => [
 ]
 export const get_default_duplicated_rank_policy_js = (): string => "not-allowed"
 export const get_default_preference_gaps_policy_js = (): string => "not-allowed"
+/**
+ * The slate configuration as written, unchecked: validation is Rust's and is
+ * covered by `cargo test -p sequent-core`. Unreadable JSON throws a problem
+ * list, as the real export does.
+ */
+export const get_ballot_style_slates_js = (ballotStyle: unknown): unknown => {
+    const annotations = (
+        ballotStyle as {election_annotations?: Record<string, string> | null} | undefined
+    )?.election_annotations
+    const text = annotations?.["sequent.slates"]
+    if (text === undefined) {
+        return null
+    }
+    try {
+        return JSON.parse(text)
+    } catch (error) {
+        throw [
+            {
+                severity: "error",
+                code: "unreadable",
+                path: 'election_annotations["sequent.slates"]',
+                message: `the slate configuration is not valid JSON: ${String(error)}`,
+            },
+        ]
+    }
+}
+
 export const iso_639_2t_to_bcp47_js = (code: string): string => code
 export const locale_to_internal_language_code_js = (locale: string): string => locale

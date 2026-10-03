@@ -15,7 +15,9 @@ import {
 import {IBallotStyle, selectBallotStyleByElectionId} from "../store/ballotStyles/ballotStylesSlice"
 import {useAppDispatch, useAppSelector} from "../store/hooks"
 import {Box, CircularProgress} from "@mui/material"
+import {useBallotStyleSlates} from "../hooks/useBallotStyleSlates"
 import {
+    BallotSlatesProvider,
     Dialog,
     EWarnBoxAnnouncement,
     Icon,
@@ -528,6 +530,7 @@ export const ReviewScreen: React.FC = () => {
     const {isGoldUser, reauthWithGold} = authContext
     const {castingRef, isCasting, setCasting} = useCastingState()
     const {globalSettings} = useContext(SettingsContext)
+    const slates = useBallotStyleSlates(ballotStyle)
     const dispatch = useAppDispatch()
     const addFakeCastVote = useAddFakeCastVote(tenantId, eventId)
     const tryInsertCastVote = useTryInsertCastVote()
@@ -797,107 +800,110 @@ export const ReviewScreen: React.FC = () => {
         // store, the mutation or this screen's own state: the dialogs, the
         // breadcrumb that knows whether an election list counts as a step, and
         // the actions that cast.
-        <ReviewLayout
-            ballotId={
-                auditButtonCfg === EVotingPortalAuditButtonCfg.NOT_SHOW || isFullyAcclaimed
-                    ? undefined
-                    : ballotId || ""
-            }
-            onBallotIdHelp={() => setOpenBallotIdHelp(true)}
-            steps={<Stepper selected={2} />}
-            onTitleHelp={() => setReviewScreenHelp(true)}
-            error={displayedErrorMsg ? stringToHtml(displayedErrorMsg) : undefined}
-            // The layout says `reviewScreen.*` for itself now. What it cannot know is
-            // whether this event offers *Audit ballot*, which is what chooses between the
-            // two descriptions — one of them mentions a button the other event lacks.
-            withAudit={
-                auditButtonCfg !== EVotingPortalAuditButtonCfg.NOT_SHOW &&
-                auditButtonCfg !== EVotingPortalAuditButtonCfg.SHOW_IN_HELP
-            }
-            isFullyAcclaimed={isFullyAcclaimed}
-            ballotStyle={ballotStyle}
-            contests={contests}
-            errorSelectionState={errorSelectionState}
-            isDeclineToVote={isDeclineToVote}
-            isBlankBallot={isBlankBallot}
-            actions={
-                isCasting ? undefined : (
-                    <ActionButtons
-                        ballotStyle={ballotStyle}
-                        auditableBallot={auditableBallot}
-                        auditButtonCfg={auditButtonCfg}
-                        castVoteConfirmModal={castVoteConfirmModal}
-                        ballotId={ballotId ?? ""}
-                        setErrorMsg={setErrorMsg}
-                        hasInconsistentHash={hasInconsistentHash}
-                        isGoldenPolicy={isGoldenPolicy ?? false}
-                        isMultiContest={isMultiContest}
-                        isDeclineToVote={isDeclineToVote}
-                        isBlankBallot={isBlankBallot}
-                        isFullyAcclaimed={isFullyAcclaimed}
-                    />
-                )
-            }
-        >
-            <BallotIdHelpDialog
-                className="review-ballot-id-help-dialog"
-                handleClose={handleCloseDialogIdHelp}
-                open={openBallotIdHelp}
-                title={t("reviewScreen.ballotIdHelpDialog.title")}
-                maxWidth="md"
-                middleActions={
-                    auditButtonCfg === EVotingPortalAuditButtonCfg.SHOW_IN_HELP
-                        ? [
-                              <AuditButton
-                                  key={"audit-button"}
-                                  onClick={() => {
-                                      setOpenBallotIdHelp(false)
-                                      setAuditBallotHelp(true)
-                                  }}
-                              />,
-                          ]
-                        : []
+        <BallotSlatesProvider slates={slates.config}>
+            <ReviewLayout
+                ballotId={
+                    auditButtonCfg === EVotingPortalAuditButtonCfg.NOT_SHOW || isFullyAcclaimed
+                        ? undefined
+                        : ballotId || ""
                 }
-                cancel={t("reviewScreen.ballotIdHelpDialog.cancel")}
-                variant="info"
+                onBallotIdHelp={() => setOpenBallotIdHelp(true)}
+                steps={<Stepper selected={2} />}
+                onTitleHelp={() => setReviewScreenHelp(true)}
+                error={displayedErrorMsg ? stringToHtml(displayedErrorMsg) : undefined}
+                // The layout says `reviewScreen.*` for itself now. What it cannot know is
+                // whether this event offers *Audit ballot*, which is what chooses between the
+                // two descriptions — one of them mentions a button the other event lacks.
+                withAudit={
+                    auditButtonCfg !== EVotingPortalAuditButtonCfg.NOT_SHOW &&
+                    auditButtonCfg !== EVotingPortalAuditButtonCfg.SHOW_IN_HELP
+                }
+                isFullyAcclaimed={isFullyAcclaimed}
+                ballotStyle={ballotStyle}
+                contests={contests}
+                errorSelectionState={errorSelectionState}
+                isDeclineToVote={isDeclineToVote}
+                isBlankBallot={isBlankBallot}
+                actions={
+                    isCasting ? undefined : (
+                        <ActionButtons
+                            ballotStyle={ballotStyle}
+                            auditableBallot={auditableBallot}
+                            auditButtonCfg={auditButtonCfg}
+                            castVoteConfirmModal={castVoteConfirmModal}
+                            ballotId={ballotId ?? ""}
+                            setErrorMsg={setErrorMsg}
+                            hasInconsistentHash={hasInconsistentHash}
+                            isGoldenPolicy={isGoldenPolicy ?? false}
+                            isMultiContest={isMultiContest}
+                            isDeclineToVote={isDeclineToVote}
+                            isBlankBallot={isBlankBallot}
+                            isFullyAcclaimed={isFullyAcclaimed}
+                        />
+                    )
+                }
             >
-                {stringToHtml(t("reviewScreen.ballotIdHelpDialog.content"))}
-            </BallotIdHelpDialog>
-            {auditButtonCfg === EVotingPortalAuditButtonCfg.SHOW_IN_HELP && !isFullyAcclaimed ? (
-                <AuditBallotHelpDialog
-                    auditBallotHelp={auditBallotHelp}
-                    handleClose={handleCloseDialogAuditHelp}
-                />
-            ) : null}
-            {/* The title's own help dialog. It sat inside the heading before,
+                <BallotIdHelpDialog
+                    className="review-ballot-id-help-dialog"
+                    handleClose={handleCloseDialogIdHelp}
+                    open={openBallotIdHelp}
+                    title={t("reviewScreen.ballotIdHelpDialog.title")}
+                    maxWidth="md"
+                    middleActions={
+                        auditButtonCfg === EVotingPortalAuditButtonCfg.SHOW_IN_HELP
+                            ? [
+                                  <AuditButton
+                                      key={"audit-button"}
+                                      onClick={() => {
+                                          setOpenBallotIdHelp(false)
+                                          setAuditBallotHelp(true)
+                                      }}
+                                  />,
+                              ]
+                            : []
+                    }
+                    cancel={t("reviewScreen.ballotIdHelpDialog.cancel")}
+                    variant="info"
+                >
+                    {stringToHtml(t("reviewScreen.ballotIdHelpDialog.content"))}
+                </BallotIdHelpDialog>
+                {auditButtonCfg === EVotingPortalAuditButtonCfg.SHOW_IN_HELP &&
+                !isFullyAcclaimed ? (
+                    <AuditBallotHelpDialog
+                        auditBallotHelp={auditBallotHelp}
+                        handleClose={handleCloseDialogAuditHelp}
+                    />
+                ) : null}
+                {/* The title's own help dialog. It sat inside the heading before,
                 which made no difference to a reader — MUI renders a dialog into
                 a portal wherever it is declared — and made the heading harder to
                 lift out. */}
-            <Dialog
-                className="screen-help-dialog review-help-dialog"
-                handleClose={() => setReviewScreenHelp(false)}
-                open={openReviewScreenHelp}
-                title={t(
-                    isFullyAcclaimed
-                        ? "reviewScreen.acclamation.helpDialog.title"
-                        : "reviewScreen.reviewScreenHelpDialog.title"
-                )}
-                ok={t(
-                    isFullyAcclaimed
-                        ? "reviewScreen.acclamation.helpDialog.ok"
-                        : "reviewScreen.reviewScreenHelpDialog.ok"
-                )}
-                variant="info"
-            >
-                {stringToHtml(
-                    t(
+                <Dialog
+                    className="screen-help-dialog review-help-dialog"
+                    handleClose={() => setReviewScreenHelp(false)}
+                    open={openReviewScreenHelp}
+                    title={t(
                         isFullyAcclaimed
-                            ? "reviewScreen.acclamation.helpDialog.content"
-                            : "reviewScreen.reviewScreenHelpDialog.content"
-                    )
-                )}
-            </Dialog>
-        </ReviewLayout>
+                            ? "reviewScreen.acclamation.helpDialog.title"
+                            : "reviewScreen.reviewScreenHelpDialog.title"
+                    )}
+                    ok={t(
+                        isFullyAcclaimed
+                            ? "reviewScreen.acclamation.helpDialog.ok"
+                            : "reviewScreen.reviewScreenHelpDialog.ok"
+                    )}
+                    variant="info"
+                >
+                    {stringToHtml(
+                        t(
+                            isFullyAcclaimed
+                                ? "reviewScreen.acclamation.helpDialog.content"
+                                : "reviewScreen.reviewScreenHelpDialog.content"
+                        )
+                    )}
+                </Dialog>
+            </ReviewLayout>
+        </BallotSlatesProvider>
     )
 }
 

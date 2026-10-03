@@ -445,6 +445,11 @@ const dutchTranslation: TranslationType = {
             },
         },
         slates: {
+            title: "Lijsten",
+            description:
+                "Een lijst is een groep kandidaten die zich samen verkiesbaar stellen. Bij elke kandidaat staat de lijst waartoe die behoort.",
+            independent: "Onafhankelijk",
+            contestMembers: "Kandidaten van {{slate}} voor {{contest}}",
             apply: {
                 button: "Deze lijst kiezen",
                 buttonLabel: "Lijst {{slate}} kiezen",

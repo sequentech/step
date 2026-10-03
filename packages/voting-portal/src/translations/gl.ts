@@ -445,6 +445,11 @@ const galegoTranslation: TranslationType = {
             },
         },
         slates: {
+            title: "Candidaturas conxuntas",
+            description:
+                "Unha candidatura conxunta é un grupo de candidatos que se presentan xuntos. Cada candidato mostra a candidatura á que pertence.",
+            independent: "Independente",
+            contestMembers: "Candidatos de {{slate}} para {{contest}}",
             apply: {
                 button: "Elixir esta candidatura",
                 buttonLabel: "Elixir a candidatura {{slate}}",

@@ -445,6 +445,11 @@ const basqueTranslation: TranslationType = {
             },
         },
         slates: {
+            title: "Hautagai-zerrendak",
+            description:
+                "Hautagai-zerrenda elkarrekin aurkezten diren hautagaien taldea da. Hautagai bakoitzak zein zerrendatakoa den erakusten du.",
+            independent: "Independentea",
+            contestMembers: "{{slate}} zerrendako hautagaiak: {{contest}}",
             apply: {
                 button: "Aukeratu hautagai-zerrenda hau",
                 buttonLabel: "Aukeratu {{slate}} hautagai-zerrenda",
