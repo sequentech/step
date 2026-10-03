@@ -20,7 +20,7 @@ use crate::types::error::Error;
 use deadpool_postgres::{Client as DbClient, Transaction};
 
 use crate::services::messaging::dispatch::{
-    deliver, Delivery, DeliveryResult, Dispatcher, FallbackPolicy, Recipient,
+    deliver, Delivery, DeliveryResult, Dispatcher, FallbackPolicy, ProviderTemplate, Recipient,
 };
 use anyhow::{anyhow, Context};
 use aws_sdk_sesv2::types::{Body, Content, Destination, EmailContent, Message as AwsMessage};
@@ -37,9 +37,9 @@ use sequent_core::services::translations::Name;
 use sequent_core::services::{keycloak, reports};
 use sequent_core::types::hasura::core::ElectionEvent;
 use sequent_core::types::keycloak::{
-    User, UserArea, AREA_ID_ATTR_NAME, MESSAGE_CHANNEL_ATTR_NAME, MESSENGER_ID_ATTR_NAME,
-    MOBILE_PHONE_ATTR_NAME, VERIFIED_CHANNELS_ATTR_NAME, VIBER_NUMBER_ATTR_NAME,
-    WHATSAPP_NUMBER_ATTR_NAME,
+    User, UserArea, AREA_ID_ATTR_NAME, LOCALE_ATTR_NAME, MESSAGE_CHANNEL_ATTR_NAME,
+    MESSENGER_ID_ATTR_NAME, MOBILE_PHONE_ATTR_NAME, VERIFIED_CHANNELS_ATTR_NAME,
+    VIBER_NUMBER_ATTR_NAME, WHATSAPP_NUMBER_ATTR_NAME,
 };
 use sequent_core::types::messaging::{
     MessageAttemptState, MessageChannel, MessageContent, MessagePurpose,
@@ -386,6 +386,31 @@ fn first_channel(
             .or(method_channel)
             .or(Some(MessageChannel::EMAIL)),
     }
+}
+
+/// Approved templates named by the send itself, per channel.
+fn provider_templates(body: &SendTemplateBody) -> BTreeMap<MessageChannel, ProviderTemplate> {
+    [
+        (MessageChannel::WHATSAPP, &body.whatsapp),
+        (MessageChannel::VIBER, &body.viber),
+        (MessageChannel::MESSENGER, &body.messenger),
+    ]
+    .into_iter()
+    .filter_map(|(channel, config)| {
+        let config = config.as_ref()?;
+        let name = config
+            .provider_template
+            .clone()
+            .filter(|name| !name.is_empty())?;
+        Some((
+            channel,
+            ProviderTemplate {
+                name,
+                language: config.provider_language.clone().filter(|l| !l.is_empty()),
+            },
+        ))
+    })
+    .collect()
 }
 
 fn render(text: &str, variables: &Map<String, Value>) -> Result<String> {
@@ -799,12 +824,13 @@ pub async fn send_template(
                 fallback,
                 recipient: voter_recipient(user, &elections_by_area),
                 contents,
-                language: None,
+                language: first_attribute(user, LOCALE_ATTR_NAME).cloned(),
                 template_alias: body.alias.clone(),
                 logical_key: format!("send-template:{send_id}:{voter_id}"),
                 expires_at: None,
                 account_id: None,
-                provider_template: None,
+                template_key: body.alias.clone(),
+                provider_templates: provider_templates(&body),
             };
             let result = match deliver(&mut delivery_client, dispatcher, &delivery).await {
                 Ok(result) => result,

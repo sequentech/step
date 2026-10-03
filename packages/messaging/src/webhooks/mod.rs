@@ -6,6 +6,7 @@
 //! turns a payload into [`WebhookEvent`]s. A callback never authenticates a
 //! voter.
 
+pub mod http;
 pub mod infobip;
 pub mod meta;
 pub mod sns;
@@ -19,6 +20,15 @@ pub enum WebhookEvent {
     Status(StatusReport),
     Inbound(InboundMessage),
     MessengerReferral(MessengerReferral),
+    DeliveredUpTo(DeliveredUpTo),
+}
+
+/// Every message accepted for `recipient` up to an instant was delivered.
+#[derive(Debug, Clone, PartialEq)]
+pub struct DeliveredUpTo {
+    /// Page-scoped ID.
+    pub recipient: String,
+    pub up_to: DateTime<Utc>,
 }
 
 /// A provider's report about a message Step sent.

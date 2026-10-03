@@ -19,9 +19,10 @@ use sequent_core::services::keycloak::update_realm_attributes;
 use sequent_core::types::messaging::{
     AccountCheck, AccountLimits, AccountSender, CreateMessengerLinkRequest,
     CreateMessengerLinkResponse, CredentialName, EventMessagingConfig,
-    MessageAttemptState, MessageContent, MessagePurpose, MessengerLinkRequest,
-    MessengerLinkStatus, ProviderApproval, SendMessageRequest,
-    SendMessageResponse, REALM_ATTR_MESSAGING,
+    MessageAttemptState, MessageChannel, MessageContent, MessagePurpose,
+    MessengerLinkRequest, MessengerLinkStatus, ProviderApproval,
+    ReadinessPolicy, SendMessageRequest, SendMessageResponse,
+    REALM_ATTR_MESSAGING,
 };
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
@@ -41,13 +42,14 @@ use windmill::services::messaging::config::{
     save_event_messaging_config, SaveOutcome,
 };
 use windmill::services::messaging::dispatch::{
-    deliver, Delivery, Dispatcher, FallbackPolicy, Recipient,
+    deliver, Delivery, Dispatcher, FallbackPolicy, ProviderTemplate, Recipient,
 };
 use windmill::services::messaging::links::{
     confirm_link, create_link, link_status, LinkError,
 };
 use windmill::services::messaging::webhooks::{
-    aws_events, meta_events, meta_subscription, viber_events, WebhookOutcome,
+    aws_events, http_events, meta_events, meta_subscription, viber_events,
+    WebhookOutcome,
 };
 
 /// Webhook bodies are small; anything larger is refused unread.
@@ -154,7 +156,8 @@ pub async fn send_message(
             logical_key: format!("keycloak:{}", request.logical_key),
             expires_at,
             account_id: None,
-            provider_template: None,
+            template_key: request.template_key.clone(),
+            provider_templates: BTreeMap::new(),
         },
     )
     .await
@@ -359,6 +362,85 @@ pub async fn viber_webhook(
     }
 }
 
+/// Every header of a callback, with lowercase names, for providers whose
+/// authentication is described by configuration.
+pub struct CallbackHeaders(BTreeMap<String, String>);
+
+#[rocket::async_trait]
+impl<'r> FromRequest<'r> for CallbackHeaders {
+    type Error = ();
+
+    async fn from_request(
+        request: &'r Request<'_>,
+    ) -> Outcome<Self, Self::Error> {
+        Outcome::Success(CallbackHeaders(
+            request
+                .headers()
+                .iter()
+                .map(|header| {
+                    (
+                        header.name().as_str().to_lowercase(),
+                        header.value().to_string(),
+                    )
+                })
+                .collect(),
+        ))
+    }
+}
+
+async fn http_callback(
+    key: &str,
+    headers: CallbackHeaders,
+    query: HashMap<String, String>,
+    body: &[u8],
+    services: &State<HarvestServices>,
+) -> Status {
+    let (Ok(mut client), Ok(dispatcher)) =
+        (db_client(services).await, dispatcher().await)
+    else {
+        return Status::ServiceUnavailable;
+    };
+    let query: BTreeMap<String, String> = query.into_iter().collect();
+    match http_events(&mut client, dispatcher, key, &headers.0, &query, body)
+        .await
+    {
+        Ok(outcome) => webhook_status(outcome),
+        Err(error) => {
+            warn!("HTTP provider webhook failed: {error:#}");
+            Status::InternalServerError
+        }
+    }
+}
+
+/// Delivery reports and replies of a provider described by configuration.
+#[instrument(skip_all)]
+#[post("/webhooks/http/<key>?<query..>", data = "<data>")]
+pub async fn http_webhook(
+    key: &str,
+    query: HashMap<String, String>,
+    headers: CallbackHeaders,
+    data: Data<'_>,
+    services: &State<HarvestServices>,
+) -> Status {
+    let body = match read_body(data).await {
+        Ok(body) => body,
+        Err(status) => return status,
+    };
+    http_callback(key, headers, query, &body, services).await
+}
+
+/// The same, for providers that report with a GET and query parameters.
+#[instrument(skip_all)]
+#[get("/webhooks/http/<key>?<query..>")]
+pub async fn http_webhook_query(
+    key: &str,
+    query: HashMap<String, String>,
+    headers: CallbackHeaders,
+    services: &State<HarvestServices>,
+) -> Status {
+    http_callback(key, headers, query, &[], services).await
+}
+
 #[instrument(skip_all)]
 #[post("/webhooks/aws/<key>", data = "<data>")]
 pub async fn aws_webhook(
@@ -387,10 +469,12 @@ pub async fn aws_webhook(
 #[derive(Deserialize, Debug)]
 pub struct UpsertMessagingAccountInput {
     id: Option<String>,
+    channel: Option<MessageChannel>,
     name: String,
     sender: AccountSender,
     limits: Option<AccountLimits>,
     provider_approval: Option<ProviderApproval>,
+    readiness: Option<ReadinessPolicy>,
     is_default: Option<bool>,
 }
 
@@ -422,15 +506,21 @@ pub async fn upsert_messaging_account(
     let tenant_id =
         authorize_admin(&claims, Permissions::MESSAGING_ACCOUNT_WRITE)?;
     let input = body.into_inner();
-    let channel = input.sender.provider().channel().ok_or_else(|| {
-        bad_request("development accounts cannot be created here")
-    })?;
+    // Providers with a channel of their own fix it; configurable ones take
+    // the channel the administrator chose.
+    let channel = input
+        .sender
+        .provider()
+        .channel()
+        .or(input.channel)
+        .ok_or_else(|| bad_request("this provider needs a channel"))?;
     let settings = AccountSettings {
         channel,
         name: input.name,
         sender: input.sender,
         limits: input.limits.unwrap_or_default(),
         provider_approval: input.provider_approval.unwrap_or_default(),
+        readiness: input.readiness.unwrap_or_default(),
         is_default: input.is_default.unwrap_or(false),
     };
     let mut client = db_client(services).await?;
@@ -596,6 +686,20 @@ pub async fn test_messaging_account(
         .map_err(internal)?
         .ok_or((Status::NotFound, "unknown account".to_string()))?;
     tx.commit().await.map_err(|e| internal(e.into()))?;
+    let template: BTreeMap<_, _> = input
+        .template
+        .filter(|name| !name.trim().is_empty())
+        .map(|name| {
+            (
+                account.channel,
+                ProviderTemplate {
+                    name,
+                    language: input.language.clone(),
+                },
+            )
+        })
+        .into_iter()
+        .collect();
     let code =
         (input.purpose == MessagePurpose::OTP).then(|| "000000".to_string());
     let text = match input.purpose {
@@ -639,7 +743,8 @@ pub async fn test_messaging_account(
             logical_key: format!("account-test:{id}:{}", Uuid::new_v4()),
             expires_at: Some(Utc::now() + chrono::Duration::minutes(5)),
             account_id: Some(id),
-            provider_template: input.template,
+            template_key: None,
+            provider_templates: template,
         },
     )
     .await

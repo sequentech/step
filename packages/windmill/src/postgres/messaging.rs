@@ -11,7 +11,7 @@ use messaging::sender::FailureKind;
 use sequent_core::types::messaging::{
     AccountCheck, AccountLimits, AccountSender, CredentialName, CredentialRecord,
     MessageAttemptState, MessageChannel, MessageDirection, MessagePurpose, MessagingProvider,
-    MessengerLinkState, ProviderApproval,
+    MessengerLinkState, ProviderApproval, ReadinessPolicy,
 };
 use serde::de::DeserializeOwned;
 use serde_json::Value;
@@ -49,6 +49,7 @@ pub struct MessagingAccount {
     pub credentials: BTreeMap<CredentialName, CredentialRecord>,
     pub limits: AccountLimits,
     pub provider_approval: ProviderApproval,
+    pub readiness: ReadinessPolicy,
     pub status: AccountCheck,
     pub webhook_key: String,
     pub is_default: bool,
@@ -71,6 +72,7 @@ impl TryFrom<Row> for MessagingAccount {
             credentials: parse_json(&row, "credentials")?,
             limits: parse_json(&row, "limits")?,
             provider_approval: parse_enum(&row, "provider_approval")?,
+            readiness: parse_enum(&row, "readiness")?,
             status: if status.as_object().is_some_and(|o| o.is_empty()) {
                 AccountCheck::default()
             } else {
@@ -92,13 +94,14 @@ pub struct AccountSettings {
     pub sender: AccountSender,
     pub limits: AccountLimits,
     pub provider_approval: ProviderApproval,
+    pub readiness: ReadinessPolicy,
     pub is_default: bool,
 }
 
 impl AccountSettings {
     fn validate(&self) -> Result<()> {
         let provider = self.sender.provider();
-        if provider.capabilities(self.channel).is_none() {
+        if self.sender.capabilities(self.channel).is_none() {
             return Err(anyhow!("{provider} cannot send {}", self.channel));
         }
         if self.name.trim().is_empty() {
@@ -143,8 +146,8 @@ pub async fn insert_messaging_account(
             r#"
             INSERT INTO sequent_backend.messaging_account
                 (id, tenant_id, channel, provider, name, sender, limits,
-                 provider_approval, webhook_key, is_default)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+                 provider_approval, webhook_key, is_default, readiness)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
             RETURNING *
             "#,
             &[
@@ -158,6 +161,7 @@ pub async fn insert_messaging_account(
                 &settings.provider_approval.to_string(),
                 &webhook_key,
                 &settings.is_default,
+                &settings.readiness.to_string(),
             ],
         )
         .await?;
@@ -190,7 +194,7 @@ pub async fn update_messaging_account(
             r#"
             UPDATE sequent_backend.messaging_account
             SET name = $3, sender = $4, limits = $5, provider_approval = $6,
-                is_default = $7, updated_at = now()
+                is_default = $7, readiness = $8, updated_at = now()
             WHERE tenant_id = $1 AND id = $2
             RETURNING *
             "#,
@@ -202,6 +206,7 @@ pub async fn update_messaging_account(
                 &serde_json::to_value(&settings.limits)?,
                 &settings.provider_approval.to_string(),
                 &settings.is_default,
+                &settings.readiness.to_string(),
             ],
         )
         .await?;
@@ -538,6 +543,57 @@ pub async fn find_message_by_provider_id(
     .await?
     .map(TryInto::try_into)
     .transpose()
+}
+
+/// The attempt a provider report refers to by Step's own reference
+/// (`<logical key>:<attempt>`), for providers that echo it back.
+#[instrument(skip(tx), err)]
+pub async fn find_message_by_reference(
+    tx: &Transaction<'_>,
+    account_id: &Uuid,
+    reference: &str,
+) -> Result<Option<MessageRecord>> {
+    let Some((logical_key, attempt)) = reference.rsplit_once(':') else {
+        return Ok(None);
+    };
+    let Ok(attempt) = attempt.parse::<i32>() else {
+        return Ok(None);
+    };
+    tx.query_opt(
+        r#"
+        SELECT * FROM sequent_backend.message
+        WHERE account_id = $1 AND logical_key = $2 AND attempt = $3
+          AND direction = 'OUTBOUND'
+        "#,
+        &[account_id, &logical_key, &attempt],
+    )
+    .await?
+    .map(TryInto::try_into)
+    .transpose()
+}
+
+/// Marks as delivered every message the account had accepted for this
+/// recipient up to `up_to`, for providers that report a watermark instead
+/// of message IDs.
+#[instrument(skip(tx), err)]
+pub async fn deliver_messages_up_to(
+    tx: &Transaction<'_>,
+    account_id: &Uuid,
+    destination_digest: &str,
+    up_to: DateTime<Utc>,
+) -> Result<u64> {
+    Ok(tx
+        .execute(
+            r#"
+            UPDATE sequent_backend.message
+            SET state = 'DELIVERED', delivered_at = now(), updated_at = now()
+            WHERE account_id = $1 AND destination_digest = $2
+              AND direction = 'OUTBOUND' AND state = 'ACCEPTED'
+              AND accepted_at <= $3
+            "#,
+            &[account_id, &destination_digest, &up_to],
+        )
+        .await?)
 }
 
 /// Whether an inbound message with this provider ID was already recorded.

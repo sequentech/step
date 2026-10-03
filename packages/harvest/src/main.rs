@@ -155,6 +155,8 @@ fn build_application_with(
                 routes::messaging::meta_webhook,
                 routes::messaging::viber_webhook,
                 routes::messaging::aws_webhook,
+                routes::messaging::http_webhook,
+                routes::messaging::http_webhook_query,
                 routes::messaging::upsert_messaging_account,
                 routes::messaging::delete_messaging_account,
                 routes::messaging::replace_messaging_account_credentials,

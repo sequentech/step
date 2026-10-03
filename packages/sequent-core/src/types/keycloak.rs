@@ -117,6 +117,8 @@ pub const MESSENGER_PAGE_ATTR_NAME: &str = "sequent.read-only.messenger-page";
 pub const VERIFIED_CHANNELS_ATTR_NAME: &str =
     "sequent.read-only.verified-channels";
 pub const MESSAGE_CONSENT_ATTR_NAME: &str = "sequent.read-only.message-consent";
+/// Keycloak's attribute for the user's language.
+pub const LOCALE_ATTR_NAME: &str = "locale";
 pub const FIRST_NAME: &str = "firstName";
 pub const LAST_NAME: &str = "lastName";
 pub const FIRST_NAME_ATTRIBUTE: &str = "first_name";

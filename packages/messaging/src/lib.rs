@@ -13,6 +13,7 @@
 pub mod attempts;
 pub mod destination;
 pub mod link;
+pub mod parameters;
 pub mod providers;
 pub mod rate_limit;
 pub mod sender;

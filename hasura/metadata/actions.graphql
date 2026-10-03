@@ -2374,10 +2374,12 @@ type MonitoringExportOutput {
 type Mutation {
     upsert_messaging_account(
         id: uuid
+        channel: String
         name: String!
         sender: jsonb!
         limits: jsonb
         provider_approval: String
+        readiness: String
         is_default: Boolean
     ): MessagingAccountOutput
 }

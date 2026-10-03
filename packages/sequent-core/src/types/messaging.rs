@@ -14,6 +14,8 @@ pub const MESSAGING_CONFIG_ANNOTATION: &str = "messaging:config";
 /// Realm attribute holding the [`PublicMessagingChannels`] projection.
 pub const REALM_ATTR_MESSAGING: &str = "sequent.messaging";
 pub const EVENT_MESSAGING_CONFIG_VERSION: u32 = 1;
+/// Template key of verification codes, for binding their approved template.
+pub const OTP_TEMPLATE_KEY: &str = "otp";
 
 #[allow(non_camel_case_types)]
 #[derive(
@@ -113,9 +115,13 @@ pub enum MessagingProvider {
     AWS_SNS,
     WHATSAPP_CLOUD_API,
     MESSENGER_SEND_API,
-    /// Viber Business Messages through Infobip. Each Viber partner has its
-    /// own adapter; this is not Viber's bot API.
+    /// Viber Business Messages through Infobip. This is not Viber's bot
+    /// API.
     VIBER_INFOBIP,
+    /// A provider described by configuration, for any channel: another
+    /// Viber partner, a WhatsApp Solution Provider's own API, an SMS
+    /// gateway.
+    HTTP_API,
     /// Prints messages instead of sending them. Development only.
     CONSOLE,
 }
@@ -173,7 +179,7 @@ impl MessagingProvider {
                 Some(MessageChannel::MESSENGER)
             }
             MessagingProvider::VIBER_INFOBIP => Some(MessageChannel::VIBER),
-            MessagingProvider::CONSOLE => None,
+            MessagingProvider::HTTP_API | MessagingProvider::CONSOLE => None,
         }
     }
 
@@ -247,16 +253,18 @@ impl MessagingProvider {
                 conversation_window_hours: None,
                 requires_provider_approval: false,
             },
-            MessagingProvider::CONSOLE => ProviderCapabilities {
-                channel,
-                recipient: channel.recipient_kind(),
-                purposes: both,
-                template_required_for: vec![],
-                delivery_feedback: DeliveryFeedback::UNAVAILABLE,
-                reconciliation: false,
-                conversation_window_hours: None,
-                requires_provider_approval: false,
-            },
+            MessagingProvider::HTTP_API | MessagingProvider::CONSOLE => {
+                ProviderCapabilities {
+                    channel,
+                    recipient: channel.recipient_kind(),
+                    purposes: both,
+                    template_required_for: vec![],
+                    delivery_feedback: DeliveryFeedback::UNAVAILABLE,
+                    reconciliation: false,
+                    conversation_window_hours: None,
+                    requires_provider_approval: false,
+                }
+            }
         };
         Some(capabilities)
     }
@@ -420,23 +428,43 @@ impl PurposeReadiness {
     }
 }
 
+/// How an account's readiness is established.
+#[allow(non_camel_case_types)]
+#[derive(
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    Copy,
+    EnumString,
+    Default,
+)]
+pub enum ReadinessPolicy {
+    /// From the provider's answers to the connection check.
+    #[default]
+    PROVIDER_CHECK,
+    /// An administrator confirmed with the provider that the account is
+    /// connected, in production and has its templates approved. For
+    /// providers whose check cannot tell, or tells differently than
+    /// expected. Provider approval is still confirmed separately.
+    ADMIN_CONFIRMED,
+}
+
 /// Readiness of `purpose` for `language` on an account.
 pub fn purpose_readiness(
-    provider: MessagingProvider,
-    channel: MessageChannel,
+    capabilities: &ProviderCapabilities,
     approval: ProviderApproval,
+    policy: ReadinessPolicy,
     check: &AccountCheck,
     purpose: MessagePurpose,
     language: Option<&str>,
 ) -> PurposeReadiness {
     let mut blockers = vec![];
-    let Some(capabilities) = provider.capabilities(channel) else {
-        return PurposeReadiness {
-            purpose,
-            blockers: vec![ReadinessBlocker::UNSUPPORTED_PURPOSE],
-        };
-    };
-    if !check.connected {
+    let checked = policy == ReadinessPolicy::PROVIDER_CHECK;
+    if checked && !check.connected {
         blockers.push(ReadinessBlocker::NOT_CONNECTED);
     }
     if !capabilities.purposes.contains(&purpose) {
@@ -447,10 +475,10 @@ pub fn purpose_readiness(
     {
         blockers.push(ReadinessBlocker::NEEDS_PROVIDER_APPROVAL);
     }
-    if !check.production_access {
+    if checked && !check.production_access {
         blockers.push(ReadinessBlocker::NEEDS_PRODUCTION_ACCESS);
     }
-    if capabilities.template_required_for.contains(&purpose) {
+    if checked && capabilities.template_required_for.contains(&purpose) {
         let approved = check
             .approved_templates
             .get(&purpose)
@@ -473,7 +501,11 @@ pub struct AccountSummary {
     pub tenant_id: String,
     pub channel: MessageChannel,
     pub provider: MessagingProvider,
+    /// What the account can do; for configurable providers this comes from
+    /// the account, not the provider.
+    pub capabilities: ProviderCapabilities,
     pub provider_approval: ProviderApproval,
+    pub readiness: ReadinessPolicy,
     pub check: AccountCheck,
     /// Public, non-secret label shown to voters (sender name, Page name).
     pub public_label: Option<String>,
@@ -492,9 +524,25 @@ pub struct MessengerPage {
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub struct TemplateBinding {
     pub purpose: MessagePurpose,
+    /// Which message this template is for: a template alias for bulk sends,
+    /// or Keycloak's message key. `None` is the default for the purpose.
+    #[serde(default)]
+    pub key: Option<String>,
+    /// The voter's language.
     pub language: String,
     /// Template name or ID as the provider knows it.
     pub provider_template: String,
+    /// The provider's code for the language when it differs, such as
+    /// `en_US` for `en`.
+    #[serde(default)]
+    pub provider_language: Option<String>,
+}
+
+impl TemplateBinding {
+    /// The language code to send to the provider.
+    pub fn provider_language(&self) -> &str {
+        self.provider_language.as_deref().unwrap_or(&self.language)
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
@@ -599,6 +647,42 @@ impl EventMessagingConfig {
         self.channels.iter().find(|c| c.channel == channel)
     }
 
+    /// The approved template for a message on `channel`. The most specific
+    /// binding wins: the message's key and language, then the key in any
+    /// language, then the purpose's default in the language, then any
+    /// default for the purpose.
+    pub fn template_for(
+        &self,
+        channel: MessageChannel,
+        purpose: MessagePurpose,
+        key: Option<&str>,
+        language: Option<&str>,
+    ) -> Option<&TemplateBinding> {
+        let bindings: Vec<&TemplateBinding> = self
+            .channel(channel)?
+            .templates
+            .iter()
+            .filter(|binding| binding.purpose == purpose)
+            .collect();
+        let keyed = |binding: &&&TemplateBinding| {
+            key.is_some() && binding.key.as_deref() == key
+        };
+        let default = |binding: &&&TemplateBinding| binding.key.is_none();
+        let in_language = |binding: &&&TemplateBinding| {
+            language.is_some_and(|language| {
+                binding.language == language
+                    || binding.provider_language() == language
+            })
+        };
+        bindings
+            .iter()
+            .find(|b| keyed(b) && in_language(b))
+            .or_else(|| bindings.iter().find(|b| keyed(b)))
+            .or_else(|| bindings.iter().find(|b| default(b) && in_language(b)))
+            .or_else(|| bindings.iter().find(|b| default(b)))
+            .copied()
+    }
+
     /// Channels enabled for `purpose`, optionally restricted to an election.
     pub fn enabled_channels(
         &self,
@@ -669,9 +753,9 @@ impl EventMessagingConfig {
             }
             for purpose in &channel_config.purposes {
                 let readiness = purpose_readiness(
-                    account.provider,
-                    channel,
+                    &account.capabilities,
                     account.provider_approval,
+                    account.readiness,
                     &account.check,
                     *purpose,
                     None,
@@ -684,20 +768,23 @@ impl EventMessagingConfig {
                     });
                 }
             }
-            let template_purposes = account
-                .provider
-                .capabilities(channel)
-                .map(|c| c.template_required_for)
-                .unwrap_or_default();
+            let template_purposes = &account.capabilities.template_required_for;
             for binding in &channel_config.templates {
-                if !template_purposes.contains(&binding.purpose) {
+                if !template_purposes.contains(&binding.purpose)
+                    || account.readiness == ReadinessPolicy::ADMIN_CONFIRMED
+                {
                     continue;
                 }
                 let approved = account
                     .check
                     .approved_templates
                     .get(&binding.purpose)
-                    .map(|langs| langs.contains(&binding.language))
+                    .map(|langs| {
+                        langs.iter().any(|l| {
+                            l == binding.provider_language()
+                                || *l == binding.language
+                        })
+                    })
                     .unwrap_or(false);
                 if !approved {
                     errors.push(MessagingConfigError::TEMPLATE_NOT_APPROVED {
@@ -707,8 +794,13 @@ impl EventMessagingConfig {
                     });
                 }
             }
+            // Out-of-window templates only make sense on a channel with a
+            // conversation window whose notices are otherwise free text.
+            let free_text_in_a_window =
+                account.capabilities.conversation_window_hours.is_some()
+                    && !template_purposes.contains(&MessagePurpose::NOTICE);
             if channel_config.out_of_window != OutOfWindowPolicy::DISABLED
-                && channel != MessageChannel::MESSENGER
+                && !free_text_in_a_window
             {
                 errors.push(
                     MessagingConfigError::OUT_OF_WINDOW_NOT_SUPPORTED {
@@ -764,9 +856,14 @@ impl EventMessagingConfig {
 
     /// What Keycloak pages may see: channel labels and purposes, never
     /// account identifiers or credentials.
+    ///
+    /// `election_labels` are the names a voter record may hold for each
+    /// election (its name, alias and external ID), so a restricted election
+    /// can be recognised by, for instance, the voter's Post.
     pub fn public_projection(
         &self,
         accounts: &[AccountSummary],
+        election_labels: &BTreeMap<String, Vec<String>>,
     ) -> PublicMessagingChannels {
         let accounts_by_id: HashMap<&str, &AccountSummary> =
             accounts.iter().map(|a| (a.id.as_str(), a)).collect();
@@ -798,6 +895,11 @@ impl EventMessagingConfig {
             version: EVENT_MESSAGING_CONFIG_VERSION,
             channels,
             election_channels: self.election_channels.clone(),
+            election_labels: election_labels
+                .iter()
+                .filter(|(id, _)| self.election_channels.contains_key(*id))
+                .map(|(id, labels)| (id.clone(), labels.clone()))
+                .collect(),
         }
     }
 }
@@ -809,6 +911,10 @@ pub struct PublicMessagingChannels {
     pub channels: Vec<PublicChannel>,
     #[serde(default)]
     pub election_channels: BTreeMap<String, Vec<MessageChannel>>,
+    /// For each restricted election, the names that identify it besides
+    /// its ID.
+    #[serde(default)]
+    pub election_labels: BTreeMap<String, Vec<String>>,
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
@@ -872,12 +978,18 @@ pub enum AccountSender {
         display_name: Option<String>,
         /// Graph API version, such as `v23.0`.
         api_version: String,
+        /// Graph API base URL when it is not Meta's own, such as a
+        /// Solution Provider's Cloud API endpoint.
+        #[serde(default)]
+        api_base_url: Option<String>,
     },
     MESSENGER_SEND_API {
         page_id: String,
         page_name: Option<String>,
         page_username: Option<String>,
         api_version: String,
+        #[serde(default)]
+        api_base_url: Option<String>,
     },
     VIBER_INFOBIP {
         /// The account's Infobip API base URL.
@@ -890,12 +1002,255 @@ pub enum AccountSender {
         #[serde(default)]
         approved_templates: BTreeMap<MessagePurpose, BTreeMap<String, String>>,
     },
+    /// Any provider with a JSON HTTP API, described by configuration.
+    HTTP_API(HttpApiSender),
     CONSOLE {},
 }
 
+/// How a phone number is written in a request.
+#[allow(non_camel_case_types)]
+#[derive(
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    Copy,
+    EnumString,
+    Default,
+)]
+pub enum PhoneFormat {
+    /// `+639171234567`
+    #[default]
+    E164,
+    /// `639171234567`
+    DIGITS,
+}
+
+/// An HTTP request whose URL, headers and JSON body may hold placeholders.
+///
+/// Placeholders: `{{to}}`, `{{text}}`, `{{subject}}`, `{{html}}`,
+/// `{{code}}`, `{{template}}`, `{{language}}`, `{{message_id}}`,
+/// `{{callback_url}}`, `{{param.1}}`…, `{{credential.NAME}}`,
+/// `{{basic_auth}}` (USERNAME and PASSWORD), `{{token}}` (from the
+/// account's token request) and `{{jwt}}`. A body string that is exactly
+/// `{{parameters}}` becomes the array of template parameters, and
+/// `{{named_parameters}}` the object of those written as `@name=value`.
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
+pub struct HttpRequestTemplate {
+    #[serde(default = "default_http_method")]
+    pub method: String,
+    pub url: String,
+    #[serde(default)]
+    pub headers: BTreeMap<String, String>,
+    #[serde(default)]
+    pub body: Option<serde_json::Value>,
+}
+
+fn default_http_method() -> String {
+    "POST".to_string()
+}
+
+/// How a provider's callbacks are authenticated.
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone, Default)]
+#[serde(tag = "kind")]
+#[allow(non_camel_case_types)]
+pub enum HttpWebhookAuth {
+    /// Only the unguessable webhook URL.
+    #[default]
+    URL_KEY,
+    /// A header must equal the WEBHOOK_SECRET credential.
+    HEADER_SECRET { header: String },
+    /// A header carries an HMAC-SHA256 under WEBHOOK_SECRET.
+    HMAC_SHA256 {
+        header: String,
+        /// Text before the digest, such as `sha256=`.
+        #[serde(default)]
+        prefix: Option<String>,
+        #[serde(default)]
+        encoding: DigestEncoding,
+        /// What is signed when it is not the body alone, with `{{body}}`
+        /// and `{{header.NAME}}`, such as
+        /// `{{body}}.{{header.x-nonce}}.{{header.x-timestamp}}`.
+        #[serde(default)]
+        signed: Option<String>,
+    },
+    /// A header carries `Bearer <JWT>` signed with HS256 under
+    /// WEBHOOK_SECRET. A `payload_hash` claim, when present, must be the
+    /// SHA-256 of the body.
+    JWT_HS256 { header: String },
+}
+
+#[allow(non_camel_case_types)]
+#[derive(
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    Copy,
+    EnumString,
+    Default,
+)]
+pub enum JwtAlgorithm {
+    /// Signed with the PEM private key in API_SECRET.
+    #[default]
+    RS256,
+    /// Signed with the shared secret in API_SECRET.
+    HS256,
+}
+
+/// A JWT minted for each request, available as `{{jwt}}`.
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
+pub struct HttpJwt {
+    #[serde(default)]
+    pub algorithm: JwtAlgorithm,
+    /// Claims besides `iat`, `exp` and `jti`, which are added. Strings may
+    /// hold placeholders.
+    #[serde(default)]
+    pub claims: serde_json::Value,
+    #[serde(default = "default_token_lifetime")]
+    pub lifetime_seconds: u64,
+}
+
+#[allow(non_camel_case_types)]
+#[derive(
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    Copy,
+    EnumString,
+    Default,
+)]
+pub enum DigestEncoding {
+    #[default]
+    HEX,
+    BASE64,
+}
+
+/// Reading a provider's status values. Pointers are JSON pointers
+/// (RFC 6901) into the response or report.
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
+pub struct HttpStatusMapping {
+    /// Where the provider's message ID is.
+    pub message_id_pointer: String,
+    /// Where the provider's status value is.
+    pub state_pointer: String,
+    /// Provider status values and the attempt state each means. Values not
+    /// listed are ignored.
+    pub states: BTreeMap<String, MessageAttemptState>,
+    #[serde(default)]
+    pub error_pointer: Option<String>,
+}
+
+/// Delivery reports and replies the provider posts to Step.
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
+pub struct HttpReports {
+    #[serde(default)]
+    pub auth: HttpWebhookAuth,
+    /// Where the list of reports is in the payload; the payload itself when
+    /// absent.
+    #[serde(default)]
+    pub items_pointer: Option<String>,
+    pub status: HttpStatusMapping,
+    /// In an item that is an incoming message, where the sender is.
+    #[serde(default)]
+    pub inbound_from_pointer: Option<String>,
+}
+
+/// Asking the provider about one message.
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
+pub struct HttpReconcile {
+    pub request: HttpRequestTemplate,
+    pub status: HttpStatusMapping,
+}
+
+/// Obtaining a short-lived token before sending, such as OAuth client
+/// credentials.
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
+pub struct HttpTokenRequest {
+    pub request: HttpRequestTemplate,
+    pub token_pointer: String,
+    /// Seconds a token is reused for.
+    #[serde(default = "default_token_lifetime")]
+    pub lifetime_seconds: u64,
+}
+
+fn default_token_lifetime() -> u64 {
+    300
+}
+
+/// A provider described by configuration: the request that sends a
+/// message, and optionally how to check the account, read delivery
+/// reports and look a message up.
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
+pub struct HttpApiSender {
+    /// Shown to voters as the sender.
+    #[serde(default)]
+    pub label: Option<String>,
+    pub send: HttpRequestTemplate,
+    /// Where the provider's message ID is in the send response.
+    #[serde(default)]
+    pub message_id_pointer: Option<String>,
+    #[serde(default)]
+    pub phone_format: PhoneFormat,
+    /// Purposes that need a provider-approved template.
+    #[serde(default)]
+    pub template_required_for: Vec<MessagePurpose>,
+    /// Hours after the recipient's last message during which free-form
+    /// messages may be sent.
+    #[serde(default)]
+    pub conversation_window_hours: Option<u32>,
+    /// A request that succeeds when the credentials work.
+    #[serde(default)]
+    pub check: Option<HttpRequestTemplate>,
+    #[serde(default)]
+    pub token: Option<HttpTokenRequest>,
+    #[serde(default)]
+    pub jwt: Option<HttpJwt>,
+    #[serde(default)]
+    pub reports: Option<HttpReports>,
+    #[serde(default)]
+    pub reconcile: Option<HttpReconcile>,
+    /// Languages with an approved template, per purpose, as confirmed with
+    /// the provider.
+    #[serde(default)]
+    pub approved_templates: BTreeMap<MessagePurpose, Vec<String>>,
+}
+
 impl AccountSender {
+    /// What this account can do on `channel`.
+    pub fn capabilities(
+        &self,
+        channel: MessageChannel,
+    ) -> Option<ProviderCapabilities> {
+        let mut capabilities = self.provider().capabilities(channel)?;
+        if let AccountSender::HTTP_API(api) = self {
+            capabilities.template_required_for =
+                api.template_required_for.clone();
+            capabilities.conversation_window_hours =
+                api.conversation_window_hours;
+            capabilities.delivery_feedback = if api.reports.is_some() {
+                DeliveryFeedback::PROVIDER_RECEIPTS
+            } else {
+                DeliveryFeedback::UNAVAILABLE
+            };
+            capabilities.reconciliation = api.reconcile.is_some();
+        }
+        Some(capabilities)
+    }
+
     pub fn provider(&self) -> MessagingProvider {
         match self {
+            AccountSender::HTTP_API(_) => MessagingProvider::HTTP_API,
             AccountSender::AWS_SES { .. } => MessagingProvider::AWS_SES,
             AccountSender::SMTP { .. } => MessagingProvider::SMTP,
             AccountSender::AWS_SNS { .. } => MessagingProvider::AWS_SNS,
@@ -941,6 +1296,7 @@ impl AccountSender {
                 page_name, page_id, ..
             } => Some(page_name.clone().unwrap_or(page_id.clone())),
             AccountSender::VIBER_INFOBIP { sender, .. } => Some(sender.clone()),
+            AccountSender::HTTP_API(api) => api.label.clone(),
             AccountSender::CONSOLE {} => None,
         }
     }
@@ -992,22 +1348,29 @@ pub enum CredentialName {
     SMTP_PASSWORD,
     AWS_ACCESS_KEY_ID,
     AWS_SECRET_ACCESS_KEY,
+    /// Configurable providers: a second API secret.
+    API_SECRET,
+    USERNAME,
+    PASSWORD,
+    /// Shared secret a configurable provider's callbacks are checked with.
+    WEBHOOK_SECRET,
 }
 
 impl MessagingProvider {
-    /// Credentials this provider needs before it can connect.
+    /// Credentials this provider needs before it can send. Webhook
+    /// credentials are not among them: sending works before callbacks are
+    /// set up.
     pub fn required_credentials(&self) -> Vec<CredentialName> {
         match self {
             MessagingProvider::WHATSAPP_CLOUD_API
-            | MessagingProvider::MESSENGER_SEND_API => vec![
-                CredentialName::ACCESS_TOKEN,
-                CredentialName::APP_SECRET,
-                CredentialName::VERIFY_TOKEN,
-            ],
+            | MessagingProvider::MESSENGER_SEND_API => {
+                vec![CredentialName::ACCESS_TOKEN]
+            }
             MessagingProvider::VIBER_INFOBIP => vec![CredentialName::API_KEY],
             MessagingProvider::SMTP => vec![CredentialName::SMTP_PASSWORD],
             MessagingProvider::AWS_SES
             | MessagingProvider::AWS_SNS
+            | MessagingProvider::HTTP_API
             | MessagingProvider::CONSOLE => vec![],
         }
     }
@@ -1019,6 +1382,20 @@ impl MessagingProvider {
             MessagingProvider::AWS_SES | MessagingProvider::AWS_SNS => vec![
                 CredentialName::AWS_ACCESS_KEY_ID,
                 CredentialName::AWS_SECRET_ACCESS_KEY,
+            ],
+            MessagingProvider::WHATSAPP_CLOUD_API
+            | MessagingProvider::MESSENGER_SEND_API => vec![
+                CredentialName::ACCESS_TOKEN,
+                CredentialName::APP_SECRET,
+                CredentialName::VERIFY_TOKEN,
+            ],
+            MessagingProvider::HTTP_API => vec![
+                CredentialName::API_KEY,
+                CredentialName::API_SECRET,
+                CredentialName::ACCESS_TOKEN,
+                CredentialName::USERNAME,
+                CredentialName::PASSWORD,
+                CredentialName::WEBHOOK_SECRET,
             ],
             _ => self.required_credentials(),
         }
@@ -1055,6 +1432,10 @@ pub struct SendMessageRequest {
     pub destination: String,
     pub language: Option<String>,
     pub content: MessageContent,
+    /// Which message this is, such as Keycloak's message key, to pick its
+    /// approved template among the event's bindings.
+    #[serde(default)]
+    pub template_key: Option<String>,
     /// Identifies the logical message across retries. A second request with
     /// the same key does not send again once the first was accepted.
     pub logical_key: String,
@@ -1191,11 +1572,167 @@ mod tests {
             tenant_id: TENANT.to_string(),
             channel,
             provider,
+            capabilities: caps(provider, channel),
             provider_approval: ProviderApproval::PENDING,
+            readiness: ReadinessPolicy::PROVIDER_CHECK,
             check,
             public_label: Some(format!("{id} label")),
             messenger_page: None,
         }
+    }
+
+    fn caps(
+        provider: MessagingProvider,
+        channel: MessageChannel,
+    ) -> ProviderCapabilities {
+        provider.capabilities(channel).expect("capabilities")
+    }
+
+    fn binding(
+        key: Option<&str>,
+        language: &str,
+        template: &str,
+    ) -> TemplateBinding {
+        TemplateBinding {
+            purpose: MessagePurpose::NOTICE,
+            key: key.map(str::to_string),
+            language: language.to_string(),
+            provider_template: template.to_string(),
+            provider_language: None,
+        }
+    }
+
+    #[test]
+    fn admin_confirmed_readiness_replaces_the_provider_check_only() {
+        let readiness = |approval| {
+            purpose_readiness(
+                &caps(
+                    MessagingProvider::WHATSAPP_CLOUD_API,
+                    MessageChannel::WHATSAPP,
+                ),
+                approval,
+                ReadinessPolicy::ADMIN_CONFIRMED,
+                &AccountCheck::default(),
+                MessagePurpose::OTP,
+                Some("en"),
+            )
+        };
+        assert_eq!(
+            readiness(ProviderApproval::PENDING).blockers,
+            vec![ReadinessBlocker::NEEDS_PROVIDER_APPROVAL]
+        );
+        assert!(readiness(ProviderApproval::CONFIRMED).is_ready());
+    }
+
+    #[test]
+    fn the_most_specific_template_binding_wins() {
+        let config = EventMessagingConfig {
+            channels: vec![EventChannelConfig {
+                templates: vec![
+                    binding(None, "en", "default_en"),
+                    binding(None, "tl", "default_tl"),
+                    binding(Some("reminder"), "en", "reminder_en"),
+                    TemplateBinding {
+                        provider_language: Some("fil".to_string()),
+                        ..binding(Some("reminder"), "tl", "reminder_tl")
+                    },
+                ],
+                ..channel_config(MessageChannel::WHATSAPP, "wa", &[])
+            }],
+            ..Default::default()
+        };
+        let template = |key, language| {
+            config
+                .template_for(
+                    MessageChannel::WHATSAPP,
+                    MessagePurpose::NOTICE,
+                    key,
+                    language,
+                )
+                .map(|b| b.provider_template.as_str())
+        };
+        assert_eq!(template(Some("reminder"), Some("tl")), Some("reminder_tl"));
+        assert_eq!(
+            template(Some("reminder"), Some("fil")),
+            Some("reminder_tl")
+        );
+        assert_eq!(template(Some("reminder"), Some("fr")), Some("reminder_en"));
+        assert_eq!(template(Some("reminder"), None), Some("reminder_en"));
+        assert_eq!(template(Some("approved"), Some("tl")), Some("default_tl"));
+        assert_eq!(template(None, None), Some("default_en"));
+        assert_eq!(
+            config
+                .template_for(
+                    MessageChannel::WHATSAPP,
+                    MessagePurpose::OTP,
+                    None,
+                    Some("en")
+                )
+                .map(|b| b.provider_template.as_str()),
+            None
+        );
+        assert_eq!(
+            config
+                .template_for(
+                    MessageChannel::WHATSAPP,
+                    MessagePurpose::NOTICE,
+                    Some("reminder"),
+                    Some("tl")
+                )
+                .map(TemplateBinding::provider_language),
+            Some("fil")
+        );
+    }
+
+    #[test]
+    fn a_configured_http_provider_declares_its_own_capabilities() {
+        let sender: AccountSender = serde_json::from_value(serde_json::json!({
+            "provider": "HTTP_API",
+            "label": "COMELEC",
+            "send": {
+                "url": "https://partner.example/v1/viber",
+                "headers": {"Authorization": "Bearer {{credential.API_KEY}}"},
+                "body": {"to": "{{to}}", "template": "{{template}}", "params": "{{parameters}}"}
+            },
+            "message_id_pointer": "/id",
+            "phone_format": "DIGITS",
+            "template_required_for": ["OTP"],
+            "reports": {
+                "auth": {"kind": "HEADER_SECRET", "header": "X-Secret"},
+                "status": {
+                    "message_id_pointer": "/id",
+                    "state_pointer": "/status",
+                    "states": {"delivered": "DELIVERED", "failed": "FAILED"}
+                }
+            }
+        }))
+        .expect("sender");
+        assert_eq!(sender.provider(), MessagingProvider::HTTP_API);
+        assert_eq!(sender.public_label(), Some("COMELEC".to_string()));
+        let capabilities = sender
+            .capabilities(MessageChannel::VIBER)
+            .expect("capabilities");
+        assert_eq!(capabilities.recipient, RecipientKind::PHONE_NUMBER);
+        assert_eq!(
+            capabilities.template_required_for,
+            vec![MessagePurpose::OTP]
+        );
+        assert_eq!(
+            capabilities.delivery_feedback,
+            DeliveryFeedback::PROVIDER_RECEIPTS
+        );
+        assert!(!capabilities.reconciliation);
+        let AccountSender::HTTP_API(api) = &sender else {
+            panic!("HTTP_API");
+        };
+        assert_eq!(api.send.method, "POST");
+        assert_eq!(
+            serde_json::from_value::<AccountSender>(
+                serde_json::to_value(&sender).expect("json")
+            )
+            .expect("round trip"),
+            sender
+        );
     }
 
     fn channel_config(
@@ -1261,9 +1798,12 @@ mod tests {
     #[test]
     fn connected_whatsapp_is_not_ready_without_approval_and_templates() {
         let readiness = purpose_readiness(
-            MessagingProvider::WHATSAPP_CLOUD_API,
-            MessageChannel::WHATSAPP,
+            &caps(
+                MessagingProvider::WHATSAPP_CLOUD_API,
+                MessageChannel::WHATSAPP,
+            ),
             ProviderApproval::PENDING,
+            ReadinessPolicy::PROVIDER_CHECK,
             &ready_check(&[]),
             MessagePurpose::OTP,
             Some("en"),
@@ -1282,9 +1822,9 @@ mod tests {
         let check = ready_check(&[(MessagePurpose::OTP, "en")]);
         let readiness = |language| {
             purpose_readiness(
-                MessagingProvider::VIBER_INFOBIP,
-                MessageChannel::VIBER,
+                &caps(MessagingProvider::VIBER_INFOBIP, MessageChannel::VIBER),
                 ProviderApproval::PENDING,
+                ReadinessPolicy::PROVIDER_CHECK,
                 &check,
                 MessagePurpose::OTP,
                 Some(language),
@@ -1301,9 +1841,9 @@ mod tests {
     fn not_connected_blocks_every_purpose() {
         let check = AccountCheck::default();
         let readiness = purpose_readiness(
-            MessagingProvider::AWS_SNS,
-            MessageChannel::SMS,
+            &caps(MessagingProvider::AWS_SNS, MessageChannel::SMS),
             ProviderApproval::PENDING,
+            ReadinessPolicy::PROVIDER_CHECK,
             &check,
             MessagePurpose::NOTICE,
             None,
@@ -1346,8 +1886,7 @@ mod tests {
                 EventChannelConfig {
                     templates: vec![TemplateBinding {
                         purpose: MessagePurpose::OTP,
-                        language: "en".to_string(),
-                        provider_template: "otp_en".to_string(),
+                        ..binding(None, "en", "otp_en")
                     }],
                     ..channel_config(
                         MessageChannel::VIBER,
@@ -1469,8 +2008,7 @@ mod tests {
             channels: vec![EventChannelConfig {
                 templates: vec![TemplateBinding {
                     purpose: MessagePurpose::OTP,
-                    language: "tl".to_string(),
-                    provider_template: "otp_tl".to_string(),
+                    ..binding(None, "tl", "otp_tl")
                 }],
                 out_of_window: OutOfWindowPolicy::UTILITY_MESSAGES,
                 ..channel_config(
@@ -1566,12 +2104,31 @@ mod tests {
                 ),
                 channel_config(MessageChannel::SMS, "sms-1", &[]),
             ],
+            election_channels: BTreeMap::from([(
+                "election-1".to_string(),
+                vec![MessageChannel::MESSENGER],
+            )]),
             ..Default::default()
         };
-        let projection = config.public_projection(&[messenger]);
+        let labels = BTreeMap::from([
+            (
+                "election-1".to_string(),
+                vec!["Manila".to_string(), "PH-MNL".to_string()],
+            ),
+            ("election-2".to_string(), vec!["Madrid".to_string()]),
+        ]);
+        let projection = config.public_projection(&[messenger], &labels);
         let json = serde_json::to_string(&projection).expect("json");
         assert!(!json.contains("messenger-account-secret-id"));
         assert_eq!(projection.channels.len(), 1);
+        // Only restricted elections need labels.
+        assert_eq!(
+            projection.election_labels,
+            BTreeMap::from([(
+                "election-1".to_string(),
+                vec!["Manila".to_string(), "PH-MNL".to_string()]
+            )])
+        );
         assert_eq!(
             projection.channels[0].messenger_page,
             Some(PublicMessengerPage {

@@ -27,6 +27,7 @@ use messaging::webhooks::MessengerReferral;
 use sequent_core::types::messaging::{
     CreateMessengerLinkRequest, CreateMessengerLinkResponse, MessageAttemptState, MessageChannel,
     MessageContent, MessagePurpose, MessengerLinkRequest, MessengerLinkState, MessengerLinkStatus,
+    OTP_TEMPLATE_KEY,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -313,7 +314,8 @@ pub async fn bind_referral(
             logical_key: format!("messenger-link:{}", link.id),
             expires_at: Some(link.expires_at),
             account_id: Some(link.account_id),
-            provider_template: None,
+            template_key: Some(OTP_TEMPLATE_KEY.to_string()),
+            provider_templates: BTreeMap::new(),
         },
     )
     .await?;

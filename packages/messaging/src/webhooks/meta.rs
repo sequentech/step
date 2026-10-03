@@ -5,7 +5,7 @@
 //! Meta webhooks (WhatsApp Cloud API and Messenger): the subscription
 //! handshake, payload signatures and the events Step uses.
 
-use super::{InboundMessage, MessengerReferral, StatusReport, WebhookEvent};
+use super::{DeliveredUpTo, InboundMessage, MessengerReferral, StatusReport, WebhookEvent};
 use anyhow::{anyhow, Result};
 use chrono::{DateTime, TimeZone, Utc};
 use hmac::{Hmac, Mac};
@@ -76,7 +76,7 @@ fn timestamp(value: &Value) -> Option<DateTime<Utc>> {
 fn whatsapp_status(status: &str) -> Option<MessageAttemptState> {
     match status {
         "sent" => Some(MessageAttemptState::ACCEPTED),
-        "delivered" | "read" => Some(MessageAttemptState::DELIVERED),
+        "delivered" | "read" | "played" => Some(MessageAttemptState::DELIVERED),
         "failed" => Some(MessageAttemptState::FAILED),
         _ => None,
     }
@@ -175,6 +175,18 @@ fn messenger_events(event: &Value) -> Vec<WebhookEvent> {
             }))
         }));
     }
+    // Delivery reports may omit message IDs, and read reports never carry
+    // them: everything sent up to the watermark was delivered.
+    let watermark = event["delivery"]["watermark"]
+        .as_i64()
+        .or_else(|| event["read"]["watermark"].as_i64())
+        .and_then(|millis| Utc.timestamp_millis_opt(millis).single());
+    if let Some(up_to) = watermark {
+        events.push(WebhookEvent::DeliveredUpTo(DeliveredUpTo {
+            recipient: psid.to_string(),
+            up_to,
+        }));
+    }
     let message = &event["message"];
     if !message.is_null() && message["is_echo"] != true {
         if let Some(mid) = message["mid"].as_str() {
@@ -222,6 +234,7 @@ mod tests {
             display_phone_number: "+63 2 8123 4567".to_string(),
             display_name: Some("COMELEC".to_string()),
             api_version: "v23.0".to_string(),
+            api_base_url: None,
         }
     }
 
@@ -231,6 +244,7 @@ mod tests {
             page_name: Some("COMELEC".to_string()),
             page_username: Some("comelec".to_string()),
             api_version: "v23.0".to_string(),
+            api_base_url: None,
         }
     }
 
@@ -387,12 +401,22 @@ mod tests {
         );
         assert!(matches!(&events[1], WebhookEvent::Status(s) if s.provider_message_id == "m_1"));
         assert!(matches!(&events[2], WebhookEvent::Status(s) if s.provider_message_id == "m_2"));
-        assert!(matches!(&events[3], WebhookEvent::Inbound(m) if m.from == "psid-3"));
+        assert_eq!(
+            events[3],
+            WebhookEvent::DeliveredUpTo(DeliveredUpTo {
+                recipient: "psid-2".to_string(),
+                up_to: Utc
+                    .timestamp_millis_opt(1_790_000_000_000)
+                    .single()
+                    .unwrap(),
+            })
+        );
+        assert!(matches!(&events[4], WebhookEvent::Inbound(m) if m.from == "psid-3"));
         assert!(matches!(
-            &events[4],
+            &events[5],
             WebhookEvent::MessengerReferral(MessengerReferral { linking_word: Some(word), .. })
                 if word == "VOTE-4821"
         ));
-        assert_eq!(events.len(), 5);
+        assert_eq!(events.len(), 6);
     }
 }

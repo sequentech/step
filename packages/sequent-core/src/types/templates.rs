@@ -113,6 +113,13 @@ pub struct InstantMessageConfig {
     pub message: String,
     #[serde(default)]
     pub parameters: Vec<String>,
+    /// The approved template's name or ID at the provider. Without it the
+    /// event's binding for the template alias, or its default, is used.
+    #[serde(default)]
+    pub provider_template: Option<String>,
+    /// The provider's language code of that template, such as `en_US`.
+    #[serde(default)]
+    pub provider_language: Option<String>,
 }
 
 #[derive(Deserialize, Debug, Serialize, Clone, Default)]

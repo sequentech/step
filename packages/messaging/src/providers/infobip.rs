@@ -6,6 +6,7 @@
 //! attempt whose response was lost can be looked up by that ID.
 
 use super::{exchange, Account};
+use crate::parameters::{parse_all, TemplateParameter};
 use crate::sender::{
     outcome_from_http, ChannelSender, FailureKind, OutboundMessage, ProviderFailure, SendOutcome,
 };
@@ -60,12 +61,18 @@ impl InfobipViberSender {
                 Value::String(message.content.code.clone().unwrap_or_default()),
             )])
         } else {
-            message
-                .content
-                .template_parameters
-                .iter()
-                .enumerate()
-                .map(|(index, value)| ((index + 1).to_string(), Value::String(value.clone())))
+            // Infobip takes parameters by placeholder name; positional ones
+            // are named 1, 2, …
+            let mut positional = 0;
+            parse_all(&message.content.template_parameters)
+                .into_iter()
+                .map(|parameter| match parameter {
+                    TemplateParameter::Named { name, value } => (name, Value::String(value)),
+                    TemplateParameter::Positional(value) => {
+                        positional += 1;
+                        (positional.to_string(), Value::String(value))
+                    }
+                })
                 .collect()
         };
         json!({
@@ -79,7 +86,7 @@ impl InfobipViberSender {
 
 fn status_state(group: &str) -> Option<MessageAttemptState> {
     match group {
-        "PENDING" => Some(MessageAttemptState::ACCEPTED),
+        "PENDING" | "ACCEPTED" => Some(MessageAttemptState::ACCEPTED),
         "DELIVERED" => Some(MessageAttemptState::DELIVERED),
         "UNDELIVERABLE" | "EXPIRED" | "REJECTED" => Some(MessageAttemptState::FAILED),
         _ => None,

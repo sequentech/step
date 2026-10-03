@@ -121,16 +121,21 @@ pub fn preflight(
     {
         return Err(PreflightError::MISSING_APPROVED_TEMPLATE);
     }
-    // Approved templates may be sent at any time. Messenger's out-of-window
-    // mechanism (OutOfWindowPolicy::UTILITY_MESSAGES) is not sent until Meta
-    // confirms it for the Page, so the window applies to every free-form
-    // message.
+    // Free-form messages need the conversation window. An approved template
+    // may be sent outside it where the channel always uses templates, or
+    // where the event allows out-of-window templates (Messenger utility
+    // messages).
     if let Some(hours) = capabilities.conversation_window_hours {
         let in_window = message
             .last_inbound_at
             .map(|at| now - at < Duration::hours(i64::from(hours)))
             .unwrap_or(false);
-        if message.provider_template.is_none() && !in_window {
+        let template_allowed = message.provider_template.is_some()
+            && (capabilities
+                .template_required_for
+                .contains(&message.purpose)
+                || message.out_of_window == OutOfWindowPolicy::UTILITY_MESSAGES);
+        if !in_window && !template_allowed {
             return Err(PreflightError::OUTSIDE_CONVERSATION_WINDOW);
         }
     }
@@ -299,9 +304,20 @@ mod tests {
             Ok(())
         );
 
-        // Not sent until Meta confirms the mechanism (D5).
+        // Outside the window only an approved template passes, and only
+        // when the event allows utility messages.
         notice.last_inbound_at = None;
         notice.out_of_window = OutOfWindowPolicy::UTILITY_MESSAGES;
+        assert_eq!(
+            preflight(&caps, &AccountLimits::default(), &notice, now),
+            Err(PreflightError::OUTSIDE_CONVERSATION_WINDOW)
+        );
+        notice.provider_template = Some("enrollment_approved".to_string());
+        assert_eq!(
+            preflight(&caps, &AccountLimits::default(), &notice, now),
+            Ok(())
+        );
+        notice.out_of_window = OutOfWindowPolicy::DISABLED;
         assert_eq!(
             preflight(&caps, &AccountLimits::default(), &notice, now),
             Err(PreflightError::OUTSIDE_CONVERSATION_WINDOW)

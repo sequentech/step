@@ -78,8 +78,20 @@ pub struct Delivery {
     /// Send through this account instead of the event's or the default,
     /// such as for an administrator's test message.
     pub account_id: Option<Uuid>,
-    /// Use this approved template instead of the event's binding.
-    pub provider_template: Option<String>,
+    /// Which message this is, to pick its approved template among the
+    /// event's bindings: a template alias or Keycloak's message key.
+    pub template_key: Option<String>,
+    /// Approved templates to use on a channel instead of the event's
+    /// binding.
+    pub provider_templates: BTreeMap<MessageChannel, ProviderTemplate>,
+}
+
+/// An approved template at the provider.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ProviderTemplate {
+    pub name: String,
+    /// The provider's code for the template's language.
+    pub language: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -285,7 +297,12 @@ pub async fn deliver(
             None => None,
         };
         let records = list_attempts(&tx, &delivery.tenant_id, &delivery.logical_key).await?;
-        let eligible = eligible_channels(config.as_ref(), delivery.purpose, &delivery.recipient);
+        // A send through an explicitly chosen account, such as a test
+        // message, is not subject to an event configuration.
+        let eligible = match delivery.account_id {
+            Some(_) => vec![delivery.first_channel],
+            None => eligible_channels(config.as_ref(), delivery.purpose, &delivery.recipient),
+        };
         let fallback = match (delivery.fallback, &config) {
             (FallbackPolicy::EVENT_ORDER, Some(config)) => config.notice_fallback.clone(),
             _ => vec![],
@@ -390,19 +407,28 @@ pub async fn deliver(
                     .cloned()
                     .ok_or_else(|| format!("no {channel} content"))?;
                 let channel_config = config.as_ref().and_then(|c| c.channel(channel));
-                let provider_template = delivery
-                    .provider_template
-                    .clone()
+                // The approved template and the provider's code for its
+                // language: the message's own, then the event's most
+                // specific binding, then the account's declared approvals.
+                let template: Option<ProviderTemplate> = delivery
+                    .provider_templates
+                    .get(&channel)
+                    .cloned()
                     .or_else(|| {
-                        channel_config.and_then(|c| {
-                            c.templates
-                                .iter()
-                                .find(|t| {
-                                    t.purpose == delivery.purpose
-                                        && Some(&t.language) == delivery.language.as_ref()
-                                })
-                                .map(|t| t.provider_template.clone())
-                        })
+                        config
+                            .as_ref()
+                            .and_then(|c| {
+                                c.template_for(
+                                    channel,
+                                    delivery.purpose,
+                                    delivery.template_key.as_deref(),
+                                    delivery.language.as_deref(),
+                                )
+                            })
+                            .map(|binding| ProviderTemplate {
+                                name: binding.provider_template.clone(),
+                                language: Some(binding.provider_language().to_string()),
+                            })
                     })
                     .or_else(|| match account.as_ref().map(|a| &a.sender) {
                         Some(AccountSender::VIBER_INFOBIP {
@@ -410,11 +436,23 @@ pub async fn deliver(
                         }) => approved_templates
                             .get(&delivery.purpose)
                             .and_then(|by_language| {
-                                by_language.get(delivery.language.as_deref().unwrap_or("en"))
-                            })
-                            .cloned(),
+                                delivery
+                                    .language
+                                    .as_ref()
+                                    .and_then(|language| by_language.get_key_value(language))
+                                    .or_else(|| by_language.iter().next())
+                                    .map(|(language, name)| ProviderTemplate {
+                                        name: name.clone(),
+                                        language: Some(language.clone()),
+                                    })
+                            }),
                         _ => None,
                     });
+                let language = template
+                    .as_ref()
+                    .and_then(|t| t.language.clone())
+                    .or_else(|| delivery.language.clone());
+                let provider_template = template.map(|t| t.name);
                 let (sender, last_inbound): (Box<dyn ChannelSender>, _) = match &account {
                     Some(account) => {
                         let runtime = runtime_account(&tx, account)
@@ -440,7 +478,7 @@ pub async fn deliver(
                         channel,
                         purpose: delivery.purpose,
                         destination,
-                        language: delivery.language.clone(),
+                        language,
                         content,
                         provider_template,
                         idempotency_key: format!("{}:{attempt}", delivery.logical_key),

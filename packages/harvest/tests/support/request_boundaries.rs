@@ -293,6 +293,7 @@ async fn sensitive_routes_require_authorization_before_reading_the_body_or_conta
     expected.extend(
         [
             "/webhooks/aws/<key>",
+            "/webhooks/http/<key>",
             "/webhooks/meta/<key>",
             "/webhooks/viber/<key>",
         ]

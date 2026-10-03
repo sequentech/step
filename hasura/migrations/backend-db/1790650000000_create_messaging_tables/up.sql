@@ -11,6 +11,7 @@ CREATE TABLE "sequent_backend"."messaging_account"
     "credentials"       jsonb       NOT NULL DEFAULT '{}'::jsonb,
     "limits"            jsonb       NOT NULL DEFAULT '{}'::jsonb,
     "provider_approval" text        NOT NULL DEFAULT 'PENDING',
+    "readiness"         text        NOT NULL DEFAULT 'PROVIDER_CHECK',
     "status"            jsonb       NOT NULL DEFAULT '{}'::jsonb,
     "webhook_key"       text        NOT NULL,
     "is_default"        boolean     NOT NULL DEFAULT false,

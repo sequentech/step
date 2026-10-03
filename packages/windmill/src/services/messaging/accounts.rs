@@ -36,6 +36,7 @@ pub fn callback_url(base_url: &str, account: &MessagingAccount) -> Option<String
         MessagingProvider::WHATSAPP_CLOUD_API | MessagingProvider::MESSENGER_SEND_API => "meta",
         MessagingProvider::VIBER_INFOBIP => "viber",
         MessagingProvider::AWS_SES => "aws",
+        MessagingProvider::HTTP_API => "http",
         MessagingProvider::AWS_SNS | MessagingProvider::SMTP | MessagingProvider::CONSOLE => {
             return None
         }

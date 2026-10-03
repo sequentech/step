@@ -12,6 +12,7 @@ use deadpool_postgres::Transaction;
 use sequent_core::types::messaging::{
     AccountCheck, AccountLimits, AccountSender, CredentialName, MessageAttemptState,
     MessageChannel, MessageDirection, MessagePurpose, MessengerLinkState, ProviderApproval,
+    ReadinessPolicy,
 };
 use serde_json::{json, Value};
 use std::collections::BTreeMap;
@@ -145,6 +146,7 @@ fn sms_settings(name: &str, is_default: bool) -> AccountSettings {
         },
         limits: AccountLimits::default(),
         provider_approval: ProviderApproval::PENDING,
+        readiness: ReadinessPolicy::PROVIDER_CHECK,
         is_default,
     }
 }

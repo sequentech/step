@@ -10,10 +10,11 @@ use crate::postgres::messaging::{list_messaging_accounts, MessagingAccount};
 use anyhow::{Context, Result};
 use deadpool_postgres::Transaction;
 use sequent_core::types::messaging::{
-    AccountSummary, EventMessagingConfig, MessagingConfigError, PublicMessagingChannels,
-    MESSAGING_CONFIG_ANNOTATION,
+    AccountSummary, DeliveryFeedback, EventMessagingConfig, MessagingConfigError,
+    ProviderCapabilities, PublicMessagingChannels, MESSAGING_CONFIG_ANNOTATION,
 };
 use serde_json::{Map, Value};
+use std::collections::BTreeMap;
 use uuid::Uuid;
 
 pub fn account_summary(account: &MessagingAccount) -> AccountSummary {
@@ -22,7 +23,25 @@ pub fn account_summary(account: &MessagingAccount) -> AccountSummary {
         tenant_id: account.tenant_id.to_string(),
         channel: account.channel,
         provider: account.provider,
+        capabilities: account
+            .sender
+            .capabilities(account.channel)
+            .unwrap_or_else(|| {
+                // Stored accounts were validated for their channel; an account
+                // that no longer fits offers no purpose.
+                ProviderCapabilities {
+                    channel: account.channel,
+                    recipient: account.channel.recipient_kind(),
+                    purposes: vec![],
+                    template_required_for: vec![],
+                    delivery_feedback: DeliveryFeedback::UNAVAILABLE,
+                    reconciliation: false,
+                    conversation_window_hours: None,
+                    requires_provider_approval: false,
+                }
+            }),
         provider_approval: account.provider_approval,
+        readiness: account.readiness,
         check: account.status.clone(),
         public_label: account.sender.public_label(),
         messenger_page: account.sender.messenger_page(),
@@ -67,22 +86,38 @@ pub async fn get_event_messaging_config(
         .transpose()
 }
 
-async fn election_ids(
+/// Columns of an election that may name it in a voter record. Read from
+/// the row as JSON, so a schema without one of them still works.
+const ELECTION_LABEL_COLUMNS: &[&str] = &["name", "alias", "external_id", "permission_label"];
+
+/// Each election of the event with the names a voter record may hold for
+/// it.
+async fn election_labels(
     tx: &Transaction<'_>,
     tenant_id: &Uuid,
     election_event_id: &Uuid,
-) -> Result<Vec<String>> {
+) -> Result<BTreeMap<String, Vec<String>>> {
     Ok(tx
         .query(
             r#"
-            SELECT id FROM sequent_backend.election
+            SELECT id, to_jsonb(election) AS election FROM sequent_backend.election
             WHERE tenant_id = $1 AND election_event_id = $2
             "#,
             &[tenant_id, election_event_id],
         )
         .await?
         .into_iter()
-        .map(|row| row.get::<_, Uuid>("id").to_string())
+        .map(|row| {
+            let election: Value = row.get("election");
+            let mut labels: Vec<String> = ELECTION_LABEL_COLUMNS
+                .iter()
+                .filter_map(|column| election[*column].as_str())
+                .map(|label| label.trim().to_string())
+                .filter(|label| !label.is_empty())
+                .collect();
+            labels.dedup();
+            (row.get::<_, Uuid>("id").to_string(), labels)
+        })
         .collect())
 }
 
@@ -110,7 +145,8 @@ pub async fn save_event_messaging_config(
         .iter()
         .map(account_summary)
         .collect();
-    let elections = election_ids(tx, tenant_id, election_event_id).await?;
+    let labels = election_labels(tx, tenant_id, election_event_id).await?;
+    let elections: Vec<String> = labels.keys().cloned().collect();
     if let Err(errors) = config.validate(&tenant_id.to_string(), &accounts, &elections) {
         return Ok(SaveOutcome::Invalid(errors));
     }
@@ -125,5 +161,7 @@ pub async fn save_event_messaging_config(
         Value::Object(annotations),
     )
     .await?;
-    Ok(SaveOutcome::Saved(config.public_projection(&accounts)))
+    Ok(SaveOutcome::Saved(
+        config.public_projection(&accounts, &labels),
+    ))
 }

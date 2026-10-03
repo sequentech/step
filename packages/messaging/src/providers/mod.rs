@@ -8,12 +8,13 @@
 
 pub mod aws;
 pub mod console;
+pub mod http_api;
 pub mod infobip;
 pub mod messenger;
 pub mod smtp;
 pub mod whatsapp;
 
-use crate::sender::ChannelSender;
+use crate::sender::{ChannelSender, FailureKind, SendOutcome};
 use anyhow::{anyhow, Result};
 use sequent_core::types::messaging::{
     AccountLimits, AccountSender, CredentialName, MessageChannel,
@@ -117,8 +118,33 @@ pub async fn build(
         AccountSender::AWS_SNS { .. } => Box::new(aws::SnsSender::new(account, endpoints).await?),
         AccountSender::AWS_SES { .. } => Box::new(aws::SesSender::new(account, endpoints).await?),
         AccountSender::SMTP { .. } => Box::new(smtp::SmtpSender::new(account)?),
+        AccountSender::HTTP_API(_) => Box::new(http_api::HttpApiChannelSender::new(
+            account.clone(),
+            http.clone(),
+        )?),
         AccountSender::CONSOLE {} => Box::new(console::ConsoleSender::new(account)),
     })
+}
+
+/// Graph API error codes that mean "try again later": application and
+/// account rate limits, throughput and pair limits. Meta answers them with
+/// a 4xx status, like permanent refusals.
+const META_TRANSIENT_CODES: &[&str] = &["4", "17", "32", "613", "80007", "130429", "131056"];
+
+/// Marks Meta's throttling refusals as transient.
+pub(crate) fn meta_outcome(outcome: SendOutcome) -> SendOutcome {
+    match outcome {
+        SendOutcome::Rejected(mut failure)
+            if failure
+                .code
+                .as_deref()
+                .is_some_and(|code| META_TRANSIENT_CODES.contains(&code)) =>
+        {
+            failure.kind = FailureKind::TRANSIENT;
+            SendOutcome::Rejected(failure)
+        }
+        other => other,
+    }
 }
 
 /// Sends a request and reads its body, keeping the error for outcome

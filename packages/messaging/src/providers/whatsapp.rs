@@ -6,7 +6,8 @@
 //! copy-code button carries the code; notices use approved utility
 //! templates.
 
-use super::{exchange, Account};
+use super::{exchange, meta_outcome, Account};
+use crate::parameters::{meta_text_parameter, parse_all};
 use crate::sender::{outcome_from_http, ChannelSender, OutboundMessage, SendOutcome};
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
@@ -32,11 +33,16 @@ impl WhatsAppSender {
             business_account_id,
             phone_number_id,
             api_version,
+            api_base_url,
             ..
         } = &account.sender
         else {
             return Err(anyhow!("not a WhatsApp account"));
         };
+        let graph_url = api_base_url
+            .as_deref()
+            .map(|url| url.trim_end_matches('/').to_string())
+            .unwrap_or(graph_url);
         Ok(WhatsAppSender {
             base_url: format!("{graph_url}/{api_version}"),
             business_account_id: business_account_id.clone(),
@@ -59,11 +65,9 @@ impl WhatsAppSender {
                 {"type": "button", "sub_type": "url", "index": "0", "parameters": [text(&code)]}
             ])
         } else {
-            let parameters: Vec<Value> = message
-                .content
-                .template_parameters
+            let parameters: Vec<Value> = parse_all(&message.content.template_parameters)
                 .iter()
-                .map(|p| text(p))
+                .map(meta_text_parameter)
                 .collect();
             if parameters.is_empty() {
                 json!([])
@@ -119,7 +123,7 @@ impl ChannelSender for WhatsAppSender {
             ))
             .bearer_auth(token)
             .json(&Self::template_body(message, template));
-        outcome_from_http(
+        meta_outcome(outcome_from_http(
             exchange(request).await,
             |body| {
                 serde_json::from_str::<Value>(body).ok()?["messages"][0]["id"]
@@ -127,7 +131,7 @@ impl ChannelSender for WhatsAppSender {
                     .map(str::to_string)
             },
             error_code,
-        )
+        ))
     }
 
     async fn check(&self) -> AccountCheck {
@@ -139,18 +143,17 @@ impl ChannelSender for WhatsAppSender {
                 ..Default::default()
             };
         };
+        // The number is looked up by ID alone first: a field the API version
+        // does not know would fail the whole request.
         let number = exchange(
             self.http
                 .get(format!("{}/{}", self.base_url, self.phone_number_id))
-                .query(&[(
-                    "fields",
-                    "verified_name,code_verification_status,quality_rating,messaging_limit_tier",
-                )])
+                .query(&[("fields", "id")])
                 .bearer_auth(token),
         )
         .await;
-        let number = match number {
-            Ok((200, body)) => serde_json::from_str::<Value>(&body).unwrap_or_default(),
+        match number {
+            Ok((200, _)) => {}
             Ok((status, _)) => {
                 return AccountCheck {
                     checked_at: now,
@@ -165,6 +168,42 @@ impl ChannelSender for WhatsAppSender {
                     ..Default::default()
                 }
             }
+        };
+        let status = exchange(
+            self.http
+                .get(format!("{}/{}", self.base_url, self.phone_number_id))
+                .query(&[(
+                    "fields",
+                    "status,account_mode,code_verification_status,name_status",
+                )])
+                .bearer_auth(token),
+        )
+        .await;
+        // In production unless the API says the number is a sandbox one or
+        // its code is not verified.
+        let (production_access, reason) = match status {
+            Ok((200, body)) => {
+                let number: Value = serde_json::from_str(&body).unwrap_or_default();
+                let sandbox = number["account_mode"] == "SANDBOX";
+                let unverified = number["code_verification_status"]
+                    .as_str()
+                    .is_some_and(|status| status != "VERIFIED");
+                let reason = if sandbox {
+                    Some("the number is in sandbox mode".to_string())
+                } else if unverified {
+                    Some("the number's code is not verified".to_string())
+                } else {
+                    None
+                };
+                (reason.is_none(), reason)
+            }
+            _ => (
+                false,
+                Some(
+                    "could not read the number's status; confirm readiness as an administrator"
+                        .to_string(),
+                ),
+            ),
         };
         let templates = exchange(
             self.http
@@ -201,10 +240,10 @@ impl ChannelSender for WhatsAppSender {
         }
         AccountCheck {
             connected: true,
-            production_access: number["code_verification_status"] == "VERIFIED",
+            production_access,
             approved_templates,
             checked_at: now,
-            reason: None,
+            reason,
         }
     }
 }
@@ -229,6 +268,7 @@ mod tests {
                 display_phone_number: "+63 2 8123 4567".to_string(),
                 display_name: None,
                 api_version: "v23.0".to_string(),
+                api_base_url: None,
             },
             credentials: BTreeMap::from([(CredentialName::ACCESS_TOKEN, "token-1".to_string())]),
             limits: AccountLimits::default(),
@@ -321,7 +361,8 @@ mod tests {
     #[tokio::test]
     async fn the_check_reports_verification_and_approved_templates() {
         let server = TestServer::start(vec![
-            Reply::Json(200, json!({"verified_name": "COMELEC", "code_verification_status": "VERIFIED"})),
+            Reply::Json(200, json!({"id": "pn-1"})),
+            Reply::Json(200, json!({"account_mode": "LIVE", "code_verification_status": "VERIFIED"})),
             Reply::Json(
                 200,
                 json!({"data": [
@@ -347,7 +388,7 @@ mod tests {
             ])
         );
         assert_eq!(
-            server.requests()[1].path.split('?').next(),
+            server.requests()[2].path.split('?').next(),
             Some("/v23.0/waba-1/message_templates")
         );
     }

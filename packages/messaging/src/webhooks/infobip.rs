@@ -16,7 +16,7 @@ use serde_json::{json, Value};
 
 fn state(group: &str) -> Option<MessageAttemptState> {
     match group {
-        "PENDING" => Some(MessageAttemptState::ACCEPTED),
+        "PENDING" | "ACCEPTED" => Some(MessageAttemptState::ACCEPTED),
         "DELIVERED" => Some(MessageAttemptState::DELIVERED),
         "UNDELIVERABLE" | "EXPIRED" | "REJECTED" => Some(MessageAttemptState::FAILED),
         _ => None,

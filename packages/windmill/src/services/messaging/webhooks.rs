@@ -12,16 +12,18 @@ use super::dispatch::{deliver, Delivery, Dispatcher, FallbackPolicy, Recipient};
 use super::keys::{tenant_key, TenantKey};
 use super::links::bind_referral;
 use crate::postgres::messaging::{
-    find_message_by_provider_id, get_messaging_account_by_webhook_key, inbound_exists,
-    insert_message, last_auto_reply_at, transition_message, MessagingAccount, NewMessage,
-    StateChange, AUTO_REPLY_ALIAS,
+    deliver_messages_up_to, find_message_by_provider_id, find_message_by_reference,
+    get_messaging_account_by_webhook_key, inbound_exists, insert_message, last_auto_reply_at,
+    transition_message, MessagingAccount, NewMessage, StateChange, AUTO_REPLY_ALIAS,
 };
 use anyhow::Result;
 use chrono::{Duration, Utc};
 use deadpool_postgres::Client as DbClient;
 use messaging::destination::Destination;
 use messaging::webhooks::sns::{is_sns_url, is_trusted_certificate_url, ses_events, SnsEnvelope};
-use messaging::webhooks::{infobip, meta, InboundMessage, StatusReport, WebhookEvent};
+use messaging::webhooks::{
+    http, infobip, meta, DeliveredUpTo, InboundMessage, StatusReport, WebhookEvent,
+};
 use sequent_core::types::messaging::{
     AccountSender, CredentialName, MessageAttemptState, MessageChannel, MessageContent,
     MessageDirection, MessagePurpose, MessagingProvider,
@@ -185,9 +187,15 @@ async fn apply_status(
     report: &StatusReport,
 ) -> Result<()> {
     let tx = client.transaction().await?;
-    let Some(message) =
-        find_message_by_provider_id(&tx, &account.id, &report.provider_message_id).await?
-    else {
+    // By the provider's ID, or by Step's own reference when the provider
+    // echoes that back instead.
+    let message = match find_message_by_provider_id(&tx, &account.id, &report.provider_message_id)
+        .await?
+    {
+        Some(message) => Some(message),
+        None => find_message_by_reference(&tx, &account.id, &report.provider_message_id).await?,
+    };
+    let Some(message) = message else {
         tx.commit().await?;
         return Ok(());
     };
@@ -319,7 +327,8 @@ async fn apply_inbound(
             logical_key: format!("{AUTO_REPLY_ALIAS}:{}:{digest}:{today}", account.id),
             expires_at: None,
             account_id: Some(account.id),
-            provider_template: None,
+            template_key: Some(AUTO_REPLY_ALIAS.to_string()),
+            provider_templates: BTreeMap::new(),
         },
     )
     .await?;
@@ -348,12 +357,75 @@ pub async fn apply_events(
                     Ok(())
                 }
             }
+            WebhookEvent::DeliveredUpTo(delivered) => {
+                apply_delivered_up_to(client, account, delivered).await
+            }
         };
         if let Err(error) = result {
             warn!(account = %account.id, "could not apply a webhook event: {error:#}");
         }
     }
     Ok(())
+}
+
+async fn apply_delivered_up_to(
+    client: &mut DbClient,
+    account: &MessagingAccount,
+    delivered: &DeliveredUpTo,
+) -> Result<()> {
+    let Ok(destination) = Destination::parse(account.channel, &delivered.recipient) else {
+        return Ok(());
+    };
+    let tx = client.transaction().await?;
+    let key = tenant_key(&tx, &account.tenant_id, TenantKey::Destination).await?;
+    deliver_messages_up_to(
+        &tx,
+        &account.id,
+        &destination.digest(&key)?,
+        delivered.up_to,
+    )
+    .await?;
+    tx.commit().await?;
+    Ok(())
+}
+
+/// Callbacks of a provider described by configuration, as a JSON body or
+/// as query parameters. `headers` have lowercase names.
+#[instrument(skip_all, err)]
+pub async fn http_events(
+    client: &mut DbClient,
+    dispatcher: &Dispatcher,
+    webhook_key: &str,
+    headers: &BTreeMap<String, String>,
+    query: &BTreeMap<String, String>,
+    body: &[u8],
+) -> Result<WebhookOutcome> {
+    let Some(account) =
+        account_for_key(client, webhook_key, &[MessagingProvider::HTTP_API]).await?
+    else {
+        return Ok(WebhookOutcome::NotFound);
+    };
+    let AccountSender::HTTP_API(api) = &account.sender else {
+        return Ok(WebhookOutcome::NotFound);
+    };
+    let Some(reports) = &api.reports else {
+        return Ok(WebhookOutcome::NotFound);
+    };
+    let secret = credential(client, &account, CredentialName::WEBHOOK_SECRET).await?;
+    if !http::verify(&reports.auth, secret.as_deref(), headers, body) {
+        return Ok(WebhookOutcome::Unauthorized);
+    }
+    let payload = if body.iter().all(u8::is_ascii_whitespace) {
+        http::query_as_json(query)
+    } else {
+        match serde_json::from_slice(body) {
+            Ok(payload) => payload,
+            Err(_) => return Ok(WebhookOutcome::Unauthorized),
+        }
+    };
+    let events = http::parse_events(reports, &payload);
+    apply_events(client, dispatcher, &account, events).await?;
+    Ok(WebhookOutcome::Accepted)
 }
 
 /// A referral opens the conversation window even without a message.
