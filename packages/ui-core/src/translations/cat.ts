@@ -36,6 +36,36 @@ const catalanTranslation: TranslationType = {
             preferenceLabel: "Preferència",
             writeInFor: "Nom del candidat per escrit",
         },
+        accessibility: {
+            button: "Accessibilitat",
+            title: "Configuració d'accessibilitat",
+            description: "Canvieu l'aspecte d'aquest lloc en aquest dispositiu.",
+            textSize: {
+                label: "Mida del text",
+                default: "Predeterminada",
+                large: "Gran",
+                larger: "Més gran",
+            },
+            contrast: {
+                label: "Contrast",
+                default: "Predeterminat",
+                high: "Contrast alt",
+            },
+            textSpacing: {
+                label: "Espaiat del text",
+                default: "Predeterminat",
+                wide: "Ampli",
+            },
+            motion: {
+                label: "Moviment",
+                default: "Predeterminat",
+                reduced: "Reduït",
+            },
+            reset: "Restableix la configuració",
+            close: "Tanca",
+            applied: "{{setting}}: {{value}}",
+            resetDone: "Configuració restablerta",
+        },
         candidate: {
             moreInformationLink: "Més informació",
             writeInsPlaceholder: "Tecleja aquí el candidat per escrit",

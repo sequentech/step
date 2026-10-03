@@ -37,6 +37,36 @@ const galegoTranslation: TranslationType = {
             preferenceLabel: "Preferencia",
             writeInFor: "Nome do candidato escrito",
         },
+        accessibility: {
+            button: "Accesibilidade",
+            title: "Axustes de accesibilidade",
+            description: "Cambie o aspecto deste sitio neste dispositivo.",
+            textSize: {
+                label: "Tamaño do texto",
+                default: "Predeterminado",
+                large: "Grande",
+                larger: "Máis grande",
+            },
+            contrast: {
+                label: "Contraste",
+                default: "Predeterminado",
+                high: "Alto contraste",
+            },
+            textSpacing: {
+                label: "Espazado do texto",
+                default: "Predeterminado",
+                wide: "Amplo",
+            },
+            motion: {
+                label: "Movemento",
+                default: "Predeterminado",
+                reduced: "Reducido",
+            },
+            reset: "Restablecer os axustes",
+            close: "Pechar",
+            applied: "{{setting}}: {{value}}",
+            resetDone: "Axustes restablecidos",
+        },
         candidate: {
             moreInformationLink: "Máis información",
             writeInsPlaceholder: "Escribe aquí o candidato escrito",

@@ -34,6 +34,36 @@ const englishTranslation = {
             preferenceLabel: "Preference",
             writeInFor: "Write-in candidate name",
         },
+        accessibility: {
+            button: "Accessibility",
+            title: "Accessibility settings",
+            description: "Change how this site looks on this device.",
+            textSize: {
+                label: "Text size",
+                default: "Default",
+                large: "Large",
+                larger: "Larger",
+            },
+            contrast: {
+                label: "Contrast",
+                default: "Default",
+                high: "High contrast",
+            },
+            textSpacing: {
+                label: "Text spacing",
+                default: "Default",
+                wide: "Wide",
+            },
+            motion: {
+                label: "Motion",
+                default: "Default",
+                reduced: "Reduced",
+            },
+            reset: "Reset settings",
+            close: "Close",
+            applied: "{{setting}}: {{value}}",
+            resetDone: "Settings reset",
+        },
         candidate: {
             moreInformationLink: "More information",
             writeInsPlaceholder: "Type write-in candidate here",

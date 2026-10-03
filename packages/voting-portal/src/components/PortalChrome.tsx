@@ -108,6 +108,7 @@ const HeaderWithContext: React.FC = () => {
                 duration: countdownPolicy?.countdown_anticipation_secs,
             }}
             onChangeLanguage={onChangeLanguage}
+            accessibilitySettingsPolicy={presentation?.voter_accessibility_settings_policy}
         />
     )
 }

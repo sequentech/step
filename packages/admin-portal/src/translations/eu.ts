@@ -578,6 +578,13 @@ const basqueTranslation: TranslationType = {
                 css: "CSS Pertsonalizatua",
                 skipElectionList: "Saltatu Hauteskunde Zerrenda Pantaila",
                 showUserProfile: "Erakutsi Erabiltzaile Profila",
+                voterAccessibilitySettingsPolicy: {
+                    policyLabel: "Boto-emailearen irisgarritasun-ezarpenak",
+                    options: {
+                        disabled: "Ezkutatu irisgarritasun-ezarpenak",
+                        enabled: "Eskaini testuaren tamaina, kontrastea, tartea eta mugimendua",
+                    },
+                },
                 showCastVoteLogs: {
                     policyLabel: "Erakutsi Logs Bozketa Taba",
                     options: {

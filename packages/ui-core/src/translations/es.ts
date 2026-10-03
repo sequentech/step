@@ -36,6 +36,36 @@ const spanishTranslation: TranslationType = {
             preferenceLabel: "Preferencia",
             writeInFor: "Nombre del candidato por escrito",
         },
+        accessibility: {
+            button: "Accesibilidad",
+            title: "Ajustes de accesibilidad",
+            description: "Cambie el aspecto de este sitio en este dispositivo.",
+            textSize: {
+                label: "Tamaño del texto",
+                default: "Predeterminado",
+                large: "Grande",
+                larger: "Más grande",
+            },
+            contrast: {
+                label: "Contraste",
+                default: "Predeterminado",
+                high: "Alto contraste",
+            },
+            textSpacing: {
+                label: "Espaciado del texto",
+                default: "Predeterminado",
+                wide: "Amplio",
+            },
+            motion: {
+                label: "Movimiento",
+                default: "Predeterminado",
+                reduced: "Reducido",
+            },
+            reset: "Restablecer ajustes",
+            close: "Cerrar",
+            applied: "{{setting}}: {{value}}",
+            resetDone: "Ajustes restablecidos",
+        },
         candidate: {
             moreInformationLink: "Más información",
             writeInsPlaceholder: "Teclee aquí el candidato por escrito",

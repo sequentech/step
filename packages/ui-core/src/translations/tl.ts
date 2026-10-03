@@ -36,6 +36,36 @@ const tagalogTranslation: TranslationType = {
             preferenceLabel: "Kagustuhan",
             writeInFor: "Pangalan ng write-in candidate",
         },
+        accessibility: {
+            button: "Accessibility",
+            title: "Mga setting ng accessibility",
+            description: "Baguhin ang itsura ng site na ito sa device na ito.",
+            textSize: {
+                label: "Laki ng teksto",
+                default: "Karaniwan",
+                large: "Malaki",
+                larger: "Mas malaki",
+            },
+            contrast: {
+                label: "Contrast",
+                default: "Karaniwan",
+                high: "Mataas na contrast",
+            },
+            textSpacing: {
+                label: "Agwat ng teksto",
+                default: "Karaniwan",
+                wide: "Maluwag",
+            },
+            motion: {
+                label: "Galaw",
+                default: "Karaniwan",
+                reduced: "Binawasan",
+            },
+            reset: "I-reset ang mga setting",
+            close: "Isara",
+            applied: "{{setting}}: {{value}}",
+            resetDone: "Na-reset ang mga setting",
+        },
         candidate: {
             moreInformationLink: "Karagdagang impormasyon",
             writeInsPlaceholder: "I-type ang write-in candidate dito",

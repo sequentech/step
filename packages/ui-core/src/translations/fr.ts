@@ -36,6 +36,36 @@ const frenchTranslation: TranslationType = {
             preferenceLabel: "Préférence",
             writeInFor: "Nom du candidat écrit",
         },
+        accessibility: {
+            button: "Accessibilité",
+            title: "Paramètres d'accessibilité",
+            description: "Modifiez l'apparence de ce site sur cet appareil.",
+            textSize: {
+                label: "Taille du texte",
+                default: "Par défaut",
+                large: "Grande",
+                larger: "Plus grande",
+            },
+            contrast: {
+                label: "Contraste",
+                default: "Par défaut",
+                high: "Contraste élevé",
+            },
+            textSpacing: {
+                label: "Espacement du texte",
+                default: "Par défaut",
+                wide: "Large",
+            },
+            motion: {
+                label: "Animations",
+                default: "Par défaut",
+                reduced: "Réduites",
+            },
+            reset: "Réinitialiser les paramètres",
+            close: "Fermer",
+            applied: "{{setting}} : {{value}}",
+            resetDone: "Paramètres réinitialisés",
+        },
         candidate: {
             moreInformationLink: "Plus d'informations",
             writeInsPlaceholder: "Tapez ici le candidat par écrit",

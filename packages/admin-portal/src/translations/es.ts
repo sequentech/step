@@ -581,6 +581,14 @@ const spanishTranslation: TranslationType = {
                 css: "CSS personalizado",
                 skipElectionList: "Saltar pantalla para escoger elección",
                 showUserProfile: "Mostrar perfil de usuario",
+                voterAccessibilitySettingsPolicy: {
+                    policyLabel: "Ajustes de accesibilidad del votante",
+                    options: {
+                        disabled: "Ocultar los ajustes de accesibilidad",
+                        enabled:
+                            "Ofrecer ajustes de tamaño de texto, contraste, espaciado y movimiento",
+                    },
+                },
                 showCastVoteLogs: {
                     policyLabel: "Mostrar logs de votación",
                     options: {

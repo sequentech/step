@@ -1195,6 +1195,10 @@ pub struct ElectionEventPresentation {
     #[serde(default, deserialize_with = "deserialize_optional_json_string")]
     pub results_website: Option<String>,
     pub voting_portal_datetime_format: Option<VotingPortalDateTimeFormat>,
+    /// Skipped in Borsh so that published ballot styles keep their hashes.
+    #[borsh(skip)]
+    pub voter_accessibility_settings_policy:
+        Option<VoterAccessibilitySettingsPolicy>,
 }
 
 impl ElectionEvent {
@@ -2031,6 +2035,31 @@ pub enum VoterCertificatePolicy {
     #[strum(serialize = "enabled")]
     #[serde(rename = "enabled")]
     ENABLED,
+}
+
+/// Whether the Voting Portal offers the voter its display settings: text size,
+/// contrast, text spacing and motion.
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    PartialEq,
+    Eq,
+    Debug,
+    Clone,
+    Copy,
+    Default,
+    EnumString,
+    Display,
+)]
+#[serde(rename_all = "kebab-case")]
+#[strum(serialize_all = "kebab-case")]
+pub enum VoterAccessibilitySettingsPolicy {
+    #[default]
+    Disabled,
+    Enabled,
 }
 
 #[allow(non_camel_case_types)]
@@ -3163,6 +3192,40 @@ mod presentation_borsh_compat_tests {
     }
 
     #[test]
+    fn voter_accessibility_settings_policy_is_optional_and_strict() {
+        let parse = |presentation: serde_json::Value| {
+            serde_json::from_value::<ElectionEventPresentation>(presentation)
+        };
+        let legacy = parse(serde_json::json!({})).unwrap();
+        assert_eq!(legacy.voter_accessibility_settings_policy, None);
+        assert_eq!(
+            legacy
+                .voter_accessibility_settings_policy
+                .unwrap_or_default(),
+            VoterAccessibilitySettingsPolicy::Disabled
+        );
+
+        let enabled = parse(serde_json::json!({
+            "voter_accessibility_settings_policy": "enabled"
+        }))
+        .unwrap();
+        assert_eq!(
+            enabled.voter_accessibility_settings_policy,
+            Some(VoterAccessibilitySettingsPolicy::Enabled)
+        );
+        assert_eq!(
+            serde_json::to_value(&enabled).unwrap()
+                ["voter_accessibility_settings_policy"],
+            "enabled"
+        );
+
+        assert!(parse(serde_json::json!({
+            "voter_accessibility_settings_policy": "sometimes"
+        }))
+        .is_err());
+    }
+
+    #[test]
     fn json_only_results_fields_do_not_change_borsh_bytes() {
         let event_presentation = ElectionEventPresentation::default();
         let event_bytes = borsh::to_vec(&event_presentation).unwrap();
@@ -3171,6 +3234,17 @@ mod presentation_borsh_compat_tests {
             ..event_presentation
         };
         assert_eq!(borsh::to_vec(&event_with_results).unwrap(), event_bytes);
+
+        let event_with_accessibility = ElectionEventPresentation {
+            voter_accessibility_settings_policy: Some(
+                VoterAccessibilitySettingsPolicy::Enabled,
+            ),
+            ..ElectionEventPresentation::default()
+        };
+        assert_eq!(
+            borsh::to_vec(&event_with_accessibility).unwrap(),
+            event_bytes
+        );
 
         let election_presentation = ElectionPresentation::default();
         let election_bytes = borsh::to_vec(&election_presentation).unwrap();
