@@ -471,6 +471,7 @@ const frenchTranslation: TranslationType = {
                 language: "Langues",
                 allowed: "Canaux de Vote Permis",
                 materials: "Matériaux de Support",
+                ballotReceipts: "Reçus de bulletin",
                 ballotDesign: "Design du Bulletin",
                 templates: "Modèles",
                 reorder: "Réorganiser les élections",
@@ -642,6 +643,15 @@ const frenchTranslation: TranslationType = {
                     "policyLabel": "Politique de Signature des Électeurs",
                     "no-signature": "Sans signature",
                     "with-signature": "Avec signature",
+                },
+                receiptsPolicy: {
+                    "policyLabel": "Reçus signés par l'urne",
+                    "disabled": "Désactivé",
+                    "signed-by-ballot-box": "Signés par l'urne",
+                    "helperText":
+                        "Lorsque cette option est activée, l'urne enregistre et signe chaque bulletin à l'étape de vérification, et l'électeur ne voit un identifiant de bulletin qu'une fois le bulletin reçu. Les électeurs signent leurs bulletins. Publiez à nouveau les bulletins après l'avoir modifiée.",
+                    "lockedHelperText":
+                        "Ce réglage ne peut plus être modifié une fois le vote commencé.",
                 },
                 VoterCertificatePolicy: {
                     policyLabel: "Voter Digital Certificate Policy",
