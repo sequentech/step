@@ -468,3 +468,8 @@ it("preserves zero points while using null for an unavailable result", () => {
     jest.mocked(backend.get_layout_properties_from_contest_js).mockReturnValue(undefined)
     expect(adapter.getLayoutProperties(question)).toBeNull()
 })
+
+it("uses null for a typed text that cannot be a Ballot ID", () => {
+    jest.mocked(backend.normalize_ballot_id_js).mockReturnValue(undefined)
+    expect(adapter.normalizeBallotId("not-a-ballot-id")).toBeNull()
+})

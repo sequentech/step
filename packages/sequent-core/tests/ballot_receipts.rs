@@ -306,3 +306,50 @@ fn malformed_keys_and_signatures_are_errors_not_panics() {
         Err(BallotReceiptError::Malformed(_))
     ));
 }
+
+#[test]
+fn a_malformed_field_is_named_in_the_error() {
+    let mut bad_voter_signature = statement();
+    bad_voter_signature.voter_ballot_signature = "not base64".into();
+    let error = sign_received_ballot(&ballot_box_sk(), bad_voter_signature)
+        .unwrap_err()
+        .to_string();
+    assert!(
+        error.starts_with("Malformed ballot receipt: voter_ballot_signature: ")
+    );
+
+    let error = ballot_id(&statement(), "not base64")
+        .unwrap_err()
+        .to_string();
+    assert!(error.starts_with("Malformed ballot receipt: received_signature: "));
+
+    let mut bad_voter_key = statement();
+    bad_voter_key.voter_signing_pk = "not base64".into();
+    let error = ballot_id(&bad_voter_key, RECEIVED_SIGNATURE)
+        .unwrap_err()
+        .to_string();
+    assert!(error.starts_with("Malformed ballot receipt: voter_signing_pk: "));
+
+    bad_voter_signature = statement();
+    bad_voter_signature.voter_ballot_signature = "not base64".into();
+    assert!(matches!(
+        ballot_id(&bad_voter_signature, RECEIVED_SIGNATURE),
+        Err(BallotReceiptError::Malformed(_))
+    ));
+}
+
+#[test]
+fn refusals_say_what_was_wrong_with_the_receipt() {
+    assert_eq!(
+        BallotReceiptError::UnknownKey.to_string(),
+        "The receipt was not signed with the published ballot box key"
+    );
+    assert_eq!(
+        BallotReceiptError::InvalidSignature.to_string(),
+        "The ballot box signature does not verify"
+    );
+    assert_eq!(
+        BallotReceiptError::BallotIdMismatch.to_string(),
+        "The Ballot ID does not follow from the receipt"
+    );
+}

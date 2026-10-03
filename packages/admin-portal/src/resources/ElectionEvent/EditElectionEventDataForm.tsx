@@ -121,11 +121,8 @@ import {
     PasswordPolicyAccordionHandle,
 } from "@/components/election-event/PasswordPolicyAccordion"
 import {SettingsLanguageSelector} from "../../components/SettingsLanguageSelector"
-import {
-    BallotReceiptsInput,
-    VOTER_SIGNING_POLICY_SOURCE,
-    areReceiptsSignedByBallotBox,
-} from "./BallotReceiptsInput"
+import {BallotReceiptsInput} from "./BallotReceiptsInput"
+import {VOTER_SIGNING_POLICY_SOURCE, areReceiptsSignedByBallotBox} from "@/services/BallotReceipts"
 import {
     CONFIGURE_RESULTS_WEBSITE_POLICY,
     ConfigureResultsWebsitePolicyData,

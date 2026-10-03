@@ -6,24 +6,14 @@ import {SelectInput, required} from "react-admin"
 import {useFormContext} from "react-hook-form"
 import {useTranslation} from "react-i18next"
 import {Typography} from "@mui/material"
-import {EReceiptsPolicy, EVoterSigningPolicy, EVotingStatus} from "@sequentech/ui-core"
-import type {IElectionEventPresentation, IElectionEventStatus} from "@sequentech/ui-core"
-
-export const RECEIPTS_POLICY_SOURCE = "presentation.receipts.policy"
-export const VOTER_SIGNING_POLICY_SOURCE = "presentation.voter_signing_policy"
-
-export const areReceiptsSignedByBallotBox = (
-    presentation?: Pick<IElectionEventPresentation, "receipts">
-): boolean => presentation?.receipts?.policy === EReceiptsPolicy.SIGNED_BY_BALLOT_BOX
-
-// Ballots already received or cast were made under the published setting.
-export const hasVotingStarted = (status?: Partial<IElectionEventStatus> | null): boolean =>
-    [
-        status?.voting_status,
-        status?.kiosk_voting_status,
-        status?.early_voting_status,
-        status?.telephone_voting_status,
-    ].some((channel) => channel !== undefined && channel !== EVotingStatus.NOT_STARTED)
+import {EReceiptsPolicy, EVoterSigningPolicy} from "@sequentech/ui-core"
+import type {IElectionEventStatus} from "@sequentech/ui-core"
+import {
+    RECEIPTS_POLICY_SOURCE,
+    VOTER_SIGNING_POLICY_SOURCE,
+    hasVotingStarted,
+    receiptsHelperTextKey,
+} from "@/services/BallotReceipts"
 
 interface BallotReceiptsInputProps {
     canEdit: boolean
@@ -62,11 +52,7 @@ export const BallotReceiptsInput: React.FC<BallotReceiptsInputProps> = ({canEdit
                 }}
             />
             <Typography variant="caption" color="text.secondary" sx={{display: "block"}}>
-                {t(
-                    votingStarted
-                        ? "electionEventScreen.field.receiptsPolicy.lockedHelperText"
-                        : "electionEventScreen.field.receiptsPolicy.helperText"
-                )}
+                {t(receiptsHelperTextKey(votingStarted))}
             </Typography>
         </>
     )

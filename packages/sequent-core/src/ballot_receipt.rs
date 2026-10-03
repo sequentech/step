@@ -70,8 +70,10 @@ pub struct ReceivedBallot {
     pub ballot_id: String,
 }
 
-fn malformed(field: &str, error: impl std::fmt::Display) -> BallotReceiptError {
-    BallotReceiptError::Malformed(format!("{field}: {error}"))
+fn malformed<E: std::fmt::Display>(
+    field: &'static str,
+) -> impl FnOnce(E) -> BallotReceiptError {
+    move |error| BallotReceiptError::Malformed(format!("{field}: {error}"))
 }
 
 /// Length-prefixed like `ballot::get_ballot_bytes_for_signing`, so that no two
@@ -86,7 +88,7 @@ fn voter_key_bytes(
 ) -> Result<Vec<u8>, BallotReceiptError> {
     StrandSignaturePk::from_der_b64_string(&statement.voter_signing_pk)
         .and_then(|key| key.to_der())
-        .map_err(|error| malformed("voter_signing_pk", error))
+        .map_err(malformed("voter_signing_pk"))
 }
 
 fn voter_signature_bytes(
@@ -94,7 +96,7 @@ fn voter_signature_bytes(
 ) -> Result<[u8; 64], BallotReceiptError> {
     StrandSignature::from_b64_string(&statement.voter_ballot_signature)
         .map(|signature| signature.to_bytes())
-        .map_err(|error| malformed("voter_ballot_signature", error))
+        .map_err(malformed("voter_ballot_signature"))
 }
 
 impl ReceivedStatement {
@@ -118,20 +120,20 @@ impl ReceivedStatement {
 pub fn ballot_box_key(
     public_key: &StrandSignaturePk,
 ) -> Result<BallotBoxKey, BallotReceiptError> {
-    let der = public_key
+    public_key
         .to_der()
-        .map_err(|error| malformed("public_key", error))?;
-    let digest =
-        hash_sha256(&der).map_err(|error| malformed("public_key", error))?;
-    let key_id = digest
-        .get(..KEY_ID_BYTES)
-        .map(hex::encode)
-        .ok_or_else(|| malformed("public_key", "short digest"))?;
-    let public_key = public_key
-        .to_der_b64_string()
-        .map_err(|error| malformed("public_key", error))?;
-
-    Ok(BallotBoxKey { key_id, public_key })
+        .and_then(|der| hash_sha256(&der))
+        .and_then(|digest| {
+            let key_id: Vec<u8> =
+                digest.into_iter().take(KEY_ID_BYTES).collect();
+            public_key
+                .to_der_b64_string()
+                .map(|public_key| BallotBoxKey {
+                    key_id: hex::encode(key_id),
+                    public_key,
+                })
+        })
+        .map_err(malformed("public_key"))
 }
 
 /// Writes 40 bits as two groups of four characters: FTBE-MHRX.
@@ -193,7 +195,7 @@ pub fn ballot_id(
 ) -> Result<String, BallotReceiptError> {
     let received_signature =
         StrandSignature::from_b64_string(received_signature)
-            .map_err(|error| malformed("received_signature", error))?;
+            .map_err(malformed("received_signature"))?;
 
     let mut bytes = vec![];
     extend_with_field(&mut bytes, BALLOT_ID_DOMAIN.as_bytes());
@@ -204,8 +206,7 @@ pub fn ballot_id(
     extend_with_field(&mut bytes, statement.key_id.as_bytes());
     extend_with_field(&mut bytes, &received_signature.to_bytes());
 
-    let digest =
-        hash_to_array(&bytes).map_err(|error| malformed("digest", error))?;
+    let digest = hash_to_array(&bytes).map_err(malformed("digest"))?;
     let mut prefix = [0u8; BALLOT_ID_BYTES];
     prefix.copy_from_slice(&digest[..BALLOT_ID_BYTES]);
     Ok(format_ballot_id(&prefix))
@@ -220,7 +221,7 @@ pub fn sign_received_ballot(
     let received_signature = ballot_box_sk
         .sign(&statement.bytes_for_signing()?)
         .and_then(|signature| signature.to_b64_string())
-        .map_err(|error| malformed("received_signature", error))?;
+        .map_err(malformed("received_signature"))?;
     let ballot_id = ballot_id(&statement, &received_signature)?;
 
     Ok(ReceivedBallot {
@@ -237,7 +238,7 @@ pub fn verify_received_ballot(
     received: &ReceivedBallot,
 ) -> Result<String, BallotReceiptError> {
     let public_key = StrandSignaturePk::from_der_b64_string(&key.public_key)
-        .map_err(|error| malformed("public_key", error))?;
+        .map_err(malformed("public_key"))?;
     if ballot_box_key(&public_key)?.key_id != key.key_id
         || received.statement.key_id != key.key_id
     {
@@ -246,7 +247,7 @@ pub fn verify_received_ballot(
 
     let signature =
         StrandSignature::from_b64_string(&received.received_signature)
-            .map_err(|error| malformed("received_signature", error))?;
+            .map_err(malformed("received_signature"))?;
     public_key
         .verify(&signature, &received.statement.bytes_for_signing()?)
         .map_err(|_| BallotReceiptError::InvalidSignature)?;
