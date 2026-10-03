@@ -2,13 +2,18 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {useMemo, useState} from "react"
+import React, {useId, useMemo, useState} from "react"
 import {Box, Button, Typography} from "@mui/material"
 import {Dialog} from "@sequentech/ui-essentials"
 import {translate} from "@sequentech/ui-core"
 import type {ICandidate} from "@sequentech/ui-core"
 import {useTranslation} from "react-i18next"
-import {computeSlateChoices, ISlateChoices, slateRemovesChoices} from "../../services/SlateChoices"
+import {
+    computeSlateChoices,
+    ISlateChoices,
+    SlateOverMaximumError,
+    slateRemovesChoices,
+} from "../../services/SlateChoices"
 import {getSlateName, IResolvedSlate} from "../../services/Slates"
 import {
     applySlateSelection,
@@ -28,6 +33,7 @@ export const SlateApplyAction: React.FC<SlateApplyActionProps> = ({ballotStyle, 
     const selection = useAppSelector(selectBallotSelectionByElectionId(ballotStyle.election_id))
     const [pending, setPending] = useState<ISlateChoices | undefined>()
     const [wasChosen, setWasChosen] = useState(false)
+    const unavailableId = useId()
 
     const slateName = getSlateName(
         slate,
@@ -36,17 +42,33 @@ export const SlateApplyAction: React.FC<SlateApplyActionProps> = ({ballotStyle, 
             ballotStyle.ballot_eml.election_event_presentation?.language_conf?.default_language_code
     )
 
-    const choices = useMemo(() => {
+    const {choices, problem} = useMemo((): {choices?: ISlateChoices; problem?: unknown} => {
         if (!selection) {
-            return undefined
+            return {}
         }
         try {
-            return computeSlateChoices(slate, selection)
+            return {choices: computeSlateChoices(slate, selection)}
         } catch (error) {
             console.log(`Error computing slate choices: ${error}`)
-            return undefined
+            return {problem: error}
         }
     }, [slate, selection])
+
+    const unavailableReason = useMemo(() => {
+        if (!problem) {
+            return null
+        }
+        if (problem instanceof SlateOverMaximumError) {
+            const {contest, candidates} = problem.slateContest
+            return t("slates.apply.overMaximum", {
+                slate: slateName,
+                contest: translate(contest, "name", i18n.language) ?? contest.id,
+                candidates: candidates.length,
+                max: contest.max_votes,
+            })
+        }
+        return t("slates.apply.unavailable", {slate: slateName})
+    }, [problem, slateName, t, i18n.language])
 
     const apply = () => {
         dispatch(applySlateSelection({ballotStyle, slate}))
@@ -93,6 +115,7 @@ export const SlateApplyAction: React.FC<SlateApplyActionProps> = ({ballotStyle, 
                 onClick={handleChoose}
                 disabled={!choices}
                 aria-label={t("slates.apply.buttonLabel", {slate: slateName})}
+                aria-describedby={unavailableReason ? unavailableId : undefined}
             >
                 {t("slates.apply.button")}
             </Button>
@@ -105,6 +128,11 @@ export const SlateApplyAction: React.FC<SlateApplyActionProps> = ({ballotStyle, 
                       })
                     : null}
             </Typography>
+            {unavailableReason && (
+                <Typography className="slate-apply-unavailable" id={unavailableId} variant="body2">
+                    {unavailableReason}
+                </Typography>
+            )}
             <Dialog
                 className="slate-replace-dialog"
                 open={!!pending}

@@ -454,6 +454,10 @@ const galegoTranslation: TranslationType = {
                 button: "Elixir esta candidatura",
                 buttonLabel: "Elixir a candidatura {{slate}}",
                 chosen: "{{slate}} elixida. Candidatos seleccionados: {{candidates}}. Contendas: {{contests}}.",
+                overMaximum:
+                    "{{slate}} non se pode elixir: ten {{candidates}} candidaturas para {{contest}}, que permite {{max}}. Pode seguir elixindo candidaturas individualmente.",
+                unavailable:
+                    "{{slate}} non se pode elixir nesta papeleta. Pode seguir elixindo candidaturas individualmente.",
                 replaceDialog: {
                     title: "Substituír as túas opcións actuais?",
                     content:

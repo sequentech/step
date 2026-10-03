@@ -454,6 +454,10 @@ const dutchTranslation: TranslationType = {
                 button: "Deze lijst kiezen",
                 buttonLabel: "Lijst {{slate}} kiezen",
                 chosen: "{{slate}} gekozen. Geselecteerde kandidaten: {{candidates}}. Verkiezingen: {{contests}}.",
+                overMaximum:
+                    "{{slate}} kan niet worden gekozen: de lijst heeft {{candidates}} kandidaten voor {{contest}}, waar {{max}} is toegestaan. U kunt nog steeds afzonderlijke kandidaten kiezen.",
+                unavailable:
+                    "{{slate}} kan op dit stembiljet niet worden gekozen. U kunt nog steeds afzonderlijke kandidaten kiezen.",
                 replaceDialog: {
                     title: "Uw huidige keuzes vervangen?",
                     content:

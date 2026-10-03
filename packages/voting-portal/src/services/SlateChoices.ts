@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import type {BallotSelection, IDecodedVoteContest} from "@sequentech/ui-core"
+import {exceedsMaximum, isSelected} from "./SelectionLimits"
 import type {IResolvedSlate, ISlateContest} from "./Slates"
 
 const SELECTED = 0
@@ -26,11 +27,25 @@ export class SlateChoicesError extends Error {
     }
 }
 
+/** The slate has more candidates in a contest than the contest allows. */
+export class SlateOverMaximumError extends SlateChoicesError {
+    constructor(
+        slate: IResolvedSlate,
+        readonly slateContest: ISlateContest
+    ) {
+        super(
+            `slate "${slate.id}" has ${slateContest.candidates.length} candidates in contest "${slateContest.contest.id}", which allows ${slateContest.contest.max_votes}`
+        )
+        this.name = "SlateOverMaximumError"
+    }
+}
+
 const applyToContest = (
     slate: IResolvedSlate,
-    {contest, candidates}: ISlateContest,
+    slateContest: ISlateContest,
     current: IDecodedVoteContest
 ): {next: IDecodedVoteContest; change: ISlateContestChange} => {
+    const {contest, candidates} = slateContest
     const memberIds = candidates.map((candidate) => candidate.id)
     const members = new Set(memberIds)
     if (members.size === 0 || members.size !== memberIds.length) {
@@ -38,10 +53,8 @@ const applyToContest = (
             `slate "${slate.id}" has no candidates or repeats one in contest "${contest.id}"`
         )
     }
-    if (members.size > contest.max_votes) {
-        throw new SlateChoicesError(
-            `slate "${slate.id}" has ${members.size} candidates in contest "${contest.id}", which allows ${contest.max_votes}`
-        )
+    if (exceedsMaximum(contest, members.size)) {
+        throw new SlateOverMaximumError(slate, slateContest)
     }
     const choiceIds = new Set(current.choices.map((choice) => choice.id))
     const missing = memberIds.find((id) => !choiceIds.has(id))
@@ -51,9 +64,7 @@ const applyToContest = (
         )
     }
 
-    const wasSelected = new Set(
-        current.choices.filter((choice) => choice.selected > UNSELECTED).map((choice) => choice.id)
-    )
+    const wasSelected = new Set(current.choices.filter(isSelected).map((choice) => choice.id))
     const removed = current.choices
         .filter((choice) => wasSelected.has(choice.id) && !members.has(choice.id))
         .map((choice) => choice.id)

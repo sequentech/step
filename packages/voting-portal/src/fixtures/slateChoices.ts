@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+import {ECandidatesSelectionPolicy, EOverVotePolicy} from "@sequentech/ui-core"
 import type {IBallotStyle as IElectionDTO, ICandidate, IContest} from "@sequentech/ui-core"
 import type {IResolvedSlate} from "../services/Slates"
 import type {IBallotStyle} from "../store/ballotStyles/ballotStylesSlice"
@@ -144,3 +145,27 @@ export const buildSlatesBallotStyle = (
     created_at: "2026-01-01T00:00:00.000Z",
     last_updated_at: "2026-01-01T00:00:00.000Z",
 })
+
+/**
+ * The same ballot with the usual limits of such an election: a single-seat
+ * contest replaces its choice, and Trustees refuses a selection above three.
+ */
+export const buildLimitedSlatesBallot = (): IElectionDTO => {
+    const ballot = buildSlatesBallot()
+    return {
+        ...ballot,
+        contests: ballot.contests.map((entry) => ({
+            ...entry,
+            presentation:
+                entry.max_votes === 1
+                    ? {
+                          candidates_selection_policy: ECandidatesSelectionPolicy.RADIO,
+                          over_vote_policy: EOverVotePolicy.NOT_ALLOWED_WITH_MSG_AND_ALERT,
+                      }
+                    : {
+                          candidates_selection_policy: ECandidatesSelectionPolicy.CUMULATIVE,
+                          over_vote_policy: EOverVotePolicy.NOT_ALLOWED_WITH_MSG_AND_DISABLE,
+                      },
+        })),
+    }
+}
