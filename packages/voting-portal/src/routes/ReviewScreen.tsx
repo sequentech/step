@@ -49,6 +49,7 @@ import {INSERT_CAST_VOTE} from "../queries/InsertCastVote"
 import {GetElectionEventQuery, InsertCastVoteMutation, GetElectionsQuery} from "../gql/graphql"
 import {GET_ELECTIONS} from "../queries/GetElections"
 import {provideBallotService} from "../services/BallotService"
+import {orderContestsForReview} from "../services/ContestsOrder"
 import {ICastVote, addCastVotes} from "../store/castVotes/castVotesSlice"
 import {TenantEventType} from ".."
 import {useRootBackLink} from "../hooks/root-back-link"
@@ -61,7 +62,6 @@ import {IBallotError} from "../types/errors"
 import Stepper from "../components/Stepper"
 import {selectBallotSelectionByElectionId} from "../store/ballotSelections/ballotSelectionsSlice"
 import {
-    sortContestList,
     hashBallot,
     hashMultiBallot,
     IHashableSingleBallot,
@@ -787,8 +787,7 @@ export const ReviewScreen: React.FC = () => {
         )
     }
 
-    const contestsOrderType = ballotStyle?.ballot_eml.election_presentation?.contests_order
-    const contests = sortContestList(ballotStyle.ballot_eml.contests, contestsOrderType)
+    const contests = orderContestsForReview(ballotStyle)
 
     return (
         // The arrangement is `ReviewLayout`, in `ui-essentials`, so that the

@@ -123,6 +123,63 @@ async fn prepare_files(
     rows.set_files_root(tenant, event, publication, &root).await
 }
 
+/// The event and elections as they were written with a publication.
+#[derive(Clone, Debug, PartialEq)]
+pub struct PublicationSnapshot {
+    pub event: Value,
+    pub elections: Vec<Value>,
+}
+
+/// `None` for a publication whose objects were never prepared.
+pub async fn publication_snapshot(
+    tx: &Transaction<'_>,
+    tenant: &str,
+    event: &str,
+    publication: &str,
+) -> Result<Option<PublicationSnapshot>> {
+    read_snapshot(
+        &PgPublicationRows { transaction: tx },
+        &S3PublicationStorage {
+            endpoint: S3Endpoint::Server,
+        },
+        tenant,
+        event,
+        publication,
+    )
+    .await
+}
+
+async fn read_snapshot(
+    rows: &impl PublicationRows,
+    storage: &impl PublicationStorage,
+    tenant: &str,
+    event: &str,
+    publication: &str,
+) -> Result<Option<PublicationSnapshot>> {
+    let tenant = Uuid::parse_str(tenant)?;
+    let event = Uuid::parse_str(event)?;
+    let publication = Uuid::parse_str(publication)?;
+    let annotations = rows.annotations(tenant, event, publication).await?;
+    let Some(root) = annotations
+        .as_ref()
+        .and_then(|v| v.get(FILES_ANNOTATION))
+        .and_then(Value::as_str)
+    else {
+        return Ok(None);
+    };
+    validate_publication_root(root, tenant, event, publication)?;
+    let objects = storage.open().await?;
+    let mut elections = Vec::new();
+    for row in rows.elections(tenant, event, publication).await? {
+        let id = row["id"].as_str().context("Missing election id")?;
+        elections.push(objects.get_json(&election_key(root, id)).await?);
+    }
+    Ok(Some(PublicationSnapshot {
+        event: objects.get_json(&event_key(root)).await?,
+        elections,
+    }))
+}
+
 /// Only identifiers, active references and live policy are read here, never EML.
 pub async fn voter_files(
     tx: &Transaction<'_>,
@@ -1251,5 +1308,199 @@ mod tests {
         .await
         .unwrap_err();
         assert_eq!(error.to_string(), "presigning failed");
+    }
+
+    const EDITED_PRESENTATION: &str = r#"{"css":".edited {}"}"#;
+
+    /// The rows after an administrator edited the event, an election and a ballot.
+    fn edited(publication: Uuid, annotations: Option<Value>) -> MemoryPublicationRows {
+        MemoryPublicationRows::default()
+            .with_event(
+                TENANT,
+                EVENT,
+                json!({"id": EVENT, "presentation": {"name": "Edited event"}, "description": null}),
+                None,
+            )
+            .with_publication(
+                TENANT,
+                EVENT,
+                publication,
+                PublicationRecord {
+                    annotations,
+                    elections: vec![
+                        json!({"id": ELECTION, "presentation": {"name": "Edited election"}}),
+                    ],
+                    styles: vec![style_row(STYLE, ELECTION, &eml(EDITED_PRESENTATION))],
+                    ..PublicationRecord::default()
+                },
+            )
+    }
+
+    fn stored(objects: &MemoryPublicationObjects) -> Vec<(String, Value)> {
+        objects
+            .keys()
+            .into_iter()
+            .map(|key| {
+                let value = objects.json(&key).unwrap();
+                (key, value)
+            })
+            .collect()
+    }
+
+    async fn snapshot(
+        rows: &MemoryPublicationRows,
+        objects: &MemoryPublicationObjects,
+    ) -> Result<Option<PublicationSnapshot>> {
+        read_snapshot(
+            rows,
+            objects,
+            &TENANT.to_string(),
+            &EVENT.to_string(),
+            &PUBLICATION.to_string(),
+        )
+        .await
+    }
+
+    #[tokio::test]
+    async fn edits_after_publishing_reach_voters_only_through_a_new_publication() {
+        let objects = MemoryPublicationObjects::default();
+        let ids = SequentialIds::default();
+        let rows = publication(two_elections(consistent_styles()));
+        prepare(&rows, &objects, &ids).await.unwrap();
+        let published_objects = stored(&objects);
+
+        // Publishing prepares again: the edited rows change nothing already written.
+        let after_edit = edited(PUBLICATION, files_annotation(ROOT));
+        prepare(&after_edit, &objects, &ids).await.unwrap();
+        assert_eq!(stored(&objects), published_objects);
+        assert_eq!(
+            objects.json(&format!("{ROOT}/event.json")).unwrap()["presentation"],
+            json!({"name": "Event"})
+        );
+
+        let serving = voter_rows(vec![published(STYLE, ELECTION, PUBLICATION, Some(ROOT))]);
+        let served = files(&serving, &objects, &[ELECTION]).await.unwrap();
+        assert_eq!(served["files"][0]["version"], ROOT);
+        assert!(grant(&served["files"][0]["urls"]["event_url"])
+            .starts_with(&format!("https://bucket.test/{ROOT}/event.json?")));
+
+        // A new publication of the edited rows is written apart, with the edits.
+        let republished = edited(OTHER_PUBLICATION, None);
+        prepare_files(
+            &republished,
+            &objects,
+            &ids,
+            &TENANT.to_string(),
+            &EVENT.to_string(),
+            &OTHER_PUBLICATION.to_string(),
+        )
+        .await
+        .unwrap();
+        let new_root = republished
+            .stored_annotations(TENANT, EVENT, OTHER_PUBLICATION)
+            .unwrap()["ballot_files_v1"]
+            .as_str()
+            .unwrap()
+            .to_owned();
+        assert_ne!(new_root, ROOT);
+        assert_eq!(
+            objects.json(&format!("{new_root}/event.json")).unwrap(),
+            json!({
+                "id": EVENT,
+                "presentation": {"name": "Edited event"},
+                "description": null,
+                "ballot_eml_presentation": EDITED_PRESENTATION,
+            })
+        );
+        assert_eq!(
+            objects
+                .json(&format!("{new_root}/election-{ELECTION}.json"))
+                .unwrap()["presentation"],
+            json!({"name": "Edited election"})
+        );
+        assert_eq!(
+            stored(&objects)[..published_objects.len()],
+            published_objects
+        );
+
+        let serving = voter_rows(vec![published(
+            STYLE,
+            ELECTION,
+            OTHER_PUBLICATION,
+            Some(&new_root),
+        )]);
+        let served = files(&serving, &objects, &[ELECTION]).await.unwrap();
+        assert_eq!(served["files"][0]["version"], new_root);
+    }
+
+    #[tokio::test]
+    async fn a_snapshot_is_the_event_and_elections_as_written_not_as_they_are_now() {
+        let objects = MemoryPublicationObjects::default();
+        let rows = publication(two_elections(consistent_styles()));
+        prepare(&rows, &objects, &SequentialIds::default())
+            .await
+            .unwrap();
+
+        let after_edit = edited(PUBLICATION, files_annotation(ROOT));
+        assert_eq!(
+            snapshot(&after_edit, &objects).await.unwrap(),
+            Some(PublicationSnapshot {
+                event: json!({
+                    "id": EVENT,
+                    "presentation": {"name": "Event"},
+                    "description": null,
+                    "ballot_eml_presentation": PRESENTATION,
+                }),
+                elections: vec![election_object(ELECTION)],
+            })
+        );
+    }
+
+    #[tokio::test]
+    async fn a_publication_without_objects_has_no_snapshot() {
+        let rows = publication(two_elections(consistent_styles()));
+        // Opening this bucket fails, so success shows it was never opened.
+        let objects = MemoryPublicationObjects::unavailable();
+        assert_eq!(snapshot(&rows, &objects).await.unwrap(), None);
+    }
+
+    #[tokio::test]
+    async fn a_snapshot_that_cannot_be_read_whole_is_an_error() {
+        let outside = publication(PublicationRecord {
+            annotations: files_annotation(OTHER_ROOT),
+            ..two_elections(consistent_styles())
+        });
+        let error = snapshot(&outside, &MemoryPublicationObjects::default())
+            .await
+            .unwrap_err();
+        assert_eq!(error.to_string(), "Publication object scope mismatch");
+
+        let prepared = publication(PublicationRecord {
+            annotations: files_annotation(ROOT),
+            ..two_elections(consistent_styles())
+        });
+        let error = snapshot(&prepared, &MemoryPublicationObjects::default())
+            .await
+            .unwrap_err();
+        assert_eq!(error.to_string(), "no such object");
+
+        let error = snapshot(&prepared, &MemoryPublicationObjects::unavailable())
+            .await
+            .unwrap_err();
+        assert_eq!(error.to_string(), "private bucket unavailable");
+
+        let unknown = MemoryPublicationRows::default();
+        assert!(snapshot(&unknown, &MemoryPublicationObjects::default())
+            .await
+            .is_err());
+        assert!(read_snapshot(
+            &prepared,
+            &MemoryPublicationObjects::default(),
+            "not-a-uuid",
+            &EVENT.to_string(),
+            &PUBLICATION.to_string(),
+        )
+        .await
+        .is_err());
     }
 }

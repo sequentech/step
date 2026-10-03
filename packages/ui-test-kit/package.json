@@ -10,6 +10,7 @@
     "./adapters/playwright": "./adapters/playwright.ts",
     "./coverage/fixture": "./coverage/fixture.ts",
     "./fixtures": "./fixtures/index.ts",
+    "./fixtures/ballot-design": "./fixtures/ballotDesign.ts",
     "./fixtures/scenarios": "./fixtures/scenarios.ts",
     "./fixtures/keycloak": "./fixtures/keycloak.ts",
     "./mocks/graphql": "./mocks/graphql.ts",
