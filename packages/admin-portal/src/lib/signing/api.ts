@@ -93,6 +93,15 @@ export interface ISigningPanelData extends ISigningRequestPanel {
     election_name?: string | null
     /** The country's name (the request's area). */
     area_name?: string | null
+    /**
+     * A trustee's request: the keys ceremony or tally session id the
+     * ceremony's name belongs to. The name is a label, shown only beside that
+     * id when it is the signed one.
+     */
+    ceremony_id?: string | null
+    ceremony_name?: string | null
+    /** A trustee's request: its trustee's name, shown only beside the signed trustee id. */
+    trustee_name?: string | null
     /** The document being signed, for actions with one. */
     document_name?: string | null
     document_pages?: number | null
