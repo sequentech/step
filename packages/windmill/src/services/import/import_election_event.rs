@@ -68,7 +68,7 @@ use std::io::{self, Read, Write};
 use std::path::Path;
 use std::str::FromStr;
 use tempfile::NamedTempFile;
-use tracing::{event, info, instrument, Level};
+use tracing::{event, info, instrument, warn, Level};
 use uuid::Uuid;
 use zip::read::ZipArchive;
 
@@ -102,6 +102,10 @@ use crate::services::protocol_manager::get_protocol_manager_secret_path;
 use crate::services::protocol_manager::{
     create_protocol_manager_keys, get_b3_pgsql_client, get_board_client,
 };
+use crate::services::signing::certificates::parse_chain;
+use crate::services::signing::issuers::{import_staff_issuers, SYSTEM_ACTOR};
+use crate::services::signing::log::Actor;
+use crate::services::signing::Allowance;
 use crate::tasks::import_election_event::ImportElectionEventBody;
 use crate::types::documents::EDocuments;
 use regex::Regex;
@@ -1524,7 +1528,8 @@ pub async fn process_document(
                 .context("Failed to import tally_file")?;
             }
 
-            if file_name.contains(EDocuments::CERTIFICATES.to_file_name()) {
+            let staff_issuers = file_name.contains(EDocuments::STAFF_ISSUERS.to_file_name());
+            if staff_issuers || file_name.contains(EDocuments::CERTIFICATES.to_file_name()) {
                 let pem_content = String::from_utf8(file_contents.clone())
                     .context("Failed to decode certificates PEM as UTF-8")?;
                 let tenant_uuid = Uuid::parse_str(&election_event_schema.tenant_id)
@@ -1532,6 +1537,29 @@ pub async fn process_document(
                 let election_event_uuid = Uuid::parse_str(&election_event_schema.election_event.id)
                     .context("Failed to parse election event UUID")?;
                 let pem_chunks = split_pem_bundle(&pem_content);
+                if staff_issuers {
+                    // Checked and logged as the Certificates settings import them.
+                    let certificates =
+                        parse_chain(&pem_chunks).context("Failed to parse the staff issuers")?;
+                    let import = import_staff_issuers(
+                        hasura_transaction,
+                        tenant_uuid,
+                        election_event_uuid,
+                        &certificates,
+                        &Actor {
+                            user_id: SYSTEM_ACTOR.to_owned(),
+                            username: SYSTEM_ACTOR.to_owned(),
+                        },
+                        Allowance::ElectionEventImport,
+                        Utc::now(),
+                    )
+                    .await
+                    .context("Failed to import the staff issuers")?;
+                    for error in &import.errors {
+                        warn!("Staff issuer not imported: {error}");
+                    }
+                    continue;
+                }
                 for pem_chunk in pem_chunks {
                     let pem_chunk_owned = pem_chunk.clone();
                     let parsed = tokio::task::spawn_blocking(move || {

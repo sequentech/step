@@ -125,6 +125,10 @@ test_inputs = ["hasura/migrations/backend-db/**", ".devcontainer/postgresql/init
 [units.windmill]
 test_inputs = ["hasura/migrations/backend-db/**", ".devcontainer/postgresql/init.sh"]
 
+[units.sequent-core]
+# The permission tests read the realm templates.
+test_inputs = [".devcontainer/keycloak/import/tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5.json", "packages/windmill/external-bin/janitor/templates/COMELEC/keycloakAdmin.hbs"]
+
 [units.velvet]
 test_inputs = [".devcontainer/minio/public-assets/**"]
 

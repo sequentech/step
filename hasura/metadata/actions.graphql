@@ -2370,3 +2370,185 @@ type MonitoringExportOutput {
     document_id: String!
     task_execution: tasks_execution_type
 }
+
+type Mutation {
+    signingCheckCertificate(
+        request_id: uuid!
+        chain_pem: [String!]!
+    ): SigningCheckCertificateOutput!
+}
+
+type Mutation {
+    signingImportIssuers(
+        election_event_id: uuid!
+        pem: String
+        der_base64: String
+    ): SigningImportIssuersOutput!
+}
+
+type Mutation {
+    signingDeleteIssuer(
+        election_event_id: uuid!
+        issuer_id: uuid!
+    ): SigningIssuerIdOutput!
+}
+
+type Mutation {
+    signingPutChecks(
+        election_event_id: uuid!
+        revocation_check: String!
+        crl_unavailable: String!
+        registration: String!
+        post_binding: String!
+        expected_revision: Int!
+    ): SigningPutChecksOutput!
+}
+
+type Mutation {
+    signingRegisterCertificate(
+        election_event_id: uuid!
+        user_id: String!
+        election_id: uuid
+        pem: String!
+        linked_to: String
+    ): SigningCertificateIdOutput!
+}
+
+type Mutation {
+    signingRevokeCertificate(
+        election_event_id: uuid!
+        certificate_id: uuid!
+        reason: String!
+    ): SigningCertificateIdOutput!
+}
+
+type SigningCheckCertificateOutput {
+    checks: jsonb!
+    certificate: jsonb
+    registration: String!
+    revocation_status: String!
+}
+
+type SigningImportIssuersOutput {
+    imported: Int!
+    skipped: Int!
+    errors: [String!]!
+}
+
+type SigningIssuerIdOutput {
+    issuer_id: uuid!
+}
+
+type SigningPutChecksOutput {
+    revision: Int!
+}
+
+type SigningCertificateIdOutput {
+    certificate_id: uuid!
+}
+
+type Query {
+    signingGetRequest(request_id: uuid!): SigningGetRequestOutput!
+}
+
+type Mutation {
+    signingApprove(
+        request_id: uuid!
+        chain_pem: [String!]!
+        algorithm: String!
+        payload_signature_b64: String!
+        document_signature_b64: String
+        pdf_cms_b64: String
+        revision: Int
+    ): SigningApproveOutput!
+}
+
+type Mutation {
+    signingOpenFailure(
+        request_id: uuid!
+        file_name: String!
+        reason: String!
+    ): SigningRequestIdOutput!
+}
+
+type Mutation {
+    signingHandover(request_id: uuid!): SigningRequestIdOutput!
+}
+
+type Mutation {
+    signingCancel(request_id: uuid!, reason: String): SigningRequestIdOutput!
+}
+
+type Mutation {
+    signingExportRequests(
+        election_event_id: uuid!
+        status: String
+        action: String
+    ): SigningExportOutput!
+}
+
+input SigningRoleChangesInput {
+    add: [String!]
+    remove: [String!]
+}
+
+type Mutation {
+    signingPutRule(
+        election_event_id: uuid!
+        action: String!
+        requirement: String!
+        signatures: Int!
+        requester_signing: String!
+        expires_minutes: Int
+        expected_revision: Int!
+        roles: SigningRoleChangesInput
+    ): SigningPutRuleOutput!
+}
+
+type Query {
+    signingRuleCapacity(
+        election_event_id: uuid!
+        action: String!
+        signatures: Int
+        requester_signing: String
+    ): SigningRuleCapacityOutput!
+}
+
+type SigningGetRequestOutput {
+    panel: jsonb!
+}
+
+type SigningApproveOutput {
+    status: String!
+    count: Int!
+    required: Int!
+}
+
+type SigningRequestIdOutput {
+    request_id: uuid!
+}
+
+type SigningExportOutput {
+    document_id: String!
+    sha256: String!
+    rows: Int!
+    url: String
+}
+
+type SigningPutRuleOutput {
+    revision: Int!
+    cancelled: [uuid!]!
+    rule: jsonb!
+    short_posts: jsonb!
+    warnings: [String!]!
+}
+
+type SigningRuleCapacityOutput {
+    max: Int!
+    posts: jsonb!
+    posts_short: jsonb!
+    posts_short_without_requester: jsonb!
+    roles: jsonb!
+    waiting: Int!
+    config_version: Int!
+}

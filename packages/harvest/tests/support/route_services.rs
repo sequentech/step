@@ -31,6 +31,13 @@ use sequent_core::monitoring::cadence::Cadence;
 use serde_json::Value;
 use std::sync::Arc;
 use tokio_postgres::NoTls;
+use windmill::services::signing::approve::{NoDocumentSigner, SigningServices};
+use windmill::services::signing::certificates::OpensslCertificateVerifier;
+use windmill::services::signing::executors::SigningExecutorRegistry;
+use windmill::services::signing::requests::{SigningExportStore, StoredExport};
+use windmill::services::signing::rules::{
+    KeycloakSigningRoleAdmin, SigningRoleAdmin,
+};
 
 #[path = "schema.rs"]
 mod schema;
@@ -63,6 +70,8 @@ pub struct Services {
     pub ledger: Arc<MemoryTaskLedger>,
     pub tasks: MemoryTaskQueue,
     pub vault: Arc<MemoryVault>,
+    pub signing: SigningServices,
+    pub signing_roles: Arc<dyn SigningRoleAdmin>,
 }
 
 impl Services {
@@ -95,7 +104,19 @@ impl Services {
             ledger: Default::default(),
             tasks: Default::default(),
             vault: Default::default(),
+            signing: SigningServices {
+                verifier: Arc::new(OpensslCertificateVerifier::default()),
+                executors: SigningExecutorRegistry::default(),
+                documents: Arc::new(NoDocumentSigner),
+                exports: Arc::new(RowOnlyExports),
+            },
+            signing_roles: Arc::new(KeycloakSigningRoleAdmin),
         }
+    }
+
+    pub fn with_signing(mut self, signing: SigningServices) -> Self {
+        self.signing = signing;
+        self
     }
 
     pub fn with_monitoring_renderer(
@@ -202,6 +223,8 @@ impl Services {
             ledger: self.ledger.clone(),
             tasks: Arc::new(self.tasks.clone()),
             vault: self.vault.clone(),
+            signing: self.signing.clone(),
+            signing_roles: self.signing_roles.clone(),
         };
         Client::tracked(crate::build_application_with(services).configure(
             rocket::Config {
@@ -213,6 +236,46 @@ impl Services {
         .await
         .expect("the routes mount with test services")
     }
+}
+
+/// Keeps a signing export as a document row, without object storage.
+pub struct RowOnlyExports;
+
+#[rocket::async_trait]
+impl SigningExportStore for RowOnlyExports {
+    async fn store(
+        &self,
+        tx: &deadpool_postgres::Transaction<'_>,
+        tenant_id: uuid::Uuid,
+        election_event_id: uuid::Uuid,
+        file_name: &str,
+        content: &[u8],
+    ) -> anyhow::Result<StoredExport> {
+        let id = uuid::Uuid::new_v4();
+        tx.execute(
+            "INSERT INTO sequent_backend.document
+                 (id, tenant_id, election_event_id, name, media_type, size)
+             VALUES ($1, $2, $3, $4, 'text/csv', $5)",
+            &[
+                &id,
+                &tenant_id,
+                &election_event_id,
+                &file_name,
+                &(content.len() as i64),
+            ],
+        )
+        .await?;
+        Ok(StoredExport {
+            document_id: id.to_string(),
+            url: Some(export_url(&id.to_string())),
+        })
+    }
+}
+
+/// The download link [`RowOnlyExports`] gives the export it keeps as
+/// `document_id`.
+pub fn export_url(document_id: &str) -> String {
+    format!("https://exports.test/{document_id}.csv?signature=short-lived")
 }
 
 /// Nothing listens on port 1, so every connection attempt is refused.

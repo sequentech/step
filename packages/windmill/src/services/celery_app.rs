@@ -63,6 +63,7 @@ use crate::tasks::publish_results_website::publish_results_website_task;
 use crate::tasks::refresh_monitoring_snapshot::{
     refresh_monitoring_event_snapshot, refresh_monitoring_snapshots,
 };
+use crate::tasks::refresh_staff_crls::refresh_staff_crls;
 use crate::tasks::render_document_pdf::render_document_pdf;
 use crate::tasks::render_report::render_report;
 use crate::tasks::review_boards::review_boards;
@@ -71,6 +72,8 @@ use crate::tasks::scheduled_events::scheduled_events;
 use crate::tasks::scheduled_reports::scheduled_reports;
 use crate::tasks::send_template::send_template;
 use crate::tasks::set_public_key::set_public_key;
+use crate::tasks::signing_log_outbox::post_signing_log_outbox;
+use crate::tasks::signing_requests::{expire_signing_requests, sweep_signing_executions};
 use crate::tasks::update_election_event_ballot_styles::update_election_event_ballot_styles;
 use crate::tasks::voter_information_letter::generate_voter_information_letter;
 
@@ -350,6 +353,10 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
             generate_reconciliation_patches,
             apply_reconciliation_patch,
             generate_voter_information_letter,
+            post_signing_log_outbox,
+            expire_signing_requests,
+            sweep_signing_executions,
+            refresh_staff_crls,
         ],
         task_routes = [
             create_keys::NAME => &Queue::Short.queue_name(&slug),
@@ -417,6 +424,10 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
             generate_reconciliation_patches::NAME => &Queue::ImportExport.queue_name(&slug),
             apply_reconciliation_patch::NAME => &Queue::ImportExport.queue_name(&slug),
             generate_voter_information_letter::NAME => &Queue::Reports.queue_name(&slug),
+            post_signing_log_outbox::NAME => &Queue::ElectoralLogBeat.queue_name(&slug),
+            expire_signing_requests::NAME => &Queue::Beat.queue_name(&slug),
+            sweep_signing_executions::NAME => &Queue::Beat.queue_name(&slug),
+            refresh_staff_crls::NAME => &Queue::Beat.queue_name(&slug),
         ],
         prefetch_count = prefetch_count,
         acks_late = acks_late,

@@ -19,10 +19,15 @@ use windmill::tasks::electoral_log::electoral_log_batch_dispatcher;
 use windmill::tasks::refresh_monitoring_snapshot::{
     refresh_monitoring_snapshots, scheduled_fan_out,
 };
+use windmill::tasks::refresh_staff_crls::refresh_staff_crls;
 use windmill::tasks::review_boards::review_boards;
 use windmill::tasks::review_cast_votes::review_cast_votes;
 use windmill::tasks::scheduled_events::scheduled_events;
 use windmill::tasks::scheduled_reports::scheduled_reports;
+use windmill::tasks::signing_log_outbox::post_signing_log_outbox;
+use windmill::tasks::signing_requests::{
+    expire_signing_requests, sweep_signing_executions, SIGNING_JOBS_INTERVAL_SECONDS,
+};
 
 #[derive(Debug, Parser)]
 #[command(name = "beat", about = "Windmill's periodic task scheduler.")]
@@ -41,6 +46,12 @@ struct CeleryOpt {
     /// in `sequent_core::monitoring::cadence`.
     #[arg(short = 'm', long, env = SNAPSHOT_INTERVAL_ENV)]
     monitoring_snapshot_interval: Option<String>,
+    /// Seconds between two passes of the signing log outbox.
+    #[arg(short = 'g', long, default_value = "5")]
+    signing_log_interval: u64,
+    /// Seconds between two refreshes of the staff issuers' revocation lists.
+    #[arg(long, env = "STAFF_CRL_INTERVAL", default_value = "3600")]
+    staff_crl_interval: u64,
 }
 
 #[tokio::main]
@@ -83,6 +94,26 @@ async fn main() -> Result<()> {
                 schedule = DeltaSchedule::new(Duration::from_secs(CeleryOpt::parse().electoral_log_interval)),
                 args = (),
             },
+            post_signing_log_outbox::NAME => {
+                post_signing_log_outbox,
+                schedule = DeltaSchedule::new(Duration::from_secs(CeleryOpt::parse().signing_log_interval)),
+                args = (),
+            },
+            expire_signing_requests::NAME => {
+                expire_signing_requests,
+                schedule = DeltaSchedule::new(Duration::from_secs(SIGNING_JOBS_INTERVAL_SECONDS)),
+                args = (),
+            },
+            sweep_signing_executions::NAME => {
+                sweep_signing_executions,
+                schedule = DeltaSchedule::new(Duration::from_secs(SIGNING_JOBS_INTERVAL_SECONDS)),
+                args = (),
+            },
+            refresh_staff_crls::NAME => {
+                refresh_staff_crls,
+                schedule = DeltaSchedule::new(Duration::from_secs(CeleryOpt::parse().staff_crl_interval)),
+                args = (),
+            },
         ],
         task_routes = [
             review_boards::NAME => &Queue::Beat.queue_name(&slug),
@@ -91,6 +122,10 @@ async fn main() -> Result<()> {
             review_cast_votes::NAME => &Queue::Beat.queue_name(&slug),
             electoral_log_batch_dispatcher::NAME => &Queue::ElectoralLogBeat.queue_name(&slug),
             refresh_monitoring_snapshots::NAME => &Queue::Beat.queue_name(&slug),
+            post_signing_log_outbox::NAME => &Queue::ElectoralLogBeat.queue_name(&slug),
+            expire_signing_requests::NAME => &Queue::Beat.queue_name(&slug),
+            sweep_signing_executions::NAME => &Queue::Beat.queue_name(&slug),
+            refresh_staff_crls::NAME => &Queue::Beat.queue_name(&slug),
         ],
     ).await?;
     // Scheduled outside the macro, which cannot give a message its expiry.

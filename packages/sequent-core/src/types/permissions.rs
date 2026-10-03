@@ -419,6 +419,60 @@ pub enum Permissions {
     PHONE_BLACKLIST_DELETE,
     #[strum(serialize = "election-event-voter-list-reconciliation")]
     ELECTION_EVENT_VOTER_LIST_SYNC,
+    // show the Election Event > Signatures tab
+    #[strum(serialize = "election-event-signatures-tab")]
+    ELECTION_EVENT_SIGNATURES_TAB,
+    // read the protected actions and their signing rules
+    #[strum(serialize = "signing-rules-read")]
+    SIGNING_RULES_READ,
+    // edit signing rules
+    #[strum(serialize = "signing-rules-write")]
+    SIGNING_RULES_WRITE,
+    // read staff issuers, certificate checks and registered certificates
+    #[strum(serialize = "signing-certificates-read")]
+    SIGNING_CERTIFICATES_READ,
+    // import and remove trusted staff issuers
+    #[strum(serialize = "signing-issuers-write")]
+    SIGNING_ISSUERS_WRITE,
+    // change the certificate checks
+    #[strum(serialize = "signing-checks-write")]
+    SIGNING_CHECKS_WRITE,
+    // register a staff certificate to a person
+    #[strum(serialize = "signing-certificates-register")]
+    SIGNING_CERTIFICATES_REGISTER,
+    // revoke a registered staff certificate
+    #[strum(serialize = "signing-certificates-revoke")]
+    SIGNING_CERTIFICATES_REVOKE,
+    // read signing requests (limited by permission labels)
+    #[strum(serialize = "signing-requests-read")]
+    SIGNING_REQUESTS_READ,
+    // cancel someone else's waiting signing request
+    #[strum(serialize = "signing-requests-cancel")]
+    SIGNING_REQUESTS_CANCEL,
+    // export signing requests as CSV
+    #[strum(serialize = "signing-requests-export")]
+    SIGNING_REQUESTS_EXPORT,
+    // sign a protected action: `sign-<action id>` (see `signing::SigningAction`)
+    #[strum(serialize = "sign-initialize-voting")]
+    SIGN_INITIALIZE_VOTING,
+    #[strum(serialize = "sign-open-voting")]
+    SIGN_OPEN_VOTING,
+    #[strum(serialize = "sign-close-voting")]
+    SIGN_CLOSE_VOTING,
+    #[strum(serialize = "sign-generate-election-returns")]
+    SIGN_GENERATE_ELECTION_RETURNS,
+    #[strum(serialize = "sign-generate-reports")]
+    SIGN_GENERATE_REPORTS,
+    #[strum(serialize = "sign-transmit-results")]
+    SIGN_TRANSMIT_RESULTS,
+    #[strum(serialize = "sign-approve-voter")]
+    SIGN_APPROVE_VOTER,
+    #[strum(serialize = "sign-approve-configuration")]
+    SIGN_APPROVE_CONFIGURATION,
+    #[strum(serialize = "sign-key-ceremony")]
+    SIGN_KEY_CEREMONY,
+    #[strum(serialize = "sign-tally-key")]
+    SIGN_TALLY_KEY,
 }
 
 #[allow(non_camel_case_types)]

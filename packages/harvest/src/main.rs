@@ -37,6 +37,10 @@ mod error_contracts;
 #[path = "../tests/support/route_services.rs"]
 mod route_services;
 
+#[cfg(test)]
+#[path = "../tests/support/hasura_signing_permissions.rs"]
+mod hasura_signing_permissions;
+
 #[launch]
 async fn rocket() -> _ {
     dotenv().ok();
@@ -195,6 +199,7 @@ fn build_application_with(
                 routes::reports::render_document_pdf,
                 routes::reports::generate_template,
                 routes::reports::generate_report,
+                routes::manual_verification_pdf::get_manual_verification_pdf,
                 routes::reports::encrypt_report_route,
                 routes::results_publication::configure_results_website_policy,
                 routes::results_publication::publish_results_website,
@@ -221,6 +226,20 @@ fn build_application_with(
                 routes::delete_certificate_authority::delete_certificate_authority_route,
                 routes::export_certificate_authority::export_certificate_authority_route,
                 routes::get_certificate_authorities_pem::get_cas_pem,
+                routes::signing::get_signing_request,
+                routes::signing::approve_signing_request,
+                routes::signing::report_signing_open_failure,
+                routes::signing::handover_signing_request,
+                routes::signing::cancel_signing_request,
+                routes::signing::export_signing_requests,
+                routes::signing::save_signing_rule,
+                routes::signing::signing_rule_capacity,
+                routes::signing_certificates::import_signing_issuers,
+                routes::signing_certificates::remove_signing_issuer,
+                routes::signing_certificates::put_signing_checks,
+                routes::signing_certificates::register_staff_certificate_route,
+                routes::signing_certificates::revoke_staff_certificate_route,
+                routes::signing_certificates::check_signing_certificate,
             ],
         )
         .mount("/", routes![routes::plugins::plugin_routes])

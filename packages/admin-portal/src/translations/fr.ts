@@ -1321,6 +1321,27 @@ const frenchTranslation: TranslationType = {
                 "admin-dashboard-view": "Vue du Tableau de Bord d'Administration",
                 "monitoring-view": "Voir les Tableaux de Bord de Suivi",
                 "monitoring-configure": "Configurer les Tableaux de Bord de Suivi",
+                "election-event-signatures-tab": "Election Event Signatures Tab",
+                "signing-rules-read": "Signatures: read protected actions",
+                "signing-rules-write": "Signatures: edit protected actions",
+                "signing-certificates-read": "Signatures: read certificates",
+                "signing-issuers-write": "Signatures: import and remove trusted issuers",
+                "signing-checks-write": "Signatures: edit certificate checks",
+                "signing-certificates-register": "Signatures: register certificates",
+                "signing-certificates-revoke": "Signatures: revoke certificates",
+                "signing-requests-read": "Signatures: read requests",
+                "signing-requests-cancel": "Signatures: cancel requests",
+                "signing-requests-export": "Signatures: export requests",
+                "sign-initialize-voting": "Sign: initialize voting",
+                "sign-open-voting": "Sign: open voting",
+                "sign-close-voting": "Sign: close voting",
+                "sign-generate-election-returns": "Sign: generate election returns",
+                "sign-generate-reports": "Sign: generate other election reports",
+                "sign-transmit-results": "Sign: transmit results",
+                "sign-approve-voter": "Sign: approve a voter manually",
+                "sign-approve-configuration": "Sign: approve a configuration version",
+                "sign-key-ceremony": "Sign: confirm a key share",
+                "sign-tally-key": "Sign: contribute a key share",
                 "application-export": "Exportation d'Applications",
                 "application-import": "Importation d'Applications",
                 "tenant-create": "Créer Locataire",
@@ -3436,6 +3457,315 @@ const frenchTranslation: TranslationType = {
             confirmDelete: "Supprimer l'autorité de certification",
             confirmDeleteDescription:
                 'Êtes-vous sûr de vouloir supprimer le certificat "{{name}}" (empreinte : {{fingerprint}}) ?',
+        },
+        signing: {
+            tab: {
+                title: "Signatures",
+                intro: "Protected actions run only after enough authorized people sign them with their digital certificates. Each signature is checked against the trusted issuers and recorded in the log.",
+                protectedActions: "Protected actions",
+                certificates: "Certificates",
+                requests: "Requests",
+            },
+            readOnly: {
+                chip: "Read only",
+                rules: "Read only. Changing signing rules needs the permission “Signatures: edit protected actions”.",
+                whoCanSign:
+                    "Roles with the permission “Sign: {{action}}” in Users and Roles. Changing them needs permission to edit roles.",
+            },
+            groups: {
+                "voting": "Voting",
+                "results-and-reports": "Results and reports",
+                "enrollment": "Enrollment",
+                "configuration-and-keys": "Configuration and keys",
+            },
+            actions: {
+                "initialize-voting": {
+                    label: "Initialize voting",
+                    short: "Initialization",
+                    permissionName: "initialize voting",
+                    object: "initialization of voting",
+                    appliesTo: "Each Post",
+                    description:
+                        "Started in Publish. Initializes the Post and generates its Initialization Report.",
+                    certify:
+                        "We certify that voting at this Post was initialized. Each of us signed it with our digital certificate.",
+                },
+                "open-voting": {
+                    label: "Open voting",
+                    short: "Opening",
+                    permissionName: "open voting",
+                    object: "opening of voting",
+                    appliesTo: "Each Post",
+                    description: "Started in Publish with Start voting. Opens voting at the Post.",
+                    certify:
+                        "We certify that voting at this Post was opened. Each of us signed it with our digital certificate.",
+                },
+                "close-voting": {
+                    label: "Close voting",
+                    short: "Closing",
+                    permissionName: "close voting",
+                    object: "closing of voting",
+                    appliesTo: "Each Post",
+                    description:
+                        "Started in Publish with Stop voting. Closes voting and seals the ballots; the seal record lists the closing signatures.",
+                    certify:
+                        "We certify that voting at this Post was closed. Each of us signed it with our digital certificate.",
+                },
+                "generate-election-returns": {
+                    label: "Generate election returns",
+                    short: "Election returns",
+                    permissionName: "generate election returns",
+                    object: "election returns",
+                    appliesTo: "Each Post and country",
+                    description:
+                        "Started in Reports. Releases the signed election returns for printing and transmission.",
+                    certify:
+                        "We certify that these election returns are true and correct. Each of us signed them with our digital certificate.",
+                },
+                "generate-reports": {
+                    label: "Generate other election reports",
+                    short: "Report",
+                    permissionName: "generate other election reports",
+                    object: "report",
+                    appliesTo: "Each Post",
+                    description:
+                        "Started in Reports. Releases the signed report: initialization, participation, activity logs or manual verification.",
+                    certify:
+                        "We certify that this report is true and correct. Each of us signed it with our digital certificate.",
+                },
+                "transmit-results": {
+                    label: "Transmit results",
+                    short: "Transmission",
+                    permissionName: "transmit results",
+                    object: "results package",
+                    appliesTo: "Each Post and country",
+                    description:
+                        "Started in Tally, Transmission. Builds the signed results package for its destinations; the signatures fill its signature list.",
+                    certify:
+                        "We certify that this results package is true and correct. Each of us signed it with our digital certificate.",
+                },
+                "approve-voter": {
+                    label: "Approve a voter manually",
+                    short: "Voter approval",
+                    permissionName: "approve a voter manually",
+                    object: "voter approval",
+                    appliesTo: "The voter's Post",
+                    description:
+                        "Started in Approvals. Approves the voter and issues their credentials.",
+                    certify:
+                        "We certify that this voter is approved. Each of us signed the approval with our digital certificate.",
+                },
+                "approve-configuration": {
+                    label: "Approve a configuration version",
+                    short: "Configuration version",
+                    permissionName: "approve a configuration version",
+                    object: "configuration version",
+                    appliesTo: "The election event",
+                    description: "Started in Publish. Publishes the configuration version.",
+                    certify:
+                        "We certify that this configuration version is approved. Each of us signed it with our digital certificate.",
+                },
+                "key-ceremony": {
+                    label: "Confirm a key share (key ceremony)",
+                    short: "Key share",
+                    permissionName: "confirm a key share",
+                    object: "key share",
+                    appliesTo: "Each trustee",
+                    description:
+                        "Started in Keys by each trustee. Records the trustee's signature with the ceremony and the bulletin board.",
+                    certify:
+                        "I certify that this key share is mine and correct. I signed it with my digital certificate.",
+                },
+                "tally-key": {
+                    label: "Contribute a key share (tally)",
+                    short: "Key share contribution",
+                    permissionName: "contribute a key share",
+                    object: "key share contribution",
+                    appliesTo: "Each trustee",
+                    description:
+                        "Started in Tally by each trustee. Records the trustee's contribution.",
+                    certify:
+                        "I certify that this key share contribution is mine and correct. I signed it with my digital certificate.",
+                },
+            },
+            protectedActions: {
+                intro: "Each signature is made with the digital certificate on the signer's security token.",
+                columns: {
+                    action: "Action",
+                    appliesTo: "Applies to",
+                    whoCanSign: "Who can sign",
+                    signaturesNeeded: "Signatures needed",
+                    requestExpires: "Request expires",
+                    waiting: "Waiting",
+                },
+                off: "Off",
+                eachTrustee: "Each trustee",
+                footer: "Signing rules are part of this event's configuration version {{version}}. Last changed {{date}} by {{name}}.",
+            },
+            expiry: {
+                "30": "30 minutes",
+                "60": "1 hour",
+                "120": "2 hours",
+                "1440": "24 hours",
+                "none": "No limit",
+            },
+            rule: {
+                needsSignatures: "Needs signatures",
+                whoCanSign: "Who can sign",
+                whoCanSignHelp:
+                    "These roles get the permission “Sign: {{action}}” in Users and Roles, for every election event. Signers must also have access to the Post.",
+                signaturesNeeded: "Signatures needed",
+                signaturesNeededHelp:
+                    "Each signer uses their digital certificate. Every Post has at least {{n}} people who can sign.",
+                requesterSigning: "The person who starts it can also sign",
+                expiresAfter: "A request expires after",
+                trusteesSign: "Trustees sign this step",
+                trusteesHelp:
+                    "Each trustee signs their own step with their digital certificate. The key ceremony sets how many trustees take part.",
+                footer: "Changes are recorded in the election event's log and become part of the next configuration version.",
+                cancel: "Cancel",
+                save: "Save",
+            },
+            validation: {
+                atLeastOne: "At least 1.",
+                tooMany: "No Post has {{n}} people who can sign. The most is {{max}}.",
+                shortPosts:
+                    "{{posts}} have only {{n}} people who can sign, so they can't reach {{required}} signatures. Add a signer there or lower the number.",
+            },
+            pendingRequests_one:
+                "{{count}} request is waiting for signatures under the current rule. Saving cancels it; the person who started it starts again.",
+            pendingRequests_other:
+                "{{count}} requests are waiting for signatures under the current rule. Saving cancels them; the people who started them start again.",
+            certificates: {
+                issuersIntro:
+                    "Staff certificates must chain to one of these. They are separate from the certificates voters sign in with.",
+                checkRevocation: "Check revocation lists",
+                crlUnavailable: {
+                    "label": "When a list can't be downloaded",
+                    "refuse": "Don't accept signatures",
+                    "accept-unchecked": "Accept and mark the signature as unchecked",
+                },
+                registration: {
+                    "label": "Registering a certificate to a person",
+                    "on-first-use": "When its holder first signs with it",
+                    "security-officer-only":
+                        "Only when someone who can register certificates registers it",
+                },
+                onePost: "A certificate signs for one Post only",
+            },
+            requests: {
+                exportCsv: "Export CSV",
+            },
+            reports: {
+                generateNotice:
+                    "{{post}}: the document is generated now. It can be printed and transmitted once {{n}} people have signed it.",
+            },
+            status: {
+                waiting: "Waiting",
+                completed: "Signed",
+                executed: "Done",
+                cancelled: "Cancelled",
+                expired: "Expired",
+                failed: "Failed",
+            },
+            cancelReasons: {
+                "by-requester": "The person who started it cancelled it",
+                "by-operator": "An operator cancelled it",
+                "rule-changed": "The action's signing rule changed",
+                "payload-changed": "What it signs changed",
+                "superseded": "A newer request replaced it",
+                "certificate-revoked": "A certificate that signed it was revoked",
+            },
+            panel: {
+                rulePost:
+                    "Needs {{n}} signatures from {{post}}'s signers, each with their digital certificate.",
+                ruleEvent: "Needs {{n}} signatures, each with the signer's digital certificate.",
+                signingCode: "Signing code",
+                signers: "Signers",
+                sign: "Sign",
+                handover: "Next member signs in",
+                cancel: "Cancel request",
+                signedAt: "Signed {{time}}",
+                notSigned: "Not signed",
+                certificate: "Certificate {{name}}",
+                you: "(you)",
+                expiresAt: "Expires at {{time}}",
+                progress: "{{count}} of {{total}}",
+                openDocument: "Open the document",
+            },
+            dialog: {
+                title: "Sign the {{object}}",
+                steps: {
+                    check: "Check",
+                    certificate: "Certificate",
+                    signed: "Signed",
+                },
+                localNote:
+                    "Signing happens in this browser. Your certificate file, its private key and its password are never sent. Only your signature and your public certificate go to the server.",
+                check: {
+                    signingAs: "You are signing as {{name}}",
+                    titlePost: "{{title}}, {{post}}",
+                    sameCode: "Everyone who signs sees the same code.",
+                    confirmDocument: "I have checked the {{object}}",
+                },
+                certificate: {
+                    intro: "Insert your security token and choose your certificate file.",
+                    password: "Certificate password",
+                    open: "Open certificate",
+                    chooseAnother: "Choose another file",
+                    staysLocal:
+                        "The file and its password stay on this computer. Only your signature and the public certificate are sent.",
+                },
+                checks: {
+                    "passed": {
+                        "trusted-issuer": "Issued by a trusted issuer ({{root}})",
+                        "valid-now": "Valid today",
+                        "signing-key-usage": "Made for signing",
+                        "not-revoked": "Not revoked (lists updated {{time}})",
+                        "registered": "Registered to you on {{date}}",
+                        "registered-to-other": "Not registered to anyone else",
+                        "already-signed": "Not used for this request yet",
+                        "post-binding": "Registered for this Post",
+                        "signature": "The signature covers this request",
+                    },
+                    "failed": {
+                        "trusted-issuer": "Not issued by a trusted issuer",
+                        "valid-now": "Not valid today",
+                        "signing-key-usage": "Not made for signing",
+                        "not-revoked": "Revoked, or no current revocation list to check it",
+                        "registered": "Not registered to you",
+                        "registered-to-other": "Registered to {{name}}",
+                        "already-signed": "Already used for this request",
+                        "post-binding": "Registered for another Post",
+                        "signature": "The signature doesn't cover this request",
+                    },
+                    "first-use": "First use: it will be registered to you",
+                },
+                problems: {
+                    wrongPassword: "Wrong password. Check it and try again.",
+                    notForYou:
+                        "This certificate can't sign for you. Use the certificate on your own security token.",
+                    issuerNotAccepted:
+                        "Use the certificate {{organization}} registered for you. Certificates from other issuers are not accepted.",
+                    cancelled:
+                        "This request was cancelled: {{reason}}. Signatures given for it no longer count. Start it again to sign the current version.",
+                },
+                signed: {
+                    title: "Signed",
+                    withCertificate: "with the certificate of {{name}}",
+                    count: "{{n}} of {{total}} signatures.",
+                    allIn: "All {{total}} signatures are in.",
+                    next: "Next: {{names}} sign.",
+                },
+                handover:
+                    "You will be signed out. The next member signs in on this computer and returns to this request to sign. The request stays open until {{time}}.",
+                sign: "Sign",
+                back: "Back",
+                cancel: "Cancel",
+            },
+            signaturePage: {
+                digitallySigned: "Digitally signed by {{name}}",
+            },
         },
     },
 }
