@@ -441,6 +441,16 @@ const englishTranslation = {
                 "A slate is a group of candidates running together. Each candidate shows the slate they belong to.",
             independent: "Independent",
             contestMembers: "{{slate}} candidates for {{contest}}",
+            noCandidate: "No candidate",
+            coverage: {
+                full: "Full slate",
+                singleContest: "{{contest}} only",
+                partial: "Partial slate",
+                candidates_one: "{{count}} candidate",
+                candidates_other: "{{count}} candidates",
+                offices_one: "{{count}} office",
+                offices_other: "{{count}} offices",
+            },
         },
         ballotLocator: {
             title: "Find your Ballot",

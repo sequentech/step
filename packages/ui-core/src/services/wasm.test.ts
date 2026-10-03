@@ -54,6 +54,7 @@ jest.mock("sequent-core", () => {
         "get_default_voting_screen_back_policy_js",
         "get_voting_screen_back_policy_values_js",
         "get_ballot_style_slates_js",
+        "get_ballot_style_slates_coverage_js",
         "set_hooks",
     ]
     return {
@@ -357,6 +358,22 @@ const cases: AdapterCase[] = [
         backend: backend.get_ballot_style_slates_js,
         args: [ballotStyle],
         result: {version: 1, mobile_candidate_lists: "collapsed", slates: []},
+    },
+    {
+        name: "ballot style slates coverage",
+        run: () => adapter.getBallotStyleSlatesCoverage(ballotStyle),
+        backend: backend.get_ballot_style_slates_coverage_js,
+        args: [ballotStyle],
+        result: [
+            {
+                slate_id: "voices",
+                kind: "partial",
+                covered: [{contest_id: "trustees", candidate_ids: ["v-t1"], seats: 3}],
+                uncovered_contest_ids: ["president"],
+                members: 1,
+                seats: 4,
+            },
+        ],
     },
 ]
 

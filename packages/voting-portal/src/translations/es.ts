@@ -452,6 +452,16 @@ const spanishTranslation: TranslationType = {
                 "Una candidatura conjunta es un grupo de candidatos que se presentan juntos. Cada candidato muestra la candidatura a la que pertenece.",
             independent: "Independiente",
             contestMembers: "Candidatos de {{slate}} para {{contest}}",
+            noCandidate: "Sin candidato",
+            coverage: {
+                full: "Candidatura completa",
+                singleContest: "Solo {{contest}}",
+                partial: "Candidatura parcial",
+                candidates_one: "{{count}} candidato",
+                candidates_other: "{{count}} candidatos",
+                offices_one: "{{count}} cargo",
+                offices_other: "{{count}} cargos",
+            },
         },
         ballotLocator: {
             title: "Encuentra tu Papeleta",

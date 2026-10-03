@@ -17,6 +17,7 @@ import SequentCoreLibInit, {
     get_default_voting_screen_back_policy_js,
     get_voting_screen_back_policy_values_js,
     get_ballot_style_slates_js,
+    get_ballot_style_slates_coverage_js,
     IVotingScreenBackPolicy,
 } from "sequent-core"
 import {
@@ -67,6 +68,7 @@ import {
     EDeclineToVotePolicy,
     EBlankBallotsPolicy,
     ISlatesConfig,
+    ISlateCoverage,
 } from ".."
 
 export type {
@@ -414,6 +416,22 @@ export const check_voting_error_dialog_bool = (
 export const getBallotStyleSlates = (ballotStyle: IBallotStyle): ISlatesConfig | null => {
     try {
         return get_ballot_style_slates_js(ballotStyle) ?? null
+    } catch (error) {
+        console.log(error)
+        throw error
+    }
+}
+
+/**
+ * What each slate covers of the contests of a ballot style, in the configured
+ * order and without the slates that have no candidate in it. Null when the
+ * election has no slates. Throws like `getBallotStyleSlates`.
+ */
+export const getBallotStyleSlatesCoverage = (
+    ballotStyle: IBallotStyle
+): Array<ISlateCoverage> | null => {
+    try {
+        return get_ballot_style_slates_coverage_js(ballotStyle) ?? null
     } catch (error) {
         console.log(error)
         throw error
