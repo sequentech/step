@@ -8,10 +8,11 @@ import "@testing-library/jest-dom"
 import {
     EMessageAttemptState,
     EMessageChannel,
+    EMessagePurpose,
     EMessagingProvider,
     IMessagingAccount,
 } from "@/types/messaging"
-import {MessagingTestDialog, testStateSeverity} from "./MessagingTestDialog"
+import {MessagingTestDialog, testStateSeverity, testTemplateField} from "./MessagingTestDialog"
 
 const mockTest = jest.fn()
 jest.mock("@apollo/client", () => ({gql: jest.fn(() => ({})), useMutation: () => [mockTest]}))
@@ -101,7 +102,7 @@ describe("MessagingTestDialog", () => {
         })
         const send = screen.getByRole("button", {name: "messagingAccounts.test.send"})
         expect(send).toBeDisabled()
-        fireEvent.change(screen.getByLabelText("messagingAccounts.test.template"), {
+        fireEvent.change(screen.getByLabelText(/messagingAccounts.test.template/), {
             target: {value: " otp_en "},
         })
         fireEvent.click(send)
@@ -114,6 +115,45 @@ describe("MessagingTestDialog", () => {
                 language: "en",
                 template: "otp_en",
             },
+        })
+    })
+
+    it("takes the provider's language code, which need not be a language of the tenant", async () => {
+        mockTest.mockResolvedValue({data: {test_messaging_account: null}})
+        render(<MessagingTestDialog account={account} languages={["en"]} onClose={jest.fn()} />)
+        expect(screen.getByText("messagingAccounts.test.languageHelp")).toBeInTheDocument()
+        fireEvent.change(screen.getByLabelText("messagingAccounts.test.language"), {
+            target: {value: " en_US "},
+        })
+        fireEvent.change(screen.getByLabelText("messagingAccounts.test.destination.PHONE_NUMBER"), {
+            target: {value: "+639170000000"},
+        })
+        fireEvent.click(screen.getByRole("button", {name: "messagingAccounts.test.send"}))
+        await screen.findByText("messagingAccounts.test.error")
+        expect(mockTest.mock.calls[0][0].variables.language).toBe("en_US")
+    })
+
+    it("offers a custom HTTP API the template, required for its template-only purposes", () => {
+        const custom = (templateRequiredFor: EMessagePurpose[]): IMessagingAccount => ({
+            ...account,
+            provider: EMessagingProvider.HTTP_API,
+            sender: {
+                provider: EMessagingProvider.HTTP_API,
+                send: {url: "https://partner.example"},
+                template_required_for: templateRequiredFor,
+            },
+        })
+        expect(testTemplateField(custom([EMessagePurpose.OTP]), EMessagePurpose.OTP)).toEqual({
+            offered: true,
+            required: true,
+        })
+        expect(testTemplateField(custom([EMessagePurpose.OTP]), EMessagePurpose.NOTICE)).toEqual({
+            offered: true,
+            required: false,
+        })
+        expect(testTemplateField(account, EMessagePurpose.OTP)).toEqual({
+            offered: false,
+            required: false,
         })
     })
 

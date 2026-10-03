@@ -26,6 +26,8 @@ export interface ISendTemplateState<Audience extends string, VoterId> {
     communicationMethod: ITemplateMethod
     scheduleNow: boolean
     scheduleDate?: Date
+    /** Alias of the chosen template: the key its approved template is bound under. */
+    alias?: string
     content: ISendContent
     secretAttributeNames: string[]
 }
@@ -37,8 +39,36 @@ export interface ISendTemplatePayload<Audience extends string, VoterId> extends 
     communication_method?: ITemplateMethod
     schedule_now: boolean
     schedule_date?: Date
+    alias?: string
     secret_attribute_names: string[]
 }
+
+/**
+ * An instant message as it is sent: the provider's template and language only
+ * when set, so that without them the event's binding is used.
+ */
+const instantMessage = (
+    config: IInstantMessageConfig | undefined
+): IInstantMessageConfig | undefined => {
+    if (!config) {
+        return undefined
+    }
+    const providerTemplate = config.provider_template?.trim()
+    const providerLanguage = config.provider_language?.trim()
+    return {
+        message: config.message,
+        parameters: config.parameters,
+        ...(providerTemplate ? {provider_template: providerTemplate} : {}),
+        ...(providerLanguage ? {provider_language: providerLanguage} : {}),
+    }
+}
+
+const sendContent = (content: ISendContent): ISendContent => ({
+    ...content,
+    whatsapp: instantMessage(content.whatsapp),
+    viber: instantMessage(content.viber),
+    messenger: instantMessage(content.messenger),
+})
 
 const contentFor = (content: ISendContent, method: ITemplateMethod): ISendContent => {
     const key = templateContentKey(method)
@@ -58,6 +88,7 @@ export const buildSendTemplatePayload = <Audience extends string, VoterId>(
     state: ISendTemplateState<Audience, VoterId>
 ): ISendTemplatePayload<Audience, VoterId> => {
     const single = state.channelSelection === EChannelSelection.SINGLE_CHANNEL
+    const content = sendContent(state.content)
     return {
         audience_selection: state.audienceSelection,
         audience_voter_ids: state.voterIds,
@@ -65,7 +96,8 @@ export const buildSendTemplatePayload = <Audience extends string, VoterId>(
         communication_method: single ? state.communicationMethod : undefined,
         schedule_now: state.scheduleNow,
         schedule_date: state.scheduleDate,
-        ...(single ? contentFor(state.content, state.communicationMethod) : state.content),
+        ...(state.alias ? {alias: state.alias} : {}),
+        ...(single ? contentFor(content, state.communicationMethod) : content),
         secret_attribute_names: state.secretAttributeNames,
     }
 }

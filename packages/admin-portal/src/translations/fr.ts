@@ -3463,7 +3463,7 @@ const frenchTranslation: TranslationType = {
             purposeSwitch: "{{channel}} : {{purpose}}",
             sections: {
                 channels: "Canaux",
-                templates: "Modèles WhatsApp et Viber",
+                templates: "Modèles approuvés",
                 fallback: "Ordre de repli pour les avis",
                 posts: "Canaux par Post",
                 postsCount: "Canaux par Post ({{count}} Posts)",
@@ -3475,22 +3475,40 @@ const frenchTranslation: TranslationType = {
                 account: "Envoie depuis",
                 purpose: "Usage",
                 language: "Langue",
-                template: "Modèle approuvé",
+                template: "Modèle du fournisseur",
                 status: "État",
                 post: "Post",
+                key: "Pour le message",
+                providerLanguage: "Langue du fournisseur",
             },
             outOfWindow: {
-                label: "Après 24 heures",
-                help: "Messenger n'envoie des avis que dans les 24 heures suivant le dernier message de l'électeur. L'envoi ultérieur reste désactivé jusqu'à ce que Meta confirme le mécanisme pour cette Page ; d'ici là, ces avis passent au canal disponible suivant de l'électeur.",
+                label: "Hors de la fenêtre de conversation",
+                help: "Les avis en texte libre ne sont envoyés que tant que la fenêtre de conversation est ouverte : sur Messenger, dans les 24 heures suivant le dernier message de l'électeur. Choisissez Messages utilitaires pour envoyer des avis après ce délai avec un modèle approuvé. Meta doit l'approuver pour la Page (l'autorisation page_utility_messaging et un modèle UTILITY approuvé), et ce modèle doit être lié aux avis dans Modèles approuvés. Avec Ne pas envoyer, un avis hors de la fenêtre passe au canal disponible suivant de l'électeur.",
                 DISABLED: "Ne pas envoyer",
                 UTILITY_MESSAGES: "Messages utilitaires",
+                noTemplate:
+                    "Aucun modèle n'est encore lié aux avis sur ce canal. Ajoutez-en un dans Modèles approuvés ; d'ici là, les avis hors de la fenêtre passent au canal disponible suivant de l'électeur.",
             },
             templates: {
-                empty: "Activez les codes ou les avis sur WhatsApp ou Viber pour choisir leurs modèles.",
-                help: "WhatsApp et Viber n'envoient que des modèles approuvés par le fournisseur pour le compte. Indiquez le modèle approuvé de chaque langue ; une langue sans modèle approuvé ne peut pas être envoyée.",
-                label: "Modèle {{purpose}} {{channel}}, {{language}}",
-                approved: "Approuvé",
-                notApproved: "Non approuvé",
+                empty: "Choisissez un compte qui envoie des modèles approuvés, comme WhatsApp, Viber ou Messenger, pour lier ses modèles ici.",
+                help: "Chaque ligne indique quel modèle approuvé le fournisseur envoie pour un message. Pour le message est l'alias d'un modèle de Modèles, pour une notification, ou la clé de message qu'envoie Keycloak, comme otp ; laissez-le vide pour le modèle utilisé par défaut pour l'usage. Langue est la langue de l'électeur. Modèle du fournisseur est le nom ou l'ID du modèle chez le fournisseur. Langue du fournisseur est le code du fournisseur pour ce modèle lorsqu'il diffère de la langue de l'électeur : WhatsApp exige le code exact du modèle approuvé, comme en_US.",
+                order: "Pour chaque message, la ligne la plus précise l'emporte : la ligne du message dans la langue de l'électeur, puis la ligne du message dans n'importe quelle langue, puis le modèle par défaut de l'usage dans la langue de l'électeur, puis n'importe quel modèle par défaut de l'usage.",
+                noneRequired:
+                    "{{channel}} n'envoie que des modèles approuvés. Ajoutez au moins un modèle par défaut pour chaque usage utilisé.",
+                noneOptional:
+                    "Aucun modèle n'est lié pour {{channel}}. Ils ne sont nécessaires que pour envoyer des avis hors de la fenêtre de conversation.",
+                row: "Modèle {{channel}} {{position}}",
+                keyDefault: "Par défaut pour l'usage",
+                add: "Ajouter un modèle {{channel}}",
+                remove: "Retirer le modèle {{channel}} {{position}}",
+                incomplete:
+                    "Saisissez la langue et le modèle du fournisseur, ou retirez cette ligne.",
+                approval: {
+                    APPROVED: "Approuvé",
+                    NOT_APPROVED: "Non approuvé",
+                    ADMIN_CONFIRMED: "Confirmé par un administrateur",
+                    NOT_CHECKED: "Approbation non vérifiée",
+                },
             },
             fallback: {
                 help: "Lorsqu'un avis ne peut pas atteindre un électeur sur son canal, il passe au canal suivant de cet ordre que l'électeur a vérifié et que son Post propose. Les codes ne sont jamais renvoyés d'eux-mêmes : l'électeur choisit un autre moyen.",
@@ -3531,7 +3549,7 @@ const frenchTranslation: TranslationType = {
                 TEMPLATE_NOT_APPROVED:
                     "Le modèle {{channel}} pour {{purpose}} en {{language}} n'est pas approuvé par le fournisseur.",
                 OUT_OF_WINDOW_NOT_SUPPORTED:
-                    "{{channel}} ne peut pas envoyer hors d'une fenêtre de conversation.",
+                    "{{channel}} ne peut pas envoyer hors d'une fenêtre de conversation avec ce compte : il n'a pas de fenêtre de conversation, ou ses avis nécessitent déjà un modèle.",
                 FALLBACK_CHANNEL_NOT_ENABLED:
                     "{{channel}} est dans l'ordre de repli mais n'envoie pas d'avis.",
                 DUPLICATE_FALLBACK_CHANNEL:
@@ -3557,6 +3575,7 @@ const frenchTranslation: TranslationType = {
                 MESSENGER_SEND_API: "Messenger Platform (Meta)",
                 VIBER_INFOBIP: "Viber Business Messages (Infobip)",
                 CONSOLE: "Console (test uniquement, rien n'est envoyé)",
+                HTTP_API: "API HTTP personnalisée",
             },
             purpose: {
                 OTP: "Codes",
@@ -3592,6 +3611,8 @@ const frenchTranslation: TranslationType = {
                 notReady: "Pas prêt",
                 lastCheck: "Vérifié {{date}}",
                 neverChecked: "Pas encore vérifié",
+                adminConfirmed: "Confirmé par un administrateur",
+                checkNotUsed: "Vérification non utilisée",
             },
             approval: {
                 PENDING: "Approbation du fournisseur en attente",
@@ -3605,13 +3626,17 @@ const frenchTranslation: TranslationType = {
                 SMTP_PASSWORD: "Mot de passe",
                 AWS_ACCESS_KEY_ID: "ID de clé d'accès AWS",
                 AWS_SECRET_ACCESS_KEY: "Clé d'accès secrète AWS",
+                API_SECRET: "Secret de l'API",
+                USERNAME: "Nom d'utilisateur",
+                PASSWORD: "Mot de passe",
+                WEBHOOK_SECRET: "Secret du webhook",
             },
             deliveryUnavailable: "Remise non disponible",
             templates: {
                 noMethod: "Choisissez au moins une méthode pour le modèle.",
                 parameters: "Paramètres du modèle",
                 parametersHelp:
-                    "Ce qui remplit chaque espace réservé du modèle approuvé, dans l'ordre, par exemple user.first_name ou vote_url.",
+                    "Ce qui remplit chaque espace réservé du modèle approuvé, dans l'ordre, par exemple user.first_name ou vote_url. Pour un modèle à paramètres nommés, écrivez @nom=valeur, par exemple @first_name=user.first_name ; toute autre entrée est positionnelle.",
                 parameter: "Paramètre {{position}}",
                 removeParameter: "Retirer le paramètre {{position}}",
                 addParameter: "Ajouter un paramètre",
@@ -3629,7 +3654,7 @@ const frenchTranslation: TranslationType = {
                     "Dans les 24 heures qui suivent le dernier message de l'électeur, Messenger envoie le texte ci-dessous.",
                 messengerMessage: "Message dans les 24 heures",
                 messengerWindow:
-                    "Un destinataire Messenger enregistré n'est pas une autorisation d'envoi. En dehors de la fenêtre de 24 heures, Messenger n'envoie pas cet avis : il passe au canal disponible suivant de l'électeur jusqu'à ce que Meta confirme un mécanisme pour cette Page.",
+                    "Un destinataire Messenger enregistré n'est pas une autorisation d'envoi. En dehors de la fenêtre de 24 heures, cet avis est envoyé comme message utilitaire lorsque l'événement électoral le permet et qu'un modèle approuvé est indiqué ci-dessous ou lié dans l'événement ; sinon, il passe au canal disponible suivant de l'électeur. Les messages utilitaires nécessitent l'autorisation page_utility_messaging et un modèle UTILITY approuvé sur la Page.",
                 intro: {
                     WHATSAPP:
                         "WhatsApp n'envoie que les modèles approuvés par Meta pour le compte WhatsApp Business. Le message doit correspondre au modèle approuvé ; choisissez ce qui remplit ses paramètres.",
@@ -3638,6 +3663,18 @@ const frenchTranslation: TranslationType = {
                 approvedWording: "Texte approuvé",
                 approvedWordingHelp:
                     "Une copie du modèle approuvé, utilisée comme aperçu. La modifier ici ne change pas ce que le fournisseur envoie.",
+                providerTemplateTitle: "Modèle du fournisseur",
+                providerTemplateHelp:
+                    "Facultatif. Le nom ou l'ID du modèle approuvé chez le fournisseur. S'il est vide, le modèle de l'événement électoral lié à l'alias de ce modèle est utilisé, ou le modèle par défaut de l'événement pour l'usage.",
+                providerTemplate: "Nom ou ID du modèle du fournisseur",
+                providerLanguage: "Code de langue du fournisseur",
+                providerLanguageHelp: {
+                    WHATSAPP: "Le code de langue exact du modèle WhatsApp approuvé, comme en_US.",
+                    VIBER: "Le code de langue sous lequel le fournisseur Viber connaît le modèle, lorsqu'il en faut un.",
+                    MESSENGER: "Le code de langue du modèle utilitaire approuvé, comme en_US.",
+                },
+                approvalAdminConfirmed:
+                    "Un administrateur a confirmé auprès du fournisseur que les modèles de ce compte sont approuvés ; les approbations de la vérification de connexion ne sont donc pas utilisées.",
             },
             send: {
                 channel: "Canal",
@@ -3652,6 +3689,12 @@ const frenchTranslation: TranslationType = {
                 missingContent: "Cette notification n'a pas de contenu pour {{channels}}.",
                 approvedTemplateHelp:
                     "Envoyé avec le modèle approuvé par le fournisseur. Modifiez-le dans Modèles.",
+                providerTemplate: "Modèle du fournisseur {{channel}}",
+                providerTemplateHelp:
+                    "Facultatif. S'il est vide, le modèle de l'événement lié à l'alias du modèle choisi est utilisé, ou le modèle par défaut de l'événement pour les avis.",
+                providerLanguage: "Langue du fournisseur {{channel}}",
+                providerLanguageHelp:
+                    "Le code de langue du fournisseur pour ce modèle, comme en_US.",
             },
             voter: {
                 title: "Messagerie",
@@ -3673,6 +3716,10 @@ const frenchTranslation: TranslationType = {
                     VIBER: "Messages Viber envoyés",
                     MESSENGER: "Messages Messenger envoyés",
                 },
+            },
+            readinessPolicy: {
+                PROVIDER_CHECK: "D'après la vérification du fournisseur",
+                ADMIN_CONFIRMED: "Confirmé par un administrateur",
             },
         },
         messagingAccounts: {
@@ -3728,6 +3775,7 @@ const frenchTranslation: TranslationType = {
                 save: "Enregistrer",
                 cancel: "Annuler",
                 close: "Fermer",
+                channelHelp: "Ne peut pas être modifié après la création du compte.",
             },
             field: {
                 name: "Nom du compte",
@@ -3750,6 +3798,9 @@ const frenchTranslation: TranslationType = {
                 sender: "Nom de l'expéditeur",
                 provider_approval: "Approbation du fournisseur",
                 is_default: "Compte {{channel}} par défaut pour les nouveaux événements électoraux",
+                readiness: "Disponibilité",
+                api_base_url: "URL de base de Graph API",
+                label: "Expéditeur affiché aux électeurs",
             },
             fieldHelp: {
                 from_address:
@@ -3768,7 +3819,12 @@ const frenchTranslation: TranslationType = {
                 base_url: "L'URL de base de l'API Infobip du compte.",
                 sender: "L'expéditeur approuvé que voient les électeurs.",
                 provider_approval:
-                    "Meta n'autorise les messages WhatsApp des gouvernements que dans le cadre d'un accord approuvé. Tant que l'approbation est en attente, les codes et les avis ne peuvent pas être activés pour ce compte.",
+                    "Meta n'autorise les messages WhatsApp des gouvernements que dans le cadre d'un accord approuvé. Choisissez Approbation du fournisseur confirmée une fois que Meta l'a approuvé pour ce compte ; d'ici là, les codes et les avis ne peuvent pas être activés pour ce compte.",
+                readiness:
+                    "D'après la vérification du fournisseur utilise ce que trouve la vérification de connexion : si le compte est connecté, en production, et quels modèles sont approuvés. Confirmé par un administrateur est destiné aux fournisseurs dont la vérification ne peut pas le déterminer : c'est votre déclaration que le compte est connecté, en production et que ses modèles sont approuvés, et elle est utilisée à la place de la vérification.",
+                api_base_url:
+                    "Uniquement lorsque Graph API n'est pas celle de Meta, comme le point d'accès d'un fournisseur de solutions. Vide utilise celle de Meta.",
+                label: "Le nom que les électeurs voient comme expéditeur de ce compte.",
             },
             error: {
                 REQUIRED: "Obligatoire",
@@ -3777,6 +3833,8 @@ const frenchTranslation: TranslationType = {
                 INVALID_CALLING_CODE:
                     "Saisissez des indicatifs téléphoniques de pays de 1 à 3 chiffres, comme 63",
                 DUPLICATE_LANGUAGE: "Cette langue a déjà un modèle pour cet usage",
+                NOT_A_URL: "Saisissez une adresse commençant par https:// ou http://",
+                INVALID_HTTP_CONFIG: "Corrigez les problèmes indiqués",
             },
             warning: {
                 pageChange:
@@ -3837,6 +3895,19 @@ const frenchTranslation: TranslationType = {
                 VIBER_INFOBIP: {
                     API_KEY: "La clé d'API Infobip.",
                 },
+                HTTP_API: {
+                    API_KEY: "Facultatif. Les requêtes l'utilisent comme identifiant API_KEY.",
+                    API_SECRET:
+                        "Facultatif. Un second secret, et la clé qui signe le JWT : une clé privée PEM pour RS256, le secret partagé pour HS256.",
+                    ACCESS_TOKEN:
+                        "Facultatif. Les requêtes l'utilisent comme identifiant ACCESS_TOKEN.",
+                    USERNAME:
+                        "Facultatif. Avec le mot de passe, il forme l'espace réservé basic_auth.",
+                    PASSWORD:
+                        "Facultatif. Avec le nom d'utilisateur, il forme l'espace réservé basic_auth.",
+                    WEBHOOK_SECRET:
+                        "Facultatif. Le secret partagé avec lequel les rappels du fournisseur sont vérifiés.",
+                },
             },
             webhook: {
                 title: "Rapports de remise et réponses",
@@ -3857,6 +3928,8 @@ const frenchTranslation: TranslationType = {
                 copyToken: "Copier le jeton de vérification",
                 tokenDone: "Terminé",
                 tokenError: "Le jeton de vérification n'a pas pu être généré.",
+                httpHelp:
+                    "Une API HTTP personnalisée peut publier ses rapports en JSON, ou les envoyer par une requête GET ; ses paramètres de requête sont alors lus comme un objet plat, avec des pointeurs comme /status.",
             },
             copy: {
                 success: "Copié",
@@ -3882,9 +3955,111 @@ const frenchTranslation: TranslationType = {
                 error: "Le message de test n'a pas pu être envoyé.",
                 template: "Modèle approuvé",
                 templateHelp:
-                    "Le nom du modèle WhatsApp que le fournisseur a approuvé pour cet usage et cette langue.",
+                    "Le nom ou l'ID du modèle que le fournisseur a approuvé pour cet usage et cette langue.",
                 viberTemplate:
                     "Viber utilise le modèle que ce compte indique comme approuvé pour l'usage et la langue choisis.",
+                languageHelp:
+                    "Pour un fournisseur qui envoie des modèles approuvés, saisissez le code de langue du fournisseur pour le modèle, comme en_US.",
+            },
+            http: {
+                title: "API HTTP personnalisée",
+                description:
+                    "Décrit un fournisseur par ses requêtes HTTP : un autre partenaire Viber, l'API propre d'un fournisseur de solutions WhatsApp, une passerelle SMS. Les requêtes sont en JSON ; leur URL, leurs en-têtes et leur corps peuvent contenir les espaces réservés de la référence ci-dessous.",
+                phoneFormat: "Format du numéro de téléphone",
+                phoneFormatHelp:
+                    "Comment le numéro de téléphone du destinataire est écrit dans une requête.",
+                phoneFormatOption: {
+                    E164: "Avec le signe plus : +639171234567",
+                    DIGITS: "Chiffres uniquement : 639171234567",
+                },
+                templateRequired: "Usages qui nécessitent un modèle approuvé",
+                templateRequiredHelp:
+                    "Un usage coché n'est envoyé qu'avec un modèle approuvé par le fournisseur, lié dans l'événement électoral. Les autres usages sont envoyés en texte libre.",
+                approvedLanguages: "Langues avec un modèle approuvé pour {{purpose}}",
+                approvedLanguagesHelp:
+                    "Les codes de langue ayant un modèle approuvé, tels que confirmés auprès du fournisseur, séparés par des virgules : en, tl. La vérification de connexion les signale.",
+                conversationWindow: "Fenêtre de conversation (heures)",
+                conversationWindowHelp:
+                    "Heures après le dernier message du destinataire pendant lesquelles du texte libre peut être envoyé. Vide lorsque le fournisseur n'a pas de telle fenêtre.",
+                messageIdPointer: "ID du message dans la réponse d'envoi",
+                messageIdPointerHelp:
+                    "Un pointeur JSON vers l'ID de message du fournisseur dans la réponse à la requête d'envoi, comme /message_id. Il sert à associer les rapports de remise.",
+                notConfigured: "Non configuré.",
+                thisSection: "Cette section",
+                add: "Ajouter : {{section}}",
+                remove: "Retirer : {{section}}",
+                section: {
+                    SEND: "Requête d'envoi",
+                    CHECK: "Requête de vérification de connexion",
+                    TOKEN: "Requête de jeton",
+                    JWT: "Jeton signé (JWT)",
+                    REPORTS: "Rapports de remise et réponses",
+                    RECONCILE: "Requête de recherche d'un message",
+                },
+                sectionHelp: {
+                    SEND: "La requête qui envoie un message : method (POST si omis), url, headers et body.",
+                    CHECK: "Facultatif. Une requête qui réussit, avec une réponse 2xx, lorsque les identifiants fonctionnent. La vérification de connexion l'exécute.",
+                    TOKEN: "Facultatif. Obtient un jeton de courte durée avant l'envoi, comme les identifiants client OAuth : request, token_pointer (où se trouve le jeton dans la réponse) et lifetime_seconds. Les requêtes l'utilisent avec l'espace réservé token.",
+                    JWT: "Facultatif. Un jeton signé pour chaque requête avec l'identifiant Secret de l'API : algorithm (RS256 ou HS256), claims (iat, exp et jti sont ajoutés) et lifetime_seconds. Les requêtes l'utilisent avec l'espace réservé jwt.",
+                    REPORTS:
+                        "Facultatif. Comment lire ce que le fournisseur envoie au rappel : auth, items_pointer (où se trouve la liste des rapports ; tout le contenu si omis), status (message_id_pointer, state_pointer, states, qui associe chaque valeur du fournisseur à QUEUED, ACCEPTED, DELIVERED, FAILED ou UNKNOWN, et error_pointer) et inbound_from_pointer (où se trouve l'expéditeur d'une réponse). auth a un kind : URL_KEY (uniquement l'adresse secrète du rappel), HEADER_SECRET (un en-tête égal au secret du webhook), HMAC_SHA256 (un en-tête avec le HMAC du corps calculé avec le secret du webhook, avec prefix, encoding HEX ou BASE64, et signed lorsque la signature couvre plus que le corps) ou JWT_HS256 (un en-tête avec un JWT bearer signé avec le secret du webhook).",
+                    RECONCILE:
+                        "Facultatif. Interroge le fournisseur sur un message dont le résultat est inconnu : request et status, qui se lit comme le status des rapports de remise.",
+                },
+                problem: {
+                    NOT_AN_OBJECT: "{{path}} doit être un objet.",
+                    MISSING_URL: "{{path}} est obligatoire : l'adresse de la requête.",
+                    INVALID_METHOD: "{{path}} doit être une méthode HTTP, comme POST ou GET.",
+                    INVALID_HEADERS:
+                        "{{path}} doit être du texte : headers est un objet de noms d'en-tête et de valeurs textuelles.",
+                    UNKNOWN_FIELD: "{{path}} n'est pas un champ de cette section.",
+                    UNKNOWN_PLACEHOLDER:
+                        "{{path}} utilise un espace réservé qui n'existe pas. Consultez la référence des espaces réservés.",
+                    INVALID_POINTER:
+                        "{{path}} doit être un pointeur JSON commençant par /, comme /data/id.",
+                    INVALID_STATES:
+                        "{{path}} doit associer une valeur d'état du fournisseur à QUEUED, ACCEPTED, DELIVERED, FAILED ou UNKNOWN ; il en faut au moins une.",
+                    INVALID_AUTH:
+                        "{{path}} n'est pas valide : kind est URL_KEY, HEADER_SECRET, HMAC_SHA256 ou JWT_HS256 ; header est obligatoire sauf pour URL_KEY ; encoding est HEX ou BASE64.",
+                    INVALID_LIFETIME:
+                        "{{path}} doit être un nombre entier de secondes supérieur à 0.",
+                    INVALID_ALGORITHM: "{{path}} doit être RS256 ou HS256.",
+                    INVALID_CLAIMS: "{{path}} doit être un objet.",
+                    INVALID_HOURS: "{{path}} doit être un nombre entier d'heures supérieur à 0.",
+                },
+                placeholders: {
+                    title: "Référence des espaces réservés",
+                    help: "Écrits entre doubles accolades dans l'URL, dans la valeur d'un en-tête ou dans tout texte du corps. Chacun est remplacé au moment de la requête.",
+                },
+                placeholder: {
+                    to: "Le destinataire : numéro de téléphone, adresse e-mail ou ID spécifique à la Page.",
+                    text: "Le message en texte brut.",
+                    subject: "L'objet, pour l'e-mail.",
+                    html: "Le message en HTML, pour l'e-mail.",
+                    code: "Le code à usage unique, pour les codes.",
+                    template: "Le modèle du fournisseur lié dans l'événement électoral.",
+                    language: "Le code de langue du fournisseur pour le modèle.",
+                    message_id:
+                        "L'ID de message du fournisseur, dans une requête de recherche d'un message.",
+                    callback_url: "L'adresse publique du rappel de ce compte.",
+                    param: "Un paramètre du modèle selon sa position : 1, 2, 3, etc.",
+                    credential:
+                        "Un identifiant de ce compte par son nom : API_KEY, API_SECRET, ACCESS_TOKEN, USERNAME, PASSWORD ou WEBHOOK_SECRET.",
+                    basic_auth:
+                        "Le nom d'utilisateur et le mot de passe, encodés pour un en-tête Authorization: Basic.",
+                    token: "Le jeton obtenu avec la requête de jeton.",
+                    jwt: "Le jeton signé décrit dans Jeton signé (JWT).",
+                    parameters:
+                        "Seul comme valeur du corps, il devient la liste de tous les paramètres du modèle.",
+                    named_parameters:
+                        "Seul comme valeur du corps, il devient un objet des paramètres écrits sous la forme @nom=valeur.",
+                },
+                example: {
+                    title: "Exemple complet : un partenaire Viber",
+                    description:
+                        "Le partenaire reçoit un POST JSON authentifié avec la clé d'API comme jeton bearer, répond avec l'ID du message dans message_id et publie les rapports de remise avec un en-tête secret. Utilisez-le comme point de départ et remplacez l'adresse et les noms de champ par ceux du fournisseur.",
+                    use: "Utiliser cet exemple",
+                },
             },
         },
     },

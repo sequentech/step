@@ -85,6 +85,12 @@ export const Accounts: Story = {
         const sms = await accountRow(canvasElement, "Council SMS")
         await expect(within(sms).getByText("The account is in the SMS sandbox.")).toBeVisible()
         await expect(within(sms).getAllByText("Needs production access").length).toBe(2)
+        const partner = await accountRow(canvasElement, "Partner gateway")
+        await expect(within(partner).getByText("Custom HTTP API")).toBeVisible()
+        await expect(within(partner).getByText("Confirmed by an administrator")).toBeVisible()
+        await expect(within(partner).getByText("Ready for OTP")).toBeVisible()
+        await expect(within(partner).getByText("Check not used")).toBeVisible()
+        expect(within(partner).queryByText("Not connected")).toBeNull()
         const messenger = await accountRow(canvasElement, "Council Page")
         await expect(within(messenger).getByText("Not checked yet")).toBeVisible()
         expect(graphql.calls[0]).toMatchObject({

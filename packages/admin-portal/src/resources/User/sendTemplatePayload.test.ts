@@ -56,6 +56,46 @@ describe("buildSendTemplatePayload", () => {
         expect(payload.sms).toBeUndefined()
         expect(payload.messenger).toBeUndefined()
     })
+
+    it("names the provider's template and language when they are set", () => {
+        const payload = buildSendTemplatePayload({
+            ...base,
+            channelSelection: EChannelSelection.VOTER_PREFERENCE,
+            communicationMethod: ITemplateMethod.SMS,
+            content: {
+                ...content,
+                whatsapp: {
+                    ...content.whatsapp,
+                    provider_template: " vote_reminder ",
+                    provider_language: " en_US ",
+                },
+                viber: {message: "Approved", parameters: [], provider_template: "88213"},
+                messenger: {...content.messenger, provider_template: " ", provider_language: null},
+            },
+        })
+        expect(payload.whatsapp).toEqual({
+            ...content.whatsapp,
+            provider_template: "vote_reminder",
+            provider_language: "en_US",
+        })
+        expect(payload.viber).toEqual({
+            message: "Approved",
+            parameters: [],
+            provider_template: "88213",
+        })
+        expect(payload.messenger).toEqual(content.messenger)
+        expect("alias" in payload).toBe(false)
+    })
+
+    it("carries the alias of the chosen template, the key its template is bound under", () => {
+        const payload = buildSendTemplatePayload({
+            ...base,
+            alias: "reminder",
+            channelSelection: EChannelSelection.SINGLE_CHANNEL,
+            communicationMethod: ITemplateMethod.WHATSAPP,
+        })
+        expect(payload.alias).toBe("reminder")
+    })
 })
 
 describe("templatesForChannelSelection", () => {

@@ -3404,7 +3404,7 @@ const englishTranslation = {
             purposeSwitch: "{{channel}}: {{purpose}}",
             sections: {
                 channels: "Channels",
-                templates: "WhatsApp and Viber templates",
+                templates: "Approved templates",
                 fallback: "Fallback order for notices",
                 posts: "Channels by Post",
                 postsCount: "Channels by Post ({{count}} Posts)",
@@ -3416,22 +3416,39 @@ const englishTranslation = {
                 account: "Sends from",
                 purpose: "Purpose",
                 language: "Language",
-                template: "Approved template",
+                template: "Provider template",
                 status: "Status",
                 post: "Post",
+                key: "For message",
+                providerLanguage: "Provider language",
             },
             outOfWindow: {
-                label: "After 24 hours",
-                help: "Messenger sends notices only within 24 hours of the voter's last message. Sending later stays off until Meta confirms the mechanism for this Page; until then those notices go to the voter's next eligible channel.",
+                label: "Outside the conversation window",
+                help: "Free-text notices are sent only while the conversation window is open: on Messenger, within 24 hours of the voter's last message. Choose Utility messages to send notices after that with an approved template. Meta must approve this for the Page (the page_utility_messaging permission and an approved UTILITY template), and that template must be bound to notices under Approved templates. With Do not send, a notice outside the window goes to the voter's next eligible channel.",
                 DISABLED: "Do not send",
                 UTILITY_MESSAGES: "Utility messages",
+                noTemplate:
+                    "No template is bound to notices on this channel yet. Add one under Approved templates; until then notices outside the window go to the voter's next eligible channel.",
             },
             templates: {
-                empty: "Enable codes or notices on WhatsApp or Viber to choose their templates.",
-                help: "WhatsApp and Viber send only templates the provider approved for the account. Enter the approved template for each language; a language without an approved template cannot be sent.",
-                label: "{{channel}} {{purpose}} template, {{language}}",
-                approved: "Approved",
-                notApproved: "Not approved",
+                empty: "Choose an account that sends approved templates, such as WhatsApp, Viber or Messenger, to bind its templates here.",
+                help: "Each row says which approved template the provider sends for a message. For message is the alias of a template in Templates, for a notification, or the message key Keycloak sends, such as otp; leave it empty for the template used by default for the purpose. Language is the voter's language. Provider template is the template's name or ID at the provider. Provider language is the provider's code for that template when it differs from the voter's language: WhatsApp needs the exact code of the approved template, such as en_US.",
+                order: "For each message the most specific row wins: the row for the message in the voter's language, then the row for the message in any language, then the default for the purpose in the voter's language, then any default for the purpose.",
+                noneRequired:
+                    "{{channel}} sends only approved templates. Add at least a default template for each purpose in use.",
+                noneOptional:
+                    "No templates are bound for {{channel}}. They are needed only to send notices outside the conversation window.",
+                row: "{{channel}} template {{position}}",
+                keyDefault: "Default for the purpose",
+                add: "Add {{channel}} template",
+                remove: "Remove {{channel}} template {{position}}",
+                incomplete: "Enter the language and the provider template, or remove this row.",
+                approval: {
+                    APPROVED: "Approved",
+                    NOT_APPROVED: "Not approved",
+                    ADMIN_CONFIRMED: "Confirmed by an administrator",
+                    NOT_CHECKED: "Approval not checked",
+                },
             },
             fallback: {
                 help: "When a notice cannot reach a voter on their channel, it goes to the next channel in this order that the voter has verified and their Post offers. Codes are never resent on their own: the voter chooses another way.",
@@ -3472,7 +3489,7 @@ const englishTranslation = {
                 TEMPLATE_NOT_APPROVED:
                     "The {{channel}} template for {{purpose}} in {{language}} is not approved by the provider.",
                 OUT_OF_WINDOW_NOT_SUPPORTED:
-                    "{{channel}} cannot send outside a conversation window.",
+                    "{{channel}} cannot send outside a conversation window with this account: it has no conversation window, or its notices already need a template.",
                 FALLBACK_CHANNEL_NOT_ENABLED:
                     "{{channel}} is in the fallback order but does not send notices.",
                 DUPLICATE_FALLBACK_CHANNEL: "{{channel}} is in the fallback order more than once.",
@@ -3497,6 +3514,7 @@ const englishTranslation = {
                 MESSENGER_SEND_API: "Messenger Platform (Meta)",
                 VIBER_INFOBIP: "Viber Business Messages (Infobip)",
                 CONSOLE: "Console (test only, nothing is sent)",
+                HTTP_API: "Custom HTTP API",
             },
             purpose: {
                 OTP: "OTPs",
@@ -3532,6 +3550,8 @@ const englishTranslation = {
                 notReady: "Not ready",
                 lastCheck: "Checked {{date}}",
                 neverChecked: "Not checked yet",
+                adminConfirmed: "Confirmed by an administrator",
+                checkNotUsed: "Check not used",
             },
             approval: {
                 PENDING: "Pending provider approval",
@@ -3545,13 +3565,17 @@ const englishTranslation = {
                 SMTP_PASSWORD: "Password",
                 AWS_ACCESS_KEY_ID: "AWS access key ID",
                 AWS_SECRET_ACCESS_KEY: "AWS secret access key",
+                API_SECRET: "API secret",
+                USERNAME: "User name",
+                PASSWORD: "Password",
+                WEBHOOK_SECRET: "Webhook secret",
             },
             deliveryUnavailable: "Delivery unavailable",
             templates: {
                 noMethod: "Choose at least one method for the template.",
                 parameters: "Template parameters",
                 parametersHelp:
-                    "What fills each placeholder of the approved template, in order, such as user.first_name or vote_url.",
+                    "What fills each placeholder of the approved template, in order, such as user.first_name or vote_url. For a template with named parameters write @name=value, such as @first_name=user.first_name; any other entry is positional.",
                 parameter: "Parameter {{position}}",
                 removeParameter: "Remove parameter {{position}}",
                 addParameter: "Add parameter",
@@ -3569,7 +3593,7 @@ const englishTranslation = {
                     "Within 24 hours of the voter's last message, Messenger sends the text below.",
                 messengerMessage: "Message within 24 hours",
                 messengerWindow:
-                    "A saved Messenger recipient is not permission to send. Outside the 24-hour window Messenger does not send this notice: it goes to the voter's next eligible channel until Meta confirms a mechanism for this Page.",
+                    "A saved Messenger recipient is not permission to send. Outside the 24-hour window this notice is sent as a utility message when the election event allows it and an approved template is set below or bound in the event; otherwise it goes to the voter's next eligible channel. Utility messages need the page_utility_messaging permission and an approved UTILITY template on the Page.",
                 intro: {
                     WHATSAPP:
                         "WhatsApp sends only templates that Meta approved for the account's WhatsApp Business Account. The message must match the approved template; choose what fills its parameters.",
@@ -3578,6 +3602,19 @@ const englishTranslation = {
                 approvedWording: "Approved wording",
                 approvedWordingHelp:
                     "A copy of the approved template, used as a preview. Changing it here does not change what the provider sends.",
+                providerTemplateTitle: "Provider template",
+                providerTemplateHelp:
+                    "Optional. The name or ID of the approved template at the provider. When empty, the election event's template bound to this template's alias is used, or the event's default for the purpose.",
+                providerTemplate: "Provider template name or ID",
+                providerLanguage: "Provider language code",
+                providerLanguageHelp: {
+                    WHATSAPP:
+                        "The exact language code of the approved WhatsApp template, such as en_US.",
+                    VIBER: "The language code the Viber provider knows the template by, when it needs one.",
+                    MESSENGER: "The language code of the approved utility template, such as en_US.",
+                },
+                approvalAdminConfirmed:
+                    "An administrator confirmed with the provider that this account's templates are approved, so the approvals of the connection check are not used.",
             },
             send: {
                 channel: "Channel",
@@ -3592,6 +3629,12 @@ const englishTranslation = {
                 missingContent: "This notification has no content for {{channels}}.",
                 approvedTemplateHelp:
                     "Sent with the provider-approved template. Edit it in Templates.",
+                providerTemplate: "{{channel}} provider template",
+                providerTemplateHelp:
+                    "Optional. When empty, the event's template bound to the chosen template's alias is used, or the event's default for notices.",
+                providerLanguage: "{{channel}} provider language",
+                providerLanguageHelp:
+                    "The provider's language code of that template, such as en_US.",
             },
             voter: {
                 title: "Messaging",
@@ -3613,6 +3656,10 @@ const englishTranslation = {
                     VIBER: "Viber messages sent",
                     MESSENGER: "Messenger messages sent",
                 },
+            },
+            readinessPolicy: {
+                PROVIDER_CHECK: "From the provider's check",
+                ADMIN_CONFIRMED: "Confirmed by an administrator",
             },
         },
         messagingAccounts: {
@@ -3668,6 +3715,7 @@ const englishTranslation = {
                 save: "Save",
                 cancel: "Cancel",
                 close: "Close",
+                channelHelp: "Cannot be changed after the account is created.",
             },
             field: {
                 name: "Account name",
@@ -3690,6 +3738,9 @@ const englishTranslation = {
                 sender: "Sender name",
                 provider_approval: "Provider approval",
                 is_default: "Default {{channel}} account for new election events",
+                readiness: "Readiness",
+                api_base_url: "Graph API base URL",
+                label: "Sender shown to voters",
             },
             fieldHelp: {
                 from_address:
@@ -3706,7 +3757,12 @@ const englishTranslation = {
                 base_url: "The account's Infobip API base URL.",
                 sender: "The approved sender voters see.",
                 provider_approval:
-                    "Meta allows government messaging on WhatsApp only through an approved arrangement. While approval is pending, OTPs and notices cannot be enabled for this account.",
+                    "Meta allows government messaging on WhatsApp only through an approved arrangement. Choose Provider approval confirmed once Meta has approved it for this account; until then OTPs and notices cannot be enabled for it.",
+                readiness:
+                    "From the provider's check uses what the connection check finds: whether the account is connected, in production, and which templates are approved. Confirmed by an administrator is for providers whose check cannot tell: it is your statement that the account is connected, in production and has its templates approved, and it is used instead of the check.",
+                api_base_url:
+                    "Only when the Graph API is not Meta's own, such as a Solution Provider's endpoint. Empty uses Meta's.",
+                label: "The name voters see as the sender of this account.",
             },
             error: {
                 REQUIRED: "Required",
@@ -3714,6 +3770,8 @@ const englishTranslation = {
                 OTP_ABOVE_TOTAL: "Cannot exceed the messages per second",
                 INVALID_CALLING_CODE: "Enter country calling codes of 1 to 3 digits, such as 63",
                 DUPLICATE_LANGUAGE: "This language already has a template for this purpose",
+                NOT_A_URL: "Enter an address starting with https:// or http://",
+                INVALID_HTTP_CONFIG: "Fix the problems shown",
             },
             warning: {
                 pageChange:
@@ -3772,6 +3830,16 @@ const englishTranslation = {
                 VIBER_INFOBIP: {
                     API_KEY: "The Infobip API key.",
                 },
+                HTTP_API: {
+                    API_KEY: "Optional. Requests use it as the credential API_KEY.",
+                    API_SECRET:
+                        "Optional. A second secret, and the key that signs the JWT: a PEM private key for RS256, the shared secret for HS256.",
+                    ACCESS_TOKEN: "Optional. Requests use it as the credential ACCESS_TOKEN.",
+                    USERNAME: "Optional. With the password, it forms the basic_auth placeholder.",
+                    PASSWORD: "Optional. With the user name, it forms the basic_auth placeholder.",
+                    WEBHOOK_SECRET:
+                        "Optional. The shared secret the provider's callbacks are checked with.",
+                },
             },
             webhook: {
                 title: "Delivery reports and replies",
@@ -3791,6 +3859,8 @@ const englishTranslation = {
                 copyToken: "Copy verify token",
                 tokenDone: "Done",
                 tokenError: "The verify token could not be generated.",
+                httpHelp:
+                    "A custom HTTP API may post its reports as JSON, or send them as a GET request; its query parameters are then read as a flat object, with pointers such as /status.",
             },
             copy: {
                 success: "Copied",
@@ -3816,9 +3886,108 @@ const englishTranslation = {
                 error: "The test message could not be sent.",
                 template: "Approved template",
                 templateHelp:
-                    "The WhatsApp template name the provider approved for this purpose and language.",
+                    "The name or ID of the template the provider approved for this purpose and language.",
                 viberTemplate:
                     "Viber uses the template this account lists as approved for the chosen purpose and language.",
+                languageHelp:
+                    "For a provider that sends approved templates, enter the provider's language code of the template, such as en_US.",
+            },
+            http: {
+                title: "Custom HTTP API",
+                description:
+                    "Describes a provider by its HTTP requests: another Viber partner, a WhatsApp Solution Provider's own API, an SMS gateway. Requests are JSON; their URL, headers and body may hold the placeholders of the reference below.",
+                phoneFormat: "Phone number format",
+                phoneFormatHelp: "How the recipient's phone number is written in a request.",
+                phoneFormatOption: {
+                    E164: "With the plus sign: +639171234567",
+                    DIGITS: "Digits only: 639171234567",
+                },
+                templateRequired: "Purposes that need an approved template",
+                templateRequiredHelp:
+                    "A ticked purpose is sent only with a template the provider approved, bound in the election event. The other purposes are sent as free text.",
+                approvedLanguages: "Approved template languages for {{purpose}}",
+                approvedLanguagesHelp:
+                    "The language codes with an approved template, as confirmed with the provider, separated by commas: en, tl. The connection check reports them.",
+                conversationWindow: "Conversation window (hours)",
+                conversationWindowHelp:
+                    "Hours after the recipient's last message during which free text may be sent. Empty when the provider has no such window.",
+                messageIdPointer: "Message ID in the send response",
+                messageIdPointerHelp:
+                    "A JSON pointer to the provider's message ID in the answer to the send request, such as /message_id. Delivery reports are matched with it.",
+                notConfigured: "Not configured.",
+                thisSection: "This section",
+                add: "Add: {{section}}",
+                remove: "Remove: {{section}}",
+                section: {
+                    SEND: "Send request",
+                    CHECK: "Connection check request",
+                    TOKEN: "Token request",
+                    JWT: "Signed token (JWT)",
+                    REPORTS: "Delivery reports and replies",
+                    RECONCILE: "Message lookup request",
+                },
+                sectionHelp: {
+                    SEND: "The request that sends one message: method (POST when left out), url, headers and body.",
+                    CHECK: "Optional. A request that succeeds, with a 2xx answer, when the credentials work. The connection check runs it.",
+                    TOKEN: "Optional. Gets a short-lived token before sending, such as OAuth client credentials: request, token_pointer (where the token is in the answer) and lifetime_seconds. Requests use it with the token placeholder.",
+                    JWT: "Optional. A token signed for each request with the API secret credential: algorithm (RS256 or HS256), claims (iat, exp and jti are added) and lifetime_seconds. Requests use it with the jwt placeholder.",
+                    REPORTS:
+                        "Optional. How to read what the provider sends to the callback: auth, items_pointer (where the list of reports is; the whole payload when left out), status (message_id_pointer, state_pointer, states mapping each provider value to QUEUED, ACCEPTED, DELIVERED, FAILED or UNKNOWN, and error_pointer) and inbound_from_pointer (where the sender of a reply is). auth has a kind: URL_KEY (only the callback's secret address), HEADER_SECRET (a header equal to the webhook secret), HMAC_SHA256 (a header with the HMAC of the body under the webhook secret, with prefix, encoding HEX or BASE64, and signed when more than the body is signed) or JWT_HS256 (a header with a bearer JWT signed with the webhook secret).",
+                    RECONCILE:
+                        "Optional. Asks the provider about one message whose outcome is unknown: request and status, which is read like the status of the delivery reports.",
+                },
+                problem: {
+                    NOT_AN_OBJECT: "{{path}} must be an object.",
+                    MISSING_URL: "{{path}} is required: the address of the request.",
+                    INVALID_METHOD: "{{path}} must be an HTTP method, such as POST or GET.",
+                    INVALID_HEADERS:
+                        "{{path}} must be text: headers is an object of header names and text values.",
+                    UNKNOWN_FIELD: "{{path}} is not a field of this section.",
+                    UNKNOWN_PLACEHOLDER:
+                        "{{path}} uses a placeholder that does not exist. See the placeholder reference.",
+                    INVALID_POINTER:
+                        "{{path}} must be a JSON pointer starting with /, such as /data/id.",
+                    INVALID_STATES:
+                        "{{path}} must map a provider status value to QUEUED, ACCEPTED, DELIVERED, FAILED or UNKNOWN; at least one is needed.",
+                    INVALID_AUTH:
+                        "{{path}} is not valid: kind is URL_KEY, HEADER_SECRET, HMAC_SHA256 or JWT_HS256; header is required except for URL_KEY; encoding is HEX or BASE64.",
+                    INVALID_LIFETIME: "{{path}} must be a whole number of seconds above 0.",
+                    INVALID_ALGORITHM: "{{path}} must be RS256 or HS256.",
+                    INVALID_CLAIMS: "{{path}} must be an object.",
+                    INVALID_HOURS: "{{path}} must be a whole number of hours above 0.",
+                },
+                placeholders: {
+                    title: "Placeholder reference",
+                    help: "Written between double curly braces in the URL, a header value or any text of the body. Each is replaced when the request is made.",
+                },
+                placeholder: {
+                    to: "The recipient: phone number, email address or Page-scoped ID.",
+                    text: "The message as plain text.",
+                    subject: "The subject, for email.",
+                    html: "The message as HTML, for email.",
+                    code: "The one-time code, for OTPs.",
+                    template: "The provider template bound in the election event.",
+                    language: "The provider's language code of the template.",
+                    message_id: "The provider's message ID, in a message lookup request.",
+                    callback_url: "The public address of this account's callback.",
+                    param: "One template parameter by its position: 1, 2, 3 and so on.",
+                    credential:
+                        "A credential of this account by name: API_KEY, API_SECRET, ACCESS_TOKEN, USERNAME, PASSWORD or WEBHOOK_SECRET.",
+                    basic_auth:
+                        "The user name and password, encoded for an Authorization: Basic header.",
+                    token: "The token obtained with the token request.",
+                    jwt: "The signed token described under Signed token (JWT).",
+                    parameters:
+                        "Alone as a body value, it becomes the list of all template parameters.",
+                    named_parameters:
+                        "Alone as a body value, it becomes an object of the parameters written as @name=value.",
+                },
+                example: {
+                    title: "Worked example: a Viber partner",
+                    description:
+                        "The partner takes a JSON POST authenticated with the API key as a bearer token, answers with the message's ID under message_id, and posts delivery reports with a secret header. Use it as a starting point and change the address and field names to the provider's.",
+                    use: "Use this example",
+                },
             },
         },
     },

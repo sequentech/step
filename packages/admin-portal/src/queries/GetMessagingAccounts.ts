@@ -18,6 +18,7 @@ export const GET_MESSAGING_ACCOUNTS = gql`
             credentials
             limits
             provider_approval
+            readiness
             status
             webhook_key
             is_default

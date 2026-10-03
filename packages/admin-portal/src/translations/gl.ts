@@ -3434,7 +3434,7 @@ const galegoTranslation: TranslationType = {
             purposeSwitch: "{{channel}}: {{purpose}}",
             sections: {
                 channels: "Canles",
-                templates: "Modelos de WhatsApp e Viber",
+                templates: "Modelos aprobados",
                 fallback: "Orde alternativa para avisos",
                 posts: "Canles por Post",
                 postsCount: "Canles por Post ({{count}} Posts)",
@@ -3446,22 +3446,39 @@ const galegoTranslation: TranslationType = {
                 account: "Envía desde",
                 purpose: "Finalidade",
                 language: "Idioma",
-                template: "Modelo aprobado",
+                template: "Modelo do provedor",
                 status: "Estado",
                 post: "Post",
+                key: "Para a mensaxe",
+                providerLanguage: "Idioma do provedor",
             },
             outOfWindow: {
-                label: "Pasadas 24 horas",
-                help: "Messenger só envía avisos nas 24 horas seguintes á última mensaxe do votante. O envío posterior segue desactivado ata que Meta confirme o mecanismo para esta páxina; mentres tanto, eses avisos van á seguinte canle dispoñible do votante.",
+                label: "Fóra da xanela de conversa",
+                help: "Os avisos de texto libre só se envían mentres a xanela de conversa está aberta: en Messenger, nas 24 horas seguintes á última mensaxe do votante. Escolla Mensaxes de utilidade para enviar avisos despois cun modelo aprobado. Meta debe aprobalo para a páxina (o permiso page_utility_messaging e un modelo UTILITY aprobado), e ese modelo debe estar vinculado aos avisos en Modelos aprobados. Con Non enviar, un aviso fóra da xanela vai á seguinte canle dispoñible do votante.",
                 DISABLED: "Non enviar",
                 UTILITY_MESSAGES: "Mensaxes de utilidade",
+                noTemplate:
+                    "Aínda non hai ningún modelo vinculado aos avisos nesta canle. Engada un en Modelos aprobados; ata entón os avisos fóra da xanela van á seguinte canle dispoñible do votante.",
             },
             templates: {
-                empty: "Active códigos ou avisos en WhatsApp ou Viber para escoller os seus modelos.",
-                help: "WhatsApp e Viber só envían modelos que o provedor aprobou para a conta. Indique o modelo aprobado de cada idioma; un idioma sen modelo aprobado non se pode enviar.",
-                label: "Modelo de {{purpose}} de {{channel}}, {{language}}",
-                approved: "Aprobado",
-                notApproved: "Non aprobado",
+                empty: "Escolla unha conta que envíe modelos aprobados, como WhatsApp, Viber ou Messenger, para vincular aquí os seus modelos.",
+                help: "Cada fila indica que modelo aprobado envía o provedor para unha mensaxe. Para a mensaxe é o alias dun modelo de Modelos, para unha notificación, ou a clave de mensaxe que envía Keycloak, como otp; déixeo baleiro para o modelo que se usa por defecto para o propósito. Idioma é o idioma do votante. Modelo do provedor é o nome ou ID do modelo no provedor. Idioma do provedor é o código do provedor para ese modelo cando difire do idioma do votante: WhatsApp precisa o código exacto do modelo aprobado, como en_US.",
+                order: "Para cada mensaxe gaña a fila máis específica: a fila da mensaxe no idioma do votante, despois a fila da mensaxe en calquera idioma, despois o predeterminado do propósito no idioma do votante e, por último, calquera predeterminado do propósito.",
+                noneRequired:
+                    "{{channel}} só envía modelos aprobados. Engada polo menos un modelo predeterminado para cada propósito en uso.",
+                noneOptional:
+                    "Non hai modelos vinculados para {{channel}}. Só fan falta para enviar avisos fóra da xanela de conversa.",
+                row: "Modelo {{position}} de {{channel}}",
+                keyDefault: "Predeterminado do propósito",
+                add: "Engadir modelo de {{channel}}",
+                remove: "Quitar o modelo {{position}} de {{channel}}",
+                incomplete: "Indique o idioma e o modelo do provedor, ou quite esta fila.",
+                approval: {
+                    APPROVED: "Aprobado",
+                    NOT_APPROVED: "Non aprobado",
+                    ADMIN_CONFIRMED: "Confirmado por un administrador",
+                    NOT_CHECKED: "Aprobación non comprobada",
+                },
             },
             fallback: {
                 help: "Cando un aviso non pode chegar a un votante pola súa canle, pasa á seguinte canle desta orde que o votante verificase e que ofreza o seu Post. Os códigos nunca se reenvían sós: o votante escolle outra forma.",
@@ -3500,7 +3517,7 @@ const galegoTranslation: TranslationType = {
                 TEMPLATE_NOT_APPROVED:
                     "O modelo de {{channel}} para {{purpose}} en {{language}} non está aprobado polo provedor.",
                 OUT_OF_WINDOW_NOT_SUPPORTED:
-                    "{{channel}} non pode enviar fóra dunha xanela de conversa.",
+                    "{{channel}} non pode enviar fóra dunha xanela de conversa con esta conta: non ten xanela de conversa ou os seus avisos xa precisan un modelo.",
                 FALLBACK_CHANNEL_NOT_ENABLED:
                     "{{channel}} está na orde alternativa pero non envía avisos.",
                 DUPLICATE_FALLBACK_CHANNEL:
@@ -3526,6 +3543,7 @@ const galegoTranslation: TranslationType = {
                 MESSENGER_SEND_API: "Messenger Platform (Meta)",
                 VIBER_INFOBIP: "Viber Business Messages (Infobip)",
                 CONSOLE: "Consola (só probas, non se envía nada)",
+                HTTP_API: "API HTTP personalizada",
             },
             purpose: {
                 OTP: "Códigos",
@@ -3561,6 +3579,8 @@ const galegoTranslation: TranslationType = {
                 notReady: "Non está lista",
                 lastCheck: "Comprobada {{date}}",
                 neverChecked: "Aínda non comprobada",
+                adminConfirmed: "Confirmada por un administrador",
+                checkNotUsed: "Non se usa a comprobación",
             },
             approval: {
                 PENDING: "Pendente de aprobación do provedor",
@@ -3574,13 +3594,17 @@ const galegoTranslation: TranslationType = {
                 SMTP_PASSWORD: "Contrasinal",
                 AWS_ACCESS_KEY_ID: "ID de clave de acceso de AWS",
                 AWS_SECRET_ACCESS_KEY: "Clave de acceso secreta de AWS",
+                API_SECRET: "Segredo da API",
+                USERNAME: "Nome de usuario",
+                PASSWORD: "Contrasinal",
+                WEBHOOK_SECRET: "Segredo do webhook",
             },
             deliveryUnavailable: "Entrega non dispoñible",
             templates: {
                 noMethod: "Escolle polo menos un método para o modelo.",
                 parameters: "Parámetros do modelo",
                 parametersHelp:
-                    "O que enche cada marcador do modelo aprobado, en orde, como user.first_name ou vote_url.",
+                    "O que enche cada marcador do modelo aprobado, en orde, como user.first_name ou vote_url. Para un modelo con parámetros con nome escriba @nome=valor, como @first_name=user.first_name; calquera outra entrada é posicional.",
                 parameter: "Parámetro {{position}}",
                 removeParameter: "Quitar o parámetro {{position}}",
                 addParameter: "Engadir parámetro",
@@ -3598,7 +3622,7 @@ const galegoTranslation: TranslationType = {
                     "Nas 24 horas seguintes á última mensaxe do votante, Messenger envía o texto seguinte.",
                 messengerMessage: "Mensaxe dentro das 24 horas",
                 messengerWindow:
-                    "Un destinatario de Messenger gardado non é permiso para enviar. Fóra da xanela de 24 horas Messenger non envía este aviso: vai ao seguinte canal dispoñible do votante ata que Meta confirme un mecanismo para esta páxina.",
+                    "Un destinatario de Messenger gardado non é permiso para enviar. Fóra da xanela de 24 horas este aviso envíase como mensaxe de utilidade cando o evento electoral o permite e hai un modelo aprobado indicado abaixo ou vinculado no evento; se non, vai á seguinte canle dispoñible do votante. As mensaxes de utilidade precisan o permiso page_utility_messaging e un modelo UTILITY aprobado na páxina.",
                 intro: {
                     WHATSAPP:
                         "WhatsApp só envía modelos que Meta aprobou para a conta de WhatsApp Business. A mensaxe debe coincidir co modelo aprobado; escolle o que enche os seus parámetros.",
@@ -3607,6 +3631,19 @@ const galegoTranslation: TranslationType = {
                 approvedWording: "Texto aprobado",
                 approvedWordingHelp:
                     "Unha copia do modelo aprobado, usada como vista previa. Cambiala aquí non cambia o que envía o provedor.",
+                providerTemplateTitle: "Modelo do provedor",
+                providerTemplateHelp:
+                    "Opcional. O nome ou ID do modelo aprobado no provedor. Se está baleiro, úsase o modelo do evento electoral vinculado ao alias deste modelo, ou o predeterminado do evento para o propósito.",
+                providerTemplate: "Nome ou ID do modelo do provedor",
+                providerLanguage: "Código de idioma do provedor",
+                providerLanguageHelp: {
+                    WHATSAPP:
+                        "O código de idioma exacto do modelo de WhatsApp aprobado, como en_US.",
+                    VIBER: "O código de idioma co que o provedor de Viber coñece o modelo, cando o precisa.",
+                    MESSENGER: "O código de idioma do modelo de utilidade aprobado, como en_US.",
+                },
+                approvalAdminConfirmed:
+                    "Un administrador confirmou co provedor que os modelos desta conta están aprobados, así que non se usan as aprobacións da comprobación de conexión.",
             },
             send: {
                 channel: "Canle",
@@ -3621,6 +3658,11 @@ const galegoTranslation: TranslationType = {
                 missingContent: "Esta notificación non ten contido para {{channels}}.",
                 approvedTemplateHelp:
                     "Envíase co modelo aprobado polo provedor. Edítao en Modelos.",
+                providerTemplate: "Modelo do provedor de {{channel}}",
+                providerTemplateHelp:
+                    "Opcional. Se está baleiro, úsase o modelo do evento vinculado ao alias do modelo escollido, ou o predeterminado do evento para os avisos.",
+                providerLanguage: "Idioma do provedor de {{channel}}",
+                providerLanguageHelp: "O código de idioma do provedor para ese modelo, como en_US.",
             },
             voter: {
                 title: "Mensaxería",
@@ -3642,6 +3684,10 @@ const galegoTranslation: TranslationType = {
                     VIBER: "Mensaxes de Viber enviadas",
                     MESSENGER: "Mensaxes de Messenger enviadas",
                 },
+            },
+            readinessPolicy: {
+                PROVIDER_CHECK: "Segundo a comprobación do provedor",
+                ADMIN_CONFIRMED: "Confirmada por un administrador",
             },
         },
         messagingAccounts: {
@@ -3696,6 +3742,7 @@ const galegoTranslation: TranslationType = {
                 save: "Gardar",
                 cancel: "Cancelar",
                 close: "Pechar",
+                channelHelp: "Non se pode cambiar despois de crear a conta.",
             },
             field: {
                 name: "Nome da conta",
@@ -3718,6 +3765,9 @@ const galegoTranslation: TranslationType = {
                 sender: "Nome do remitente",
                 provider_approval: "Aprobación do provedor",
                 is_default: "Conta de {{channel}} predeterminada para novos eventos electorais",
+                readiness: "Dispoñibilidade",
+                api_base_url: "URL base da Graph API",
+                label: "Remitente que ven os votantes",
             },
             fieldHelp: {
                 from_address:
@@ -3735,7 +3785,12 @@ const galegoTranslation: TranslationType = {
                 base_url: "A URL base da API de Infobip da conta.",
                 sender: "O remitente aprobado que ven os votantes.",
                 provider_approval:
-                    "Meta só permite mensaxes de WhatsApp de gobernos mediante un acordo aprobado. Mentres a aprobación estea pendente, non se poden activar códigos nin avisos nesta conta.",
+                    "Meta só permite mensaxes de WhatsApp de gobernos mediante un acordo aprobado. Escolla Aprobación do provedor confirmada cando Meta o aprobase para esta conta; ata entón non se poden activar códigos nin avisos nela.",
+                readiness:
+                    "Segundo a comprobación do provedor usa o que atopa a comprobación de conexión: se a conta está conectada, en produción e que modelos están aprobados. Confirmada por un administrador é para provedores cuxa comprobación non pode sabelo: é a súa declaración de que a conta está conectada, en produción e ten os seus modelos aprobados, e úsase en lugar da comprobación.",
+                api_base_url:
+                    "Só cando a Graph API non é a de Meta, como o punto de acceso dun provedor de solucións. Baleiro usa a de Meta.",
+                label: "O nome que os votantes ven como remitente desta conta.",
             },
             error: {
                 REQUIRED: "Obrigatorio",
@@ -3744,6 +3799,8 @@ const galegoTranslation: TranslationType = {
                 INVALID_CALLING_CODE:
                     "Introduce prefixos telefónicos de país de 1 a 3 díxitos, como 63",
                 DUPLICATE_LANGUAGE: "Este idioma xa ten un modelo para este propósito",
+                NOT_A_URL: "Introduza un enderezo que comece por https:// ou http://",
+                INVALID_HTTP_CONFIG: "Corrixa os problemas indicados",
             },
             warning: {
                 pageChange:
@@ -3802,6 +3859,16 @@ const galegoTranslation: TranslationType = {
                 VIBER_INFOBIP: {
                     API_KEY: "A clave de API de Infobip.",
                 },
+                HTTP_API: {
+                    API_KEY: "Opcional. As solicitudes úsana como a credencial API_KEY.",
+                    API_SECRET:
+                        "Opcional. Un segundo segredo, e a clave que asina o JWT: unha clave privada PEM para RS256, o segredo compartido para HS256.",
+                    ACCESS_TOKEN: "Opcional. As solicitudes úsano como a credencial ACCESS_TOKEN.",
+                    USERNAME: "Opcional. Co contrasinal, forma o marcador basic_auth.",
+                    PASSWORD: "Opcional. Co nome de usuario, forma o marcador basic_auth.",
+                    WEBHOOK_SECRET:
+                        "Opcional. O segredo compartido co que se comproban as chamadas do provedor.",
+                },
             },
             webhook: {
                 title: "Informes de entrega e respostas",
@@ -3822,6 +3889,8 @@ const galegoTranslation: TranslationType = {
                 copyToken: "Copiar token de verificación",
                 tokenDone: "Feito",
                 tokenError: "Non se puido xerar o token de verificación.",
+                httpHelp:
+                    "Unha API HTTP personalizada pode enviar os seus informes como JSON, ou como unha solicitude GET; os seus parámetros de consulta lense entón como un obxecto plano, con punteiros como /status.",
             },
             copy: {
                 success: "Copiado",
@@ -3847,9 +3916,110 @@ const galegoTranslation: TranslationType = {
                 error: "Non se puido enviar a mensaxe de proba.",
                 template: "Modelo aprobado",
                 templateHelp:
-                    "O nome do modelo de WhatsApp que o provedor aprobou para este propósito e idioma.",
+                    "O nome ou ID do modelo que o provedor aprobou para este propósito e idioma.",
                 viberTemplate:
                     "Viber usa o modelo que esta conta indica como aprobado para o propósito e o idioma escollidos.",
+                languageHelp:
+                    "Para un provedor que envía modelos aprobados, introduza o código de idioma do provedor para o modelo, como en_US.",
+            },
+            http: {
+                title: "API HTTP personalizada",
+                description:
+                    "Describe un provedor polas súas solicitudes HTTP: outro socio de Viber, a API propia dun provedor de solucións de WhatsApp, unha pasarela de SMS. As solicitudes son JSON; a súa URL, cabeceiras e corpo poden conter os marcadores da referencia de abaixo.",
+                phoneFormat: "Formato do número de teléfono",
+                phoneFormatHelp: "Como se escribe o número do destinatario nunha solicitude.",
+                phoneFormatOption: {
+                    E164: "Co signo máis: +639171234567",
+                    DIGITS: "Só díxitos: 639171234567",
+                },
+                templateRequired: "Propósitos que precisan un modelo aprobado",
+                templateRequiredHelp:
+                    "Un propósito marcado só se envía cun modelo que o provedor aprobou, vinculado no evento electoral. Os demais propósitos envíanse como texto libre.",
+                approvedLanguages: "Idiomas con modelo aprobado para {{purpose}}",
+                approvedLanguagesHelp:
+                    "Os códigos de idioma cun modelo aprobado, segundo o confirmado co provedor, separados por comas: en, tl. A comprobación de conexión comunícaos.",
+                conversationWindow: "Xanela de conversa (horas)",
+                conversationWindowHelp:
+                    "Horas tras a última mensaxe do destinatario durante as que se pode enviar texto libre. Baleiro cando o provedor non ten esa xanela.",
+                messageIdPointer: "ID da mensaxe na resposta de envío",
+                messageIdPointerHelp:
+                    "Un punteiro JSON ao ID de mensaxe do provedor na resposta á solicitude de envío, como /message_id. Con el emparéllanse os informes de entrega.",
+                notConfigured: "Sen configurar.",
+                thisSection: "Esta sección",
+                add: "Engadir: {{section}}",
+                remove: "Quitar: {{section}}",
+                section: {
+                    SEND: "Solicitude de envío",
+                    CHECK: "Solicitude de comprobación de conexión",
+                    TOKEN: "Solicitude de token",
+                    JWT: "Token asinado (JWT)",
+                    REPORTS: "Informes de entrega e respostas",
+                    RECONCILE: "Solicitude de consulta dunha mensaxe",
+                },
+                sectionHelp: {
+                    SEND: "A solicitude que envía unha mensaxe: method (POST se se omite), url, headers e body.",
+                    CHECK: "Opcional. Unha solicitude que ten éxito, cunha resposta 2xx, cando as credenciais funcionan. Execútaa a comprobación de conexión.",
+                    TOKEN: "Opcional. Obtén un token de curta duración antes de enviar, como as credenciais de cliente de OAuth: request, token_pointer (onde está o token na resposta) e lifetime_seconds. As solicitudes úsano co marcador token.",
+                    JWT: "Opcional. Un token asinado para cada solicitude coa credencial Segredo da API: algorithm (RS256 ou HS256), claims (engádense iat, exp e jti) e lifetime_seconds. As solicitudes úsano co marcador jwt.",
+                    REPORTS:
+                        "Opcional. Como ler o que o provedor envía ao enderezo de retorno: auth, items_pointer (onde está a lista de informes; todo o contido se se omite), status (message_id_pointer, state_pointer, states, que asigna cada valor do provedor a QUEUED, ACCEPTED, DELIVERED, FAILED ou UNKNOWN, e error_pointer) e inbound_from_pointer (onde está o remitente dunha resposta). auth ten un kind: URL_KEY (só o enderezo secreto de retorno), HEADER_SECRET (unha cabeceira igual ao segredo do webhook), HMAC_SHA256 (unha cabeceira co HMAC do corpo co segredo do webhook, con prefix, encoding HEX ou BASE64, e signed cando se asina algo máis que o corpo) ou JWT_HS256 (unha cabeceira cun JWT bearer asinado co segredo do webhook).",
+                    RECONCILE:
+                        "Opcional. Pregunta ao provedor por unha mensaxe cuxo resultado se descoñece: request e status, que se le como o status dos informes de entrega.",
+                },
+                problem: {
+                    NOT_AN_OBJECT: "{{path}} debe ser un obxecto.",
+                    MISSING_URL: "{{path}} é obrigatorio: o enderezo da solicitude.",
+                    INVALID_METHOD: "{{path}} debe ser un método HTTP, como POST ou GET.",
+                    INVALID_HEADERS:
+                        "{{path}} debe ser texto: headers é un obxecto de nomes de cabeceira e valores de texto.",
+                    UNKNOWN_FIELD: "{{path}} non é un campo desta sección.",
+                    UNKNOWN_PLACEHOLDER:
+                        "{{path}} usa un marcador que non existe. Consulte a referencia de marcadores.",
+                    INVALID_POINTER:
+                        "{{path}} debe ser un punteiro JSON que comece por /, como /data/id.",
+                    INVALID_STATES:
+                        "{{path}} debe asignar un valor de estado do provedor a QUEUED, ACCEPTED, DELIVERED, FAILED ou UNKNOWN; fai falta polo menos un.",
+                    INVALID_AUTH:
+                        "{{path}} non é válido: kind é URL_KEY, HEADER_SECRET, HMAC_SHA256 ou JWT_HS256; header é obrigatorio salvo para URL_KEY; encoding é HEX ou BASE64.",
+                    INVALID_LIFETIME:
+                        "{{path}} debe ser un número enteiro de segundos maior que 0.",
+                    INVALID_ALGORITHM: "{{path}} debe ser RS256 ou HS256.",
+                    INVALID_CLAIMS: "{{path}} debe ser un obxecto.",
+                    INVALID_HOURS: "{{path}} debe ser un número enteiro de horas maior que 0.",
+                },
+                placeholders: {
+                    title: "Referencia de marcadores",
+                    help: "Escríbense entre chaves dobres na URL, no valor dunha cabeceira ou en calquera texto do corpo. Cada un substitúese ao facer a solicitude.",
+                },
+                placeholder: {
+                    to: "O destinatario: número de teléfono, enderezo de correo electrónico ou ID de ámbito de páxina.",
+                    text: "A mensaxe como texto sen formato.",
+                    subject: "O asunto, para o correo electrónico.",
+                    html: "A mensaxe como HTML, para o correo electrónico.",
+                    code: "O código dun só uso, para os códigos.",
+                    template: "O modelo do provedor vinculado no evento electoral.",
+                    language: "O código de idioma do provedor para o modelo.",
+                    message_id:
+                        "O ID de mensaxe do provedor, nunha solicitude de consulta dunha mensaxe.",
+                    callback_url: "O enderezo público de retorno desta conta.",
+                    param: "Un parámetro do modelo pola súa posición: 1, 2, 3, etc.",
+                    credential:
+                        "Unha credencial desta conta polo seu nome: API_KEY, API_SECRET, ACCESS_TOKEN, USERNAME, PASSWORD ou WEBHOOK_SECRET.",
+                    basic_auth:
+                        "O nome de usuario e o contrasinal, codificados para unha cabeceira Authorization: Basic.",
+                    token: "O token obtido coa solicitude de token.",
+                    jwt: "O token asinado descrito en Token asinado (JWT).",
+                    parameters:
+                        "Só, como valor do corpo, convértese na lista de todos os parámetros do modelo.",
+                    named_parameters:
+                        "Só, como valor do corpo, convértese nun obxecto cos parámetros escritos como @nome=valor.",
+                },
+                example: {
+                    title: "Exemplo completo: un socio de Viber",
+                    description:
+                        "O socio recibe un POST JSON autenticado coa clave de API como token bearer, responde co ID da mensaxe en message_id e envía informes de entrega cunha cabeceira secreta. Úseo como punto de partida e cambie o enderezo e os nomes de campo polos do provedor.",
+                    use: "Usar este exemplo",
+                },
             },
         },
     },

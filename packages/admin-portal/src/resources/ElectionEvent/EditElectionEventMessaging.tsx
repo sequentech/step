@@ -27,11 +27,17 @@ import {
     TextField,
     Typography,
 } from "@mui/material"
+import AddIcon from "@mui/icons-material/Add"
+import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 import ArrowUpwardIcon from "@mui/icons-material/ArrowUpward"
 import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward"
 import {ChannelIcon, ChannelLabel} from "@sequentech/ui-essentials"
-import {Sequent_Backend_Election, Sequent_Backend_Election_Event} from "@/gql/graphql"
+import {
+    Sequent_Backend_Election,
+    Sequent_Backend_Election_Event,
+    Sequent_Backend_Template,
+} from "@/gql/graphql"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {ElectionHeaderStyles} from "@/components/styles/ElectionHeaderStyles"
@@ -44,44 +50,55 @@ import {
     EDeliveryFeedback,
     EMessageAttemptState,
     EMessageChannel,
+    EMessagePurpose,
     EMessagingProvider,
     EOutOfWindowPolicy,
-    EProviderApproval,
-    IAccountSummary,
     IEventMessagingConfig,
     IMessagingAccount,
     IMessagingConfigError,
+    ITemplateBinding,
+    KEYCLOAK_NOTICE_MESSAGE_KEYS,
+    KEYCLOAK_OTP_MESSAGE_KEYS,
     MESSAGE_ATTEMPT_STATES,
     MESSAGE_CHANNELS,
     MESSAGE_PURPOSES,
     MESSAGING_CONFIG_ANNOTATION,
 } from "@/types/messaging"
 import {
+    accountCapabilities,
+    accountSummary,
     deliverySummary,
     parseEventMessagingConfig,
-    providerCapabilities,
     purposeReadiness,
+    supportsOutOfWindow,
     validateEventMessagingConfig,
 } from "@/services/messaging"
 import {
+    EBindingApproval,
     EMessagingErrorArea,
+    IBindingPosition,
     IDeliveryStatsResponse,
     IMessagingErrorLocation,
     activeChannels,
+    addTemplateBinding,
+    bindingApproval,
     electionChannelsOf,
     errorsAt,
+    incompleteBindings,
     moveFallback,
     parseDeliveryStats,
     parseMessagingConfigErrors,
+    preparedConfig,
+    removeTemplateBinding,
     setChannelAccount,
+    setOutOfWindow,
     setReplyText,
-    setTemplateBinding,
-    templateBinding,
+    templateChannels,
     toggleElectionChannel,
     togglePurpose,
+    updateTemplateBinding,
 } from "./eventMessagingConfig"
 
-const TEMPLATE_CHANNELS: EMessageChannel[] = [EMessageChannel.WHATSAPP, EMessageChannel.VIBER]
 const POSTS_SHOWN = 15
 
 interface IUpdateEventMessagingConfigResult {
@@ -98,15 +115,6 @@ const accountOf = (
     const accountId = config.channels.find((entry) => entry.channel === channel)?.account_id
     return accounts.find((account) => account.id === accountId)
 }
-
-const toSummary = (account: IMessagingAccount): IAccountSummary => ({
-    id: account.id,
-    tenant_id: account.tenant_id,
-    channel: account.channel,
-    provider: account.provider,
-    provider_approval: account.provider_approval ?? EProviderApproval.PENDING,
-    check: account.status ?? {connected: false, production_access: false},
-})
 
 const Section: React.FC<React.PropsWithChildren<{title: string; id: string}>> = ({
     title,
@@ -216,6 +224,7 @@ export const MessagingChannels: React.FC<MessagingChannelsProps> = ({
                     const options = accounts.filter((account) => account.channel === channel)
                     const entry = config.channels.find((item) => item.channel === channel)
                     const account = accountOf(config, accounts, channel)
+                    const capabilities = account ? accountCapabilities(account) : null
                     const channelName = t(`messaging.channel.${channel}`)
                     return (
                         <TableRow key={channel} data-channel={channel}>
@@ -258,8 +267,22 @@ export const MessagingChannels: React.FC<MessagingChannelsProps> = ({
                                 ) : (
                                     <Helper>{t("messagingEvent.noAccount")}</Helper>
                                 )}
-                                {channel === EMessageChannel.MESSENGER && entry ? (
-                                    <MessengerOutOfWindow />
+                                {entry &&
+                                (supportsOutOfWindow(capabilities) ||
+                                    entry.out_of_window !== EOutOfWindowPolicy.DISABLED) ? (
+                                    <OutOfWindowPolicySelect
+                                        channel={channel}
+                                        value={entry.out_of_window}
+                                        noticeTemplateBound={entry.templates.some(
+                                            (binding) =>
+                                                binding.purpose === EMessagePurpose.NOTICE &&
+                                                !!binding.provider_template.trim()
+                                        )}
+                                        canEdit={canEdit}
+                                        onChange={(policy) =>
+                                            onChange(setOutOfWindow(config, channel, policy))
+                                        }
+                                    />
                                 ) : null}
                                 <MessagingErrors
                                     errors={at({area: EMessagingErrorArea.CHANNEL, channel})}
@@ -269,9 +292,9 @@ export const MessagingChannels: React.FC<MessagingChannelsProps> = ({
                                 const enabled = entry?.purposes.includes(purpose) ?? false
                                 const blockers = account
                                     ? purposeReadiness(
-                                          account.provider,
-                                          channel,
+                                          capabilities,
                                           account.provider_approval,
+                                          account.readiness,
                                           account.status,
                                           purpose,
                                           null
@@ -349,8 +372,23 @@ export const MessagingChannels: React.FC<MessagingChannelsProps> = ({
     )
 }
 
-/** Messenger's out-of-window sending, off until Meta confirms a mechanism (D5). */
-export const MessengerOutOfWindow: React.FC = () => {
+export interface OutOfWindowPolicySelectProps {
+    channel: EMessageChannel
+    value: EOutOfWindowPolicy
+    /** Whether a template is bound for notices, which utility messages are sent with. */
+    noticeTemplateBound: boolean
+    canEdit: boolean
+    onChange: (policy: EOutOfWindowPolicy) => void
+}
+
+/** How a channel with a conversation window sends notices once the window has closed. */
+export const OutOfWindowPolicySelect: React.FC<OutOfWindowPolicySelectProps> = ({
+    channel,
+    value,
+    noticeTemplateBound,
+    canEdit,
+    onChange,
+}) => {
     const {t} = useTranslation()
     return (
         <Box sx={{marginTop: 1.5}}>
@@ -358,9 +396,12 @@ export const MessengerOutOfWindow: React.FC = () => {
                 select
                 size="small"
                 fullWidth
-                disabled
-                label={t("messagingEvent.outOfWindow.label")}
-                value={EOutOfWindowPolicy.DISABLED}
+                disabled={!canEdit}
+                label={t("messagingEvent.outOfWindow.label", {
+                    channel: t(`messaging.channel.${channel}`),
+                })}
+                value={value}
+                onChange={(event) => onChange(event.target.value as EOutOfWindowPolicy)}
             >
                 {Object.values(EOutOfWindowPolicy).map((policy) => (
                     <MenuItem key={policy} value={policy}>
@@ -371,134 +412,303 @@ export const MessengerOutOfWindow: React.FC = () => {
             <Typography variant="caption" sx={{display: "block", color: "text.secondary"}}>
                 {t("messagingEvent.outOfWindow.help")}
             </Typography>
+            {value === EOutOfWindowPolicy.UTILITY_MESSAGES && !noticeTemplateBound ? (
+                <Typography
+                    variant="caption"
+                    role="status"
+                    sx={{display: "block", color: "warning.dark"}}
+                >
+                    {t("messagingEvent.outOfWindow.noTemplate")}
+                </Typography>
+            ) : null}
         </Box>
     )
+}
+
+const APPROVAL_COLOR: Record<EBindingApproval, "success" | "default"> = {
+    [EBindingApproval.APPROVED]: "success",
+    [EBindingApproval.ADMIN_CONFIRMED]: "success",
+    [EBindingApproval.NOT_APPROVED]: "default",
+    [EBindingApproval.NOT_CHECKED]: "default",
 }
 
 export interface MessagingTemplateBindingsProps {
     config: IEventMessagingConfig
     accounts: IMessagingAccount[]
     languages: string[]
+    /** Aliases of the tenant's templates, offered as the message a notice template is for. */
+    templateAliases: string[]
     errors: IMessagingConfigError[]
+    /** Rows to mark as missing the language or the provider's template. */
+    incomplete: IBindingPosition[]
     canEdit: boolean
     onChange: TOnChange
 }
 
-/** WhatsApp and Viber: the approved provider template for each purpose and language. */
+/**
+ * Per channel, the provider-approved templates of the event: which message
+ * and language each one is for, and the name and language the provider knows
+ * it by.
+ */
 export const MessagingTemplateBindings: React.FC<MessagingTemplateBindingsProps> = ({
     config,
     accounts,
     languages,
+    templateAliases,
     errors,
+    incomplete,
     canEdit,
     onChange,
 }) => {
     const {t} = useTranslation()
-    const rows = config.channels
-        .filter((entry) => TEMPLATE_CHANNELS.includes(entry.channel))
-        .flatMap((entry) =>
-            entry.purposes.flatMap((purpose) =>
-                languages.map((language) => ({channel: entry.channel, purpose, language}))
-            )
-        )
-    if (!rows.length) {
+    const summaries = useMemo(() => accounts.map(accountSummary), [accounts])
+    const channels = templateChannels(config, summaries)
+    if (!channels.length) {
         return <Helper>{t("messagingEvent.templates.empty")}</Helper>
     }
+    const keyOptions = (purpose: EMessagePurpose) =>
+        purpose === EMessagePurpose.NOTICE
+            ? Array.from(new Set([...templateAliases, ...KEYCLOAK_NOTICE_MESSAGE_KEYS]))
+            : KEYCLOAK_OTP_MESSAGE_KEYS
     return (
         <>
             <Helper>{t("messagingEvent.templates.help")}</Helper>
-            <Table size="small" aria-label={t("messagingEvent.sections.templates")}>
-                <TableHead>
-                    <TableRow>
-                        <TableCell>{t("messagingEvent.column.channel")}</TableCell>
-                        <TableCell>{t("messagingEvent.column.purpose")}</TableCell>
-                        <TableCell>{t("messagingEvent.column.language")}</TableCell>
-                        <TableCell>{t("messagingEvent.column.template")}</TableCell>
-                        <TableCell>{t("messagingEvent.column.status")}</TableCell>
-                    </TableRow>
-                </TableHead>
-                <TableBody>
-                    {rows.map(({channel, purpose, language}) => {
-                        const account = accountOf(config, accounts, channel)
-                        const approved =
-                            account?.status?.approved_templates?.[purpose]?.includes(language) ??
-                            false
-                        const sender = account?.sender
-                        const options =
-                            sender?.provider === EMessagingProvider.VIBER_INFOBIP
-                                ? Object.entries(sender.approved_templates?.[purpose] ?? {})
-                                      .sort(([a], [b]) =>
-                                          a === language ? -1 : b === language ? 1 : 0
-                                      )
-                                      .map(([, templateId]) => templateId)
-                                : []
-                        const label = t("messagingEvent.templates.label", {
-                            channel: t(`messaging.channel.${channel}`),
-                            purpose: t(`messaging.purpose.${purpose}`),
-                            language,
-                        })
-                        return (
-                            <TableRow key={`${channel}-${purpose}-${language}`}>
-                                <TableCell>
-                                    <ChannelLabel
-                                        channel={channel}
-                                        label={t(`messaging.channel.${channel}`)}
-                                    />
-                                </TableCell>
-                                <TableCell>{t(`messaging.purpose.${purpose}`)}</TableCell>
-                                <TableCell>{language}</TableCell>
-                                <TableCell sx={{minWidth: 260}}>
-                                    <Autocomplete
-                                        freeSolo
-                                        size="small"
-                                        disabled={!canEdit}
-                                        options={options}
-                                        inputValue={templateBinding(
-                                            config,
-                                            channel,
-                                            purpose,
-                                            language
-                                        )}
-                                        onInputChange={(_event, value) =>
-                                            onChange(
-                                                setTemplateBinding(
-                                                    config,
-                                                    channel,
-                                                    purpose,
-                                                    language,
-                                                    value
-                                                )
-                                            )
-                                        }
-                                        renderInput={(params) => (
-                                            <TextField {...params} label={label} />
-                                        )}
-                                    />
+            <Helper>{t("messagingEvent.templates.order")}</Helper>
+            {channels.map((channel) => {
+                const entry = config.channels.find((item) => item.channel === channel)
+                const account = accountOf(config, accounts, channel)
+                const summary = summaries.find((item) => item.id === entry?.account_id)
+                const channelName = t(`messaging.channel.${channel}`)
+                const required = summary?.capabilities?.template_required_for ?? []
+                const sender = account?.sender
+                const templateOptions = (purpose: EMessagePurpose) =>
+                    sender?.provider === EMessagingProvider.VIBER_INFOBIP
+                        ? Object.values(sender.approved_templates?.[purpose] ?? {})
+                        : []
+                const bindings = entry?.templates ?? []
+                return (
+                    <Box
+                        key={channel}
+                        data-template-channel={channel}
+                        sx={{display: "flex", flexDirection: "column", gap: 1.5}}
+                    >
+                        <ChannelLabel channel={channel} label={channelName} />
+                        {bindings.length === 0 ? (
+                            <Helper>
+                                {required.length
+                                    ? t("messagingEvent.templates.noneRequired", {
+                                          channel: channelName,
+                                      })
+                                    : t("messagingEvent.templates.noneOptional", {
+                                          channel: channelName,
+                                      })}
+                            </Helper>
+                        ) : null}
+                        {bindings.map((binding, index) => {
+                            const update = (patch: Partial<ITemplateBinding>) =>
+                                onChange(updateTemplateBinding(config, channel, index, patch))
+                            const missing = incomplete.some(
+                                (position) =>
+                                    position.channel === channel && position.index === index
+                            )
+                            const approval = bindingApproval(summary, binding)
+                            const group = t("messagingEvent.templates.row", {
+                                channel: channelName,
+                                position: index + 1,
+                            })
+                            return (
+                                <Box
+                                    key={index}
+                                    role="group"
+                                    aria-label={group}
+                                    sx={{display: "flex", flexDirection: "column", gap: 0.5}}
+                                >
+                                    <Box
+                                        sx={{
+                                            display: "flex",
+                                            gap: 1,
+                                            flexWrap: "wrap",
+                                            alignItems: "center",
+                                        }}
+                                    >
+                                        <TextField
+                                            select
+                                            size="small"
+                                            label={t("messagingEvent.column.purpose")}
+                                            value={binding.purpose}
+                                            disabled={!canEdit}
+                                            onChange={(event) =>
+                                                update({
+                                                    purpose: event.target.value as EMessagePurpose,
+                                                })
+                                            }
+                                            sx={{width: 130}}
+                                        >
+                                            {MESSAGE_PURPOSES.map((purpose) => (
+                                                <MenuItem key={purpose} value={purpose}>
+                                                    {t(`messaging.purpose.${purpose}`)}
+                                                </MenuItem>
+                                            ))}
+                                        </TextField>
+                                        <Autocomplete
+                                            freeSolo
+                                            size="small"
+                                            disabled={!canEdit}
+                                            options={keyOptions(binding.purpose)}
+                                            inputValue={binding.key ?? ""}
+                                            onInputChange={(_event, value) => update({key: value})}
+                                            renderInput={(params) => (
+                                                <TextField
+                                                    {...params}
+                                                    label={t("messagingEvent.column.key")}
+                                                    placeholder={t(
+                                                        "messagingEvent.templates.keyDefault"
+                                                    )}
+                                                />
+                                            )}
+                                            sx={{width: 220}}
+                                        />
+                                        <Autocomplete
+                                            freeSolo
+                                            size="small"
+                                            disabled={!canEdit}
+                                            options={languages}
+                                            inputValue={binding.language}
+                                            onInputChange={(_event, value) =>
+                                                update({language: value})
+                                            }
+                                            renderInput={(params) => (
+                                                <TextField
+                                                    {...params}
+                                                    required
+                                                    error={missing && !binding.language.trim()}
+                                                    label={t("messagingEvent.column.language")}
+                                                />
+                                            )}
+                                            sx={{width: 150}}
+                                        />
+                                        <Autocomplete
+                                            freeSolo
+                                            size="small"
+                                            disabled={!canEdit}
+                                            options={templateOptions(binding.purpose)}
+                                            inputValue={binding.provider_template}
+                                            onInputChange={(_event, value) =>
+                                                update({provider_template: value})
+                                            }
+                                            renderInput={(params) => (
+                                                <TextField
+                                                    {...params}
+                                                    required
+                                                    error={
+                                                        missing && !binding.provider_template.trim()
+                                                    }
+                                                    label={t("messagingEvent.column.template")}
+                                                />
+                                            )}
+                                            sx={{width: 240}}
+                                        />
+                                        <TextField
+                                            size="small"
+                                            label={t("messagingEvent.column.providerLanguage")}
+                                            value={binding.provider_language ?? ""}
+                                            disabled={!canEdit}
+                                            onChange={(event) =>
+                                                update({provider_language: event.target.value})
+                                            }
+                                            sx={{width: 190}}
+                                        />
+                                        <Chip
+                                            size="small"
+                                            color={APPROVAL_COLOR[approval]}
+                                            label={t(
+                                                `messagingEvent.templates.approval.${approval}`
+                                            )}
+                                        />
+                                        {canEdit ? (
+                                            <IconButton
+                                                aria-label={t("messagingEvent.templates.remove", {
+                                                    channel: channelName,
+                                                    position: index + 1,
+                                                })}
+                                                onClick={() =>
+                                                    onChange(
+                                                        removeTemplateBinding(
+                                                            config,
+                                                            channel,
+                                                            index
+                                                        )
+                                                    )
+                                                }
+                                            >
+                                                <DeleteOutlineIcon />
+                                            </IconButton>
+                                        ) : null}
+                                    </Box>
+                                    {missing ? (
+                                        <Typography
+                                            variant="caption"
+                                            role="alert"
+                                            sx={{color: "error.main"}}
+                                        >
+                                            {t("messagingEvent.templates.incomplete")}
+                                        </Typography>
+                                    ) : null}
                                     <MessagingErrors
-                                        errors={errorsAt(errors, config, {
-                                            area: EMessagingErrorArea.TEMPLATE,
-                                            channel,
-                                            purpose,
-                                            language,
-                                        })}
+                                        errors={
+                                            bindings.findIndex(
+                                                (other) =>
+                                                    other.purpose === binding.purpose &&
+                                                    other.language === binding.language
+                                            ) === index
+                                                ? errorsAt(errors, config, {
+                                                      area: EMessagingErrorArea.TEMPLATE,
+                                                      channel,
+                                                      purpose: binding.purpose,
+                                                      language: binding.language,
+                                                  })
+                                                : []
+                                        }
                                     />
-                                </TableCell>
-                                <TableCell>
-                                    <Chip
-                                        size="small"
-                                        color={approved ? "success" : "default"}
-                                        label={t(
-                                            approved
-                                                ? "messagingEvent.templates.approved"
-                                                : "messagingEvent.templates.notApproved"
-                                        )}
-                                    />
-                                </TableCell>
-                            </TableRow>
-                        )
-                    })}
-                </TableBody>
-            </Table>
+                                </Box>
+                            )
+                        })}
+                        {canEdit ? (
+                            <Box>
+                                <Button
+                                    startIcon={<AddIcon />}
+                                    onClick={() =>
+                                        onChange(
+                                            addTemplateBinding(
+                                                config,
+                                                channel,
+                                                entry?.purposes[0] ??
+                                                    required[0] ??
+                                                    EMessagePurpose.NOTICE,
+                                                languages[0] ?? ""
+                                            )
+                                        )
+                                    }
+                                >
+                                    {t("messagingEvent.templates.add", {channel: channelName})}
+                                </Button>
+                            </Box>
+                        ) : null}
+                        <MessagingErrors
+                            errors={errors.filter(
+                                (error) =>
+                                    error.kind === "TEMPLATE_NOT_APPROVED" &&
+                                    error.channel === channel &&
+                                    !bindings.some(
+                                        (binding) =>
+                                            binding.purpose === error.purpose &&
+                                            binding.language === error.language
+                                    )
+                            )}
+                        />
+                    </Box>
+                )
+            })}
         </>
     )
 }
@@ -792,7 +1002,7 @@ export const MessagingDeliveryStatus: React.FC<MessagingDeliveryStatusProps> = (
                     {channels.map((channel) => {
                         const account = accountOf(config, accounts, channel)
                         const feedback = account
-                            ? (providerCapabilities(account.provider, channel)?.delivery_feedback ??
+                            ? (accountCapabilities(account)?.delivery_feedback ??
                               EDeliveryFeedback.UNAVAILABLE)
                             : EDeliveryFeedback.UNAVAILABLE
                         const summary = deliverySummary(perChannel[channel], feedback)
@@ -878,10 +1088,32 @@ export const EditElectionEventMessaging: React.FC = () => {
     const [config, setConfig] = useState<IEventMessagingConfig>(initial)
     const [dirty, setDirty] = useState(false)
     const [serverErrors, setServerErrors] = useState<IMessagingConfigError[]>([])
+    const [saveTried, setSaveTried] = useState(false)
     useEffect(() => {
         setConfig(initial)
         setDirty(false)
+        setSaveTried(false)
     }, [initial])
+    const {data: templates} = useGetList<Sequent_Backend_Template>(
+        "sequent_backend_template",
+        {
+            filter: {tenant_id: tenantId},
+            pagination: {page: 1, perPage: 1000},
+            sort: {field: "alias", order: "ASC"},
+        },
+        {enabled: !!tenantId}
+    )
+    const templateAliases = useMemo(
+        () =>
+            Array.from(
+                new Set(
+                    (templates ?? [])
+                        .map((template) => template.alias)
+                        .filter((alias): alias is string => !!alias)
+                )
+            ),
+        [templates]
+    )
 
     const languages: string[] = record?.presentation?.language_conf?.enabled_language_codes?.length
         ? record.presentation.language_conf.enabled_language_codes
@@ -899,9 +1131,9 @@ export const EditElectionEventMessaging: React.FC = () => {
             accountsLoading || electionsLoading
                 ? []
                 : validateEventMessagingConfig(
-                      config,
+                      preparedConfig(config),
                       tenantId ?? "",
-                      accounts.map(toSummary),
+                      accounts.map(accountSummary),
                       electionList.map((election) => election.id)
                   ),
         [config, tenantId, accounts, electionList, accountsLoading, electionsLoading]
@@ -918,11 +1150,18 @@ export const EditElectionEventMessaging: React.FC = () => {
         setServerErrors([])
     }
 
+    const incomplete = saveTried ? incompleteBindings(config) : []
+
     const save = async () => {
         if (!record?.id) return
+        setSaveTried(true)
+        if (incompleteBindings(config).length) {
+            notify(t("messagingEvent.saveRejected"), {type: "error"})
+            return
+        }
         try {
             const {data, errors: graphqlErrors} = await updateConfig({
-                variables: {electionEventId: record.id, config},
+                variables: {electionEventId: record.id, config: preparedConfig(config)},
             })
             if (graphqlErrors?.length || !data?.update_event_messaging_config) {
                 notify(t("messagingEvent.saveError"), {type: "error"})
@@ -964,7 +1203,9 @@ export const EditElectionEventMessaging: React.FC = () => {
                     config={config}
                     accounts={accounts}
                     languages={languages}
+                    templateAliases={templateAliases}
                     errors={errors}
+                    incomplete={incomplete}
                     canEdit={canEdit}
                     onChange={onChange}
                 />

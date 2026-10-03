@@ -3450,7 +3450,7 @@ const tagalogTranslation: TranslationType = {
             purposeSwitch: "{{channel}}: {{purpose}}",
             sections: {
                 channels: "Mga channel",
-                templates: "Mga template ng WhatsApp at Viber",
+                templates: "Mga aprubadong template",
                 fallback: "Pagkakasunod-sunod ng fallback para sa mga abiso",
                 posts: "Mga channel ayon sa Post",
                 postsCount: "Mga channel ayon sa Post ({{count}} Post)",
@@ -3462,22 +3462,40 @@ const tagalogTranslation: TranslationType = {
                 account: "Ipinapadala mula sa",
                 purpose: "Layunin",
                 language: "Wika",
-                template: "Aprubadong template",
+                template: "Template ng provider",
                 status: "Katayuan",
                 post: "Post",
+                key: "Para sa mensahe",
+                providerLanguage: "Wika ng provider",
             },
             outOfWindow: {
-                label: "Pagkalipas ng 24 oras",
-                help: "Nagpapadala lamang ang Messenger ng mga abiso sa loob ng 24 oras mula sa huling mensahe ng botante. Mananatiling naka-off ang pagpapadala pagkatapos nito hanggang kumpirmahin ng Meta ang mekanismo para sa Page na ito; hanggang doon, mapupunta ang mga abisong iyon sa susunod na available na channel ng botante.",
+                label: "Sa labas ng window ng usapan",
+                help: "Ipinapadala lamang ang mga abisong free text habang bukas ang window ng usapan: sa Messenger, sa loob ng 24 na oras mula sa huling mensahe ng botante. Piliin ang Mga utility message para makapagpadala ng mga abiso pagkatapos nito gamit ang aprubadong template. Dapat itong aprubahan ng Meta para sa Page (ang pahintulot na page_utility_messaging at isang aprubadong UTILITY template), at dapat nakaugnay ang template na iyon sa mga abiso sa ilalim ng Mga aprubadong template. Kapag Huwag ipadala, mapupunta ang abisong nasa labas ng window sa susunod na magagamit na channel ng botante.",
                 DISABLED: "Huwag ipadala",
                 UTILITY_MESSAGES: "Mga utility message",
+                noTemplate:
+                    "Wala pang template na nakaugnay sa mga abiso sa channel na ito. Magdagdag ng isa sa ilalim ng Mga aprubadong template; hanggang doon, mapupunta ang mga abisong nasa labas ng window sa susunod na magagamit na channel ng botante.",
             },
             templates: {
-                empty: "I-on ang mga code o abiso sa WhatsApp o Viber para piliin ang kanilang mga template.",
-                help: "Ang WhatsApp at Viber ay nagpapadala lamang ng mga template na inaprubahan ng provider para sa account. Ilagay ang aprubadong template para sa bawat wika; hindi maipapadala ang wikang walang aprubadong template.",
-                label: "Template ng {{purpose}} sa {{channel}}, {{language}}",
-                approved: "Aprubado",
-                notApproved: "Hindi aprubado",
+                empty: "Pumili ng account na nagpapadala ng mga aprubadong template, gaya ng WhatsApp, Viber o Messenger, para iugnay dito ang mga template nito.",
+                help: "Sinasabi ng bawat hilera kung aling aprubadong template ang ipinapadala ng provider para sa isang mensahe. Ang Para sa mensahe ay ang alias ng isang template sa Templates, para sa isang notification, o ang message key na ipinapadala ng Keycloak, gaya ng otp; iwanang walang laman para sa template na ginagamit bilang default para sa layunin. Ang Wika ay ang wika ng botante. Ang Template ng provider ay ang pangalan o ID ng template sa provider. Ang Wika ng provider ay ang code ng provider para sa template na iyon kapag iba ito sa wika ng botante: kailangan ng WhatsApp ang eksaktong code ng aprubadong template, gaya ng en_US.",
+                order: "Para sa bawat mensahe, ang pinakatiyak na hilera ang nananaig: ang hilera para sa mensahe sa wika ng botante, pagkatapos ang hilera para sa mensahe sa anumang wika, pagkatapos ang default para sa layunin sa wika ng botante, at panghuli ang anumang default para sa layunin.",
+                noneRequired:
+                    "Mga aprubadong template lamang ang ipinapadala ng {{channel}}. Magdagdag ng kahit isang default na template para sa bawat layuning ginagamit.",
+                noneOptional:
+                    "Walang template na nakaugnay para sa {{channel}}. Kailangan lamang ang mga ito para magpadala ng mga abiso sa labas ng window ng usapan.",
+                row: "Template {{position}} ng {{channel}}",
+                keyDefault: "Default para sa layunin",
+                add: "Magdagdag ng template ng {{channel}}",
+                remove: "Alisin ang template {{position}} ng {{channel}}",
+                incomplete:
+                    "Ilagay ang wika at ang template ng provider, o alisin ang hilerang ito.",
+                approval: {
+                    APPROVED: "Aprubado",
+                    NOT_APPROVED: "Hindi aprubado",
+                    ADMIN_CONFIRMED: "Kinumpirma ng administrator",
+                    NOT_CHECKED: "Hindi pa nasusuri ang pag-apruba",
+                },
             },
             fallback: {
                 help: "Kapag hindi maabot ng abiso ang botante sa kanyang channel, mapupunta ito sa susunod na channel sa pagkakasunod-sunod na ito na na-verify ng botante at inaalok ng kanyang Post. Hindi kailanman muling ipinapadala nang kusa ang mga code: ang botante ang pipili ng ibang paraan.",
@@ -3519,7 +3537,7 @@ const tagalogTranslation: TranslationType = {
                 TEMPLATE_NOT_APPROVED:
                     "Hindi aprubado ng provider ang template ng {{channel}} para sa {{purpose}} sa {{language}}.",
                 OUT_OF_WINDOW_NOT_SUPPORTED:
-                    "Hindi makakapagpadala ang {{channel}} sa labas ng window ng usapan.",
+                    "Hindi makakapagpadala ang {{channel}} sa labas ng window ng usapan gamit ang account na ito: wala itong window ng usapan, o kailangan na ng template ang mga abiso nito.",
                 FALLBACK_CHANNEL_NOT_ENABLED:
                     "Nasa fallback ang {{channel}} pero hindi ito nagpapadala ng mga abiso.",
                 DUPLICATE_FALLBACK_CHANNEL:
@@ -3545,6 +3563,7 @@ const tagalogTranslation: TranslationType = {
                 MESSENGER_SEND_API: "Messenger Platform (Meta)",
                 VIBER_INFOBIP: "Viber Business Messages (Infobip)",
                 CONSOLE: "Console (pagsubok lamang, walang ipinapadala)",
+                HTTP_API: "Custom na HTTP API",
             },
             purpose: {
                 OTP: "Mga code",
@@ -3580,6 +3599,8 @@ const tagalogTranslation: TranslationType = {
                 notReady: "Hindi pa handa",
                 lastCheck: "Sinuri {{date}}",
                 neverChecked: "Hindi pa nasusuri",
+                adminConfirmed: "Kinumpirma ng administrator",
+                checkNotUsed: "Hindi ginagamit ang pagsusuri",
             },
             approval: {
                 PENDING: "Hinihintay ang pag-apruba ng provider",
@@ -3593,13 +3614,17 @@ const tagalogTranslation: TranslationType = {
                 SMTP_PASSWORD: "Password",
                 AWS_ACCESS_KEY_ID: "AWS access key ID",
                 AWS_SECRET_ACCESS_KEY: "AWS secret access key",
+                API_SECRET: "API secret",
+                USERNAME: "Username",
+                PASSWORD: "Password",
+                WEBHOOK_SECRET: "Webhook secret",
             },
             deliveryUnavailable: "Hindi available ang paghahatid",
             templates: {
                 noMethod: "Pumili ng kahit isang paraan para sa template.",
                 parameters: "Mga parameter ng template",
                 parametersHelp:
-                    "Kung ano ang pupuno sa bawat placeholder ng aprubadong template, ayon sa pagkakasunod, gaya ng user.first_name o vote_url.",
+                    "Kung ano ang pupuno sa bawat placeholder ng aprubadong template, ayon sa pagkakasunod, gaya ng user.first_name o vote_url. Para sa template na may mga pinangalanang parameter, isulat ang @pangalan=halaga, gaya ng @first_name=user.first_name; positional ang anumang ibang entry.",
                 parameter: "Parameter {{position}}",
                 removeParameter: "Alisin ang parameter {{position}}",
                 addParameter: "Magdagdag ng parameter",
@@ -3617,7 +3642,7 @@ const tagalogTranslation: TranslationType = {
                     "Sa loob ng 24 na oras mula sa huling mensahe ng botante, ipinapadala ng Messenger ang teksto sa ibaba.",
                 messengerMessage: "Mensahe sa loob ng 24 na oras",
                 messengerWindow:
-                    "Ang naka-save na Messenger recipient ay hindi pahintulot na magpadala. Sa labas ng 24 na oras, hindi ipinapadala ng Messenger ang abisong ito: mapupunta ito sa susunod na available na channel ng botante hanggang kumpirmahin ng Meta ang isang paraan para sa Page na ito.",
+                    "Ang naka-save na Messenger recipient ay hindi pahintulot na magpadala. Sa labas ng 24 na oras na window, ipinapadala ang abisong ito bilang utility message kapag pinapayagan ito ng election event at may aprubadong template na nakatakda sa ibaba o nakaugnay sa event; kung hindi, mapupunta ito sa susunod na magagamit na channel ng botante. Kailangan ng mga utility message ang pahintulot na page_utility_messaging at isang aprubadong UTILITY template sa Page.",
                 intro: {
                     WHATSAPP:
                         "Nagpapadala lamang ang WhatsApp ng mga template na inaprubahan ng Meta para sa WhatsApp Business Account. Dapat tumugma ang mensahe sa aprubadong template; piliin kung ano ang pupuno sa mga parameter nito.",
@@ -3626,6 +3651,19 @@ const tagalogTranslation: TranslationType = {
                 approvedWording: "Aprubadong teksto",
                 approvedWordingHelp:
                     "Kopya ng aprubadong template, ginagamit bilang preview. Hindi nito binabago ang ipinapadala ng provider.",
+                providerTemplateTitle: "Template ng provider",
+                providerTemplateHelp:
+                    "Opsyonal. Ang pangalan o ID ng aprubadong template sa provider. Kapag walang laman, ginagamit ang template ng election event na nakaugnay sa alias ng template na ito, o ang default ng event para sa layunin.",
+                providerTemplate: "Pangalan o ID ng template ng provider",
+                providerLanguage: "Language code ng provider",
+                providerLanguageHelp: {
+                    WHATSAPP:
+                        "Ang eksaktong language code ng aprubadong template ng WhatsApp, gaya ng en_US.",
+                    VIBER: "Ang language code kung saan kilala ng provider ng Viber ang template, kapag kailangan nito.",
+                    MESSENGER: "Ang language code ng aprubadong utility template, gaya ng en_US.",
+                },
+                approvalAdminConfirmed:
+                    "Kinumpirma ng isang administrator sa provider na aprubado ang mga template ng account na ito, kaya hindi ginagamit ang mga pag-apruba mula sa pagsusuri ng koneksyon.",
             },
             send: {
                 channel: "Channel",
@@ -3640,6 +3678,12 @@ const tagalogTranslation: TranslationType = {
                 missingContent: "Walang nilalaman ang abisong ito para sa {{channels}}.",
                 approvedTemplateHelp:
                     "Ipinapadala gamit ang template na inaprubahan ng provider. I-edit ito sa Templates.",
+                providerTemplate: "Template ng provider ng {{channel}}",
+                providerTemplateHelp:
+                    "Opsyonal. Kapag walang laman, ginagamit ang template ng event na nakaugnay sa alias ng napiling template, o ang default ng event para sa mga abiso.",
+                providerLanguage: "Wika ng provider ng {{channel}}",
+                providerLanguageHelp:
+                    "Ang language code ng provider para sa template na iyon, gaya ng en_US.",
             },
             voter: {
                 title: "Messaging",
@@ -3661,6 +3705,10 @@ const tagalogTranslation: TranslationType = {
                     VIBER: "Mga mensahe sa Viber na naipadala",
                     MESSENGER: "Mga mensahe sa Messenger na naipadala",
                 },
+            },
+            readinessPolicy: {
+                PROVIDER_CHECK: "Mula sa pagsusuri ng provider",
+                ADMIN_CONFIRMED: "Kinumpirma ng administrator",
             },
         },
         messagingAccounts: {
@@ -3716,6 +3764,7 @@ const tagalogTranslation: TranslationType = {
                 save: "I-save",
                 cancel: "Kanselahin",
                 close: "Isara",
+                channelHelp: "Hindi na mababago pagkatapos malikha ang account.",
             },
             field: {
                 name: "Pangalan ng account",
@@ -3738,6 +3787,9 @@ const tagalogTranslation: TranslationType = {
                 sender: "Pangalan ng nagpadala",
                 provider_approval: "Pag-apruba ng provider",
                 is_default: "Default na {{channel}} account para sa mga bagong election event",
+                readiness: "Kahandaan",
+                api_base_url: "Base URL ng Graph API",
+                label: "Nagpadalang ipinapakita sa mga botante",
             },
             fieldHelp: {
                 from_address:
@@ -3756,7 +3808,12 @@ const tagalogTranslation: TranslationType = {
                 base_url: "Ang base URL ng Infobip API ng account.",
                 sender: "Ang aprubadong nagpadala na nakikita ng mga botante.",
                 provider_approval:
-                    "Pinapayagan lamang ng Meta ang pagmemensahe ng gobyerno sa WhatsApp sa pamamagitan ng aprubadong kaayusan. Habang hinihintay ang pag-apruba, hindi mapapagana ang mga OTP at abiso para sa account na ito.",
+                    "Pinapayagan lamang ng Meta ang pagmemensahe ng gobyerno sa WhatsApp sa pamamagitan ng aprubadong kaayusan. Piliin ang Kumpirmado ang pag-apruba ng provider kapag naaprubahan na ito ng Meta para sa account na ito; hanggang doon, hindi mapapagana ang mga OTP at abiso para dito.",
+                readiness:
+                    "Ginagamit ng Mula sa pagsusuri ng provider ang nakikita ng pagsusuri ng koneksyon: kung nakakonekta ang account, kung nasa production ito, at kung aling mga template ang aprubado. Ang Kinumpirma ng administrator ay para sa mga provider na hindi ito matutukoy ng pagsusuri: ito ang iyong pahayag na nakakonekta ang account, nasa production at aprubado ang mga template nito, at ito ang ginagamit sa halip ng pagsusuri.",
+                api_base_url:
+                    "Kapag hindi sa Meta mismo ang Graph API lamang, gaya ng endpoint ng isang Solution Provider. Kapag walang laman, ang sa Meta ang ginagamit.",
+                label: "Ang pangalang nakikita ng mga botante bilang nagpadala ng account na ito.",
             },
             error: {
                 REQUIRED: "Kailangan",
@@ -3765,6 +3822,8 @@ const tagalogTranslation: TranslationType = {
                 INVALID_CALLING_CODE:
                     "Maglagay ng country calling code na 1 hanggang 3 numero, gaya ng 63",
                 DUPLICATE_LANGUAGE: "May template na ang wikang ito para sa layuning ito",
+                NOT_A_URL: "Maglagay ng address na nagsisimula sa https:// o http://",
+                INVALID_HTTP_CONFIG: "Ayusin ang mga ipinakitang problema",
             },
             warning: {
                 pageChange:
@@ -3825,6 +3884,19 @@ const tagalogTranslation: TranslationType = {
                 VIBER_INFOBIP: {
                     API_KEY: "Ang Infobip API key.",
                 },
+                HTTP_API: {
+                    API_KEY: "Opsyonal. Ginagamit ito ng mga request bilang kredensyal na API_KEY.",
+                    API_SECRET:
+                        "Opsyonal. Pangalawang secret, at ang key na pumipirma sa JWT: PEM private key para sa RS256, ang shared secret para sa HS256.",
+                    ACCESS_TOKEN:
+                        "Opsyonal. Ginagamit ito ng mga request bilang kredensyal na ACCESS_TOKEN.",
+                    USERNAME:
+                        "Opsyonal. Kasama ng password, binubuo nito ang placeholder na basic_auth.",
+                    PASSWORD:
+                        "Opsyonal. Kasama ng username, binubuo nito ang placeholder na basic_auth.",
+                    WEBHOOK_SECRET:
+                        "Opsyonal. Ang shared secret na ginagamit sa pagsusuri ng mga callback ng provider.",
+                },
             },
             webhook: {
                 title: "Mga ulat sa paghahatid at mga sagot",
@@ -3845,6 +3917,8 @@ const tagalogTranslation: TranslationType = {
                 copyToken: "Kopyahin ang verify token",
                 tokenDone: "Tapos na",
                 tokenError: "Hindi mabuo ang verify token.",
+                httpHelp:
+                    "Maaaring i-post ng custom na HTTP API ang mga ulat nito bilang JSON, o ipadala ang mga ito bilang GET request; binabasa noon ang mga query parameter nito bilang flat na object, na may mga pointer gaya ng /status.",
             },
             copy: {
                 success: "Nakopya",
@@ -3870,9 +3944,109 @@ const tagalogTranslation: TranslationType = {
                 error: "Hindi maipadala ang test message.",
                 template: "Aprubadong template",
                 templateHelp:
-                    "Ang pangalan ng WhatsApp template na inaprubahan ng provider para sa layunin at wikang ito.",
+                    "Ang pangalan o ID ng template na inaprubahan ng provider para sa layunin at wikang ito.",
                 viberTemplate:
                     "Ginagamit ng Viber ang template na nakalista sa account na ito bilang aprubado para sa napiling layunin at wika.",
+                languageHelp:
+                    "Para sa provider na nagpapadala ng mga aprubadong template, ilagay ang language code ng provider para sa template, gaya ng en_US.",
+            },
+            http: {
+                title: "Custom na HTTP API",
+                description:
+                    "Inilalarawan ang isang provider ayon sa mga HTTP request nito: ibang Viber partner, sariling API ng isang WhatsApp Solution Provider, isang SMS gateway. JSON ang mga request; maaaring maglaman ang URL, mga header at body ng mga ito ng mga placeholder mula sa reference sa ibaba.",
+                phoneFormat: "Format ng numero ng telepono",
+                phoneFormatHelp:
+                    "Kung paano isinusulat sa request ang numero ng telepono ng tatanggap.",
+                phoneFormatOption: {
+                    E164: "May plus sign: +639171234567",
+                    DIGITS: "Mga numero lamang: 639171234567",
+                },
+                templateRequired: "Mga layuning nangangailangan ng aprubadong template",
+                templateRequiredHelp:
+                    "Ang layuning naka-tsek ay ipinapadala lamang gamit ang template na inaprubahan ng provider, na nakaugnay sa election event. Ipinapadala bilang free text ang iba pang layunin.",
+                approvedLanguages: "Mga wikang may aprubadong template para sa {{purpose}}",
+                approvedLanguagesHelp:
+                    "Ang mga language code na may aprubadong template, ayon sa kinumpirma sa provider, na pinaghihiwalay ng kuwit: en, tl. Iniuulat ang mga ito ng pagsusuri ng koneksyon.",
+                conversationWindow: "Window ng usapan (oras)",
+                conversationWindowHelp:
+                    "Mga oras pagkatapos ng huling mensahe ng tatanggap kung kailan maaaring magpadala ng free text. Walang laman kapag walang ganitong window ang provider.",
+                messageIdPointer: "Message ID sa sagot sa pagpapadala",
+                messageIdPointerHelp:
+                    "JSON pointer sa message ID ng provider sa sagot sa send request, gaya ng /message_id. Dito itinutugma ang mga ulat sa paghahatid.",
+                notConfigured: "Hindi naka-configure.",
+                thisSection: "Ang seksyong ito",
+                add: "Idagdag: {{section}}",
+                remove: "Alisin: {{section}}",
+                section: {
+                    SEND: "Send request",
+                    CHECK: "Request ng pagsusuri ng koneksyon",
+                    TOKEN: "Token request",
+                    JWT: "Pinirmahang token (JWT)",
+                    REPORTS: "Mga ulat sa paghahatid at mga sagot",
+                    RECONCILE: "Request ng paghahanap ng mensahe",
+                },
+                sectionHelp: {
+                    SEND: "Ang request na nagpapadala ng isang mensahe: method (POST kapag hindi inilagay), url, headers at body.",
+                    CHECK: "Opsyonal. Isang request na nagtatagumpay, na may sagot na 2xx, kapag gumagana ang mga kredensyal. Pinapatakbo ito ng pagsusuri ng koneksyon.",
+                    TOKEN: "Opsyonal. Kumukuha ng panandaliang token bago magpadala, gaya ng OAuth client credentials: request, token_pointer (kung nasaan ang token sa sagot) at lifetime_seconds. Ginagamit ito ng mga request sa pamamagitan ng placeholder na token.",
+                    JWT: "Opsyonal. Isang token na pinipirmahan para sa bawat request gamit ang kredensyal na API secret: algorithm (RS256 o HS256), claims (idinadagdag ang iat, exp at jti) at lifetime_seconds. Ginagamit ito ng mga request sa pamamagitan ng placeholder na jwt.",
+                    REPORTS:
+                        "Opsyonal. Kung paano babasahin ang ipinapadala ng provider sa callback: auth, items_pointer (kung nasaan ang listahan ng mga ulat; ang buong payload kapag hindi inilagay), status (message_id_pointer, state_pointer, states na nagtutugma ng bawat value ng provider sa QUEUED, ACCEPTED, DELIVERED, FAILED o UNKNOWN, at error_pointer) at inbound_from_pointer (kung nasaan ang nagpadala ng isang sagot). May kind ang auth: URL_KEY (ang lihim na address lamang ng callback), HEADER_SECRET (isang header na katumbas ng webhook secret), HMAC_SHA256 (isang header na may HMAC ng body gamit ang webhook secret, na may prefix, encoding na HEX o BASE64, at signed kapag higit pa sa body ang pinipirmahan) o JWT_HS256 (isang header na may bearer JWT na pinirmahan gamit ang webhook secret).",
+                    RECONCILE:
+                        "Opsyonal. Nagtatanong sa provider tungkol sa isang mensaheng hindi alam ang kinalabasan: request at status, na binabasa gaya ng status ng mga ulat sa paghahatid.",
+                },
+                problem: {
+                    NOT_AN_OBJECT: "Dapat object ang {{path}}.",
+                    MISSING_URL: "Kailangan ang {{path}}: ang address ng request.",
+                    INVALID_METHOD: "Dapat HTTP method ang {{path}}, gaya ng POST o GET.",
+                    INVALID_HEADERS:
+                        "Dapat text ang {{path}}: ang headers ay object ng mga pangalan ng header at mga text na value.",
+                    UNKNOWN_FIELD: "Hindi field ng seksyong ito ang {{path}}.",
+                    UNKNOWN_PLACEHOLDER:
+                        "Gumagamit ang {{path}} ng placeholder na hindi umiiral. Tingnan ang reference ng mga placeholder.",
+                    INVALID_POINTER:
+                        "Dapat JSON pointer na nagsisimula sa / ang {{path}}, gaya ng /data/id.",
+                    INVALID_STATES:
+                        "Dapat itugma ng {{path}} ang isang status value ng provider sa QUEUED, ACCEPTED, DELIVERED, FAILED o UNKNOWN; kailangan ng kahit isa.",
+                    INVALID_AUTH:
+                        "Hindi wasto ang {{path}}: ang kind ay URL_KEY, HEADER_SECRET, HMAC_SHA256 o JWT_HS256; kailangan ang header maliban sa URL_KEY; ang encoding ay HEX o BASE64.",
+                    INVALID_LIFETIME: "Dapat buong bilang ng segundo na higit sa 0 ang {{path}}.",
+                    INVALID_ALGORITHM: "Dapat RS256 o HS256 ang {{path}}.",
+                    INVALID_CLAIMS: "Dapat object ang {{path}}.",
+                    INVALID_HOURS: "Dapat buong bilang ng oras na higit sa 0 ang {{path}}.",
+                },
+                placeholders: {
+                    title: "Reference ng mga placeholder",
+                    help: "Isinusulat sa pagitan ng dobleng curly brace sa URL, sa value ng header o sa anumang text ng body. Pinapalitan ang bawat isa kapag ginawa ang request.",
+                },
+                placeholder: {
+                    to: "Ang tatanggap: numero ng telepono, email address o Page-scoped ID.",
+                    text: "Ang mensahe bilang plain text.",
+                    subject: "Ang paksa, para sa email.",
+                    html: "Ang mensahe bilang HTML, para sa email.",
+                    code: "Ang one-time code, para sa mga OTP.",
+                    template: "Ang template ng provider na nakaugnay sa election event.",
+                    language: "Ang language code ng provider para sa template.",
+                    message_id: "Ang message ID ng provider, sa request ng paghahanap ng mensahe.",
+                    callback_url: "Ang pampublikong address ng callback ng account na ito.",
+                    param: "Isang parameter ng template ayon sa posisyon nito: 1, 2, 3 at iba pa.",
+                    credential:
+                        "Isang kredensyal ng account na ito ayon sa pangalan: API_KEY, API_SECRET, ACCESS_TOKEN, USERNAME, PASSWORD o WEBHOOK_SECRET.",
+                    basic_auth:
+                        "Ang username at password, naka-encode para sa header na Authorization: Basic.",
+                    token: "Ang token na nakuha sa token request.",
+                    jwt: "Ang pinirmahang token na inilarawan sa Pinirmahang token (JWT).",
+                    parameters:
+                        "Kapag mag-isa bilang value sa body, nagiging listahan ito ng lahat ng parameter ng template.",
+                    named_parameters:
+                        "Kapag mag-isa bilang value sa body, nagiging object ito ng mga parameter na isinulat bilang @pangalan=halaga.",
+                },
+                example: {
+                    title: "Buong halimbawa: isang Viber partner",
+                    description:
+                        "Tumatanggap ang partner ng JSON POST na authenticated gamit ang API key bilang bearer token, sumasagot ng ID ng mensahe sa ilalim ng message_id, at nagpo-post ng mga ulat sa paghahatid na may lihim na header. Gamitin ito bilang panimula at palitan ang address at mga pangalan ng field ng sa provider.",
+                    use: "Gamitin ang halimbawang ito",
+                },
             },
         },
     },

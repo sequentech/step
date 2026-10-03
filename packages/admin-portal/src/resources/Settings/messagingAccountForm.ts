@@ -7,6 +7,7 @@ import {
     EMessagePurpose,
     EMessagingProvider,
     EProviderApproval,
+    EReadinessPolicy,
     IAccountLimits,
     IAccountSender,
     IMessagingAccount,
@@ -15,11 +16,19 @@ import {
     MESSAGE_PURPOSES,
 } from "@/types/messaging"
 import {
+    accountCapabilities,
     providerCapabilities,
     providersForChannel,
     purposeReadiness,
     typedCredentials,
 } from "@/services/messaging"
+import {
+    IHttpApiForm,
+    emptyHttpApiForm,
+    httpFormFromSender,
+    httpFormProblems,
+    httpSenderFromForm,
+} from "./httpApiSender"
 
 export const DEFAULT_META_API_VERSION = "v23.0"
 
@@ -51,6 +60,7 @@ export const senderFields = (provider: EMessagingProvider): ISenderField[] => {
                 field("display_phone_number", true),
                 field("display_name"),
                 field("api_version", true),
+                field("api_base_url"),
             ]
         case EMessagingProvider.MESSENGER_SEND_API:
             return [
@@ -58,21 +68,24 @@ export const senderFields = (provider: EMessagingProvider): ISenderField[] => {
                 field("page_name"),
                 field("page_username"),
                 field("api_version", true),
+                field("api_base_url"),
             ]
         case EMessagingProvider.VIBER_INFOBIP:
             return [field("base_url", true), field("sender", true)]
+        case EMessagingProvider.HTTP_API:
+            return [field("label")]
         case EMessagingProvider.CONSOLE:
             return []
     }
 }
 
 /**
- * Providers an administrator can pick for a channel. The console provider is
- * left out: it serves any channel, and an account's channel is derived from
- * its provider when it is saved.
+ * Providers an administrator can pick for a channel: the channel's own, then
+ * the ones that serve any channel, whose account is saved with the chosen
+ * channel.
  */
 export const selectableProviders = (channel: EMessageChannel): EMessagingProvider[] =>
-    providersForChannel(channel).filter((provider) => provider !== EMessagingProvider.CONSOLE)
+    providersForChannel(channel)
 
 export interface IViberTemplateRow {
     purpose: EMessagePurpose
@@ -92,8 +105,10 @@ export interface IAccountFormValues {
     name: string
     sender: Record<string, string>
     viberTemplates: IViberTemplateRow[]
+    http: IHttpApiForm
     limits: IAccountFormLimits
     providerApproval: EProviderApproval
+    readiness: EReadinessPolicy
     isDefault: boolean
     credentials: Partial<Record<ECredentialName, string>>
 }
@@ -115,8 +130,10 @@ export const emptyAccountForm = (
     name: "",
     sender: initialSender(provider),
     viberTemplates: [],
+    http: emptyHttpApiForm(),
     limits: {messagesPerSecond: "", otpReservedPerSecond: "", allowedCallingCodes: ""},
     providerApproval: EProviderApproval.PENDING,
+    readiness: EReadinessPolicy.PROVIDER_CHECK,
     isDefault: false,
     credentials: {},
 })
@@ -130,8 +147,22 @@ export const withProvider = (
     provider,
     sender: initialSender(provider),
     viberTemplates: [],
+    http: emptyHttpApiForm(),
     credentials: {},
 })
+
+/**
+ * Switches a new account to another channel. A provider that serves any
+ * channel is kept with what was entered; otherwise the channel's first
+ * provider is selected.
+ */
+export const withChannel = (
+    values: IAccountFormValues,
+    channel: EMessageChannel
+): IAccountFormValues =>
+    providerCapabilities(values.provider, channel)
+        ? {...values, channel}
+        : withProvider({...values, channel}, selectableProviders(channel)[0])
 
 const senderValues = (sender: IAccountSender): Record<string, string> => {
     const values: Record<string, string> = {}
@@ -164,12 +195,14 @@ export const formFromAccount = (account: IMessagingAccount): IAccountFormValues 
         account.sender.provider === EMessagingProvider.VIBER_INFOBIP
             ? viberRows(account.sender.approved_templates)
             : [],
+    http: httpFormFromSender(account.sender),
     limits: {
         messagesPerSecond: countText(account.limits?.messages_per_second),
         otpReservedPerSecond: countText(account.limits?.otp_reserved_per_second),
         allowedCallingCodes: (account.limits?.allowed_calling_codes ?? []).join(", "),
     },
     providerApproval: account.provider_approval ?? EProviderApproval.PENDING,
+    readiness: account.readiness ?? EReadinessPolicy.PROVIDER_CHECK,
     isDefault: account.is_default,
     credentials: {},
 })
@@ -242,6 +275,7 @@ export const senderFromForm = (values: IAccountFormValues): IAccountSender => {
                 display_phone_number: required(values, "display_phone_number"),
                 display_name: optional(values, "display_name"),
                 api_version: required(values, "api_version"),
+                api_base_url: optional(values, "api_base_url"),
             }
         case EMessagingProvider.MESSENGER_SEND_API:
             return {
@@ -250,6 +284,7 @@ export const senderFromForm = (values: IAccountFormValues): IAccountSender => {
                 page_name: optional(values, "page_name"),
                 page_username: optional(values, "page_username"),
                 api_version: required(values, "api_version"),
+                api_base_url: optional(values, "api_base_url"),
             }
         case EMessagingProvider.VIBER_INFOBIP:
             return {
@@ -258,6 +293,8 @@ export const senderFromForm = (values: IAccountFormValues): IAccountSender => {
                 sender: required(values, "sender"),
                 approved_templates: viberTemplates(values.viberTemplates),
             }
+        case EMessagingProvider.HTTP_API:
+            return httpSenderFromForm(values.sender.label ?? "", values.http)
         case EMessagingProvider.CONSOLE:
             return {provider: EMessagingProvider.CONSOLE}
     }
@@ -279,7 +316,11 @@ export enum EAccountFormError {
     OTP_ABOVE_TOTAL = "OTP_ABOVE_TOTAL",
     INVALID_CALLING_CODE = "INVALID_CALLING_CODE",
     DUPLICATE_LANGUAGE = "DUPLICATE_LANGUAGE",
+    NOT_A_URL = "NOT_A_URL",
+    INVALID_HTTP_CONFIG = "INVALID_HTTP_CONFIG",
 }
+
+const HTTP_URL = /^https?:\/\/\S+$/
 
 /** Errors by field path; empty when the form can be saved. */
 export const validateAccountForm = (
@@ -324,8 +365,49 @@ export const validateAccountForm = (
             seen.add(key)
         })
     }
+    const apiBaseUrl = optional(values, "api_base_url")
+    if (
+        senderFields(values.provider).some(({key}) => key === "api_base_url") &&
+        apiBaseUrl &&
+        !HTTP_URL.test(apiBaseUrl)
+    ) {
+        errors["sender.api_base_url"] = EAccountFormError.NOT_A_URL
+    }
+    if (values.provider === EMessagingProvider.HTTP_API) {
+        for (const part of Object.keys(httpFormProblems(values.http))) {
+            errors[`http.${part}`] = EAccountFormError.INVALID_HTTP_CONFIG
+        }
+    }
     return errors
 }
+
+export interface IUpsertAccountVariables {
+    id: string | null
+    channel: EMessageChannel
+    name: string
+    sender: IAccountSender
+    limits: IAccountLimits
+    providerApproval: EProviderApproval | null
+    readiness: EReadinessPolicy
+    isDefault: boolean
+}
+
+/** The variables of `upsert_messaging_account` for the form. */
+export const upsertAccountVariables = (
+    id: string | null,
+    values: IAccountFormValues
+): IUpsertAccountVariables => ({
+    id,
+    channel: values.channel,
+    name: values.name.trim(),
+    sender: senderFromForm(values),
+    limits: limitsFromForm(values),
+    providerApproval: requiresProviderApproval(values.provider, values.channel)
+        ? values.providerApproval
+        : null,
+    readiness: values.readiness,
+    isDefault: values.isDefault,
+})
 
 /** Typed credentials to replace, or null when none was typed. */
 export const credentialsPayload = (
@@ -338,21 +420,27 @@ export const credentialsPayload = (
 }
 
 export interface IAccountReadiness {
+    /** Where the readiness comes from: the provider's check or an administrator. */
+    policy: EReadinessPolicy
+    /** What the last check told; not used when an administrator confirmed the account. */
     connected: boolean
     purposes: Record<EMessagePurpose, IPurposeReadiness>
 }
 
 export const accountReadiness = (account: IMessagingAccount): IAccountReadiness => {
+    const policy = account.readiness ?? EReadinessPolicy.PROVIDER_CHECK
+    const capabilities = accountCapabilities(account)
     const readiness = (purpose: EMessagePurpose) =>
         purposeReadiness(
-            account.provider,
-            account.channel,
+            capabilities,
             account.provider_approval,
+            policy,
             account.status,
             purpose,
             null
         )
     return {
+        policy,
         connected: account.status?.connected ?? false,
         purposes: {
             [EMessagePurpose.OTP]: readiness(EMessagePurpose.OTP),

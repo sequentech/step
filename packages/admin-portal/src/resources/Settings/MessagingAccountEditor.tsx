@@ -32,11 +32,13 @@ import {
     EMessagePurpose,
     EMessagingProvider,
     EProviderApproval,
+    EReadinessPolicy,
     IMessagingAccount,
     MESSAGE_CHANNELS,
     MESSAGE_PURPOSES,
+    READINESS_POLICIES,
 } from "@/types/messaging"
-import {isMetaProvider, typedCredentials, webhookPath} from "@/services/messaging"
+import {hasWebhook, isMetaProvider, typedCredentials, webhookPath} from "@/services/messaging"
 import {UPSERT_MESSAGING_ACCOUNT} from "@/queries/UpsertMessagingAccount"
 import {REPLACE_MESSAGING_ACCOUNT_CREDENTIALS} from "@/queries/ReplaceMessagingAccountCredentials"
 import {
@@ -45,14 +47,15 @@ import {
     credentialsPayload,
     emptyAccountForm,
     formFromAccount,
-    limitsFromForm,
     requiresProviderApproval,
     selectableProviders,
     senderFields,
-    senderFromForm,
+    upsertAccountVariables,
     validateAccountForm,
+    withChannel,
     withProvider,
 } from "./messagingAccountForm"
+import {HttpApiSenderEditor} from "./HttpApiSenderEditor"
 
 export const MESSAGING_ACCOUNT_EDITOR_TITLE = "messaging-account-editor-title"
 
@@ -78,8 +81,10 @@ const FIELDS_WITH_HELP = new Set([
     "display_name",
     "page_username",
     "api_version",
+    "api_base_url",
     "base_url",
     "sender",
+    "label",
 ])
 
 export const formatDate = (iso: string | null | undefined, language: string): string =>
@@ -266,6 +271,9 @@ export const CallbackSection: React.FC<ICallbackSectionProps> = ({
             </Typography>
             <Typography variant="body2" color="text.secondary">
                 {t("messagingAccounts.webhook.description")}
+                {provider === EMessagingProvider.HTTP_API
+                    ? ` ${t("messagingAccounts.webhook.httpHelp")}`
+                    : ""}
             </Typography>
             <TextField
                 label={t("messagingAccounts.webhook.path")}
@@ -462,8 +470,6 @@ export const MessagingAccountEditor: React.FC<IMessagingAccountEditorProps> = ({
     const disabled = !canWrite || saving
     const channelName = t(`messaging.channel.${values.channel}`)
     const needsApproval = requiresProviderApproval(values.provider, values.channel)
-    const hasWebhook =
-        isMetaProvider(values.provider) || values.provider === EMessagingProvider.VIBER_INFOBIP
     const original = account ? formFromAccount(account).sender : undefined
     const changed = (key: string) => !!original && (values.sender[key] ?? "") !== original[key]
     const pageChanged =
@@ -489,14 +495,7 @@ export const MessagingAccountEditor: React.FC<IMessagingAccountEditorProps> = ({
         setSaving(true)
         try {
             const {data} = await upsertAccount({
-                variables: {
-                    id: account?.id ?? null,
-                    name: values.name.trim(),
-                    sender: senderFromForm(values),
-                    limits: limitsFromForm(values),
-                    providerApproval: needsApproval ? values.providerApproval : null,
-                    isDefault: values.isDefault,
-                },
+                variables: upsertAccountVariables(account?.id ?? null, values),
             })
             const id = data?.upsert_messaging_account?.id ?? account?.id
             if (!id) {
@@ -543,12 +542,11 @@ export const MessagingAccountEditor: React.FC<IMessagingAccountEditorProps> = ({
                         label={t("messagingAccounts.editor.channel")}
                         value={values.channel}
                         disabled={disabled}
-                        onChange={(event) => {
-                            const channel = event.target.value as EMessageChannel
-                            const provider = selectableProviders(channel)[0]
-                            setValues(withProvider({...values, channel}, provider))
-                        }}
-                        sx={{minWidth: 200}}
+                        helperText={t("messagingAccounts.editor.channelHelp")}
+                        onChange={(event) =>
+                            setValues(withChannel(values, event.target.value as EMessageChannel))
+                        }
+                        sx={{minWidth: 200, maxWidth: 260}}
                     >
                         {MESSAGE_CHANNELS.map((channel) => (
                             <MenuItem key={channel} value={channel}>
@@ -624,6 +622,33 @@ export const MessagingAccountEditor: React.FC<IMessagingAccountEditorProps> = ({
                     onChange={setValues}
                 />
             )}
+
+            {values.provider === EMessagingProvider.HTTP_API && (
+                <HttpApiSenderEditor
+                    values={values.http}
+                    submitted={submitted}
+                    disabled={disabled}
+                    onChange={(http) => setValues({...values, http})}
+                />
+            )}
+
+            <TextField
+                select
+                label={t("messagingAccounts.field.readiness")}
+                value={values.readiness}
+                disabled={disabled}
+                helperText={t("messagingAccounts.fieldHelp.readiness")}
+                onChange={(event) =>
+                    setValues({...values, readiness: event.target.value as EReadinessPolicy})
+                }
+                fullWidth
+            >
+                {READINESS_POLICIES.map((policy) => (
+                    <MenuItem key={policy} value={policy}>
+                        {t(`messaging.readinessPolicy.${policy}`)}
+                    </MenuItem>
+                ))}
+            </TextField>
 
             {needsApproval && (
                 <TextField
@@ -729,7 +754,7 @@ export const MessagingAccountEditor: React.FC<IMessagingAccountEditorProps> = ({
                 </>
             )}
 
-            {hasWebhook && (
+            {hasWebhook(values.provider) && (
                 <CallbackSection
                     account={account}
                     provider={values.provider}

@@ -6,13 +6,16 @@ import {
     EMessageChannel,
     EMessagePurpose,
     EOutOfWindowPolicy,
+    EReadinessPolicy,
+    IAccountSummary,
     IEventChannelConfig,
     IEventMessagingConfig,
     IMessagingConfigError,
+    ITemplateBinding,
     MESSAGE_ATTEMPT_STATES,
     MESSAGE_CHANNELS,
 } from "@/types/messaging"
-import {IStateCount} from "@/services/messaging"
+import {IStateCount, bindingProviderLanguage, supportsOutOfWindow} from "@/services/messaging"
 
 const updateChannel = (
     config: IEventMessagingConfig,
@@ -122,44 +125,143 @@ export const togglePurpose = (
     return remaining?.purposes.length ? next : withoutElectionChannel(next, channel)
 }
 
-/** Binds a purpose and language to a provider template; blank removes the binding. */
-export const setTemplateBinding = (
-    config: IEventMessagingConfig,
-    channel: EMessageChannel,
-    purpose: EMessagePurpose,
-    language: string,
-    providerTemplate: string
-): IEventMessagingConfig => {
-    const value = providerTemplate.trim()
-    return updateChannel(config, channel, (entry) => {
-        const exists = entry.templates.some(
-            (binding) => binding.purpose === purpose && binding.language === language
-        )
-        const templates = value
-            ? exists
-                ? entry.templates.map((binding) =>
-                      binding.purpose === purpose && binding.language === language
-                          ? {...binding, provider_template: value}
-                          : binding
-                  )
-                : [...entry.templates, {purpose, language, provider_template: value}]
-            : entry.templates.filter(
-                  (binding) => !(binding.purpose === purpose && binding.language === language)
-              )
-        return {...entry, templates}
-    })
-}
-
-export const templateBinding = (
+/** Adds an empty binding row for a purpose and language of a channel. */
+export const addTemplateBinding = (
     config: IEventMessagingConfig,
     channel: EMessageChannel,
     purpose: EMessagePurpose,
     language: string
-): string =>
+): IEventMessagingConfig =>
+    updateChannel(config, channel, (entry) => ({
+        ...entry,
+        templates: [
+            ...entry.templates,
+            {purpose, key: null, language, provider_template: "", provider_language: null},
+        ],
+    }))
+
+export const updateTemplateBinding = (
+    config: IEventMessagingConfig,
+    channel: EMessageChannel,
+    index: number,
+    patch: Partial<ITemplateBinding>
+): IEventMessagingConfig =>
+    updateChannel(config, channel, (entry) => ({
+        ...entry,
+        templates: entry.templates.map((binding, position) =>
+            position === index ? {...binding, ...patch} : binding
+        ),
+    }))
+
+export const removeTemplateBinding = (
+    config: IEventMessagingConfig,
+    channel: EMessageChannel,
+    index: number
+): IEventMessagingConfig =>
+    updateChannel(config, channel, (entry) => ({
+        ...entry,
+        templates: entry.templates.filter((_binding, position) => position !== index),
+    }))
+
+const blank = (value: string | null | undefined): boolean => !value?.trim()
+
+/** A row nothing was entered in besides the purpose and language it was added with. */
+const emptyBinding = (binding: ITemplateBinding): boolean =>
+    blank(binding.provider_template) && blank(binding.key) && blank(binding.provider_language)
+
+export interface IBindingPosition {
+    channel: EMessageChannel
+    index: number
+}
+
+/** Rows that were started but miss the language or the provider's template. */
+export const incompleteBindings = (config: IEventMessagingConfig): IBindingPosition[] =>
+    config.channels.flatMap((entry) =>
+        entry.templates.flatMap((binding, index) =>
+            !emptyBinding(binding) && (blank(binding.language) || blank(binding.provider_template))
+                ? [{channel: entry.channel, index}]
+                : []
+        )
+    )
+
+/** The configuration to save: bindings trimmed, empty rows and empty optional values left out. */
+export const preparedConfig = (config: IEventMessagingConfig): IEventMessagingConfig => ({
+    ...config,
+    channels: config.channels.map((entry) => ({
+        ...entry,
+        templates: entry.templates
+            .filter((binding) => !emptyBinding(binding))
+            .map((binding) => ({
+                purpose: binding.purpose,
+                key: binding.key?.trim() || null,
+                language: binding.language.trim(),
+                provider_template: binding.provider_template.trim(),
+                provider_language: binding.provider_language?.trim() || null,
+            })),
+    })),
+})
+
+/** How a channel sends notices outside its conversation window. */
+export const setOutOfWindow = (
+    config: IEventMessagingConfig,
+    channel: EMessageChannel,
+    policy: EOutOfWindowPolicy
+): IEventMessagingConfig =>
+    updateChannel(config, channel, (entry) => ({...entry, out_of_window: policy}))
+
+export enum EBindingApproval {
+    APPROVED = "APPROVED",
+    NOT_APPROVED = "NOT_APPROVED",
+    /** The administrator's statement stands instead of the provider's check. */
+    ADMIN_CONFIRMED = "ADMIN_CONFIRMED",
+    /** The purpose is sent as free text on this account, so no approval is checked. */
+    NOT_CHECKED = "NOT_CHECKED",
+}
+
+/** What is known about the provider's approval of a binding's template. */
+export const bindingApproval = (
+    account: IAccountSummary | undefined,
+    binding: ITemplateBinding
+): EBindingApproval => {
+    if (!account) {
+        return EBindingApproval.NOT_CHECKED
+    }
+    if (account.readiness === EReadinessPolicy.ADMIN_CONFIRMED) {
+        return EBindingApproval.ADMIN_CONFIRMED
+    }
+    const languages = account.check.approved_templates?.[binding.purpose] ?? []
+    if (
+        languages.includes(bindingProviderLanguage(binding)) ||
+        languages.includes(binding.language)
+    ) {
+        return EBindingApproval.APPROVED
+    }
+    return account.capabilities?.template_required_for.includes(binding.purpose)
+        ? EBindingApproval.NOT_APPROVED
+        : EBindingApproval.NOT_CHECKED
+}
+
+/**
+ * Channels whose bindings are edited: the account needs approved templates
+ * for a purpose, can send them outside its conversation window, or the channel
+ * already has bindings.
+ */
+export const templateChannels = (
+    config: IEventMessagingConfig,
+    accounts: IAccountSummary[]
+): EMessageChannel[] =>
     config.channels
-        .find((entry) => entry.channel === channel)
-        ?.templates.find((binding) => binding.purpose === purpose && binding.language === language)
-        ?.provider_template ?? ""
+        .filter((entry) => {
+            const capabilities = accounts.find(
+                (account) => account.id === entry.account_id
+            )?.capabilities
+            return (
+                entry.templates.length > 0 ||
+                (capabilities?.template_required_for.length ?? 0) > 0 ||
+                supportsOutOfWindow(capabilities ?? null)
+            )
+        })
+        .map((entry) => entry.channel)
 
 export const moveFallback = (
     config: IEventMessagingConfig,

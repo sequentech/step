@@ -37,6 +37,7 @@ import {IPermissions} from "@/types/keycloak"
 import {
     EMessagePurpose,
     EReadinessBlocker,
+    EReadinessPolicy,
     IMessagingAccount,
     MESSAGE_PURPOSES,
 } from "@/types/messaging"
@@ -191,6 +192,8 @@ export const SettingsMessaging: React.FC = () => {
                         <TableBody>
                             {accounts.map((account) => {
                                 const readiness = accountReadiness(account)
+                                const adminConfirmed =
+                                    readiness.policy === EReadinessPolicy.ADMIN_CONFIRMED
                                 return (
                                     <TableRow key={account.id}>
                                         <TableCell>
@@ -217,19 +220,28 @@ export const SettingsMessaging: React.FC = () => {
                                             ) : null}
                                         </TableCell>
                                         <TableCell>
-                                            <ReadinessCell
-                                                ready={readiness.connected}
-                                                label={
-                                                    readiness.connected
-                                                        ? t("messaging.readiness.connected")
-                                                        : t("messaging.readiness.notConnected")
-                                                }
-                                                reasons={
-                                                    !readiness.connected && account.status?.reason
-                                                        ? [account.status.reason]
-                                                        : []
-                                                }
-                                            />
+                                            {adminConfirmed ? (
+                                                <ReadinessCell
+                                                    ready
+                                                    label={t("messaging.readiness.adminConfirmed")}
+                                                    reasons={[]}
+                                                />
+                                            ) : (
+                                                <ReadinessCell
+                                                    ready={readiness.connected}
+                                                    label={
+                                                        readiness.connected
+                                                            ? t("messaging.readiness.connected")
+                                                            : t("messaging.readiness.notConnected")
+                                                    }
+                                                    reasons={
+                                                        !readiness.connected &&
+                                                        account.status?.reason
+                                                            ? [account.status.reason]
+                                                            : []
+                                                    }
+                                                />
+                                            )}
                                         </TableCell>
                                         {MESSAGE_PURPOSES.map((purpose) => {
                                             const {blockers} = readiness.purposes[purpose]
@@ -249,14 +261,16 @@ export const SettingsMessaging: React.FC = () => {
                                         })}
                                         <TableCell>
                                             <Typography variant="caption" color="text.secondary">
-                                                {account.status?.checked_at
-                                                    ? t("messaging.readiness.lastCheck", {
-                                                          date: formatDate(
-                                                              account.status.checked_at,
-                                                              i18n.language
-                                                          ),
-                                                      })
-                                                    : t("messaging.readiness.neverChecked")}
+                                                {adminConfirmed
+                                                    ? t("messaging.readiness.checkNotUsed")
+                                                    : account.status?.checked_at
+                                                      ? t("messaging.readiness.lastCheck", {
+                                                            date: formatDate(
+                                                                account.status.checked_at,
+                                                                i18n.language
+                                                            ),
+                                                        })
+                                                      : t("messaging.readiness.neverChecked")}
                                             </Typography>
                                         </TableCell>
                                         <TableCell sx={{whiteSpace: "nowrap"}}>

@@ -216,6 +216,7 @@ export const SendTemplate: React.FC<SendTemplateProps> = ({
             communicationMethod: formData.communication_method,
             scheduleNow: formData.schedule.now,
             scheduleDate: formData.schedule.date,
+            alias: formData.alias,
             content: formData.i18n["en"],
             secretAttributeNames: getReferencedSecretAttributeNames(
                 templateContents,
@@ -267,9 +268,15 @@ export const SendTemplate: React.FC<SendTemplateProps> = ({
         updateContent({sms: {message: e.target.value}})
 
     const handleInstantChange =
-        (key: InstantContentKey) => (e: React.ChangeEvent<HTMLInputElement>) =>
+        (key: InstantContentKey, field: "message" | "provider_template" | "provider_language") =>
+        (e: React.ChangeEvent<HTMLInputElement>) =>
             updateContent({
-                [key]: {message: e.target.value, parameters: content[key]?.parameters ?? []},
+                [key]: {
+                    ...content[key],
+                    message: content[key]?.message ?? "",
+                    parameters: content[key]?.parameters ?? [],
+                    [field]: e.target.value,
+                },
             })
 
     const handleSelectChange = (e: SelectChangeEvent<unknown>) =>
@@ -543,22 +550,50 @@ export const SendTemplate: React.FC<SendTemplateProps> = ({
                             if (!value && eachVoter) {
                                 return null
                             }
+                            const channel = t(`template.method.${key}`)
                             return (
-                                <FormStyles.TextField
-                                    key={method}
-                                    name={key}
-                                    label={String(t(`template.method.${key}`))}
-                                    value={value?.message ?? ""}
-                                    onChange={editable ? handleInstantChange(key) : undefined}
-                                    InputProps={{readOnly: !editable}}
-                                    helperText={
-                                        editable
-                                            ? undefined
-                                            : String(t("messaging.send.approvedTemplateHelp"))
-                                    }
-                                    multiline={true}
-                                    minRows={3}
-                                />
+                                <React.Fragment key={method}>
+                                    <FormStyles.TextField
+                                        name={key}
+                                        label={String(channel)}
+                                        value={value?.message ?? ""}
+                                        onChange={
+                                            editable
+                                                ? handleInstantChange(key, "message")
+                                                : undefined
+                                        }
+                                        InputProps={{readOnly: !editable}}
+                                        helperText={
+                                            editable
+                                                ? undefined
+                                                : String(t("messaging.send.approvedTemplateHelp"))
+                                        }
+                                        multiline={true}
+                                        minRows={3}
+                                    />
+                                    <FormStyles.TextField
+                                        name={`${key}.provider_template`}
+                                        label={String(
+                                            t("messaging.send.providerTemplate", {channel})
+                                        )}
+                                        value={value?.provider_template ?? ""}
+                                        onChange={handleInstantChange(key, "provider_template")}
+                                        helperText={String(
+                                            t("messaging.send.providerTemplateHelp")
+                                        )}
+                                    />
+                                    <FormStyles.TextField
+                                        name={`${key}.provider_language`}
+                                        label={String(
+                                            t("messaging.send.providerLanguage", {channel})
+                                        )}
+                                        value={value?.provider_language ?? ""}
+                                        onChange={handleInstantChange(key, "provider_language")}
+                                        helperText={String(
+                                            t("messaging.send.providerLanguageHelp")
+                                        )}
+                                    />
+                                </React.Fragment>
                             )
                         })}
                     </AccordionDetails>

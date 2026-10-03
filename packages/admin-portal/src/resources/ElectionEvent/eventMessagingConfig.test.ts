@@ -5,14 +5,27 @@ import {
     EMessageAttemptState,
     EMessageChannel,
     EMessagePurpose,
+    EMessagingProvider,
     EOutOfWindowPolicy,
+    EProviderApproval,
     EReadinessBlocker,
+    EReadinessPolicy,
+    IAccountSummary,
     IEventMessagingConfig,
     IMessagingConfigError,
 } from "@/types/messaging"
-import {emptyEventMessagingConfig} from "@/services/messaging"
+import {emptyEventMessagingConfig, providerCapabilities} from "@/services/messaging"
 import {
+    EBindingApproval,
     EMessagingErrorArea,
+    addTemplateBinding,
+    bindingApproval,
+    incompleteBindings,
+    preparedConfig,
+    removeTemplateBinding,
+    setOutOfWindow,
+    templateChannels,
+    updateTemplateBinding,
     electionChannelsOf,
     errorLocation,
     errorsAt,
@@ -21,7 +34,6 @@ import {
     parseMessagingConfigErrors,
     setChannelAccount,
     setReplyText,
-    setTemplateBinding,
     togglePurpose,
     toggleElectionChannel,
 } from "./eventMessagingConfig"
@@ -140,20 +152,195 @@ describe("togglePurpose", () => {
     })
 })
 
-describe("setTemplateBinding", () => {
-    it("adds, replaces and removes a binding", () => {
-        let config = withChannels([[WHATSAPP, [OTP]]])
-        config = setTemplateBinding(config, WHATSAPP, OTP, "en", "otp_en")
-        config = setTemplateBinding(config, WHATSAPP, OTP, "tl", "otp_tl")
-        config = setTemplateBinding(config, WHATSAPP, OTP, "en", "otp_en_v2")
+describe("template bindings", () => {
+    it("adds a row for a purpose and language, edits it and removes it", () => {
+        let config = withChannels([[WHATSAPP, [OTP, NOTICE]]])
+        config = addTemplateBinding(config, WHATSAPP, OTP, "en")
+        config = addTemplateBinding(config, WHATSAPP, NOTICE, "tl")
         expect(config.channels[0].templates).toEqual([
-            {purpose: OTP, language: "en", provider_template: "otp_en_v2"},
-            {purpose: OTP, language: "tl", provider_template: "otp_tl"},
+            {
+                purpose: OTP,
+                key: null,
+                language: "en",
+                provider_template: "",
+                provider_language: null,
+            },
+            {
+                purpose: NOTICE,
+                key: null,
+                language: "tl",
+                provider_template: "",
+                provider_language: null,
+            },
         ])
-        config = setTemplateBinding(config, WHATSAPP, OTP, "en", "  ")
-        expect(config.channels[0].templates).toEqual([
-            {purpose: OTP, language: "tl", provider_template: "otp_tl"},
+        config = updateTemplateBinding(config, WHATSAPP, 1, {
+            key: "reminder",
+            provider_template: "reminder_tl",
+            provider_language: "fil",
+        })
+        expect(config.channels[0].templates[1]).toEqual({
+            purpose: NOTICE,
+            key: "reminder",
+            language: "tl",
+            provider_template: "reminder_tl",
+            provider_language: "fil",
+        })
+        config = removeTemplateBinding(config, WHATSAPP, 0)
+        expect(config.channels[0].templates.map(({purpose}) => purpose)).toEqual([NOTICE])
+    })
+
+    it("leaves a channel that is not configured alone", () => {
+        const config = withChannels([[SMS, [OTP]]])
+        expect(addTemplateBinding(config, WHATSAPP, OTP, "en")).toEqual(config)
+    })
+
+    it("saves trimmed bindings, without empty rows or empty optional values", () => {
+        const config = withChannels([[WHATSAPP, [OTP, NOTICE]]])
+        config.channels[0].templates = [
+            {
+                purpose: OTP,
+                key: " ",
+                language: " en ",
+                provider_template: " otp_en ",
+                provider_language: " en_US ",
+            },
+            {purpose: NOTICE, key: null, language: "en", provider_template: " "},
+            {purpose: NOTICE, key: " reminder ", language: "tl", provider_template: "reminder_tl"},
+        ]
+        expect(preparedConfig(config).channels[0].templates).toEqual([
+            {
+                purpose: OTP,
+                key: null,
+                language: "en",
+                provider_template: "otp_en",
+                provider_language: "en_US",
+            },
+            {
+                purpose: NOTICE,
+                key: "reminder",
+                language: "tl",
+                provider_template: "reminder_tl",
+                provider_language: null,
+            },
         ])
+    })
+
+    it("names the rows that miss the language or the provider template", () => {
+        const config = withChannels([
+            [WHATSAPP, [NOTICE]],
+            [VIBER, [NOTICE]],
+        ])
+        config.channels[0].templates = [
+            {purpose: NOTICE, language: "en", provider_template: "ok"},
+            {purpose: NOTICE, key: "reminder", language: "en", provider_template: ""},
+            {purpose: NOTICE, language: "en", provider_template: ""},
+        ]
+        config.channels[1].templates = [{purpose: NOTICE, language: " ", provider_template: "x"}]
+        expect(incompleteBindings(config)).toEqual([
+            {channel: WHATSAPP, index: 1},
+            {channel: VIBER, index: 0},
+        ])
+    })
+})
+
+describe("setOutOfWindow", () => {
+    it("chooses how a channel sends outside its conversation window", () => {
+        const config = withChannels([[EMessageChannel.MESSENGER, [NOTICE]]])
+        const after = setOutOfWindow(
+            config,
+            EMessageChannel.MESSENGER,
+            EOutOfWindowPolicy.UTILITY_MESSAGES
+        )
+        expect(after.channels[0].out_of_window).toBe(EOutOfWindowPolicy.UTILITY_MESSAGES)
+        expect(config.channels[0].out_of_window).toBe(EOutOfWindowPolicy.DISABLED)
+    })
+})
+
+describe("bindingApproval", () => {
+    const whatsapp: IAccountSummary = {
+        id: "wa-1",
+        tenant_id: "tenant-1",
+        channel: WHATSAPP,
+        provider: EMessagingProvider.WHATSAPP_CLOUD_API,
+        capabilities: providerCapabilities(EMessagingProvider.WHATSAPP_CLOUD_API, WHATSAPP),
+        provider_approval: EProviderApproval.CONFIRMED,
+        readiness: EReadinessPolicy.PROVIDER_CHECK,
+        check: {connected: true, production_access: true, approved_templates: {NOTICE: ["en_US"]}},
+    }
+    const notice = (language: string, providerLanguage: string | null = null) => ({
+        purpose: NOTICE,
+        language,
+        provider_template: "t",
+        provider_language: providerLanguage,
+    })
+
+    it("reads the provider's check, under the voter's or the provider's language code", () => {
+        expect(bindingApproval(whatsapp, notice("en", "en_US"))).toBe(EBindingApproval.APPROVED)
+        expect(bindingApproval(whatsapp, notice("en_US"))).toBe(EBindingApproval.APPROVED)
+        expect(bindingApproval(whatsapp, notice("en"))).toBe(EBindingApproval.NOT_APPROVED)
+    })
+
+    it("shows the administrator's confirmation instead of a check result", () => {
+        expect(
+            bindingApproval(
+                {...whatsapp, readiness: EReadinessPolicy.ADMIN_CONFIRMED},
+                notice("tl")
+            )
+        ).toBe(EBindingApproval.ADMIN_CONFIRMED)
+    })
+
+    it("does not ask for an approval the purpose does not need", () => {
+        const messenger: IAccountSummary = {
+            ...whatsapp,
+            channel: EMessageChannel.MESSENGER,
+            provider: EMessagingProvider.MESSENGER_SEND_API,
+            capabilities: providerCapabilities(
+                EMessagingProvider.MESSENGER_SEND_API,
+                EMessageChannel.MESSENGER
+            ),
+            check: {connected: true, production_access: true},
+        }
+        expect(bindingApproval(messenger, notice("en"))).toBe(EBindingApproval.NOT_CHECKED)
+        expect(bindingApproval(undefined, notice("en"))).toBe(EBindingApproval.NOT_CHECKED)
+    })
+})
+
+describe("templateChannels", () => {
+    const summary = (
+        id: string,
+        channel: EMessageChannel,
+        provider: EMessagingProvider
+    ): IAccountSummary => ({
+        id,
+        tenant_id: "tenant-1",
+        channel,
+        provider,
+        capabilities: providerCapabilities(provider, channel),
+        provider_approval: EProviderApproval.PENDING,
+        readiness: EReadinessPolicy.PROVIDER_CHECK,
+        check: {connected: true, production_access: true},
+    })
+
+    it("lists the channels whose account uses approved templates", () => {
+        const config = withChannels([
+            [SMS, [OTP]],
+            [WHATSAPP, []],
+            [EMessageChannel.MESSENGER, [NOTICE]],
+            [EMAIL, [NOTICE]],
+        ])
+        config.channels[3].templates = [{purpose: NOTICE, language: "en", provider_template: "x"}]
+        expect(
+            templateChannels(config, [
+                summary("sms-1", SMS, EMessagingProvider.AWS_SNS),
+                summary("whatsapp-1", WHATSAPP, EMessagingProvider.WHATSAPP_CLOUD_API),
+                summary(
+                    "messenger-1",
+                    EMessageChannel.MESSENGER,
+                    EMessagingProvider.MESSENGER_SEND_API
+                ),
+                summary("email-1", EMAIL, EMessagingProvider.AWS_SES),
+            ])
+        ).toEqual([WHATSAPP, EMessageChannel.MESSENGER, EMAIL])
     })
 })
 

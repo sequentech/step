@@ -146,11 +146,20 @@ export const WhatsAppNeedsTheApprovedTemplate: Story = {
         const send = dialog.getByRole("button", {name: "Send test message"})
         await expect(send).toBeDisabled()
         await userEvent.type(dialog.getByRole("textbox", {name: "Approved template"}), "otp_en")
+        await expect(dialog.getByText(/enter the provider's language code/)).toBeVisible()
+        const language = dialog.getByRole("combobox", {name: "Language"})
+        await userEvent.clear(language)
+        await userEvent.type(language, "en_US")
         await userEvent.click(send)
         await expect(await dialog.findByText("Accepted")).toBeVisible()
         expect(graphql.calls[0]).toMatchObject({
             name: "TestMessagingAccount",
-            variables: {id: WHATSAPP_ACCOUNT_ID, purpose: "OTP", template: "otp_en"},
+            variables: {
+                id: WHATSAPP_ACCOUNT_ID,
+                purpose: "OTP",
+                language: "en_US",
+                template: "otp_en",
+            },
         })
     },
 }

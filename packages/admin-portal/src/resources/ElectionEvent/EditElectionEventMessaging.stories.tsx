@@ -285,7 +285,12 @@ const meta = {
     args: {roles: ALL_ROLES, configured: true, save: "saved"},
     argTypes: {save: {control: "inline-radio", options: ["saved", "rejected", "fails"]}},
     beforeEach: async ({args}) => {
-        data = resourceBoundary({sequent_backend_election: ELECTIONS})
+        data = resourceBoundary({
+            sequent_backend_election: ELECTIONS,
+            sequent_backend_template: [
+                {id: storyId(8, 20), tenant_id: TENANT_ID, alias: "voting-reminder"},
+            ],
+        })
         // The messaging operations are not in the generated schema yet.
         graphql = graphqlBoundary({
             GetMessagingAccounts: () => ({
@@ -331,7 +336,7 @@ export const Populated: Story = {
             "Helper",
             "MessagingErrors",
             "MessagingChannels",
-            "MessengerOutOfWindow",
+            "OutOfWindowPolicySelect",
             "MessagingTemplateBindings",
             "MessagingFallbackOrder",
             "MessagingElectionChannels",
@@ -348,7 +353,19 @@ export const Populated: Story = {
         await waitFor(() => expect(purposeSwitch(whatsapp, "OTPs")).toBeDisabled())
         expect(within(whatsapp).getAllByText(/^Missing: Needs provider approval/)).toHaveLength(2)
         const messenger = await channelRow(canvasElement, EMessageChannel.MESSENGER)
-        expect(within(messenger).getByText(/stays off until Meta confirms/)).toBeVisible()
+        expect(
+            within(messenger).getByText(/Choose Utility messages to send notices after that/)
+        ).toBeVisible()
+        expect(
+            within(messenger).getByRole("combobox", {name: "Outside the conversation window"})
+        ).not.toHaveAttribute("aria-disabled")
+        await expect(canvas.getByText(/^For each message the most specific row wins/)).toBeVisible()
+        const viberTemplate = within(canvas.getByRole("group", {name: "Viber template 1"}))
+        await expect(viberTemplate.getByRole("combobox", {name: "Provider template"})).toHaveValue(
+            "otp_en_88213"
+        )
+        await expect(viberTemplate.getByText("Approved")).toBeVisible()
+        await expect(canvas.getByText(/^WhatsApp sends only approved templates/)).toBeVisible()
         const delivery = within(
             canvasElement.querySelector('table[aria-label="Delivery status"]') as HTMLElement
         )
@@ -384,13 +401,19 @@ export const NotConfigured: Story = {
 }
 
 export const ReadOnly: Story = {
-    parameters: {widgets: ["MessagingChannels", "MessengerOutOfWindow"]},
+    parameters: {
+        widgets: ["MessagingChannels", "OutOfWindowPolicySelect", "MessagingTemplateBindings"],
+    },
     args: {roles: [IPermissions.MESSAGING_ACCOUNT_READ]},
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
         await expect(await canvas.findByText(/^You can view these settings/)).toBeVisible()
         const email = await channelRow(canvasElement, EMessageChannel.EMAIL)
         expect(purposeSwitch(email, "OTPs")).toBeDisabled()
+        expect(
+            canvas.getByRole("combobox", {name: "Outside the conversation window"})
+        ).toHaveAttribute("aria-disabled", "true")
+        expect(canvas.queryByRole("button", {name: /^Add .* template$/})).toBeNull()
         expect(canvas.queryByRole("button", {name: "Save"})).toBeNull()
     },
 }
@@ -434,6 +457,76 @@ export const ReorderFallbackAndRestrictAPost: Story = {
             EMessageChannel.EMAIL,
             EMessageChannel.VIBER,
         ])
+    },
+}
+
+export const UtilityMessagesWithABoundTemplate: Story = {
+    parameters: {widgets: ["OutOfWindowPolicySelect", "MessagingTemplateBindings"]},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        const messenger = await channelRow(canvasElement, EMessageChannel.MESSENGER)
+        await userEvent.click(
+            within(messenger).getByRole("combobox", {name: "Outside the conversation window"})
+        )
+        await userEvent.click(
+            await within(document.body).findByRole("option", {name: "Utility messages"})
+        )
+        await expect(
+            await within(messenger).findByText(/^No template is bound to notices on this channel/)
+        ).toBeVisible()
+        await expect(
+            canvas.getByText(/^No templates are bound for Facebook Messenger/)
+        ).toBeVisible()
+        await userEvent.click(canvas.getByRole("button", {name: "Add Facebook Messenger template"}))
+        const row = within(
+            await canvas.findByRole("group", {name: "Facebook Messenger template 1"})
+        )
+        await userEvent.click(row.getByRole("combobox", {name: "For message"}))
+        await userEvent.click(
+            await within(document.body).findByRole("option", {name: "voting-reminder"})
+        )
+        await userEvent.type(row.getByRole("combobox", {name: "Provider template"}), "reminder")
+        await userEvent.type(row.getByRole("textbox", {name: "Provider language"}), "en_US")
+        await waitFor(() =>
+            expect(within(messenger).queryByText(/^No template is bound to notices/)).toBeNull()
+        )
+        await userEvent.click(canvas.getByRole("button", {name: "Save"}))
+        await notified("Messaging settings saved.")
+        const config = saveCall()?.variables.config as IEventMessagingConfig
+        expect(
+            config.channels.find(({channel}) => channel === EMessageChannel.MESSENGER)
+        ).toMatchObject({
+            out_of_window: EOutOfWindowPolicy.UTILITY_MESSAGES,
+            templates: [
+                {
+                    purpose: EMessagePurpose.NOTICE,
+                    key: "voting-reminder",
+                    language: "en",
+                    provider_template: "reminder",
+                    provider_language: "en_US",
+                },
+            ],
+        })
+    },
+}
+
+export const IncompleteTemplateRow: Story = {
+    parameters: {widgets: ["MessagingTemplateBindings"]},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await userEvent.click(await canvas.findByRole("button", {name: "Add WhatsApp template"}))
+        const row = within(await canvas.findByRole("group", {name: "WhatsApp template 1"}))
+        await userEvent.type(row.getByRole("combobox", {name: "For message"}), "otp")
+        await userEvent.click(canvas.getByRole("button", {name: "Save"}))
+        await expect(
+            await row.findByText(
+                "Enter the language and the provider template, or remove this row."
+            )
+        ).toBeVisible()
+        expect(saveCall()).toBeUndefined()
+        await userEvent.click(row.getByRole("button", {name: "Remove WhatsApp template 1"}))
+        await userEvent.click(canvas.getByRole("button", {name: "Save"}))
+        await notified("Messaging settings saved.")
     },
 }
 

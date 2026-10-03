@@ -26,8 +26,12 @@ import {ITenantSettings} from "@sequentech/ui-core"
 import {FormStyles} from "@/components/styles/FormStyles"
 import {useMessagingAccounts} from "@/hooks/useMessagingAccounts"
 import {useTenantStore} from "@/providers/TenantContextProvider"
-import {templateApprovalRows, templatePurpose} from "@/services/templateApproval"
-import {EMessageChannel} from "@/types/messaging"
+import {
+    ITemplateApprovalRow,
+    templateApprovalRows,
+    templatePurpose,
+} from "@/services/templateApproval"
+import {EMessageChannel, EMessagePurpose, EReadinessPolicy} from "@/types/messaging"
 
 export type InstantMessageChannel =
     | EMessageChannel.WHATSAPP
@@ -139,6 +143,24 @@ const ApprovalStatus: React.FC<{channel: InstantMessageChannel}> = ({channel}) =
                     </MenuItem>
                 ))}
             </TextField>
+            {account.readiness === EReadinessPolicy.ADMIN_CONFIRMED ? (
+                <Typography variant="body2" color="text.secondary">
+                    {t("messaging.templates.approvalAdminConfirmed")}
+                </Typography>
+            ) : (
+                <ApprovalTable rows={rows} purpose={purpose} />
+            )}
+        </Box>
+    )
+}
+
+const ApprovalTable: React.FC<{rows: ITemplateApprovalRow[]; purpose: EMessagePurpose}> = ({
+    rows,
+    purpose,
+}) => {
+    const {t} = useTranslation()
+    return (
+        <>
             <Table size="small" aria-label={String(t("messaging.templates.approvalTitle"))}>
                 <TableHead>
                     <TableRow>
@@ -172,6 +194,34 @@ const ApprovalStatus: React.FC<{channel: InstantMessageChannel}> = ({channel}) =
             <Typography variant="caption" color="text.secondary">
                 {t("messaging.templates.approvalHelp")}
             </Typography>
+        </>
+    )
+}
+
+/**
+ * The provider's approved template this message is sent with. Without it, the
+ * event's binding for the template alias, or the purpose's default, is used.
+ */
+export const ProviderTemplateInputs: React.FC<InstantMessageTemplateSectionProps> = ({channel}) => {
+    const {t} = useTranslation()
+    const key = contentKey(channel)
+    return (
+        <Box sx={{display: "flex", flexDirection: "column", gap: 1}}>
+            <Typography variant="body2" sx={{fontWeight: 500}}>
+                {t("messaging.templates.providerTemplateTitle")}
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+                {t("messaging.templates.providerTemplateHelp")}
+            </Typography>
+            <FormStyles.TextInput
+                source={`template.${key}.provider_template`}
+                label={String(t("messaging.templates.providerTemplate"))}
+            />
+            <FormStyles.TextInput
+                source={`template.${key}.provider_language`}
+                label={String(t("messaging.templates.providerLanguage"))}
+                helperText={String(t(`messaging.templates.providerLanguageHelp.${channel}`))}
+            />
         </Box>
     )
 }
@@ -196,6 +246,8 @@ export const InstantMessageTemplateSection: React.FC<InstantMessageTemplateSecti
                     label={String(t("messaging.templates.messengerMessage"))}
                 />
                 <Alert severity="info">{t("messaging.templates.messengerWindow")}</Alert>
+                <ProviderTemplateInputs channel={channel} />
+                <ParametersInput source={`template.${key}.parameters`} />
             </Box>
         )
     }
@@ -212,6 +264,7 @@ export const InstantMessageTemplateSection: React.FC<InstantMessageTemplateSecti
                 label={String(t("messaging.templates.approvedWording"))}
                 helperText={String(t("messaging.templates.approvedWordingHelp"))}
             />
+            <ProviderTemplateInputs channel={channel} />
             <ParametersInput source={`template.${key}.parameters`} />
             <ApprovalStatus channel={channel} />
         </Box>

@@ -3439,7 +3439,7 @@ const spanishTranslation: TranslationType = {
             purposeSwitch: "{{channel}}: {{purpose}}",
             sections: {
                 channels: "Canales",
-                templates: "Plantillas de WhatsApp y Viber",
+                templates: "Plantillas aprobadas",
                 fallback: "Orden alternativo para avisos",
                 posts: "Canales por Post",
                 postsCount: "Canales por Post ({{count}} Posts)",
@@ -3451,22 +3451,39 @@ const spanishTranslation: TranslationType = {
                 account: "Envía desde",
                 purpose: "Finalidad",
                 language: "Idioma",
-                template: "Plantilla aprobada",
+                template: "Plantilla del proveedor",
                 status: "Estado",
                 post: "Post",
+                key: "Para el mensaje",
+                providerLanguage: "Idioma del proveedor",
             },
             outOfWindow: {
-                label: "Pasadas 24 horas",
-                help: "Messenger solo envía avisos en las 24 horas siguientes al último mensaje del votante. El envío posterior sigue desactivado hasta que Meta confirme el mecanismo para esta página; mientras tanto, esos avisos van al siguiente canal disponible del votante.",
+                label: "Fuera de la ventana de conversación",
+                help: "Los avisos de texto libre solo se envían mientras la ventana de conversación está abierta: en Messenger, durante las 24 horas siguientes al último mensaje del votante. Elija Mensajes de utilidad para enviar avisos después con una plantilla aprobada. Meta debe aprobarlo para la página (el permiso page_utility_messaging y una plantilla UTILITY aprobada), y esa plantilla debe estar vinculada a los avisos en Plantillas aprobadas. Con No enviar, un aviso fuera de la ventana va al siguiente canal válido del votante.",
                 DISABLED: "No enviar",
                 UTILITY_MESSAGES: "Mensajes de utilidad",
+                noTemplate:
+                    "Aún no hay ninguna plantilla vinculada a los avisos en este canal. Añada una en Plantillas aprobadas; hasta entonces los avisos fuera de la ventana van al siguiente canal válido del votante.",
             },
             templates: {
-                empty: "Active códigos o avisos en WhatsApp o Viber para elegir sus plantillas.",
-                help: "WhatsApp y Viber solo envían plantillas que el proveedor aprobó para la cuenta. Indique la plantilla aprobada de cada idioma; un idioma sin plantilla aprobada no se puede enviar.",
-                label: "Plantilla de {{purpose}} de {{channel}}, {{language}}",
-                approved: "Aprobada",
-                notApproved: "No aprobada",
+                empty: "Elija una cuenta que envíe plantillas aprobadas, como WhatsApp, Viber o Messenger, para vincular aquí sus plantillas.",
+                help: "Cada fila indica qué plantilla aprobada envía el proveedor para un mensaje. Para el mensaje es el alias de una plantilla de Plantillas, para una notificación, o la clave de mensaje que envía Keycloak, como otp; déjelo vacío para la plantilla que se usa por defecto para el propósito. Idioma es el idioma del votante. Plantilla del proveedor es el nombre o ID de la plantilla en el proveedor. Idioma del proveedor es el código del proveedor para esa plantilla cuando difiere del idioma del votante: WhatsApp necesita el código exacto de la plantilla aprobada, como en_US.",
+                order: "Para cada mensaje gana la fila más específica: la fila del mensaje en el idioma del votante, después la fila del mensaje en cualquier idioma, después la predeterminada del propósito en el idioma del votante y, por último, cualquier predeterminada del propósito.",
+                noneRequired:
+                    "{{channel}} solo envía plantillas aprobadas. Añada al menos una plantilla predeterminada para cada propósito en uso.",
+                noneOptional:
+                    "No hay plantillas vinculadas para {{channel}}. Solo hacen falta para enviar avisos fuera de la ventana de conversación.",
+                row: "Plantilla {{position}} de {{channel}}",
+                keyDefault: "Predeterminada del propósito",
+                add: "Añadir plantilla de {{channel}}",
+                remove: "Quitar la plantilla {{position}} de {{channel}}",
+                incomplete: "Indique el idioma y la plantilla del proveedor, o quite esta fila.",
+                approval: {
+                    APPROVED: "Aprobada",
+                    NOT_APPROVED: "No aprobada",
+                    ADMIN_CONFIRMED: "Confirmada por un administrador",
+                    NOT_CHECKED: "Aprobación no comprobada",
+                },
             },
             fallback: {
                 help: "Cuando un aviso no puede llegar a un votante por su canal, pasa al siguiente canal de este orden que el votante haya verificado y que ofrezca su Post. Los códigos nunca se reenvían solos: el votante elige otra forma.",
@@ -3506,7 +3523,7 @@ const spanishTranslation: TranslationType = {
                 TEMPLATE_NOT_APPROVED:
                     "La plantilla de {{channel}} para {{purpose}} en {{language}} no está aprobada por el proveedor.",
                 OUT_OF_WINDOW_NOT_SUPPORTED:
-                    "{{channel}} no puede enviar fuera de una ventana de conversación.",
+                    "{{channel}} no puede enviar fuera de una ventana de conversación con esta cuenta: no tiene ventana de conversación o sus avisos ya necesitan una plantilla.",
                 FALLBACK_CHANNEL_NOT_ENABLED:
                     "{{channel}} está en el orden alternativo pero no envía avisos.",
                 DUPLICATE_FALLBACK_CHANNEL:
@@ -3532,6 +3549,7 @@ const spanishTranslation: TranslationType = {
                 MESSENGER_SEND_API: "Messenger Platform (Meta)",
                 VIBER_INFOBIP: "Viber Business Messages (Infobip)",
                 CONSOLE: "Consola (solo pruebas, no se envía nada)",
+                HTTP_API: "API HTTP personalizada",
             },
             purpose: {
                 OTP: "Códigos",
@@ -3567,6 +3585,8 @@ const spanishTranslation: TranslationType = {
                 notReady: "No está lista",
                 lastCheck: "Comprobada {{date}}",
                 neverChecked: "Aún no comprobada",
+                adminConfirmed: "Confirmada por un administrador",
+                checkNotUsed: "No se usa la comprobación",
             },
             approval: {
                 PENDING: "Pendiente de aprobación del proveedor",
@@ -3580,13 +3600,17 @@ const spanishTranslation: TranslationType = {
                 SMTP_PASSWORD: "Contraseña",
                 AWS_ACCESS_KEY_ID: "ID de clave de acceso de AWS",
                 AWS_SECRET_ACCESS_KEY: "Clave de acceso secreta de AWS",
+                API_SECRET: "Secreto de la API",
+                USERNAME: "Nombre de usuario",
+                PASSWORD: "Contraseña",
+                WEBHOOK_SECRET: "Secreto del webhook",
             },
             deliveryUnavailable: "Entrega no disponible",
             templates: {
                 noMethod: "Elige al menos un método para la plantilla.",
                 parameters: "Parámetros de la plantilla",
                 parametersHelp:
-                    "Lo que rellena cada marcador de la plantilla aprobada, en orden, como user.first_name o vote_url.",
+                    "Lo que rellena cada marcador de la plantilla aprobada, en orden, como user.first_name o vote_url. Para una plantilla con parámetros con nombre escriba @nombre=valor, como @first_name=user.first_name; cualquier otra entrada es posicional.",
                 parameter: "Parámetro {{position}}",
                 removeParameter: "Quitar el parámetro {{position}}",
                 addParameter: "Añadir parámetro",
@@ -3604,7 +3628,7 @@ const spanishTranslation: TranslationType = {
                     "En las 24 horas siguientes al último mensaje del votante, Messenger envía el texto siguiente.",
                 messengerMessage: "Mensaje dentro de las 24 horas",
                 messengerWindow:
-                    "Un destinatario de Messenger guardado no es permiso para enviar. Fuera de la ventana de 24 horas Messenger no envía este aviso: va al siguiente canal disponible del votante hasta que Meta confirme un mecanismo para esta página.",
+                    "Un destinatario de Messenger guardado no es un permiso para enviar. Fuera de la ventana de 24 horas este aviso se envía como mensaje de utilidad cuando el evento electoral lo permite y hay una plantilla aprobada indicada abajo o vinculada en el evento; si no, va al siguiente canal válido del votante. Los mensajes de utilidad necesitan el permiso page_utility_messaging y una plantilla UTILITY aprobada en la página.",
                 intro: {
                     WHATSAPP:
                         "WhatsApp solo envía plantillas que Meta aprobó para la cuenta de WhatsApp Business. El mensaje debe coincidir con la plantilla aprobada; elige qué rellena sus parámetros.",
@@ -3613,6 +3637,20 @@ const spanishTranslation: TranslationType = {
                 approvedWording: "Texto aprobado",
                 approvedWordingHelp:
                     "Una copia de la plantilla aprobada, usada como vista previa. Cambiarla aquí no cambia lo que envía el proveedor.",
+                providerTemplateTitle: "Plantilla del proveedor",
+                providerTemplateHelp:
+                    "Opcional. El nombre o ID de la plantilla aprobada en el proveedor. Si está vacío, se usa la plantilla del evento electoral vinculada al alias de esta plantilla, o la predeterminada del evento para el propósito.",
+                providerTemplate: "Nombre o ID de la plantilla del proveedor",
+                providerLanguage: "Código de idioma del proveedor",
+                providerLanguageHelp: {
+                    WHATSAPP:
+                        "El código de idioma exacto de la plantilla de WhatsApp aprobada, como en_US.",
+                    VIBER: "El código de idioma con el que el proveedor de Viber conoce la plantilla, cuando lo necesita.",
+                    MESSENGER:
+                        "El código de idioma de la plantilla de utilidad aprobada, como en_US.",
+                },
+                approvalAdminConfirmed:
+                    "Un administrador confirmó con el proveedor que las plantillas de esta cuenta están aprobadas, así que no se usan las aprobaciones de la comprobación de conexión.",
             },
             send: {
                 channel: "Canal",
@@ -3627,6 +3665,12 @@ const spanishTranslation: TranslationType = {
                 missingContent: "Esta notificación no tiene contenido para {{channels}}.",
                 approvedTemplateHelp:
                     "Se envía con la plantilla aprobada por el proveedor. Edítala en Plantillas.",
+                providerTemplate: "Plantilla del proveedor de {{channel}}",
+                providerTemplateHelp:
+                    "Opcional. Si está vacío, se usa la plantilla del evento vinculada al alias de la plantilla elegida, o la predeterminada del evento para los avisos.",
+                providerLanguage: "Idioma del proveedor de {{channel}}",
+                providerLanguageHelp:
+                    "El código de idioma del proveedor para esa plantilla, como en_US.",
             },
             voter: {
                 title: "Mensajería",
@@ -3648,6 +3692,10 @@ const spanishTranslation: TranslationType = {
                     VIBER: "Mensajes de Viber enviados",
                     MESSENGER: "Mensajes de Messenger enviados",
                 },
+            },
+            readinessPolicy: {
+                PROVIDER_CHECK: "Según la comprobación del proveedor",
+                ADMIN_CONFIRMED: "Confirmada por un administrador",
             },
         },
         messagingAccounts: {
@@ -3703,6 +3751,7 @@ const spanishTranslation: TranslationType = {
                 save: "Guardar",
                 cancel: "Cancelar",
                 close: "Cerrar",
+                channelHelp: "No se puede cambiar después de crear la cuenta.",
             },
             field: {
                 name: "Nombre de la cuenta",
@@ -3725,6 +3774,9 @@ const spanishTranslation: TranslationType = {
                 sender: "Nombre del remitente",
                 provider_approval: "Aprobación del proveedor",
                 is_default: "Cuenta de {{channel}} predeterminada para nuevos eventos electorales",
+                readiness: "Disponibilidad",
+                api_base_url: "URL base de la Graph API",
+                label: "Remitente que ven los votantes",
             },
             fieldHelp: {
                 from_address:
@@ -3742,7 +3794,12 @@ const spanishTranslation: TranslationType = {
                 base_url: "La URL base de la API de Infobip de la cuenta.",
                 sender: "El remitente aprobado que ven los votantes.",
                 provider_approval:
-                    "Meta solo permite mensajes de WhatsApp de gobiernos mediante un acuerdo aprobado. Mientras la aprobación esté pendiente, no se pueden activar códigos ni avisos en esta cuenta.",
+                    "Meta solo permite la mensajería de gobiernos en WhatsApp mediante un acuerdo aprobado. Elija Aprobación del proveedor confirmada cuando Meta lo haya aprobado para esta cuenta; hasta entonces no se pueden activar códigos ni avisos en ella.",
+                readiness:
+                    "Según la comprobación del proveedor usa lo que encuentra la comprobación de conexión: si la cuenta está conectada, en producción y qué plantillas están aprobadas. Confirmada por un administrador es para proveedores cuya comprobación no puede saberlo: es su declaración de que la cuenta está conectada, en producción y tiene sus plantillas aprobadas, y se usa en lugar de la comprobación.",
+                api_base_url:
+                    "Solo cuando la Graph API no es la de Meta, como el punto de acceso de un proveedor de soluciones. Vacío usa la de Meta.",
+                label: "El nombre que los votantes ven como remitente de esta cuenta.",
             },
             error: {
                 REQUIRED: "Obligatorio",
@@ -3751,6 +3808,8 @@ const spanishTranslation: TranslationType = {
                 INVALID_CALLING_CODE:
                     "Introduce prefijos telefónicos de país de 1 a 3 dígitos, como 63",
                 DUPLICATE_LANGUAGE: "Este idioma ya tiene una plantilla para este propósito",
+                NOT_A_URL: "Indique una dirección que empiece por https:// o http://",
+                INVALID_HTTP_CONFIG: "Corrija los problemas indicados",
             },
             warning: {
                 pageChange:
@@ -3811,6 +3870,17 @@ const spanishTranslation: TranslationType = {
                 VIBER_INFOBIP: {
                     API_KEY: "La clave de API de Infobip.",
                 },
+                HTTP_API: {
+                    API_KEY: "Opcional. Las peticiones la usan como la credencial API_KEY.",
+                    API_SECRET:
+                        "Opcional. Un segundo secreto, y la clave que firma el JWT: una clave privada PEM para RS256, el secreto compartido para HS256.",
+                    ACCESS_TOKEN:
+                        "Opcional. Las peticiones lo usan como la credencial ACCESS_TOKEN.",
+                    USERNAME: "Opcional. Con la contraseña, forma el marcador basic_auth.",
+                    PASSWORD: "Opcional. Con el nombre de usuario, forma el marcador basic_auth.",
+                    WEBHOOK_SECRET:
+                        "Opcional. El secreto compartido con el que se comprueban las llamadas del proveedor.",
+                },
             },
             webhook: {
                 title: "Informes de entrega y respuestas",
@@ -3831,6 +3901,8 @@ const spanishTranslation: TranslationType = {
                 copyToken: "Copiar token de verificación",
                 tokenDone: "Hecho",
                 tokenError: "No se pudo generar el token de verificación.",
+                httpHelp:
+                    "Una API HTTP personalizada puede enviar sus informes como JSON, o como una petición GET; sus parámetros de consulta se leen entonces como un objeto plano, con punteros como /status.",
             },
             copy: {
                 success: "Copiado",
@@ -3856,9 +3928,109 @@ const spanishTranslation: TranslationType = {
                 error: "No se pudo enviar el mensaje de prueba.",
                 template: "Plantilla aprobada",
                 templateHelp:
-                    "El nombre de la plantilla de WhatsApp que el proveedor aprobó para este propósito e idioma.",
+                    "El nombre o ID de la plantilla que el proveedor aprobó para este propósito e idioma.",
                 viberTemplate:
                     "Viber usa la plantilla que esta cuenta indica como aprobada para el propósito y el idioma elegidos.",
+                languageHelp:
+                    "Para un proveedor que envía plantillas aprobadas, indique el código de idioma del proveedor para la plantilla, como en_US.",
+            },
+            http: {
+                title: "API HTTP personalizada",
+                description:
+                    "Describe un proveedor por sus peticiones HTTP: otro socio de Viber, la API propia de un proveedor de soluciones de WhatsApp, una pasarela de SMS. Las peticiones son JSON; su URL, cabeceras y cuerpo pueden contener los marcadores de la referencia de abajo.",
+                phoneFormat: "Formato del número de teléfono",
+                phoneFormatHelp: "Cómo se escribe el número del destinatario en una petición.",
+                phoneFormatOption: {
+                    E164: "Con el signo más: +639171234567",
+                    DIGITS: "Solo dígitos: 639171234567",
+                },
+                templateRequired: "Propósitos que necesitan una plantilla aprobada",
+                templateRequiredHelp:
+                    "Un propósito marcado solo se envía con una plantilla que el proveedor aprobó, vinculada en el evento electoral. Los demás propósitos se envían como texto libre.",
+                approvedLanguages: "Idiomas con plantilla aprobada para {{purpose}}",
+                approvedLanguagesHelp:
+                    "Los códigos de idioma con una plantilla aprobada, según lo confirmado con el proveedor, separados por comas: en, tl. La comprobación de conexión los comunica.",
+                conversationWindow: "Ventana de conversación (horas)",
+                conversationWindowHelp:
+                    "Horas tras el último mensaje del destinatario durante las que se puede enviar texto libre. Vacío cuando el proveedor no tiene esa ventana.",
+                messageIdPointer: "ID del mensaje en la respuesta de envío",
+                messageIdPointerHelp:
+                    "Un puntero JSON al ID de mensaje del proveedor en la respuesta a la petición de envío, como /message_id. Con él se emparejan los informes de entrega.",
+                notConfigured: "Sin configurar.",
+                thisSection: "Esta sección",
+                add: "Añadir: {{section}}",
+                remove: "Quitar: {{section}}",
+                section: {
+                    SEND: "Petición de envío",
+                    CHECK: "Petición de comprobación de conexión",
+                    TOKEN: "Petición de token",
+                    JWT: "Token firmado (JWT)",
+                    REPORTS: "Informes de entrega y respuestas",
+                    RECONCILE: "Petición de consulta de un mensaje",
+                },
+                sectionHelp: {
+                    SEND: "La petición que envía un mensaje: method (POST si se omite), url, headers y body.",
+                    CHECK: "Opcional. Una petición que tiene éxito, con una respuesta 2xx, cuando las credenciales funcionan. La ejecuta la comprobación de conexión.",
+                    TOKEN: "Opcional. Obtiene un token de corta duración antes de enviar, como las credenciales de cliente de OAuth: request, token_pointer (dónde está el token en la respuesta) y lifetime_seconds. Las peticiones lo usan con el marcador token.",
+                    JWT: "Opcional. Un token firmado para cada petición con la credencial Secreto de la API: algorithm (RS256 o HS256), claims (se añaden iat, exp y jti) y lifetime_seconds. Las peticiones lo usan con el marcador jwt.",
+                    REPORTS:
+                        "Opcional. Cómo leer lo que el proveedor envía a la dirección de retorno: auth, items_pointer (dónde está la lista de informes; todo el contenido si se omite), status (message_id_pointer, state_pointer, states, que asigna cada valor del proveedor a QUEUED, ACCEPTED, DELIVERED, FAILED o UNKNOWN, y error_pointer) e inbound_from_pointer (dónde está el remitente de una respuesta). auth tiene un kind: URL_KEY (solo la dirección secreta de retorno), HEADER_SECRET (una cabecera igual al secreto del webhook), HMAC_SHA256 (una cabecera con el HMAC del cuerpo con el secreto del webhook, con prefix, encoding HEX o BASE64, y signed cuando se firma algo más que el cuerpo) o JWT_HS256 (una cabecera con un JWT bearer firmado con el secreto del webhook).",
+                    RECONCILE:
+                        "Opcional. Pregunta al proveedor por un mensaje cuyo resultado se desconoce: request y status, que se lee como el status de los informes de entrega.",
+                },
+                problem: {
+                    NOT_AN_OBJECT: "{{path}} debe ser un objeto.",
+                    MISSING_URL: "{{path}} es obligatorio: la dirección de la petición.",
+                    INVALID_METHOD: "{{path}} debe ser un método HTTP, como POST o GET.",
+                    INVALID_HEADERS:
+                        "{{path}} debe ser texto: headers es un objeto de nombres de cabecera y valores de texto.",
+                    UNKNOWN_FIELD: "{{path}} no es un campo de esta sección.",
+                    UNKNOWN_PLACEHOLDER:
+                        "{{path}} usa un marcador que no existe. Consulte la referencia de marcadores.",
+                    INVALID_POINTER:
+                        "{{path}} debe ser un puntero JSON que empiece por /, como /data/id.",
+                    INVALID_STATES:
+                        "{{path}} debe asignar un valor de estado del proveedor a QUEUED, ACCEPTED, DELIVERED, FAILED o UNKNOWN; hace falta al menos uno.",
+                    INVALID_AUTH:
+                        "{{path}} no es válido: kind es URL_KEY, HEADER_SECRET, HMAC_SHA256 o JWT_HS256; header es obligatorio salvo para URL_KEY; encoding es HEX o BASE64.",
+                    INVALID_LIFETIME: "{{path}} debe ser un número entero de segundos mayor que 0.",
+                    INVALID_ALGORITHM: "{{path}} debe ser RS256 o HS256.",
+                    INVALID_CLAIMS: "{{path}} debe ser un objeto.",
+                    INVALID_HOURS: "{{path}} debe ser un número entero de horas mayor que 0.",
+                },
+                placeholders: {
+                    title: "Referencia de marcadores",
+                    help: "Se escriben entre llaves dobles en la URL, en el valor de una cabecera o en cualquier texto del cuerpo. Cada uno se sustituye al hacer la petición.",
+                },
+                placeholder: {
+                    to: "El destinatario: número de teléfono, dirección de correo o ID de ámbito de página.",
+                    text: "El mensaje como texto sin formato.",
+                    subject: "El asunto, para correo.",
+                    html: "El mensaje como HTML, para correo.",
+                    code: "El código de un solo uso, para los códigos.",
+                    template: "La plantilla del proveedor vinculada en el evento electoral.",
+                    language: "El código de idioma del proveedor para la plantilla.",
+                    message_id:
+                        "El ID de mensaje del proveedor, en una petición de consulta de un mensaje.",
+                    callback_url: "La dirección pública de retorno de esta cuenta.",
+                    param: "Un parámetro de la plantilla por su posición: 1, 2, 3, etc.",
+                    credential:
+                        "Una credencial de esta cuenta por su nombre: API_KEY, API_SECRET, ACCESS_TOKEN, USERNAME, PASSWORD o WEBHOOK_SECRET.",
+                    basic_auth:
+                        "El nombre de usuario y la contraseña, codificados para una cabecera Authorization: Basic.",
+                    token: "El token obtenido con la petición de token.",
+                    jwt: "El token firmado descrito en Token firmado (JWT).",
+                    parameters:
+                        "Solo, como valor del cuerpo, se convierte en la lista de todos los parámetros de la plantilla.",
+                    named_parameters:
+                        "Solo, como valor del cuerpo, se convierte en un objeto con los parámetros escritos como @nombre=valor.",
+                },
+                example: {
+                    title: "Ejemplo completo: un socio de Viber",
+                    description:
+                        "El socio recibe un POST JSON autenticado con la clave de API como token bearer, responde con el ID del mensaje en message_id y envía informes de entrega con una cabecera secreta. Úselo como punto de partida y cambie la dirección y los nombres de campo por los del proveedor.",
+                    use: "Usar este ejemplo",
+                },
             },
         },
     },

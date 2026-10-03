@@ -342,7 +342,39 @@ export const WhatsAppOnly: Story = {
         expect(sent()?.eventPayload).toMatchObject({
             channel_selection: EChannelSelection.SINGLE_CHANNEL,
             communication_method: ITemplateMethod.WHATSAPP,
+            alias: "voting-opens",
             whatsapp: whatsappReminder,
+        })
+        expect(sent()?.eventPayload.whatsapp).toEqual(whatsappReminder)
+    },
+}
+
+export const WhatsAppWithItsProviderTemplate: Story = {
+    play: async ({args, canvasElement}) => {
+        const canvas = within(canvasElement)
+        await choose(canvasElement, "Each voter's channel", "WhatsApp only")
+        const [, , alias] = canvas.getAllByRole("combobox")
+        await userEvent.click(alias)
+        await userEvent.click(
+            await within(document.body).findByRole("option", {name: "voting-opens"})
+        )
+        await expect(
+            canvas.getByText(/the event's template bound to the chosen template's alias is used/)
+        ).toBeVisible()
+        await userEvent.type(
+            await canvas.findByRole("textbox", {name: "WhatsApp provider template"}),
+            "voting_opens"
+        )
+        await userEvent.type(
+            canvas.getByRole("textbox", {name: "WhatsApp provider language"}),
+            "en_US"
+        )
+        await send(canvasElement)
+        await waitFor(() => expect(args.close).toHaveBeenCalledTimes(1))
+        expect(sent()?.eventPayload.whatsapp).toEqual({
+            ...whatsappReminder,
+            provider_template: "voting_opens",
+            provider_language: "en_US",
         })
     },
 }

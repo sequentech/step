@@ -7,8 +7,10 @@ import {fireEvent, render, screen, waitFor} from "@testing-library/react"
 import "@testing-library/jest-dom"
 import {
     EMessageChannel,
+    EMessagePurpose,
     EMessagingProvider,
     EProviderApproval,
+    EReadinessPolicy,
     IMessagingAccount,
 } from "@/types/messaging"
 import {MessagingAccountEditor} from "./MessagingAccountEditor"
@@ -48,6 +50,7 @@ const messenger = (overrides: Partial<IMessagingAccount> = {}): IMessagingAccoun
         page_name: "COMELEC Overseas Voting",
         page_username: "comelec",
         api_version: "v23.0",
+        api_base_url: null,
     },
     credentials: {ACCESS_TOKEN: {replaced_at: "2026-09-30T10:00:00Z"}},
     limits: {allowed_calling_codes: []},
@@ -134,6 +137,7 @@ it("saves the account, then only the credentials that were typed", async () => {
     expect(mockUpsert).toHaveBeenCalledWith({
         variables: {
             id: "account-1",
+            channel: EMessageChannel.MESSENGER,
             name: "COMELEC Page",
             sender: messenger().sender,
             limits: {
@@ -142,6 +146,7 @@ it("saves the account, then only the credentials that were typed", async () => {
                 allowed_calling_codes: [],
             },
             providerApproval: null,
+            readiness: EReadinessPolicy.PROVIDER_CHECK,
             isDefault: false,
         },
     })
@@ -149,6 +154,72 @@ it("saves the account, then only the credentials that were typed", async () => {
         variables: {id: "account-1", credentials: {APP_SECRET: "s3cret"}},
     })
     expect(onChanged).toHaveBeenCalled()
+})
+
+it("saves a readiness confirmed by an administrator and a Graph API base URL", async () => {
+    mockUpsert.mockResolvedValue({data: {upsert_messaging_account: {id: "account-1"}}})
+    const {onClose} = renderEditor(
+        messenger({readiness: EReadinessPolicy.ADMIN_CONFIRMED, status: null})
+    )
+    expect(screen.getByText("messagingAccounts.fieldHelp.readiness")).toBeInTheDocument()
+    expect(screen.getByText("messaging.readinessPolicy.ADMIN_CONFIRMED")).toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText(/messagingAccounts.field.api_base_url/), {
+        target: {value: "https://graph.bsp.example"},
+    })
+    fireEvent.click(screen.getByRole("button", {name: "messagingAccounts.editor.save"}))
+    await waitFor(() => expect(onClose).toHaveBeenCalled())
+    expect(mockUpsert.mock.calls[0][0].variables).toMatchObject({
+        readiness: EReadinessPolicy.ADMIN_CONFIRMED,
+        sender: {api_base_url: "https://graph.bsp.example"},
+    })
+})
+
+it("leaves WhatsApp's provider approval to the administrator", () => {
+    renderEditor(
+        messenger({
+            channel: EMessageChannel.WHATSAPP,
+            provider: EMessagingProvider.WHATSAPP_CLOUD_API,
+            sender: {
+                provider: EMessagingProvider.WHATSAPP_CLOUD_API,
+                business_account_id: "1",
+                phone_number_id: "2",
+                display_phone_number: "+63 917 000 0000",
+                api_version: "v23.0",
+            },
+            provider_approval: EProviderApproval.CONFIRMED,
+        })
+    )
+    expect(screen.getByText("messaging.approval.CONFIRMED")).toBeInTheDocument()
+    expect(screen.getByLabelText("messagingAccounts.field.provider_approval")).not.toHaveAttribute(
+        "aria-disabled"
+    )
+})
+
+it("describes a custom HTTP API and shows its callback", () => {
+    renderEditor(
+        messenger({
+            channel: EMessageChannel.VIBER,
+            provider: EMessagingProvider.HTTP_API,
+            sender: {
+                provider: EMessagingProvider.HTTP_API,
+                label: "COMELEC",
+                send: {url: "https://partner.example/{{recipient}}"},
+                template_required_for: [EMessagePurpose.OTP],
+            },
+            credentials: {},
+        })
+    )
+    expect(screen.getByLabelText(/messagingAccounts.field.label/)).toHaveValue("COMELEC")
+    expect(screen.getByText("messagingAccounts.http.section.SEND")).toBeInTheDocument()
+    expect(screen.getByRole("alert")).toHaveTextContent(
+        "messagingAccounts.http.problem.UNKNOWN_PLACEHOLDER"
+    )
+    expect(screen.getByLabelText("messaging.credential.WEBHOOK_SECRET")).toBeInTheDocument()
+    expect(screen.getByLabelText("messagingAccounts.webhook.path")).toHaveValue(
+        "/webhooks/http/hook-1"
+    )
+    fireEvent.click(screen.getByRole("button", {name: "messagingAccounts.editor.save"}))
+    expect(mockUpsert).not.toHaveBeenCalled()
 })
 
 it("does not save an invalid form and names the problem", () => {

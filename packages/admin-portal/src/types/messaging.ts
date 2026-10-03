@@ -43,6 +43,8 @@ export enum EMessagingProvider {
     WHATSAPP_CLOUD_API = "WHATSAPP_CLOUD_API",
     MESSENGER_SEND_API = "MESSENGER_SEND_API",
     VIBER_INFOBIP = "VIBER_INFOBIP",
+    /** A provider described by configuration, usable for any channel. */
+    HTTP_API = "HTTP_API",
     CONSOLE = "CONSOLE",
 }
 
@@ -77,6 +79,17 @@ export enum EOutOfWindowPolicy {
     UTILITY_MESSAGES = "UTILITY_MESSAGES",
 }
 
+/** How an account's readiness is established. */
+export enum EReadinessPolicy {
+    PROVIDER_CHECK = "PROVIDER_CHECK",
+    ADMIN_CONFIRMED = "ADMIN_CONFIRMED",
+}
+
+export const READINESS_POLICIES: EReadinessPolicy[] = [
+    EReadinessPolicy.PROVIDER_CHECK,
+    EReadinessPolicy.ADMIN_CONFIRMED,
+]
+
 export enum EReadinessBlocker {
     NOT_CONNECTED = "NOT_CONNECTED",
     UNSUPPORTED_PURPOSE = "UNSUPPORTED_PURPOSE",
@@ -93,6 +106,10 @@ export enum ECredentialName {
     SMTP_PASSWORD = "SMTP_PASSWORD",
     AWS_ACCESS_KEY_ID = "AWS_ACCESS_KEY_ID",
     AWS_SECRET_ACCESS_KEY = "AWS_SECRET_ACCESS_KEY",
+    API_SECRET = "API_SECRET",
+    USERNAME = "USERNAME",
+    PASSWORD = "PASSWORD",
+    WEBHOOK_SECRET = "WEBHOOK_SECRET",
 }
 
 export enum EChannelSelection {
@@ -135,6 +152,88 @@ export interface IAccountLimits {
 /** Per purpose, language to the partner's template ID. */
 export type IViberApprovedTemplates = Partial<Record<EMessagePurpose, Record<string, string>>>
 
+export enum EPhoneFormat {
+    E164 = "E164",
+    DIGITS = "DIGITS",
+}
+
+export enum EDigestEncoding {
+    HEX = "HEX",
+    BASE64 = "BASE64",
+}
+
+export enum EJwtAlgorithm {
+    RS256 = "RS256",
+    HS256 = "HS256",
+}
+
+/** An HTTP request whose URL, headers and JSON body may hold placeholders. */
+export interface IHttpRequestTemplate {
+    method?: string
+    url: string
+    headers?: Record<string, string>
+    body?: unknown
+}
+
+export type IHttpWebhookAuth =
+    | {kind: "URL_KEY"}
+    | {kind: "HEADER_SECRET"; header: string}
+    | {
+          kind: "HMAC_SHA256"
+          header: string
+          prefix?: string | null
+          encoding?: EDigestEncoding
+          signed?: string | null
+      }
+    | {kind: "JWT_HS256"; header: string}
+
+export interface IHttpStatusMapping {
+    message_id_pointer: string
+    state_pointer: string
+    states: Record<string, EMessageAttemptState>
+    error_pointer?: string | null
+}
+
+export interface IHttpReports {
+    auth?: IHttpWebhookAuth
+    items_pointer?: string | null
+    status: IHttpStatusMapping
+    inbound_from_pointer?: string | null
+}
+
+export interface IHttpReconcile {
+    request: IHttpRequestTemplate
+    status: IHttpStatusMapping
+}
+
+export interface IHttpTokenRequest {
+    request: IHttpRequestTemplate
+    token_pointer: string
+    lifetime_seconds?: number
+}
+
+export interface IHttpJwt {
+    algorithm?: EJwtAlgorithm
+    claims?: unknown
+    lifetime_seconds?: number
+}
+
+/** A provider described by configuration. */
+export interface IHttpApiSender {
+    label?: string | null
+    send: IHttpRequestTemplate
+    message_id_pointer?: string | null
+    phone_format?: EPhoneFormat
+    template_required_for?: EMessagePurpose[]
+    conversation_window_hours?: number | null
+    check?: IHttpRequestTemplate | null
+    token?: IHttpTokenRequest | null
+    jwt?: IHttpJwt | null
+    reports?: IHttpReports | null
+    reconcile?: IHttpReconcile | null
+    approved_templates?: IApprovedTemplates
+}
+
 export type IAccountSender =
     | {
           provider: EMessagingProvider.AWS_SES
@@ -162,6 +261,7 @@ export type IAccountSender =
           display_phone_number: string
           display_name?: string | null
           api_version: string
+          api_base_url?: string | null
       }
     | {
           provider: EMessagingProvider.MESSENGER_SEND_API
@@ -169,6 +269,7 @@ export type IAccountSender =
           page_name?: string | null
           page_username?: string | null
           api_version: string
+          api_base_url?: string | null
       }
     | {
           provider: EMessagingProvider.VIBER_INFOBIP
@@ -176,6 +277,7 @@ export type IAccountSender =
           sender: string
           approved_templates?: IViberApprovedTemplates
       }
+    | ({provider: EMessagingProvider.HTTP_API} & IHttpApiSender)
     | {provider: EMessagingProvider.CONSOLE}
 
 export interface ICredentialRecord {
@@ -195,6 +297,7 @@ export interface IMessagingAccount {
     credentials?: ICredentialRecords | null
     limits?: IAccountLimits | null
     provider_approval?: EProviderApproval | null
+    readiness?: EReadinessPolicy | null
     status?: IAccountCheck | null
     webhook_key?: string | null
     is_default: boolean
@@ -204,9 +307,31 @@ export interface IMessagingAccount {
 
 export interface ITemplateBinding {
     purpose: EMessagePurpose
+    /** A template alias or Keycloak's message key; absent for the purpose's default. */
+    key?: string | null
+    /** The voter's language. */
     language: string
     provider_template: string
+    /** The provider's code for the language when it differs, such as `en_US` for `en`. */
+    provider_language?: string | null
 }
+
+/**
+ * Message keys Keycloak sends as `template_key`, offered when binding an
+ * approved template to a specific message. Mirrors the `template_key` values
+ * of the Keycloak messaging extensions: `otp` for a one-time code, `otl`
+ * for a one-time link, and the message key of each notice.
+ */
+export const KEYCLOAK_OTP_MESSAGE_KEYS: string[] = ["otp", "otl"]
+
+export const KEYCLOAK_NOTICE_MESSAGE_KEYS: string[] = [
+    "messageSuccessSms",
+    "messageSuccessSmsKiosk",
+    "messagePendingSms",
+    "messageRejectedSms",
+    "forgotPassword.sms.text",
+    "newPassword.message.text",
+]
 
 export interface IEventChannelConfig {
     channel: EMessageChannel
@@ -256,13 +381,42 @@ export interface IAccountSummary {
     tenant_id: string
     channel: EMessageChannel
     provider: EMessagingProvider
+    /** What the account can do; `null` when its sender cannot serve the channel. */
+    capabilities: IProviderCapabilities | null
     provider_approval: EProviderApproval
+    readiness: EReadinessPolicy
     check: IAccountCheck
+    public_label?: string | null
+    messenger_page?: IMessengerPage | null
+}
+
+export interface IMessengerPage {
+    page_id: string
+    username?: string | null
+    name?: string | null
+}
+
+export interface IPublicChannel {
+    channel: EMessageChannel
+    purposes: EMessagePurpose[]
+    sender_label: string | null
+    messenger_page: IMessengerPage | null
+}
+
+/** The `sequent.messaging` realm attribute. */
+export interface IPublicMessagingChannels {
+    version: number
+    channels: IPublicChannel[]
+    election_channels: Record<string, EMessageChannel[]>
+    election_labels: Record<string, string[]>
 }
 
 export interface IInstantMessageConfig {
     message: string
     parameters: string[]
+    /** The approved template at the provider; the event's binding is used without it. */
+    provider_template?: string | null
+    provider_language?: string | null
 }
 
 /** Keycloak user attributes of a voter's messaging channels. */

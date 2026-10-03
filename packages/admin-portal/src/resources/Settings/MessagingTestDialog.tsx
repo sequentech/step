@@ -7,6 +7,7 @@ import {useTranslation} from "react-i18next"
 import {
     Alert,
     AlertColor,
+    Autocomplete,
     Button,
     Dialog,
     DialogActions,
@@ -24,7 +25,7 @@ import {
     IMessagingAccount,
     MESSAGE_PURPOSES,
 } from "@/types/messaging"
-import {recipientKind} from "@/services/messaging"
+import {accountCapabilities, recipientKind} from "@/services/messaging"
 import {TEST_MESSAGING_ACCOUNT} from "@/queries/TestMessagingAccount"
 
 interface ITestMessagingAccountResult {
@@ -54,6 +55,29 @@ export const testStateSeverity = (state: EMessageAttemptState): AlertColor => {
     }
 }
 
+/**
+ * Whether a test names the approved template to send. Infobip's Viber accounts
+ * list their own; a configured provider takes one, and needs it for the
+ * purposes it declares as template-only.
+ */
+export const testTemplateField = (
+    account: IMessagingAccount,
+    purpose: EMessagePurpose
+): {offered: boolean; required: boolean} => {
+    switch (account.provider) {
+        case EMessagingProvider.WHATSAPP_CLOUD_API:
+            return {offered: true, required: true}
+        case EMessagingProvider.HTTP_API:
+            return {
+                offered: true,
+                required:
+                    accountCapabilities(account)?.template_required_for.includes(purpose) ?? false,
+            }
+        default:
+            return {offered: false, required: false}
+    }
+}
+
 export interface IMessagingTestDialogProps {
     account: IMessagingAccount
     /** The tenant's enabled languages; the first is preselected. */
@@ -71,7 +95,7 @@ export const MessagingTestDialog: React.FC<IMessagingTestDialogProps> = ({
     const [destination, setDestination] = useState("")
     const [language, setLanguage] = useState(languages[0] ?? "")
     const [template, setTemplate] = useState("")
-    const needsTemplate = account.provider === EMessagingProvider.WHATSAPP_CLOUD_API
+    const {offered: offersTemplate, required: needsTemplate} = testTemplateField(account, purpose)
     const [sending, setSending] = useState(false)
     const [outcome, setOutcome] = useState<ITestOutcome | null>(null)
     const [testAccount] = useMutation<ITestMessagingAccountResult>(TEST_MESSAGING_ACCOUNT, {
@@ -87,8 +111,8 @@ export const MessagingTestDialog: React.FC<IMessagingTestDialogProps> = ({
                     id: account.id,
                     purpose,
                     destination: destination.trim(),
-                    language: language || null,
-                    ...(needsTemplate ? {template: template.trim()} : {}),
+                    language: language.trim() || null,
+                    ...(offersTemplate && template.trim() ? {template: template.trim()} : {}),
                 },
             })
             const result = data?.test_messaging_account
@@ -140,24 +164,24 @@ export const MessagingTestDialog: React.FC<IMessagingTestDialogProps> = ({
                     onChange={(event) => setDestination(event.target.value)}
                     fullWidth
                 />
-                {languages.length > 0 && (
-                    <TextField
-                        select
-                        label={t("messagingAccounts.test.language")}
-                        value={language}
-                        onChange={(event) => setLanguage(event.target.value)}
-                    >
-                        {languages.map((code) => (
-                            <MenuItem key={code} value={code}>
-                                {code}
-                            </MenuItem>
-                        ))}
-                    </TextField>
-                )}
-                {needsTemplate && (
+                <Autocomplete
+                    freeSolo
+                    options={languages}
+                    inputValue={language}
+                    onInputChange={(_event, value) => setLanguage(value)}
+                    renderInput={(params) => (
+                        <TextField
+                            {...params}
+                            label={t("messagingAccounts.test.language")}
+                            helperText={t("messagingAccounts.test.languageHelp")}
+                        />
+                    )}
+                />
+                {offersTemplate && (
                     <TextField
                         label={t("messagingAccounts.test.template")}
                         helperText={t("messagingAccounts.test.templateHelp")}
+                        required={needsTemplate}
                         value={template}
                         onChange={(event) => setTemplate(event.target.value)}
                         fullWidth

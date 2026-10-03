@@ -3443,7 +3443,7 @@ const dutchTranslation: TranslationType = {
             purposeSwitch: "{{channel}}: {{purpose}}",
             sections: {
                 channels: "Kanalen",
-                templates: "WhatsApp- en Viber-sjablonen",
+                templates: "Goedgekeurde sjablonen",
                 fallback: "Terugvalvolgorde voor berichten",
                 posts: "Kanalen per Post",
                 postsCount: "Kanalen per Post ({{count}} Posts)",
@@ -3455,22 +3455,40 @@ const dutchTranslation: TranslationType = {
                 account: "Verzendt vanaf",
                 purpose: "Doel",
                 language: "Taal",
-                template: "Goedgekeurde sjabloon",
+                template: "Sjabloon van de provider",
                 status: "Status",
                 post: "Post",
+                key: "Voor bericht",
+                providerLanguage: "Taal van de provider",
             },
             outOfWindow: {
-                label: "Na 24 uur",
-                help: "Messenger verzendt berichten alleen binnen 24 uur na het laatste bericht van de kiezer. Later verzenden blijft uit totdat Meta het mechanisme voor deze pagina bevestigt; tot die tijd gaan die berichten naar het volgende beschikbare kanaal van de kiezer.",
+                label: "Buiten het gespreksvenster",
+                help: "Berichten in vrije tekst worden alleen verzonden zolang het gespreksvenster open is: op Messenger binnen 24 uur na het laatste bericht van de kiezer. Kies Hulpprogrammaberichten om daarna berichten te verzenden met een goedgekeurde sjabloon. Meta moet dit voor de pagina goedkeuren (de machtiging page_utility_messaging en een goedgekeurde UTILITY-sjabloon), en die sjabloon moet onder Goedgekeurde sjablonen aan berichten zijn gekoppeld. Met Niet verzenden gaat een bericht buiten het venster naar het volgende beschikbare kanaal van de kiezer.",
                 DISABLED: "Niet verzenden",
                 UTILITY_MESSAGES: "Hulpprogrammaberichten",
+                noTemplate:
+                    "Er is op dit kanaal nog geen sjabloon aan berichten gekoppeld. Voeg er een toe onder Goedgekeurde sjablonen; tot die tijd gaan berichten buiten het venster naar het volgende beschikbare kanaal van de kiezer.",
             },
             templates: {
-                empty: "Zet codes of berichten aan op WhatsApp of Viber om hun sjablonen te kiezen.",
-                help: "WhatsApp en Viber verzenden alleen sjablonen die de provider voor het account heeft goedgekeurd. Vul per taal de goedgekeurde sjabloon in; een taal zonder goedgekeurde sjabloon kan niet worden verzonden.",
-                label: "{{channel}}-sjabloon voor {{purpose}}, {{language}}",
-                approved: "Goedgekeurd",
-                notApproved: "Niet goedgekeurd",
+                empty: "Kies een account dat goedgekeurde sjablonen verzendt, zoals WhatsApp, Viber of Messenger, om de sjablonen hier te koppelen.",
+                help: "Elke rij geeft aan welke goedgekeurde sjabloon de provider voor een bericht verzendt. Voor bericht is de alias van een sjabloon in Sjablonen, voor een melding, of de berichtsleutel die Keycloak verzendt, zoals otp; laat het leeg voor de sjabloon die standaard voor het doel wordt gebruikt. Taal is de taal van de kiezer. Sjabloon van de provider is de naam of ID van de sjabloon bij de provider. Taal van de provider is de code van de provider voor die sjabloon wanneer die afwijkt van de taal van de kiezer: WhatsApp heeft de exacte code van de goedgekeurde sjabloon nodig, zoals en_US.",
+                order: "Voor elk bericht wint de meest specifieke rij: de rij voor het bericht in de taal van de kiezer, dan de rij voor het bericht in een willekeurige taal, dan de standaard voor het doel in de taal van de kiezer, dan een willekeurige standaard voor het doel.",
+                noneRequired:
+                    "{{channel}} verzendt alleen goedgekeurde sjablonen. Voeg minstens een standaardsjabloon toe voor elk doel dat in gebruik is.",
+                noneOptional:
+                    "Er zijn geen sjablonen gekoppeld voor {{channel}}. Ze zijn alleen nodig om berichten buiten het gespreksvenster te verzenden.",
+                row: "{{channel}}-sjabloon {{position}}",
+                keyDefault: "Standaard voor het doel",
+                add: "{{channel}}-sjabloon toevoegen",
+                remove: "{{channel}}-sjabloon {{position}} verwijderen",
+                incomplete:
+                    "Voer de taal en de sjabloon van de provider in, of verwijder deze rij.",
+                approval: {
+                    APPROVED: "Goedgekeurd",
+                    NOT_APPROVED: "Niet goedgekeurd",
+                    ADMIN_CONFIRMED: "Bevestigd door een beheerder",
+                    NOT_CHECKED: "Goedkeuring niet gecontroleerd",
+                },
             },
             fallback: {
                 help: "Als een bericht een kiezer niet via diens kanaal bereikt, gaat het naar het volgende kanaal in deze volgorde dat de kiezer heeft geverifieerd en diens Post aanbiedt. Codes worden nooit vanzelf opnieuw verzonden: de kiezer kiest een andere manier.",
@@ -3511,7 +3529,7 @@ const dutchTranslation: TranslationType = {
                 TEMPLATE_NOT_APPROVED:
                     "De {{channel}}-sjabloon voor {{purpose}} in {{language}} is niet goedgekeurd door de provider.",
                 OUT_OF_WINDOW_NOT_SUPPORTED:
-                    "{{channel}} kan niet buiten een gespreksvenster verzenden.",
+                    "{{channel}} kan met dit account niet buiten een gespreksvenster verzenden: het heeft geen gespreksvenster, of de berichten hebben al een sjabloon nodig.",
                 FALLBACK_CHANNEL_NOT_ENABLED:
                     "{{channel}} staat in de terugvalvolgorde maar verzendt geen berichten.",
                 DUPLICATE_FALLBACK_CHANNEL:
@@ -3537,6 +3555,7 @@ const dutchTranslation: TranslationType = {
                 MESSENGER_SEND_API: "Messenger Platform (Meta)",
                 VIBER_INFOBIP: "Viber Business Messages (Infobip)",
                 CONSOLE: "Console (alleen test, er wordt niets verzonden)",
+                HTTP_API: "Aangepaste HTTP-API",
             },
             purpose: {
                 OTP: "Codes",
@@ -3572,6 +3591,8 @@ const dutchTranslation: TranslationType = {
                 notReady: "Niet klaar",
                 lastCheck: "Gecontroleerd {{date}}",
                 neverChecked: "Nog niet gecontroleerd",
+                adminConfirmed: "Bevestigd door een beheerder",
+                checkNotUsed: "Controle niet gebruikt",
             },
             approval: {
                 PENDING: "Wacht op goedkeuring van de provider",
@@ -3585,13 +3606,17 @@ const dutchTranslation: TranslationType = {
                 SMTP_PASSWORD: "Wachtwoord",
                 AWS_ACCESS_KEY_ID: "AWS-toegangssleutel-ID",
                 AWS_SECRET_ACCESS_KEY: "Geheime AWS-toegangssleutel",
+                API_SECRET: "API-geheim",
+                USERNAME: "Gebruikersnaam",
+                PASSWORD: "Wachtwoord",
+                WEBHOOK_SECRET: "Webhookgeheim",
             },
             deliveryUnavailable: "Aflevering niet beschikbaar",
             templates: {
                 noMethod: "Kies minstens één methode voor de sjabloon.",
                 parameters: "Sjabloonparameters",
                 parametersHelp:
-                    "Wat elke plaatshouder van de goedgekeurde sjabloon vult, op volgorde, zoals user.first_name of vote_url.",
+                    "Wat elke plaatshouder van de goedgekeurde sjabloon vult, op volgorde, zoals user.first_name of vote_url. Schrijf voor een sjabloon met benoemde parameters @naam=waarde, zoals @first_name=user.first_name; elke andere invoer is positioneel.",
                 parameter: "Parameter {{position}}",
                 removeParameter: "Parameter {{position}} verwijderen",
                 addParameter: "Parameter toevoegen",
@@ -3609,7 +3634,7 @@ const dutchTranslation: TranslationType = {
                     "Binnen 24 uur na het laatste bericht van de kiezer stuurt Messenger de onderstaande tekst.",
                 messengerMessage: "Bericht binnen 24 uur",
                 messengerWindow:
-                    "Een opgeslagen Messenger-ontvanger is geen toestemming om te verzenden. Buiten het venster van 24 uur stuurt Messenger dit bericht niet: het gaat naar het volgende beschikbare kanaal van de kiezer totdat Meta een mechanisme voor deze pagina bevestigt.",
+                    "Een opgeslagen Messenger-ontvanger is geen toestemming om te verzenden. Buiten het venster van 24 uur wordt dit bericht als hulpprogrammabericht verzonden wanneer het verkiezingsevenement dat toestaat en er hieronder een goedgekeurde sjabloon is ingesteld of in het evenement is gekoppeld; anders gaat het naar het volgende beschikbare kanaal van de kiezer. Hulpprogrammaberichten vereisen de machtiging page_utility_messaging en een goedgekeurde UTILITY-sjabloon op de pagina.",
                 intro: {
                     WHATSAPP:
                         "WhatsApp verzendt alleen sjablonen die Meta heeft goedgekeurd voor het WhatsApp Business-account. Het bericht moet overeenkomen met de goedgekeurde sjabloon; kies wat de parameters vult.",
@@ -3618,6 +3643,20 @@ const dutchTranslation: TranslationType = {
                 approvedWording: "Goedgekeurde tekst",
                 approvedWordingHelp:
                     "Een kopie van de goedgekeurde sjabloon, gebruikt als voorbeeld. Hier wijzigen verandert niet wat de provider verzendt.",
+                providerTemplateTitle: "Sjabloon van de provider",
+                providerTemplateHelp:
+                    "Optioneel. De naam of ID van de goedgekeurde sjabloon bij de provider. Indien leeg wordt de sjabloon van het verkiezingsevenement gebruikt die aan de alias van deze sjabloon is gekoppeld, of de standaard van het evenement voor het doel.",
+                providerTemplate: "Naam of ID van de sjabloon van de provider",
+                providerLanguage: "Taalcode van de provider",
+                providerLanguageHelp: {
+                    WHATSAPP:
+                        "De exacte taalcode van de goedgekeurde WhatsApp-sjabloon, zoals en_US.",
+                    VIBER: "De taalcode waaronder de Viber-provider de sjabloon kent, wanneer er een nodig is.",
+                    MESSENGER:
+                        "De taalcode van de goedgekeurde hulpprogrammasjabloon, zoals en_US.",
+                },
+                approvalAdminConfirmed:
+                    "Een beheerder heeft bij de provider bevestigd dat de sjablonen van dit account zijn goedgekeurd; de goedkeuringen uit de verbindingscontrole worden daarom niet gebruikt.",
             },
             send: {
                 channel: "Kanaal",
@@ -3632,6 +3671,11 @@ const dutchTranslation: TranslationType = {
                 missingContent: "Deze melding heeft geen inhoud voor {{channels}}.",
                 approvedTemplateHelp:
                     "Verzonden met de door de provider goedgekeurde sjabloon. Bewerk deze in Sjablonen.",
+                providerTemplate: "Sjabloon van de provider voor {{channel}}",
+                providerTemplateHelp:
+                    "Optioneel. Indien leeg wordt de sjabloon van het evenement gebruikt die aan de alias van de gekozen sjabloon is gekoppeld, of de standaard van het evenement voor berichten.",
+                providerLanguage: "Taal van de provider voor {{channel}}",
+                providerLanguageHelp: "De taalcode van de provider voor die sjabloon, zoals en_US.",
             },
             voter: {
                 title: "Berichten",
@@ -3653,6 +3697,10 @@ const dutchTranslation: TranslationType = {
                     VIBER: "Verzonden Viber-berichten",
                     MESSENGER: "Verzonden Messenger-berichten",
                 },
+            },
+            readinessPolicy: {
+                PROVIDER_CHECK: "Volgens de controle van de provider",
+                ADMIN_CONFIRMED: "Bevestigd door een beheerder",
             },
         },
         messagingAccounts: {
@@ -3708,6 +3756,7 @@ const dutchTranslation: TranslationType = {
                 save: "Opslaan",
                 cancel: "Annuleren",
                 close: "Sluiten",
+                channelHelp: "Kan niet worden gewijzigd nadat het account is aangemaakt.",
             },
             field: {
                 name: "Accountnaam",
@@ -3730,6 +3779,9 @@ const dutchTranslation: TranslationType = {
                 sender: "Afzendernaam",
                 provider_approval: "Goedkeuring van de provider",
                 is_default: "Standaard {{channel}}-account voor nieuwe verkiezingsevenementen",
+                readiness: "Gereedheid",
+                api_base_url: "Basis-URL van de Graph API",
+                label: "Afzender die kiezers zien",
             },
             fieldHelp: {
                 from_address:
@@ -3747,7 +3799,12 @@ const dutchTranslation: TranslationType = {
                 base_url: "De basis-URL van de Infobip-API van het account.",
                 sender: "De goedgekeurde afzender die kiezers zien.",
                 provider_approval:
-                    "Meta staat berichten van overheden via WhatsApp alleen toe via een goedgekeurde regeling. Zolang de goedkeuring ontbreekt, kunnen codes en berichten voor dit account niet worden ingeschakeld.",
+                    "Meta staat berichten van overheden via WhatsApp alleen toe via een goedgekeurde regeling. Kies Goedkeuring van de provider bevestigd zodra Meta dit voor dit account heeft goedgekeurd; tot die tijd kunnen codes en berichten voor dit account niet worden ingeschakeld.",
+                readiness:
+                    "Volgens de controle van de provider gebruikt wat de verbindingscontrole vindt: of het account verbonden is, in productie is, en welke sjablonen zijn goedgekeurd. Bevestigd door een beheerder is voor providers waarvan de controle dat niet kan vaststellen: het is uw verklaring dat het account verbonden is, in productie is en goedgekeurde sjablonen heeft, en die wordt gebruikt in plaats van de controle.",
+                api_base_url:
+                    "Alleen wanneer de Graph API niet die van Meta zelf is, zoals het eindpunt van een Solution Provider. Leeg gebruikt die van Meta.",
+                label: "De naam die kiezers zien als afzender van dit account.",
             },
             error: {
                 REQUIRED: "Verplicht",
@@ -3755,6 +3812,8 @@ const dutchTranslation: TranslationType = {
                 OTP_ABOVE_TOTAL: "Mag niet hoger zijn dan het aantal berichten per seconde",
                 INVALID_CALLING_CODE: "Voer landnummers van 1 tot 3 cijfers in, zoals 63",
                 DUPLICATE_LANGUAGE: "Deze taal heeft al een sjabloon voor dit doel",
+                NOT_A_URL: "Voer een adres in dat begint met https:// of http://",
+                INVALID_HTTP_CONFIG: "Los de getoonde problemen op",
             },
             warning: {
                 pageChange:
@@ -3817,6 +3876,19 @@ const dutchTranslation: TranslationType = {
                 VIBER_INFOBIP: {
                     API_KEY: "De Infobip-API-sleutel.",
                 },
+                HTTP_API: {
+                    API_KEY: "Optioneel. Verzoeken gebruiken het als de inloggegevens API_KEY.",
+                    API_SECRET:
+                        "Optioneel. Een tweede geheim, en de sleutel die de JWT ondertekent: een PEM-privésleutel voor RS256, het gedeelde geheim voor HS256.",
+                    ACCESS_TOKEN:
+                        "Optioneel. Verzoeken gebruiken het als de inloggegevens ACCESS_TOKEN.",
+                    USERNAME:
+                        "Optioneel. Vormt samen met het wachtwoord de plaatshouder basic_auth.",
+                    PASSWORD:
+                        "Optioneel. Vormt samen met de gebruikersnaam de plaatshouder basic_auth.",
+                    WEBHOOK_SECRET:
+                        "Optioneel. Het gedeelde geheim waarmee de callbacks van de provider worden gecontroleerd.",
+                },
             },
             webhook: {
                 title: "Afleveringsrapporten en antwoorden",
@@ -3837,6 +3909,8 @@ const dutchTranslation: TranslationType = {
                 copyToken: "Verificatietoken kopiëren",
                 tokenDone: "Klaar",
                 tokenError: "Het verificatietoken kon niet worden gegenereerd.",
+                httpHelp:
+                    "Een aangepaste HTTP-API kan zijn rapporten als JSON posten, of ze als GET-verzoek sturen; de queryparameters worden dan gelezen als een plat object, met pointers zoals /status.",
             },
             copy: {
                 success: "Gekopieerd",
@@ -3862,9 +3936,111 @@ const dutchTranslation: TranslationType = {
                 error: "Het testbericht kon niet worden verstuurd.",
                 template: "Goedgekeurde sjabloon",
                 templateHelp:
-                    "De naam van de WhatsApp-sjabloon die de provider voor dit doel en deze taal heeft goedgekeurd.",
+                    "De naam of ID van de sjabloon die de provider voor dit doel en deze taal heeft goedgekeurd.",
                 viberTemplate:
                     "Viber gebruikt de sjabloon die dit account als goedgekeurd vermeldt voor het gekozen doel en de gekozen taal.",
+                languageHelp:
+                    "Voer voor een provider die goedgekeurde sjablonen verzendt de taalcode van de provider voor de sjabloon in, zoals en_US.",
+            },
+            http: {
+                title: "Aangepaste HTTP-API",
+                description:
+                    "Beschrijft een provider aan de hand van zijn HTTP-verzoeken: een andere Viber-partner, de eigen API van een WhatsApp Solution Provider, een sms-gateway. Verzoeken zijn JSON; hun URL, headers en body mogen de plaatshouders uit de onderstaande referentie bevatten.",
+                phoneFormat: "Notatie van het telefoonnummer",
+                phoneFormatHelp:
+                    "Hoe het telefoonnummer van de ontvanger in een verzoek wordt geschreven.",
+                phoneFormatOption: {
+                    E164: "Met het plusteken: +639171234567",
+                    DIGITS: "Alleen cijfers: 639171234567",
+                },
+                templateRequired: "Doelen die een goedgekeurde sjabloon nodig hebben",
+                templateRequiredHelp:
+                    "Een aangevinkt doel wordt alleen verzonden met een sjabloon die de provider heeft goedgekeurd en die in het verkiezingsevenement is gekoppeld. De andere doelen worden als vrije tekst verzonden.",
+                approvedLanguages: "Talen met een goedgekeurde sjabloon voor {{purpose}}",
+                approvedLanguagesHelp:
+                    "De taalcodes met een goedgekeurde sjabloon, zoals bevestigd bij de provider, gescheiden door komma's: en, tl. De verbindingscontrole meldt ze.",
+                conversationWindow: "Gespreksvenster (uren)",
+                conversationWindowHelp:
+                    "Uren na het laatste bericht van de ontvanger waarin vrije tekst mag worden verzonden. Leeg wanneer de provider geen dergelijk venster heeft.",
+                messageIdPointer: "Bericht-ID in het verzendantwoord",
+                messageIdPointerHelp:
+                    "Een JSON-pointer naar de bericht-ID van de provider in het antwoord op het verzendverzoek, zoals /message_id. Afleveringsrapporten worden ermee gekoppeld.",
+                notConfigured: "Niet geconfigureerd.",
+                thisSection: "Deze sectie",
+                add: "Toevoegen: {{section}}",
+                remove: "Verwijderen: {{section}}",
+                section: {
+                    SEND: "Verzendverzoek",
+                    CHECK: "Verzoek voor de verbindingscontrole",
+                    TOKEN: "Tokenverzoek",
+                    JWT: "Ondertekend token (JWT)",
+                    REPORTS: "Afleveringsrapporten en antwoorden",
+                    RECONCILE: "Verzoek om een bericht op te zoeken",
+                },
+                sectionHelp: {
+                    SEND: "Het verzoek dat één bericht verzendt: method (POST indien weggelaten), url, headers en body.",
+                    CHECK: "Optioneel. Een verzoek dat slaagt, met een 2xx-antwoord, wanneer de inloggegevens werken. De verbindingscontrole voert het uit.",
+                    TOKEN: "Optioneel. Haalt vóór het verzenden een kortlevend token op, zoals OAuth-clientgegevens: request, token_pointer (waar het token in het antwoord staat) en lifetime_seconds. Verzoeken gebruiken het met de plaatshouder token.",
+                    JWT: "Optioneel. Een token dat voor elk verzoek wordt ondertekend met de inloggegevens API-geheim: algorithm (RS256 of HS256), claims (iat, exp en jti worden toegevoegd) en lifetime_seconds. Verzoeken gebruiken het met de plaatshouder jwt.",
+                    REPORTS:
+                        "Optioneel. Hoe te lezen wat de provider naar de callback stuurt: auth, items_pointer (waar de lijst met rapporten staat; de hele payload indien weggelaten), status (message_id_pointer, state_pointer, states, dat elke waarde van de provider koppelt aan QUEUED, ACCEPTED, DELIVERED, FAILED of UNKNOWN, en error_pointer) en inbound_from_pointer (waar de afzender van een antwoord staat). auth heeft een kind: URL_KEY (alleen het geheime adres van de callback), HEADER_SECRET (een header die gelijk is aan het webhookgeheim), HMAC_SHA256 (een header met de HMAC van de body onder het webhookgeheim, met prefix, encoding HEX of BASE64, en signed wanneer meer dan de body wordt ondertekend) of JWT_HS256 (een header met een bearer-JWT ondertekend met het webhookgeheim).",
+                    RECONCILE:
+                        "Optioneel. Vraagt de provider naar één bericht waarvan de uitkomst onbekend is: request en status, dat wordt gelezen zoals de status van de afleveringsrapporten.",
+                },
+                problem: {
+                    NOT_AN_OBJECT: "{{path}} moet een object zijn.",
+                    MISSING_URL: "{{path}} is verplicht: het adres van het verzoek.",
+                    INVALID_METHOD: "{{path}} moet een HTTP-methode zijn, zoals POST of GET.",
+                    INVALID_HEADERS:
+                        "{{path}} moet tekst zijn: headers is een object van headernamen en tekstwaarden.",
+                    UNKNOWN_FIELD: "{{path}} is geen veld van deze sectie.",
+                    UNKNOWN_PLACEHOLDER:
+                        "{{path}} gebruikt een plaatshouder die niet bestaat. Zie de referentie van plaatshouders.",
+                    INVALID_POINTER:
+                        "{{path}} moet een JSON-pointer zijn die begint met /, zoals /data/id.",
+                    INVALID_STATES:
+                        "{{path}} moet een statuswaarde van de provider koppelen aan QUEUED, ACCEPTED, DELIVERED, FAILED of UNKNOWN; er is er minstens één nodig.",
+                    INVALID_AUTH:
+                        "{{path}} is niet geldig: kind is URL_KEY, HEADER_SECRET, HMAC_SHA256 of JWT_HS256; header is verplicht behalve voor URL_KEY; encoding is HEX of BASE64.",
+                    INVALID_LIFETIME: "{{path}} moet een geheel aantal seconden boven 0 zijn.",
+                    INVALID_ALGORITHM: "{{path}} moet RS256 of HS256 zijn.",
+                    INVALID_CLAIMS: "{{path}} moet een object zijn.",
+                    INVALID_HOURS: "{{path}} moet een geheel aantal uren boven 0 zijn.",
+                },
+                placeholders: {
+                    title: "Referentie van plaatshouders",
+                    help: "Geschreven tussen dubbele accolades in de URL, in een headerwaarde of in een tekst van de body. Elke plaatshouder wordt vervangen wanneer het verzoek wordt gedaan.",
+                },
+                placeholder: {
+                    to: "De ontvanger: telefoonnummer, e-mailadres of paginagebonden ID.",
+                    text: "Het bericht als platte tekst.",
+                    subject: "Het onderwerp, voor e-mail.",
+                    html: "Het bericht als HTML, voor e-mail.",
+                    code: "De eenmalige code, voor codes.",
+                    template:
+                        "De sjabloon van de provider die in het verkiezingsevenement is gekoppeld.",
+                    language: "De taalcode van de provider voor de sjabloon.",
+                    message_id:
+                        "De bericht-ID van de provider, in een verzoek om een bericht op te zoeken.",
+                    callback_url: "Het openbare adres van de callback van dit account.",
+                    param: "Eén sjabloonparameter op basis van zijn positie: 1, 2, 3 enzovoort.",
+                    credential:
+                        "Inloggegevens van dit account op naam: API_KEY, API_SECRET, ACCESS_TOKEN, USERNAME, PASSWORD of WEBHOOK_SECRET.",
+                    basic_auth:
+                        "De gebruikersnaam en het wachtwoord, gecodeerd voor een header Authorization: Basic.",
+                    token: "Het token dat met het tokenverzoek is verkregen.",
+                    jwt: "Het ondertekende token dat is beschreven onder Ondertekend token (JWT).",
+                    parameters:
+                        "Alleen, als waarde in de body, wordt het de lijst van alle sjabloonparameters.",
+                    named_parameters:
+                        "Alleen, als waarde in de body, wordt het een object van de parameters die als @naam=waarde zijn geschreven.",
+                },
+                example: {
+                    title: "Uitgewerkt voorbeeld: een Viber-partner",
+                    description:
+                        "De partner ontvangt een JSON-POST die met de API-sleutel als bearer-token is geauthenticeerd, antwoordt met de ID van het bericht onder message_id en post afleveringsrapporten met een geheime header. Gebruik het als uitgangspunt en pas het adres en de veldnamen aan die van de provider aan.",
+                    use: "Dit voorbeeld gebruiken",
+                },
             },
         },
     },

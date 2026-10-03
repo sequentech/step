@@ -9,13 +9,20 @@ import {AdminStoryProvider, TENANT_ID, graphqlBoundary} from "@/__stories__/Admi
 import {resourceBoundary} from "@/__stories__/resourceBoundary"
 import {FIXED_TIME, storyId} from "@/__stories__/fixtures"
 import type {WidgetMeta} from "@/__stories__/widgetStory"
-import {EMessageChannel, EMessagePurpose, EMessagingProvider} from "@/types/messaging"
+import {
+    EMessageChannel,
+    EMessagePurpose,
+    EMessagingProvider,
+    EReadinessPolicy,
+} from "@/types/messaging"
 import {InstantMessageChannel, InstantMessageTemplateSection} from "./InstantMessageTemplateSection"
 
 interface Scenario {
     channel: InstantMessageChannel
     /** Whether the tenant has an account for the channel. */
     withAccount: boolean
+    /** Whether an administrator confirmed the account's readiness. */
+    confirmed: boolean
     onSubmit: Mock<(values: Record<string, unknown>) => void>
 }
 
@@ -62,7 +69,7 @@ let data: ReturnType<typeof resourceBoundary>
 const meta = {
     title: "Admin/Template/InstantMessageTemplateSection",
     component: InstantMessageTemplateSection,
-    args: {channel: EMessageChannel.WHATSAPP, withAccount: true, onSubmit: fn()},
+    args: {channel: EMessageChannel.WHATSAPP, withAccount: true, confirmed: false, onSubmit: fn()},
     argTypes: {
         channel: {
             control: "inline-radio",
@@ -73,7 +80,16 @@ const meta = {
         graphql = graphqlBoundary({
             GetMessagingAccounts: () => ({
                 data: {
-                    sequent_backend_messaging_account: args.withAccount ? [whatsappAccount] : [],
+                    sequent_backend_messaging_account: args.withAccount
+                        ? [
+                              {
+                                  ...whatsappAccount,
+                                  readiness: args.confirmed
+                                      ? EReadinessPolicy.ADMIN_CONFIRMED
+                                      : EReadinessPolicy.PROVIDER_CHECK,
+                              },
+                          ]
+                        : [],
                 },
             }),
         })
@@ -112,7 +128,7 @@ export default meta
 type Story = StoryObj<Scenario>
 
 export const WhatsAppApprovals: Story = {
-    parameters: {widgets: ["ParametersInput", "ApprovalStatus"]},
+    parameters: {widgets: ["ParametersInput", "ApprovalStatus", "ApprovalTable"]},
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
         await expect(canvas.getByRole("textbox", {name: /Approved wording/})).toHaveValue(
@@ -138,6 +154,45 @@ export const EditParameters: Story = {
     },
 }
 
+export const ProviderTemplate: Story = {
+    parameters: {widgets: ["ProviderTemplateInputs", "ParametersInput"]},
+    play: async ({args, canvasElement}) => {
+        const canvas = within(canvasElement)
+        await expect(
+            canvas.getByText(/the election event's template bound to this template's alias is used/)
+        ).toBeVisible()
+        await expect(canvas.getByText(/write @name=value/)).toBeVisible()
+        await userEvent.type(
+            canvas.getByRole("textbox", {name: "Provider template name or ID"}),
+            "vote_reminder"
+        )
+        await userEvent.type(canvas.getByRole("textbox", {name: "Provider language code"}), "en_US")
+        await userEvent.click(canvas.getByRole("button", {name: "Save"}))
+        await waitFor(() => expect(args.onSubmit).toHaveBeenCalled())
+        expect(args.onSubmit.mock.calls[0][0]).toMatchObject({
+            template: {
+                whatsapp: {
+                    message: record.template.whatsapp.message,
+                    provider_template: "vote_reminder",
+                    provider_language: "en_US",
+                },
+            },
+        })
+    },
+}
+
+export const ConfirmedByAnAdministrator: Story = {
+    args: {confirmed: true},
+    parameters: {widgets: ["ApprovalStatus"]},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await expect(
+            await canvas.findByText(/An administrator confirmed with the provider/)
+        ).toBeVisible()
+        expect(canvas.queryByRole("table", {name: "Approved templates"})).toBeNull()
+    },
+}
+
 export const ViberWithoutAccount: Story = {
     args: {channel: EMessageChannel.VIBER, withAccount: false},
     play: async ({canvasElement}) => {
@@ -155,6 +210,10 @@ export const MessengerWindow: Story = {
             record.template.messenger.message
         )
         expect(canvas.getByText(/is not permission to send/)).toBeVisible()
+        await expect(canvas.getByText(/page_utility_messaging permission/)).toBeVisible()
+        await expect(
+            canvas.getByText("The language code of the approved utility template, such as en_US.")
+        ).toBeVisible()
         expect(graphql.calls).toEqual([])
     },
 }

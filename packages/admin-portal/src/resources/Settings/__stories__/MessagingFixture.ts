@@ -9,7 +9,9 @@ import {
     EMessageChannel,
     EMessagePurpose,
     EMessagingProvider,
+    EPhoneFormat,
     EProviderApproval,
+    EReadinessPolicy,
     IMessagingAccount,
 } from "@/types/messaging"
 
@@ -18,6 +20,7 @@ export const SMS_ACCOUNT_ID = storyId(6, 2)
 export const WHATSAPP_ACCOUNT_ID = storyId(6, 3)
 export const VIBER_ACCOUNT_ID = storyId(6, 4)
 export const MESSENGER_ACCOUNT_ID = storyId(6, 5)
+export const PARTNER_ACCOUNT_ID = storyId(6, 6)
 
 const checked = (approvedTemplates: Partial<Record<EMessagePurpose, string[]>> = {}) => ({
     connected: true,
@@ -144,10 +147,39 @@ export const messengerAccount = (): IMessagingAccount => ({
     is_default: false,
 })
 
+/** A provider described by configuration, whose readiness an administrator confirmed. */
+export const partnerAccount = (): IMessagingAccount => ({
+    ...base,
+    id: PARTNER_ACCOUNT_ID,
+    channel: EMessageChannel.VIBER,
+    provider: EMessagingProvider.HTTP_API,
+    name: "Partner gateway",
+    sender: {
+        provider: EMessagingProvider.HTTP_API,
+        label: "Council",
+        send: {
+            method: "POST",
+            url: "https://api.partner.admin-story.invalid/v1/viber/messages",
+            headers: {Authorization: "Bearer {{credential.API_KEY}}"},
+            body: {to: "{{to}}", template: "{{template}}", parameters: "{{parameters}}"},
+        },
+        message_id_pointer: "/message_id",
+        phone_format: EPhoneFormat.DIGITS,
+        template_required_for: [EMessagePurpose.OTP, EMessagePurpose.NOTICE],
+        approved_templates: {OTP: ["en"], NOTICE: ["en"]},
+    },
+    credentials: {API_KEY: {replaced_at: FIXED_TIME}},
+    readiness: EReadinessPolicy.ADMIN_CONFIRMED,
+    status: null,
+    webhook_key: "partner-hook-key",
+    is_default: false,
+})
+
 export const messagingAccounts = (): IMessagingAccount[] => [
     emailAccount(),
     smsAccount(),
     whatsappAccount(),
     viberAccount(),
+    partnerAccount(),
     messengerAccount(),
 ]
