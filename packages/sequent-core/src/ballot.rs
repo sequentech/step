@@ -307,6 +307,22 @@ pub fn sign_hashable_ballot_with_ephemeral_voter_signing_key(
     election_id: &str,
     hashable_ballot: &HashableBallot,
 ) -> Result<SignedContent, String> {
+    let secret_key = StrandSignatureSk::generate()
+        .map_err(|err| format!("Error generating secret key: {err}"))?;
+    sign_hashable_ballot_with_voter_signing_key(
+        &secret_key,
+        ballot_id,
+        election_id,
+        hashable_ballot,
+    )
+}
+
+pub fn sign_hashable_ballot_with_voter_signing_key(
+    secret_key: &StrandSignatureSk,
+    ballot_id: &str,
+    election_id: &str,
+    hashable_ballot: &HashableBallot,
+) -> Result<SignedContent, String> {
     // Get ballot_bytes_for_signing
     let content_bytes = hashable_ballot
         .strand_serialize()
@@ -314,10 +330,7 @@ pub fn sign_hashable_ballot_with_ephemeral_voter_signing_key(
     let ballot_bytes =
         get_ballot_bytes_for_signing(ballot_id, election_id, &content_bytes);
 
-    // Generate voter ephemeral key for signing
-    let secret_key = StrandSignatureSk::generate()
-        .map_err(|err| format!("Error generating secret key: {err}"))?;
-    let public_key = StrandSignaturePk::from_sk(&secret_key)
+    let public_key = StrandSignaturePk::from_sk(secret_key)
         .map_err(|err| format!("Error generating public key: {err}"))?;
 
     let ballot_signature = secret_key

@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 //! The ballot box's Received signature must bind the exact ballot, voter key,
-//! election and time, and the Ballot ID must follow from all of them. Each
-//! rejection starts from a receipt that verifies.
+//! election and time, and the Ballot ID must follow from all of them. Its Cast
+//! receipt must bind that Ballot ID, both times and the voter's Cast
+//! signature. Each rejection starts from a receipt that verifies.
 
 #![cfg(feature = "default_features")]
 
@@ -12,9 +13,12 @@ use sequent_core::ballot::{
     ReceiptsPresentation,
 };
 use sequent_core::ballot_receipt::{
-    ballot_box_key, ballot_id, format_ballot_id, normalize_ballot_id,
-    sign_received_ballot, verify_received_ballot, BallotReceiptError,
-    ReceivedBallot, ReceivedStatement,
+    ballot_box_key, ballot_id, forget_voter_signing_key, format_ballot_id,
+    keep_voter_signing_key, normalize_ballot_id, sign_cast_receipt,
+    sign_cast_statement, sign_cast_statement_with_kept_key,
+    sign_received_ballot, verify_cast_receipt, verify_cast_signature,
+    verify_received_ballot, BallotReceiptError, CastReceipt,
+    CastReceiptStatement, ReceivedBallot, ReceivedStatement,
 };
 use sequent_core::encrypt::hash_ballot_style;
 use sequent_core::fixtures::ballot_codec::get_writein_ballot_style;
@@ -30,6 +34,9 @@ const BALLOT_BOX_KEY_ID: &str = "fd110d301d2f077d";
 const LATER: &str = "2028-05-08T03:00:00.001Z";
 const RECEIVED_SIGNATURE: &str = "+RR9tbkpia9wUTsGALqnqU3S+af2JmMGKIk0BNDlOZrsE6cBP/PxU0vcxWKVIx1oHPN57Mx5zZEocsY4I0nkAQ==";
 const BALLOT_ID: &str = "MSY2-HTDT";
+const CAST_AT: &str = "2028-05-08T03:04:05.678Z";
+const CAST_SIGNATURE: &str = "sJuZoBaypaHpQejzUs/ANBe8AYx8OsYQq61dPFzYJONC1Buw/h1WuPRamzANQi/g2qIomDAHDIZj7cHe1dzFAg==";
+const CAST_RECEIPT_SIGNATURE: &str = "nrig3o+JjRR4/37Rjqs22Q0Lnba5yy93pA5HPST33irYTlbi3MhMTJEvjla6YR/Cn8li4UcapIzRWLm7hooMBQ==";
 
 fn ballot_box_sk() -> StrandSignatureSk {
     StrandSignatureSk::from_der_b64_string(BALLOT_BOX_SK).unwrap()
@@ -63,6 +70,37 @@ fn statement() -> ReceivedStatement {
 
 fn received() -> ReceivedBallot {
     sign_received_ballot(&ballot_box_sk(), statement()).unwrap()
+}
+
+fn voter_sk() -> StrandSignatureSk {
+    StrandSignatureSk::from_der_b64_string(VOTER_SK).unwrap()
+}
+
+fn cast_signature() -> String {
+    let received = received();
+    sign_cast_statement(
+        &voter_sk(),
+        &received.statement.election_id,
+        &received.ballot_id,
+    )
+    .unwrap()
+}
+
+fn cast_statement() -> CastReceiptStatement {
+    let received = received();
+    CastReceiptStatement {
+        election_event_id: received.statement.election_event_id,
+        election_id: received.statement.election_id,
+        ballot_id: received.ballot_id,
+        received_at: received.statement.received_at,
+        cast_at: CAST_AT.into(),
+        key_id: BALLOT_BOX_KEY_ID.into(),
+        cast_signature: cast_signature(),
+    }
+}
+
+fn cast_receipt() -> CastReceipt {
+    sign_cast_receipt(&ballot_box_sk(), cast_statement()).unwrap()
 }
 
 #[test]
@@ -305,4 +343,264 @@ fn malformed_keys_and_signatures_are_errors_not_panics() {
         verify_received_ballot(&bad_key, &received()),
         Err(BallotReceiptError::Malformed(_))
     ));
+}
+
+#[test]
+fn the_shared_cast_vector_is_reproduced() {
+    assert_eq!(cast_signature(), CAST_SIGNATURE);
+
+    let receipt = cast_receipt();
+    assert_eq!(receipt.cast_receipt_signature, CAST_RECEIPT_SIGNATURE);
+    verify_cast_receipt(&published_key(), &receipt).unwrap();
+}
+
+#[test]
+fn only_the_key_that_signed_the_ballot_casts_it() {
+    let received = received();
+    let statement = &received.statement;
+    let signature = cast_signature();
+    verify_cast_signature(
+        &statement.voter_signing_pk,
+        &statement.election_id,
+        &received.ballot_id,
+        &signature,
+    )
+    .unwrap();
+
+    let other_voter = StrandSignatureSk::generate().unwrap();
+    let by_another_key = sign_cast_statement(
+        &other_voter,
+        &statement.election_id,
+        &received.ballot_id,
+    )
+    .unwrap();
+    for (case, election_id, ballot_id, signature) in [
+        (
+            "another key",
+            statement.election_id.as_str(),
+            received.ballot_id.as_str(),
+            by_another_key.as_str(),
+        ),
+        (
+            "another ballot",
+            statement.election_id.as_str(),
+            "0000-0000",
+            signature.as_str(),
+        ),
+        (
+            "another election",
+            "33f18502-a67c-4853-8333-a58630663559",
+            received.ballot_id.as_str(),
+            signature.as_str(),
+        ),
+    ] {
+        assert_eq!(
+            verify_cast_signature(
+                &statement.voter_signing_pk,
+                election_id,
+                ballot_id,
+                signature
+            ),
+            Err(BallotReceiptError::InvalidCastSignature),
+            "{case}"
+        );
+    }
+}
+
+/// The voter's signature over the ballot must not pass for the one that casts
+/// it, nor the ballot box's Received signature for its Cast receipt.
+#[test]
+fn a_signature_made_for_one_statement_does_not_pass_for_another() {
+    let received = received();
+    let statement = &received.statement;
+    let ballot_signature = voter_sk()
+        .sign(b"fixture-ballot")
+        .unwrap()
+        .to_b64_string()
+        .unwrap();
+    assert_eq!(
+        verify_cast_signature(
+            &statement.voter_signing_pk,
+            &statement.election_id,
+            &received.ballot_id,
+            &ballot_signature
+        ),
+        Err(BallotReceiptError::InvalidCastSignature)
+    );
+
+    let mut receipt = cast_receipt();
+    receipt.cast_receipt_signature = received.received_signature;
+    assert_eq!(
+        verify_cast_receipt(&published_key(), &receipt),
+        Err(BallotReceiptError::InvalidSignature)
+    );
+}
+
+#[test]
+fn every_signed_field_of_the_cast_receipt_changes_the_verdict() {
+    let key = published_key();
+    let valid = cast_receipt();
+    verify_cast_receipt(&key, &valid).unwrap();
+
+    let other_voter = StrandSignatureSk::generate().unwrap();
+    let mutations: Vec<(&str, Box<dyn Fn(&mut CastReceipt)>)> = vec![
+        (
+            "event",
+            Box::new(|r| r.statement.election_event_id.push('0')),
+        ),
+        ("election", Box::new(|r| r.statement.election_id.push('0'))),
+        (
+            "ballot id",
+            Box::new(|r| r.statement.ballot_id = "0000-0000".into()),
+        ),
+        (
+            "received time",
+            Box::new(|r| r.statement.received_at = LATER.into()),
+        ),
+        ("cast time", Box::new(|r| r.statement.cast_at = LATER.into())),
+        (
+            "cast signature",
+            Box::new(move |r| {
+                r.statement.cast_signature = sign_cast_statement(
+                    &other_voter,
+                    &r.statement.election_id,
+                    &r.statement.ballot_id,
+                )
+                .unwrap()
+            }),
+        ),
+    ];
+
+    for (field, mutate) in mutations {
+        let mut altered = valid.clone();
+        mutate(&mut altered);
+        assert_eq!(
+            verify_cast_receipt(&key, &altered),
+            Err(BallotReceiptError::InvalidSignature),
+            "{field}"
+        );
+    }
+}
+
+#[test]
+fn a_cast_receipt_from_another_key_is_not_the_ballot_boxs() {
+    let key = published_key();
+    let forger = StrandSignatureSk::generate().unwrap();
+    let forger_key =
+        ballot_box_key(&StrandSignaturePk::from_sk(&forger).unwrap()).unwrap();
+
+    let mut statement = cast_statement();
+    statement.key_id = forger_key.key_id;
+    let forged = sign_cast_receipt(&forger, statement).unwrap();
+    assert_eq!(
+        verify_cast_receipt(&key, &forged),
+        Err(BallotReceiptError::UnknownKey)
+    );
+
+    let relabelled = sign_cast_receipt(&forger, cast_statement()).unwrap();
+    assert_eq!(
+        verify_cast_receipt(&key, &relabelled),
+        Err(BallotReceiptError::InvalidSignature)
+    );
+}
+
+#[test]
+fn a_malformed_cast_is_an_error_not_a_panic() {
+    let received = received();
+    assert!(matches!(
+        verify_cast_signature(
+            &received.statement.voter_signing_pk,
+            &received.statement.election_id,
+            &received.ballot_id,
+            "not base64"
+        ),
+        Err(BallotReceiptError::Malformed(_))
+    ));
+    assert!(matches!(
+        verify_cast_signature(
+            "not base64",
+            &received.statement.election_id,
+            &received.ballot_id,
+            &cast_signature()
+        ),
+        Err(BallotReceiptError::Malformed(_))
+    ));
+
+    let mut statement = cast_statement();
+    statement.cast_signature = "not base64".into();
+    assert!(matches!(
+        sign_cast_receipt(&ballot_box_sk(), statement),
+        Err(BallotReceiptError::Malformed(_))
+    ));
+
+    let mut receipt = cast_receipt();
+    receipt.cast_receipt_signature = "not base64".into();
+    assert!(matches!(
+        verify_cast_receipt(&published_key(), &receipt),
+        Err(BallotReceiptError::Malformed(_))
+    ));
+}
+
+#[test]
+fn the_kept_key_casts_only_the_ballot_it_signed() {
+    let received = received();
+    let election_id = received.statement.election_id.as_str();
+    let voter_pk = received.statement.voter_signing_pk.as_str();
+    let sign = |election_id: &str, voter_pk: &str| {
+        sign_cast_statement_with_kept_key(
+            election_id,
+            voter_pk,
+            &received.ballot_id,
+        )
+    };
+
+    assert_eq!(
+        sign(election_id, voter_pk),
+        Err(BallotReceiptError::VoterKeyNotKept)
+    );
+
+    keep_voter_signing_key(election_id, voter_sk());
+    assert_eq!(sign(election_id, voter_pk).unwrap(), CAST_SIGNATURE);
+    assert_eq!(
+        sign("another-election", voter_pk),
+        Err(BallotReceiptError::VoterKeyNotKept)
+    );
+
+    // Going back to the ballot signs a new one with a new key: the earlier
+    // ballot can no longer be cast from this device.
+    let next_key = StrandSignatureSk::generate().unwrap();
+    let next_pk = StrandSignaturePk::from_sk(&next_key)
+        .unwrap()
+        .to_der_b64_string()
+        .unwrap();
+    keep_voter_signing_key(election_id, next_key);
+    assert_eq!(
+        sign(election_id, voter_pk),
+        Err(BallotReceiptError::VoterKeyNotKept)
+    );
+    verify_cast_signature(
+        &next_pk,
+        election_id,
+        &received.ballot_id,
+        &sign(election_id, &next_pk).unwrap(),
+    )
+    .unwrap();
+
+    forget_voter_signing_key(election_id);
+    assert_eq!(
+        sign(election_id, &next_pk),
+        Err(BallotReceiptError::VoterKeyNotKept)
+    );
+}
+
+#[test]
+fn a_cast_receipt_reads_back_from_its_published_form() {
+    let receipt = cast_receipt();
+    let json = serde_json::to_value(&receipt).unwrap();
+
+    assert_eq!(json["ballot_id"], BALLOT_ID);
+    assert_eq!(json["cast_at"], CAST_AT);
+    assert_eq!(json["cast_receipt_signature"], CAST_RECEIPT_SIGNATURE);
+    let read: CastReceipt = serde_json::from_value(json).unwrap();
+    assert_eq!(read, receipt);
 }
