@@ -45,7 +45,13 @@ const meta = {
         role: {control: "select", options: Object.keys(SIGNING_ROLES)},
     },
     parameters: {
-        widgets: ["Card", "TrustedIssuersCard", "ChecksCard", "RegisteredCertificatesCard"],
+        widgets: [
+            "Card",
+            "TrustedIssuersCard",
+            "ChecksCard",
+            "RegisteredCertificatesCard",
+            "PersonDetail",
+        ],
     },
     beforeEach: ({args}) => {
         const organization = organizationOf(args.organization)
@@ -136,7 +142,13 @@ async function controls(canvasElement: HTMLElement) {
 
 export const SecurityOfficer: Story = {
     parameters: {
-        widgets: ["Card", "TrustedIssuersCard", "ChecksCard", "RegisteredCertificatesCard"],
+        widgets: [
+            "Card",
+            "TrustedIssuersCard",
+            "ChecksCard",
+            "RegisteredCertificatesCard",
+            "PersonDetail",
+        ],
     },
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)

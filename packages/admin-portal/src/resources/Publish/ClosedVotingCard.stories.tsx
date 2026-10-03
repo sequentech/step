@@ -114,6 +114,7 @@ const rowValue = (view: ReturnType<typeof within>, label: string) =>
     view.getByRole("rowheader", {name: label}).nextElementSibling?.textContent
 
 export const ClosedWithTheClosingSignatures: Story = {
+    parameters: {widgets: ["RowsTable"]},
     play: async ({args}) => {
         const view = await card()
         await expect(view.getByRole("heading", {name: /^Voting closed at .*\.$/})).toBeVisible()

@@ -180,7 +180,7 @@ test.describe("a configuration manager", () => {
         ])
         await expect(row.getByRole("cell").nth(3)).toHaveText("2")
         await expect(row.getByRole("cell").nth(2)).toHaveText(
-            `${SBEI_GROUP.name}${OFOV_GROUP.name}`
+            `${OFOV_GROUP.name}${SBEI_GROUP.name}`
         )
         expectRole(portal, "SigningPutRule", "signing-rules-write")
         expectRole(portal, "GetSigningRules", "signing-rules-read")

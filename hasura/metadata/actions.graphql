@@ -2543,7 +2543,9 @@ type Query {
 
 type Query {
     signingEventInfo(election_event_id: uuid!): SigningEventInfoOutput!
-    signingHeldReportRequests(election_event_id: uuid!): SigningHeldReportRequestsOutput!
+    signingHeldReportRequests(
+        election_event_id: uuid!
+    ): SigningHeldReportRequestsOutput!
 }
 
 type SigningGetRequestOutput {
