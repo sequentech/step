@@ -100,6 +100,7 @@ fn build_application_with(
                 routes::voter_electoral_log::list_cast_vote_messages,
                 routes::insert_cast_vote::insert_cast_vote,
                 routes::receive_ballot::receive_ballot,
+                routes::cast_ballot::cast_ballot,
                 routes::fetch_document::fetch_document,
                 routes::document_password::get_document_password,
                 routes::elections::create_election,

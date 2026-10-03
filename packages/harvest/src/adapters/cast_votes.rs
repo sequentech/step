@@ -7,6 +7,9 @@ use windmill::services::insert_cast_vote::{
     try_insert_cast_vote, CastVoteError, InsertCastVoteInput,
     InsertCastVoteResult,
 };
+use windmill::services::cast_ballot::{
+    try_cast_ballot, CastBallotInput, CastBallotResult,
+};
 use windmill::services::receive_ballot::{
     try_receive_ballot, ReceiveBallotInput, ReceiveBallotOutput,
 };
@@ -47,6 +50,25 @@ impl CastVotes for WindmillCastVotes {
             voter.area_id,
             voter.voting_channel,
             voter.auth_time,
+        )
+        .await
+    }
+
+    async fn try_cast(
+        &self,
+        input: CastBallotInput,
+        voter: CastVoter<'_>,
+    ) -> Result<CastBallotResult, CastVoteError> {
+        try_cast_ballot(
+            input,
+            voter.tenant_id,
+            voter.voter_id,
+            voter.area_id,
+            voter.voting_channel,
+            voter.auth_time,
+            voter.voter_ip,
+            voter.voter_country,
+            voter.username,
         )
         .await
     }

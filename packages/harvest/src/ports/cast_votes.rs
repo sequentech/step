@@ -6,6 +6,7 @@ use sequent_core::ballot::VotingStatusChannel;
 use windmill::services::insert_cast_vote::{
     CastVoteError, InsertCastVoteInput, InsertCastVoteResult,
 };
+use windmill::services::cast_ballot::{CastBallotInput, CastBallotResult};
 use windmill::services::receive_ballot::{
     ReceiveBallotInput, ReceiveBallotOutput,
 };
@@ -38,4 +39,12 @@ pub trait CastVotes: Send + Sync {
         input: ReceiveBallotInput,
         voter: CastVoter<'_>,
     ) -> Result<ReceiveBallotOutput, CastVoteError>;
+
+    /// Casts a ballot received at review, on the voter's signed request, and
+    /// answers with the ballot box's cast receipt.
+    async fn try_cast(
+        &self,
+        input: CastBallotInput,
+        voter: CastVoter<'_>,
+    ) -> Result<CastBallotResult, CastVoteError>;
 }

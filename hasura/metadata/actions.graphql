@@ -607,6 +607,14 @@ type Mutation {
 }
 
 type Mutation {
+    cast_ballot(
+        election_id: uuid!
+        ballot_id: String!
+        cast_signature: String!
+    ): CastBallotOutput
+}
+
+type Mutation {
     limit_access_by_countries(
         voting_countries: [String!]!
         enroll_countries: [String!]!
@@ -1534,6 +1542,18 @@ type ReceiveBallotOutput {
     key_id: String!
     received_signature: String!
     ballot_id: String!
+}
+
+type CastBallotOutput {
+    election_event_id: uuid!
+    election_id: uuid!
+    ballot_id: String!
+    received_at: String!
+    cast_at: String!
+    key_id: String!
+    cast_signature: String!
+    cast_receipt_signature: String!
+    cast_vote_id: uuid!
 }
 
 type createBallotReceiptOutput {

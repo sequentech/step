@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::cast_votes::{CastVote, CastVoteStatus};
 use anyhow::{anyhow, Result};
+use chrono::{DateTime, Utc};
 use deadpool_postgres::Transaction;
 use sequent_core::ballot::VotingStatusChannel;
 use sequent_core::services::uuid_validation::parse_uuid_v4;
@@ -147,6 +148,55 @@ fn cast_vote_annotations(
     })?)
 }
 
+/// What a cast vote keeps of the receipt the ballot box signed for it. Its
+/// time is the one the receipt states.
+#[derive(Debug)]
+pub struct CastVoteReceipt<'a> {
+    pub received_ballot_id: &'a Uuid,
+    pub cast_at: &'a DateTime<Utc>,
+    pub cast_receipt_signature: &'a str,
+}
+
+/// The cast vote a received ballot was cast as.
+#[instrument(skip(hasura_transaction), err)]
+pub async fn get_cast_vote_id_of_received_ballot(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &Uuid,
+    election_event_id: &Uuid,
+    election_id: &Uuid,
+    voter_id_string: &str,
+    received_ballot_id: &Uuid,
+) -> Result<Option<Uuid>> {
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                SELECT id
+                FROM sequent_backend.cast_vote
+                WHERE
+                    tenant_id = $1 AND
+                    election_event_id = $2 AND
+                    election_id = $3 AND
+                    voter_id_string = $4 AND
+                    received_ballot_id = $5;
+            "#,
+        )
+        .await?;
+    let row = hasura_transaction
+        .query_opt(
+            &statement,
+            &[
+                &tenant_id,
+                &election_event_id,
+                &election_id,
+                &voter_id_string,
+                &received_ballot_id,
+            ],
+        )
+        .await?;
+
+    Ok(row.map(|row| row.try_get("id")).transpose()?)
+}
+
 #[instrument(skip(hasura_transaction, content, cast_ballot_signature), err)]
 pub async fn insert_cast_vote(
     hasura_transaction: &Transaction<'_>,
@@ -162,7 +212,7 @@ pub async fn insert_cast_vote(
     voter_country: &Option<String>,
     voting_channel: VotingStatusChannel,
     initial_status: CastVoteStatus,
-    received_ballot_id: Option<&Uuid>,
+    cast_receipt: Option<&CastVoteReceipt<'_>>,
 ) -> Result<CastVote> {
     let status = initial_status.to_string();
     let statement = hasura_transaction
@@ -170,7 +220,7 @@ pub async fn insert_cast_vote(
             r#"
                 INSERT INTO
                     sequent_backend.cast_vote
-                (tenant_id, election_event_id, election_id, area_id, voter_id_string, ballot_id, content, cast_ballot_signature, annotations, status, received_ballot_id)
+                (tenant_id, election_event_id, election_id, area_id, voter_id_string, ballot_id, content, cast_ballot_signature, annotations, status, received_ballot_id, cast_receipt_signature, created_at)
                 VALUES(
                     $1,
                     $2,
@@ -182,7 +232,9 @@ pub async fn insert_cast_vote(
                     $8,
                     COALESCE($9::jsonb, '{}'),
                     $10,
-                    $11
+                    $11,
+                    $12,
+                    COALESCE($13, now())
                 )
                 RETURNING
                     id, ballot_id, election_id, election_event_id, tenant_id,
@@ -208,7 +260,9 @@ pub async fn insert_cast_vote(
                 &cast_ballot_signature,
                 &annotations,
                 &status,
-                &received_ballot_id,
+                &cast_receipt.map(|receipt| receipt.received_ballot_id),
+                &cast_receipt.map(|receipt| receipt.cast_receipt_signature),
+                &cast_receipt.map(|receipt| receipt.cast_at),
             ],
         )
         .await

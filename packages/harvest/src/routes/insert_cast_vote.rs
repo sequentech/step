@@ -135,27 +135,8 @@ pub async fn insert_cast_vote(
     );
 
     let enqueue_start = Instant::now();
-    if let Some(cast_vote_id) = pending_cast_vote_id {
-        // The Datafix vote is already committed: an enqueue failure must not
-        // fail the request. The review beat recovers in-progress rows.
-        let celery_app = services.tasks.connect().await;
-        match celery_app
-            .send_task(process_cast_vote::process_cast_vote::new(
-                inserted_cast_vote.tenant_id.clone(),
-                inserted_cast_vote.election_event_id.clone(),
-                cast_vote_id.clone(),
-            ))
-            .await
-        {
-            Ok(celery_task) => {
-                info!("Sent process_cast_vote task {}", celery_task.task_id);
-            }
-            Err(e) => {
-                error!(
-                    "Error sending process_cast_vote task for cast vote {cast_vote_id}: {e:?}; the review_cast_votes beat will retry it"
-                );
-            }
-        }
+    if pending_cast_vote_id.is_some() {
+        enqueue_datafix_cast_vote(services, &inserted_cast_vote).await;
     }
 
     info!(
@@ -169,6 +150,33 @@ pub async fn insert_cast_vote(
         "cast-vote route completed"
     );
     Ok(Json(inserted_cast_vote))
+}
+
+/// Hands a committed Datafix vote to its pipeline. An enqueue failure must not
+/// fail the request: the review beat recovers in-progress rows.
+pub(crate) async fn enqueue_datafix_cast_vote(
+    services: &HarvestServices,
+    cast_vote: &InsertCastVoteOutput,
+) {
+    let cast_vote_id = &cast_vote.id;
+    let celery_app = services.tasks.connect().await;
+    match celery_app
+        .send_task(process_cast_vote::process_cast_vote::new(
+            cast_vote.tenant_id.clone(),
+            cast_vote.election_event_id.clone(),
+            cast_vote_id.clone(),
+        ))
+        .await
+    {
+        Ok(celery_task) => {
+            info!("Sent process_cast_vote task {}", celery_task.task_id);
+        }
+        Err(e) => {
+            error!(
+                "Error sending process_cast_vote task for cast vote {cast_vote_id}: {e:?}; the review_cast_votes beat will retry it"
+            );
+        }
+    }
 }
 
 /// The answer each refusal or failure of the ballot box maps to. A ballot the
@@ -311,7 +319,11 @@ pub(crate) fn cast_vote_error_response(
         CastVoteError::BallotVoterSignatureFailed(_)
         | CastVoteError::BallotVoterSignatureRequired
         | CastVoteError::BallotStyleMismatch(_)
-        | CastVoteError::BallotNotReceived => ErrorResponse::new(
+        | CastVoteError::BallotNotReceived
+        | CastVoteError::BallotCastSignatureRequired
+        | CastVoteError::BallotCastSignatureFailed(_)
+        | CastVoteError::BallotAlreadyCast
+        | CastVoteError::BallotAudited => ErrorResponse::new(
             Status::BadRequest,
             ErrorCode::PokValidationFailed.to_string().as_str(),
             ErrorCode::PokValidationFailed,

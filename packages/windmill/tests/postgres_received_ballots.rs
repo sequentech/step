@@ -13,10 +13,11 @@ use deadpool_postgres::{Object, Transaction};
 use sequent_core::ballot::VotingStatusChannel;
 use sequent_core::ballot_receipt::{ReceivedBallot, ReceivedStatement};
 use uuid::Uuid;
-use windmill::postgres::cast_vote;
+use windmill::postgres::cast_vote::{self, CastVoteReceipt};
 use windmill::postgres::received_ballot::{
-    get_published_ballot_eml, get_received_ballot, insert_received_ballot,
-    mark_received_ballot_cast, ReceivedBallotScope, ReceivedBallotStatus,
+    get_published_ballot_eml, get_received_ballot, get_received_ballot_to_cast,
+    insert_received_ballot, mark_received_ballot_cast, ReceivedBallotScope, ReceivedBallotStatus,
+    ReceivedBallotToCast, StoredCast,
 };
 use windmill::services::cast_votes::CastVoteStatus;
 
@@ -28,6 +29,10 @@ async fn connect() -> Object {
 
 fn received_at() -> DateTime<Utc> {
     Utc.timestamp_millis_opt(1_841_367_600_007).unwrap()
+}
+
+fn cast_at() -> DateTime<Utc> {
+    Utc.timestamp_millis_opt(1_841_367_845_678).unwrap()
 }
 
 /// One election of one area in a new tenant and election event.
@@ -126,6 +131,44 @@ impl Election {
             "ciphertext",
             &received_at(),
             &self.receipt(ballot_hash, ballot_id),
+        )
+        .await
+        .unwrap()
+    }
+
+    async fn to_cast(
+        &self,
+        tx: &Transaction<'_>,
+        voter_id: &str,
+        ballot_id: &str,
+    ) -> Option<ReceivedBallotToCast> {
+        get_received_ballot_to_cast(
+            tx,
+            &self.tenant,
+            &self.event,
+            &self.election,
+            voter_id,
+            ballot_id,
+        )
+        .await
+        .unwrap()
+    }
+
+    async fn cast(
+        &self,
+        tx: &Transaction<'_>,
+        received_ballot_id: &Uuid,
+        cast_signature: &str,
+        cast_receipt_signature: &str,
+    ) -> bool {
+        mark_received_ballot_cast(
+            tx,
+            &self.tenant,
+            &self.event,
+            received_ballot_id,
+            &cast_at(),
+            cast_signature,
+            cast_receipt_signature,
         )
         .await
         .unwrap()
@@ -300,43 +343,79 @@ async fn a_ballot_id_names_one_ballot_in_its_election_event() {
 }
 
 #[tokio::test]
-async fn a_received_ballot_is_cast_once_and_only_by_its_voter() {
+async fn a_received_ballot_is_found_by_its_ballot_id_only_for_its_voter() {
+    let mut client = connect().await;
+    let tx = client.transaction().await.unwrap();
+    let f = Election::create(&tx).await;
+    let id = f.receive(&tx, "voter", "hash", "FTBE-MHRX").await.unwrap();
+    let another_election = Uuid::new_v4();
+
+    let found = f.to_cast(&tx, "voter", "FTBE-MHRX").await.unwrap();
+    assert_eq!(found.stored.id, id);
+    assert_eq!(found.stored.status, ReceivedBallotStatus::Received);
+    assert_eq!(found.stored.received, f.receipt("hash", "FTBE-MHRX"));
+    assert_eq!(found.content, "ciphertext");
+    assert_eq!(found.cast, None);
+
+    assert_eq!(f.to_cast(&tx, "another-voter", "FTBE-MHRX").await, None);
+    assert_eq!(f.to_cast(&tx, "voter", "0000-0000").await, None);
+    assert_eq!(
+        get_received_ballot_to_cast(
+            &tx,
+            &f.tenant,
+            &f.event,
+            &another_election,
+            "voter",
+            "FTBE-MHRX"
+        )
+        .await
+        .unwrap(),
+        None
+    );
+}
+
+#[tokio::test]
+async fn a_received_ballot_is_cast_once_and_keeps_its_first_receipt() {
     let mut client = connect().await;
     let tx = client.transaction().await.unwrap();
     let f = Election::create(&tx).await;
     let id = f.receive(&tx, "voter", "hash", "FTBE-MHRX").await.unwrap();
 
-    for (voter, hash) in [("another-voter", "hash"), ("voter", "another-hash")] {
-        assert_eq!(
-            mark_received_ballot_cast(&tx, &f.scope(voter, hash))
-                .await
-                .unwrap(),
-            None,
-            "{voter} {hash}"
-        );
-    }
-
-    let cast = mark_received_ballot_cast(&tx, &f.scope("voter", "hash"))
-        .await
-        .unwrap()
-        .unwrap();
-    assert_eq!(cast.id, id);
-    assert_eq!(cast.status, ReceivedBallotStatus::Cast);
-    assert_eq!(cast.received.ballot_id, "FTBE-MHRX");
-    assert!(tx
-        .query_one(
-            "SELECT cast_at IS NOT NULL FROM sequent_backend.received_ballot WHERE id = $1",
-            &[&id],
-        )
-        .await
-        .unwrap()
-        .get::<_, bool>(0));
-
+    assert!(f.cast(&tx, &id, "cast-signature", "receipt-signature").await);
+    let cast = f.to_cast(&tx, "voter", "FTBE-MHRX").await.unwrap();
+    assert_eq!(cast.stored.status, ReceivedBallotStatus::Cast);
     assert_eq!(
-        mark_received_ballot_cast(&tx, &f.scope("voter", "hash"))
+        cast.cast,
+        Some(StoredCast {
+            cast_at: cast_at(),
+            cast_signature: "cast-signature".into(),
+            cast_receipt_signature: "receipt-signature".into(),
+        })
+    );
+
+    assert!(!f.cast(&tx, &id, "another-signature", "another-receipt").await);
+    assert_eq!(f.to_cast(&tx, "voter", "FTBE-MHRX").await, Some(cast));
+}
+
+#[tokio::test]
+async fn a_ballot_of_another_election_event_is_not_cast() {
+    let mut client = connect().await;
+    let tx = client.transaction().await.unwrap();
+    let f = Election::create(&tx).await;
+    let other = Election::create_in(&tx, f.tenant).await;
+    let id = f.receive(&tx, "voter", "hash", "FTBE-MHRX").await.unwrap();
+
+    assert!(!other.cast(&tx, &id, "cast-signature", "receipt-signature").await);
+    assert!(!f
+        .cast(&tx, &Uuid::new_v4(), "cast-signature", "receipt-signature")
+        .await);
+    assert_eq!(
+        f.to_cast(&tx, "voter", "FTBE-MHRX")
             .await
-            .unwrap(),
-        None
+            .unwrap()
+            .stored
+            .status,
+        ReceivedBallotStatus::Received
     );
 }
 
@@ -353,31 +432,59 @@ async fn an_audited_ballot_cannot_be_cast() {
     .await
     .unwrap();
 
-    assert_eq!(
-        mark_received_ballot_cast(&tx, &f.scope("voter", "hash"))
-            .await
-            .unwrap(),
-        None
-    );
-    assert_eq!(
-        get_received_ballot(&tx, &f.scope("voter", "hash"))
-            .await
-            .unwrap()
-            .unwrap()
-            .status,
-        ReceivedBallotStatus::Audited
-    );
+    assert!(!f.cast(&tx, &id, "cast-signature", "receipt-signature").await);
+    let audited = f.to_cast(&tx, "voter", "FTBE-MHRX").await.unwrap();
+    assert_eq!(audited.stored.status, ReceivedBallotStatus::Audited);
+    assert_eq!(audited.cast, None);
 }
 
 #[tokio::test]
-async fn the_cast_vote_names_the_received_ballot_it_was_cast_from() {
+async fn the_table_refuses_a_cast_receipt_on_a_ballot_that_is_not_cast() {
+    let mut client = connect().await;
+    let mut tx = client.transaction().await.unwrap();
+    let f = Election::create(&tx).await;
+    f.receive(&tx, "voter", "hash", "FTBE-MHRX").await.unwrap();
+
+    for assignment in [
+        "cast_signature = 's', cast_receipt_signature = 'r'",
+        "status = 'cast', cast_at = now(), cast_signature = 's'",
+        "status = 'cast'",
+        "cast_at = now()",
+    ] {
+        let savepoint = tx.savepoint("attempt").await.unwrap();
+        let error = savepoint
+            .execute(
+                &format!(
+                    "UPDATE sequent_backend.received_ballot SET {assignment}
+                     WHERE tenant_id = $1 AND election_event_id = $2"
+                ),
+                &[&f.tenant, &f.event],
+            )
+            .await
+            .unwrap_err();
+        assert_eq!(
+            error.as_db_error().unwrap().constraint(),
+            Some("received_ballot_cast_receipt_check"),
+            "{assignment}"
+        );
+        savepoint.rollback().await.unwrap();
+    }
+}
+
+#[tokio::test]
+async fn the_cast_vote_keeps_the_receipt_and_its_time() {
     let mut client = connect().await;
     let tx = client.transaction().await.unwrap();
     let f = Election::create(&tx).await;
     let received = f.receive(&tx, "voter", "hash", "FTBE-MHRX").await.unwrap();
+    let receipt = CastVoteReceipt {
+        received_ballot_id: &received,
+        cast_at: &cast_at(),
+        cast_receipt_signature: "receipt-signature",
+    };
 
     let mut ids = vec![];
-    for (voter, received_ballot_id) in [("voter", Some(&received)), ("another-voter", None)] {
+    for (voter, cast_receipt) in [("voter", Some(&receipt)), ("another-voter", None)] {
         let cast_vote = cast_vote::insert_cast_vote(
             &tx,
             &f.tenant,
@@ -392,7 +499,7 @@ async fn the_cast_vote_names_the_received_ballot_it_was_cast_from() {
             &None,
             VotingStatusChannel::ONLINE,
             CastVoteStatus::Valid,
-            received_ballot_id,
+            cast_receipt,
         )
         .await
         .unwrap();
@@ -400,18 +507,55 @@ async fn the_cast_vote_names_the_received_ballot_it_was_cast_from() {
         ids.push(Uuid::parse_str(&cast_vote.id).unwrap());
     }
 
-    let stored: Vec<Option<Uuid>> = tx
+    assert_eq!(
+        cast_vote::get_cast_vote_id_of_received_ballot(
+            &tx,
+            &f.tenant,
+            &f.event,
+            &f.election,
+            "voter",
+            &received
+        )
+        .await
+        .unwrap(),
+        Some(ids[0])
+    );
+    for (voter, received_ballot_id) in [("another-voter", received), ("voter", Uuid::new_v4())] {
+        assert_eq!(
+            cast_vote::get_cast_vote_id_of_received_ballot(
+                &tx,
+                &f.tenant,
+                &f.event,
+                &f.election,
+                voter,
+                &received_ballot_id
+            )
+            .await
+            .unwrap(),
+            None,
+            "{voter}"
+        );
+    }
+
+    let stored: Vec<(Option<Uuid>, Option<String>, bool)> = tx
         .query(
-            "SELECT received_ballot_id FROM sequent_backend.cast_vote
+            "SELECT received_ballot_id, cast_receipt_signature, created_at = $2
+             FROM sequent_backend.cast_vote
              WHERE id = ANY($1) ORDER BY voter_id_string DESC",
-            &[&ids],
+            &[&ids, &cast_at()],
         )
         .await
         .unwrap()
         .iter()
-        .map(|row| row.get(0))
+        .map(|row| (row.get(0), row.get(1), row.get(2)))
         .collect();
-    assert_eq!(stored, vec![Some(received), None]);
+    assert_eq!(
+        stored,
+        vec![
+            (Some(received), Some("receipt-signature".into()), true),
+            (None, None, false)
+        ]
+    );
 }
 
 #[tokio::test]

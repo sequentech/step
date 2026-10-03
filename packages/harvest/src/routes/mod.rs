@@ -6,6 +6,7 @@ pub mod applications;
 pub mod areas;
 pub mod ballot_publication;
 pub mod ballot_publication_prepare_preview;
+pub mod cast_ballot;
 pub mod create_ballot_receipt;
 pub mod custom_urls;
 pub mod delete_certificate_authority;

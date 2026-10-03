@@ -5,7 +5,13 @@ use crate::postgres;
 use crate::postgres::area::get_area_by_id;
 use crate::postgres::election::{get_cast_vote_configuration, CastVoteConfiguration};
 use crate::postgres::election_event::get_election_event_by_id;
-use crate::postgres::received_ballot::{mark_received_ballot_cast, ReceivedBallotScope};
+use crate::postgres::cast_vote::CastVoteReceipt;
+use crate::postgres::received_ballot::{
+    format_cast_at, mark_received_ballot_cast, StoredReceivedBallot,
+};
+use crate::services::cast_ballot::{
+    prepare_received_cast, CastBallotInput, CastBallotOutput, PreparedCast,
+};
 use crate::services::cast_votes::{CastVote, CastVoteStatus};
 use crate::services::database::get_hasura_pool;
 use crate::services::election_event_board::get_election_event_board;
@@ -16,11 +22,11 @@ use crate::services::external::utils::{
 };
 use crate::services::pg_lock::PgLock;
 use crate::services::protocol_manager::get_protocol_manager;
-use crate::services::receive_ballot::must_be_received;
+use crate::services::receive_ballot::{must_be_received, truncate_to_milliseconds};
 use anyhow::{anyhow, Context, Result};
 use b4::messages::message::Signer;
 use base64::{engine::general_purpose, Engine as _};
-use chrono::{DateTime, Duration, Local};
+use chrono::{DateTime, Duration, Local, Utc};
 use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::Transaction;
 use electoral_log::messages::newtypes::*;
@@ -32,6 +38,7 @@ use sequent_core::ballot::{
     VotingPeriodDates, VotingStatus, VotingStatusChannel,
 };
 use sequent_core::ballot::{HashableBallot, HashableBallotContest, SignedHashableBallot};
+use sequent_core::ballot_receipt::{sign_cast_receipt, CastReceipt, CastReceiptStatement};
 use sequent_core::encrypt::hash_ballot;
 use sequent_core::encrypt::hash_ballot_sha512;
 use sequent_core::encrypt::hash_multi_ballot;
@@ -149,6 +156,45 @@ pub enum InsertCastVoteResult {
     SkipRetryFailure(CastVoteError),
 }
 
+/// What a voter asks the ballot box to cast: a ballot sent with the request,
+/// or one the ballot box received at review, named by its Ballot ID.
+pub(crate) enum CastRequest {
+    Ballot(InsertCastVoteInput),
+    Received(CastBallotInput),
+}
+
+pub(crate) enum CastOutcome {
+    Inserted {
+        result: InsertCastVoteResult,
+        /// Signed by the ballot box for a ballot it had received.
+        receipt: Option<CastReceipt>,
+    },
+    /// The same cast was stored by an earlier request.
+    AlreadyCast(CastBallotOutput),
+}
+
+impl CastOutcome {
+    fn refused(error: CastVoteError) -> Self {
+        Self::refused_result(InsertCastVoteResult::SkipRetryFailure(error))
+    }
+
+    fn refused_result(result: InsertCastVoteResult) -> Self {
+        CastOutcome::Inserted {
+            result,
+            receipt: None,
+        }
+    }
+}
+
+/// A received ballot about to be cast: the voter's Cast signature over its
+/// Ballot ID, and the key the ballot box signs the receipt with.
+pub(crate) struct ReceivedCast {
+    pub received_ballot: StoredReceivedBallot,
+    pub cast_signature: String,
+    pub ballot_box_key: StrandSignatureSk,
+    pub key_id: String,
+}
+
 /// Maps a freshly inserted row to its `InsertCastVoteResult` from the persisted
 /// status: `in-progress` still needs Datafix processing, `valid` is final. Any
 /// other status is unreachable for a new insert and surfaces as an error.
@@ -212,8 +258,8 @@ async fn insert_datafix_cast_vote_locked<'a>(
     voter_signature_data: &Option<(StrandSignaturePk, StrandSignature)>,
     is_early_voting_area: bool,
     initial_status: CastVoteStatus,
-    received_ballot_required: bool,
-) -> Result<(CastVote, VotingStatusChannel), CastVoteError> {
+    received_cast: Option<&ReceivedCast>,
+) -> Result<(CastVote, VotingStatusChannel, Option<CastReceipt>), CastVoteError> {
     let voter_id_uuid = parse_uuid_v4(ids.voter_id)
         .map_err(|err| CastVoteError::VoterStateLocked(format!("Invalid voter id: {err}")))?;
     let lock = PgLock::acquire(
@@ -252,7 +298,7 @@ async fn insert_datafix_cast_vote_locked<'a>(
         voter_signature_data,
         is_early_voting_area,
         initial_status,
-        received_ballot_required,
+        received_cast,
     )
     .await;
 
@@ -269,7 +315,10 @@ fn skip_or_propagate(cast_vote_err: CastVoteError) -> Result<InsertCastVoteResul
     match cast_vote_err {
         CastVoteError::InsertFailedExceedsAllowedRevotes
         | CastVoteError::CheckVotesInOtherAreasFailed(_)
-        | CastVoteError::BallotNotReceived => {
+        | CastVoteError::BallotNotReceived
+        | CastVoteError::BallotCastSignatureFailed(_)
+        | CastVoteError::BallotAlreadyCast
+        | CastVoteError::BallotAudited => {
             Ok(InsertCastVoteResult::SkipRetryFailure(cast_vote_err))
         }
         _ => Err(cast_vote_err),
@@ -347,6 +396,17 @@ pub enum CastVoteError {
     #[serde(rename = "ballot_not_received")]
     #[strum(to_string = "ballot_not_received")]
     BallotNotReceived,
+    #[serde(rename = "ballot_cast_signature_required")]
+    #[strum(to_string = "ballot_cast_signature_required")]
+    BallotCastSignatureRequired,
+    #[serde(rename = "ballot_cast_signature_failed")]
+    BallotCastSignatureFailed(String),
+    #[serde(rename = "ballot_already_cast")]
+    #[strum(to_string = "ballot_already_cast")]
+    BallotAlreadyCast,
+    #[serde(rename = "ballot_audited")]
+    #[strum(to_string = "ballot_audited")]
+    BallotAudited,
     #[serde(rename = "uuid_parse_failed")]
     UuidParseFailed(String, String),
     #[serde(rename = "ballot_id_mismatch")]
@@ -377,6 +437,38 @@ pub async fn try_insert_cast_vote(
     voter_country: &Option<String>,
     username: &Option<String>,
 ) -> Result<InsertCastVoteResult, CastVoteError> {
+    let outcome = try_cast(
+        CastRequest::Ballot(input),
+        tenant_id,
+        voter_id,
+        area_id,
+        voting_channel,
+        auth_time,
+        voter_ip,
+        voter_country,
+        username,
+    )
+    .await?;
+    match outcome {
+        CastOutcome::Inserted { result, .. } => Ok(result),
+        CastOutcome::AlreadyCast(_) => Err(CastVoteError::UnknownError(
+            "A ballot sent with the cast has no earlier receipt".to_string(),
+        )),
+    }
+}
+
+#[instrument(skip(request), err)]
+pub(crate) async fn try_cast(
+    request: CastRequest,
+    tenant_id: &str,
+    voter_id: &str,
+    area_id: &str,
+    voting_channel: VotingStatusChannel,
+    auth_time: &Option<i64>,
+    voter_ip: &Option<String>,
+    voter_country: &Option<String>,
+    username: &Option<String>,
+) -> Result<CastOutcome, CastVoteError> {
     let mut hasura_db_client: DbClient = get_hasura_pool()
         .await
         .get()
@@ -413,6 +505,43 @@ pub async fn try_insert_cast_vote(
     } else {
         false
     };
+    let presentation = presentation_opt.unwrap_or_default();
+
+    // With receipts on, the ballot box casts only what it has received from
+    // this voter, on the voter's signed request.
+    let received_ballot_required =
+        must_be_received(&presentation.receipts_policy(), voting_channel);
+    let (input, received_cast) = match request {
+        CastRequest::Ballot(_) if received_ballot_required => {
+            return Ok(CastOutcome::refused(
+                CastVoteError::BallotCastSignatureRequired,
+            ));
+        }
+        CastRequest::Ballot(input) => (input, None),
+        CastRequest::Received(_) if !received_ballot_required => {
+            return Ok(CastOutcome::refused(CastVoteError::CheckStatusFailed(
+                "The ballot box does not sign receipts in this election event".to_string(),
+            )));
+        }
+        CastRequest::Received(cast) => {
+            let prepared = prepare_received_cast(
+                &hasura_transaction,
+                &election_event,
+                voter_id,
+                &cast,
+            )
+            .await;
+            match prepared {
+                Ok(PreparedCast::ToCast(input, received_cast)) => (input, Some(received_cast)),
+                Ok(PreparedCast::AlreadyCast(cast)) => {
+                    return Ok(CastOutcome::AlreadyCast(cast));
+                }
+                Err(cast_vote_err) => {
+                    return skip_or_propagate(cast_vote_err).map(CastOutcome::refused_result);
+                }
+            }
+        }
+    };
 
     let hash_result = if is_multi_contest {
         deserialize_and_check_multi_ballot(&input, voter_id)
@@ -423,7 +552,7 @@ pub async fn try_insert_cast_vote(
     let (pseudonym_h, vote_h, voter_signature_data) = match hash_result {
         Ok(hash) => hash,
         Err(cv_err) => {
-            return Ok(InsertCastVoteResult::SkipRetryFailure(cv_err));
+            return Ok(CastOutcome::refused(cv_err));
         }
     };
 
@@ -442,21 +571,12 @@ pub async fn try_insert_cast_vote(
         area_id,
     };
 
-    let presentation = presentation_opt.unwrap_or_default();
     let voter_signing_policy = presentation
         .voter_signing_policy
         .clone()
         .unwrap_or_default();
 
     info!("voter signing policy {voter_signing_policy}");
-
-    let received_ballot_required =
-        must_be_received(&presentation.receipts_policy(), voting_channel);
-    if received_ballot_required && voter_signature_data.is_none() {
-        return Ok(InsertCastVoteResult::SkipRetryFailure(
-            CastVoteError::BallotVoterSignatureRequired,
-        ));
-    }
 
     let area_presentation: AreaPresentation = match area.presentation {
         Some(presentation) => deserialize_value(presentation)
@@ -500,7 +620,7 @@ pub async fn try_insert_cast_vote(
                 &voter_signature_data,
                 is_early_voting_area,
                 initial_status,
-                received_ballot_required,
+                received_cast.as_ref(),
             )
             .await
         }
@@ -518,7 +638,7 @@ pub async fn try_insert_cast_vote(
                 &voter_signature_data,
                 is_early_voting_area,
                 initial_status,
-                received_ballot_required,
+                received_cast.as_ref(),
             )
             .await;
             drop(hasura_db_client);
@@ -530,7 +650,7 @@ pub async fn try_insert_cast_vote(
     let country = format!("country: {}", voter_country.as_deref().unwrap_or(""),);
     let _audit_phase = CastVotePhase::start("audit");
     match result {
-        Ok((inserted_cast_vote, effective_voting_channel)) => {
+        Ok((inserted_cast_vote, effective_voting_channel, receipt)) => {
             let log_result = voter_electoral_log
                 .post_cast_vote(
                     tenant_id.to_string(),
@@ -550,6 +670,7 @@ pub async fn try_insert_cast_vote(
                 error!("Error posting to the electoral log {:?}", log_err);
             }
             classify_inserted_cast_vote(inserted_cast_vote)
+                .map(|result| CastOutcome::Inserted { result, receipt })
         }
         Err(cast_vote_err) => {
             error!(err=?cast_vote_err);
@@ -573,7 +694,7 @@ pub async fn try_insert_cast_vote(
                 error!("Error posting error to the electoral log {:?}", log_err);
             }
 
-            skip_or_propagate(cast_vote_err)
+            skip_or_propagate(cast_vote_err).map(CastOutcome::refused_result)
         }
     }
 }
@@ -718,7 +839,8 @@ pub fn deserialize_and_check_multi_ballot(
         hasura_transaction,
         election_event,
         signing_key,
-        voter_signature_data
+        voter_signature_data,
+        received_cast
     ),
     err
 )]
@@ -735,8 +857,8 @@ pub async fn insert_cast_vote_and_commit<'a>(
     voter_signature_data: &Option<(StrandSignaturePk, StrandSignature)>,
     is_early_voting_area: bool,
     initial_status: CastVoteStatus,
-    received_ballot_required: bool,
-) -> Result<(CastVote, VotingStatusChannel), CastVoteError> {
+    received_cast: Option<&ReceivedCast>,
+) -> Result<(CastVote, VotingStatusChannel, Option<CastReceipt>), CastVoteError> {
     let election_id_string = input.election_id.to_string();
     let election_id = election_id_string.as_str();
     let tenant_uuid = parse_uuid_v4(ids.tenant_id)
@@ -768,29 +890,42 @@ pub async fn insert_cast_vote_and_commit<'a>(
         .map(|signature| signature.to_bytes())
         .unwrap_or([0u8; 64]);
 
-    // The ballot box casts only what it has received from this voter. The
-    // cast vote takes the Ballot ID the voter saw at review.
-    let received_ballot = if received_ballot_required {
-        let scope = ReceivedBallotScope {
-            tenant_id: &tenant_uuid,
-            election_event_id: &election_event_uuid,
-            election_id: &election_uuid,
-            voter_id: ids.voter_id,
-            ballot_hash: &input.ballot_id,
-        };
-        Some(
-            mark_received_ballot_cast(&hasura_transaction, &scope)
-                .await
-                .map_err(|e| CastVoteError::InsertFailed(format!("{e:#}")))?
-                .ok_or(CastVoteError::BallotNotReceived)?,
-        )
-    } else {
-        None
+    // The cast vote takes the Ballot ID the voter saw at review. The ballot
+    // box signs the receipt of a cast it stores in this transaction, so the
+    // receipt leaves only with the commit.
+    let cast = match received_cast {
+        Some(received_cast) => {
+            let cast_at = truncate_to_milliseconds(Utc::now())?;
+            let receipt = sign_received_cast(received_cast, &cast_at)?;
+            let cast_now = mark_received_ballot_cast(
+                &hasura_transaction,
+                &tenant_uuid,
+                &election_event_uuid,
+                &received_cast.received_ballot.id,
+                &cast_at,
+                &received_cast.cast_signature,
+                &receipt.cast_receipt_signature,
+            )
+            .await
+            .map_err(|e| CastVoteError::InsertFailed(format!("{e:#}")))?;
+            if !cast_now {
+                return Err(CastVoteError::BallotAlreadyCast);
+            }
+            Some((&received_cast.received_ballot, cast_at, receipt))
+        }
+        None => None,
     };
-    let ballot_id = received_ballot
+    let ballot_id = cast
         .as_ref()
-        .map(|received_ballot| received_ballot.received.ballot_id.as_str())
+        .map(|(received_ballot, _, _)| received_ballot.received.ballot_id.as_str())
         .unwrap_or(&input.ballot_id);
+    let cast_vote_receipt = cast
+        .as_ref()
+        .map(|(received_ballot, cast_at, receipt)| CastVoteReceipt {
+            received_ballot_id: &received_ballot.id,
+            cast_at,
+            cast_receipt_signature: &receipt.cast_receipt_signature,
+        });
 
     let insert_phase = CastVotePhase::start("insert");
     let insert = postgres::cast_vote::insert_cast_vote(
@@ -807,9 +942,7 @@ pub async fn insert_cast_vote_and_commit<'a>(
         voter_country,
         effective_voting_channel,
         initial_status,
-        received_ballot
-            .as_ref()
-            .map(|received_ballot| &received_ballot.id),
+        cast_vote_receipt.as_ref(),
     );
 
     let cast_vote = insert.await.map_err(map_insert_error)?;
@@ -823,7 +956,31 @@ pub async fn insert_cast_vote_and_commit<'a>(
         .await
         .map_err(|e| CastVoteError::CommitFailed(e.to_string()))?;
 
-    Ok((cast_vote, effective_voting_channel))
+    Ok((
+        cast_vote,
+        effective_voting_channel,
+        cast.map(|(_, _, receipt)| receipt),
+    ))
+}
+
+fn sign_received_cast(
+    received_cast: &ReceivedCast,
+    cast_at: &DateTime<Utc>,
+) -> Result<CastReceipt, CastVoteError> {
+    let received = &received_cast.received_ballot.received;
+    sign_cast_receipt(
+        &received_cast.ballot_box_key,
+        CastReceiptStatement {
+            election_event_id: received.statement.election_event_id.clone(),
+            election_id: received.statement.election_id.clone(),
+            ballot_id: received.ballot_id.clone(),
+            received_at: received.statement.received_at.clone(),
+            cast_at: format_cast_at(cast_at),
+            key_id: received_cast.key_id.clone(),
+            cast_signature: received_cast.cast_signature.clone(),
+        },
+    )
+    .map_err(|err| CastVoteError::BallotSignFailed(err.to_string()))
 }
 
 pub(crate) fn hash_voter_id(voter_id: &str) -> Result<Hash, StrandError> {

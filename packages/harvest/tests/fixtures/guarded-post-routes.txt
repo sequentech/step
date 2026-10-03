@@ -4,6 +4,7 @@
 # Kept static: removing a guard must not silently remove its test case.
 /acknowledge-support-materials
 /apply-reconciliation-changes
+/cast-ballot
 /change-application-status
 /check-private-key
 /configure-results-website-policy
