@@ -40,6 +40,8 @@ jest.mock("sequent-core", () => {
         "check_is_blank_js",
         "verify_ballot_signature_js",
         "verify_multi_ballot_signature_js",
+        "verify_received_ballot_js",
+        "normalize_ballot_id_js",
         "check_voting_not_allowed_next",
         "check_voting_error_dialog",
         "get_layout_properties_from_contest_js",
@@ -73,6 +75,19 @@ afterEach(() => {
 
 const decoded = decodedContest({choices: [{id: "candidate-1", selected: 0}]})
 const multiBallot = {...auditableBallot, contests: "synthetic-multi-contest"}
+const ballotBoxKey = {key_id: "fd110d301d2f077d", public_key: "ballot-box-key"}
+const receivedBallot = {
+    tenant_id: "tenant-1",
+    election_event_id: "event-1",
+    election_id: "election-1",
+    ballot_hash: "ballot-1",
+    voter_signing_pk: "voter-key",
+    voter_ballot_signature: "voter-signature",
+    received_at: "2028-05-08T03:00:00.000Z",
+    key_id: "fd110d301d2f077d",
+    received_signature: "ballot-box-signature",
+    ballot_id: "FTBE-MHRX",
+}
 const option = candidate("candidate-1")
 const question = contest({candidates: [option]})
 const election = {
@@ -255,6 +270,21 @@ const cases: AdapterCase[] = [
         backend: backend.verify_multi_ballot_signature_js,
         args: ["ballot-1", "election-1", multiBallot],
         result: true,
+    },
+    {
+        name: "received ballot verification",
+        run: () => adapter.verifyReceivedBallot(ballotBoxKey, receivedBallot),
+        backend: backend.verify_received_ballot_js,
+        args: [ballotBoxKey, receivedBallot],
+        result: "FTBE-MHRX",
+    },
+    {
+        name: "typed ballot id",
+        run: () => adapter.normalizeBallotId("ftbemhrx"),
+        backend: backend.normalize_ballot_id_js,
+        args: ["ftbemhrx"],
+        result: "FTBE-MHRX",
+        failure: "null",
     },
     {
         name: "continue permission",

@@ -9,6 +9,9 @@ use crate::ballot::{
 use crate::ballot_codec::bigint::BigUIntCodec;
 use crate::ballot_codec::multi_ballot::*;
 use crate::ballot_codec::raw_ballot::RawBallotCodec;
+use crate::ballot_receipt::{
+    normalize_ballot_id, verify_received_ballot, ReceivedBallot,
+};
 use crate::encrypt;
 use crate::encrypt::*;
 use crate::fixtures::ballot_codec::*;
@@ -1249,6 +1252,46 @@ pub fn verify_multi_ballot_signature_js(
     .into_json()?;
 
     serde_wasm_bindgen::to_value(&result.is_some())
+        .map_err(|err| format!("Error writing javascript string: {err}",))
+        .into_json()
+}
+
+// returns the Ballot ID if the published ballot box key signed the receipt,
+// error otherwise
+#[wasm_bindgen]
+pub fn verify_received_ballot_js(
+    ballot_box_key: JsValue,
+    received_ballot: JsValue,
+) -> Result<JsValue, JsValue> {
+    let ballot_box_key: BallotBoxKey =
+        serde_wasm_bindgen::from_value(ballot_box_key)
+            .map_err(|err| format!("Error deserializing ballot box key: {err}"))
+            .into_json()?;
+    let received_ballot: ReceivedBallot =
+        serde_wasm_bindgen::from_value(received_ballot)
+            .map_err(|err| {
+                format!("Error deserializing received ballot: {err}")
+            })
+            .into_json()?;
+
+    let ballot_id = verify_received_ballot(&ballot_box_key, &received_ballot)
+        .map_err(|err| format!("Error verifying the received ballot: {err}"))
+        .into_json()?;
+
+    serde_wasm_bindgen::to_value(&ballot_id)
+        .map_err(|err| format!("Error writing javascript string: {err}",))
+        .into_json()
+}
+
+// returns the Ballot ID as the ballot box writes it, or null when the typed
+// text cannot be a Ballot ID
+#[wasm_bindgen]
+pub fn normalize_ballot_id_js(typed: JsValue) -> Result<JsValue, JsValue> {
+    let typed: String = serde_wasm_bindgen::from_value(typed)
+        .map_err(|err| format!("Error deserializing ballot id: {err}"))
+        .into_json()?;
+
+    serde_wasm_bindgen::to_value(&normalize_ballot_id(&typed))
         .map_err(|err| format!("Error writing javascript string: {err}",))
         .into_json()
 }

@@ -131,6 +131,8 @@ export const sign_hashable_multi_ballot_with_ephemeral_voter_signing_key_js = ou
 )
 export const verify_ballot_signature_js = outOfScope("verify_ballot_signature_js")
 export const verify_multi_ballot_signature_js = outOfScope("verify_multi_ballot_signature_js")
+export const verify_received_ballot_js = outOfScope("verify_received_ballot_js")
+export const normalize_ballot_id_js = outOfScope("normalize_ballot_id_js")
 
 // Defaults the portal reads at start-up. Real values, so a component that asks
 // gets something the platform would actually send.

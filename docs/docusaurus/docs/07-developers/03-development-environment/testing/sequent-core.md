@@ -41,6 +41,7 @@ dependencies explicitly.
 | `voting_policies.rs` | Distinguish warnings from blocked navigation for blank votes, overvotes, undervotes, ranked choices, acclaimed contests and invalid markers. |
 | `ballot_style_construction.rs` | Preserve candidate/election identity, ordering, translations and encoding capacity; reject malformed presentation and annotations. |
 | `ballot_signatures.rs` | Reject altered signed fields, either incomplete key/signature pair and replay into another ballot/election; preserve valid signed and fully unsigned controls, reproduce ciphertext from disclosed audit randomness and preserve serialized selections. |
+| `ballot_receipts.rs` | Reproduce the shared vector for the ballot box key ID, Received signature and Ballot ID; reject every altered signed field, another key, a mislabelled key and a Ballot ID that does not follow from the receipt; read typed Ballot IDs; keep the ballot style hash unchanged by the receipts setting and the published key. |
 | `serialization_boundaries.rs` | Check independent Borsh/Base64 vectors, nested configuration errors, attribute conversion and file integrity. |
 | `identity_inputs.rs` | Reject malformed claims and unrepresentable timestamps; check authentication freshness, calendar boundaries and consistent identifier replacement. |
 | `tally_arithmetic_boundaries.rs` | Reject wrapped vote totals, accept valid multi-mark totals above u64, and preserve exact blank-ballot intersection bounds. |
