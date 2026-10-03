@@ -171,5 +171,160 @@ export const get_ballot_style_slates_js = (ballotStyle: unknown): unknown => {
     }
 }
 
+interface StubChoice {
+    id: string
+    selected: number
+}
+interface StubDecodedContest {
+    contest_id: string
+    is_explicit_invalid: boolean
+    choices: Array<StubChoice>
+}
+interface StubContest {
+    id: string
+    max_votes: number
+    candidates: Array<{id: string; presentation?: {is_explicit_invalid?: boolean} | null}>
+}
+
+const slateProblem = (code: string, contestId: string, message: string) => ({
+    severity: "error",
+    code,
+    path: `members["${contestId}"]`,
+    message,
+})
+
+/**
+ * Choosing a slate, following `election_config::slates::selection::apply_slate`.
+ *
+ * Unlike the other stand-ins this one carries the rule, because the chooser's
+ * confirmation and the reducer are only observable through its result. The
+ * rule itself is Rust's and is pinned by `cargo test -p sequent-core`; a change
+ * there has to be mirrored here.
+ */
+export const apply_slate_js = (slateJson: unknown, contestsJson: unknown, currentJson: unknown) => {
+    const slate = slateJson as {id: string; members: Record<string, Array<string>>}
+    const contests = contestsJson as Array<StubContest>
+    const selection = structuredClone(currentJson) as Array<StubDecodedContest>
+    const problems: Array<ReturnType<typeof slateProblem>> = []
+    const changes: Array<{contest_id: string; added: Array<string>; removed: Array<string>}> = []
+    let covered = 0
+
+    for (const contest of contests) {
+        const members = slate.members[contest.id]
+        if (members === undefined) {
+            continue
+        }
+        covered += 1
+        const entries = selection.filter((entry) => entry.contest_id === contest.id)
+        if (entries.length !== 1) {
+            problems.push(
+                slateProblem(
+                    "dangling_reference",
+                    contest.id,
+                    `contest '${contest.id}' of slate '${slate.id}' is missing from the ballot selection or repeated in it`
+                )
+            )
+            continue
+        }
+        const [entry] = entries
+        const memberIds = new Set(members)
+        const found = problems.length
+        if (members.length === 0) {
+            problems.push(
+                slateProblem(
+                    "missing_field",
+                    contest.id,
+                    `slate '${slate.id}' lists contest '${contest.id}' without candidates`
+                )
+            )
+        }
+        if (memberIds.size !== members.length) {
+            problems.push(
+                slateProblem(
+                    "duplicate_id",
+                    contest.id,
+                    `slate '${slate.id}' lists a candidate more than once in contest '${contest.id}'`
+                )
+            )
+        }
+        if (memberIds.size > contest.max_votes) {
+            problems.push(
+                slateProblem(
+                    "contest_arithmetic",
+                    contest.id,
+                    `slate '${slate.id}' has ${memberIds.size} candidates in contest '${contest.id}', which allows ${contest.max_votes}`
+                )
+            )
+        }
+        for (const member of members) {
+            const isCandidate = contest.candidates.some((candidate) => candidate.id === member)
+            const isChoice = entry.choices.some((choice) => choice.id === member)
+            if (!isCandidate || !isChoice) {
+                problems.push(
+                    slateProblem(
+                        "dangling_reference",
+                        contest.id,
+                        `candidate '${member}' of slate '${slate.id}' is not a choice of contest '${contest.id}'`
+                    )
+                )
+            }
+        }
+        if (problems.length > found) {
+            continue
+        }
+
+        const wasSelected = new Set(
+            entry.choices.filter((choice) => choice.selected > -1).map((choice) => choice.id)
+        )
+        const removed = entry.choices
+            .filter((choice) => wasSelected.has(choice.id) && !memberIds.has(choice.id))
+            .map((choice) => choice.id)
+        const invalidCandidate = contest.candidates.find(
+            (candidate) => candidate.presentation?.is_explicit_invalid
+        )
+        if (
+            entry.is_explicit_invalid &&
+            invalidCandidate &&
+            !removed.includes(invalidCandidate.id)
+        ) {
+            removed.push(invalidCandidate.id)
+        }
+        const added = members.filter((member) => !wasSelected.has(member))
+        if (added.length > 0 || removed.length > 0) {
+            changes.push({contest_id: contest.id, added, removed})
+        }
+        Object.assign(entry, {
+            is_explicit_invalid: false,
+            invalid_errors: [],
+            invalid_alerts: [],
+            choices: entry.choices.map((choice) => ({
+                id: choice.id,
+                selected: memberIds.has(choice.id) ? 0 : -1,
+                write_in_text: null,
+            })),
+        })
+    }
+
+    if (covered === 0) {
+        problems.push({
+            severity: "error",
+            code: "missing_field",
+            path: "members",
+            message: `slate '${slate.id}' has no candidates on this ballot`,
+        })
+    }
+    if (problems.length > 0) {
+        throw problems
+    }
+    return {
+        selection: selection.map((entry) => ({
+            ...entry,
+            is_blank_ballot: false,
+            is_decline_to_vote: false,
+        })),
+        changes,
+    }
+}
+
 export const iso_639_2t_to_bcp47_js = (code: string): string => code
 export const locale_to_internal_language_code_js = (locale: string): string => locale

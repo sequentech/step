@@ -17,6 +17,7 @@ import SequentCoreLibInit, {
     get_default_voting_screen_back_policy_js,
     get_voting_screen_back_policy_values_js,
     get_ballot_style_slates_js,
+    apply_slate_js,
     IVotingScreenBackPolicy,
 } from "sequent-core"
 import {
@@ -67,6 +68,8 @@ import {
     EDeclineToVotePolicy,
     EBlankBallotsPolicy,
     ISlatesConfig,
+    ISlate,
+    ISlateChoices,
 } from ".."
 
 export type {
@@ -414,6 +417,24 @@ export const check_voting_error_dialog_bool = (
 export const getBallotStyleSlates = (ballotStyle: IBallotStyle): ISlatesConfig | null => {
     try {
         return get_ballot_style_slates_js(ballotStyle) ?? null
+    } catch (error) {
+        console.log(error)
+        throw error
+    }
+}
+
+/**
+ * The selection that choosing a slate produces from the current one, and what
+ * it changes. Throws the list of problems (ISlateProblem) of a slate that
+ * cannot be applied; nothing is applied in that case.
+ */
+export const applySlate = (
+    slate: ISlate,
+    contests: IContest[],
+    current: BallotSelection
+): ISlateChoices => {
+    try {
+        return apply_slate_js(slate, contests, current)
     } catch (error) {
         console.log(error)
         throw error
