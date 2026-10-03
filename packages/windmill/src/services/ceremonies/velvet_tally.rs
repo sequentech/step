@@ -1120,7 +1120,18 @@ mod tests {
             cast_weight: u64,
         ) -> BTreeMap<String, serde_json::Value> {
             let dir = tempfile::tempdir().unwrap();
-            let base = dir.path().to_path_buf();
+            self.tally_in(dir.path(), plaintext_batches, cast_weight)
+                .await
+        }
+
+        /// `tally`, with `base` as velvet's input and output directory.
+        async fn tally_in(
+            &self,
+            base: &Path,
+            plaintext_batches: Vec<PlaintextBatch>,
+            cast_weight: u64,
+        ) -> BTreeMap<String, serde_json::Value> {
+            let base = base.to_path_buf();
             let area_contest = AreaContestDataType {
                 plaintext_batches,
                 contest: self.contest.clone(),
@@ -1387,6 +1398,36 @@ mod tests {
             assert_eq!(contest_result["total_votes"], 12_000_000, "{policy:?}");
             assert_eq!(
                 contest_result["extended_metrics"]["total_weight"], 12_000_000,
+                "{policy:?}"
+            );
+        }
+    }
+
+    /// Velvet run again into the output directories of an earlier run, with
+    /// input that no longer has one of that run's batches, counts only the
+    /// batches its input has: no decoded batch is left over to count again.
+    #[tokio::test]
+    async fn a_rerun_into_the_same_output_counts_only_the_current_batches() {
+        let earlier = vec![(3, Some(Choice::Candidate(0)))];
+        let current = vec![(1, Some(Choice::Candidate(0)))];
+        for policy in [
+            ContestEncryptionPolicy::SINGLE_CONTEST,
+            ContestEncryptionPolicy::MULTIPLE_CONTESTS,
+        ] {
+            let fixture = fixture(policy.clone());
+            let dir = tempfile::tempdir().unwrap();
+
+            fixture
+                .tally_in(dir.path(), fixture.weight_batches(&earlier), 3)
+                .await;
+            fs::remove_dir_all(dir.path().join("input")).unwrap();
+            let rerun = fixture
+                .tally_in(dir.path(), fixture.weight_batches(&current), 1)
+                .await;
+
+            assert_eq!(
+                rerun,
+                fixture.tally(fixture.weight_batches(&current), 1).await,
                 "{policy:?}"
             );
         }

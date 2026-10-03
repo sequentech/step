@@ -4,7 +4,8 @@
 
 use crate::pipes::error::{Error, Result};
 use crate::pipes::pipe_inputs::{
-    batch_file_name, list_batch_files, InputElectionConfig, PipeInputs, BALLOTS_FILE,
+    batch_file_name, list_batch_files, remove_batch_files, InputElectionConfig, PipeInputs,
+    BALLOTS_FILE,
 };
 use crate::pipes::Pipe;
 use num_bigint::BigUint;
@@ -177,6 +178,38 @@ impl Pipe for DecodeMCBallots {
                     .multi_contest_encoding_mode
                     .unwrap_or_default();
 
+                let output_dir = PipeInputs::mcballots_path(
+                    self.pipe_inputs
+                        .cli
+                        .output_dir
+                        .join(PipeNameOutputDir::DecodeMCBallots.as_ref())
+                        .as_path(),
+                    &election_input.id,
+                    &area_id,
+                );
+                remove_batch_files(&output_dir, OUTPUT_DECODED_BALLOTS_FILE)?;
+                for contest in &contests {
+                    let contest_uuid = Uuid::from_str(&contest.id).map_err(|e| {
+                        Error::UnexpectedError(format!(
+                            "Could not parse uuid for contest {}, {}",
+                            contest.id, e
+                        ))
+                    })?;
+                    remove_batch_files(
+                        &PipeInputs::build_path(
+                            self.pipe_inputs
+                                .cli
+                                .output_dir
+                                .join(PipeNameOutputDir::DecodeBallots.as_ref())
+                                .as_path(),
+                            &election_input.id,
+                            Some(&contest_uuid),
+                            Some(&area_id),
+                        ),
+                        OUTPUT_DECODED_CONTEST_BALLOTS_FILE,
+                    )?;
+                }
+
                 // One file, unless the area's ballots were split into weight
                 // batches: then one per batch, each decoded on its own and
                 // written under its batch's name for do_tally to count.
@@ -201,16 +234,6 @@ impl Pipe for DecodeMCBallots {
                     )?;
 
                     // output multi contest ballots, will be read by mcballot_receipt pipe
-
-                    let output_dir = PipeInputs::mcballots_path(
-                        self.pipe_inputs
-                            .cli
-                            .output_dir
-                            .join(PipeNameOutputDir::DecodeMCBallots.as_ref())
-                            .as_path(),
-                        &election_input.id,
-                        &area_id,
-                    );
 
                     fs::create_dir_all(&output_dir)?;
                     let output_path =
