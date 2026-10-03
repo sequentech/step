@@ -21,6 +21,7 @@ const englishTranslation = {
         },
         a11y: {
             closeDialog: "Close dialog",
+            languageSelector: "Language: {{language}}",
             dismissMessage: "Dismiss message",
             ballotIdHelp: "About your Ballot ID",
             loading: "Loading",

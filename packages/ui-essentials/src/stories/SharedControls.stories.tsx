@@ -249,9 +249,9 @@ export const ChangeLanguage: Story = {
     render: (args) => <LanguageMenu languagesList={["en", "es"]} onChange={args.onAction} />,
     play: async ({canvasElement, args}) => {
         const canvas = within(canvasElement)
-        await userEvent.click(canvas.getByRole("button", {name: "English"}))
-        await userEvent.click(within(document.body).getByRole("menuitem", {name: "Español"}))
-        await expect(canvas.getByRole("button", {name: "Español"})).toBeVisible()
+        await userEvent.click(canvas.getByRole("button", {name: "Language: English"}))
+        await userEvent.click(within(document.body).getByRole("menuitemradio", {name: "Español"}))
+        await expect(canvas.getByRole("button", {name: "Idioma: Español"})).toBeVisible()
         await expect(args.onAction).toHaveBeenCalledTimes(1)
         await expect(args.onAction).toHaveBeenLastCalledWith("es")
     },

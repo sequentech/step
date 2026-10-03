@@ -24,6 +24,7 @@ const galegoTranslation: TranslationType = {
         },
         a11y: {
             closeDialog: "Pechar o diálogo",
+            languageSelector: "Idioma: {{language}}",
             dismissMessage: "Descartar a mensaxe",
             ballotIdHelp: "Sobre o seu ID de voto",
             loading: "Cargando",

@@ -23,6 +23,7 @@ const basqueTranslation: TranslationType = {
         },
         a11y: {
             closeDialog: "Itxi elkarrizketa-koadroa",
+            languageSelector: "Hizkuntza: {{language}}",
             dismissMessage: "Baztertu mezua",
             ballotIdHelp: "Zure botoaren IDari buruz",
             loading: "Kargatzen",

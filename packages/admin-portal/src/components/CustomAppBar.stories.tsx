@@ -112,7 +112,7 @@ export const Populated: Story = {
     play: async ({canvasElement}) => {
         await waitFor(() => expect(logo(canvasElement)).toHaveAttribute("src", SequentLogo))
         await expect(profileButton(canvasElement)).toBeVisible()
-        expect(within(canvasElement).getByRole("button", {name: "English"})).toBeVisible()
+        expect(within(canvasElement).getByRole("button", {name: "Language: English"})).toBeVisible()
         expect(tenantReads()).toEqual([
             {
                 method: "getOne",
@@ -141,16 +141,20 @@ export const LoadingTenant: Story = {
 
 export const ChangeTheLanguage: Story = {
     play: async ({canvasElement}) => {
-        await userEvent.click(within(canvasElement).getByRole("button", {name: "English"}))
+        await userEvent.click(
+            within(canvasElement).getByRole("button", {name: "Language: English"})
+        )
         const menu = await within(document.body).findByRole("menu")
         expect(
             within(menu)
-                .getAllByRole("menuitem")
+                .getAllByRole("menuitemradio")
                 .map((item) => item.textContent)
         ).toEqual(["English", "Español"])
-        await userEvent.click(within(menu).getByRole("menuitem", {name: "Español"}))
+        await userEvent.click(within(menu).getByRole("menuitemradio", {name: "Español"}))
         await waitFor(() => expect(getValueFromCookie(USER_LANGUAGE_COOKIE_NAME)).toBe("es"))
-        await expect(within(canvasElement).getByRole("button", {name: "Español"})).toBeVisible()
+        await expect(
+            within(canvasElement).getByRole("button", {name: "Idioma: Español"})
+        ).toBeVisible()
     },
 }
 
