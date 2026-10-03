@@ -199,6 +199,7 @@ fn build_application_with(
                 routes::reports::render_document_pdf,
                 routes::reports::generate_template,
                 routes::reports::generate_report,
+                routes::manual_verification_pdf::get_manual_verification_pdf,
                 routes::reports::encrypt_report_route,
                 routes::results_publication::configure_results_website_policy,
                 routes::results_publication::publish_results_website,

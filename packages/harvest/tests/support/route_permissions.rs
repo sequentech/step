@@ -244,6 +244,7 @@ fn cases() -> Vec<Case> {
         // The permission is checked in the caller's tenant, not the body's.
         case!(Admin, "/generate-report", {"report_id": "test-report", "tenant_id": OTHER_TENANT_ID, "report_mode": "PREVIEW"}, [REPORT_READ], BACKEND, UNAUTHORIZED),
         case!(Admin, "/generate-template", {"type": "BallotImages", "election_event_id": EVENT_ID, "election_id": "test-election", "tally_session_id": "test-session"}, [REPORT_READ], BACKEND, UNAUTHORIZED),
+        case!(Admin, "/get-manual-verification-pdf", {"tenant_id": TENANT_ID, "election_event_id": EVENT_ID, "voter_id": "test-voter"}, [VOTER_MANUALLY_VERIFY], BACKEND, UNAUTHORIZED),
         case!(Admin, "/generate-voter-information-letter", {"election_event_id": EVENT_ID, "voter_id": "test-voter"}, [VOTER_INFORMATION_LETTER, DOCUMENT_PASSWORD_READ], BACKEND, FORBIDDEN_JSON),
         case!(Voter, "/get-ballot-files-urls", {"election_event_id": EVENT_ID}, [CAST_VOTE], BACKEND, FORBIDDEN),
         case!(Admin, "/get-ballot-publication-changes", {"election_event_id": EVENT_ID, "ballot_publication_id": "test-publication"}, [PUBLISH_READ], BACKEND, UNAUTHORIZED),
