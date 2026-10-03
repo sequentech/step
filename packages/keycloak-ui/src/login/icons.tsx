@@ -57,6 +57,15 @@ export function GlobeIcon() {
     )
 }
 
+export function AccessibilityIcon() {
+    return (
+        <Icon>
+            <circle cx="12" cy="4.5" r="1.5" />
+            <path d="M4 8.5c5 1.3 11 1.3 16 0M12 9.5v5m0 0-3.5 6m3.5-6 3.5 6" />
+        </Icon>
+    )
+}
+
 export function EyeIcon({hidden}: {hidden: boolean}) {
     return (
         <Icon>

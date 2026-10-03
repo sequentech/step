@@ -6,6 +6,8 @@ import {createGetKcContextMock} from "keycloakify/login/KcContext"
 import {kcEnvDefaults, themeNames} from "../kc.gen"
 import {KEYCLOAK_MESSAGE_OTP} from "@sequentech/ui-test-kit/fixtures/keycloak"
 import {
+    EAudioInstructionsPolicy,
+    EVoterAccessibilitySettingsPolicy,
     LoginHintUsernamePolicy,
     LoginValidationPolicy,
     MessageCourier,
@@ -22,6 +24,8 @@ const kcContextExtension: KcContextExtension = {
     sequent: {
         loginValidationPolicy: LoginValidationPolicy.Browser,
         loginHintUsernamePolicy: LoginHintUsernamePolicy.Editable,
+        voterAccessibilitySettingsPolicy: EVoterAccessibilitySettingsPolicy.DISABLED,
+        audioInstructionsPolicy: EAudioInstructionsPolicy.DISABLED,
     },
 }
 const kcContextExtensionPerPage: KcContextExtensionPerPage = {
