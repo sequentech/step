@@ -31,10 +31,16 @@ const MemberItem = styled("li")(({theme}) => ({
 
 export interface SlateMemberProps extends PropsWithChildren {
     selected: boolean
+    candidateId?: string
     className?: string
 }
 
-export const SlateMember: React.FC<SlateMemberProps> = ({selected, className, children}) => {
+export const SlateMember: React.FC<SlateMemberProps> = ({
+    selected,
+    candidateId,
+    className,
+    children,
+}) => {
     const {t} = useTranslation()
 
     return (
@@ -42,6 +48,7 @@ export const SlateMember: React.FC<SlateMemberProps> = ({selected, className, ch
             className={["slate-member", selected ? "slate-member-selected" : "", className ?? ""]
                 .filter(Boolean)
                 .join(" ")}
+            data-candidate-id={candidateId}
         >
             {selected && <Icon className="slate-member-check" icon={faCheck} aria-hidden="true" />}
             <span className="slate-member-name">{children}</span>

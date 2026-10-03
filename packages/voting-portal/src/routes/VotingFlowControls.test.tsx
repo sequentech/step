@@ -846,3 +846,96 @@ describe("the demo ballot ID", () => {
         expect(await screen.findByTestId("open-dialog")).toHaveClass("demo-ballot-url-dialog")
     })
 })
+
+describe("slate ballot tabs", () => {
+    const configureSlate = () => {
+        const ballotEml = mockState.ballotStyles["election-1"]!.ballot_eml
+        const [first] = ballotEml.contests
+        const member = first.candidates[0]
+        ballotEml.election_annotations = {
+            "sequent.slates": JSON.stringify({
+                version: 1,
+                mobile_candidate_lists: "expanded",
+                slates: [
+                    {id: "forward", name: {en: "Forward"}, members: {[first.id]: [member.id]}},
+                ],
+            }),
+        }
+        return {contest: first, member}
+    }
+
+    const selectedTab = () =>
+        screen.getAllByRole("tab").find((tab) => tab.getAttribute("aria-selected") === "true")
+            ?.textContent
+
+    it("shows the ordinary ballot, without tabs, when the election has no slates", () => {
+        renderRoute(<VotingScreen />, "vote")
+
+        expect(screen.queryByRole("tablist")).toBeNull()
+        expect(screen.getByRole("heading", {level: 2})).toBeVisible()
+    })
+
+    it("opens on the slates and keeps the contests mounted behind the other tab", () => {
+        const {contest} = configureSlate()
+        const {container} = renderRoute(<VotingScreen />, "vote")
+
+        expect(selectedTab()).toBe("slates.tabs.slates")
+        expect(screen.getByRole("heading", {level: 3, name: "Forward"})).toBeVisible()
+        expect(container.querySelector(".contest-container")).toHaveTextContent(contest.name ?? "")
+        expect(container.querySelector(".slate-ballot-panel-candidates")).toHaveAttribute("hidden")
+    })
+
+    it("shows the contests when the voter picks the individual candidates", async () => {
+        configureSlate()
+        const {container} = renderRoute(<VotingScreen />, "vote")
+
+        await userEvent.setup().click(screen.getByRole("tab", {name: "slates.tabs.candidates"}))
+
+        expect(selectedTab()).toBe("slates.tabs.candidates")
+        expect(container.querySelector(".slate-ballot-panel-candidates")).not.toHaveAttribute(
+            "hidden"
+        )
+        expect(container.querySelector(".slate-ballot-panel-slates")).toHaveAttribute("hidden")
+    })
+
+    it("goes through the contest pages when Next is pressed on the slates", async () => {
+        configureSlate()
+        const {router} = renderRoute(<VotingScreen />, "vote")
+
+        await userEvent
+            .setup()
+            .click(screen.getByRole("button", {name: "votingScreen.reviewButton"}))
+
+        expect(selectedTab()).toBe("slates.tabs.candidates")
+        expect(router.state.location.pathname).toBe(`${ELECTION_PATH}/vote`)
+    })
+
+    it("marks a member selected individually and opens the candidates from Edit selections", async () => {
+        const {contest, member} = configureSlate()
+        mockState.ballotSelections = {
+            "election-1": [
+                {
+                    contest_id: contest.id,
+                    is_explicit_invalid: false,
+                    invalid_errors: [],
+                    invalid_alerts: [],
+                    choices: contest.candidates.map((candidate) => ({
+                        id: candidate.id,
+                        selected: candidate.id === member.id ? 0 : -1,
+                    })),
+                },
+            ],
+        }
+        const {container} = renderRoute(<VotingScreen />, "vote")
+
+        expect(container.querySelector(".slate-member-selected")).toHaveAttribute(
+            "data-candidate-id",
+            member.id
+        )
+        expect(screen.getByText("slates.selection.all")).toBeVisible()
+
+        await userEvent.setup().click(screen.getByRole("button", {name: "slates.selection.edit"}))
+
+        expect(selectedTab()).toBe("slates.tabs.candidates")
+    })
+})

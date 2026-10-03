@@ -142,6 +142,30 @@ describe("SlateBallotTabs", () => {
         expect(screen.getByText("contest list")).toBeInTheDocument()
     })
 
+    it("moves focus to the selected tab when a control inside a panel switches it", async () => {
+        const user = userEvent.setup()
+        const Switching = () => {
+            const [tab, setTab] = React.useState(ESlateBallotTab.SLATES)
+            return (
+                <SlateBallotTabs
+                    value={tab}
+                    onChange={setTab}
+                    slates={
+                        <button onClick={() => setTab(ESlateBallotTab.CANDIDATES)}>
+                            Edit selections
+                        </button>
+                    }
+                    candidates={<p>contest list</p>}
+                />
+            )
+        }
+        mount(<Switching />)
+
+        await user.click(screen.getByRole("button", {name: "Edit selections"}))
+
+        expect(screen.getByRole("tab", {name: "Individual candidates"})).toHaveFocus()
+    })
+
     it("ties each tab to its panel", () => {
         mount(<Harness initial={ESlateBallotTab.CANDIDATES} />)
 

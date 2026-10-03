@@ -3,8 +3,17 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import {BallotSelection} from "@sequentech/ui-core"
+import {IResolvedSlate} from "./Slates"
 
 export type SlateMembers = Record<string, string[]>
+
+export const getSlateMembers = (slate: IResolvedSlate): SlateMembers =>
+    Object.fromEntries(
+        slate.contests.map(({contest, candidates}) => [
+            contest.id,
+            candidates.map((candidate) => candidate.id),
+        ])
+    )
 
 export enum ESlateSelectionStatus {
     NONE = "none",

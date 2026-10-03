@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {useId} from "react"
+import React, {useEffect, useId, useRef} from "react"
 import {Box} from "@mui/material"
 import Tabs from "@mui/material/Tabs"
 import Tab from "@mui/material/Tab"
@@ -35,13 +35,31 @@ export const SlateBallotTabs: React.FC<SlateBallotTabsProps> = ({
     const id = useId()
     const tabId = (tab: ESlateBallotTab) => `${id}-tab-${tab}`
     const panelId = (tab: ESlateBallotTab) => `${id}-panel-${tab}`
+    const containerRef = useRef<HTMLDivElement>(null)
+    const isFirstRender = useRef(true)
+
+    // A button inside a panel can switch tabs, which hides the button that
+    // had focus. The focus then moves to the tab that became selected.
+    useEffect(() => {
+        if (isFirstRender.current) {
+            isFirstRender.current = false
+            return
+        }
+        const selected = containerRef.current?.querySelector<HTMLElement>(
+            '[role="tab"][aria-selected="true"]'
+        )
+        if (selected && document.activeElement !== selected) {
+            selected.focus()
+        }
+    }, [value])
+
     const panels: Array<[ESlateBallotTab, React.ReactNode]> = [
         [ESlateBallotTab.SLATES, slates],
         [ESlateBallotTab.CANDIDATES, candidates],
     ]
 
     return (
-        <Box className="slate-ballot-tabs-container">
+        <Box className="slate-ballot-tabs-container" ref={containerRef}>
             <Box sx={{borderBottom: 1, borderColor: "divider", marginBottom: "24px"}}>
                 <Tabs
                     className="slate-ballot-tabs"
