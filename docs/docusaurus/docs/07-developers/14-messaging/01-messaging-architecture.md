@@ -69,6 +69,31 @@ never retry or fall back.
 States only move along `MessageAttemptState::can_transition_to`, enforced in
 SQL, so late or repeated reports cannot regress a delivered message.
 
+## Providers by configuration
+
+A released version cannot change, while provider agreements arrive later,
+so nothing about a provider is decided in code:
+
+- `MessagingProvider::HTTP_API` (`providers/http_api.rs`) sends on any
+  channel from an `HttpApiSender`: request templates with placeholders, an
+  optional token exchange or minted JWT, a check, report mapping by JSON
+  pointer and reconciliation. Its capabilities (template-required purposes,
+  conversation window, delivery feedback) come from the account, through
+  `AccountSender::capabilities`.
+- `ReadinessPolicy::ADMIN_CONFIRMED` makes an account ready on the
+  administrator's word when the provider's check cannot tell.
+- `EventMessagingConfig::template_for(channel, purpose, key, language)`
+  picks the provider template: the key in the language, then the key, then
+  the purpose in the language, then the purpose. `SendMessageRequest.template_key` carries the key
+  (`OTP_TEMPLATE_KEY` for codes, a template's alias for bulk sends), and the
+  binding's `provider_language` is what the provider receives.
+- `OutOfWindowPolicy::UTILITY_MESSAGES` lets `preflight` pass a bound
+  template outside the conversation window; Messenger then sends it as a
+  utility message.
+- WhatsApp and Messenger accounts take `api_base_url`.
+
+Add a built-in adapter only when a provider cannot be described this way.
+
 ## Webhooks
 
 | Route | Verification |
@@ -77,6 +102,7 @@ SQL, so late or repeated reports cannot regress a delivered message.
 | `POST /webhooks/meta/<key>` | `X-Hub-Signature-256` with the account's app secret |
 | `POST /webhooks/viber/<key>` | Infobip does not sign reports: the unguessable key, and only attempts of that account change |
 | `POST /webhooks/aws/<key>` | SNS signature with a certificate from an SNS endpoint, and the configured topic |
+| `POST`, `GET /webhooks/http/<key>` | What the account's `reports.auth` says: URL key, header secret, HMAC-SHA256 or HS256 token. `GET` reports are read from the query string |
 
 The account always comes from the key, never from the payload; entries for
 another business account, number or Page are dropped. Inbound messages are
