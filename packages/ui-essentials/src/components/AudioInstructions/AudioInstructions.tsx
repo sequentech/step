@@ -52,6 +52,8 @@ const useSpeechVoices = (): SpeechSynthesisVoice[] => {
         // Browsers load their voices after the page; the list is empty until then.
         const update = () => setVoices(speech.getVoices())
         speech.addEventListener("voiceschanged", update)
+        // The one "voiceschanged" can fire between the first read and this subscription.
+        update()
         return () => speech.removeEventListener("voiceschanged", update)
     }, [])
 

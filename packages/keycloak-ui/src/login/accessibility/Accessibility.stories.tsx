@@ -77,6 +77,46 @@ export const ReadTheInstructions: Story = {
     },
 }
 
+/**
+ * A browser whose voices finish loading while the page is still rendering: the list is empty on
+ * the first read and the one "voiceschanged" event is gone before anything listens for it.
+ */
+const installVoicesLoadedEarly = () => {
+    const original = Object.getOwnPropertyDescriptor(window, "speechSynthesis")
+    let listening = false
+    const speech = {
+        getVoices: () => (listening ? [{lang: "en-US"}] : []),
+        addEventListener: () => {
+            listening = true
+        },
+        removeEventListener: () => undefined,
+        speak: () => undefined,
+        cancel: () => undefined,
+        pause: () => undefined,
+        resume: () => undefined,
+    }
+    Object.defineProperty(window, "speechSynthesis", {configurable: true, value: speech})
+    return () => {
+        if (original) {
+            Object.defineProperty(window, "speechSynthesis", original)
+        } else {
+            Reflect.deleteProperty(window, "speechSynthesis")
+        }
+    }
+}
+
+export const ListenWhenVoicesLoadedEarly: Story = {
+    beforeEach: installVoicesLoadedEarly,
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await canvas.findByRole("heading", {level: 1})
+        const instructions = within(canvas.getByRole("region", {name: "Audio instructions"}))
+        await expect(
+            await instructions.findByRole("button", {name: "Listen to the instructions"})
+        ).toBeVisible()
+    },
+}
+
 export const Spanish: Story = {
     args: {locale: "es"},
     play: async ({canvasElement}) => {

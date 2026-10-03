@@ -117,6 +117,16 @@ it("returns to the start when the speech ends", async () => {
     expect(screen.queryByRole("button", {name: "Stop the instructions"})).not.toBeInTheDocument()
 })
 
+it("finds the voices that finished loading before it started listening for them", async () => {
+    const speech = installSpeech([{lang: "en-US"}])
+    // The browser's list is empty on the first read and its one "voiceschanged" is already gone.
+    speech.getVoices.mockReturnValueOnce([])
+    await view({})
+
+    expect(speech.addEventListener).toHaveBeenCalledWith("voiceschanged", expect.any(Function))
+    expect(screen.getByRole("button", {name: "Listen to the instructions"})).toBeVisible()
+})
+
 it("plays the recording instead of synthesised speech when there is one", async () => {
     const speech = installSpeech([{lang: "en-US"}])
     const user = userEvent.setup()
