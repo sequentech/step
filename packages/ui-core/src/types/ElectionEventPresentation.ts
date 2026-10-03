@@ -33,6 +33,15 @@ export enum EVoterSigningPolicy {
     WITH_SIGNATURE = "with-signature",
 }
 
+export enum EReceiptsPolicy {
+    DISABLED = "disabled",
+    SIGNED_BY_BALLOT_BOX = "signed-by-ballot-box",
+}
+
+export interface IReceiptsPresentation {
+    policy?: EReceiptsPolicy
+}
+
 export enum EShowCastVoteLogsPolicy {
     SHOW_LOGS_TAB = "show-logs-tab",
     HIDE_LOGS_TAB = "hide-logs-tab",
@@ -230,4 +239,5 @@ export interface IElectionEventPresentation {
     results_website?: string
     delegated_voting_policy: EElectionEventDelegatedVotingPolicy
     voting_portal_datetime_format?: VotingPortalDateTimeFormat
+    receipts?: IReceiptsPresentation
 }

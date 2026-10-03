@@ -1292,6 +1292,34 @@ actions:
       permissions:
           - role: user
       comment: insert_cast_vote
+    - name: receive_ballot
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/receive-ballot
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: user
+      comment: receive_ballot
+    - name: cast_ballot
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/cast-ballot
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: user
+      comment: cast_ballot
     - name: limit_access_by_countries
       definition:
           kind: synchronous
@@ -2138,6 +2166,8 @@ custom_types:
         - name: GetBallotPublicationChangesOutput
         - name: RestorePrivateKeyOutput
         - name: InsertCastVoteOutput
+        - name: ReceiveBallotOutput
+        - name: CastBallotOutput
         - name: createBallotReceiptOutput
         - name: OptionalImportEvent
         - name: ManageElectionDatesOutput

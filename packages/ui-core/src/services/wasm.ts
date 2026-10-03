@@ -42,6 +42,11 @@ import {
     check_voting_error_dialog,
     verify_ballot_signature_js,
     verify_multi_ballot_signature_js,
+    verify_received_ballot_js,
+    sign_ballot_cast_js,
+    forget_voter_signing_key_js,
+    verify_cast_receipt_js,
+    normalize_ballot_id_js,
     get_default_duplicated_rank_policy_js,
     get_default_preference_gaps_policy_js,
 } from "sequent-core"
@@ -51,12 +56,15 @@ import {
     ElectionsOrder,
     IAuditableSingleBallot,
     IAuditableMultiBallot,
+    IBallotBoxKey,
     IBallotStyle,
     ICandidate,
+    ICastReceipt,
     IContest,
     IElection,
     IHashableSingleBallot,
     IHashableMultiBallot,
+    IReceivedBallot,
     ISignedContent,
     ICountingAlgorithm,
     EDuplicatedRankPolicy,
@@ -378,6 +386,67 @@ export const verifyMultiBallotSignature = (
     } catch (error) {
         console.log(error)
         throw error
+    }
+}
+
+// Returns the Ballot ID when the published ballot box key signed the receipt;
+// throws otherwise.
+export const verifyReceivedBallot = (
+    ballotBoxKey: IBallotBoxKey,
+    receivedBallot: IReceivedBallot
+): string => {
+    try {
+        return verify_received_ballot_js(ballotBoxKey, receivedBallot)
+    } catch (error) {
+        console.log(error)
+        throw error
+    }
+}
+
+// Signs "cast this Ballot ID" with the key that signed the election's ballot
+// at review. Throws when that key is no longer in memory, as after a reload.
+export const signBallotCast = (
+    electionId: string,
+    voterSigningPk: string,
+    ballotId: string
+): string => {
+    try {
+        return sign_ballot_cast_js(electionId, voterSigningPk, ballotId)
+    } catch (error) {
+        console.log(error)
+        throw error
+    }
+}
+
+export const forgetVoterSigningKey = (electionId: string): void => {
+    try {
+        forget_voter_signing_key_js(electionId)
+    } catch (error) {
+        console.log(error)
+    }
+}
+
+// Throws unless the published ballot box key signed the cast receipt.
+export const verifyCastReceipt = (
+    ballotBoxKey: IBallotBoxKey,
+    castReceipt: ICastReceipt
+): boolean => {
+    try {
+        return verify_cast_receipt_js(ballotBoxKey, castReceipt)
+    } catch (error) {
+        console.log(error)
+        throw error
+    }
+}
+
+// Reads a typed Ballot ID the way the ballot box writes it; null when the text
+// cannot be one.
+export const normalizeBallotId = (typed: string): string | null => {
+    try {
+        return normalize_ballot_id_js(typed) ?? null
+    } catch (error) {
+        console.log(error)
+        return null
     }
 }
 

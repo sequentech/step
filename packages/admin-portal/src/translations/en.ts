@@ -468,6 +468,7 @@ const englishTranslation = {
                 language: "Language",
                 allowed: "Voting Channels Allowed",
                 materials: "Support Materials",
+                ballotReceipts: "Ballot receipts",
                 ballotDesign: "Ballot Design",
                 templates: "Templates",
                 reorder: "Reorder elections",
@@ -636,6 +637,14 @@ const englishTranslation = {
                     "policyLabel": "Voter Signing Policy",
                     "no-signature": "No signature",
                     "with-signature": "With signature",
+                },
+                receiptsPolicy: {
+                    "policyLabel": "Receipts signed by the ballot box",
+                    "disabled": "Disabled",
+                    "signed-by-ballot-box": "Signed by the ballot box",
+                    "helperText":
+                        "When on, the ballot box stores and signs each ballot at review, and the voter sees a Ballot ID only once the ballot has been received. Voters sign their ballots. Publish the ballots again after changing it.",
+                    "lockedHelperText": "This cannot be changed once voting has started.",
                 },
                 VoterCertificatePolicy: {
                     policyLabel: "Voter Digital Certificate Policy",

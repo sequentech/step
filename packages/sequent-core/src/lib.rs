@@ -8,6 +8,8 @@ extern crate cfg_if;
 #[cfg(feature = "default_features")]
 pub mod ballot;
 #[cfg(feature = "default_features")]
+pub mod ballot_receipt;
+#[cfg(feature = "default_features")]
 pub mod ballot_style;
 
 // Gated like types::hasura, whose entities the bundle schema is built from. The

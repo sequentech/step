@@ -188,6 +188,10 @@ policy_contract!(voter_signing, VoterSigningPolicy,
     NO_SIGNATURE => ("no-signature", 0),
     WITH_SIGNATURE => ("with-signature", 1),
 );
+policy_contract!(receipts, ReceiptsPolicy,
+    DISABLED => ("disabled", 0),
+    SIGNED_BY_BALLOT_BOX => ("signed-by-ballot-box", 1),
+);
 policy_contract!(voter_certificate, VoterCertificatePolicy,
     DISABLED => ("disabled", 0),
     ENABLED => ("enabled", 1),

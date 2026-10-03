@@ -90,6 +90,7 @@ const SAVED_PRESENTATION_DEFAULTS = {
     show_cast_vote_logs: "hide-logs-tab",
     automatic_recount_policy: "disabled",
     materials: {policy: "off"},
+    receipts: {policy: "disabled"},
     contest_encryption_policy: "single-contest",
     locked_down: "not-locked-down",
     decoded_ballot_inclusion_policy: "not-included",

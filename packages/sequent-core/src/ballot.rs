@@ -307,6 +307,22 @@ pub fn sign_hashable_ballot_with_ephemeral_voter_signing_key(
     election_id: &str,
     hashable_ballot: &HashableBallot,
 ) -> Result<SignedContent, String> {
+    let secret_key = StrandSignatureSk::generate()
+        .map_err(|err| format!("Error generating secret key: {err}"))?;
+    sign_hashable_ballot_with_voter_signing_key(
+        &secret_key,
+        ballot_id,
+        election_id,
+        hashable_ballot,
+    )
+}
+
+pub fn sign_hashable_ballot_with_voter_signing_key(
+    secret_key: &StrandSignatureSk,
+    ballot_id: &str,
+    election_id: &str,
+    hashable_ballot: &HashableBallot,
+) -> Result<SignedContent, String> {
     // Get ballot_bytes_for_signing
     let content_bytes = hashable_ballot
         .strand_serialize()
@@ -314,10 +330,7 @@ pub fn sign_hashable_ballot_with_ephemeral_voter_signing_key(
     let ballot_bytes =
         get_ballot_bytes_for_signing(ballot_id, election_id, &content_bytes);
 
-    // Generate voter ephemeral key for signing
-    let secret_key = StrandSignatureSk::generate()
-        .map_err(|err| format!("Error generating secret key: {err}"))?;
-    let public_key = StrandSignaturePk::from_sk(&secret_key)
+    let public_key = StrandSignaturePk::from_sk(secret_key)
         .map_err(|err| format!("Error generating public key: {err}"))?;
 
     let ballot_signature = secret_key
@@ -1195,6 +1208,20 @@ pub struct ElectionEventPresentation {
     #[serde(default, deserialize_with = "deserialize_optional_json_string")]
     pub results_website: Option<String>,
     pub voting_portal_datetime_format: Option<VotingPortalDateTimeFormat>,
+    /// Skipped by Borsh for the reason `Contest::is_acclaimed` is: one more
+    /// positional field would change `ballot_style_hash` for every election.
+    #[borsh(skip)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub receipts: Option<ReceiptsPresentation>,
+}
+
+impl ElectionEventPresentation {
+    pub fn receipts_policy(&self) -> ReceiptsPolicy {
+        self.receipts
+            .as_ref()
+            .and_then(|receipts| receipts.policy.clone())
+            .unwrap_or_default()
+    }
 }
 
 impl ElectionEvent {
@@ -2008,6 +2035,48 @@ pub enum VoterSigningPolicy {
     WITH_SIGNATURE,
 }
 
+/// Whether the ballot box receives and signs a ballot at review, so that its
+/// Ballot ID is proof of storage.
+#[allow(non_camel_case_types)]
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Default,
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    EnumString,
+    JsonSchema,
+)]
+pub enum ReceiptsPolicy {
+    #[default]
+    #[strum(serialize = "disabled")]
+    #[serde(rename = "disabled")]
+    DISABLED,
+    #[strum(serialize = "signed-by-ballot-box")]
+    #[serde(rename = "signed-by-ballot-box")]
+    SIGNED_BY_BALLOT_BOX,
+}
+
+#[derive(
+    Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone, Default,
+)]
+pub struct ReceiptsPresentation {
+    pub policy: Option<ReceiptsPolicy>,
+}
+
+/// The ballot box's public key, as published to voters' devices.
+#[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
+pub struct BallotBoxKey {
+    pub key_id: String,
+    /// Base64 of the DER SubjectPublicKeyInfo.
+    pub public_key: String,
+}
+
 #[allow(non_camel_case_types)]
 #[derive(
     BorshSerialize,
@@ -2752,6 +2821,12 @@ pub struct BallotStyle {
     pub area_annotations: Option<AreaAnnotations>,
     /// Absent means `MultiContestEncodingMode::LEGACY`.
     pub multi_contest_encoding_mode: Option<MultiContestEncodingMode>,
+    /// Absent when the event's receipts are not signed by the ballot box.
+    /// Skipped by Borsh so that publishing the key leaves
+    /// `ballot_style_hash` as it was.
+    #[borsh(skip)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ballot_box_key: Option<BallotBoxKey>,
 }
 
 #[derive(

@@ -471,6 +471,7 @@ const spanishTranslation: TranslationType = {
                 language: "Idiomas",
                 allowed: "Canales de Voto Permitidos",
                 materials: "Materiales de Soporte",
+                ballotReceipts: "Recibos de papeleta",
                 ballotDesign: "Diseño de la Papeleta",
                 templates: "Plantillas",
                 reorder: "Reordenar elecciones",
@@ -642,6 +643,14 @@ const spanishTranslation: TranslationType = {
                     "policyLabel": "Política de Firma de Votantes",
                     "no-signature": "Sin firma",
                     "with-signature": "Con firma",
+                },
+                receiptsPolicy: {
+                    "policyLabel": "Recibos firmados por la urna",
+                    "disabled": "Desactivado",
+                    "signed-by-ballot-box": "Firmados por la urna",
+                    "helperText":
+                        "Cuando está activado, la urna almacena y firma cada papeleta en la pantalla de revisión, y el votante ve un ID de papeleta solo cuando la urna la ha recibido. Los votantes firman sus papeletas. Vuelva a publicar las papeletas después de cambiarlo.",
+                    "lockedHelperText": "No se puede cambiar una vez iniciada la votación.",
                 },
                 VoterCertificatePolicy: {
                     policyLabel: "Voter Digital Certificate Policy",

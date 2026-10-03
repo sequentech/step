@@ -472,6 +472,7 @@ const dutchTranslation: TranslationType = {
                 language: "Taal",
                 allowed: "Toegestane stemkanalen",
                 materials: "Ondersteunend materiaal",
+                ballotReceipts: "Ontvangstbewijzen van stembiljetten",
                 ballotDesign: "Ontwerp stembiljet",
                 templates: "Sjablonen",
                 reorder: "Volgorde verkiezingen wijzigen",
@@ -642,6 +643,15 @@ const dutchTranslation: TranslationType = {
                     "policyLabel": "Ondertekeningsbeleid kiezer",
                     "no-signature": "Geen handtekening",
                     "with-signature": "Met handtekening",
+                },
+                receiptsPolicy: {
+                    "policyLabel": "Ontvangstbewijzen ondertekend door de stembus",
+                    "disabled": "Uitgeschakeld",
+                    "signed-by-ballot-box": "Ondertekend door de stembus",
+                    "helperText":
+                        "Indien ingeschakeld slaat de stembus elk stembiljet bij de controle op en ondertekent het, en ziet de kiezer pas een stembiljet-ID nadat het stembiljet is ontvangen. Kiezers ondertekenen hun stembiljetten. Publiceer de stembiljetten opnieuw na een wijziging.",
+                    "lockedHelperText":
+                        "Dit kan niet meer worden gewijzigd nadat het stemmen is begonnen.",
                 },
                 VoterCertificatePolicy: {
                     policyLabel: "Voter Digital Certificate Policy",

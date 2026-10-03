@@ -40,6 +40,11 @@ jest.mock("sequent-core", () => {
         "check_is_blank_js",
         "verify_ballot_signature_js",
         "verify_multi_ballot_signature_js",
+        "verify_received_ballot_js",
+        "sign_ballot_cast_js",
+        "forget_voter_signing_key_js",
+        "verify_cast_receipt_js",
+        "normalize_ballot_id_js",
         "check_voting_not_allowed_next",
         "check_voting_error_dialog",
         "get_layout_properties_from_contest_js",
@@ -73,6 +78,29 @@ afterEach(() => {
 
 const decoded = decodedContest({choices: [{id: "candidate-1", selected: 0}]})
 const multiBallot = {...auditableBallot, contests: "synthetic-multi-contest"}
+const ballotBoxKey = {key_id: "fd110d301d2f077d", public_key: "ballot-box-key"}
+const receivedBallot = {
+    tenant_id: "tenant-1",
+    election_event_id: "event-1",
+    election_id: "election-1",
+    ballot_hash: "ballot-1",
+    voter_signing_pk: "voter-key",
+    voter_ballot_signature: "voter-signature",
+    received_at: "2028-05-08T03:00:00.000Z",
+    key_id: "fd110d301d2f077d",
+    received_signature: "ballot-box-signature",
+    ballot_id: "FTBE-MHRX",
+}
+const castReceipt = {
+    election_event_id: "event-1",
+    election_id: "election-1",
+    ballot_id: "FTBE-MHRX",
+    received_at: "2028-05-08T03:00:00.000Z",
+    cast_at: "2028-05-08T03:04:05.678Z",
+    key_id: "fd110d301d2f077d",
+    cast_signature: "cast-signature",
+    cast_receipt_signature: "ballot-box-cast-signature",
+}
 const option = candidate("candidate-1")
 const question = contest({candidates: [option]})
 const election = {
@@ -257,6 +285,35 @@ const cases: AdapterCase[] = [
         result: true,
     },
     {
+        name: "received ballot verification",
+        run: () => adapter.verifyReceivedBallot(ballotBoxKey, receivedBallot),
+        backend: backend.verify_received_ballot_js,
+        args: [ballotBoxKey, receivedBallot],
+        result: "FTBE-MHRX",
+    },
+    {
+        name: "cast signature",
+        run: () => adapter.signBallotCast("election-1", "voter-key", "FTBE-MHRX"),
+        backend: backend.sign_ballot_cast_js,
+        args: ["election-1", "voter-key", "FTBE-MHRX"],
+        result: "cast-signature",
+    },
+    {
+        name: "cast receipt verification",
+        run: () => adapter.verifyCastReceipt(ballotBoxKey, castReceipt),
+        backend: backend.verify_cast_receipt_js,
+        args: [ballotBoxKey, castReceipt],
+        result: true,
+    },
+    {
+        name: "typed ballot id",
+        run: () => adapter.normalizeBallotId("ftbemhrx"),
+        backend: backend.normalize_ballot_id_js,
+        args: ["ftbemhrx"],
+        result: "FTBE-MHRX",
+        failure: "null",
+    },
+    {
         name: "continue permission",
         run: () => adapter.check_voting_not_allowed_next_bool([question], {"contest-1": decoded}),
         backend: backend.check_voting_not_allowed_next,
@@ -371,6 +428,16 @@ it.each(cases)("preserves the $name failure policy", ({run, backend: implementat
     else expect(run).toThrow(error)
 })
 
+it("forgets the voter's signing key of one election and survives a WASM failure", () => {
+    adapter.forgetVoterSigningKey("election-1")
+    expect(backend.forget_voter_signing_key_js).toHaveBeenCalledWith("election-1")
+
+    jest.mocked(backend.forget_voter_signing_key_js).mockImplementation(() => {
+        throw new Error("synthetic WASM error")
+    })
+    expect(() => adapter.forgetVoterSigningKey("election-1")).not.toThrow()
+})
+
 it("does not invoke WASM for empty collections or an absent counting algorithm", () => {
     expect(adapter.sortElectionList([])).toEqual([])
     expect(adapter.sortContestList([])).toEqual([])
@@ -437,4 +504,9 @@ it("preserves zero points while using null for an unavailable result", () => {
     expect(adapter.getPoints(question, decoded.choices[0])).toBeNull()
     jest.mocked(backend.get_layout_properties_from_contest_js).mockReturnValue(undefined)
     expect(adapter.getLayoutProperties(question)).toBeNull()
+})
+
+it("uses null for a typed text that cannot be a Ballot ID", () => {
+    jest.mocked(backend.normalize_ballot_id_js).mockReturnValue(undefined)
+    expect(adapter.normalizeBallotId("not-a-ballot-id")).toBeNull()
 })

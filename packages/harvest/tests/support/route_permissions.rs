@@ -162,6 +162,7 @@ fn cases() -> Vec<Case> {
     vec![
         case!(Voter, "/acknowledge-support-materials", {"election_event_id": EVENT_ID, "document_ids": []}, [ACK_SUPPORT_MATERIALS], BACKEND, UNAUTHORIZED),
         case!(Admin, "/apply-reconciliation-changes", {"election_event_id": EVENT_ID, "diff_document_id": "test-document"}, [ELECTION_EVENT_VOTER_LIST_SYNC], BACKEND, FORBIDDEN),
+        case!(Voter, "/cast-ballot", {"ballot_id": "FTBE-MHRX", "election_id": ELECTION_ID, "cast_signature": "test-signature"}, [CAST_VOTE], BACKEND, UNAUTHORIZED_JSON),
         case!(Admin, "/change-application-status", {"tenant_id": TENANT_ID, "election_event_id": EVENT_ID, "id": "test-application", "user_id": USER_ID}, [APPLICATION_WRITE], BACKEND, UNAUTHORIZED_JSON),
         case!(Admin, "/check-private-key", {"election_event_id": EVENT_ID, "keys_ceremony_id": "test-ceremony", "private_key_base64": "not-a-key"}, [TRUSTEE_CEREMONY], BACKEND, UNAUTHORIZED),
         case!(Admin, "/configure-results-website-policy", {"election_event_id": EVENT_ID, "status": "enabled", "access": "public", "visibility_scope": "full_event"}, [PUBLISH_RESULTS_WRITE], BACKEND, UNAUTHORIZED),
@@ -309,6 +310,7 @@ fn cases() -> Vec<Case> {
         case!(Admin, "/preview-tally-sheet-import", {"election_event_id": EVENT_ID, "document_id": "test-document", "source_format": "CANONICAL_CSV", "selected_channel": "PAPER"}, [TALLY_SHEET_IMPORT_CREATE], BACKEND, UNAUTHORIZED),
         case!(Admin, "/publish-ballot", {"election_event_id": EVENT_ID, "ballot_publication_id": "test-publication"}, [PUBLISH_WRITE], BACKEND, UNAUTHORIZED_JSON),
         case!(Admin, "/publish-results-website", {"election_event_id": EVENT_ID, "tally_session_id": "test-session", "tally_session_execution_id": "test-execution", "results_event_id": "test-results-event", "route_scope": "event", "election_ids": ["test-election"], "contest_ids": ["test-contest"], "access": "public", "visibility_scope": "full_event"}, [PUBLISH_RESULTS_WRITE], BACKEND, UNAUTHORIZED),
+        case!(Voter, "/receive-ballot", {"ballot_id": "test-ballot", "election_id": ELECTION_ID, "content": "test-content"}, [CAST_VOTE], BACKEND, UNAUTHORIZED_JSON),
         case!(Admin, "/recount-tally-session", {"election_event_id": EVENT_ID, "tally_session_id": "test-session"}, [TALLY_RECOUNT_EXECUTE], BACKEND, UNAUTHORIZED),
         case!(Admin, "/refresh-results-publication-index", {"election_event_id": EVENT_ID}, [PUBLISH_RESULTS_WRITE], BACKEND, UNAUTHORIZED),
         case!(Admin, "/render-document-pdf", {"document_id": "test-document"}, [REPORT_READ], BACKEND, UNAUTHORIZED),

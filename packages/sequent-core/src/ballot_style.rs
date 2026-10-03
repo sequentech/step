@@ -181,6 +181,7 @@ pub fn create_ballot_style(
         election_annotations: Some(election_annotations),
         area_annotations,
         multi_contest_encoding_mode: Some(multi_contest_encoding_mode),
+        ballot_box_key: None,
     })
 }
 

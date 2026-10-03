@@ -1080,6 +1080,7 @@ mod tests {
             election_annotations: None,
             area_annotations: None,
             multi_contest_encoding_mode: None,
+            ballot_box_key: None,
         }
     }
 
