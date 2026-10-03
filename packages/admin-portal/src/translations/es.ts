@@ -341,6 +341,10 @@ const spanishTranslation: TranslationType = {
                 helpLinks: "Enlaces de Ayuda",
                 logoUrl: "Logo URL",
                 css: "CSS Personalizado",
+
+                displayName: "Nombre visible",
+                displayNameHelp:
+                    "El nombre de la organización en los mensajes que la mencionan. Vacío: el nombre corto del inquilino.",
             },
             errors: {
                 invalidHelpLinks: "Formato de Enlaces de Ayuda inválido",
@@ -3435,12 +3439,27 @@ const spanishTranslation: TranslationType = {
                 '¿Está seguro de que desea eliminar el certificado "{{name}}" (huella: {{fingerprint}})?',
         },
         signing: {
+            terms: {
+                post: "Post",
+                posts: "Posts",
+            },
             tab: {
                 title: "Signatures",
                 intro: "Protected actions run only after enough authorized people sign them with their digital certificates. Each signature is checked against the trusted issuers and recorded in the log.",
                 protectedActions: "Protected actions",
                 certificates: "Certificates",
                 requests: "Requests",
+            },
+            loadError: "The signing settings couldn't be loaded. Reload the page to try again.",
+            errors: {
+                automatedCeremonies:
+                    "Este evento utiliza ceremonias de claves automáticas. Los custodios no realizan estos pasos, por lo que no se pueden exigir sus firmas. Para exigir las firmas de los custodios, utiliza ceremonias de claves manuales.",
+                forbidden: "You don't have the permission for this change.",
+                invalid: "The server refused these values. Check them and try again.",
+                conflict: "Someone else changed this meanwhile. Reload the page and try again.",
+                lockedDown:
+                    "The election event is locked down: signing rules change only through a new configuration version.",
+                notFound: "It no longer exists. Reload the page.",
             },
             readOnly: {
                 chip: "Read only",
@@ -3460,51 +3479,52 @@ const spanishTranslation: TranslationType = {
                     short: "Initialization",
                     permissionName: "initialize voting",
                     object: "initialization of voting",
-                    appliesTo: "Each Post",
+                    appliesTo: "Each $t(signing.terms.post)",
                     description:
-                        "Started in Publish. Initializes the Post and generates its Initialization Report.",
+                        "Started in Publish. Initializes the $t(signing.terms.post) and generates its Initialization Report.",
                 },
                 "open-voting": {
                     label: "Open voting",
                     short: "Opening",
                     permissionName: "open voting",
                     object: "opening of voting",
-                    appliesTo: "Each Post",
-                    description: "Started in Publish with Start voting. Opens voting at the Post.",
+                    appliesTo: "Each $t(signing.terms.post)",
+                    description:
+                        "Started in Publish with Start voting. Opens voting at the $t(signing.terms.post).",
                 },
                 "close-voting": {
                     label: "Close voting",
                     short: "Closing",
                     permissionName: "close voting",
                     object: "closing of voting",
-                    appliesTo: "Each Post",
+                    appliesTo: "Each $t(signing.terms.post)",
                     description:
-                        "Started in Publish with Stop voting. Closes voting and seals the ballots; the seal record lists the closing signatures.",
+                        "Started in Publish with Stop voting. Closes voting at the $t(signing.terms.post); the closing signatures are kept in its record.",
                 },
                 "generate-election-returns": {
                     label: "Generate election returns",
                     short: "Election returns",
                     permissionName: "generate election returns",
                     object: "election returns",
-                    appliesTo: "Each Post and country",
+                    appliesTo: "Each $t(signing.terms.post) and country",
                     description:
-                        "Started in Reports. Releases the signed election returns for printing and transmission.",
+                        "Started by the tally, one request per $t(signing.terms.post) and country. Releases the signed election returns for printing and transmission.",
                 },
                 "generate-reports": {
                     label: "Generate other election reports",
                     short: "Report",
                     permissionName: "generate other election reports",
                     object: "report",
-                    appliesTo: "Each Post",
+                    appliesTo: "Each $t(signing.terms.post)",
                     description:
-                        "Started in Reports. Releases the signed report: initialization, participation, activity logs or manual verification.",
+                        "Started by the tally for the Initialization Report and in Reports for the participation report. Releases the signed report.",
                 },
                 "transmit-results": {
                     label: "Transmit results",
                     short: "Transmission",
                     permissionName: "transmit results",
                     object: "results package",
-                    appliesTo: "Each Post and country",
+                    appliesTo: "Each $t(signing.terms.post) and country",
                     description:
                         "Started in Tally, Transmission. Builds the signed results package for its destinations; the signatures fill its signature list.",
                 },
@@ -3513,7 +3533,7 @@ const spanishTranslation: TranslationType = {
                     short: "Voter approval",
                     permissionName: "approve a voter manually",
                     object: "voter approval",
-                    appliesTo: "The voter's Post",
+                    appliesTo: "The voter's $t(signing.terms.post)",
                     description:
                         "Started in Approvals. Approves the voter and issues their credentials.",
                 },
@@ -3556,7 +3576,20 @@ const spanishTranslation: TranslationType = {
                 },
                 off: "Off",
                 eachTrustee: "Each trustee",
-                footer: "Signing rules are part of this event's configuration version {{version}}. Last changed {{date}} by {{name}}.",
+                footerVersion:
+                    "Signing rules are part of this event's configuration version {{version}}.",
+                footerFirstVersion:
+                    "Signing rules become part of this event's first configuration version when it is published.",
+                footerChanged: "Last changed {{date}}.",
+                footerChangedBy: "Last changed {{date}} by {{name}}.",
+                lockedDown:
+                    "The election event is locked down: its signing rules belong to its configuration version, so they change only through a new configuration version.",
+                edit: "Edit {{action}}",
+                view: "View {{action}}",
+                waitingCount_one: "{{count}} request waiting",
+                waitingCount_other: "{{count}} requests waiting",
+                capacityError:
+                    "Who can sign couldn't be loaded, so the number of signatures can't be checked against the $t(signing.terms.posts).",
             },
             expiry: {
                 "30": "30 minutes",
@@ -3564,15 +3597,17 @@ const spanishTranslation: TranslationType = {
                 "120": "2 hours",
                 "1440": "24 hours",
                 "none": "No limit",
+                "other": "{{count}} minutes",
             },
             rule: {
                 needsSignatures: "Needs signatures",
                 whoCanSign: "Who can sign",
                 whoCanSignHelp:
-                    "These roles get the permission “Sign: {{action}}” in Users and Roles, for every election event. Signers must also have access to the Post.",
+                    "These roles get the permission “Sign: {{action}}” in Users and Roles, for every election event. Signers must also have access to the $t(signing.terms.post).",
                 signaturesNeeded: "Signatures needed",
                 signaturesNeededHelp:
-                    "Each signer uses their digital certificate. Every Post has at least {{n}} people who can sign.",
+                    "Each signer uses their digital certificate. Every $t(signing.terms.post) has at least {{n}} people who can sign.",
+                signaturesNeededShortHelp: "Each signer uses their digital certificate.",
                 requesterSigning: "The person who starts it can also sign",
                 expiresAfter: "A request expires after",
                 trusteesSign: "Trustees sign this step",
@@ -3581,11 +3616,30 @@ const spanishTranslation: TranslationType = {
                 footer: "Changes are recorded in the election event's log and become part of the next configuration version.",
                 cancel: "Cancel",
                 save: "Save",
+                saved: "The signing rule was saved.",
+                savedShort_one:
+                    "The signing rule was saved. {{posts}} can't reach the number yet: add a signer there.",
+                savedShort_other:
+                    "The signing rule was saved. {{posts}} can't reach the number yet: add signers there.",
+                checkedOnSave: "The number is checked against the new roles when you save.",
+                savedRequesterShort:
+                    "The signing rule was saved. Some $t(signing.terms.posts) can't reach the number without the person who starts a request.",
+                saveError:
+                    "The signing rule couldn't be saved. Someone may have changed it meanwhile; reload and try again.",
             },
             validation: {
                 atLeastOne: "At least 1.",
-                tooMany: "No Post has {{n}} people who can sign. The most is {{max}}.",
-                shortPosts:
+                tooMany:
+                    "No $t(signing.terms.post) has {{n}} people who can sign. The most is {{max}}.",
+                tooManyEvent: "Only {{max}} people can sign this. Choose at most {{max}}.",
+                atMost: "At most {{max}}.",
+                shortPosts_one:
+                    "{{posts}} has only {{n}} people who can sign, so it can't reach {{required}} signatures. Add a signer there or lower the number.",
+                requesterShort_one:
+                    "Without the person who starts it, {{posts}} has only {{n}} people who can sign, so it can't reach {{required}} signatures.",
+                requesterShort_other:
+                    "Without the person who starts it, {{posts}} have only {{n}} people who can sign, so they can't reach {{required}} signatures.",
+                shortPosts_other:
                     "{{posts}} have only {{n}} people who can sign, so they can't reach {{required}} signatures. Add a signer there or lower the number.",
             },
             pendingRequests_one:
@@ -3607,10 +3661,101 @@ const spanishTranslation: TranslationType = {
                     "security-officer-only":
                         "Only when someone who can register certificates registers it",
                 },
-                onePost: "A certificate signs for one Post only",
+                onePost: "A certificate signs for one $t(signing.terms.post) only",
+                issuers: "Trusted issuers",
+                import: "Import issuer certificates",
+                importHelp:
+                    "Choose a PEM or CER file with the issuer's certificate. A PEM file can hold several certificates.",
+                chooseFile: "Choose a certificate file",
+                fileError: "The file couldn't be read.",
+                imported:
+                    "{{imported}} issuer certificates imported; {{skipped}} were already trusted.",
+                importedWithErrors:
+                    "{{imported}} issuer certificates imported, {{skipped}} already trusted. Refused: {{errors}}",
+                importError: "The issuer certificates couldn't be imported.",
+                deleteIssuer: "Remove {{name}}",
+                deleteIssuerConfirm:
+                    "Remove {{name}} from the trusted issuers? Certificates it issued can no longer sign.",
+                deleteError: "The issuer couldn't be removed.",
+                noIssuers: "No trusted issuers yet. Staff can't sign until one is imported.",
+                root: "Root",
+                intermediate: "Intermediate",
+                columns: {
+                    issuer: "Issuer",
+                    type: "Type",
+                    issuedBy: "Issued by",
+                    validUntil: "Valid until",
+                    sha256: "SHA-256",
+                    person: "Person",
+                    post: "$t(signing.terms.post)",
+                    certificate: "Certificate",
+                    registered: "Registered",
+                    status: "Status",
+                },
+                checks: "Checks",
+                checksSaved: "The certificate checks were saved.",
+                checksError: "The certificate checks couldn't be saved.",
+                crlSchedule: "Downloaded from each issuer every hour.",
+                crlUpdated: "{{url}}: updated {{time}}",
+                crlFailed: "{{url}}: couldn't be downloaded (last try {{time}})",
+                registeredTitle: "Registered certificates",
+                search: "Search people, certificates or $t(signing.terms.posts)",
+                status: "Status",
+                statusAll: "All",
+                statuses: {
+                    "active": "Active",
+                    "expires-soon": "Expires soon",
+                    "expired": "Expired",
+                    "revoked": "Revoked",
+                },
+                revokedOn: "Revoked {{date}}",
+                allPosts: "All",
+                noCertificates: "No registered certificates.",
+                registeredHow: {
+                    "first-use": "On first signature",
+                    "security-officer": "Registered by an administrator",
+                },
+                register: "Register a certificate",
+                registerSubmit: "Register",
+                registerDone: "The certificate was registered.",
+                registerError: "The certificate couldn't be registered.",
+                person: "Person",
+                personSearchHelp: "Type part of a username to find the person.",
+                registeredBy: "By {{name}}",
+                registerRefused:
+                    "This certificate can't be registered: check that a trusted issuer issued it, that it's valid today and that it's made for signing.",
+                registeredToOther:
+                    "This certificate is registered to {{name}}. If this account is {{name}}'s too, link it as their second account.",
+                linkAccount: "Link as a second account of the same person",
+                alreadyRegistered: "This certificate is already registered to this person.",
+                pem: "Certificate (PEM)",
+                revoke: "Revoke",
+                revokeOf: "Revoke the certificate of {{name}}",
+                revokeTitle: "Revoke the certificate of {{name}}",
+                revokeHelp:
+                    "A revoked certificate can't sign anymore. Signatures it already made still count.",
+                revokeReason: "Reason",
+                revokeDone: "The certificate was revoked.",
+                revokeError: "The certificate couldn't be revoked.",
             },
             requests: {
                 exportCsv: "Export CSV",
+                exportError: "The requests couldn't be exported.",
+                exportFileName: "signing-requests.csv",
+                status: "Status",
+                statusAll: "All",
+                statusCount: "{{status}} · {{count}} of {{total}}",
+                expires: "Expires {{time}}",
+                lastSignatureBy: "{{name}}, {{time}}",
+                empty: "No signing requests yet.",
+                columns: {
+                    request: "Request",
+                    status: "Status",
+                    started: "Started",
+                    by: "By",
+                    lastSignature: "Last signature",
+                    code: "Code",
+                },
             },
             reports: {
                 generateNotice:
@@ -3648,6 +3793,8 @@ const spanishTranslation: TranslationType = {
                 expiresAt: "Expires at {{time}}",
                 progress: "{{count}} of {{total}}",
                 openDocument: "Open the document",
+                configurationVersion: "Configuration version {{version}}",
+                configurationChanges: "Changes in this version",
             },
             dialog: {
                 title: "Sign the {{object}}",
@@ -3679,7 +3826,7 @@ const spanishTranslation: TranslationType = {
                         "registered": "Registered to you on {{date}}",
                         "registered-to-other": "Not registered to anyone else",
                         "already-signed": "Not used for this request yet",
-                        "post-binding": "Registered for this Post",
+                        "post-binding": "Registered for this $t(signing.terms.post)",
                         "signature": "The signature covers this request",
                     },
                     "failed": {
@@ -3690,7 +3837,7 @@ const spanishTranslation: TranslationType = {
                         "registered": "Not registered to you",
                         "registered-to-other": "Registered to {{name}}",
                         "already-signed": "Already used for this request",
-                        "post-binding": "Registered for another Post",
+                        "post-binding": "Registered for another $t(signing.terms.post)",
                         "signature": "The signature doesn't cover this request",
                     },
                     "first-use": "First use: it will be registered to you",
@@ -3804,6 +3951,110 @@ const spanishTranslation: TranslationType = {
                     back: "Stay signed in",
                     error: "The handover could not be recorded. Try again.",
                 },
+            },
+            details: {
+                keys_ceremony_id: "Ceremony",
+                tally_session_id: "Tally session",
+                trustee_id: "Trustee",
+                key_share_sha256: "Key share SHA-256",
+                channel: "Channel",
+                channels: "Channels",
+                publication_id: "Ballot publication",
+                ballot_publication_id: "Ballot publication",
+                digest: "Configuration SHA-256",
+                signing_rules: "Signing rules",
+                scheduled_events: "New scheduled events",
+                ballots_and_contests: "Ballots and contests",
+                application_id: "Application",
+                applicant_registry_id: "Registry account",
+                decision: "Decision",
+                submitted_at: "Submitted",
+                reason: "Why it needs a person",
+                registry_record: "Registry record",
+                status: "Application status",
+                from: "Status before",
+            },
+            closed: {
+                pending: "Every signature is in. Voting closes in a moment.",
+                title: "Voting closed at {{time}}.",
+                titleSealed: "Voting closed at {{time}}. Ballots sealed.",
+                record: "Seal record",
+                ballots: "Ballots in the seal",
+                sealHash: "Seal {{algorithm}}",
+                signedBy: "Signed by",
+                signatures: "Closing signatures in the seal record",
+                signaturesValue_one: "{{count}}, signing code {{code}}",
+                signaturesValue_other: "{{count}}, signing code {{code}}",
+                signers: "Signed by the members",
+            },
+            values: {
+                ballots_and_contests: {
+                    "first-version": "First version",
+                    "no-changes": "No changes",
+                    "changed": "Changed",
+                },
+                signing_rules: {
+                    "initialize-voting": "$t(signing.actions.initialize-voting.label)",
+                    "open-voting": "$t(signing.actions.open-voting.label)",
+                    "close-voting": "$t(signing.actions.close-voting.label)",
+                    "generate-election-returns":
+                        "$t(signing.actions.generate-election-returns.label)",
+                    "generate-reports": "$t(signing.actions.generate-reports.label)",
+                    "transmit-results": "$t(signing.actions.transmit-results.label)",
+                    "approve-voter": "$t(signing.actions.approve-voter.label)",
+                    "approve-configuration": "$t(signing.actions.approve-configuration.label)",
+                    "key-ceremony": "$t(signing.actions.key-ceremony.label)",
+                    "tally-key": "$t(signing.actions.tally-key.label)",
+                },
+                channels: {
+                    ONLINE: "Online",
+                    KIOSK: "Kiosk",
+                    EARLY_VOTING: "Early voting",
+                    TELEPHONE: "Telephone",
+                },
+                statuses: {
+                    NOT_STARTED: "Not started",
+                    OPEN: "Open",
+                    PAUSED: "Paused",
+                    CLOSED: "Closed",
+                },
+                channelStatus: "{{channel}}: {{status}}",
+                ruleChange: "{{action}}: {{rule}}",
+                ruleChangeFrom: "{{action}}: {{rule}} (was {{was}})",
+                ruleNeeds: "needs {{n}}",
+                ruleOff: "off",
+                decision: {
+                    approve: "Approve",
+                },
+            },
+            waiting: {
+                title: "Waiting for my signature",
+                buttonCount_one: "Waiting for my signature: {{count}} request to sign",
+                buttonCount_other: "Waiting for my signature: {{count}} requests to sign",
+                intro: "Requests waiting for the signatures of the actions you can sign, in your $t(signing.terms.posts).",
+                close: "Close the list",
+                empty: "Nothing is waiting for your signature.",
+                loadError: "The requests waiting for signatures couldn't be loaded.",
+                signedByYou: "Signed by you",
+            },
+            notes: {
+                afterApproval: "After approval",
+                afterApprovalValue: "The voter's credentials are issued and sent to them",
+                keyShare: "Your key share",
+                keyShareChecked: "Checked: it is your key share for this ceremony",
+                recordedIn: "Recorded in",
+                recordedInCeremony: "The keys ceremony and the bulletin board",
+                recordedInTally: "The tally session",
+            },
+            keyShare: {
+                signing:
+                    "Sign your key share in the signing panel. It is recorded once you have signed.",
+                record: "Record my key share",
+                failed: "Your signed key share could not be recorded: {{error}}",
+                dropAgain: "Drop your key share file again to record your signed key share.",
+                redo: "Your key share was contributed without your signature, which this election now needs. Contribute it again and sign it.",
+                notTaken:
+                    "The ceremony no longer takes this key share. Drop your key share file again.",
             },
         },
     },

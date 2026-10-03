@@ -65,6 +65,7 @@ import {
 import {
     CertificateCheckId,
     DocumentKind,
+    SigningAction,
     SigningRequestStatus,
     type IApproveSigningRequestOutput,
     type ICertificateCheckResult,
@@ -314,6 +315,14 @@ const LocalSigningNote: React.FC = () => {
     )
 }
 
+/**
+ * The Post the signer signs for: the request's, where its signers are the
+ * Post's own (an SBEI signs for their Post). A voter's approval is the voter's
+ * Post, not the signer's, which the panel doesn't know: none.
+ */
+const signerPost = (data: ISigningPanelData): string | null | undefined =>
+    data.request.action === SigningAction.ApproveVoter ? null : data.election_name
+
 const CheckStep: React.FC<{
     data: ISigningPanelData
     api: ISigningApi
@@ -324,7 +333,7 @@ const CheckStep: React.FC<{
     const {userId, firstName, username} = useContext(AuthContext)
     const me = signerOf(data, userId)
     const name = me ? signerName(me) : firstName || username
-    const post = data.election_name
+    const post = signerPost(data)
     const role = me?.title
         ? post
             ? t("signing.dialog.check.titlePost", {title: me.title, post})

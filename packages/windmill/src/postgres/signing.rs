@@ -565,6 +565,12 @@ pub enum SigningRequestTransition {
         reason: CancelReason,
         by: Option<String>,
     },
+    /// Cancels a completed `Gate` request that was never used: a trustee's
+    /// request for something else than what they now sign.
+    CancelCompleted {
+        reason: CancelReason,
+        by: Option<String>,
+    },
     Expire,
 }
 
@@ -574,9 +580,9 @@ impl SigningRequestTransition {
             SigningRequestTransition::Complete
             | SigningRequestTransition::Cancel { .. }
             | SigningRequestTransition::Expire => SigningRequestStatus::Waiting,
-            SigningRequestTransition::Execute { .. } | SigningRequestTransition::Fail { .. } => {
-                SigningRequestStatus::Completed
-            }
+            SigningRequestTransition::Execute { .. }
+            | SigningRequestTransition::Fail { .. }
+            | SigningRequestTransition::CancelCompleted { .. } => SigningRequestStatus::Completed,
         }
     }
 
@@ -585,7 +591,8 @@ impl SigningRequestTransition {
             SigningRequestTransition::Complete => SigningRequestStatus::Completed,
             SigningRequestTransition::Execute { .. } => SigningRequestStatus::Executed,
             SigningRequestTransition::Fail { .. } => SigningRequestStatus::Failed,
-            SigningRequestTransition::Cancel { .. } => SigningRequestStatus::Cancelled,
+            SigningRequestTransition::Cancel { .. }
+            | SigningRequestTransition::CancelCompleted { .. } => SigningRequestStatus::Cancelled,
             SigningRequestTransition::Expire => SigningRequestStatus::Expired,
         }
     }
@@ -603,7 +610,10 @@ pub async fn update_signing_request_status(
     transition: &SigningRequestTransition,
 ) -> Result<Option<SigningRequestRow>> {
     let (cancel_reason, cancelled_by) = match transition {
-        SigningRequestTransition::Cancel { reason, by } => (Some(reason.to_string()), by.clone()),
+        SigningRequestTransition::Cancel { reason, by }
+        | SigningRequestTransition::CancelCompleted { reason, by } => {
+            (Some(reason.to_string()), by.clone())
+        }
         _ => (None, None),
     };
     let execution_result = match transition {
@@ -2024,24 +2034,4 @@ pub async fn get_signing_trustee_name(
         .await
         .context("Error reading the trustee")?
         .and_then(|row| row.get::<_, Option<String>>(0)))
-}
-
-/// The event's configuration version: how many event-level ballot
-/// publications it has published.
-#[instrument(skip(hasura_transaction), err)]
-pub async fn count_published_event_publications(
-    hasura_transaction: &Transaction<'_>,
-    tenant_id: Uuid,
-    election_event_id: Uuid,
-) -> Result<i64> {
-    Ok(hasura_transaction
-        .query_one(
-            "SELECT count(*) FROM sequent_backend.ballot_publication
-             WHERE tenant_id = $1 AND election_event_id = $2 AND election_id IS NULL
-                 AND published_at IS NOT NULL AND deleted_at IS NULL",
-            &[&tenant_id, &election_event_id],
-        )
-        .await
-        .context("Error counting the event's publications")?
-        .try_get(0)?)
 }

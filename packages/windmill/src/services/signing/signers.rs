@@ -19,6 +19,8 @@
 use anyhow::{Context, Result};
 use deadpool_postgres::Transaction;
 use sequent_core::signing::SigningAction;
+use std::collections::BTreeMap;
+use strum::IntoEnumIterator;
 use tracing::instrument;
 
 /// The user attribute holding a person's Posts, and the group attribute
@@ -338,4 +340,26 @@ pub async fn groups_by_id(
     ids: &[String],
 ) -> Result<Vec<SigningGroup>> {
     groups(keycloak_transaction, realm, action, Some(ids)).await
+}
+
+/// Each signer's title as the signing panel shows it, by Keycloak user id:
+/// their `title` attribute, else a group that grants them a sign
+/// permission (the first action's, in catalog order). People who sign
+/// nothing, or have neither, are absent.
+#[instrument(skip(keycloak_transaction), err)]
+pub async fn signer_titles(
+    keycloak_transaction: &Transaction<'_>,
+    realm: &str,
+) -> Result<BTreeMap<String, String>> {
+    let mut titles = BTreeMap::new();
+    for action in SigningAction::iter() {
+        for signer in
+            list_signers(keycloak_transaction, realm, action, &GroupChange::default()).await?
+        {
+            if let Some(title) = signer.title {
+                titles.entry(signer.user_id).or_insert(title);
+            }
+        }
+    }
+    Ok(titles)
 }

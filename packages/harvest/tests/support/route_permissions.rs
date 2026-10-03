@@ -321,6 +321,7 @@ fn cases() -> Vec<Case> {
         case!(Admin, "/render-document-pdf", {"document_id": "test-document"}, [REPORT_READ], BACKEND, UNAUTHORIZED),
         // Readers are authorized by the service after it loads the publication.
         case!(Admin, "/resolve-results-publication", {"ee_id": EVENT_ID}, [], BACKEND),
+        case!(Admin, "/key-share-signature-status", {"election_event_id": EVENT_ID, "tally_session_id": "test-session"}, [TRUSTEE_CEREMONY], BACKEND, FORBIDDEN_JSON),
         case!(Admin, "/restore-private-key", {"election_event_id": EVENT_ID, "private_key_base64": "not-a-key", "tally_session_id": "test-session"}, [TRUSTEE_CEREMONY], BACKEND, UNAUTHORIZED),
         case!(Admin, "/reveal-voter-secret-attribute", {"tenant_id": TENANT_ID, "election_event_id": EVENT_ID, "user_id": USER_ID, "attribute_name": "test-secret"}, [VOTER_READ, VOTER_SECRET_ATTRIBUTE_READ], BACKEND_TEXT, UNAUTHORIZED),
         case!(Admin, "/review-tally-sheet", {"election_event_id": EVENT_ID, "tally_sheet_id": "test-sheet", "new_status": "DISAPPROVED"}, [TALLY_SHEET_REVIEW], BACKEND, UNAUTHORIZED),
@@ -366,6 +367,9 @@ fn cases() -> Vec<Case> {
         case!(UuidTenant, "/signing-rules/put", {"election_event_id": UUID_EVENT_ID, "action": "close-voting", "requirement": "required", "signatures": 2, "requester_signing": "not-allowed", "expires_minutes": 60, "expected_revision": 0}, [SIGNING_RULES_WRITE], BACKEND, FORBIDDEN_JSON),
         case!(UuidTenant, "/signing-rules/put", {"election_event_id": UUID_EVENT_ID, "action": "close-voting", "requirement": "required", "signatures": 2, "requester_signing": "not-allowed", "expires_minutes": 60, "roles": {"add": ["test-group"]}, "expected_revision": 0}, [SIGNING_RULES_WRITE, ROLE_READ, ROLE_WRITE], BACKEND, FORBIDDEN_JSON),
         case!(UuidTenant, "/signing-rules/capacity", {"election_event_id": UUID_EVENT_ID, "action": "close-voting"}, [SIGNING_RULES_READ], BACKEND, FORBIDDEN_JSON),
+        // Any signing read or sign permission reads it; each alone is enough.
+        case!(UuidTenant, "/signing-event-info", {"election_event_id": UUID_EVENT_ID}, [SIGNING_REQUESTS_READ], BACKEND, FORBIDDEN_JSON),
+        case!(UuidTenant, "/signing-event-info", {"election_event_id": UUID_EVENT_ID}, [SIGN_CLOSE_VOTING], BACKEND, FORBIDDEN_JSON),
         case!(UuidTenant, "/signing-requests/pdf-prepare", {"request_id": ELECTION_ID, "chain_pem": [PEM]}, [], BACKEND),
     ]
 }

@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useContext, useEffect, useState} from "react"
+import React, {useCallback, useContext, useEffect, useState} from "react"
 import Button from "@mui/material/Button"
 import {BreadCrumbSteps, BreadCrumbStepsVariant, DropFile} from "@sequentech/ui-essentials"
 import ChevronRightIcon from "@mui/icons-material/ChevronRight"
@@ -16,16 +16,22 @@ import {TallyStyles} from "@/components/styles/TallyStyles"
 import {useGetList, useGetOne, useRecordContext} from "react-admin"
 import {WizardStyles} from "@/components/styles/WizardStyles"
 import {RESTORE_PRIVATE_KEY} from "@/queries/RestorePrivateKey"
-import {useMutation} from "@apollo/client"
+import {
+    KEY_SHARE_SIGNATURE_STATUS,
+    type IKeyShareSignatureStatusQuery,
+    type IKeyShareSignatureStatusVariables,
+} from "@/queries/KeyShareSignatureStatus"
+import {useMutation, useQuery} from "@apollo/client"
 import {
     ICeremonyStatus,
     ITallyExecutionStatus,
     ITallyTrusteeStatus,
     ITrusteeStatus,
 } from "@/types/ceremonies"
-import {Box} from "@mui/material"
+import {Box, Typography} from "@mui/material"
 import {
     RestorePrivateKeyMutation,
+    RestorePrivateKeyMutationVariables,
     Sequent_Backend_Election,
     Sequent_Backend_Election_Event,
     Sequent_Backend_Tally_Session,
@@ -34,6 +40,12 @@ import {
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
+import {
+    KeyShareCheck,
+    useKeyShareSigning,
+    type IKeyShareAnswer,
+    type IKeyShareSubmission,
+} from "@/components/keys-ceremony/useKeyShareSigning"
 
 const WizardSteps = {
     Start: 0,
@@ -131,16 +143,37 @@ export const TallyCeremonyTrustees: React.FC = () => {
         }
     }, [tallySessionExecutions])
 
+    // A trustee who restored their key unsigned before the rule made trustees
+    // sign contributes it again, signed.
+    // The state holds the tally trustee's status.
+    const restored = (trusteeStatus as string | null) === ITallyTrusteeStatus.KEY_RESTORED
+    const {data: signatureStatus, refetch: refetchSignatureStatus} = useQuery<
+        IKeyShareSignatureStatusQuery,
+        IKeyShareSignatureStatusVariables
+    >(KEY_SHARE_SIGNATURE_STATUS, {
+        variables: {electionEventId: tally?.election_event_id ?? "", tallySessionId: tally?.id},
+        skip:
+            !restored ||
+            !tally ||
+            tally.execution_status === ITallyExecutionStatus.CANCELLED ||
+            !!tally.is_execution_completed,
+        fetchPolicy: "network-only",
+    })
+    const redoSigned =
+        restored &&
+        !!signatureStatus?.key_share_signature_status?.signature_needed &&
+        !signatureStatus.key_share_signature_status.signed
+
     useEffect(() => {
         setPage(
             !trusteeStatus && tally?.execution_status !== ITallyExecutionStatus.CANCELLED
                 ? WizardSteps.Start
-                : trusteeStatus === ITrusteeStatus.WAITING &&
+                : (trusteeStatus === ITrusteeStatus.WAITING || redoSigned) &&
                     tally?.execution_status !== ITallyExecutionStatus.CANCELLED
                   ? WizardSteps.Start
                   : WizardSteps.Status
         )
-    }, [trusteeStatus])
+    }, [trusteeStatus, redoSigned])
 
     const CancelButton = styled(Button)`
         background-color: ${({theme}) => theme.palette.white};
@@ -165,10 +198,38 @@ export const TallyCeremonyTrustees: React.FC = () => {
         }
     `
 
-    const [restorePrivateKeyMutation] = useMutation<RestorePrivateKeyMutation>(RESTORE_PRIVATE_KEY)
-    const uploadPrivateKey = async (files: FileList | null) => {
-        setVerified(true)
+    const [restorePrivateKeyMutation] = useMutation<
+        RestorePrivateKeyMutation,
+        RestorePrivateKeyMutationVariables
+    >(RESTORE_PRIVATE_KEY)
+    const submit = useCallback(
+        async (submission: IKeyShareSubmission): Promise<IKeyShareAnswer> => {
+            const {data, errors} = await restorePrivateKeyMutation({
+                variables: {
+                    electionEventId: tally?.election_event_id ?? "",
+                    tallySessionId: tally?.id ?? "",
+                    ...submission,
+                },
+            })
+            if (errors) throw new Error(errors.toString())
+            return data?.restore_private_key ?? {is_valid: false}
+        },
+        [restorePrivateKeyMutation, tally?.election_event_id, tally?.id]
+    )
+    const keyShareSigning = useKeyShareSigning({
+        submit,
+        onRecorded: useCallback(() => {
+            setVerified(true)
+            // A redone contribution is now signed.
+            if (redoSigned) refetchSignatureStatus().catch(() => undefined)
+        }, [redoSigned, refetchSignatureStatus]),
+        onFailed: useCallback(
+            (error: string) => setErrors(t("signing.keyShare.failed", {error})),
+            [t]
+        ),
+    })
 
+    const uploadPrivateKey = async (files: FileList | null) => {
         setErrors(null)
         setVerified(false)
         setUploading(false)
@@ -188,34 +249,21 @@ export const TallyCeremonyTrustees: React.FC = () => {
         }
         try {
             const fileContent = await readFileContent(firstFile)
-            console.log(`uploadPrivateKey(): fileContent: ${fileContent}`)
             if (fileContent == null) {
                 setErrors(t("keysGeneration.checkStep.noFileSelected"))
                 return
             }
             setUploading(true)
-            const {data, errors} = await restorePrivateKeyMutation({
-                variables: {
-                    electionEventId: tally?.election_event_id,
-                    tallySessionId: tally?.id,
-                    privateKeyBase64: fileContent,
-                },
-            })
+            const checked = await keyShareSigning.check(fileContent)
             setUploading(false)
-            if (errors) {
-                setErrors(t("keysGeneration.checkStep.errorUploading", {error: errors.toString()}))
-                return
-            } else {
-                const isValid = data?.restore_private_key?.is_valid
-                if (!isValid) {
-                    setErrors(t("keysGeneration.checkStep.errorUploading", {error: "empty"}))
-                    return
-                }
+            if (checked === KeyShareCheck.Invalid) {
+                setErrors(t("keysGeneration.checkStep.errorUploading", {error: "empty"}))
+            } else if (checked === KeyShareCheck.Verified) {
                 setVerified(true)
             }
-        } catch (exception: any) {
+        } catch (exception) {
             setUploading(false)
-            setErrors(t("keysGeneration.checkStep.errorUploading", {error: exception.toString()}))
+            setErrors(t("keysGeneration.checkStep.errorUploading", {error: String(exception)}))
         }
     }
 
@@ -253,6 +301,11 @@ export const TallyCeremonyTrustees: React.FC = () => {
                                     title={"tally.trusteeTitle"}
                                     subtitle={"tally.trusteeSubTitle"}
                                 />
+                                {redoSigned && !verified ? (
+                                    <Typography variant="body1">
+                                        {t("signing.keyShare.redo")}
+                                    </Typography>
+                                ) : null}
 
                                 <DropFile handleFiles={uploadPrivateKey} />
 
@@ -262,6 +315,11 @@ export const TallyCeremonyTrustees: React.FC = () => {
                                         <WizardStyles.ErrorMessage variant="body2">
                                             {errors}
                                         </WizardStyles.ErrorMessage>
+                                    ) : null}
+                                    {keyShareSigning.waiting && !errors ? (
+                                        <Typography variant="body1">
+                                            {t("signing.keyShare.signing")}
+                                        </Typography>
                                     ) : null}
                                     {verified && (
                                         <WizardStyles.SucessMessage variant="body1">

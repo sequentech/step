@@ -231,9 +231,25 @@ pub enum InvalidReason {
     /// The action signs a document this server can't take signatures of
     /// yet, or the signature is of another kind of document.
     Document,
+    /// Voting at the Post was closed under signatures: reopening it is not a
+    /// signing action.
+    ClosedUnderSignatures,
+    /// The protected action can't happen in the current state (a status
+    /// change the Post doesn't allow, a generation still pending).
+    Transition,
+    /// Initializing voting needs a published ballot publication.
+    NoPublication,
+    /// The application's area votes in more than one Post and its label
+    /// doesn't say which.
+    AmbiguousPost,
     /// The document's signature fields don't fit the request (one empty
     /// field per signature it needs): generate the document again.
     DocumentFields,
+    /// The key share's SHA-256 a trustee sent is not the uploaded key share's.
+    KeyShareHash,
+    /// The event runs its key ceremonies automatically: no trustee takes a
+    /// key step there to sign.
+    AutomatedCeremonies,
 }
 
 impl SigningError {

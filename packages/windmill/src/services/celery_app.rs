@@ -69,6 +69,7 @@ use crate::tasks::render_document_pdf::render_document_pdf;
 use crate::tasks::render_report::render_report;
 use crate::tasks::review_boards::review_boards;
 use crate::tasks::review_cast_votes::review_cast_votes;
+use crate::tasks::run_signed_action::run_signed_action;
 use crate::tasks::scheduled_events::scheduled_events;
 use crate::tasks::scheduled_reports::scheduled_reports;
 use crate::tasks::send_template::send_template;
@@ -359,6 +360,7 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
             expire_signing_requests,
             sweep_signing_executions,
             refresh_staff_crls,
+            run_signed_action,
         ],
         task_routes = [
             create_keys::NAME => &Queue::Short.queue_name(&slug),
@@ -431,6 +433,7 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
             expire_signing_requests::NAME => &Queue::Beat.queue_name(&slug),
             sweep_signing_executions::NAME => &Queue::Beat.queue_name(&slug),
             refresh_staff_crls::NAME => &Queue::Beat.queue_name(&slug),
+            run_signed_action::NAME => &Queue::Short.queue_name(&slug),
         ],
         prefetch_count = prefetch_count,
         acks_late = acks_late,

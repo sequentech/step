@@ -278,7 +278,9 @@ pub async fn guard_at(
     }
     let scope_key = scope.scope_key();
 
-    // Signed already and about to run: that request stands.
+    // Signed already and about to run: that request stands. A trustee's
+    // gate signed for something else would never be used, so a new one
+    // replaces it and the trustee is never stuck.
     if let Some(unexecuted) = find_unexecuted_signing_request(
         hasura_transaction,
         scope.tenant_id,
@@ -288,9 +290,21 @@ pub async fn guard_at(
     )
     .await?
     {
-        return Ok(GuardOutcome::SigningRequired(SigningRequestSummary::from(
+        let same_payload = canonical(&unexecuted.subject, "subject")? == subject
+            && unexecuted.document_sha256 == document_sha256;
+        if request.action.mode() != ExecutionMode::Gate || same_payload {
+            return Ok(GuardOutcome::SigningRequired(SigningRequestSummary::from(
+                &unexecuted,
+            )));
+        }
+        cancel_request(
+            hasura_transaction,
             &unexecuted,
-        )));
+            CancelReason::Superseded,
+            caller.actor(),
+            None,
+        )
+        .await?;
     }
 
     if let Some(waiting) = lock_waiting_signing_request(

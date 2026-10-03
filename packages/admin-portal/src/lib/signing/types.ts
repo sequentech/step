@@ -433,6 +433,7 @@ export interface ISaveSigningRuleOutput {
 
 /** `POST /signing-rules/capacity` (`signingRuleCapacity`): eligible signers per Post. */
 export interface ISigningRuleCapacity {
+    /** The most signers any Post has; for event-wide and trustee actions, the event's. */
     max: number
     posts: Array<{election_id: string; name: string; count: number}>
     /** The Posts with fewer signers than the number asked for (the saved rule's by default). */
@@ -459,6 +460,17 @@ export interface ISigningRequestsExport {
     document_id: string
     sha256: string
     rows: number
+    /** A short-lived link to download the CSV; absent from older servers. */
+    url?: string | null
+}
+
+/** `signingImportIssuers`. */
+export interface IImportSigningIssuersOutput {
+    imported: number
+    /** Issuers the event already trusts. */
+    skipped: number
+    /** One line per certificate refused. */
+    errors: string[]
 }
 
 /** `PUT /signing-checks`. */
@@ -475,6 +487,8 @@ export interface IRegisterStaffCertificateInput {
     user_id: string
     election_id?: string | null
     pem: string
+    /** The account the certificate is registered to: links the same person's second account. */
+    linked_to?: string | null
 }
 
 /** `POST /staff-certificates/<id>/revoke`. */
@@ -502,4 +516,82 @@ export interface IStaffCertificate {
     revoked_by: string | null
     revoked_at: string | null
     revoke_reason: string | null
+    /** Display names as they were when the row was written. */
+    user_display_name?: string | null
+    registered_by_name?: string | null
+    revoked_by_name?: string | null
+    /** The account this registration links (a second account of the same person). */
+    linked_to?: string | null
+}
+
+/** A `signing_rule` row as the Protected actions sub-tab reads it. */
+export interface ISigningRuleRow extends ISigningRule {
+    /** The Keycloak id of whoever saved it last. */
+    updated_by: string
+    updated_by_name?: string | null
+    updated_at: string
+}
+
+/** A `signing_checks` row as the Certificates sub-tab reads it. */
+export interface ISigningChecksRow extends ISigningChecks {
+    updated_at: string
+    updated_by_name?: string | null
+}
+
+/** A `certificate_authority` row whose purpose is `staff-signatures`: a trusted issuer. */
+export interface IStaffIssuer {
+    id: string
+    common_name: string | null
+    subject: string
+    issuer: string
+    issuer_common_name: string | null
+    not_after: string
+    fingerprint_sha256: string | null
+}
+
+/** A `staff_crl` row: the last download of an issuer's revocation list. */
+export interface IStaffCrl {
+    id: string
+    issuer_fingerprint: string
+    url: string
+    fetched_at: string | null
+    status: CrlStatus
+}
+
+/** A `signing_request` row as the Requests sub-tab lists it, with its approvals. */
+export interface ISigningRequestListRow extends Pick<
+    ISigningRequest,
+    | "id"
+    | "action"
+    | "election_id"
+    | "area_id"
+    | "code"
+    | "required"
+    | "status"
+    | "cancel_reason"
+    | "requested_by_username"
+    | "created_at"
+    | "expires_at"
+> {
+    requested_by_name?: string | null
+    approvals: Array<{
+        id: string
+        username: string
+        display_name?: string | null
+        signed_at: string
+    }>
+}
+
+/** A waiting request as a signer's list reads it, with who signed it so far. */
+export interface IWaitingSigningRequest extends Pick<
+    ISigningRequest,
+    "id" | "action" | "election_id" | "area_id" | "code" | "required" | "created_at" | "expires_at"
+> {
+    approvals: Array<{id: string; user_id: string; signed_at: string}>
+}
+
+/** `POST /signing-issuers`: one or more PEM certificates, or one DER (.cer/.der) in base64. */
+export interface IImportSigningIssuersInput {
+    pem?: string | null
+    der_base64?: string | null
 }

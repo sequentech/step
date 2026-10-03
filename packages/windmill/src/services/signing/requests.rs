@@ -12,9 +12,10 @@
 
 use super::approve::{log_step_refusal, DocumentSigner, RefusedStep};
 use super::executors::SigningExecutorRegistry;
+use super::key_shares::{key_share_labels, KeyShareLabels};
 use super::log::{stage, Actor, LogStep, SystemOutcome};
-use super::pdf::DocumentRevisionView;
-use super::signers::{list_signers, GroupChange};
+use super::pdf::{event_time_zone, DocumentRevisionView};
+use super::signers::{list_signers, signer_titles, GroupChange};
 use super::{
     action_title, allowed_by, allowed_by_permission, log_scope, Allowance, SigningCaller,
     SigningError, SigningResult,
@@ -39,6 +40,7 @@ use sequent_core::types::permissions::Permissions;
 use sequent_core::util::temp_path::write_into_named_temp_file;
 use serde::Serialize;
 use serde_json::{json, Map, Value};
+use std::collections::BTreeMap;
 use strum::IntoEnumIterator;
 use tracing::{instrument, warn};
 use uuid::Uuid;
@@ -148,10 +150,10 @@ pub fn voided_approvals(approvals: &[SigningApprovalRow]) -> Value {
     )
 }
 
-/// Cancels a waiting request and stages its SigningRequestCancelled step,
-/// which lists the signatures that no longer count and, for a person's own
-/// cancel, what allowed it. The caller holds the event lock and the
-/// request's row lock.
+/// Cancels a waiting request, or a completed `Gate` request nobody used, and
+/// stages its SigningRequestCancelled step, which lists the signatures that
+/// no longer count and, for a person's own cancel, what allowed it. The
+/// caller holds the event lock and the request's row lock.
 pub async fn cancel_request(
     hasura_transaction: &Transaction<'_>,
     request: &SigningRequestRow,
@@ -164,9 +166,16 @@ pub async fn cancel_request(
         request.tenant_id,
         request.election_event_id,
         request.id,
-        &SigningRequestTransition::Cancel {
-            reason,
-            by: Some(by.user_id.clone()),
+        &if request.status == SigningRequestStatus::Completed {
+            SigningRequestTransition::CancelCompleted {
+                reason,
+                by: Some(by.user_id.clone()),
+            }
+        } else {
+            SigningRequestTransition::Cancel {
+                reason,
+                by: Some(by.user_id.clone()),
+            }
         },
     )
     .await?
@@ -536,6 +545,11 @@ pub struct SigningPanel {
     pub details: Vec<SigningDetail>,
     pub election_name: Option<String>,
     pub area_name: Option<String>,
+    /// The election event's time zone (IANA), which its times are shown in.
+    pub time_zone: Option<String>,
+    /// For a trustee's request, the names beside its ceremony and trustee ids.
+    #[serde(flatten)]
+    pub key_share: KeyShareLabels,
 }
 
 /// The subject's fields in key order, lists joined with commas.
@@ -721,6 +735,69 @@ pub async fn get_panel(
         details: subject_details(&request.subject),
         election_name,
         area_name,
+        time_zone: event_time_zone(hasura_transaction, tenant_id, request.election_event_id)
+            .await?
+            .map(|zone| zone.name().to_owned()),
+        key_share: key_share_labels(hasura_transaction, &request).await?,
+    })
+}
+
+/// What the Signatures tab and a signer's list of waiting requests show
+/// beside the rows Hasura gives them.
+#[derive(Debug, Clone, Serialize, PartialEq)]
+pub struct SigningEventInfo {
+    /// The election event's time zone (IANA), as the panel shows it.
+    pub time_zone: Option<String>,
+    /// The signers' titles by user id, for a reader of the certificates.
+    pub titles: BTreeMap<String, String>,
+}
+
+/// The permissions that read a part of the Signatures tab.
+const TAB_READERS: [Permissions; 3] = [
+    Permissions::SIGNING_RULES_READ,
+    Permissions::SIGNING_CERTIFICATES_READ,
+    Permissions::SIGNING_REQUESTS_READ,
+];
+
+/// Whether `caller` reads the event's signing information: they read a
+/// part of the Signatures tab or sign an action.
+pub fn reads_event_info(caller: &SigningCaller) -> bool {
+    SigningAction::iter().any(|action| caller.has(action.sign_permission()))
+        || TAB_READERS
+            .iter()
+            .any(|permission| caller.has(permission.clone()))
+}
+
+/// The event's time zone, for anyone who reads a part of the Signatures tab
+/// or signs an action ([`reads_event_info`]); with the signers' titles for
+/// a reader of the certificates, whose list names them.
+#[instrument(skip(hasura_transaction, keycloak_transaction), err)]
+pub async fn event_info(
+    hasura_transaction: &Transaction<'_>,
+    keycloak_transaction: &Transaction<'_>,
+    caller: &SigningCaller,
+    tenant_id: Uuid,
+    election_event_id: Uuid,
+) -> SigningResult<SigningEventInfo> {
+    if !reads_event_info(caller) {
+        return Err(SigningError::Forbidden(
+            "You can't read this election event's signing information.".into(),
+        ));
+    }
+    let titles = if caller.has(Permissions::SIGNING_CERTIFICATES_READ) {
+        signer_titles(
+            keycloak_transaction,
+            &get_tenant_realm(&tenant_id.to_string()),
+        )
+        .await?
+    } else {
+        BTreeMap::new()
+    };
+    Ok(SigningEventInfo {
+        time_zone: event_time_zone(hasura_transaction, tenant_id, election_event_id)
+            .await?
+            .map(|zone| zone.name().to_owned()),
+        titles,
     })
 }
 
