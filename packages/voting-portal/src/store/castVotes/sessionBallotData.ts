@@ -6,6 +6,8 @@ import type {EVotingPortalAuditButtonCfg} from "@sequentech/ui-core"
 
 export interface SessionBallotData {
     ballotId: string
+    // The ballot box's Ballot ID, when it received the ballot at review.
+    receivedBallotId?: string
     electionId: string
     isDemo: boolean
     ballot: string

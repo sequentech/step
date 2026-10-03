@@ -4,6 +4,7 @@
 
 import React, {useContext, useEffect, useState, useRef} from "react"
 import {useTranslation} from "react-i18next"
+import {ballotIdLookupPattern, isBallotIdInput, typedBallotId} from "../services/BallotIdLookup"
 import {
     BreadCrumbSteps,
     PageLimit,
@@ -774,12 +775,7 @@ const BallotLocatorLogic = () => {
 
     const election = dataElections?.sequent_backend_election.find((item) => item.id === electionId)
     const telephoneVotingEnabled = election?.voting_channels?.telephone === true
-    const normalizedBallotId = ballotId?.toLowerCase() ?? ""
-    const ballotIdPattern = /^[0-9a-f]+$/.test(normalizedBallotId)
-        ? telephoneVotingEnabled && normalizedBallotId.length === 4
-            ? `${normalizedBallotId}%`
-            : normalizedBallotId
-        : ""
+    const ballotIdPattern = ballotIdLookupPattern(ballotId, telephoneVotingEnabled)
 
     const dispatch = useAppDispatch()
 
@@ -793,7 +789,7 @@ const BallotLocatorLogic = () => {
         skip: globalSettings.DISABLE_AUTH || !hasBallotId || loadingElections,
     })
 
-    const validatedBallotId = isHex(inputBallotId ?? "")
+    const validatedBallotId = isBallotIdInput(inputBallotId ?? "")
 
     const matchingBallots = data?.["sequent_backend_cast_vote"] ?? []
     const ambiguousBallotId = matchingBallots.length > 1
@@ -801,7 +797,7 @@ const BallotLocatorLogic = () => {
     const lookupLoading = loadingElections || loading
 
     const locate = (withBallotId = false) => {
-        let id = withBallotId ? inputBallotId : ""
+        let id = withBallotId ? typedBallotId(inputBallotId) : ""
 
         setInputBallotId("")
 

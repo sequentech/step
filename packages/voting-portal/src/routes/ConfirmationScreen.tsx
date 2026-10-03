@@ -52,6 +52,7 @@ import {
     ConfirmationScreenData,
     selectConfirmationScreenData,
 } from "../store/castVotes/confirmationScreenDataSlice"
+import {selectReceivedBallot} from "../store/receivedBallots/receivedBallotsSlice"
 import {GET_CAST_VOTES} from "../queries/GetCastVotes"
 import {GET_DOCUMENT} from "../queries/GetDocument"
 
@@ -323,6 +324,7 @@ const ConfirmationScreen: React.FC = () => {
     const auditableBallot = useAppSelector(selectAuditableBallot(String(electionId)))
     const isBlankBallot = useAppSelector(selectIsBlankBallot(String(electionId)))
     const confirmationScreenData = useAppSelector(selectConfirmationScreenData(String(electionId)))
+    const receivedBallot = useAppSelector(selectReceivedBallot(String(electionId)))
     const {t} = useTranslation()
     const [openBallotIdHelp, setOpenBallotIdHelp] = useState(false)
     const [openConfirmationHelp, setOpenConfirmationHelp] = useState(false)
@@ -340,15 +342,21 @@ const ConfirmationScreen: React.FC = () => {
 
     const getBallotId = (): {
         ballotIdStored: string | undefined
+        ballotHashStored: string | undefined
         isDemoStored: boolean | undefined
     } => {
         if (!auditableBallot) {
             if (!confirmationScreenData) {
                 console.log("confirmationScreenData not found in redux")
-                return {ballotIdStored: undefined, isDemoStored: undefined}
+                return {
+                    ballotIdStored: undefined,
+                    ballotHashStored: undefined,
+                    isDemoStored: undefined,
+                }
             } else {
                 return {
                     ballotIdStored: confirmationScreenData.ballotId,
+                    ballotHashStored: undefined,
                     isDemoStored: confirmationScreenData.isDemo,
                 }
             }
@@ -360,13 +368,20 @@ const ConfirmationScreen: React.FC = () => {
             const hashableBallot = isMultiContest
                 ? hashMultiBallot(auditableBallot as IAuditableMultiBallot)
                 : hashBallot(auditableBallot as IAuditableSingleBallot)
-            const ballotIdStored = (auditableBallot && hashableBallot) || undefined
+            const ballotHashStored = (auditableBallot && hashableBallot) || undefined
+            // A ballot the ballot box received at review is known by the
+            // Ballot ID the ballot box signed for it.
+            const ballotIdStored =
+                receivedBallot && receivedBallot.ballot_hash === ballotHashStored
+                    ? receivedBallot.ballot_id
+                    : ballotHashStored
             const isDemoStored = oneBallotStyle?.ballot_eml.public_key?.is_demo
-            return {ballotIdStored, isDemoStored}
+            return {ballotIdStored, ballotHashStored, isDemoStored}
         }
     }
 
     const ballotId = useRef<string | undefined>(undefined)
+    const ballotHash = useRef<string | undefined>(undefined)
     const gotData = useRef<boolean | undefined>(false)
     const navigate = useNavigate()
     const [demoBallotIdHelp, setDemoBallotIdHelp] = useState<boolean>(false)
@@ -376,10 +391,10 @@ const ConfirmationScreen: React.FC = () => {
     if (
         gotData.current &&
         auditableBallot?.ballot_hash &&
-        ballotId.current !== auditableBallot?.ballot_hash
+        ballotHash.current !== auditableBallot?.ballot_hash
     ) {
         console.log(
-            `ballotId: ${ballotId.current}\n auditable Ballot Hash: ${auditableBallot?.ballot_hash}`
+            `ballotId: ${ballotHash.current}\n auditable Ballot Hash: ${auditableBallot?.ballot_hash}`
         )
         throw new VotingPortalError(VotingPortalErrorType.INCONSISTENT_HASH)
     }
@@ -390,12 +405,13 @@ const ConfirmationScreen: React.FC = () => {
         }
         if (!gotData.current) {
             gotData.current = true
-            const {ballotIdStored, isDemoStored} = getBallotId()
+            const {ballotIdStored, ballotHashStored, isDemoStored} = getBallotId()
             if (!ballotIdStored) {
                 console.log("No stored ballot found, navigating to the election-chooser page.")
                 navigate(`/tenant/${tenantId}/event/${eventId}/election-chooser`)
             }
             ballotId.current = ballotIdStored
+            ballotHash.current = ballotHashStored
             setIsDemo(isDemoStored ?? false)
             setBallotTrackerUrl(
                 `${window.location.protocol}//${window.location.host}/tenant/${tenantId}/event/${eventId}/election/${electionId}/ballot-locator/${ballotIdStored}${isKiosk() ? "?kiosk" : ""}`

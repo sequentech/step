@@ -11,6 +11,7 @@ import {
     isUndefined,
 } from "@sequentech/ui-core"
 import {provideBallotService} from "../services/BallotService"
+import {isReceivedAtReview} from "./useReceiveBallot"
 import {IBallotStyle} from "../store/ballotStyles/ballotStylesSlice"
 import {setBallotSelection} from "../store/ballotSelections/ballotSelectionsSlice"
 import {setAuditableBallot} from "../store/auditableBallots/auditableBallotsSlice"
@@ -36,9 +37,10 @@ export const useEncryptBallotForReview = () => {
             isMultiContest: boolean
         ): boolean => {
             try {
+                // The ballot box receives only ballots their voter has signed.
                 const doSignBallot =
                     ballotStyle.ballot_eml.election_event_presentation?.voter_signing_policy ===
-                    EVoterSigningPolicy.WITH_SIGNATURE
+                        EVoterSigningPolicy.WITH_SIGNATURE || isReceivedAtReview(ballotStyle)
 
                 const auditableBallot = isMultiContest
                     ? encryptMultiBallotSelection(selectionState, ballotStyle.ballot_eml)
