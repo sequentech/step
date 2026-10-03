@@ -57,7 +57,7 @@ export const orderContestsForVoter = (ballotStyle: IBallotStyle): IContest[] => 
 export const paginateContests = (contests: IContest[]): IContest[][] => {
     const pages = new Map<string, IContest[]>()
     for (const contest of contests) {
-        const page = contest.presentation?.pagination_policy || ""
+        const page = (contest.presentation?.pagination_policy || "").toString()
         pages.set(page, [...(pages.get(page) ?? []), contest])
     }
     return Array.from(pages.values())

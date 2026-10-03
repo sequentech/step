@@ -24,7 +24,7 @@ function publish(portal: Portal, options: BallotDesignOptions = {}) {
     const logoUrl = portal.s3.putBytes("public", "design/logo.png", PNG, "image/png")
     const fixture = ballotDesignFixture({logoUrl, ...options})
     for (const key of fixture.design.pictures) portal.s3.putBytes("public", key, PNG, "image/png")
-    portal.data = fixture
+    portal.data = fixture as unknown as Portal["data"]
     portal.publish()
     return {design: fixture.design, logoUrl}
 }
@@ -48,7 +48,8 @@ const columns = (contest: Locator) =>
     contest
         .locator(".candidate-item")
         .evaluateAll(
-            (items) => new Set(items.map((item) => Math.round(item.getBoundingClientRect().left))).size
+            (items) =>
+                new Set(items.map((item) => Math.round(item.getBoundingClientRect().left))).size
         )
 
 const expectPublishedFrame = (page: Page) =>
@@ -117,10 +118,7 @@ test("the published design is shown in each of its languages", async ({page, por
     await openList(page, portal, "tl")
     await expect(page.getByRole("heading", {name: DESIGN_NAMES.election.tl})).toBeVisible()
     await openBallot(page, portal, "tl")
-    expect(await contestTitles(page)).toEqual([
-        DESIGN_NAMES.senator.tl,
-        DESIGN_NAMES.partyList.tl,
-    ])
+    expect(await contestTitles(page)).toEqual([DESIGN_NAMES.senator.tl, DESIGN_NAMES.partyList.tl])
 })
 
 test.describe("on a phone", () => {

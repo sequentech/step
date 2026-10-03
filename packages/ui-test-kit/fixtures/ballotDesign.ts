@@ -3,8 +3,6 @@
 
 import {electionFixture, IDS} from "./index"
 
-type Fixture = ReturnType<typeof electionFixture>
-
 export const DESIGN_LANGUAGES = ["en", "tl"] as const
 
 /** The colours the published stylesheet sets, as a browser reports them. */
@@ -85,7 +83,7 @@ export function ballotDesignFixture({
         names: {en: string; tl: string},
         seats: number,
         presentation: {candidates_order: string; columns?: number},
-        candidates: Fixture["ballot"]["contests"][number]["candidates"]
+        candidates: Array<Record<string, unknown>>
     ) => ({
         ...base.ballot.contests[0],
         id: id(61, index),
