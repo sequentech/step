@@ -9,7 +9,9 @@ use crate::ballot::{
 use crate::ballot_codec::bigint::BigUIntCodec;
 use crate::ballot_codec::multi_ballot::*;
 use crate::ballot_codec::raw_ballot::RawBallotCodec;
-use crate::election_config::slates::ballot_style_slates;
+use crate::election_config::slates::{
+    ballot_style_slates, canonicalize, check_annotation,
+};
 use crate::encrypt;
 use crate::encrypt::*;
 use crate::fixtures::ballot_codec::*;
@@ -22,6 +24,7 @@ use crate::serialization::deserialize_with_path::deserialize_value;
 use crate::services::generate_urls::get_auth_url;
 use crate::services::generate_urls::AuthAction;
 use crate::types::ceremonies::CountingAlgType;
+use crate::types::hasura::core as hasura;
 use crate::util::locale::{
     iso_639_2t_to_bcp47, locale_to_internal_language_code,
 };
@@ -1360,4 +1363,52 @@ pub fn get_ballot_style_slates_js(
             })?)
         }
     }
+}
+
+const SLATES_PROBLEM_PATH: &str = "sequent.slates";
+
+#[wasm_bindgen]
+/// Checks a slate configuration against the contests and candidates of its
+/// election, given as JSON arrays of rows. Returns the list of problems,
+/// empty when the configuration can be published.
+pub fn check_election_slates_js(
+    annotation: &str,
+    default_language: &str,
+    contests_json: &str,
+    candidates_json: &str,
+) -> Result<JsValue, JsValue> {
+    let contests: Vec<hasura::Contest> = serde_json::from_str(contests_json)
+        .map_err(|err| format!("Error parsing contests: {}", err))
+        .into_json()?;
+    let candidates: Vec<hasura::Candidate> =
+        serde_json::from_str(candidates_json)
+            .map_err(|err| format!("Error parsing candidates: {}", err))
+            .into_json()?;
+
+    check_annotation(
+        annotation,
+        default_language,
+        &contests,
+        &candidates,
+        SLATES_PROBLEM_PATH,
+    )
+    .serialize(&Serializer::json_compatible())
+    .map_err(|err| format!("Error serializing slate problems: {:?}", err))
+    .into_json()
+}
+
+#[wasm_bindgen]
+/// Returns the slate configuration in the form it is stored and published.
+/// Throws the list of problems of a configuration that cannot be read.
+pub fn canonicalize_slates_js(annotation: &str) -> Result<String, JsValue> {
+    canonicalize(annotation, SLATES_PROBLEM_PATH).map_err(|problems| {
+        problems
+            .serialize(&Serializer::json_compatible())
+            .unwrap_or_else(|err| {
+                JsValue::from_str(&format!(
+                    "Error serializing slate problems: {:?}",
+                    err
+                ))
+            })
+    })
 }

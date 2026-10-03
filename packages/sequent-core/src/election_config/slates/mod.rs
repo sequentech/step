@@ -17,8 +17,15 @@ use crate::election_config::problem::{Code, Problem};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 
+mod election;
 #[cfg(test)]
 mod tests;
+
+pub use election::{
+    annotation_text, canonicalize, check_annotation, check_ballot_style,
+    check_ballot_style_config, check_default_language_names, check_election,
+    check_membership_policies, election_contests, InvalidSlates,
+};
 
 /// The election annotation holding the slate configuration.
 pub const SLATES_ANNOTATION: &str = "sequent.slates";
@@ -199,12 +206,7 @@ pub fn ballot_style_slates(
 
     let path = format!("election_annotations[\"{SLATES_ANNOTATION}\"]");
     let config = parse(text, &path)?;
-    let problems = check_references(
-        &config,
-        &ballot_style.contests,
-        Scope::BallotStyle,
-        &path,
-    );
+    let problems = check_ballot_style_config(&config, ballot_style, &path);
     if problems.is_empty() {
         Ok(Some(config))
     } else {

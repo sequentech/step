@@ -158,6 +158,7 @@ pub fn validate(bundle: &ImportElectionEventSchema) -> Report {
     check_how_voting_works(bundle, &mut report);
     check_voting_channels(bundle, &mut report);
     check_ivr_prompts(bundle, &mut report);
+    check_slates(bundle, &mut report);
     check_images(bundle, &mut report);
     check_support_materials(bundle, &mut report);
     check_event_presentation(bundle, &mut report);
@@ -213,6 +214,27 @@ fn check_ivr_prompts(bundle: &ImportElectionEventSchema, report: &mut Report) {
         &languages,
     ) {
         report.push(missing.problem("election_event.annotations.ivr:prompts"));
+    }
+}
+
+/// Whether each election's slates name candidates the bundle actually has.
+///
+/// The importer regenerates every identifier in the bundle, the ones inside
+/// the slate configuration included, so slates that resolve here still resolve
+/// once imported. Ones that do not would only fail later, at publication.
+fn check_slates(bundle: &ImportElectionEventSchema, report: &mut Report) {
+    for (index, election) in bundle.elections.iter().enumerate() {
+        for problem in super::slates::check_election(
+            election,
+            &bundle.contests,
+            &bundle.candidates,
+            &format!(
+                "elections[{index}].annotations.{}",
+                super::slates::SLATES_ANNOTATION
+            ),
+        ) {
+            report.push(problem.about(election.external_id.as_deref()));
+        }
     }
 }
 
