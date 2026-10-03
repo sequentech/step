@@ -149,14 +149,16 @@ Configure advanced system behaviors for this Election Event.
     be included in the published results either, for the reason in the warning
     below. Check both before ballots are published: neither the counting
     algorithm nor a published ballot can be changed once voting has begun.
-    There is no limit on the summed weight of an area or a contest. The mix
+    The summed weight of an area or a contest has no limit of its own. The mix
     holds at most one ciphertext per voter per batch however large the weights
     are, and the tally counts each ballot in the batch for `2^n` as `2^n`
     ballots instead of repeating it, so the time and memory a tally needs grow
-    with the number of voters, not with their weights. Per-candidate totals,
-    the total weight and the counts they are percentages of are checked for
-    overflow, and a tally that would exceed them fails rather than publishing a
-    wrapped number.
+    with the number of voters, not with their weights. Every count the tally
+    produces is checked against 9007199254740991 (2^53 − 1), the largest whole
+    number the Admin Portal and the results website show exactly. Reaching it
+    takes more than two million voters at the maximum weight, and a tally whose
+    counts would pass it fails rather than publishing a rounded or wrapped
+    number.
 
     Turnout figures under this policy mix units. The eligible-voter census and
     the count of voters who cast a ballot are headcounts, and so are the Total

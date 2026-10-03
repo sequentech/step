@@ -45,6 +45,7 @@ use std::{
 use strand::hash::hash_b64;
 use tokio::task;
 use tracing::instrument;
+use velvet::pipes::do_tally::stored_count;
 use velvet::pipes::generate_reports::{
     BasicArea, ElectionReportDataComputed, ReportDataComputed, OUTPUT_ALL_AREAS_HTML,
     OUTPUT_ALL_AREAS_JSON, OUTPUT_HTML, OUTPUT_JSON, OUTPUT_PDF,
@@ -888,11 +889,9 @@ pub async fn save_result_documents(
                     })
             });
             let area_blank_ballots_count = area_blank_ballots
-                .map(|(count, _)| i64::try_from(count))
+                .map(|(count, _)| stored_count(count, "blank ballots"))
                 .transpose()
-                .with_context(|| {
-                    format!("Blank ballots of area {} do not fit a bigint", area.id)
-                })?;
+                .with_context(|| format!("Area {}", area.id))?;
             // Percentage over total votes cast, not census: a blank ballot
             // is a valid cast ballot, matching results.rs/generate_db.rs.
             let area_blank_ballots_percent = area_blank_ballots

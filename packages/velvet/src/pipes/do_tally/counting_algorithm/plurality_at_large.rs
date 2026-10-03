@@ -175,6 +175,7 @@ impl CountingAlgorithm for PluralityAtLarge {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::pipes::do_tally::CountOverflow;
     use sequent_core::ballot::{Candidate, CandidatePresentation, Contest, Weight};
     use sequent_core::plaintext::{DecodedVoteChoice, DecodedVoteContest};
     use sequent_core::types::ceremonies::CountingAlgType;
@@ -531,6 +532,22 @@ mod tests {
         assert!(matches!(
             tally.process_ballots(TallyOperation::ProcessBallotsAll),
             Err(Error::CountOverflow(_))
+        ));
+    }
+
+    #[test]
+    fn a_candidate_total_a_json_number_cannot_hold_exactly_is_an_error() {
+        // 2^22 * 2^31 = 2^53 fits a u64, but a JSON reader would round 2^53 + 1.
+        let weight: Weight = serde_json::from_value(serde_json::json!(1u64 << 22)).unwrap();
+        let tally = plurality_at_large_counting(vec![TallyBallot {
+            vote: vote_selecting(&["normal"]),
+            weight,
+            multiplier: 1 << 31,
+        }]);
+
+        assert!(matches!(
+            tally.process_ballots(TallyOperation::ProcessBallotsAll),
+            Err(Error::CountOverflow(CountOverflow("candidate votes")))
         ));
     }
 }
