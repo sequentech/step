@@ -106,6 +106,7 @@ const queryRoles = () =>
         .map(({headers}) => headers["x-hasura-role"])
 
 export const Sbei: Story = {
+    parameters: {widgets: ["WaitingList"]},
     play: async ({canvasElement}) => {
         const {requests, posts, countries} = organizationOf(Organization.Overseas)
         // Waiting, of the actions held, not past their time: close voting at Wellington,
