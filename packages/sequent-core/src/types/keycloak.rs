@@ -62,18 +62,12 @@ pub const SUPPORT_MATERIALS_ACKNOWLEDGED_ATTR_NAME: &str =
 pub const VOTE_WEIGHT_ATTR_NAME: &str = "vote-weight";
 pub const DEFAULT_VOTE_WEIGHT: u64 = 1;
 pub const MIN_VOTE_WEIGHT: u64 = 1;
-/// Upper bound for a single voter weight. Bounds the batches a voter's
-/// ciphertext appears in, via `VOTE_WEIGHT_BATCHES`; a voter adds at most one
-/// ciphertext to any one batch.
-pub const MAX_VOTE_WEIGHT: u64 = 100_000;
-/// Upper bound for the summed weight of one contest area. `MAX_VOTE_WEIGHT`
-/// alone bounds a single voter, not the total. This no longer bounds the mix
-/// batch, which is now at most one ciphertext per voter: it bounds the
-/// plaintexts the tally materialises after mixing, by repeating each batch's
-/// decrypted votes by that batch's multiplier. That expansion is one
-/// allocation, and an oversized request aborts the process rather than
-/// returning an error.
-pub const MAX_TOTAL_VOTE_WEIGHT: u64 = 1_000_000;
+/// Upper bound for a single voter weight: the largest weight the batch layout
+/// can represent, one batch per bit. A voter adds at most one ciphertext to
+/// any one batch, and velvet counts each batch's ballots by its multiplier
+/// instead of repeating them, so neither the mix nor the tally grows with the
+/// weight. The voter import enforces it, row by row, before voting opens.
+pub const MAX_VOTE_WEIGHT: u64 = u32::MAX as u64;
 
 /// Board batches reserved per contest area under `VOTERS_WEIGHTED_VOTING`: one
 /// per bit of `MAX_VOTE_WEIGHT`, since a voter's weight is applied by placing
@@ -81,6 +75,12 @@ pub const MAX_TOTAL_VOTE_WEIGHT: u64 = 1_000_000;
 /// `MAX_VOTE_WEIGHT` so the two cannot drift apart.
 pub const VOTE_WEIGHT_BATCHES: u32 =
     u64::BITS - MAX_VOTE_WEIGHT.leading_zeros();
+
+/// Batches per contest area in voter-weighted tally sessions created while
+/// `MAX_VOTE_WEIGHT` was 100 000. Those sessions do not record their batch
+/// count, their contest areas were allocated this many batch numbers apart,
+/// and so they can only hold weights below `2^LEGACY_VOTE_WEIGHT_BATCHES`.
+pub const LEGACY_VOTE_WEIGHT_BATCHES: u32 = 17;
 
 /// Below this many ballots, a weight batch is small enough that mixing it
 /// protects little: its plaintexts are published, so a batch holding one ballot
@@ -98,9 +98,8 @@ pub fn weight_has_bit(weight: u64, bit: u32) -> bool {
     bit < VOTE_WEIGHT_BATCHES && (weight >> bit) & 1 == 1
 }
 
-/// The multiplier windmill applies to the batch for `bit` after mixing, by
-/// repeating that batch's plaintexts. Velvet never sees it: the expansion has
-/// already happened by the time the decoded ballots reach it.
+/// The multiplier of the batch for `bit`: velvet counts every ballot in that
+/// batch `2^bit` times, exactly as if it had been repeated.
 ///
 /// `None` outside the batches a contest area owns, rather than a shifted-out
 /// `1`, which would silently count a batch at the wrong weight.

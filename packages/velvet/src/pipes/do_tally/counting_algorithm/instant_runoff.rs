@@ -5,8 +5,8 @@
 use super::Result;
 use super::{CountingAlgorithm, Error};
 use crate::pipes::do_tally::{
-    counting_algorithm::utils::*, tally::Tally, BlankVotes, CandidateResult, ContestResult,
-    ExtendedMetricsContest, InvalidVotes,
+    counting_algorithm::utils::*, tally::Tally, tally::TallyBallot, BlankVotes, CandidateResult,
+    ContestResult, ExtendedMetricsContest, InvalidVotes,
 };
 use rand::prelude::IndexedRandom;
 use rand::seq::SliceRandom;
@@ -64,9 +64,9 @@ impl BallotsStatus<'_> {
     /// Set the metrics and counts.
     #[instrument(skip_all)]
     pub fn initialize_ballots_status<'a>(
-        votes: &'a Vec<(DecodedVoteContest, Weight)>,
+        votes: &'a Vec<TallyBallot>,
         contest: &Contest,
-    ) -> BallotsStatus<'a> {
+    ) -> Result<BallotsStatus<'a>> {
         let explicit_blank_candidate_ids = get_explicit_blank_candidate_ids(contest);
         let mut count_invalid_votes = InvalidVotes::default();
         let mut blank_votes = BlankVotes::default();
@@ -76,7 +76,7 @@ impl BallotsStatus<'_> {
         let mut count_declined_to_vote: u64 = 0;
         let mut count_blank_ballots: u64 = 0;
 
-        for (vote, weight) in votes {
+        for TallyBallot { vote, weight, .. } in votes {
             if vote.is_blank_ballot {
                 count_blank_ballots = count_blank_ballots.saturating_add(1);
             }
@@ -109,7 +109,8 @@ impl BallotsStatus<'_> {
                 &extended_metrics,
                 contest,
                 &explicit_blank_candidate_ids,
-            );
+                1,
+            )?;
             ballots.push((status, vote, weight.clone()));
         }
         let total_ballots = votes.len() as u64;
@@ -121,13 +122,13 @@ impl BallotsStatus<'_> {
             - count_invalid_votes.explicit
             - count_invalid_votes.implicit
             - count_declined_to_vote;
-        BallotsStatus {
+        Ok(BallotsStatus {
             ballots,
             count_valid,
             count_invalid_votes,
             extended_metrics,
             blank_votes,
-        }
+        })
     }
 }
 
@@ -675,9 +676,18 @@ impl InstantRunoff {
     #[instrument(err, skip_all)]
     pub fn process_ballots(&self, op: TallyOperation) -> Result<ContestResult> {
         let contest = &self.tally.contest;
-        let votes: &Vec<(DecodedVoteContest, Weight)> = &self.tally.ballots;
+        let votes: &Vec<TallyBallot> = &self.tally.ballots;
+        // A ballot that stands for several only arises from voter-weighted
+        // batches, which the tally session refuses for any algorithm but
+        // plurality at large. Counting it once here would drop the rest.
+        if let Some(ballot) = votes.iter().find(|ballot| ballot.multiplier != 1) {
+            return Err(Error::UnexpectedError(format!(
+                "Instant runoff cannot count a ballot that stands for {} ballots",
+                ballot.multiplier
+            )));
+        }
 
-        let mut ballots_status = BallotsStatus::initialize_ballots_status(votes, contest);
+        let mut ballots_status = BallotsStatus::initialize_ballots_status(votes, contest)?;
         let blank_votes = ballots_status.blank_votes;
         let count_blank = blank_votes.total();
         let count_valid = ballots_status.count_valid;
@@ -754,9 +764,9 @@ impl CountingAlgorithm for InstantRunoff {
             .tally
             .tally_sheet_results
             .iter()
-            .fold(contest_result, |result, tally_sheet_result| {
+            .try_fold(contest_result, |result, tally_sheet_result| {
                 result.aggregate(tally_sheet_result, false)
-            }))
+            })?)
     }
 }
 
@@ -841,7 +851,7 @@ mod tests {
     fn instant_runoff(ballots: Vec<DecodedVoteContest>) -> InstantRunoff {
         let ballots = ballots
             .into_iter()
-            .map(|ballot| (ballot, Weight::default()))
+            .map(|ballot| TallyBallot::new(ballot, Weight::default()))
             .collect();
 
         InstantRunoff {
@@ -884,9 +894,12 @@ mod tests {
     #[test]
     fn mixed_explicit_blank_vote_initializes_as_implicit_invalid() {
         let contest = contest();
-        let votes = vec![(mixed_explicit_blank_vote(), Weight::default())];
+        let votes = vec![TallyBallot::new(
+            mixed_explicit_blank_vote(),
+            Weight::default(),
+        )];
 
-        let status = BallotsStatus::initialize_ballots_status(&votes, &contest);
+        let status = BallotsStatus::initialize_ballots_status(&votes, &contest).unwrap();
 
         assert_eq!(status.count_valid, 0);
         assert_eq!(status.count_invalid_votes.explicit, 0);
@@ -922,9 +935,9 @@ mod tests {
     #[test]
     fn blank_ballot_is_counted_without_changing_existing_blank_vote_figures() {
         let contest = contest();
-        let votes = vec![(blank_ballot_vote(), Weight::default())];
+        let votes = vec![TallyBallot::new(blank_ballot_vote(), Weight::default())];
 
-        let status = BallotsStatus::initialize_ballots_status(&votes, &contest);
+        let status = BallotsStatus::initialize_ballots_status(&votes, &contest).unwrap();
 
         assert_eq!(status.extended_metrics.total_blank_ballots, 1);
         assert_eq!(status.extended_metrics.total_declined_to_vote, 0);
@@ -1023,5 +1036,18 @@ mod tests {
                 .and_then(|metrics| { metrics.votes_by_channel.get(&VotingChannel::PAPER.into()) }),
             Some(&2)
         );
+    }
+
+    /// Voter-weighted batches are refused for this algorithm when the tally
+    /// session is created. If one reaches it anyway, counting each ballot
+    /// once would silently drop the rest of its weight.
+    #[test]
+    fn a_ballot_standing_for_several_is_refused() {
+        let mut tally = instant_runoff(vec![vote_with_selected_ids(&["candidate_a"])]);
+        tally.tally.ballots[0].multiplier = 2;
+
+        assert!(tally
+            .process_ballots(TallyOperation::ProcessBallotsAll)
+            .is_err());
     }
 }

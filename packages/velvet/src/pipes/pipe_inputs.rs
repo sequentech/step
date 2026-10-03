@@ -37,7 +37,95 @@ pub const ELECTION_CONFIG_FILE: &str = "election-config.json";
 pub const CONTEST_CONFIG_FILE: &str = "contest-config.json";
 pub const AREA_CONFIG_FILE: &str = "area-config.json";
 pub const BALLOTS_FILE: &str = "ballots.csv";
+/// Placed between a ballots file's stem and extension to name the multiplier
+/// of the batch it holds: every ballot in `ballots__x4.csv` counts four times.
+pub const BATCH_MULTIPLIER_INFIX: &str = "__x";
 const UUID_LEN: usize = 36;
+
+/// The file holding the ballots of an area that each count `multiplier` times.
+///
+/// A ballot counts once unless the area's ballots were split into weight
+/// batches, so multiplier 1 is the file every pipe has always used, and only
+/// the other batches get a name of their own, e.g. `ballots__x4.csv`.
+pub fn batch_file_name(file_name: &str, multiplier: u64) -> String {
+    if multiplier == 1 {
+        return file_name.to_string();
+    }
+    match file_name.rsplit_once('.') {
+        Some((stem, extension)) => {
+            format!("{stem}{BATCH_MULTIPLIER_INFIX}{multiplier}.{extension}")
+        }
+        None => format!("{file_name}{BATCH_MULTIPLIER_INFIX}{multiplier}"),
+    }
+}
+
+/// The multiplier of the batch `candidate` holds, if it is `file_name` or one
+/// of its batch files. A name shaped like a batch file whose multiplier is not
+/// written the way `batch_file_name` writes it is an error rather than another
+/// file, so that no ballots are silently left out of a count.
+pub fn parse_batch_file_name(file_name: &str, candidate: &str) -> Result<Option<u64>> {
+    if candidate == file_name {
+        return Ok(Some(1));
+    }
+    let (stem, extension) = match file_name.rsplit_once('.') {
+        Some((stem, extension)) => (stem, format!(".{extension}")),
+        None => (file_name, String::new()),
+    };
+    let Some(multiplier) = candidate
+        .strip_prefix(stem)
+        .and_then(|rest| rest.strip_prefix(BATCH_MULTIPLIER_INFIX))
+        .and_then(|rest| rest.strip_suffix(extension.as_str()))
+    else {
+        return Ok(None);
+    };
+    match multiplier.parse::<u64>() {
+        Ok(value) if value > 1 && value.to_string() == multiplier => Ok(Some(value)),
+        _ => Err(Error::UnexpectedError(format!(
+            "Invalid batch multiplier {multiplier:?} in ballots file {candidate:?}"
+        ))),
+    }
+}
+
+/// Every batch file of `file_name` in `dir`, the plain one included, with the
+/// multiplier of each, ordered by multiplier. A missing directory has none.
+pub fn list_batch_files(dir: &Path, file_name: &str) -> Result<Vec<(PathBuf, u64)>> {
+    if !dir.is_dir() {
+        return Ok(vec![]);
+    }
+    let mut files = vec![];
+    for entry in fs::read_dir(dir).map_err(|e| Error::FileAccess(dir.to_path_buf(), e))? {
+        let path = entry?.path();
+        if !path.is_file() {
+            continue;
+        }
+        let Some(name) = path.file_name().and_then(|name| name.to_str()) else {
+            continue;
+        };
+        if let Some(multiplier) = parse_batch_file_name(file_name, name)? {
+            files.push((path, multiplier));
+        }
+    }
+    files.sort_by_key(|(_, multiplier)| *multiplier);
+    Ok(files)
+}
+
+/// Refuses ballot-by-ballot output for an area whose ballots were split into
+/// weight batches. A ballot there stands for several, so showing it once would
+/// misstate what was counted, and showing it once per batch would spell out
+/// its voter's weight.
+pub fn ensure_unbatched(dir: &Path, file_name: &str) -> Result<()> {
+    match list_batch_files(dir, file_name)?
+        .into_iter()
+        .find(|(_, multiplier)| *multiplier != 1)
+    {
+        Some((path, multiplier)) => Err(Error::UnexpectedError(format!(
+            "{} holds ballots that each count {multiplier} times. Ballot images are not \
+             available for ballots split into vote weight batches",
+            path.display()
+        ))),
+        None => Ok(()),
+    }
+}
 
 #[derive(Debug)]
 pub struct PipeInputs {
@@ -407,5 +495,110 @@ impl Into<TreeNodeArea> for &AreaConfig {
             election_event_id: self.election_event_id.to_string(),
             parent_id: self.parent_id.clone().map(|val| val.to_string()),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::tempdir;
+
+    #[test]
+    fn a_batch_counted_once_keeps_the_plain_file_name() {
+        assert_eq!(batch_file_name(BALLOTS_FILE, 1), BALLOTS_FILE);
+        assert_eq!(batch_file_name(BALLOTS_FILE, 4), "ballots__x4.csv");
+        assert_eq!(
+            batch_file_name("decoded_ballots.json", 2_147_483_648),
+            "decoded_ballots__x2147483648.json"
+        );
+        assert_eq!(batch_file_name("ballots", 2), "ballots__x2");
+    }
+
+    #[test]
+    fn batch_file_names_parse_back_to_their_multiplier() {
+        for multiplier in [1u64, 2, 4, 65_536, 2_147_483_648, u64::MAX] {
+            let name = batch_file_name(BALLOTS_FILE, multiplier);
+            assert_eq!(
+                parse_batch_file_name(BALLOTS_FILE, &name).unwrap(),
+                Some(multiplier),
+                "{name}"
+            );
+        }
+    }
+
+    #[test]
+    fn unrelated_files_are_not_batches() {
+        for name in [
+            "area-config.json",
+            "ballots.csv.bak",
+            "decoded_ballots.json",
+            "ballots_x4.csv",
+            "ballots__x4.json",
+        ] {
+            assert_eq!(
+                parse_batch_file_name(BALLOTS_FILE, name).unwrap(),
+                None,
+                "{name}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_malformed_multiplier_is_an_error_not_a_skipped_file() {
+        // Skipping it would leave its ballots out of the count.
+        for name in [
+            "ballots__x.csv",
+            "ballots__x1.csv",
+            "ballots__x0.csv",
+            "ballots__x04.csv",
+            "ballots__x+4.csv",
+            "ballots__x4a.csv",
+            "ballots__x18446744073709551616.csv",
+        ] {
+            assert!(
+                parse_batch_file_name(BALLOTS_FILE, name).is_err(),
+                "{name} should be refused"
+            );
+        }
+    }
+
+    #[test]
+    fn ballot_by_ballot_output_is_refused_only_for_multiplied_batches() {
+        let dir = tempdir().unwrap();
+        fs::write(dir.path().join(BALLOTS_FILE), "").unwrap();
+        assert!(ensure_unbatched(dir.path(), BALLOTS_FILE).is_ok());
+        assert!(ensure_unbatched(&dir.path().join("missing"), BALLOTS_FILE).is_ok());
+
+        fs::write(dir.path().join("ballots__x2.csv"), "").unwrap();
+        assert!(ensure_unbatched(dir.path(), BALLOTS_FILE).is_err());
+    }
+
+    #[test]
+    fn batch_files_are_listed_with_their_multipliers_in_order() {
+        let dir = tempdir().unwrap();
+        for name in [
+            "ballots__x8.csv",
+            BALLOTS_FILE,
+            "ballots__x2.csv",
+            "area-config.json",
+        ] {
+            fs::write(dir.path().join(name), "").unwrap();
+        }
+        fs::create_dir(dir.path().join("ballots__x16.csv")).unwrap();
+
+        let files = list_batch_files(dir.path(), BALLOTS_FILE).unwrap();
+
+        assert_eq!(
+            files,
+            vec![
+                (dir.path().join(BALLOTS_FILE), 1),
+                (dir.path().join("ballots__x2.csv"), 2),
+                (dir.path().join("ballots__x8.csv"), 8),
+            ]
+        );
+        assert_eq!(
+            list_batch_files(&dir.path().join("missing"), BALLOTS_FILE).unwrap(),
+            vec![]
+        );
     }
 }
