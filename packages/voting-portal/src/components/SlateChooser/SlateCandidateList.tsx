@@ -31,6 +31,13 @@ const Toggle = styled("button")(({theme}) => ({
     },
 }))
 
+// On desktop the offices are laid out by the slate card, across cards.
+const List = styled("div")(({theme}) => ({
+    [theme.breakpoints.up("sm")]: {
+        display: "contents",
+    },
+}))
+
 export interface SlateCandidateListProps extends PropsWithChildren {
     electionId: string
     slateId: string
@@ -76,9 +83,9 @@ export const SlateCandidateList: React.FC<SlateCandidateListProps> = ({
                     />
                 </Toggle>
             )}
-            <div id={listId} className="slate-candidate-list" hidden={!expanded}>
+            <List id={listId} className="slate-candidate-list" hidden={!expanded}>
                 {children}
-            </div>
+            </List>
         </>
     )
 }

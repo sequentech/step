@@ -449,6 +449,7 @@ const tagalogTranslation: TranslationType = {
                 "Ang slate ay isang pangkat ng mga kandidatong magkakasamang tumatakbo. Ipinapakita ng bawat kandidato ang slate na kinabibilangan nila.",
             independent: "Independiyente",
             contestMembers: "Mga kandidato ng {{slate}} para sa {{contest}}",
+            noCandidate: "Walang kandidato",
             candidateList: {
                 show: "Ipakita ang mga kandidato",
                 hide: "Itago ang mga kandidato",
