@@ -113,11 +113,14 @@ Define voter behavior rules and system responses in various voting scenarios. Fo
 - **Not Allowed**: Voter cannot submit; may include warning/alert before blocking.
 
 #### Under Vote Policy
-When voter selects fewer options than the minimum required:
+When voter selects fewer options than the maximum allowed:
 - **Allowed**: Submit without warning.
 - **Warn**: Warning during ballot and review phases.
 - **Warn in Review**: Warning only in review phase.
 - **Warn and Alert**: Warning during ballot; confirmation required to proceed.
+- **Warn and Confirm in Review**: Warning only in review phase. When the voter casts the ballot, a dialog lists every contest with this policy that has unfilled positions, with the number of options selected out of the maximum. The voter can go back to review and edit the selections, or continue and cast the ballot as it is.
+
+With **Warn and Confirm in Review** the undervote remains a valid vote: the voter is never forced to fill a position. The confirmation is asked each time the voter casts, so it is asked again after editing the ballot if positions are still unfilled. A contest left empty is listed as well, as long as its Blank Vote Policy allows it. When the dialog is shown it replaces the election's cast confirmation dialog, so the voter confirms once.
 
 #### Over Vote Policy
 When voter selects more options than allowed:

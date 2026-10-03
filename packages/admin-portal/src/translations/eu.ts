@@ -1905,6 +1905,7 @@ const basqueTranslation: TranslationType = {
                 "warn-only-in-review": "Abisatu Berrikuspena",
                 "warn": "Abisatu",
                 "warn-and-alert": "Abisatu eta Alerta",
+                "warn-and-confirm-in-review": "Abisatu eta Berretsi Berrikuspenean",
             },
             invalidVotePolicy: {
                 "label": "Baliogabeko Boto Politika",
