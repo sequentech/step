@@ -703,7 +703,7 @@ const galegoTranslation: TranslationType = {
                     },
                     "signatures-out-of-range": {
                         lead: "Sinaturas fóra de rango",
-                        text: "Sinaturas fóra de rango — a regra de '{{action}}' debe pedir entre 1 e 1000 sinaturas.",
+                        text: "Sinaturas fóra de rango — a regra de '{{action}}' debe pedir entre {{min}} e {{max}} sinaturas.",
                     },
                     "expiry-out-of-range": {
                         lead: "Caducidade fóra de rango",

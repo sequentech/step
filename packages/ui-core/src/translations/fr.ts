@@ -703,7 +703,7 @@ const frenchTranslation: TranslationType = {
                     },
                     "signatures-out-of-range": {
                         lead: "Signatures hors limites",
-                        text: "Signatures hors limites — la règle de '{{action}}' doit demander entre 1 et 1000 signatures.",
+                        text: "Signatures hors limites — la règle de '{{action}}' doit demander entre {{min}} et {{max}} signatures.",
                     },
                     "expiry-out-of-range": {
                         lead: "Expiration hors limites",

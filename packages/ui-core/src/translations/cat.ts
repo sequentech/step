@@ -700,7 +700,7 @@ const catalanTranslation: TranslationType = {
                     },
                     "signatures-out-of-range": {
                         lead: "Signatures fora de rang",
-                        text: "Signatures fora de rang — la regla de '{{action}}' ha de demanar entre 1 i 1000 signatures.",
+                        text: "Signatures fora de rang — la regla de '{{action}}' ha de demanar entre {{min}} i {{max}} signatures.",
                     },
                     "expiry-out-of-range": {
                         lead: "Caducitat fora de rang",

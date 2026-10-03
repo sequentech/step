@@ -206,7 +206,9 @@ fn check_signing(bundle: &ImportElectionEventSchema, report: &mut Report) {
                     ),
                 )
                 .id("signing.signatures-out-of-range")
-                .detail("action", rule.action),
+                .detail("action", rule.action)
+                .detail("min", 1)
+                .detail("max", MAX_SIGNATURES),
             );
         }
         if rule.expires_minutes.is_some_and(|minutes| {

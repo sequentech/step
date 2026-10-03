@@ -1591,6 +1591,19 @@ fn signature_counts_outside_one_to_a_hundred_are_refused() {
             vec!["signing.signatures-out-of-range"],
             "{signatures}"
         );
+        let report = validate(&bundle);
+        let problem = report
+            .problems
+            .iter()
+            .find(|problem| {
+                problem.id.as_deref() == Some("signing.signatures-out-of-range")
+            })
+            .unwrap();
+        assert_eq!(problem.details["min"], "1");
+        assert_eq!(
+            problem.details["max"],
+            crate::signing::MAX_SIGNATURES.to_string()
+        );
     }
 }
 

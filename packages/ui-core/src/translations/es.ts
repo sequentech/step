@@ -702,7 +702,7 @@ const spanishTranslation: TranslationType = {
                     },
                     "signatures-out-of-range": {
                         lead: "Firmas fuera de rango",
-                        text: "Firmas fuera de rango — la regla de '{{action}}' debe pedir entre 1 y 1000 firmas.",
+                        text: "Firmas fuera de rango — la regla de '{{action}}' debe pedir entre {{min}} y {{max}} firmas.",
                     },
                     "expiry-out-of-range": {
                         lead: "Caducidad fuera de rango",

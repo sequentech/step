@@ -699,7 +699,7 @@ const englishTranslation = {
                     },
                     "signatures-out-of-range": {
                         lead: "Signatures out of range",
-                        text: "Signatures out of range — the rule for '{{action}}' must ask for between 1 and 1000 signatures.",
+                        text: "Signatures out of range — the rule for '{{action}}' must ask for between {{min}} and {{max}} signatures.",
                     },
                     "expiry-out-of-range": {
                         lead: "Expiry out of range",

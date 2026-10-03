@@ -704,7 +704,7 @@ const tagalogTranslation: TranslationType = {
                     },
                     "signatures-out-of-range": {
                         lead: "Bilang ng lagda wala sa saklaw",
-                        text: "Bilang ng lagda wala sa saklaw — ang tuntunin para sa '{{action}}' ay dapat humingi ng 1 hanggang 1000 lagda.",
+                        text: "Bilang ng lagda wala sa saklaw — ang tuntunin para sa '{{action}}' ay dapat humingi ng {{min}} hanggang {{max}} lagda.",
                     },
                     "expiry-out-of-range": {
                         lead: "Pag-expire wala sa saklaw",

@@ -700,7 +700,7 @@ const dutchTranslation: TranslationType = {
                     },
                     "signatures-out-of-range": {
                         lead: "Handtekeningen buiten bereik",
-                        text: "Handtekeningen buiten bereik — de regel voor '{{action}}' moet tussen 1 en 1000 handtekeningen vragen.",
+                        text: "Handtekeningen buiten bereik — de regel voor '{{action}}' moet tussen {{min}} en {{max}} handtekeningen vragen.",
                     },
                     "expiry-out-of-range": {
                         lead: "Vervaltijd buiten bereik",

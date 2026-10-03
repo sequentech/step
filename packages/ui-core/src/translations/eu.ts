@@ -699,7 +699,7 @@ const basqueTranslation: TranslationType = {
                     },
                     "signatures-out-of-range": {
                         lead: "Sinadurak tartetik kanpo",
-                        text: "Sinadurak tartetik kanpo — '{{action}}' ekintzaren arauak 1 eta 1000 sinadura artean eskatu behar ditu.",
+                        text: "Sinadurak tartetik kanpo — '{{action}}' ekintzaren arauak {{min}} eta {{max}} sinadura artean eskatu behar ditu.",
                     },
                     "expiry-out-of-range": {
                         lead: "Iraungitzea tartetik kanpo",
