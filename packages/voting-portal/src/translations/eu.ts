@@ -450,6 +450,7 @@ const basqueTranslation: TranslationType = {
                 "Hautagai-zerrenda elkarrekin aurkezten diren hautagaien taldea da. Hautagai bakoitzak zein zerrendatakoa den erakusten du.",
             independent: "Independentea",
             contestMembers: "{{slate}} zerrendako hautagaiak: {{contest}}",
+            noCandidate: "Hautagairik ez",
             candidateList: {
                 show: "Erakutsi hautagaiak",
                 hide: "Ezkutatu hautagaiak",

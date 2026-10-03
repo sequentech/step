@@ -37,6 +37,14 @@ describe("resolveSlates", () => {
         expect(voices.contests.map(({contest}) => contest.id)).toEqual(["trustees"])
     })
 
+    it("lists the contests any slate has candidates in, in ballot order", () => {
+        const secretary = {...PRESIDENT, id: "secretary", candidates: []}
+
+        const {contests} = resolveSlates(SLATES, [TRUSTEES, secretary, PRESIDENT])
+
+        expect(contests.map((contest) => contest.id)).toEqual(["trustees", "president"])
+    })
+
     it("leaves out a slate with no candidate on this ballot", () => {
         const {slates} = resolveSlates(SLATES, [PRESIDENT])
 

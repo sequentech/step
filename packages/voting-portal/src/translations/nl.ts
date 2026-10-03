@@ -450,6 +450,7 @@ const dutchTranslation: TranslationType = {
                 "Een lijst is een groep kandidaten die zich samen verkiesbaar stellen. Bij elke kandidaat staat de lijst waartoe die behoort.",
             independent: "Onafhankelijk",
             contestMembers: "Kandidaten van {{slate}} voor {{contest}}",
+            noCandidate: "Geen kandidaat",
             candidateList: {
                 show: "Kandidaten tonen",
                 hide: "Kandidaten verbergen",

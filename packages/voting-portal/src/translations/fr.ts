@@ -448,6 +448,7 @@ const frenchTranslation: TranslationType = {
                 "Une liste est un groupe de candidats qui se présentent ensemble. Chaque candidat indique la liste à laquelle il appartient.",
             independent: "Indépendant",
             contestMembers: "Candidats de {{slate}} pour {{contest}}",
+            noCandidate: "Aucun candidat",
             candidateList: {
                 show: "Afficher les candidatures",
                 hide: "Masquer les candidatures",

@@ -163,6 +163,7 @@ describe("SlateApplyAction in the slate cards", () => {
                             slates={{
                                 mobileCandidateLists: EMobileCandidateLists.COLLAPSED,
                                 slates: buildSlates(ballot),
+                                contests: ballot.contests,
                             }}
                             defaultLanguage="en"
                             renderActions={(slate) => (

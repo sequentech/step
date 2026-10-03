@@ -31,6 +31,8 @@ export interface IResolvedSlate {
 export interface IBallotSlates {
     mobileCandidateLists: EMobileCandidateLists
     slates: Array<IResolvedSlate>
+    /** The contests at least one slate has candidates for, in ballot order. */
+    contests: Array<IContest>
 }
 
 const resolveSlate = (slate: ISlate, contests: Array<IContest>): IResolvedSlate => ({
@@ -45,12 +47,19 @@ const resolveSlate = (slate: ISlate, contests: Array<IContest>): IResolvedSlate 
     }),
 })
 
-export const resolveSlates = (config: ISlatesConfig, contests: Array<IContest>): IBallotSlates => ({
-    mobileCandidateLists: config.mobile_candidate_lists,
-    slates: config.slates
+export const resolveSlates = (config: ISlatesConfig, contests: Array<IContest>): IBallotSlates => {
+    const slates = config.slates
         .map((slate) => resolveSlate(slate, contests))
-        .filter((slate) => slate.contests.length > 0),
-})
+        .filter((slate) => slate.contests.length > 0)
+    const covered = new Set(
+        slates.flatMap((slate) => slate.contests.map(({contest}) => contest.id))
+    )
+    return {
+        mobileCandidateLists: config.mobile_candidate_lists,
+        slates,
+        contests: contests.filter((contest) => covered.has(contest.id)),
+    }
+}
 
 /**
  * The slates of a ballot, or null when its election has none. Throws the

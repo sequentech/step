@@ -6,6 +6,8 @@ import React, {useEffect, useId, useRef} from "react"
 import {Box} from "@mui/material"
 import Tabs from "@mui/material/Tabs"
 import Tab from "@mui/material/Tab"
+import {useTheme} from "@mui/material/styles"
+import useMediaQuery from "@mui/material/useMediaQuery"
 import {useTranslation} from "react-i18next"
 
 export enum ESlateBallotTab {
@@ -32,6 +34,8 @@ export const SlateBallotTabs: React.FC<SlateBallotTabsProps> = ({
     candidates,
 }) => {
     const {t} = useTranslation()
+    const theme = useTheme()
+    const isPhone = useMediaQuery(theme.breakpoints.down("sm"))
     const id = useId()
     const tabId = (tab: ESlateBallotTab) => `${id}-tab-${tab}`
     const panelId = (tab: ESlateBallotTab) => `${id}-panel-${tab}`
@@ -66,9 +70,7 @@ export const SlateBallotTabs: React.FC<SlateBallotTabsProps> = ({
             >
                 <Tabs
                     className="slate-ballot-tabs"
-                    variant="scrollable"
-                    allowScrollButtonsMobile
-                    scrollButtons="auto"
+                    variant={isPhone ? "fullWidth" : "standard"}
                     indicatorColor="primary"
                     textColor="inherit"
                     aria-label={t("slates.tabs.label")}
