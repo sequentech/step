@@ -246,7 +246,6 @@ issue = "https://github.com/sequentech/meta/issues/13302"
 "src/services/authorization.rs" = "Imports and re-exports of Sequent Core authorization; no handwritten executable methods."
 "src/types/mod.rs" = "Module declarations only."
 "src/types/optional.rs" = "Struct and derives only; no handwritten executable methods or LLVM line regions."
-"src/routes/manual_verification_pdf.rs" = "Not declared in routes/mod.rs or mounted in main.rs, so this source is not part of the native binary. No runtime coverage claim is made for it."
 
 # The route tests' database server comes from the ambient HASURA_DB__* and
 # KEYCLOAK_DB__* settings, as in the ordinary test job; only the host is fixed.
