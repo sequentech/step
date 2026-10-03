@@ -86,6 +86,9 @@ pub mod preset_doc;
 pub mod fixtures;
 pub mod problem;
 
+/// Named slates, configured in an election's annotations.
+pub mod slates;
+
 /// Rendering the base entity templates, behind its own feature so a front end
 /// that only validates an existing bundle carries no template engine.
 #[cfg(feature = "election_config_templates")]

@@ -444,6 +444,27 @@ const basqueTranslation: TranslationType = {
                 error: "Arazoa izan da zure berrespena erregistratzean. Mesedez, saiatu berriro.",
             },
         },
+        slates: {
+            title: "Hautagai-zerrendak",
+            description:
+                "Hautagai-zerrenda elkarrekin aurkezten diren hautagaien taldea da. Hautagai bakoitzak zein zerrendatakoa den erakusten du.",
+            independent: "Independentea",
+            contestMembers: "{{slate}} zerrendako hautagaiak: {{contest}}",
+            apply: {
+                button: "Aukeratu hautagai-zerrenda hau",
+                buttonLabel: "Aukeratu {{slate}} hautagai-zerrenda",
+                chosen: "{{slate}} aukeratuta. Hautatutako hautagaiak: {{candidates}}. Lehiak: {{contests}}.",
+                replaceDialog: {
+                    title: "Zure uneko aukerak ordeztu nahi dituzu?",
+                    content:
+                        "{{slate}} aukeratzeak beheko lehietako zure aukerak ordezten ditu. Gainerako aukerak ez dira aldatzen.",
+                    removed: "Kenduko da:",
+                    added: "Horren ordez hautatuko da:",
+                    ok: "Ordeztu aukerak",
+                    cancel: "Mantendu nire aukerak",
+                },
+            },
+        },
         ballotLocator: {
             title: "Bilatu zure Bozketa",
             titleResult: "Zure Bozketa Bilaketak Emaitza",

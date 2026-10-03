@@ -10,6 +10,7 @@ import {Box} from "@mui/material"
 import {
     BallotActions,
     BallotScreenLayout,
+    BallotSlatesProvider,
     Dialog,
     IconButton,
     VisuallyHidden,
@@ -52,6 +53,9 @@ import {canVoteSomeElection} from "../store/castVotes/castVotesSlice"
 import {IDecodedVoteContest} from "@sequentech/ui-core"
 import {sortContestList} from "@sequentech/ui-core"
 import {useEncryptBallotForReview} from "../hooks/useEncryptBallotForReview"
+import {useBallotStyleSlates} from "../hooks/useBallotStyleSlates"
+import {SlateChooser} from "../components/SlateChooser/SlateChooser"
+import {SlateApplyAction} from "../components/SlateChooser/SlateApplyAction"
 
 // `StyledTitle`, `ActionsContainer` and `StyledButton` were here. The heading is
 // `BallotScreenLayout` in `ui-essentials` now and the row of buttons is
@@ -290,6 +294,7 @@ const VotingScreen: React.FC = () => {
     const dispatch = useAppDispatch()
 
     const submit = useSubmit()
+    const slates = useBallotStyleSlates(ballotStyle)
 
     const onSetDisableNext = (id: string) => (value: boolean) => {
         setDisableNext({
@@ -463,100 +468,111 @@ const VotingScreen: React.FC = () => {
     }
 
     return (
-        <BallotScreenLayout
-            steps={<Stepper selected={1} />}
-            title={
-                translateFromPresentation(election, "name", i18n.language, {
-                    defaultLanguageCode,
-                }) ?? "-"
-            }
-            titleAdornment={
-                <>
-                    <IconButton
-                        className="title-question"
-                        buttonClassName="screen-help-button"
-                        icon={faCircleQuestion}
-                        sx={{fontSize: "unset", lineHeight: "unset", paddingBottom: "2px"}}
-                        fontSize="16px"
-                        onClick={() => setOpenBallotHelp(true)}
-                        ariaLabel={t("a11y.helpAbout", {
-                            topic: t("votingScreen.ballotHelpDialog.title"),
-                        })}
+        <BallotSlatesProvider slates={slates.config}>
+            <BallotScreenLayout
+                steps={<Stepper selected={1} />}
+                title={
+                    translateFromPresentation(election, "name", i18n.language, {
+                        defaultLanguageCode,
+                    }) ?? "-"
+                }
+                titleAdornment={
+                    <>
+                        <IconButton
+                            className="title-question"
+                            buttonClassName="screen-help-button"
+                            icon={faCircleQuestion}
+                            sx={{fontSize: "unset", lineHeight: "unset", paddingBottom: "2px"}}
+                            fontSize="16px"
+                            onClick={() => setOpenBallotHelp(true)}
+                            ariaLabel={t("a11y.helpAbout", {
+                                topic: t("votingScreen.ballotHelpDialog.title"),
+                            })}
+                        />
+                        <Dialog
+                            className="screen-help-dialog voting-help-dialog"
+                            handleClose={() => setOpenBallotHelp(false)}
+                            open={openBallotHelp}
+                            title={t("votingScreen.ballotHelpDialog.title")}
+                            ok={t("votingScreen.ballotHelpDialog.ok")}
+                            variant="info"
+                        >
+                            {stringToHtml(t("votingScreen.ballotHelpDialog.content"))}
+                        </Dialog>
+                    </>
+                }
+                description={electionDescription ? stringToHtml(electionDescription) : undefined}
+            >
+                {slates.resolved ? (
+                    <SlateChooser
+                        slates={slates.resolved}
+                        defaultLanguage={defaultLanguageCode}
+                        renderActions={(slate) => (
+                            <SlateApplyAction ballotStyle={ballotStyle} slate={slate} />
+                        )}
                     />
-                    <Dialog
-                        className="screen-help-dialog voting-help-dialog"
-                        handleClose={() => setOpenBallotHelp(false)}
-                        open={openBallotHelp}
-                        title={t("votingScreen.ballotHelpDialog.title")}
-                        ok={t("votingScreen.ballotHelpDialog.ok")}
-                        variant="info"
-                    >
-                        {stringToHtml(t("votingScreen.ballotHelpDialog.content"))}
-                    </Dialog>
-                </>
-            }
-            description={electionDescription ? stringToHtml(electionDescription) : undefined}
-        >
-            <ContestPagination
-                ballotStyle={ballotStyle}
-                contests={contestsPerPage}
-                onSetDisableNext={onSetDisableNext}
-                onSetDecodedContests={onSetDecodedContests}
-                encryptAndReview={encryptAndReview}
-                disableNextButton={disableNextButton}
-            />
+                ) : null}
+                <ContestPagination
+                    ballotStyle={ballotStyle}
+                    contests={contestsPerPage}
+                    onSetDisableNext={onSetDisableNext}
+                    onSetDecodedContests={onSetDecodedContests}
+                    encryptAndReview={encryptAndReview}
+                    disableNextButton={disableNextButton}
+                />
 
-            {disableNextButton() ? (
-                <Dialog
-                    className="ballot-validation-dialog"
-                    handleClose={(value) => setOpenNonVoted(false)}
-                    open={openNotVoted}
-                    title={t("votingScreen.nonVotedDialog.title")}
-                    ok={t("votingScreen.nonVotedDialog.ok")}
-                    variant="softwarning"
-                >
-                    {stringToHtml(t("votingScreen.nonVotedDialog.content"))}
-                </Dialog>
-            ) : (
-                <Dialog
-                    className="ballot-validation-dialog"
-                    handleClose={(value) => warnAllowContinue(value)}
-                    open={openNotVoted}
-                    title={t(
-                        hasInvalidErrors
-                            ? "votingScreen.nonVotedDialog.title"
-                            : isWholeBallotBlank()
-                              ? "votingScreen.blankBallotDialog.title"
-                              : "votingScreen.warningDialog.title"
-                    )}
-                    ok={t(
-                        hasInvalidErrors
-                            ? "votingScreen.nonVotedDialog.continue"
-                            : isWholeBallotBlank()
-                              ? "votingScreen.blankBallotDialog.continue"
-                              : "votingScreen.warningDialog.continue"
-                    )}
-                    cancel={t(
-                        hasInvalidErrors
-                            ? "votingScreen.nonVotedDialog.cancel"
-                            : isWholeBallotBlank()
-                              ? "votingScreen.blankBallotDialog.cancel"
-                              : "votingScreen.warningDialog.cancel"
-                    )}
-                    variant="action"
-                >
-                    {stringToHtml(
-                        t(
+                {disableNextButton() ? (
+                    <Dialog
+                        className="ballot-validation-dialog"
+                        handleClose={(value) => setOpenNonVoted(false)}
+                        open={openNotVoted}
+                        title={t("votingScreen.nonVotedDialog.title")}
+                        ok={t("votingScreen.nonVotedDialog.ok")}
+                        variant="softwarning"
+                    >
+                        {stringToHtml(t("votingScreen.nonVotedDialog.content"))}
+                    </Dialog>
+                ) : (
+                    <Dialog
+                        className="ballot-validation-dialog"
+                        handleClose={(value) => warnAllowContinue(value)}
+                        open={openNotVoted}
+                        title={t(
                             hasInvalidErrors
-                                ? "votingScreen.nonVotedDialog.content"
+                                ? "votingScreen.nonVotedDialog.title"
                                 : isWholeBallotBlank()
-                                  ? "votingScreen.blankBallotDialog.content"
-                                  : "votingScreen.warningDialog.content"
-                        )
-                    )}
-                </Dialog>
-            )}
-        </BallotScreenLayout>
+                                  ? "votingScreen.blankBallotDialog.title"
+                                  : "votingScreen.warningDialog.title"
+                        )}
+                        ok={t(
+                            hasInvalidErrors
+                                ? "votingScreen.nonVotedDialog.continue"
+                                : isWholeBallotBlank()
+                                  ? "votingScreen.blankBallotDialog.continue"
+                                  : "votingScreen.warningDialog.continue"
+                        )}
+                        cancel={t(
+                            hasInvalidErrors
+                                ? "votingScreen.nonVotedDialog.cancel"
+                                : isWholeBallotBlank()
+                                  ? "votingScreen.blankBallotDialog.cancel"
+                                  : "votingScreen.warningDialog.cancel"
+                        )}
+                        variant="action"
+                    >
+                        {stringToHtml(
+                            t(
+                                hasInvalidErrors
+                                    ? "votingScreen.nonVotedDialog.content"
+                                    : isWholeBallotBlank()
+                                      ? "votingScreen.blankBallotDialog.content"
+                                      : "votingScreen.warningDialog.content"
+                            )
+                        )}
+                    </Dialog>
+                )}
+            </BallotScreenLayout>
+        </BallotSlatesProvider>
     )
 }
 

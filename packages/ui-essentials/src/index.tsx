@@ -154,6 +154,12 @@ export {InvalidErrorsList} from "./ballot/InvalidErrorsList"
 export {BallotSelectionProvider, useBallotSelection} from "./ballot/selection"
 export {BallotEngineProvider, useBallotEngine} from "./ballot/engine"
 export type {BallotEngine} from "./ballot/engine"
+export {
+    BallotSlatesProvider,
+    getDefaultLanguageCode,
+    useBallotSlates,
+    useCandidateSlateLabel,
+} from "./ballot/slates"
 export type {BallotSelectionPort, ContestSelection, VoteChoice} from "./ballot/selection"
 export type {IBallotStyle as IBallotStyleRow} from "./ballot/types"
 export * from "./ballot/presentation"

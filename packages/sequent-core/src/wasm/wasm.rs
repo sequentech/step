@@ -9,6 +9,7 @@ use crate::ballot::{
 use crate::ballot_codec::bigint::BigUIntCodec;
 use crate::ballot_codec::multi_ballot::*;
 use crate::ballot_codec::raw_ballot::RawBallotCodec;
+use crate::election_config::slates::ballot_style_slates;
 use crate::encrypt;
 use crate::encrypt::*;
 use crate::fixtures::ballot_codec::*;
@@ -1331,4 +1332,32 @@ pub fn get_voting_screen_back_policy_values_js() -> Result<JsValue, JsValue> {
             "Error serializing voting screen back policy values: {err}"
         ))
     })
+}
+
+#[wasm_bindgen]
+/// Returns the slates the ballot style carries, or null when its election
+/// has none. Throws the list of problems of an invalid configuration.
+pub fn get_ballot_style_slates_js(
+    ballot_style_json: JsValue,
+) -> Result<JsValue, JsValue> {
+    let ballot_style: BallotStyle =
+        serde_wasm_bindgen::from_value(ballot_style_json)
+            .map_err(|err| format!("Error parsing ballot style: {}", err))
+            .into_json()?;
+    let serializer = Serializer::json_compatible();
+
+    match ballot_style_slates(&ballot_style) {
+        Ok(slates) => slates
+            .serialize(&serializer)
+            .map_err(|err| format!("Error serializing slates: {:?}", err))
+            .into_json(),
+        Err(problems) => {
+            Err(problems.serialize(&serializer).map_err(|err| {
+                JsValue::from_str(&format!(
+                    "Error serializing slate problems: {:?}",
+                    err
+                ))
+            })?)
+        }
+    }
 }

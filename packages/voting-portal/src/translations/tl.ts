@@ -443,6 +443,27 @@ const tagalogTranslation: TranslationType = {
                 error: "Nagkaroon ng problema sa pagre-record ng iyong kumpirmasyon. Pakisubukan muli.",
             },
         },
+        slates: {
+            title: "Mga slate",
+            description:
+                "Ang slate ay isang pangkat ng mga kandidatong magkakasamang tumatakbo. Ipinapakita ng bawat kandidato ang slate na kinabibilangan nila.",
+            independent: "Independiyente",
+            contestMembers: "Mga kandidato ng {{slate}} para sa {{contest}}",
+            apply: {
+                button: "Piliin ang slate na ito",
+                buttonLabel: "Piliin ang slate na {{slate}}",
+                chosen: "Napili ang {{slate}}. Mga napiling kandidato: {{candidates}}. Mga paligsahan: {{contests}}.",
+                replaceDialog: {
+                    title: "Palitan ang iyong kasalukuyang mga pinili?",
+                    content:
+                        "Kapag pinili ang {{slate}}, mapapalitan ang iyong mga pinili sa mga paligsahan sa ibaba. Hindi magbabago ang iba mo pang pinili.",
+                    removed: "Aalisin:",
+                    added: "Pipiliin bilang kapalit:",
+                    ok: "Palitan ang mga pinili",
+                    cancel: "Panatilihin ang aking mga pinili",
+                },
+            },
+        },
         ballotLocator: {
             title: "Hanapin ang Iyong Balota",
             titleResult: "Resulta ng Iyong Paghahanap ng Balota",

@@ -78,6 +78,8 @@ jest.mock("@sequentech/ui-essentials", () => ({
     ...jest.requireActual("../../../ui-essentials/src/ballot/ReviewActions"),
     ...jest.requireActual("../../../ui-essentials/src/ballot/ConfirmationLayout"),
     ...jest.requireActual("../../../ui-essentials/src/ballot/ConfirmationActions"),
+    BallotSlatesProvider: jest.requireActual("../../../ui-essentials/src/ballot/slates")
+        .BallotSlatesProvider,
     Question: ({question}: {question: IContest}) => <h2>{question.name}</h2>,
     BallotHash: jest.requireActual("../../../ui-essentials/src/components/BallotHash/BallotHash")
         .default,
