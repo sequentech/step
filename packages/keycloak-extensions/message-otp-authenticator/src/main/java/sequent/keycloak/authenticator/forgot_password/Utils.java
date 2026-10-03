@@ -9,6 +9,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
 import jakarta.ws.rs.core.MultivaluedMap;
 import java.io.BufferedReader;
+import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -40,6 +41,8 @@ import org.keycloak.models.UserModel;
 import org.keycloak.representations.userprofile.config.UPAttribute;
 import org.keycloak.userprofile.UserProfileProvider;
 import org.keycloak.util.JsonSerialization;
+import sequent.keycloak.authenticator.MessageOTPAuthenticator;
+import sequent.keycloak.authenticator.messaging.NoticeRecipient;
 
 @UtilityClass
 @JBossLog
@@ -116,6 +119,7 @@ public class Utils {
   public final String PASSWORD_EXPIRATION_USER_ATTRIBUTE = "passwordExpirationUserAttribute";
   public final String PASSWORD_EXPIRATION_USER_ATTRIBUTE_DEFAULT =
       "sequent.read-only.expirationDate";
+  public final String NEW_PASSWORD_MESSAGE_KEY = "newPassword.message.text";
   public final String NEW_PASSWORD_EMAIL_SUBJECT = "newPassword.email.subject";
   public final String NEW_PASSWORD_EMAIL_FTL = "forgot-password-send-new-password.ftl";
 
@@ -356,8 +360,22 @@ public class Utils {
       KeycloakSession session, UserModel user, String temporaryPassword) throws EmailException {
     log.infov("sendNewPasswordNotification(): to user with email={0}", user.getEmail());
     RealmModel realm = session.getContext().getRealm();
-    EmailTemplateProvider emailTemplateProvider = session.getProvider(EmailTemplateProvider.class);
     String realmName = getRealmName(realm);
+    try {
+      if (sequent.keycloak.authenticator.Utils.sendNotice(
+          session,
+          realm,
+          user,
+          NoticeRecipient.fromUser(user, MessageOTPAuthenticator.MOBILE_NUMBER_FIELD),
+          NEW_PASSWORD_MESSAGE_KEY,
+          () -> List.of(realmName, temporaryPassword),
+          null)) {
+        return;
+      }
+    } catch (IOException e) {
+      log.warn("sendNewPasswordNotification(): not sent on the chosen channel; sending email");
+    }
+    EmailTemplateProvider emailTemplateProvider = session.getProvider(EmailTemplateProvider.class);
     List<Object> subjAttr = ImmutableList.of(realmName);
     Map<String, Object> bodyAttr = Maps.newHashMap();
     bodyAttr.put("realmName", realmName);

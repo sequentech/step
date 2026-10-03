@@ -19,7 +19,7 @@ import {
 import {ListActions} from "@/components/ListActions"
 import {useTranslation} from "react-i18next"
 import {Sequent_Backend_Election, Sequent_Backend_Election_Event} from "@/gql/graphql"
-import {Dialog} from "@sequentech/ui-essentials"
+import {ChannelLabel, Dialog} from "@sequentech/ui-essentials"
 import {FormStyles} from "./styles/FormStyles"
 import {EXPORT_ELECTION_EVENT_LOGS} from "@/queries/ExportElectionEventLogs"
 import {useMutation} from "@apollo/client"
@@ -31,6 +31,7 @@ import {ETasksExecution} from "@/types/tasksExecution"
 import {useLogsPermissions} from "@/resources/ElectionEvent/useLogsPermissions"
 import {MessageField} from "./MessageField"
 import {ThreeStateDatagridHeader} from "./ThreeStateDatagridHeader"
+import {electoralLogChannel} from "./electoralLogChannel"
 
 enum ExportFormat {
     CSV = "CSV",
@@ -279,6 +280,22 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
                         source="log_type"
                         label={String(t("logsScreen.column.log_type"))}
                         render={(record: any) => getHeadField(record, "log_type")}
+                    />
+                    <FunctionField
+                        source="channel"
+                        sortable={false}
+                        label={String(t("messaging.logs.channel"))}
+                        render={(record: {message?: string}) => {
+                            const channel = electoralLogChannel(record.message)
+                            return channel ? (
+                                <ChannelLabel
+                                    channel={channel}
+                                    label={t(`messaging.channel.${channel}`)}
+                                />
+                            ) : (
+                                <span>-</span>
+                            )
+                        }}
                     />
                     <FunctionField
                         source="description"

@@ -31,12 +31,14 @@ const TAB_ROLES = [
     "election-event-approvals-tab",
     "election-event-ivr-tab",
     "election-event-cas-tab",
+    "messaging-config-write",
 ]
 const ALL_TABS = [
     "Data",
     "IVR",
     "Localization",
     "Voters",
+    "Messaging",
     "Areas",
     "Keys",
     "Certificates",

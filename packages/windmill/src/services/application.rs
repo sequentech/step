@@ -27,7 +27,9 @@ use sequent_core::services::keycloak::KeycloakAdminClient;
 use sequent_core::services::translations::DEFAULT_LANG;
 use sequent_core::types::hasura::core::Application;
 use sequent_core::types::keycloak::{User, MOBILE_PHONE_ATTR_NAME};
-use sequent_core::types::templates::{EmailConfig, SendTemplateBody, SmsConfig, TemplateMethod};
+use sequent_core::types::templates::{
+    ChannelSelection, EmailConfig, SendTemplateBody, SmsConfig, TemplateMethod,
+};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
@@ -1066,6 +1068,11 @@ pub async fn send_application_communication_response(
                 schedule_date: None,
                 email: email_config,
                 sms: sms_config,
+                whatsapp: None,
+                viber: None,
+                messenger: None,
+                channel_selection: ChannelSelection::SINGLE_CHANNEL,
+                send_id: None,
                 document: None,
                 name: None,
                 alias: None,

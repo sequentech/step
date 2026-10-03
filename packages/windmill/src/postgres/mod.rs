@@ -18,6 +18,7 @@ pub mod keycloak_realm;
 pub mod keys_ceremony;
 pub mod lock;
 pub mod maintenance;
+pub mod messaging;
 pub mod monitoring_config;
 pub mod phone_blacklist;
 pub mod preview;

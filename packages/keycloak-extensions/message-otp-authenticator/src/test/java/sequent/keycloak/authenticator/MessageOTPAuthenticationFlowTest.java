@@ -90,6 +90,12 @@ class MessageOTPAuthenticationFlowTest {
     when(credentials.getStoredCredentialsByTypeStream(MessageOTPCredentialModel.TYPE))
         .thenAnswer(i -> Stream.of(MessageOTPCredentialModel.create(true)));
     when(session.getProvider(SmsSenderProvider.class)).thenReturn(sms);
+    try {
+      when(sms.send(anyString(), anyString(), anyList(), any(), any(), any()))
+          .thenReturn("delivered");
+    } catch (java.io.IOException e) {
+      throw new IllegalStateException(e);
+    }
     configMap.putAll(MessageOTPAuthenticatorFactory.getConfigMap(null));
     configMap.put(Utils.MESSAGE_COURIER_ATTRIBUTE, "SMS");
     configMap.put(Utils.TEL_USER_ATTRIBUTE, MessageOTPAuthenticator.MOBILE_NUMBER_FIELD);
@@ -219,6 +225,97 @@ class MessageOTPAuthenticationFlowTest {
     verify(context, times(2)).challenge(response);
     verifyNoInteractions(sms);
     assertEquals(CODE, notes.get(Utils.CODE));
+  }
+
+  private void codeIssuedSecondsAgo(long seconds) {
+    long ttlMillis = Long.parseLong(configMap.get(Utils.CODE_TTL)) * 1000L;
+    notes.put(
+        Utils.CODE_TTL, Long.toString(System.currentTimeMillis() + ttlMillis - seconds * 1000L));
+  }
+
+  @Test
+  void resendIsRefusedUntilTheResendTimerInSecondsHasElapsed() throws Exception {
+    codeIssuedSecondsAgo(1);
+    parameters.putSingle("resend", "true");
+    authenticator.action(context);
+    verify(sms, never()).send(anyString(), anyString(), anyList(), any(), any(), any());
+    assertEquals(CODE, notes.get(Utils.CODE));
+  }
+
+  @Test
+  void resendIsAllowedOnceTheResendTimerHasElapsed() throws Exception {
+    codeIssuedSecondsAgo(61);
+    parameters.putSingle("resend", "true");
+    authenticator.action(context);
+    verify(sms)
+        .send(
+            eq(PHONE),
+            eq(Utils.SEND_CODE_SMS_I18N_KEY),
+            anyList(),
+            eq(realm),
+            eq(user),
+            eq(session));
+    assertNotEquals(CODE, notes.get(Utils.CODE));
+  }
+
+  @Test
+  void fifthWrongCodeInvalidatesTheCode() throws Exception {
+    for (int attempt = 0; attempt < 4; attempt++) {
+      parameters.putSingle(Utils.CODE, "000000");
+      authenticator.action(context);
+      assertEquals(CODE, notes.get(Utils.CODE));
+    }
+    parameters.putSingle(Utils.CODE, "000000");
+    authenticator.action(context);
+    assertNull(notes.get(Utils.CODE));
+    verify(event).error(MessageOTPAuthenticator.TOO_MANY_ATTEMPTS);
+
+    parameters.putSingle(Utils.CODE, CODE);
+    authenticator.action(context);
+    verify(context, never()).success();
+  }
+
+  @Test
+  void reloadingAfterExhaustingTheCodeDoesNotBypassTheResendTimer() throws Exception {
+    configMap.put(Utils.MAX_CODE_ATTEMPTS, "1");
+    codeIssuedSecondsAgo(1);
+    parameters.putSingle(Utils.CODE, "000000");
+    authenticator.action(context);
+    assertNull(notes.get(Utils.CODE));
+
+    parameters.clear();
+    authenticator.authenticate(context);
+    verify(sms, never()).send(anyString(), anyString(), anyList(), any(), any(), any());
+    assertNull(notes.get(Utils.CODE));
+  }
+
+  @Test
+  void configuredMaxAttemptsIsHonoured() throws Exception {
+    configMap.put(Utils.MAX_CODE_ATTEMPTS, "2");
+    parameters.putSingle(Utils.CODE, "000000");
+    authenticator.action(context);
+    assertEquals(CODE, notes.get(Utils.CODE));
+    authenticator.action(context);
+    assertNull(notes.get(Utils.CODE));
+  }
+
+  @Test
+  void aNewCodeStartsWithAFreshAttemptCount() throws Exception {
+    for (int attempt = 0; attempt < 4; attempt++) {
+      parameters.putSingle(Utils.CODE, "000000");
+      authenticator.action(context);
+    }
+    codeIssuedSecondsAgo(61);
+    parameters.clear();
+    parameters.putSingle("resend", "true");
+    authenticator.action(context);
+    String newCode = notes.get(Utils.CODE);
+    assertNotEquals(CODE, newCode);
+
+    parameters.clear();
+    parameters.putSingle(Utils.CODE, "000000");
+    authenticator.action(context);
+    assertEquals(newCode, notes.get(Utils.CODE));
   }
 
   @Test

@@ -111,6 +111,7 @@ const ADMIN_TABS = [
     "IVR",
     "Localization",
     "Voters",
+    "Messaging",
     "Areas",
     "Keys",
     "Certificates",
@@ -301,6 +302,19 @@ export const Voters: Story = {
         text: "Ext. voters sync",
         reads: ["getList user"],
         operations: ["GetUserProfileConfiguration"],
+    }),
+}
+
+export const Messaging: Story = {
+    parameters: {widgets: ["MessagingTab"]},
+    // The messaging operations are not in the generated schema yet.
+    beforeEach: async () => {
+        graphql = graphqlBoundary(answerOrPending())
+    },
+    play: tabPlay("Messaging", {
+        text: /^The channels voters of this event can choose for codes and notices/,
+        reads: ["getList sequent_backend_election"],
+        operations: ["GetMessagingAccounts", "GetMessageDeliveryStats"],
     }),
 }
 

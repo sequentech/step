@@ -1,9 +1,15 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
 import type {Meta, StoryObj} from "@storybook/react-vite"
-import {expect, fireEvent, userEvent, waitFor, within} from "storybook/test"
+import {expect, fireEvent, spyOn, userEvent, waitFor, within} from "storybook/test"
 import {createKcPageStory, getKcContextMock} from "../KcPageStory"
-import {MessageCourier} from "../KcContext"
+import {
+    DeliveryState,
+    MessageChannel,
+    MessageCourier,
+    MessengerLinkState,
+    OtpView,
+} from "../KcContext"
 import KcPage from "../KcPage"
 
 const {KcPageStory} = createKcPageStory({pageId: "message-otp.login.ftl"})
@@ -278,5 +284,300 @@ export const FrenchPageIdentifiesEnglishOtpFallback: Story = {
             "lang",
             "en"
         )
+    },
+}
+
+const WHATSAPP_CODE = {
+    courier: MessageCourier.Chosen,
+    otpView: OtpView.Code,
+    channel: MessageChannel.WhatsApp,
+    address: "+155*****999",
+    senderLabel: "Synthetic Commission",
+    deliveryState: DeliveryState.Accepted,
+    otherWayChannels: [MessageChannel.Email],
+    channelAddresses: {
+        [MessageChannel.WhatsApp]: "+155*****999",
+        [MessageChannel.Email]: "sy***@*****le.test",
+    },
+}
+
+/** The code page names the channel, the masked number and who the message is from. */
+export const WhatsAppCode: Story = {
+    args: {kcContext: WHATSAPP_CODE},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await canvas.findByRole("heading", {level: 1})
+        await expect(
+            canvas.getByText("We sent a code to your WhatsApp, +155*****999.")
+        ).toBeVisible()
+        await expect(
+            canvas.getByText(
+                "Open WhatsApp on your phone. The message is from Synthetic Commission."
+            )
+        ).toBeVisible()
+        await expect(canvas.queryByRole("radio")).not.toBeInTheDocument()
+        const otherWay = canvas.getByRole("button", {name: "Get the code another way"})
+        await expect(otherWay).toHaveAttribute("aria-expanded", "false")
+        await userEvent.click(otherWay)
+        await expect(
+            canvas.getByText(
+                "Choose an available method. Requesting a new code replaces the previous code."
+            )
+        ).toBeVisible()
+        const option = canvas.getByRole("radio", {
+            name: "We send the code to your Email, sy***@*****le.test.",
+        })
+        await expect(option).toBeChecked()
+        const send = canvas.getByRole("button", {name: "Send code"})
+        await expect(send).toBeEnabled()
+        const form = send.closest("form")!
+        await expect(new FormData(form).get("channel")).toBe("EMAIL")
+        await expect(new FormData(form).get("code")).toBeNull()
+        const codeForm = canvas.getByLabelText("Digit 1 of 6").closest("form")!
+        await expect(new FormData(codeForm).get("channel")).toBeNull()
+    },
+}
+
+/** A send whose outcome is unknown is neither "sent" nor "failed"; the other way is open. */
+export const UnconfirmedDelivery: Story = {
+    args: {kcContext: {...WHATSAPP_CODE, deliveryState: DeliveryState.Unknown}},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await canvas.findByRole("heading", {level: 1})
+        await expect(canvas.getByRole("status")).toHaveTextContent("Delivery is not confirmed yet.")
+        await expect(canvas.queryByText(/We sent a code/)).not.toBeInTheDocument()
+        await expect(canvas.queryByText(/could not send/)).not.toBeInTheDocument()
+        await expect(canvas.queryByText(/Open WhatsApp/)).not.toBeInTheDocument()
+        await expect(
+            canvas.getByRole("button", {name: "Get the code another way"})
+        ).toHaveAttribute("aria-expanded", "true")
+        await expect(canvas.getByRole("button", {name: "Send code"})).toBeVisible()
+    },
+}
+
+export const FailedDelivery: Story = {
+    args: {kcContext: {...WHATSAPP_CODE, deliveryState: DeliveryState.Failed}},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await canvas.findByRole("heading", {level: 1})
+        await expect(canvas.getByRole("alert")).toHaveTextContent(
+            "We could not send the code to your WhatsApp."
+        )
+        await expect(canvas.getByRole("button", {name: "Send code"})).toBeVisible()
+    },
+}
+
+/** A replacement code waits for the same resend timer, so switching channel is no shortcut. */
+export const OtherWayWaitsForTheResendTimer: Story = {
+    args: {kcContext: {...WHATSAPP_CODE, codeJustSent: true}},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await canvas.findByRole("heading", {level: 1})
+        await userEvent.click(canvas.getByRole("button", {name: "Get the code another way"}))
+        await expect(canvas.getByRole("button", {name: "Send code"})).toBeDisabled()
+        await expect(
+            canvas.getByRole("button", {name: /Resend code in \d+ seconds/})
+        ).toBeDisabled()
+    },
+}
+
+/** Sign-in with several verified contacts: nothing is sent until the voter picks one. */
+export const ChooseChannel: Story = {
+    args: {
+        kcContext: {
+            courier: MessageCourier.Chosen,
+            otpView: OtpView.Choose,
+            otherWayChannels: [MessageChannel.WhatsApp, MessageChannel.Email],
+            channelAddresses: {
+                [MessageChannel.WhatsApp]: "+155*****999",
+                [MessageChannel.Email]: "sy***@*****le.test",
+            },
+        },
+    },
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await expect(await canvas.findByRole("heading", {level: 1})).toHaveTextContent(
+            "Get a code by"
+        )
+        await expect(canvas.getByText("Use one of the ways you set up.")).toBeVisible()
+        await expect(canvas.queryByLabelText("Digit 1 of 6")).not.toBeInTheDocument()
+        await userEvent.click(
+            canvas.getByRole("radio", {name: "We send the code to your Email, sy***@*****le.test."})
+        )
+        const send = canvas.getByRole("button", {name: "Send code"})
+        await expect(new FormData(send.closest("form")!).get("channel")).toBe("EMAIL")
+    },
+}
+
+const MESSENGER = {
+    courier: MessageCourier.Chosen,
+    otpView: OtpView.Code,
+    channel: MessageChannel.Messenger,
+    address: "",
+    messengerPage: "Synthetic Page",
+    messengerLink: "https://m.me/synthetic.page?ref=synthetic-reference",
+    messengerWord: "MAPLE",
+    messengerState: MessengerLinkState.Pending,
+    otherWayChannels: [MessageChannel.Email],
+    channelAddresses: {[MessageChannel.Email]: "sy***@*****le.test"},
+}
+
+/** Messenger: the voter opens the Page's chat; the code arrives there. */
+export const MessengerConnect: Story = {
+    args: {kcContext: MESSENGER},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await canvas.findByRole("heading", {level: 1})
+        await expect(
+            canvas.getByRole("heading", {level: 2, name: "Get your code in Messenger"})
+        ).toBeVisible()
+        await expect(
+            canvas.getByText("The Facebook Page Synthetic Page sends your code in a chat.")
+        ).toBeVisible()
+        const connect = canvas.getByRole("link", {name: "Connect Messenger"})
+        await expect(connect).toHaveAttribute(
+            "href",
+            "https://m.me/synthetic.page?ref=synthetic-reference"
+        )
+        await expect(connect).toHaveAttribute("rel", "noopener noreferrer")
+        await expect(
+            canvas.getByText(
+                "No code after tapping Get Started? Send MAPLE to Synthetic Page in the chat."
+            )
+        ).toBeVisible()
+        await expect(canvas.getByRole("status")).toHaveTextContent(
+            "Waiting for you to open the chat."
+        )
+        const check = canvas.getByRole("button", {name: "Check again"})
+        await expect(check).toHaveAttribute("name", "messengerStatus")
+        await expect(check).toHaveAttribute("value", "true")
+        await expect(canvas.queryByText(/We sent a code/)).not.toBeInTheDocument()
+        await expect(canvas.getByLabelText("Digit 1 of 6")).toBeVisible()
+    },
+}
+
+export const MessengerCodeSent: Story = {
+    args: {kcContext: {...MESSENGER, messengerState: MessengerLinkState.CodeSent}},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await canvas.findByRole("heading", {level: 1})
+        await expect(canvas.getByRole("status")).toHaveTextContent("We sent your code in the chat.")
+    },
+}
+
+/** A replaced or expired reference cannot be used: the link is gone and the other way offered. */
+export const MessengerExpired: Story = {
+    args: {kcContext: {...MESSENGER, messengerState: MessengerLinkState.Replaced}},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await canvas.findByRole("heading", {level: 1})
+        await expect(canvas.getByRole("alert")).toHaveTextContent(
+            "This request has expired. Get the code another way."
+        )
+        await expect(
+            canvas.queryByRole("link", {name: "Connect Messenger"})
+        ).not.toBeInTheDocument()
+        await expect(canvas.queryByText(/MAPLE/)).not.toBeInTheDocument()
+    },
+}
+
+/** A code that was not sent starts no countdown: the voter can ask again at once. */
+export const FailedDeliveryCanRetryAtOnce: Story = {
+    args: {kcContext: {...WHATSAPP_CODE, deliveryState: DeliveryState.Failed}},
+    beforeEach: () => {
+        localStorage.setItem("resendOtpEndTime", String(Date.now() + 60_000))
+        return () => localStorage.removeItem("resendOtpEndTime")
+    },
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await canvas.findByRole("heading", {level: 1})
+        await expect(canvas.getByRole("button", {name: "Resend code"})).toBeEnabled()
+        await expect(canvas.getByRole("button", {name: "Send code"})).toBeEnabled()
+        await expect(localStorage.getItem("resendOtpEndTime")).toBeNull()
+    },
+}
+
+// Submitting a form would leave the story: the forms submitted without a click are recorded.
+const submittedForms: HTMLFormElement[] = []
+const recordFormSubmits = () => {
+    submittedForms.length = 0
+    sessionStorage.clear()
+    const submit = spyOn(HTMLFormElement.prototype, "submit").mockImplementation(function (
+        this: HTMLFormElement
+    ) {
+        submittedForms.push(this)
+    })
+    return () => submit.mockRestore()
+}
+
+/** While the chat is not open yet, the page asks again by itself every few seconds. */
+export const MessengerChecksAgainByItself: Story = {
+    args: {kcContext: {...MESSENGER, ttl: "300"}},
+    beforeEach: recordFormSubmits,
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await canvas.findByRole("heading", {level: 1})
+        const poll = canvasElement.querySelector<HTMLFormElement>("form#messenger-poll")!
+        await expect(poll).toHaveAttribute("method", "post")
+        await expect(new FormData(poll).get("messengerStatus")).toBe("true")
+        await expect(new FormData(poll).get("code")).toBeNull()
+        await expect(submittedForms).toHaveLength(0)
+        await waitFor(() => expect(submittedForms).toEqual([poll]), {timeout: 8000})
+        await expect(canvas.getByRole("button", {name: "Check again"})).toBeVisible()
+    },
+}
+
+/** A voter who is typing the code is never interrupted. */
+export const MessengerDoesNotCheckWhileTyping: Story = {
+    args: {kcContext: {...MESSENGER, ttl: "300"}},
+    beforeEach: recordFormSubmits,
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await canvas.findByRole("heading", {level: 1})
+        await userEvent.type(canvas.getByLabelText("Digit 1 of 6"), "1")
+        await new Promise((resolve) => setTimeout(resolve, 6000))
+        await expect(submittedForms).toHaveLength(0)
+    },
+}
+
+/** Once the code was sent there is nothing left to check. */
+export const MessengerStopsCheckingWhenTheCodeWasSent: Story = {
+    args: {kcContext: {...MESSENGER, ttl: "300", messengerState: MessengerLinkState.CodeSent}},
+    beforeEach: () => sessionStorage.clear(),
+    play: async ({canvasElement}) => {
+        await within(canvasElement).findByRole("heading", {level: 1})
+        await expect(canvasElement.querySelector("form#messenger-poll")).toBeNull()
+    },
+}
+
+/** Checking is bounded by the code's lifetime, counted from when the link was first shown. */
+export const MessengerStopsCheckingAfterTheCodeLifetime: Story = {
+    args: {kcContext: {...MESSENGER, ttl: "300"}},
+    beforeEach: () => {
+        sessionStorage.setItem(
+            `messengerPollStart:${MESSENGER.messengerLink}`,
+            String(Date.now() - 301_000)
+        )
+        return () => sessionStorage.clear()
+    },
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await canvas.findByRole("heading", {level: 1})
+        await expect(canvasElement.querySelector("form#messenger-poll")).toBeNull()
+        await expect(canvas.getByRole("button", {name: "Check again"})).toBeVisible()
+    },
+}
+
+export const WhatsAppCodeSpanish: Story = {
+    args: {locale: "es", kcContext: WHATSAPP_CODE},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await canvas.findByRole("heading", {level: 1})
+        await expect(
+            canvas.getByText("Enviamos un código a su WhatsApp, +155*****999.")
+        ).toBeVisible()
+        await expect(
+            canvas.getByRole("button", {name: "Recibir el código de otra forma"})
+        ).toBeVisible()
     },
 }

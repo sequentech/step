@@ -41,7 +41,11 @@ extern "C" {
 const ITemplate_METHOD: &'static str = r#"
 enum ITemplateMethod {
     EMAIL = "EMAIL",
-    SMS = "SMS"
+    SMS = "SMS",
+    DOCUMENT = "DOCUMENT",
+    WHATSAPP = "WHATSAPP",
+    VIBER = "VIBER",
+    MESSENGER = "MESSENGER"
 }
 "#;
 

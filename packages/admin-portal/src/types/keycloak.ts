@@ -224,4 +224,7 @@ export enum IPermissions {
     PHONE_BLACKLIST_DELETE = "phone-blacklist-delete",
     PHONE_BLACKLIST_UPDATE = "phone-blacklist-update",
     ELECTION_EVENT_VOTER_LIST_SYNC = "election-event-voter-list-reconciliation",
+    MESSAGING_ACCOUNT_READ = "messaging-account-read",
+    MESSAGING_ACCOUNT_WRITE = "messaging-account-write",
+    MESSAGING_CONFIG_WRITE = "messaging-config-write",
 }

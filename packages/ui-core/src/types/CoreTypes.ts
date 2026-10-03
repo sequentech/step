@@ -89,11 +89,17 @@ export interface IElectionStatus {
 export interface IElectionEventStatistics {
     num_emails_sent?: number
     num_sms_sent?: number
+    num_whatsapp_sent?: number
+    num_viber_sent?: number
+    num_messenger_sent?: number
 }
 
 export interface IElectionStatistics {
     num_emails_sent?: number
     num_sms_sent?: number
+    num_whatsapp_sent?: number
+    num_viber_sent?: number
+    num_messenger_sent?: number
 }
 
 export interface IContest {

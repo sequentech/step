@@ -35,12 +35,19 @@ const meta = {
             a11y: ["aria-prohibited-attr", "button-name", "empty-table-header", "label"],
         },
     },
-    beforeEach: async () => {
+    beforeEach: async ({args}) => {
         data = resourceBoundary({
             [ELECTION_TYPE_RESOURCE]: electionTypeRecords(),
             [TENANT_RESOURCE]: [settingsTenant()],
         })
-        graphql = graphqlBoundary({}, {schema: true})
+        // The messaging operations are not in the generated schema yet.
+        const messaging = args.roles.includes(IPermissions.MESSAGING_ACCOUNT_READ)
+        graphql = graphqlBoundary(
+            {
+                GetMessagingAccounts: () => ({data: {sequent_backend_messaging_account: []}}),
+            },
+            {schema: !messaging}
+        )
         await graphql.ready
     },
     render: ({roles}) => (
@@ -68,7 +75,7 @@ export const Populated: Story = {
         ).toBeVisible()
         await expect(tab(canvasElement, "electionTypes")).toHaveAttribute("aria-selected", "true")
         await expect(await canvas.findByRole("row", {name: /Referendum/})).toBeVisible()
-        expect(canvas.getAllByRole("tab")).toHaveLength(11)
+        expect(canvas.getAllByRole("tab")).toHaveLength(10)
         expect(data.calls.map(({method, args}) => [method, args[0]])).toEqual([
             ["getList", ELECTION_TYPE_RESOURCE],
         ])
@@ -94,6 +101,25 @@ export const OpenTheLocalization: Story = {
                 TENANT_RESOURCE,
             ])
         )
+    },
+}
+
+export const OpenTheMessagingAccounts: Story = {
+    args: {
+        roles: [
+            IPermissions.SETTINGS_MENU,
+            IPermissions.TENANT_WRITE,
+            IPermissions.MESSAGING_ACCOUNT_READ,
+        ],
+    },
+    parameters: {expectedFailure: null},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await canvas.findByRole("row", {name: /Referendum/})
+        expect(canvas.getAllByRole("tab")).toHaveLength(11)
+        await userEvent.click(canvas.getByRole("tab", {name: i18n.t("messagingAccounts.tab")}))
+        await expect(await canvas.findByText(i18n.t("messagingAccounts.list.empty"))).toBeVisible()
+        expect(graphql.calls.map(({name}) => name)).toEqual(["GetMessagingAccounts"])
     },
 }
 

@@ -9,6 +9,36 @@ export enum MessageCourier {
     Email = "EMAIL",
     Both = "BOTH",
     None = "NONE",
+    Chosen = "CHOSEN",
+}
+
+export enum MessageChannel {
+    Email = "EMAIL",
+    Sms = "SMS",
+    WhatsApp = "WHATSAPP",
+    Viber = "VIBER",
+    Messenger = "MESSENGER",
+}
+
+export enum OtpView {
+    Code = "CODE",
+    Choose = "CHOOSE",
+}
+
+export enum DeliveryState {
+    Queued = "QUEUED",
+    Accepted = "ACCEPTED",
+    Delivered = "DELIVERED",
+    Failed = "FAILED",
+    Unknown = "UNKNOWN",
+}
+
+export enum MessengerLinkState {
+    Pending = "PENDING",
+    CodeSent = "CODE_SENT",
+    Confirmed = "CONFIRMED",
+    Expired = "EXPIRED",
+    Replaced = "REPLACED",
 }
 
 export enum LoginValidationPolicy {
@@ -43,6 +73,17 @@ export type KcContextExtensionPerPage = {
         resendTimer?: string
         ttl?: string
         codeLength?: string
+        // Only with the CHOSEN courier: the channel in use and the voter's other channels.
+        otpView?: OtpView
+        channel?: MessageChannel
+        otherWayChannels?: MessageChannel[]
+        channelAddresses?: Partial<Record<MessageChannel, string>>
+        deliveryState?: DeliveryState
+        senderLabel?: string
+        messengerPage?: string
+        messengerLink?: string
+        messengerWord?: string
+        messengerState?: MessengerLinkState
     }
 }
 

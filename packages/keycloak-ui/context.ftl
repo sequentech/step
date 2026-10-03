@@ -22,7 +22,27 @@ window.kcContext.courier = "${courier?string?js_string}";
     "messageOtp.auth.instructionSms", "messageOtp.auth.instructionEmail", "messageOtp.auth.ttlTime",
     "messageOtp.auth.resend.button", "messageOtp.auth.resend.timer", "messageOtp.otl.address",
     "messageOtp.otl.instructionBoth", "messageOtp.otl.instructionSms", "messageOtp.otl.instructionEmail",
-    "messageOtp.otl.ttlTime", "messageOtp.otl.resend.button", "messageOtp.otl.resend.timer"
+    "messageOtp.otl.ttlTime", "messageOtp.otl.resend.button", "messageOtp.otl.resend.timer",
+    "messageChannel.EMAIL", "messageChannel.SMS", "messageChannel.WHATSAPP",
+    "messageChannel.VIBER", "messageChannel.MESSENGER",
+    "messageOtp.auth.sentTo", "messageOtp.auth.sentToChannel", "messageOtp.auth.openApp",
+    "messageOtp.otherWay.title", "messageOtp.otherWay.help", "messageOtp.otherWay.send",
+    "messageOtp.choose.title", "messageOtp.choose.help", "messageOtp.choose.option",
+    "messageOtp.delivery.unknown", "messageOtp.delivery.failed",
+    "messageOtp.messenger.title", "messageOtp.messenger.intro", "messageOtp.messenger.connect",
+    "messageOtp.messenger.step1", "messageOtp.messenger.step2", "messageOtp.messenger.step3",
+    "messageOtp.messenger.word", "messageOtp.messenger.scan", "messageOtp.messenger.check",
+    "messageOtp.messenger.pending", "messageOtp.messenger.codeSent", "messageOtp.messenger.expired",
+    "forgotPassword.success.channel.message",
+    "resetAppOtp.auth.enterContactTitle", "resetAppOtp.auth.sendCodeButton",
+    "resetAppOtp.auth.enterOtpTitle", "resetAppOtp.auth.sentToContact",
+    "resetAppOtp.auth.changeContact", "resetAppOtp.auth.verifyButton",
+    "resetAppOtp.auth.resendTextPrefix.question", "resetAppOtp.auth.ttlTime",
+    "resetAppOtp.auth.resend.timer", "resetAppOtp.auth.resend.button.link",
+    "resetAppOtp.auth.error.invalidInput", "resetAppOtp.auth.error.sendError",
+    "resetAppOtp.auth.error.resendTimer", "resetAppOtp.auth.error.codeExpired",
+    "resetAppOtp.auth.error.codeInvalid", "resetAppOtp.auth.error.maxReceiverReuse",
+    "resetAppOtp.auth.error.invalidCountry"
 ] as key>
 <#if msg(key) != key>
 window.kcContext["x-keycloakify"].messages["${key}"] = decodeHtmlEntities("${msg(key)?js_string}");

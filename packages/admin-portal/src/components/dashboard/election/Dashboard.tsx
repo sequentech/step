@@ -91,6 +91,11 @@ export default function DashboardElection() {
         areasCount: dataStats?.stats?.total_areas ?? "-",
         emailsSentCount: stats?.num_emails_sent ?? "-",
         smsSentCount: stats?.num_sms_sent ?? "-",
+        messagesSentCount: {
+            WHATSAPP: stats?.num_whatsapp_sent ?? "-",
+            VIBER: stats?.num_viber_sent ?? "-",
+            MESSENGER: stats?.num_messenger_sent ?? "-",
+        },
     }
 
     const cardWidth = 470

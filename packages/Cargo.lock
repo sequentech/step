@@ -4584,6 +4584,7 @@ dependencies = [
  "indexmap 2.14.2",
  "keycloak",
  "lru",
+ "messaging",
  "quick-xml 0.32.0",
  "regex",
  "reqwest",
@@ -6268,6 +6269,34 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "744133e4a0e0a658e1374cf3bf8e415c4052a15a111acd372764c55b4177d490"
 dependencies = [
  "libc",
+]
+
+[[package]]
+name = "messaging"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "aws-config",
+ "aws-credential-types",
+ "aws-sdk-sesv2",
+ "aws-sdk-sns",
+ "chrono",
+ "hex",
+ "hmac",
+ "lettre",
+ "openssl",
+ "rand 0.8.6",
+ "reqwest",
+ "sequent-core",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "strum 0.27.2",
+ "strum_macros 0.27.2",
+ "tokio",
+ "tracing",
+ "urlencoding",
 ]
 
 [[package]]
@@ -12156,12 +12185,14 @@ dependencies = [
  "graphql_client",
  "handlebars",
  "hex",
+ "hmac",
  "immudb-rs",
  "indexmap 2.14.2",
  "keycloak",
  "lapin",
  "lettre",
  "lopdf 0.38.0",
+ "messaging",
  "num_cpus",
  "once_cell",
  "openssl",
