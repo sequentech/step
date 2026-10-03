@@ -435,6 +435,22 @@ const englishTranslation = {
                 error: "There was a problem recording your acknowledgment. Please try again.",
             },
         },
+        slates: {
+            apply: {
+                button: "Choose this slate",
+                buttonLabel: "Choose slate {{slate}}",
+                chosen: "{{slate}} chosen. Candidates selected: {{candidates}}. Contests: {{contests}}.",
+                replaceDialog: {
+                    title: "Replace your current choices?",
+                    content:
+                        "Choosing {{slate}} replaces your choices in the contests below. Your other choices stay as they are.",
+                    removed: "Removed:",
+                    added: "Selected instead:",
+                    ok: "Replace choices",
+                    cancel: "Keep my choices",
+                },
+            },
+        },
         ballotLocator: {
             title: "Find your Ballot",
             titleResult: "Your Ballot Lookup Results",

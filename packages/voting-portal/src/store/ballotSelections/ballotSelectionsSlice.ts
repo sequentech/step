@@ -11,6 +11,8 @@ import {
     EInvalidVotePolicy,
 } from "@sequentech/ui-core"
 import {IBallotStyle} from "../ballotStyles/ballotStylesSlice"
+import {computeSlateChoices} from "../../services/SlateChoices"
+import type {IResolvedSlate} from "../../services/Slates"
 
 export interface BallotSelectionsState {
     [electionId: string]: BallotSelection | undefined
@@ -263,6 +265,27 @@ export const ballotSelectionsSlice = createSlice({
 
             return state
         },
+        applySlateSelection: (
+            state,
+            action: PayloadAction<{
+                ballotStyle: IBallotStyle
+                slate: IResolvedSlate
+            }>
+        ): BallotSelectionsState => {
+            const currentElection = state[action.payload.ballotStyle.election_id]
+            if (isUndefined(currentElection)) {
+                return state
+            }
+            try {
+                state[action.payload.ballotStyle.election_id] = computeSlateChoices(
+                    action.payload.slate,
+                    currentElection
+                ).selection
+            } catch (error) {
+                console.log(`Error applying slate: ${error}`)
+            }
+            return state
+        },
         setAllBallotSelectionsDeclineToVote: (
             state,
             action: PayloadAction<{
@@ -331,6 +354,7 @@ export const {
     setBallotSelectionInvalidVote,
     setBallotSelectionBlankVote,
     setBallotSelectionVoteChoice,
+    applySlateSelection,
     setAllBallotSelectionsDeclineToVote,
     setAllBallotSelectionsBlankBallot,
 } = ballotSelectionsSlice.actions

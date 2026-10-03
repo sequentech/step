@@ -444,6 +444,22 @@ const galegoTranslation: TranslationType = {
                 error: "Houbo un problema ao rexistrar a túa confirmación. Inténtao de novo.",
             },
         },
+        slates: {
+            apply: {
+                button: "Elixir esta candidatura",
+                buttonLabel: "Elixir a candidatura {{slate}}",
+                chosen: "{{slate}} elixida. Candidatos seleccionados: {{candidates}}. Contendas: {{contests}}.",
+                replaceDialog: {
+                    title: "Substituír as túas opcións actuais?",
+                    content:
+                        "Elixir {{slate}} substitúe as túas opcións nas contendas seguintes. O resto das túas opcións non cambia.",
+                    removed: "Quítase:",
+                    added: "Selecciónase no seu lugar:",
+                    ok: "Substituír opcións",
+                    cancel: "Manter as miñas opcións",
+                },
+            },
+        },
         ballotLocator: {
             title: "Busca a túa Papeleta",
             titleResult: "Resultado da túa busca de Papeleta",

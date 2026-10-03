@@ -446,6 +446,22 @@ const spanishTranslation: TranslationType = {
                 error: "Hubo un problema al registrar tu confirmación. Por favor, inténtalo de nuevo.",
             },
         },
+        slates: {
+            apply: {
+                button: "Elegir esta candidatura",
+                buttonLabel: "Elegir la candidatura {{slate}}",
+                chosen: "{{slate}} elegida. Candidatos seleccionados: {{candidates}}. Contiendas: {{contests}}.",
+                replaceDialog: {
+                    title: "¿Reemplazar tus opciones actuales?",
+                    content:
+                        "Elegir {{slate}} reemplaza tus opciones en las contiendas siguientes. El resto de tus opciones no cambia.",
+                    removed: "Se quita:",
+                    added: "Se selecciona en su lugar:",
+                    ok: "Reemplazar opciones",
+                    cancel: "Mantener mis opciones",
+                },
+            },
+        },
         ballotLocator: {
             title: "Encuentra tu Papeleta",
             titleResult: "Resultados de tu búsqueda de Papeleta",
