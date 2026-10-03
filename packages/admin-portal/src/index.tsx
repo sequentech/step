@@ -28,7 +28,15 @@ import {
 import {DatabaseProvider} from "./providers/DatabaseProvider"
 import {WidgetsContextProvider} from "./providers/WidgetsContextProvider"
 import {SigningProvider} from "./components/signing/SigningProvider"
+import {SigningAction} from "./lib/signing/types"
+import type {ISigningPanelData} from "./lib/signing/api"
+import {ClosedVotingCard} from "./resources/Publish/ClosedVotingCard"
 import {BrowserRouter as Router} from "react-router-dom"
+
+/** What a completed request of each protected action shows in its panel. */
+const signingCompletionActions = {
+    [SigningAction.CloseVoting]: (data: ISigningPanelData) => <ClosedVotingCard data={data} />,
+}
 
 const root = ReactDOM.createRoot(document.getElementById("root") as HTMLElement)
 
@@ -54,7 +62,11 @@ root.render(
                                                             <ApolloWrapper>
                                                                 <DatabaseProvider>
                                                                     <WidgetsContextProvider>
-                                                                        <SigningProvider>
+                                                                        <SigningProvider
+                                                                            completionActions={
+                                                                                signingCompletionActions
+                                                                            }
+                                                                        >
                                                                             <App />
                                                                         </SigningProvider>
                                                                     </WidgetsContextProvider>

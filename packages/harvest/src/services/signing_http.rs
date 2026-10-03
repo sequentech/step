@@ -52,6 +52,8 @@ pub enum SigningErrorCode {
     /// 409: the election event is locked down; its signing rules can't
     /// change.
     LockedDown,
+    /// 409: the change needs signatures; start the Post-level action.
+    SigningRequired,
 }
 
 #[derive(Debug, Clone, PartialEq)]

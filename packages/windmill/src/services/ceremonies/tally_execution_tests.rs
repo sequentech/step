@@ -4,6 +4,7 @@
 use super::*;
 use crate::adapters::memory::tally_execution::*;
 use crate::domain::tally_execution::*;
+use crate::domain::trustee_signatures::TrusteeSignatures;
 use crate::types::error::Error;
 use sequent_core::types::ceremonies::{
     Log, TallySessionDocuments, TallyTrustee, TallyTrusteeStatus,
@@ -43,6 +44,7 @@ async fn select(threshold: i64, automated: bool) -> TrusteeSelection {
         "event-a",
         &keys,
         status(),
+        &TrusteeSignatures::NotNeeded,
     )
     .await
     .unwrap()
@@ -62,6 +64,34 @@ async fn automated_execution_can_select_waiting_trustees() {
     );
 }
 #[tokio::test]
+async fn with_signatures_needed_only_signed_restores_are_eligible() {
+    let store = MemoryTallyExecution::default();
+    let keys = ceremony(2, false);
+    store.0.lock().unwrap().ceremonies.push(keys.clone());
+    // "a" restored before the rule needed signatures: it doesn't count.
+    let signatures = TrusteeSignatures::Needed {
+        signed: ["c".to_string()].into(),
+        signing: None,
+    };
+    assert_eq!(
+        select_execution_trustees_with(
+            &store,
+            &ReverseTrusteeOrder::default(),
+            "tenant-a",
+            "event-a",
+            &keys,
+            status(),
+            &signatures,
+        )
+        .await
+        .unwrap(),
+        TrusteeSelection::Insufficient {
+            available: 1,
+            threshold: 2
+        }
+    );
+}
+#[tokio::test]
 async fn insufficient_restored_trustees_prevent_execution() {
     assert_eq!(
         select(3, false).await,
@@ -78,9 +108,17 @@ async fn trustee_selection_shuffles_the_eligible_set_before_truncation() {
     let keys = ceremony(1, false);
     store.0.lock().unwrap().ceremonies.push(keys.clone());
     assert_eq!(
-        select_execution_trustees_with(&store, &order, "tenant-a", "event-a", &keys, status())
-            .await
-            .unwrap(),
+        select_execution_trustees_with(
+            &store,
+            &order,
+            "tenant-a",
+            "event-a",
+            &keys,
+            status(),
+            &TrusteeSignatures::NotNeeded
+        )
+        .await
+        .unwrap(),
         TrusteeSelection::Ready(vec!["c".into()])
     );
     assert_eq!(
@@ -107,7 +145,8 @@ async fn missing_ceremonies_do_not_shuffle_trustees() {
             "tenant-a",
             "event-a",
             &ceremony(2, false),
-            status()
+            status(),
+            &TrusteeSignatures::NotNeeded,
         )
         .await
         .unwrap(),
@@ -133,10 +172,17 @@ async fn trustee_selection_requires_a_ceremony_in_the_requested_tenant_and_event
         stored.tenant_id = tenant.into();
         stored.election_event_id = event.into();
         store.0.lock().unwrap().ceremonies.push(stored);
-        let selected =
-            select_execution_trustees_with(&store, &order, "tenant-a", "event-a", &keys, status())
-                .await
-                .unwrap();
+        let selected = select_execution_trustees_with(
+            &store,
+            &order,
+            "tenant-a",
+            "event-a",
+            &keys,
+            status(),
+            &TrusteeSignatures::NotNeeded,
+        )
+        .await
+        .unwrap();
         assert_eq!(selected, expected, "stored scope: {tenant}/{event}");
         assert_eq!(
             order.0.lock().unwrap().is_empty(),
@@ -176,6 +222,7 @@ async fn ceremony_read_errors_keep_the_original_context() {
         "event-a",
         &ceremony(2, false),
         status(),
+        &TrusteeSignatures::NotNeeded,
     )
     .await
     .unwrap_err();
@@ -505,6 +552,7 @@ async fn trustee_threshold_comes_from_the_linked_ceremony() {
             "event-a",
             &linked,
             status(),
+            &TrusteeSignatures::NotNeeded,
         )
         .await
         .unwrap();

@@ -105,7 +105,7 @@ export const WaitingNoSignatures: Story = {
         const view = await panel()
         await expect(
             view.getByText(
-                "Started in Reports. Releases the signed election returns for printing and transmission."
+                `Started by the tally, one request per Post and country. Releases the signed election returns for printing and transmission.`
             )
         ).toBeVisible()
         await expect(view.getByTestId("signing-status")).toHaveTextContent("Waiting · 0 of 3")

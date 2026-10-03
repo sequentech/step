@@ -111,7 +111,6 @@ const meta = {
     },
     beforeEach: ({args}) => {
         sessionStorage.removeItem("pendingPublishAction")
-        localStorage.removeItem("electionEventPublishTabIndex")
         data = resourceBoundary({
             sequent_backend_ballot_publication: args.publications ? PUBLICATIONS : [],
         })
@@ -256,7 +255,7 @@ export const GenerationAsksForReauthentication: Story = {
         await userEvent.click(await canvas.findByRole("button", {name: "Generate Publication"}))
         await waitFor(() => expect(args.reauthenticate).toHaveBeenCalledOnce())
         // Back to the publish tab of the election event page.
-        expect(args.reauthenticate).toHaveBeenCalledWith(expect.stringContaining("tabIndex=8"))
+        expect(args.reauthenticate).toHaveBeenCalledWith(expect.stringContaining("tabId=publish"))
         expect(sessionStorage.getItem("pendingPublishAction")).toBe("true")
         expect(args.onGenerate).not.toHaveBeenCalled()
     },

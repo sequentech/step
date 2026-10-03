@@ -129,5 +129,9 @@ impl SigningExecutorRegistry {
 
 /// The executors of the product's actions.
 pub fn default_registry() -> SigningExecutorRegistry {
-    SigningExecutorRegistry::default()
+    super::actions::executors(Arc::new(super::actions::CeleryDispatcher))
+        .into_iter()
+        .fold(SigningExecutorRegistry::default(), |registry, executor| {
+            registry.with(executor)
+        })
 }

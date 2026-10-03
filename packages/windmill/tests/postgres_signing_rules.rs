@@ -12,22 +12,32 @@ mod schema;
 mod signing;
 
 use async_trait::async_trait;
+use deadpool_postgres::Client;
 use deadpool_postgres::Transaction;
+use sequent_core::monitoring::revision::DashboardMode;
 use sequent_core::signing::{
     CancelReason, RequesterSigning, SigningAction, SigningRequestStatus, SigningRequirement,
 };
+use sequent_core::types::ceremonies::CeremoniesPolicy;
 use sequent_core::types::permissions::Permissions;
 use serde_json::json;
 use signing::*;
+use std::collections::BTreeMap;
 use std::sync::Mutex;
 use uuid::Uuid;
 use windmill::postgres::signing::*;
+use windmill::postgres::signing_actions::count_published_configuration_versions;
+use windmill::services::monitoring::config_store::{
+    reset_to_preset, Author, EventRef, MonitoringConfigAudit, RecordedChange,
+};
+use windmill::services::signing::approve::NoDocumentSigner;
 use windmill::services::signing::guard::{guard_at, GuardOutcome, GuardRequest};
+use windmill::services::signing::requests::{event_info, get_panel};
 use windmill::services::signing::rules::{
     capacity, commit_rule, list_rules, save_rule, RuleWarning, SaveRuleInput, SigningRoleAdmin,
 };
-use windmill::services::signing::signers::{list_signers, GroupChange};
-use windmill::services::signing::{InvalidReason, SigningError};
+use windmill::services::signing::signers::{list_signers, signer_titles, GroupChange};
+use windmill::services::signing::{InvalidReason, SigningCaller, SigningError};
 
 const ACTION: SigningAction = SigningAction::CloseVoting;
 /// (the Post's label, another Post's label)
@@ -425,33 +435,43 @@ async fn capacity_counts_each_posts_signers() {
             .await
             .posts_short
             .is_empty());
-        // Published event-level publications count as configuration versions.
-        for (election_id, published) in [
-            (None, true),
-            (None, true),
-            (None, false),
-            (Some(w.post), true),
+        // Published event-level publications count as configuration versions,
+        // soft-deleted ones too: the whole publish history.
+        for (election_id, published, deleted) in [
+            (None, true, false),
+            (None, true, false),
+            (None, true, true),
+            (None, false, false),
+            (Some(w.post), true, false),
         ] {
             htx.execute(
                 "INSERT INTO sequent_backend.ballot_publication
-                     (id, tenant_id, election_event_id, is_generated, election_id, published_at)
-                 VALUES ($1, $2, $3, true, $4, CASE WHEN $5 THEN now() END)",
+                     (id, tenant_id, election_event_id, is_generated, election_id, published_at,
+                      deleted_at)
+                 VALUES ($1, $2, $3, true, $4, CASE WHEN $5 THEN now() END,
+                         CASE WHEN $6 THEN now() END)",
                 &[
                     &Uuid::new_v4(),
                     &w.tenant,
                     &w.event,
                     &election_id,
                     &published,
+                    &deleted,
                 ],
             )
             .await
             .unwrap();
         }
+        let version = capacity_of(&htx, &ktx, &w, ACTION, None, None)
+            .await
+            .config_version;
+        assert_eq!(version, 3);
+        // The same number an approve-configuration request carries.
         assert_eq!(
-            capacity_of(&htx, &ktx, &w, ACTION, None, None)
+            version,
+            count_published_configuration_versions(&htx, w.tenant, w.event)
                 .await
-                .config_version,
-            2
+                .unwrap()
         );
         // Event actions count every signer.
         let event = capacity_of(
@@ -933,4 +953,189 @@ async fn a_keycloak_failure_puts_back_what_was_sent_and_saves_nothing() {
         .unwrap()
         .is_none());
     assert!(steps_in(&tx, w.event).await.is_empty());
+}
+
+#[tokio::test]
+async fn a_trustee_rule_needs_manual_ceremonies() {
+    for (post, other) in LABELS {
+        let w = world(post).await;
+        let mut hasura = w.pool.get().await.unwrap();
+        let htx = hasura.transaction().await.unwrap();
+        let mut keycloak = w.pool.get().await.unwrap();
+        let ktx = keycloak.transaction().await.unwrap();
+        directory(&ktx, &realm(w.tenant), post, other).await;
+        let manager = caller("manager", &[Permissions::SIGNING_RULES_WRITE], &[]);
+        let policy = |policy: CeremoniesPolicy| json!({ "ceremonies_policy": policy.to_string() });
+        htx.execute(
+            "UPDATE sequent_backend.election_event SET presentation = $1 WHERE id = $2",
+            &[&policy(CeremoniesPolicy::AUTOMATED_CEREMONIES), &w.event],
+        )
+        .await
+        .unwrap();
+        for action in [
+            SigningAction::ConfirmKeyShare,
+            SigningAction::ContributeKeyShare,
+        ] {
+            let mut required = input(1, 0);
+            required.action = action;
+            // No trustee takes the step to sign it: the rule would be bypassed.
+            assert_eq!(
+                reason(save_rule(&htx, &ktx, &manager, w.tenant, w.event, &required).await),
+                InvalidReason::AutomatedCeremonies,
+                "{post}: {action}"
+            );
+            let mut off = required.clone();
+            off.requirement = SigningRequirement::NotRequired;
+            save_rule(&htx, &ktx, &manager, w.tenant, w.event, &off)
+                .await
+                .unwrap();
+        }
+        // Other actions don't depend on the ceremonies.
+        let mut close = input(1, 0);
+        close.action = ACTION;
+        save_rule(&htx, &ktx, &manager, w.tenant, w.event, &close)
+            .await
+            .unwrap();
+
+        htx.execute(
+            "UPDATE sequent_backend.election_event SET presentation = $1 WHERE id = $2",
+            &[&policy(CeremoniesPolicy::MANUAL_CEREMONIES), &w.event],
+        )
+        .await
+        .unwrap();
+        let mut required = input(1, 1);
+        required.action = SigningAction::ConfirmKeyShare;
+        save_rule(&htx, &ktx, &manager, w.tenant, w.event, &required)
+            .await
+            .unwrap();
+    }
+}
+
+/// The Certificates tab names each signer as the panel does: their `title`
+/// attribute, else the group that grants them a sign permission. Someone
+/// who signs nothing, or signs through a direct or composite role, has
+/// none.
+#[tokio::test]
+async fn each_signer_has_the_panels_title() {
+    for (post, other) in LABELS {
+        let pool = schema::pool().await;
+        let mut client = pool.get().await.unwrap();
+        let tx = client.transaction().await.unwrap();
+        directory(&tx, "tenant-x", post, other).await;
+        let titles = signer_titles(&tx, "tenant-x").await.unwrap();
+        assert_eq!(
+            titles,
+            BTreeMap::from([
+                ("jose".to_string(), "sbei".to_string()),
+                ("maria".to_string(), "Chairperson".to_string()),
+            ])
+        );
+        // Another realm's signers are not this tenant's.
+        assert!(signer_titles(&tx, "another-realm")
+            .await
+            .unwrap()
+            .is_empty());
+    }
+}
+
+/// A monitoring configuration log that keeps nothing.
+struct NoAudit;
+
+#[async_trait]
+impl MonitoringConfigAudit for NoAudit {
+    async fn prepare(&self, _: &mut Client, _: EventRef, _: &Author) -> anyhow::Result<()> {
+        Ok(())
+    }
+
+    async fn record(&self, _: &Transaction<'_>, _: &RecordedChange) -> anyhow::Result<()> {
+        Ok(())
+    }
+}
+
+/// What the Signatures tab and a signer's list show beside the Hasura rows:
+/// the event's time zone (its monitoring settings', as the panel and the
+/// signed PDF use) for anyone who reads a part of the tab or signs, and the
+/// signers' titles for who reads the certificates.
+#[tokio::test]
+async fn the_event_info_names_its_zone_and_titles_to_who_may_read_them() {
+    // (monitoring preset, the time zone its settings name)
+    for ((preset, zone), (post, other)) in [("comelec", "Asia/Manila"), ("campus", "Europe/Madrid")]
+        .into_iter()
+        .zip(LABELS)
+    {
+        let w = world(post).await;
+        let mut keycloak = w.pool.get().await.unwrap();
+        let ktx = keycloak.transaction().await.unwrap();
+        directory(&ktx, &realm(w.tenant), post, other).await;
+        let info = |who: SigningCaller| {
+            let (w, ktx) = (w.clone(), &ktx);
+            async move {
+                let mut hasura = w.pool.get().await.unwrap();
+                let htx = hasura.transaction().await.unwrap();
+                event_info(&htx, ktx, &who, w.tenant, w.event).await
+            }
+        };
+        let certificates = caller("officer", &[Permissions::SIGNING_CERTIFICATES_READ], &[]);
+        // A request's panel shows its times in the same zone.
+        w.rule(ACTION, 2, RequesterSigning::Allowed, None).await;
+        let reader = caller("ofov", &[Permissions::SIGNING_REQUESTS_READ], &[post]);
+        let request = w.start(&reader, ACTION, subject(1), at(0)).await;
+        let panel_zone = || {
+            let (w, ktx, reader) = (w.clone(), &ktx, reader.clone());
+            async move {
+                let mut hasura = w.pool.get().await.unwrap();
+                let htx = hasura.transaction().await.unwrap();
+                get_panel(&htx, ktx, &NoDocumentSigner, &reader, w.tenant, request.id)
+                    .await
+                    .unwrap()
+                    .time_zone
+            }
+        };
+
+        // Without monitoring settings the event names no zone.
+        let unset = info(certificates.clone()).await.unwrap();
+        assert_eq!(unset.time_zone, None);
+        assert_eq!(panel_zone().await, None);
+
+        let mut client = w.pool.get().await.unwrap();
+        reset_to_preset(
+            &mut client,
+            &NoAudit,
+            EventRef {
+                tenant_id: w.tenant,
+                election_event_id: w.event,
+            },
+            &Author {
+                id: "admin".into(),
+                name: None,
+            },
+            preset,
+            DashboardMode::Configured,
+        )
+        .await
+        .unwrap();
+
+        let read = info(certificates).await.unwrap();
+        assert_eq!(read.time_zone.as_deref(), Some(zone));
+        assert_eq!(panel_zone().await.as_deref(), Some(zone));
+        assert_eq!(
+            read.titles.get("maria").map(String::as_str),
+            Some("Chairperson")
+        );
+        for who in [
+            caller("ofov", &[Permissions::SIGNING_REQUESTS_READ], &[]),
+            caller("manager", &[Permissions::SIGNING_RULES_READ], &[]),
+            caller("sbei", &[Permissions::SIGN_CLOSE_VOTING], &[post]),
+            caller("trustee", &[Permissions::SIGN_KEY_CEREMONY], &[]),
+        ] {
+            let read = info(who.clone()).await.unwrap();
+            assert_eq!(read.time_zone.as_deref(), Some(zone), "{}", who.user_id);
+            assert!(read.titles.is_empty(), "{}", who.user_id);
+        }
+        let outsider = caller("outsider", &[Permissions::ADMIN_USER], &[]);
+        assert!(matches!(
+            info(outsider).await,
+            Err(SigningError::Forbidden(_))
+        ));
+    }
 }

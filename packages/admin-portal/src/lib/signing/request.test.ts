@@ -289,6 +289,34 @@ describe("signedView", () => {
         ])
     })
 
+    it("names a trustee request's ceremony and trustee only beside the ids the panel names", () => {
+        const trustee = (extra: Partial<ISigningPanelData>, trusteeId = "tr-1") =>
+            signedView(
+                withPayload(
+                    (p) =>
+                        (p.subject = {
+                            keys_ceremony_id: "kc-1",
+                            key_share_sha256: "ab",
+                            trustee_id: "tr-1",
+                        }),
+                    {trustee_id: trusteeId},
+                    extra
+                )
+            ).rows
+        const names = {ceremony_id: "kc-1", ceremony_name: "Madrid PE keys", trustee_name: "Jose"}
+        expect(trustee(names)).toEqual([
+            {key: "key_share_sha256", label: null, value: "ab"},
+            {key: "keys_ceremony_id", label: null, value: "kc-1", name: "Madrid PE keys"},
+            {key: "trustee_id", label: null, value: "tr-1", name: "Jose"},
+        ])
+        // A name the panel gives another id is not shown beside the signed one.
+        expect(trustee({...names, ceremony_id: "kc-2"}, "tr-2").map((row) => row.name)).toEqual([
+            undefined,
+            undefined,
+            undefined,
+        ])
+    })
+
     it.each([
         ["a value the payload doesn't sign", {key: "channels", value: "KIOSK"}],
         ["a field the payload doesn't have", {key: "why", value: "No automatic match"}],

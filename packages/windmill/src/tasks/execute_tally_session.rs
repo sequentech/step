@@ -52,6 +52,7 @@ use crate::services::reports::template_renderer::{
     ReportOriginatedFrom, ReportOrigins, TemplateRenderer,
 };
 use crate::services::reports::utils::get_public_asset_template;
+use crate::services::signing::key_shares::tally_trustee_signatures;
 use crate::services::tally_sheets::validation::validate_tally_sheet;
 use crate::services::tasks_semaphore::acquire_semaphore;
 use crate::services::temp_path::{
@@ -720,6 +721,14 @@ async fn map_plaintext_data(
         return Ok(None);
     };
 
+    // When the rule makes trustees sign, only signed restores count.
+    let signatures = tally_trustee_signatures(
+        hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        &tally_session_id,
+    )
+    .await?;
     let trustee_names = match select_execution_trustees_with(
         &PgTallyExecution {
             transaction: hasura_transaction,
@@ -729,6 +738,7 @@ async fn map_plaintext_data(
         &election_event_id,
         keys_ceremony,
         ceremony_status,
+        &signatures,
     )
     .await?
     {

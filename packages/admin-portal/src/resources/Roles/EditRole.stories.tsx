@@ -16,6 +16,7 @@ import {
     permissionRecords,
     roleRecords,
     signPermissionRecord,
+    signingPermissionRecords,
 } from "./__stories__/RolesFixture"
 
 interface Scenario {
@@ -25,13 +26,15 @@ interface Scenario {
     loading: boolean
     /** The signed-in user's permissions. */
     roles: string[]
+    /** Whether the realm also has signing permissions. */
+    withSigning?: boolean
     close: () => void
 }
 
 let boundary: ReturnType<typeof graphqlBoundary>
 
 /** The roles list the editor reads its role from, as ListRoles provides it. */
-function RoleList({loading, close}: Omit<Scenario, "failure" | "roles">) {
+function RoleList({loading, close, withSigning}: Omit<Scenario, "failure" | "roles">) {
     const list = useList({
         data: loading ? undefined : roleRecords(),
         isPending: loading,
@@ -42,7 +45,10 @@ function RoleList({loading, close}: Omit<Scenario, "failure" | "roles">) {
             <EditRole
                 id={AUDITOR_ROLE_ID}
                 close={close}
-                permissions={[...permissionRecords(), signPermissionRecord()]}
+                permissions={[
+                    ...permissionRecords(),
+                    ...(withSigning ? signingPermissionRecords() : [signPermissionRecord()]),
+                ]}
             />
         </ListContextProvider>
     )
@@ -89,6 +95,26 @@ export default meta
 type Story = StoryObj<Scenario>
 
 const permissionName = (name: string) => i18n.t(`usersAndRolesScreen.permissions.${name}`)
+
+/** The permissions the grid lists, in order. */
+const listedPermissions = (canvasElement: HTMLElement) =>
+    within(canvasElement)
+        .getAllByRole("row")
+        .slice(1)
+        .map((row) => within(row).getAllByRole("gridcell")[0].textContent)
+
+/** Types in the grid's quick filter, which its toolbar shows. */
+async function search(canvasElement: HTMLElement, text: string) {
+    const field = await within(canvasElement).findByRole("searchbox")
+    await userEvent.clear(field)
+    await userEvent.type(field, text)
+}
+
+/** The labels of the signing permissions whose label contains the text. */
+const signingLabels = (text: string) =>
+    signingPermissionRecords()
+        .map(({name}) => permissionName(name as string))
+        .filter((name) => name.includes(text))
 
 async function permissionCheckbox(canvasElement: HTMLElement, name: string) {
     const row = await within(canvasElement).findByRole("row", {
@@ -209,5 +235,20 @@ export const ReadOnly: Story = {
         for (const name of ["role-read", "role-write", IPermissions.SIGN_CLOSE_VOTING]) {
             await expect(await permissionCheckbox(canvasElement, name)).toBeDisabled()
         }
+    },
+}
+
+export const SearchFindsSigningPermissions: Story = {
+    args: {withSigning: true},
+    play: async ({canvasElement}) => {
+        await search(canvasElement, "Sign:")
+        await waitFor(() =>
+            expect(listedPermissions(canvasElement)).toEqual(signingLabels("Sign:"))
+        )
+        expect(signingLabels("Sign:")).toHaveLength(2)
+        await search(canvasElement, "Signatures")
+        await waitFor(() =>
+            expect(listedPermissions(canvasElement)).toEqual(signingLabels("Signatures"))
+        )
     },
 }

@@ -57,6 +57,7 @@ pub mod render_document_pdf;
 pub mod render_report;
 pub mod review_boards;
 pub mod review_cast_votes;
+pub mod run_signed_action;
 pub mod scheduled_events;
 pub mod scheduled_reports;
 pub mod send_template;

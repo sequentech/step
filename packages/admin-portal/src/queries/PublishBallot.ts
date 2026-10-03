@@ -10,6 +10,12 @@ export const PUBLISH_BALLOT = gql`
             ballot_publication_id: $ballotPublicationId
         ) {
             ballot_publication_id
+            signing_request {
+                id
+                code
+                required
+                expires_at
+            }
         }
     }
 `

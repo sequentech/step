@@ -26,6 +26,7 @@ use super::{
     SigningResult,
 };
 use crate::postgres::signing::*;
+use crate::postgres::signing_actions::count_published_configuration_versions;
 use crate::services::election::is_election_event_locked_down_in;
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
@@ -37,6 +38,7 @@ use sequent_core::signing::{
     CancelReason, RequesterSigning, SigningAction, SigningRequirement, SigningRule,
     SigningRuleError, SigningScope, MAX_EXPIRES_MINUTES, MAX_SIGNATURES,
 };
+use sequent_core::types::ceremonies::CeremoniesPolicy;
 use sequent_core::types::permissions::Permissions;
 use serde::Serialize;
 use serde_json::json;
@@ -131,8 +133,9 @@ pub struct SigningCapacity {
     /// The action's requests waiting for signatures, which a rule save
     /// cancels.
     pub waiting: usize,
-    /// The event's configuration version: its published event-level
-    /// ballot publications.
+    /// The event's configuration version: every event-level ballot
+    /// publication it ever published, as approve-configuration requests
+    /// count it.
     pub config_version: i64,
 }
 
@@ -203,7 +206,7 @@ pub async fn capacity(
             .await?
             .len();
     let config_version =
-        count_published_event_publications(hasura_transaction, tenant_id, election_event_id)
+        count_published_configuration_versions(hasura_transaction, tenant_id, election_event_id)
             .await?;
     Ok(SigningCapacity {
         max,
@@ -396,6 +399,25 @@ fn validate(rule: &SigningRule) -> SigningResult<()> {
     })
 }
 
+/// The event's ceremonies policy; manual when it sets none.
+async fn event_ceremonies_policy(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: Uuid,
+    election_event_id: Uuid,
+) -> SigningResult<CeremoniesPolicy> {
+    let policy: Option<String> = hasura_transaction
+        .query_opt(
+            "SELECT presentation->>'ceremonies_policy' FROM sequent_backend.election_event
+             WHERE tenant_id = $1 AND id = $2",
+            &[&tenant_id, &election_event_id],
+        )
+        .await?
+        .and_then(|row| row.get(0));
+    Ok(policy
+        .and_then(|policy| policy.parse().ok())
+        .unwrap_or(CeremoniesPolicy::MANUAL_CEREMONIES))
+}
+
 /// Makes every database change of a rule save; see the module
 /// documentation. The caller holds `signing-rules-write`, called
 /// [`SigningRoleAdmin::prepare`] before when the roles change, and ends
@@ -462,6 +484,18 @@ pub async fn save_rule(
         return Err(SigningError::invalid(
             InvalidReason::LockedDown,
             "The election event is locked down; its signing rules can't change.",
+        ));
+    }
+    // With automated ceremonies no trustee takes the step, so a rule that
+    // needs their signature would be bypassed.
+    if rule.is_required()
+        && action.is_trustee()
+        && event_ceremonies_policy(hasura_transaction, tenant_id, election_event_id).await?
+            == CeremoniesPolicy::AUTOMATED_CEREMONIES
+    {
+        return Err(SigningError::invalid(
+            InvalidReason::AutomatedCeremonies,
+            "The election event runs its key ceremonies automatically: trustees can't sign their key steps.",
         ));
     }
 
