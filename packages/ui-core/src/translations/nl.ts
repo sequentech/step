@@ -66,6 +66,18 @@ const dutchTranslation: TranslationType = {
             applied: "{{setting}}: {{value}}",
             resetDone: "Instellingen hersteld",
         },
+        audioInstructions: {
+            label: "Gesproken instructies",
+            play: "Instructies beluisteren",
+            pause: "Instructies pauzeren",
+            resume: "Instructies hervatten",
+            stop: "Instructies stoppen",
+            showTranscript: "Instructies lezen",
+            hideTranscript: "Instructies verbergen",
+            playing: "Instructies worden afgespeeld",
+            paused: "Instructies gepauzeerd",
+            stopped: "Instructies gestopt",
+        },
         candidate: {
             moreInformationLink: "More information",
             writeInsPlaceholder: "Type write-in candidate here",

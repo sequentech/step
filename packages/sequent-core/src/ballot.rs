@@ -1199,6 +1199,9 @@ pub struct ElectionEventPresentation {
     #[borsh(skip)]
     pub voter_accessibility_settings_policy:
         Option<VoterAccessibilitySettingsPolicy>,
+    /// Skipped in Borsh so that published ballot styles keep their hashes.
+    #[borsh(skip)]
+    pub audio_instructions_policy: Option<AudioInstructionsPolicy>,
 }
 
 impl ElectionEvent {
@@ -2060,6 +2063,33 @@ pub enum VoterAccessibilitySettingsPolicy {
     #[default]
     Disabled,
     Enabled,
+}
+
+/// Whether each Voting Portal screen offers spoken instructions, and where
+/// the audio may come from: only the event's uploaded recordings, or the
+/// browser's speech synthesis where a screen has no recording.
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    PartialEq,
+    Eq,
+    Debug,
+    Clone,
+    Copy,
+    Default,
+    EnumString,
+    Display,
+)]
+#[serde(rename_all = "kebab-case")]
+#[strum(serialize_all = "kebab-case")]
+pub enum AudioInstructionsPolicy {
+    #[default]
+    Disabled,
+    Recorded,
+    RecordedOrSynthesized,
 }
 
 #[allow(non_camel_case_types)]
@@ -3226,6 +3256,38 @@ mod presentation_borsh_compat_tests {
     }
 
     #[test]
+    fn audio_instructions_policy_is_optional_and_strict() {
+        let parse = |presentation: serde_json::Value| {
+            serde_json::from_value::<ElectionEventPresentation>(presentation)
+        };
+        let legacy = parse(serde_json::json!({})).unwrap();
+        assert_eq!(legacy.audio_instructions_policy, None);
+        assert_eq!(
+            legacy.audio_instructions_policy.unwrap_or_default(),
+            AudioInstructionsPolicy::Disabled
+        );
+
+        let configured = parse(serde_json::json!({
+            "audio_instructions_policy": "recorded-or-synthesized"
+        }))
+        .unwrap();
+        assert_eq!(
+            configured.audio_instructions_policy,
+            Some(AudioInstructionsPolicy::RecordedOrSynthesized)
+        );
+        assert_eq!(
+            serde_json::to_value(&configured).unwrap()
+                ["audio_instructions_policy"],
+            "recorded-or-synthesized"
+        );
+
+        assert!(parse(serde_json::json!({
+            "audio_instructions_policy": "autoplay"
+        }))
+        .is_err());
+    }
+
+    #[test]
     fn json_only_results_fields_do_not_change_borsh_bytes() {
         let event_presentation = ElectionEventPresentation::default();
         let event_bytes = borsh::to_vec(&event_presentation).unwrap();
@@ -3245,6 +3307,14 @@ mod presentation_borsh_compat_tests {
             borsh::to_vec(&event_with_accessibility).unwrap(),
             event_bytes
         );
+
+        let event_with_audio = ElectionEventPresentation {
+            audio_instructions_policy: Some(
+                AudioInstructionsPolicy::RecordedOrSynthesized,
+            ),
+            ..ElectionEventPresentation::default()
+        };
+        assert_eq!(borsh::to_vec(&event_with_audio).unwrap(), event_bytes);
 
         let election_presentation = ElectionPresentation::default();
         let election_bytes = borsh::to_vec(&election_presentation).unwrap();

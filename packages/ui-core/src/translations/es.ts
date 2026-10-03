@@ -66,6 +66,18 @@ const spanishTranslation: TranslationType = {
             applied: "{{setting}}: {{value}}",
             resetDone: "Ajustes restablecidos",
         },
+        audioInstructions: {
+            label: "Instrucciones en audio",
+            play: "Escuchar las instrucciones",
+            pause: "Pausar las instrucciones",
+            resume: "Reanudar las instrucciones",
+            stop: "Detener las instrucciones",
+            showTranscript: "Leer las instrucciones",
+            hideTranscript: "Ocultar las instrucciones",
+            playing: "Reproduciendo las instrucciones",
+            paused: "Instrucciones en pausa",
+            stopped: "Instrucciones detenidas",
+        },
         candidate: {
             moreInformationLink: "Más información",
             writeInsPlaceholder: "Teclee aquí el candidato por escrito",

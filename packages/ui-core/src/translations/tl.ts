@@ -66,6 +66,18 @@ const tagalogTranslation: TranslationType = {
             applied: "{{setting}}: {{value}}",
             resetDone: "Na-reset ang mga setting",
         },
+        audioInstructions: {
+            label: "Mga tagubiling audio",
+            play: "Pakinggan ang mga tagubilin",
+            pause: "I-pause ang mga tagubilin",
+            resume: "Ituloy ang mga tagubilin",
+            stop: "Ihinto ang mga tagubilin",
+            showTranscript: "Basahin ang mga tagubilin",
+            hideTranscript: "Itago ang mga tagubilin",
+            playing: "Pinatutugtog ang mga tagubilin",
+            paused: "Naka-pause ang mga tagubilin",
+            stopped: "Inihinto ang mga tagubilin",
+        },
         candidate: {
             moreInformationLink: "Karagdagang impormasyon",
             writeInsPlaceholder: "I-type ang write-in candidate dito",

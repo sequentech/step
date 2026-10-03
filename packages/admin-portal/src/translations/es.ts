@@ -589,6 +589,15 @@ const spanishTranslation: TranslationType = {
                             "Ofrecer ajustes de tamaño de texto, contraste, espaciado y movimiento",
                     },
                 },
+                audioInstructionsPolicy: {
+                    policyLabel: "Instrucciones en audio",
+                    options: {
+                        "disabled": "Sin instrucciones en audio",
+                        "recorded": "Solo grabaciones subidas",
+                        "recorded-or-synthesized":
+                            "Grabaciones subidas, o la voz del navegador donde no haya",
+                    },
+                },
                 showCastVoteLogs: {
                     policyLabel: "Mostrar logs de votación",
                     options: {
@@ -2736,6 +2745,23 @@ const spanishTranslation: TranslationType = {
             },
         },
         materials: {
+            audioInstructions: {
+                screenLabel: "Instrucciones en audio para la pantalla",
+                languageLabel: "Idioma de la grabación",
+                none: "No son instrucciones en audio",
+                helperText:
+                    "Los votantes oyen este archivo cuando piden las instrucciones en esa pantalla.",
+                screens: {
+                    "election-chooser": "Lista de elecciones",
+                    "start": "Inicio",
+                    "ballot": "Papeleta",
+                    "review": "Revisión",
+                    "confirmation": "Confirmación",
+                    "audit": "Auditoría",
+                    "ballot-locator": "Localizador de papeletas",
+                    "support-materials": "Materiales de apoyo",
+                },
+            },
             createMaterialSuccess: "Material de soporte creado",
             createMaterialError: "Error creando material de soporte",
             updateMaterialSuccess: "Material de soporte actualizado",

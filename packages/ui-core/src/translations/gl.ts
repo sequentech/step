@@ -67,6 +67,18 @@ const galegoTranslation: TranslationType = {
             applied: "{{setting}}: {{value}}",
             resetDone: "Axustes restablecidos",
         },
+        audioInstructions: {
+            label: "Instrucións en audio",
+            play: "Escoitar as instrucións",
+            pause: "Pausar as instrucións",
+            resume: "Retomar as instrucións",
+            stop: "Deter as instrucións",
+            showTranscript: "Ler as instrucións",
+            hideTranscript: "Ocultar as instrucións",
+            playing: "Reproducindo as instrucións",
+            paused: "Instrucións en pausa",
+            stopped: "Instrucións detidas",
+        },
         candidate: {
             moreInformationLink: "Máis información",
             writeInsPlaceholder: "Escribe aquí o candidato escrito",

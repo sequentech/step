@@ -66,6 +66,18 @@ const catalanTranslation: TranslationType = {
             applied: "{{setting}}: {{value}}",
             resetDone: "Configuració restablerta",
         },
+        audioInstructions: {
+            label: "Instruccions en àudio",
+            play: "Escolta les instruccions",
+            pause: "Posa en pausa les instruccions",
+            resume: "Reprèn les instruccions",
+            stop: "Atura les instruccions",
+            showTranscript: "Llegeix les instruccions",
+            hideTranscript: "Amaga les instruccions",
+            playing: "S'estan reproduint les instruccions",
+            paused: "Instruccions en pausa",
+            stopped: "Instruccions aturades",
+        },
         candidate: {
             moreInformationLink: "Més informació",
             writeInsPlaceholder: "Tecleja aquí el candidat per escrit",

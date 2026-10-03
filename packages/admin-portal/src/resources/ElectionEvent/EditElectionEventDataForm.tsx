@@ -60,6 +60,7 @@ import {
     EVoterCertificatePolicy,
     EShowCastVoteLogsPolicy,
     EVoterAccessibilitySettingsPolicy,
+    EAudioInstructionsPolicy,
     EElectionEventDecodedBallots,
     EElectionEventCeremoniesPolicy,
     EElectionEventAutomaticRecountPolicy,
@@ -719,6 +720,13 @@ export const EditElectionEventDataForm: React.FC<{
         }))
     }
 
+    const audioInstructionsPolicyChoices = (): Array<EnumChoice<EAudioInstructionsPolicy>> => {
+        return Object.values(EAudioInstructionsPolicy).map((value) => ({
+            id: value,
+            name: t(`electionEventScreen.field.audioInstructionsPolicy.options.${value}`),
+        }))
+    }
+
     const handleImportCandidates = async (documentId: string, sha256: string) => {
         setOpenImportCandidates(false)
         const currWidget = addWidget(ETasksExecution.IMPORT_CANDIDATES, undefined)
@@ -1364,6 +1372,16 @@ export const EditElectionEventDataForm: React.FC<{
                                 t(
                                     "electionEventScreen.field.voterAccessibilitySettingsPolicy.policyLabel"
                                 )
+                            )}
+                        />
+                        <SelectInput
+                            disabled={!canEdit}
+                            source="presentation.audio_instructions_policy"
+                            choices={audioInstructionsPolicyChoices()}
+                            validate={required()}
+                            defaultValue={EAudioInstructionsPolicy.DISABLED}
+                            label={String(
+                                t("electionEventScreen.field.audioInstructionsPolicy.policyLabel")
                             )}
                         />
                         <FormDataConsumer>

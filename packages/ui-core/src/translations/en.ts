@@ -64,6 +64,18 @@ const englishTranslation = {
             applied: "{{setting}}: {{value}}",
             resetDone: "Settings reset",
         },
+        audioInstructions: {
+            label: "Audio instructions",
+            play: "Listen to the instructions",
+            pause: "Pause the instructions",
+            resume: "Resume the instructions",
+            stop: "Stop the instructions",
+            showTranscript: "Read the instructions",
+            hideTranscript: "Hide the instructions",
+            playing: "Playing the instructions",
+            paused: "Instructions paused",
+            stopped: "Instructions stopped",
+        },
         candidate: {
             moreInformationLink: "More information",
             writeInsPlaceholder: "Type write-in candidate here",

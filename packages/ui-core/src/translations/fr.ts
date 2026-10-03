@@ -66,6 +66,18 @@ const frenchTranslation: TranslationType = {
             applied: "{{setting}} : {{value}}",
             resetDone: "Paramètres réinitialisés",
         },
+        audioInstructions: {
+            label: "Instructions audio",
+            play: "Écouter les instructions",
+            pause: "Mettre les instructions en pause",
+            resume: "Reprendre les instructions",
+            stop: "Arrêter les instructions",
+            showTranscript: "Lire les instructions",
+            hideTranscript: "Masquer les instructions",
+            playing: "Lecture des instructions",
+            paused: "Instructions en pause",
+            stopped: "Instructions arrêtées",
+        },
         candidate: {
             moreInformationLink: "Plus d'informations",
             writeInsPlaceholder: "Tapez ici le candidat par écrit",

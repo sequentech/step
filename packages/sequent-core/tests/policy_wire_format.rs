@@ -196,6 +196,11 @@ policy_contract!(voter_accessibility_settings, VoterAccessibilitySettingsPolicy,
     Disabled => ("disabled", 0),
     Enabled => ("enabled", 1),
 );
+policy_contract!(audio_instructions, AudioInstructionsPolicy,
+    Disabled => ("disabled", 0),
+    Recorded => ("recorded", 1),
+    RecordedOrSynthesized => ("recorded-or-synthesized", 2),
+);
 policy_contract!(lockdown, LockedDown,
     LOCKED_DOWN => ("locked-down", 0),
     NOT_LOCKED_DOWN => ("not-locked-down", 1),

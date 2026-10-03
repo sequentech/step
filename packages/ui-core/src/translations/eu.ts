@@ -66,6 +66,18 @@ const basqueTranslation: TranslationType = {
             applied: "{{setting}}: {{value}}",
             resetDone: "Ezarpenak berrezarri dira",
         },
+        audioInstructions: {
+            label: "Audio-argibideak",
+            play: "Entzun argibideak",
+            pause: "Pausatu argibideak",
+            resume: "Jarraitu argibideekin",
+            stop: "Gelditu argibideak",
+            showTranscript: "Irakurri argibideak",
+            hideTranscript: "Ezkutatu argibideak",
+            playing: "Argibideak erreproduzitzen",
+            paused: "Argibideak pausatuta",
+            stopped: "Argibideak geldituta",
+        },
         candidate: {
             moreInformationLink: "Informazio gehiago",
             writeInsPlaceholder: "Idatzi hautagaia hemen",

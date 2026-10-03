@@ -589,6 +589,15 @@ const catalanTranslation: TranslationType = {
                         enabled: "Ofereix la mida del text, el contrast, l'espaiat i el moviment",
                     },
                 },
+                audioInstructionsPolicy: {
+                    policyLabel: "Instruccions en àudio",
+                    options: {
+                        "disabled": "Sense instruccions en àudio",
+                        "recorded": "Només enregistraments pujats",
+                        "recorded-or-synthesized":
+                            "Enregistraments pujats, o la veu del navegador on no n'hi hagi",
+                    },
+                },
                 showCastVoteLogs: {
                     policyLabel: "Mostra els registres de votació",
                     options: {
@@ -2745,6 +2754,23 @@ const catalanTranslation: TranslationType = {
             },
         },
         materials: {
+            audioInstructions: {
+                screenLabel: "Instruccions en àudio per a la pantalla",
+                languageLabel: "Idioma de l'enregistrament",
+                none: "No són instruccions en àudio",
+                helperText:
+                    "Els votants senten aquest fitxer quan demanen les instruccions en aquesta pantalla.",
+                screens: {
+                    "election-chooser": "Llista d'eleccions",
+                    "start": "Inici",
+                    "ballot": "Papereta",
+                    "review": "Revisió",
+                    "confirmation": "Confirmació",
+                    "audit": "Auditoria",
+                    "ballot-locator": "Localitzador de paperetes",
+                    "support-materials": "Materials de suport",
+                },
+            },
             createMaterialSuccess: "Material de suport creat",
             createMaterialError: "Error creant material de suport",
             updateMaterialSuccess: "Material de suport actualitzat",
