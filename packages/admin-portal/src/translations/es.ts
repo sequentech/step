@@ -341,6 +341,10 @@ const spanishTranslation: TranslationType = {
                 helpLinks: "Enlaces de Ayuda",
                 logoUrl: "Logo URL",
                 css: "CSS Personalizado",
+
+                displayName: "Nombre visible",
+                displayNameHelp:
+                    "El nombre de la organización en los mensajes que la mencionan. Vacío: el nombre corto del inquilino.",
             },
             errors: {
                 invalidHelpLinks: "Formato de Enlaces de Ayuda inválido",

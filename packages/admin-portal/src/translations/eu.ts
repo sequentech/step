@@ -341,6 +341,10 @@ const basqueTranslation: TranslationType = {
                 helpLinks: "Laguntza Estekak",
                 logoUrl: "Logo URLa",
                 css: "CSS Pertsonalizatua",
+
+                displayName: "Bistaratzeko izena",
+                displayNameHelp:
+                    "Erakundearen izena hura aipatzen duten mezuetan. Hutsik: maizterraren izen laburra.",
             },
             errors: {
                 invalidHelpLinks: "Laguntza Esteken formatu baliogabea",

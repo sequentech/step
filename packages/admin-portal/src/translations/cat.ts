@@ -341,6 +341,10 @@ const catalanTranslation: TranslationType = {
                 helpLinks: "Enllaços d'Ajuda",
                 logoUrl: "URL del Logotip",
                 css: "CSS Personalitzat",
+
+                displayName: "Nom visible",
+                displayNameHelp:
+                    "El nom de l'organització en els missatges que l'esmenten. Buit: el nom curt del llogater.",
             },
             errors: {
                 invalidHelpLinks: "Format d'Enllaços d'Ajuda invàlid",

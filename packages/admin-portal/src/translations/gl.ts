@@ -340,6 +340,10 @@ const galegoTranslation: TranslationType = {
                 helpLinks: "Ligazóns de Axuda",
                 logoUrl: "URL do Logo",
                 css: "CSS Personalizado",
+
+                displayName: "Nome visible",
+                displayNameHelp:
+                    "O nome da organización nas mensaxes que a mencionan. Baleiro: o nome curto do arrendatario.",
             },
             errors: {
                 invalidHelpLinks: "Formato de Ligazóns de Axuda inválido",

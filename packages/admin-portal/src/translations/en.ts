@@ -338,6 +338,10 @@ const englishTranslation = {
                 helpLinks: "Help Links",
                 logoUrl: "Logo URL",
                 css: "Custom CSS",
+
+                displayName: "Display name",
+                displayNameHelp:
+                    "The organization's name in messages that name it. Empty: the tenant's short name.",
             },
             errors: {
                 invalidHelpLinks: "Invalid Help Links format",

@@ -341,6 +341,10 @@ const dutchTranslation: TranslationType = {
                 helpLinks: "Help Links",
                 logoUrl: "Logo URL",
                 css: "Aangepaste CSS",
+
+                displayName: "Weergavenaam",
+                displayNameHelp:
+                    "De naam van de organisatie in berichten die haar noemen. Leeg: de korte naam van de tenant.",
             },
             errors: {
                 invalidHelpLinks: "Ongeldig formaat voor Help Links",

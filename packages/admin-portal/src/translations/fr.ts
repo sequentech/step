@@ -341,6 +341,10 @@ const frenchTranslation: TranslationType = {
                 helpLinks: "Liens d'Aide",
                 logoUrl: "URL du Logo",
                 css: "CSS Personnalisé",
+
+                displayName: "Nom affiché",
+                displayNameHelp:
+                    "Le nom de l'organisation dans les messages qui la mentionnent. Vide : le nom court du locataire.",
             },
             errors: {
                 invalidHelpLinks: "Format des Liens d'Aide invalide",

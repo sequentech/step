@@ -342,6 +342,10 @@ const tagalogTranslation: TranslationType = {
                 helpLinks: "Mga Link ng Tulong",
                 logoUrl: "URL ng Logo",
                 css: "Custom CSS",
+
+                displayName: "Ipinapakitang pangalan",
+                displayNameHelp:
+                    "Ang pangalan ng organisasyon sa mga mensaheng bumabanggit dito. Kapag walang laman: ang maikling pangalan ng tenant.",
             },
             errors: {
                 invalidHelpLinks: "Hindi wastong format ng Mga Link ng Tulong",
