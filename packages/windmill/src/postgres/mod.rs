@@ -33,6 +33,8 @@ pub mod results_election_area;
 pub mod results_event;
 pub mod scheduled_event;
 pub mod secret;
+pub mod signing;
+pub mod signing_certificates;
 pub mod tally_results_publication;
 pub mod tally_session;
 pub mod tally_session_contest;

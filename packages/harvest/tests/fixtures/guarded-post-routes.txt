@@ -58,6 +58,7 @@
 /get-ballot-publication-changes
 /get-custom-url
 /get-document-password
+/get-manual-verification-pdf
 /get-permissions
 /get-private-key
 /get-realm-attributes
@@ -121,6 +122,10 @@
 /set-role-permission
 /set-user-role
 /set-voter-authentication
+/signing-issuers
+/signing-requests/<id>/check-certificate
+/staff-certificates
+/staff-certificates/<id>/revoke
 /submit-tally-resolution
 /update-election-voting-status
 /update-event-voting-status
@@ -130,3 +135,11 @@
 /upsert-area
 /upsert-areas
 /verify-application
+/signing-requests/get
+/signing-requests/approve
+/signing-requests/open-failures
+/signing-requests/handover
+/signing-requests/cancel
+/signing-requests/export
+/signing-rules/put
+/signing-rules/capacity
