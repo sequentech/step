@@ -14,9 +14,10 @@ use tracing::info;
 use uuid::Uuid;
 use walkdir::WalkDir;
 
+use crate::pipes::decode_ballots::OUTPUT_DECODED_BALLOTS_FILE;
 use crate::pipes::do_tally::stored_count;
 use crate::pipes::generate_reports::{ElectionReportDataComputed, GenerateReports};
-use crate::pipes::pipe_inputs::{self, PipeInputs};
+use crate::pipes::pipe_inputs::{self, ensure_unbatched, PipeInputs};
 use crate::pipes::pipe_name::{PipeName, PipeNameOutputDir};
 use crate::pipes::Pipe;
 use core::cmp;
@@ -241,11 +242,16 @@ pub async fn process_decoded_ballots(
     {
         let path = entry.path();
 
+        if path.is_dir() {
+            ensure_unbatched(path, OUTPUT_DECODED_BALLOTS_FILE, "Decoded ballots")?;
+            continue;
+        }
+
         // Check if the current entry is a file and its name is "decoded_ballots.json".
         if path.is_file()
             && path
                 .file_name()
-                .map_or(false, |name| name == "decoded_ballots.json")
+                .map_or(false, |name| name == OUTPUT_DECODED_BALLOTS_FILE)
         {
             // A 'decoded_ballots.json' file has been found.
             tracing::info!("Found decoded_ballots.json at: {:?}", path);
@@ -668,4 +674,52 @@ pub async fn save_results(
     .await?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rusqlite::Connection;
+
+    fn area_dir(root: &Path) -> PathBuf {
+        root.join(format!("election__{}", Uuid::new_v4()))
+            .join(format!("contest__{}", Uuid::new_v4()))
+            .join(format!("area__{}", Uuid::new_v4()))
+    }
+
+    async fn import(root: &Path) -> anyhow::Result<i64> {
+        let mut connection = Connection::open_in_memory()?;
+        let transaction = connection.transaction()?;
+        process_decoded_ballots(&transaction, root).await?;
+        Ok(transaction.query_row("SELECT COUNT(*) FROM ballot", [], |row| row.get(0))?)
+    }
+
+    #[tokio::test]
+    async fn decoded_ballots_counted_once_are_imported() {
+        let root = tempfile::tempdir().unwrap();
+        let area = area_dir(root.path());
+        fs::create_dir_all(&area).unwrap();
+        fs::write(area.join("decoded_ballots.json"), "[]").unwrap();
+
+        assert_eq!(import(root.path()).await.unwrap(), 1);
+    }
+
+    /// A ballot in a weight batch stands for several, so importing the
+    /// decoded ballots counted once, or none at all, would misstate them.
+    #[tokio::test]
+    async fn decoded_ballots_split_into_weight_batches_are_refused() {
+        for files in [
+            vec!["decoded_ballots__x2.json"],
+            vec!["decoded_ballots.json", "decoded_ballots__x4.json"],
+        ] {
+            let root = tempfile::tempdir().unwrap();
+            let area = area_dir(root.path());
+            fs::create_dir_all(&area).unwrap();
+            for file in &files {
+                fs::write(area.join(file), "[]").unwrap();
+            }
+
+            assert!(import(root.path()).await.is_err(), "{files:?}");
+        }
+    }
 }

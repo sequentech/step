@@ -481,7 +481,7 @@ impl Pipe for MCBallotImages {
                     &election_input.id,
                     &area_id,
                 );
-                ensure_unbatched(&area_dir, OUTPUT_DECODED_BALLOTS_FILE)?;
+                ensure_unbatched(&area_dir, OUTPUT_DECODED_BALLOTS_FILE, "Ballot images")?;
                 let path_ballots = area_dir.join(OUTPUT_DECODED_BALLOTS_FILE);
 
                 if path_ballots.exists() {
