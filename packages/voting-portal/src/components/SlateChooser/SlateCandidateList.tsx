@@ -69,7 +69,11 @@ export const SlateCandidateList: React.FC<SlateCandidateListProps> = ({
                     }
                 >
                     {t(expanded ? "slates.candidateList.hide" : "slates.candidateList.show")}
-                    <Icon icon={expanded ? faChevronUp : faChevronDown} aria-hidden="true" />
+                    <Icon
+                        className="slate-candidate-list-toggle-icon"
+                        icon={expanded ? faChevronUp : faChevronDown}
+                        aria-hidden="true"
+                    />
                 </Toggle>
             )}
             <div id={listId} className="slate-candidate-list" hidden={!expanded}>

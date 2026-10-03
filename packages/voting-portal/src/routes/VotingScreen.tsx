@@ -56,6 +56,7 @@ import {useEncryptBallotForReview} from "../hooks/useEncryptBallotForReview"
 import {useBallotStyleSlates} from "../hooks/useBallotStyleSlates"
 import {SlateSelectionChooser} from "../components/SlateChooser/SlateSelectionChooser"
 import {ESlateBallotTab, SlateBallotTabs} from "../components/SlateChooser/SlateBallotTabs"
+import {SlateApplyAction} from "../components/SlateChooser/SlateApplyAction"
 
 // `StyledTitle`, `ActionsContainer` and `StyledButton` were here. The heading is
 // `BallotScreenLayout` in `ui-essentials` now and the row of buttons is
@@ -537,6 +538,9 @@ const VotingScreen: React.FC = () => {
                                 slates={slates.resolved}
                                 defaultLanguage={defaultLanguageCode}
                                 onEditSelections={() => setSlateTab(ESlateBallotTab.CANDIDATES)}
+                                renderApplyAction={(slate) => (
+                                    <SlateApplyAction ballotStyle={ballotStyle} slate={slate} />
+                                )}
                             />
                         ) : undefined
                     }

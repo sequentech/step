@@ -20,6 +20,7 @@ import ballotSelectionsReducer, {
     setBallotSelectionVoteChoice,
 } from "../../store/ballotSelections/ballotSelectionsSlice"
 import extraReducer from "../../store/extra/extraSlice"
+import {SlateApplyAction} from "./SlateApplyAction"
 import {SlateSelectionChooser} from "./SlateSelectionChooser"
 
 jest.mock("@mui/material/useMediaQuery")
@@ -58,7 +59,9 @@ const mount = (store: Store, onEditSelections = jest.fn()) =>
                         slates={RESOLVED}
                         defaultLanguage="en"
                         onEditSelections={onEditSelections}
-                        renderApplyAction={(slate) => <button>Select {slate.id}</button>}
+                        renderApplyAction={(slate) => (
+                            <SlateApplyAction ballotStyle={BALLOT_STYLE} slate={slate} />
+                        )}
                     />
                 </ThemeProvider>
             </I18nextProvider>
@@ -166,25 +169,78 @@ describe("the slates of a ballot with selections", () => {
         expect(cardOf("Members First").getByText("Partly selected · 1 of 2")).toBeVisible()
     })
 
-    it("offer the apply action unless the slate is already fully selected", async () => {
+    it("offer to select a slate unless it is already fully selected", async () => {
         const user = userEvent.setup()
         const store = newStore()
         const onEditSelections = jest.fn()
         mount(store, onEditSelections)
 
-        expect(cardOf("Independent Voices").getByRole("button", {name: "Select voices"}))
+        expect(
+            cardOf("Independent Voices").getByRole("button", {
+                name: "Choose slate Independent Voices",
+            })
+        ).toBeVisible()
         expect(screen.queryByRole("button", {name: "Edit selections"})).toBeNull()
 
         choose(store, "trustees", "v-t1")
 
         expect(
-            cardOf("Independent Voices").queryByRole("button", {name: "Select voices"})
+            cardOf("Independent Voices").queryByRole("button", {
+                name: "Choose slate Independent Voices",
+            })
         ).toBeNull()
         await user.click(
             cardOf("Independent Voices").getByRole("button", {name: "Edit selections"})
         )
         expect(onEditSelections).toHaveBeenCalledTimes(1)
-        expect(cardOf("Forward Together").getByRole("button", {name: "Select forward"}))
+        expect(
+            cardOf("Forward Together").getByRole("button", {name: "Choose slate Forward Together"})
+        ).toBeVisible()
+    })
+
+    it("mark the whole slate, keep its announcement and focus Edit selections once it is selected", async () => {
+        const user = userEvent.setup()
+        const store = newStore()
+        mount(store)
+
+        await user.click(
+            cardOf("Forward Together").getByRole("button", {name: "Choose slate Forward Together"})
+        )
+
+        expect(selectedNames("Forward Together")).toEqual([
+            "Jordan Ellis",
+            "Rowan Scott",
+            "Charlie Kim",
+        ])
+        expect(cardOf("Forward Together").getByText("All 3 selected")).toBeVisible()
+        expect(cardOf("Forward Together").getByRole("status")).toHaveTextContent(
+            "Forward Together chosen"
+        )
+        expect(
+            cardOf("Forward Together").getByRole("button", {name: "Edit selections"})
+        ).toHaveFocus()
+    })
+
+    it("follow a slate that is changed by hand into a mixed ballot", async () => {
+        const user = userEvent.setup()
+        const store = newStore()
+        mount(store)
+        await user.click(
+            cardOf("Forward Together").getByRole("button", {name: "Choose slate Forward Together"})
+        )
+
+        choose(store, "trustees", "f-t2", -1)
+        choose(store, "trustees", "v-t1")
+
+        expect(selectedNames("Forward Together")).toEqual(["Jordan Ellis", "Rowan Scott"])
+        expect(cardOf("Forward Together").getByText("Mixed · 2 of 3 selected")).toBeVisible()
+        expect(cardOf("Independent Voices").getByText("Mixed · 1 of 1 selected")).toBeVisible()
+        expect(
+            cardOf("Forward Together").getByRole("button", {name: "Choose slate Forward Together"})
+        ).toBeVisible()
+        expect(
+            cardOf("Forward Together").queryByRole("button", {name: "Edit selections"})
+        ).toBeNull()
     })
 
     describe("on a phone", () => {

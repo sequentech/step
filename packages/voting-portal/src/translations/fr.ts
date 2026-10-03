@@ -464,6 +464,20 @@ const frenchTranslation: TranslationType = {
                 selected: "Sélectionnée",
                 edit: "Modifier la sélection",
             },
+            apply: {
+                button: "Choisir cette liste",
+                buttonLabel: "Choisir la liste {{slate}}",
+                chosen: "{{slate}} choisie. Candidats sélectionnés : {{candidates}}. Scrutins : {{contests}}.",
+                replaceDialog: {
+                    title: "Remplacer vos choix actuels ?",
+                    content:
+                        "Choisir {{slate}} remplace vos choix dans les scrutins ci-dessous. Vos autres choix ne changent pas.",
+                    removed: "Retiré :",
+                    added: "Sélectionné à la place :",
+                    ok: "Remplacer les choix",
+                    cancel: "Conserver mes choix",
+                },
+            },
         },
         ballotLocator: {
             title: "Localisez votre bulletin de vote",

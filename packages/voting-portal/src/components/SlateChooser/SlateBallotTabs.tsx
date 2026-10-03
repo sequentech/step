@@ -60,7 +60,10 @@ export const SlateBallotTabs: React.FC<SlateBallotTabsProps> = ({
 
     return (
         <Box className="slate-ballot-tabs-container" ref={containerRef}>
-            <Box sx={{borderBottom: 1, borderColor: "divider", marginBottom: "24px"}}>
+            <Box
+                className="slate-ballot-tabs-bar"
+                sx={{borderBottom: 1, borderColor: "divider", marginBottom: "24px"}}
+            >
                 <Tabs
                     className="slate-ballot-tabs"
                     variant="scrollable"

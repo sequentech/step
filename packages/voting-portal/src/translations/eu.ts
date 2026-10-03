@@ -466,6 +466,20 @@ const basqueTranslation: TranslationType = {
                 selected: "Hautatuta",
                 edit: "Editatu hautaketa",
             },
+            apply: {
+                button: "Aukeratu hautagai-zerrenda hau",
+                buttonLabel: "Aukeratu {{slate}} hautagai-zerrenda",
+                chosen: "{{slate}} aukeratuta. Hautatutako hautagaiak: {{candidates}}. Lehiak: {{contests}}.",
+                replaceDialog: {
+                    title: "Zure uneko aukerak ordeztu nahi dituzu?",
+                    content:
+                        "{{slate}} aukeratzeak beheko lehietako zure aukerak ordezten ditu. Gainerako aukerak ez dira aldatzen.",
+                    removed: "Kenduko da:",
+                    added: "Horren ordez hautatuko da:",
+                    ok: "Ordeztu aukerak",
+                    cancel: "Mantendu nire aukerak",
+                },
+            },
         },
         ballotLocator: {
             title: "Bilatu zure Bozketa",

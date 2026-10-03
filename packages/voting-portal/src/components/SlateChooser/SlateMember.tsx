@@ -53,7 +53,9 @@ export const SlateMember: React.FC<SlateMemberProps> = ({
             {selected && <Icon className="slate-member-check" icon={faCheck} aria-hidden="true" />}
             <span className="slate-member-name">{children}</span>
             {selected && (
-                <VisuallyHidden component="span">{t("slates.selection.selected")}</VisuallyHidden>
+                <VisuallyHidden className="slate-member-selected-label" component="span">
+                    {t("slates.selection.selected")}
+                </VisuallyHidden>
             )}
         </MemberItem>
     )

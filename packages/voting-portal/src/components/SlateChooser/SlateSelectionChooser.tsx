@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {useMemo} from "react"
+import React, {PropsWithChildren, useLayoutEffect, useMemo, useRef} from "react"
 import {Box, Button} from "@mui/material"
 import {EMobileCandidateLists, translate} from "@sequentech/ui-core"
 import {useTranslation} from "react-i18next"
@@ -94,20 +94,61 @@ export const SlateSelectionChooser: React.FC<SlateSelectionChooserProps> = ({
                     {translate(candidate, "name", i18n.language)}
                 </SlateMember>
             )}
-            renderActions={(slate) =>
-                summaries.get(slate.id)?.status === ESlateSelectionStatus.ALL ? (
-                    <Button
-                        className="slate-edit-selections-button"
-                        variant="secondary"
-                        fullWidth
-                        onClick={onEditSelections}
-                    >
-                        {t("slates.selection.edit")}
-                    </Button>
-                ) : (
-                    renderApplyAction?.(slate)
-                )
-            }
+            renderActions={(slate) => (
+                <SlateCardActions
+                    isFullySelected={summaries.get(slate.id)?.status === ESlateSelectionStatus.ALL}
+                    onEditSelections={onEditSelections}
+                >
+                    {renderApplyAction?.(slate)}
+                </SlateCardActions>
+            )}
         />
+    )
+}
+
+interface SlateCardActionsProps extends PropsWithChildren {
+    isFullySelected: boolean
+    onEditSelections: () => void
+}
+
+/**
+ * Selecting a slate that is already fully selected would change nothing, so
+ * the card offers to edit the selections instead. The apply action stays
+ * mounted with its button hidden, which keeps its announcement of the
+ * selection that has just been made.
+ */
+const SlateCardActions: React.FC<SlateCardActionsProps> = ({
+    isFullySelected,
+    onEditSelections,
+    children,
+}) => {
+    const {t} = useTranslation()
+    const containerRef = useRef<HTMLDivElement>(null)
+    const editRef = useRef<HTMLButtonElement>(null)
+
+    useLayoutEffect(() => {
+        if (isFullySelected && containerRef.current?.contains(document.activeElement)) {
+            editRef.current?.focus()
+        }
+    }, [isFullySelected])
+
+    return (
+        <Box
+            className="slate-card-actions"
+            ref={containerRef}
+            sx={isFullySelected ? {"& .slate-apply-button": {display: "none"}} : undefined}
+        >
+            {isFullySelected ? (
+                <Button
+                    className="slate-edit-selections-button"
+                    variant="secondary"
+                    ref={editRef}
+                    onClick={onEditSelections}
+                >
+                    {t("slates.selection.edit")}
+                </Button>
+            ) : null}
+            {children}
+        </Box>
     )
 }
