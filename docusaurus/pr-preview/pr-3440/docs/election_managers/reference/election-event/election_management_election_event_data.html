@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Data | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-3440/docs/election_managers/reference/election-event/election_management_election_event_data"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Data | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-3440/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3440/docs/election_managers/reference/election-event/election_management_election_event_data"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3440/docs/election_managers/reference/election-event/election_management_election_event_data" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3440/docs/election_managers/reference/election-event/election_management_election_event_data" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Data","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-3440/docs/election_managers/reference/election-event/election_management_election_event_data"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-3440/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/pr-preview/pr-3440/assets/js/runtime~main.092a8b8c.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-3440/assets/js/runtime~main.f414f836.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-3440/assets/js/main.ccc788e7.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -171,13 +171,15 @@ with the number of voters, not with their weights. Per-candidate totals,
 the total weight and the counts they are percentages of are checked for
 overflow, and a tally that would exceed them fails rather than publishing a
 wrapped number.</p>
-<p>Turnout figures under this policy count voting power rather than voters: the
-eligible-voter census and the cast-ballot total are sums of weights, so they
-will not match a headcount shown elsewhere. Ballots with no matching voter
-are the exception — they have no voter and so no weight, and are counted one
-each, which mixes units into the cast-ballot total and into the auditable
-ballot percentage. The Total voters and Non-voters figures on the Tally
-screen are voting power under headcount labels.</p>
+<p>Turnout figures under this policy mix units. The eligible-voter census and
+the count of voters who cast a ballot are headcounts, and so are the Total
+voters and Non-voters figures on the Tally screen. A contest&#x27;s vote figures
+are voting power: its total, valid, blank and invalid votes, the candidate
+totals, and participation by channel. A contest&#x27;s turnout, its votes as a
+percentage of the census, therefore compares voting power with a headcount,
+and is capped at 100%. Ballots with no matching voter have no weight, and
+are counted one each among the auditable ballots and in participation by
+channel.</p>
 <p>If any area still carries a Weight from a previous Weighted Voting for Areas
 configuration, the tally is refused until it is cleared, because the two
 weightings would multiply. <strong>Check this before publishing ballots.</strong>
