@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Data | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-3440/docs/election_managers/reference/election-event/election_management_election_event_data"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Data | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-3440/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3440/docs/election_managers/reference/election-event/election_management_election_event_data"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3440/docs/election_managers/reference/election-event/election_management_election_event_data" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3440/docs/election_managers/reference/election-event/election_management_election_event_data" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Data","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-3440/docs/election_managers/reference/election-event/election_management_election_event_data"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-3440/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/pr-preview/pr-3440/assets/js/runtime~main.59711875.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-3440/assets/js/runtime~main.092a8b8c.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-3440/assets/js/main.ccc788e7.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -141,8 +141,10 @@ voter with weight <code>w</code> contributes <code>w</code> votes. Add a <code>v
 the imported voters csv holding a whole number between 1 and 4294967295
 (2^32 − 1). A voter with no column, or with a blank cell, votes with a
 weight of 1. A row whose weight is not a whole number, such as <code>25.50</code>, or
-is above the maximum, rejects the import with an error naming the row, so a
-weight is never refused once voting has opened. Decimal weights are not
+is above the maximum, rejects the import with an error naming the row, so
+the limit is checked before voting opens. The one exception is a tally
+session created before this release, which can only count weights below
+131072; see the note on such sessions below. Decimal weights are not
 supported: scale them to whole numbers first, for example ×100. Near spellings that
 differ only in case or in <code>_</code> and <code>.</code> — <code>vote_weight</code>, <code>voteWeight</code>,
 <code>vote.weight</code> — are rejected rather than imported, because they would be
