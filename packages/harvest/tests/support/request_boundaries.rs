@@ -29,7 +29,7 @@ const OTHER_TENANT_ID: &str = "tenant-b";
 const SUPER_ADMIN_TENANT_ID: &str = "fixture-super-admin";
 const USER_ID: &str = "test-user";
 // Update only with a reviewed change to the checked-in route inventory.
-const EXPECTED_GUARDED_POST_ROUTE_COUNT: usize = 140;
+const EXPECTED_GUARDED_POST_ROUTE_COUNT: usize = 141;
 
 const CHILD: &str = "HARVEST_ISOLATED_TEST_CHILD";
 
@@ -511,5 +511,26 @@ async fn public_catchers_keep_internal_details_out_of_error_bodies() {
             response.into_json::<Value>().await.unwrap(),
             json!({"message":message})
         );
+    }
+}
+
+#[rocket::async_test]
+async fn manual_verification_is_mounted_and_requires_its_permission() {
+    let client = client().await;
+    let body = json!({
+        "tenant_id": TENANT_ID,
+        "election_event_id": "manual-verification-event",
+        "voter_id": "manual-verification-voter",
+    });
+    for permissions in [None, Some(vec![Permissions::VOTER_READ])] {
+        let mut request = client
+            .post("/get-manual-verification-pdf")
+            .header(ContentType::JSON)
+            .body(body.to_string());
+        if let Some(permissions) = permissions {
+            request = request.header(authorization(&permissions));
+        }
+        let response = request.dispatch().await;
+        assert_eq!(response.status(), Status::Unauthorized);
     }
 }
