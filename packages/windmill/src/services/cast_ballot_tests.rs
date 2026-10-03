@@ -33,11 +33,7 @@ impl Fixture {
                     .unwrap()
                     .to_der_b64_string()
                     .unwrap(),
-                voter_ballot_signature: voter_sk
-                    .sign(b"ballot")
-                    .unwrap()
-                    .to_b64_string()
-                    .unwrap(),
+                voter_ballot_signature: voter_sk.sign(b"ballot").unwrap().to_b64_string().unwrap(),
                 received_at: "2028-05-08T03:00:00.000Z".into(),
                 key_id: published_key(&ballot_box_sk).unwrap().key_id,
             },
@@ -169,7 +165,12 @@ fn casting_again_with_the_same_signature_returns_the_stored_receipt() {
 fn a_ballot_already_cast_is_not_cast_again() {
     let f = Fixture::new();
     let cast_signature = f.cast_signature();
-    let another_signature = f.voter_sk.sign(b"another").unwrap().to_b64_string().unwrap();
+    let another_signature = f
+        .voter_sk
+        .sign(b"another")
+        .unwrap()
+        .to_b64_string()
+        .unwrap();
     let mut f = f.cast_with(&another_signature);
 
     assert!(matches!(

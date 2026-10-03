@@ -41,6 +41,8 @@ CREATE TABLE sequent_backend.cast_vote (
     content text,
     ballot_id text,
     cast_ballot_signature bytea,
+    received_ballot_id uuid,
+    cast_receipt_signature text,
     annotations jsonb,
     created_at timestamptz DEFAULT now(),
     last_updated_at timestamptz DEFAULT now()

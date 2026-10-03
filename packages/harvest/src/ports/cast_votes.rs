@@ -3,10 +3,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use sequent_core::ballot::VotingStatusChannel;
+use windmill::services::cast_ballot::{CastBallotInput, CastBallotResult};
 use windmill::services::insert_cast_vote::{
     CastVoteError, InsertCastVoteInput, InsertCastVoteResult,
 };
-use windmill::services::cast_ballot::{CastBallotInput, CastBallotResult};
 use windmill::services::receive_ballot::{
     ReceiveBallotInput, ReceiveBallotOutput,
 };

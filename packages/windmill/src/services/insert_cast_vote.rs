@@ -3,9 +3,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::postgres;
 use crate::postgres::area::get_area_by_id;
+use crate::postgres::cast_vote::CastVoteReceipt;
 use crate::postgres::election::{get_cast_vote_configuration, CastVoteConfiguration};
 use crate::postgres::election_event::get_election_event_by_id;
-use crate::postgres::cast_vote::CastVoteReceipt;
 use crate::postgres::received_ballot::{
     format_cast_at, mark_received_ballot_cast, StoredReceivedBallot,
 };
@@ -318,9 +318,7 @@ fn skip_or_propagate(cast_vote_err: CastVoteError) -> Result<InsertCastVoteResul
         | CastVoteError::BallotNotReceived
         | CastVoteError::BallotCastSignatureFailed(_)
         | CastVoteError::BallotAlreadyCast
-        | CastVoteError::BallotAudited => {
-            Ok(InsertCastVoteResult::SkipRetryFailure(cast_vote_err))
-        }
+        | CastVoteError::BallotAudited => Ok(InsertCastVoteResult::SkipRetryFailure(cast_vote_err)),
         _ => Err(cast_vote_err),
     }
 }
@@ -524,13 +522,8 @@ pub(crate) async fn try_cast(
             )));
         }
         CastRequest::Received(cast) => {
-            let prepared = prepare_received_cast(
-                &hasura_transaction,
-                &election_event,
-                voter_id,
-                &cast,
-            )
-            .await;
+            let prepared =
+                prepare_received_cast(&hasura_transaction, &election_event, voter_id, &cast).await;
             match prepared {
                 Ok(PreparedCast::ToCast(input, received_cast)) => (input, Some(received_cast)),
                 Ok(PreparedCast::AlreadyCast(cast)) => {
@@ -919,13 +912,13 @@ pub async fn insert_cast_vote_and_commit<'a>(
         .as_ref()
         .map(|(received_ballot, _, _)| received_ballot.received.ballot_id.as_str())
         .unwrap_or(&input.ballot_id);
-    let cast_vote_receipt = cast
-        .as_ref()
-        .map(|(received_ballot, cast_at, receipt)| CastVoteReceipt {
-            received_ballot_id: &received_ballot.id,
-            cast_at,
-            cast_receipt_signature: &receipt.cast_receipt_signature,
-        });
+    let cast_vote_receipt =
+        cast.as_ref()
+            .map(|(received_ballot, cast_at, receipt)| CastVoteReceipt {
+                received_ballot_id: &received_ballot.id,
+                cast_at,
+                cast_receipt_signature: &receipt.cast_receipt_signature,
+            });
 
     let insert_phase = CastVotePhase::start("insert");
     let insert = postgres::cast_vote::insert_cast_vote(

@@ -145,7 +145,9 @@ fn parse_uuid_field(value: &str, field: &str) -> Result<Uuid, CastVoteError> {
         .map_err(|e| CastVoteError::UuidParseFailed(e.to_string(), field.to_string()))
 }
 
-pub(crate) fn truncate_to_milliseconds(time: DateTime<Utc>) -> Result<DateTime<Utc>, CastVoteError> {
+pub(crate) fn truncate_to_milliseconds(
+    time: DateTime<Utc>,
+) -> Result<DateTime<Utc>, CastVoteError> {
     Utc.timestamp_millis_opt(time.timestamp_millis())
         .single()
         .ok_or_else(|| CastVoteError::BallotSignFailed("Invalid received time".to_string()))

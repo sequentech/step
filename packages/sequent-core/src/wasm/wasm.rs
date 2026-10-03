@@ -1327,7 +1327,9 @@ pub fn sign_ballot_cast_js(
 
 // drops the key that signed the election's ballot, once it is cast
 #[wasm_bindgen]
-pub fn forget_voter_signing_key_js(election_id: JsValue) -> Result<(), JsValue> {
+pub fn forget_voter_signing_key_js(
+    election_id: JsValue,
+) -> Result<(), JsValue> {
     let election_id: String = serde_wasm_bindgen::from_value(election_id)
         .map_err(|err| format!("Error deserializing election_id: {err}"))
         .into_json()?;

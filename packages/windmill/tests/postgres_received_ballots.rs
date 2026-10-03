@@ -381,7 +381,10 @@ async fn a_received_ballot_is_cast_once_and_keeps_its_first_receipt() {
     let f = Election::create(&tx).await;
     let id = f.receive(&tx, "voter", "hash", "FTBE-MHRX").await.unwrap();
 
-    assert!(f.cast(&tx, &id, "cast-signature", "receipt-signature").await);
+    assert!(
+        f.cast(&tx, &id, "cast-signature", "receipt-signature")
+            .await
+    );
     let cast = f.to_cast(&tx, "voter", "FTBE-MHRX").await.unwrap();
     assert_eq!(cast.stored.status, ReceivedBallotStatus::Cast);
     assert_eq!(
@@ -393,7 +396,10 @@ async fn a_received_ballot_is_cast_once_and_keeps_its_first_receipt() {
         })
     );
 
-    assert!(!f.cast(&tx, &id, "another-signature", "another-receipt").await);
+    assert!(
+        !f.cast(&tx, &id, "another-signature", "another-receipt")
+            .await
+    );
     assert_eq!(f.to_cast(&tx, "voter", "FTBE-MHRX").await, Some(cast));
 }
 
@@ -405,10 +411,15 @@ async fn a_ballot_of_another_election_event_is_not_cast() {
     let other = Election::create_in(&tx, f.tenant).await;
     let id = f.receive(&tx, "voter", "hash", "FTBE-MHRX").await.unwrap();
 
-    assert!(!other.cast(&tx, &id, "cast-signature", "receipt-signature").await);
-    assert!(!f
-        .cast(&tx, &Uuid::new_v4(), "cast-signature", "receipt-signature")
-        .await);
+    assert!(
+        !other
+            .cast(&tx, &id, "cast-signature", "receipt-signature")
+            .await
+    );
+    assert!(
+        !f.cast(&tx, &Uuid::new_v4(), "cast-signature", "receipt-signature")
+            .await
+    );
     assert_eq!(
         f.to_cast(&tx, "voter", "FTBE-MHRX")
             .await
@@ -432,7 +443,10 @@ async fn an_audited_ballot_cannot_be_cast() {
     .await
     .unwrap();
 
-    assert!(!f.cast(&tx, &id, "cast-signature", "receipt-signature").await);
+    assert!(
+        !f.cast(&tx, &id, "cast-signature", "receipt-signature")
+            .await
+    );
     let audited = f.to_cast(&tx, "voter", "FTBE-MHRX").await.unwrap();
     assert_eq!(audited.stored.status, ReceivedBallotStatus::Audited);
     assert_eq!(audited.cast, None);

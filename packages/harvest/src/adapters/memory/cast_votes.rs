@@ -6,10 +6,10 @@ use crate::ports::cast_votes::{CastVoter, CastVotes};
 use sequent_core::ballot::VotingStatusChannel;
 use std::collections::VecDeque;
 use std::sync::Mutex;
+use windmill::services::cast_ballot::{CastBallotInput, CastBallotResult};
 use windmill::services::insert_cast_vote::{
     CastVoteError, InsertCastVoteInput, InsertCastVoteResult,
 };
-use windmill::services::cast_ballot::{CastBallotInput, CastBallotResult};
 use windmill::services::receive_ballot::{
     ReceiveBallotInput, ReceiveBallotOutput,
 };

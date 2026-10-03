@@ -125,7 +125,8 @@ pub(crate) async fn prepare_received_cast(
         parse_uuid_v4(value)
             .map_err(|e| CastVoteError::UuidParseFailed(e.to_string(), field.to_string()))
     };
-    let ballot_id = normalize_ballot_id(&input.ballot_id).ok_or(CastVoteError::BallotNotReceived)?;
+    let ballot_id =
+        normalize_ballot_id(&input.ballot_id).ok_or(CastVoteError::BallotNotReceived)?;
     let tenant_uuid = parse_uuid(&election_event.tenant_id, "tenant_id")?;
     let election_event_uuid = parse_uuid(&election_event.id, "election_event_id")?;
     let received_ballot = get_received_ballot_to_cast(
@@ -177,7 +178,12 @@ pub(crate) async fn prepare_received_cast(
 
     Ok(PreparedCast::ToCast(
         InsertCastVoteInput {
-            ballot_id: received_ballot.stored.received.statement.ballot_hash.clone(),
+            ballot_id: received_ballot
+                .stored
+                .received
+                .statement
+                .ballot_hash
+                .clone(),
             election_id: input.election_id,
             content: received_ballot.content,
         },
@@ -214,9 +220,8 @@ pub async fn try_cast_ballot(
         username,
     )
     .await?;
-    let no_receipt = || {
-        CastVoteError::BallotSignFailed("The ballot was cast without a receipt".to_string())
-    };
+    let no_receipt =
+        || CastVoteError::BallotSignFailed("The ballot was cast without a receipt".to_string());
 
     let output = |receipt: Option<CastReceipt>, cast_vote: &InsertCastVoteOutput| {
         receipt

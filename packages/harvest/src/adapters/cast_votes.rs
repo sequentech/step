@@ -3,12 +3,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::ports::cast_votes::{CastVoter, CastVotes};
+use windmill::services::cast_ballot::{
+    try_cast_ballot, CastBallotInput, CastBallotResult,
+};
 use windmill::services::insert_cast_vote::{
     try_insert_cast_vote, CastVoteError, InsertCastVoteInput,
     InsertCastVoteResult,
-};
-use windmill::services::cast_ballot::{
-    try_cast_ballot, CastBallotInput, CastBallotResult,
 };
 use windmill::services::receive_ballot::{
     try_receive_ballot, ReceiveBallotInput, ReceiveBallotOutput,

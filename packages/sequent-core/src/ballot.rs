@@ -2063,33 +2063,14 @@ pub enum ReceiptsPolicy {
 }
 
 #[derive(
-    BorshSerialize,
-    BorshDeserialize,
-    Serialize,
-    Deserialize,
-    JsonSchema,
-    PartialEq,
-    Eq,
-    Debug,
-    Clone,
-    Default,
+    Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone, Default,
 )]
 pub struct ReceiptsPresentation {
     pub policy: Option<ReceiptsPolicy>,
 }
 
 /// The ballot box's public key, as published to voters' devices.
-#[derive(
-    BorshSerialize,
-    BorshDeserialize,
-    Serialize,
-    Deserialize,
-    JsonSchema,
-    PartialEq,
-    Eq,
-    Debug,
-    Clone,
-)]
+#[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
 pub struct BallotBoxKey {
     pub key_id: String,
     /// Base64 of the DER SubjectPublicKeyInfo.
