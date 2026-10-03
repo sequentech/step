@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Signing a protected action | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-3451/docs/election_managers/reference/election-event/signatures/election_management_election_event_signatures_signing"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Signing a protected action | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-3451/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3451/docs/election_managers/reference/election-event/signatures/election_management_election_event_signatures_signing"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3451/docs/election_managers/reference/election-event/signatures/election_management_election_event_signatures_signing" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3451/docs/election_managers/reference/election-event/signatures/election_management_election_event_signatures_signing" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Signing a protected action","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-3451/docs/election_managers/reference/election-event/signatures/election_management_election_event_signatures_signing"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-3451/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/pr-preview/pr-3451/assets/js/runtime~main.51f7098f.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-3451/assets/js/runtime~main.264ac0ef.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-3451/assets/js/main.ccab970b.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -60,6 +60,9 @@ It lists the event&#x27;s requests waiting for the actions you can sign, in your
 their code, how many have signed, when they expire and whether you already signed. Choose
 one to open its panel. A trustee finds their key share in the ceremony instead. With the
 permission, <strong>Signatures</strong> &gt; <strong>Requests</strong> lists every request.</p>
+<p>The header count refreshes when entering or switching election events, opening the
+list, or changing a request opened from that list. It does not automatically track
+changes made by other users. Open the icon or refresh the page to update it.</p>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="the-signing-dialog">The signing dialog<a href="#the-signing-dialog" class="hash-link" aria-label="Direct link to The signing dialog" title="Direct link to The signing dialog" translate="no">​</a></h2>
 <p><strong>Sign</strong> opens the dialog &quot;Sign the <em>object</em>&quot; with three steps.</p>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="1-check">1. Check<a href="#1-check" class="hash-link" aria-label="Direct link to 1. Check" title="Direct link to 1. Check" translate="no">​</a></h3>
@@ -108,17 +111,37 @@ other election reports</strong>.</p>
 <p><strong>Open voting and Close voting.</strong> Started with <strong>Start voting</strong> and <strong>Stop voting</strong> in a
 Post&#x27;s <strong>Publish</strong> tab. When enough members have signed, voting opens or closes at the
 Post. After closing, the panel shows the closing time, the closing signatures and the
-code; this closing record goes into the log. Pausing, and starting or stopping voting for
-the whole election event or from scheduled events, don&#x27;t ask for signatures.</p>
+code; this closing record goes into the log. Pausing and whole-event manual controls
+do not open this signing dialog. Scheduled opening or closing is refused and logged
+when the corresponding action requires signatures; people must complete the protected
+transition instead.</p>
 <p><strong>Generate election returns and other reports.</strong> In <strong>Reports</strong>, the <strong>Signatures</strong> column
-says how many signatures each report needs (&quot;Needs 3&quot;) or <strong>Off</strong>. For election returns,
-choose the country when generating. The PDF is generated at once, with a final page that
-has one signature field per required signer, but it can&#x27;t be downloaded, printed or
-transmitted until everyone has signed. Each signature fills its field with &quot;Digitally
-signed by <em>name</em>&quot;, the time and the code, and PDF readers can validate each signature.
-Signed reports are not password-protected, because that would break the signatures. When
-all signatures are in, the panel offers <strong>Download signed PDF</strong>, <strong>Print</strong> and <strong>Transmit
-results</strong>. If a recount changes the election returns, the waiting request is cancelled.</p>
+says how many signatures each report needs (&quot;Needs 3&quot;) or <strong>Off</strong>. The tally produces
+election returns per Post and country and Initialization Reports per Post; when signatures
+are required, these are signed through their requests rather than regenerated in Reports.
+Participation reports are generated from Reports. Their held PDFs have a final page with
+one field per required signer. Signers can inspect the document, but its released copy
+cannot be downloaded, printed or transmitted until the request has executed successfully.
+Each signature fills its field with the name, time and code, and PDF readers can validate it.</p>
+<p>A report&#x27;s configured password protection is applied after signing, as an encrypted file
+containing the signed PDF. Download uses the password flow; direct <strong>Print</strong> is unavailable
+for a protected report. The last signature alone does not mean release has finished:
+wait for <strong>Done</strong>. The panel then offers <strong>Download signed PDF</strong>, and <strong>Print</strong> for an
+unprotected report. <strong>Transmit results</strong> is offered for election returns when permitted.
+A recount cancels an older waiting request whose report changed.</p>
+<p>The download button is not restricted to the last signer. Anyone with access to the
+completed request and the document-download permission can reopen it in <strong>Signatures</strong> &gt;
+<strong>Requests</strong> and download. The header and Reports request links show pending work, so they
+do not provide a route back to an executed report. Staff without access to Requests need
+that access to use this route. Reports does not list a history of generated files;
+<strong>Generate</strong> creates another output and may require another set of signatures.</p>
+<p>Generate other election reports currently protects participation reports and the tally&#x27;s
+Initialization Reports. Per-voter manual verification and activity logs have no signing
+integration and continue through their existing unsigned generation paths.</p>
+<p>A participation report can cover the whole election event when <strong>Generate other election
+reports</strong> is Off. When signatures are required, select a Post in the report&#x27;s <strong>Election</strong>
+field. An existing event-wide report must be edited to select a Post before generating it;
+the Reports screen explains this without starting a task. Preview remains available.</p>
 <p><strong>Transmit results.</strong> In <strong>Tally</strong> &gt; <strong>Transmission</strong>, creating the package starts a signing
 request for the Post and country instead of asking for a certificate file upload. Each
 signer signs the package&#x27;s results. When everyone has signed, the package carries their
@@ -130,7 +153,9 @@ record. When enough people have signed, the voter is approved and receives their
 credentials. Rejecting an application doesn&#x27;t ask for signatures.</p>
 <p><strong>Approve a configuration version.</strong> In <strong>Publish</strong>, publishing starts a request whose
 details list the changes in the version: its digest, the signing rules changed since the
-last publication, new scheduled events and whether ballots and contests changed. When the
+last publication, new scheduled events and whether ballots and contests changed.
+The rule summary covers Off/signature-count changes, not a complete copy of signer roles,
+requester eligibility, expiry or certificate checks. When the
 configured officials have signed, the version is published. Generating a new version
 cancels the waiting request.</p>
 <p><strong>Confirm and contribute a key share (trustees).</strong> In <strong>Keys</strong> (key ceremony) and <strong>Tally</strong>,
