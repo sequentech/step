@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React from "react"
+import React, {useContext} from "react"
 import {Identifier, useListContext, useNotify, useRefresh} from "react-admin"
 import {PageHeaderStyles} from "../../components/styles/PageHeaderStyles"
 import ElectionHeader from "../../components/ElectionHeader"
@@ -16,6 +16,8 @@ import {DELETE_ROLE_PERMISSION} from "@/queries/DeleteRolePermission"
 import {DeleteRolePermissionMutation, SetRolePermissionMutation} from "@/gql/graphql"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {SET_ROLE_PERMISSION} from "@/queries/SetRolePermission"
+import {AuthContext} from "@/providers/AuthContextProvider"
+import {canEditRolePermission, rolePermissionEdit} from "@/services/RolePermissionEdit"
 
 type EnumObject = {[key: string]: number | string}
 type EnumObjectEnum<E extends EnumObject> = E extends {[key: string]: infer ET | string}
@@ -42,6 +44,10 @@ export const EditRole: React.FC<EditRoleProps> = ({id, close, permissions}) => {
     const [setRolePermission] = useMutation<SetRolePermissionMutation>(SET_ROLE_PERMISSION)
     const notify = useNotify()
     const refresh = useRefresh()
+    const authContext = useContext(AuthContext)
+    const edit = rolePermissionEdit((permission) =>
+        authContext.isAuthorized(true, tenantId, permission)
+    )
 
     if (isLoading || !data) {
         return null
@@ -52,7 +58,9 @@ export const EditRole: React.FC<EditRoleProps> = ({id, close, permissions}) => {
 
     let validPermissions = getEnumValues(IPermissions)
 
-    let rows: Array<IPermission & {id: string; active: boolean}> = (permissions || [])
+    let rows: Array<IPermission & {id: string; active: boolean; editable: boolean}> = (
+        permissions || []
+    )
         .filter(
             (permission) => permission.name && validPermissions.includes(permission.name as any)
         )
@@ -61,6 +69,7 @@ export const EditRole: React.FC<EditRoleProps> = ({id, close, permissions}) => {
             id: permission.id || "",
             name: permission.name && t(`usersAndRolesScreen.permissions.${permission.name}`),
             active: (!!permission.name && rolePermissions.includes(permission.name)) || false,
+            editable: !!permission.name && canEditRolePermission(edit, permission.name),
         }))
 
     const editRolePermission = (props: GridRenderCellParams<any, boolean>) => async () => {
@@ -107,7 +116,11 @@ export const EditRole: React.FC<EditRoleProps> = ({id, close, permissions}) => {
             width: 70,
             editable: false,
             renderCell: (props: GridRenderCellParams<any, boolean>) => (
-                <Checkbox checked={props.value} onClick={editRolePermission(props)} />
+                <Checkbox
+                    checked={props.value}
+                    disabled={!props.row.editable}
+                    onClick={editRolePermission(props)}
+                />
             ),
         },
     ]

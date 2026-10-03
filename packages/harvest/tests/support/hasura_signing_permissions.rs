@@ -356,3 +356,106 @@ fn no_hasura_role_sets_a_certificate_authority_purpose() {
         );
     }
 }
+
+/// The Hasura actions behind Users and Roles, by role.
+fn action_roles() -> BTreeMap<String, BTreeSet<String>> {
+    let yaml: serde_yaml::Value = serde_yaml::from_str(
+        &std::fs::read_to_string(
+            Path::new(env!("CARGO_MANIFEST_DIR"))
+                .join("../../hasura/metadata/actions.yaml"),
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    let actions: Value = serde_json::to_value(yaml).unwrap();
+    actions["actions"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|action| {
+            let roles = action["permissions"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .filter_map(|permission| {
+                    permission["role"].as_str().map(str::to_string)
+                })
+                .collect();
+            (action["name"].as_str().unwrap().to_string(), roles)
+        })
+        .collect()
+}
+
+/// Staff without `admin-user` (the Signatures tab's groups) use Users and
+/// Roles through the role of each action; Harvest checks the permission
+/// again.
+#[test]
+fn users_and_roles_actions_accept_their_own_permissions() {
+    let actions = action_roles();
+    for (action, role) in [
+        ("get_roles", "role-read"),
+        ("get_permissions", "user-permission-read"),
+        ("set_role_permission", "role-write"),
+        ("delete_role_permission", "role-write"),
+        ("get_users", "user-read"),
+    ] {
+        let roles = &actions[action];
+        assert!(roles.contains(role), "{action}: {roles:?}");
+        assert!(roles.contains("admin-user"), "{action}: {roles:?}");
+    }
+}
+
+/// `election-event-read` is what staff without `admin-user` navigate with:
+/// it reads their tenant and the sidebar's tree, and writes nothing.
+#[test]
+fn election_event_read_navigates_and_writes_nothing() {
+    let tables = tracked_tables();
+    let role = "election-event-read";
+    for (name, table) in &tables {
+        for kind in [
+            "insert_permissions",
+            "update_permissions",
+            "delete_permissions",
+        ] {
+            assert!(
+                !grants(table, kind).contains_key(role),
+                "{role} {kind} on {name}"
+            );
+        }
+    }
+    assert_eq!(
+        selectable(&tables, role)["tenant"],
+        json!({"id": {"_eq": "X-Hasura-Tenant-Id"}})
+    );
+    for (table, needed) in [
+        ("tenant", &["id", "slug"][..]),
+        ("election_event", &["id", "presentation", "is_archived"][..]),
+        (
+            "election",
+            &[
+                "id",
+                "presentation",
+                "election_event_id",
+                "image_document_id",
+            ][..],
+        ),
+        (
+            "contest",
+            &["id", "presentation", "election_event_id", "election_id"][..],
+        ),
+        (
+            "candidate",
+            &["id", "presentation", "election_event_id", "contest_id"][..],
+        ),
+    ] {
+        let columns = grants(&tables[table], "select_permissions")[role]
+            ["columns"]
+            .clone();
+        for column in needed {
+            assert!(
+                columns.as_array().unwrap().contains(&json!(column)),
+                "{role} can't read {table}.{column}"
+            );
+        }
+    }
+}

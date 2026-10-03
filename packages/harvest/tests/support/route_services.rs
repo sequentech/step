@@ -31,9 +31,10 @@ use sequent_core::monitoring::cadence::Cadence;
 use serde_json::Value;
 use std::sync::Arc;
 use tokio_postgres::NoTls;
-use windmill::services::signing::approve::{NoDocumentSigner, SigningServices};
+use windmill::services::signing::approve::SigningServices;
 use windmill::services::signing::certificates::OpensslCertificateVerifier;
 use windmill::services::signing::executors::SigningExecutorRegistry;
+use windmill::services::signing::pdf::{PdfDocumentSigner, S3RevisionStore};
 use windmill::services::signing::requests::{SigningExportStore, StoredExport};
 use windmill::services::signing::rules::{
     KeycloakSigningRoleAdmin, SigningRoleAdmin,
@@ -107,7 +108,9 @@ impl Services {
             signing: SigningServices {
                 verifier: Arc::new(OpensslCertificateVerifier::default()),
                 executors: SigningExecutorRegistry::default(),
-                documents: Arc::new(NoDocumentSigner),
+                documents: Arc::new(PdfDocumentSigner::new(Arc::new(
+                    S3RevisionStore,
+                ))),
                 exports: Arc::new(RowOnlyExports),
             },
             signing_roles: Arc::new(KeycloakSigningRoleAdmin),

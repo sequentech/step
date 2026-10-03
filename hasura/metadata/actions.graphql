@@ -2552,3 +2552,16 @@ type SigningRuleCapacityOutput {
     waiting: Int!
     config_version: Int!
 }
+
+type Mutation {
+    signingPdfPrepare(
+        request_id: uuid!
+        chain_pem: [String!]!
+    ): SigningPdfPrepareOutput!
+}
+
+type SigningPdfPrepareOutput {
+    revision: Int!
+    digest_b64: String!
+    signing_time: String!
+}

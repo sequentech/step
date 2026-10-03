@@ -90,6 +90,23 @@ select_permissions:
               id:
                   _eq: X-Hasura-Tenant-Id
       role: user
+    - comment: ""
+      permission:
+          allow_aggregations: true
+          columns:
+              - annotations
+              - created_at
+              - id
+              - is_active
+              - labels
+              - settings
+              - slug
+              - updated_at
+              - voting_channels
+          filter:
+              id:
+                  _eq: X-Hasura-Tenant-Id
+      role: election-event-read
 update_permissions:
     - comment: ""
       permission:

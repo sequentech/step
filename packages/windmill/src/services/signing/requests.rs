@@ -10,9 +10,10 @@
 //! Every step takes the event's signing lock before the request's row lock
 //! (see [`lock_signing_event`]).
 
-use super::approve::{log_step_refusal, RefusedStep};
+use super::approve::{log_step_refusal, DocumentSigner, RefusedStep};
 use super::executors::SigningExecutorRegistry;
 use super::log::{stage, Actor, LogStep, SystemOutcome};
+use super::pdf::DocumentRevisionView;
 use super::signers::{list_signers, GroupChange};
 use super::{
     action_title, allowed_by, allowed_by_permission, log_scope, Allowance, SigningCaller,
@@ -525,9 +526,13 @@ pub struct SigningPanel {
     pub count: i64,
     pub required: i32,
     pub signers: Vec<SignerView>,
+    /// The request's own document, whose SHA-256 the payload names: a PDF
+    /// request's base revision, a transmission's EML. Short-lived.
     pub document_url: Option<String>,
     pub document_name: Option<String>,
     pub document_pages: Option<i32>,
+    /// A PDF request's document as it stands (view only).
+    pub document_revision: Option<DocumentRevisionView>,
     pub details: Vec<SigningDetail>,
     pub election_name: Option<String>,
     pub area_name: Option<String>,
@@ -586,10 +591,11 @@ pub fn certificate_names(pem: &str) -> (Option<String>, Option<String>) {
 
 /// The panel of a request, for its requester, a person who can sign it, or
 /// a reader of the event's requests who reaches its Post.
-#[instrument(skip(hasura_transaction, keycloak_transaction), err)]
+#[instrument(skip(hasura_transaction, keycloak_transaction, documents), err)]
 pub async fn get_panel(
     hasura_transaction: &Transaction<'_>,
     keycloak_transaction: &Transaction<'_>,
+    documents: &dyn DocumentSigner,
     caller: &SigningCaller,
     tenant_id: Uuid,
     request_id: Uuid,
@@ -699,15 +705,19 @@ pub async fn get_panel(
         }
         None => None,
     };
+    let document = documents
+        .panel_document(hasura_transaction, &request)
+        .await?;
     Ok(SigningPanel {
         request: SigningRequestView::from(&request),
         rule,
         count: approvals.len() as i64,
         required: request.required,
         signers: views,
-        document_url: None,
-        document_name: None,
+        document_url: document.url,
+        document_name: document.name,
         document_pages: None,
+        document_revision: document.revision,
         details: subject_details(&request.subject),
         election_name,
         area_name,

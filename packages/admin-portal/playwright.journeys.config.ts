@@ -3,6 +3,9 @@
 
 import {defineConfig, devices} from "@playwright/test"
 
+// A local Chromium (e.g. from nix) where Playwright can't download its own; CI leaves it unset.
+const executablePath = process.env.CHROMIUM_EXECUTABLE_PATH
+
 export default defineConfig({
     testDir: "./test/journeys",
     // Keep local and CI memory bounded; CI also splits this suite into shards.
@@ -19,5 +22,6 @@ export default defineConfig({
         serviceWorkers: "block",
         trace: "retain-on-failure",
         screenshot: "only-on-failure",
+        ...(executablePath ? {launchOptions: {executablePath}} : {}),
     },
 })

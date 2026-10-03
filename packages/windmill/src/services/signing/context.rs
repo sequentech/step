@@ -190,6 +190,9 @@ pub enum SigningError {
         status: SigningRequestStatus,
         message: String,
     },
+    /// The PDF revision a signer prepared no longer extends the document:
+    /// another signature came first. The signer prepares again.
+    StaleRevision(String),
     /// A check refused a signature; the refusal is logged.
     Refused {
         check: CertificateCheckId,
@@ -228,6 +231,9 @@ pub enum InvalidReason {
     /// The action signs a document this server can't take signatures of
     /// yet, or the signature is of another kind of document.
     Document,
+    /// The document's signature fields don't fit the request (one empty
+    /// field per signature it needs): generate the document again.
+    DocumentFields,
 }
 
 impl SigningError {
@@ -251,6 +257,7 @@ impl fmt::Display for SigningError {
             | SigningError::Forbidden(message)
             | SigningError::Invalid { message, .. }
             | SigningError::Conflict(message)
+            | SigningError::StaleRevision(message)
             | SigningError::Closed { message, .. } => write!(f, "{message}"),
             SigningError::Refused { check, message, .. } => write!(f, "{check}: {message}"),
             SigningError::Internal(error) => write!(f, "{error:?}"),

@@ -17,11 +17,12 @@
 //! (`certificate-revoked`).
 
 use super::certificates::{
-    register_first_use, CertificateIdentity, CertificateVerificationInput, CertificateVerifier,
-    DocumentSignatureInput, RegistrationState, SignatureInputs,
+    register_first_use, CertificateIdentity, CertificateVerification, CertificateVerificationInput,
+    CertificateVerifier, DocumentSignatureInput, RegistrationState, SignatureInputs,
 };
 use super::executors::{ExecutionOutcome, PostCommit, SigningExecutorRegistry};
 use super::log::{Actor, SystemOutcome};
+use super::pdf::{PanelDocument, PdfPrepared};
 use super::requests::{
     cancel_request, execution_failure, expire_request, is_overdue, is_the_trustee, read_request,
     relock, stage_executed, stage_request_step, throttled, SigningExportStore,
@@ -48,7 +49,7 @@ use tracing::{instrument, warn};
 use uuid::Uuid;
 
 /// The document side of a signature: the bytes an EML signature covers,
-/// and the PDF revision a CMS signs (PR 7 embeds it).
+/// and the PDF revision a CMS signs.
 #[async_trait]
 pub trait DocumentSigner: Send + Sync {
     /// Whether this signer takes document signatures of `kind`. An action
@@ -64,8 +65,38 @@ pub trait DocumentSigner: Send + Sync {
         request: &SigningRequestRow,
     ) -> anyhow::Result<Option<Vec<u8>>>;
 
+    /// Prepares the PDF revision a signer's CMS will sign (see
+    /// [`super::pdf::prepare_pdf`]). Without PDF signatures there is none.
+    /// Owns its transaction on `client`, so a refusal's log entry commits.
+    async fn prepare_pdf(
+        &self,
+        _client: &mut Client,
+        _caller: &SigningCaller,
+        _tenant_id: Uuid,
+        _request_id: Uuid,
+        _chain_pem: &[String],
+        _now: DateTime<Utc>,
+    ) -> SigningResult<PdfPrepared> {
+        Err(SigningError::invalid(
+            InvalidReason::Document,
+            "PDF signatures are not available.",
+        ))
+    }
+
+    /// The request's document as the signing panel links it. Without a
+    /// document store there is none.
+    async fn panel_document(
+        &self,
+        _hasura_transaction: &Transaction<'_>,
+        _request: &SigningRequestRow,
+    ) -> SigningResult<PanelDocument> {
+        Ok(PanelDocument::default())
+    }
+
     /// Checks and keeps the approval's document signature. Runs after the
-    /// certificate checks passed, before the approval is recorded.
+    /// certificate checks passed and the approval was recorded, in a
+    /// savepoint. A `Refused` answer undoes both and is logged like the
+    /// other refused signatures.
     async fn embed(
         &self,
         hasura_transaction: &Transaction<'_>,
@@ -77,9 +108,8 @@ pub trait DocumentSigner: Send + Sync {
     ) -> SigningResult<()>;
 }
 
-/// No document side yet: EML bytes and PDF revisions come with the PRs
-/// that sign reports and transmissions, so actions with a document can't
-/// be signed until then.
+/// No document side: no EML bytes and no PDF revisions, so actions with a
+/// document can't be signed with it.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct NoDocumentSigner;
 
@@ -378,7 +408,7 @@ fn signed_identity(
 
 /// Why the caller may not sign the request, if they may not. Reads only
 /// what never changes on a request, so it runs before any lock.
-async fn sign_refusal(
+pub(crate) async fn sign_refusal(
     transaction: &Transaction<'_>,
     caller: &SigningCaller,
     request: &SigningRequestRow,
@@ -728,53 +758,44 @@ async fn approve_in(
         }
     }
 
-    services
-        .documents
-        .embed(
-            transaction,
-            &request,
-            &caller.actor(),
-            &certificate,
-            input.pdf_cms.as_deref(),
-            input.revision,
-        )
-        .await?;
-
-    // 5. The signature.
-    let inserted = insert_signing_approval(
-        transaction,
-        &NewSigningApproval {
-            tenant_id,
-            election_event_id: event_id,
-            request_id: request.id,
-            user_id: caller.user_id.clone(),
-            username: caller.username.clone(),
-            auth_time: caller.auth_time,
-            certificate_id,
-            certificate_pem: certificate.pem.clone(),
-            chain_pem: certificate.chain_pem.clone(),
-            fingerprint_sha256: certificate.fingerprint_sha256.clone(),
-            spki_sha256: certificate.spki_sha256.clone(),
-            holder_sha256: certificate.holder_sha256.clone(),
-            algorithm: input.algorithm,
-            payload_signature: input.payload_signature.clone(),
-            document_signature: input.document_signature.clone(),
-            pdf_cms: input.pdf_cms.clone(),
-            revocation_status: verification.revocation_status,
-            display_name: Some(caller.display_name.clone()),
-        },
+    // 5. The approval and its document signature, together: when either is
+    // refused, neither is kept (only the refusal's log entry).
+    let savepoint = transaction
+        .savepoint("signing_approval")
+        .await
+        .context("Error starting the signature")?;
+    let recorded = record_signature(
+        &savepoint,
+        services,
+        &request,
+        caller,
+        &certificate,
+        certificate_id,
+        &verification,
+        input,
     )
-    .await?;
-    if let Err(conflict) = inserted {
-        return refuse(
-            transaction,
-            &request,
-            caller,
-            CertificateCheckId::AlreadySigned,
-            format!("{conflict:?}: this person already signed this request."),
-            Some(&certificate),
-        )
-        .await;
+    .await;
+    match recorded {
+        Ok(()) => savepoint
+            .commit()
+            .await
+            .context("Error keeping the signature")?,
+        Err(SigningError::Refused { check, message, .. }) => {
+            savepoint
+                .rollback()
+                .await
+                .context("Error undoing the signature")?;
+            return refuse(
+                transaction,
+                &request,
+                caller,
+                check,
+                message,
+                Some(&certificate),
+            )
+            .await;
+        }
+        Err(error) => return Err(error),
     }
     let count = approvals.len() as i64 + 1;
     let required = request.required;
@@ -853,6 +874,65 @@ async fn approve_in(
         },
         post_commit,
     ))
+}
+
+/// Records the approval, then keeps its document signature (a PDF
+/// revision). `Refused` when either is refused; the caller's savepoint then
+/// keeps neither.
+#[allow(clippy::too_many_arguments)]
+async fn record_signature(
+    transaction: &Transaction<'_>,
+    services: &SigningServices,
+    request: &SigningRequestRow,
+    caller: &SigningCaller,
+    certificate: &CertificateIdentity,
+    certificate_id: Uuid,
+    verification: &CertificateVerification,
+    input: &ApproveInput,
+) -> SigningResult<()> {
+    let inserted = insert_signing_approval(
+        transaction,
+        &NewSigningApproval {
+            tenant_id: request.tenant_id,
+            election_event_id: request.election_event_id,
+            request_id: request.id,
+            user_id: caller.user_id.clone(),
+            username: caller.username.clone(),
+            auth_time: caller.auth_time,
+            certificate_id,
+            certificate_pem: certificate.pem.clone(),
+            chain_pem: certificate.chain_pem.clone(),
+            fingerprint_sha256: certificate.fingerprint_sha256.clone(),
+            spki_sha256: certificate.spki_sha256.clone(),
+            holder_sha256: certificate.holder_sha256.clone(),
+            algorithm: input.algorithm,
+            payload_signature: input.payload_signature.clone(),
+            document_signature: input.document_signature.clone(),
+            pdf_cms: input.pdf_cms.clone(),
+            revocation_status: verification.revocation_status,
+            display_name: Some(caller.display_name.clone()),
+        },
+    )
+    .await?;
+    if let Err(conflict) = inserted {
+        return Err(SigningError::Refused {
+            check: CertificateCheckId::AlreadySigned,
+            message: format!("{conflict:?}: this person already signed this request."),
+            other_holder: None,
+        });
+    }
+    // After the approval, so an approval that conflicts stores no document.
+    services
+        .documents
+        .embed(
+            transaction,
+            request,
+            &caller.actor(),
+            certificate,
+            input.pdf_cms.as_deref(),
+            input.revision,
+        )
+        .await
 }
 
 /// Runs a completed deferred request's executor inside a savepoint: the

@@ -3452,8 +3452,6 @@ const basqueTranslation: TranslationType = {
                     appliesTo: "Each Post",
                     description:
                         "Started in Publish. Initializes the Post and generates its Initialization Report.",
-                    certify:
-                        "We certify that voting at this Post was initialized. Each of us signed it with our digital certificate.",
                 },
                 "open-voting": {
                     label: "Open voting",
@@ -3462,8 +3460,6 @@ const basqueTranslation: TranslationType = {
                     object: "opening of voting",
                     appliesTo: "Each Post",
                     description: "Started in Publish with Start voting. Opens voting at the Post.",
-                    certify:
-                        "We certify that voting at this Post was opened. Each of us signed it with our digital certificate.",
                 },
                 "close-voting": {
                     label: "Close voting",
@@ -3473,8 +3469,6 @@ const basqueTranslation: TranslationType = {
                     appliesTo: "Each Post",
                     description:
                         "Started in Publish with Stop voting. Closes voting and seals the ballots; the seal record lists the closing signatures.",
-                    certify:
-                        "We certify that voting at this Post was closed. Each of us signed it with our digital certificate.",
                 },
                 "generate-election-returns": {
                     label: "Generate election returns",
@@ -3484,8 +3478,6 @@ const basqueTranslation: TranslationType = {
                     appliesTo: "Each Post and country",
                     description:
                         "Started in Reports. Releases the signed election returns for printing and transmission.",
-                    certify:
-                        "We certify that these election returns are true and correct. Each of us signed them with our digital certificate.",
                 },
                 "generate-reports": {
                     label: "Generate other election reports",
@@ -3495,8 +3487,6 @@ const basqueTranslation: TranslationType = {
                     appliesTo: "Each Post",
                     description:
                         "Started in Reports. Releases the signed report: initialization, participation, activity logs or manual verification.",
-                    certify:
-                        "We certify that this report is true and correct. Each of us signed it with our digital certificate.",
                 },
                 "transmit-results": {
                     label: "Transmit results",
@@ -3506,8 +3496,6 @@ const basqueTranslation: TranslationType = {
                     appliesTo: "Each Post and country",
                     description:
                         "Started in Tally, Transmission. Builds the signed results package for its destinations; the signatures fill its signature list.",
-                    certify:
-                        "We certify that this results package is true and correct. Each of us signed it with our digital certificate.",
                 },
                 "approve-voter": {
                     label: "Approve a voter manually",
@@ -3517,8 +3505,6 @@ const basqueTranslation: TranslationType = {
                     appliesTo: "The voter's Post",
                     description:
                         "Started in Approvals. Approves the voter and issues their credentials.",
-                    certify:
-                        "We certify that this voter is approved. Each of us signed the approval with our digital certificate.",
                 },
                 "approve-configuration": {
                     label: "Approve a configuration version",
@@ -3527,8 +3513,6 @@ const basqueTranslation: TranslationType = {
                     object: "configuration version",
                     appliesTo: "The election event",
                     description: "Started in Publish. Publishes the configuration version.",
-                    certify:
-                        "We certify that this configuration version is approved. Each of us signed it with our digital certificate.",
                 },
                 "key-ceremony": {
                     label: "Confirm a key share (key ceremony)",
@@ -3538,8 +3522,6 @@ const basqueTranslation: TranslationType = {
                     appliesTo: "Each trustee",
                     description:
                         "Started in Keys by each trustee. Records the trustee's signature with the ceremony and the bulletin board.",
-                    certify:
-                        "I certify that this key share is mine and correct. I signed it with my digital certificate.",
                 },
                 "tally-key": {
                     label: "Contribute a key share (tally)",
@@ -3549,8 +3531,6 @@ const basqueTranslation: TranslationType = {
                     appliesTo: "Each trustee",
                     description:
                         "Started in Tally by each trustee. Records the trustee's contribution.",
-                    certify:
-                        "I certify that this key share contribution is mine and correct. I signed it with my digital certificate.",
                 },
             },
             protectedActions: {
@@ -3678,8 +3658,6 @@ const basqueTranslation: TranslationType = {
                     password: "Certificate password",
                     open: "Open certificate",
                     chooseAnother: "Choose another file",
-                    staysLocal:
-                        "The file and its password stay on this computer. Only your signature and the public certificate are sent.",
                 },
                 checks: {
                     "passed": {
@@ -3728,8 +3706,93 @@ const basqueTranslation: TranslationType = {
                 back: "Back",
                 cancel: "Cancel",
             },
-            signaturePage: {
-                digitallySigned: "Digitally signed by {{name}}",
+            widget: {
+                continue: "Continue",
+                done: "Done",
+                close: "Close",
+                retry: "Try again",
+                loading: "Loading the request…",
+                loadError: "The request could not be loaded.",
+                chooseFile: "Choose certificate file",
+                fileInput: "Certificate file",
+                fileSize: "{{size}} KB",
+                showPassword: "Show password",
+                hidePassword: "Hide password",
+                opening: "Opening the certificate…",
+                checking: "Checking the certificate…",
+                signing: "Signing…",
+                certificateCard: "Issued by {{issuer}} · valid until {{date}} · {{algorithm}}",
+                fingerprint: "SHA-256 {{fingerprint}}",
+                algorithms: {
+                    "rsa-pkcs1-sha256": "RSA",
+                    "ecdsa-p256-sha256": "EC P-256",
+                },
+                document: "{{type}} · SHA-256 {{hash}}",
+                documentPages: "{{type}} · {{pages}} pages · SHA-256 {{hash}}",
+                checksTitle: "Certificate checks",
+                untrustedIssuer: "{{issuer}} is not a trusted issuer for this election event",
+                registeredToSomeoneElse: "Registered to someone else",
+                checkPassedNoDetail: {
+                    "trusted-issuer": "Issued by a trusted issuer",
+                    "not-revoked": "Not revoked",
+                },
+                organization: "your organization",
+                cantSign: "This certificate can't sign this request.",
+                checkError: "The certificate could not be checked. Try again.",
+                fileErrors: {
+                    UNREADABLE_FILE:
+                        "This file is not a certificate file (.p12 or .pfx), or it is damaged.",
+                    UNSUPPORTED_ENCRYPTION:
+                        "This browser can't open the encryption this file uses.",
+                    NO_PRIVATE_KEY:
+                        "This file has no private key. Choose the certificate file from your security token.",
+                    NO_CERTIFICATE: "This file has no certificate.",
+                    UNSUPPORTED_KEY:
+                        "This certificate's key type is not supported. Use an RSA or EC P-256 certificate.",
+                    KEY_CERTIFICATE_MISMATCH:
+                        "The certificate in this file does not match its key.",
+                },
+                openError: "The certificate could not be opened. Try again.",
+                signError: "The signature could not be sent. Try again.",
+                refused: "The server refused the signature.",
+                stale: "The document changed while you were signing. Sign again.",
+                mismatch:
+                    "What would be signed does not match this request. Close the dialog and open the request again.",
+                documentMismatch: "The document does not match the one this request signs.",
+                documentError: "The document could not be downloaded. Try again.",
+                alreadySigned: "You have already signed this request.",
+                closed: {
+                    changed:
+                        "This request changed after you opened it. Close this window and check it again before you sign.",
+                    allSigned: "This request already has all its signatures.",
+                },
+                chooseCertificate: "Certificate to sign with",
+                renderError: "The signing request could not be shown. Close it and open it again.",
+                signedAt: "{{time}}",
+                panel: {
+                    completedAt: "Signed at {{time}}",
+                    expired:
+                        "This request expired. Signatures given for it no longer count. Start it again to sign.",
+                    failed: "All signatures are in, but the action failed. The log has the details.",
+                    details: "Details",
+                    close: "Close the request panel",
+                },
+                cancelDialog: {
+                    title: "Cancel this request?",
+                    body: "Signatures given for it no longer count. The person who started it starts again.",
+                    reason: "Reason (optional)",
+                    confirm: "Cancel request",
+                    back: "Keep it",
+                    error: "The request could not be cancelled. Try again.",
+                },
+                handoverDialog: {
+                    title: "Next member signs in",
+                    noExpiry:
+                        "You will be signed out. The next member signs in on this computer and returns to this request to sign.",
+                    confirm: "Sign out",
+                    back: "Stay signed in",
+                    error: "The handover could not be recorded. Try again.",
+                },
             },
         },
     },

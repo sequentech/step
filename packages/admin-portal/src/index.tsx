@@ -27,6 +27,7 @@ import {
 } from "./providers/ApolloContextProvider"
 import {DatabaseProvider} from "./providers/DatabaseProvider"
 import {WidgetsContextProvider} from "./providers/WidgetsContextProvider"
+import {SigningProvider} from "./components/signing/SigningProvider"
 import {BrowserRouter as Router} from "react-router-dom"
 
 const root = ReactDOM.createRoot(document.getElementById("root") as HTMLElement)
@@ -53,7 +54,9 @@ root.render(
                                                             <ApolloWrapper>
                                                                 <DatabaseProvider>
                                                                     <WidgetsContextProvider>
-                                                                        <App />
+                                                                        <SigningProvider>
+                                                                            <App />
+                                                                        </SigningProvider>
                                                                     </WidgetsContextProvider>
                                                                 </DatabaseProvider>
                                                             </ApolloWrapper>

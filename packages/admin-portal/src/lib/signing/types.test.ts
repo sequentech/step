@@ -43,7 +43,6 @@ describe("signing types", () => {
                 "object",
                 "appliesTo",
                 "description",
-                "certify",
             ] as const) {
                 expect(labels[key]).toEqual(expect.any(String))
             }
@@ -67,6 +66,16 @@ describe("signing types", () => {
         )
         expect(signing.dialog.checks.failed["registered-to-other"]).toBe("Registered to {{name}}")
         expect(signing.dialog.checks["first-use"]).toEqual(expect.any(String))
+    })
+
+    // The PDF signature page is printed by the server, in the event's
+    // language (windmill's signature_page_texts.toml): the portal has no
+    // copy of its texts.
+    it("leaves the signature page's texts to the server", () => {
+        for (const action of Object.values(SigningAction)) {
+            expect(signing.actions[action]).not.toHaveProperty("certify")
+        }
+        expect(signing).not.toHaveProperty("signaturePage")
     })
 
     it("counts waiting requests with plural forms", () => {
