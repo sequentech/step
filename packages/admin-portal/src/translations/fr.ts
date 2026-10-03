@@ -581,6 +581,23 @@ const frenchTranslation: TranslationType = {
                 css: "CSS personnalisé",
                 skipElectionList: "Passer l'écran pour choisir l'élection",
                 showUserProfile: "Afficher le profil utilisateur",
+                voterAccessibilitySettingsPolicy: {
+                    policyLabel: "Paramètres d'accessibilité de l'électeur",
+                    options: {
+                        disabled: "Masquer les paramètres d'accessibilité",
+                        enabled:
+                            "Proposer la taille du texte, le contraste, l'espacement et les animations",
+                    },
+                },
+                audioInstructionsPolicy: {
+                    policyLabel: "Instructions audio",
+                    options: {
+                        "disabled": "Pas d'instructions audio",
+                        "recorded": "Enregistrements téléversés uniquement",
+                        "recorded-or-synthesized":
+                            "Enregistrements téléversés, ou la voix du navigateur à défaut",
+                    },
+                },
                 showCastVoteLogs: {
                     policyLabel: "Afficher les logs de vote",
                     options: {
@@ -2744,6 +2761,23 @@ const frenchTranslation: TranslationType = {
             },
         },
         materials: {
+            audioInstructions: {
+                screenLabel: "Instructions audio pour l'écran",
+                languageLabel: "Langue de l'enregistrement",
+                none: "Pas des instructions audio",
+                helperText:
+                    "Les électeurs entendent ce fichier lorsqu'ils demandent les instructions sur cet écran.",
+                screens: {
+                    "election-chooser": "Liste des élections",
+                    "start": "Début",
+                    "ballot": "Bulletin",
+                    "review": "Vérification",
+                    "confirmation": "Confirmation",
+                    "audit": "Audit",
+                    "ballot-locator": "Localisateur de bulletins",
+                    "support-materials": "Documents d'aide",
+                },
+            },
             createMaterialSuccess: "Matériel de support créé",
             createMaterialError: "Erreur lors de la création du matériel de support",
             updateMaterialSuccess: "Matériel de support mis à jour",

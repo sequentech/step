@@ -113,6 +113,12 @@ pub const LAST_NAME_ATTRIBUTE: &str = "last_name";
 pub const PERMISSION_LABELS: &str = "permission_labels";
 pub const REALM_ATTR_VOTER_CERTIFICATE_POLICY: &str =
     "voter-certificate-policy";
+/// Mirror the event's presentation policies of the same names, for the login
+/// pages, which cannot read the presentation.
+pub const REALM_ATTR_VOTER_ACCESSIBILITY_SETTINGS_POLICY: &str =
+    "voter-accessibility-settings-policy";
+pub const REALM_ATTR_AUDIO_INSTRUCTIONS_POLICY: &str =
+    "audio-instructions-policy";
 pub const REALM_ATTR_CREDENTIAL_INPUT_POLICY: &str = "credential-input-policy";
 pub const REALM_ATTR_CREDENTIAL_INPUT_PATTERN: &str =
     "credential-input-pattern";

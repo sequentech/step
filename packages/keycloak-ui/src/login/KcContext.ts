@@ -3,6 +3,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import type {ExtendKcContext} from "keycloakify/login"
 import type {KcEnvName, ThemeName} from "../kc.gen"
+import {
+    EAudioInstructionsPolicy,
+    EVoterAccessibilitySettingsPolicy,
+} from "../../../ui-core/src/types/ElectionEventPresentation"
+
+export {EAudioInstructionsPolicy, EVoterAccessibilitySettingsPolicy}
 
 export enum MessageCourier {
     Sms = "SMS",
@@ -30,6 +36,8 @@ export type KcContextExtension = {
     sequent: {
         loginValidationPolicy: LoginValidationPolicy
         loginHintUsernamePolicy: LoginHintUsernamePolicy
+        voterAccessibilitySettingsPolicy: EVoterAccessibilitySettingsPolicy
+        audioInstructionsPolicy: EAudioInstructionsPolicy
     }
 }
 
