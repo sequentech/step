@@ -171,5 +171,76 @@ export const get_ballot_style_slates_js = (ballotStyle: unknown): unknown => {
     }
 }
 
+interface IStubCandidate {
+    id: string
+    presentation?: Record<string, unknown> | null
+}
+
+interface IStubContest {
+    id: string
+    max_votes: number
+    is_acclaimed?: boolean | null
+    candidates: Array<IStubCandidate>
+}
+
+const UNSELECTABLE_FLAGS = [
+    "is_disabled",
+    "is_explicit_blank",
+    "is_explicit_invalid",
+    "is_write_in",
+    "is_category_list",
+]
+
+/**
+ * What each slate covers of the ballot style's contests, as
+ * `election_config::slates::coverage` derives it.
+ */
+export const get_ballot_style_slates_coverage_js = (ballotStyle: unknown): unknown => {
+    const config = get_ballot_style_slates_js(ballotStyle) as {
+        slates: Array<{id: string; members: Record<string, Array<string>>}>
+    } | null
+    if (!config) {
+        return null
+    }
+    const contests = ((ballotStyle as {contests?: Array<IStubContest>}).contests ?? []).filter(
+        (contest) => !contest.is_acclaimed
+    )
+    const seats = contests.reduce((total, contest) => total + contest.max_votes, 0)
+
+    return config.slates.flatMap((slate) => {
+        const covered = contests.flatMap((contest) => {
+            const candidateIds = (slate.members[contest.id] ?? []).filter((candidateId) =>
+                contest.candidates.some(
+                    (candidate) =>
+                        candidate.id === candidateId &&
+                        !UNSELECTABLE_FLAGS.some((flag) => candidate.presentation?.[flag])
+                )
+            )
+            return candidateIds.length > 0
+                ? [{contest_id: contest.id, candidate_ids: candidateIds, seats: contest.max_votes}]
+                : []
+        })
+        if (covered.length === 0) {
+            return []
+        }
+        const uncovered = contests
+            .filter((contest) => !covered.some((entry) => entry.contest_id === contest.id))
+            .map((contest) => contest.id)
+        const isComplete =
+            uncovered.length === 0 &&
+            covered.every((entry) => entry.candidate_ids.length === entry.seats)
+        return [
+            {
+                slate_id: slate.id,
+                kind: isComplete ? "complete" : "partial",
+                covered,
+                uncovered_contest_ids: uncovered,
+                members: covered.reduce((total, entry) => total + entry.candidate_ids.length, 0),
+                seats,
+            },
+        ]
+    })
+}
+
 export const iso_639_2t_to_bcp47_js = (code: string): string => code
 export const locale_to_internal_language_code_js = (locale: string): string => locale
