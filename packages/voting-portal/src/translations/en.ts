@@ -12,6 +12,26 @@ const englishTranslation = {
             showMore: "Show more",
             showLess: "Show less",
         },
+        audioInstructions: {
+            screens: {
+                "election-chooser":
+                    "This page lists the elections you can vote in. Use the Tab key to move from one election to the next. Each election has a button to start voting. Press Enter on that button to open its ballot.",
+                "start":
+                    "This page explains how to vote. First you choose your options, then you review them, and then you cast your ballot. Use the Tab key to reach the button that starts voting and press Enter. If a declaration is shown, tick its checkbox with the Space bar first.",
+                "ballot":
+                    "This is your ballot. Each question is a group of options, and the question says how many options you can choose. Use the Tab key to move between options and the Space bar to select or clear one. When you have finished, go to the button to continue, at the end of the page, and press Enter to review your choices. There is also a button to clear all your choices. Nothing is cast until you confirm on the review page.",
+                "review":
+                    "This page shows the choices you made. Check them carefully. To change something, use the button to edit your ballot. To cast your vote, go to the button to cast your ballot and press Enter. Your ballot ID is at the top of the page. You can copy it to find your ballot later.",
+                "confirmation":
+                    "Your vote has been cast. This page shows your ballot ID, which you can use to check that your ballot was recorded. You can copy it or print this page. When you are done, use the button at the end of the page to finish.",
+                "audit":
+                    "This page lets you audit your ballot instead of casting it. It shows the information that you can check with the ballot verifier. An audited ballot is not cast, so go back to your ballot afterwards to vote.",
+                "ballot-locator":
+                    "This page lets you check that a ballot was recorded. Type or paste a ballot ID in the text field and press Enter. The result appears below the field.",
+                "support-materials":
+                    "This page lists documents that help you vote. Use the Tab key to move between them and press Enter on a document's button to open it. Use the button to go back to return to the list of elections.",
+            },
+        },
         a11y: {
             skipToContent: "Skip to main content",
             helpAbout: "Help about {{topic}}",

@@ -59,6 +59,8 @@ import {
     EVoterSigningPolicy,
     EVoterCertificatePolicy,
     EShowCastVoteLogsPolicy,
+    EVoterAccessibilitySettingsPolicy,
+    EAudioInstructionsPolicy,
     EElectionEventDecodedBallots,
     EElectionEventCeremoniesPolicy,
     EElectionEventAutomaticRecountPolicy,
@@ -709,6 +711,22 @@ export const EditElectionEventDataForm: React.FC<{
         }))
     }
 
+    const voterAccessibilitySettingsPolicyChoices = (): Array<
+        EnumChoice<EVoterAccessibilitySettingsPolicy>
+    > => {
+        return Object.values(EVoterAccessibilitySettingsPolicy).map((value) => ({
+            id: value,
+            name: t(`electionEventScreen.field.voterAccessibilitySettingsPolicy.options.${value}`),
+        }))
+    }
+
+    const audioInstructionsPolicyChoices = (): Array<EnumChoice<EAudioInstructionsPolicy>> => {
+        return Object.values(EAudioInstructionsPolicy).map((value) => ({
+            id: value,
+            name: t(`electionEventScreen.field.audioInstructionsPolicy.options.${value}`),
+        }))
+    }
+
     const handleImportCandidates = async (documentId: string, sha256: string) => {
         setOpenImportCandidates(false)
         const currWidget = addWidget(ETasksExecution.IMPORT_CANDIDATES, undefined)
@@ -1342,6 +1360,28 @@ export const EditElectionEventDataForm: React.FC<{
                             defaultValue={EShowCastVoteLogsPolicy.HIDE_LOGS_TAB}
                             label={String(
                                 t("electionEventScreen.field.showCastVoteLogs.policyLabel")
+                            )}
+                        />
+                        <SelectInput
+                            disabled={!canEdit}
+                            source="presentation.voter_accessibility_settings_policy"
+                            choices={voterAccessibilitySettingsPolicyChoices()}
+                            validate={required()}
+                            defaultValue={EVoterAccessibilitySettingsPolicy.DISABLED}
+                            label={String(
+                                t(
+                                    "electionEventScreen.field.voterAccessibilitySettingsPolicy.policyLabel"
+                                )
+                            )}
+                        />
+                        <SelectInput
+                            disabled={!canEdit}
+                            source="presentation.audio_instructions_policy"
+                            choices={audioInstructionsPolicyChoices()}
+                            validate={required()}
+                            defaultValue={EAudioInstructionsPolicy.DISABLED}
+                            label={String(
+                                t("electionEventScreen.field.audioInstructionsPolicy.policyLabel")
                             )}
                         />
                         <FormDataConsumer>

@@ -125,6 +125,53 @@ Messages that explain why a specific control is rejected must also be linked to 
 `aria-describedby`. The write-in length error does this via the exported `writeInErrorId`
 helper.
 
+### Respect the voter's display settings
+
+Where the event enables them (`voter_accessibility_settings_policy`, see
+[Voter Accessibility](../../02-election_managers/02-reference/13-voter-accessibility.md)), the
+header's `AccessibilityMenu` lets the voter choose text size, contrast, text spacing and
+motion. The logic lives in `ui-core` (`services/accessibilitySettings.ts`), the menu and its
+stylesheet in `ui-essentials`. Each setting is a `data-a11y-*` attribute on `<html>`; nothing
+reads React state for it, so the login pages and tenant CSS can use the same attributes.
+
+To keep new UI working with them:
+
+- **Size text in `rem`, never `px`.** Text size scales the root font size, so a `px` size
+  ignores both this setting and the browser's own default font size.
+- **Do not fix the height of anything that holds text.** Use `min-height`. The stylesheet
+  already lets `.candidate-item` and the header row grow; a new fixed-height row would clip at
+  150% or with wide spacing.
+- **Do not carry meaning by background color alone.** High contrast repaints text and borders
+  black and inverts buttons, but it never adds a background to an element that had none,
+  because transparent overlays (ripples, input outlines) sit above the text they decorate. A
+  state shown only by a tint disappears; pair it with an icon, a border or text.
+- **Leave motion to CSS animations and transitions.** Reduced motion shortens those; it cannot
+  reach an animation driven from JavaScript.
+
+`AccessibilityMenu.test.tsx` covers the behaviour. For the look, render the screen's story
+with the attributes set on `<html>` at 1280 and 320 CSS px wide and check that
+`document.documentElement.scrollWidth` does not exceed its `clientWidth`.
+
+### Give each screen its spoken instructions
+
+Where the event enables them (`audio_instructions_policy`), `PortalChrome` renders
+`ScreenAudioInstructions` as the first thing in `<main>`. It maps the route to an
+`EAudioInstructionsScreen`, takes that screen's text from
+`audioInstructions.screens.<screen>` in `voting-portal/src/translations`, and looks for an
+uploaded recording among the event's support materials (`data.audio_instructions`, with a
+`screen` and a `language`). The shared `AudioInstructions` player in `ui-essentials` plays
+the recording, or speaks the text with the Web Speech API when there is none, and always
+offers the text as a transcript.
+
+When adding a voter screen:
+
+- add it to `EAudioInstructionsScreen` in `ui-core` and to `SCREEN_PATHS`;
+- write its text in every language file, describing the screen by what its controls do
+  rather than by their labels, which events can rename;
+- add the screen's name to the Admin Portal's `materials.audioInstructions.screens`.
+
+Never start audio without the voter asking (SC 1.4.2): it would talk over a screen reader.
+
 ## Known deviations
 
 Two things were deliberately left as they are. Both are recorded here so a future audit does

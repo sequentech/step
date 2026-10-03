@@ -14,6 +14,26 @@ const spanishTranslation: TranslationType = {
             showMore: "Mostrar más",
             showLess: "Mostrar menos",
         },
+        audioInstructions: {
+            screens: {
+                "election-chooser":
+                    "Esta página muestra las elecciones en las que puede votar. Use la tecla Tabulador para pasar de una elección a la siguiente. Cada elección tiene un botón para empezar a votar. Pulse Intro en ese botón para abrir su papeleta.",
+                "start":
+                    "Esta página explica cómo votar. Primero elige sus opciones, después las revisa y por último emite su voto. Use la tecla Tabulador para llegar al botón que inicia la votación y pulse Intro. Si se muestra una declaración, marque antes su casilla con la barra espaciadora.",
+                "ballot":
+                    "Esta es su papeleta. Cada pregunta es un grupo de opciones, y la pregunta indica cuántas puede elegir. Use la tecla Tabulador para moverse entre las opciones y la barra espaciadora para marcar o desmarcar una. Cuando termine, vaya al botón para continuar, al final de la página, y pulse Intro para revisar sus opciones. También hay un botón para borrar todas sus opciones. No se emite nada hasta que lo confirme en la página de revisión.",
+                "review":
+                    "Esta página muestra las opciones que ha elegido. Compruébelas con atención. Para cambiar algo, use el botón para editar su papeleta. Para emitir su voto, vaya al botón para emitir la papeleta y pulse Intro. El identificador de su papeleta está al principio de la página. Puede copiarlo para localizar su papeleta más adelante.",
+                "confirmation":
+                    "Su voto se ha emitido. Esta página muestra el identificador de su papeleta, con el que puede comprobar que se ha registrado. Puede copiarlo o imprimir esta página. Cuando termine, use el botón del final de la página para finalizar.",
+                "audit":
+                    "Esta página le permite auditar su papeleta en lugar de emitirla. Muestra la información que puede comprobar con el verificador de papeletas. Una papeleta auditada no se emite, así que vuelva después a su papeleta para votar.",
+                "ballot-locator":
+                    "Esta página le permite comprobar que una papeleta se ha registrado. Escriba o pegue un identificador de papeleta en el campo de texto y pulse Intro. El resultado aparece debajo del campo.",
+                "support-materials":
+                    "Esta página muestra documentos que le ayudan a votar. Use la tecla Tabulador para moverse entre ellos y pulse Intro en el botón de un documento para abrirlo. Use el botón para volver a la lista de elecciones.",
+            },
+        },
         a11y: {
             skipToContent: "Saltar al contenido principal",
             helpAbout: "Ayuda sobre {{topic}}",
