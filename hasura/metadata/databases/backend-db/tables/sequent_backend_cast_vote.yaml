@@ -96,16 +96,11 @@ select_permissions:
       permission:
           allow_aggregations: true
           columns:
-              - annotations
               - area_id
-              - ballot_id
-              - cast_ballot_signature
-              - content
               - created_at
               - election_event_id
               - election_id
               - id
-              - labels
               - last_updated_at
               - status
               - tenant_id

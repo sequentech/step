@@ -98,6 +98,7 @@ fn build_application_with(
                 routes::ballot_publication::publish_ballot,
                 routes::ballot_publication_prepare_preview::prepare_ballot_publication_preview,
                 routes::voter_electoral_log::list_cast_vote_messages,
+                routes::ballot_checks::locate_ballot,
                 routes::insert_cast_vote::insert_cast_vote,
                 routes::fetch_document::fetch_document,
                 routes::document_password::get_document_password,

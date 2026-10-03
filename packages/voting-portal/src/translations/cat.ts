@@ -463,6 +463,9 @@ const catalanTranslation: TranslationType = {
                 "No trobat, comprova que l'ID de la Papereta estigui correcte i pertanyi a l'usuari actual.",
             filterByBallotId: "Filtra per ID de la Papereta",
             totalBallots: "Paperetes: {{total}}",
+            checksAvailableUntil: "Pots comprovar la teva papereta fins al {{date}}.",
+            checksEnded: "Les comprovacions van finalitzar el {{date}}.",
+            castAt: "Emès el {{date}}",
             steps: {
                 lookup: "Troba la teva Papereta",
                 result: "Resultat",

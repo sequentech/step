@@ -472,6 +472,7 @@ const spanishTranslation: TranslationType = {
                 allowed: "Canales de Voto Permitidos",
                 materials: "Materiales de Soporte",
                 ballotDesign: "Diseño de la Papeleta",
+                ballotReceipts: "Recibos de voto",
                 templates: "Plantillas",
                 reorder: "Reordenar elecciones",
                 advancedConfigurations: "Voting Portal Countdown Policy",
@@ -581,6 +582,19 @@ const spanishTranslation: TranslationType = {
                 css: "CSS personalizado",
                 skipElectionList: "Saltar pantalla para escoger elección",
                 showUserProfile: "Mostrar perfil de usuario",
+                ballotReceipts: {
+                    checksPeriod: {
+                        policyLabel: "Periodo de comprobación de los votos emitidos",
+                        helper: "Durante cuánto tiempo los votantes pueden localizar su voto emitido e imprimir su recibo en el Portal de Votación.",
+                        options: {
+                            "unlimited": "Sin límite",
+                            "until-date": "Hasta una fecha",
+                        },
+                    },
+                    checksAvailableUntil: "Comprobaciones disponibles hasta ({{timezone}})",
+                    checksAvailableUntilRequired:
+                        "Introduce la fecha y hora hasta la que se pueden comprobar los votos.",
+                },
                 showCastVoteLogs: {
                     policyLabel: "Mostrar logs de votación",
                     options: {
