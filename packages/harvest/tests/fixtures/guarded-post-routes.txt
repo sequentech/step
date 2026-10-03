@@ -87,6 +87,7 @@
 /list-cast-vote-messages
 /list-keys-ceremonies
 /list-user-roles
+/locate-ballot
 /manage-election-dates
 /miru/create-transmission-package
 /miru/send-transmission-package

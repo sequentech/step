@@ -473,6 +473,7 @@ const basqueTranslation: TranslationType = {
                 allowed: "Baimendutako Bozketa Kanalak",
                 materials: "Laguntza Materialak",
                 ballotDesign: "Bozketa Diseinua",
+                ballotReceipts: "Boto-agiriak",
                 templates: "Txantiloiak",
                 reorder: "Berrantolatu hauteskundeak",
                 advancedConfigurations: "Konfigurazio Aurreratuak",
@@ -578,6 +579,19 @@ const basqueTranslation: TranslationType = {
                 css: "CSS Pertsonalizatua",
                 skipElectionList: "Saltatu Hauteskunde Zerrenda Pantaila",
                 showUserProfile: "Erakutsi Erabiltzaile Profila",
+                ballotReceipts: {
+                    checksPeriod: {
+                        policyLabel: "Emandako botoak egiaztatzeko epea",
+                        helper: "Zenbat denboraz bilatu dezaketen hautesleek emandako botoa eta inprimatu haren agiria Bozketa Atarian.",
+                        options: {
+                            "unlimited": "Mugarik gabe",
+                            "until-date": "Data batera arte",
+                        },
+                    },
+                    checksAvailableUntil: "Egiaztapenak noiz arte ({{timezone}})",
+                    checksAvailableUntilRequired:
+                        "Sartu botoak noiz arte egiazta daitezkeen adierazten duen data eta ordua.",
+                },
                 showCastVoteLogs: {
                     policyLabel: "Erakutsi Logs Bozketa Taba",
                     options: {

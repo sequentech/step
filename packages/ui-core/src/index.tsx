@@ -41,6 +41,7 @@ export {
     translateFromPresentation,
 } from "./services/translate"
 export * from "./services/votingPortalDateTime"
+export * from "./services/ballotChecks"
 export * from "./types/ElectionEventPresentation"
 export * from "./services/percentFormatter"
 export * from "./services/cssClassNameFormatter"

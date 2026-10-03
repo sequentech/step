@@ -458,6 +458,9 @@ const tagalogTranslation: TranslationType = {
             ballotIdNotFoundAtFilter: "Hindi natagpuan ang iyong ballot ID sa filter",
             filterByBallotId: "Tumutugma sa Ballot ID",
             totalBallots: "Kumulang mga balota: {{total}}",
+            checksAvailableUntil: "Maaari mong suriin ang iyong balota hanggang {{date}}.",
+            checksEnded: "Natapos ang mga pagsusuri noong {{date}}.",
+            castAt: "Naihulog noong {{date}}",
             steps: {
                 lookup: "Hanapin ang Iyong Balota",
                 result: "Resulta",

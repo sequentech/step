@@ -1880,20 +1880,40 @@ pub struct CastVoteMessagesOutput {
 }
 
 impl CastVoteEntry {
-    pub fn from_elog_message(entry: &ElectoralLogMessage) -> Result<Option<Self>, anyhow::Error> {
+    pub fn from_elog_message(
+        entry: &ElectoralLogMessage,
+        viewer_user_id: &str,
+    ) -> Result<Option<Self>, anyhow::Error> {
         let ballot_id = entry.ballot_id.clone().unwrap_or_default();
         let username = entry.username.clone();
         let message: &Message = &Message::strand_deserialize(&entry.message)
             .map_err(|err| anyhow!("Failed to deserialize message: {:?}", err))?;
         let message = Some(message.to_string());
 
-        Ok(Some(CastVoteEntry {
-            statement_timestamp: entry.statement_timestamp,
-            statement_kind: StatementType::CastVote.to_string(),
-            ballot_id,
-            username,
-            message,
-        }))
+        Ok(Some(
+            CastVoteEntry {
+                statement_timestamp: entry.statement_timestamp,
+                statement_kind: StatementType::CastVote.to_string(),
+                ballot_id,
+                username,
+                message,
+            }
+            .shown_to(entry.user_id.as_deref(), viewer_user_id),
+        ))
+    }
+
+    /// The username and the signed statement (pseudonym, IP and country) tie a
+    /// Ballot ID to a voter, so a voter gets them only for their own entries.
+    pub fn shown_to(self, entry_user_id: Option<&str>, viewer_user_id: &str) -> Self {
+        if entry_user_id == Some(viewer_user_id) {
+            self
+        } else {
+            CastVoteEntry {
+                username: None,
+                message: None,
+                ..self
+            }
+        }
     }
 }
 
@@ -2064,7 +2084,7 @@ pub async fn list_cast_vote_messages(
         let t_entries = electoral_log_messages.len();
         info!("Got {t_entries} entries. Offset: {offset}, limit: {limit}, total: {total}");
         for message in electoral_log_messages.iter() {
-            match CastVoteEntry::from_elog_message(&message)? {
+            match CastVoteEntry::from_elog_message(&message, user_id)? {
                 Some(entry) if !ballot_id_filter.is_empty() => {
                     // If there is filter exit at the first match
                     filter_matched = true;
@@ -2260,5 +2280,38 @@ mod voter_secret_attribute_audit_tests {
         assert_eq!(body["voter"]["user_id"], "voter-id");
         assert_eq!(body["initiated_by"]["username"], "admin");
         assert!(body.get("document_id").is_none());
+    }
+}
+
+#[cfg(test)]
+mod cast_vote_entry_tests {
+    use super::*;
+
+    fn entry() -> CastVoteEntry {
+        CastVoteEntry {
+            statement_timestamp: 1_841_000_000,
+            statement_kind: StatementType::CastVote.to_string(),
+            ballot_id: "0abc12".to_string(),
+            username: Some("voter-one".to_string()),
+            message: Some("{\"ip\":\"203.0.113.7\"}".to_string()),
+        }
+    }
+
+    #[test]
+    fn a_voter_sees_their_own_entry_in_full() {
+        let shown = entry().shown_to(Some("voter-one-id"), "voter-one-id");
+        assert_eq!(shown.username.as_deref(), Some("voter-one"));
+        assert!(shown.message.is_some());
+    }
+
+    #[test]
+    fn another_voters_entry_keeps_only_what_does_not_identify_them() {
+        for entry_user_id in [Some("voter-one-id"), Some(""), None] {
+            let shown = entry().shown_to(entry_user_id, "voter-two-id");
+            assert_eq!(shown.username, None);
+            assert_eq!(shown.message, None);
+            assert_eq!(shown.ballot_id, "0abc12");
+            assert_eq!(shown.statement_timestamp, 1_841_000_000);
+        }
     }
 }

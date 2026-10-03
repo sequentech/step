@@ -1153,6 +1153,102 @@ where
     }
 }
 
+#[allow(non_camel_case_types)]
+#[derive(
+    Debug,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    JsonSchema,
+    Clone,
+    EnumString,
+    Display,
+    Default,
+)]
+pub enum EChecksPeriodPolicy {
+    #[strum(serialize = "unlimited")]
+    #[serde(rename = "unlimited")]
+    #[default]
+    UNLIMITED,
+    #[strum(serialize = "until-date")]
+    #[serde(rename = "until-date")]
+    UNTIL_DATE,
+}
+
+/// Whether a voter can still view a cast ballot at a given instant.
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub enum ChecksPeriod {
+    Unlimited,
+    OpenUntil(DateTime<Utc>),
+    Ended(DateTime<Utc>),
+}
+
+pub const RECEIPTS_PRESENTATION_KEY: &str = "receipts";
+
+#[derive(
+    Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone, Default,
+)]
+pub struct ReceiptsPresentation {
+    pub checks_period_policy: Option<EChecksPeriodPolicy>,
+    /// RFC 3339 date and time with its offset. Required with `until-date`.
+    pub checks_available_until: Option<String>,
+}
+
+impl ReceiptsPresentation {
+    pub fn checks_period(
+        &self,
+        now: DateTime<Utc>,
+    ) -> anyhow::Result<ChecksPeriod> {
+        match self.checks_period_policy.clone().unwrap_or_default() {
+            EChecksPeriodPolicy::UNLIMITED => Ok(ChecksPeriod::Unlimited),
+            EChecksPeriodPolicy::UNTIL_DATE => {
+                let until = self
+                    .checks_available_until
+                    .as_deref()
+                    .map(str::trim)
+                    .filter(|value| !value.is_empty())
+                    .ok_or_else(|| {
+                        anyhow!(
+                            "checks_available_until is required with the {} checks period policy",
+                            EChecksPeriodPolicy::UNTIL_DATE
+                        )
+                    })?;
+                let until = DateTime::parse_from_rfc3339(until)
+                    .map_err(|error| {
+                        anyhow!(
+                            "checks_available_until is not a date and time with an offset: {error}"
+                        )
+                    })?
+                    .with_timezone(&Utc);
+                Ok(if now > until {
+                    ChecksPeriod::Ended(until)
+                } else {
+                    ChecksPeriod::OpenUntil(until)
+                })
+            }
+        }
+    }
+}
+
+/// Reads only the receipts settings of a stored event presentation, so that
+/// an unrelated field that fails to parse does not decide whether voters can
+/// view their ballots.
+pub fn checks_period_from_presentation(
+    presentation: Option<&serde_json::Value>,
+    now: DateTime<Utc>,
+) -> anyhow::Result<ChecksPeriod> {
+    let receipts = presentation
+        .and_then(|value| value.get(RECEIPTS_PRESENTATION_KEY))
+        .filter(|value| !value.is_null());
+    let Some(receipts) = receipts else {
+        return Ok(ChecksPeriod::Unlimited);
+    };
+    serde_json::from_value::<ReceiptsPresentation>(receipts.clone())
+        .map_err(|error| anyhow!("invalid receipts settings: {error}"))?
+        .checks_period(now)
+}
+
 #[derive(
     BorshSerialize,
     BorshDeserialize,
@@ -1195,6 +1291,9 @@ pub struct ElectionEventPresentation {
     #[serde(default, deserialize_with = "deserialize_optional_json_string")]
     pub results_website: Option<String>,
     pub voting_portal_datetime_format: Option<VotingPortalDateTimeFormat>,
+    #[borsh(skip)]
+    #[serde(default)]
+    pub receipts: Option<ReceiptsPresentation>,
 }
 
 impl ElectionEvent {

@@ -473,6 +473,7 @@ const dutchTranslation: TranslationType = {
                 allowed: "Toegestane stemkanalen",
                 materials: "Ondersteunend materiaal",
                 ballotDesign: "Ontwerp stembiljet",
+                ballotReceipts: "Stembewijzen",
                 templates: "Sjablonen",
                 reorder: "Volgorde verkiezingen wijzigen",
                 advancedConfigurations: "Geavanceerde configuraties",
@@ -583,6 +584,19 @@ const dutchTranslation: TranslationType = {
                 css: "Aangepaste CSS",
                 skipElectionList: "Scherm verkiezingslijst overslaan",
                 showUserProfile: "Gebruikersprofiel tonen",
+                ballotReceipts: {
+                    checksPeriod: {
+                        policyLabel: "Periode voor het controleren van uitgebrachte stemmen",
+                        helper: "Hoe lang kiezers hun uitgebrachte stem kunnen opzoeken en het bewijs ervan kunnen afdrukken in het Stemportaal.",
+                        options: {
+                            "unlimited": "Geen limiet",
+                            "until-date": "Tot een datum",
+                        },
+                    },
+                    checksAvailableUntil: "Controles beschikbaar tot ({{timezone}})",
+                    checksAvailableUntilRequired:
+                        "Voer de datum en tijd in tot wanneer stemmen gecontroleerd kunnen worden.",
+                },
                 showCastVoteLogs: {
                     policyLabel: "Logboeken stemmen tonen",
                     options: {
