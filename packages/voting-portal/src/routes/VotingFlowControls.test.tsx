@@ -917,6 +917,8 @@ describe("slate ballot tabs", () => {
                 {
                     contest_id: contest.id,
                     is_explicit_invalid: false,
+                    is_decline_to_vote: false,
+                    is_blank_ballot: false,
                     invalid_errors: [],
                     invalid_alerts: [],
                     choices: contest.candidates.map((candidate) => ({

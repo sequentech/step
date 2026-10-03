@@ -36,6 +36,8 @@ const ballot = (
     Object.entries(CANDIDATES).map(([contestId, candidateIds]) => ({
         contest_id: contestId,
         is_explicit_invalid: false,
+        is_decline_to_vote: false,
+        is_blank_ballot: false,
         invalid_errors: [],
         invalid_alerts: [],
         choices: candidateIds.map((id) => ({id, selected: selected.includes(id) ? 0 : -1})),
