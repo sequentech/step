@@ -14287,14 +14287,14 @@ type results_area_contest {
   election_event_id: uuid!
   election_id: uuid!
   elegible_census: Int
-  explicit_blank_votes: Int
+  explicit_blank_votes: bigint
   explicit_blank_votes_percent: numeric
-  explicit_invalid_votes: Int
+  explicit_invalid_votes: bigint
   explicit_invalid_votes_percent: numeric
   id: uuid!
-  implicit_blank_votes: Int
+  implicit_blank_votes: bigint
   implicit_blank_votes_percent: numeric
-  implicit_invalid_votes: Int
+  implicit_invalid_votes: bigint
   implicit_invalid_votes_percent: numeric
   labels(
     """JSON select path"""
@@ -14305,13 +14305,13 @@ type results_area_contest {
   tenant_id: uuid!
   total_auditable_votes: Int
   total_auditable_votes_percent: numeric
-  total_blank_votes: Int
+  total_blank_votes: bigint
   total_blank_votes_percent: numeric
-  total_invalid_votes: Int
+  total_invalid_votes: bigint
   total_invalid_votes_percent: numeric
-  total_valid_votes: Int
+  total_valid_votes: bigint
   total_valid_votes_percent: numeric
-  total_votes: Int
+  total_votes: bigint
   total_votes_percent: numeric
 }
 
@@ -14385,14 +14385,14 @@ input results_area_contest_bool_exp {
   election_event_id: uuid_comparison_exp
   election_id: uuid_comparison_exp
   elegible_census: Int_comparison_exp
-  explicit_blank_votes: Int_comparison_exp
+  explicit_blank_votes: bigint_comparison_exp
   explicit_blank_votes_percent: numeric_comparison_exp
-  explicit_invalid_votes: Int_comparison_exp
+  explicit_invalid_votes: bigint_comparison_exp
   explicit_invalid_votes_percent: numeric_comparison_exp
   id: uuid_comparison_exp
-  implicit_blank_votes: Int_comparison_exp
+  implicit_blank_votes: bigint_comparison_exp
   implicit_blank_votes_percent: numeric_comparison_exp
-  implicit_invalid_votes: Int_comparison_exp
+  implicit_invalid_votes: bigint_comparison_exp
   implicit_invalid_votes_percent: numeric_comparison_exp
   labels: jsonb_comparison_exp
   last_updated_at: timestamptz_comparison_exp
@@ -14400,13 +14400,13 @@ input results_area_contest_bool_exp {
   tenant_id: uuid_comparison_exp
   total_auditable_votes: Int_comparison_exp
   total_auditable_votes_percent: numeric_comparison_exp
-  total_blank_votes: Int_comparison_exp
+  total_blank_votes: bigint_comparison_exp
   total_blank_votes_percent: numeric_comparison_exp
-  total_invalid_votes: Int_comparison_exp
+  total_invalid_votes: bigint_comparison_exp
   total_invalid_votes_percent: numeric_comparison_exp
-  total_valid_votes: Int_comparison_exp
+  total_valid_votes: bigint_comparison_exp
   total_valid_votes_percent: numeric_comparison_exp
-  total_votes: Int_comparison_exp
+  total_votes: bigint_comparison_exp
   total_votes_percent: numeric_comparison_exp
 }
 
@@ -14420,7 +14420,7 @@ type results_area_contest_candidate {
   ): jsonb
   area_id: uuid!
   candidate_id: uuid!
-  cast_votes: Int
+  cast_votes: bigint
   cast_votes_percent: numeric
   contest_id: uuid!
   created_at: timestamptz
@@ -14492,7 +14492,7 @@ input results_area_contest_candidate_bool_exp {
   annotations: jsonb_comparison_exp
   area_id: uuid_comparison_exp
   candidate_id: uuid_comparison_exp
-  cast_votes: Int_comparison_exp
+  cast_votes: bigint_comparison_exp
   cast_votes_percent: numeric_comparison_exp
   contest_id: uuid_comparison_exp
   created_at: timestamptz_comparison_exp
@@ -14549,7 +14549,7 @@ input results_area_contest_candidate_delete_key_input {
 input type for incrementing numeric columns in table "sequent_backend.results_area_contest_candidate"
 """
 input results_area_contest_candidate_inc_input {
-  cast_votes: Int
+  cast_votes: bigint
   cast_votes_percent: numeric
   points: Int
   winning_position: Int
@@ -14562,7 +14562,7 @@ input results_area_contest_candidate_insert_input {
   annotations: jsonb
   area_id: uuid
   candidate_id: uuid
-  cast_votes: Int
+  cast_votes: bigint
   cast_votes_percent: numeric
   contest_id: uuid
   created_at: timestamptz
@@ -14582,7 +14582,7 @@ input results_area_contest_candidate_insert_input {
 type results_area_contest_candidate_max_fields {
   area_id: uuid
   candidate_id: uuid
-  cast_votes: Int
+  cast_votes: bigint
   cast_votes_percent: numeric
   contest_id: uuid
   created_at: timestamptz
@@ -14600,7 +14600,7 @@ type results_area_contest_candidate_max_fields {
 type results_area_contest_candidate_min_fields {
   area_id: uuid
   candidate_id: uuid
-  cast_votes: Int
+  cast_votes: bigint
   cast_votes_percent: numeric
   contest_id: uuid
   created_at: timestamptz
@@ -14720,7 +14720,7 @@ input results_area_contest_candidate_set_input {
   annotations: jsonb
   area_id: uuid
   candidate_id: uuid
-  cast_votes: Int
+  cast_votes: bigint
   cast_votes_percent: numeric
   contest_id: uuid
   created_at: timestamptz
@@ -14775,7 +14775,7 @@ input results_area_contest_candidate_stream_cursor_value_input {
   annotations: jsonb
   area_id: uuid
   candidate_id: uuid
-  cast_votes: Int
+  cast_votes: bigint
   cast_votes_percent: numeric
   contest_id: uuid
   created_at: timestamptz
@@ -14793,7 +14793,7 @@ input results_area_contest_candidate_stream_cursor_value_input {
 
 """aggregate sum on columns"""
 type results_area_contest_candidate_sum_fields {
-  cast_votes: Int
+  cast_votes: bigint
   cast_votes_percent: numeric
   points: Int
   winning_position: Int
@@ -14930,23 +14930,23 @@ input type for incrementing numeric columns in table "sequent_backend.results_ar
 """
 input results_area_contest_inc_input {
   elegible_census: Int
-  explicit_blank_votes: Int
+  explicit_blank_votes: bigint
   explicit_blank_votes_percent: numeric
-  explicit_invalid_votes: Int
+  explicit_invalid_votes: bigint
   explicit_invalid_votes_percent: numeric
-  implicit_blank_votes: Int
+  implicit_blank_votes: bigint
   implicit_blank_votes_percent: numeric
-  implicit_invalid_votes: Int
+  implicit_invalid_votes: bigint
   implicit_invalid_votes_percent: numeric
   total_auditable_votes: Int
   total_auditable_votes_percent: numeric
-  total_blank_votes: Int
+  total_blank_votes: bigint
   total_blank_votes_percent: numeric
-  total_invalid_votes: Int
+  total_invalid_votes: bigint
   total_invalid_votes_percent: numeric
-  total_valid_votes: Int
+  total_valid_votes: bigint
   total_valid_votes_percent: numeric
-  total_votes: Int
+  total_votes: bigint
   total_votes_percent: numeric
 }
 
@@ -14962,14 +14962,14 @@ input results_area_contest_insert_input {
   election_event_id: uuid
   election_id: uuid
   elegible_census: Int
-  explicit_blank_votes: Int
+  explicit_blank_votes: bigint
   explicit_blank_votes_percent: numeric
-  explicit_invalid_votes: Int
+  explicit_invalid_votes: bigint
   explicit_invalid_votes_percent: numeric
   id: uuid
-  implicit_blank_votes: Int
+  implicit_blank_votes: bigint
   implicit_blank_votes_percent: numeric
-  implicit_invalid_votes: Int
+  implicit_invalid_votes: bigint
   implicit_invalid_votes_percent: numeric
   labels: jsonb
   last_updated_at: timestamptz
@@ -14977,13 +14977,13 @@ input results_area_contest_insert_input {
   tenant_id: uuid
   total_auditable_votes: Int
   total_auditable_votes_percent: numeric
-  total_blank_votes: Int
+  total_blank_votes: bigint
   total_blank_votes_percent: numeric
-  total_invalid_votes: Int
+  total_invalid_votes: bigint
   total_invalid_votes_percent: numeric
-  total_valid_votes: Int
+  total_valid_votes: bigint
   total_valid_votes_percent: numeric
-  total_votes: Int
+  total_votes: bigint
   total_votes_percent: numeric
 }
 
@@ -14995,27 +14995,27 @@ type results_area_contest_max_fields {
   election_event_id: uuid
   election_id: uuid
   elegible_census: Int
-  explicit_blank_votes: Int
+  explicit_blank_votes: bigint
   explicit_blank_votes_percent: numeric
-  explicit_invalid_votes: Int
+  explicit_invalid_votes: bigint
   explicit_invalid_votes_percent: numeric
   id: uuid
-  implicit_blank_votes: Int
+  implicit_blank_votes: bigint
   implicit_blank_votes_percent: numeric
-  implicit_invalid_votes: Int
+  implicit_invalid_votes: bigint
   implicit_invalid_votes_percent: numeric
   last_updated_at: timestamptz
   results_event_id: uuid
   tenant_id: uuid
   total_auditable_votes: Int
   total_auditable_votes_percent: numeric
-  total_blank_votes: Int
+  total_blank_votes: bigint
   total_blank_votes_percent: numeric
-  total_invalid_votes: Int
+  total_invalid_votes: bigint
   total_invalid_votes_percent: numeric
-  total_valid_votes: Int
+  total_valid_votes: bigint
   total_valid_votes_percent: numeric
-  total_votes: Int
+  total_votes: bigint
   total_votes_percent: numeric
 }
 
@@ -15027,27 +15027,27 @@ type results_area_contest_min_fields {
   election_event_id: uuid
   election_id: uuid
   elegible_census: Int
-  explicit_blank_votes: Int
+  explicit_blank_votes: bigint
   explicit_blank_votes_percent: numeric
-  explicit_invalid_votes: Int
+  explicit_invalid_votes: bigint
   explicit_invalid_votes_percent: numeric
   id: uuid
-  implicit_blank_votes: Int
+  implicit_blank_votes: bigint
   implicit_blank_votes_percent: numeric
-  implicit_invalid_votes: Int
+  implicit_invalid_votes: bigint
   implicit_invalid_votes_percent: numeric
   last_updated_at: timestamptz
   results_event_id: uuid
   tenant_id: uuid
   total_auditable_votes: Int
   total_auditable_votes_percent: numeric
-  total_blank_votes: Int
+  total_blank_votes: bigint
   total_blank_votes_percent: numeric
-  total_invalid_votes: Int
+  total_invalid_votes: bigint
   total_invalid_votes_percent: numeric
-  total_valid_votes: Int
+  total_valid_votes: bigint
   total_valid_votes_percent: numeric
-  total_votes: Int
+  total_votes: bigint
   total_votes_percent: numeric
 }
 
@@ -15204,14 +15204,14 @@ input results_area_contest_set_input {
   election_event_id: uuid
   election_id: uuid
   elegible_census: Int
-  explicit_blank_votes: Int
+  explicit_blank_votes: bigint
   explicit_blank_votes_percent: numeric
-  explicit_invalid_votes: Int
+  explicit_invalid_votes: bigint
   explicit_invalid_votes_percent: numeric
   id: uuid
-  implicit_blank_votes: Int
+  implicit_blank_votes: bigint
   implicit_blank_votes_percent: numeric
-  implicit_invalid_votes: Int
+  implicit_invalid_votes: bigint
   implicit_invalid_votes_percent: numeric
   labels: jsonb
   last_updated_at: timestamptz
@@ -15219,13 +15219,13 @@ input results_area_contest_set_input {
   tenant_id: uuid
   total_auditable_votes: Int
   total_auditable_votes_percent: numeric
-  total_blank_votes: Int
+  total_blank_votes: bigint
   total_blank_votes_percent: numeric
-  total_invalid_votes: Int
+  total_invalid_votes: bigint
   total_invalid_votes_percent: numeric
-  total_valid_votes: Int
+  total_valid_votes: bigint
   total_valid_votes_percent: numeric
-  total_votes: Int
+  total_votes: bigint
   total_votes_percent: numeric
 }
 
@@ -15318,14 +15318,14 @@ input results_area_contest_stream_cursor_value_input {
   election_event_id: uuid
   election_id: uuid
   elegible_census: Int
-  explicit_blank_votes: Int
+  explicit_blank_votes: bigint
   explicit_blank_votes_percent: numeric
-  explicit_invalid_votes: Int
+  explicit_invalid_votes: bigint
   explicit_invalid_votes_percent: numeric
   id: uuid
-  implicit_blank_votes: Int
+  implicit_blank_votes: bigint
   implicit_blank_votes_percent: numeric
-  implicit_invalid_votes: Int
+  implicit_invalid_votes: bigint
   implicit_invalid_votes_percent: numeric
   labels: jsonb
   last_updated_at: timestamptz
@@ -15333,36 +15333,36 @@ input results_area_contest_stream_cursor_value_input {
   tenant_id: uuid
   total_auditable_votes: Int
   total_auditable_votes_percent: numeric
-  total_blank_votes: Int
+  total_blank_votes: bigint
   total_blank_votes_percent: numeric
-  total_invalid_votes: Int
+  total_invalid_votes: bigint
   total_invalid_votes_percent: numeric
-  total_valid_votes: Int
+  total_valid_votes: bigint
   total_valid_votes_percent: numeric
-  total_votes: Int
+  total_votes: bigint
   total_votes_percent: numeric
 }
 
 """aggregate sum on columns"""
 type results_area_contest_sum_fields {
   elegible_census: Int
-  explicit_blank_votes: Int
+  explicit_blank_votes: bigint
   explicit_blank_votes_percent: numeric
-  explicit_invalid_votes: Int
+  explicit_invalid_votes: bigint
   explicit_invalid_votes_percent: numeric
-  implicit_blank_votes: Int
+  implicit_blank_votes: bigint
   implicit_blank_votes_percent: numeric
-  implicit_invalid_votes: Int
+  implicit_invalid_votes: bigint
   implicit_invalid_votes_percent: numeric
   total_auditable_votes: Int
   total_auditable_votes_percent: numeric
-  total_blank_votes: Int
+  total_blank_votes: bigint
   total_blank_votes_percent: numeric
-  total_invalid_votes: Int
+  total_invalid_votes: bigint
   total_invalid_votes_percent: numeric
-  total_valid_votes: Int
+  total_valid_votes: bigint
   total_valid_votes_percent: numeric
-  total_votes: Int
+  total_votes: bigint
   total_votes_percent: numeric
 }
 
@@ -15546,14 +15546,14 @@ type results_contest {
   election_event_id: uuid!
   election_id: uuid!
   elegible_census: Int
-  explicit_blank_votes: Int
+  explicit_blank_votes: bigint
   explicit_blank_votes_percent: numeric
-  explicit_invalid_votes: Int
+  explicit_invalid_votes: bigint
   explicit_invalid_votes_percent: numeric
   id: uuid!
-  implicit_blank_votes: Int
+  implicit_blank_votes: bigint
   implicit_blank_votes_percent: numeric
-  implicit_invalid_votes: Int
+  implicit_invalid_votes: bigint
   implicit_invalid_votes_percent: numeric
   labels(
     """JSON select path"""
@@ -15565,13 +15565,13 @@ type results_contest {
   tenant_id: uuid!
   total_auditable_votes: Int
   total_auditable_votes_percent: numeric
-  total_blank_votes: Int
+  total_blank_votes: bigint
   total_blank_votes_percent: numeric
-  total_invalid_votes: Int
+  total_invalid_votes: bigint
   total_invalid_votes_percent: numeric
-  total_valid_votes: Int
+  total_valid_votes: bigint
   total_valid_votes_percent: numeric
-  total_votes: Int
+  total_votes: bigint
   total_votes_percent: numeric
   voting_type: String
 }
@@ -15646,14 +15646,14 @@ input results_contest_bool_exp {
   election_event_id: uuid_comparison_exp
   election_id: uuid_comparison_exp
   elegible_census: Int_comparison_exp
-  explicit_blank_votes: Int_comparison_exp
+  explicit_blank_votes: bigint_comparison_exp
   explicit_blank_votes_percent: numeric_comparison_exp
-  explicit_invalid_votes: Int_comparison_exp
+  explicit_invalid_votes: bigint_comparison_exp
   explicit_invalid_votes_percent: numeric_comparison_exp
   id: uuid_comparison_exp
-  implicit_blank_votes: Int_comparison_exp
+  implicit_blank_votes: bigint_comparison_exp
   implicit_blank_votes_percent: numeric_comparison_exp
-  implicit_invalid_votes: Int_comparison_exp
+  implicit_invalid_votes: bigint_comparison_exp
   implicit_invalid_votes_percent: numeric_comparison_exp
   labels: jsonb_comparison_exp
   last_updated_at: timestamptz_comparison_exp
@@ -15662,13 +15662,13 @@ input results_contest_bool_exp {
   tenant_id: uuid_comparison_exp
   total_auditable_votes: Int_comparison_exp
   total_auditable_votes_percent: numeric_comparison_exp
-  total_blank_votes: Int_comparison_exp
+  total_blank_votes: bigint_comparison_exp
   total_blank_votes_percent: numeric_comparison_exp
-  total_invalid_votes: Int_comparison_exp
+  total_invalid_votes: bigint_comparison_exp
   total_invalid_votes_percent: numeric_comparison_exp
-  total_valid_votes: Int_comparison_exp
+  total_valid_votes: bigint_comparison_exp
   total_valid_votes_percent: numeric_comparison_exp
-  total_votes: Int_comparison_exp
+  total_votes: bigint_comparison_exp
   total_votes_percent: numeric_comparison_exp
   voting_type: String_comparison_exp
 }
@@ -15682,7 +15682,7 @@ type results_contest_candidate {
     path: String
   ): jsonb
   candidate_id: uuid!
-  cast_votes: Int
+  cast_votes: bigint
   cast_votes_percent: numeric
   contest_id: uuid!
   created_at: timestamptz
@@ -15753,7 +15753,7 @@ input results_contest_candidate_bool_exp {
   _or: [results_contest_candidate_bool_exp!]
   annotations: jsonb_comparison_exp
   candidate_id: uuid_comparison_exp
-  cast_votes: Int_comparison_exp
+  cast_votes: bigint_comparison_exp
   cast_votes_percent: numeric_comparison_exp
   contest_id: uuid_comparison_exp
   created_at: timestamptz_comparison_exp
@@ -15810,7 +15810,7 @@ input results_contest_candidate_delete_key_input {
 input type for incrementing numeric columns in table "sequent_backend.results_contest_candidate"
 """
 input results_contest_candidate_inc_input {
-  cast_votes: Int
+  cast_votes: bigint
   cast_votes_percent: numeric
   points: Int
   winning_position: Int
@@ -15822,7 +15822,7 @@ input type for inserting data into table "sequent_backend.results_contest_candid
 input results_contest_candidate_insert_input {
   annotations: jsonb
   candidate_id: uuid
-  cast_votes: Int
+  cast_votes: bigint
   cast_votes_percent: numeric
   contest_id: uuid
   created_at: timestamptz
@@ -15841,7 +15841,7 @@ input results_contest_candidate_insert_input {
 """aggregate max on columns"""
 type results_contest_candidate_max_fields {
   candidate_id: uuid
-  cast_votes: Int
+  cast_votes: bigint
   cast_votes_percent: numeric
   contest_id: uuid
   created_at: timestamptz
@@ -15858,7 +15858,7 @@ type results_contest_candidate_max_fields {
 """aggregate min on columns"""
 type results_contest_candidate_min_fields {
   candidate_id: uuid
-  cast_votes: Int
+  cast_votes: bigint
   cast_votes_percent: numeric
   contest_id: uuid
   created_at: timestamptz
@@ -15974,7 +15974,7 @@ input type for updating data in table "sequent_backend.results_contest_candidate
 input results_contest_candidate_set_input {
   annotations: jsonb
   candidate_id: uuid
-  cast_votes: Int
+  cast_votes: bigint
   cast_votes_percent: numeric
   contest_id: uuid
   created_at: timestamptz
@@ -16028,7 +16028,7 @@ input results_contest_candidate_stream_cursor_input {
 input results_contest_candidate_stream_cursor_value_input {
   annotations: jsonb
   candidate_id: uuid
-  cast_votes: Int
+  cast_votes: bigint
   cast_votes_percent: numeric
   contest_id: uuid
   created_at: timestamptz
@@ -16046,7 +16046,7 @@ input results_contest_candidate_stream_cursor_value_input {
 
 """aggregate sum on columns"""
 type results_contest_candidate_sum_fields {
-  cast_votes: Int
+  cast_votes: bigint
   cast_votes_percent: numeric
   points: Int
   winning_position: Int
@@ -16181,23 +16181,23 @@ input type for incrementing numeric columns in table "sequent_backend.results_co
 """
 input results_contest_inc_input {
   elegible_census: Int
-  explicit_blank_votes: Int
+  explicit_blank_votes: bigint
   explicit_blank_votes_percent: numeric
-  explicit_invalid_votes: Int
+  explicit_invalid_votes: bigint
   explicit_invalid_votes_percent: numeric
-  implicit_blank_votes: Int
+  implicit_blank_votes: bigint
   implicit_blank_votes_percent: numeric
-  implicit_invalid_votes: Int
+  implicit_invalid_votes: bigint
   implicit_invalid_votes_percent: numeric
   total_auditable_votes: Int
   total_auditable_votes_percent: numeric
-  total_blank_votes: Int
+  total_blank_votes: bigint
   total_blank_votes_percent: numeric
-  total_invalid_votes: Int
+  total_invalid_votes: bigint
   total_invalid_votes_percent: numeric
-  total_valid_votes: Int
+  total_valid_votes: bigint
   total_valid_votes_percent: numeric
-  total_votes: Int
+  total_votes: bigint
   total_votes_percent: numeric
 }
 
@@ -16213,14 +16213,14 @@ input results_contest_insert_input {
   election_event_id: uuid
   election_id: uuid
   elegible_census: Int
-  explicit_blank_votes: Int
+  explicit_blank_votes: bigint
   explicit_blank_votes_percent: numeric
-  explicit_invalid_votes: Int
+  explicit_invalid_votes: bigint
   explicit_invalid_votes_percent: numeric
   id: uuid
-  implicit_blank_votes: Int
+  implicit_blank_votes: bigint
   implicit_blank_votes_percent: numeric
-  implicit_invalid_votes: Int
+  implicit_invalid_votes: bigint
   implicit_invalid_votes_percent: numeric
   labels: jsonb
   last_updated_at: timestamptz
@@ -16229,13 +16229,13 @@ input results_contest_insert_input {
   tenant_id: uuid
   total_auditable_votes: Int
   total_auditable_votes_percent: numeric
-  total_blank_votes: Int
+  total_blank_votes: bigint
   total_blank_votes_percent: numeric
-  total_invalid_votes: Int
+  total_invalid_votes: bigint
   total_invalid_votes_percent: numeric
-  total_valid_votes: Int
+  total_valid_votes: bigint
   total_valid_votes_percent: numeric
-  total_votes: Int
+  total_votes: bigint
   total_votes_percent: numeric
   voting_type: String
 }
@@ -16248,14 +16248,14 @@ type results_contest_max_fields {
   election_event_id: uuid
   election_id: uuid
   elegible_census: Int
-  explicit_blank_votes: Int
+  explicit_blank_votes: bigint
   explicit_blank_votes_percent: numeric
-  explicit_invalid_votes: Int
+  explicit_invalid_votes: bigint
   explicit_invalid_votes_percent: numeric
   id: uuid
-  implicit_blank_votes: Int
+  implicit_blank_votes: bigint
   implicit_blank_votes_percent: numeric
-  implicit_invalid_votes: Int
+  implicit_invalid_votes: bigint
   implicit_invalid_votes_percent: numeric
   last_updated_at: timestamptz
   name: String
@@ -16263,13 +16263,13 @@ type results_contest_max_fields {
   tenant_id: uuid
   total_auditable_votes: Int
   total_auditable_votes_percent: numeric
-  total_blank_votes: Int
+  total_blank_votes: bigint
   total_blank_votes_percent: numeric
-  total_invalid_votes: Int
+  total_invalid_votes: bigint
   total_invalid_votes_percent: numeric
-  total_valid_votes: Int
+  total_valid_votes: bigint
   total_valid_votes_percent: numeric
-  total_votes: Int
+  total_votes: bigint
   total_votes_percent: numeric
   voting_type: String
 }
@@ -16282,14 +16282,14 @@ type results_contest_min_fields {
   election_event_id: uuid
   election_id: uuid
   elegible_census: Int
-  explicit_blank_votes: Int
+  explicit_blank_votes: bigint
   explicit_blank_votes_percent: numeric
-  explicit_invalid_votes: Int
+  explicit_invalid_votes: bigint
   explicit_invalid_votes_percent: numeric
   id: uuid
-  implicit_blank_votes: Int
+  implicit_blank_votes: bigint
   implicit_blank_votes_percent: numeric
-  implicit_invalid_votes: Int
+  implicit_invalid_votes: bigint
   implicit_invalid_votes_percent: numeric
   last_updated_at: timestamptz
   name: String
@@ -16297,13 +16297,13 @@ type results_contest_min_fields {
   tenant_id: uuid
   total_auditable_votes: Int
   total_auditable_votes_percent: numeric
-  total_blank_votes: Int
+  total_blank_votes: bigint
   total_blank_votes_percent: numeric
-  total_invalid_votes: Int
+  total_invalid_votes: bigint
   total_invalid_votes_percent: numeric
-  total_valid_votes: Int
+  total_valid_votes: bigint
   total_valid_votes_percent: numeric
-  total_votes: Int
+  total_votes: bigint
   total_votes_percent: numeric
   voting_type: String
 }
@@ -16465,14 +16465,14 @@ input results_contest_set_input {
   election_event_id: uuid
   election_id: uuid
   elegible_census: Int
-  explicit_blank_votes: Int
+  explicit_blank_votes: bigint
   explicit_blank_votes_percent: numeric
-  explicit_invalid_votes: Int
+  explicit_invalid_votes: bigint
   explicit_invalid_votes_percent: numeric
   id: uuid
-  implicit_blank_votes: Int
+  implicit_blank_votes: bigint
   implicit_blank_votes_percent: numeric
-  implicit_invalid_votes: Int
+  implicit_invalid_votes: bigint
   implicit_invalid_votes_percent: numeric
   labels: jsonb
   last_updated_at: timestamptz
@@ -16481,13 +16481,13 @@ input results_contest_set_input {
   tenant_id: uuid
   total_auditable_votes: Int
   total_auditable_votes_percent: numeric
-  total_blank_votes: Int
+  total_blank_votes: bigint
   total_blank_votes_percent: numeric
-  total_invalid_votes: Int
+  total_invalid_votes: bigint
   total_invalid_votes_percent: numeric
-  total_valid_votes: Int
+  total_valid_votes: bigint
   total_valid_votes_percent: numeric
-  total_votes: Int
+  total_votes: bigint
   total_votes_percent: numeric
   voting_type: String
 }
@@ -16581,14 +16581,14 @@ input results_contest_stream_cursor_value_input {
   election_event_id: uuid
   election_id: uuid
   elegible_census: Int
-  explicit_blank_votes: Int
+  explicit_blank_votes: bigint
   explicit_blank_votes_percent: numeric
-  explicit_invalid_votes: Int
+  explicit_invalid_votes: bigint
   explicit_invalid_votes_percent: numeric
   id: uuid
-  implicit_blank_votes: Int
+  implicit_blank_votes: bigint
   implicit_blank_votes_percent: numeric
-  implicit_invalid_votes: Int
+  implicit_invalid_votes: bigint
   implicit_invalid_votes_percent: numeric
   labels: jsonb
   last_updated_at: timestamptz
@@ -16597,13 +16597,13 @@ input results_contest_stream_cursor_value_input {
   tenant_id: uuid
   total_auditable_votes: Int
   total_auditable_votes_percent: numeric
-  total_blank_votes: Int
+  total_blank_votes: bigint
   total_blank_votes_percent: numeric
-  total_invalid_votes: Int
+  total_invalid_votes: bigint
   total_invalid_votes_percent: numeric
-  total_valid_votes: Int
+  total_valid_votes: bigint
   total_valid_votes_percent: numeric
-  total_votes: Int
+  total_votes: bigint
   total_votes_percent: numeric
   voting_type: String
 }
@@ -16611,23 +16611,23 @@ input results_contest_stream_cursor_value_input {
 """aggregate sum on columns"""
 type results_contest_sum_fields {
   elegible_census: Int
-  explicit_blank_votes: Int
+  explicit_blank_votes: bigint
   explicit_blank_votes_percent: numeric
-  explicit_invalid_votes: Int
+  explicit_invalid_votes: bigint
   explicit_invalid_votes_percent: numeric
-  implicit_blank_votes: Int
+  implicit_blank_votes: bigint
   implicit_blank_votes_percent: numeric
-  implicit_invalid_votes: Int
+  implicit_invalid_votes: bigint
   implicit_invalid_votes_percent: numeric
   total_auditable_votes: Int
   total_auditable_votes_percent: numeric
-  total_blank_votes: Int
+  total_blank_votes: bigint
   total_blank_votes_percent: numeric
-  total_invalid_votes: Int
+  total_invalid_votes: bigint
   total_invalid_votes_percent: numeric
-  total_valid_votes: Int
+  total_valid_votes: bigint
   total_valid_votes_percent: numeric
-  total_votes: Int
+  total_votes: bigint
   total_votes_percent: numeric
 }
 
@@ -16805,7 +16805,7 @@ type results_election {
     """JSON select path"""
     path: String
   ): jsonb
-  blank_ballots: Int
+  blank_ballots: bigint
   blank_ballots_percent: numeric
   created_at: timestamptz
   documents(
@@ -16865,7 +16865,7 @@ columns and relationships of "sequent_backend.results_election_area"
 """
 type results_election_area {
   area_id: uuid!
-  blank_ballots: Int
+  blank_ballots: bigint
   blank_ballots_percent: numeric
   created_at: timestamptz!
   documents(
@@ -16925,7 +16925,7 @@ input results_election_area_bool_exp {
   _not: results_election_area_bool_exp
   _or: [results_election_area_bool_exp!]
   area_id: uuid_comparison_exp
-  blank_ballots: Int_comparison_exp
+  blank_ballots: bigint_comparison_exp
   blank_ballots_percent: numeric_comparison_exp
   created_at: timestamptz_comparison_exp
   documents: jsonb_comparison_exp
@@ -16977,7 +16977,7 @@ input results_election_area_delete_key_input {
 input type for incrementing numeric columns in table "sequent_backend.results_election_area"
 """
 input results_election_area_inc_input {
-  blank_ballots: Int
+  blank_ballots: bigint
   blank_ballots_percent: numeric
 }
 
@@ -16986,7 +16986,7 @@ input type for inserting data into table "sequent_backend.results_election_area"
 """
 input results_election_area_insert_input {
   area_id: uuid
-  blank_ballots: Int
+  blank_ballots: bigint
   blank_ballots_percent: numeric
   created_at: timestamptz
   documents: jsonb
@@ -17002,7 +17002,7 @@ input results_election_area_insert_input {
 """aggregate max on columns"""
 type results_election_area_max_fields {
   area_id: uuid
-  blank_ballots: Int
+  blank_ballots: bigint
   blank_ballots_percent: numeric
   created_at: timestamptz
   election_event_id: uuid
@@ -17017,7 +17017,7 @@ type results_election_area_max_fields {
 """aggregate min on columns"""
 type results_election_area_min_fields {
   area_id: uuid
-  blank_ballots: Int
+  blank_ballots: bigint
   blank_ballots_percent: numeric
   created_at: timestamptz
   election_event_id: uuid
@@ -17116,7 +17116,7 @@ input type for updating data in table "sequent_backend.results_election_area"
 """
 input results_election_area_set_input {
   area_id: uuid
-  blank_ballots: Int
+  blank_ballots: bigint
   blank_ballots_percent: numeric
   created_at: timestamptz
   documents: jsonb
@@ -17160,7 +17160,7 @@ input results_election_area_stream_cursor_input {
 """Initial value of the column from where the streaming should start"""
 input results_election_area_stream_cursor_value_input {
   area_id: uuid
-  blank_ballots: Int
+  blank_ballots: bigint
   blank_ballots_percent: numeric
   created_at: timestamptz
   documents: jsonb
@@ -17175,7 +17175,7 @@ input results_election_area_stream_cursor_value_input {
 
 """aggregate sum on columns"""
 type results_election_area_sum_fields {
-  blank_ballots: Int
+  blank_ballots: bigint
   blank_ballots_percent: numeric
 }
 
@@ -17269,7 +17269,7 @@ input results_election_bool_exp {
   _not: results_election_bool_exp
   _or: [results_election_bool_exp!]
   annotations: jsonb_comparison_exp
-  blank_ballots: Int_comparison_exp
+  blank_ballots: bigint_comparison_exp
   blank_ballots_percent: numeric_comparison_exp
   created_at: timestamptz_comparison_exp
   documents: jsonb_comparison_exp
@@ -17327,7 +17327,7 @@ input results_election_delete_key_input {
 input type for incrementing numeric columns in table "sequent_backend.results_election"
 """
 input results_election_inc_input {
-  blank_ballots: Int
+  blank_ballots: bigint
   blank_ballots_percent: numeric
   elegible_census: Int
   total_voters: Int
@@ -17339,7 +17339,7 @@ input type for inserting data into table "sequent_backend.results_election"
 """
 input results_election_insert_input {
   annotations: jsonb
-  blank_ballots: Int
+  blank_ballots: bigint
   blank_ballots_percent: numeric
   created_at: timestamptz
   documents: jsonb
@@ -17358,7 +17358,7 @@ input results_election_insert_input {
 
 """aggregate max on columns"""
 type results_election_max_fields {
-  blank_ballots: Int
+  blank_ballots: bigint
   blank_ballots_percent: numeric
   created_at: timestamptz
   election_event_id: uuid
@@ -17375,7 +17375,7 @@ type results_election_max_fields {
 
 """aggregate min on columns"""
 type results_election_min_fields {
-  blank_ballots: Int
+  blank_ballots: bigint
   blank_ballots_percent: numeric
   created_at: timestamptz
   election_event_id: uuid
@@ -17489,7 +17489,7 @@ input type for updating data in table "sequent_backend.results_election"
 """
 input results_election_set_input {
   annotations: jsonb
-  blank_ballots: Int
+  blank_ballots: bigint
   blank_ballots_percent: numeric
   created_at: timestamptz
   documents: jsonb
@@ -17546,7 +17546,7 @@ input results_election_stream_cursor_input {
 """Initial value of the column from where the streaming should start"""
 input results_election_stream_cursor_value_input {
   annotations: jsonb
-  blank_ballots: Int
+  blank_ballots: bigint
   blank_ballots_percent: numeric
   created_at: timestamptz
   documents: jsonb
@@ -17565,7 +17565,7 @@ input results_election_stream_cursor_value_input {
 
 """aggregate sum on columns"""
 type results_election_sum_fields {
-  blank_ballots: Int
+  blank_ballots: bigint
   blank_ballots_percent: numeric
   elegible_census: Int
   total_voters: Int
