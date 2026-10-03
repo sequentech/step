@@ -172,6 +172,21 @@ When adding a voter screen:
 
 Never start audio without the voter asking (SC 1.4.2): it would talk over a screen reader.
 
+### Keep the login pages in step
+
+The login pages (`packages/keycloak-ui`) have their own layout and theme and do not load
+`ui-essentials`, so they have their own small `AccessibilitySettings` and `AudioInstructions`
+components in `src/login/accessibility`. Those import the shared pieces by source path: the
+settings logic and the audio source decision from `ui-core`, the stylesheet from
+`ui-essentials`, and the words from the `ui-core` translation files. A new setting or a
+changed string therefore reaches the login pages without being written twice. What is
+login-specific is the dark page background and white logo under high contrast (`auth.css`)
+and the per-page instruction texts (`copy.ts`).
+
+The policies reach the login pages as the realm attributes
+`voter-accessibility-settings-policy` and `audio-instructions-policy`, which `context.ftl`
+passes into `kcContext.sequent`.
+
 ## Known deviations
 
 Two things were deliberately left as they are. Both are recorded here so a future audit does

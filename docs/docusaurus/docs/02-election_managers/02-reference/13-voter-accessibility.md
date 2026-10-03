@@ -143,3 +143,32 @@ language in the event's **Localization** tab, with the keys
 `audioInstructions.screens.<screen>`, where `<screen>` is `election-chooser`, `start`,
 `ballot`, `review`, `confirmation`, `audit`, `ballot-locator` or `support-materials`. Keep it
 in step with the recording.
+
+---
+
+## Login pages
+
+A voter reaches the sign-in and code entry pages before the Voting Portal, so both features are
+offered there too:
+
+- The **Accessibility** button, with the same four settings. A choice made at sign-in is
+  still applied in the Voting Portal, and the other way round, because both read the same
+  cookie.
+- **Listen to the instructions**, with a text for the sign-in page, the username page and the
+  code entry page. The login pages have no recordings: the browser's voice reads the text
+  where it has one for the language, and the text can always be read on screen. With the
+  **Uploaded recordings only** policy the login pages have no audio control.
+
+The login pages cannot read the event's presentation. They read two realm attributes of the
+event's realm instead:
+
+| Realm attribute | Values |
+|---|---|
+| `voter-accessibility-settings-policy` | `disabled`, `enabled` |
+| `audio-instructions-policy` | `disabled`, `recorded`, `recorded-or-synthesized` |
+
+Changing either select in **Ballot Design** and saving writes the matching realm attribute, if
+you have permission to edit realm attributes. They can also be set directly in the event's
+realm attributes, or in the realm configuration an event is imported with. A realm without
+them shows neither control. An event imported or created with the policies already in its
+presentation does not get the attributes by itself: set them once, in either way.
