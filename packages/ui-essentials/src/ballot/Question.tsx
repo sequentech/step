@@ -348,7 +348,7 @@ export const Question: React.FC<IQuestionProps> = ({
                     <Button
                         className="contest-options-toggle"
                         variant="secondary"
-                        sx={{flexShrink: 0, minHeight: "unset", fontSize: "14px"}}
+                        sx={{flexShrink: 0, minHeight: "unset", fontSize: "0.875rem"}}
                         startIcon={
                             <FontAwesomeIcon
                                 className="contest-collapse-icon"
