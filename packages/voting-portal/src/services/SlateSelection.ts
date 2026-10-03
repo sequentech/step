@@ -37,7 +37,7 @@ export const getSlateSelectionSummary = (
     let hasOutsideChoice = false
 
     for (const [contestId, memberIds] of Object.entries(members)) {
-        const contest = selection?.find((candidate) => candidate.contest_id === contestId)
+        const contest = selection?.find((decoded) => decoded.contest_id === contestId)
         if (!contest) {
             continue
         }

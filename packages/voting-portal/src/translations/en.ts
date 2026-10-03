@@ -441,6 +441,10 @@ const englishTranslation = {
                 "A slate is a group of candidates running together. Each candidate shows the slate they belong to.",
             independent: "Independent",
             contestMembers: "{{slate}} candidates for {{contest}}",
+            candidateList: {
+                show: "Show candidates",
+                hide: "Hide candidates",
+            },
             tabs: {
                 label: "Ways to fill in your ballot",
                 slates: "Choose a slate",
