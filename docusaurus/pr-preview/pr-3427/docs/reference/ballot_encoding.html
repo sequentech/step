@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Ballot Encoding Specification | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-3427/docs/reference/ballot_encoding"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Ballot Encoding Specification | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-3427/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3427/docs/reference/ballot_encoding"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3427/docs/reference/ballot_encoding" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3427/docs/reference/ballot_encoding" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Ballot Encoding Specification","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-3427/docs/reference/ballot_encoding"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-3427/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/pr-preview/pr-3427/assets/js/runtime~main.5a03f9a9.js" defer="defer"></script>
-<script src="/docusaurus/pr-preview/pr-3427/assets/js/main.7e5c1d3f.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-3427/assets/js/runtime~main.499b72f6.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-3427/assets/js/main.33ebfc13.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
 <svg style="display: none;"><defs>
@@ -456,7 +456,11 @@ ballot style&#x27;s <code>election_annotations</code>, under the key <code>seque
 are not an input to either codec.</li>
 <li class="">Choosing a slate marks its candidates in their contests. The resulting
 selection has the same form, and the same encoding, as marking those
-candidates one by one.</li>
+candidates one by one. The rule has one implementation,
+<code>election_config::slates::selection::apply_slate</code> in <code>sequent-core</code>, which
+the Voting Portal calls through WebAssembly: in each contest the slate
+covers, its candidates replace the current marks; other contests keep
+theirs.</li>
 <li class="">The encoded ballot has no slate identifier or slate flag, and choosing a
 slate adds no vote of its own. A cast ballot still carries one ciphertext
 per contest, or the single multi-contest ciphertext.</li>
