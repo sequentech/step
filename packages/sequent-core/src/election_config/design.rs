@@ -281,6 +281,58 @@ pub fn versioned(
         .collect()
 }
 
+/// A published ballot that differs from what the signed manifest approved.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct DesignMismatch {
+    pub area: String,
+    pub election: String,
+    /// What the manifest approved; `None` when it approved no such ballot.
+    pub expected: Option<String>,
+    pub actual: String,
+}
+
+impl std::fmt::Display for DesignMismatch {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match &self.expected {
+            Some(expected) => write!(
+                formatter,
+                "the ballot of {} in {} is not the approved design: its digest \
+                 is {}, and the signed configuration says {expected}",
+                self.area, self.election, self.actual
+            ),
+            None => write!(
+                formatter,
+                "the ballot of {} in {} is not in the signed configuration",
+                self.area, self.election
+            ),
+        }
+    }
+}
+
+/// Every published design that the manifest didn't approve as it is.
+pub fn mismatches(
+    approved: &[BallotDesign],
+    published: &[DesignDigest],
+) -> Vec<DesignMismatch> {
+    published
+        .iter()
+        .filter_map(|digest| {
+            let expected = approved.iter().find(|design| {
+                design.area == digest.area && design.election == digest.election
+            });
+            match expected {
+                Some(design) if design.sha256 == digest.sha256 => None,
+                _ => Some(DesignMismatch {
+                    area: digest.area.clone(),
+                    election: digest.election.clone(),
+                    expected: expected.map(|design| design.sha256.clone()),
+                    actual: digest.sha256.clone(),
+                }),
+            }
+        })
+        .collect()
+}
+
 fn normalise(value: Value, keys: &DesignKeys) -> Value {
     match value {
         Value::String(text) => {

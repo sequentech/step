@@ -291,6 +291,29 @@ impl StatementHead {
                 description: monitoring_config_description(details),
                 ..default_head
             },
+            StatementBody::ConfigurationPackage(_, details) => StatementHead {
+                kind: match details.action {
+                    ConfigurationPackageAction::Imported => {
+                        StatementType::ConfigurationPackageImported
+                    }
+                    ConfigurationPackageAction::Published => StatementType::ConfigurationPublished,
+                },
+                event_type: StatementEventType::USER,
+                description: match details.action {
+                    ConfigurationPackageAction::Imported => format!(
+                        "Configuration {} revision {} imported from a signed package (manifest {}).",
+                        details.external_id, details.revision, details.manifest_sha256
+                    ),
+                    ConfigurationPackageAction::Published => format!(
+                        "Ballots of configuration {} revision {} published as approved (manifest {}, {} designs).",
+                        details.external_id,
+                        details.revision,
+                        details.manifest_sha256,
+                        details.design_digests.len()
+                    ),
+                },
+                ..default_head
+            },
             StatementBody::Signing(entry) => StatementHead {
                 kind: entry.kind.statement_type(),
                 event_type: entry.event_type.clone(),
@@ -499,6 +522,9 @@ pub enum StatementBody {
     /// One entry of a step of signing a protected action. The entry sets
     /// the head's kind, event type, log type and description.
     Signing(SigningLogEntry),
+    /// A signed configuration package imported into an election event, or
+    /// the ballots it approved published.
+    ConfigurationPackage(EventIdString, ConfigurationPackageDetails),
 }
 
 // Note: When creating new variants, consider that the length limit STATEMENT_KIND_VARCHAR_LENGTH is 40.
@@ -550,6 +576,8 @@ pub enum StatementType {
     SigningChecksChanged,
     SigningCertificateRevoked,
     SigningRequestsExported,
+    ConfigurationPackageImported,
+    ConfigurationPublished,
 }
 
 #[derive(

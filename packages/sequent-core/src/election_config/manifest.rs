@@ -229,6 +229,98 @@ pub fn approval_code(payload: &str) -> String {
     crockford_code(leading)
 }
 
+/// What `report-manifest.json` is.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum ReportManifestFormat {
+    #[serde(rename = "sequent.report-manifest/1")]
+    V1,
+}
+
+/// The configuration a report was generated from.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ConfigurationStamp {
+    pub external_id: String,
+    pub revision: u64,
+    pub manifest_sha256: String,
+    /// The digest of the template the report was drawn with.
+    pub template_sha256: String,
+}
+
+/// A generated report's hash manifest: the configuration it came from and
+/// every file it produced.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ReportManifest {
+    pub format: ReportManifestFormat,
+    pub report_type: String,
+    pub configuration: ConfigurationStamp,
+    pub files: Vec<FileEntry>,
+}
+
+/// The stamp of a report of `report_type` drawn with `template`, or a
+/// refusal when the signed configuration sets a design for that report and
+/// `template` is not it.
+pub fn report_stamp(
+    manifest: &Manifest,
+    manifest_sha256: &str,
+    report_type: &str,
+    template: &str,
+) -> Result<ConfigurationStamp, Problem> {
+    let template_sha256 = sha256_hex(template.as_bytes());
+    let approved = manifest
+        .content
+        .reports
+        .iter()
+        .find(|setting| setting.report_type == report_type)
+        .and_then(|setting| setting.template_sha256.as_ref());
+    if let Some(approved) = approved {
+        if *approved != template_sha256 {
+            return Err(Problem::error(
+                Code::IntegrityMismatch,
+                "reports",
+                format!(
+                    "the {report_type} report's template is not the one the \
+                     signed configuration approved: its digest is \
+                     {template_sha256}, and the configuration says {approved}"
+                ),
+            )
+            .id("package.report-template-changed")
+            .detail("report", report_type)
+            .detail("expected", approved)
+            .detail("actual", &template_sha256));
+        }
+    }
+    Ok(ConfigurationStamp {
+        external_id: manifest.configuration.external_id.clone(),
+        revision: manifest.configuration.revision,
+        manifest_sha256: manifest_sha256.to_string(),
+        template_sha256,
+    })
+}
+
+/// The hash manifest of a generated report's files.
+pub fn report_manifest(
+    report_type: &str,
+    stamp: &ConfigurationStamp,
+    files: &[Artifact],
+) -> ReportManifest {
+    let mut entries: Vec<FileEntry> = files
+        .iter()
+        .map(|file| FileEntry {
+            path: file.name.clone(),
+            size: file.bytes.len() as u64,
+            sha256: sha256_hex(&file.bytes),
+            members: Vec::new(),
+        })
+        .collect();
+    entries.sort_by(|left, right| left.path.cmp(&right.path));
+    ReportManifest {
+        format: ReportManifestFormat::V1,
+        report_type: report_type.to_string(),
+        configuration: stamp.clone(),
+        files: entries,
+    }
+}
+
 /// What a revision of a compiled plan holds: the delivery's members and the
 /// content the approvers approve.
 #[derive(Debug, Clone)]

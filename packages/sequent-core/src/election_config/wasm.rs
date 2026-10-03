@@ -950,6 +950,28 @@ pub fn plan_in_delivery_js(bytes: &[u8]) -> Result<JsValue, JsError> {
     to_js(&value)
 }
 
+/// Every report type and the formats it can be generated in, the first being
+/// its default, so the Reports step offers only what the platform renders.
+#[wasm_bindgen(js_name = reportCatalog)]
+pub fn report_catalog() -> Result<JsValue, JsError> {
+    use crate::election_config::report::ReportType;
+
+    #[derive(Serialize)]
+    struct Entry {
+        report_type: String,
+        formats: Vec<crate::election_config::report::ReportFormat>,
+    }
+    to_js(
+        &ReportType::ALL
+            .iter()
+            .map(|report_type| Entry {
+                report_type: report_type.to_string(),
+                formats: report_type.formats().to_vec(),
+            })
+            .collect::<Vec<_>>(),
+    )
+}
+
 /// What a signed configuration package is checked against.
 #[cfg(feature = "election_config_signing")]
 #[derive(serde::Deserialize)]

@@ -668,6 +668,10 @@ const catalanTranslation: TranslationType = {
                     },
                 },
                 package: {
+                    "already-imported": {
+                        lead: "Ja importada",
+                        text: "Ja importada — la revisió {{revision}} d'aquesta configuració ja s'havia importat; importeu una revisió més recent.",
+                    },
                     "approval-invalid": {
                         lead: "L'aprovació no compta",
                         text: "L'aprovació no compta — no s'ha pogut verificar l'aprovació de {{name}}: {{reason}}",
@@ -708,6 +712,14 @@ const catalanTranslation: TranslationType = {
                         lead: "No és una data i hora",
                         text: "No és una data i hora — «{{value}}» al manifest no és una data i hora.",
                     },
+                    "no-importable": {
+                        lead: "Res a importar",
+                        text: "Res a importar — el paquet no té official_election_setup.zip, l'arxiu que llegeix l'importador.",
+                    },
+                    "report-template-changed": {
+                        lead: "La plantilla de l'informe ha canviat",
+                        text: "La plantilla de l'informe ha canviat — la plantilla de l'informe {{report}} no és l'aprovada: la seva empremta és {{actual}}, i la configuració signada diu {{expected}}.",
+                    },
                     "report-template-missing": {
                         lead: "Falta la plantilla de l'informe",
                         text: "Falta la plantilla de l'informe — l'informe {{report}} es genera amb la plantilla «{{template}}», que no és a la configuració, així que el seu disseny no es pot signar.",
@@ -747,6 +759,10 @@ const catalanTranslation: TranslationType = {
                     "unreadable-manifest": {
                         lead: "Manifest il·legible",
                         text: "Manifest il·legible — no s'ha pogut llegir el manifest del paquet: {{reason}}",
+                    },
+                    "unreadable-revocation-list": {
+                        lead: "Llista de revocació il·legible",
+                        text: "Llista de revocació il·legible — no s'ha pogut llegir una llista de revocació, així que no es pot aplicar: {{reason}}",
                     },
                     "unreadable-trust": {
                         lead: "Certificats de confiança il·legibles",

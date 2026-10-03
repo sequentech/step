@@ -21,6 +21,9 @@ use crate::types::tasks::ETasksExecution;
 use anyhow::{anyhow, Context, Result};
 use chrono::{Local, Utc};
 use deadpool_postgres::Transaction;
+use electoral_log::messages::newtypes::{
+    ConfigurationDesignDigest, ConfigurationPackageAction, ConfigurationPackageDetails,
+};
 use sequent_core::ballot::{ElectionEventStatus, ElectionStatus};
 use sequent_core::serialization::deserialize_with_path::*;
 use sequent_core::services::connection;
@@ -387,6 +390,22 @@ pub async fn update_publish_ballot(
     )
     .await?;
 
+    let design_check = super::design_check::check_publication_designs(
+        hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        &ballot_publication_id,
+    )
+    .await?;
+    if let Some(check) = &design_check {
+        if !check.mismatches.is_empty() {
+            return Err(BallotPublicationValidationError::new(
+                check.mismatches.iter().map(ToString::to_string).collect(),
+            )
+            .into());
+        }
+    }
+
     let _result = soft_delete_other_ballot_publications(
         &hasura_transaction,
         &ballot_publication_id,
@@ -460,11 +479,38 @@ pub async fn update_publish_ballot(
             election_event_id.clone(),
             Some(election_ids.clone()),
             ballot_publication_id.clone(),
-            Some(user_id),
-            Some(username),
+            Some(user_id.clone()),
+            Some(username.clone()),
         )
         .await
         .map_err(|e| anyhow!("error posting to the electoral log: {e}"))?;
+
+    if let Some(check) = design_check {
+        electoral_log
+            .post_configuration_package(
+                election_event_id.clone(),
+                ConfigurationPackageDetails {
+                    action: ConfigurationPackageAction::Published,
+                    external_id: check.external_id,
+                    revision: check.revision,
+                    manifest_sha256: check.manifest_sha256,
+                    ballot_publication_id: Some(ballot_publication_id.clone()),
+                    design_digests: check
+                        .digests
+                        .into_iter()
+                        .map(|digest| ConfigurationDesignDigest {
+                            area: digest.area,
+                            election: digest.election,
+                            sha256: digest.sha256,
+                        })
+                        .collect(),
+                },
+                Some(user_id),
+                Some(username),
+            )
+            .await
+            .map_err(|e| anyhow!("error posting to the electoral log: {e}"))?;
+    }
     Ok(())
 }
 

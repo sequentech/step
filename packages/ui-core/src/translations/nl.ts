@@ -668,6 +668,10 @@ const dutchTranslation: TranslationType = {
                     },
                 },
                 package: {
+                    "already-imported": {
+                        lead: "Al geïmporteerd",
+                        text: "Al geïmporteerd — revisie {{revision}} van deze configuratie is al eerder geïmporteerd; importeer een nieuwere revisie.",
+                    },
                     "approval-invalid": {
                         lead: "Goedkeuring telt niet",
                         text: "Goedkeuring telt niet — de goedkeuring van {{name}} kon niet worden geverifieerd: {{reason}}",
@@ -708,6 +712,14 @@ const dutchTranslation: TranslationType = {
                         lead: "Geen tijdstip",
                         text: "Geen tijdstip — '{{value}}' in het manifest is geen datum en tijd.",
                     },
+                    "no-importable": {
+                        lead: "Niets te importeren",
+                        text: "Niets te importeren — het pakket bevat geen official_election_setup.zip, het archief dat bij het importeren wordt gelezen.",
+                    },
+                    "report-template-changed": {
+                        lead: "Rapportsjabloon gewijzigd",
+                        text: "Rapportsjabloon gewijzigd — het sjabloon van het rapport {{report}} is niet het goedgekeurde: de digest is {{actual}}, en de ondertekende configuratie zegt {{expected}}.",
+                    },
                     "report-template-missing": {
                         lead: "Rapportsjabloon ontbreekt",
                         text: "Rapportsjabloon ontbreekt — het rapport {{report}} wordt opgemaakt met sjabloon '{{template}}', dat niet in de configuratie staat, dus het ontwerp kan niet worden ondertekend.",
@@ -747,6 +759,10 @@ const dutchTranslation: TranslationType = {
                     "unreadable-manifest": {
                         lead: "Manifest onleesbaar",
                         text: "Manifest onleesbaar — het manifest van het pakket kon niet worden gelezen: {{reason}}",
+                    },
+                    "unreadable-revocation-list": {
+                        lead: "Intrekkingslijst onleesbaar",
+                        text: "Intrekkingslijst onleesbaar — een intrekkingslijst kon niet worden gelezen, dus die kan niet worden toegepast: {{reason}}",
                     },
                     "unreadable-trust": {
                         lead: "Vertrouwde certificaten onleesbaar",

@@ -14,7 +14,9 @@ use crate::services::consolidation::acm_json::get_acm_key_pair;
 use crate::services::database::get_hasura_pool;
 use crate::services::election_dates::get_election_dates;
 use crate::services::reports::ballot_images::BallotImagesTemplate;
-use crate::services::reports::report_variables::{get_app_hash, get_app_version, get_report_hash};
+use crate::services::reports::report_variables::{
+    configuration_footer, get_app_hash, get_app_version, get_report_hash,
+};
 use crate::services::reports::template_renderer::{
     ReportOriginatedFrom, ReportOrigins, TemplateRenderer,
 };
@@ -592,6 +594,7 @@ async fn build_reports_pipe_config(
     report_system_template: String,
     pdf_options: Option<PrintToPdfOptionsLocal>,
     tally_type: TallyType,
+    configuration: Option<(String, String)>,
 ) -> Result<PipeConfigGenerateReports> {
     let extra_data = VelvetTemplateData {
         title: String::new(),
@@ -620,13 +623,17 @@ async fn build_reports_pipe_config(
 
     let report_hash = get_report_hash(&tally_type.to_string()).await?;
 
-    let execution_annotations = HashMap::from([
+    let mut execution_annotations = HashMap::from([
         ("date_printed".to_string(), get_date_and_time()),
         ("app_hash".to_string(), get_app_hash()),
         ("app_version".to_string(), get_app_version()),
         ("report_hash".to_string(), report_hash),
         ("executer_username".to_string(), tally_executer_username),
     ]);
+    if let Some((revision, manifest_sha256)) = configuration {
+        execution_annotations.insert("configuration_revision".to_string(), revision);
+        execution_annotations.insert("configuration_manifest_sha256".to_string(), manifest_sha256);
+    }
 
     Ok(PipeConfigGenerateReports {
         enable_pdfs: false,
@@ -648,6 +655,7 @@ pub async fn create_config_file(
     pdf_options: Option<PrintToPdfOptionsLocal>,
     tally_session: &TallySession,
     tally_type: TallyType,
+    configuration: Option<(String, String)>,
 ) -> Result<()> {
     let contest_encryption_policy = tally_session
         .configuration
@@ -671,6 +679,7 @@ pub async fn create_config_file(
         report_system_template,
         pdf_options,
         tally_type,
+        configuration,
     )
     .await?;
 
@@ -928,6 +937,12 @@ pub async fn run_velvet_tally(
     )
     .await?;
 
+    let configuration = configuration_footer(
+        hasura_transaction,
+        &election_event.tenant_id,
+        &election_event.id,
+    )
+    .await?;
     create_config_file(
         base_tally_path.clone(),
         report_content_template,
@@ -935,6 +950,7 @@ pub async fn run_velvet_tally(
         pdf_options,
         tally_session,
         tally_type,
+        configuration,
     )
     .await?;
     call_velvet(base_tally_path.clone(), "decode-ballots").await

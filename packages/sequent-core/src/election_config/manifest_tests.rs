@@ -325,6 +325,69 @@ fn designs_and_reports_say_what_changed() {
 }
 
 #[test]
+fn a_report_drawn_with_the_approved_template_is_stamped() {
+    let mut signed = manifest();
+    signed.content.reports[0].template_sha256 =
+        Some(sha256_hex(b"<h1>Election Returns</h1>"));
+    let stamp = report_stamp(
+        &signed,
+        "manifest-digest",
+        "ELECTORAL_RESULTS",
+        "<h1>Election Returns</h1>",
+    )
+    .unwrap();
+    assert_eq!(stamp.revision, 8);
+    assert_eq!(stamp.manifest_sha256, "manifest-digest");
+    assert_eq!(
+        stamp.template_sha256,
+        sha256_hex(b"<h1>Election Returns</h1>")
+    );
+}
+
+#[test]
+fn a_report_drawn_with_another_template_is_refused() {
+    let mut signed = manifest();
+    signed.content.reports[0].template_sha256 = Some("00".repeat(32));
+    let problem =
+        report_stamp(&signed, "m", "ELECTORAL_RESULTS", "<h1>Edited</h1>")
+            .unwrap_err();
+    assert_eq!(
+        problem.id.as_deref(),
+        Some("package.report-template-changed")
+    );
+    assert_eq!(problem.details["expected"], "00".repeat(32));
+}
+
+#[test]
+fn a_report_the_configuration_sets_no_design_for_is_stamped_with_its_template()
+{
+    let stamp =
+        report_stamp(&manifest(), "m", "ACTIVITY_LOGS", "anything").unwrap();
+    assert_eq!(stamp.template_sha256, sha256_hex(b"anything"));
+}
+
+#[test]
+fn a_report_manifest_lists_each_file_with_its_digest() {
+    let stamp = report_stamp(&manifest(), "m", "ACTIVITY_LOGS", "t").unwrap();
+    let written = report_manifest(
+        "ACTIVITY_LOGS",
+        &stamp,
+        &[
+            artifact("report.pdf", b"%PDF"),
+            artifact("report.csv", b"a,b\n"),
+        ],
+    );
+    let paths: Vec<&str> =
+        written.files.iter().map(|f| f.path.as_str()).collect();
+    assert_eq!(paths, vec!["report.csv", "report.pdf"]);
+    assert_eq!(written.files[1].sha256, sha256_hex(b"%PDF"));
+    assert_eq!(
+        serde_json::to_value(&written).unwrap()["format"],
+        "sequent.report-manifest/1"
+    );
+}
+
+#[test]
 fn packaging_the_same_members_gives_the_same_bytes() {
     let manifest = manifest().to_bytes().unwrap();
     let make = || {

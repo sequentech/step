@@ -210,6 +210,11 @@ pub struct Candidate {
 pub struct DocumentAnnotations {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub access: Option<DocumentAccess>,
+    /// For a report generated from a signed configuration: its
+    /// `report-manifest.json`, naming the configuration revision, the manifest
+    /// and template digests, and every file the generation wrote.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub report_manifest: Option<Value>,
 }
 
 impl DocumentAnnotations {
@@ -219,6 +224,7 @@ impl DocumentAnnotations {
                 password_secret_id: Some(password_secret_id.into()),
                 voter_secret_attributes: false,
             }),
+            report_manifest: None,
         }
     }
 
@@ -234,6 +240,7 @@ impl DocumentAnnotations {
                 password_secret_id: None,
                 voter_secret_attributes: true,
             }),
+            report_manifest: None,
         }
     }
 

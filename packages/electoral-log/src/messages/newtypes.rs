@@ -410,6 +410,41 @@ pub struct MonitoringConfigRevisionRef {
     pub digest: Option<MonitoringConfigDigestString>,
 }
 
+/// What happened to a signed configuration package.
+#[derive(
+    BorshSerialize, BorshDeserialize, Deserialize, Serialize, Clone, PartialEq, Eq, Hash, Debug,
+)]
+pub enum ConfigurationPackageAction {
+    /// Verified and imported into the election event.
+    Imported,
+    /// The ballots it approved were published.
+    Published,
+}
+
+/// One ballot design a configuration package approved, as published.
+#[derive(
+    BorshSerialize, BorshDeserialize, Deserialize, Serialize, Clone, PartialEq, Eq, Hash, Debug,
+)]
+pub struct ConfigurationDesignDigest {
+    pub area: String,
+    pub election: String,
+    pub sha256: String,
+}
+
+/// A signed configuration package's revision and manifest digest, and for a
+/// publication the publication and the digest of each design it published.
+#[derive(
+    BorshSerialize, BorshDeserialize, Deserialize, Serialize, Clone, PartialEq, Eq, Hash, Debug,
+)]
+pub struct ConfigurationPackageDetails {
+    pub action: ConfigurationPackageAction,
+    pub external_id: String,
+    pub revision: u64,
+    pub manifest_sha256: String,
+    pub ballot_publication_id: Option<String>,
+    pub design_digests: Vec<ConfigurationDesignDigest>,
+}
+
 /// One change to an election event's monitoring configuration: a save, a
 /// reset to a preset, or a switch of the Dashboard tab's mode.
 #[derive(

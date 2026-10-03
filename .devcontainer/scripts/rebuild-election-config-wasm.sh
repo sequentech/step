@@ -49,7 +49,7 @@ wasm-pack build \
     --out-dir "${OUT_DIR}" \
     --release \
     --target web \
-    --features=wasmtest,default_features,election_config_xlsx,election_config_templates,election_config_archive \
+    --features=wasmtest,default_features,election_config_xlsx,election_config_templates,election_config_archive,election_config_signing \
     -- --locked
 
 echo "==> Renaming the package so it does not collide with sequent-core..."
