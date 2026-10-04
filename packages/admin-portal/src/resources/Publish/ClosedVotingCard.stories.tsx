@@ -33,6 +33,8 @@ interface Scenario {
     seals: Array<Record<string, unknown>>
     /** A result stored before `seals` existed: `seal: null` and no `seals`. */
     legacy?: boolean
+    /** The election event's number format, as the panel names it. */
+    numberFormatPolicy?: string
 }
 
 const SPAIN_SHA512 = "3f9a".repeat(32)
@@ -45,7 +47,13 @@ let api: ReturnType<typeof fakeApi>
 let signers: typeof MEMBERS
 
 /** A close voting request signed by its first `required` members, as the server keeps its result. */
-async function closing({required, status, seals, legacy}: Scenario): Promise<ISigningPanelData> {
+async function closing({
+    required,
+    status,
+    seals,
+    legacy,
+    numberFormatPolicy,
+}: Scenario): Promise<ISigningPanelData> {
     signers = MEMBERS.slice(0, required)
     const panel = await makePanel({
         action: SigningAction.CloseVoting,
@@ -57,6 +65,7 @@ async function closing({required, status, seals, legacy}: Scenario): Promise<ISi
     if (status !== SigningRequestStatus.Executed) return panel
     return {
         ...panel,
+        number_format_policy: numberFormatPolicy ?? null,
         request: {
             ...panel.request,
             execution_result: {
@@ -182,7 +191,8 @@ export const SealedByVoteFreeze: Story = {
         await expect(view.getByRole("heading", {name: /Ballots sealed\.$/})).toBeVisible()
         // One block per country, named by the country, else its id.
         const spain = within(view.getByRole("table", {name: "Spain"}))
-        expect(rowValue(spain, "Ballots in the seal")).toBe((1356).toLocaleString())
+        // In the event's number format: the default, for an event without one.
+        expect(rowValue(spain, "Ballots in the seal")).toBe("1,356")
         expect(rowValue(spain, "Seal SHA-512")).toBe("3f9a3f9a…3f9a3f9a")
         expect(rowValue(spain, "Signed by")).toBe(args.seals[0]?.signed_by)
         const second = within(
@@ -197,6 +207,28 @@ export const SealedByVoteFreeze: Story = {
         )
         // The algorithm comes from the seals, never a fixed one.
         expect(view.queryByText(/SHA-256/)).toBeNull()
+    },
+}
+
+/** An event whose number format is 1.234.567,89 counts its seals' ballots in it. */
+export const SealedInTheEventsNumberFormat: Story = {
+    args: {
+        numberFormatPolicy: "period-comma",
+        seals: [
+            {
+                area_id: "11111111-1111-4111-8111-111111111111",
+                area_name: "Spain",
+                hash_algorithm: "SHA-512",
+                hash: SPAIN_SHA512,
+                ballots: 1234567,
+                signed_by: null,
+            },
+        ],
+    },
+    play: async () => {
+        const view = await card()
+        const spain = within(view.getByRole("table", {name: "Spain"}))
+        expect(rowValue(spain, "Ballots in the seal")).toBe("1.234.567")
     },
 }
 

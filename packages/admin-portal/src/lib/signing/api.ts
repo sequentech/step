@@ -109,6 +109,8 @@ export interface ISigningPanelData extends ISigningRequestPanel {
     details?: ISigningDetail[] | null
     /** The election event's time zone (IANA); times are shown in the browser's when absent. */
     time_zone?: string | null
+    /** The election event's number format; figures are shown in the default when absent. */
+    number_format_policy?: string | null
 }
 
 export interface ISigningApi {

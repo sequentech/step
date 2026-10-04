@@ -5,6 +5,7 @@
 import React from "react"
 import {Alert, Box, Table, TableBody, TableCell, TableRow, Typography} from "@mui/material"
 import {useTranslation} from "react-i18next"
+import {formatNumber} from "@sequentech/ui-core"
 import {useSigningFormat} from "@/components/signing/format"
 import type {ISigningPanelData} from "@/lib/signing/api"
 import {SigningRequestStatus} from "@/lib/signing/types"
@@ -86,7 +87,10 @@ export const ClosedVotingCard: React.FC<{data: ISigningPanelData}> = ({data}) =>
     const sealBlocks = seals.map((seal, index) => {
         const rows: Rows = []
         if (seal.ballots !== undefined && seal.ballots !== null) {
-            rows.push([t("signing.closed.ballots"), seal.ballots.toLocaleString()])
+            rows.push([
+                t("signing.closed.ballots"),
+                formatNumber(seal.ballots, data.number_format_policy),
+            ])
         }
         if (seal.hash) {
             rows.push([

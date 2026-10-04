@@ -19,6 +19,7 @@ use sequent_core::signing::{
     CancelReason, RequesterSigning, SigningAction, SigningRequestStatus, SigningRequirement,
 };
 use sequent_core::types::ceremonies::CeremoniesPolicy;
+use sequent_core::types::number_format::NumberFormatPolicy;
 use sequent_core::types::permissions::Permissions;
 use serde_json::json;
 use signing::*;
@@ -1050,6 +1051,51 @@ impl MonitoringConfigAudit for NoAudit {
     async fn record(&self, _: &Transaction<'_>, _: &RecordedChange) -> anyhow::Result<()> {
         Ok(())
     }
+}
+
+/// A request's panel names the event's number format, which a closed
+/// voting seal's ballot counts are shown in: none for an event saved before
+/// the number format existed, or with a code this version does not know.
+#[tokio::test]
+async fn a_panel_names_the_events_number_format() {
+    let (post, other) = LABELS[0];
+    let w = world(post).await;
+    let mut keycloak = w.pool.get().await.unwrap();
+    let ktx = keycloak.transaction().await.unwrap();
+    directory(&ktx, &realm(w.tenant), post, other).await;
+    w.rule(ACTION, 2, RequesterSigning::Allowed, None).await;
+    let reader = caller("ofov", &[Permissions::SIGNING_REQUESTS_READ], &[post]);
+    let request = w.start(&reader, ACTION, subject(1), at(0)).await;
+    let panel_policy = |policy: Option<&'static str>| {
+        let (w, ktx, reader) = (w.clone(), &ktx, reader.clone());
+        async move {
+            let mut hasura = w.pool.get().await.unwrap();
+            if let Some(policy) = policy {
+                hasura
+                    .execute(
+                        "UPDATE sequent_backend.election_event
+                         SET presentation = coalesce(presentation, '{}'::jsonb)
+                             || jsonb_build_object('number_format_policy', $3::text)
+                         WHERE tenant_id = $1 AND id = $2",
+                        &[&w.tenant, &w.event, &policy],
+                    )
+                    .await
+                    .unwrap();
+            }
+            let htx = hasura.transaction().await.unwrap();
+            get_panel(&htx, ktx, &NoDocumentSigner, &reader, w.tenant, request.id)
+                .await
+                .unwrap()
+                .number_format_policy
+        }
+    };
+
+    assert_eq!(panel_policy(None).await, None);
+    assert_eq!(
+        panel_policy(Some("period-comma")).await,
+        Some(NumberFormatPolicy::PeriodComma)
+    );
+    assert_eq!(panel_policy(Some("no-such-format")).await, None);
 }
 
 /// What the Signatures tab and a signer's list show beside the Hasura rows:
