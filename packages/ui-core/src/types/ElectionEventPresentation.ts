@@ -243,5 +243,10 @@ export interface IElectionEventPresentation {
     results_website?: string
     delegated_voting_policy: EElectionEventDelegatedVotingPolicy
     voting_portal_datetime_format?: VotingPortalDateTimeFormat
-    number_format_policy?: ENumberFormatPolicy
+    /**
+     * An `ENumberFormatPolicy` code. Events saved before the policy existed
+     * have none, or `null`, and an event from a newer version can name a code
+     * this version doesn't know. Read it with `resolveNumberFormatPolicy`.
+     */
+    number_format_policy?: string | null
 }
