@@ -41,6 +41,25 @@ const groupDigits = (digits: string, separator: string): string =>
 
 const INTEGER = /^-?\d+$/
 
+const roundingFormats = new Map<number, Intl.NumberFormat>()
+
+/**
+ * `value` rounded to `decimals` places, as plain digits with a period. Rounds
+ * as the portals always have, through `Intl.NumberFormat`.
+ */
+const roundToDecimals = (value: number, decimals: number): string => {
+    let format = roundingFormats.get(decimals)
+    if (!format) {
+        format = new Intl.NumberFormat("en-US", {
+            minimumFractionDigits: decimals,
+            maximumFractionDigits: decimals,
+            useGrouping: false,
+        })
+        roundingFormats.set(decimals, format)
+    }
+    return format.format(value)
+}
+
 /**
  * `value` with `decimals` places, its integer part grouped in thousands.
  * Integers given as strings or bigints are grouped digit by digit, so counts
@@ -67,7 +86,7 @@ export const formatNumber = (
     if (text === "" || !Number.isFinite(numberValue)) {
         return String(value)
     }
-    const fixed = Math.abs(numberValue).toFixed(decimals)
+    const fixed = roundToDecimals(Math.abs(numberValue), decimals)
     const [integer, fraction] = fixed.split(".")
     const sign = numberValue < 0 && /[1-9]/.test(fixed) ? "-" : ""
     return `${sign}${groupDigits(integer, group)}${fraction ? `${decimal}${fraction}` : ""}`
