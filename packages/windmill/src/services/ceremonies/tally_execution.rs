@@ -5,6 +5,7 @@
 use crate::domain::tally_execution::{
     eligible_trustees, select_trustees, ExecutionConclusion, TrusteeSelection,
 };
+use crate::domain::trustee_signatures::TrusteeSignatures;
 use crate::ports::tally_execution::*;
 use crate::types::error::Result;
 use anyhow::Context;
@@ -18,6 +19,7 @@ pub async fn select_execution_trustees_with(
     event_id: &str,
     linked_ceremony: &KeysCeremony,
     status: TallyCeremonyStatus,
+    signatures: &TrusteeSignatures,
 ) -> anyhow::Result<TrusteeSelection> {
     let existing = ceremonies
         .list(tenant_id, event_id)
@@ -27,7 +29,7 @@ pub async fn select_execution_trustees_with(
         return Ok(TrusteeSelection::NoCeremony);
     }
     let threshold = linked_ceremony.threshold as usize;
-    let mut available = eligible_trustees(status.trustees, linked_ceremony.policy());
+    let mut available = eligible_trustees(status.trustees, linked_ceremony.policy(), signatures);
     order.shuffle(&mut available);
     Ok(select_trustees(available, threshold))
 }

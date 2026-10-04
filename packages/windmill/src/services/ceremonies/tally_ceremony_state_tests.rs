@@ -5,6 +5,7 @@
 use super::*;
 use crate::adapters::memory::tally_ceremony::{InMemoryTallyCeremony, TallyAuditEntry, TallyCall};
 use crate::domain::tally_ceremony::TallyExecuter;
+use crate::domain::trustee_signatures::TrusteeSignatures;
 use sequent_core::types::ceremonies::TallyExecutionStatus::{
     AWAITING_INPUT, CANCELLED, CONNECTED, IN_PROGRESS, STARTED, SUCCESS,
 };
@@ -343,6 +344,28 @@ async fn restore_key(
             election_event_id: EVENT,
             tally_session_id: SESSION,
             private_key_base64,
+            signatures: &TrusteeSignatures::NotNeeded,
+        },
+    )
+    .await
+}
+
+async fn key_share_matches(
+    ceremony: &InMemoryTallyCeremony,
+    claims: &JwtClaims,
+    private_key_base64: &str,
+) -> Result<bool> {
+    trustee_key_share_matches_with(
+        ceremony,
+        ceremony,
+        ceremony,
+        TrusteeKeyRestore {
+            claims,
+            tenant_id: TENANT,
+            election_event_id: EVENT,
+            tally_session_id: SESSION,
+            private_key_base64,
+            signatures: &TrusteeSignatures::NotNeeded,
         },
     )
     .await
@@ -664,6 +687,53 @@ async fn restoring_a_key_that_does_not_match_the_board_writes_nothing() {
         .unwrap();
     assert!(!restored);
     assert_nothing_written(&ceremony, &STARTED);
+}
+
+#[tokio::test]
+async fn a_key_share_is_matched_as_the_restore_matches_it_without_recording_anything() {
+    let ceremony = ceremony(&STARTED, &waiting_pair());
+    let alice = trustee_claims(Some("alice"));
+    assert!(key_share_matches(&ceremony, &alice, STORED_KEY)
+        .await
+        .unwrap());
+    assert!(!key_share_matches(&ceremony, &alice, "another-key")
+        .await
+        .unwrap());
+    assert_nothing_written(&ceremony, &STARTED);
+}
+
+#[tokio::test]
+async fn a_key_share_is_not_matched_when_the_restore_would_be_refused() {
+    let cases = [
+        (
+            ceremony(&STARTED, &restored_pair()),
+            Some("alice"),
+            "Unexpected trustee status KEY_RESTORED",
+        ),
+        (
+            ceremony(&IN_PROGRESS, &waiting_pair()),
+            Some("alice"),
+            "Unexpected status IN_PROGRESS",
+        ),
+        (
+            ceremony(&STARTED, &waiting_pair()),
+            Some("mallory"),
+            "Trustee not part of the keys ceremony or has invalid state",
+        ),
+        (
+            ceremony(&STARTED, &waiting_pair()),
+            None,
+            "trustee name not found",
+        ),
+    ];
+    for (ceremony, trustee, message) in cases {
+        let error = key_share_matches(&ceremony, &trustee_claims(trustee), STORED_KEY)
+            .await
+            .unwrap_err();
+        assert_eq!(error.to_string(), message);
+        assert_eq!(ceremony.executions(SESSION).len(), 1);
+        assert_eq!(ceremony.audit_entries(), vec![]);
+    }
 }
 
 #[tokio::test]

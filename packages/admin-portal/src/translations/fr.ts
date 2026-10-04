@@ -341,6 +341,9 @@ const frenchTranslation: TranslationType = {
                 helpLinks: "Liens d'Aide",
                 logoUrl: "URL du Logo",
                 css: "CSS Personnalisé",
+                displayName: "Nom affiché",
+                displayNameHelp:
+                    "Le nom de l'organisation dans les messages qui la mentionnent. Vide : le nom court du locataire.",
             },
             errors: {
                 invalidHelpLinks: "Format des Liens d'Aide invalide",
@@ -1321,6 +1324,28 @@ const frenchTranslation: TranslationType = {
                 "admin-dashboard-view": "Vue du Tableau de Bord d'Administration",
                 "monitoring-view": "Voir les Tableaux de Bord de Suivi",
                 "monitoring-configure": "Configurer les Tableaux de Bord de Suivi",
+                "election-event-signatures-tab": "Onglet Signatures de l'Événement Électoral",
+                "signing-rules-read": "Signatures : voir les actions protégées",
+                "signing-rules-write": "Signatures : modifier les actions protégées",
+                "signing-certificates-read": "Signatures : voir les certificats",
+                "signing-issuers-write":
+                    "Signatures : importer et supprimer des émetteurs de confiance",
+                "signing-checks-write": "Signatures : modifier les vérifications des certificats",
+                "signing-certificates-register": "Signatures : enregistrer des certificats",
+                "signing-certificates-revoke": "Signatures : révoquer des certificats",
+                "signing-requests-read": "Signatures : voir les demandes",
+                "signing-requests-cancel": "Signatures : annuler des demandes",
+                "signing-requests-export": "Signatures : exporter les demandes",
+                "sign-initialize-voting": "Signer : initialiser le vote",
+                "sign-open-voting": "Signer : ouvrir le vote",
+                "sign-close-voting": "Signer : clôturer le vote",
+                "sign-generate-election-returns": "Signer : générer les procès-verbaux électoraux",
+                "sign-generate-reports": "Signer : générer d'autres rapports électoraux",
+                "sign-transmit-results": "Signer : transmettre les résultats",
+                "sign-approve-voter": "Signer : approuver manuellement un électeur",
+                "sign-approve-configuration": "Signer : approuver une version de configuration",
+                "sign-key-ceremony": "Signer : confirmer un fragment de clé",
+                "sign-tally-key": "Signer : apporter un fragment de clé",
                 "application-export": "Exportation d'Applications",
                 "application-import": "Importation d'Applications",
                 "tenant-create": "Créer Locataire",
@@ -2196,6 +2221,9 @@ const frenchTranslation: TranslationType = {
                             confirm: "Envoyer le Paquet de Transmission",
                             cancel: "Fermer",
                         },
+
+                        disabled:
+                            "Les signatures requises manquent ou le paquet de transmission a déjà été envoyé à toutes les destinations.",
                     },
                     regenerate: {
                         title: "Régénérer",
@@ -2232,11 +2260,11 @@ const frenchTranslation: TranslationType = {
                     },
                 },
                 signatures: {
-                    title: "Signatures SBEI",
+                    title: "Signatures",
                     description:
-                        "Les SBEI peuvent signer le Paquet de Transmission. Le tableau ci-dessous montre l'état de signature de chacun des membres du SBEI.",
+                        "Les membres peuvent signer le paquet de transmission. Le tableau indique le statut de signature de chaque membre.",
                     table: {
-                        trusteeName: "Nom du Fiduciaire",
+                        trusteeName: "Membre",
                         signed: "A Signé",
                     },
                     status: "{{signed}} sur {{total}} Ont Signé",
@@ -3436,6 +3464,659 @@ const frenchTranslation: TranslationType = {
             confirmDelete: "Supprimer l'autorité de certification",
             confirmDeleteDescription:
                 'Êtes-vous sûr de vouloir supprimer le certificat "{{name}}" (empreinte : {{fingerprint}}) ?',
+        },
+        signing: {
+            terms: {
+                post: "Poste",
+                posts: "Postes",
+            },
+            tab: {
+                title: "Signatures",
+                intro: "Les actions protégées ne s'exécutent qu'une fois signées par suffisamment de personnes autorisées avec leurs certificats numériques. Chaque signature est vérifiée auprès des émetteurs de confiance et consignée dans le journal.",
+                protectedActions: "Actions protégées",
+                certificates: "Certificats",
+                requests: "Demandes",
+            },
+            loadError:
+                "Les paramètres de signature n'ont pas pu être chargés. Rechargez la page pour réessayer.",
+            errors: {
+                automatedCeremonies:
+                    "Cet événement utilise des cérémonies de clés automatiques. Les dépositaires ne réalisent pas ces étapes, leurs signatures ne peuvent donc pas être exigées. Pour exiger leurs signatures, utilisez des cérémonies de clés manuelles.",
+                forbidden: "Vous n'avez pas l'autorisation d'effectuer cette modification.",
+                invalid: "Le serveur a refusé ces valeurs. Vérifiez-les et réessayez.",
+                conflict:
+                    "Quelqu'un d'autre l'a modifié entre-temps. Rechargez la page et réessayez.",
+                lockedDown:
+                    "L'événement électoral est verrouillé : les règles de signature ne changent que par une nouvelle version de configuration.",
+                notFound: "Cet élément n'existe plus. Rechargez la page.",
+            },
+            readOnly: {
+                chip: "Lecture seule",
+                rules: "Lecture seule. Modifier les règles de signature nécessite l'autorisation « Signatures : modifier les actions protégées ».",
+                whoCanSign:
+                    "Rôles disposant de l'autorisation « Signer : {{action}} » dans Utilisateurs et Rôles. Les modifier nécessite l'autorisation de modifier les rôles.",
+            },
+            groups: {
+                "voting": "Vote",
+                "results-and-reports": "Résultats et rapports",
+                "enrollment": "Inscription",
+                "configuration-and-keys": "Configuration et clés",
+            },
+            actions: {
+                "initialize-voting": {
+                    label: "Initialiser le vote",
+                    short: "Initialisation",
+                    permissionName: "initialiser le vote",
+                    object: "initialisation du vote",
+                    appliesTo: "Chaque $t(signing.terms.post)",
+                    description:
+                        "Lancée dans Publier. Initialise le $t(signing.terms.post) et génère son Rapport d'Initialisation.",
+                },
+                "open-voting": {
+                    label: "Ouvrir le vote",
+                    short: "Ouverture",
+                    permissionName: "ouvrir le vote",
+                    object: "ouverture du vote",
+                    appliesTo: "Chaque $t(signing.terms.post)",
+                    description:
+                        "Lancée dans Publier avec Commencer la période de vote. Ouvre le vote au $t(signing.terms.post).",
+                },
+                "close-voting": {
+                    label: "Clôturer le vote",
+                    short: "Clôture",
+                    permissionName: "clôturer le vote",
+                    object: "clôture du vote",
+                    appliesTo: "Chaque $t(signing.terms.post)",
+                    description:
+                        "Lancée dans Publier avec Arrêter la période de vote. Clôture le vote au $t(signing.terms.post) ; les signatures de clôture sont conservées dans son procès-verbal.",
+                },
+                "generate-election-returns": {
+                    label: "Générer les procès-verbaux électoraux",
+                    short: "Procès-verbaux électoraux",
+                    permissionName: "générer les procès-verbaux électoraux",
+                    object: "procès-verbaux électoraux",
+                    appliesTo: "Chaque $t(signing.terms.post) et pays",
+                    description:
+                        "Lancée par le dépouillement, une demande par $t(signing.terms.post) et pays. Libère les procès-verbaux signés pour impression et transmission.",
+                },
+                "generate-reports": {
+                    label: "Générer d'autres rapports électoraux",
+                    short: "Rapport",
+                    permissionName: "générer d'autres rapports électoraux",
+                    object: "rapport",
+                    appliesTo: "Chaque $t(signing.terms.post)",
+                    description:
+                        "Lancée par le dépouillement pour le Rapport d'Initialisation et dans Rapports pour le rapport de participation. Libère le rapport signé.",
+                },
+                "transmit-results": {
+                    label: "Transmettre les résultats",
+                    short: "Transmission",
+                    permissionName: "transmettre les résultats",
+                    object: "paquet de résultats",
+                    appliesTo: "Chaque $t(signing.terms.post) et pays",
+                    description:
+                        "Lancée dans Comptage, Transmission. Construit le paquet de résultats signé pour ses destinations ; les signatures remplissent sa liste de signatures.",
+                },
+                "approve-voter": {
+                    label: "Approuver manuellement un électeur",
+                    short: "Approbation d'électeur",
+                    permissionName: "approuver manuellement un électeur",
+                    object: "approbation d'électeur",
+                    appliesTo: "Le $t(signing.terms.post) de l'électeur",
+                    description:
+                        "Lancée dans Approvals. Approuve l'électeur et lui délivre ses identifiants.",
+                },
+                "approve-configuration": {
+                    label: "Approuver une version de configuration",
+                    short: "Version de configuration",
+                    permissionName: "approuver une version de configuration",
+                    object: "version de configuration",
+                    appliesTo: "L'événement électoral",
+                    description: "Lancée dans Publier. Publie la version de configuration.",
+                },
+                "key-ceremony": {
+                    label: "Confirmer un fragment de clé (cérémonie des clés)",
+                    short: "Fragment de clé",
+                    permissionName: "confirmer un fragment de clé",
+                    object: "fragment de clé",
+                    appliesTo: "Chaque autorité",
+                    description:
+                        "Lancée dans Clés par chaque autorité. Consigne la signature de l'autorité auprès de la cérémonie et du tableau d'affichage.",
+                },
+                "tally-key": {
+                    label: "Apporter un fragment de clé (dépouillement)",
+                    short: "Apport de fragment de clé",
+                    permissionName: "apporter un fragment de clé",
+                    object: "apport de fragment de clé",
+                    appliesTo: "Chaque autorité",
+                    description:
+                        "Lancée dans Comptage par chaque autorité. Consigne l'apport de l'autorité.",
+                },
+            },
+            protectedActions: {
+                intro: "Chaque signature est réalisée avec le certificat numérique du jeton de sécurité du signataire.",
+                columns: {
+                    action: "Action",
+                    appliesTo: "S'applique à",
+                    whoCanSign: "Qui peut signer",
+                    signaturesNeeded: "Signatures requises",
+                    requestExpires: "Expiration de la demande",
+                    waiting: "En attente",
+                },
+                off: "Désactivée",
+                eachTrustee: "Chaque autorité",
+                footerVersion:
+                    "Les règles de signature font partie de la version de configuration {{version}} de cet événement.",
+                footerFirstVersion:
+                    "Les règles de signature feront partie de la première version de configuration de cet événement lors de sa publication.",
+                footerChanged: "Dernière modification : {{date}}.",
+                footerChangedBy: "Dernière modification : {{date}}, par {{name}}.",
+                lockedDown:
+                    "L'événement électoral est verrouillé : ses règles de signature appartiennent à sa version de configuration et ne changent donc que par une nouvelle version de configuration.",
+                edit: "Modifier {{action}}",
+                view: "Voir {{action}}",
+                waitingCount_one: "{{count}} demande en attente",
+                waitingCount_other: "{{count}} demandes en attente",
+                capacityError:
+                    "Impossible de charger qui peut signer : le nombre de signatures ne peut donc pas être vérifié par rapport aux $t(signing.terms.posts).",
+            },
+            expiry: {
+                "30": "30 minutes",
+                "60": "1 heure",
+                "120": "2 heures",
+                "1440": "24 heures",
+                "none": "Sans limite",
+                "other": "{{count}} minutes",
+            },
+            rule: {
+                needsSignatures: "Requiert des signatures",
+                whoCanSign: "Qui peut signer",
+                whoCanSignHelp:
+                    "Ces rôles reçoivent l'autorisation « Signer : {{action}} » dans Utilisateurs et Rôles, pour tous les événements électoraux. Les signataires doivent aussi avoir accès au $t(signing.terms.post).",
+                signaturesNeeded: "Signatures requises",
+                signaturesNeededHelp:
+                    "Chaque signataire utilise son certificat numérique. Chaque $t(signing.terms.post) compte au moins {{n}} personnes pouvant signer.",
+                signaturesNeededShortHelp: "Chaque signataire utilise son certificat numérique.",
+                requesterSigning: "La personne qui la lance peut aussi signer",
+                expiresAfter: "Une demande expire après",
+                trusteesSign: "Les autorités signent cette étape",
+                trusteesHelp:
+                    "Chaque autorité signe sa propre étape avec son certificat numérique. La cérémonie des clés détermine combien d'autorités y participent.",
+                footer: "Les modifications sont consignées dans le journal de l'événement électoral et font partie de la prochaine version de configuration.",
+                cancel: "Annuler",
+                save: "Enregistrer",
+                saved: "La règle de signature a été enregistrée.",
+                savedShort_one:
+                    "La règle de signature a été enregistrée. {{posts}} ne peut pas encore atteindre ce nombre : ajoutez-y un signataire.",
+                savedShort_other:
+                    "La règle de signature a été enregistrée. {{posts}} ne peuvent pas encore atteindre ce nombre : ajoutez-y des signataires.",
+                checkedOnSave:
+                    "Le nombre est vérifié par rapport aux nouveaux rôles lors de l'enregistrement.",
+                savedRequesterShort:
+                    "La règle de signature a été enregistrée. Certains $t(signing.terms.posts) ne peuvent pas atteindre ce nombre sans la personne qui lance une demande.",
+                saveError:
+                    "La règle de signature n'a pas pu être enregistrée. Quelqu'un l'a peut-être modifiée entre-temps ; rechargez et réessayez.",
+            },
+            validation: {
+                atLeastOne: "Au moins 1.",
+                tooMany:
+                    "Aucun $t(signing.terms.post) ne compte {{n}} personnes pouvant signer. Le maximum est {{max}}.",
+                tooManyEvent:
+                    "Seules {{max}} personnes peuvent signer ceci. Choisissez au plus {{max}}.",
+                atMost: "Au plus {{max}}.",
+                shortPosts_one:
+                    "{{posts}} ne compte que {{n}} personnes pouvant signer et ne peut donc pas atteindre {{required}} signatures. Ajoutez-y un signataire ou réduisez le nombre.",
+                requesterShort_one:
+                    "Sans la personne qui la lance, {{posts}} ne compte que {{n}} personnes pouvant signer et ne peut donc pas atteindre {{required}} signatures.",
+                requesterShort_other:
+                    "Sans la personne qui la lance, {{posts}} ne comptent que {{n}} personnes pouvant signer et ne peuvent donc pas atteindre {{required}} signatures.",
+                shortPosts_other:
+                    "{{posts}} ne comptent que {{n}} personnes pouvant signer et ne peuvent donc pas atteindre {{required}} signatures. Ajoutez-y un signataire ou réduisez le nombre.",
+            },
+            pendingRequests_one:
+                "{{count}} demande attend des signatures selon la règle actuelle. L'enregistrement l'annule ; la personne qui l'a lancée devra recommencer.",
+            pendingRequests_other:
+                "{{count}} demandes attendent des signatures selon la règle actuelle. L'enregistrement les annule ; les personnes qui les ont lancées devront recommencer.",
+            certificates: {
+                issuersIntro:
+                    "Les certificats du personnel doivent remonter à l'un d'eux. Ils sont distincts des certificats avec lesquels les électeurs se connectent.",
+                checkRevocation: "Vérifier les listes de révocation",
+                crlUnavailable: {
+                    "label": "Lorsqu'une liste ne peut pas être téléchargée",
+                    "refuse": "Ne pas accepter les signatures",
+                    "accept-unchecked": "Accepter et marquer la signature comme non vérifiée",
+                },
+                registration: {
+                    "label": "Enregistrement d'un certificat au nom d'une personne",
+                    "on-first-use": "Lorsque son titulaire signe avec pour la première fois",
+                    "security-officer-only":
+                        "Uniquement lorsqu'une personne autorisée à enregistrer des certificats l'enregistre",
+                },
+                onePost: "Un certificat ne signe que pour un seul $t(signing.terms.post)",
+                issuers: "Émetteurs de confiance",
+                import: "Importer des certificats d'émetteurs",
+                importHelp:
+                    "Choisissez un fichier PEM ou CER contenant le certificat de l'émetteur. Un fichier PEM peut contenir plusieurs certificats.",
+                chooseFile: "Choisir un fichier de certificat",
+                fileError: "Le fichier n'a pas pu être lu.",
+                imported:
+                    "{{imported}} certificats d'émetteurs importés ; {{skipped}} étaient déjà de confiance.",
+                importedWithErrors:
+                    "{{imported}} certificats d'émetteurs importés, {{skipped}} déjà de confiance. Refusés : {{errors}}",
+                importError: "Les certificats d'émetteurs n'ont pas pu être importés.",
+                deleteIssuer: "Supprimer {{name}}",
+                deleteIssuerConfirm:
+                    "Supprimer {{name}} des émetteurs de confiance ? Les certificats qu'il a émis ne pourront plus signer.",
+                deleteError: "L'émetteur n'a pas pu être supprimé.",
+                noIssuers:
+                    "Aucun émetteur de confiance pour l'instant. Le personnel ne peut pas signer tant qu'aucun n'est importé.",
+                root: "Racine",
+                intermediate: "Intermédiaire",
+                columns: {
+                    issuer: "Émetteur",
+                    type: "Type",
+                    issuedBy: "Émis par",
+                    validUntil: "Valide jusqu'au",
+                    sha256: "SHA-256",
+                    person: "Personne",
+                    post: "$t(signing.terms.post)",
+                    certificate: "Certificat",
+                    registered: "Enregistré",
+                    status: "Statut",
+                },
+                checks: "Vérifications",
+                checksSaved: "Les vérifications des certificats ont été enregistrées.",
+                checksError: "Les vérifications des certificats n'ont pas pu être enregistrées.",
+                crlSchedule: "Téléchargées depuis chaque émetteur toutes les heures.",
+                crlUpdated: "{{url}} : mise à jour {{time}}",
+                crlFailed: "{{url}} : téléchargement impossible (dernier essai {{time}})",
+                registeredTitle: "Certificats enregistrés",
+                search: "Rechercher des personnes, des certificats ou des $t(signing.terms.posts)",
+                status: "Statut",
+                statusAll: "Tous",
+                statuses: {
+                    "active": "Actif",
+                    "expires-soon": "Expire bientôt",
+                    "expired": "Expiré",
+                    "revoked": "Révoqué",
+                },
+                revokedOn: "Révoqué le {{date}}",
+                allPosts: "Tous",
+                noCertificates: "Aucun certificat enregistré.",
+                registeredHow: {
+                    "first-use": "À la première signature",
+                    "security-officer": "Enregistré par un administrateur",
+                },
+                register: "Enregistrer un certificat",
+                registerSubmit: "Enregistrer",
+                registerDone: "Le certificat a été enregistré.",
+                registerError: "Le certificat n'a pas pu être enregistré.",
+                person: "Personne",
+                personSearchHelp:
+                    "Saisissez une partie d'un nom d'utilisateur pour trouver la personne.",
+                registeredBy: "Par {{name}}",
+                registerRefused:
+                    "Ce certificat ne peut pas être enregistré : vérifiez qu'il a été émis par un émetteur de confiance, qu'il est valide aujourd'hui et qu'il est destiné à la signature.",
+                registeredToOther:
+                    "Ce certificat est enregistré au nom de {{name}}. Si ce compte appartient aussi à {{name}}, associez-le comme son second compte.",
+                linkAccount: "Associer comme second compte de la même personne",
+                alreadyRegistered: "Ce certificat est déjà enregistré au nom de cette personne.",
+                pem: "Certificat (PEM)",
+                revoke: "Révoquer",
+                revokeOf: "Révoquer le certificat de {{name}}",
+                revokeTitle: "Révoquer le certificat de {{name}}",
+                revokeHelp:
+                    "Un certificat révoqué ne peut plus signer. Les signatures qu'il a déjà produites restent valables.",
+                revokeReason: "Motif",
+                revokeDone: "Le certificat a été révoqué.",
+                revokeError: "Le certificat n'a pas pu être révoqué.",
+            },
+            requests: {
+                exportCsv: "Exporter en CSV",
+                exportError: "Les demandes n'ont pas pu être exportées.",
+                exportFileName: "signing-requests.csv",
+                status: "Statut",
+                statusAll: "Toutes",
+                statusCount: "{{status}} · {{count}} sur {{total}}",
+                expires: "Expire {{time}}",
+                lastSignatureBy: "{{name}}, {{time}}",
+                empty: "Aucune demande de signature pour l'instant.",
+                columns: {
+                    request: "Demande",
+                    status: "Statut",
+                    started: "Lancée",
+                    by: "Par",
+                    lastSignature: "Dernière signature",
+                    code: "Code",
+                },
+            },
+            reports: {
+                postRequired:
+                    "Sélectionnez un poste pour générer ce rapport lorsque des signatures sont requises.",
+                generateNotice:
+                    "{{post}} : le document est généré maintenant. Il pourra être imprimé et transmis une fois signé par {{n}} personnes.",
+            },
+            status: {
+                waiting: "En attente",
+                completed: "Signée",
+                executed: "Terminée",
+                cancelled: "Annulée",
+                expired: "Expirée",
+                failed: "Échouée",
+            },
+            cancelReasons: {
+                "by-requester": "La personne qui l'a lancée l'a annulée",
+                "by-operator": "Un opérateur l'a annulée",
+                "rule-changed": "La règle de signature de l'action a changé",
+                "payload-changed": "Ce qu'elle signe a changé",
+                "superseded": "Une demande plus récente l'a remplacée",
+                "certificate-revoked": "Un certificat qui l'a signée a été révoqué",
+            },
+            panel: {
+                rulePost:
+                    "Requiert {{n}} signatures des signataires de {{post}}, chacune avec son certificat numérique.",
+                ruleEvent:
+                    "Requiert {{n}} signatures, chacune avec le certificat numérique du signataire.",
+                signingCode: "Code de signature",
+                signers: "Signataires",
+                sign: "Signer",
+                handover: "Le membre suivant se connecte",
+                cancel: "Annuler la demande",
+                signedAt: "Signé {{time}}",
+                notSigned: "Non signé",
+                certificate: "Certificat {{name}}",
+                you: "(vous)",
+                expiresAt: "Expire à {{time}}",
+                progress: "{{count}} sur {{total}}",
+                openDocument: "Ouvrir le document",
+                configurationVersion: "Version de configuration {{version}}",
+                configurationChanges: "Modifications de cette version",
+            },
+            dialog: {
+                title: "Signature : {{object}}",
+                steps: {
+                    check: "Vérifier",
+                    certificate: "Certificat",
+                    signed: "Signé",
+                },
+                localNote:
+                    "La signature a lieu dans ce navigateur. Votre fichier de certificat, sa clé privée et son mot de passe ne sont jamais envoyés. Seuls votre signature et votre certificat public sont transmis au serveur.",
+                check: {
+                    signingAs: "Vous signez en tant que {{name}}",
+                    titlePost: "{{title}}, {{post}}",
+                    sameCode: "Toutes les personnes qui signent voient le même code.",
+                    confirmDocument: "J'ai vérifié ce que je signe : {{object}}",
+                },
+                certificate: {
+                    intro: "Insérez votre jeton de sécurité et choisissez votre fichier de certificat.",
+                    password: "Mot de passe du certificat",
+                    open: "Ouvrir le certificat",
+                    chooseAnother: "Choisir un autre fichier",
+                },
+                checks: {
+                    "passed": {
+                        "trusted-issuer": "Émis par un émetteur de confiance ({{root}})",
+                        "valid-now": "Valide aujourd'hui",
+                        "signing-key-usage": "Destiné à la signature",
+                        "not-revoked": "Non révoqué (listes mises à jour {{time}})",
+                        "registered": "Enregistré à votre nom le {{date}}",
+                        "registered-to-other": "Non enregistré au nom d'une autre personne",
+                        "already-signed": "Pas encore utilisé pour cette demande",
+                        "post-binding": "Enregistré pour ce $t(signing.terms.post)",
+                        "signature": "La signature couvre cette demande",
+                    },
+                    "failed": {
+                        "trusted-issuer": "Non émis par un émetteur de confiance",
+                        "valid-now": "Non valide aujourd'hui",
+                        "signing-key-usage": "Non destiné à la signature",
+                        "not-revoked":
+                            "Révoqué, ou aucune liste de révocation à jour pour le vérifier",
+                        "registered": "Non enregistré à votre nom",
+                        "registered-to-other": "Enregistré au nom de {{name}}",
+                        "already-signed": "Déjà utilisé pour cette demande",
+                        "post-binding": "Enregistré pour un autre $t(signing.terms.post)",
+                        "signature": "La signature ne couvre pas cette demande",
+                    },
+                    "first-use": "Première utilisation : il sera enregistré à votre nom",
+                },
+                problems: {
+                    wrongPassword: "Mot de passe incorrect. Vérifiez-le et réessayez.",
+                    notForYou:
+                        "Ce certificat ne peut pas signer pour vous. Utilisez le certificat de votre propre jeton de sécurité.",
+                    issuerNotAccepted:
+                        "Utilisez le certificat que {{organization}} a enregistré pour vous. Les certificats d'autres émetteurs ne sont pas acceptés.",
+                    cancelled:
+                        "Cette demande a été annulée : {{reason}}. Les signatures données pour elle ne comptent plus. Relancez-la pour signer la version actuelle.",
+                },
+                signed: {
+                    title: "Signé",
+                    withCertificate: "avec le certificat de {{name}}",
+                    count: "{{n}} signatures sur {{total}}.",
+                    allIn: "Les {{total}} signatures sont réunies.",
+                    next: "Prochains signataires : {{names}}.",
+                },
+                handover:
+                    "Vous allez être déconnecté. Le membre suivant se connecte sur cet ordinateur et revient à cette demande pour signer. La demande reste ouverte jusqu'à {{time}}.",
+                sign: "Signer",
+                back: "Retour",
+                cancel: "Annuler",
+            },
+            widget: {
+                continue: "Continuer",
+                done: "Terminé",
+                close: "Fermer",
+                retry: "Réessayer",
+                loading: "Chargement de la demande…",
+                loadError: "La demande n'a pas pu être chargée.",
+                chooseFile: "Choisir le fichier de certificat",
+                fileInput: "Fichier de certificat",
+                fileSize: "{{size}} Ko",
+                showPassword: "Afficher le mot de passe",
+                hidePassword: "Masquer le mot de passe",
+                opening: "Ouverture du certificat…",
+                checking: "Vérification du certificat…",
+                signing: "Signature en cours…",
+                certificateCard: "Émis par {{issuer}} · valide jusqu'au {{date}} · {{algorithm}}",
+                fingerprint: "SHA-256 {{fingerprint}}",
+                algorithms: {
+                    "rsa-pkcs1-sha256": "RSA",
+                    "ecdsa-p256-sha256": "EC P-256",
+                },
+                document: "{{type}} · SHA-256 {{hash}}",
+                documentPages: "{{type}} · {{pages}} pages · SHA-256 {{hash}}",
+                checksTitle: "Vérifications du certificat",
+                untrustedIssuer:
+                    "{{issuer}} n'est pas un émetteur de confiance pour cet événement électoral",
+                registeredToSomeoneElse: "Enregistré au nom d'une autre personne",
+                checkPassedNoDetail: {
+                    "trusted-issuer": "Émis par un émetteur de confiance",
+                    "not-revoked": "Non révoqué",
+                },
+                organization: "votre organisation",
+                cantSign: "Ce certificat ne peut pas signer cette demande.",
+                checkError: "Le certificat n'a pas pu être vérifié. Réessayez.",
+                fileErrors: {
+                    UNREADABLE_FILE:
+                        "Ce fichier n'est pas un fichier de certificat (.p12 ou .pfx), ou il est endommagé.",
+                    UNSUPPORTED_ENCRYPTION:
+                        "Ce navigateur ne peut pas ouvrir le chiffrement utilisé par ce fichier.",
+                    NO_PRIVATE_KEY:
+                        "Ce fichier ne contient pas de clé privée. Choisissez le fichier de certificat de votre jeton de sécurité.",
+                    NO_CERTIFICATE: "Ce fichier ne contient aucun certificat.",
+                    UNSUPPORTED_KEY:
+                        "Le type de clé de ce certificat n'est pas pris en charge. Utilisez un certificat RSA ou EC P-256.",
+                    KEY_CERTIFICATE_MISMATCH:
+                        "Le certificat de ce fichier ne correspond pas à sa clé.",
+                },
+                openError: "Le certificat n'a pas pu être ouvert. Réessayez.",
+                signError: "La signature n'a pas pu être envoyée. Réessayez.",
+                refused: "Le serveur a refusé la signature.",
+                stale: "Le document a changé pendant que vous signiez. Signez à nouveau.",
+                mismatch:
+                    "Ce qui serait signé ne correspond pas à cette demande. Fermez la fenêtre et rouvrez la demande.",
+                documentMismatch: "Le document ne correspond pas à celui que signe cette demande.",
+                documentError: "Le document n'a pas pu être téléchargé. Réessayez.",
+                alreadySigned: "Vous avez déjà signé cette demande.",
+                closed: {
+                    changed:
+                        "Cette demande a changé après son ouverture. Fermez cette fenêtre et vérifiez-la à nouveau avant de signer.",
+                    allSigned: "Cette demande a déjà toutes ses signatures.",
+                },
+                chooseCertificate: "Certificat de signature",
+                renderError:
+                    "La demande de signature n'a pas pu être affichée. Fermez-la et rouvrez-la.",
+                signedAt: "{{time}}",
+                panel: {
+                    completedAt: "Signée à {{time}}",
+                    expired:
+                        "Cette demande a expiré. Les signatures données pour elle ne comptent plus. Relancez-la pour signer.",
+                    failed: "Toutes les signatures sont réunies, mais l'action a échoué. Le journal contient les détails.",
+                    details: "Détails",
+                    close: "Fermer le panneau de la demande",
+                },
+                cancelDialog: {
+                    title: "Annuler cette demande ?",
+                    body: "Les signatures données pour elle ne comptent plus. La personne qui l'a lancée devra recommencer.",
+                    reason: "Motif (facultatif)",
+                    confirm: "Annuler la demande",
+                    back: "La conserver",
+                    error: "La demande n'a pas pu être annulée. Réessayez.",
+                },
+                handoverDialog: {
+                    title: "Le membre suivant se connecte",
+                    noExpiry:
+                        "Vous allez être déconnecté. Le membre suivant se connecte sur cet ordinateur et revient à cette demande pour signer.",
+                    confirm: "Se déconnecter",
+                    back: "Rester connecté",
+                    error: "Le relais n'a pas pu être enregistré. Réessayez.",
+                },
+            },
+            details: {
+                keys_ceremony_id: "Cérémonie",
+                tally_session_id: "Session de dépouillement",
+                trustee_id: "Autorité",
+                key_share_sha256: "SHA-256 du fragment de clé",
+                channel: "Canal",
+                channels: "Canaux",
+                publication_id: "Publication des bulletins",
+                ballot_publication_id: "Publication des bulletins",
+                digest: "SHA-256 de la configuration",
+                signing_rules: "Règles de signature",
+                scheduled_events: "Nouveaux événements programmés",
+                ballots_and_contests: "Bulletins et concours",
+                application_id: "Demande d'inscription",
+                applicant_registry_id: "Compte du registre",
+                decision: "Décision",
+                submitted_at: "Soumise",
+                reason: "Pourquoi une personne est nécessaire",
+                registry_record: "Fiche du registre",
+                status: "Statut de la demande d'inscription",
+                from: "Statut précédent",
+            },
+            closed: {
+                pending: "Toutes les signatures sont réunies. Le vote se clôture dans un instant.",
+                title: "Le vote a été clôturé à {{time}}.",
+                titleSealed: "Le vote a été clôturé à {{time}}. Bulletins scellés.",
+                record: "Procès-verbal de scellement",
+                ballots: "Bulletins dans le scellé",
+                sealHash: "{{algorithm}} du scellé",
+                signedBy: "Signé par",
+                signatures: "Signatures de clôture dans le procès-verbal de scellement",
+                signaturesValue_one: "{{count}}, code de signature {{code}}",
+                signaturesValue_other: "{{count}}, code de signature {{code}}",
+                signers: "Signé par les membres",
+            },
+            values: {
+                ballots_and_contests: {
+                    "first-version": "Première version",
+                    "no-changes": "Aucun changement",
+                    "changed": "Modifiés",
+                },
+                signing_rules: {
+                    "initialize-voting": "$t(signing.actions.initialize-voting.label)",
+                    "open-voting": "$t(signing.actions.open-voting.label)",
+                    "close-voting": "$t(signing.actions.close-voting.label)",
+                    "generate-election-returns":
+                        "$t(signing.actions.generate-election-returns.label)",
+                    "generate-reports": "$t(signing.actions.generate-reports.label)",
+                    "transmit-results": "$t(signing.actions.transmit-results.label)",
+                    "approve-voter": "$t(signing.actions.approve-voter.label)",
+                    "approve-configuration": "$t(signing.actions.approve-configuration.label)",
+                    "key-ceremony": "$t(signing.actions.key-ceremony.label)",
+                    "tally-key": "$t(signing.actions.tally-key.label)",
+                },
+                channels: {
+                    ONLINE: "En ligne",
+                    KIOSK: "Kiosque",
+                    EARLY_VOTING: "Vote anticipé",
+                    TELEPHONE: "Téléphone",
+                },
+                statuses: {
+                    NOT_STARTED: "Non commencé",
+                    OPEN: "Ouvert",
+                    PAUSED: "En pause",
+                    CLOSED: "Fermé",
+                },
+                channelStatus: "{{channel}}: {{status}}",
+                ruleChange: "{{action}} : {{rule}}",
+                ruleChangeFrom: "{{action}} : {{rule}} (avant {{was}})",
+                ruleNeeds: "requiert {{n}}",
+                ruleOff: "désactivée",
+                decision: {
+                    approve: "Approuver",
+                },
+            },
+            results: {
+                signatures: "Signatures",
+                needs: "Requiert {{n}}",
+                off: "Désactivée",
+                openRequest: "Ouvrir la demande de signature",
+                downloadSigned: "Télécharger le PDF signé",
+                print: "Imprimer",
+                transmit: "Transmettre les résultats",
+                sendTo: "Envoyer à {{count}} destinations",
+                awaiting: "{{item}} : en attente de signatures",
+                transmission: {
+                    title: "Signatures",
+                    description:
+                        "Chaque signataire signe les résultats du paquet avec son certificat numérique, dans ce navigateur. Le paquet peut être envoyé une fois signé par {{n}} personnes.",
+                    waiting:
+                        "Le paquet peut être envoyé une fois que sa demande de signature a toutes ses signatures.",
+                    signed: "Le paquet porte toutes ses signatures et peut être envoyé.",
+                    ended: "La demande de signature de ce paquet est terminée. Recréez le paquet pour le signer.",
+                },
+            },
+            waiting: {
+                title: "En attente de ma signature",
+                buttonCount_one: "En attente de ma signature : {{count}} demande à signer",
+                buttonCount_other: "En attente de ma signature : {{count}} demandes à signer",
+                intro: "Les demandes qui attendent les signatures des actions que vous pouvez signer, dans vos $t(signing.terms.posts).",
+                close: "Fermer la liste",
+                empty: "Rien n'attend votre signature.",
+                loadError: "Les demandes en attente de signatures n'ont pas pu être chargées.",
+                signedByYou: "Signée par vous",
+            },
+            notes: {
+                afterApproval: "Après l'approbation",
+                afterApprovalValue:
+                    "Les identifiants de l'électeur sont délivrés et lui sont envoyés",
+                keyShare: "Votre fragment de clé",
+                keyShareChecked: "Vérifié : c'est votre fragment de clé pour cette cérémonie",
+                recordedIn: "Consigné dans",
+                recordedInCeremony: "La cérémonie des clés et le tableau d'affichage",
+                recordedInTally: "La session de dépouillement",
+            },
+            keyShare: {
+                signing:
+                    "Signez votre fragment de clé dans le panneau de signature. Il est consigné une fois signé.",
+                record: "Consigner mon fragment de clé",
+                failed: "Votre fragment de clé signé n'a pas pu être consigné : {{error}}",
+                dropAgain:
+                    "Déposez à nouveau votre fichier de fragment de clé pour consigner votre fragment de clé signé.",
+                redo: "Votre fragment de clé a été apporté sans votre signature, que cette élection exige désormais. Apportez-le à nouveau et signez-le.",
+                notTaken:
+                    "La cérémonie n'accepte plus ce fragment de clé. Déposez à nouveau votre fichier de fragment de clé.",
+            },
         },
     },
 }

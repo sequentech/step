@@ -27,9 +27,21 @@ use crate::services::monitoring_cache::RenderCache;
 use crate::services::monitoring_config_cache::MonitoringConfigs;
 use sequent_core::monitoring::cadence::Cadence;
 use std::sync::Arc;
+use windmill::services::consolidation::signed_transmission_package::AnnotatedSbeis;
 use windmill::services::monitoring::audit::ElectoralLogConfigAudit;
 use windmill::services::monitoring::cadence;
 use windmill::services::monitoring::config_store::MonitoringConfigAudit;
+use windmill::services::signing::actions::eml::{
+    DocumentSigners, EmlDocumentSigner,
+};
+use windmill::services::signing::approve::SigningServices;
+use windmill::services::signing::certificates::OpensslCertificateVerifier;
+use windmill::services::signing::executors::default_registry;
+use windmill::services::signing::pdf::{PdfDocumentSigner, S3RevisionStore};
+use windmill::services::signing::requests::DocumentExportStore;
+use windmill::services::signing::rules::{
+    KeycloakSigningRoleAdmin, SigningRoleAdmin,
+};
 
 /// The charts monitoring widgets were drawn as.
 pub type MonitoringCache = RenderCache<DrawnChart, DrawFailure>;
@@ -53,6 +65,10 @@ pub struct HarvestServices {
     pub ledger: Arc<dyn TaskLedger>,
     pub tasks: Arc<dyn TaskQueue>,
     pub vault: Arc<dyn SecretVault>,
+    /// What an approval checks certificates with and runs actions with.
+    pub signing: SigningServices,
+    /// Changes which groups can sign an action.
+    pub signing_roles: Arc<dyn SigningRoleAdmin>,
 }
 
 impl HarvestServices {
@@ -75,6 +91,19 @@ impl HarvestServices {
             ledger: Arc::new(WindmillTaskLedger),
             tasks: Arc::new(CeleryTaskQueue),
             vault: Arc::new(WindmillVault),
+            signing: SigningServices {
+                verifier: Arc::new(OpensslCertificateVerifier::default()),
+                executors: default_registry(),
+                documents: Arc::new(DocumentSigners::new(
+                    Arc::new(EmlDocumentSigner::new(
+                        Arc::new(S3RevisionStore),
+                        Arc::new(AnnotatedSbeis),
+                    )),
+                    Arc::new(PdfDocumentSigner::new(Arc::new(S3RevisionStore))),
+                )),
+                exports: Arc::new(DocumentExportStore),
+            },
+            signing_roles: Arc::new(KeycloakSigningRoleAdmin),
         }
     }
 }

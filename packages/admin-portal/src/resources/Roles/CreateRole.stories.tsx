@@ -10,13 +10,15 @@ import {AdminStoryProvider, TENANT_ID, graphqlBoundary} from "@/__stories__/Admi
 import {storyId} from "@/__stories__/fixtures"
 import type {WidgetMeta} from "@/__stories__/widgetStory"
 import {CreateRole} from "./CreateRole"
-import {permissionRecords} from "./__stories__/RolesFixture"
+import {permissionRecords, signingPermissionRecords} from "./__stories__/RolesFixture"
 
 interface Scenario {
     /** Whether the realm's permissions are passed to the form. */
     withPermissions: boolean
     /** Whether the role service rejects the new role. */
     failure: boolean
+    /** Whether the realm also has signing permissions. */
+    withSigning?: boolean
     close: () => void
 }
 
@@ -44,9 +46,19 @@ const meta = {
         )
         await boundary.ready
     },
-    render: ({withPermissions, close}) => (
+    render: ({withPermissions, withSigning, close}) => (
         <AdminStoryProvider boundary={boundary}>
-            <CreateRole close={close} permissions={withPermissions ? permissionRecords() : []} />
+            <CreateRole
+                close={close}
+                permissions={
+                    withPermissions
+                        ? [
+                              ...permissionRecords(),
+                              ...(withSigning ? signingPermissionRecords() : []),
+                          ]
+                        : []
+                }
+            />
         </AdminStoryProvider>
     ),
 } satisfies WidgetMeta<Scenario>
@@ -54,6 +66,26 @@ export default meta
 type Story = StoryObj<Scenario>
 
 const permissionName = (name: string) => i18n.t(`usersAndRolesScreen.permissions.${name}`)
+
+/** The permissions the grid lists, in order. */
+const listedPermissions = (canvasElement: HTMLElement) =>
+    within(canvasElement)
+        .getAllByRole("row")
+        .slice(1)
+        .map((row) => within(row).getAllByRole("gridcell")[0].textContent)
+
+/** Types in the grid's quick filter, which its toolbar shows. */
+async function search(canvasElement: HTMLElement, text: string) {
+    const field = await within(canvasElement).findByRole("searchbox")
+    await userEvent.clear(field)
+    await userEvent.type(field, text)
+}
+
+/** The labels of the signing permissions whose label contains the text. */
+const signingLabels = (text: string) =>
+    signingPermissionRecords()
+        .map(({name}) => permissionName(name as string))
+        .filter((name) => name.includes(text))
 
 async function togglePermission(canvasElement: HTMLElement, name: string) {
     const row = await within(canvasElement).findByRole("row", {
@@ -150,5 +182,34 @@ export const WithoutRealmPermissions: Story = {
         await expect(await canvas.findByText("No rows")).toBeVisible()
         expect(canvas.queryByRole("checkbox")).not.toBeInTheDocument()
         expect(boundary.calls).toEqual([])
+    },
+}
+
+export const SearchFindsSigningPermissions: Story = {
+    args: {withSigning: true},
+    play: async ({canvasElement}) => {
+        await search(canvasElement, "Sign:")
+        await waitFor(() =>
+            expect(listedPermissions(canvasElement)).toEqual(signingLabels("Sign:"))
+        )
+        expect(signingLabels("Sign:")).toHaveLength(2)
+        await search(canvasElement, "Signatures")
+        await waitFor(() =>
+            expect(listedPermissions(canvasElement)).toEqual(signingLabels("Signatures"))
+        )
+    },
+}
+
+export const EnterInSearchDoesNotSubmit: Story = {
+    args: {withSigning: true},
+    play: async ({canvasElement, args}) => {
+        await nameTheRole(canvasElement, "signers")
+        await search(canvasElement, "Sign:{Enter}")
+        // Enter searches the grid; only Save creates the role.
+        await waitFor(() =>
+            expect(listedPermissions(canvasElement)).toEqual(signingLabels("Sign:"))
+        )
+        expect(boundary.calls).toEqual([])
+        expect(args.close).not.toHaveBeenCalled()
     },
 }

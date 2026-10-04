@@ -1,5 +1,6 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
+import {createHash} from "node:crypto"
 import type {Locator, Page} from "@playwright/test"
 import {test, expect, TENANT_ID} from "../fixtures"
 import type {AdminPortal} from "../fixtures"
@@ -460,6 +461,8 @@ test.describe("as a trustee", () => {
                 electionEventId: EVENT_ID,
                 tallySessionId: TALLY_ID,
                 privateKeyBase64,
+                // Its hash, which a request names when the trustee must sign the step.
+                keyShareSha256: createHash("sha256").update(privateKeyBase64).digest("hex"),
             }))
         )
         await next.click()

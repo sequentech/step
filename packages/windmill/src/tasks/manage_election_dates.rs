@@ -9,6 +9,7 @@ use crate::services::database::get_hasura_pool;
 use crate::services::election_event_status::scheduled_transition_applies;
 use crate::services::pg_lock::PgLock;
 use crate::services::providers::transactions_provider::provide_hasura_transaction;
+use crate::services::signing::actions::voting::scheduled_change_needs_signatures;
 use crate::services::voting_status::{self};
 use crate::types::error::{Error, Result};
 use anyhow::{anyhow, Context, Result as AnyhowResult};
@@ -75,6 +76,21 @@ async fn manage_election_date_wrapper(
             return Ok(());
         }
     };
+
+    // Opening or closing that needs signatures is left to people (D4).
+    if scheduled_change_needs_signatures(
+        hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        Some(&election_id),
+        &status,
+        &scheduled_manage_date.id,
+    )
+    .await?
+    {
+        stop_scheduled_event(&hasura_transaction, &tenant_id, &scheduled_manage_date.id).await?;
+        return Ok(());
+    }
 
     let payload: ManageElectionDatePayload = serde_json::from_value(
         scheduled_manage_date
