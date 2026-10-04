@@ -1141,6 +1141,11 @@ export const EditElectionEventDataForm: React.FC<{
             ...values,
             presentation: {
                 ...values.presentation,
+                // A disabled input isn't submitted, and the number format's is
+                // disabled without the event write permission: keep the stored one.
+                ...(canEdit
+                    ? {}
+                    : {number_format_policy: record?.presentation?.number_format_policy}),
                 ...(canConfigureResultsWebsite && values.resultsWebsitePolicy
                     ? {results_website: JSON.stringify(values.resultsWebsitePolicy)}
                     : {}),
