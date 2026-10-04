@@ -242,3 +242,169 @@ async fn unchanged_empty_and_missing_authority_values_are_noops() {
     assert!(write["attributes"].get(RESTORE_ATTRIBUTE).is_none());
     assert_eq!(write["attributes"]["operator_note"], "new");
 }
+
+fn password_policy_body(event_id: &str) -> Value {
+    json!({"election_event_id": event_id,
+        "minimum_length": 8, "maximum_length": 64, "include_uppercase": true,
+        "include_lowercase": true, "include_digits": true, "include_special_characters": false})
+}
+
+/// Neither writer may fall through to identity when its database is unavailable.
+#[rocket::async_test]
+async fn public_realm_writers_refuse_closed_database_pools_before_identity_access(
+) {
+    if !isolated("routes::realm_attributes::route_tests::public_realm_writers_refuse_closed_database_pools_before_identity_access") { return; }
+    let services = Services::without_database();
+    services.hasura.close();
+    let peer = http::HttpServer::start(vec![]);
+    std::env::set_var("KEYCLOAK_URL", &peer.url);
+    let client = services.client().await;
+    let tenant_id = uuid::Uuid::new_v4().to_string();
+    let event_id = uuid::Uuid::new_v4().to_string();
+    for (path, permission, body, message) in [
+        ("/update-realm-attributes", sequent_core::types::permissions::Permissions::KEYCLOAK_REALM_ATTRIBUTES_WRITE,
+            json!({"election_event_id": event_id, "attributes": {"operator_note": "new"}}), "Failed to update realm attributes"),
+        ("/update-realm-password-policy", sequent_core::types::permissions::Permissions::ELECTION_EVENT_WRITE,
+            password_policy_body(&event_id), "Failed to update realm password policy"),
+    ] {
+        let claims = Claims::new(&tenant_id, "operator").roles([permission]);
+        assert_eq!(json(post(&client, path, &claims, &body).await).await,
+            (Status::InternalServerError, json!({"message": message, "extensions": {"code": "InternalServerError"}})));
+    }
+    let mut invalid_policy = password_policy_body(&event_id);
+    invalid_policy["minimum_length"] = json!(64);
+    invalid_policy["maximum_length"] = json!(8);
+    let claims = Claims::new(&tenant_id, "operator").roles([
+        sequent_core::types::permissions::Permissions::ELECTION_EVENT_WRITE,
+    ]);
+    assert_eq!(
+        json(post(&client, "/update-realm-password-policy", &claims, &invalid_policy).await).await,
+        (Status::BadRequest, json!({"message": "Minimum password length cannot exceed maximum password length",
+            "extensions": {"code": "InvalidPasswordPolicy"}})),
+        "invalid policy must be refused before even the closed pool is accessed"
+    );
+    assert!(
+        peer.finish().is_empty(),
+        "a failed database must not contact identity"
+    );
+    assert!(services.tasks.sent().is_empty());
+    assert!(services.ledger.tasks().is_empty());
+}
+
+/// Malformed target IDs cannot bypass the scheduling writer lock.
+#[rocket::async_test]
+async fn public_realm_writers_refuse_invalid_lock_targets_before_identity_access(
+) {
+    if !isolated("routes::realm_attributes::route_tests::public_realm_writers_refuse_invalid_lock_targets_before_identity_access") { return; }
+    let services = Services::on_test_database().await;
+    let event = rows::event(&services.hasura).await;
+    let peer = http::HttpServer::start(vec![]);
+    std::env::set_var("KEYCLOAK_URL", &peer.url);
+    let event_id = uuid::Uuid::parse_str(&event.election_event_id).unwrap();
+    let connection = services.hasura.get().await.unwrap();
+    let before: Value = connection.query_one(
+        "SELECT to_jsonb(e) FROM sequent_backend.election_event e WHERE id = $1", &[&event_id],
+    ).await.unwrap().get(0);
+    let client = services.client().await;
+    for (path, permission, body, message) in [
+        ("/update-realm-attributes", sequent_core::types::permissions::Permissions::KEYCLOAK_REALM_ATTRIBUTES_WRITE,
+            json!({"election_event_id": "not-a-uuid", "attributes": {"operator_note": "new"}}), "Failed to update realm attributes"),
+        ("/update-realm-password-policy", sequent_core::types::permissions::Permissions::ELECTION_EVENT_WRITE,
+            password_policy_body("not-a-uuid"), "Failed to update realm password policy"),
+    ] {
+        let claims = Claims::new(&event.tenant_id, "operator").roles([permission]);
+        assert_eq!(json(post(&client, path, &claims, &body).await).await,
+            (Status::InternalServerError, json!({"message": message, "extensions": {"code": "InternalServerError"}})));
+    }
+    assert!(
+        peer.finish().is_empty(),
+        "a failed event lock must not contact identity"
+    );
+    assert!(services.tasks.sent().is_empty());
+    assert!(services.ledger.tasks().is_empty());
+    let after: Value = connection.query_one(
+        "SELECT to_jsonb(e) FROM sequent_backend.election_event e WHERE id = $1", &[&event_id],
+    ).await.unwrap().get(0);
+    assert_eq!(after, before, "a refused lock must not change the event");
+}
+
+/// A refused identity read or write must never report a successful realm edit.
+#[rocket::async_test]
+async fn public_realm_writers_report_identity_read_and_write_failures() {
+    if !isolated("routes::realm_attributes::route_tests::public_realm_writers_report_identity_read_and_write_failures") { return; }
+    let services = Services::on_test_database().await;
+    let event = rows::event(&services.hasura).await;
+    let path = format!("/admin/realms/{}", event.realm());
+    let existing = json!({"realm": event.realm(), "registrationAllowed": false,
+        "attributes": {ENROLLMENT_WINDOWS_ATTRIBUTE: "null", RESTORE_ATTRIBUTE: "enabled"}});
+    let peer = http::HttpServer::start(vec![
+        http::Exchange::json(
+            "POST",
+            "/realms/master/protocol/openid-connect/token",
+            200,
+            http::token_json(),
+        ),
+        http::Exchange::json(
+            "GET",
+            &path,
+            503,
+            json!({"error": "read unavailable"}),
+        ),
+        http::Exchange::json("GET", &path, 200, existing.clone()),
+        http::Exchange::json("GET", &path, 200, existing.clone()),
+        http::Exchange::json(
+            "PUT",
+            &path,
+            503,
+            json!({"error": "write unavailable"}),
+        ),
+        http::Exchange::json(
+            "GET",
+            &path,
+            503,
+            json!({"error": "read unavailable"}),
+        ),
+        http::Exchange::json("GET", &path, 200, existing),
+        http::Exchange::json(
+            "PUT",
+            &path,
+            503,
+            json!({"error": "write unavailable"}),
+        ),
+    ]);
+    std::env::set_var("KEYCLOAK_URL", &peer.url);
+    let client = services.client().await;
+    for (route, permission, body, message) in [
+        ("/update-realm-attributes", sequent_core::types::permissions::Permissions::KEYCLOAK_REALM_ATTRIBUTES_WRITE,
+            json!({"election_event_id": event.election_event_id, "attributes": {"operator_note": "new"}}), "Failed to update realm attributes"),
+        ("/update-realm-password-policy", sequent_core::types::permissions::Permissions::ELECTION_EVENT_WRITE,
+            password_policy_body(&event.election_event_id), "Failed to update realm password policy"),
+    ] {
+        let claims = Claims::new(&event.tenant_id, "operator").roles([permission]);
+        for _ in 0..2 {
+            assert_eq!(json(post(&client, route, &claims, &body).await).await,
+                (Status::InternalServerError, json!({"message": message, "extensions": {"code": "InternalServerError"}})));
+        }
+    }
+    let requests = peer.finish();
+    assert_eq!(
+        requests
+            .iter()
+            .filter(|request| request.method == "GET")
+            .count(),
+        5
+    );
+    let writes: Vec<_> = requests
+        .iter()
+        .filter(|request| request.method == "PUT")
+        .collect();
+    assert_eq!(writes.len(), 2, "failed reads must not attempt a write");
+    for write in writes {
+        assert_eq!(write.json()["registrationAllowed"], false);
+        assert_eq!(
+            write.json()["attributes"][ENROLLMENT_WINDOWS_ATTRIBUTE],
+            "null"
+        );
+        assert_eq!(write.json()["attributes"][RESTORE_ATTRIBUTE], "enabled");
+    }
+}
