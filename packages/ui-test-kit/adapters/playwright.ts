@@ -59,7 +59,8 @@ export async function routePortal(context: BrowserContext, services: PortalServi
                 request.method() === "GET" &&
                 (request.isNavigationRequest() ||
                     ["script", "stylesheet", "image", "font"].includes(request.resourceType()) ||
-                    /\.wasm$/.test(url.pathname))
+                    /\.wasm$/.test(url.pathname) ||
+                    ["/favicon.ico", "/favicon.svg", "/favicon-96x96.png"].includes(url.pathname))
             ) {
                 await route.continue()
             } else {

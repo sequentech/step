@@ -485,3 +485,52 @@ test("header lookup failures are recorded and the intercepted request is aborted
         `Mock failed for ${origin}/global-settings.json: Error: header transport closed`,
     ])
 })
+
+for (const [path, method, allowed] of [
+    ["/favicon.svg", "GET", true],
+    ["/favicon-96x96.png", "GET", true],
+    ["/favicon.ico", "GET", true],
+    ["/favicon.svg", "POST", false],
+    ["/unexpected.png", "GET", false],
+    ["https://external.invalid/favicon.svg", "GET", false],
+] as const) {
+    test(`portal routing ${allowed ? "allows" : "rejects"} ${method} ${path} as other`, async () => {
+        let handler: ((route: Route) => Promise<void>) | undefined
+        const context = {
+            routeWebSocket: async () => {},
+            route: async (_pattern: string, callback: typeof handler) => {
+                handler = callback
+            },
+        } as unknown as BrowserContext
+        const violations = new ViolationLog()
+        await routePortal(context, {
+            origin,
+            settings: {},
+            graphql: new GraphQLMock({
+                schema: buildSchema("type Query { ok: Boolean }"),
+                violations,
+            }),
+            oidc: new OidcMock({origin, violations, realms: []}),
+            s3: new S3Mock({origin, violations}),
+            violations,
+        })
+        let continued = false
+        const route = {
+            request: () => ({
+                url: () => new URL(path, origin).href,
+                method: () => method,
+                allHeaders: async () => ({}),
+                postData: () => null,
+                isNavigationRequest: () => false,
+                resourceType: () => "other",
+            }),
+            continue: async () => {
+                continued = true
+            },
+            abort: async () => {},
+        } as unknown as Route
+        await handler!(route)
+        expect(continued).toBe(allowed)
+        expect(violations.list()).toHaveLength(allowed ? 0 : 1)
+    })
+}
