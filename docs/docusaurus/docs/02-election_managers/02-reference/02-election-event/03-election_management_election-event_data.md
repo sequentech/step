@@ -124,8 +124,12 @@ Configure advanced system behaviors for this Election Event.
   - **Weighted Voting for Areas**: Enable weighted voting for areas.
   - **Weighted Voting for Voters**: Give each voter their own weight, so that a
     voter with weight `w` contributes `w` votes. Add a `vote-weight` column to
-    the imported voters csv holding a whole number between 1 and 100000. A voter
-    with no column, or with a blank cell, votes with weight 1. Near spellings that
+    the imported voters csv holding a whole number between 1 and 4294967295
+    (2^32 − 1). A voter with no column, or with a blank cell, votes with a
+    weight of 1. A row whose weight is not a whole number, such as `25.50`, or
+    is above the maximum, rejects the import with an error naming the row, so a
+    weight is never refused once voting has opened. Decimal weights are not
+    supported: scale them to whole numbers first, for example ×100. Near spellings that
     differ only in case or in `_` and `.` — `vote_weight`, `voteWeight`,
     `vote.weight` — are rejected rather than imported, because they would be
     stored under a name the tally does not read. A column named simply `weight`
@@ -143,19 +147,14 @@ Configure advanced system behaviors for this Election Event.
     be included in the published results either, for the reason in the warning
     below. Check both before ballots are published: neither the counting
     algorithm nor a published ballot can be changed once voting has begun.
-    The weights of everyone who votes in one area of a contest
-    must also add up to no more than 1000000, so a small number of voters on very
-    large weights is rejected even though each weight is individually allowed.
-    **This is checked when the tally runs, which is after voting has closed.** The
-    import writes a warning to the server log when the weights in one file
-    exceed it, but nothing surfaces that in the Admin Portal, and it counts only
-    that file rather than everything already in the area. Two hundred and one voters each carrying
-    5000 exceed it while every one of them imports cleanly. Plan around it before
-    voting opens: the remedy afterwards is to rescale every weight, which changes
-    the result. The limit does not come from the mix, which under this policy is
-    at most one ciphertext per voter per batch however large the weights are; it
-    comes from the tally expanding each batch's votes by that batch's multiplier
-    afterwards.
+    There is no limit on the summed weight of an area or a contest. The mix
+    holds at most one ciphertext per voter per batch however large the weights
+    are, and the tally counts each ballot in the batch for `2^n` as `2^n`
+    ballots instead of repeating it, so the time and memory a tally needs grow
+    with the number of voters, not with their weights. Per-candidate totals,
+    the total weight and the counts they are percentages of are checked for
+    overflow, and a tally that would exceed them fails rather than publishing a
+    wrapped number.
 
     Turnout figures under this policy count voting power rather than voters: the
     eligible-voter census and the cast-ballot total are sums of weights, so they
@@ -197,7 +196,7 @@ Configure advanced system behaviors for this Election Event.
 
     :::danger Voter weights are public, and results are attributable
     A voter's weight is applied by splitting it into powers of two. A contest
-    area is mixed as up to 17 batches, the batch at position `n` counting each
+    area is mixed as up to 32 batches, the batch at position `n` counting each
     ballot in it `2^n` times, and a voter's ballot is placed in the batch for
     each power of two that adds up to their weight — weight 21 goes into the
     batches for 1, 4 and 16. No batch ever holds the same ballot twice, so
@@ -246,7 +245,21 @@ Configure advanced system behaviors for this Election Event.
     editing a voter through the Admin Portal clears any weight that voter had.
     Importing weights and tallying them work regardless. Realm user profiles are
     not managed from this application, so declaring the attribute is an
-    administrator step on the realm configuration.
+    administrator step on the realm configuration: give it an `integer`
+    validator with `min` 1 and `max` 4294967295. Realms declared while the
+    maximum was 100000 keep that `max` until it is raised, so editing a voter
+    in the Admin Portal refuses a larger weight there even though the import
+    accepts it.
+    :::
+
+    :::note Tally sessions created before the limits were raised
+    A tally session records how many weight batches each of its contest areas
+    owns when it is created. Sessions created before this release own 17, so
+    they still complete as before but cannot count a weight of 131072 or more:
+    extracting the ballots of such a voter refuses with an error asking for a
+    new tally session. Create the tally session after upgrading to count larger
+    weights. Upgrade while no tally session is being created, so that no
+    session is allocated by a mix of old and new services.
     :::
   - **Disabled Weighted Voting**: Disable weighted voting.
 - **Delegate Voting Policy**:

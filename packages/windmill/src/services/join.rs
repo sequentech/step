@@ -93,9 +93,12 @@ fn count_ballot_channel(
         .get(channel_index)
         .filter(|channel| !channel.is_empty())
         .ok_or_else(|| anyhow!("Ballot channel column {channel_index} is missing or empty"))?;
-    *counts
+    let total = counts
         .entry(ParticipationChannel::from(channel))
-        .or_default() += count;
+        .or_default();
+    *total = total
+        .checked_add(count)
+        .ok_or_else(|| anyhow!("Ballot channel {channel} count overflow"))?;
     Ok(())
 }
 
@@ -251,9 +254,17 @@ pub fn merge_join_csv(
         ballots_record = ballots_iterator.next();
     }
 
-    let ballots_to_be_tallied: u64 = result.iter().map(|(_, multiplicity)| multiplicity).sum();
+    let ballots_to_be_tallied: u64 = result
+        .iter()
+        .try_fold(0u64, |total, (_, multiplicity)| {
+            total.checked_add(*multiplicity)
+        })
+        .ok_or_else(|| anyhow!("Weighted ballot total overflow"))?;
     if ballots_channel_index.is_some() {
-        let channel_total: u64 = casted_ballots_by_channel.values().sum();
+        let channel_total: u64 = casted_ballots_by_channel
+            .values()
+            .try_fold(0u64, |total, count| total.checked_add(*count))
+            .ok_or_else(|| anyhow!("Ballot channel total overflow"))?;
         let weighted_participation_total = ballots_to_be_tallied
             .checked_add(ballots_without_voter)
             .ok_or_else(|| anyhow!("Weighted participation total overflow"))?;
@@ -800,7 +811,7 @@ mod tests {
 
     #[test]
     fn test_out_of_range_vote_weights_are_errors() {
-        for weight in ["0", "-1", "1.5", "abc", "100001"] {
+        for weight in ["0", "-1", "1.5", "25.50", "abc", "4294967296"] {
             let voters = format!("user_A,{weight}");
             let error = run_merge_join_weights_test("user_A,content_A", &voters, None)
                 .unwrap_err()
@@ -820,6 +831,32 @@ mod tests {
     fn test_padded_vote_weight_is_accepted() -> Result<()> {
         let result = run_merge_join_weights_test("user_A,content_A", "user_A, 3 ", None)?;
         assert_eq!(result.ballot_contents, vec![("content_A".to_string(), 3)]);
+        Ok(())
+    }
+
+    /// Weights far above the 100 000 that used to be the per-voter limit are
+    /// tallied as given, and the weighted channel totals carry them in full.
+    #[test]
+    fn test_large_vote_weights_are_accepted() -> Result<()> {
+        let ballots = "user_A,content_A,ONLINE\nuser_B,content_B,ONLINE\nuser_C,content_C,ONLINE";
+        let voters = "user_A,150000\nuser_B,1000000\nuser_C,4294967295";
+
+        let result = run_merge_join_weights_test(ballots, voters, Some(2))?;
+
+        assert_eq!(
+            result.ballot_contents,
+            vec![
+                ("content_A".to_string(), 150_000),
+                ("content_B".to_string(), 1_000_000),
+                ("content_C".to_string(), 4_294_967_295),
+            ]
+        );
+        assert_eq!(
+            result
+                .casted_ballots_by_channel
+                .get(&VotingStatusChannel::ONLINE.into()),
+            Some(&4_296_117_295)
+        );
         Ok(())
     }
 

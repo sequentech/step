@@ -14,7 +14,7 @@ use tempfile::tempdir;
 use velvet::pipes::do_tally::counting_algorithm::{
     plurality_at_large::PluralityAtLarge, CountingAlgorithm,
 };
-use velvet::pipes::do_tally::tally::Tally;
+use velvet::pipes::do_tally::tally::{BallotsFile, Tally};
 use velvet::pipes::do_tally::{
     CandidateResult, ContestResult, OUTPUT_BREAKDOWNS_FOLDER, OUTPUT_CONTEST_RESULT_FILE,
 };
@@ -219,8 +219,8 @@ fn aggregation_is_partition_independent_for_counts_and_percentages() {
     // A change in partition or fold order may reorder the result vector but
     // must not change the election. Census summation is checked separately.
     for aggregate in [
-        first.aggregate(&second, false),
-        second.aggregate(&first, false),
+        first.aggregate(&second, false).unwrap(),
+        second.aggregate(&first, false).unwrap(),
     ] {
         assert_eq!(candidate_counts(&aggregate), candidate_counts(&together));
         assert_eq!(aggregate.total_valid_votes, 2);
@@ -253,8 +253,8 @@ fn ballot_files_keep_their_area_weights_and_fail_on_missing_or_malformed_input()
         )
     };
     let loaded = load(vec![
-        (first.clone(), weight(2)),
-        (second.clone(), weight(3)),
+        BallotsFile::new(first.clone(), weight(2)),
+        BallotsFile::new(second.clone(), weight(3)),
     ])
     .unwrap();
     let result = PluralityAtLarge::new(loaded).tally().unwrap();
@@ -262,8 +262,8 @@ fn ballot_files_keep_their_area_weights_and_fail_on_missing_or_malformed_input()
     assert_eq!(candidate_counts(&result)["bea"], 3);
 
     fs::write(&second, br#"[{"contest_id": 7}]"#).unwrap();
-    assert!(load(vec![(second, Weight::default())]).is_err());
-    assert!(load(vec![(
+    assert!(load(vec![BallotsFile::new(second, Weight::default())]).is_err());
+    assert!(load(vec![BallotsFile::new(
         directory.path().join("missing.json"),
         Weight::default()
     )])

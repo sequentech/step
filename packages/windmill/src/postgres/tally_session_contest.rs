@@ -191,11 +191,12 @@ pub async fn get_tally_session_highest_batch(
         return Ok(0);
     };
     // Skip a whole run rather than a single number. Under
-    // `VOTERS_WEIGHTED_VOTING` a contest area owns `VOTE_WEIGHT_BATCHES`
+    // `VOTERS_WEIGHTED_VOTING` a contest area owns up to `VOTE_WEIGHT_BATCHES`
     // consecutive batches starting at its `session_id`, so the highest stored
     // `session_id` is the *first* batch of the last run, not the last one.
     // Striding unconditionally means a later session cannot land inside an
-    // earlier run whatever policy either was created under; the gaps this
+    // earlier run whatever policy either was created under, including a run
+    // allocated before the layout widened, which is narrower; the gaps this
     // leaves in unweighted elections are harmless, as batch numbers are only
     // ever looked up exactly.
     Ok(value + VOTE_WEIGHT_BATCHES as BatchNumber)

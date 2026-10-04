@@ -20,6 +20,7 @@ use crate::services::reports::template_renderer::{
 };
 use crate::services::tally_sheets::tally::create_tally_sheets_map;
 use crate::services::temp_path::*;
+use crate::services::weight_batches::PlaintextBatch;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::{Client as DbClient, Transaction};
 use rusqlite::Connection;
@@ -50,7 +51,7 @@ use sequent_core::types::templates::{PrintToPdfOptionsLocal, ReportExtraConfig, 
 pub use sequent_core::util::date_time::get_date_and_time;
 use sequent_core::util::temp_path::get_public_assets_path_env_var;
 use serde::Serialize;
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::fs::{self, File, OpenOptions};
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -65,7 +66,7 @@ use velvet::cli::CliRun;
 use velvet::config::ballot_images_config::PipeConfigBallotImages;
 use velvet::config::generate_reports::PipeConfigGenerateReports;
 use velvet::pipes::generate_db::{PipeConfigGenerateDatabase, DATABASE_FILENAME};
-use velvet::pipes::pipe_inputs::{AreaConfig, ElectionConfig};
+use velvet::pipes::pipe_inputs::{batch_file_name, AreaConfig, ElectionConfig, BALLOTS_FILE};
 use velvet::pipes::pipe_inputs::{
     DEFAULT_DIR_BALLOTS, DEFAULT_DIR_CONFIGS, DEFAULT_DIR_DATABASE, DEFAULT_DIR_TALLY_SHEETS,
 };
@@ -73,7 +74,9 @@ use velvet::pipes::pipe_name::PipeName;
 
 #[derive(Debug, Clone)]
 pub struct AreaContestDataType {
-    pub plaintexts: Vec<<RistrettoCtx as Ctx>::P>,
+    /// The area's decrypted ballots, one entry per weight batch it posted.
+    /// Every policy but voter-weighted voting has a single batch counted once.
+    pub plaintext_batches: Vec<PlaintextBatch>,
     pub contest: Contest,
     pub ballot_style: BallotStyle,
     pub eligible_voters: u64,
@@ -119,6 +122,23 @@ fn decode_plaintexts_to_biguints(
         .collect::<Vec<_>>()
 }
 
+/// The ballots files to write for one area contest, as `(multiplier, ballots)`
+/// in multiplier order. The batch counted once comes first and is always
+/// present, even when empty, which is all an unweighted area ever has.
+fn ballot_batches_to_biguints(
+    plaintext_batches: &[PlaintextBatch],
+    contest: &Contest,
+) -> Vec<(u64, Vec<String>)> {
+    let mut batches: BTreeMap<u64, Vec<String>> = BTreeMap::from([(1, vec![])]);
+    for batch in plaintext_batches {
+        batches
+            .entry(batch.multiplier)
+            .or_default()
+            .extend(decode_plaintexts_to_biguints(&batch.plaintexts, contest));
+    }
+    batches.into_iter().collect()
+}
+
 #[instrument(skip_all, err)]
 pub fn prepare_tally_for_area_contest(
     base_tempdir: PathBuf,
@@ -140,8 +160,10 @@ pub fn prepare_tally_for_area_contest(
         .unwrap_or(vec![]);
     let election_id = area_contest.contest.election_id.clone();
 
-    let biguit_ballots =
-        decode_plaintexts_to_biguints(&area_contest.plaintexts, &area_contest.contest);
+    // One file per weight batch, so that velvet counts each ballot by its
+    // batch's multiplier instead of reading it that many times.
+    let ballot_batches =
+        ballot_batches_to_biguints(&area_contest.plaintext_batches, &area_contest.contest);
 
     let velvet_input_dir = base_tempdir.join("input");
     let _velvet_output_dir = base_tempdir.join("output");
@@ -153,11 +175,13 @@ pub fn prepare_tally_for_area_contest(
     fs::create_dir_all(&ballots_path)?;
 
     if ContestEncryptionPolicy::SINGLE_CONTEST == contest_encryption_policy {
-        let csv_ballots_path = ballots_path.join("ballots.csv");
-        let mut csv_ballots_file = File::create(&csv_ballots_path)?;
-        let buffer = biguit_ballots.join("\n").into_bytes();
+        for (multiplier, biguit_ballots) in &ballot_batches {
+            let csv_ballots_path = ballots_path.join(batch_file_name(BALLOTS_FILE, *multiplier));
+            let mut csv_ballots_file = File::create(&csv_ballots_path)?;
+            let buffer = biguit_ballots.join("\n").into_bytes();
 
-        csv_ballots_file.write_all(&buffer)?;
+            csv_ballots_file.write_all(&buffer)?;
+        }
     } else if ContestEncryptionPolicy::MULTIPLE_CONTESTS == contest_encryption_policy {
         // For multiple contests, we store ballots in a more aggregated location
         let election_ballots_path = velvet_input_dir.join(format!(
@@ -165,17 +189,20 @@ pub fn prepare_tally_for_area_contest(
         ));
 
         fs::create_dir_all(&election_ballots_path)?;
-        let csv_ballots_path = election_ballots_path.join("ballots.csv");
-        let buffer = biguit_ballots.join("\n").into_bytes();
+        for (multiplier, biguit_ballots) in &ballot_batches {
+            let csv_ballots_path =
+                election_ballots_path.join(batch_file_name(BALLOTS_FILE, *multiplier));
+            let buffer = biguit_ballots.join("\n").into_bytes();
 
-        // Use OpenOptions to append if file exists, create if not
-        // FIXME: This fails here https://github.com/sequentech/step/blob/199d13b20d29bf1ea2bffbbc34fadd6fb35dbf1b/packages/sequent-core/src/ballot_codec/multi_ballot.rs#L687
-        let mut csv_ballots_file = OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(&csv_ballots_path)?;
+            // Use OpenOptions to append if file exists, create if not
+            // FIXME: This fails here https://github.com/sequentech/step/blob/199d13b20d29bf1ea2bffbbc34fadd6fb35dbf1b/packages/sequent-core/src/ballot_codec/multi_ballot.rs#L687
+            let mut csv_ballots_file = OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open(&csv_ballots_path)?;
 
-        csv_ballots_file.write_all(&buffer)?;
+            csv_ballots_file.write_all(&buffer)?;
+        }
     }
 
     //// create area folder
@@ -938,4 +965,430 @@ pub async fn run_velvet_tally(
     )
     .await?;
     call_velvet(base_tally_path.clone(), "decode-ballots").await
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::services::weight_batches::weight_batch_offsets;
+    use sequent_core::ballot::VotingStatusChannel;
+    use sequent_core::ballot_codec::multi_ballot::{BallotChoices, ContestChoices};
+    use sequent_core::plaintext::{DecodedVoteChoice, DecodedVoteContest};
+    use sequent_core::types::ceremonies::CountingAlgType;
+    use sequent_core::types::keycloak::{weight_bit_multiplier, VOTE_WEIGHT_BATCHES};
+    use std::collections::BTreeMap;
+    use velvet::config::{Config, PipeConfig, Stage, Stages};
+    use velvet::fixtures::ballot_styles::get_ballot_style_1;
+    use velvet::pipes::pipe_name::PipeNameOutputDir;
+    use walkdir::WalkDir;
+
+    #[derive(Clone, Copy)]
+    enum Choice {
+        Candidate(usize),
+        Blank,
+        Invalid,
+    }
+
+    struct Fixture {
+        policy: ContestEncryptionPolicy,
+        area: Area,
+        contest: Contest,
+        ballot_style: BallotStyle,
+        election_event: ElectionEvent,
+    }
+
+    fn fixture(policy: ContestEncryptionPolicy) -> Fixture {
+        let tenant_id = Uuid::new_v4();
+        let election_event_id = Uuid::new_v4();
+        let election_id = Uuid::new_v4();
+        let area_id = Uuid::new_v4();
+        let ballot_style =
+            get_ballot_style_1(&tenant_id, &election_event_id, &election_id, &area_id);
+        let contest = ballot_style.contests[0].clone();
+        Fixture {
+            policy,
+            area: Area {
+                id: area_id.to_string(),
+                tenant_id: tenant_id.to_string(),
+                election_event_id: election_event_id.to_string(),
+                created_at: None,
+                last_updated_at: None,
+                labels: None,
+                annotations: None,
+                name: Some("Area".to_string()),
+                description: None,
+                r#type: None,
+                parent_id: None,
+                presentation: None,
+            },
+            contest,
+            ballot_style,
+            election_event: ElectionEvent {
+                id: election_event_id.to_string(),
+                created_at: None,
+                updated_at: None,
+                labels: None,
+                annotations: None,
+                tenant_id: tenant_id.to_string(),
+                description: None,
+                presentation: None,
+                bulletin_board_reference: None,
+                is_archived: false,
+                voting_channels: None,
+                status: None,
+                user_boards: None,
+                encryption_protocol: "RSA256".to_string(),
+                is_audit: None,
+                audit_election_event_id: None,
+                public_key: None,
+                statistics: None,
+                external_id: None,
+            },
+        }
+    }
+
+    impl Fixture {
+        /// The plaintext a voter's ballot decrypts to.
+        fn plaintext(&self, choice: Choice) -> <RistrettoCtx as Ctx>::P {
+            let vote = DecodedVoteContest {
+                contest_id: self.contest.id.clone(),
+                is_explicit_invalid: matches!(choice, Choice::Invalid),
+                is_decline_to_vote: false,
+                is_blank_ballot: false,
+                invalid_errors: vec![],
+                invalid_alerts: vec![],
+                choices: self
+                    .contest
+                    .candidates
+                    .iter()
+                    .enumerate()
+                    .map(|(index, candidate)| DecodedVoteChoice {
+                        id: candidate.id.clone(),
+                        selected: match choice {
+                            Choice::Candidate(chosen) if chosen == index => 0,
+                            _ => -1,
+                        },
+                        write_in_text: None,
+                    })
+                    .collect(),
+            };
+            match self.policy {
+                ContestEncryptionPolicy::SINGLE_CONTEST => {
+                    self.contest.encode_plaintext_contest(&vote).unwrap()
+                }
+                ContestEncryptionPolicy::MULTIPLE_CONTESTS => BallotChoices::new(
+                    false,
+                    false,
+                    vec![ContestChoices::from_decoded_vote_contest(&vote)],
+                    CountingAlgType::PluralityAtLarge,
+                )
+                .encode_to_30_bytes(&self.ballot_style)
+                .unwrap(),
+            }
+        }
+
+        /// The batches the ballot dump posts for these voters: each ballot in
+        /// the batch for every bit its voter's weight sets, as mixed and
+        /// decrypted. Voters without a choice abstain.
+        fn weight_batches(&self, voters: &[(u64, Option<Choice>)]) -> Vec<PlaintextBatch> {
+            let mut batches = vec![Vec::new(); VOTE_WEIGHT_BATCHES as usize];
+            for (weight, choice) in voters {
+                let Some(choice) = choice else {
+                    continue;
+                };
+                let plaintext = self.plaintext(*choice);
+                for bit in weight_batch_offsets(*weight, VOTE_WEIGHT_BATCHES).unwrap() {
+                    batches[bit as usize].push(plaintext);
+                }
+            }
+            batches
+                .into_iter()
+                .enumerate()
+                .filter(|(_, plaintexts)| !plaintexts.is_empty())
+                .map(|(bit, plaintexts)| PlaintextBatch {
+                    multiplier: weight_bit_multiplier(bit as u32).unwrap(),
+                    plaintexts,
+                })
+                .collect()
+        }
+
+        /// Runs velvet's decode and tally over these batches, as a tally
+        /// session would, and returns every result file it writes by path.
+        async fn tally(
+            &self,
+            plaintext_batches: Vec<PlaintextBatch>,
+            cast_weight: u64,
+        ) -> BTreeMap<String, serde_json::Value> {
+            let dir = tempfile::tempdir().unwrap();
+            let base = dir.path().to_path_buf();
+            let area_contest = AreaContestDataType {
+                plaintext_batches,
+                contest: self.contest.clone(),
+                ballot_style: self.ballot_style.clone(),
+                eligible_voters: 8,
+                area: self.area.clone(),
+                auditable_votes: 0,
+                // In the same weighted units as the votes, as the ballot dump
+                // records them: the tally refuses a mismatch.
+                votes_by_channel: Some(VotesByChannel::from([(
+                    VotingStatusChannel::ONLINE.into(),
+                    cast_weight,
+                )])),
+            };
+            let tally_session = TallySession {
+                id: Uuid::new_v4().to_string(),
+                tenant_id: self.area.tenant_id.clone(),
+                election_event_id: self.area.election_event_id.clone(),
+                created_at: None,
+                last_updated_at: None,
+                labels: None,
+                annotations: None,
+                election_ids: None,
+                area_ids: None,
+                is_execution_completed: false,
+                keys_ceremony_id: Uuid::new_v4().to_string(),
+                execution_status: None,
+                threshold: 1,
+                configuration: Some(TallySessionConfiguration {
+                    contest_encryption_policy: Some(self.policy.clone()),
+                    ..Default::default()
+                }),
+                tally_type: None,
+                permission_label: None,
+            };
+            prepare_tally_for_area_contest(
+                base.clone(),
+                &area_contest,
+                &HashMap::new(),
+                &tally_session,
+                None,
+            )
+            .unwrap();
+            create_election_configs_blocking(
+                base.clone(),
+                &vec![area_contest],
+                &vec![],
+                &vec![],
+                HashMap::new(),
+                vec![(&self.area).into()],
+                "en".to_string(),
+                self.election_event.clone(),
+            )
+            .unwrap();
+            let decode = match self.policy {
+                ContestEncryptionPolicy::SINGLE_CONTEST => PipeName::DecodeBallots,
+                ContestEncryptionPolicy::MULTIPLE_CONTESTS => PipeName::DecodeMCBallots,
+            };
+            let config = Config {
+                version: "0.0.0".to_string(),
+                stages: Stages {
+                    order: vec!["main".to_string()],
+                    stages_def: HashMap::from([(
+                        "main".to_string(),
+                        Stage {
+                            pipeline: vec![
+                                PipeConfig {
+                                    id: "decode-ballots".to_string(),
+                                    pipe: decode,
+                                    config: Some(serde_json::Value::Null),
+                                },
+                                PipeConfig {
+                                    id: "do-tally".to_string(),
+                                    pipe: PipeName::DoTally,
+                                    config: Some(serde_json::Value::Null),
+                                },
+                            ],
+                        },
+                    )]),
+                },
+            };
+            fs::write(
+                base.join("velvet-config.json"),
+                serde_json::to_string(&config).unwrap(),
+            )
+            .unwrap();
+
+            call_velvet(base.clone(), "decode-ballots").await.unwrap();
+
+            let output = base
+                .join("output")
+                .join(PipeNameOutputDir::DoTally.as_ref());
+            WalkDir::new(&output)
+                .into_iter()
+                .map(|entry| entry.unwrap())
+                .filter(|entry| entry.file_type().is_file())
+                .map(|entry| {
+                    let path = entry.path();
+                    let mut result =
+                        serde_json::from_str(&fs::read_to_string(path).unwrap()).unwrap();
+                    sort_candidate_results(&mut result);
+                    (
+                        path.strip_prefix(&output).unwrap().display().to_string(),
+                        result,
+                    )
+                })
+                .collect()
+        }
+
+        fn contest_result<'a>(
+            &self,
+            results: &'a BTreeMap<String, serde_json::Value>,
+        ) -> &'a serde_json::Value {
+            &results[&format!(
+                "election__{}/contest__{}/contest_result.json",
+                self.contest.election_id, self.contest.id
+            )]
+        }
+    }
+
+    /// Aggregated results list candidates in hash map order, which differs from
+    /// one run to the next whatever the input, so compare them by candidate.
+    fn sort_candidate_results(value: &mut serde_json::Value) {
+        if let Some(candidates) = value
+            .get_mut("candidate_result")
+            .and_then(|candidates| candidates.as_array_mut())
+        {
+            candidates.sort_by_key(|candidate| candidate["candidate"]["id"].to_string());
+        }
+    }
+
+    /// What the tally fed velvet before batch multipliers reached it: each
+    /// batch's plaintexts repeated by its multiplier, in one batch counted once.
+    fn expanded(batches: &[PlaintextBatch]) -> Vec<PlaintextBatch> {
+        vec![PlaintextBatch {
+            multiplier: 1,
+            plaintexts: batches
+                .iter()
+                .flat_map(|batch| {
+                    batch.plaintexts.iter().flat_map(move |plaintext| {
+                        std::iter::repeat_n(*plaintext, batch.multiplier as usize)
+                    })
+                })
+                .collect(),
+        }]
+    }
+
+    fn cast_weight(voters: &[(u64, Option<Choice>)]) -> u64 {
+        voters
+            .iter()
+            .filter(|(_, choice)| choice.is_some())
+            .map(|(weight, _)| weight)
+            .sum()
+    }
+
+    fn candidate_total(contest_result: &serde_json::Value, candidate_id: &str) -> u64 {
+        contest_result["candidate_result"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|candidate| candidate["candidate"]["id"] == candidate_id)
+            .unwrap()["total_count"]
+            .as_u64()
+            .unwrap()
+    }
+
+    /// The same board data counted both ways must publish byte-identical
+    /// results, in every file velvet's tally writes. The first electorate is
+    /// the trace from the change that introduced binary batches: weights 1, 1,
+    /// 2, 5, 100 and 65536, two of them abstaining, for 108 counted votes.
+    #[tokio::test]
+    async fn the_batch_layout_tallies_exactly_like_the_expansion_it_replaces() {
+        let electorates: Vec<Vec<(u64, Option<Choice>)>> = vec![
+            vec![
+                (1, Some(Choice::Candidate(0))),
+                (1, None),
+                (2, Some(Choice::Candidate(1))),
+                (5, Some(Choice::Candidate(0))),
+                (100, Some(Choice::Candidate(1))),
+                (65_536, None),
+            ],
+            vec![
+                (1, Some(Choice::Candidate(0))),
+                (3, Some(Choice::Blank)),
+                (6, Some(Choice::Candidate(1))),
+                (7, Some(Choice::Invalid)),
+                (1_000, Some(Choice::Candidate(2))),
+                (4_321, Some(Choice::Candidate(1))),
+                (77, Some(Choice::Candidate(0))),
+                (12_345, None),
+            ],
+        ];
+        for policy in [
+            ContestEncryptionPolicy::SINGLE_CONTEST,
+            ContestEncryptionPolicy::MULTIPLE_CONTESTS,
+        ] {
+            let fixture = fixture(policy.clone());
+            for voters in &electorates {
+                let batches = fixture.weight_batches(voters);
+                let cast = cast_weight(voters);
+
+                let batched = fixture.tally(batches.clone(), cast).await;
+                let repeated = fixture.tally(expanded(&batches), cast).await;
+
+                assert_eq!(batched, repeated, "{policy:?}");
+                assert_eq!(
+                    fixture.contest_result(&batched)["total_votes"],
+                    serde_json::json!(cast),
+                    "{policy:?}"
+                );
+            }
+            let trace = fixture
+                .contest_result(
+                    &fixture
+                        .tally(fixture.weight_batches(&electorates[0]), 108)
+                        .await,
+                )
+                .clone();
+            assert_eq!(
+                candidate_total(&trace, &fixture.contest.candidates[0].id),
+                6
+            );
+            assert_eq!(
+                candidate_total(&trace, &fixture.contest.candidates[1].id),
+                102
+            );
+        }
+    }
+
+    /// Far above the 1 000 000 the expansion was capped at, and with single
+    /// voters at 150 000 and 1 000 000: what reaches velvet is one ballot per
+    /// batch each weight sets, and the totals are exact.
+    #[tokio::test]
+    async fn a_summed_weight_of_twelve_million_tallies_exactly() {
+        let voters = vec![
+            (150_000, Some(Choice::Candidate(0))),
+            (1_000_000, Some(Choice::Candidate(1))),
+            (10_849_999, Some(Choice::Candidate(0))),
+            (1, Some(Choice::Candidate(1))),
+        ];
+        for policy in [
+            ContestEncryptionPolicy::SINGLE_CONTEST,
+            ContestEncryptionPolicy::MULTIPLE_CONTESTS,
+        ] {
+            let fixture = fixture(policy.clone());
+            let batches = fixture.weight_batches(&voters);
+            let ballots: usize = batches.iter().map(|batch| batch.plaintexts.len()).sum();
+            let set_bits: u32 = voters.iter().map(|(weight, _)| weight.count_ones()).sum();
+            assert_eq!(ballots, set_bits as usize);
+
+            let results = fixture.tally(batches, 12_000_000).await;
+            let contest_result = fixture.contest_result(&results);
+
+            assert_eq!(
+                candidate_total(contest_result, &fixture.contest.candidates[0].id),
+                10_999_999,
+                "{policy:?}"
+            );
+            assert_eq!(
+                candidate_total(contest_result, &fixture.contest.candidates[1].id),
+                1_000_001,
+                "{policy:?}"
+            );
+            assert_eq!(contest_result["total_votes"], 12_000_000, "{policy:?}");
+            assert_eq!(
+                contest_result["extended_metrics"]["total_weight"], 12_000_000,
+                "{policy:?}"
+            );
+        }
+    }
 }

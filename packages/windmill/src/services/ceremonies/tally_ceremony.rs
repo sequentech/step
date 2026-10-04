@@ -254,6 +254,8 @@ pub async fn insert_tally_session_contests_with(
     // at its `session_id`. Only `VOTERS_WEIGHTED_VOTING` fills more than the
     // first, but the stride is unconditional so that a session created under
     // one policy can never allocate a batch inside a run created under another.
+    // Sessions created before the layout widened own fewer batches per area,
+    // and `next_batch` steps past their last run too.
     let mut batch: BatchNumber = sessions.next_batch(tenant_id, election_event_id).await?;
 
     for decryption_set in required_decryption_sets(
@@ -437,6 +439,11 @@ pub async fn create_tally_ceremony_with(
     final_configuration.contest_encryption_policy = Some(contest_encryption_policy);
     final_configuration.decoded_ballots_inclusion_policy = Some(decoded_ballots_inclusion_policy);
     final_configuration.delegated_voting_policy = Some(delegated_voting_policy);
+    // Recorded so that the dump keeps using the batch layout this session's
+    // contest areas are allocated below, whatever a later release widens it to.
+    final_configuration.vote_weight_batches = (weighted_voting_policy
+        == WeightedVotingPolicy::VOTERS_WEIGHTED_VOTING)
+        .then_some(VOTE_WEIGHT_BATCHES);
     final_configuration.weighted_voting_policy = Some(weighted_voting_policy);
     let contests: Vec<Contest> = all_contests
         .into_iter()

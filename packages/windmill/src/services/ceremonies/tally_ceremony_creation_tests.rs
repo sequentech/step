@@ -384,7 +384,20 @@ async fn the_session_configuration_takes_its_policies_from_the_event() {
             delegated_voting_policy: Some(DelegatedVotingPolicy::ENABLED),
             consolidated_report_policy: None,
             weighted_voting_policy: Some(WeightedVotingPolicy::AREAS_WEIGHTED_VOTING),
+            vote_weight_batches: None,
         })
+    );
+}
+
+#[tokio::test]
+async fn a_voter_weighted_session_records_how_many_batches_each_contest_area_owns() {
+    let ceremony = closed_event(voter_weighted());
+    create(&ceremony).await.unwrap();
+    assert_eq!(
+        stored_session(&ceremony)
+            .configuration
+            .and_then(|configuration| configuration.vote_weight_batches),
+        Some(VOTE_WEIGHT_BATCHES)
     );
 }
 

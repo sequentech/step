@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::services::weight_batches::contest_weight_batches;
+use crate::services::weight_batches::{contest_weight_batches, session_weight_batches};
 use anyhow::{anyhow, Context, Result};
 use b4::messages::{artifact::Plaintexts, message::Message, statement::StatementType};
 use sequent_core::types::{
@@ -46,6 +46,8 @@ pub async fn generate_tally_progress(
         .unwrap_or(vec![])
         .into_iter()
         .collect();
+    let weight_batches =
+        session_weight_batches(&tally_session.configuration.clone().unwrap_or_default())?;
     for contest in &tally_session_contest {
         let mut batch_ids = complete_map
             .get(&contest.election_id)
@@ -56,7 +58,7 @@ pub async fn generate_tally_progress(
         // weight, so keying progress on it alone would leave a tally that has
         // already published its results sitting at 0%.
         batch_ids.extend(
-            contest_weight_batches(contest)?
+            contest_weight_batches(contest, weight_batches)?
                 .into_iter()
                 .map(|(batch, _)| batch),
         );

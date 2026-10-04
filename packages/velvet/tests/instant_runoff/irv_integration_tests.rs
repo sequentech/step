@@ -12,6 +12,7 @@ use sequent_core::plaintext::{DecodedVoteChoice, DecodedVoteContest};
 use sequent_core::types::ceremonies::CountingAlgType;
 use std::collections::HashMap;
 use velvet::pipes::do_tally::counting_algorithm::instant_runoff::*;
+use velvet::pipes::do_tally::tally::TallyBallot;
 /// Helper function to create a candidate UUID from an specific initial
 fn candidate_id(initial: &str) -> String {
     let id = match initial.chars().next().unwrap_or('a').to_ascii_lowercase() {
@@ -530,7 +531,7 @@ fn test_run_with_random_ballots() {
     // Create random ballots
     let mut rng = rand::thread_rng();
     let num_ballots = 100;
-    let mut votes: Vec<(DecodedVoteContest, Weight)> = Vec::new();
+    let mut votes: Vec<TallyBallot> = Vec::new();
 
     for _ in 0..num_ballots {
         // Randomly decide how many candidates to select (1 to 5)
@@ -547,13 +548,13 @@ fn test_run_with_random_ballots() {
             choices,
         };
 
-        votes.push((decoded_vote, Weight::default()));
+        votes.push(TallyBallot::new(decoded_vote, Weight::default()));
     }
 
     println!("Votes: {:#?}", votes);
 
     // Initialize statuses
-    let mut ballots_status = BallotsStatus::initialize_ballots_status(&votes, &contest);
+    let mut ballots_status = BallotsStatus::initialize_ballots_status(&votes, &contest).unwrap();
     let mut runoff = RunoffStatus::initialize_runoff(&contest);
     runoff.run(&mut ballots_status);
 
@@ -641,7 +642,7 @@ fn test_all_ballot_candidates_unselected() {
     };
 
     // Create 10 ballots where all choices have selected = -1 (all invalid)
-    let mut votes: Vec<(DecodedVoteContest, Weight)> = Vec::new();
+    let mut votes: Vec<TallyBallot> = Vec::new();
 
     for _ in 0..10 {
         let choices: Vec<DecodedVoteChoice> = candidate_ids
@@ -663,13 +664,13 @@ fn test_all_ballot_candidates_unselected() {
             choices,
         };
 
-        votes.push((decoded_vote, Weight::default()));
+        votes.push(TallyBallot::new(decoded_vote, Weight::default()));
     }
 
     println!("Votes (all invalid): {:#?}", votes);
 
     // Initialize statuses and run
-    let mut ballots_status = BallotsStatus::initialize_ballots_status(&votes, &contest);
+    let mut ballots_status = BallotsStatus::initialize_ballots_status(&votes, &contest).unwrap();
     let mut runoff = RunoffStatus::initialize_runoff(&contest);
     runoff.run(&mut ballots_status);
 
@@ -736,7 +737,7 @@ fn test_tie_in_final_round() {
         tie_breaking_policy: None,
     };
 
-    let mut votes: Vec<(DecodedVoteContest, Weight)> = Vec::new();
+    let mut votes: Vec<TallyBallot> = Vec::new();
 
     // 4 ballots: A first (0), B second (1), C third (2)
     for _ in 0..4 {
@@ -758,7 +759,7 @@ fn test_tie_in_final_round() {
             },
         ];
 
-        votes.push((
+        votes.push(TallyBallot::new(
             DecodedVoteContest {
                 contest_id: contest.id.clone(),
                 is_explicit_invalid: false,
@@ -792,7 +793,7 @@ fn test_tie_in_final_round() {
             },
         ];
 
-        votes.push((
+        votes.push(TallyBallot::new(
             DecodedVoteContest {
                 contest_id: contest.id.clone(),
                 is_explicit_invalid: false,
@@ -825,7 +826,7 @@ fn test_tie_in_final_round() {
         },
     ];
 
-    votes.push((
+    votes.push(TallyBallot::new(
         DecodedVoteContest {
             contest_id: contest.id.clone(),
             is_explicit_invalid: false,
@@ -857,7 +858,7 @@ fn test_tie_in_final_round() {
         },
     ];
 
-    votes.push((
+    votes.push(TallyBallot::new(
         DecodedVoteContest {
             contest_id: contest.id.clone(),
             is_explicit_invalid: false,
@@ -873,7 +874,7 @@ fn test_tie_in_final_round() {
     println!("Votes (tie scenario): {:#?}", votes);
 
     // Initialize statuses and run
-    let mut ballots_status = BallotsStatus::initialize_ballots_status(&votes, &contest);
+    let mut ballots_status = BallotsStatus::initialize_ballots_status(&votes, &contest).unwrap();
     let mut runoff = RunoffStatus::initialize_runoff(&contest);
     runoff.run(&mut ballots_status);
 
