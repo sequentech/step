@@ -787,6 +787,10 @@ async fn run_at_post(
         election_event_id,
         &row.transition,
         post,
+        &pairs
+            .iter()
+            .map(|(channel, _)| *channel)
+            .collect::<Vec<_>>(),
     )
     .await?;
     let description = if pairs.is_empty() {
@@ -1394,7 +1398,24 @@ fn remaining_signed_close_channels(
         .filter(|channel| {
             !opens.iter().any(|open| {
                 signed_instant(open).is_some_and(|at| {
-                    due < at && at <= state.now && signed_channels(open).contains(channel)
+                    due < at
+                        && at <= state.now
+                        && signed_channels(open).contains(channel)
+                        && state
+                            .fired_effects
+                            .get(&(
+                                open.scheduled_event_id.clone(),
+                                post,
+                                open.fingerprint.clone(),
+                            ))
+                            .is_some_and(|effects| {
+                                effects.iter().any(|effect| {
+                                    effect.channels.contains(channel)
+                                        && effect.fired_at >= at
+                                        && effect.fired_at > due
+                                        && effect.fired_at <= state.now
+                                })
+                            })
                 })
             })
         })
@@ -1542,7 +1563,7 @@ pub async fn enforce_signed_closes(
             closer
                 .close(hasura_transaction, tenant, event, post, &channels)
                 .await?;
-            mark_fired(hasura_transaction, tenant, event, close, post).await?;
+            mark_fired(hasura_transaction, tenant, event, close, post, &channels).await?;
             let cancelled = cancel_for_scheduled_change(
                 hasura_transaction,
                 tenant,

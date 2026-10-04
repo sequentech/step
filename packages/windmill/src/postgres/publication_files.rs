@@ -119,6 +119,7 @@ pub async fn merge_ballot_publication_annotation(
     key: &str,
     value: &str,
 ) -> Result<()> {
+    super::trusted_write::trusted_write(hasura_transaction).await?;
     hasura_transaction
         .execute(
             r#"

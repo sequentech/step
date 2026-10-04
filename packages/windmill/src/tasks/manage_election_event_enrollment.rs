@@ -17,6 +17,7 @@ use deadpool_postgres::Transaction;
 use sequent_core::ballot::{ElectionEventPresentation, Enrollment};
 use sequent_core::serialization::deserialize_with_path::{self, deserialize_value};
 use sequent_core::services::keycloak::{get_event_realm, KeycloakAdminClient};
+use sequent_core::types::hasura::core::ElectionEvent;
 use sequent_core::types::scheduled_event::*;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
@@ -117,17 +118,30 @@ pub async fn update_keycloak_enrollment(
     Ok(())
 }
 
-#[instrument(err)]
-pub async fn manage_election_event_enrollment_wrapped(
+/// Loads the current database targets before any external enrollment effect.
+/// Kept separate so inactive and misrouted queued tasks can be checked without
+/// contacting the identity provider.
+pub async fn load_enrollment_task(
     hasura_transaction: &Transaction<'_>,
-    tenant_id: String,
-    election_event_id: String,
-    scheduled_event_id: String,
-) -> AnyhowResult<()> {
+    tenant_id: &str,
+    election_event_id: &str,
+    scheduled_event_id: &str,
+    now: chrono::DateTime<chrono::Utc>,
+) -> AnyhowResult<Option<(ScheduledEvent, ElectionEvent)>> {
+    // Writer order: signing advisory lock, event row, target schedule row.
+    // Hold them through the external effect and refresh; re-read only after
+    // acquiring them so a queued task cannot restore stale allowing policy.
+    lock_scheduled_event(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        scheduled_event_id,
+    )
+    .await?;
     let scheduled_event = find_scheduled_event_by_id(
         hasura_transaction,
-        Some(tenant_id.clone()),
-        Some(election_event_id.clone()),
+        Some(tenant_id.to_owned()),
+        Some(election_event_id.to_owned()),
         &scheduled_event_id,
     )
     .await
@@ -139,19 +153,52 @@ pub async fn manage_election_event_enrollment_wrapped(
             scheduled_event_id
         ));
     };
-    // Queued before the row moved to a later time: it runs then.
-    if crate::tasks::scheduled_events::fires_later(&scheduled_event, chrono::Utc::now()) {
-        info!("Scheduled event {scheduled_event_id} was moved to a later time; it runs then");
-        return Ok(());
+    if !matches!(
+        scheduled_event.event_processor.as_ref(),
+        Some(EventProcessors::START_ENROLLMENT_PERIOD | EventProcessors::END_ENROLLMENT_PERIOD)
+    ) {
+        return Err(anyhow!(
+            "Scheduled event {scheduled_event_id} is not an enrollment processor"
+        ));
     }
-
-    let enable_enrollment =
-        scheduled_event.event_processor == Some(EventProcessors::START_ENROLLMENT_PERIOD);
+    // Queued before the row moved to a later time: it runs then.
+    if crate::tasks::scheduled_events::fires_later(&scheduled_event, now) {
+        info!("Scheduled event {scheduled_event_id} was moved to a later time; it runs then");
+        return Ok(None);
+    }
 
     let election_event =
         get_election_event_by_id(hasura_transaction, &tenant_id, &election_event_id)
             .await
             .with_context(|| "Error obtaining election by id")?;
+
+    if election_event.is_archived {
+        info!("Event {election_event_id} is archived; enrollment remains unchanged");
+        return Ok(None);
+    }
+    Ok(Some((scheduled_event, election_event)))
+}
+
+#[instrument(err)]
+pub async fn manage_election_event_enrollment_wrapped(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: String,
+    election_event_id: String,
+    scheduled_event_id: String,
+) -> AnyhowResult<()> {
+    let Some((scheduled_event, election_event)) = load_enrollment_task(
+        hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        &scheduled_event_id,
+        chrono::Utc::now(),
+    )
+    .await?
+    else {
+        return Ok(());
+    };
+    let enable_enrollment =
+        scheduled_event.event_processor == Some(EventProcessors::START_ENROLLMENT_PERIOD);
 
     update_keycloak_enrollment(
         scheduled_event.tenant_id.clone(),

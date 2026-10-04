@@ -95,6 +95,8 @@ pub struct ConfigurationSubject {
     pub post_channels: BTreeMap<String, Vec<String>>,
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub initialization_report_policies: BTreeMap<String, EInitializeReportPolicy>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub initialization_countries: Option<BTreeMap<String, Vec<String>>>,
 }
 
 impl ConfigurationSubject {
@@ -106,6 +108,7 @@ impl ConfigurationSubject {
             close_voting: self.close_voting.clone(),
             schedule: self.schedule.clone(),
             initialization_report_policies: self.initialization_report_policies.clone(),
+            initialization_countries: self.initialization_countries.clone(),
         }
     }
 }
@@ -316,6 +319,16 @@ pub async fn configuration_subject(
         close_voting: lifecycle.close_voting,
         schedule: lifecycle.schedule,
         initialization_report_policies: lifecycle.initialization_report_policies,
+        initialization_countries: Some(
+            crate::services::scheduled_outcome::capture_initialization_countries(
+                hasura_transaction,
+                tenant_id,
+                election_event_id,
+                publication_id,
+                target,
+            )
+            .await?,
+        ),
         post_channels: post_channels_of(hasura_transaction, tenant_id, election_event_id, target)
             .await?,
     })

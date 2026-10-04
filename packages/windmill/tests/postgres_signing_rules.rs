@@ -437,6 +437,15 @@ async fn capacity_counts_each_posts_signers() {
             .is_empty());
         // Published event-level publications count as configuration versions,
         // soft-deleted ones too: the whole publish history.
+        let previous_trusted: String = htx
+            .query_one(
+                "SELECT COALESCE(current_setting('sequent.trusted_write', true), '')",
+                &[],
+            )
+            .await
+            .unwrap()
+            .get(0);
+        windmill::postgres::trusted_write(&htx).await.unwrap();
         for (election_id, published, deleted) in [
             (None, true, false),
             (None, true, false),
@@ -462,6 +471,12 @@ async fn capacity_counts_each_posts_signers() {
             .await
             .unwrap();
         }
+        htx.execute(
+            "SELECT set_config('sequent.trusted_write', $1, true)",
+            &[&previous_trusted],
+        )
+        .await
+        .unwrap();
         let version = capacity_of(&htx, &ktx, &w, ACTION, None, None)
             .await
             .config_version;

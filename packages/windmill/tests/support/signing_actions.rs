@@ -354,3 +354,16 @@ pub async fn task_status(w: &World, task: &SignedActionTask) -> String {
         .unwrap()
         .get(0)
 }
+
+/// Builds protected publication fixtures through an explicitly trusted transaction.
+pub async fn publication_fixture_write(
+    world: &World,
+    sql: &str,
+    params: &[&(dyn tokio_postgres::types::ToSql + Sync)],
+) {
+    let mut client = world.pool.get().await.unwrap();
+    let tx = client.transaction().await.unwrap();
+    windmill::postgres::trusted_write(&tx).await.unwrap();
+    tx.execute(sql, params).await.unwrap();
+    tx.commit().await.unwrap();
+}

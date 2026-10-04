@@ -64,7 +64,7 @@ use sequent_core::types::scheduled_outcome::{
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
 use sha2::{Digest, Sha256};
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::str::FromStr;
 use tracing::instrument;
 use uuid::Uuid;
@@ -449,12 +449,139 @@ pub async fn lifecycle_snapshot(
     })
     .collect();
     Ok(LifecycleSnapshot {
+        initialization_countries: None,
         initialization_report_policies,
         policies: lifecycle_policies(presentation.as_ref()),
         open_voting: rules.open_voting,
         close_voting: rules.close_voting,
         schedule: schedule_for(&rows, target),
     })
+}
+
+/// Country membership of the exact generated publication. Style material is
+/// immutable after generation; live area/contest links cannot remove this evidence.
+async fn publication_style_countries(
+    transaction: &Transaction<'_>,
+    tenant: Uuid,
+    event: Uuid,
+    publication: Uuid,
+    target: Option<Uuid>,
+) -> Result<BTreeMap<String, Vec<String>>> {
+    let parent = transaction
+        .query_opt(
+            "SELECT COALESCE(is_generated, false) OR published_at IS NOT NULL AS generated,
+             election_id, election_ids FROM sequent_backend.ballot_publication
+         WHERE tenant_id = $1 AND election_event_id = $2 AND id = $3",
+            &[&tenant, &event, &publication],
+        )
+        .await?;
+    let generated_parent = parent
+        .as_ref()
+        .map(|row| row.try_get::<_, bool>("generated"))
+        .transpose()?
+        .unwrap_or(false);
+    // A recreated raw draft at an old publication UUID is not retained authority.
+    // Missing parents cannot prove that their surviving rows are immutable either.
+    if !generated_parent {
+        return Ok(BTreeMap::new());
+    }
+    let covered_posts: BTreeSet<String> = if let Some(parent) = parent {
+        if parent.try_get::<_, bool>("generated")? {
+            if let Some(post) = parent.try_get::<_, Option<Uuid>>("election_id")? {
+                [post.to_string()].into_iter().collect()
+            } else {
+                parent
+                    .try_get::<_, Option<Vec<Uuid>>>("election_ids")?
+                    .unwrap_or_default()
+                    .into_iter()
+                    .map(|post| post.to_string())
+                    .collect()
+            }
+        } else {
+            BTreeSet::new()
+        }
+    } else {
+        BTreeSet::new()
+    };
+    let posts: BTreeSet<String> = crate::postgres::election::get_elections(
+        transaction,
+        &tenant.to_string(),
+        &event.to_string(),
+    )
+    .await?
+    .into_iter()
+    .filter(|post| target.map(|id| post.id == id.to_string()).unwrap_or(true))
+    .map(|post| post.id)
+    .collect();
+    let mut countries: BTreeMap<String, Vec<String>> = posts
+        .intersection(&covered_posts)
+        .map(|post| (post.clone(), Vec::new()))
+        .collect();
+    for row in transaction
+        .query(
+            "SELECT DISTINCT election_id::text, area_id::text FROM sequent_backend.ballot_style
+         WHERE tenant_id = $1 AND election_event_id = $2 AND ballot_publication_id = $3
+             ORDER BY election_id::text, area_id::text",
+            &[&tenant, &event, &publication],
+        )
+        .await?
+    {
+        let post: String = row.try_get(0)?;
+        if posts.contains(&post) {
+            let areas = countries.entry(post).or_default();
+            if let Some(area) = row.try_get::<_, Option<String>>(1)? {
+                areas.push(area);
+            }
+        }
+    }
+    Ok(countries)
+}
+
+/// Captures membership under the generated publication's lock, as the
+/// configuration subject and the ordinary publication snapshot both record it.
+pub async fn capture_initialization_countries(
+    transaction: &Transaction<'_>,
+    tenant: Uuid,
+    event: Uuid,
+    publication: Uuid,
+    target: Option<Uuid>,
+) -> Result<BTreeMap<String, Vec<String>>> {
+    let row = transaction
+        .query_one(
+            "SELECT COALESCE(is_generated, false) FROM sequent_backend.ballot_publication
+         WHERE tenant_id = $1 AND election_event_id = $2 AND id = $3 FOR UPDATE",
+            &[&tenant, &event, &publication],
+        )
+        .await
+        .context("Error locking the generated publication's country membership")?;
+    anyhow::ensure!(
+        row.try_get::<_, bool>(0)?,
+        "Country membership needs a generated publication"
+    );
+    publication_style_countries(transaction, tenant, event, publication, target).await
+}
+
+/// Old signed payloads omit this map. Derive missing keys conservatively from
+/// their exact frozen publication styles, never from mutable live topology.
+async fn hydrate_initialization_countries(
+    transaction: &Transaction<'_>,
+    tenant: Uuid,
+    event: Uuid,
+    publication: Uuid,
+    target: Option<Uuid>,
+    snapshot: &mut LifecycleSnapshot,
+) -> Result<()> {
+    let frozen =
+        publication_style_countries(transaction, tenant, event, publication, target).await?;
+    if !frozen.is_empty() {
+        let countries = snapshot
+            .initialization_countries
+            .get_or_insert_with(BTreeMap::new);
+        for (post, areas) in frozen {
+            countries.entry(post).or_insert(areas);
+        }
+    }
+    Ok(())
 }
 
 /// Keeps the snapshot a publication of `election_id` (or the event)
@@ -503,8 +630,18 @@ pub async fn snapshot_publication(
     let tenant_id = Uuid::parse_str(tenant_id)?;
     let election_event_id = Uuid::parse_str(election_event_id)?;
     let target = target.map(Uuid::parse_str).transpose()?;
-    let snapshot =
+    let mut snapshot =
         lifecycle_snapshot(hasura_transaction, tenant_id, election_event_id, target).await?;
+    snapshot.initialization_countries = Some(
+        capture_initialization_countries(
+            hasura_transaction,
+            tenant_id,
+            election_event_id,
+            Uuid::parse_str(publication_id)?,
+            target,
+        )
+        .await?,
+    );
     write_publication_snapshot(
         hasura_transaction,
         tenant_id,
@@ -696,18 +833,21 @@ pub async fn mark_fired(
     election_event_id: Uuid,
     transition: &ScheduledTransition,
     election_id: Uuid,
+    executed_channels: &[VotingStatusChannel],
 ) -> Result<()> {
+    let executed_channels = serde_json::to_value(executed_channels)?;
     hasura_transaction
         .execute(
             "INSERT INTO sequent_backend.lifecycle_fired
-                 (tenant_id, election_event_id, scheduled_event_id, election_id, fingerprint)
-             VALUES ($1, $2, $3::text::uuid, $4, $5)",
+                 (tenant_id, election_event_id, scheduled_event_id, election_id, fingerprint, executed_channels)
+             VALUES ($1, $2, $3::text::uuid, $4, $5, $6)",
             &[
                 &tenant_id,
                 &election_event_id,
                 &transition.scheduled_event_id,
                 &election_id,
                 &transition.fingerprint,
+                &executed_channels,
             ],
         )
         .await
@@ -787,7 +927,7 @@ pub async fn lifecycle_snapshots(
     for row in rows {
         let snapshot: Value = row.try_get("snapshot")?;
         let approval_request_id: Option<Uuid> = row.try_get("approval_request_id")?;
-        let view = SnapshotView {
+        let mut view = SnapshotView {
             election_id: row.try_get("election_id")?,
             publication_id: row.try_get("ballot_publication_id")?,
             published_at: row.try_get("created_at")?,
@@ -803,6 +943,15 @@ pub async fn lifecycle_snapshots(
                 row.try_get("election_id")?,
             )?,
         };
+        hydrate_initialization_countries(
+            hasura_transaction,
+            tenant_id,
+            election_event_id,
+            view.publication_id,
+            view.election_id,
+            &mut view.snapshot,
+        )
+        .await?;
         let id: Uuid = row.try_get("id")?;
         if !newest
             .iter()
@@ -942,6 +1091,13 @@ pub struct ScheduleRowMetadata {
     pub stopped: bool,
 }
 
+/// The channels an executed transition actually changed in its transaction.
+#[derive(Debug, Clone)]
+pub struct FiredEffect {
+    pub fired_at: DateTime<Utc>,
+    pub channels: Vec<VotingStatusChannel>,
+}
+
 /// Everything an outcome of the event depends on, read once.
 #[derive(Debug, Clone)]
 pub struct EventState {
@@ -966,6 +1122,8 @@ pub struct EventState {
     /// The transitions that ran: (scheduled event, Post, fingerprint) and
     /// when.
     pub fired: HashMap<(String, Uuid, String), DateTime<Utc>>,
+    /// Actual channel effects, separate from replay marks for no-op/legacy rows.
+    pub fired_effects: HashMap<(String, Uuid, String), Vec<FiredEffect>>,
     /// The database's time when the state was read.
     pub now: DateTime<Utc>,
     /// Raw initialization rows; loading them never evaluates scopes.
@@ -1018,7 +1176,7 @@ impl EventState {
         let presentation =
             read_presentation(hasura_transaction, tenant_id, election_event_id).await?;
         let rules = Rules::read(hasura_transaction, tenant_id, election_event_id).await?;
-        let snapshots = hasura_transaction
+        let mut snapshots = hasura_transaction
             .query(
                 "SELECT s.ballot_publication_id, s.election_id, s.approval_request_id, s.created_at,
                      s.snapshot, r.subject, r.scope_key
@@ -1053,6 +1211,17 @@ impl EventState {
                 })
             })
             .collect::<Result<Vec<_>>>()?;
+        for kept in &mut snapshots {
+            hydrate_initialization_countries(
+                hasura_transaction,
+                tenant_id,
+                election_event_id,
+                kept.publication_id,
+                kept.election_id,
+                &mut kept.snapshot,
+            )
+            .await?;
+        }
         let publications = hasura_transaction
             .query(
                 "SELECT id, election_id, published_at
@@ -1197,35 +1366,61 @@ impl EventState {
                 Some((post, processor))
             })
             .collect();
-        let fired = hasura_transaction
+        let fired_rows = hasura_transaction
             .query(
-                "SELECT scheduled_event_id, election_id, fingerprint, min(fired_at)
+                "SELECT scheduled_event_id, election_id, fingerprint, fired_at, executed_channels
                  FROM sequent_backend.lifecycle_fired
-                 WHERE tenant_id = $1 AND election_event_id = $2
-                 GROUP BY scheduled_event_id, election_id, fingerprint",
+                 WHERE tenant_id = $1 AND election_event_id = $2",
                 &[&tenant_id, &election_event_id],
             )
             .await
-            .context("Error reading the transitions that ran")?
-            .into_iter()
-            .map(|row| -> Result<((String, Uuid, String), DateTime<Utc>)> {
-                let id: Uuid = row.try_get(0)?;
-                Ok((
-                    (id.to_string(), row.try_get(1)?, row.try_get(2)?),
-                    row.try_get(3)?,
-                ))
-            })
-            .collect::<Result<HashMap<_, _>>>()?;
+            .context("Error reading the transitions that ran")?;
+        let mut fired: HashMap<(String, Uuid, String), DateTime<Utc>> = HashMap::new();
+        let mut fired_effects: HashMap<(String, Uuid, String), Vec<FiredEffect>> = HashMap::new();
+        for row in fired_rows {
+            let id: Uuid = row.try_get(0)?;
+            let key = (id.to_string(), row.try_get(1)?, row.try_get(2)?);
+            let fired_at: DateTime<Utc> = row.try_get(3)?;
+            fired
+                .entry(key.clone())
+                .and_modify(|previous| *previous = (*previous).min(fired_at))
+                .or_insert(fired_at);
+            if let Some(channels) = row.try_get::<_, Option<Value>>(4)? {
+                fired_effects.entry(key).or_default().push(FiredEffect {
+                    fired_at,
+                    channels: serde_json::from_value(channels)
+                        .context("Executed transition channels don't read")?,
+                });
+            }
+        }
         let clocks = hasura_transaction
             .query_one("SELECT clock_timestamp(), transaction_timestamp()", &[])
             .await?;
         let now: DateTime<Utc> = clocks.try_get(0)?;
         let transaction_now: DateTime<Utc> = clocks.try_get(1)?;
-        let initialization = if action == SigningAction::CloseVoting {
+        let mut initialization = if action == SigningAction::CloseVoting {
             EventInitialization::default()
         } else {
             load_event_initialization(hasura_transaction, &tenant_text, &event_text).await?
         };
+        for (post_id, post) in &mut initialization.posts {
+            let id = Uuid::parse_str(post_id)?;
+            if let Some(kept) = snapshots
+                .iter()
+                .find(|kept| applies_at(kept.election_id, Some(id)))
+            {
+                if let Some(countries) = kept
+                    .snapshot
+                    .initialization_countries
+                    .as_ref()
+                    .and_then(|map| map.get(post_id))
+                {
+                    post.areas.extend(countries.iter().cloned());
+                } else {
+                    post.unresolved_published_countries = true;
+                }
+            }
+        }
         let live_closes =
             list_scheduled_closes(hasura_transaction, tenant_id, election_event_id).await?;
         let (live_rows, live_row_metadata) =
@@ -1248,6 +1443,7 @@ impl EventState {
             post_channels,
             own_rows,
             fired,
+            fired_effects,
             now,
         })
     }

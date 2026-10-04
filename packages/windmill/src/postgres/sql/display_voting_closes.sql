@@ -47,6 +47,18 @@ LEFT JOIN LATERAL (
             AND opening.channels ? 'ONLINE'
             AND opening.scheduled_at > closing.scheduled_at
             AND opening.scheduled_at <= clock_timestamp()
+            AND EXISTS (
+                SELECT 1 FROM sequent_backend.lifecycle_fired fired
+                WHERE fired.tenant_id = opening.tenant_id
+                  AND fired.election_event_id = opening.election_event_id
+                  AND fired.election_id = opening.election_id
+                  AND fired.scheduled_event_id::text = opening.scheduled_event_id
+                  AND fired.fingerprint = opening.fingerprint
+                  AND fired.executed_channels ? 'ONLINE'
+                  AND fired.fired_at >= opening.scheduled_at
+                  AND fired.fired_at > closing.scheduled_at
+                  AND fired.fired_at <= clock_timestamp()
+            )
       )
     ORDER BY closing.scheduled_at, closing.scheduled_event_id
     LIMIT 1

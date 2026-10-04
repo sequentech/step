@@ -143,3 +143,19 @@ fn a_missing_hash_is_logged_as_an_error_that_says_so() {
     );
     assert_eq!(step.scope.area_id, None);
 }
+
+#[test]
+fn a_whole_post_report_cannot_claim_a_retained_country_it_did_not_cover() {
+    let plan = initialization_plan(&set(&["a", "b"]), &strings(&["a"]), false, &set(&[]));
+    assert!(!plan.post_initialized);
+    assert_eq!(plan.areas, vec![Some("a".into())]);
+}
+
+#[test]
+fn a_whole_post_report_needs_actual_coverage_or_previously_initialized_countries() {
+    assert!(!initialization_plan(&set(&["a", "b"]), &[], false, &set(&[])).post_initialized);
+    assert!(
+        initialization_plan(&set(&["a", "b"]), &strings(&["a"]), false, &set(&["b"]))
+            .post_initialized
+    );
+}

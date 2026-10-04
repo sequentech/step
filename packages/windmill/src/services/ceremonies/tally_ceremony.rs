@@ -533,6 +533,37 @@ pub async fn create_tally_ceremony_with(
         .map(|val| val.clone())
         .collect();
 
+    // Initialization reports must actually cover retained published countries,
+    // even after editable current area-contest links have been removed.
+    if parsed_tally_type == TallyType::INITIALIZATION_REPORT {
+        for post in &election_ids {
+            if let Some(countries) = reader
+                .initialization_countries(
+                    &tenant_id,
+                    &election_event_id,
+                    uuid::Uuid::parse_str(post)?,
+                )
+                .await?
+            {
+                for country in &countries {
+                    if area_filter
+                        .as_ref()
+                        .map(|filter| filter.contains(country))
+                        .unwrap_or(true)
+                        && !published_ballot_styles
+                            .iter()
+                            .any(|style| style.election_id == *post && style.area_id == *country)
+                    {
+                        return Err(TallyValidationError::new(format!("Initialization country {country} has no generated ballot style; generate and approve a new publication")).into());
+                    }
+                }
+                area_ids.extend(countries);
+            }
+        }
+        area_ids.sort();
+        area_ids.dedup();
+    }
+
     // A country-by-country initialization covers only the chosen countries.
     let mut published_ballot_styles = published_ballot_styles;
     if let Some(filter) = &area_filter {
@@ -562,6 +593,26 @@ pub async fn create_tally_ceremony_with(
         area_ids.retain(|area_id| filter.contains(area_id));
         published_ballot_styles.retain(|ballot_style| filter.contains(&ballot_style.area_id));
     }
+
+    let initialization_country_coverage = if parsed_tally_type == TallyType::INITIALIZATION_REPORT {
+        Some(
+            election_ids
+                .iter()
+                .map(|post| {
+                    let countries: std::collections::BTreeSet<String> = published_ballot_styles
+                        .iter()
+                        .filter(|style| {
+                            style.election_id == *post && area_ids.contains(&style.area_id)
+                        })
+                        .map(|style| style.area_id.clone())
+                        .collect();
+                    (post.clone(), countries.into_iter().collect())
+                })
+                .collect(),
+        )
+    } else {
+        None
+    };
 
     let keys_ceremony =
         find_keys_ceremony_with(keys_ceremonies, &tenant_id, &election_event_id, &elections)
@@ -601,6 +652,7 @@ pub async fn create_tally_ceremony_with(
                 tally_type: tally_type.clone(),
                 annotations,
                 permission_labels: tally_permission_labels,
+                initialization_country_coverage,
             },
         )
         .await?;

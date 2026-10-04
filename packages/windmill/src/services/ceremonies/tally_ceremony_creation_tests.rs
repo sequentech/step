@@ -13,8 +13,8 @@ use sequent_core::types::tally_sheets::TallySheetStatus;
 
 const TENANT: &str = "tenant";
 const EVENT: &str = "event";
-const ELECTION: &str = "election";
-const OTHER_ELECTION: &str = "other-election";
+const ELECTION: &str = "00000000-0000-4000-8000-000000000010";
+const OTHER_ELECTION: &str = "00000000-0000-4000-8000-000000000020";
 const KEYS_CEREMONY: &str = "keys-ceremony";
 const EVENT_BOARD: &str = "event-board";
 const ADMIN_ID: &str = "admin-id";
@@ -425,7 +425,7 @@ async fn a_new_session_starts_with_every_trustee_and_election_waiting() {
             .iter()
             .map(|log| log.log_text.as_str())
             .collect::<Vec<_>>(),
-        vec!["Created Tally Ceremony for election ids: [\"election\"]"]
+        vec!["Created Tally Ceremony for election ids: [\"00000000-0000-4000-8000-000000000010\"]"]
     );
 }
 
@@ -1132,4 +1132,70 @@ async fn a_country_initialization_needs_the_post_and_country_scope_and_a_country
         assert_eq!(validation_message(error), message);
         assert_nothing_written(&ceremony);
     }
+}
+
+#[tokio::test]
+async fn retained_country_without_execution_material_cannot_be_claimed_by_a_whole_report() {
+    let ceremony = closed_event(per_country());
+    ceremony.set_initialization_countries(
+        TENANT,
+        EVENT,
+        uuid::Uuid::parse_str(ELECTION).unwrap(),
+        &["north", "south"],
+    );
+    ceremony.remove_country_material(TENANT, EVENT, ELECTION, "south");
+    let error = create_tally(&ceremony, "INITIALIZATION_REPORT", &[ELECTION], &[])
+        .await
+        .unwrap_err();
+    assert!(error
+        .to_string()
+        .contains("country south has no generated ballot style"));
+    assert_creation_writes(&ceremony, 0, 0, 0);
+    // A valid partial report still initializes north; it does not claim south.
+    initialize_countries(&ceremony, "INITIALIZATION_REPORT", &["north"])
+        .await
+        .unwrap();
+    assert_eq!(
+        stored_session(&ceremony).area_ids,
+        Some(vec!["north".into()])
+    );
+    assert_eq!(
+        ceremony.report_coverage(TENANT, EVENT, FIRST_ID),
+        Some(
+            [(ELECTION.to_string(), vec!["north".to_string()])]
+                .into_iter()
+                .collect()
+        )
+    );
+    assert_eq!(
+        ceremony
+            .session_contests(FIRST_ID)
+            .iter()
+            .map(|row| row.area_id.clone())
+            .collect::<Vec<_>>(),
+        vec!["north".to_string()]
+    );
+}
+
+#[tokio::test]
+async fn report_coverage_excludes_generated_styles_outside_the_actual_area_selection() {
+    let ceremony = closed_event(per_country());
+    ceremony.remove_country_material(TENANT, EVENT, ELECTION, "south");
+    // Generated material can remain while the editable live link is absent.
+    ceremony.add_ballot_style(published(ELECTION, "south", vec![plurality("mayor")], None));
+    create_tally(&ceremony, "INITIALIZATION_REPORT", &[ELECTION], &[])
+        .await
+        .unwrap();
+    assert_eq!(
+        stored_session(&ceremony).area_ids,
+        Some(vec!["north".into()])
+    );
+    assert_eq!(
+        ceremony.report_coverage(TENANT, EVENT, FIRST_ID),
+        Some(
+            [(ELECTION.to_string(), vec!["north".to_string()])]
+                .into_iter()
+                .collect()
+        )
+    );
 }

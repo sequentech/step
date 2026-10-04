@@ -14,13 +14,15 @@ use crate::ports::tally_ceremony::TallyCreationReader;
 use crate::postgres::election::set_election_initialization_report_generated;
 use crate::postgres::election_initialization::{
     find_post_report, insert_election_initialization, list_election_initializations,
-    list_post_ballot_style_areas, lock_post_for_initialization, lock_unstaged_initializations,
-    mark_initialization_log_staged, ElectionInitialization, NewElectionInitialization,
+    lock_post_for_initialization, lock_unstaged_initializations, mark_initialization_log_staged,
+    ElectionInitialization, NewElectionInitialization,
 };
 use crate::postgres::signing::lock_signing_event;
 use crate::postgres::tally_session::get_tally_session_by_id;
 use crate::postgres::tally_session_execution::get_last_tally_session_execution;
-use crate::services::initialization_scope::{post_area_ids, post_display_name};
+use crate::services::initialization_scope::{
+    effective_initialization_countries, post_display_name,
+};
 use crate::services::signing::log::{stage_step, Actor, LogScope, LogStep, SystemOutcome};
 use anyhow::{anyhow, Result};
 use deadpool_postgres::{Client, Transaction};
@@ -51,9 +53,8 @@ pub struct InitializationPlan {
     /// One row per country the report covered; `[None]` for a Post without
     /// countries.
     pub areas: Vec<Option<String>>,
-    /// Whether the Post is initialized afterwards. A report of the whole
-    /// Post initializes it, as always; an area-filtered one once every
-    /// country of the Post has been initialized.
+    /// Whether the report and prior completed reports actually cover every
+    /// current and retained published country of the Post.
     pub post_initialized: bool,
 }
 
@@ -62,7 +63,7 @@ pub struct InitializationPlan {
 pub fn initialization_plan(
     post_areas: &BTreeSet<String>,
     session_areas: &[String],
-    area_filtered: bool,
+    _area_filtered: bool,
     already_initialized: &BTreeSet<String>,
 ) -> InitializationPlan {
     if post_areas.is_empty() {
@@ -75,10 +76,9 @@ pub fn initialization_plan(
         .iter()
         .filter(|area| session_areas.contains(area))
         .collect();
-    let post_initialized = !area_filtered
-        || post_areas
-            .iter()
-            .all(|area| covered.contains(area) || already_initialized.contains(area));
+    let post_initialized = post_areas
+        .iter()
+        .all(|area| covered.contains(area) || already_initialized.contains(area));
     InitializationPlan {
         areas: covered.into_iter().cloned().map(Some).collect(),
         post_initialized,
@@ -185,17 +185,17 @@ pub async fn store_initialization(
         .iter()
         .find(|post| post.id == election_id)
         .ok_or_else(|| anyhow!("Post {election_id} not found"))?;
-    let styled = list_post_ballot_style_areas(hasura_transaction, tenant, event).await?;
-    let post_areas = post_area_ids(
-        &snapshot.areas,
-        &snapshot.area_contests,
-        &snapshot.contests,
-        std::slice::from_ref(&post.id),
-        &styled,
-    )?;
+    let state =
+        crate::services::scheduled_outcome::EventState::read(hasura_transaction, tenant, event)
+            .await?;
+    let post_areas = effective_initialization_countries(&state, election_id)?;
+    let coverage = crate::postgres::election_initialization::initialization_report_coverage(
+        hasura_transaction, tenant, event, session,
+    ).await?.ok_or_else(|| anyhow!("This unfinished initialization report predates immutable coverage evidence; create a new initialization report"))?;
+    let covered = coverage.get(election_id).ok_or_else(|| anyhow!("This initialization report has no immutable coverage of Post {election_id}; create a new report"))?;
     let plan = initialization_plan(
         &post_areas,
-        &tally_session.area_ids.clone().unwrap_or_default(),
+        covered,
         initialization_area_filter(&tally_session).is_some(),
         &already_initialized,
     );

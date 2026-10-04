@@ -196,26 +196,42 @@ impl<'t, 'c> Fixture<'t, 'c> {
         id
     }
 
-    async fn publication_as(&self, scope: Scope, id: Uuid, row: PublicationRow) {
+    async fn trusted_seed(&self, sql: &str, params: &[&(dyn ToSql + Sync)]) {
+        let previous: Option<String> = scalar(
+            self.tx,
+            "SELECT current_setting('sequent.trusted_write', true)",
+            &[],
+        )
+        .await;
+        windmill::postgres::trusted_write(self.tx).await.unwrap();
+        self.tx.execute(sql, params).await.unwrap();
         self.tx
             .execute(
-                "INSERT INTO sequent_backend.ballot_publication
-                     (id, tenant_id, election_event_id, election_ids, election_id,
-                      published_at, deleted_at, annotations)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
-                &[
-                    &id,
-                    &scope.tenant,
-                    &scope.event,
-                    &row.election_ids,
-                    &row.election_id,
-                    &row.published_at,
-                    &row.deleted_at,
-                    &row.annotations,
-                ],
+                "SELECT set_config('sequent.trusted_write', $1, true)",
+                &[&previous.unwrap_or_default()],
             )
             .await
             .unwrap();
+    }
+
+    async fn publication_as(&self, scope: Scope, id: Uuid, row: PublicationRow) {
+        self.trusted_seed(
+            "INSERT INTO sequent_backend.ballot_publication
+                     (id, tenant_id, election_event_id, election_ids, election_id,
+                      published_at, deleted_at, annotations)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
+            &[
+                &id,
+                &scope.tenant,
+                &scope.event,
+                &row.election_ids,
+                &row.election_id,
+                &row.published_at,
+                &row.deleted_at,
+                &row.annotations,
+            ],
+        )
+        .await;
     }
 
     async fn style(&self, scope: Scope, publication: Uuid, election: Uuid, area: Uuid) -> Uuid {
@@ -246,24 +262,22 @@ impl<'t, 'c> Fixture<'t, 'c> {
         [publication, election, area]: [Uuid; 3],
         deleted_at: Option<DateTime<Utc>>,
     ) {
-        self.tx
-            .execute(
-                "INSERT INTO sequent_backend.ballot_style
+        self.trusted_seed(
+            "INSERT INTO sequent_backend.ballot_style
                      (id, tenant_id, election_event_id, election_id, area_id,
                       ballot_publication_id, deleted_at)
                  VALUES ($1, $2, $3, $4, $5, $6, $7)",
-                &[
-                    &id,
-                    &scope.tenant,
-                    &scope.event,
-                    &election,
-                    &area,
-                    &publication,
-                    &deleted_at,
-                ],
-            )
-            .await
-            .unwrap();
+            &[
+                &id,
+                &scope.tenant,
+                &scope.event,
+                &election,
+                &area,
+                &publication,
+                &deleted_at,
+            ],
+        )
+        .await;
     }
 
     /// A cast vote written with SQL; it still passes the revote trigger.
@@ -593,7 +607,7 @@ async fn get_ballot_publication_by_id_maps_every_column() {
     let a = f.scope().await;
     let (first, second) = (f.election(a).await, f.election(a).await);
     let id = f.id();
-    tx.execute(
+    f.trusted_seed(
         "INSERT INTO sequent_backend.ballot_publication
              (id, tenant_id, election_event_id, labels, annotations, created_at,
               created_by_user_id, is_generated, election_ids, published_at, election_id)
@@ -610,8 +624,7 @@ async fn get_ballot_publication_by_id_maps_every_column() {
             &first,
         ],
     )
-    .await
-    .unwrap();
+    .await;
 
     let publication = ballot_publication::get_ballot_publication_by_id(
         &tx,
@@ -1684,15 +1697,14 @@ async fn stream_publication_styles_streams_every_style_of_the_publication_includ
     f.area_as(sibling, area).await;
     f.publication_as(sibling, publication, published(1)).await;
     f.style(sibling, publication, election, area).await;
-    tx.execute(
+    f.trusted_seed(
         "UPDATE sequent_backend.ballot_style
          SET ballot_eml = '{\"ballot\": 1}', ballot_signature = '\\x0102'::bytea,
              status = 'PUBLISHED', labels = '{\"l\": 1}', annotations = '{\"a\": 1}'
          WHERE tenant_id = $1 AND election_event_id = $2 AND id = $3",
         &[&a.tenant, &a.event, &live],
     )
-    .await
-    .unwrap();
+    .await;
 
     let styles: Vec<Value> =
         publication_files::stream_publication_styles(&tx, a.tenant, a.event, publication)
@@ -3214,5 +3226,235 @@ async fn cast_vote_lookups_reject_invalid_uuids() {
         cast_vote::get_cast_votes_by_election_id(&tx, &a.tenant_id(), &a.event_id(), BAD_UUID)
             .await,
     );
+    tx.rollback().await.unwrap();
+}
+
+#[tokio::test]
+async fn raw_publication_writes_cannot_forge_publication_authority() {
+    let mut client = connect().await;
+    let tx = client.transaction().await.unwrap();
+    let f = Fixture::new(&tx, line!());
+    let scope = f.scope().await;
+    let publication = f.publication(scope, PublicationRow::default()).await;
+    tx.batch_execute("SAVEPOINT untrusted_publication")
+        .await
+        .unwrap();
+    let error = tx
+        .execute(
+            "UPDATE sequent_backend.ballot_publication SET published_at = NOW() WHERE id = $1",
+            &[&publication],
+        )
+        .await
+        .expect_err("an operator cannot forge a publication's completed state");
+    assert_eq!(error.code(), Some(&SqlState::INSUFFICIENT_PRIVILEGE));
+    tx.batch_execute("ROLLBACK TO SAVEPOINT untrusted_publication")
+        .await
+        .unwrap();
+    assert_eq!(
+        publication_state(&tx, scope, publication).await,
+        (false, None, None)
+    );
+    tx.rollback().await.unwrap();
+}
+
+async fn authority_write_is_refused(
+    tx: &Transaction<'_>,
+    statement: &str,
+    params: &[&(dyn ToSql + Sync)],
+) {
+    tx.batch_execute("SAVEPOINT publication_authority_check")
+        .await
+        .unwrap();
+    let error = tx
+        .execute(statement, params)
+        .await
+        .expect_err("raw authority change must be refused");
+    assert_eq!(
+        error.code(),
+        Some(&SqlState::INSUFFICIENT_PRIVILEGE),
+        "{error}"
+    );
+    tx.batch_execute("ROLLBACK TO SAVEPOINT publication_authority_check")
+        .await
+        .unwrap();
+}
+
+#[tokio::test]
+async fn published_file_roots_and_scope_cannot_be_removed_replaced_or_restamped() {
+    let mut client = connect().await;
+    let tx = client.transaction().await.unwrap();
+    let f = Fixture::new(&tx, line!());
+    let scope = f.scope().await;
+    let publication = f
+        .publication(
+            scope,
+            PublicationRow {
+                published_at: Some(at(4)),
+                annotations: Some(json!({FILES_ANNOTATION: "original", "kept": true})),
+                ..Default::default()
+            },
+        )
+        .await;
+    for change in [
+        "published_at = NULL",
+        "published_at = NOW()",
+        "is_generated = true",
+        "annotations = '{}'::jsonb",
+        r#"annotations = '{"ballot_files_v1":"replacement"}'::jsonb"#,
+        "id = gen_random_uuid()",
+        "tenant_id = gen_random_uuid()",
+        "election_event_id = gen_random_uuid()",
+        "election_id = gen_random_uuid()",
+        "election_ids = ARRAY[gen_random_uuid()]",
+    ] {
+        authority_write_is_refused(
+            &tx,
+            &format!("UPDATE sequent_backend.ballot_publication SET {change} WHERE id = $1"),
+            &[&publication],
+        )
+        .await;
+    }
+    tx.execute(r#"UPDATE sequent_backend.ballot_publication SET published_at=published_at, annotations=annotations || '{"unrelated":true}'::jsonb, labels='{"label":true}'::jsonb WHERE id=$1"#, &[&publication]).await.unwrap();
+    assert_eq!(
+        publication_state(&tx, scope, publication).await,
+        (false, Some(at(4)), None)
+    );
+    let root: String = scalar(&tx, "SELECT annotations->>'ballot_files_v1' FROM sequent_backend.ballot_publication WHERE id=$1", &[&publication]).await;
+    assert_eq!(root, "original");
+    tx.rollback().await.unwrap();
+}
+
+#[tokio::test]
+async fn generated_style_material_cannot_be_tampered_or_reparented_but_metadata_can_change() {
+    let mut client = connect().await;
+    let tx = client.transaction().await.unwrap();
+    let f = Fixture::new(&tx, line!());
+    let scope = f.scope().await;
+    let election = f.election(scope).await;
+    let area = f.area(scope).await;
+    let generated = f.publication(scope, PublicationRow::default()).await;
+    let draft = f.publication(scope, PublicationRow::default()).await;
+    let style = f.style(scope, generated, election, area).await;
+    let draft_style = f.style(scope, draft, election, area).await;
+    f.trusted_seed(
+        "UPDATE sequent_backend.ballot_publication SET is_generated=true WHERE id=$1",
+        &[&generated],
+    )
+    .await;
+    for change in [
+        "ballot_eml = 'tampered'",
+        "ballot_signature = decode('ab','hex')",
+        "id = gen_random_uuid()",
+        "tenant_id = gen_random_uuid()",
+        "election_event_id = gen_random_uuid()",
+        "election_id = gen_random_uuid()",
+        "area_id = gen_random_uuid()",
+    ] {
+        authority_write_is_refused(
+            &tx,
+            &format!("UPDATE sequent_backend.ballot_style SET {change} WHERE id=$1"),
+            &[&style],
+        )
+        .await;
+    }
+    authority_write_is_refused(
+        &tx,
+        "UPDATE sequent_backend.ballot_style SET ballot_publication_id=$2 WHERE id=$1",
+        &[&style, &draft],
+    )
+    .await;
+    authority_write_is_refused(
+        &tx,
+        "UPDATE sequent_backend.ballot_style SET ballot_publication_id=$2 WHERE id=$1",
+        &[&draft_style, &generated],
+    )
+    .await;
+    authority_write_is_refused(
+        &tx,
+        "DELETE FROM sequent_backend.ballot_style WHERE id=$1",
+        &[&style],
+    )
+    .await;
+    authority_write_is_refused(&tx, "INSERT INTO sequent_backend.ballot_style (id,tenant_id,election_event_id,election_id,area_id,ballot_publication_id) SELECT gen_random_uuid(),tenant_id,election_event_id,election_id,area_id,ballot_publication_id FROM sequent_backend.ballot_style WHERE id=$1", &[&style]).await;
+    tx.execute(r#"UPDATE sequent_backend.ballot_style SET ballot_eml=ballot_eml, labels='{"label":true}'::jsonb, annotations='{"other":true}'::jsonb, deleted_at=deleted_at WHERE id=$1"#, &[&style]).await.unwrap();
+    tx.execute(
+        "UPDATE sequent_backend.ballot_style SET ballot_eml='draft edited' WHERE id=$1",
+        &[&draft_style],
+    )
+    .await
+    .unwrap();
+    let eml: String = scalar(
+        &tx,
+        "SELECT ballot_eml FROM sequent_backend.ballot_style WHERE id=$1",
+        &[&draft_style],
+    )
+    .await;
+    assert_eq!(eml, "draft edited");
+    tx.rollback().await.unwrap();
+}
+
+#[tokio::test]
+async fn protected_styles_cannot_be_tombstoned_or_resurrected_through_raw_writes() {
+    let mut client = connect().await;
+    let tx = client.transaction().await.unwrap();
+    let f = Fixture::new(&tx, line!());
+    let scope = f.scope().await;
+    let election = f.election(scope).await;
+    let area = f.area(scope).await;
+    for protection in 0..3 {
+        let protected = match protection {
+            0 => PublicationRow::default(),
+            1 => published(4),
+            _ => PublicationRow {
+                annotations: Some(json!({FILES_ANNOTATION: "root"})),
+                ..Default::default()
+            },
+        };
+        let publication = f.publication(scope, protected).await;
+        if protection == 0 {
+            f.trusted_seed(
+                "UPDATE sequent_backend.ballot_publication SET is_generated=true WHERE id=$1",
+                &[&publication],
+            )
+            .await;
+        }
+        let live = f.style(scope, publication, election, area).await;
+        let retired = f.deleted_style(scope, publication, election, area).await;
+        authority_write_is_refused(
+            &tx,
+            "UPDATE sequent_backend.ballot_style SET deleted_at=NOW() WHERE id=$1",
+            &[&live],
+        )
+        .await;
+        authority_write_is_refused(
+            &tx,
+            "UPDATE sequent_backend.ballot_style SET deleted_at=NULL WHERE id=$1",
+            &[&retired],
+        )
+        .await;
+        assert_eq!(style_deleted_at(&tx, scope, live).await, None);
+        assert_eq!(style_deleted_at(&tx, scope, retired).await, Some(at(20)));
+        tx.execute("UPDATE sequent_backend.ballot_style SET deleted_at=deleted_at, labels='{}'::jsonb WHERE id=$1", &[&live]).await.unwrap();
+    }
+    // Draft availability remains editable before any material is protected.
+    let draft = f.publication(scope, PublicationRow::default()).await;
+    let style = f.style(scope, draft, election, area).await;
+    tx.execute(
+        "UPDATE sequent_backend.ballot_style SET deleted_at=NOW() WHERE id=$1",
+        &[&style],
+    )
+    .await
+    .unwrap();
+    assert_eq!(
+        style_deleted_at(&tx, scope, style).await,
+        Some(now(&tx).await)
+    );
+    tx.execute(
+        "UPDATE sequent_backend.ballot_style SET deleted_at=NULL WHERE id=$1",
+        &[&style],
+    )
+    .await
+    .unwrap();
+    assert_eq!(style_deleted_at(&tx, scope, style).await, None);
     tx.rollback().await.unwrap();
 }

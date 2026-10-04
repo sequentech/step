@@ -647,6 +647,7 @@ fn initialization_state(post: Uuid) -> EventState {
             initialized: false,
             areas: Default::default(),
             initialized_areas: Default::default(),
+            unresolved_published_countries: false,
         },
     );
     EventState {
@@ -665,6 +666,7 @@ fn initialization_state(post: Uuid) -> EventState {
         post_channels: HashMap::new(),
         own_rows: HashSet::new(),
         fired: HashMap::new(),
+        fired_effects: HashMap::new(),
         now,
         initialization,
         live_closes: vec![],
@@ -982,6 +984,7 @@ fn event_scope_keeps_a_peers_published_report_requirement() {
             initialized: false,
             areas: Default::default(),
             initialized_areas: Default::default(),
+            unresolved_published_countries: false,
         },
     );
     state.policies.initialization_scope = InitializationScope::EVENT;
@@ -1206,6 +1209,7 @@ fn signed_snapshot_uses_subject_and_rejects_wrong_reference() {
         schedule: vec![],
         post_channels: BTreeMap::new(),
         initialization_report_policies: BTreeMap::new(),
+        initialization_countries: None,
     };
     let forged = serde_json::to_value(LifecycleSnapshot::default()).unwrap();
     let signed = serde_json::to_value(subject).unwrap();
@@ -1242,4 +1246,37 @@ fn signed_snapshot_uses_subject_and_rejects_wrong_reference() {
         Some(Uuid::new_v4())
     )
     .is_err());
+}
+
+#[test]
+fn signed_country_evidence_is_preserved_without_changing_legacy_payloads() {
+    let publication = Uuid::new_v4();
+    let old = json!({
+        "ballot_publication_id": publication, "digest": "signed", "signing_rules": [],
+        "scheduled_events": 0, "ballots_and_contests": "first-version"
+    });
+    let legacy: crate::services::signing::actions::configuration::ConfigurationSubject =
+        serde_json::from_value(old.clone()).unwrap();
+    assert!(serde_json::to_value(legacy.lifecycle())
+        .unwrap()
+        .get("initialization_countries")
+        .is_none());
+    assert!(serde_json::to_value(&legacy)
+        .unwrap()
+        .get("initialization_countries")
+        .is_none());
+    for countries in [json!({}), json!({"post": ["a", "b"]})] {
+        let mut value = old.clone();
+        value["initialization_countries"] = countries.clone();
+        let subject: crate::services::signing::actions::configuration::ConfigurationSubject =
+            serde_json::from_value(value).unwrap();
+        assert_eq!(
+            serde_json::to_value(&subject).unwrap()["initialization_countries"],
+            countries
+        );
+        assert_eq!(
+            serde_json::to_value(subject.lifecycle()).unwrap()["initialization_countries"],
+            countries
+        );
+    }
 }
