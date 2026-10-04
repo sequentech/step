@@ -74,6 +74,7 @@ export function eventDataBoundaries({reads, customOrder, realmAttributesFail}: E
                     ? {errors: [new GraphQLError("Synthetic Keycloak failure")]}
                     : {data: {get_realm_attributes: {attributes: REALM_ATTRIBUTES}}},
             GetRealmPasswordPolicy: () => ({data: {get_realm_password_policy: PASSWORD_POLICY}}),
+            UpdateRealmAttributes: () => ({data: {update_realm_attributes: {updated: true}}}),
             SetCustomUrls: () => ({data: {set_custom_urls: {success: true, message: ""}}}),
             SetVoterAuthentication: () => ({
                 data: {set_voter_authentication: {success: true, message: ""}},
