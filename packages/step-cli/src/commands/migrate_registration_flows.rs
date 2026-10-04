@@ -4,6 +4,7 @@
 
 use anyhow::{Context, Result};
 use clap::Args;
+use windmill::services::database::PgConfig;
 use windmill::tasks::migrate_registration_flows::{migrate_registration_flows_now, FlowOutcome};
 
 /// Adds the per-Post enrollment check (`enrollment-window-check`) to the
@@ -18,6 +19,7 @@ pub struct MigrateRegistrationFlows {}
 
 impl MigrateRegistrationFlows {
     pub fn run(&self) -> Result<()> {
+        PgConfig::from_env().context("Invalid migration database configuration")?;
         let runtime = tokio::runtime::Runtime::new().context("Failed to create Tokio runtime")?;
         let migrated = runtime.block_on(migrate_registration_flows_now())?;
         print!("{}", report(&migrated));
