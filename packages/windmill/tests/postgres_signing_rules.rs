@@ -1122,7 +1122,7 @@ async fn the_event_info_names_its_zone_and_titles_to_who_may_read_them() {
         // An event without configured timezones explicitly uses UTC.
         let unset = info(certificates.clone()).await.unwrap();
         assert_eq!(unset.time_zone.as_deref(), Some("UTC"));
-        assert_eq!(panel_zone().await, None);
+        assert_eq!(panel_zone().await.as_deref(), Some("UTC"));
 
         let mut client = w.pool.get().await.unwrap();
         reset_to_preset(
@@ -1158,7 +1158,7 @@ async fn the_event_info_names_its_zone_and_titles_to_who_may_read_them() {
 
         let read = info(certificates).await.unwrap();
         assert_eq!(read.time_zone.as_deref(), Some(zone));
-        assert_eq!(panel_zone().await, None);
+        assert_eq!(panel_zone().await.as_deref(), Some(zone));
         assert_eq!(
             read.titles.get("maria").map(String::as_str),
             Some("Chairperson")
