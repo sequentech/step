@@ -56,6 +56,9 @@ type TPublishList = {
     publishType: EPublishType.Election | EPublishType.Event
     onGenerate: () => void
     onChangeStatus: (status: ElectionEventStatus, votingChannel?: VotingStatusChannel[]) => void
+    /** Initializes voting at the Post; election level only. */
+    onInitialize?: () => void
+    initializing?: boolean
     setBallotPublicationId: (id: string | Identifier) => void
     onPreview: (id: string | Identifier) => void
 }
@@ -74,6 +77,8 @@ export const PublishList: React.FC<TPublishList> = ({
     changingStatus,
     onGenerate = () => null,
     onChangeStatus = () => null,
+    onInitialize,
+    initializing = false,
     setBallotPublicationId = () => null,
     onPreview = () => null,
 }) => {
@@ -92,15 +97,8 @@ export const PublishList: React.FC<TPublishList> = ({
         try {
             if (!isGoldUser()) {
                 const baseUrl = new URL(window.location.href)
-                if (publishType === EPublishType.Event) {
-                    const electionEventPublishTabIndex = localStorage.getItem(
-                        "electionEventPublishTabIndex"
-                    )
-                    baseUrl.searchParams.set("tabIndex", electionEventPublishTabIndex ?? "8")
-                } else {
-                    const electionPublishTabIndex = localStorage.getItem("electionPublishTabIndex")
-                    baseUrl.searchParams.set("tabIndex", electionPublishTabIndex ?? "4")
-                }
+                // The event and election tabs select Publish by id; its position depends on permissions.
+                baseUrl.searchParams.set("tabId", "publish")
                 sessionStorage.setItem(EPublishActions.PENDING_PUBLISH_ACTION, "true")
                 await reauthWithGold(baseUrl.toString())
             } else {
@@ -163,6 +161,8 @@ export const PublishList: React.FC<TPublishList> = ({
                         telephoneVotingEnabled={telephoneVotingEnabled}
                         onGenerate={onGenerate}
                         onChangeStatus={onChangeStatus}
+                        onInitialize={onInitialize}
+                        initializing={initializing}
                         type={EPublishActionsType.List}
                     />
                 }

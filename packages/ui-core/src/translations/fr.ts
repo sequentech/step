@@ -696,6 +696,20 @@ const frenchTranslation: TranslationType = {
                         text: "Période de vote incomplète — la période devra être ouverte ou fermée manuellement dans le Portail d'administration.",
                     },
                 },
+                signing: {
+                    "duplicate-action": {
+                        lead: "Deux règles pour une action",
+                        text: "Deux règles pour une action — '{{action}}' a plus d'une règle de signature. N'en gardez qu'une.",
+                    },
+                    "signatures-out-of-range": {
+                        lead: "Signatures hors limites",
+                        text: "Signatures hors limites — la règle de '{{action}}' doit demander entre {{min}} et {{max}} signatures.",
+                    },
+                    "expiry-out-of-range": {
+                        lead: "Expiration hors limites",
+                        text: "Expiration hors limites — une demande '{{action}}' doit expirer après 1 à 525 600 minutes (un an), ou jamais.",
+                    },
+                },
                 threshold: {
                     "above-trustees": {
                         lead: "Seuil trop élevé",

@@ -225,6 +225,7 @@ export const ElectionTabs: React.FC = () => {
     // Build tabs with stable references
     const tabs = useMemo(() => {
         const result: Array<{
+            id?: string
             label: string
             component: React.FC
             action?: (index: number) => void
@@ -253,11 +254,9 @@ export const ElectionTabs: React.FC = () => {
 
         if (showPublish) {
             result.push({
+                id: "publish",
                 label: t("electionScreen.tabs.publish"),
                 component: PublishTab,
-                action: (index: number) => {
-                    localStorage.setItem("electionPublishTabIndex", index.toString())
-                },
             })
         }
 

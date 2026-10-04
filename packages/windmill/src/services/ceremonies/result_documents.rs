@@ -51,6 +51,19 @@ use velvet::pipes::generate_reports::{
 };
 use velvet::pipes::pipe_inputs::{PREFIX_ALL_AREAS, PREFIX_CONTEST, PREFIX_ELECTION};
 
+use crate::domain::tally_ceremony::{EXECUTER_USERNAME_ANNOTATION, EXECUTER_USER_ID_ANNOTATION};
+use crate::postgres::tally_session::get_tally_session_by_id;
+use crate::services::signing::actions::reports::{
+    hold_tally_report, ChromiumReportRenderer, ReportRenderer, TallyReport, TallyRequester,
+};
+use crate::services::signing::guard::effective_rule;
+use crate::services::signing::pdf::RevisionStore;
+use crate::services::signing::pdf::{tally_signing_action, S3RevisionStore};
+use crate::tasks::render_document_pdf::tally_pdf_options;
+use sequent_core::signing::SigningAction;
+use sequent_core::types::templates::PrintToPdfOptionsLocal;
+use uuid::Uuid;
+
 pub const MIME_PDF: &str = "application/pdf";
 pub const MIME_JSON: &str = "application/json";
 pub const MIME_HTML: &str = "text/html";
@@ -738,6 +751,7 @@ pub async fn save_result_documents(
     results: Vec<ElectionReportDataComputed>,
     tenant_id: &str,
     election_event_id: &str,
+    tally_session_id: &str,
     results_event_id: &str,
     base_tally_path: &PathBuf,
     areas: &Vec<Area>,
@@ -745,6 +759,44 @@ pub async fn save_result_documents(
     tally_type_enum: TallyType,
     sqlite_transaction_opt: Option<&SqliteTransaction<'_>>,
 ) -> Result<()> {
+    // Reports that need signatures are held before anything is stored or
+    // archived.
+    if let Some(action) = get_file_report_type(&tally_type_enum.to_string())?
+        .as_ref()
+        .and_then(tally_signing_action)
+    {
+        let tenant_uuid = Uuid::parse_str(tenant_id).context("Invalid tenant id")?;
+        let event_uuid = Uuid::parse_str(election_event_id).context("Invalid event id")?;
+        if effective_rule(hasura_transaction, tenant_uuid, event_uuid, action)
+            .await?
+            .is_required()
+        {
+            let renderer = ChromiumReportRenderer {
+                options: tally_pdf_options(base_tally_path)?
+                    .map(PrintToPdfOptionsLocal::from_pdf_options),
+            };
+            let requester = tally_requester(
+                hasura_transaction,
+                tenant_id,
+                election_event_id,
+                tally_session_id,
+            )
+            .await?;
+            hold_tally_reports(
+                hasura_transaction,
+                &TallyPost::of(&results),
+                tenant_id,
+                election_event_id,
+                results_event_id,
+                base_tally_path,
+                &tally_type_enum,
+                &S3RevisionStore,
+                &renderer,
+                &requester,
+            )
+            .await?;
+        }
+    }
     let rename_map = generate_ids_map(&results, areas, default_language)?;
     let event_document_paths = results.get_document_paths(None, base_tally_path);
     results
@@ -859,6 +911,180 @@ pub async fn save_result_documents(
         }
     }
     Ok(())
+}
+
+/// The folder of the tally's rendered reports.
+fn reports_folder(base_path: &PathBuf) -> PathBuf {
+    base_path.join("output/velvet-generate-reports")
+}
+
+/// When the tally's report (the election returns, the initialization
+/// report) needs signatures: each Post's report, and for the election
+/// returns each country's, is rendered from its HTML (the tally renders no
+/// PDFs) and held, and no rendering of the tally's reports (HTML or PDF) is
+/// stored, archived or rendered later unsigned: the event's and the
+/// contests' ones are withheld, and the results' JSON stays. A held report
+/// without a rendering, or whose hold fails, is logged as an error and
+/// stays held; the others go on. Their signing requests start after the
+/// tally commits (`hold_tally_report` explains the lock order); the signed
+/// reports become their results rows' PDFs once those requests run. How
+/// many were held.
+#[instrument(err, skip_all)]
+pub async fn hold_tally_reports(
+    hasura_transaction: &Transaction<'_>,
+    posts: &[TallyPost],
+    tenant_id: &str,
+    election_event_id: &str,
+    results_event_id: &str,
+    base_tally_path: &PathBuf,
+    tally_type_enum: &TallyType,
+    store: &dyn RevisionStore,
+    renderer: &dyn ReportRenderer,
+    requester: &TallyRequester,
+) -> Result<usize> {
+    let Some(report_type) = get_file_report_type(&tally_type_enum.to_string())? else {
+        return Ok(0);
+    };
+    let Some(action) = tally_signing_action(&report_type) else {
+        return Ok(0);
+    };
+    let tenant_uuid = Uuid::parse_str(tenant_id).context("Invalid tenant id")?;
+    let event_uuid = Uuid::parse_str(election_event_id).context("Invalid event id")?;
+    if !effective_rule(hasura_transaction, tenant_uuid, event_uuid, action)
+        .await?
+        .is_required()
+    {
+        return Ok(0);
+    }
+    let results_event_uuid = Uuid::parse_str(results_event_id).context("Invalid results id")?;
+    let report_type_name = report_type.to_string();
+    let folder = reports_folder(base_tally_path);
+    let mut held = 0;
+    for post in posts {
+        let election_id = Uuid::parse_str(&post.election_id).context("Invalid election id")?;
+        let post_folder = folder.join(format!("election__{}", post.election_id));
+        let mut targets = vec![(None, post_folder.clone())];
+        if action == SigningAction::GenerateElectionReturns {
+            for area_id in &post.area_ids {
+                targets.push((
+                    Some(Uuid::parse_str(&area_id).context("Invalid area id")?),
+                    post_folder.join(format!("area__{area_id}")),
+                ));
+            }
+        }
+        for (area_id, target_folder) in targets {
+            let html = target_folder.join(OUTPUT_HTML);
+            let outcome = async {
+                let rendering = fs::read_to_string(&html).with_context(|| {
+                    format!("The held report {} has no rendering", html.display())
+                })?;
+                let pdf = renderer.render(rendering)?;
+                hold_tally_report(
+                    hasura_transaction,
+                    store,
+                    &TallyReport {
+                        tenant_id: tenant_uuid,
+                        election_event_id: event_uuid,
+                        results_event_id: results_event_uuid,
+                        action,
+                        report_type: &report_type_name,
+                        election_id,
+                        area_id,
+                        file_name: OUTPUT_PDF,
+                        pdf: &pdf,
+                        requester,
+                    },
+                )
+                .await
+            }
+            .await;
+            match outcome {
+                Ok(_) => held += 1,
+                Err(error) => tracing::error!(
+                    %election_id,
+                    ?area_id,
+                    "a report that needs signatures stays held without its request: {error:#}"
+                ),
+            }
+        }
+    }
+    // Nothing unsigned leaves the tally: no rendering of its reports is
+    // stored, archived or rendered later.
+    for entry in walkdir::WalkDir::new(&folder) {
+        let entry = entry.context("Error reading the tally's reports")?;
+        let rendering = entry
+            .path()
+            .extension()
+            .and_then(|extension| extension.to_str())
+            .is_some_and(|extension| extension == "html" || extension == "pdf");
+        if entry.file_type().is_file() && rendering {
+            fs::remove_file(entry.path()).with_context(|| {
+                format!(
+                    "Error holding the tally's report {}",
+                    entry.path().display()
+                )
+            })?;
+        }
+    }
+    Ok(held)
+}
+
+/// A Post of a tally's results and the countries it was counted in.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TallyPost {
+    pub election_id: String,
+    pub area_ids: Vec<String>,
+}
+
+impl TallyPost {
+    fn of(results: &[ElectionReportDataComputed]) -> Vec<TallyPost> {
+        results
+            .iter()
+            .map(|election_report| {
+                let mut area_ids: Vec<String> = election_report
+                    .reports
+                    .iter()
+                    .filter_map(|report| report.area.as_ref().map(|area| area.id.clone()))
+                    .collect();
+                area_ids.sort();
+                area_ids.dedup();
+                TallyPost {
+                    election_id: election_report.election_id.clone(),
+                    area_ids,
+                }
+            })
+            .collect()
+    }
+}
+
+/// Who started the tally: its executer, from the tally session.
+async fn tally_requester(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    tally_session_id: &str,
+) -> Result<TallyRequester> {
+    let tally_session = get_tally_session_by_id(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        tally_session_id,
+    )
+    .await?;
+    let annotation = |key: &str| {
+        tally_session
+            .annotations
+            .as_ref()
+            .and_then(|annotations| annotations.get(key))
+            .and_then(|value| value.as_str())
+            .map(str::to_owned)
+    };
+    let username = annotation(EXECUTER_USERNAME_ANNOTATION)
+        .ok_or_else(|| anyhow!("The tally session names no executer"))?;
+    Ok(TallyRequester {
+        user_id: annotation(EXECUTER_USER_ID_ANNOTATION).unwrap_or_else(|| username.clone()),
+        username,
+    })
 }
 
 fn get_area_document_paths(

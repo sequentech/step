@@ -36,6 +36,8 @@ import {
     type EStoryPermissions,
     type EStoryTenant,
 } from "../../../ui-essentials/.storybook/globals"
+import {SigningProvider} from "@/components/signing/SigningProvider"
+import type {ISigningApi} from "@/lib/signing/api"
 import {storyAuth} from "./storyAuth"
 import {registerBoundary} from "./storyNetwork"
 
@@ -74,12 +76,17 @@ export interface GraphqlBoundaryOptions {
      * mismatch is recorded in `unexpected`.
      */
     schema?: boolean
+    /**
+     * Operations the generated schema has no types for yet (the signing
+     * tables and actions): answered from their handlers without validation.
+     */
+    unvalidated?: string[]
 }
 
 /** A handler's promise answers when it settles; one that never settles keeps the query loading. */
 export function graphqlBoundary(
     handlers: Record<string, (operation: Operation) => FetchResult | Promise<FetchResult>>,
-    {schema = false}: GraphqlBoundaryOptions = {}
+    {schema = false, unvalidated = []}: GraphqlBoundaryOptions = {}
 ) {
     const calls: RecordedOperation[] = []
     const unexpected: string[] = []
@@ -128,9 +135,10 @@ export function graphqlBoundary(
                         return
                     }
                     try {
-                        const result = schema
-                            ? executed(operation)
-                            : handlers[operation.operationName](operation)
+                        const result =
+                            schema && !unvalidated.includes(operation.operationName)
+                                ? executed(operation)
+                                : handlers[operation.operationName](operation)
                         if (result instanceof Promise) {
                             result.then(
                                 (value) => {
@@ -194,6 +202,25 @@ function TenantLookAndFeel({tenant, children}: PropsWithChildren<{tenant: EStory
     )
 }
 
+/** A session storage of the story's own, so a handover note never leaks between stories. */
+function memorySessionStorage(): Storage {
+    const items = new Map<string, string>()
+    return {
+        get length() {
+            return items.size
+        },
+        clear: () => items.clear(),
+        getItem: (key) => items.get(key) ?? null,
+        key: (index) => Array.from(items.keys())[index] ?? null,
+        removeItem: (key) => {
+            items.delete(key)
+        },
+        setItem: (key, value) => {
+            items.set(key, String(value))
+        },
+    }
+}
+
 export function AdminStoryProvider({
     children,
     boundary,
@@ -205,6 +232,7 @@ export function AdminStoryProvider({
     tenantRecord,
     settings,
     store,
+    signingApi,
 }: PropsWithChildren<{
     boundary: ReturnType<typeof graphqlBoundary>
     dataProvider?: DataProvider
@@ -222,6 +250,11 @@ export function AdminStoryProvider({
     settings?: Partial<GlobalSettings>
     /** React-admin's preference store; each story starts from an empty memory store. */
     store?: Store
+    /**
+     * Mounts the portal's root SigningProvider with these Harvest calls, for
+     * a story that opens signing requests; other stories render without it.
+     */
+    signingApi?: ISigningApi
 }>) {
     const auth = useContext(AuthContext)
     const baseSettings = useContext(SettingsContext)
@@ -230,6 +263,7 @@ export function AdminStoryProvider({
             new QueryClient({defaultOptions: {queries: {retry: false}, mutations: {retry: false}}})
     )
     const [preferences] = useState(() => store ?? memoryStore())
+    const [signingStorage] = useState(memorySessionStorage)
     const signedIn = role ? storyAuth(role, TENANT_ID, auth) : auth
     const user: AuthContextValues = {
         ...signedIn,
@@ -243,11 +277,20 @@ export function AdminStoryProvider({
             : {}),
         ...authOverrides,
     }
+    // The portal's root SigningProvider, below the story's signed-in user,
+    // for the stories that opt in.
+    const signed = signingApi ? (
+        <SigningProvider api={signingApi} storage={signingStorage}>
+            {children}
+        </SigningProvider>
+    ) : (
+        children
+    )
     const content =
         role || roles || authOverrides ? (
-            <AuthContext.Provider value={user}>{children}</AuthContext.Provider>
+            <AuthContext.Provider value={user}>{signed}</AuthContext.Provider>
         ) : (
-            children
+            signed
         )
     return (
         <AdminContext

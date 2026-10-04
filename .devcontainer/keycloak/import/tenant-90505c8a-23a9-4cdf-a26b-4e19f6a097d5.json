@@ -2020,6 +2020,195 @@
         "clientRole": false,
         "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
         "attributes": {}
+      },
+      {
+        "id": "34a89fda-8239-4cd0-a66c-ea1eea868093",
+        "name": "election-event-signatures-tab",
+        "description": "Election Event Signatures Tab",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "41ec5160-fe0f-404e-bf4c-757544e362df",
+        "name": "signing-rules-read",
+        "description": "Signatures: read protected actions",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "61db495a-d8bc-492b-a505-468487f3de80",
+        "name": "signing-rules-write",
+        "description": "Signatures: edit protected actions",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "41a3a64b-b258-493a-a5af-5272b94216e1",
+        "name": "signing-certificates-read",
+        "description": "Signatures: read certificates",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "1f9595c1-31d6-4182-a680-fad95948d832",
+        "name": "signing-issuers-write",
+        "description": "Signatures: import and remove trusted issuers",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "4fd3e11e-a8e8-43ce-a603-28a1fee11bba",
+        "name": "signing-checks-write",
+        "description": "Signatures: edit certificate checks",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "5e4d7482-d2f1-49d5-8d28-aba462882f0c",
+        "name": "signing-certificates-register",
+        "description": "Signatures: register certificates",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "73b4afef-1596-41ad-8c4c-bce9a680884c",
+        "name": "signing-certificates-revoke",
+        "description": "Signatures: revoke certificates",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "ca09d410-5bcc-4a0b-bc06-fd48518431cf",
+        "name": "signing-requests-read",
+        "description": "Signatures: read requests",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "ed5aee2a-dd4e-48b8-be70-7aff1c23d946",
+        "name": "signing-requests-cancel",
+        "description": "Signatures: cancel requests",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "5d20306a-da26-4d58-8616-0348e6774663",
+        "name": "signing-requests-export",
+        "description": "Signatures: export requests",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "18312560-64d6-4ed0-9ee7-c6738ce54f78",
+        "name": "sign-initialize-voting",
+        "description": "Sign: initialize voting",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "e6e1dd48-1a64-4d32-8b99-b67176af1ac6",
+        "name": "sign-open-voting",
+        "description": "Sign: open voting",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "41b091f2-6ec9-4e5d-ac92-312d6e8d09fd",
+        "name": "sign-close-voting",
+        "description": "Sign: close voting",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "633f46f2-0062-46dd-b53c-47fcfcac15cf",
+        "name": "sign-generate-election-returns",
+        "description": "Sign: generate election returns",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "01439b73-d6ea-4df8-b2a5-16926a80a6bd",
+        "name": "sign-generate-reports",
+        "description": "Sign: generate other election reports",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "92ae7717-e221-4563-a8db-d271002ad4ce",
+        "name": "sign-transmit-results",
+        "description": "Sign: transmit results",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "2a9af4dd-d11b-44c1-8916-31c0084bb1c1",
+        "name": "sign-approve-voter",
+        "description": "Sign: approve a voter manually",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "80ad12db-a566-4400-a14a-2bf09c49e245",
+        "name": "sign-approve-configuration",
+        "description": "Sign: approve a configuration version",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "6d44ec97-33ea-4a03-b155-76cb191fc610",
+        "name": "sign-key-ceremony",
+        "description": "Sign: confirm a key share",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "e004425b-71da-4e36-9b24-6ff783c24716",
+        "name": "sign-tally-key",
+        "description": "Sign: contribute a key share",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
       }
     ],
     "client": {
@@ -2633,7 +2822,28 @@
         "phone-blacklist-read",
         "phone-blacklist-create",
         "phone-blacklist-update",
-        "phone-blacklist-delete"
+        "phone-blacklist-delete",
+        "election-event-signatures-tab",
+        "signing-rules-read",
+        "signing-rules-write",
+        "signing-certificates-read",
+        "signing-issuers-write",
+        "signing-checks-write",
+        "signing-certificates-register",
+        "signing-certificates-revoke",
+        "signing-requests-read",
+        "signing-requests-cancel",
+        "signing-requests-export",
+        "sign-initialize-voting",
+        "sign-open-voting",
+        "sign-close-voting",
+        "sign-generate-election-returns",
+        "sign-generate-reports",
+        "sign-transmit-results",
+        "sign-approve-voter",
+        "sign-approve-configuration",
+        "sign-key-ceremony",
+        "sign-tally-key"
       ],
       "clientRoles": {}
     },
@@ -4958,7 +5168,7 @@
         "subComponents": {},
         "config": {
           "kc.user.profile.config": [
-            "{\"attributes\":[{\"name\":\"username\",\"displayName\":\"${username}\",\"validations\":{\"length\":{\"min\":3,\"max\":255},\"username-prohibited-characters\":{},\"up-username-not-idn-homograph\":{}},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"email\",\"displayName\":\"${email}\",\"validations\":{\"email\":{},\"length\":{\"max\":255}},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"firstName\",\"displayName\":\"${firstName}\",\"validations\":{\"length\":{\"max\":255},\"person-name-prohibited-characters\":{}},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"lastName\",\"displayName\":\"${lastName}\",\"validations\":{\"length\":{\"max\":255},\"person-name-prohibited-characters\":{}},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"tenant-id\",\"displayName\":\"Tenant Id\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"sequent.read-only.otp-method\",\"displayName\":\"OTP Method\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"sequent.read-only.mobile-number\",\"displayName\":\"Phone Number\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"trustee\",\"displayName\":\"trustee\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"permission_labels\",\"displayName\":\"Permission Labels\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\"],\"edit\":[\"admin\"]},\"multivalued\":true}],\"groups\":[]}"
+            "{\"attributes\":[{\"name\":\"username\",\"displayName\":\"${username}\",\"validations\":{\"length\":{\"min\":3,\"max\":255},\"username-prohibited-characters\":{},\"up-username-not-idn-homograph\":{}},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"email\",\"displayName\":\"${email}\",\"validations\":{\"email\":{},\"length\":{\"max\":255}},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"firstName\",\"displayName\":\"${firstName}\",\"validations\":{\"length\":{\"max\":255},\"person-name-prohibited-characters\":{}},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"lastName\",\"displayName\":\"${lastName}\",\"validations\":{\"length\":{\"max\":255},\"person-name-prohibited-characters\":{}},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"tenant-id\",\"displayName\":\"Tenant Id\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"sequent.read-only.otp-method\",\"displayName\":\"OTP Method\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"sequent.read-only.mobile-number\",\"displayName\":\"Phone Number\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"trustee\",\"displayName\":\"trustee\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"permission_labels\",\"displayName\":\"Permission Labels\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\"],\"edit\":[\"admin\"]},\"multivalued\":true},{\"name\":\"title\",\"displayName\":\"Title\",\"validations\":{\"length\":{\"max\":255}},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false}],\"groups\":[]}"
           ]
         }
       }

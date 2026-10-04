@@ -52,6 +52,8 @@ use crate::services::reports::template_renderer::{
     ReportOriginatedFrom, ReportOrigins, TemplateRenderer,
 };
 use crate::services::reports::utils::get_public_asset_template;
+use crate::services::signing::actions::reports::start_held_tally_reports;
+use crate::services::signing::key_shares::tally_trustee_signatures;
 use crate::services::tally_sheets::validation::validate_tally_sheet;
 use crate::services::tasks_semaphore::acquire_semaphore;
 use crate::services::temp_path::{
@@ -720,6 +722,14 @@ async fn map_plaintext_data(
         return Ok(None);
     };
 
+    // When the rule makes trustees sign, only signed restores count.
+    let signatures = tally_trustee_signatures(
+        hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        &tally_session_id,
+    )
+    .await?;
     let trustee_names = match select_execution_trustees_with(
         &PgTallyExecution {
             transaction: hasura_transaction,
@@ -729,6 +739,7 @@ async fn map_plaintext_data(
         &election_event_id,
         keys_ceremony,
         ceremony_status,
+        &signatures,
     )
     .await?
     {
@@ -1504,6 +1515,20 @@ pub async fn transactions_wrapper(
                 .commit()
                 .await
                 .with_context(|| "error comitting transaction")?;
+            // Reports held for their signatures start their requests now, in
+            // a transaction of their own that takes the event's signing lock
+            // first: the tally's transaction held the tally session's row.
+            // What can't start now, the signing sweeper starts later.
+            if let (Ok(tenant), Ok(event)) = (
+                Uuid::parse_str(&tenant_id),
+                Uuid::parse_str(&election_event_id),
+            ) {
+                if let Err(error) =
+                    start_held_tally_reports(&mut hasura_db_client, tenant, event).await
+                {
+                    tracing::warn!("held tally reports not started yet: {error:?}");
+                }
+            }
             Ok(res)
         }
         Err(err) => {

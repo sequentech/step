@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::authorization::authorize;
 use crate::services::dependencies::HarvestServices;
+use crate::services::signing_gate::{caller, waiting, Guarded};
 use crate::types::error_response::{ErrorCode, ErrorResponse, JsonError};
 use anyhow::{Context, Result};
 use deadpool_postgres::Client as DbClient;
@@ -26,6 +27,11 @@ use windmill::{
         update_publish_ballot, BallotPublicationValidationError,
         PublicationDiff,
     },
+    services::signing::actions::configuration::{
+        cancel_for_new_publication, gate_publication,
+    },
+    services::signing::guard::SigningRequestSummary,
+    tasks::signing_log_outbox::kick_signing_log_outbox,
     tasks::update_election_event_ballot_styles::update_election_event_ballot_styles,
     types::tasks::ETasksExecution,
 };
@@ -157,6 +163,17 @@ async fn generate_ballot_publication_response(
         .clone()
         .unwrap_or_else(|| claims.hasura_claims.user_id.clone());
 
+    // A new publication replaces the one waiting for signatures to publish.
+    cancel_for_new_publication(
+        &hasura_transaction,
+        &caller(&claims),
+        &tenant_id,
+        &input.election_event_id,
+        input.election_id.as_deref(),
+    )
+    .await
+    .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
+
     let broker = services.tasks.connect().await;
     let ballot_publication = prepare_ballot_publication(
         &hasura_transaction,
@@ -208,6 +225,7 @@ async fn generate_ballot_publication_response(
     let _commit = hasura_transaction.commit().await.map_err(|err| {
         (Status::InternalServerError, format!("Commit failed: {err}"))
     })?;
+    kick_signing_log_outbox();
 
     Ok(Json(GenerateBallotPublicationOutput {
         ballot_publication_id: ballot_publication.id,
@@ -221,9 +239,13 @@ pub struct PublishBallotInput {
     ballot_publication_id: String,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Debug)]
 pub struct PublishBallotOutput {
     ballot_publication_id: String,
+    /// While publishing waits for signatures (approving a configuration
+    /// version).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    signing_request: Option<SigningRequestSummary>,
 }
 
 #[instrument(skip(claims, services))]
@@ -232,7 +254,7 @@ pub async fn publish_ballot(
     body: Json<PublishBallotInput>,
     claims: JwtClaims,
     services: &State<HarvestServices>,
-) -> Result<Json<PublishBallotOutput>, JsonError> {
+) -> Result<Json<PublishBallotOutput>, Guarded<JsonError>> {
     authorize(
         &claims,
         true,
@@ -273,6 +295,30 @@ pub async fn publish_ballot(
                 ErrorCode::InternalServerError,
             )
         })?;
+    // Publishing a configuration version may need signatures first.
+    let outcome = gate_publication(
+        &hasura_transaction,
+        &caller(&claims),
+        &tenant_id,
+        &input.election_event_id,
+        &input.ballot_publication_id,
+    )
+    .await?;
+    if let Some(signing_request) = waiting(outcome) {
+        hasura_transaction.commit().await.map_err(|e| {
+            ErrorResponse::new(
+                Status::InternalServerError,
+                &format!("Commit failed: {e:?}"),
+                ErrorCode::InternalServerError,
+            )
+        })?;
+        kick_signing_log_outbox();
+        return Ok(Json(PublishBallotOutput {
+            ballot_publication_id: input.ballot_publication_id,
+            signing_request: Some(signing_request),
+        }));
+    }
+
     let task_execution = services
         .ledger
         .post(
@@ -322,7 +368,8 @@ pub async fn publish_ballot(
                 Status::InternalServerError,
                 &response_message,
                 ErrorCode::InternalServerError,
-            ));
+            )
+            .into());
         }
 
         services.ledger.update_fail(&task_execution, &failure_message)
@@ -340,7 +387,8 @@ pub async fn publish_ballot(
             is_validation_error,
             &failure_message,
             &response_message,
-        ));
+        )
+        .into());
     }
 
     if let Err(commit_error) = hasura_transaction.commit().await {
@@ -354,7 +402,8 @@ pub async fn publish_ballot(
             Status::InternalServerError,
             &failure_message,
             ErrorCode::InternalServerError,
-        ));
+        )
+        .into());
     }
 
     if let Err(task_error) =
@@ -373,11 +422,13 @@ pub async fn publish_ballot(
             Status::InternalServerError,
             &failure_message,
             ErrorCode::InternalServerError,
-        ));
+        )
+        .into());
     }
 
     Ok(Json(PublishBallotOutput {
         ballot_publication_id: input.ballot_publication_id.clone(),
+        signing_request: None,
     }))
 }
 

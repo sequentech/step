@@ -1,0 +1,24 @@
+table:
+    name: signing_checks
+    schema: sequent_backend
+select_permissions:
+    - comment: ""
+      permission:
+          allow_aggregations: true
+          columns:
+              - id
+              - tenant_id
+              - election_event_id
+              - revocation_check
+              - crl_unavailable
+              - registration
+              - post_binding
+              - revision
+              - updated_by
+              - updated_by_name
+              - updated_at
+              - created_at
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: signing-certificates-read

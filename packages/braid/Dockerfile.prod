@@ -12,12 +12,38 @@
 # operating-system packages, and some download tools over HTTPS. See the scope
 # note in packages/Dockerfile.offline-dependencies for the full list.
 # See sequentech/meta#13625.
+# Debian archive snapshot every apt call resolves against. Pinning the archive
+# state, rather than individual package versions, is what makes the dependency
+# closure identical on a client's machine and on ours: pinning only the packages
+# we name leaves their dependencies to whatever the live mirror serves that day
+# (installing wget with its version pinned still resolves libpsl5 from the
+# mirror). See sequentech/meta#13625.
+#
+# http, not https: these base images ship no CA certificates, so an https source
+# fails before anything is installed. apt verifies the signed InRelease and the
+# per-file checksums regardless of transport.
+#
+# Bumping this is a deliberate release action, like bumping a base image digest:
+# it changes what the build contains, so it produces a new release identity. A
+# pinned snapshot also stops picking up security updates until it is bumped.
+ARG DEBIAN_SNAPSHOT=20260929T000000Z
+
 ARG VENDOR_IMAGE=scratch
 FROM ${VENDOR_IMAGE} AS vendor
 
-FROM rust:1.96.0-slim-bookworm as builder
+FROM rust:1.96.0-slim-bookworm@sha256:4732ca96fd086cb9be682050c3f0176288eebaac2b80aa2bcefccfaf198e1950 as builder
 
 WORKDIR /app
+
+# Resolve apt against the pinned snapshot rather than the live mirror.
+ARG DEBIAN_SNAPSHOT
+RUN set -eux; \
+    rm -f /etc/apt/sources.list.d/debian.sources; \
+    { \
+      echo "deb [check-valid-until=no] http://snapshot.debian.org/archive/debian/${DEBIAN_SNAPSHOT} bookworm main"; \
+      echo "deb [check-valid-until=no] http://snapshot.debian.org/archive/debian/${DEBIAN_SNAPSHOT} bookworm-updates main"; \
+      echo "deb [check-valid-until=no] http://snapshot.debian.org/archive/debian-security/${DEBIAN_SNAPSHOT} bookworm-security main"; \
+    } > /etc/apt/sources.list
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends debian-archive-keyring \
@@ -73,24 +99,42 @@ RUN cargo build --release --locked
 
 
 
-FROM debian:bookworm
+FROM debian:bookworm@sha256:f37a335e82bca302e955fa39f9dfe28f1be618f016f8a2b56318e5a5111afc26
 # Some shared libraries (extra-runtime-dependencies) may need to be installed:
 # Installing also AWS CLI and Vault CLI for trustee configuration
-# Set the default Vault version (put 'latest' for automatic substitution)
-ARG VAULT_VERSION=1.15.5
+# Pinned explicitly. There is deliberately no "latest" mode: resolving a version
+# by scraping releases.hashicorp.com during the build means two builds of the same
+# commit can ship different Vault binaries, which defeats any byte-for-byte
+# comparison of the images (sequentech/meta#13625).
+#
+# 2.1.1 is the current open-source release; the 1.21 line is enterprise-only.
+ARG VAULT_VERSION=2.1.1
+# Resolve apt against the pinned snapshot rather than the live mirror.
+ARG DEBIAN_SNAPSHOT
+RUN set -eux; \
+    rm -f /etc/apt/sources.list.d/debian.sources; \
+    { \
+      echo "deb [check-valid-until=no] http://snapshot.debian.org/archive/debian/${DEBIAN_SNAPSHOT} bookworm main"; \
+      echo "deb [check-valid-until=no] http://snapshot.debian.org/archive/debian/${DEBIAN_SNAPSHOT} bookworm-updates main"; \
+      echo "deb [check-valid-until=no] http://snapshot.debian.org/archive/debian-security/${DEBIAN_SNAPSHOT} bookworm-security main"; \
+    } > /etc/apt/sources.list
+
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libssl3 \
     ca-certificates \
     curl \
     unzip \
-    && curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip" \
+    && arch="$(dpkg --print-architecture)" \
+    && case "$arch" in \
+        amd64) aws_arch=x86_64; vault_arch=amd64 ;; \
+        arm64) aws_arch=aarch64; vault_arch=arm64 ;; \
+        *) echo "unsupported architecture: $arch" >&2; exit 1 ;; \
+    esac \
+    && curl "https://awscli.amazonaws.com/awscli-exe-linux-${aws_arch}.zip" -o "awscliv2.zip" \
     && unzip -o awscliv2.zip \
     && ./aws/install \
     && rm -f awscliv2.zip \
-    && if [ "${VAULT_VERSION}" = "latest" ]; then \
-        VAULT_VERSION=$(curl -s https://releases.hashicorp.com/vault/ | grep -oP 'vault/\K[0-9.]+(?=/")' | head -n 1); \
-    fi \
-    && curl -o vault.zip https://releases.hashicorp.com/vault/${VAULT_VERSION}/vault_${VAULT_VERSION}_linux_amd64.zip \
+    && curl -o vault.zip "https://releases.hashicorp.com/vault/${VAULT_VERSION}/vault_${VAULT_VERSION}_linux_${vault_arch}.zip" \
     && unzip vault.zip -d /usr/local/bin/ \
     && rm -f vault.zip \
     && apt-get clean \

@@ -165,3 +165,11 @@ path = [
 precedence = "aggregate"
 SPDX-FileCopyrightText = "2020 Shiqi Yu <shiqi.yu@gmail.com>"
 SPDX-License-Identifier = "MIT"
+
+# Synthetic signing certificates (.p12, PEM, CRL) and their manifest, written by
+# scripts/signing/make-test-p12.sh; binary and JSON files have no comments.
+[[annotations]]
+path = ["packages/admin-portal/src/lib/signing/__fixtures__/**"]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2026 Sequent Tech Inc <legal@sequentech.io>"
+SPDX-License-Identifier = "AGPL-3.0-only"

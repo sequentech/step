@@ -315,6 +315,39 @@ An empty reset still returns a JSON outcome. Reset refuses a mismatched owner or
 tenant and keeps the state file if deletion fails, so it can be retried. A second
 command for the same scenario fails while the first holds its lock.
 
+### Signing organizations
+
+`scripts/dev/scenario/signing-organizations/` describes organizations that sign their
+protected actions, as data: `post-qualification` (four Posts with three SBEI accounts
+each, titled Chairperson, Poll Clerk and Third Member, plus trustees, a Configuration
+Manager, a Security Officer and an OFOV, so every rule of the janitor's sample preset
+can be signed)
+and `student-council` (faculties as Posts, Returning Officer and Electoral Commission
+groups, its own trusted issuer, rules and translation overrides). Write one's files:
+
+```bash
+python3 -m scripts.dev.scenario.organizations post-qualification --out /tmp/organizations
+```
+
+and load them on a running stack:
+
+- `election-event.json`: `step-cli step import-election --file-path <file> --is-local`,
+  or Election Events > Import. It carries the Posts with their permission labels and
+  the `signing_rules` and `signing_checks`.
+- `realm-groups.json`: a Keycloak partial import into the tenant realm (Realm settings >
+  Partial import), which adds the signing groups with their `sign-*` roles.
+- `admin-users.csv`: Users and Roles > Import. Each signer has their Post's permission
+  label, their group and the `title` attribute the signing panel shows.
+- `tenant-settings.json`: the tenant's display name (Settings > Look & Feel) and its
+  translation overrides (Settings > Localization).
+- `trusted-issuer.pem` (student council only): Signatures > Certificates > Import issuer.
+  It is a synthetic CA. Its test-only private key stays in the fixtures
+  (`student-council-issuer.key`), so tests and journeys can issue staff certificates
+  under it; never trust this CA outside tests.
+
+[Testing signing](../14-signing/04-signing-testing.md) lists the signing test suites and
+the certificate file fixtures.
+
 ## Incremental WASM
 
 After editing `sequent-core` or a crate it depends on, run from the devenv shell:

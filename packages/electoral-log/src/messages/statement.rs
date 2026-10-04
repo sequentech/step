@@ -291,6 +291,13 @@ impl StatementHead {
                 description: monitoring_config_description(details),
                 ..default_head
             },
+            StatementBody::Signing(entry) => StatementHead {
+                kind: entry.kind.statement_type(),
+                event_type: entry.event_type.clone(),
+                log_type: entry.log_type.clone(),
+                description: entry.description.clone(),
+                ..default_head
+            },
             StatementBody::ResultsPublicationAction(details) => {
                 let action = match details.action {
                     ResultsPublicationAction::Publish => "published",
@@ -489,6 +496,9 @@ pub enum StatementBody {
     /// Records a change to an election event's monitoring dashboards
     /// configuration. The digests bind each entry to the stored document.
     MonitoringConfigChanged(EventIdString, MonitoringConfigChangeDetails),
+    /// One entry of a step of signing a protected action. The entry sets
+    /// the head's kind, event type, log type and description.
+    Signing(SigningLogEntry),
 }
 
 // Note: When creating new variants, consider that the length limit STATEMENT_KIND_VARCHAR_LENGTH is 40.
@@ -524,9 +534,36 @@ pub enum StatementType {
     ExternalApiRequest,
     ExternalReconciliation,
     MonitoringConfigChanged,
+    SigningRequestCreated,
+    SigningCertificateOpenFailed,
+    SigningRequestSigned,
+    SigningSignatureRefused,
+    SigningCertificateRegistered,
+    SigningHandover,
+    SigningRequestCancelled,
+    SigningRequestExpired,
+    SigningRequestCompleted,
+    SigningActionExecuted,
+    SigningRuleChanged,
+    SigningPermissionChanged,
+    SigningIssuerChanged,
+    SigningChecksChanged,
+    SigningCertificateRevoked,
+    SigningRequestsExported,
 }
 
-#[derive(BorshSerialize, BorshDeserialize, Display, Deserialize, Serialize, Debug, Clone)]
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Display,
+    Deserialize,
+    Serialize,
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    Hash,
+)]
 pub enum StatementEventType {
     USER,
     SYSTEM,
@@ -536,7 +573,18 @@ pub enum StatementEventType {
 #[path = "../../tests/support/statement_statement_compatibility_tests.rs"]
 mod statement_compatibility_tests;
 
-#[derive(BorshSerialize, BorshDeserialize, Display, Deserialize, Serialize, Debug, Clone)]
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Display,
+    Deserialize,
+    Serialize,
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    Hash,
+)]
 pub enum StatementLogType {
     INFO,
     ERROR,
@@ -549,3 +597,7 @@ mod results_publication_tests;
 #[cfg(test)]
 #[path = "../../tests/support/statement_monitoring_config_tests.rs"]
 mod monitoring_config_tests;
+
+#[cfg(test)]
+#[path = "../../tests/support/statement_signing_tests.rs"]
+mod signing_tests;

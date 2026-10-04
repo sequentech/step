@@ -38,20 +38,17 @@ pub fn generate_timestamp(
 
     let now = date_time.unwrap_or(Utc::now());
 
-    match time_zone {
-        TimeZone::UTC => now.format(&date_format).to_string(),
-        TimeZone::Offset(offset) => {
-            let duration = Duration::hours(offset as i64);
-            let fixed_offset =
-                FixedOffset::east_opt(duration.num_seconds() as i32);
-            match fixed_offset {
-                Some(fixed) => fixed
-                    .from_utc_datetime(&now.naive_utc())
-                    .format(&date_format)
-                    .to_string(),
-                None => now.format(&date_format).to_string(),
-            }
-        }
+    let duration = match time_zone {
+        TimeZone::UTC => return now.format(&date_format).to_string(),
+        TimeZone::Offset(offset) => Duration::hours(offset as i64),
+        TimeZone::OffsetMinutes(minutes) => Duration::minutes(minutes as i64),
+    };
+    match FixedOffset::east_opt(duration.num_seconds() as i32) {
+        Some(fixed) => fixed
+            .from_utc_datetime(&now.naive_utc())
+            .format(&date_format)
+            .to_string(),
+        None => now.format(&date_format).to_string(),
     }
 }
 
@@ -91,6 +88,37 @@ mod tests {
     fn test_generate_timestamp_default() {
         let timestamp = generate_timestamp(None, None, None);
         println!("Default timestamp: {}", timestamp);
+    }
+
+    #[test]
+    fn a_timestamp_takes_an_offset_in_minutes() {
+        let instant = Utc.with_ymd_and_hms(2028, 5, 12, 10, 0, 0).unwrap();
+        let format = Some(DateFormat::Custom("%Y-%m-%d %H:%M %:z".into()));
+        assert_eq!(
+            generate_timestamp(
+                Some(TimeZone::OffsetMinutes(330)),
+                format.clone(),
+                Some(instant)
+            ),
+            "2028-05-12 15:30 +05:30"
+        );
+        assert_eq!(
+            generate_timestamp(
+                Some(TimeZone::OffsetMinutes(345)),
+                format.clone(),
+                Some(instant)
+            ),
+            "2028-05-12 15:45 +05:45"
+        );
+        // Whole hours as before.
+        assert_eq!(
+            generate_timestamp(
+                Some(TimeZone::Offset(8)),
+                format,
+                Some(instant)
+            ),
+            "2028-05-12 18:00 +08:00"
+        );
     }
 
     #[test]

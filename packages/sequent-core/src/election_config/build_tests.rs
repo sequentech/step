@@ -821,6 +821,59 @@ fn a_base_export_does_not_override_what_the_author_wrote() {
 }
 
 #[test]
+fn a_base_export_carries_its_signing_configuration_over() {
+    // A client's preset travels in the base export; whatever it says is what
+    // the built bundle says, so two presets build two configurations.
+    let templates = TemplateSet::builtin().unwrap();
+    for (rules, checks) in [
+        (
+            json!([{"action": "generate-election-returns", "requirement": "required",
+                    "signatures": 3, "requester_signing": "allowed",
+                    "expires_minutes": 120, "revision": 2}]),
+            json!({"revocation_check": "check", "crl_unavailable": "refuse",
+                   "registration": "on-first-use", "post_binding": "one-post",
+                   "revision": 1}),
+        ),
+        (
+            json!([{"action": "approve-voter", "requirement": "required",
+                    "signatures": 1, "requester_signing": "not-allowed",
+                    "expires_minutes": null, "revision": 1}]),
+            json!({"revocation_check": "dont-check",
+                   "crl_unavailable": "accept-unchecked",
+                   "registration": "security-officer-only",
+                   "post_binding": "any-post", "revision": 1}),
+        ),
+    ] {
+        let bundle = build(
+            &sound(),
+            &templates,
+            &BuildOptions {
+                base_export: Some(json!({
+                    "signing_rules": rules,
+                    "signing_checks": checks,
+                })),
+                ..BuildOptions::default()
+            },
+            &Sources::default(),
+        )
+        .unwrap();
+        assert_eq!(bundle.export["signing_rules"], rules);
+        assert_eq!(bundle.export["signing_checks"], checks);
+        // And the importer reads it.
+        let schema: crate::election_config::schema::ImportElectionEventSchema =
+            serde_json::from_value(bundle.export.clone()).unwrap();
+        assert_eq!(schema.signing_rules.unwrap().len(), 1);
+    }
+}
+
+#[test]
+fn without_a_base_export_a_bundle_has_no_signing_configuration() {
+    let export = built(&sound()).export;
+    assert!(export.get("signing_rules").is_none());
+    assert!(export.get("signing_checks").is_none());
+}
+
+#[test]
 fn a_base_export_with_nothing_useful_in_it_changes_nothing() {
     let templates = TemplateSet::builtin().unwrap();
     let with_base = build(

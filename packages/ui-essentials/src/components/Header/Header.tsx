@@ -139,6 +139,8 @@ export interface HeaderProps {
     errorVariant?: HeaderErrorVariant
     expiry?: IExpiryCountdown
     onChangeLanguage?: (lang: string) => void
+    /** Contextual actions before the language and profile controls. */
+    actions?: React.ReactNode
 }
 
 export default function Header({
@@ -152,6 +154,7 @@ export default function Header({
     errorVariant,
     expiry = undefined,
     onChangeLanguage,
+    actions,
 }: HeaderProps) {
     const {t} = useTranslation()
     const [openModal, setOpenModal] = useState<boolean>(false)
@@ -195,6 +198,7 @@ export default function Header({
                         >
                             <Version version={appVersion ?? {main: "0.0.0"}} />
                             <Version header="hash.header" version={appHash ?? {main: "-"}} />
+                            {actions}
                             <LanguageMenu
                                 languagesList={languagesList}
                                 onChange={onChangeLanguage}

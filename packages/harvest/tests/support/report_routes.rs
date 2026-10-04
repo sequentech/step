@@ -532,3 +532,84 @@ async fn report_routes_answer_500_when_the_database_is_unreachable() {
     }
     assert!(services.ledger.tasks().is_empty());
 }
+
+/// Saves a `Required` rule of two signatures for `action` in `event`.
+async fn signing_rule(
+    services: &Services,
+    event: &Event,
+    action: sequent_core::signing::SigningAction,
+) {
+    use sequent_core::signing::{
+        RequesterSigning, SigningRequirement, SigningRule,
+    };
+    let mut client = services.hasura.get().await.unwrap();
+    let tx = client.transaction().await.unwrap();
+    windmill::postgres::signing::upsert_signing_rule(
+        &tx,
+        uuid::Uuid::parse_str(&event.tenant_id).unwrap(),
+        uuid::Uuid::parse_str(&event.election_event_id).unwrap(),
+        &SigningRule {
+            action,
+            requirement: SigningRequirement::Required,
+            signatures: 2,
+            requester_signing: RequesterSigning::NotAllowed,
+            expires_minutes: Some(60),
+            revision: 0,
+        },
+        0,
+        "manager",
+        Some("Configuration Manager"),
+    )
+    .await
+    .unwrap()
+    .unwrap();
+    tx.commit().await.unwrap();
+}
+
+/// While its action needs signatures, a real report is not generated here,
+/// and nothing is queued: the election returns are the tally's, produced
+/// and signed per Post (409), and a participation report must be a Post's
+/// (400). Without the rule the same reports are generated as before.
+#[rocket::async_test]
+async fn a_report_whose_action_needs_signatures_is_not_generated_here() {
+    use sequent_core::signing::SigningAction;
+    for (report_type, action, status, message) in [
+        (
+            "ELECTORAL_RESULTS",
+            SigningAction::GenerateElectionReturns,
+            Status::Conflict,
+            "This report needs signatures: the tally produces it for each Post, to be signed there.",
+        ),
+        (
+            "PARTICIPATION_REPORT",
+            SigningAction::GenerateReports,
+            Status::BadRequest,
+            "This report needs signatures: generate it for a Post.",
+        ),
+    ] {
+        let services = Services::on_test_database().await;
+        let client = services.client().await;
+        let event = rows::event(&services.hasura).await;
+        let report_id = event
+            .report(&services.hasura, report_type, TEMPLATE_ALIAS)
+            .await;
+        let claims = reader(&event, &[Permissions::REPORT_READ]);
+        let request = report_request(&event.tenant_id, &report_id);
+
+        let (generated, body) =
+            json(post(&client, "/generate-report", &claims, &request).await)
+                .await;
+        assert_eq!(generated, Status::Ok, "{report_type}: {body}");
+        assert_eq!(services.ledger.tasks().len(), 1, "{report_type}");
+
+        signing_rule(&services, &event, action).await;
+        let response =
+            post(&client, "/generate-report", &claims, &request).await;
+        assert_eq!(
+            text(response).await,
+            (status, message.to_string()),
+            "{report_type}"
+        );
+        assert_eq!(services.ledger.tasks().len(), 1, "{report_type}");
+    }
+}

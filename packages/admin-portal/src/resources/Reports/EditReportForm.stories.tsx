@@ -15,6 +15,7 @@ import {
 import {resourceBoundary} from "@/__stories__/resourceBoundary"
 import {storyId} from "@/__stories__/fixtures"
 import type {WidgetMeta} from "@/__stories__/widgetStory"
+import {IPermissions} from "@/types/keycloak"
 import {EReportType} from "@/types/reports"
 import {EditReportForm, EReportEncryption} from "./EditReportForm"
 import {
@@ -31,6 +32,7 @@ interface Scenario {
     reportId: string | null
     /** Whether the report service rejects the save. */
     saveFails: boolean
+    needsSignatures?: boolean
     close: () => void
 }
 
@@ -57,6 +59,23 @@ const meta = {
         const rejected = {errors: [new GraphQLError("Synthetic report rejected")]}
         graphql = graphqlBoundary(
             {
+                GetSigningRules: () => ({
+                    data: {
+                        sequent_backend_signing_rule: [
+                            {
+                                action: "generate-reports",
+                                requirement: args.needsSignatures ? "required" : "not-required",
+                                signatures: args.needsSignatures ? 2 : 1,
+                                requester_signing: "allowed",
+                                expires_minutes: null,
+                                revision: 1,
+                                updated_by: "user",
+                                updated_by_name: null,
+                                updated_at: "2028-05-01T00:00:00Z",
+                            },
+                        ],
+                    },
+                }),
                 InsertReport: ({variables}) =>
                     args.saveFails
                         ? rejected
@@ -80,8 +99,16 @@ const meta = {
         )
         await graphql.ready
     },
-    render: ({reportId, close}) => (
-        <AdminStoryProvider boundary={graphql} dataProvider={data.provider} roles={REPORT_ROLES}>
+    render: ({reportId, close, needsSignatures}) => (
+        <AdminStoryProvider
+            boundary={graphql}
+            dataProvider={data.provider}
+            roles={
+                needsSignatures !== undefined
+                    ? [...REPORT_ROLES, IPermissions.SIGNING_RULES_READ]
+                    : REPORT_ROLES
+            }
+        >
             <ResourceContextProvider value="sequent_backend_election_event">
                 <EditReportForm
                     close={close}
@@ -260,5 +287,44 @@ export const RepeatableReportNeedsASchedule: Story = {
         await notice("Please configure a cron schedule before saving")
         expect(graphql.calls).toEqual([])
         expect(args.close).not.toHaveBeenCalled()
+    },
+}
+
+export const SignedParticipationRequiresAPost: Story = {
+    args: {needsSignatures: true},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await chooseReportType(canvasElement, "Participation Report")
+        await expect(
+            await canvas.findByText(
+                "Select a Post to generate this report when signatures are required."
+            )
+        ).toBeVisible()
+        await expect(canvas.getByRole("combobox", {name: /Election/})).toBeRequired()
+        await save(canvasElement)
+        expect(canvas.getByRole("combobox", {name: /Election/})).toBeInvalid()
+        expect(graphql.calls.some(({name}) => name === "InsertReport")).toBe(false)
+        await userEvent.type(canvas.getByRole("combobox", {name: /Election/}), "Cou")
+        await userEvent.click(await within(document.body).findByRole("option", {name: "Council"}))
+        await save(canvasElement)
+        await notice("Report created successfully")
+        expect(graphql.calls.find(({name}) => name === "InsertReport")?.variables.object).toEqual(
+            expect.objectContaining({election_id: ELECTIONS[0].id})
+        )
+    },
+}
+
+export const UnsignedParticipationCanCoverTheEvent: Story = {
+    args: {needsSignatures: false},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await chooseReportType(canvasElement, "Participation Report")
+        expect(canvas.getByRole("combobox", {name: /Election/})).not.toBeRequired()
+        await save(canvasElement)
+        await notice("Report created successfully")
+        const insertion = graphql.calls.find(({name}) => name === "InsertReport")
+        expect(insertion?.variables.object).not.toEqual(
+            expect.objectContaining({election_id: expect.any(String)})
+        )
     },
 }
