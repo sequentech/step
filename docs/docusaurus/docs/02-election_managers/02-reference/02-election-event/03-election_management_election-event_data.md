@@ -127,8 +127,10 @@ Configure advanced system behaviors for this Election Event.
     the imported voters csv holding a whole number between 1 and 4294967295
     (2^32 − 1). A voter with no column, or with a blank cell, votes with a
     weight of 1. A row whose weight is not a whole number, such as `25.50`, or
-    is above the maximum, rejects the import with an error naming the row, so a
-    weight is never refused once voting has opened. Decimal weights are not
+    is above the maximum, rejects the import with an error naming the row, so
+    the limit is checked before voting opens. The one exception is a tally
+    session created before this release, which can only count weights below
+    131072; see the note on such sessions below. Decimal weights are not
     supported: scale them to whole numbers first, for example ×100. Near spellings that
     differ only in case or in `_` and `.` — `vote_weight`, `voteWeight`,
     `vote.weight` — are rejected rather than imported, because they would be
