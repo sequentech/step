@@ -19,6 +19,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 pub mod coverage;
 mod election;
+pub mod selection;
 
 #[cfg(test)]
 mod tests;

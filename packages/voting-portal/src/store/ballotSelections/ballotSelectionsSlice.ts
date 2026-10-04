@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import {createSlice, PayloadAction} from "@reduxjs/toolkit"
+import {createSlice, current, PayloadAction} from "@reduxjs/toolkit"
 import {RootState} from "../store"
 import {
     isUndefined,
@@ -279,7 +279,7 @@ export const ballotSelectionsSlice = createSlice({
             try {
                 state[action.payload.ballotStyle.election_id] = computeSlateChoices(
                     action.payload.slate,
-                    currentElection
+                    current(currentElection)
                 ).selection
             } catch (error) {
                 console.log(`Error applying slate: ${error}`)

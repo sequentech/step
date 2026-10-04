@@ -10,8 +10,9 @@ use crate::ballot_codec::bigint::BigUIntCodec;
 use crate::ballot_codec::multi_ballot::*;
 use crate::ballot_codec::raw_ballot::RawBallotCodec;
 use crate::election_config::slates::coverage::slates_coverage;
+use crate::election_config::slates::selection::apply_slate;
 use crate::election_config::slates::{
-    ballot_style_slates, canonicalize, check_annotation,
+    ballot_style_slates, canonicalize, check_annotation, Slate,
 };
 use crate::encrypt;
 use crate::encrypt::*;
@@ -1386,6 +1387,45 @@ pub fn get_ballot_style_slates_coverage_js(
             .serialize(&serializer)
             .map_err(|err| {
                 format!("Error serializing slates coverage: {:?}", err)
+            })
+            .into_json(),
+        Err(problems) => {
+            Err(problems.serialize(&serializer).map_err(|err| {
+                JsValue::from_str(&format!(
+                    "Error serializing slate problems: {:?}",
+                    err
+                ))
+            })?)
+        }
+    }
+}
+
+#[wasm_bindgen]
+/// Returns the selection that choosing a slate produces from the current one,
+/// and what it changes. Throws the list of problems of a slate that cannot be
+/// applied.
+pub fn apply_slate_js(
+    slate_json: JsValue,
+    contests_json: JsValue,
+    current_json: JsValue,
+) -> Result<JsValue, JsValue> {
+    let slate: Slate = serde_wasm_bindgen::from_value(slate_json)
+        .map_err(|err| format!("Error parsing slate: {}", err))
+        .into_json()?;
+    let contests: Vec<Contest> = serde_wasm_bindgen::from_value(contests_json)
+        .map_err(|err| format!("Error parsing contests: {}", err))
+        .into_json()?;
+    let current: Vec<DecodedVoteContest> =
+        serde_wasm_bindgen::from_value(current_json)
+            .map_err(|err| format!("Error parsing ballot selection: {}", err))
+            .into_json()?;
+    let serializer = Serializer::json_compatible();
+
+    match apply_slate(&slate, &contests, &current) {
+        Ok(choices) => choices
+            .serialize(&serializer)
+            .map_err(|err| {
+                format!("Error serializing slate choices: {:?}", err)
             })
             .into_json(),
         Err(problems) => {

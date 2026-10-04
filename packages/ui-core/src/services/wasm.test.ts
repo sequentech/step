@@ -55,6 +55,7 @@ jest.mock("sequent-core", () => {
         "get_voting_screen_back_policy_values_js",
         "get_ballot_style_slates_js",
         "get_ballot_style_slates_coverage_js",
+        "apply_slate_js",
         "set_hooks",
     ]
     return {
@@ -77,6 +78,7 @@ const decoded = decodedContest({choices: [{id: "candidate-1", selected: 0}]})
 const multiBallot = {...auditableBallot, contests: "synthetic-multi-contest"}
 const option = candidate("candidate-1")
 const question = contest({candidates: [option]})
+const slate = {id: "slate-1", name: {en: "Slate"}, members: {[question.id]: [option.id]}}
 const election = {
     id: "election-1",
     tenant_id: "tenant-1",
@@ -374,6 +376,13 @@ const cases: AdapterCase[] = [
                 seats: 4,
             },
         ],
+    },
+    {
+        name: "slate choices",
+        run: () => adapter.applySlate(slate, [question], [decoded]),
+        backend: backend.apply_slate_js,
+        args: [slate, [question], [decoded]],
+        result: {selection: [decoded], changes: []},
     },
 ]
 
