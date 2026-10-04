@@ -1299,7 +1299,7 @@ export const EditElectionEventDataForm: React.FC<{
                                         source={"presentation.number_format_policy"}
                                         disabled={!canEdit}
                                         choices={getNumberFormatPolicyChoices(
-                                            record?.presentation,
+                                            parsedValue?.presentation,
                                             t
                                         )}
                                         label={String(
