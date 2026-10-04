@@ -158,13 +158,15 @@ Configure advanced system behaviors for this Election Event.
     overflow, and a tally that would exceed them fails rather than publishing a
     wrapped number.
 
-    Turnout figures under this policy count voting power rather than voters: the
-    eligible-voter census and the cast-ballot total are sums of weights, so they
-    will not match a headcount shown elsewhere. Ballots with no matching voter
-    are the exception — they have no voter and so no weight, and are counted one
-    each, which mixes units into the cast-ballot total and into the auditable
-    ballot percentage. The Total voters and Non-voters figures on the Tally
-    screen are voting power under headcount labels.
+    Turnout figures under this policy mix units. The eligible-voter census and
+    the count of voters who cast a ballot are headcounts, and so are the Total
+    voters and Non-voters figures on the Tally screen. A contest's vote figures
+    are voting power: its total, valid, blank and invalid votes, the candidate
+    totals, and participation by channel. A contest's turnout, its votes as a
+    percentage of the census, therefore compares voting power with a headcount,
+    and is capped at 100%. Ballots with no matching voter have no weight, and
+    are counted one each among the auditable ballots and in participation by
+    channel.
 
     If any area still carries a Weight from a previous Weighted Voting for Areas
     configuration, the tally is refused until it is cleared, because the two
