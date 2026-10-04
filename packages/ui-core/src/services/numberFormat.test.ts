@@ -73,4 +73,11 @@ describe("number format policy", () => {
         expect(formatPercentage(45.678, ENumberFormatPolicy.PERIOD_COMMA)).toBe("45,68%")
         expect(formatPercentage(100, ENumberFormatPolicy.COMMA_PERIOD, 1)).toBe("100.0%")
     })
+
+    it("adds no percent sign to a percentage that is not a number", () => {
+        expect(formatPercentage(null)).toBe("")
+        expect(formatPercentage(undefined)).toBe("")
+        expect(formatPercentage("-")).toBe("-")
+        expect(formatPercentage(Number.NaN)).toBe("NaN")
+    })
 })
