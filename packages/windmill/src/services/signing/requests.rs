@@ -729,6 +729,9 @@ pub async fn get_panel(
         .panel_document(hasura_transaction, &request)
         .await?;
     let key_share = key_share_labels(hasura_transaction, &request).await?;
+    let time_zone = event_time_zone(hasura_transaction, tenant_id, request.election_event_id)
+        .await?
+        .map(|zone| zone.name().to_owned());
     // Last: a failed read would abort the transaction for any read after it.
     let number_format_policy =
         event_number_format_policy(hasura_transaction, tenant_id, request.election_event_id).await;
@@ -745,9 +748,7 @@ pub async fn get_panel(
         details: subject_details(&request.subject),
         election_name,
         area_name,
-        time_zone: event_time_zone(hasura_transaction, tenant_id, request.election_event_id)
-            .await?
-            .map(|zone| zone.name().to_owned()),
+        time_zone,
         number_format_policy,
         key_share,
     })
