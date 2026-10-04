@@ -94,7 +94,7 @@ export const MissingParticipation: Story = {
         const canvas = within(canvasElement)
         await expect(canvas.getByText("No items")).toBeVisible()
         const row = canvas.getByRole("row", {name: /Avery Chen/})
-        await expect(row).toHaveTextContent("3280")
+        await expect(row).toHaveTextContent("3,280")
         await expect(row).toHaveTextContent("38.95%")
     },
 }
