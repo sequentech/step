@@ -737,6 +737,20 @@ const spanishTranslation: TranslationType = {
                         text: "Ventana de votación incompleta — el periodo habrá que abrirlo o cerrarlo a mano en el Portal de Administración.",
                     },
                 },
+                signing: {
+                    "duplicate-action": {
+                        lead: "Dos reglas para una acción",
+                        text: "Dos reglas para una acción — '{{action}}' tiene más de una regla de firma. Deja solo una.",
+                    },
+                    "signatures-out-of-range": {
+                        lead: "Firmas fuera de rango",
+                        text: "Firmas fuera de rango — la regla de '{{action}}' debe pedir entre {{min}} y {{max}} firmas.",
+                    },
+                    "expiry-out-of-range": {
+                        lead: "Caducidad fuera de rango",
+                        text: "Caducidad fuera de rango — una solicitud de '{{action}}' debe caducar tras 1 a 525.600 minutos (un año), o nunca.",
+                    },
+                },
                 threshold: {
                     "above-trustees": {
                         lead: "Umbral demasiado alto",

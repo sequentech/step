@@ -341,6 +341,9 @@ const dutchTranslation: TranslationType = {
                 helpLinks: "Help Links",
                 logoUrl: "Logo URL",
                 css: "Aangepaste CSS",
+                displayName: "Weergavenaam",
+                displayNameHelp:
+                    "De naam van de organisatie in berichten die haar noemen. Leeg: de korte naam van de tenant.",
             },
             errors: {
                 invalidHelpLinks: "Ongeldig formaat voor Help Links",
@@ -1333,6 +1336,28 @@ const dutchTranslation: TranslationType = {
                 "admin-dashboard-view": "Beheerdersdashboard Bekijken",
                 "monitoring-view": "Monitoringdashboards Bekijken",
                 "monitoring-configure": "Monitoringdashboards Configureren",
+                "election-event-signatures-tab": "Tabblad Handtekeningen Verkiezingsevenement",
+                "signing-rules-read": "Handtekeningen: beschermde acties bekijken",
+                "signing-rules-write": "Handtekeningen: beschermde acties bewerken",
+                "signing-certificates-read": "Handtekeningen: certificaten bekijken",
+                "signing-issuers-write":
+                    "Handtekeningen: vertrouwde uitgevers importeren en verwijderen",
+                "signing-checks-write": "Handtekeningen: certificaatcontroles bewerken",
+                "signing-certificates-register": "Handtekeningen: certificaten registreren",
+                "signing-certificates-revoke": "Handtekeningen: certificaten intrekken",
+                "signing-requests-read": "Handtekeningen: verzoeken bekijken",
+                "signing-requests-cancel": "Handtekeningen: verzoeken annuleren",
+                "signing-requests-export": "Handtekeningen: verzoeken exporteren",
+                "sign-initialize-voting": "Ondertekenen: stemming initialiseren",
+                "sign-open-voting": "Ondertekenen: stemming openen",
+                "sign-close-voting": "Ondertekenen: stemming sluiten",
+                "sign-generate-election-returns": "Ondertekenen: processen-verbaal genereren",
+                "sign-generate-reports": "Ondertekenen: andere verkiezingsrapporten genereren",
+                "sign-transmit-results": "Ondertekenen: resultaten verzenden",
+                "sign-approve-voter": "Ondertekenen: een kiezer handmatig goedkeuren",
+                "sign-approve-configuration": "Ondertekenen: een configuratieversie goedkeuren",
+                "sign-key-ceremony": "Ondertekenen: een sleutelfragment bevestigen",
+                "sign-tally-key": "Ondertekenen: een sleutelfragment bijdragen",
                 "application-export": "Applicatie Exporteren",
                 "application-import": "Applicatie Importeren",
                 "tenant-create": "Tenant Aanmaken",
@@ -2182,6 +2207,9 @@ const dutchTranslation: TranslationType = {
                             confirm: "Transmissiepakket Verzenden",
                             cancel: "Sluiten",
                         },
+
+                        disabled:
+                            "De vereiste handtekeningen ontbreken, of het transmissiepakket is al naar alle bestemmingen verzonden.",
                     },
                     regenerate: {
                         title: "Regenereren",
@@ -2231,12 +2259,12 @@ const dutchTranslation: TranslationType = {
                     },
                 },
                 signatures: {
-                    title: "SBEI Handtekeningen",
+                    title: "Handtekeningen",
                     description:
-                        "SBEI's kunnen het Transmissiepakket ondertekenen. De onderstaande tabel toont de ondertekeningsstatus van elk van de SBEI-leden.",
+                        "Leden kunnen het transmissiepakket ondertekenen. De tabel toont de ondertekeningsstatus van elk lid.",
                     status: "{{signed}} van {{total}} Ondertekend, {{minimum}} minimum",
                     table: {
-                        trusteeName: "SBEI id",
+                        trusteeName: "Lid",
                         signed: "Heeft Ondertekend",
                     },
                 },
@@ -3449,6 +3477,662 @@ const dutchTranslation: TranslationType = {
             confirmDelete: "Certificaatautoriteit verwijderen",
             confirmDeleteDescription:
                 'Weet u zeker dat u het certificaat "{{name}}" (vingerafdruk: {{fingerprint}}) wilt verwijderen?',
+        },
+        signing: {
+            terms: {
+                post: "Post",
+                posts: "Posts",
+            },
+            tab: {
+                title: "Handtekeningen",
+                intro: "Beschermde acties worden pas uitgevoerd nadat genoeg bevoegde personen ze met hun digitale certificaat hebben ondertekend. Elke handtekening wordt gecontroleerd tegen de vertrouwde uitgevers en vastgelegd in het logboek.",
+                protectedActions: "Beschermde acties",
+                certificates: "Certificaten",
+                requests: "Verzoeken",
+            },
+            loadError:
+                "De ondertekeningsinstellingen konden niet worden geladen. Laad de pagina opnieuw om het nogmaals te proberen.",
+            errors: {
+                automatedCeremonies:
+                    "Dit evenement gebruikt automatische sleutelceremonies. Beheerders voeren deze stappen niet uit, dus hun handtekeningen kunnen niet worden vereist. Gebruik handmatige sleutelceremonies om hun handtekeningen te vereisen.",
+                forbidden: "U hebt geen toestemming voor deze wijziging.",
+                invalid:
+                    "De server heeft deze waarden geweigerd. Controleer ze en probeer het opnieuw.",
+                conflict:
+                    "Iemand anders heeft dit intussen gewijzigd. Laad de pagina opnieuw en probeer het nogmaals.",
+                lockedDown:
+                    "Het verkiezingsevenement is vergrendeld: ondertekeningsregels veranderen alleen via een nieuwe configuratieversie.",
+                notFound: "Het bestaat niet meer. Laad de pagina opnieuw.",
+            },
+            readOnly: {
+                chip: "Alleen lezen",
+                rules: "Alleen lezen. Voor het wijzigen van ondertekeningsregels is de machtiging “Handtekeningen: beschermde acties bewerken” nodig.",
+                whoCanSign:
+                    "Rollen met de machtiging “Ondertekenen: {{action}}” in Gebruikers en Rollen. Voor het wijzigen ervan is de machtiging om rollen te bewerken nodig.",
+            },
+            groups: {
+                "voting": "Stemmen",
+                "results-and-reports": "Resultaten en rapporten",
+                "enrollment": "Inschrijving",
+                "configuration-and-keys": "Configuratie en sleutels",
+            },
+            actions: {
+                "initialize-voting": {
+                    label: "Stemming initialiseren",
+                    short: "Initialisatie",
+                    permissionName: "stemming initialiseren",
+                    object: "initialisatie van de stemming",
+                    appliesTo: "Elke $t(signing.terms.post)",
+                    description:
+                        "Gestart in Publiceren. Initialiseert de $t(signing.terms.post) en genereert het Initialisatierapport.",
+                },
+                "open-voting": {
+                    label: "Stemming openen",
+                    short: "Opening",
+                    permissionName: "stemming openen",
+                    object: "opening van de stemming",
+                    appliesTo: "Elke $t(signing.terms.post)",
+                    description:
+                        "Gestart in Publiceren met Stemperiode Starten. Opent de stemming op de $t(signing.terms.post).",
+                },
+                "close-voting": {
+                    label: "Stemming sluiten",
+                    short: "Sluiting",
+                    permissionName: "stemming sluiten",
+                    object: "sluiting van de stemming",
+                    appliesTo: "Elke $t(signing.terms.post)",
+                    description:
+                        "Gestart in Publiceren met Stemperiode Stoppen. Sluit de stemming op de $t(signing.terms.post); de sluitingshandtekeningen worden in het record ervan bewaard.",
+                },
+                "generate-election-returns": {
+                    label: "Processen-verbaal genereren",
+                    short: "Processen-verbaal",
+                    permissionName: "processen-verbaal genereren",
+                    object: "processen-verbaal",
+                    appliesTo: "Elke $t(signing.terms.post) en elk land",
+                    description:
+                        "Gestart door de telling, één verzoek per $t(signing.terms.post) en land. Geeft de ondertekende processen-verbaal vrij om te printen en te verzenden.",
+                },
+                "generate-reports": {
+                    label: "Andere verkiezingsrapporten genereren",
+                    short: "Rapport",
+                    permissionName: "andere verkiezingsrapporten genereren",
+                    object: "rapport",
+                    appliesTo: "Elke $t(signing.terms.post)",
+                    description:
+                        "Gestart door de telling voor het Initialisatierapport en in Rapporten voor het deelnamerapport. Geeft het ondertekende rapport vrij.",
+                },
+                "transmit-results": {
+                    label: "Resultaten verzenden",
+                    short: "Verzending",
+                    permissionName: "resultaten verzenden",
+                    object: "resultatenpakket",
+                    appliesTo: "Elke $t(signing.terms.post) en elk land",
+                    description:
+                        "Gestart in Telling, Verzending. Stelt het ondertekende resultatenpakket samen voor de bestemmingen; de handtekeningen vullen de handtekeningenlijst.",
+                },
+                "approve-voter": {
+                    label: "Een kiezer handmatig goedkeuren",
+                    short: "Goedkeuring kiezer",
+                    permissionName: "een kiezer handmatig goedkeuren",
+                    object: "goedkeuring van de kiezer",
+                    appliesTo: "De $t(signing.terms.post) van de kiezer",
+                    description:
+                        "Gestart in Goedkeuringen. Keurt de kiezer goed en geeft de inloggegevens uit.",
+                },
+                "approve-configuration": {
+                    label: "Een configuratieversie goedkeuren",
+                    short: "Configuratieversie",
+                    permissionName: "een configuratieversie goedkeuren",
+                    object: "configuratieversie",
+                    appliesTo: "Het verkiezingsevenement",
+                    description: "Gestart in Publiceren. Publiceert de configuratieversie.",
+                },
+                "key-ceremony": {
+                    label: "Een sleutelfragment bevestigen (sleutelceremonie)",
+                    short: "Sleutelfragment",
+                    permissionName: "een sleutelfragment bevestigen",
+                    object: "sleutelfragment",
+                    appliesTo: "Elke trustee",
+                    description:
+                        "Door elke trustee gestart in Sleutels. Legt de handtekening van de trustee vast bij de ceremonie en op het bulletinboard.",
+                },
+                "tally-key": {
+                    label: "Een sleutelfragment bijdragen (telling)",
+                    short: "Bijdrage sleutelfragment",
+                    permissionName: "een sleutelfragment bijdragen",
+                    object: "bijdrage van het sleutelfragment",
+                    appliesTo: "Elke trustee",
+                    description:
+                        "Door elke trustee gestart in Telling. Legt de bijdrage van de trustee vast.",
+                },
+            },
+            protectedActions: {
+                intro: "Elke handtekening wordt gezet met het digitale certificaat op het beveiligingstoken van de ondertekenaar.",
+                columns: {
+                    action: "Actie",
+                    appliesTo: "Geldt voor",
+                    whoCanSign: "Wie kan ondertekenen",
+                    signaturesNeeded: "Benodigde handtekeningen",
+                    requestExpires: "Verzoek verloopt",
+                    waiting: "Wachtend",
+                },
+                off: "Uit",
+                eachTrustee: "Elke trustee",
+                footerVersion:
+                    "Ondertekeningsregels maken deel uit van configuratieversie {{version}} van dit evenement.",
+                footerFirstVersion:
+                    "De ondertekeningsregels worden deel van de eerste configuratieversie van dit evenement wanneer die wordt gepubliceerd.",
+                footerChanged: "Laatst gewijzigd op {{date}}.",
+                footerChangedBy: "Laatst gewijzigd op {{date}} door {{name}}.",
+                lockedDown:
+                    "Het verkiezingsevenement is vergrendeld: de ondertekeningsregels horen bij de configuratieversie en veranderen dus alleen via een nieuwe configuratieversie.",
+                edit: "{{action}} bewerken",
+                view: "{{action}} bekijken",
+                waitingCount_one: "{{count}} verzoek wacht",
+                waitingCount_other: "{{count}} verzoeken wachten",
+                capacityError:
+                    "Wie kan ondertekenen kon niet worden geladen, dus het aantal handtekeningen kan niet worden gecontroleerd tegen de $t(signing.terms.posts).",
+            },
+            expiry: {
+                "30": "30 minuten",
+                "60": "1 uur",
+                "120": "2 uur",
+                "1440": "24 uur",
+                "none": "Geen limiet",
+                "other": "{{count}} minuten",
+            },
+            rule: {
+                needsSignatures: "Vereist handtekeningen",
+                whoCanSign: "Wie kan ondertekenen",
+                whoCanSignHelp:
+                    "Deze rollen krijgen de machtiging “Ondertekenen: {{action}}” in Gebruikers en Rollen, voor elk verkiezingsevenement. Ondertekenaars moeten ook toegang hebben tot de $t(signing.terms.post).",
+                signaturesNeeded: "Benodigde handtekeningen",
+                signaturesNeededHelp:
+                    "Elke ondertekenaar gebruikt zijn digitale certificaat. Elke $t(signing.terms.post) heeft minstens {{n}} personen die kunnen ondertekenen.",
+                signaturesNeededShortHelp: "Elke ondertekenaar gebruikt zijn digitale certificaat.",
+                requesterSigning: "De persoon die het start, mag ook ondertekenen",
+                expiresAfter: "Een verzoek verloopt na",
+                trusteesSign: "Trustees ondertekenen deze stap",
+                trusteesHelp:
+                    "Elke trustee ondertekent zijn eigen stap met zijn digitale certificaat. De sleutelceremonie bepaalt hoeveel trustees deelnemen.",
+                footer: "Wijzigingen worden vastgelegd in het logboek van het verkiezingsevenement en worden onderdeel van de volgende configuratieversie.",
+                cancel: "Annuleren",
+                save: "Opslaan",
+                saved: "De ondertekeningsregel is opgeslagen.",
+                savedShort_one:
+                    "De ondertekeningsregel is opgeslagen. {{posts}} kan het aantal nog niet halen: voeg daar een ondertekenaar toe.",
+                savedShort_other:
+                    "De ondertekeningsregel is opgeslagen. {{posts}} kunnen het aantal nog niet halen: voeg daar ondertekenaars toe.",
+                checkedOnSave:
+                    "Het aantal wordt bij het opslaan gecontroleerd tegen de nieuwe rollen.",
+                savedRequesterShort:
+                    "De ondertekeningsregel is opgeslagen. Sommige $t(signing.terms.posts) kunnen het aantal niet halen zonder de persoon die een verzoek start.",
+                saveError:
+                    "De ondertekeningsregel kon niet worden opgeslagen. Mogelijk heeft iemand hem intussen gewijzigd; laad opnieuw en probeer het nogmaals.",
+            },
+            validation: {
+                atLeastOne: "Minstens 1.",
+                tooMany:
+                    "Geen enkele $t(signing.terms.post) heeft {{n}} personen die kunnen ondertekenen. Het maximum is {{max}}.",
+                tooManyEvent:
+                    "Slechts {{max}} personen kunnen dit ondertekenen. Kies maximaal {{max}}.",
+                atMost: "Maximaal {{max}}.",
+                shortPosts_one:
+                    "{{posts}} heeft slechts {{n}} personen die kunnen ondertekenen en kan dus geen {{required}} handtekeningen halen. Voeg daar een ondertekenaar toe of verlaag het aantal.",
+                requesterShort_one:
+                    "Zonder de persoon die het start, heeft {{posts}} slechts {{n}} personen die kunnen ondertekenen en kan dus geen {{required}} handtekeningen halen.",
+                requesterShort_other:
+                    "Zonder de persoon die het start, hebben {{posts}} slechts {{n}} personen die kunnen ondertekenen en kunnen dus geen {{required}} handtekeningen halen.",
+                shortPosts_other:
+                    "{{posts}} hebben slechts {{n}} personen die kunnen ondertekenen en kunnen dus geen {{required}} handtekeningen halen. Voeg daar een ondertekenaar toe of verlaag het aantal.",
+            },
+            pendingRequests_one:
+                "{{count}} verzoek wacht op handtekeningen onder de huidige regel. Opslaan annuleert het; de persoon die het startte, begint opnieuw.",
+            pendingRequests_other:
+                "{{count}} verzoeken wachten op handtekeningen onder de huidige regel. Opslaan annuleert ze; de personen die ze startten, beginnen opnieuw.",
+            certificates: {
+                issuersIntro:
+                    "Certificaten van medewerkers moeten naar een van deze uitgevers leiden. Ze staan los van de certificaten waarmee kiezers inloggen.",
+                checkRevocation: "Intrekkingslijsten controleren",
+                crlUnavailable: {
+                    "label": "Als een lijst niet kan worden gedownload",
+                    "refuse": "Geen handtekeningen accepteren",
+                    "accept-unchecked":
+                        "Accepteren en de handtekening als ongecontroleerd markeren",
+                },
+                registration: {
+                    "label": "Een certificaat aan een persoon registreren",
+                    "on-first-use": "Wanneer de houder er voor het eerst mee ondertekent",
+                    "security-officer-only":
+                        "Alleen wanneer iemand die certificaten mag registreren het registreert",
+                },
+                onePost: "Een certificaat ondertekent voor slechts één $t(signing.terms.post)",
+                issuers: "Vertrouwde uitgevers",
+                import: "Uitgeverscertificaten importeren",
+                importHelp:
+                    "Kies een PEM- of CER-bestand met het certificaat van de uitgever. Een PEM-bestand kan meerdere certificaten bevatten.",
+                chooseFile: "Kies een certificaatbestand",
+                fileError: "Het bestand kon niet worden gelezen.",
+                imported:
+                    "{{imported}} uitgeverscertificaten geïmporteerd; {{skipped}} waren al vertrouwd.",
+                importedWithErrors:
+                    "{{imported}} uitgeverscertificaten geïmporteerd, {{skipped}} al vertrouwd. Geweigerd: {{errors}}",
+                importError: "De uitgeverscertificaten konden niet worden geïmporteerd.",
+                deleteIssuer: "{{name}} verwijderen",
+                deleteIssuerConfirm:
+                    "{{name}} uit de vertrouwde uitgevers verwijderen? Certificaten die deze heeft uitgegeven, kunnen dan niet meer ondertekenen.",
+                deleteError: "De uitgever kon niet worden verwijderd.",
+                noIssuers:
+                    "Nog geen vertrouwde uitgevers. Medewerkers kunnen pas ondertekenen als er een is geïmporteerd.",
+                root: "Root",
+                intermediate: "Tussenliggend",
+                columns: {
+                    issuer: "Uitgever",
+                    type: "Type",
+                    issuedBy: "Uitgegeven door",
+                    validUntil: "Geldig tot",
+                    sha256: "SHA-256",
+                    person: "Persoon",
+                    post: "$t(signing.terms.post)",
+                    certificate: "Certificaat",
+                    registered: "Geregistreerd",
+                    status: "Status",
+                },
+                checks: "Controles",
+                checksSaved: "De certificaatcontroles zijn opgeslagen.",
+                checksError: "De certificaatcontroles konden niet worden opgeslagen.",
+                crlSchedule: "Elk uur bij elke uitgever gedownload.",
+                crlUpdated: "{{url}}: bijgewerkt {{time}}",
+                crlFailed: "{{url}}: kon niet worden gedownload (laatste poging {{time}})",
+                registeredTitle: "Geregistreerde certificaten",
+                search: "Zoek personen, certificaten of $t(signing.terms.posts)",
+                status: "Status",
+                statusAll: "Alle",
+                statuses: {
+                    "active": "Actief",
+                    "expires-soon": "Verloopt binnenkort",
+                    "expired": "Verlopen",
+                    "revoked": "Ingetrokken",
+                },
+                revokedOn: "Ingetrokken op {{date}}",
+                allPosts: "Alle",
+                noCertificates: "Geen geregistreerde certificaten.",
+                registeredHow: {
+                    "first-use": "Bij de eerste handtekening",
+                    "security-officer": "Geregistreerd door een beheerder",
+                },
+                register: "Een certificaat registreren",
+                registerSubmit: "Registreren",
+                registerDone: "Het certificaat is geregistreerd.",
+                registerError: "Het certificaat kon niet worden geregistreerd.",
+                person: "Persoon",
+                personSearchHelp: "Typ een deel van een gebruikersnaam om de persoon te vinden.",
+                registeredBy: "Door {{name}}",
+                registerRefused:
+                    "Dit certificaat kan niet worden geregistreerd: controleer of een vertrouwde uitgever het heeft uitgegeven, of het vandaag geldig is en of het bedoeld is voor ondertekening.",
+                registeredToOther:
+                    "Dit certificaat is geregistreerd op naam van {{name}}. Als dit account ook van {{name}} is, koppel het dan als diens tweede account.",
+                linkAccount: "Koppelen als tweede account van dezelfde persoon",
+                alreadyRegistered: "Dit certificaat is al geregistreerd op naam van deze persoon.",
+                pem: "Certificaat (PEM)",
+                revoke: "Intrekken",
+                revokeOf: "Het certificaat van {{name}} intrekken",
+                revokeTitle: "Het certificaat van {{name}} intrekken",
+                revokeHelp:
+                    "Een ingetrokken certificaat kan niet meer ondertekenen. Handtekeningen die het al heeft gezet, blijven geldig.",
+                revokeReason: "Reden",
+                revokeDone: "Het certificaat is ingetrokken.",
+                revokeError: "Het certificaat kon niet worden ingetrokken.",
+            },
+            requests: {
+                exportCsv: "CSV exporteren",
+                exportError: "De verzoeken konden niet worden geëxporteerd.",
+                exportFileName: "signing-requests.csv",
+                status: "Status",
+                statusAll: "Alle",
+                statusCount: "{{status}} · {{count}} van {{total}}",
+                expires: "Verloopt {{time}}",
+                lastSignatureBy: "{{name}}, {{time}}",
+                empty: "Nog geen ondertekeningsverzoeken.",
+                columns: {
+                    request: "Verzoek",
+                    status: "Status",
+                    started: "Gestart",
+                    by: "Door",
+                    lastSignature: "Laatste handtekening",
+                    code: "Code",
+                },
+            },
+            reports: {
+                postRequired:
+                    "Selecteer een post om dit rapport te genereren wanneer handtekeningen vereist zijn.",
+                generateNotice:
+                    "{{post}}: het document wordt nu gegenereerd. Het kan worden afgedrukt en verzonden zodra {{n}} personen het hebben ondertekend.",
+            },
+            status: {
+                waiting: "Wachtend",
+                completed: "Ondertekend",
+                executed: "Uitgevoerd",
+                cancelled: "Geannuleerd",
+                expired: "Verlopen",
+                failed: "Mislukt",
+            },
+            cancelReasons: {
+                "by-requester": "De persoon die het startte, heeft het geannuleerd",
+                "by-operator": "Een operator heeft het geannuleerd",
+                "rule-changed": "De ondertekeningsregel van de actie is gewijzigd",
+                "payload-changed": "Wat het ondertekent, is gewijzigd",
+                "superseded": "Een nieuwer verzoek heeft het vervangen",
+                "certificate-revoked": "Een certificaat waarmee het is ondertekend, is ingetrokken",
+            },
+            panel: {
+                rulePost:
+                    "Vereist {{n}} handtekeningen van de ondertekenaars van {{post}}, elk met hun digitale certificaat.",
+                ruleEvent:
+                    "Vereist {{n}} handtekeningen, elk met het digitale certificaat van de ondertekenaar.",
+                signingCode: "Ondertekeningscode",
+                signers: "Ondertekenaars",
+                sign: "Ondertekenen",
+                handover: "Volgend lid logt in",
+                cancel: "Verzoek annuleren",
+                signedAt: "Ondertekend {{time}}",
+                notSigned: "Niet ondertekend",
+                certificate: "Certificaat {{name}}",
+                you: "(u)",
+                expiresAt: "Verloopt om {{time}}",
+                progress: "{{count}} van {{total}}",
+                openDocument: "Het document openen",
+                configurationVersion: "Configuratieversie {{version}}",
+                configurationChanges: "Wijzigingen in deze versie",
+            },
+            dialog: {
+                title: "Ondertekenen: {{object}}",
+                steps: {
+                    check: "Controleren",
+                    certificate: "Certificaat",
+                    signed: "Ondertekend",
+                },
+                localNote:
+                    "Het ondertekenen gebeurt in deze browser. Uw certificaatbestand, de privésleutel en het wachtwoord worden nooit verzonden. Alleen uw handtekening en uw openbare certificaat gaan naar de server.",
+                check: {
+                    signingAs: "U ondertekent als {{name}}",
+                    titlePost: "{{title}}, {{post}}",
+                    sameCode: "Iedereen die ondertekent, ziet dezelfde code.",
+                    confirmDocument: "Ik heb gecontroleerd wat ik onderteken: {{object}}",
+                },
+                certificate: {
+                    intro: "Plaats uw beveiligingstoken en kies uw certificaatbestand.",
+                    password: "Certificaatwachtwoord",
+                    open: "Certificaat openen",
+                    chooseAnother: "Een ander bestand kiezen",
+                },
+                checks: {
+                    "passed": {
+                        "trusted-issuer": "Uitgegeven door een vertrouwde uitgever ({{root}})",
+                        "valid-now": "Vandaag geldig",
+                        "signing-key-usage": "Bedoeld voor ondertekening",
+                        "not-revoked": "Niet ingetrokken (lijsten bijgewerkt {{time}})",
+                        "registered": "Op {{date}} op uw naam geregistreerd",
+                        "registered-to-other": "Niet op naam van iemand anders geregistreerd",
+                        "already-signed": "Nog niet gebruikt voor dit verzoek",
+                        "post-binding": "Geregistreerd voor deze $t(signing.terms.post)",
+                        "signature": "De handtekening dekt dit verzoek",
+                    },
+                    "failed": {
+                        "trusted-issuer": "Niet uitgegeven door een vertrouwde uitgever",
+                        "valid-now": "Vandaag niet geldig",
+                        "signing-key-usage": "Niet bedoeld voor ondertekening",
+                        "not-revoked":
+                            "Ingetrokken, of geen actuele intrekkingslijst om het te controleren",
+                        "registered": "Niet op uw naam geregistreerd",
+                        "registered-to-other": "Geregistreerd op naam van {{name}}",
+                        "already-signed": "Al gebruikt voor dit verzoek",
+                        "post-binding": "Geregistreerd voor een andere $t(signing.terms.post)",
+                        "signature": "De handtekening dekt dit verzoek niet",
+                    },
+                    "first-use": "Eerste gebruik: het wordt op uw naam geregistreerd",
+                },
+                problems: {
+                    wrongPassword: "Onjuist wachtwoord. Controleer het en probeer het opnieuw.",
+                    notForYou:
+                        "Dit certificaat kan niet voor u ondertekenen. Gebruik het certificaat op uw eigen beveiligingstoken.",
+                    issuerNotAccepted:
+                        "Gebruik het certificaat dat {{organization}} voor u heeft geregistreerd. Certificaten van andere uitgevers worden niet geaccepteerd.",
+                    cancelled:
+                        "Dit verzoek is geannuleerd: {{reason}}. Handtekeningen die ervoor zijn gezet, tellen niet meer. Start het opnieuw om de huidige versie te ondertekenen.",
+                },
+                signed: {
+                    title: "Ondertekend",
+                    withCertificate: "met het certificaat van {{name}}",
+                    count: "{{n}} van {{total}} handtekeningen.",
+                    allIn: "Alle {{total}} handtekeningen zijn binnen.",
+                    next: "Volgende ondertekenaars: {{names}}.",
+                },
+                handover:
+                    "U wordt uitgelogd. Het volgende lid logt in op deze computer en keert terug naar dit verzoek om te ondertekenen. Het verzoek blijft open tot {{time}}.",
+                sign: "Ondertekenen",
+                back: "Terug",
+                cancel: "Annuleren",
+            },
+            widget: {
+                continue: "Doorgaan",
+                done: "Klaar",
+                close: "Sluiten",
+                retry: "Opnieuw proberen",
+                loading: "Het verzoek wordt geladen…",
+                loadError: "Het verzoek kon niet worden geladen.",
+                chooseFile: "Certificaatbestand kiezen",
+                fileInput: "Certificaatbestand",
+                fileSize: "{{size}} KB",
+                showPassword: "Wachtwoord tonen",
+                hidePassword: "Wachtwoord verbergen",
+                opening: "Het certificaat wordt geopend…",
+                checking: "Het certificaat wordt gecontroleerd…",
+                signing: "Bezig met ondertekenen…",
+                certificateCard: "Uitgegeven door {{issuer}} · geldig tot {{date}} · {{algorithm}}",
+                fingerprint: "SHA-256 {{fingerprint}}",
+                algorithms: {
+                    "rsa-pkcs1-sha256": "RSA",
+                    "ecdsa-p256-sha256": "EC P-256",
+                },
+                document: "{{type}} · SHA-256 {{hash}}",
+                documentPages: "{{type}} · {{pages}} pagina's · SHA-256 {{hash}}",
+                checksTitle: "Certificaatcontroles",
+                untrustedIssuer:
+                    "{{issuer}} is geen vertrouwde uitgever voor dit verkiezingsevenement",
+                registeredToSomeoneElse: "Geregistreerd op naam van iemand anders",
+                checkPassedNoDetail: {
+                    "trusted-issuer": "Uitgegeven door een vertrouwde uitgever",
+                    "not-revoked": "Niet ingetrokken",
+                },
+                organization: "uw organisatie",
+                cantSign: "Dit certificaat kan dit verzoek niet ondertekenen.",
+                checkError: "Het certificaat kon niet worden gecontroleerd. Probeer het opnieuw.",
+                fileErrors: {
+                    UNREADABLE_FILE:
+                        "Dit bestand is geen certificaatbestand (.p12 of .pfx), of het is beschadigd.",
+                    UNSUPPORTED_ENCRYPTION:
+                        "Deze browser kan de versleuteling van dit bestand niet openen.",
+                    NO_PRIVATE_KEY:
+                        "Dit bestand bevat geen privésleutel. Kies het certificaatbestand van uw beveiligingstoken.",
+                    NO_CERTIFICATE: "Dit bestand bevat geen certificaat.",
+                    UNSUPPORTED_KEY:
+                        "Het sleuteltype van dit certificaat wordt niet ondersteund. Gebruik een RSA- of EC P-256-certificaat.",
+                    KEY_CERTIFICATE_MISMATCH:
+                        "Het certificaat in dit bestand komt niet overeen met de sleutel.",
+                },
+                openError: "Het certificaat kon niet worden geopend. Probeer het opnieuw.",
+                signError: "De handtekening kon niet worden verzonden. Probeer het opnieuw.",
+                refused: "De server heeft de handtekening geweigerd.",
+                stale: "Het document is gewijzigd terwijl u ondertekende. Onderteken opnieuw.",
+                mismatch:
+                    "Wat zou worden ondertekend, komt niet overeen met dit verzoek. Sluit het venster en open het verzoek opnieuw.",
+                documentMismatch:
+                    "Het document komt niet overeen met het document dat dit verzoek ondertekent.",
+                documentError: "Het document kon niet worden gedownload. Probeer het opnieuw.",
+                alreadySigned: "U hebt dit verzoek al ondertekend.",
+                closed: {
+                    changed:
+                        "Dit verzoek is gewijzigd nadat u het opende. Sluit dit venster en controleer het opnieuw voordat u ondertekent.",
+                    allSigned: "Dit verzoek heeft al alle handtekeningen.",
+                },
+                chooseCertificate: "Certificaat om mee te ondertekenen",
+                renderError:
+                    "Het ondertekeningsverzoek kon niet worden weergegeven. Sluit het en open het opnieuw.",
+                signedAt: "{{time}}",
+                panel: {
+                    completedAt: "Ondertekend om {{time}}",
+                    expired:
+                        "Dit verzoek is verlopen. Handtekeningen die ervoor zijn gezet, tellen niet meer. Start het opnieuw om te ondertekenen.",
+                    failed: "Alle handtekeningen zijn binnen, maar de actie is mislukt. Het logboek bevat de details.",
+                    details: "Details",
+                    close: "Het verzoekpaneel sluiten",
+                },
+                cancelDialog: {
+                    title: "Dit verzoek annuleren?",
+                    body: "Handtekeningen die ervoor zijn gezet, tellen niet meer. De persoon die het startte, begint opnieuw.",
+                    reason: "Reden (optioneel)",
+                    confirm: "Verzoek annuleren",
+                    back: "Behouden",
+                    error: "Het verzoek kon niet worden geannuleerd. Probeer het opnieuw.",
+                },
+                handoverDialog: {
+                    title: "Volgend lid logt in",
+                    noExpiry:
+                        "U wordt uitgelogd. Het volgende lid logt in op deze computer en keert terug naar dit verzoek om te ondertekenen.",
+                    confirm: "Uitloggen",
+                    back: "Ingelogd blijven",
+                    error: "De overdracht kon niet worden vastgelegd. Probeer het opnieuw.",
+                },
+            },
+            details: {
+                keys_ceremony_id: "Ceremonie",
+                tally_session_id: "Telsessie",
+                trustee_id: "Trustee",
+                key_share_sha256: "SHA-256 van het sleutelfragment",
+                channel: "Kanaal",
+                channels: "Kanalen",
+                publication_id: "Publicatie stembiljet",
+                ballot_publication_id: "Publicatie stembiljet",
+                digest: "SHA-256 van de configuratie",
+                signing_rules: "Ondertekeningsregels",
+                scheduled_events: "Nieuwe geplande gebeurtenissen",
+                ballots_and_contests: "Stembiljetten en verkiezingen",
+                application_id: "Aanvraag",
+                applicant_registry_id: "Registeraccount",
+                decision: "Besluit",
+                submitted_at: "Ingediend",
+                reason: "Waarom een persoon nodig is",
+                registry_record: "Registerrecord",
+                status: "Status van de aanvraag",
+                from: "Vorige status",
+            },
+            closed: {
+                pending: "Alle handtekeningen zijn binnen. De stemming sluit zo meteen.",
+                title: "De stemming is gesloten om {{time}}.",
+                titleSealed: "De stemming is gesloten om {{time}}. Stembiljetten verzegeld.",
+                record: "Verzegelingsrecord",
+                ballots: "Stembiljetten in de verzegeling",
+                sealHash: "{{algorithm}} van de verzegeling",
+                signedBy: "Ondertekend door",
+                signatures: "Sluitingshandtekeningen in het verzegelingsrecord",
+                signaturesValue_one: "{{count}}, ondertekeningscode {{code}}",
+                signaturesValue_other: "{{count}}, ondertekeningscode {{code}}",
+                signers: "Ondertekend door de leden",
+            },
+            values: {
+                ballots_and_contests: {
+                    "first-version": "Eerste versie",
+                    "no-changes": "Geen wijzigingen",
+                    "changed": "Gewijzigd",
+                },
+                signing_rules: {
+                    "initialize-voting": "$t(signing.actions.initialize-voting.label)",
+                    "open-voting": "$t(signing.actions.open-voting.label)",
+                    "close-voting": "$t(signing.actions.close-voting.label)",
+                    "generate-election-returns":
+                        "$t(signing.actions.generate-election-returns.label)",
+                    "generate-reports": "$t(signing.actions.generate-reports.label)",
+                    "transmit-results": "$t(signing.actions.transmit-results.label)",
+                    "approve-voter": "$t(signing.actions.approve-voter.label)",
+                    "approve-configuration": "$t(signing.actions.approve-configuration.label)",
+                    "key-ceremony": "$t(signing.actions.key-ceremony.label)",
+                    "tally-key": "$t(signing.actions.tally-key.label)",
+                },
+                channels: {
+                    ONLINE: "Online",
+                    KIOSK: "Kiosk",
+                    EARLY_VOTING: "Vervroegd stemmen",
+                    TELEPHONE: "Telefoon",
+                },
+                statuses: {
+                    NOT_STARTED: "Niet gestart",
+                    OPEN: "Open",
+                    PAUSED: "Gepauzeerd",
+                    CLOSED: "Gesloten",
+                },
+                channelStatus: "{{channel}}: {{status}}",
+                ruleChange: "{{action}}: {{rule}}",
+                ruleChangeFrom: "{{action}}: {{rule}} (was {{was}})",
+                ruleNeeds: "vereist {{n}}",
+                ruleOff: "uit",
+                decision: {
+                    approve: "Goedkeuren",
+                },
+            },
+            results: {
+                signatures: "Handtekeningen",
+                needs: "Vereist {{n}}",
+                off: "Uit",
+                openRequest: "Het ondertekeningsverzoek openen",
+                downloadSigned: "Ondertekende pdf downloaden",
+                print: "Afdrukken",
+                transmit: "Resultaten verzenden",
+                sendTo: "Verzenden naar {{count}} bestemmingen",
+                awaiting: "{{item}}: wacht op handtekeningen",
+                transmission: {
+                    title: "Handtekeningen",
+                    description:
+                        "Elke ondertekenaar ondertekent de resultaten van het pakket met zijn digitale certificaat, in deze browser. Het pakket kan worden verzonden zodra {{n}} personen het hebben ondertekend.",
+                    waiting:
+                        "Het pakket kan worden verzonden zodra het ondertekeningsverzoek alle handtekeningen heeft.",
+                    signed: "Het pakket bevat alle handtekeningen en kan worden verzonden.",
+                    ended: "Het ondertekeningsverzoek van dit pakket is beëindigd. Maak het pakket opnieuw aan om het te ondertekenen.",
+                },
+            },
+            waiting: {
+                title: "Wacht op mijn handtekening",
+                buttonCount_one: "Wacht op mijn handtekening: {{count}} verzoek te ondertekenen",
+                buttonCount_other:
+                    "Wacht op mijn handtekening: {{count}} verzoeken te ondertekenen",
+                intro: "Verzoeken die wachten op handtekeningen voor de acties die u mag ondertekenen, in uw $t(signing.terms.posts).",
+                close: "De lijst sluiten",
+                empty: "Er wacht niets op uw handtekening.",
+                loadError:
+                    "De verzoeken die op handtekeningen wachten, konden niet worden geladen.",
+                signedByYou: "Door u ondertekend",
+            },
+            notes: {
+                afterApproval: "Na goedkeuring",
+                afterApprovalValue: "De inloggegevens van de kiezer worden uitgegeven en verzonden",
+                keyShare: "Uw sleutelfragment",
+                keyShareChecked: "Gecontroleerd: het is uw sleutelfragment voor deze ceremonie",
+                recordedIn: "Vastgelegd in",
+                recordedInCeremony: "De sleutelceremonie en het bulletinboard",
+                recordedInTally: "De telsessie",
+            },
+            keyShare: {
+                signing:
+                    "Onderteken uw sleutelfragment in het ondertekeningspaneel. Het wordt vastgelegd zodra u het hebt ondertekend.",
+                record: "Mijn sleutelfragment vastleggen",
+                failed: "Uw ondertekende sleutelfragment kon niet worden vastgelegd: {{error}}",
+                dropAgain:
+                    "Sleep uw sleutelfragmentbestand opnieuw hierheen om uw ondertekende sleutelfragment vast te leggen.",
+                redo: "Uw sleutelfragment is bijgedragen zonder uw handtekening, die deze verkiezing nu vereist. Draag het opnieuw bij en onderteken het.",
+                notTaken:
+                    "De ceremonie accepteert dit sleutelfragment niet meer. Sleep uw sleutelfragmentbestand opnieuw hierheen.",
+            },
         },
     },
 }

@@ -738,6 +738,20 @@ const galegoTranslation: TranslationType = {
                         text: "Xanela de votación incompleta — haberá que abrir ou pechar o período a man no Portal de Administración.",
                     },
                 },
+                signing: {
+                    "duplicate-action": {
+                        lead: "Dúas regras para unha acción",
+                        text: "Dúas regras para unha acción — '{{action}}' ten máis dunha regra de sinatura. Deixa só unha.",
+                    },
+                    "signatures-out-of-range": {
+                        lead: "Sinaturas fóra de rango",
+                        text: "Sinaturas fóra de rango — a regra de '{{action}}' debe pedir entre {{min}} e {{max}} sinaturas.",
+                    },
+                    "expiry-out-of-range": {
+                        lead: "Caducidade fóra de rango",
+                        text: "Caducidade fóra de rango — unha solicitude de '{{action}}' debe caducar despois de 1 a 525.600 minutos (un ano), ou nunca.",
+                    },
+                },
                 threshold: {
                     "above-trustees": {
                         lead: "Limiar demasiado alto",

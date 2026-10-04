@@ -1194,7 +1194,7 @@ async fn load_sets(transaction: &Transaction<'_>, event: EventRef) -> Result<Vec
 
 /// The name the portal shows for an election: its English alias or name,
 /// else any language's, else its external id, else its id.
-fn post_name(presentation: Option<Value>, external_id: Option<String>, id: Uuid) -> String {
+pub fn post_name(presentation: Option<Value>, external_id: Option<String>, id: Uuid) -> String {
     let i18n = presentation
         .as_ref()
         .and_then(|presentation| presentation.get("i18n"))

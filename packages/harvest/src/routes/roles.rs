@@ -3,12 +3,15 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::access::{read_permission, UserScope};
 use crate::services::authorization::authorize;
+use crate::services::dependencies::HarvestServices;
+use crate::services::role_permissions;
 
 use crate::types::optional::OptionalId;
 use crate::types::resources::{Aggregate, DataList, TotalAggregate};
 use anyhow::Result;
 use rocket::http::Status;
 use rocket::serde::json::Json;
+use rocket::State;
 use sequent_core::services::jwt;
 use sequent_core::services::keycloak::KeycloakAdminClient;
 use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm};
@@ -23,11 +26,14 @@ pub struct CreateRoleBody {
     role: Role,
 }
 
-#[instrument(skip(claims))]
+/// Creates a role. Sign permissions it is created with are logged (see
+/// [`role_permissions`]).
+#[instrument(skip(claims, services))]
 #[post("/create-role", format = "json", data = "<body>")]
 pub async fn create_role(
     claims: jwt::JwtClaims,
     body: Json<CreateRoleBody>,
+    services: &State<HarvestServices>,
 ) -> Result<Json<Role>, (Status, String)> {
     let input = body.into_inner();
     authorize(
@@ -36,41 +42,18 @@ pub async fn create_role(
         Some(input.tenant_id.clone()),
         vec![Permissions::ROLE_CREATE],
     )?;
-    let realm = get_tenant_realm(&input.tenant_id);
-    let client = KeycloakAdminClient::new()
-        .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
-    let role = client.create_role(&realm, &input.role).await.map_err(|e| {
-        event!(Level::INFO, "Error {:?}", e);
-        (Status::InternalServerError, format!("{:?}", e))
-    })?;
-    //client moved to create_role so need to create new one
-    let client = KeycloakAdminClient::new()
-        .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
-    let role_with_id =
-        client.get_role_by_name(&realm, &role).await.map_err(|e| {
-            event!(Level::INFO, "Error {:?}", e);
-            (Status::InternalServerError, format!("{:?}", e))
-        })?;
-
-    let client = KeycloakAdminClient::new()
-        .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
-    match (role.clone().permissions, role_with_id.id) {
-        (Some(permissions), Some(id)) => {
-            client
-                .set_role_permissions(&realm, &id, &permissions)
-                .await
-                .map_err(|e| {
-                    event!(Level::INFO, "Error {:?}", e);
-                    (Status::InternalServerError, format!("{:?}", e))
-                })?;
-        }
-        _ => {}
-    }
-
-    Ok(Json(role))
+    role_permissions::create_role(
+        services,
+        &claims,
+        &input.tenant_id,
+        &input.role,
+    )
+    .await
+    .map(Json)
+    .map_err(|error| {
+        event!(Level::INFO, "Error {:?}", error);
+        error
+    })
 }
 
 #[derive(Deserialize, Debug)]
@@ -212,11 +195,14 @@ pub struct DeleteRoleBody {
     role_id: String,
 }
 
-#[instrument(skip(claims))]
+/// Deletes a role. Sign permissions it held are logged as removed (see
+/// [`role_permissions`]).
+#[instrument(skip(claims, services))]
 #[post("/delete-role", format = "json", data = "<body>")]
 pub async fn delete_role(
     claims: jwt::JwtClaims,
     body: Json<DeleteRoleBody>,
+    services: &State<HarvestServices>,
 ) -> Result<Json<OptionalId>, (Status, String)> {
     let input = body.into_inner();
     authorize(
@@ -225,13 +211,12 @@ pub async fn delete_role(
         Some(input.tenant_id.clone()),
         vec![Permissions::ROLE_WRITE],
     )?;
-    let realm = get_tenant_realm(&input.tenant_id);
-    let client = KeycloakAdminClient::new()
-        .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
-    client
-        .delete_role(&realm, &input.role_id)
-        .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    role_permissions::delete_role(
+        services,
+        &claims,
+        &input.tenant_id,
+        &input.role_id,
+    )
+    .await?;
     Ok(Json(Default::default()))
 }

@@ -734,6 +734,20 @@ const basqueTranslation: TranslationType = {
                         text: "Bozketa-leihoa osatu gabe — aldia eskuz ireki edo itxi beharko da Administrazio Atarian.",
                     },
                 },
+                signing: {
+                    "duplicate-action": {
+                        lead: "Bi arau ekintza baterako",
+                        text: "Bi arau ekintza baterako — '{{action}}' ekintzak sinadura-arau bat baino gehiago du. Utzi bakarra.",
+                    },
+                    "signatures-out-of-range": {
+                        lead: "Sinadurak tartetik kanpo",
+                        text: "Sinadurak tartetik kanpo — '{{action}}' ekintzaren arauak {{min}} eta {{max}} sinadura artean eskatu behar ditu.",
+                    },
+                    "expiry-out-of-range": {
+                        lead: "Iraungitzea tartetik kanpo",
+                        text: "Iraungitzea tartetik kanpo — '{{action}}' eskaera bat 1 eta 525.600 minutu (urtebete) artean iraungi behar da, edo inoiz ez.",
+                    },
+                },
                 threshold: {
                     "above-trustees": {
                         lead: "Atalase altuegia",

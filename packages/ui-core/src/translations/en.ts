@@ -734,6 +734,20 @@ const englishTranslation = {
                         text: "Voting window incomplete — the period will have to be opened or closed by hand in the Admin Portal.",
                     },
                 },
+                signing: {
+                    "duplicate-action": {
+                        lead: "Two rules for one action",
+                        text: "Two rules for one action — '{{action}}' has more than one signing rule. Keep one.",
+                    },
+                    "signatures-out-of-range": {
+                        lead: "Signatures out of range",
+                        text: "Signatures out of range — the rule for '{{action}}' must ask for between {{min}} and {{max}} signatures.",
+                    },
+                    "expiry-out-of-range": {
+                        lead: "Expiry out of range",
+                        text: "Expiry out of range — a '{{action}}' request must expire after 1 to 525,600 minutes (a year), or never.",
+                    },
+                },
                 threshold: {
                     "above-trustees": {
                         lead: "Threshold too high",

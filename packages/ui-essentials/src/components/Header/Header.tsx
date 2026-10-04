@@ -142,6 +142,8 @@ export interface HeaderProps {
     onChangeLanguage?: (lang: string) => void
     /** Whether the voter's display settings are offered. Absent, the header has none. */
     accessibilitySettingsPolicy?: EVoterAccessibilitySettingsPolicy
+    /** Contextual actions before the language and profile controls. */
+    actions?: React.ReactNode
 }
 
 export default function Header({
@@ -156,6 +158,7 @@ export default function Header({
     expiry = undefined,
     onChangeLanguage,
     accessibilitySettingsPolicy = EVoterAccessibilitySettingsPolicy.DISABLED,
+    actions,
 }: HeaderProps) {
     const {t} = useTranslation()
     const [openModal, setOpenModal] = useState<boolean>(false)
@@ -203,6 +206,7 @@ export default function Header({
                             EVoterAccessibilitySettingsPolicy.ENABLED ? (
                                 <AccessibilityMenu />
                             ) : null}
+                            {actions}
                             <LanguageMenu
                                 languagesList={languagesList}
                                 onChange={onChangeLanguage}

@@ -19,7 +19,17 @@ import {
     type RecordedDownload,
 } from "@/__stories__/downloads"
 import {resourceBoundary, type ReadState} from "@/__stories__/resourceBoundary"
-import {storyId} from "@/__stories__/fixtures"
+import {STORY_IDS, storyId} from "@/__stories__/fixtures"
+import {SigningProvider} from "@/components/signing/SigningProvider"
+import {REQUEST_ID, CODE, fakeApi, makePanel} from "@/components/signing/__stories__/fixtures"
+import {
+    RequesterSigning,
+    SigningAction,
+    SigningRequestStatus,
+    SigningRequirement,
+} from "@/lib/signing/types"
+import {i18n} from "@sequentech/ui-core"
+import {EReportType} from "@/types/reports"
 import type {WidgetMeta} from "@/__stories__/widgetStory"
 import {
     startedTask,
@@ -31,12 +41,14 @@ import {IPermissions} from "@/types/keycloak"
 import {EGenerateReportMode} from "@/types/reports"
 import {EReportEncryption} from "./EditReportForm"
 import ListReports from "./ListReports"
+import {ReportCompletionActions} from "./ReportSigning"
 import {
     ELECTIONS,
     REPORTS,
     REPORT_IDS,
     REPORT_ROLES,
     TEMPLATES,
+    reportRecord,
     scheduleDefects,
 } from "./__stories__/ReportsFixture"
 
@@ -47,7 +59,31 @@ interface Scenario {
     electionReads: ReadState
     /** Whether the report service rejects a generation. */
     generationFails: boolean
+    /**
+     * The election returns and other reports need signatures (3 and 2), and the
+     * generated report's request is in this state; none: no rule is readable.
+     */
+    signing?: SigningRequestStatus
+    heldRequest?: boolean
+    eventWide?: boolean
 }
+
+const ELECTION_RETURNS_ID = storyId(1, 10)
+const SIGNING_ROLES = [...REPORT_ROLES, IPermissions.SIGNING_RULES_READ]
+
+const signingRule = (action: SigningAction, signatures: number) => ({
+    action,
+    requirement: SigningRequirement.Required,
+    signatures,
+    requester_signing: RequesterSigning.NotAllowed,
+    expires_minutes: 60,
+    revision: 1,
+    updated_by: "configuration-manager",
+    updated_by_name: "Configuration Manager",
+    updated_at: "2028-05-01T09:00:00Z",
+})
+
+let signingApi: ReturnType<typeof fakeApi>
 
 let graphql: ReturnType<typeof graphqlBoundary>
 let data: ReturnType<typeof resourceBoundary>
@@ -117,10 +153,42 @@ const meta = {
         expectedFailure: listDefects,
     },
     beforeEach: async ({args}) => {
+        const electionReturns = reportRecord({
+            id: ELECTION_RETURNS_ID,
+            report_type: EReportType.ELECTORAL_RESULTS,
+            election_id: STORY_IDS.election,
+        })
+        {
+            const panel = await makePanel({
+                action: SigningAction.GenerateReports,
+                status: args.signing ?? SigningRequestStatus.Waiting,
+                required: 2,
+            })
+            signingApi = fakeApi({
+                ...panel,
+                request: {
+                    ...panel.request,
+                    execution_result:
+                        args.signing === SigningRequestStatus.Executed
+                            ? {document_id: DOCUMENT_IDS.plain, sha256: "ab".repeat(32)}
+                            : null,
+                },
+            })
+        }
         data = resourceBoundary(
             {
-                sequent_backend_report: args.reports ? REPORTS : [],
+                sequent_backend_report: args.reports
+                    ? [
+                          ...REPORTS.map((report) =>
+                              args.eventWide && report.id === REPORT_IDS.participation
+                                  ? {...report, election_id: null}
+                                  : report
+                          ),
+                          ...(args.signing ? [electionReturns] : []),
+                      ]
+                    : [],
                 sequent_backend_template: TEMPLATES,
+                sequent_backend_area: [],
                 sequent_backend_election: ELECTIONS,
             },
             {reads: {sequent_backend_election: args.electionReads}}
@@ -146,7 +214,49 @@ const meta = {
                 GetDocumentPassword: () => ({
                     data: {get_document_password: {password: PASSWORD}},
                 }),
-                ...taskHandler("SUCCESS", "GENERATE_REPORT"),
+                ...taskHandler(
+                    "SUCCESS",
+                    "GENERATE_REPORT",
+                    args.signing
+                        ? {
+                              signing_request: {
+                                  id: REQUEST_ID,
+                                  code: CODE,
+                                  required: 2,
+                                  expires_at: null,
+                              },
+                          }
+                        : {}
+                ),
+                GetHeldReportRequests: () => ({
+                    data: {
+                        signingHeldReportRequests: {
+                            requests: args.heldRequest
+                                ? [
+                                      {
+                                          request_id: REQUEST_ID,
+                                          code: CODE,
+                                          report_type: EReportType.PARTICIPATION_REPORT,
+                                          election_id: STORY_IDS.election,
+                                          area_id: null,
+                                          report_id: REPORT_IDS.participation,
+                                          results_event_id: null,
+                                          tally_session_id: null,
+                                          status: SigningRequestStatus.Waiting,
+                                      },
+                                  ]
+                                : [],
+                        },
+                    },
+                }),
+                GetSigningRules: () => ({
+                    data: {
+                        sequent_backend_signing_rule: [
+                            signingRule(SigningAction.GenerateElectionReturns, 3),
+                            signingRule(SigningAction.GenerateReports, 2),
+                        ],
+                    },
+                }),
                 ...documentHandlers({
                     [DOCUMENT_IDS.plain]: {name: "activity-logs.pdf"},
                     [DOCUMENT_IDS.encrypted]: {
@@ -155,7 +265,8 @@ const meta = {
                     },
                 }),
             },
-            {schema: true}
+            // The signing tables are not in the stories' schema, as in the Signatures tab's stories.
+            {schema: !args.signing}
         )
         await graphql.ready
         const recorder = recordDownloads()
@@ -171,9 +282,18 @@ const meta = {
             auth={{isAuthenticated: true, getAccessToken: () => "story-access-token"}}
         >
             <WidgetsContextProvider>
-                <ResourceContextProvider value="sequent_backend_election_event">
-                    <ListReports electionEventId={EVENT_ID} />
-                </ResourceContextProvider>
+                <SigningProvider
+                    api={signingApi}
+                    completionActions={{
+                        [SigningAction.GenerateReports]: (data) => (
+                            <ReportCompletionActions data={data} />
+                        ),
+                    }}
+                >
+                    <ResourceContextProvider value="sequent_backend_election_event">
+                        <ListReports electionEventId={EVENT_ID} />
+                    </ResourceContextProvider>
+                </SigningProvider>
             </WidgetsContextProvider>
         </AdminStoryProvider>
     ),
@@ -225,7 +345,7 @@ export const Populated: Story = {
         expect(cells(activity).slice(0, 3)).toEqual(["Activity Logs", "-", "-"])
         expect(canvas.getAllByRole("row")).toHaveLength(4)
         expect(data.writes).toEqual([])
-        expect(graphql.calls).toEqual([])
+        expect(graphql.calls.filter(({name}) => name !== "GetHeldReportRequests")).toEqual([])
     },
 }
 
@@ -310,7 +430,7 @@ export const GenerateAReport: Story = {
                 {name: "activity-logs.pdf", href: documentUrl(DOCUMENT_IDS.plain)},
             ])
         )
-        expect(graphql.calls[0]).toEqual({
+        expect(graphql.calls.find(({name}) => name === "GenerateReport")).toEqual({
             name: "GenerateReport",
             variables: {
                 reportId: REPORT_IDS.activityLogs,
@@ -343,7 +463,7 @@ export const PreviewAnEncryptedReport: Story = {
         expect(downloads).toEqual([
             {name: "participation.epdf", href: documentUrl(DOCUMENT_IDS.encrypted)},
         ])
-        expect(graphql.calls[0].variables).toMatchObject({
+        expect(graphql.calls.find(({name}) => name === "GenerateReport")?.variables).toMatchObject({
             reportId: REPORT_IDS.participation,
             reportMode: EGenerateReportMode.PREVIEW,
         })
@@ -357,7 +477,9 @@ export const GenerationFailure: Story = {
     play: async ({canvasElement}) => {
         await chooseAction(canvasElement, "Activity Logs", "Generate")
         await expect(await within(document.body).findByText("FAILED")).toBeVisible()
-        expect(graphql.calls.map(({name}) => name)).toEqual(["GenerateReport"])
+        expect(
+            graphql.calls.map(({name}) => name).filter((name) => name !== "GetHeldReportRequests")
+        ).toEqual(["GenerateReport"])
         expect(downloads).toEqual([])
     },
 }
@@ -400,5 +522,154 @@ export const LoadingElections: Story = {
     play: async ({canvasElement}) => {
         await expect(within(canvasElement).getByRole("progressbar")).toBeVisible()
         expect(within(canvasElement).queryByRole("table")).toBeNull()
+    },
+}
+
+const signingStory = (signing: SigningRequestStatus): Partial<Story> => ({
+    args: {roles: SIGNING_ROLES, signing},
+    // The open signing panel hides the list; the task widget's chip stays.
+    parameters: {
+        widgets: ["ActionsPopUp"],
+        expectedFailure: {
+            reason: "The task widget's success chip has white text below 4.5 contrast.",
+            a11y: ["color-contrast"],
+        },
+    },
+})
+
+const needsText = (n: number) => i18n.t("signing.results.needs", {n})
+
+/** Generates the participation report of its Post, to be signed. */
+async function generateParticipation(canvasElement: HTMLElement) {
+    await chooseAction(canvasElement, "Participation Report", "Generate")
+    const dialog = await within(document.body).findByRole("dialog")
+    await waitFor(() => expect(dialog).toBeVisible())
+    await expect(
+        within(dialog).getByText(i18n.t("signing.reports.generateNotice", {post: "Council", n: 2}))
+    ).toBeVisible()
+    expect(graphql.calls.map(({name}) => name)).not.toContain("GenerateReport")
+    await userEvent.click(
+        within(dialog).getByRole("button", {name: i18n.t("reportsScreen.actions.generate")})
+    )
+    await waitFor(() =>
+        expect(graphql.calls.find(({name}) => name === "GenerateReport")?.variables).toEqual({
+            reportId: REPORT_IDS.participation,
+            tenantId: TENANT_ID,
+            reportMode: EGenerateReportMode.REAL,
+            electionEventId: EVENT_ID,
+        })
+    )
+    // The task names the request: its panel opens.
+    await waitFor(() => expect(signingApi.getRequest).toHaveBeenCalledWith(REQUEST_ID))
+}
+
+export const SignaturesColumnSaysWhatEachReportNeeds: Story = {
+    args: {roles: SIGNING_ROLES, signing: SigningRequestStatus.Waiting},
+    parameters: {widgets: ["ActionsPopUp"], expectedFailure: null},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await expect(
+            await canvas.findByRole("columnheader", {name: i18n.t("signing.results.signatures")})
+        ).toBeVisible()
+        await within(await reportRow(canvasElement, "Initialization Report")).findByText(
+            needsText(2)
+        )
+        await within(await reportRow(canvasElement, "Participation Report")).findByText(
+            needsText(2)
+        )
+        // Activity logs take no signatures.
+        expect(cells(await reportRow(canvasElement, "Activity Logs"))).toContain("-")
+        // The election returns and the initialization report are signed by the
+        // tally: never generated for real here.
+        const returns = (await canvas.findAllByRole("row")).find((candidate) =>
+            (candidate.textContent ?? "").includes(needsText(3))
+        )
+        if (!returns) throw new Error("No election returns row")
+        await userEvent.click(within(returns).getByRole("button", {name: "Actions"}))
+        const menu = await within(document.body).findByRole("menu")
+        expect(menuItems(menu)).toEqual(["Edit", "Delete", "Preview"])
+    },
+}
+
+export const AGeneratedReportWaitsForItsSignatures: Story = {
+    ...signingStory(SigningRequestStatus.Waiting),
+    play: async ({canvasElement}) => {
+        await generateParticipation(canvasElement)
+        await expect(await within(document.body).findByText(CODE)).toBeVisible()
+        // Nothing to download or print before the signatures.
+        expect(downloads).toEqual([])
+        expect(
+            within(document.body).queryByRole("button", {
+                name: i18n.t("signing.results.downloadSigned"),
+            })
+        ).toBeNull()
+    },
+}
+
+export const ASignedReportIsDownloadedFromItsPanel: Story = {
+    ...signingStory(SigningRequestStatus.Executed),
+    play: async ({canvasElement}) => {
+        await generateParticipation(canvasElement)
+        const download = await within(document.body).findByRole("button", {
+            name: i18n.t("signing.results.downloadSigned"),
+        })
+        await expect(
+            within(document.body).getByRole("button", {name: i18n.t("signing.results.print")})
+        ).toBeVisible()
+        // Transmitting goes with the election returns only.
+        expect(
+            within(document.body).queryByRole("button", {name: i18n.t("signing.results.transmit")})
+        ).toBeNull()
+        await userEvent.click(download)
+        await waitFor(() =>
+            expect(downloads).toEqual([
+                {name: "activity-logs.pdf", href: documentUrl(DOCUMENT_IDS.plain)},
+            ])
+        )
+    },
+}
+
+export const WithoutReadableRulesReportsGenerateAsBefore: Story = {
+    args: {roles: REPORT_ROLES, signing: SigningRequestStatus.Waiting},
+    play: async ({canvasElement}) => {
+        await reportRow(canvasElement, "Activity Logs")
+        expect(
+            within(canvasElement).queryByRole("columnheader", {
+                name: i18n.t("signing.results.signatures"),
+            })
+        ).toBeVisible()
+        // References remain discoverable; an unreadable rule is shown as a dash.
+        expect(graphql.calls.map(({name}) => name)).not.toContain("GetSigningRules")
+    },
+}
+
+export const AHeldReportOpensItsWaitingRequest: Story = {
+    // The accessible signing drawer hides the list's existing checkbox defects.
+    parameters: {expectedFailure: null},
+    args: {roles: SIGNING_ROLES, signing: SigningRequestStatus.Waiting, heldRequest: true},
+    play: async ({canvasElement}) => {
+        const row = await reportRow(canvasElement, "Participation Report")
+        await userEvent.click(
+            await within(row).findByRole("button", {name: i18n.t("signing.results.openRequest")})
+        )
+        await waitFor(() => expect(signingApi.getRequest).toHaveBeenCalledWith(REQUEST_ID))
+        await expect(await within(document.body).findByTestId("signing-code")).toHaveTextContent(
+            CODE
+        )
+        expect(graphql.calls.map(({name}) => name)).not.toContain("GenerateReport")
+    },
+}
+
+export const SignedEventWideReportExplainsTheRequiredPost: Story = {
+    args: {roles: SIGNING_ROLES, signing: SigningRequestStatus.Waiting, eventWide: true},
+    play: async ({canvasElement}) => {
+        await chooseAction(canvasElement, "Participation Report", "Generate")
+        await expect(
+            await within(document.body).findByText(
+                "Select a Post to generate this report when signatures are required."
+            )
+        ).toBeVisible()
+        expect(graphql.calls.some(({name}) => name === "GenerateReport")).toBe(false)
+        expect(within(document.body).queryByRole("dialog")).toBeNull()
     },
 }

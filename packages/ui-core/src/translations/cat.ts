@@ -735,6 +735,20 @@ const catalanTranslation: TranslationType = {
                         text: "Finestra de votació incompleta — caldrà obrir o tancar el període a mà al Portal d'Administració.",
                     },
                 },
+                signing: {
+                    "duplicate-action": {
+                        lead: "Dues regles per a una acció",
+                        text: "Dues regles per a una acció — '{{action}}' té més d'una regla de signatura. Deixa'n només una.",
+                    },
+                    "signatures-out-of-range": {
+                        lead: "Signatures fora de rang",
+                        text: "Signatures fora de rang — la regla de '{{action}}' ha de demanar entre {{min}} i {{max}} signatures.",
+                    },
+                    "expiry-out-of-range": {
+                        lead: "Caducitat fora de rang",
+                        text: "Caducitat fora de rang — una sol·licitud de '{{action}}' ha de caducar després d'1 a 525.600 minuts (un any), o mai.",
+                    },
+                },
                 threshold: {
                     "above-trustees": {
                         lead: "Llindar massa alt",

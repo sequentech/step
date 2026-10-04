@@ -30,9 +30,13 @@ python3 ./run.py import-data/OCF-0-20241122.zip 17-12-2024-parameters-reports.xl
 
 The output files are:
 - `output/election-event.zip`. This is the election event zip that you
-	can import in the admin portal.
+	can import in the admin portal. It carries the signing rules and certificate
+	checks of `templates/COMELEC/signing.json`.
 - `admins.csv`. CSV to be imported to configure the admin users, including sbei users.
+  Each SBEI account gets the `title` attribute of its role from `sbei_titles` in
+  `templates/COMELEC/signing.json`.
 - `tenants.zip`. Configuration for the tenant (keycloak config, settings and roles).
+  Its settings carry the display name of `templates/COMELEC/tenant.json`.
   
 The tool also prints some output to provide feedback on the process.
 

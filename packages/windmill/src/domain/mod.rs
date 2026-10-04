@@ -12,3 +12,4 @@ pub mod results_publication;
 pub mod tally_ceremony;
 pub mod tally_creation;
 pub mod tally_execution;
+pub mod trustee_signatures;

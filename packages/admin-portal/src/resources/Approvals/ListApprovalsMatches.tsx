@@ -42,6 +42,7 @@ import {useMutation, useQuery} from "@apollo/client"
 import {PreloadedList} from "./PreloadedList"
 import {convertToSnakeCase, convertToCamelCase, convertOneToSnakeCase} from "./UtilsApprovals"
 import {ApplicationsError} from "@/types/applications"
+import {useSignedAction} from "@/hooks/useSignedAction"
 
 const StyledChip = styled(Chip)`
     margin: 4px;
@@ -76,6 +77,7 @@ export const ListApprovalsMatches: React.FC<ListUsersProps> = ({
 
     // const canEditUsers = authContext.isAuthorized(true, tenantId, IPermissions.VOTER_WRITE)
     const [approveVoter] = useMutation<ChangeApplicationStatusMutation>(CHANGE_APPLICATION_STATUS)
+    const openSigning = useSignedAction()
 
     const userApprovalInfo = Object.entries(convertToSnakeCase(task.applicant_data)).map(
         ([key, value]) => key
@@ -194,8 +196,13 @@ export const ListApprovalsMatches: React.FC<ListUsersProps> = ({
             )
             return
         }
-        notify(t(`approvalsScreen.notifications.approveSuccess`), {type: "success"})
         setUserId(undefined)
+        // Approving a voter may wait for signatures: its panel opens instead.
+        if (openSigning(data?.ApplicationChangeStatus, {onChange: () => refresh()})) {
+            goBack()
+            return
+        }
+        notify(t(`approvalsScreen.notifications.approveSuccess`), {type: "success"})
         goBack()
     }
 

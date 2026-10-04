@@ -57,6 +57,10 @@ pub const DEFAULT_CREATED_AT: &str = "2026-01-01T00:00:00.000000Z";
 /// otherwise.
 pub const DEFAULT_VERSION: &str = "v10.0.0";
 
+/// The bundle's signing configuration, carried over from a base export.
+const SIGNING_RULES_KEY: &str = "signing_rules";
+const SIGNING_CHECKS_KEY: &str = "signing_checks";
+
 /// Columns the builder consumes itself.
 ///
 /// These are not dotted paths into the entity and must not be merged into it —
@@ -730,7 +734,7 @@ impl<'a> Builder<'a> {
             .unwrap_or(DEFAULT_VERSION)
             .to_string();
 
-        let export = json!({
+        let mut export = json!({
             "tenant_id": self.tenant_id,
             "keycloak_event_realm": realm,
             "election_event": event,
@@ -751,6 +755,18 @@ impl<'a> Builder<'a> {
             "support_materials": support_materials,
             "version": version,
         });
+
+        // How the event signs its protected actions belongs to the event as a
+        // whole, so a base export's configuration is carried over as it is:
+        // that is how a client's preset (its rules and certificate checks)
+        // reaches a bundle built from a workbook.
+        for key in [SIGNING_RULES_KEY, SIGNING_CHECKS_KEY] {
+            if let Some(value) =
+                self.base_export.get(key).filter(|value| !value.is_null())
+            {
+                export[key] = value.clone();
+            }
+        }
 
         // Built after the entities, because every one of these resolves an
         // external_id against them.

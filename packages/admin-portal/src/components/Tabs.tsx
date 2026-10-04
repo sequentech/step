@@ -28,6 +28,8 @@ const TabStyles = {
 
 export const Tabs: React.FC<{
     elements: Array<{
+        /** Selects the tab from a link's `tabId`, whatever its position. */
+        id?: string
         label: string
         component: React.ComponentType<any>
         action?: (index: number) => void
@@ -38,9 +40,11 @@ export const Tabs: React.FC<{
 }> = ({elements, selectedTab, onSelectedTabChange, ...props}) => {
     const {t} = useTranslation()
     const baseUrl = new URL(window.location.href)
-    const [internalSelectedTab, setInternalSelectedTab] = React.useState(
-        Number.parseInt(baseUrl?.searchParams?.get("tabIndex") ?? "0")
-    )
+    const [internalSelectedTab, setInternalSelectedTab] = React.useState(() => {
+        const tabId = baseUrl?.searchParams?.get("tabId")
+        const linked = tabId ? elements.findIndex((element) => element.id === tabId) : -1
+        return linked >= 0 ? linked : Number.parseInt(baseUrl?.searchParams?.get("tabIndex") ?? "0")
+    })
     const activeTab = selectedTab ?? internalSelectedTab
     const selectedElement = elements[activeTab]
 
