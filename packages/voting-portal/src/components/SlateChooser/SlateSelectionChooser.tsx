@@ -74,14 +74,7 @@ export const SlateSelectionChooser: React.FC<SlateSelectionChooserProps> = ({
                     slateId={slate.id}
                     defaultExpanded={slates.mobileCandidateLists === EMobileCandidateLists.EXPANDED}
                 >
-                    <Box
-                        className="slate-member-lists"
-                        display="flex"
-                        flexDirection="column"
-                        gap="12px"
-                    >
-                        {lists}
-                    </Box>
+                    {lists}
                 </SlateCandidateList>
             )}
             renderMember={(slate, _slateContest, candidate) => (

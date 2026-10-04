@@ -5,22 +5,34 @@
 import React, {useId} from "react"
 import {Box, Typography} from "@mui/material"
 import {styled} from "@mui/material/styles"
+import useMediaQuery from "@mui/material/useMediaQuery"
 import {useTranslation} from "react-i18next"
-import {ICandidate, translate} from "@sequentech/ui-core"
+import {ICandidate, IContest, translate} from "@sequentech/ui-core"
 import {theme} from "@sequentech/ui-essentials"
 
 import {getSlateName, IBallotSlates, IResolvedSlate, ISlateContest} from "../../services/Slates"
 import {SlateCoverageLine} from "./SlateCoverageLine"
 
+const DESKTOP = theme.breakpoints.up("sm")
+
 const SlateList = styled("ul")`
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+    grid-template-columns: minmax(0, 1fr);
     gap: 16px;
     list-style: none;
     margin: 16px 0 24px;
     padding: 0;
+
+    ${DESKTOP} {
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+    }
 `
 
+/**
+ * On desktop a card spans one row of the list per part (header, each office,
+ * actions) and takes those rows as its own, so a part is as tall as the
+ * tallest one among the cards next to it and the offices line up.
+ */
 const SlateCard = styled("li")`
     display: flex;
     flex-direction: column;
@@ -31,17 +43,49 @@ const SlateCard = styled("li")`
     border-radius: 4px;
     background: ${theme.palette.white};
     overflow-wrap: anywhere;
-`
 
-const SlateOffice = styled(Box)`
-    &.slate-contest-uncovered {
-        color: ${theme.palette.customGrey.dark};
+    .slate-actions {
+        margin-top: auto;
+    }
 
-        @media (max-width: ${theme.breakpoints.values.md}px) {
-            display: none;
+    ${DESKTOP} {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-rows: subgrid;
+        row-gap: 12px;
+
+        .slate-card-header {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .slate-summary {
+            margin-top: auto;
+        }
+
+        .slate-actions {
+            margin-top: 0;
         }
     }
 `
+
+const MemberLists = styled("div")`
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+
+    ${DESKTOP} {
+        display: contents;
+    }
+`
+
+const NoCandidate = styled("p")`
+    margin: 4px 0 0;
+    color: ${theme.palette.customGrey.dark};
+    font-style: italic;
+`
+
+const HEADER_ROWS = 1
 
 const MemberList = styled("ul")`
     list-style: none;
@@ -56,7 +100,11 @@ export interface ISlateChooserProps {
     renderCoverage?: (slate: IResolvedSlate) => React.ReactNode
     /** A line under the slate name saying how much of the slate is selected. */
     renderSummary?: (slate: IResolvedSlate) => React.ReactNode
-    /** Wraps the lists of members of a slate, for example to collapse them. */
+    /**
+     * Wraps the lists of members of a slate, for example to collapse them. On
+     * desktop the wrapper must not make a box of its own (`display: contents`),
+     * or the offices stop lining up across cards.
+     */
     renderMemberLists?: (slate: IResolvedSlate, lists: React.ReactNode) => React.ReactNode
     /** Replaces the row of one member; it must render an `li`. */
     renderMember?: (
@@ -83,9 +131,79 @@ export const SlateChooser: React.FC<ISlateChooserProps> = ({
     const {t, i18n} = useTranslation()
     const id = useId()
     const titleId = `${id}-title`
+    const isPhone = useMediaQuery(theme.breakpoints.down("sm"))
 
     if (slates.slates.length === 0) {
         return null
+    }
+
+    const officeRow = (index: number): React.CSSProperties | undefined =>
+        isPhone ? undefined : {gridRow: index + HEADER_ROWS + 1}
+    const actionsRow = slates.contests.length + HEADER_ROWS + 1
+    const cardRows = renderActions ? actionsRow : actionsRow - 1
+
+    const renderOffice = (
+        slate: IResolvedSlate,
+        slateName: string,
+        contest: IContest,
+        index: number
+    ) => {
+        const slateContest = slate.contests.find((entry) => entry.contest.id === contest.id)
+        if (!slateContest && isPhone) {
+            return null
+        }
+        const contestName = translate(contest, "name", i18n.language) ?? ""
+        return (
+            <Box
+                key={contest.id}
+                className={
+                    slateContest
+                        ? "slate-contest"
+                        : "slate-contest slate-contest-uncovered slate-contest-empty"
+                }
+                data-contest-id={contest.id}
+                style={officeRow(index)}
+            >
+                <Typography
+                    className="slate-contest-name"
+                    component="h4"
+                    fontSize="14px"
+                    fontWeight="bold"
+                    margin={0}
+                >
+                    {contestName}
+                </Typography>
+                {slateContest ? (
+                    <MemberList
+                        className="slate-members"
+                        aria-label={t("slates.contestMembers", {
+                            slate: slateName,
+                            contest: contestName,
+                        })}
+                    >
+                        {slateContest.candidates.map((candidate) =>
+                            renderMember ? (
+                                <React.Fragment key={candidate.id}>
+                                    {renderMember(slate, slateContest, candidate)}
+                                </React.Fragment>
+                            ) : (
+                                <li
+                                    key={candidate.id}
+                                    className="slate-member"
+                                    data-candidate-id={candidate.id}
+                                >
+                                    {translate(candidate, "name", i18n.language)}
+                                </li>
+                            )
+                        )}
+                    </MemberList>
+                ) : (
+                    <NoCandidate className="slate-no-candidate">
+                        {t("slates.noCandidate")}
+                    </NoCandidate>
+                )}
+            </Box>
+        )
     }
 
     return (
@@ -106,64 +224,21 @@ export const SlateChooser: React.FC<ISlateChooserProps> = ({
             <SlateList className="slate-list">
                 {slates.slates.map((slate) => {
                     const slateName = getSlateName(slate, i18n.language, defaultLanguage)
-                    const lists = (slate.offices ?? slate.contests).map((slateContest) => {
-                        const contestName =
-                            translate(slateContest.contest, "name", i18n.language) ?? ""
-                        const isUncovered = slateContest.candidates.length === 0
-                        return (
-                            <SlateOffice
-                                key={slateContest.contest.id}
-                                className={
-                                    isUncovered
-                                        ? "slate-contest slate-contest-uncovered"
-                                        : "slate-contest"
-                                }
-                                data-contest-id={slateContest.contest.id}
-                            >
-                                <Typography
-                                    className="slate-contest-name"
-                                    component="h4"
-                                    fontSize="14px"
-                                    fontWeight="bold"
-                                    margin={0}
-                                >
-                                    {contestName}
-                                </Typography>
-                                {isUncovered ? (
-                                    <Typography className="slate-no-candidate" margin="4px 0 0">
-                                        {t("slates.noCandidate")}
-                                    </Typography>
-                                ) : (
-                                    <MemberList
-                                        className="slate-members"
-                                        aria-label={t("slates.contestMembers", {
-                                            slate: slateName,
-                                            contest: contestName,
-                                        })}
-                                    >
-                                        {slateContest.candidates.map((candidate) =>
-                                            renderMember ? (
-                                                <React.Fragment key={candidate.id}>
-                                                    {renderMember(slate, slateContest, candidate)}
-                                                </React.Fragment>
-                                            ) : (
-                                                <li
-                                                    key={candidate.id}
-                                                    className="slate-member"
-                                                    data-candidate-id={candidate.id}
-                                                >
-                                                    {translate(candidate, "name", i18n.language)}
-                                                </li>
-                                            )
-                                        )}
-                                    </MemberList>
-                                )}
-                            </SlateOffice>
-                        )
-                    })
+                    const lists = (
+                        <MemberLists className="slate-member-lists">
+                            {slates.contests.map((contest, index) =>
+                                renderOffice(slate, slateName, contest, index)
+                            )}
+                        </MemberLists>
+                    )
 
                     return (
-                        <SlateCard key={slate.id} className="slate-card" data-slate-id={slate.id}>
+                        <SlateCard
+                            key={slate.id}
+                            className="slate-card"
+                            data-slate-id={slate.id}
+                            style={isPhone ? undefined : {gridRow: `span ${cardRows}`}}
+                        >
                             <Box className="slate-card-header">
                                 <Typography
                                     className="slate-name"
@@ -186,20 +261,12 @@ export const SlateChooser: React.FC<ISlateChooserProps> = ({
                                     <Box className="slate-summary">{renderSummary(slate)}</Box>
                                 ) : null}
                             </Box>
-                            {renderMemberLists ? (
-                                renderMemberLists(slate, lists)
-                            ) : (
-                                <Box
-                                    className="slate-member-lists"
-                                    display="flex"
-                                    flexDirection="column"
-                                    gap="12px"
-                                >
-                                    {lists}
-                                </Box>
-                            )}
+                            {renderMemberLists ? renderMemberLists(slate, lists) : lists}
                             {renderActions ? (
-                                <Box className="slate-actions" marginTop="auto">
+                                <Box
+                                    className="slate-actions"
+                                    style={isPhone ? undefined : {gridRow: actionsRow}}
+                                >
                                     {renderActions(slate)}
                                 </Box>
                             ) : null}

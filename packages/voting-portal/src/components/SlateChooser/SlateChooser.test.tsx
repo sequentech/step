@@ -6,12 +6,16 @@ import React from "react"
 import {ThemeProvider} from "@mui/material/styles"
 import {act, render, screen, within} from "@testing-library/react"
 import {theme} from "@sequentech/ui-essentials"
+import useMediaQuery from "@mui/material/useMediaQuery"
 import {I18nextProvider} from "react-i18next"
 
-import {i18n} from "../../testing/ballotHarness"
+import {aCandidate, aContest, i18n} from "../../testing/ballotHarness"
 import {PRESIDENT, SLATES, TRUSTEES} from "../../testing/slateFixtures"
 import {resolveSlates} from "../../services/Slates"
 import {ISlateChooserProps, SlateChooser} from "./SlateChooser"
+
+jest.mock("@mui/material/useMediaQuery")
+const mockedUseMediaQuery = jest.mocked(useMediaQuery)
 
 const RESOLVED = resolveSlates(SLATES, [PRESIDENT, TRUSTEES])
 
@@ -31,6 +35,21 @@ const cardOf = (name: string): HTMLElement => {
     }
     return card
 }
+
+const officesOf = (name: string): Array<string | null> =>
+    within(cardOf(name))
+        .getAllByRole("heading", {level: 4})
+        .map((heading) => heading.textContent)
+
+const officeOf = (name: string, contestId: string): HTMLElement => {
+    const office = cardOf(name).querySelector<HTMLElement>(`[data-contest-id="${contestId}"]`)
+    if (!office) {
+        throw new Error(`no ${contestId} in ${name}`)
+    }
+    return office
+}
+
+beforeEach(() => mockedUseMediaQuery.mockReturnValue(false))
 
 afterEach(async () => {
     await act(async () => {
@@ -70,15 +89,72 @@ describe("the slates of a ballot", () => {
         ).toEqual(["Rowan Scott", "Charlie Kim"])
     })
 
-    it("do not list an office a slate has no candidate for", () => {
+    it("render nothing when the ballot has no slate", () => {
+        const {container} = mount({slates: {...RESOLVED, slates: [], contests: []}})
+
+        expect(container).toBeEmptyDOMElement()
+    })
+})
+
+describe("the offices of the slates on desktop", () => {
+    it("are the same in every card, in ballot order", () => {
         mount()
 
-        const voices = within(cardOf("Independent Voices"))
-        expect(voices.getAllByRole("heading", {level: 4}).map((h) => h.textContent)).toEqual([
-            "Trustees",
-        ])
+        expect(officesOf("Forward Together")).toEqual(["President", "Trustees"])
+        expect(officesOf("Independent Voices")).toEqual(["President", "Trustees"])
     })
 
+    it("say when a slate has no candidate for one of them", () => {
+        mount()
+
+        const president = officeOf("Independent Voices", "president")
+        expect(president).toHaveClass("slate-contest-empty")
+        expect(president).toHaveTextContent("No candidate")
+        expect(within(president).queryByRole("list")).toBeNull()
+        expect(within(cardOf("Forward Together")).queryByText("No candidate")).toBeNull()
+    })
+
+    it("are on the same row in every card", () => {
+        mount()
+
+        const row = (name: string, contestId: string) => officeOf(name, contestId).style.gridRow
+        expect(row("Forward Together", "president")).not.toBe("")
+        expect(row("Forward Together", "president")).toBe(row("Independent Voices", "president"))
+        expect(row("Forward Together", "trustees")).toBe(row("Independent Voices", "trustees"))
+        expect(row("Forward Together", "president")).not.toBe(row("Forward Together", "trustees"))
+    })
+
+    it("leave out a contest no slate has candidates for", () => {
+        const secretary = aContest({
+            id: "secretary",
+            name: "Secretary",
+            candidates: [aCandidate("i-secretary", "Quinn Parker", {contest_id: "secretary"})],
+        })
+        mount({slates: resolveSlates(SLATES, [PRESIDENT, secretary, TRUSTEES])})
+
+        expect(officesOf("Independent Voices")).toEqual(["President", "Trustees"])
+    })
+})
+
+describe("the offices of the slates on a phone", () => {
+    beforeEach(() => mockedUseMediaQuery.mockReturnValue(true))
+
+    it("leave out an office a slate has no candidate for", () => {
+        mount()
+
+        expect(officesOf("Forward Together")).toEqual(["President", "Trustees"])
+        expect(officesOf("Independent Voices")).toEqual(["Trustees"])
+        expect(screen.queryByText("No candidate")).toBeNull()
+    })
+
+    it("are not placed on shared rows", () => {
+        mount()
+
+        expect(officeOf("Forward Together", "trustees").style.gridRow).toBe("")
+    })
+})
+
+describe("the names of the slates", () => {
     it("are named in the voter's language, else in the default language", async () => {
         mount()
 
@@ -88,12 +164,6 @@ describe("the slates of a ballot", () => {
 
         expect(screen.getByRole("heading", {level: 3, name: "Adelante Juntos"})).toBeInTheDocument()
         expect(screen.getByRole("heading", {level: 3, name: "Members First"})).toBeInTheDocument()
-    })
-
-    it("render nothing when the ballot has no slate", () => {
-        const {container} = mount({slates: {...RESOLVED, slates: []}})
-
-        expect(container).toBeEmptyDOMElement()
     })
 })
 

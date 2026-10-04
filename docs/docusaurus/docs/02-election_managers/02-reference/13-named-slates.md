@@ -158,9 +158,19 @@ A slate that is fully selected offers **Edit selections** instead of **Choose th
 
 **Next** works on both tabs. On a ballot whose contests are split in several pages, pressing **Next** on **Choose a slate** opens **Individual candidates**, so the voter goes through every page before the review screen.
 
+### Slate cards on wider screens
+
+On screens 750px wide or wider, the slates are shown side by side, one card per slate. Every candidate of every slate is visible without clicking.
+
+The cards list the same contests in the same order: the contests of the voter's ballot that at least one slate has candidates for, in ballot order. Each contest starts at the same height in every card of a row, so a voter can read across the cards to compare the candidates for one office. The height of a contest follows the card that needs the most room, for example a slate with three trustees next to a slate with one, or a long name that takes two lines.
+
+A slate without candidates for one of those contests shows the contest with **No candidate**. A contest no slate has candidates for is not listed in the cards; it is on the **Individual candidates** tab.
+
+When there are more slates than fit in one row, the cards continue on the next row, and the contests line up within each row.
+
 ### Candidate lists on phones
 
-On screens narrower than 750px, the candidates of each slate are in a list that the voter can show or hide. The `mobile_candidate_lists` field of the configuration decides how the lists start:
+On screens narrower than 750px, the slate cards are stacked one under the other and list only the contests their slate has candidates for. The candidates of each slate are in a list that the voter can show or hide. The `mobile_candidate_lists` field of the configuration decides how the lists start:
 
 | `mobile_candidate_lists` | Lists start |
 | --- | --- |
@@ -169,7 +179,13 @@ On screens narrower than 750px, the candidates of each slate are in a list that 
 
 Showing or hiding a list never changes the ballot. The voter's choice for each list is kept while moving between the tabs and the review screen. The summary of the slate stays visible above a hidden list.
 
-On wider screens the lists are always shown.
+On wider screens the lists are always shown, whatever `mobile_candidate_lists` says.
+
+### Screen sizes and keyboard
+
+The slate cards, the individual candidates and the review screen fit the screen from 320px wide: long slate and candidate names continue on the next line and the page never scrolls sideways. On a phone the two tabs share the width of the screen.
+
+The tabs, the **Show candidates** and **Hide candidates** buttons and the buttons of each slate are at least 44px tall. All of them can be reached with the Tab key and operated with Enter or Space, and show which one has the focus.
 
 ### Custom CSS
 
