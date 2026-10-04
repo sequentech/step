@@ -9,12 +9,8 @@ import type {Sequent_Backend_Tenant} from "@/gql/graphql"
 import {colonHex} from "@/lib/signing/der"
 import {DocumentKind, SigningAction} from "@/lib/signing/types"
 import type {ISigningPanelData} from "@/lib/signing/api"
-
-const parse = (value: string | Date | null | undefined): Date | null => {
-    if (!value) return null
-    const date = value instanceof Date ? value : new Date(value)
-    return Number.isNaN(date.getTime()) ? null : date
-}
+import {toDate as parse} from "@/lib/timezones/zonedFormat"
+import {useZonedFormat} from "@/hooks/useZonedFormat"
 
 const formatter = (
     locale: string,
@@ -87,14 +83,16 @@ export const formatDateTime = (
 export const useSigningFormat = (timeZone?: string | null) => {
     const {i18n} = useTranslation()
     const locale = i18n.language
+    const zoned = useZonedFormat(timeZone)
     return useMemo(
         () => ({
+            ...zoned,
             time: (value: string | Date | null | undefined) => formatTime(value, locale, timeZone),
             date: (value: string | Date | null | undefined) => formatDate(value, locale, timeZone),
             dateTime: (value: string | Date | null | undefined) =>
                 formatDateTime(value, locale, timeZone),
         }),
-        [locale, timeZone]
+        [zoned, locale, timeZone]
     )
 }
 

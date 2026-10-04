@@ -151,8 +151,9 @@ function mockMonitoring(portal: AdminPortal) {
                     [BY_GROUP.id]: {definition: BY_GROUP, revision: 2},
                 },
                 theme: {id: "default", revision: 1},
-                settings: {time_zone: "UTC", unknown_label: "Unknown", selectors: {}},
+                settings: {unknown_label: "Unknown", selectors: {}},
                 settings_revision: 1,
+                time_zone: "UTC",
                 scope_options: {
                     regions: [
                         {key: "north", label: "North"},

@@ -60,6 +60,7 @@ import {AuthContext} from "./providers/AuthContextProvider"
 import {customSortData} from "./lib/helpers"
 import {UpsertArea} from "./resources/Area/UpsertArea"
 import {TrusteeDashboard} from "./screens/TrusteeDashboard"
+import {rethrowTrustedWriteError} from "./services/trustedWriteError"
 
 interface AppProps {}
 
@@ -78,6 +79,12 @@ export const buildWrappedHasuraProvider = async (apolloClient: any): Promise<Dat
     // Override the getList method to apply custom sort logic.
     const wrappedDataProvider: DataProvider = {
         ...dataProviderHasura,
+        create: (resource, params) =>
+            dataProviderHasura.create(resource, params).catch(rethrowTrustedWriteError),
+        update: (resource, params) =>
+            dataProviderHasura.update(resource, params).catch(rethrowTrustedWriteError),
+        updateMany: (resource, params) =>
+            dataProviderHasura.updateMany(resource, params).catch(rethrowTrustedWriteError),
         getList: (resource: string, params: GetListParams): Promise<GetListResult> =>
             dataProviderHasura.getList(resource, params).then((response: GetListResult) => {
                 // Create a new sort object ensuring proper literal types for order.
