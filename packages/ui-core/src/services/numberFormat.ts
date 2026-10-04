@@ -60,19 +60,14 @@ const roundToDecimals = (value: number, decimals: number): string => {
     return format.format(value)
 }
 
-/**
- * `value` with `decimals` places, its integer part grouped in thousands.
- * Integers given as strings or bigints are grouped digit by digit, so counts
- * beyond 2^53 stay exact. A value that is not a number, such as a `-`
- * placeholder, is returned unchanged.
- */
-export const formatNumber = (
+/** `value` formatted as `formatNumber` describes, or `undefined` if it is not a number. */
+const formatNumeric = (
     value: NumberInput,
-    policy?: string | null,
-    decimals: number = 0
-): string => {
+    policy: string | null | undefined,
+    decimals: number
+): string | undefined => {
     if (value === null || value === undefined) {
-        return ""
+        return undefined
     }
     const {group, decimal} = numberFormatSeparators(policy)
     const text = String(value).trim()
@@ -84,7 +79,7 @@ export const formatNumber = (
     }
     const numberValue = typeof value === "number" ? value : Number(text)
     if (text === "" || !Number.isFinite(numberValue)) {
-        return String(value)
+        return undefined
     }
     const fixed = roundToDecimals(Math.abs(numberValue), decimals)
     const [integer, fraction] = fixed.split(".")
@@ -92,9 +87,32 @@ export const formatNumber = (
     return `${sign}${groupDigits(integer, group)}${fraction ? `${decimal}${fraction}` : ""}`
 }
 
-/** `percentage`, already between 0 and 100, with `decimals` places and a `%`. */
+/** A value that is not a number: empty if it is missing, and unchanged otherwise. */
+const notANumber = (value: NumberInput): string =>
+    value === null || value === undefined ? "" : String(value)
+
+/**
+ * `value` with `decimals` places, its integer part grouped in thousands.
+ * Integers given as strings or bigints are grouped digit by digit, so counts
+ * beyond 2^53 stay exact. A value that is not a number, such as a `-`
+ * placeholder, is returned unchanged.
+ */
+export const formatNumber = (
+    value: NumberInput,
+    policy?: string | null,
+    decimals: number = 0
+): string => formatNumeric(value, policy, decimals) ?? notANumber(value)
+
+/**
+ * `percentage`, already between 0 and 100, with `decimals` places and a `%`.
+ * A value that is not a number gets no `%`: it is returned as `formatNumber`
+ * returns it.
+ */
 export const formatPercentage = (
     percentage: NumberInput,
     policy?: string | null,
     decimals: number = 2
-): string => `${formatNumber(percentage, policy, decimals)}%`
+): string => {
+    const formatted = formatNumeric(percentage, policy, decimals)
+    return formatted === undefined ? notANumber(percentage) : `${formatted}%`
+}
