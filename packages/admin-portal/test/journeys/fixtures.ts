@@ -105,6 +105,15 @@ export const test = base.extend<
         graphql.on("GetScheduledOutcomes", () => ({
             data: {get_scheduled_outcomes: {outcomes: [], retained_closes: []}},
         }))
+        graphql.on("PreviewScheduledOutcomeChange", () => ({
+            data: {
+                preview_scheduled_outcome_change: {
+                    applies: null,
+                    applies_message_key: null,
+                    changes: [],
+                },
+            },
+        }))
         graphql.on("sequent_backend_scheduled_event", () => ({
             data: {
                 sequent_backend_scheduled_event: [],
