@@ -15,13 +15,14 @@ use sequent_core::{
     sqlite::results_election_area,
     types::{
         ceremonies::{CountingAlgType, TallyType},
+        number_format::NUMBER_FORMAT_POLICY_VARIABLE,
         participation::ParticipationChannel,
         to_map::ToMap,
     },
     util::{date_time::get_date_and_time, path::list_subfolders},
 };
 use serde::{Deserialize, Serialize};
-use serde_json::Map;
+use serde_json::{json, Map};
 use std::cmp::{self, Ordering};
 use std::{
     collections::HashMap,
@@ -313,11 +314,14 @@ impl GenerateReports {
             reports: computed_reports,
         };
 
-        let template_vars = template_data
+        let mut template_vars = template_data
             .clone()
             .to_map()
             // TODO: Fix neededing to do a Map Err
             .map_err(|err| Error::UnexpectedError(format!("serialization error: {err:?}")))?;
+        if let Some(policy) = config.number_format_policy {
+            template_vars.insert(NUMBER_FORMAT_POLICY_VARIABLE.to_string(), json!(policy));
+        }
 
         let mut template_map = HashMap::new();
         let report_base_html = include_str!("../../resources/report_base_html.hbs");
@@ -351,6 +355,9 @@ impl GenerateReports {
             for (key, value) in obj {
                 template_system_vars.insert(key.clone(), value.clone());
             }
+        }
+        if let Some(policy) = config.number_format_policy {
+            template_system_vars.insert(NUMBER_FORMAT_POLICY_VARIABLE.to_string(), json!(policy));
         }
 
         let render_html =
@@ -2251,5 +2258,136 @@ mod participation_by_channel_tests {
         assert!(!should_show_candidate_results(Some(&preferential)));
         assert!(should_show_candidate_results(Some(&acclaimed_preferential)));
         assert!(!should_show_candidate_results(None));
+    }
+}
+
+#[cfg(test)]
+mod number_format_tests {
+    use super::*;
+    use crate::cli::{state::Stage, CliRun};
+    use crate::config::PipeConfig;
+    use crate::pipes::pipe_name::PipeName;
+
+    const SYSTEM_TEMPLATE: &str = "<main>{{format_u64 figure}} {{{rendered_user_template}}}</main>";
+
+    /// The generate-reports pipe of a tally configured with `config`.
+    fn generate_reports(config: serde_json::Value) -> GenerateReports {
+        let unused = PathBuf::new();
+        GenerateReports::new(PipeInputs {
+            cli: CliRun {
+                stage: "main".to_string(),
+                pipe_id: "gen-report".to_string(),
+                config: unused.clone(),
+                input_dir: unused.clone(),
+                output_dir: unused.clone(),
+            },
+            root_path_config: unused.clone(),
+            root_path_ballots: unused.clone(),
+            root_path_tally_sheets: unused.clone(),
+            root_path_database: unused,
+            stage: Stage {
+                name: "main".to_string(),
+                pipeline: vec![PipeConfig {
+                    id: "gen-report".to_string(),
+                    pipe: PipeName::GenerateReports,
+                    config: Some(config),
+                }],
+                current_pipe: Some(PipeName::GenerateReports),
+                previous_pipe: None,
+            },
+            election_list: vec![],
+        })
+    }
+
+    /// The pipe config windmill wrote before events had a number format.
+    fn config_without_a_number_format_policy() -> serde_json::Value {
+        json!({
+            "enable_pdfs": false,
+            "report_content_template": null,
+            "pdf_options": null,
+            "execution_annotations": {},
+            "system_template": SYSTEM_TEMPLATE,
+            "extra_data": {"figure": 5678},
+            "tally_type": "ELECTORAL_RESULTS",
+            "tally_session_configuration": null
+        })
+    }
+
+    fn contest_report() -> ReportData {
+        let contest = Contest {
+            name: Some("Contest".to_string()),
+            ..Default::default()
+        };
+        ReportData {
+            election_name: "Election".to_string(),
+            election_alias: "Election".to_string(),
+            election_id: "election-1".to_string(),
+            election_event_id: "event-1".to_string(),
+            tenant_id: "tenant-1".to_string(),
+            election_description: String::new(),
+            election_dates: None,
+            election_annotations: HashMap::new(),
+            election_event_annotations: HashMap::new(),
+            contest: Some(contest.clone()),
+            area: None,
+            contest_result: Some(ContestResult {
+                contest,
+                census: 1234,
+                percentage_census: 100.0,
+                total_votes: 1234,
+                percentage_total_votes: 12.3456,
+                ..Default::default()
+            }),
+            winners: vec![],
+            channel_type: None,
+            election_results: None,
+        }
+    }
+
+    /// The HTML report, the JSON report and the results hash.
+    fn generate(config: serde_json::Value) -> (String, Vec<u8>, String) {
+        let (bytes, results_hash) = generate_reports(config)
+            .generate_report(vec![contest_report()], false, None, &HashMap::new(), false)
+            .unwrap();
+        (
+            String::from_utf8(bytes.bytes_html).unwrap(),
+            bytes.bytes_json,
+            results_hash,
+        )
+    }
+
+    #[test]
+    fn every_report_template_writes_figures_in_the_number_format_policy() {
+        let mut config = config_without_a_number_format_policy();
+        config["number_format_policy"] = json!("period-comma");
+
+        let (html, _, _) = generate(config);
+
+        assert!(html.starts_with("<main>5.678 "), "system template: {html}");
+        assert!(html.contains("<td style=\"width: 22.5%;\">1.234</td>"));
+        assert!(html.contains("12,35%"));
+    }
+
+    #[test]
+    fn a_config_without_a_number_format_policy_keeps_comma_grouping() {
+        let (html, _, _) = generate(config_without_a_number_format_policy());
+
+        assert!(html.starts_with("<main>5,678 "), "system template: {html}");
+        assert!(html.contains("<td style=\"width: 22.5%;\">1,234</td>"));
+        assert!(html.contains("12.35%"));
+    }
+
+    #[test]
+    fn the_number_format_policy_leaves_the_json_report_and_its_hash_alone() {
+        let mut config = config_without_a_number_format_policy();
+        let (_, json_without_policy, hash_without_policy) = generate(config.clone());
+        config["number_format_policy"] = json!("period-comma");
+
+        let (_, json, hash) = generate(config);
+
+        assert_eq!(json, json_without_policy);
+        assert_eq!(hash, hash_without_policy);
+        let json: serde_json::Value = serde_json::from_slice(&json).unwrap();
+        assert_eq!(json["reports"][0]["contest_result"]["census"], 1234);
     }
 }
