@@ -173,7 +173,11 @@ fn participation_total(result: &ContestResult) -> Result<u64> {
 fn merge_votes_by_channel(aggregate: &mut VotesByChannel, counts: &VotesByChannel) -> Result<()> {
     for (channel, count) in counts {
         let current = aggregate.entry(channel.clone()).or_default();
-        *current = add_count(*current, *count, "votes by channel")?;
+        *current = add_count(*current, *count, "votes by channel").map_err(|error| {
+            Error::UnexpectedError(format!(
+                "Voting channel count overflow for {channel}: {error}"
+            ))
+        })?;
     }
     Ok(())
 }
@@ -1410,6 +1414,26 @@ mod tests {
             past_the_bound.aggregate(&empty, false).err(),
             Some(CountOverflow("candidate votes"))
         );
+    }
+
+    #[test]
+    fn a_channel_count_past_the_largest_exact_count_names_its_channel() {
+        let channel = ParticipationChannel::from(TallySheetVotingChannel::PAPER);
+        let mut aggregate = VotesByChannel::from([(channel.clone(), MAX_COUNT)]);
+
+        let error = merge_votes_by_channel(
+            &mut aggregate,
+            &VotesByChannel::from([(channel.clone(), 1)]),
+        )
+        .expect_err("a channel count past the bound must be rejected");
+
+        let message = error.to_string();
+        assert!(
+            message.contains("Voting channel count overflow for PAPER"),
+            "{message}"
+        );
+        assert!(message.contains(&MAX_COUNT.to_string()), "{message}");
+        assert_eq!(aggregate[&channel], MAX_COUNT);
     }
 
     #[test]
