@@ -693,6 +693,12 @@ const LogsTable: React.FC<LogsTableProps> = ({
                 page={page}
                 onPageChange={handleChangePage}
                 onRowsPerPageChange={handleChangeRowsPerPage}
+                // MUI's default wording, with the counts in the event's number format.
+                labelDisplayedRows={({from, to, count}) =>
+                    `${formatNumber(from)}–${formatNumber(to)} of ${
+                        count !== -1 ? formatNumber(count) : `more than ${formatNumber(to)}`
+                    }`
+                }
             />
             {somethingWentWrongErr && (
                 <StyledError className="cast-vote-logs-error" component="div">
