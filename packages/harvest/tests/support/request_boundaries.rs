@@ -51,6 +51,14 @@ pub(crate) fn is_isolated_child() -> bool {
 // isolates them from all other tests and from developer settings; its only
 // identity provider is the local peer and it has no database settings.
 pub(crate) fn run_isolated(test: &str, keycloak_url: &str) -> String {
+    run_isolated_with_postgres(test, keycloak_url, false)
+}
+
+fn run_isolated_with_postgres(
+    test: &str,
+    keycloak_url: &str,
+    postgres: bool,
+) -> String {
     use std::process::{Command, Stdio};
     use std::time::{Duration, Instant};
     let marker = tempfile::NamedTempFile::new().unwrap();
@@ -73,6 +81,21 @@ pub(crate) fn run_isolated(test: &str, keycloak_url: &str) -> String {
     // Preserve instrumentation and native library lookup, never credentials.
     for name in ["LLVM_PROFILE_FILE", "LD_LIBRARY_PATH"] {
         if let Some(value) = std::env::var_os(name) {
+            command.env(name, value);
+        }
+    }
+    if postgres {
+        // Only this explicit integration fixture retains its owned test server.
+        for (name, value) in std::env::vars().filter(|(name, _)| {
+            name.starts_with("HASURA_DB__")
+                || name.starts_with("KEYCLOAK_DB__")
+                || [
+                    "LOW_SQL_LIMIT",
+                    "DEFAULT_SQL_LIMIT",
+                    "DEFAULT_SQL_BATCH_SIZE",
+                ]
+                .contains(&name.as_str())
+        }) {
             command.env(name, value);
         }
     }
@@ -540,51 +563,67 @@ async fn cast_log_range_sort_keys_fail_before_database_access_after_voter_author
 ) {
     const TEST: &str = "request_boundaries::cast_log_range_sort_keys_fail_before_database_access_after_voter_authorization";
     if !is_isolated_child() {
-        run_isolated(TEST, "http://127.0.0.1:9");
+        run_isolated_with_postgres(TEST, "http://127.0.0.1:9", true);
         return;
     }
-    // Reserve a local database peer which closes each policy connection. It
-    // exercises the route's mapped policy failure without ambient credentials.
+    let database_settings: Vec<_> = std::env::vars()
+        .filter(|(name, _)| {
+            name.starts_with("HASURA_DB__") || name.starts_with("KEYCLOAK_DB__")
+        })
+        .collect();
+    let services = crate::route_services::Services::on_test_database().await;
+    let event = crate::route_services::rows::event(&services.hasura).await;
+    let election = event.election(&services.hasura).await;
+    let database: String = crate::route_services::rows::query(
+        &services.hasura,
+        "SELECT current_database() AS name",
+        &[],
+    )
+    .await[0]
+        .get("name");
+    // Before the pool is initialized, an observed local peer would catch any
+    // accidental database access for unauthorized or malformed sort input.
     let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
     let port = listener.local_addr().unwrap().port();
-    for database in ["HASURA_DB", "KEYCLOAK_DB"] {
-        std::env::set_var(format!("{database}__HOST"), "127.0.0.1");
-        std::env::set_var(format!("{database}__PORT"), port.to_string());
-        std::env::set_var(format!("{database}__USER"), "synthetic");
-        std::env::set_var(format!("{database}__PASSWORD"), "synthetic");
-        std::env::set_var(format!("{database}__DBNAME"), "synthetic");
-    }
-    for (name, value) in [
-        ("LOW_SQL_LIMIT", "1000"),
-        ("DEFAULT_SQL_LIMIT", "20"),
-        ("DEFAULT_SQL_BATCH_SIZE", "1000"),
-    ] {
-        std::env::set_var(name, value);
-    }
+    listener.set_nonblocking(true).unwrap();
+    std::env::set_var("HASURA_DB__HOST", "127.0.0.1");
+    std::env::set_var("HASURA_DB__PORT", port.to_string());
     let connections =
         std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    let finished =
+        std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
     let observed = connections.clone();
+    let stop = finished.clone();
     let peer = std::thread::spawn(move || {
-        for _ in 0..4 {
-            let (stream, _) = listener.accept().unwrap();
-            observed.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-            drop(stream);
+        while !stop.load(std::sync::atomic::Ordering::SeqCst) {
+            match listener.accept() {
+                Ok((stream, _)) => {
+                    observed.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                    drop(stream);
+                }
+                Err(error)
+                    if error.kind() == std::io::ErrorKind::WouldBlock =>
+                {
+                    std::thread::sleep(std::time::Duration::from_millis(1))
+                }
+                Err(error) => panic!("cast log database peer: {error}"),
+            }
         }
     });
     let client = client().await;
     let voter = || {
-        Claims::new(TENANT_ID, USER_ID)
+        Claims::new(&event.tenant_id, USER_ID)
             .username("synthetic-voter")
             .azp("voting-portal")
             .area("test-area")
-            .election_event("test-event")
-            .authorized_elections(&["test-election"])
+            .election_event(&event.election_event_id)
+            .authorized_elections(&[&election])
     };
     let body = |order: Value| {
         json!({
-            "tenant_id": TENANT_ID,
-            "election_event_id": "test-event",
-            "election_id": "test-election",
+            "tenant_id": event.tenant_id,
+            "election_event_id": event.election_event_id,
+            "election_id": election,
             "ballot_id": "test-ballot",
             "order_by": order,
         })
@@ -632,19 +671,29 @@ async fn cast_log_range_sort_keys_fail_before_database_access_after_voter_author
         assert_eq!(error["message"], format!("Cannot sort by {field}"));
     }
     assert_eq!(connections.load(std::sync::atomic::Ordering::SeqCst), 0);
-    // Valid sort controls still require the database-backed visibility policy;
-    // the local peer deliberately refuses their connection.
-    for order in [
-        Value::Null,
-        json!({}),
-        json!({"created": "desc"}),
-        json!({"statement_timestamp": "asc", "id": "desc"}),
-    ] {
+    finished.store(true, std::sync::atomic::Ordering::SeqCst);
+    peer.join().unwrap();
+    for (name, value) in database_settings {
+        std::env::set_var(name, value);
+    }
+    std::env::set_var("HASURA_DB__DBNAME", database);
+    // The real migrated event has the default hidden-log policy. Valid columns
+    // reach that actual policy and are denied before the electoral-log backend.
+    let mut absent = body(Value::Null);
+    absent.as_object_mut().unwrap().remove("order_by");
+    let controls = [
+        absent,
+        body(Value::Null),
+        body(json!({})),
+        body(json!({"created": "desc"})),
+        body(json!({"statement_timestamp": "asc", "id": "desc"})),
+    ];
+    for input in controls {
         let response = client
             .post("/list-cast-vote-messages")
             .header(ContentType::JSON)
             .header(bearer(&authorized))
-            .body(body(order).to_string())
+            .body(input.to_string())
             .dispatch()
             .await;
         assert_eq!(response.status(), Status::Forbidden);
@@ -653,10 +702,7 @@ async fn cast_log_range_sort_keys_fail_before_database_access_after_voter_author
             error["extensions"]["code"],
             "ConfirmPolicyShowCastVoteLogsFailed"
         );
-        assert!(error["message"].as_str().unwrap().starts_with(
-            "Failed to confirm that the show_cast_vote_logs policy is enabled:"
-        ));
+        assert!(error["message"].as_str().unwrap().contains("hide-logs-tab"));
     }
-    peer.join().unwrap();
-    assert_eq!(connections.load(std::sync::atomic::Ordering::SeqCst), 4);
+    assert_eq!(connections.load(std::sync::atomic::Ordering::SeqCst), 0);
 }
