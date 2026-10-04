@@ -18,14 +18,9 @@
                       <td class="left">
                         <div>
                           <p>
-                            {{!-- When it was generated: in the Post's zone, with the
-                            primary zone in brackets when it is another one. --}}
-                            Generated {{datetime_zone execution_annotations.date_printed
-                            electionTimezone output_format="%B %d, %Y %H:%M"}}
-                            {{#eq electionTimezone electionEventTimezone}}{{else}}
-                            ({{datetime_zone execution_annotations.date_printed
-                            electionEventTimezone output_format="%B %d, %Y %H:%M"}})
-                            {{/eq}}
+                            {{datetime from_rfc3339=execution_annotations.date_printed
+                            output_format="%B %d, %Y %H:%M"
+                            with_timezone="UTC"}}
                           </p>
                         </div>
                       </td>
@@ -55,19 +50,14 @@
                       <div class="online">
                         ONLINE VOTING AND COUNTING SYSTEM
                       </div>
-                      {{!-- From the Post's opening, in its zone, to the common
-                      close, in the primary zone. --}}
-                      {{#with reports.0.election_dates.scheduled_event_dates}}
                       <div class="voting-period">
-                        Voting Period:
-                        {{#if START_VOTING_PERIOD.scheduled_at}}{{datetime_zone
-                        START_VOTING_PERIOD.scheduled_at @root.electionTimezone
-                        output_format="%d %B %Y %H:%M"}}{{/if}} -
-                        {{#if END_VOTING_PERIOD.scheduled_at}}{{datetime_zone
-                        END_VOTING_PERIOD.scheduled_at @root.electionEventTimezone
-                        output_format="%d %B %Y %H:%M"}}{{/if}}
+                        Voting Period: {{datetime
+                        from_rfc3339=reports.0.election_dates.scheduled_event_dates.ALLOW_INIT_REPORT.scheduled_at
+                        output_format="%d %B %Y" with_timezone="UTC"}} - {{datetime
+                        from_rfc3339=reports.0.election_dates.scheduled_event_dates.END_VOTING_PERIOD.scheduled_at
+                        output_format="%d %B %Y"
+                        with_timezone="UTC"}}
                       </div>
-                      {{/with}}
                     </td>
                     <td width="23%" class="right" valign="top">
                     </td>
@@ -166,10 +156,8 @@
   <tr>
     <td class="sys-info">
       <div>
-        {{!-- The hash of the report's data: the electoral log's
-        ElectionInitialized entry records the same value. --}}
         <span class="word-break">Report hash: {{sanitize_html (expr
-          execution_annotations.results_hash)}}</span><br />
+          execution_annotations.report_hash)}}</span><br />
         <br />
         Software version: {{sanitize_html (expr execution_annotations.software_version)}}<br />
         System hash: {{sanitize_html (expr execution_annotations.app_hash)}}
@@ -191,7 +179,7 @@
   </table>
   </div>
   <script>
-    let reportHash = '{{expr execution_annotations.results_hash}}'
+    let reportHash = '{{expr execution_annotations.report_hash}}'
     let systemHash = '{{expr execution_annotations.app_hash}}';
     let softwareVersion = '{{expr execution_annotations.software_version}}';
     let ovcsVersion = '{{expr execution_annotations.app_version}}';

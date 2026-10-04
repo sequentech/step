@@ -2313,3 +2313,147 @@ mod participation_by_channel_tests {
         assert!(!should_show_candidate_results(None));
     }
 }
+
+#[cfg(test)]
+mod report_render_timezones_tests {
+    use super::*;
+    use crate::cli::{state::Stage, CliRun};
+    use crate::config::PipeConfig;
+    use crate::pipes::pipe_name::PipeName;
+    use serde_json::json;
+
+    fn report(election_id: &str) -> ReportData {
+        ReportData {
+            election_name: election_id.into(),
+            election_alias: election_id.into(),
+            election_id: election_id.into(),
+            election_event_id: "event".into(),
+            tenant_id: "tenant".into(),
+            election_description: String::new(),
+            election_dates: None,
+            election_annotations: HashMap::new(),
+            election_event_annotations: HashMap::new(),
+            contest: None,
+            area: None,
+            contest_result: None,
+            winners: vec![],
+            channel_type: None,
+            election_results: None,
+        }
+    }
+
+    fn renderer(with_timezones: bool) -> GenerateReports {
+        let mut config = PipeConfigGenerateReports {
+            report_content_template: Some(
+                r#"<p id="content-time">{{datetime_zone "2028-04-09T00:00:00Z" output_format="%H:%M"}}</p>"#.into(),
+            ),
+            system_template: r#"<main><p id="outer-time">{{datetime_zone "2028-04-09T00:00:00Z" output_format="%H:%M"}}</p>{{{rendered_user_template}}}</main>"#.into(),
+            ..Default::default()
+        };
+        if with_timezones {
+            config.template_variables = json!({
+                "electionEventTimezone": "Europe/Madrid",
+                "electionTimezone": "UTC",
+                "timezoneTexts": {
+                    "defaults": {
+                        "timezones.abbrDaylight.Atlantic/Canary": "WEST",
+                        "timezones.abbrDaylight.Europe/Madrid": "CEST"
+                    },
+                    "overrides": {}
+                }
+            })
+            .as_object()
+            .unwrap()
+            .clone();
+            config.election_time_zones = HashMap::from([
+                ("office".into(), "Atlantic/Canary".into()),
+                ("another-office".into(), "Asia/Manila".into()),
+            ]);
+            // An arbitrary outer-template field must not replace the resolved report zone.
+            config.extra_data = json!({"electionTimezone": "Asia/Tokyo"});
+        }
+        GenerateReports::new(PipeInputs {
+            cli: CliRun {
+                stage: "main".into(),
+                pipe_id: "reports".into(),
+                config: PathBuf::new(),
+                input_dir: PathBuf::new(),
+                output_dir: PathBuf::new(),
+            },
+            root_path_config: PathBuf::new(),
+            root_path_ballots: PathBuf::new(),
+            root_path_tally_sheets: PathBuf::new(),
+            root_path_database: PathBuf::new(),
+            stage: Stage {
+                name: "main".into(),
+                current_pipe: Some(PipeName::GenerateReports),
+                previous_pipe: None,
+                pipeline: vec![PipeConfig {
+                    id: "reports".into(),
+                    pipe: PipeName::GenerateReports,
+                    config: Some(serde_json::to_value(config).unwrap()),
+                }],
+            },
+            election_list: vec![],
+        })
+    }
+
+    #[test]
+    fn reports_of_one_election_render_its_zone_in_content_and_outer_template() {
+        let (bytes, hash) = renderer(true)
+            .generate_report(
+                vec![report("office"), report("office")],
+                false,
+                Some("election-hash".into()),
+                &HashMap::new(),
+                false,
+            )
+            .unwrap();
+        let html = String::from_utf8(bytes.bytes_html).unwrap();
+        assert!(
+            html.contains(r#"id="content-time">01:00 WEST</p>"#),
+            "{html}"
+        );
+        assert!(html.contains(r#"id="outer-time">01:00 WEST</p>"#), "{html}");
+        assert_eq!(hash, "election-hash");
+        assert!(bytes.bytes_pdf.is_none());
+        let data: Value = serde_json::from_slice(&bytes.bytes_json).unwrap();
+        assert_eq!(data["reports"].as_array().unwrap().len(), 2);
+        assert_eq!(data["reports"][0]["election_id"], "office");
+    }
+
+    #[test]
+    fn reports_of_different_elections_render_the_event_zone_in_both_templates() {
+        let (bytes, _) = renderer(true)
+            .generate_report(
+                vec![report("office"), report("another-office")],
+                false,
+                None,
+                &HashMap::new(),
+                true,
+            )
+            .unwrap();
+        let html = String::from_utf8(bytes.bytes_html).unwrap();
+        assert!(
+            html.contains(r#"id="content-time">02:00 CEST</p>"#),
+            "{html}"
+        );
+        assert!(html.contains(r#"id="outer-time">02:00 CEST</p>"#), "{html}");
+        let data: Value = serde_json::from_slice(&bytes.bytes_json).unwrap();
+        assert_eq!(data["reports"][0]["election_id"], "office");
+        assert_eq!(data["reports"][1]["election_id"], "another-office");
+    }
+
+    #[test]
+    fn older_report_inputs_without_timezones_render_utc_in_both_templates() {
+        let (bytes, _) = renderer(false)
+            .generate_report(vec![report("office")], false, None, &HashMap::new(), false)
+            .unwrap();
+        let html = String::from_utf8(bytes.bytes_html).unwrap();
+        assert!(
+            html.contains(r#"id="content-time">00:00 UTC</p>"#),
+            "{html}"
+        );
+        assert!(html.contains(r#"id="outer-time">00:00 UTC</p>"#), "{html}");
+    }
+}
