@@ -114,7 +114,7 @@ export const SlatesConfigurationInput: React.FC<SlatesConfigurationInputProps> =
                         </MenuItem>
                     ))}
                 </Select>
-                <FormHelperText>
+                <FormHelperText disabled={false}>
                     {t("electionScreen.slates.mobileCandidateLists.helper")}
                 </FormHelperText>
             </FormControl>

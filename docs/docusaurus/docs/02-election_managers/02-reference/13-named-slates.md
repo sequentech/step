@@ -115,7 +115,7 @@ Under its name, each slate states what it covers:
 
 The text is followed by the number of candidates and of offices the slate has candidates in, for example `Trustees only · 3 candidates · 1 office`.
 
-On wide screens every slate lists every contest of the ballot in ballot order, so that the same office is in the same position on each slate. An office the slate has no candidate for shows **No candidate**. On phones those offices are left out.
+On wide screens the slate cards list the same contests in the same order, so that the same office is in the same position on each slate. An office the slate has no candidate for shows **No candidate**. On phones those offices are left out. See [Slate cards on wider screens](#slate-cards-on-wider-screens).
 
 A partial slate never fills the offices it has no candidate for. They keep the voter's own choices, or stay empty.
 
