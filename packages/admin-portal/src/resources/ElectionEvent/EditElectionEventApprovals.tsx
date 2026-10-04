@@ -8,12 +8,14 @@ import {useTranslation} from "react-i18next"
 import {ListApprovals} from "../Approvals/ListApprovals"
 import {Identifier, useRecordContext} from "react-admin"
 import {ViewApproval} from "../Approvals/ViewApproval"
+import {ApprovalMatrix} from "../Approvals/ApprovalMatrix"
 import {Sequent_Backend_Election_Event} from "@/gql/graphql"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
 
 enum ViewMode {
     View,
     List,
+    Matrix,
 }
 
 type TApproval = {
@@ -65,8 +67,11 @@ export const EditElectionEventApprovals: React.FC<TApproval> = ({
                     electionEventId={electionEventId}
                     electionId={electionId}
                     onViewApproval={onViewApproval}
+                    onViewMatrix={() => setViewMode(ViewMode.Matrix)}
                     electionEventRecord={electionEventRecord}
                 />
+            ) : viewMode === ViewMode.Matrix ? (
+                <ApprovalMatrix electionEventId={electionEventId} goBack={onViewList} />
             ) : (
                 <ViewApproval
                     electionEventId={electionEventId}

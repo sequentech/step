@@ -17,6 +17,7 @@ import {
     SECOND_APPLICATION_ID,
     applicationRecord,
 } from "@/resources/Approvals/__stories__/ApprovalsFixture"
+import {matrixHandlers} from "@/resources/Approvals/__stories__/ApprovalMatrixFixture"
 import {EditElectionEventApprovals} from "./EditElectionEventApprovals"
 import {answerOrPending, paramsOf, recordsOrPending} from "./__stories__/ElectionEventFixture"
 import {EStoryPermissions, useStoryGlobals} from "../../../../ui-essentials/.storybook/globals"
@@ -107,6 +108,7 @@ const meta = {
         })
         graphql = graphqlBoundary(
             answerOrPending({
+                ...matrixHandlers(),
                 getUserProfileAttributes: () => ({
                     data: {get_user_profile_attributes: APPROVAL_ATTRIBUTES},
                 }),
@@ -199,6 +201,40 @@ export const ElectionApprovals: Story = {
         const canvas = within(canvasElement)
         await expect(await canvas.findByRole("row", {name: /applicant-0003/})).toBeVisible()
         await waitFor(() => expect(canvas.queryByRole("row", {name: /applicant-0001/})).toBeNull())
+    },
+}
+
+export const OpenTheApprovalMatrixAndGoBack: Story = {
+    globals: {permissions: EStoryPermissions.ADMIN},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await expect(await pendingRow(canvasElement)).toBeVisible()
+        await userEvent.click(canvas.getByRole("button", {name: "Approval Matrix"}))
+        await expect(await canvas.findByRole("table", {name: "Rules"})).toBeVisible()
+        await expect(canvas.getByRole("button", {name: "Add Rule"})).toBeVisible()
+        expect(graphql.calls.find(({name}) => name === "GetApprovalMatrix")).toMatchObject({
+            variables: {electionEventId: EVENT_ID},
+        })
+        await userEvent.click(canvas.getByRole("button", {name: i18n.t("common.label.back")}))
+        await expect(await pendingRow(canvasElement)).toBeVisible()
+        expect(canvas.queryByRole("table", {name: "Rules"})).toBeNull()
+    },
+}
+
+export const ApprovalMatrixWithoutThePermissionToSave: Story = {
+    globals: {permissions: EStoryPermissions.ADMIN_LIGHT},
+    parameters: {
+        expectedFailure: {
+            reason: "The status chips have white labels on the warning and success colours.",
+            a11y: ["color-contrast"],
+        },
+    },
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await userEvent.click(await canvas.findByRole("button", {name: "Approval Matrix"}))
+        await expect(await canvas.findByRole("table", {name: "Rules"})).toBeVisible()
+        expect(canvas.queryByRole("button", {name: "Add Rule"})).toBeNull()
+        expect(canvas.queryByRole("button", {name: "Save"})).toBeNull()
     },
 }
 

@@ -1486,6 +1486,7 @@ const dutchTranslation: TranslationType = {
                 "task-export": "Taken Exporteren",
                 "application-read": "Applicatie Lezen",
                 "application-write": "Applicatie Bewerken",
+                "approval-matrix-write": "Goedkeuringsmatrix Bewerken",
                 "logs-export": "Logs Exporteren",
                 "election-event-logs-columns": "Kolommen Logs Verkiezingsevenement",
                 "election-events-logs-filters": "Filters Logs Verkiezingsevenement",
@@ -2863,6 +2864,159 @@ const dutchTranslation: TranslationType = {
             export: {
                 success: "Export applicaties succesvol voltooid",
                 error: "Fout bij exporteren applicaties",
+            },
+            matrix: {
+                button: "Goedkeuringsmatrix",
+                title: "Goedkeuringsmatrix",
+                subtitle:
+                    "Regels worden op volgorde gecontroleerd. De eerste regel die van toepassing is, beslist over de inschrijving.",
+                version: "Versie {{version}} · Opgeslagen op {{date}} door {{user}}",
+                builtInVersion:
+                    "Versie {{version}} · Ingebouwde regels, in gebruik totdat een versie is opgeslagen",
+                unsaved: "Niet-opgeslagen wijzigingen",
+                readOnly: "U kunt de matrix bekijken en testen, maar niet wijzigen.",
+                loadError: "De goedkeuringsmatrix kon niet worden geladen.",
+                compared: "Vergeleken met het Register",
+                comparedHelp:
+                    "Elke inschrijving wordt vergeleken met de kiezer die in het register is gevonden. Namen negeren hoofdletters, accenten en koppeltekens; voor het Rijbewijs en het Zeemansboek worden voornaam en tweede naam samen vergeleken.",
+                comparedFields: "Vergeleken velden",
+                comparedFieldsHelp: "Typ een kiezerskenmerk en druk op Enter om het toe te voegen.",
+                rules: "Regels",
+                columns: {
+                    number: "#",
+                    conditions: "Voorwaarden",
+                    decision: "Beslissing",
+                    reason: "Reden Getoond aan de Kiezer",
+                    actions: "Acties",
+                },
+                otherwise: "Anders",
+                addRule: "Regel Toevoegen",
+                actions: {
+                    edit: "Regel {{number}} bewerken",
+                    editOtherwise: "De laatste regel bewerken",
+                    moveUp: "Regel {{number}} omhoog verplaatsen",
+                    moveDown: "Regel {{number}} omlaag verplaatsen",
+                    delete: "Regel {{number}} verwijderen",
+                },
+                test: "De Matrix Testen",
+                testHelp:
+                    "Beschrijf een inschrijving om te zien welke regel erover beslist. Niet-opgeslagen wijzigingen tellen mee.",
+                applies: "Regel {{number}} is van toepassing:",
+                otherwiseApplies:
+                    "Geen regel is van toepassing, dus de laatste regel (Anders) beslist:",
+                testError: "De inschrijving kon niet worden getest.",
+                testInvalid: "Corrigeer deze regels voordat u test of opslaat:",
+                ruleError: "Regel {{number}}: {{error}}",
+                invariants: {
+                    MANUAL_ENTRY_NOT_ACCEPTED:
+                        "De regel keurt goed, maar inschrijvingen waarvan de identiteit handmatig is ingevoerd worden nooit automatisch goedgekeurd.",
+                    ALREADY_ENROLLED_NOT_ACCEPTED:
+                        "De regel keurt goed, maar een kiezer die al is ingeschreven wordt nooit opnieuw goedgekeurd.",
+                    NO_VOTER_NOT_ACCEPTED:
+                        "De regel keurt goed, maar niemand wordt goedgekeurd zonder kiezer in het register.",
+                    OTHERWISE_NOT_ACCEPTED: "De laatste regel keurt nooit goed.",
+                },
+                dialog: {
+                    editTitle: "Regel {{number}} Bewerken",
+                    newTitle: "Nieuwe Regel",
+                    otherwiseTitle: "De Laatste Regel (Anders) Bewerken",
+                    identity: "Identiteitsverificatie",
+                    voterFound: "Kiezer Gevonden in Register",
+                    alreadyEnrolled: "Kiezer Al Ingeschreven",
+                    validId: "Geldig Identiteitsbewijs",
+                    differing: "Velden die Afwijken",
+                    decision: "Beslissing",
+                    reason: "Reden Getoond aan de Kiezer",
+                    apply: "Toepassen",
+                    any: "Willekeurig",
+                    yes: "Ja",
+                    no: "Nee",
+                    notReported: "Niet gemeld",
+                },
+                identity: {
+                    VERIFIED: "Geverifieerd",
+                    MANUAL_ENTRY: "Handmatig ingevoerd",
+                },
+                differing: {
+                    none: "Geen",
+                    exactly_1: "Precies 1",
+                    at_most_1: "Hoogstens 1",
+                    exactly_2: "Precies 2",
+                    at_most_2: "Hoogstens 2",
+                    at_least_3: "3 of meer",
+                },
+                fieldMatch: {
+                    MATCHES: "Komt overeen",
+                    DIFFERS: "Wijkt af",
+                },
+                decisions: {
+                    ACCEPTED: "Automatisch goedkeuren",
+                    PENDING: "Naar handmatige beoordeling sturen",
+                    REJECTED: "Afwijzen",
+                },
+                reasons: {
+                    NO_VOTER: "Geen Overeenkomende Kiezer",
+                    ALREADY_APPROVED: "Reeds Goedgekeurd",
+                    INSUFFICIENT_INFORMATION: "Ontbrekende Gegevens",
+                    IDENTITY_NOT_VERIFIED: "Identiteit Niet Geverifieerd",
+                    OTHER: "Anders",
+                },
+                conditions: {
+                    any: "Elke inschrijving",
+                    identity: {
+                        VERIFIED: "Identiteit geverifieerd",
+                        MANUAL_ENTRY: "Identiteit handmatig ingevoerd",
+                    },
+                    voterFound: {
+                        true: "Kiezer gevonden in register",
+                        false: "Geen kiezer gevonden in register",
+                    },
+                    alreadyEnrolled: {
+                        true: "Kiezer al ingeschreven",
+                        false: "Kiezer nog niet ingeschreven",
+                    },
+                    validId: "Geldig identiteitsbewijs: {{id}}",
+                    differing: {
+                        none: "Alle vergeleken velden komen overeen",
+                        exactly_1: "Precies 1 veld wijkt af",
+                        at_most_1: "Hoogstens 1 veld wijkt af",
+                        exactly_2: "Precies 2 velden wijken af",
+                        at_most_2: "Hoogstens 2 velden wijken af",
+                        at_least_3: "3 of meer velden wijken af",
+                    },
+                    field: {
+                        MATCHES: "{{field}} komt overeen",
+                        DIFFERS: "{{field}} wijkt af",
+                    },
+                },
+                errors: {
+                    ACCEPTS_MANUAL_ENTRY:
+                        "Inschrijvingen waarvan de identiteit handmatig is ingevoerd kunnen niet automatisch worden goedgekeurd.",
+                    ACCEPTS_ALREADY_ENROLLED:
+                        "Een kiezer die al is ingeschreven kan niet opnieuw worden goedgekeurd.",
+                    ACCEPTS_WITHOUT_VOTER:
+                        "Een inschrijving kan niet worden goedgekeurd zonder kiezer in het register.",
+                    OTHERWISE_ACCEPTS:
+                        "De laatste regel kan inschrijvingen naar handmatige beoordeling sturen of afwijzen, niet goedkeuren.",
+                    MISSING_REASON: "Kies de reden die aan de kiezer wordt getoond.",
+                    UNEXPECTED_REASON: "Een goedkeuring heeft geen reden.",
+                    NO_COMPARED_FIELDS:
+                        "Kies ten minste één veld om met het register te vergelijken.",
+                    DUPLICATE_COMPARED_FIELD: "Een vergeleken veld komt twee keer voor.",
+                    UNKNOWN_FIELD: "Een regel gebruikt een veld dat niet wordt vergeleken.",
+                },
+                save: {
+                    button: "Opslaan",
+                    title: "Goedkeuringsmatrix Opslaan",
+                    body: "Deze regels opslaan als versie {{version}}? Nieuwe inschrijvingen worden er vanaf nu mee beslist. Inschrijvingen waarover al is beslist behouden hun beslissing.",
+                    success: "Goedkeuringsmatrix opgeslagen als versie {{version}}",
+                    error: "De goedkeuringsmatrix kon niet worden opgeslagen",
+                },
+            },
+            decision: {
+                label: "Beslist door",
+                text: "Goedkeuringsmatrix versie {{version}}, regel {{rule}}: {{conditions}}",
+                otherwise: "Goedkeuringsmatrix versie {{version}}, laatste regel (Anders)",
             },
         },
         monitoring: {

@@ -1491,6 +1491,7 @@ const frenchTranslation: TranslationType = {
                 "task-export": "Exporter les Tâches",
                 "application-read": "Lire l'Application",
                 "application-write": "Modifier l'Application",
+                "approval-matrix-write": "Modifier la Matrice d'Approbation",
                 "logs-export": "Exporter les Journaux",
                 "election-event-logs-columns": "Colonnes des Journaux de l'Événement Électoral",
                 "election-events-logs-filters": "Filtres des Journaux de l'Événement Électoral",
@@ -2883,6 +2884,159 @@ const frenchTranslation: TranslationType = {
             export: {
                 success: "L'exportation des applications a été réalisée avec succès",
                 error: "Erreur lors de l'exportation des applications",
+            },
+            matrix: {
+                button: "Matrice d'Approbation",
+                title: "Matrice d'Approbation",
+                subtitle:
+                    "Les règles sont vérifiées dans l'ordre. La première règle qui s'applique décide de l'inscription.",
+                version: "Version {{version}} · Enregistrée le {{date}} par {{user}}",
+                builtInVersion:
+                    "Version {{version}} · Règles intégrées, utilisées jusqu'à l'enregistrement d'une version",
+                unsaved: "Modifications non enregistrées",
+                readOnly: "Vous pouvez consulter et tester la matrice, mais pas la modifier.",
+                loadError: "La matrice d'approbation n'a pas pu être chargée.",
+                compared: "Comparé avec le Registre",
+                comparedHelp:
+                    "Chaque inscription est comparée avec l'électeur trouvé dans le registre. Les noms ignorent la casse, les accents et les traits d'union ; pour le Permis de Conduire et le Livret de Marin, le prénom et le deuxième prénom sont comparés ensemble.",
+                comparedFields: "Champs comparés",
+                comparedFieldsHelp:
+                    "Saisissez un attribut de l'électeur et appuyez sur Entrée pour l'ajouter.",
+                rules: "Règles",
+                columns: {
+                    number: "#",
+                    conditions: "Conditions",
+                    decision: "Décision",
+                    reason: "Motif Affiché à l'Électeur",
+                    actions: "Actions",
+                },
+                otherwise: "Sinon",
+                addRule: "Ajouter une Règle",
+                actions: {
+                    edit: "Modifier la règle {{number}}",
+                    editOtherwise: "Modifier la dernière règle",
+                    moveUp: "Monter la règle {{number}}",
+                    moveDown: "Descendre la règle {{number}}",
+                    delete: "Supprimer la règle {{number}}",
+                },
+                test: "Tester la Matrice",
+                testHelp:
+                    "Décrivez une inscription pour voir quelle règle en décide. Les modifications non enregistrées sont incluses.",
+                applies: "La règle {{number}} s'applique :",
+                otherwiseApplies:
+                    "Aucune règle ne s'applique, la dernière règle (Sinon) décide donc :",
+                testError: "L'inscription n'a pas pu être testée.",
+                testInvalid: "Corrigez ces règles avant de tester ou d'enregistrer :",
+                ruleError: "Règle {{number}} : {{error}}",
+                invariants: {
+                    MANUAL_ENTRY_NOT_ACCEPTED:
+                        "La règle approuve, mais les inscriptions dont l'identité a été saisie manuellement ne sont jamais approuvées automatiquement.",
+                    ALREADY_ENROLLED_NOT_ACCEPTED:
+                        "La règle approuve, mais un électeur déjà inscrit n'est jamais approuvé de nouveau.",
+                    NO_VOTER_NOT_ACCEPTED:
+                        "La règle approuve, mais personne n'est approuvé sans électeur dans le registre.",
+                    OTHERWISE_NOT_ACCEPTED: "La dernière règle n'approuve jamais.",
+                },
+                dialog: {
+                    editTitle: "Modifier la Règle {{number}}",
+                    newTitle: "Nouvelle Règle",
+                    otherwiseTitle: "Modifier la Dernière Règle (Sinon)",
+                    identity: "Vérification d'Identité",
+                    voterFound: "Électeur Trouvé dans le Registre",
+                    alreadyEnrolled: "Électeur Déjà Inscrit",
+                    validId: "Pièce d'Identité Valide",
+                    differing: "Champs qui Diffèrent",
+                    decision: "Décision",
+                    reason: "Motif Affiché à l'Électeur",
+                    apply: "Appliquer",
+                    any: "Indifférent",
+                    yes: "Oui",
+                    no: "Non",
+                    notReported: "Non indiqué",
+                },
+                identity: {
+                    VERIFIED: "Vérifiée",
+                    MANUAL_ENTRY: "Saisie manuellement",
+                },
+                differing: {
+                    none: "Aucun",
+                    exactly_1: "Exactement 1",
+                    at_most_1: "Au plus 1",
+                    exactly_2: "Exactement 2",
+                    at_most_2: "Au plus 2",
+                    at_least_3: "3 ou plus",
+                },
+                fieldMatch: {
+                    MATCHES: "Correspond",
+                    DIFFERS: "Diffère",
+                },
+                decisions: {
+                    ACCEPTED: "Approuver automatiquement",
+                    PENDING: "Envoyer en révision manuelle",
+                    REJECTED: "Rejeter",
+                },
+                reasons: {
+                    NO_VOTER: "Électeur Non Correspondant",
+                    ALREADY_APPROVED: "Déjà Approuvé",
+                    INSUFFICIENT_INFORMATION: "Données Manquantes",
+                    IDENTITY_NOT_VERIFIED: "Identité Non Vérifiée",
+                    OTHER: "Autre",
+                },
+                conditions: {
+                    any: "Toute inscription",
+                    identity: {
+                        VERIFIED: "Identité vérifiée",
+                        MANUAL_ENTRY: "Identité saisie manuellement",
+                    },
+                    voterFound: {
+                        true: "Électeur trouvé dans le registre",
+                        false: "Aucun électeur trouvé dans le registre",
+                    },
+                    alreadyEnrolled: {
+                        true: "Électeur déjà inscrit",
+                        false: "Électeur pas encore inscrit",
+                    },
+                    validId: "Pièce d'identité valide : {{id}}",
+                    differing: {
+                        none: "Tous les champs comparés correspondent",
+                        exactly_1: "Exactement 1 champ diffère",
+                        at_most_1: "Au plus 1 champ diffère",
+                        exactly_2: "Exactement 2 champs diffèrent",
+                        at_most_2: "Au plus 2 champs diffèrent",
+                        at_least_3: "3 champs ou plus diffèrent",
+                    },
+                    field: {
+                        MATCHES: "{{field}} correspond",
+                        DIFFERS: "{{field}} diffère",
+                    },
+                },
+                errors: {
+                    ACCEPTS_MANUAL_ENTRY:
+                        "Les inscriptions dont l'identité a été saisie manuellement ne peuvent pas être approuvées automatiquement.",
+                    ACCEPTS_ALREADY_ENROLLED:
+                        "Un électeur déjà inscrit ne peut pas être approuvé de nouveau.",
+                    ACCEPTS_WITHOUT_VOTER:
+                        "Une inscription ne peut pas être approuvée sans électeur dans le registre.",
+                    OTHERWISE_ACCEPTS:
+                        "La dernière règle peut envoyer les inscriptions en révision manuelle ou les rejeter, pas les approuver.",
+                    MISSING_REASON: "Choisissez le motif affiché à l'électeur.",
+                    UNEXPECTED_REASON: "Une approbation n'a pas de motif.",
+                    NO_COMPARED_FIELDS: "Choisissez au moins un champ à comparer avec le registre.",
+                    DUPLICATE_COMPARED_FIELD: "Un champ comparé est répété.",
+                    UNKNOWN_FIELD: "Une règle utilise un champ qui n'est pas comparé.",
+                },
+                save: {
+                    button: "Enregistrer",
+                    title: "Enregistrer la Matrice d'Approbation",
+                    body: "Enregistrer ces règles comme version {{version}} ? Les nouvelles inscriptions seront désormais décidées avec elles. Les inscriptions déjà décidées conservent leur décision.",
+                    success: "Matrice d'approbation enregistrée comme version {{version}}",
+                    error: "La matrice d'approbation n'a pas pu être enregistrée",
+                },
+            },
+            decision: {
+                label: "Décidé par",
+                text: "Matrice d'approbation version {{version}}, règle {{rule}} : {{conditions}}",
+                otherwise: "Matrice d'approbation version {{version}}, dernière règle (Sinon)",
             },
         },
         monitoring: {

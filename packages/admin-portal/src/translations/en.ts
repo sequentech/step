@@ -1472,6 +1472,7 @@ const englishTranslation = {
                 "task-export": "Export Tasks",
                 "application-read": "Read Application",
                 "application-write": "Edit Application",
+                "approval-matrix-write": "Edit Approval Matrix",
                 "logs-export": "Export Logs",
                 "election-event-logs-columns": "Election Event Logs Columns",
                 "election-events-logs-filters": "Election Event Logs Filters",
@@ -2837,6 +2838,157 @@ const englishTranslation = {
             export: {
                 success: "Applications export finished successfully",
                 error: "Error exporting applications",
+            },
+            matrix: {
+                button: "Approval Matrix",
+                title: "Approval Matrix",
+                subtitle:
+                    "Rules are checked in order. The first rule that applies decides the enrollment.",
+                version: "Version {{version}} · Saved {{date}} by {{user}}",
+                builtInVersion:
+                    "Version {{version}} · Built-in rules, used until a version is saved",
+                unsaved: "Unsaved changes",
+                readOnly: "You can view and test the matrix, but not change it.",
+                loadError: "The approval matrix could not be loaded.",
+                compared: "Compared With The Registry",
+                comparedHelp:
+                    "Each enrollment is compared with the voter found in the registry. Names ignore case, accents and hyphens; for Driver's License and Seafarer's Book, first and middle name are compared together.",
+                comparedFields: "Compared fields",
+                comparedFieldsHelp: "Type a voter attribute and press Enter to add it.",
+                rules: "Rules",
+                columns: {
+                    number: "#",
+                    conditions: "Conditions",
+                    decision: "Decision",
+                    reason: "Reason Shown To The Voter",
+                    actions: "Actions",
+                },
+                otherwise: "Otherwise",
+                addRule: "Add Rule",
+                actions: {
+                    edit: "Edit rule {{number}}",
+                    editOtherwise: "Edit the last rule",
+                    moveUp: "Move rule {{number}} up",
+                    moveDown: "Move rule {{number}} down",
+                    delete: "Delete rule {{number}}",
+                },
+                test: "Test The Matrix",
+                testHelp:
+                    "Describe an enrollment to see which rule decides it. Unsaved changes are included.",
+                applies: "Rule {{number}} applies:",
+                otherwiseApplies: "No rule applies, so the last rule (Otherwise) decides:",
+                testError: "The enrollment could not be tested.",
+                testInvalid: "Fix these rules before testing or saving:",
+                ruleError: "Rule {{number}}: {{error}}",
+                invariants: {
+                    MANUAL_ENTRY_NOT_ACCEPTED:
+                        "The rule approves, but enrollments whose identity was entered manually are never approved automatically.",
+                    ALREADY_ENROLLED_NOT_ACCEPTED:
+                        "The rule approves, but a voter who is already enrolled is never approved again.",
+                    NO_VOTER_NOT_ACCEPTED:
+                        "The rule approves, but nobody is approved without a voter in the registry.",
+                    OTHERWISE_NOT_ACCEPTED: "The last rule never approves.",
+                },
+                dialog: {
+                    editTitle: "Edit Rule {{number}}",
+                    newTitle: "New Rule",
+                    otherwiseTitle: "Edit The Last Rule (Otherwise)",
+                    identity: "Identity Verification",
+                    voterFound: "Voter Found In Registry",
+                    alreadyEnrolled: "Voter Already Enrolled",
+                    validId: "Valid ID",
+                    differing: "Fields That Differ",
+                    decision: "Decision",
+                    reason: "Reason Shown To The Voter",
+                    apply: "Apply",
+                    any: "Any",
+                    yes: "Yes",
+                    no: "No",
+                    notReported: "Not reported",
+                },
+                identity: {
+                    VERIFIED: "Verified",
+                    MANUAL_ENTRY: "Entered manually",
+                },
+                differing: {
+                    none: "None",
+                    exactly_1: "Exactly 1",
+                    at_most_1: "At most 1",
+                    exactly_2: "Exactly 2",
+                    at_most_2: "At most 2",
+                    at_least_3: "3 or more",
+                },
+                fieldMatch: {
+                    MATCHES: "Matches",
+                    DIFFERS: "Differs",
+                },
+                decisions: {
+                    ACCEPTED: "Approve automatically",
+                    PENDING: "Send to manual review",
+                    REJECTED: "Reject",
+                },
+                reasons: {
+                    NO_VOTER: "No Matching Voter",
+                    ALREADY_APPROVED: "Already Approved",
+                    INSUFFICIENT_INFORMATION: "Missing Data",
+                    IDENTITY_NOT_VERIFIED: "Identity Not Verified",
+                    OTHER: "Other",
+                },
+                conditions: {
+                    any: "Any enrollment",
+                    identity: {
+                        VERIFIED: "Identity verified",
+                        MANUAL_ENTRY: "Identity entered manually",
+                    },
+                    voterFound: {
+                        true: "Voter found in registry",
+                        false: "No voter found in registry",
+                    },
+                    alreadyEnrolled: {
+                        true: "Voter already enrolled",
+                        false: "Voter not enrolled yet",
+                    },
+                    validId: "Valid ID: {{id}}",
+                    differing: {
+                        none: "All compared fields match",
+                        exactly_1: "Exactly 1 field differs",
+                        at_most_1: "At most 1 field differs",
+                        exactly_2: "Exactly 2 fields differ",
+                        at_most_2: "At most 2 fields differ",
+                        at_least_3: "3 or more fields differ",
+                    },
+                    field: {
+                        MATCHES: "{{field}} matches",
+                        DIFFERS: "{{field}} differs",
+                    },
+                },
+                errors: {
+                    ACCEPTS_MANUAL_ENTRY:
+                        "Enrollments whose identity was entered manually can't be approved automatically.",
+                    ACCEPTS_ALREADY_ENROLLED:
+                        "A voter who is already enrolled can't be approved again.",
+                    ACCEPTS_WITHOUT_VOTER:
+                        "An enrollment can't be approved without a voter in the registry.",
+                    OTHERWISE_ACCEPTS:
+                        "The last rule can send enrollments to manual review or reject them, not approve them.",
+                    MISSING_REASON: "Choose the reason shown to the voter.",
+                    UNEXPECTED_REASON: "An approval has no reason.",
+                    NO_COMPARED_FIELDS: "Choose at least one field to compare with the registry.",
+                    DUPLICATE_COMPARED_FIELD: "A compared field is repeated.",
+                    UNKNOWN_FIELD: "A rule uses a field that is not compared.",
+                },
+                save: {
+                    button: "Save",
+                    title: "Save Approval Matrix",
+                    body: "Save these rules as version {{version}}? New enrollments are decided with them from now on. Enrollments already decided keep their decision.",
+                    success: "Approval matrix saved as version {{version}}",
+                    error: "The approval matrix could not be saved",
+                },
+            },
+            decision: {
+                label: "Decided by",
+                text: "Approval matrix version {{version}}, rule {{rule}}: {{conditions}}",
+                otherwise: "Approval matrix version {{version}}, last rule (Otherwise)",
             },
         },
         monitoring: {

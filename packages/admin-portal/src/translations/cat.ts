@@ -1491,6 +1491,7 @@ const catalanTranslation: TranslationType = {
                 "task-export": "Exportar Tasques",
                 "application-read": "Llegir Aplicació",
                 "application-write": "Editar Aplicació",
+                "approval-matrix-write": "Editar la Matriu d'Aprovació",
                 "logs-export": "Exportar Registres",
                 "election-event-logs-columns":
                     "Columnes dels Registres de l'Esdeveniment Electoral",
@@ -2876,6 +2877,158 @@ const catalanTranslation: TranslationType = {
             export: {
                 success: "L'exportació d'aplicacions s'ha completat amb èxit",
                 error: "Error en exportar les aplicacions",
+            },
+            matrix: {
+                button: "Matriu d'Aprovació",
+                title: "Matriu d'Aprovació",
+                subtitle:
+                    "Les regles es comproven en ordre. La primera regla que es compleix decideix la inscripció.",
+                version: "Versió {{version}} · Desada el {{date}} per {{user}}",
+                builtInVersion:
+                    "Versió {{version}} · Regles integrades, en ús fins que es desi una versió",
+                unsaved: "Canvis sense desar",
+                readOnly: "Podeu veure i provar la matriu, però no canviar-la.",
+                loadError: "No s'ha pogut carregar la matriu d'aprovació.",
+                compared: "Comparat amb el Registre",
+                comparedHelp:
+                    "Cada inscripció es compara amb el votant trobat al registre. Els noms ignoren majúscules, accents i guionets; per al Permís de Conduir i la Llibreta de Mariner, el nom i el segon nom es comparen junts.",
+                comparedFields: "Camps comparats",
+                comparedFieldsHelp: "Escriviu un atribut del votant i premeu Retorn per afegir-lo.",
+                rules: "Regles",
+                columns: {
+                    number: "#",
+                    conditions: "Condicions",
+                    decision: "Decisió",
+                    reason: "Motiu Mostrat al Votant",
+                    actions: "Accions",
+                },
+                otherwise: "Altrament",
+                addRule: "Afegeix una Regla",
+                actions: {
+                    edit: "Edita la regla {{number}}",
+                    editOtherwise: "Edita l'última regla",
+                    moveUp: "Puja la regla {{number}}",
+                    moveDown: "Baixa la regla {{number}}",
+                    delete: "Elimina la regla {{number}}",
+                },
+                test: "Prova la Matriu",
+                testHelp:
+                    "Descriviu una inscripció per veure quina regla la decideix. S'hi inclouen els canvis sense desar.",
+                applies: "S'aplica la regla {{number}}:",
+                otherwiseApplies:
+                    "No s'aplica cap regla, de manera que decideix l'última regla (Altrament):",
+                testError: "No s'ha pogut provar la inscripció.",
+                testInvalid: "Corregiu aquestes regles abans de provar o desar:",
+                ruleError: "Regla {{number}}: {{error}}",
+                invariants: {
+                    MANUAL_ENTRY_NOT_ACCEPTED:
+                        "La regla aprova, però les inscripcions amb la identitat introduïda manualment mai s'aproven automàticament.",
+                    ALREADY_ENROLLED_NOT_ACCEPTED:
+                        "La regla aprova, però un votant que ja està inscrit mai s'aprova de nou.",
+                    NO_VOTER_NOT_ACCEPTED:
+                        "La regla aprova, però no s'aprova ningú sense un votant al registre.",
+                    OTHERWISE_NOT_ACCEPTED: "L'última regla mai aprova.",
+                },
+                dialog: {
+                    editTitle: "Edita la Regla {{number}}",
+                    newTitle: "Regla Nova",
+                    otherwiseTitle: "Edita l'Última Regla (Altrament)",
+                    identity: "Verificació d'Identitat",
+                    voterFound: "Votant Trobat al Registre",
+                    alreadyEnrolled: "Votant Ja Inscrit",
+                    validId: "Document d'Identitat Vàlid",
+                    differing: "Camps que Difereixen",
+                    decision: "Decisió",
+                    reason: "Motiu Mostrat al Votant",
+                    apply: "Aplica",
+                    any: "Qualsevol",
+                    yes: "Sí",
+                    no: "No",
+                    notReported: "No indicat",
+                },
+                identity: {
+                    VERIFIED: "Verificada",
+                    MANUAL_ENTRY: "Introduïda manualment",
+                },
+                differing: {
+                    none: "Cap",
+                    exactly_1: "Exactament 1",
+                    at_most_1: "Com a màxim 1",
+                    exactly_2: "Exactament 2",
+                    at_most_2: "Com a màxim 2",
+                    at_least_3: "3 o més",
+                },
+                fieldMatch: {
+                    MATCHES: "Coincideix",
+                    DIFFERS: "Difereix",
+                },
+                decisions: {
+                    ACCEPTED: "Aprova automàticament",
+                    PENDING: "Envia a revisió manual",
+                    REJECTED: "Rebutja",
+                },
+                reasons: {
+                    NO_VOTER: "Votant No Trobat",
+                    ALREADY_APPROVED: "Ja Aprovat",
+                    INSUFFICIENT_INFORMATION: "Dades Insuficients",
+                    IDENTITY_NOT_VERIFIED: "Identitat No Verificada",
+                    OTHER: "Altre",
+                },
+                conditions: {
+                    any: "Qualsevol inscripció",
+                    identity: {
+                        VERIFIED: "Identitat verificada",
+                        MANUAL_ENTRY: "Identitat introduïda manualment",
+                    },
+                    voterFound: {
+                        true: "Votant trobat al registre",
+                        false: "Cap votant trobat al registre",
+                    },
+                    alreadyEnrolled: {
+                        true: "Votant ja inscrit",
+                        false: "Votant encara no inscrit",
+                    },
+                    validId: "Document d'identitat vàlid: {{id}}",
+                    differing: {
+                        none: "Tots els camps comparats coincideixen",
+                        exactly_1: "Exactament 1 camp difereix",
+                        at_most_1: "Com a màxim 1 camp difereix",
+                        exactly_2: "Exactament 2 camps difereixen",
+                        at_most_2: "Com a màxim 2 camps difereixen",
+                        at_least_3: "3 o més camps difereixen",
+                    },
+                    field: {
+                        MATCHES: "{{field}} coincideix",
+                        DIFFERS: "{{field}} difereix",
+                    },
+                },
+                errors: {
+                    ACCEPTS_MANUAL_ENTRY:
+                        "Les inscripcions amb la identitat introduïda manualment no es poden aprovar automàticament.",
+                    ACCEPTS_ALREADY_ENROLLED:
+                        "Un votant que ja està inscrit no es pot aprovar de nou.",
+                    ACCEPTS_WITHOUT_VOTER:
+                        "No es pot aprovar una inscripció sense un votant al registre.",
+                    OTHERWISE_ACCEPTS:
+                        "L'última regla pot enviar inscripcions a revisió manual o rebutjar-les, no aprovar-les.",
+                    MISSING_REASON: "Trieu el motiu mostrat al votant.",
+                    UNEXPECTED_REASON: "Una aprovació no té motiu.",
+                    NO_COMPARED_FIELDS: "Trieu almenys un camp per comparar amb el registre.",
+                    DUPLICATE_COMPARED_FIELD: "Hi ha un camp comparat repetit.",
+                    UNKNOWN_FIELD: "Una regla fa servir un camp que no es compara.",
+                },
+                save: {
+                    button: "Desa",
+                    title: "Desa la Matriu d'Aprovació",
+                    body: "Voleu desar aquestes regles com a versió {{version}}? Les noves inscripcions es decidiran amb elles a partir d'ara. Les inscripcions ja decidides conserven la seva decisió.",
+                    success: "Matriu d'aprovació desada com a versió {{version}}",
+                    error: "No s'ha pogut desar la matriu d'aprovació",
+                },
+            },
+            decision: {
+                label: "Decidit per",
+                text: "Matriu d'aprovació versió {{version}}, regla {{rule}}: {{conditions}}",
+                otherwise: "Matriu d'aprovació versió {{version}}, última regla (Altrament)",
             },
         },
         monitoring: {

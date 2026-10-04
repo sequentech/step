@@ -25,6 +25,7 @@ import {USER_PROFILE_ATTRIBUTES} from "@/queries/GetUserProfileAttributes"
 import {convertOneToSnakeCase, convertToCamelCase, convertToSnakeCase} from "./UtilsApprovals"
 import {IApplicationsStatus} from "@/types/applications"
 import {RejectApplicationButton, RejectApplicationDialog} from "./RejectApplication"
+import {decidedByText, profileFieldLabel, readDecision} from "./approvalMatrix"
 
 export interface ViewApprovalProps {
     electionEventId: string
@@ -141,6 +142,33 @@ export const ViewApproval: React.FC<ViewApprovalProps> = ({
                                     `approvalsScreen.reject.reasons.${
                                         task.annotations.rejection_reason ?? "undefined"
                                     }`
+                                )
+                            )}
+                        </TableCell>
+                    </TableRow>
+                )
+
+            const decision = readDecision(task.annotations?.decision)
+            decision &&
+                applicantData.push(
+                    <TableRow key={101}>
+                        <TableCell
+                            sx={{
+                                fontWeight: "500",
+                                width: "40%",
+                                textTransform: "capitalize",
+                            }}
+                        >
+                            {t("approvalsScreen.decision.label")}
+                        </TableCell>
+                        <TableCell>
+                            {decidedByText(
+                                decision,
+                                t,
+                                profileFieldLabel(
+                                    userAttributes.get_user_profile_attributes,
+                                    t,
+                                    getAttributeLabel
                                 )
                             )}
                         </TableCell>

@@ -22,7 +22,7 @@ import {
 } from "react-admin"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {useTranslation} from "react-i18next"
-import {Visibility} from "@mui/icons-material"
+import {Rule as RuleIcon, Visibility} from "@mui/icons-material"
 import {Action, ActionsColumn} from "@/components/ActionButons"
 import {ListActions} from "@/components/ListActions"
 import {
@@ -50,7 +50,7 @@ import {useTenantStore} from "@/providers/TenantContextProvider"
 import {useQuery} from "@apollo/client"
 import {USER_PROFILE_ATTRIBUTES} from "@/queries/GetUserProfileAttributes"
 import {styled} from "@mui/material/styles"
-import {Chip, CircularProgress} from "@mui/material"
+import {Button, Chip, CircularProgress} from "@mui/material"
 import {convertToCamelCase} from "./UtilsApprovals"
 import {getAttributeLabel, getTranslationLabel} from "@/services/UserService"
 import {useLocation} from "react-router-dom"
@@ -71,6 +71,7 @@ export interface ListApprovalsProps {
     electionEventId: string
     electionId?: string
     onViewApproval: (id: Identifier) => void
+    onViewMatrix?: () => void
     electionEventRecord?: Sequent_Backend_Election_Event
 }
 
@@ -322,6 +323,7 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
     electionEventId,
     electionId,
     onViewApproval,
+    onViewMatrix,
     electionEventRecord,
 }) => {
     const {t} = useTranslation()
@@ -495,6 +497,16 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
                         withExport={canExport}
                         doImport={handleImport}
                         doExport={handleExport}
+                        extraActions={
+                            onViewMatrix
+                                ? [
+                                      <Button key="approval-matrix" onClick={onViewMatrix}>
+                                          <RuleIcon sx={{mr: 1}} />
+                                          {t("approvalsScreen.matrix.button")}
+                                      </Button>,
+                                  ]
+                                : []
+                        }
                     />
                 }
                 // empty={false}

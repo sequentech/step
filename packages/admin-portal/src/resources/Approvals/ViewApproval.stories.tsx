@@ -68,6 +68,7 @@ export const Populated: Story = {
         await expect(await table.findByRole("row", {name: /Alice/})).toBeVisible()
         await expect(table.getByRole("row", {name: /alice@example.test/})).toBeVisible()
         await expect(table.getByRole("row", {name: /Madrid/})).toBeVisible()
+        expect(table.queryByRole("row", {name: /Decided by/})).toBeNull()
         await expect(
             within(canvasElement).getByRole("button", {name: "Reject Application"})
         ).toBeVisible()
@@ -83,6 +84,11 @@ export const AcceptedApplication: Story = {
     play: async ({canvasElement}) => {
         const table = within(await details(canvasElement))
         await expect(await table.findByRole("row", {name: /Bob/})).toBeVisible()
+        await expect(
+            table.getByRole("row", {
+                name: "Decided by Approval matrix version 1, rule 4: Exactly 1 field differs, Embassy differs",
+            })
+        ).toBeVisible()
         expect(within(canvasElement).queryByRole("button", {name: "Reject Application"})).toBeNull()
     },
 }

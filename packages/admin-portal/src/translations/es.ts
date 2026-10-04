@@ -1485,6 +1485,7 @@ const spanishTranslation: TranslationType = {
                 "task-export": "Exportar Tareas",
                 "application-read": "Leer Aplicación",
                 "application-write": "Editar Aplicación",
+                "approval-matrix-write": "Editar la Matriz de Aprobación",
                 "logs-export": "Exportar Registros",
                 "election-event-logs-columns": "Columnas de los Registros del Evento Electoral",
                 "election-events-logs-filters": "Filtros de los Registros del Evento Electoral",
@@ -2866,6 +2867,158 @@ const spanishTranslation: TranslationType = {
             export: {
                 success: "La exportación de aplicaciones se completó con éxito",
                 error: "Error al exportar las aplicaciones",
+            },
+            matrix: {
+                button: "Matriz de Aprobación",
+                title: "Matriz de Aprobación",
+                subtitle:
+                    "Las reglas se comprueban en orden. La primera regla que se cumple decide la inscripción.",
+                version: "Versión {{version}} · Guardada el {{date}} por {{user}}",
+                builtInVersion:
+                    "Versión {{version}} · Reglas integradas, en uso hasta que se guarde una versión",
+                unsaved: "Cambios sin guardar",
+                readOnly: "Puede ver y probar la matriz, pero no cambiarla.",
+                loadError: "No se pudo cargar la matriz de aprobación.",
+                compared: "Comparado con el Registro",
+                comparedHelp:
+                    "Cada inscripción se compara con el votante encontrado en el registro. Los nombres ignoran mayúsculas, acentos y guiones; para el Permiso de Conducir y la Libreta de Marino, el nombre y el segundo nombre se comparan juntos.",
+                comparedFields: "Campos comparados",
+                comparedFieldsHelp: "Escriba un atributo del votante y pulse Intro para añadirlo.",
+                rules: "Reglas",
+                columns: {
+                    number: "#",
+                    conditions: "Condiciones",
+                    decision: "Decisión",
+                    reason: "Motivo Mostrado al Votante",
+                    actions: "Acciones",
+                },
+                otherwise: "En otro caso",
+                addRule: "Añadir Regla",
+                actions: {
+                    edit: "Editar la regla {{number}}",
+                    editOtherwise: "Editar la última regla",
+                    moveUp: "Subir la regla {{number}}",
+                    moveDown: "Bajar la regla {{number}}",
+                    delete: "Eliminar la regla {{number}}",
+                },
+                test: "Probar la Matriz",
+                testHelp:
+                    "Describa una inscripción para ver qué regla la decide. Se incluyen los cambios sin guardar.",
+                applies: "Se aplica la regla {{number}}:",
+                otherwiseApplies:
+                    "No se aplica ninguna regla, así que decide la última regla (En otro caso):",
+                testError: "No se pudo probar la inscripción.",
+                testInvalid: "Corrija estas reglas antes de probar o guardar:",
+                ruleError: "Regla {{number}}: {{error}}",
+                invariants: {
+                    MANUAL_ENTRY_NOT_ACCEPTED:
+                        "La regla aprueba, pero las inscripciones cuya identidad se introdujo manualmente nunca se aprueban automáticamente.",
+                    ALREADY_ENROLLED_NOT_ACCEPTED:
+                        "La regla aprueba, pero un votante que ya está inscrito nunca se aprueba de nuevo.",
+                    NO_VOTER_NOT_ACCEPTED:
+                        "La regla aprueba, pero no se aprueba a nadie sin un votante en el registro.",
+                    OTHERWISE_NOT_ACCEPTED: "La última regla nunca aprueba.",
+                },
+                dialog: {
+                    editTitle: "Editar la Regla {{number}}",
+                    newTitle: "Nueva Regla",
+                    otherwiseTitle: "Editar la Última Regla (En otro caso)",
+                    identity: "Verificación de Identidad",
+                    voterFound: "Votante Encontrado en el Registro",
+                    alreadyEnrolled: "Votante Ya Inscrito",
+                    validId: "Documento de Identidad Válido",
+                    differing: "Campos que Difieren",
+                    decision: "Decisión",
+                    reason: "Motivo Mostrado al Votante",
+                    apply: "Aplicar",
+                    any: "Cualquiera",
+                    yes: "Sí",
+                    no: "No",
+                    notReported: "No indicado",
+                },
+                identity: {
+                    VERIFIED: "Verificada",
+                    MANUAL_ENTRY: "Introducida manualmente",
+                },
+                differing: {
+                    none: "Ninguno",
+                    exactly_1: "Exactamente 1",
+                    at_most_1: "Como máximo 1",
+                    exactly_2: "Exactamente 2",
+                    at_most_2: "Como máximo 2",
+                    at_least_3: "3 o más",
+                },
+                fieldMatch: {
+                    MATCHES: "Coincide",
+                    DIFFERS: "Difiere",
+                },
+                decisions: {
+                    ACCEPTED: "Aprobar automáticamente",
+                    PENDING: "Enviar a revisión manual",
+                    REJECTED: "Rechazar",
+                },
+                reasons: {
+                    NO_VOTER: "Votante no Coincidente",
+                    ALREADY_APPROVED: "Ya Aprobado",
+                    INSUFFICIENT_INFORMATION: "Datos Faltantes",
+                    IDENTITY_NOT_VERIFIED: "Identidad No Verificada",
+                    OTHER: "Otro",
+                },
+                conditions: {
+                    any: "Cualquier inscripción",
+                    identity: {
+                        VERIFIED: "Identidad verificada",
+                        MANUAL_ENTRY: "Identidad introducida manualmente",
+                    },
+                    voterFound: {
+                        true: "Votante encontrado en el registro",
+                        false: "Ningún votante encontrado en el registro",
+                    },
+                    alreadyEnrolled: {
+                        true: "Votante ya inscrito",
+                        false: "Votante aún no inscrito",
+                    },
+                    validId: "Documento de identidad válido: {{id}}",
+                    differing: {
+                        none: "Todos los campos comparados coinciden",
+                        exactly_1: "Exactamente 1 campo difiere",
+                        at_most_1: "Como máximo 1 campo difiere",
+                        exactly_2: "Exactamente 2 campos difieren",
+                        at_most_2: "Como máximo 2 campos difieren",
+                        at_least_3: "3 o más campos difieren",
+                    },
+                    field: {
+                        MATCHES: "{{field}} coincide",
+                        DIFFERS: "{{field}} difiere",
+                    },
+                },
+                errors: {
+                    ACCEPTS_MANUAL_ENTRY:
+                        "Las inscripciones cuya identidad se introdujo manualmente no se pueden aprobar automáticamente.",
+                    ACCEPTS_ALREADY_ENROLLED:
+                        "Un votante que ya está inscrito no se puede aprobar de nuevo.",
+                    ACCEPTS_WITHOUT_VOTER:
+                        "No se puede aprobar una inscripción sin un votante en el registro.",
+                    OTHERWISE_ACCEPTS:
+                        "La última regla puede enviar inscripciones a revisión manual o rechazarlas, no aprobarlas.",
+                    MISSING_REASON: "Elija el motivo mostrado al votante.",
+                    UNEXPECTED_REASON: "Una aprobación no tiene motivo.",
+                    NO_COMPARED_FIELDS: "Elija al menos un campo para comparar con el registro.",
+                    DUPLICATE_COMPARED_FIELD: "Hay un campo comparado repetido.",
+                    UNKNOWN_FIELD: "Una regla usa un campo que no se compara.",
+                },
+                save: {
+                    button: "Guardar",
+                    title: "Guardar la Matriz de Aprobación",
+                    body: "¿Guardar estas reglas como versión {{version}}? Las nuevas inscripciones se decidirán con ellas a partir de ahora. Las inscripciones ya decididas conservan su decisión.",
+                    success: "Matriz de aprobación guardada como versión {{version}}",
+                    error: "No se pudo guardar la matriz de aprobación",
+                },
+            },
+            decision: {
+                label: "Decidido por",
+                text: "Matriz de aprobación versión {{version}}, regla {{rule}}: {{conditions}}",
+                otherwise: "Matriz de aprobación versión {{version}}, última regla (En otro caso)",
             },
         },
         monitoring: {
