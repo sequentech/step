@@ -17,11 +17,7 @@ const isNumber = (value: unknown): value is number =>
     typeof value === "number" && Number.isFinite(value)
 
 /** `format`'s text for `value`, with the separators of `policy`. */
-function withSeparators(
-    format: Intl.NumberFormat,
-    value: number,
-    policy?: string | null
-): string {
+function withSeparators(format: Intl.NumberFormat, value: number, policy?: string | null): string {
     const {group, decimal} = numberFormatSeparators(policy)
     return format
         .formatToParts(value)
