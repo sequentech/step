@@ -6,9 +6,11 @@ import {createGetKcContextMock} from "keycloakify/login/KcContext"
 import {kcEnvDefaults, themeNames} from "../kc.gen"
 import {KEYCLOAK_MESSAGE_OTP} from "@sequentech/ui-test-kit/fixtures/keycloak"
 import {
+    CredentialFieldPosition,
     LoginHintUsernamePolicy,
     LoginValidationPolicy,
     MessageCourier,
+    RegistrationFormMode,
     ScanovateSide,
     type KcContext,
     type KcContextExtension,
@@ -63,6 +65,28 @@ const kcContextExtensionPerPage: KcContextExtensionPerPage = {
             {key: "sequent.read-only.id-card-number", value: "N01-23-456789", type: "text"},
         ],
     },
+    "register.ftl": {
+        sequentRegistration: {
+            formMode: RegistrationFormMode.Registration,
+            credentialFieldPosition: CredentialFieldPosition.Last,
+            hiddenAttributes: [],
+            lockedAttributes: [],
+        },
+    },
+    "registration-finish.ftl": {},
+    "registration-manual-finish.ftl": {
+        enrollmentOutcome: {
+            reason: "INSUFFICIENT_INFORMATION",
+            mismatchedFields: [
+                {name: "Middle name", value: "SANTOS"},
+                {name: "Date of birth", value: null},
+            ],
+        },
+    },
+    "registration-rejected-finish.ftl": {
+        enrollmentOutcome: {reason: "ALREADY_APPROVED", mismatchedFields: []},
+    },
+    "message-finish.ftl": {},
 }
 
 export const {getKcContextMock} = createGetKcContextMock({

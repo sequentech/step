@@ -201,7 +201,22 @@ labels. The build information wraps on narrow screens. A Keycloak without
 `APP_VERSION` or `APP_HASH` in its environment resolves the property to an empty
 value (`${env.APP_VERSION:}`) and the header leaves that line out; it never shows
 an unresolved `${...}` reference.
-Registration, profile updates and other pages inherit the original FreeMarker
+The registration form (`register.ftl`) and the pages that end an enrollment
+(`registration-finish.ftl`, `registration-manual-finish.ftl`,
+`registration-rejected-finish.ftl` and `message-finish.ftl`) render in React
+too. The form keeps what sequent-theme's template does with the realm's User
+Profile: groups, helper texts, option labels, `html-attribute:` annotations,
+`default`, `hidden`, `confirm`, `filterSelectAttribute`, `disableAttribute` and
+`disableElement`, the password placement (`showPasswordAfterThis`,
+`credential-field-position`), the attributes the authenticator hides and the
+ones a read-only login hint locks. The telephone widget and the password
+strength bar load sequent-theme's own scripts (`intl-tel-input`, `zxcvbn`) from
+the inherited theme resources; without them the fields stay plain inputs. In
+the voting theme the deferred registration form is step 1 of the enrollment.
+It falls back to the original template when it signs voters in (`formMode`
+`LOGIN`, with its structured credentials and identity providers), and for
+CAPTCHA and terms acceptance.
+Profile updates and other pages inherit the original FreeMarker
 implementation, including User Profile annotations and telephone widgets. Login
 also falls back to the original template for multi-attribute matching, structured
 credentials, CAPTCHA, identity-provider buttons, hidden usernames and alternative

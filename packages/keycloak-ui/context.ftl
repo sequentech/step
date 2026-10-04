@@ -11,6 +11,22 @@ window.kcContext.sequent = {
 <#if courier??>
 window.kcContext.courier = "${courier?string?js_string}";
 </#if>
+<#-- The registration form's settings, which Keycloakify can't read from the data model. -->
+<#if profile??>
+window.kcContext.sequentRegistration = {
+    <#if formMode?? && formMode?is_string>formMode: "${formMode?js_string}",</#if>
+    credentialFieldPosition: "${(realm.attributes['credential-field-position']!'LAST')?js_string}",
+    hiddenAttributes: [<#list hiddenProfileAttributes![] as name>decodeHtmlEntities("${name?js_string}")<#sep>, </#list>],
+    lockedAttributes: [<#list loginHintReadOnlyAttributes![] as name>decodeHtmlEntities("${name?js_string}")<#sep>, </#list>]
+};
+</#if>
+<#-- Fields without a value are listed too. -->
+<#if (rejectReason?? && rejectReason?is_string) || mismatchedFields??>
+window.kcContext.enrollmentOutcome = {
+    <#if rejectReason?? && rejectReason?is_string>reason: decodeHtmlEntities("${rejectReason?js_string}"),</#if>
+    mismatchedFields: [<#if mismatchedFields??><#list mismatchedFields?keys as name>{name: decodeHtmlEntities("${name?js_string}"), value: <#if mismatchedFields[name]??>decodeHtmlEntities("${mismatchedFields[name]?js_string}")<#else>null</#if>}<#sep>, </#list></#if>]
+};
+</#if>
 <#-- Keys only known at run time: the voter's document type and the attributes read from it. -->
 <#assign scanovateKeys = []>
 <#if scanovate?? && scanovate.documentType??>
@@ -21,6 +37,9 @@ window.kcContext.courier = "${courier?string?js_string}";
 </#if>
 <#if error?? && error?is_string>
 <#assign scanovateKeys = scanovateKeys + [error]>
+</#if>
+<#if rejectReason?? && rejectReason?is_string>
+<#assign scanovateKeys = scanovateKeys + [rejectReason]>
 </#if>
 <#if storedAttributes??>
 <#list storedAttributes as attribute>
@@ -101,7 +120,14 @@ window.kcContext.courier = "${courier?string?js_string}";
     "scanovateFaceMismatchError", "scanovateFaceNotFoundError",
     "scanovateConfirmTitle", "scanovateConfirmLead", "scanovateConfirmDocument",
     "scanovateConfirmSubmit", "scanovateConfirmRetry", "dateOfBirth",
-    "sequent.read-only.id-card-number"
+    "sequent.read-only.id-card-number",
+    "registerTitle", "backToLogin", "passwordConfirm", "showPassword", "hidePassword",
+    "requiredFields", "enrollmentStepDetails", "enrollmentPasswordStrength",
+    "enrollmentOutcomeEnrolled", "enrollmentOutcomeUnderReview", "enrollmentOutcomeRejected",
+    "enrollmentOutcomeValidated", "registerFinishTitle", "registerFinishMessage",
+    "registerFinishManualTitle", "registerFinishManualMessage", "registerFinishRejectedTitle",
+    "registerFinishRejectedMessage", "rejectReasonListItems", "messageFinishTitle",
+    "messageFinish", "pageExpiredMsg2", "doClickHere", "empty"
 ] + scanovateKeys as key>
 <#if msg(key) != key>
 window.kcContext["x-keycloakify"].messages["${key}"] = decodeHtmlEntities("${msg(key)?js_string}");

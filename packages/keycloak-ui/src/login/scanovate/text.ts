@@ -7,11 +7,13 @@ import type {TemplateExtras, TemplateLabel} from "../Template"
 export const ENROLLMENT_STEPS = 4
 
 export enum EnrollmentStep {
+    Details = 1,
     VerifyIdentity = 3,
     Confirm = 4,
 }
 
 const STEP_NAMES: Record<EnrollmentStep, MessageKey> = {
+    [EnrollmentStep.Details]: "enrollmentStepDetails",
     [EnrollmentStep.VerifyIdentity]: "scanovateStepVerifyIdentity",
     [EnrollmentStep.Confirm]: "scanovateStepConfirm",
 }
@@ -79,5 +81,22 @@ export function enrollmentFrame(
     return {
         eyebrow,
         progress: {step, total: ENROLLMENT_STEPS, label: text("scanovateProgressLabel")},
+    }
+}
+
+// Every step is done: the pages that end the enrollment.
+export function finishedFrame(
+    kcContext: KcContext,
+    i18n: I18n,
+    outcome: MessageKey
+): Pick<TemplateExtras, "eyebrow" | "progress"> {
+    const text = textFor(kcContext, i18n)
+    return {
+        eyebrow: text(outcome),
+        progress: {
+            step: ENROLLMENT_STEPS + 1,
+            total: ENROLLMENT_STEPS,
+            label: text("scanovateProgressLabel"),
+        },
     }
 }

@@ -79,6 +79,44 @@ export type ScanovateStoredAttribute = {
     type: string
 }
 
+// How the deferred registration form is used. Keycloak's own registration
+// form sends none.
+export enum RegistrationFormMode {
+    Registration = "REGISTRATION",
+    Login = "LOGIN",
+}
+
+// The realm's credential-field-position attribute.
+export enum CredentialFieldPosition {
+    First = "FIRST",
+    Last = "LAST",
+}
+
+export type SequentRegistration = {
+    formMode?: RegistrationFormMode
+    credentialFieldPosition: CredentialFieldPosition
+    // Profile attributes the authenticator leaves out of the form.
+    hiddenAttributes: string[]
+    // Attributes prefilled from a read-only login hint: sent, but not editable.
+    lockedAttributes: string[]
+}
+
+export type EnrollmentMismatch = {
+    name: string
+    // The voter left it empty.
+    value: string | null
+}
+
+// Why an enrollment wasn't approved automatically.
+export type EnrollmentOutcome = {
+    reason?: string
+    mismatchedFields: EnrollmentMismatch[]
+}
+
+type EnrollmentFinish = {
+    enrollmentOutcome?: EnrollmentOutcome
+}
+
 // context.ftl serializes the authenticator's Java enum as its wire value.
 export type KcContextExtensionPerPage = {
     "message-otp.login.ftl": {
@@ -106,6 +144,14 @@ export type KcContextExtensionPerPage = {
         storedAttributes: ScanovateStoredAttribute[]
         documentType?: string
     }
+    "register.ftl": {
+        // Absent on pages rendered without context.ftl's bridge.
+        sequentRegistration?: SequentRegistration
+    }
+    "registration-finish.ftl": EnrollmentFinish
+    "registration-manual-finish.ftl": EnrollmentFinish
+    "registration-rejected-finish.ftl": EnrollmentFinish
+    "message-finish.ftl": EnrollmentFinish
 }
 
 export type KcContext = ExtendKcContext<KcContextExtension, KcContextExtensionPerPage>

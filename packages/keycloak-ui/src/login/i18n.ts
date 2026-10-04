@@ -4,6 +4,7 @@
 import {i18nBuilder} from "keycloakify/login"
 import type {ThemeName} from "../kc.gen"
 import type {KcContext} from "./KcContext"
+import {enrollmentEnglish, enrollmentSpanish} from "./enrollment/messages"
 import {scanovateEnglish, scanovateSpanish} from "./scanovate/messages"
 
 const englishMessages = {
@@ -46,6 +47,7 @@ const englishMessages = {
     otpDigit: "Digit {0} of {1}",
     otpCodeLabel: "Verification code",
     ...scanovateEnglish,
+    ...enrollmentEnglish,
 } as const
 
 // Keycloakify resolves messages in the browser: keys that the server-side
@@ -96,6 +98,7 @@ const {useI18n, ofTypeI18n} = i18nBuilder
             otpDigit: "Dígito {0} de {1}",
             otpCodeLabel: "Código de verificación",
             ...scanovateSpanish,
+            ...enrollmentSpanish,
         },
     })
     .build()

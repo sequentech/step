@@ -107,11 +107,15 @@ Some design decisions to be aware of:
   capture token travels in the `X-Capture-Token` header and Liveness Plus is
   served under `/biometric/`: none names the provider behind them. Keep any new
   browser-facing path, header or parameter just as generic.
-- **Buttons stay in view.** The buttons that move the voter on (Start, Submit
-  on the code page, Confirm and enroll, Try again) and the submit button of
-  every FreeMarker form, such as Enroll on the enrollment form, stay at the
-  bottom of the viewport while the page scrolls, so a long page on a phone
-  never hides them.
+- **One design from the form to the outcome.** The enrollment form is step 1 of
+  4 and shares the card, progress bar and header of the identity verification
+  pages; so do the pages that end an enrollment (enrolled, manual verification
+  required, disapproved, already validated), with every step done.
+- **Buttons stay in view.** The buttons that move the voter on (Register on
+  the enrollment form, Start, Submit on the code page, Confirm and enroll, Try
+  again) and the submit button of every FreeMarker form stay at the bottom of
+  the viewport while the page scrolls, so a long page on a phone never hides
+  them.
 - **Confirmation always posts its action.** The confirmation page disables its
   buttons once submitted. Some browsers apply that before collecting the form,
   which would leave out the clicked button, so the page also posts the chosen
@@ -387,8 +391,8 @@ and `keycloak_scanovate_execution_mode` are no longer read.
 The COMELEC template selects `sequent-ui-voting` as the realm's login theme and
 as the login theme of the `voting-portal`, `onsite-voting-portal` and
 `voting-portal-kiosk` clients; the account theme stays `sequent.voting-portal`.
-`sequent-ui-voting` inherits `sequent.voting-portal`, so the enrollment form
-and every other page not ported to React look as before. Import these realms
+`sequent-ui-voting` inherits `sequent.voting-portal`, so every page not
+ported to React looks as before. Import these realms
 only into a Keycloak image that ships the React themes: on an older image,
 Keycloak falls back to its built-in theme for the whole realm.
 :::

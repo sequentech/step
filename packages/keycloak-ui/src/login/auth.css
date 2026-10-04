@@ -572,6 +572,133 @@
     font-weight: 700;
     line-height: 1.5;
 }
+.sequent-auth .auth-summary dd.empty {
+    color: #5b6e7b;
+    font-style: italic;
+    font-weight: 400;
+}
+.sequent-auth .auth-panel .auth-summary {
+    margin: 0;
+    background: #ffffff;
+}
+
+/* Enrollment form */
+.sequent-auth label.auth-field-label,
+.sequent-auth span.auth-field-label {
+    line-height: 1.5;
+}
+.sequent-auth .auth-required {
+    color: #a12b2b;
+}
+.sequent-auth .auth-required-note {
+    margin: -12px 0 0;
+    color: #5b6e7b;
+    font-size: 0.875rem;
+    line-height: 1.5;
+}
+.sequent-auth .auth-required-note span {
+    color: #a12b2b;
+}
+.sequent-auth .auth-helper {
+    margin: 0 0 8px;
+    color: #5b6e7b;
+    font-size: 0.875rem;
+    line-height: 1.55;
+}
+.sequent-auth .auth-helper.after {
+    margin: 8px 0 0;
+}
+.sequent-auth .auth-field-error {
+    display: block;
+    margin-top: 8px;
+    color: #a12b2b;
+    font-size: 0.875rem;
+    line-height: 1.55;
+}
+.sequent-auth .auth-group {
+    margin-top: 6px;
+    padding-top: 22px;
+    border-top: 1px solid #e3eaee;
+}
+.sequent-auth .auth-group-title {
+    margin: 0;
+    font-size: 1.125rem;
+    font-weight: 900;
+    line-height: 1.4;
+}
+.sequent-auth .auth-group p {
+    margin: 6px 0 0;
+    color: #5b6e7b;
+    font-size: 0.9375rem;
+    line-height: 1.55;
+}
+/* Native controls, drawn as the outlined text fields. */
+.sequent-auth .auth-input {
+    display: block;
+    width: 100%;
+    min-height: 54px;
+    padding: 14px 16px;
+    border: 1px solid #7c8d98;
+    border-radius: 10px;
+    background: #ffffff;
+    color: #173449;
+    font: inherit;
+    font-size: 1rem;
+}
+.sequent-auth .auth-input:hover {
+    border-color: #173449;
+}
+.sequent-auth .auth-input:focus {
+    border-color: #0d796a;
+    outline: 1px solid #0d796a;
+}
+.sequent-auth .auth-input[aria-invalid="true"] {
+    border-color: #a12b2b;
+}
+.sequent-auth .auth-input:disabled,
+.sequent-auth .auth-input:read-only:not(select) {
+    background: #f4f7f8;
+    color: #5b6e7b;
+}
+.sequent-auth select.auth-input[multiple] {
+    padding: 6px;
+}
+.sequent-auth .auth-phone .iti {
+    display: block;
+    width: 100%;
+}
+.sequent-auth .auth-choices {
+    display: flex;
+    flex-direction: column;
+}
+.sequent-auth .auth-choices .MuiFormControlLabel-root {
+    margin-inline: -10px 0;
+}
+.sequent-auth .auth-strength {
+    height: 6px;
+    margin-top: 10px;
+    border-radius: 3px;
+    background: #e3eaee;
+    overflow: hidden;
+}
+.sequent-auth .auth-strength span {
+    display: block;
+    height: 100%;
+    border-radius: 3px;
+    background: #a12b2b;
+    transition: width 0.2s;
+}
+.sequent-auth .auth-strength[data-level="FAIR"] span {
+    background: #a2560b;
+}
+.sequent-auth .auth-strength[data-level="STRONG"] span {
+    background: #0d796a;
+}
+.sequent-auth .auth-message {
+    margin: 0;
+    font-size: 1rem;
+    line-height: 1.65;
+}
 .sequent-auth .auth-timeline {
     display: flex;
     flex-direction: column;

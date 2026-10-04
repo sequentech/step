@@ -209,7 +209,7 @@ export default function Template(props: SequentTemplateProps) {
                                         lang={progress.label.lang}
                                         aria-valuemin={1}
                                         aria-valuemax={progress.total}
-                                        aria-valuenow={progress.step}
+                                        aria-valuenow={Math.min(progress.step, progress.total)}
                                         aria-valuetext={eyebrow?.text}
                                     >
                                         {Array.from({length: progress.total}, (_, index) => (

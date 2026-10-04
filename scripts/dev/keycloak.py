@@ -31,6 +31,11 @@ REACT_PAGES = (
     "scanovate-capture.ftl",
     "scanovate-confirmation.ftl",
     "scanovate-error.ftl",
+    "register.ftl",
+    "registration-finish.ftl",
+    "registration-manual-finish.ftl",
+    "registration-rejected-finish.ftl",
+    "message-finish.ftl",
 )
 HOT_CLIENT = '<script type="module" src="/@vite/client"></script>'
 HOT_SCRIPTS = (
@@ -45,14 +50,19 @@ window.__vite_plugin_react_preamble_installed__ = true;
     + HOT_CLIENT
     + '\n<script type="module" src="/src/main.tsx"></script>'
 )
-FALLBACK = """<#if (matchAttributes![])?has_content || recaptchaEnabled??
+# The cases a page keeps its FreeMarker implementation for, by the page they
+# apply to. The theme carries a copy of that implementation as sequent-<page>.
+FALLBACKS = {
+    "login.ftl": """(matchAttributes![])?has_content || recaptchaEnabled??
     || ['structured', 'pattern']?seq_contains(
         realm.attributes['credential-input-policy']!'standard')
     || (social.providers![])?has_content || usernameHidden??
-    || (auth?has_content && auth.showTryAnotherWayLink())>
-<#include "sequent-login.ftl">
-<#else>
-"""
+    || (auth?has_content && auth.showTryAnotherWayLink())""",
+    # The registration form also signs voters in (structured credentials,
+    # identity providers); CAPTCHA and terms acceptance aren't React pages.
+    "register.ftl": """(formMode!'REGISTRATION') == 'LOGIN' || recaptchaRequired??
+    || termsAcceptanceRequired??""",
+}
 
 
 class Runtime(Enum):
@@ -83,7 +93,11 @@ def write(path: Path, content: str | bytes) -> None:
             temporary.unlink(missing_ok=True)
 
 
-def page_template(source: str, bridge: str, runtime: Runtime, *, login: bool) -> str:
+def fallback_name(page: str) -> str:
+    return "sequent-" + page
+
+
+def page_template(source: str, bridge: str, runtime: Runtime, page: str) -> str:
     if source.count("</head>") != 1:
         raise ValueError("Generated Keycloak template has no unique head element")
     if runtime is Runtime.HOT:
@@ -99,7 +113,13 @@ def page_template(source: str, bridge: str, runtime: Runtime, *, login: bool) ->
             r'<link\b[^>]*rel="(?:stylesheet|modulepreload)"[^>]*>', "", source
         )
     source = source.replace("</head>", bridge + "\n</head>")
-    return FALLBACK + source + "\n</#if>\n" if login else source
+    if page not in FALLBACKS:
+        return source
+    return (
+        f'<#if {FALLBACKS[page]}>\n<#include "{fallback_name(page)}">\n<#else>\n'
+        + source
+        + "\n</#if>\n"
+    )
 
 
 def theme_source(root: Path, theme: str, name: str) -> Path:
@@ -152,12 +172,13 @@ def _prepare(root: Path, runtime: Runtime, skip_build: bool) -> None:
                 text = jar.read(prefix + page).decode()
                 write(
                     target / page,
-                    page_template(text, bridge, runtime, login=page == "login.ftl"),
+                    page_template(text, bridge, runtime, page),
                 )
-            write(
-                target / "sequent-login.ftl",
-                theme_source(root, parent, "login.ftl").read_text(),
-            )
+            for page in FALLBACKS:
+                write(
+                    target / fallback_name(page),
+                    theme_source(root, parent, page).read_text(),
+                )
             template = theme_source(root, parent, "template.ftl").read_text()
             if runtime is Runtime.HOT:
                 template = template.replace("</head>", HOT_CLIENT + "\n</head>")
@@ -168,7 +189,11 @@ def _prepare(root: Path, runtime: Runtime, skip_build: bool) -> None:
             )
             # Unported pages inherit Sequent's profile widgets and flows.
             for page in target.glob("*.ftl"):
-                if page.name not in (*REACT_PAGES, "template.ftl", "sequent-login.ftl"):
+                if page.name not in (
+                    *REACT_PAGES,
+                    "template.ftl",
+                    *map(fallback_name, FALLBACKS),
+                ):
                     page.unlink()
     print(f"Prepared {', '.join(parents)} ({runtime.value}) in {root / THEMES}")
 
