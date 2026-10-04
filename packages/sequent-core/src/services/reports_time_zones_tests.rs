@@ -581,20 +581,20 @@ fn an_unknown_report_zone_uses_utc_time_and_label_together() {
 }
 
 #[test]
-fn invalid_report_timestamps_are_rejected_instead_of_printing_a_date() {
+fn invalid_report_timestamps_print_the_missing_value_instead_of_fabricating_a_date(
+) {
     let mut variables = template_time_variables(None, None, &defaults());
     variables.insert("timestamp".to_owned(), json!("2028-not-a-date"));
-    let error =
+    assert_eq!(
         render_template_text("{{datetime_zone timestamp}}", variables.clone())
-            .unwrap_err();
-    assert!(
-        error.to_string().contains("RFC 3339 date and time"),
-        "{error}"
+            .unwrap(),
+        "-"
     );
     variables.insert("timestamp".to_owned(), json!(1.5));
-    let error = render_template_text("{{datetime_zone timestamp}}", variables)
-        .unwrap_err();
-    assert!(error.to_string().contains("unix seconds"), "{error}");
+    assert_eq!(
+        render_template_text("{{datetime_zone timestamp}}", variables).unwrap(),
+        "-"
+    );
 }
 
 #[test]
