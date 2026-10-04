@@ -82,6 +82,7 @@ const SAVED_PRESENTATION_DEFAULTS = {
         default_language_code: "en",
         language_detection_policy: "browser-detect",
     },
+    number_format_policy: "comma-period",
     elections_order: "alphabetical",
     voting_portal_countdown_policy: {policy: "NO_COUNTDOWN"},
     custom_urls: {},
@@ -251,7 +252,7 @@ async function choose(page: Page, combobox: RegExp, option: string) {
     await page.getByRole("option", {name: option, exact: true}).click()
 }
 
-test("saves ballot design, channel, language and advanced policy choices in one update", async ({
+test("saves ballot design, channel, language, number format and advanced policy choices in one update", async ({
     page,
     portal,
 }) => {
@@ -270,8 +271,9 @@ test("saves ballot design, channel, language and advanced policy choices in one 
     await page.getByRole("button", {name: "Voting Channels Allowed", exact: true}).click()
     await page.getByRole("switch", {name: "Kiosk"}).check()
     await page.getByRole("radio", {name: "Enabled"}).check()
-    await page.getByRole("button", {name: "Language", exact: true}).click()
+    await page.getByRole("button", {name: "Language & Region", exact: true}).click()
     await choose(page, /^Language Detection Policy/, "Force Default")
+    await choose(page, /^Number Format Policy/, "1.234.567,89")
     await page.getByRole("button", {name: "Advanced Configurations", exact: true}).click()
     await choose(page, /^Contest encryption policy/, "Multiple Contests")
     await choose(page, /^Include decoded ballots/, "Include")
@@ -310,6 +312,7 @@ test("saves ballot design, channel, language and advanced policy choices in one 
                     default_language_code: "en",
                     language_detection_policy: "force-default",
                 },
+                number_format_policy: "period-comma",
                 skip_election_list: true,
                 show_user_profile: true,
                 elections_order: "random",
@@ -480,7 +483,7 @@ test("edits the name of each enabled language and changes the default language",
     const name = page.getByRole("textbox", {name: "Name", exact: true})
     await expect(name).toHaveValue("Elección del consejo")
     await name.fill("Consejo 2026")
-    await page.getByRole("button", {name: "Language", exact: true}).click()
+    await page.getByRole("button", {name: "Language & Region", exact: true}).click()
     const languages = page
         .getByRole("region")
         .filter({has: page.getByRole("switch", {name: "Spanish"})})
