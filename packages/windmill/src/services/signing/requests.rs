@@ -728,6 +728,10 @@ pub async fn get_panel(
     let document = documents
         .panel_document(hasura_transaction, &request)
         .await?;
+    let key_share = key_share_labels(hasura_transaction, &request).await?;
+    // Last: a failed read would abort the transaction for any read after it.
+    let number_format_policy =
+        event_number_format_policy(hasura_transaction, tenant_id, request.election_event_id).await;
     Ok(SigningPanel {
         request: SigningRequestView::from(&request),
         rule,
@@ -744,31 +748,34 @@ pub async fn get_panel(
         time_zone: event_time_zone(hasura_transaction, tenant_id, request.election_event_id)
             .await?
             .map(|zone| zone.name().to_owned()),
-        number_format_policy: event_number_format_policy(
-            hasura_transaction,
-            tenant_id,
-            request.election_event_id,
-        )
-        .await?,
-        key_share: key_share_labels(hasura_transaction, &request).await?,
+        number_format_policy,
+        key_share,
     })
 }
 
 /// The number format of the election event, which a panel shows its figures
-/// in; `None` for the default.
+/// in; `None` for the default, including when the event can't be read: the
+/// panel still opens, with its figures in the default format.
 async fn event_number_format_policy(
     hasura_transaction: &Transaction<'_>,
     tenant_id: Uuid,
     election_event_id: Uuid,
-) -> Result<Option<NumberFormatPolicy>> {
-    Ok(get_election_event_by_id_if_exist(
+) -> Option<NumberFormatPolicy> {
+    match get_election_event_by_id_if_exist(
         hasura_transaction,
         &tenant_id.to_string(),
         &election_event_id.to_string(),
     )
-    .await?
-    .as_ref()
-    .and_then(get_number_format_policy))
+    .await
+    {
+        Ok(election_event) => election_event.as_ref().and_then(get_number_format_policy),
+        Err(error) => {
+            warn!(
+                "Can't read election event {election_event_id}; its signing panel uses the default number format: {error:?}"
+            );
+            None
+        }
+    }
 }
 
 /// What the Signatures tab and a signer's list of waiting requests show
