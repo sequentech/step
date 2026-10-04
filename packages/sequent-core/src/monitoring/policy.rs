@@ -138,7 +138,7 @@ const COLOUR_KEYS: &[&str] = &[
 
 /// Text the engine writes beside a figure. A digit there reads as part of
 /// the figure: a prefix of `9` turns 5 votes into 95.
-const AFFIX_KEYS: &[&str] = &["glyph", "prefix", "suffix", "value_suffix"];
+pub const AFFIX_KEYS: &[&str] = &["glyph", "prefix", "suffix", "value_suffix"];
 
 /// Numbers the engine draws that many of: ticks, bins, bars, legend
 /// entries. Each costs the renderer time, and a large one exhausts it.

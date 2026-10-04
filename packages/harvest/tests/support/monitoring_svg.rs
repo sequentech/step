@@ -96,7 +96,7 @@ fn figures_are_written_in_the_events_number_format() {
         "<tspan>8,589,934,591</tspan>",
     ]);
     assert_eq!(
-        localize_figures(&drawn, NumberFormatPolicy::PeriodComma).unwrap(),
+        localize_figures(&drawn, NumberFormatPolicy::PeriodComma, &[]).unwrap(),
         chart(&[
             "1.200.003.607",
             "53,2%",
@@ -110,7 +110,7 @@ fn figures_are_written_in_the_events_number_format() {
         ])
     );
     assert_eq!(
-        localize_figures(&drawn, NumberFormatPolicy::SpaceComma).unwrap(),
+        localize_figures(&drawn, NumberFormatPolicy::SpaceComma, &[]).unwrap(),
         chart(&[
             "1\u{a0}200\u{a0}003\u{a0}607",
             "53,2%",
@@ -124,7 +124,8 @@ fn figures_are_written_in_the_events_number_format() {
         ])
     );
     assert_eq!(
-        localize_figures(&drawn, NumberFormatPolicy::ApostrophePeriod).unwrap(),
+        localize_figures(&drawn, NumberFormatPolicy::ApostrophePeriod, &[])
+            .unwrap(),
         chart(&[
             "1\u{2019}200\u{2019}003\u{2019}607",
             "53.2%",
@@ -140,10 +141,86 @@ fn figures_are_written_in_the_events_number_format() {
 }
 
 #[test]
+fn compact_and_currency_figures_are_localized_and_prose_is_not() {
+    let drawn = chart(&[
+        "20.6 M",
+        "$1,234.57",
+        "\u{2212}$1,234.57",
+        "+$12.5k",
+        "Total: 20.6 M",
+        "Total: $1,234.57",
+        "1,234 votes",
+    ]);
+    assert_eq!(
+        localize_figures(&drawn, NumberFormatPolicy::PeriodComma, &[]).unwrap(),
+        chart(&[
+            "20,6 M",
+            "$1.234,57",
+            "\u{2212}$1.234,57",
+            "+$12,5k",
+            "Total: 20.6 M",
+            "Total: $1,234.57",
+            "1,234 votes",
+        ])
+    );
+}
+
+#[test]
+fn every_unit_the_engine_writes_after_a_figure_is_kept() {
+    let drawn =
+        chart(&["5.3 pts", "1.5 B", "2.5trn", "1,500mn", "1.5k", "1,234 for"]);
+    assert_eq!(
+        localize_figures(&drawn, NumberFormatPolicy::PeriodComma, &[]).unwrap(),
+        chart(&["5,3 pts", "1,5 B", "2,5trn", "1.500mn", "1,5k", "1,234 for"])
+    );
+}
+
+#[test]
+fn a_figure_with_the_boards_own_prefix_or_suffix_is_localized() {
+    let affixes = ["≈", " votes", "Tot., ", ", approx."].map(String::from);
+    let drawn = chart(&[
+        "≈1,234 votes",
+        "\u{2212}≈1,234.5 votes",
+        "≈\u{2212}1,234",
+        "1.5M votes",
+        "Tot., 1,234.5",
+        "1,234.5, approx.",
+        "Post 1,234 votes",
+    ]);
+    assert_eq!(
+        localize_figures(&drawn, NumberFormatPolicy::PeriodComma, &affixes)
+            .unwrap(),
+        chart(&[
+            "≈1.234 votes",
+            "\u{2212}≈1.234,5 votes",
+            "≈\u{2212}1.234",
+            "1,5M votes",
+            "Tot., 1.234,5",
+            "1.234,5, approx.",
+            "Post 1,234 votes",
+        ])
+    );
+    // Text the board does not write beside its figures is not an affix.
+    assert_eq!(
+        localize_figures(&drawn, NumberFormatPolicy::PeriodComma, &[]).unwrap(),
+        drawn
+    );
+}
+
+#[test]
+fn a_kpi_supporting_line_has_its_figure_rewritten_and_its_words_kept() {
+    let drawn = r##"<svg xmlns="http://www.w3.org/2000/svg"><text x="0" y="57.5"><tspan fill="#6F685D">32.6%</tspan><tspan fill="#6F685D"> of the electorate</tspan></text></svg>"##;
+    assert_eq!(
+        localize_figures(drawn, NumberFormatPolicy::SpaceComma, &[]).unwrap(),
+        r##"<svg xmlns="http://www.w3.org/2000/svg"><text x="0" y="57.5"><tspan fill="#6F685D">32,6%</tspan><tspan fill="#6F685D"> of the electorate</tspan></text></svg>"##
+    );
+}
+
+#[test]
 fn a_chart_in_the_default_number_format_is_kept_as_drawn() {
     let drawn = chart(&["1,234.5", "53.2%"]);
     assert_eq!(
-        localize_figures(&drawn, NumberFormatPolicy::CommaPeriod).unwrap(),
+        localize_figures(&drawn, NumberFormatPolicy::CommaPeriod, &[]).unwrap(),
         drawn
     );
 }
@@ -169,7 +246,7 @@ fn labels_hours_dates_and_attributes_stay_as_drawn() {
         ])
     );
     assert_eq!(
-        localize_figures(&drawn, NumberFormatPolicy::PeriodComma).unwrap(),
+        localize_figures(&drawn, NumberFormatPolicy::PeriodComma, &[]).unwrap(),
         drawn
     );
 }

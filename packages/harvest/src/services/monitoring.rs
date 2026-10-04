@@ -18,7 +18,7 @@ use crate::ports::monitoring_snapshots::{KeptRun, ScopeRead, SnapshotHead};
 use crate::services::dependencies::HarvestServices;
 use crate::services::monitoring_cache::RenderKeyParts;
 use crate::services::monitoring_svg::{
-    localize_figures, sanitize_svg, UnsafeSvg,
+    localize_figures_or_keep, sanitize_svg, UnsafeSvg,
 };
 use chrono::{DateTime, Utc};
 use deadpool_postgres::Transaction;
@@ -38,7 +38,7 @@ use sequent_core::monitoring::policy::{parse_theme, parse_widget};
 use sequent_core::monitoring::presets::SETTINGS_KEY;
 use sequent_core::monitoring::problem::Code;
 use sequent_core::monitoring::problem::{Problem, Report, Severity};
-use sequent_core::monitoring::render_request::build_board;
+use sequent_core::monitoring::render_request::{build_board, figure_affixes};
 use sequent_core::monitoring::resolve::{resolve_widget, DynamicOptionValues};
 use sequent_core::monitoring::scope::{
     election_set_key, PostPinning, ScopeSelection,
@@ -1212,6 +1212,7 @@ pub async fn draw_widget(
     }
 
     let board = build_board(widget, plan.theme, &data);
+    let affixes = figure_affixes(&board);
     let width = width_bucket(plan.width);
     let color_scheme = match plan.color_scheme {
         ColorScheme::Light => "LIGHT",
@@ -1264,12 +1265,11 @@ pub async fn draw_widget(
         Ok(chart) => {
             let chart: Arc<DrawnChart> = chart;
             let mut response = RenderResponse::state(RenderState::Rendered);
-            let svg = localize_figures(&chart.svg, plan.number_format_policy)
-                .unwrap_or_else(|error| {
-                    warn!("A chart's figures stay as drawn: {error:?}");
-                    chart.svg.clone()
-                });
-            response.svg = Some(svg);
+            response.svg = Some(localize_figures_or_keep(
+                chart.svg.clone(),
+                plan.number_format_policy,
+                &affixes,
+            ));
             response.render_ms = Some(chart.render_ms);
             response.diagnostics = problems(chart.warnings.iter());
             response

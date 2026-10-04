@@ -12,6 +12,7 @@
 
 use super::compute::QueryResult;
 use super::config::{Theme, Widget};
+use super::policy::AFFIX_KEYS;
 use indexmap::IndexMap;
 use serde_json::{Map, Value};
 use serde_yaml::Value as Yaml;
@@ -60,6 +61,39 @@ pub fn build_board(
         .collect();
     board.insert("queries".into(), Value::Object(queries));
     Value::Object(board)
+}
+
+/// The text `board` writes beside its figures, wherever it is set: its
+/// formats' prefixes and suffixes, and its glyphs. The policy refuses digits
+/// in them, so none reads as part of a figure.
+pub fn figure_affixes(board: &Value) -> Vec<String> {
+    fn collect(value: &Value, key: Option<&str>, affixes: &mut Vec<String>) {
+        match value {
+            Value::String(text) => {
+                if key.is_some_and(|key| AFFIX_KEYS.contains(&key))
+                    && !text.is_empty()
+                {
+                    affixes.push(text.clone());
+                }
+            }
+            Value::Object(map) => {
+                for (key, value) in map {
+                    collect(value, Some(key), affixes);
+                }
+            }
+            Value::Array(items) => {
+                for item in items {
+                    collect(item, key, affixes);
+                }
+            }
+            Value::Null | Value::Bool(_) | Value::Number(_) => {}
+        }
+    }
+    let mut affixes = Vec::new();
+    collect(board, None, &mut affixes);
+    affixes.sort();
+    affixes.dedup();
+    affixes
 }
 
 /// The values each field is coloured with on this board: what the charts
