@@ -9,6 +9,7 @@ use crate::ballot::{
 use crate::ballot_codec::bigint::BigUIntCodec;
 use crate::ballot_codec::multi_ballot::*;
 use crate::ballot_codec::raw_ballot::RawBallotCodec;
+use crate::election_config::slates::coverage::slates_coverage;
 use crate::election_config::slates::{
     ballot_style_slates, canonicalize, check_annotation,
 };
@@ -1353,6 +1354,39 @@ pub fn get_ballot_style_slates_js(
         Ok(slates) => slates
             .serialize(&serializer)
             .map_err(|err| format!("Error serializing slates: {:?}", err))
+            .into_json(),
+        Err(problems) => {
+            Err(problems.serialize(&serializer).map_err(|err| {
+                JsValue::from_str(&format!(
+                    "Error serializing slate problems: {:?}",
+                    err
+                ))
+            })?)
+        }
+    }
+}
+
+#[wasm_bindgen]
+/// Returns what each slate covers of the ballot style's contests, in the
+/// configured order and without the slates that have no candidate in them.
+/// Returns null when the election has no slates. Throws the list of problems
+/// of an invalid configuration.
+pub fn get_ballot_style_slates_coverage_js(
+    ballot_style_json: JsValue,
+) -> Result<JsValue, JsValue> {
+    let ballot_style: BallotStyle =
+        serde_wasm_bindgen::from_value(ballot_style_json)
+            .map_err(|err| format!("Error parsing ballot style: {}", err))
+            .into_json()?;
+    let serializer = Serializer::json_compatible();
+
+    match ballot_style_slates(&ballot_style) {
+        Ok(slates) => slates
+            .map(|config| slates_coverage(&config, &ballot_style.contests))
+            .serialize(&serializer)
+            .map_err(|err| {
+                format!("Error serializing slates coverage: {:?}", err)
+            })
             .into_json(),
         Err(problems) => {
             Err(problems.serialize(&serializer).map_err(|err| {

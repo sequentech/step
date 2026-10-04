@@ -5,13 +5,17 @@
 import {
     EMobileCandidateLists,
     getBallotStyleSlates,
+    getBallotStyleSlatesCoverage,
     IBallotStyle as IElectionDTO,
     ICandidate,
     IContest,
     ISlate,
+    ISlateCoverage,
     ISlateProblem,
     ISlatesConfig,
 } from "@sequentech/ui-core"
+
+import {ESlateOfficesLayout, getSlateOffices} from "./SlateCoverage"
 
 export {getSlateName} from "@sequentech/ui-core"
 
@@ -26,6 +30,13 @@ export interface IResolvedSlate {
     id: string
     name: Record<string, string>
     contests: Array<ISlateContest>
+    /** What the slate covers of the ballot, when it is known. */
+    coverage?: ISlateCoverage
+    /**
+     * Every contest the voter can vote in, in ballot order, without candidates
+     * where the slate has none. Set with `coverage`.
+     */
+    offices?: Array<ISlateContest>
 }
 
 export interface IBallotSlates {
@@ -45,11 +56,36 @@ const resolveSlate = (slate: ISlate, contests: Array<IContest>): IResolvedSlate 
     }),
 })
 
-export const resolveSlates = (config: ISlatesConfig, contests: Array<IContest>): IBallotSlates => ({
+const resolveCoveredSlate = (
+    slate: ISlate,
+    contests: Array<IContest>,
+    coverage: ISlateCoverage
+): IResolvedSlate => ({
+    id: slate.id,
+    name: slate.name,
+    contests: getSlateOffices(coverage, contests, ESlateOfficesLayout.STACKED),
+    coverage,
+    offices: getSlateOffices(coverage, contests, ESlateOfficesLayout.ALIGNED),
+})
+
+/**
+ * The slates of a ballot. With `coverage`, only the slates it lists are kept,
+ * with the candidates it counts.
+ */
+export const resolveSlates = (
+    config: ISlatesConfig,
+    contests: Array<IContest>,
+    coverage?: Array<ISlateCoverage> | null
+): IBallotSlates => ({
     mobileCandidateLists: config.mobile_candidate_lists,
-    slates: config.slates
-        .map((slate) => resolveSlate(slate, contests))
-        .filter((slate) => slate.contests.length > 0),
+    slates: coverage
+        ? coverage.flatMap((slateCoverage) => {
+              const slate = config.slates.find((entry) => entry.id === slateCoverage.slate_id)
+              return slate ? [resolveCoveredSlate(slate, contests, slateCoverage)] : []
+          })
+        : config.slates
+              .map((slate) => resolveSlate(slate, contests))
+              .filter((slate) => slate.contests.length > 0),
 })
 
 /**
@@ -58,7 +94,9 @@ export const resolveSlates = (config: ISlatesConfig, contests: Array<IContest>):
  */
 export const resolveBallotStyleSlates = (ballotEml: IElectionDTO): IBallotSlates | null => {
     const config = getBallotStyleSlates(ballotEml)
-    return config ? resolveSlates(config, ballotEml.contests) : null
+    return config
+        ? resolveSlates(config, ballotEml.contests, getBallotStyleSlatesCoverage(ballotEml))
+        : null
 }
 
 const isSlateProblem = (value: unknown): value is ISlateProblem =>

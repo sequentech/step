@@ -10,6 +10,7 @@ import {ICandidate, translate} from "@sequentech/ui-core"
 import {theme} from "@sequentech/ui-essentials"
 
 import {getSlateName, IBallotSlates, IResolvedSlate, ISlateContest} from "../../services/Slates"
+import {SlateCoverageLine} from "./SlateCoverageLine"
 
 const SlateList = styled("ul")`
     display: grid;
@@ -30,6 +31,16 @@ const SlateCard = styled("li")`
     border-radius: 4px;
     background: ${theme.palette.white};
     overflow-wrap: anywhere;
+`
+
+const SlateOffice = styled(Box)`
+    &.slate-contest-uncovered {
+        color: ${theme.palette.customGrey.dark};
+
+        @media (max-width: ${theme.breakpoints.values.md}px) {
+            display: none;
+        }
+    }
 `
 
 const MemberList = styled("ul")`
@@ -95,13 +106,18 @@ export const SlateChooser: React.FC<ISlateChooserProps> = ({
             <SlateList className="slate-list">
                 {slates.slates.map((slate) => {
                     const slateName = getSlateName(slate, i18n.language, defaultLanguage)
-                    const lists = slate.contests.map((slateContest) => {
+                    const lists = (slate.offices ?? slate.contests).map((slateContest) => {
                         const contestName =
                             translate(slateContest.contest, "name", i18n.language) ?? ""
+                        const isUncovered = slateContest.candidates.length === 0
                         return (
-                            <Box
+                            <SlateOffice
                                 key={slateContest.contest.id}
-                                className="slate-contest"
+                                className={
+                                    isUncovered
+                                        ? "slate-contest slate-contest-uncovered"
+                                        : "slate-contest"
+                                }
                                 data-contest-id={slateContest.contest.id}
                             >
                                 <Typography
@@ -113,30 +129,36 @@ export const SlateChooser: React.FC<ISlateChooserProps> = ({
                                 >
                                     {contestName}
                                 </Typography>
-                                <MemberList
-                                    className="slate-members"
-                                    aria-label={t("slates.contestMembers", {
-                                        slate: slateName,
-                                        contest: contestName,
-                                    })}
-                                >
-                                    {slateContest.candidates.map((candidate) =>
-                                        renderMember ? (
-                                            <React.Fragment key={candidate.id}>
-                                                {renderMember(slate, slateContest, candidate)}
-                                            </React.Fragment>
-                                        ) : (
-                                            <li
-                                                key={candidate.id}
-                                                className="slate-member"
-                                                data-candidate-id={candidate.id}
-                                            >
-                                                {translate(candidate, "name", i18n.language)}
-                                            </li>
-                                        )
-                                    )}
-                                </MemberList>
-                            </Box>
+                                {isUncovered ? (
+                                    <Typography className="slate-no-candidate" margin="4px 0 0">
+                                        {t("slates.noCandidate")}
+                                    </Typography>
+                                ) : (
+                                    <MemberList
+                                        className="slate-members"
+                                        aria-label={t("slates.contestMembers", {
+                                            slate: slateName,
+                                            contest: contestName,
+                                        })}
+                                    >
+                                        {slateContest.candidates.map((candidate) =>
+                                            renderMember ? (
+                                                <React.Fragment key={candidate.id}>
+                                                    {renderMember(slate, slateContest, candidate)}
+                                                </React.Fragment>
+                                            ) : (
+                                                <li
+                                                    key={candidate.id}
+                                                    className="slate-member"
+                                                    data-candidate-id={candidate.id}
+                                                >
+                                                    {translate(candidate, "name", i18n.language)}
+                                                </li>
+                                            )
+                                        )}
+                                    </MemberList>
+                                )}
+                            </SlateOffice>
                         )
                     })
 
@@ -154,6 +176,11 @@ export const SlateChooser: React.FC<ISlateChooserProps> = ({
                                 </Typography>
                                 {renderCoverage ? (
                                     <Box className="slate-coverage">{renderCoverage(slate)}</Box>
+                                ) : slate.coverage ? (
+                                    <SlateCoverageLine
+                                        coverage={slate.coverage}
+                                        contests={slate.contests.map((entry) => entry.contest)}
+                                    />
                                 ) : null}
                                 {renderSummary ? (
                                     <Box className="slate-summary">{renderSummary(slate)}</Box>

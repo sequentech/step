@@ -17,7 +17,9 @@ use crate::election_config::problem::{Code, Problem};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 
+pub mod coverage;
 mod election;
+
 #[cfg(test)]
 mod tests;
 

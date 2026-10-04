@@ -3,7 +3,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import {useMemo} from "react"
-import {getBallotStyleSlates, ISlatesConfig} from "@sequentech/ui-core"
+import {
+    getBallotStyleSlates,
+    getBallotStyleSlatesCoverage,
+    ISlatesConfig,
+} from "@sequentech/ui-core"
 
 import {IBallotStyle} from "../store/ballotStyles/ballotStylesSlice"
 import {IBallotSlates, resolveSlates} from "../services/Slates"
@@ -30,9 +34,14 @@ export const useBallotStyleSlates = (ballotStyle: IBallotStyle | undefined): IBa
         }
         try {
             const config = getBallotStyleSlates(ballotStyle.ballot_eml)
-            return config
-                ? {config, resolved: resolveSlates(config, ballotStyle.ballot_eml.contests)}
-                : NO_SLATES
+            if (!config) {
+                return NO_SLATES
+            }
+            const coverage = getBallotStyleSlatesCoverage(ballotStyle.ballot_eml)
+            return {
+                config,
+                resolved: resolveSlates(config, ballotStyle.ballot_eml.contests, coverage),
+            }
         } catch {
             return NO_SLATES
         }
