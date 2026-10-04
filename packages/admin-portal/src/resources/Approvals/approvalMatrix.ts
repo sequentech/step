@@ -406,3 +406,12 @@ export const profileFieldLabel =
             ? t(attributeLabel(attribute.display_name ?? attribute.name))
             : humanizeField(field)
     }
+
+/**
+ * The translation key of an application's rejection reason. The matrix
+ * stores a reason by its name; an officer's manual rejection by its slug.
+ */
+export const rejectionReasonKey = (reason: string | null | undefined): string =>
+    Object.values<string>(EMatrixReason).includes(reason ?? "")
+        ? `approvalsScreen.matrix.reasons.${reason}`
+        : `approvalsScreen.reject.reasons.${reason ?? "undefined"}`

@@ -25,7 +25,7 @@ import {USER_PROFILE_ATTRIBUTES} from "@/queries/GetUserProfileAttributes"
 import {convertOneToSnakeCase, convertToCamelCase, convertToSnakeCase} from "./UtilsApprovals"
 import {IApplicationsStatus} from "@/types/applications"
 import {RejectApplicationButton, RejectApplicationDialog} from "./RejectApplication"
-import {decidedByText, profileFieldLabel, readDecision} from "./approvalMatrix"
+import {decidedByText, profileFieldLabel, readDecision, rejectionReasonKey} from "./approvalMatrix"
 
 export interface ViewApprovalProps {
     electionEventId: string
@@ -137,13 +137,7 @@ export const ViewApproval: React.FC<ViewApprovalProps> = ({
                             {t("approvalsScreen.reject.rejectReason")}
                         </TableCell>
                         <TableCell>
-                            {formatValue(
-                                t(
-                                    `approvalsScreen.reject.reasons.${
-                                        task.annotations.rejection_reason ?? "undefined"
-                                    }`
-                                )
-                            )}
+                            {formatValue(t(rejectionReasonKey(task.annotations.rejection_reason)))}
                         </TableCell>
                     </TableRow>
                 )

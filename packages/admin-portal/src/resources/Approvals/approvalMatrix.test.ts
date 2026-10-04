@@ -26,6 +26,7 @@ import {
     moveRule,
     profileFieldLabel,
     readDecision,
+    rejectionReasonKey,
     readMatrix,
     replaceRule,
     sameMatrix,
@@ -423,5 +424,22 @@ describe("profileFieldLabel", () => {
 
     it("falls back to the field's own name", () => {
         expect(label("dateOfBirth")).toBe("Date Of Birth")
+    })
+})
+
+describe("rejectionReasonKey", () => {
+    it("reads a reason the matrix stored by name", () => {
+        expect(rejectionReasonKey("NO_VOTER")).toBe("approvalsScreen.matrix.reasons.NO_VOTER")
+        expect(rejectionReasonKey("IDENTITY_NOT_VERIFIED")).toBe(
+            "approvalsScreen.matrix.reasons.IDENTITY_NOT_VERIFIED"
+        )
+    })
+
+    it("keeps the slug of a manual rejection and the missing reason", () => {
+        expect(rejectionReasonKey("no-matching-voter")).toBe(
+            "approvalsScreen.reject.reasons.no-matching-voter"
+        )
+        expect(rejectionReasonKey(null)).toBe("approvalsScreen.reject.reasons.undefined")
+        expect(rejectionReasonKey(undefined)).toBe("approvalsScreen.reject.reasons.undefined")
     })
 })
