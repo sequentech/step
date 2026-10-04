@@ -12,11 +12,15 @@
 //! a fragment of the document itself, any `url()` that is not one, and any
 //! style sheet that imports or fetches. Declarations, doctypes (and so their
 //! entities), comments and processing instructions go too.
+//!
+//! The engine writes every figure as `1,234.5`; [`localize_figures`] then
+//! writes a kept chart's figures in its election event's number format.
 
 use quick_xml::events::attributes::Attribute;
 use quick_xml::events::{BytesEnd, BytesStart, BytesText, Event};
 use quick_xml::name::QName;
 use quick_xml::{Reader, Writer};
+use sequent_core::types::number_format::NumberFormatPolicy;
 use std::borrow::Cow;
 
 /// Why a drawn chart is not shown.
@@ -224,6 +228,105 @@ pub fn sanitize_svg(svg: &str) -> Result<String, UnsafeSvg> {
         return Err(UnsafeSvg::Malformed);
     }
     String::from_utf8(writer.into_inner()).map_err(|_| UnsafeSvg::Malformed)
+}
+
+/// The elements a chart writes its text in.
+const TEXT_ELEMENTS: &[&str] = &["text", "tspan", "textPath"];
+
+/// `svg`, a chart [`sanitize_svg`] kept, with its figures written in
+/// `policy`. dbt Charts writes each figure alone in its text element, in
+/// the format of `1,234.5`: axis ticks, bar labels, KPI values and table
+/// cells. Only a text that is one figure and nothing else is rewritten, so
+/// labels such as `18-24`, `10:00` or `May'26` stay as drawn.
+pub fn localize_figures(
+    svg: &str,
+    policy: NumberFormatPolicy,
+) -> Result<String, UnsafeSvg> {
+    if policy == NumberFormatPolicy::CommaPeriod {
+        return Ok(svg.to_string());
+    }
+    let mut reader = Reader::from_str(svg);
+    reader.config_mut().trim_text(false);
+    let mut writer = Writer::new(Vec::with_capacity(svg.len()));
+    // Whether each open element is one a chart writes its text in.
+    let mut open: Vec<bool> = Vec::new();
+    loop {
+        let event = reader.read_event().map_err(|_| UnsafeSvg::Malformed)?;
+        let event = match event {
+            Event::Eof => break,
+            Event::Start(start) => {
+                open.push(
+                    TEXT_ELEMENTS.contains(&element_name(&start)?.as_str()),
+                );
+                Event::Start(start)
+            }
+            Event::End(end) => {
+                open.pop();
+                Event::End(end)
+            }
+            Event::Text(text) if open.last() == Some(&true) => {
+                let raw = std::str::from_utf8(text.as_ref())
+                    .map_err(|_| UnsafeSvg::Malformed)?;
+                match localized_figure(&unescape(raw)?, policy) {
+                    Some(figure) => {
+                        Event::Text(BytesText::new(&figure).into_owned())
+                    }
+                    None => Event::Text(text),
+                }
+            }
+            other => other,
+        };
+        writer
+            .write_event(event)
+            .map_err(|_| UnsafeSvg::Malformed)?;
+    }
+    String::from_utf8(writer.into_inner()).map_err(|_| UnsafeSvg::Malformed)
+}
+
+/// `text` in `policy` when it is a figure as the engine writes one: an
+/// optional sign, digits grouped in thousands with commas, an optional
+/// fraction after a period, and an optional percent sign or unit, as in
+/// `−1,234`, `53.2%`, `1.5G` or `12mn`. The space around it is kept.
+fn localized_figure(text: &str, policy: NumberFormatPolicy) -> Option<String> {
+    let figure = text.trim();
+    let unsigned = figure
+        .strip_prefix(['+', '-', '\u{2212}'])
+        .unwrap_or(figure);
+    let (number, unit) = unsigned.split_at(
+        unsigned
+            .find(|c: char| !(c.is_ascii_digit() || c == ',' || c == '.'))
+            .unwrap_or(unsigned.len()),
+    );
+    let (integer, fraction) = match number.split_once('.') {
+        Some((integer, fraction)) => (integer, Some(fraction)),
+        None => (number, None),
+    };
+    let digits = |part: &str| {
+        !part.is_empty() && part.chars().all(|c| c.is_ascii_digit())
+    };
+    let mut groups = integer.split(',');
+    let first = groups.next().unwrap_or_default();
+    let grouped = integer.contains(',');
+    let is_figure = digits(first)
+        && (!grouped || first.len() <= 3)
+        && groups.all(|group| group.len() == 3 && digits(group))
+        && fraction.map_or(true, digits)
+        && (unit.is_empty()
+            || unit == "%"
+            || (unit.len() <= 3
+                && unit.chars().all(|c| c.is_ascii_alphabetic())));
+    if !is_figure || !(grouped || fraction.is_some()) {
+        return None;
+    }
+    let localized: String = figure
+        .chars()
+        .map(|c| match c {
+            ',' => policy.group_separator().to_string(),
+            '.' => policy.decimal_separator().to_string(),
+            other => other.to_string(),
+        })
+        .collect();
+    Some(text.replacen(figure, &localized, 1))
 }
 
 /// The element's name; one with a namespace prefix is none an SVG chart

@@ -17,7 +17,9 @@ use crate::ports::monitoring_renderer::{
 use crate::ports::monitoring_snapshots::{KeptRun, ScopeRead, SnapshotHead};
 use crate::services::dependencies::HarvestServices;
 use crate::services::monitoring_cache::RenderKeyParts;
-use crate::services::monitoring_svg::{sanitize_svg, UnsafeSvg};
+use crate::services::monitoring_svg::{
+    localize_figures, sanitize_svg, UnsafeSvg,
+};
 use chrono::{DateTime, Utc};
 use deadpool_postgres::Transaction;
 use indexmap::IndexMap;
@@ -44,6 +46,7 @@ use sequent_core::monitoring::scope::{
 use sequent_core::monitoring::sources::Producer;
 use sequent_core::monitoring::voter::dimension_value;
 use sequent_core::services::jwt::{decode_permission_labels, JwtClaims};
+use sequent_core::types::number_format::NumberFormatPolicy;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
 use sha2::{Digest, Sha256};
@@ -488,6 +491,37 @@ pub async fn is_locked_down(
         serde_json::from_value(presentation)
             .map_err(MonitoringError::internal)?;
     Ok(presentation.locked_down == Some(LockedDown::LOCKED_DOWN))
+}
+
+/// The number format the event writes its figures in. An event without
+/// one, or one that cannot be read, uses the default: a chart is still
+/// drawn.
+pub async fn event_number_format_policy(
+    services: &HarvestServices,
+    event: EventRef,
+) -> NumberFormatPolicy {
+    let row = match hasura_client(services).await {
+        Ok(client) => client
+            .query_opt(
+                "SELECT presentation->'number_format_policy' AS policy
+                 FROM sequent_backend.election_event
+                 WHERE tenant_id = $1 AND id = $2",
+                &[&event.tenant_id, &event.election_event_id],
+            )
+            .await
+            .map_err(|error| error.to_string()),
+        Err(error) => Err(error.message),
+    };
+    match row {
+        Ok(row) => row
+            .and_then(|row| row.get::<_, Option<Value>>("policy"))
+            .and_then(|policy| serde_json::from_value(policy).ok())
+            .unwrap_or_default(),
+        Err(error) => {
+            warn!("The event's number format could not be read: {error}");
+            NumberFormatPolicy::default()
+        }
+    }
 }
 
 pub fn refuse_when_locked_down(locked: bool) -> MonitoringResult<()> {
@@ -995,6 +1029,8 @@ pub struct DrawPlan<'a> {
     pub width: i64,
     pub color_scheme: ColorScheme,
     pub locale: &'a str,
+    /// The event's number format, which the chart's figures are written in.
+    pub number_format_policy: NumberFormatPolicy,
 }
 
 /// Why a widget is pending: its run was counted with older settings.
@@ -1228,7 +1264,12 @@ pub async fn draw_widget(
         Ok(chart) => {
             let chart: Arc<DrawnChart> = chart;
             let mut response = RenderResponse::state(RenderState::Rendered);
-            response.svg = Some(chart.svg.clone());
+            let svg = localize_figures(&chart.svg, plan.number_format_policy)
+                .unwrap_or_else(|error| {
+                    warn!("A chart's figures stay as drawn: {error:?}");
+                    chart.svg.clone()
+                });
+            response.svg = Some(svg);
             response.render_ms = Some(chart.render_ms);
             response.diagnostics = problems(chart.warnings.iter());
             response

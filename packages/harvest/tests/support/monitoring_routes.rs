@@ -6,6 +6,7 @@
 //! configuration and elections on the migrated test database, the snapshot
 //! rows and the renderer as fakes.
 
+use crate::adapters::memory::monitoring_renderer::MemoryRenderer;
 use crate::adapters::memory::monitoring_snapshots::MemorySnapshots;
 use crate::route_services::rows::{self, Event};
 use crate::route_services::{json, post, Services};
@@ -197,6 +198,69 @@ async fn a_configured_event_lists_its_dashboards_and_draws_a_widget_once() {
         assert!(body["table"]["columns"].is_array(), "{body}");
         assert_eq!(body["snapshot_revision"], 7);
     }
+    assert_eq!(services.monitoring_renderer.renders(), 1);
+}
+
+async fn set_number_format_policy(
+    services: &Services,
+    event: &Event,
+    policy: &str,
+) {
+    rows::execute(
+        &services.hasura,
+        "UPDATE sequent_backend.election_event
+         SET presentation = coalesce(presentation, '{}'::jsonb)
+             || jsonb_build_object('number_format_policy', $2::text)
+         WHERE id = $1",
+        &[&Uuid::parse_str(&event.election_event_id).unwrap(), &policy],
+    )
+    .await;
+}
+
+#[rocket::async_test]
+async fn a_chart_is_drawn_in_the_events_number_format() {
+    let services = Services::on_test_database()
+        .await
+        .with_monitoring_snapshots(MemorySnapshots::at(7, ScopeRead::Empty))
+        .with_monitoring_renderer(MemoryRenderer::drawing(
+            r#"<svg xmlns="http://www.w3.org/2000/svg"><text>8,589,934,591</text><text>53.2%</text></svg>"#,
+        ));
+    let client = services.client().await;
+    let event = rows::event(&services.hasura).await;
+    event.election(&services.hasura).await;
+    configure(&client, &event).await;
+    let drawn = |policy: Option<&'static str>| {
+        let (client, event, services) = (&client, &event, &services);
+        async move {
+            if let Some(policy) = policy {
+                set_number_format_policy(services, event, policy).await;
+            }
+            let (status, body) = render(
+                client,
+                &viewer(event),
+                event,
+                "turnout-summary",
+                json!({}),
+            )
+            .await;
+            assert_eq!(status, Status::Ok, "{body}");
+            assert_eq!(body["state"], "RENDERED", "{body}");
+            body["svg"].as_str().unwrap().to_string()
+        }
+    };
+
+    // An event saved before the number format existed keeps the engine's.
+    assert!(drawn(None)
+        .await
+        .contains("<text>8,589,934,591</text><text>53.2%</text>"));
+    assert!(drawn(Some("period-comma"))
+        .await
+        .contains("<text>8.589.934.591</text><text>53,2%</text>"));
+    // A code this version does not know is the default.
+    assert!(drawn(Some("no-such-format"))
+        .await
+        .contains("<text>8,589,934,591</text><text>53.2%</text>"));
+    // The chart was drawn once: a new number format needs no new drawing.
     assert_eq!(services.monitoring_renderer.renders(), 1);
 }
 

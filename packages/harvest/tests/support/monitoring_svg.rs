@@ -3,7 +3,8 @@
 
 //! What the SVG check keeps of a drawn chart, and what it takes out.
 
-use super::{sanitize_svg, UnsafeSvg};
+use super::{localize_figures, sanitize_svg, UnsafeSvg};
+use sequent_core::types::number_format::NumberFormatPolicy;
 
 #[test]
 fn a_plain_chart_is_kept_as_drawn() {
@@ -68,5 +69,107 @@ fn attribute_values_keep_their_entities_and_character_references() {
     assert_eq!(
         sanitize_svg(r#"<svg data-x="&nbsp;"/>"#),
         Err(UnsafeSvg::Malformed)
+    );
+}
+
+fn chart(texts: &[&str]) -> String {
+    let texts: String = texts
+        .iter()
+        .map(|text| format!(r#"<text x="1.5" y="2,5">{text}</text>"#))
+        .collect();
+    format!(
+        r#"<svg xmlns="http://www.w3.org/2000/svg" width="640">{texts}</svg>"#
+    )
+}
+
+#[test]
+fn figures_are_written_in_the_events_number_format() {
+    let drawn = chart(&[
+        "1,200,003,607",
+        "53.2%",
+        "0.5",
+        "1.5G",
+        "1,000k",
+        "\u{2212}1,234",
+        "+5.3%",
+        " 12,345 ",
+        "<tspan>8,589,934,591</tspan>",
+    ]);
+    assert_eq!(
+        localize_figures(&drawn, NumberFormatPolicy::PeriodComma).unwrap(),
+        chart(&[
+            "1.200.003.607",
+            "53,2%",
+            "0,5",
+            "1,5G",
+            "1.000k",
+            "\u{2212}1.234",
+            "+5,3%",
+            " 12.345 ",
+            "<tspan>8.589.934.591</tspan>",
+        ])
+    );
+    assert_eq!(
+        localize_figures(&drawn, NumberFormatPolicy::SpaceComma).unwrap(),
+        chart(&[
+            "1\u{a0}200\u{a0}003\u{a0}607",
+            "53,2%",
+            "0,5",
+            "1,5G",
+            "1\u{a0}000k",
+            "\u{2212}1\u{a0}234",
+            "+5,3%",
+            " 12\u{a0}345 ",
+            "<tspan>8\u{a0}589\u{a0}934\u{a0}591</tspan>",
+        ])
+    );
+    assert_eq!(
+        localize_figures(&drawn, NumberFormatPolicy::ApostrophePeriod).unwrap(),
+        chart(&[
+            "1\u{2019}200\u{2019}003\u{2019}607",
+            "53.2%",
+            "0.5",
+            "1.5G",
+            "1\u{2019}000k",
+            "\u{2212}1\u{2019}234",
+            "+5.3%",
+            " 12\u{2019}345 ",
+            "<tspan>8\u{2019}589\u{2019}934\u{2019}591</tspan>",
+        ])
+    );
+}
+
+#[test]
+fn a_chart_in_the_default_number_format_is_kept_as_drawn() {
+    let drawn = chart(&["1,234.5", "53.2%"]);
+    assert_eq!(
+        localize_figures(&drawn, NumberFormatPolicy::CommaPeriod).unwrap(),
+        drawn
+    );
+}
+
+#[test]
+fn labels_hours_dates_and_attributes_stay_as_drawn() {
+    let drawn = format!(
+        r#"<svg xmlns="http://www.w3.org/2000/svg"><style>.a{{font-size:1.5px}}</style><g data-value="1,234.5">{}</g></svg>"#,
+        chart(&[
+            "18-24",
+            "60+",
+            "10:00",
+            "May'26",
+            "2026",
+            "1.2.3",
+            "12,34",
+            "1234,567",
+            "v1.5",
+            "1,234 votes",
+            "Post 1,234",
+            "&lt;1,000",
+            "1.5 &amp; more",
+        ])
+    );
+    assert_eq!(
+        localize_figures(&drawn, NumberFormatPolicy::PeriodComma).unwrap(),
+        drawn
     );
 }
