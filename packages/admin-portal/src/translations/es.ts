@@ -706,6 +706,7 @@ const spanishTranslation: TranslationType = {
                     policyLabel: "Política de formato de números",
                     helperText:
                         "Se aplica a los números de los resultados, los paneles de control y los informes.",
+                    unknownPolicy: "Formato desconocido '{{policy}}', se muestra como {{sample}}",
                 },
             },
             error: {

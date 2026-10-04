@@ -702,6 +702,8 @@ const basqueTranslation: TranslationType = {
                     policyLabel: "Zenbakien formatuaren politika",
                     helperText:
                         "Emaitzetako, paneletako eta txostenetako zenbakiei aplikatzen zaie.",
+                    unknownPolicy:
+                        "'{{policy}}' formatu ezezaguna, honela erakusten da: {{sample}}",
                 },
             },
             error: {

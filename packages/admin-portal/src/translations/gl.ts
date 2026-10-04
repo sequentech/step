@@ -704,6 +704,7 @@ const galegoTranslation: TranslationType = {
                 numberFormatPolicy: {
                     policyLabel: "Política de formato de números",
                     helperText: "Aplícase aos números dos resultados, os taboleiros e os informes.",
+                    unknownPolicy: "Formato descoñecido '{{policy}}', amósase como {{sample}}",
                 },
             },
             error: {

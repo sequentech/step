@@ -706,6 +706,7 @@ const frenchTranslation: TranslationType = {
                     policyLabel: "Politique de format des nombres",
                     helperText:
                         "S'applique aux nombres des résultats, des tableaux de bord et des rapports.",
+                    unknownPolicy: "Format inconnu '{{policy}}', affiché comme {{sample}}",
                 },
             },
             error: {

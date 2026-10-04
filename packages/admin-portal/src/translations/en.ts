@@ -699,6 +699,7 @@ const englishTranslation = {
                 numberFormatPolicy: {
                     policyLabel: "Number Format Policy",
                     helperText: "Applies to the numbers shown in results, dashboards and reports.",
+                    unknownPolicy: "Unknown format '{{policy}}', shown as {{sample}}",
                 },
             },
             error: {

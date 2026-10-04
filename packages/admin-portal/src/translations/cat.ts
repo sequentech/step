@@ -707,6 +707,7 @@ const catalanTranslation: TranslationType = {
                     policyLabel: "Política de format de nombres",
                     helperText:
                         "S'aplica als nombres dels resultats, els taulers de control i els informes.",
+                    unknownPolicy: "Format desconegut '{{policy}}', es mostra com a {{sample}}",
                 },
             },
             error: {

@@ -705,6 +705,7 @@ const dutchTranslation: TranslationType = {
                 numberFormatPolicy: {
                     policyLabel: "Getalnotatiebeleid",
                     helperText: "Geldt voor de getallen in resultaten, dashboards en rapporten.",
+                    unknownPolicy: "Onbekende notatie '{{policy}}', weergegeven als {{sample}}",
                 },
             },
             error: {
