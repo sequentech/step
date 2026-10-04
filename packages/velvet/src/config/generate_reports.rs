@@ -8,6 +8,7 @@ use sequent_core::{
         ceremonies::TallyType,
         date_time::{DateFormat, TimeZone},
         hasura::core::TallySessionConfiguration,
+        number_format::NumberFormatPolicy,
         templates::PrintToPdfOptionsLocal,
     },
 };
@@ -26,6 +27,11 @@ pub struct PipeConfigGenerateReports {
     pub extra_data: Value,
     pub tally_type: TallyType,
     pub tally_session_configuration: Option<TallySessionConfiguration>,
+    /// The election event's number format, which the reports write their
+    /// figures in. Configs written before it existed lack it and use the
+    /// default.
+    #[serde(default)]
+    pub number_format_policy: Option<NumberFormatPolicy>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Default, EnumString)]
@@ -41,3 +47,42 @@ pub struct ContestReportConfig {
 }
 
 pub const CONTEST_REPORT_CONFIG: &'static str = "sequent:velvet:contest-report-config";
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_config_written_before_number_format_policies_still_parses() {
+        let config: PipeConfigGenerateReports = serde_json::from_value(json!({
+            "enable_pdfs": false,
+            "report_content_template": null,
+            "pdf_options": null,
+            "execution_annotations": {},
+            "system_template": "",
+            "extra_data": {},
+            "tally_type": "ELECTORAL_RESULTS",
+            "tally_session_configuration": null
+        }))
+        .unwrap();
+
+        assert_eq!(config.number_format_policy, None);
+    }
+
+    #[test]
+    fn the_number_format_policy_is_written_by_its_code() {
+        let config = serde_json::to_value(PipeConfigGenerateReports {
+            number_format_policy: Some(NumberFormatPolicy::PeriodComma),
+            ..Default::default()
+        })
+        .unwrap();
+
+        assert_eq!(config["number_format_policy"], json!("period-comma"));
+        assert_eq!(
+            serde_json::from_value::<PipeConfigGenerateReports>(config)
+                .unwrap()
+                .number_format_policy,
+            Some(NumberFormatPolicy::PeriodComma)
+        );
+    }
+}
