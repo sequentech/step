@@ -303,9 +303,19 @@ pub async fn complete_synchronization(
     }
     .await;
     if result.is_err() {
-        // A lost response may have applied the remote update. Reinstall the
-        // denial marker; this operation only denies enrollment and never
-        // installs possibly stale allowing windows.
+        // The failed attempt's transaction has ended. Take a fresh writer
+        // lock before this full-realm GET/PUT, so reinstalling the denial
+        // cannot replay stale signup state over guard repair or enrollment.
+        let mut client = get_hasura_pool().await.get().await?;
+        let transaction = client.transaction().await?;
+        crate::postgres::scheduled_event::lock_scheduling_event(
+            &transaction,
+            tenant_id,
+            election_event_id,
+        )
+        .await?;
+        // A lost response may have applied the remote update. This marker
+        // only denies enrollment and never installs stale allowing windows.
         update_realm_attributes(
             tenant_id,
             election_event_id,
@@ -316,6 +326,7 @@ pub async fn complete_synchronization(
         )
         .await
         .context("Schedule saved, but enrollment synchronization and its pause could not be confirmed; retry synchronization after correcting the failure")?;
+        transaction.commit().await?;
     }
     result.context("Schedule saved but enrollment remains paused; retry after correcting the synchronization failure")
 }

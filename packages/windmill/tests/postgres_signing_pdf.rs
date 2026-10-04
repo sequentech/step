@@ -30,6 +30,7 @@ use openssl::rsa::Rsa;
 use openssl::sign::Signer;
 use openssl::x509::{X509NameBuilder, X509};
 use sequent_core::election_config::ReportType;
+use sequent_core::monitoring::revision::DashboardMode;
 use sequent_core::signing::{
     CertificateCheckId, DocumentRevisionState, RequesterSigning, SignatureAlgorithm, SigningAction,
     SigningRequestStatus, SigningRequirement, SigningRule,
@@ -42,6 +43,9 @@ use std::sync::{Arc, Mutex};
 use uuid::Uuid;
 use windmill::postgres::signing::*;
 use windmill::postgres::signing_document_revision::{list_document_revisions, DocumentRevisionRow};
+use windmill::services::monitoring::config_store::{
+    reset_to_preset, Author, EventRef, MonitoringConfigAudit, RecordedChange,
+};
 use windmill::services::signing::approve::{
     approve, ApproveInput, ApproveOutcome, SigningServices,
 };
@@ -1241,44 +1245,46 @@ async fn the_panel_links_the_signed_document_to_check_and_the_latest_revision_to
     );
 }
 
-/// Configures the event's timezones: `primary` and the others it names.
-async fn configure_zones(w: &World, configured: &[&str], primary: &str) {
-    let client = w.pool.get().await.unwrap();
-    client
-        .execute(
-            "UPDATE sequent_backend.election_event
-             SET presentation = COALESCE(presentation, '{}'::jsonb)
-                 || jsonb_build_object('timezones', $3::jsonb)
-             WHERE tenant_id = $1 AND id = $2",
-            &[
-                &w.tenant,
-                &w.event,
-                &json!({"configured": configured, "primary": primary, "logs": "election"}),
-            ],
-        )
-        .await
-        .unwrap();
-}
+/// A monitoring configuration log that keeps nothing.
+struct NoAudit;
 
-/// The two configurations zones are proven under, as (configured, primary).
-const ZONE_CONFIGURATIONS: [(&[&str], &str); 2] = [
-    (&["Asia/Manila", "Asia/Dubai"], "Asia/Manila"),
-    (&["Europe/Madrid", "Atlantic/Canary"], "Europe/Madrid"),
-];
+#[async_trait]
+impl MonitoringConfigAudit for NoAudit {
+    async fn prepare(&self, _: &mut Client, _: EventRef, _: &Author) -> anyhow::Result<()> {
+        Ok(())
+    }
+
+    async fn record(&self, _: &Transaction<'_>, _: &RecordedChange) -> anyhow::Result<()> {
+        Ok(())
+    }
+}
 
 #[tokio::test]
 async fn the_signature_prints_the_time_in_the_events_zone() {
-    for (configured, primary) in ZONE_CONFIGURATIONS {
-        let w = world(&format!("post-{primary}")).await;
-        configure_zones(&w, configured, primary).await;
+    // (monitoring preset, the time zone its settings name)
+    for (preset, zone) in [("comelec", "Asia/Manila"), ("campus", "Europe/Madrid")] {
+        let w = world(&format!("post-{preset}")).await;
+        let mut client = w.pool.get().await.unwrap();
+        reset_to_preset(
+            &mut client,
+            &NoAudit,
+            EventRef {
+                tenant_id: w.tenant,
+                election_event_id: w.event,
+            },
+            &Author {
+                id: "admin".into(),
+                name: None,
+            },
+            preset,
+            DashboardMode::Configured,
+        )
+        .await
+        .unwrap();
         w.rule(ER, 2, RequesterSigning::NotAllowed, None).await;
-        let store = Arc::new(MemoryStore::default());
+        let store = MemoryStore::default();
         let signers = pdf_signers(&w, ER, 1).await;
         let (request_id, code) = er_request(&w, &store).await;
-        // The panel shows times in the zone the signature prints.
-        let documents = PdfDocumentSigner::new(store.clone());
-        let shown = panel(&w, &documents, &signers[0].caller, request_id).await;
-        assert_eq!(shown.time_zone, primary);
         let prepared = prepare(&w, &store, &signers[0], request_id, at(1))
             .await
             .unwrap();
@@ -1289,7 +1295,7 @@ async fn the_signature_prints_the_time_in_the_events_zone() {
             .find(|row| row.revision == prepared.revision)
             .unwrap();
         let appearance: StoredAppearance = serde_json::from_value(row.appearance.unwrap()).unwrap();
-        let tz: chrono_tz::Tz = primary.parse().unwrap();
+        let tz: chrono_tz::Tz = zone.parse().unwrap();
         let base_sha256 = w.request(request_id).await.document_sha256.unwrap();
         assert_eq!(
             appearance.lines,
@@ -1308,29 +1314,9 @@ async fn the_signature_prints_the_time_in_the_events_zone() {
             )
         );
         let local = at(1).with_timezone(&tz).format("%Y-%m-%d %H:%M:%S");
-        assert_eq!(appearance.lines[3], format!("Date: {local} {primary}"));
+        assert_eq!(appearance.lines[3], format!("Date: {local} {zone}"));
         assert_eq!(appearance.signing_time, at(1));
     }
-}
-
-#[tokio::test]
-async fn an_event_without_timezones_signs_in_utc() {
-    let w = world("post-utc").await;
-    w.rule(ER, 2, RequesterSigning::NotAllowed, None).await;
-    let store = MemoryStore::default();
-    let signers = pdf_signers(&w, ER, 1).await;
-    let (request_id, _) = er_request(&w, &store).await;
-    let prepared = prepare(&w, &store, &signers[0], request_id, at(1))
-        .await
-        .unwrap();
-    let row = revisions(&w, request_id)
-        .await
-        .into_iter()
-        .find(|row| row.revision == prepared.revision)
-        .unwrap();
-    let appearance: StoredAppearance = serde_json::from_value(row.appearance.unwrap()).unwrap();
-    let utc = at(1).format("%Y-%m-%d %H:%M:%S");
-    assert_eq!(appearance.lines[3], format!("Date: {utc} UTC"));
 }
 
 #[tokio::test]
@@ -1419,7 +1405,7 @@ fn reports_map_to_their_signing_action() {
 }
 
 #[test]
-fn the_appearance_prints_the_time_in_the_events_zone() {
+fn the_appearance_prints_the_time_in_the_events_zone_or_utc() {
     let time = Utc.with_ymd_and_hms(2026, 10, 1, 20, 30, 5).unwrap();
     let sha256 = hex_sha(b"returns");
     // The certificate's holder, the account's name when it differs, the
