@@ -103,6 +103,10 @@ const adminConfig = {
                     "ra-language-english",
                     "graphql",
                     "keycloak-js",
+                    // Coverage transforms every source file, the portal's entry
+                    // and its jest setup among them, which no story reaches.
+                    "web-vitals",
+                    "@testing-library/jest-dom",
                 ],
             },
         }),
