@@ -25,7 +25,7 @@ Each section serves a specific purpose and provides a comprehensive breakdown of
 
 - **General**: Includes basic details.
 - **Dates**: Start and End dates of the election event.
-- **Language**: Supported languages for this event.
+- **Language & Region**: Supported languages for this event, and how it writes numbers.
 - **Ballot Design**: Custom ballot features including design, logos, links, and more.
 - **Voting Channels Allowed**: Applicable voting methods.
 - **Custom URLs Prefix**: Define custom URLs for the Voting / Enrollment portals and SAML endpoint.
@@ -45,9 +45,9 @@ Set up basic details and configure multilingual names for your Election Event.
 - **Alias (optional)**: Internal alias used only in the system's side menu.
 - **Description (optional)**: Provide a description for your Election Event.
 
-## Language
+## Language & Region
 
-Manage language options for your Election Event. The selected languages will be available for elections within this event.
+Manage language options for your Election Event, and how it writes numbers. The selected languages will be available for elections within this event.
 
 - Use radio buttons to select the languages available.
 - Set the default language by selecting **Default** next to the appropriate language.
@@ -55,6 +55,22 @@ Manage language options for your Election Event. The selected languages will be 
   Affects the default language in the Voting Portal.
   - **Browser Detect**: The default language will be determined by the browser.
   - **Force Default**: The default language will be the one selected as **Default**.
+- **Number Format Policy**: How the event writes vote counts, totals and
+  percentages. It applies to the results and dashboards in the Admin Portal,
+  to the Voting Portal, to the results website and to the generated result
+  reports, in PDF and HTML. Each option shows its own sample:
+  - **1,234,567.89** (`comma-period`): the default. Election events created
+    before this setting existed keep using it.
+  - **1.234.567,89** (`period-comma`)
+  - **1 234 567,89** (`space-comma`)
+  - **1 234 567.89** (`space-period`)
+  - **1’234’567.89** (`apostrophe-period`)
+
+  The spaces are no-break spaces, so a number never wraps across two lines.
+  Files meant for other programs, such as CSV and JSON downloads, keep plain
+  numbers. Report templates write figures with the `format_u64` and percentage
+  helpers, which follow this setting. A custom template that prints a figure
+  without them shows it unformatted.
 
 ## Ballot Design
 
