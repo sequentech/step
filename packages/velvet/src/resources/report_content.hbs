@@ -256,7 +256,7 @@ SPDX-License-Identifier: AGPL-3.0-only
                       <td>{{ candidate.name }}</td>
                       {{#with (lookup round.candidates_wins candidate.id) as |candidate_result|}}
                         <td>{{ format_u64 candidate_result.wins }}</td>
-                        <td>{{ format_i64 candidate_result.transference }}</td>
+                        <td>{{ format_u64 candidate_result.transference }}</td>
                         <td>{{ format_dec_percentage candidate_result.percentage }}%</td>
                       {{else}}
                         <td>n/a</td>

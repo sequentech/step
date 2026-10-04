@@ -30,10 +30,6 @@ fn get_registry<'reg>(policy: NumberFormatPolicy) -> Handlebars<'reg> {
         helper_wrapper_or(Box::new(FormatU64(policy)), String::from("-")),
     );
     reg.register_helper(
-        "format_i64",
-        helper_wrapper_or(Box::new(FormatI64(policy)), String::from("-")),
-    );
-    reg.register_helper(
         "format_percentage",
         helper_wrapper_or(
             Box::new(FormatDecimal {
@@ -378,7 +374,8 @@ fn parse_u64_value(value: &JsonValue) -> Result<u64, RenderError> {
     }
 }
 
-/// `{{format_u64 value}}`: an unsigned integer grouped in thousands.
+/// `{{format_u64 value}}`: an integer grouped in thousands. A negative one,
+/// such as a change in votes between rounds, keeps its sign.
 struct FormatU64(NumberFormatPolicy);
 
 impl HelperDef for FormatU64 {
@@ -394,7 +391,13 @@ impl HelperDef for FormatU64 {
             .param(0)
             .ok_or(RenderErrorReason::ParamNotFoundForIndex("format_u64", 0))?
             .value();
-        out.write(&self.0.format_integer(parse_u64_value(value)?))?;
+        let formatted = match parse_u64_value(value) {
+            Ok(unsigned) => self.0.format_integer(unsigned),
+            Err(error) => self
+                .0
+                .format_integer(parse_i64_value(value).map_err(|_| error)?),
+        };
+        out.write(&formatted)?;
         Ok(())
     }
 }
@@ -412,28 +415,6 @@ fn parse_i64_value(value: &JsonValue) -> Result<i64, RenderError> {
         _ => Err(RenderError::new(
             "Expected i64 or a string representing an i64",
         )),
-    }
-}
-
-/// `{{format_i64 value}}`: a signed integer, such as a change in votes,
-/// grouped in thousands.
-struct FormatI64(NumberFormatPolicy);
-
-impl HelperDef for FormatI64 {
-    fn call<'reg: 'rc, 'rc>(
-        &self,
-        helper: &Helper<'rc>,
-        _: &'reg Handlebars<'reg>,
-        _: &'rc Context,
-        _: &mut RenderContext<'reg, 'rc>,
-        out: &mut dyn Output,
-    ) -> HelperResult {
-        let value = helper
-            .param(0)
-            .ok_or(RenderErrorReason::ParamNotFoundForIndex("format_i64", 0))?
-            .value();
-        out.write(&self.0.format_integer(parse_i64_value(value)?))?;
-        Ok(())
     }
 }
 
@@ -963,15 +944,15 @@ mod tests {
             variables.insert(NUMBER_FORMAT_POLICY_VARIABLE.to_string(), policy);
         }
         render_template_text(
-            "{{format_i64 gained}} {{format_i64 lost}} {{format_i64 written}} \
-             {{format_i64 lowest}} {{format_i64 missing}}",
+            "{{format_u64 gained}} {{format_u64 lost}} {{format_u64 written}} \
+             {{format_u64 lowest}} {{format_u64 missing}}",
             variables,
         )
         .expect("template renders")
     }
 
     #[test]
-    fn format_i64_groups_signed_counts_in_the_number_format_policy() {
+    fn format_u64_keeps_the_sign_of_a_negative_integer() {
         assert_eq!(
             signed_counts(None),
             "1,234,567 -1,234,567 -1,234 -9,223,372,036,854,775,808 -"
