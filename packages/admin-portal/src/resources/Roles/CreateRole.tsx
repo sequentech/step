@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useMemo, useState} from "react"
 import {PageHeaderStyles} from "@/components/styles/PageHeaderStyles"
-import {Checkbox, TextField} from "@mui/material"
+import {Box, Checkbox, TextField} from "@mui/material"
 import {SaveButton, SimpleForm, useNotify, useRefresh} from "react-admin"
 import {useTranslation} from "react-i18next"
 import {SubmitHandler} from "react-hook-form"
@@ -11,7 +11,7 @@ import {IPermission, IRole} from "@sequentech/ui-core"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {useMutation} from "@apollo/client"
 import {CREATE_ROLE} from "@/queries/CreateRole"
-import {DataGrid, GridColDef, GridRenderCellParams} from "@mui/x-data-grid"
+import {DataGrid, GridColDef, GridRenderCellParams, GridToolbar} from "@mui/x-data-grid"
 import {IPermissions} from "@/types/keycloak"
 import {getEnumValues} from "./EditRole"
 //import {CreateRoleMutationVariables} from "@/gql/graphql"
@@ -145,18 +145,44 @@ export const CreateRole: React.FC<CreateRoleProps> = ({close, permissions}) => {
                     name={"name"}
                     onChange={handleChange}
                 />
-                <DataGrid
-                    rows={rows}
-                    columns={columns}
-                    initialState={{
-                        pagination: {
-                            paginationModel: {
-                                pageSize: 10,
-                            },
-                        },
+                {/* Enter in the grid's quick filter searches; it must not submit the role form. */}
+                <Box
+                    sx={{width: "100%"}}
+                    onKeyDown={(event) => {
+                        if (
+                            event.key === "Enter" &&
+                            event.target instanceof HTMLInputElement &&
+                            event.target.type !== "checkbox"
+                        ) {
+                            event.preventDefault()
+                        }
                     }}
-                    pageSizeOptions={[10, 20, 50, 100]}
-                />
+                >
+                    <DataGrid
+                        rows={rows}
+                        columns={columns}
+                        initialState={{
+                            pagination: {
+                                paginationModel: {
+                                    pageSize: 10,
+                                },
+                            },
+                        }}
+                        pageSizeOptions={[10, 20, 50, 100]}
+                        disableColumnFilter
+                        disableColumnSelector
+                        disableDensitySelector
+                        showToolbar
+                        slots={{toolbar: GridToolbar}}
+                        slotProps={{
+                            toolbar: {
+                                showQuickFilter: true,
+                                printOptions: {disableToolbarButton: true},
+                                csvOptions: {disableToolbarButton: true},
+                            },
+                        }}
+                    />
+                </Box>
             </SimpleForm>
         </PageHeaderStyles.Wrapper>
     )

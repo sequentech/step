@@ -17,6 +17,12 @@ export const CREATE_TALLY_CEREMONY = gql`
             tally_type: $tally_type
         ) {
             tally_session_id
+            signing_request {
+                id
+                code
+                required
+                expires_at
+            }
         }
     }
 `

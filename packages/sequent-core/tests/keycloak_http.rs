@@ -11,7 +11,10 @@ mod http;
 
 use http::{Exchange, HttpServer};
 use keycloak::types::{GroupRepresentation, RoleRepresentation};
-use sequent_core::services::keycloak::RoleAction;
+use sequent_core::services::keycloak::{
+    partial_import_realm_roles, IfResourceExists, PartialImportSummary,
+    RoleAction,
+};
 use sequent_core::types::keycloak::{Permission, Role};
 use serde_json::{json, Value};
 
@@ -1028,5 +1031,90 @@ async fn group_creation_requires_the_requested_realm_and_group_resource() {
                 assert!(result.is_err(), "accepted wrong resource: {location}")
             }
         }
+    }
+}
+
+/// Adding roles to an existing realm sends only the roles and the policy,
+/// so nothing else in the realm is touched, and reports what Keycloak did.
+#[rocket::async_test]
+async fn a_roles_partial_import_sends_only_the_roles_and_its_policy() {
+    let peer = HttpServer::start(vec![Exchange::json(
+        "POST",
+        "/admin/realms/tenant-north/partialImport",
+        200,
+        json!({"added": 1, "skipped": 1, "overwritten": 0, "results": []}),
+    )]);
+    let roles = vec![
+        RoleRepresentation {
+            name: Some("read".into()),
+            description: Some("Read".into()),
+            ..Default::default()
+        },
+        RoleRepresentation {
+            name: Some("write".into()),
+            ..Default::default()
+        },
+    ];
+    let summary = partial_import_realm_roles(
+        &peer.public_client(),
+        REALM,
+        &roles,
+        IfResourceExists::Skip,
+    )
+    .await
+    .unwrap();
+    assert_eq!(
+        summary,
+        PartialImportSummary {
+            added: 1,
+            skipped: 1,
+            overwritten: 0
+        }
+    );
+    let requests = peer.finish();
+    assert_eq!(requests.len(), 1);
+    assert_eq!(
+        requests[0].headers.get("authorization").map(String::as_str),
+        Some("Bearer synthetic-access-token")
+    );
+    assert_eq!(
+        requests[0].json(),
+        json!({
+            "ifResourceExists": "SKIP",
+            "roles": {"realm": [
+                {"name": "read", "description": "Read"},
+                {"name": "write"},
+            ]},
+        })
+    );
+}
+
+#[rocket::async_test]
+async fn a_refused_roles_partial_import_is_an_error() {
+    let peer = HttpServer::start(vec![Exchange::json(
+        "POST",
+        "/admin/realms/tenant-north/partialImport",
+        404,
+        json!({"error": "Realm not found."}),
+    )]);
+    let result = partial_import_realm_roles(
+        &peer.public_client(),
+        REALM,
+        &[],
+        IfResourceExists::Skip,
+    )
+    .await;
+    assert!(result.is_err(), "{result:?}");
+    peer.finish();
+}
+
+#[test]
+fn partial_import_policies_have_keycloak_names() {
+    for (policy, name) in [
+        (IfResourceExists::Fail, "FAIL"),
+        (IfResourceExists::Skip, "SKIP"),
+        (IfResourceExists::Overwrite, "OVERWRITE"),
+    ] {
+        assert_eq!(serde_json::to_value(policy).unwrap(), json!(name));
     }
 }

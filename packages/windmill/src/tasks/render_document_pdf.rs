@@ -46,9 +46,12 @@ pub async fn get_tally_pdf_config(
 
     let tally_path = extract_archive_to_temp_dir(tar_gz_file.path(), false)?;
 
-    let tally_path_path = tally_path.into_path();
+    tally_pdf_options(&tally_path.into_path())
+}
 
-    let state = generate_initial_state(&tally_path_path, "decode-ballots")?;
+/// The PDF options of the tally whose working folder is `tally_path`.
+pub fn tally_pdf_options(tally_path: &std::path::Path) -> Result<Option<PrintToPdfOptions>> {
+    let state = generate_initial_state(&tally_path.to_path_buf(), "decode-ballots")?;
 
     let pipe = state
         .stages

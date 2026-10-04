@@ -7,6 +7,8 @@ use serde::{Deserialize, Serialize};
 use strand::hash::{Hash, HashWrapper};
 use strum_macros::Display;
 
+use crate::messages::statement::{StatementEventType, StatementLogType, StatementType};
+
 #[derive(
     BorshSerialize, BorshDeserialize, Deserialize, Serialize, Clone, PartialEq, Eq, Hash, Debug,
 )]
@@ -424,4 +426,87 @@ pub struct MonitoringConfigChangeDetails {
     pub generation: u64,
     /// The revisions written, in the order they were stored.
     pub revisions: Vec<MonitoringConfigRevisionRef>,
+}
+
+/// The step of signing a protected action that an entry records. Each kind
+/// is also a [`StatementType`] of the same name.
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Deserialize,
+    Serialize,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Hash,
+    Debug,
+    Display,
+)]
+pub enum SigningStatementKind {
+    SigningRequestCreated,
+    SigningCertificateOpenFailed,
+    SigningRequestSigned,
+    SigningSignatureRefused,
+    SigningCertificateRegistered,
+    SigningHandover,
+    SigningRequestCancelled,
+    SigningRequestExpired,
+    SigningRequestCompleted,
+    SigningActionExecuted,
+    SigningRuleChanged,
+    SigningPermissionChanged,
+    SigningIssuerChanged,
+    SigningChecksChanged,
+    SigningCertificateRevoked,
+    SigningRequestsExported,
+}
+
+impl SigningStatementKind {
+    pub fn statement_type(&self) -> StatementType {
+        match self {
+            Self::SigningRequestCreated => StatementType::SigningRequestCreated,
+            Self::SigningCertificateOpenFailed => StatementType::SigningCertificateOpenFailed,
+            Self::SigningRequestSigned => StatementType::SigningRequestSigned,
+            Self::SigningSignatureRefused => StatementType::SigningSignatureRefused,
+            Self::SigningCertificateRegistered => StatementType::SigningCertificateRegistered,
+            Self::SigningHandover => StatementType::SigningHandover,
+            Self::SigningRequestCancelled => StatementType::SigningRequestCancelled,
+            Self::SigningRequestExpired => StatementType::SigningRequestExpired,
+            Self::SigningRequestCompleted => StatementType::SigningRequestCompleted,
+            Self::SigningActionExecuted => StatementType::SigningActionExecuted,
+            Self::SigningRuleChanged => StatementType::SigningRuleChanged,
+            Self::SigningPermissionChanged => StatementType::SigningPermissionChanged,
+            Self::SigningIssuerChanged => StatementType::SigningIssuerChanged,
+            Self::SigningChecksChanged => StatementType::SigningChecksChanged,
+            Self::SigningCertificateRevoked => StatementType::SigningCertificateRevoked,
+            Self::SigningRequestsExported => StatementType::SigningRequestsExported,
+        }
+    }
+}
+
+/// One entry of a signing step. Every step writes two entries of the same
+/// kind: USER, attributed to the person who took it, and SYSTEM (ERROR for
+/// a failure or a refusal), with what the system checked or did. Unlike
+/// every other body, the caller sets the head's event type, log type and
+/// description.
+#[derive(
+    BorshSerialize, BorshDeserialize, Deserialize, Serialize, Clone, PartialEq, Eq, Hash, Debug,
+)]
+pub struct SigningLogEntry {
+    pub kind: SigningStatementKind,
+    pub event_type: StatementEventType,
+    pub log_type: StatementLogType,
+    /// A short English sentence for the Logs tab's Description column, such
+    /// as "Started signing request 7F3A-91C2".
+    pub description: String,
+    /// The step's details as JSON: the Post and country, the action, the
+    /// request and its code, and for signatures the certificate and the
+    /// signature.
+    pub details_json: String,
+    /// The step's id (`signing_log_outbox.step_id`, a lowercase hyphenated
+    /// UUID), shared by its USER and SYSTEM entries. It links the pair on the
+    /// board, and the worker dedupes on (step_id, event_type) before posting,
+    /// so a retry never posts an entry twice.
+    pub step_id: String,
 }

@@ -45,6 +45,46 @@ pub struct ActivityLogRow {
     user_id: String,
 }
 
+/// A row of the CSV export: the board row, then the head's event type and
+/// log type. New columns go at the end, and the importer reads the columns
+/// it needs by name, so files with and without them import.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub struct ElectoralLogCsvRow {
+    pub id: i64,
+    pub created: i64,
+    pub statement_timestamp: i64,
+    pub statement_kind: String,
+    pub message: String,
+    pub data: String,
+    pub user_id: Option<String>,
+    pub username: Option<String>,
+    pub event_type: String,
+    pub log_type: String,
+}
+
+impl TryFrom<ElectoralLogMessage> for ElectoralLogCsvRow {
+    type Error = anyhow::Error;
+
+    fn try_from(entry: ElectoralLogMessage) -> Result<Self> {
+        let row = ElectoralLogRow::try_from(entry)?;
+        let head = row
+            .statement_head_data()
+            .context("Error reading the statement head")?;
+        Ok(ElectoralLogCsvRow {
+            id: row.id,
+            created: row.created,
+            statement_timestamp: row.statement_timestamp,
+            statement_kind: row.statement_kind,
+            message: row.message.replace('\n', " ").replace('\r', " "),
+            data: row.data,
+            user_id: row.user_id,
+            username: row.username,
+            event_type: head.event_type,
+            log_type: head.log_type,
+        })
+    }
+}
+
 /// Struct for User Data
 /// act_log is for PDF
 /// electoral_log is for CSV
@@ -107,10 +147,8 @@ impl ActivityLogsTemplate {
 
             for entry in msgs {
                 last_id = entry.id;
-                let mut row: ElectoralLogRow = entry
-                    .try_into()
+                let row = ElectoralLogCsvRow::try_from(entry)
                     .map_err(|e| anyhow!("Error converting log entry to row: {e:?}"))?;
-                row.message = row.message.replace('\n', " ").replace('\r', " ");
                 csv_writer
                     .serialize(row)
                     .map_err(|e| anyhow!("Error serializing to CSV: {e:?}"))?;
@@ -494,6 +532,62 @@ mod tests {
     const STEP_CLI_DATA_DIR: &str = "/workspaces/step/packages/step-cli/data";
     const STEP_CLI_BIN: &str =
         "/workspaces/step/packages/step-cli/rust-local-target/release/step-cli";
+
+    /// The export ends with the head's event and log types, and the
+    /// importer still reads it.
+    #[test]
+    fn the_csv_export_ends_with_event_and_log_types() {
+        use electoral_log::messages::message::SigningData;
+        use electoral_log::messages::newtypes::{
+            EventIdString, SigningLogEntry, SigningStatementKind,
+        };
+        use electoral_log::messages::statement::{StatementEventType, StatementLogType};
+        use strand::signature::StrandSignatureSk;
+
+        let sk = StrandSignatureSk::generate().unwrap();
+        let sd = SigningData::new(sk.clone(), "", sk);
+        let message = Message::signing_message(
+            EventIdString("event".to_string()),
+            SigningLogEntry {
+                kind: SigningStatementKind::SigningSignatureRefused,
+                event_type: StatementEventType::SYSTEM,
+                log_type: StatementLogType::ERROR,
+                description: "Refused on 7F3A-91C2: issuer not trusted".to_string(),
+                details_json: "{}".to_string(),
+                step_id: "2b7c9e40-1f5d-4a8e-9c3b-6d2e1f0a9b87".to_string(),
+            },
+            1_841_397_365,
+            &sd,
+            None,
+            None,
+            None,
+            None,
+        )
+        .unwrap();
+        let entry = ElectoralLogMessage::try_from(&message).unwrap();
+        let row = ElectoralLogCsvRow::try_from(entry.clone()).unwrap();
+        assert_eq!(row.event_type, "SYSTEM");
+        assert_eq!(row.log_type, "ERROR");
+        assert!(!row.message.contains('\n'));
+
+        let mut writer = WriterBuilder::new().from_writer(vec![]);
+        writer.serialize(&row).unwrap();
+        let file = String::from_utf8(writer.into_inner().unwrap()).unwrap();
+        let header = file.lines().next().unwrap();
+        assert_eq!(
+            header,
+            "id,created,statement_timestamp,statement_kind,message,data,user_id,username,\
+             event_type,log_type"
+        );
+
+        let imported: ElectoralLogRow = csv::Reader::from_reader(file.as_bytes())
+            .deserialize()
+            .next()
+            .unwrap()
+            .unwrap();
+        assert_eq!(imported.data, row.data);
+        assert_eq!(imported.statement_kind, "SigningSignatureRefused");
+    }
 
     // Run: cargo test --release test_generate_export_csv_data_120k_memory -- --nocapture --ignored
     // To visualize results, open DHAT Viewer in a browser and upload the generated dhat-heap.json file.

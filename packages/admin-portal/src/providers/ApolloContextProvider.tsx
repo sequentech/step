@@ -55,7 +55,8 @@ export const ApolloContextProvider = ({children, role}: ApolloContextProviderPro
             // return the headers to the context so httpLink can read them
             const operationRole = getOperationRole(
                 operation,
-                hasRole(IPermissions.TRUSTEE_CEREMONY)
+                hasRole(IPermissions.TRUSTEE_CEREMONY),
+                hasRole(IPermissions.ADMIN_USER)
             )
 
             return {

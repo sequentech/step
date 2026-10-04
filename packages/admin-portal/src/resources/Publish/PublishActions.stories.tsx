@@ -106,7 +106,6 @@ const meta = {
             sessionStorage.removeItem(key)
             sessionStorage.removeItem(`${key}_CHANNELS`)
         }
-        localStorage.removeItem("electionEventPublishTabIndex")
         const storyBoundary = boundary
         return () => expect(storyBoundary.unexpected).toEqual([])
     },
@@ -206,7 +205,7 @@ export const GoldReauthenticationPreservesChannel: Story = {
         await confirm(dialog)
         expect(args.onChangeStatus).not.toHaveBeenCalled()
         expect(args.reauthenticate).toHaveBeenCalledTimes(1)
-        expect(args.reauthenticate).toHaveBeenCalledWith(expect.stringContaining("tabIndex=8"))
+        expect(args.reauthenticate).toHaveBeenCalledWith(expect.stringContaining("tabId=publish"))
         expect(sessionStorage.getItem("pendingStartVotingPeriod")).toBe("true")
         expect(sessionStorage.getItem("pendingStartVotingPeriod_CHANNELS")).toBe('["ONLINE"]')
     },

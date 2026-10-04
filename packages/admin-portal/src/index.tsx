@@ -27,7 +27,29 @@ import {
 } from "./providers/ApolloContextProvider"
 import {DatabaseProvider} from "./providers/DatabaseProvider"
 import {WidgetsContextProvider} from "./providers/WidgetsContextProvider"
+import {SigningProvider} from "./components/signing/SigningProvider"
+import {SigningAction} from "./lib/signing/types"
+import type {ISigningPanelData} from "./lib/signing/api"
+import {ClosedVotingCard} from "./resources/Publish/ClosedVotingCard"
+import {
+    ReportCompletionActions,
+    TransmissionCompletionActions,
+} from "./resources/Reports/ReportSigning"
 import {BrowserRouter as Router} from "react-router-dom"
+
+/** What a completed request of each protected action shows in its panel. */
+const signingCompletionActions = {
+    [SigningAction.TransmitResults]: (data: ISigningPanelData) => (
+        <TransmissionCompletionActions data={data} />
+    ),
+    [SigningAction.CloseVoting]: (data: ISigningPanelData) => <ClosedVotingCard data={data} />,
+    [SigningAction.GenerateElectionReturns]: (data: ISigningPanelData) => (
+        <ReportCompletionActions data={data} />
+    ),
+    [SigningAction.GenerateReports]: (data: ISigningPanelData) => (
+        <ReportCompletionActions data={data} />
+    ),
+}
 
 const root = ReactDOM.createRoot(document.getElementById("root") as HTMLElement)
 
@@ -53,7 +75,13 @@ root.render(
                                                             <ApolloWrapper>
                                                                 <DatabaseProvider>
                                                                     <WidgetsContextProvider>
-                                                                        <App />
+                                                                        <SigningProvider
+                                                                            completionActions={
+                                                                                signingCompletionActions
+                                                                            }
+                                                                        >
+                                                                            <App />
+                                                                        </SigningProvider>
                                                                     </WidgetsContextProvider>
                                                                 </DatabaseProvider>
                                                             </ApolloWrapper>

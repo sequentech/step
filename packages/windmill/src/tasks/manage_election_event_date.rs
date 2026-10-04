@@ -6,6 +6,7 @@ use crate::postgres::scheduled_event::*;
 use crate::services::database::get_hasura_pool;
 use crate::services::election_event_status::update_scheduled_event_voting_status;
 use crate::services::pg_lock::PgLock;
+use crate::services::signing::actions::voting::scheduled_change_needs_signatures;
 use crate::types::error::{Error, Result};
 use anyhow::{anyhow, Result as AnyhowResult};
 use celery::error::TaskError;
@@ -60,6 +61,20 @@ pub async fn manage_election_event_date_wrapped(
             .clone()
             .unwrap_or_else(|| serde_json::json!({})),
     )?;
+    // Opening or closing that needs signatures is left to people (D4).
+    if scheduled_change_needs_signatures(
+        hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        None,
+        &voting_status,
+        &scheduled_manage_date.id,
+    )
+    .await?
+    {
+        stop_scheduled_event(&hasura_transaction, &tenant_id, &scheduled_manage_date.id).await?;
+        return Ok(());
+    }
     update_scheduled_event_voting_status(
         &hasura_transaction,
         &tenant_id,

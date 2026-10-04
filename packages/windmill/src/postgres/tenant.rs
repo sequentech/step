@@ -366,3 +366,15 @@ pub async fn get_tenant_by_slug_if_exist(
         .context("Error obtaining Tenant")?;
     Ok(Some(tenant))
 }
+
+/// The ids of every tenant, in order.
+#[instrument(skip(hasura_transaction), err)]
+pub async fn get_tenant_ids(hasura_transaction: &Transaction<'_>) -> Result<Vec<String>> {
+    let rows = hasura_transaction
+        .query("SELECT id FROM sequent_backend.tenant ORDER BY id", &[])
+        .await
+        .context("Error listing tenants")?;
+    rows.iter()
+        .map(|row| Ok(row.try_get::<_, Uuid>("id")?.to_string()))
+        .collect()
+}

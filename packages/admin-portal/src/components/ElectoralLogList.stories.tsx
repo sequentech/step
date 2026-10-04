@@ -166,6 +166,11 @@ export const Populated: Story = {
         await expect(await canvas.findByText("alice")).toBeVisible()
         expect(canvas.getByText("CAST_VOTE")).toBeVisible()
         expect(canvas.getByText("Keys generated")).toBeVisible()
+        // Each head column has its own label.
+        const headers = canvas.getAllByRole("columnheader").map(({textContent}) => textContent)
+        expect(headers.filter((text) => text === "Statement kind")).toHaveLength(1)
+        expect(headers).toContain("Event Type")
+        expect(headers).toContain("Log Type")
         expect(listed()).toEqual([
             "electoral_log",
             expect.objectContaining({

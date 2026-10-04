@@ -54,6 +54,7 @@ pub mod reports;
 pub mod reports_vault;
 pub mod results_publication;
 pub mod serialize_tasks_logs;
+pub mod signing;
 pub mod sql_utils;
 pub mod support_materials;
 pub mod tally_sheet_import;
