@@ -534,3 +534,129 @@ async fn manual_verification_is_mounted_and_requires_its_permission() {
         assert_eq!(response.status(), Status::Unauthorized);
     }
 }
+
+#[rocket::async_test]
+async fn cast_log_range_sort_keys_fail_before_database_access_after_voter_authorization(
+) {
+    const TEST: &str = "request_boundaries::cast_log_range_sort_keys_fail_before_database_access_after_voter_authorization";
+    if !is_isolated_child() {
+        run_isolated(TEST, "http://127.0.0.1:9");
+        return;
+    }
+    // Reserve a local database peer which closes each policy connection. It
+    // exercises the route's mapped policy failure without ambient credentials.
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let port = listener.local_addr().unwrap().port();
+    for database in ["HASURA_DB", "KEYCLOAK_DB"] {
+        std::env::set_var(format!("{database}__HOST"), "127.0.0.1");
+        std::env::set_var(format!("{database}__PORT"), port.to_string());
+        std::env::set_var(format!("{database}__USER"), "synthetic");
+        std::env::set_var(format!("{database}__PASSWORD"), "synthetic");
+        std::env::set_var(format!("{database}__DBNAME"), "synthetic");
+    }
+    for (name, value) in [
+        ("LOW_SQL_LIMIT", "1000"),
+        ("DEFAULT_SQL_LIMIT", "20"),
+        ("DEFAULT_SQL_BATCH_SIZE", "1000"),
+    ] {
+        std::env::set_var(name, value);
+    }
+    let connections =
+        std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    let observed = connections.clone();
+    let peer = std::thread::spawn(move || {
+        for _ in 0..4 {
+            let (stream, _) = listener.accept().unwrap();
+            observed.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            drop(stream);
+        }
+    });
+    let client = client().await;
+    let voter = || {
+        Claims::new(TENANT_ID, USER_ID)
+            .username("synthetic-voter")
+            .azp("voting-portal")
+            .area("test-area")
+            .election_event("test-event")
+            .authorized_elections(&["test-election"])
+    };
+    let body = |order: Value| {
+        json!({
+            "tenant_id": TENANT_ID,
+            "election_event_id": "test-event",
+            "election_id": "test-election",
+            "ballot_id": "test-ballot",
+            "order_by": order,
+        })
+    };
+    let authorized = voter()
+        .roles([sequent_core::types::permissions::VoterPermissions::CAST_VOTE]);
+    // A malformed sort never reveals validation details to an unauthorized voter.
+    for claims in [
+        voter(),
+        voter()
+            .roles([
+                sequent_core::types::permissions::VoterPermissions::CAST_VOTE,
+            ])
+            .authorized_elections(&["other-election"]),
+    ] {
+        let response = client
+            .post("/list-cast-vote-messages")
+            .header(ContentType::JSON)
+            .header(bearer(&claims))
+            .body(body(json!({"created_from": "asc"})).to_string())
+            .dispatch()
+            .await;
+        assert_eq!(response.status(), Status::Unauthorized);
+        assert_eq!(
+            response.into_json::<Value>().await.unwrap()["extensions"]["code"],
+            "Unauthorized"
+        );
+    }
+    for field in [
+        "created_from",
+        "created_to",
+        "statement_timestamp_from",
+        "statement_timestamp_to",
+    ] {
+        let response = client
+            .post("/list-cast-vote-messages")
+            .header(ContentType::JSON)
+            .header(bearer(&authorized))
+            .body(body(json!({field: "asc"})).to_string())
+            .dispatch()
+            .await;
+        assert_eq!(response.status(), Status::BadRequest, "{field}");
+        let error = response.into_json::<Value>().await.unwrap();
+        assert_eq!(error["extensions"]["code"], "InvalidOrderBy");
+        assert_eq!(error["message"], format!("Cannot sort by {field}"));
+    }
+    assert_eq!(connections.load(std::sync::atomic::Ordering::SeqCst), 0);
+    // Valid sort controls still require the database-backed visibility policy;
+    // the local peer deliberately refuses their connection.
+    for order in [
+        Value::Null,
+        json!({}),
+        json!({"created": "desc"}),
+        json!({"statement_timestamp": "asc", "id": "desc"}),
+    ] {
+        let response = client
+            .post("/list-cast-vote-messages")
+            .header(ContentType::JSON)
+            .header(bearer(&authorized))
+            .body(body(order).to_string())
+            .dispatch()
+            .await;
+        assert_eq!(response.status(), Status::Forbidden);
+        let error = response.into_json::<Value>().await.unwrap();
+        assert_eq!(
+            error["extensions"]["code"],
+            "ConfirmPolicyShowCastVoteLogsFailed"
+        );
+        assert!(error["message"].as_str().unwrap().starts_with(
+            "Failed to confirm that the show_cast_vote_logs policy is enabled:"
+        ));
+    }
+    peer.join().unwrap();
+    assert_eq!(connections.load(std::sync::atomic::Ordering::SeqCst), 4);
+}
