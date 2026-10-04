@@ -490,6 +490,7 @@ for (const [path, method, allowed] of [
     ["/favicon.svg", "GET", true],
     ["/favicon-96x96.png", "GET", true],
     ["/favicon.ico", "GET", true],
+    ["/sequent.png", "GET", true],
     ["/favicon.svg", "POST", false],
     ["/unexpected.png", "GET", false],
     ["https://external.invalid/favicon.svg", "GET", false],
