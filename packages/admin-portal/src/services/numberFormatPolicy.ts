@@ -21,7 +21,7 @@ const sample = (policy: string): string => formatNumber(NUMBER_FORMAT_SAMPLE, po
 
 /** The policy an event's presentation names, if it is one this version doesn't know. */
 const getUnknownNumberFormatPolicy = (presentation: unknown): string | undefined => {
-    const policy: unknown =
+    const policy =
         parseEntityPresentation<IElectionEventPresentation>(presentation)?.number_format_policy
     if (typeof policy !== "string" || policy === "") {
         return undefined
