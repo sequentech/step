@@ -14,7 +14,7 @@ use crate::services::import::import_publications::{
 };
 use crate::services::import::import_scheduled_events::import_scheduled_events;
 use crate::services::import::import_tally::process_tally_file;
-use crate::services::keycloak::read_realm_config_from_s3;
+use crate::services::keycloak::{read_realm_config_from_s3, require_enrollment_window_checks};
 use crate::services::protocol_manager::get_event_board;
 use crate::services::reports::template_renderer::EReportEncryption;
 use crate::services::reports_vault::get_report_key_pair;
@@ -374,10 +374,32 @@ pub async fn upsert_keycloak_realm(
         realm.attributes = Some(attrs);
     }
 
+    require_enrollment_window_checks(&mut realm)?;
     realm = remove_keycloak_realm_secrets(&realm)?;
-    let realm_config = serde_json::to_string(&realm)?;
     let client = KeycloakAdminClient::new().await?;
     let realm_name = get_event_realm(tenant_id, election_event_id);
+    let registration_allowed = match realm.registration_allowed {
+        Some(allowed) => allowed,
+        None => match client.client.realm_get(&realm_name).await {
+            Ok(existing) => {
+                crate::tasks::migrate_registration_flows::registration_desire(&existing)?
+            }
+            Err(::keycloak::KeycloakError::HttpFailure { status: 404, .. }) => false,
+            Err(error) => return Err(error.into()),
+        },
+    };
+    // Imported partial/builtin flows remain closed until the installed
+    // registration forms have been verified. Failed verification stays closed.
+    realm.registration_allowed = Some(false);
+    // A source realm's unfinished workflow state is not an imported policy.
+    if let Some(attributes) = realm.attributes.as_mut() {
+        attributes.remove(crate::tasks::migrate_registration_flows::REGISTRATION_RESTORE_ATTRIBUTE);
+    }
+    crate::tasks::migrate_registration_flows::mark_import_registration_pending(
+        &mut realm,
+        registration_allowed,
+    );
+    let realm_config = serde_json::to_string(&realm)?;
     client
         .upsert_realm(
             realm_name.as_str(),
@@ -388,7 +410,23 @@ pub async fn upsert_keycloak_realm(
             Some(election_event_id.to_string()),
         )
         .await?;
+    // upsert_realm consumes its administrator client.
+    let client = KeycloakAdminClient::new().await?;
+    let public_client = KeycloakAdminClient::pub_new().await?;
+    let outcome = crate::tasks::migrate_registration_flows::migrate_realm_for_import(
+        &client,
+        &public_client,
+        &realm_name,
+    )
+    .await?;
+    if outcome == crate::tasks::migrate_registration_flows::FlowOutcome::NoRealm {
+        return Err(anyhow!(
+            "Imported event realm is missing before enrollment verification"
+        ));
+    }
     upsert_realm_jwks(realm_name.as_str()).await?;
+    crate::tasks::migrate_registration_flows::finish_registration_setup(&client, &realm_name)
+        .await?;
     Ok(())
 }
 
@@ -734,6 +772,12 @@ pub async fn process_election_event_file(
         .transpose()
         .with_context(|| "Error deserializing keycloak_event_realm")?;
 
+    crate::postgres::scheduled_event::lock_scheduling_event(
+        hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+    )
+    .await?;
     upsert_keycloak_realm(
         tenant_id.as_str(),
         &election_event_id,

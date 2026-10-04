@@ -101,7 +101,10 @@ pub async fn update_keycloak_enrollment(
         .get_realm(&other_client, &realm_name)
         .await
         .with_context(|| "Error obtaining realm")?;
-    realm.registration_allowed = Some(enable_enrollment);
+    let state_result = crate::tasks::migrate_registration_flows::apply_registration_desire(
+        &mut realm,
+        enable_enrollment,
+    );
 
     let keycloak_client = KeycloakAdminClient::new().await?;
     keycloak_client
@@ -114,6 +117,9 @@ pub async fn update_keycloak_enrollment(
             None,
         )
         .await?;
+    // Even an unreadable private recovery state persists the denial before
+    // reporting failure; it must never become an enabled ordinary update.
+    state_result?;
 
     Ok(())
 }

@@ -29,6 +29,69 @@ fn normalize_realm_config_s3_key(s3_key_env_var: &str, s3_key: &str) -> anyhow::
     Ok(s3_key.to_string())
 }
 
+/// Requires the enrollment gate in every registration form in an imported
+/// realm, including forms reachable through nested or currently disabled flows.
+/// Imported flow selection and the relative order of other actions are preserved.
+pub fn require_enrollment_window_checks(realm: &mut RealmRepresentation) -> anyhow::Result<()> {
+    use crate::tasks::migrate_registration_flows::ENROLLMENT_WINDOW_CHECK;
+    use keycloak::types::AuthenticationExecutionExportRepresentation;
+    let Some(flows) = realm.authentication_flows.as_mut() else {
+        return Ok(());
+    };
+    let targets: HashSet<String> = flows
+        .iter()
+        .flat_map(|flow| flow.authentication_executions.iter().flatten())
+        .filter(|execution| execution.authenticator.as_deref() == Some("registration-page-form"))
+        .map(|execution| {
+            execution
+                .flow_alias
+                .clone()
+                .context("Registration form has no child flow alias")
+        })
+        .collect::<anyhow::Result<_>>()?;
+    for target in targets {
+        let form = flows
+            .iter_mut()
+            .find(|flow| flow.alias.as_deref() == Some(&target))
+            .with_context(|| format!("Registration form flow {target} is missing"))?;
+        let actions = form.authentication_executions.get_or_insert_with(Vec::new);
+        let priority = actions
+            .iter()
+            .filter(|action| action.authenticator.as_deref() != Some(ENROLLMENT_WINDOW_CHECK))
+            .map(|action| action.priority.unwrap_or(0))
+            .min()
+            .unwrap_or(0)
+            .checked_sub(1)
+            .context("Registration actions leave no priority for the enrollment gate")?;
+        let mut present = false;
+        for action in actions
+            .iter_mut()
+            .filter(|action| action.authenticator.as_deref() == Some(ENROLLMENT_WINDOW_CHECK))
+        {
+            present = true;
+            action.requirement = Some("REQUIRED".into());
+            action.priority = Some(priority);
+        }
+        if !present {
+            actions.insert(
+                0,
+                AuthenticationExecutionExportRepresentation {
+                    authenticator: Some(ENROLLMENT_WINDOW_CHECK.into()),
+                    authenticator_flow: Some(false),
+                    requirement: Some("REQUIRED".into()),
+                    priority: Some(priority),
+                    user_setup_allowed: Some(false),
+                    ..Default::default()
+                },
+            );
+        }
+        // Move only the guard; other actions retain their imported relative order.
+        actions
+            .sort_by_key(|action| action.authenticator.as_deref() != Some(ENROLLMENT_WINDOW_CHECK));
+    }
+    Ok(())
+}
+
 #[instrument(err, skip_all)]
 pub async fn read_realm_config_from_s3(
     s3_key_env_var: &str,
@@ -382,5 +445,81 @@ mod tests {
 
         assert!(error.contains(S3_BUCKET));
         assert!(error.contains(S3_KEY));
+    }
+    #[test]
+    fn imported_event_realm_registration_forms_require_enrollment_windows() {
+        let bundle: serde_json::Value =
+            serde_json::from_str(include_str!("../../../voting-load/fixtures/election.json"))
+                .unwrap();
+        let mut realm: keycloak::types::RealmRepresentation =
+            serde_json::from_value(bundle["keycloak_event_realm"].clone()).unwrap();
+        let selected = realm.registration_flow.clone();
+        super::require_enrollment_window_checks(&mut realm).unwrap();
+        let form = realm
+            .authentication_flows
+            .as_ref()
+            .unwrap()
+            .iter()
+            .find(|flow| flow.alias.as_deref() == Some("subform"))
+            .unwrap();
+        let checks: Vec<_> = form
+            .authentication_executions
+            .as_ref()
+            .unwrap()
+            .iter()
+            .filter(|execution| {
+                execution.authenticator.as_deref() == Some("enrollment-window-check")
+            })
+            .collect();
+        assert_eq!(
+            checks.len(),
+            1,
+            "the imported account-creation form must enforce the window"
+        );
+        assert_eq!(checks[0].requirement.as_deref(), Some("REQUIRED"));
+        let actions = form.authentication_executions.as_ref().unwrap();
+        assert_eq!(
+            actions[0].authenticator.as_deref(),
+            Some("enrollment-window-check")
+        );
+        assert!(actions
+            .iter()
+            .skip(1)
+            .all(|action| checks[0].priority.unwrap() < action.priority.unwrap_or(0)));
+        assert_eq!(
+            realm.registration_flow, selected,
+            "preserve imported flow selection"
+        );
+        let once = realm.clone();
+        super::require_enrollment_window_checks(&mut realm).unwrap();
+        assert_eq!(realm, once, "normalization is idempotent");
+    }
+
+    #[test]
+    fn nested_account_creation_forms_repair_disabled_checks_without_changing_login() {
+        let mut realm: keycloak::types::RealmRepresentation = serde_json::from_value(serde_json::json!({
+            "registrationFlow":"custom",
+            "authenticationFlows":[
+                {"alias":"custom","authenticationExecutions":[{"authenticatorFlow":true,"flowAlias":"nested"}]},
+                {"alias":"nested","authenticationExecutions":[{"authenticator":"registration-page-form","authenticatorFlow":true,"flowAlias":"form"}]},
+                {"alias":"form","authenticationExecutions":[
+                    {"authenticator":"enrollment-window-check","requirement":"DISABLED","priority":10},
+                    {"authenticator":"deferred-registration-user-creation","requirement":"REQUIRED","priority":20}
+                ]},
+                {"alias":"login","authenticationExecutions":[{"authenticator":"auth-password-form","requirement":"REQUIRED"}]}
+            ]
+        })).unwrap();
+        let login = realm.authentication_flows.as_ref().unwrap()[3].clone();
+        super::require_enrollment_window_checks(&mut realm).unwrap();
+        assert_eq!(
+            realm.authentication_flows.as_ref().unwrap()[2]
+                .authentication_executions
+                .as_ref()
+                .unwrap()[0]
+                .requirement
+                .as_deref(),
+            Some("REQUIRED")
+        );
+        assert_eq!(realm.authentication_flows.as_ref().unwrap()[3], login);
     }
 }

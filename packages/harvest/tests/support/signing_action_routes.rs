@@ -257,10 +257,10 @@ async fn opening_a_post_with_the_rule_off_runs_the_status_change_as_before() {
     )
     .await;
     // The status service ran: this event has no bulletin board to post to.
-    let status = response.status();
-    let body = response.into_string().await.unwrap_or_default();
+    let (status, body) = json(response).await;
     assert_eq!(status, Status::InternalServerError);
-    assert!(body.contains("bulletin board"), "{body}");
+    assert_eq!(body["message"], "Could not update voting status.");
+    assert_eq!(body["extensions"]["code"], "InternalServerError");
     assert_eq!(
         rows::query(
             &services.hasura,
@@ -595,5 +595,60 @@ async fn a_key_step_commits_its_outcome_and_answers_the_request_to_sign() {
         let answered = finish_key_share_step(transaction, outcome).await;
         assert_eq!(answered, Ok(answer), "{step}");
         assert_eq!(markers(&client).await, recorded, "{step}");
+    }
+}
+
+/// Hasura must receive a JSON action error and retain the initialization
+/// refusal, rather than replacing a plain-text webhook failure with a generic
+/// invalid-JSON message. Neither route may open the uninitialized Post.
+#[rocket::async_test]
+async fn initialization_refusals_are_readable_json_for_post_and_event_opening()
+{
+    for route in [
+        "/update-election-voting-status",
+        "/update-event-voting-status",
+    ] {
+        let services = Services::on_test_database().await;
+        let client = services.client().await;
+        let event = rows::event(&services.hasura).await;
+        let election = post_of(&services.hasura, &event, "required-init").await;
+        rows::execute(
+            &services.hasura,
+            "UPDATE sequent_backend.election SET presentation=$2 WHERE id=$1",
+            &[
+                &Uuid::parse_str(&election).unwrap(),
+                &json!({
+                    "initialization_report_policy": "required"
+                }),
+            ],
+        )
+        .await;
+        let before = election_status(&services.hasura, &election).await;
+        let response = post(
+            &client,
+            route,
+            &gold(
+                &event,
+                &[Permissions::ELECTION_STATE_WRITE],
+                "required-init",
+            ),
+            &json!({
+                "election_event_id": event.election_event_id,
+                "election_id": election,
+                "voting_status": "OPEN",
+                "voting_channels": ["ONLINE"],
+            }),
+        )
+        .await;
+        let (status, body) = json(response).await;
+        assert_eq!(status, Status::BadRequest, "{body}");
+        let message = body["message"]
+            .as_str()
+            .expect("Hasura action error message");
+        assert!(message.contains("initializ"), "{route}: {body}");
+        assert!(!message.contains("Stack backtrace"), "{body}");
+        assert!(!message.contains("/packages/"), "{body}");
+        assert_eq!(body["extensions"]["code"], "VotingStatusValidation");
+        assert_eq!(election_status(&services.hasura, &election).await, before);
     }
 }
