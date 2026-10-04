@@ -36,14 +36,24 @@ interface Scenario extends EventDataScenario {
     saved: Mock<(values: RaRecord<Identifier>) => void>
     /** A save rejects with this message. */
     saveError?: string
+    /** The event's number format code, if it names one. */
+    numberFormatPolicy?: string
 }
 
 let boundaries: ReturnType<typeof eventDataBoundaries>
 
 // The edit view provides the record and the save; like EditBase, the save applies the
 // button's transform before writing.
-function Fixture({transform, saved, saveError}: Scenario) {
+function Fixture({transform, saved, saveError, numberFormatPolicy}: Scenario) {
     const {permissions, tenant} = useStoryGlobals()
+    const event = eventDataEvent()
+    const record =
+        numberFormatPolicy === undefined
+            ? event
+            : {
+                  ...event,
+                  presentation: {...event.presentation, number_format_policy: numberFormatPolicy},
+              }
     const save: SaveHandler<RaRecord> = async (values, options) => {
         const data = options?.transform ? await options.transform(values) : values
         if (saveError) throw new Error(saveError)
@@ -58,7 +68,7 @@ function Fixture({transform, saved, saveError}: Scenario) {
         >
             <WidgetsContextProvider>
                 <ResourceContextProvider value="sequent_backend_election_event">
-                    <RecordContextProvider value={eventDataEvent()}>
+                    <RecordContextProvider value={record}>
                         <SaveContextProvider
                             value={{save, saving: false, mutationMode: "pessimistic"}}
                         >
@@ -281,6 +291,26 @@ export const SaveTheEvent: Story = {
         // The unchanged password policy and realm attributes are not written.
         expect(operations()).not.toContain("UpdateRealmPasswordPolicy")
         expect(operations()).not.toContain("UpdateRealmAttributes")
+    },
+}
+
+export const UnknownNumberFormat: Story = {
+    args: {numberFormatPolicy: "no-such-format"},
+    parameters: {widgets: ["EventSaveButton"]},
+    play: async ({canvasElement, args}) => {
+        const canvas = await loaded(canvasElement)
+        // A format this version doesn't know, such as a newer version's, reads as the default.
+        await openSection(canvasElement, "languageAndRegion")
+        await expect(
+            canvas.getByRole("combobox", {name: field("numberFormatPolicy.policyLabel")})
+        ).toHaveTextContent("1,234,567.89")
+        // Saving another change keeps it.
+        await openSection(canvasElement, "general", "languageAndRegion")
+        await editDescription(canvasElement)
+        await userEvent.click(saveButton(canvasElement))
+        await waitFor(() => expect(args.saved).toHaveBeenCalledTimes(1))
+        const [values] = args.transform.mock.calls[0]
+        expect(values).toMatchObject({presentation: {number_format_policy: "no-such-format"}})
     },
 }
 
