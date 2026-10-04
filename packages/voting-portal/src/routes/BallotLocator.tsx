@@ -18,8 +18,11 @@ import {
     stringToHtml,
     EShowCastVoteLogsPolicy,
     formatVotingPortalDateTime,
+    IElectionEventPresentation,
+    NumberFormatProvider,
     translateHtml,
     stringToText,
+    useNumberFormat,
 } from "@sequentech/ui-core"
 import {Box, TextField, Typography, Button, Stack, TypographyProps} from "@mui/material"
 import {styled} from "@mui/material/styles"
@@ -159,6 +162,9 @@ const BallotLocator: React.FC = () => {
         },
         skip: globalSettings.DISABLE_AUTH, // Skip query if in demo mode
     })
+
+    const electionEventPresentation = dataElectionEvent?.sequent_backend_election_event[0]
+        ?.presentation as IElectionEventPresentation | null | undefined
 
     useEffect(() => {
         const electionEvent = dataElectionEvent?.sequent_backend_election_event[0]
@@ -315,24 +321,26 @@ const BallotLocator: React.FC = () => {
                             placeholderLabel="ballotLocator.filterByBallotId"
                         />
                     </Box>
-                    <LogsTable
-                        rows={rows}
-                        total={total}
-                        onOrderBy={onClickHeader}
-                        rowsPerPage={rowsPerPage}
-                        handleChangeRowsPerPage={handleChangeRowsPerPage}
-                        page={page}
-                        handleChangePage={handleChangePage}
-                        somethingWentWrongErr={somethingWentWrongErr}
-                        formatDateTime={(timestamp) =>
-                            formatVotingPortalDateTime(
-                                timestamp,
-                                dataElectionEvent
-                                    ?.sequent_backend_election_event[0] as IElectionEvent,
-                                i18n.resolvedLanguage || i18n.language
-                            )
-                        }
-                    />
+                    <NumberFormatProvider policy={electionEventPresentation?.number_format_policy}>
+                        <LogsTable
+                            rows={rows}
+                            total={total}
+                            onOrderBy={onClickHeader}
+                            rowsPerPage={rowsPerPage}
+                            handleChangeRowsPerPage={handleChangeRowsPerPage}
+                            page={page}
+                            handleChangePage={handleChangePage}
+                            somethingWentWrongErr={somethingWentWrongErr}
+                            formatDateTime={(timestamp) =>
+                                formatVotingPortalDateTime(
+                                    timestamp,
+                                    dataElectionEvent
+                                        ?.sequent_backend_election_event[0] as IElectionEvent,
+                                    i18n.resolvedLanguage || i18n.language
+                                )
+                            }
+                        />
+                    </NumberFormatProvider>
                 </CustomTabPanel>
                 <Box
                     className="ballot-locator-actions"
@@ -447,6 +455,7 @@ const LogsTable: React.FC<LogsTableProps> = ({
     formatDateTime,
 }) => {
     const {t} = useTranslation()
+    const {formatNumber} = useNumberFormat()
     const [orderBy, setOrderBy] = useState<string>("")
     const [order, setOrder] = useState<"desc" | "asc" | undefined>("desc")
     const [windowWidth, setWindowWidth] = useState<number>(window.innerWidth)
@@ -472,7 +481,7 @@ const LogsTable: React.FC<LogsTableProps> = ({
     return (
         <>
             <StyledTitle className="cast-vote-logs-title" variant="h5" component="h2">
-                {t("ballotLocator.totalBallots", {total})}
+                {t("ballotLocator.totalBallots", {total: formatNumber(total)})}
             </StyledTitle>
             <TableContainer
                 className="cast-vote-logs-table-container"
