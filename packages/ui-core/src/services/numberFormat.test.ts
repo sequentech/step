@@ -55,6 +55,12 @@ describe("number format policy", () => {
         expect(formatNumber(-0.001, ENumberFormatPolicy.COMMA_PERIOD, 2)).toBe("0.00")
     })
 
+    it("rounds halfway values as the portals always have", () => {
+        expect(formatNumber(1.005, undefined, 2)).toBe("1.01")
+        expect(formatNumber(1234.5, ENumberFormatPolicy.PERIOD_COMMA, 0)).toBe("1.235")
+        expect(formatNumber(1e21, undefined, 2)).toBe("1,000,000,000,000,000,000,000.00")
+    })
+
     it("returns values that are not numbers unchanged", () => {
         expect(formatNumber("-")).toBe("-")
         expect(formatNumber("")).toBe("")
