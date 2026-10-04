@@ -278,6 +278,7 @@ async fn create_tally_with_events(
             tally_type: tally_type.into(),
             permission_labels: &permission_labels,
             username: ADMIN.into(),
+            area_ids: None,
         },
     )
     .await
@@ -371,6 +372,7 @@ async fn the_session_configuration_takes_its_policies_from_the_event() {
             tally_type: ELECTORAL_RESULTS.into(),
             permission_labels: &permission_labels,
             username: ADMIN.into(),
+            area_ids: None,
         },
     )
     .await
@@ -1036,5 +1038,98 @@ async fn creation_source_read_failures_happen_before_any_writes() {
         TallyCall::GetKeysCeremony,
     ] {
         assert_creation_failure(call, 0, 0, 0).await;
+    }
+}
+
+async fn initialize_countries(
+    ceremony: &InMemoryTallyCeremony,
+    tally_type: &str,
+    area_ids: &[&str],
+) -> Result<String> {
+    let permission_labels = vec![];
+    create_tally_ceremony_with(
+        ceremony,
+        ceremony,
+        ceremony,
+        ceremony,
+        ceremony,
+        &SequentialIds::default(),
+        TallyCreation {
+            tenant_id: TENANT.into(),
+            user_id: ADMIN_ID,
+            election_event_id: EVENT.into(),
+            election_ids: vec![ELECTION.into()],
+            configuration: None,
+            tally_type: tally_type.into(),
+            permission_labels: &permission_labels,
+            username: ADMIN.into(),
+            area_ids: Some(area_ids.iter().map(|id| id.to_string()).collect()),
+        },
+    )
+    .await
+}
+
+fn per_country() -> Value {
+    json!({"lifecycle_policies": {"initialization_scope": "post-and-country"}})
+}
+
+#[tokio::test]
+async fn a_country_initialization_covers_only_that_country() {
+    let ceremony = closed_event(per_country());
+    initialize_countries(&ceremony, "INITIALIZATION_REPORT", &["north"])
+        .await
+        .unwrap();
+    let tally_session = stored_session(&ceremony);
+    assert_eq!(tally_session.area_ids, Some(vec!["north".to_string()]));
+    assert_eq!(
+        tally_session.annotations,
+        Some(json!({
+            "executer_username": ADMIN,
+            "executer_user_id": ADMIN_ID,
+            INITIALIZATION_AREA_IDS_ANNOTATION: ["north"],
+        }))
+    );
+    let areas: Vec<String> = ceremony
+        .session_contests(FIRST_ID)
+        .into_iter()
+        .map(|session_contest| session_contest.area_id)
+        .collect();
+    assert_eq!(areas, vec!["north".to_string()]);
+}
+
+#[tokio::test]
+async fn a_country_initialization_needs_the_post_and_country_scope_and_a_country_of_the_post() {
+    for (presentation, tally_type, areas, message) in [
+        (
+            json!({}),
+            "INITIALIZATION_REPORT",
+            vec!["north"],
+            "Countries are initialized one by one only with the initialization scope Post and country",
+        ),
+        (
+            per_country(),
+            ELECTORAL_RESULTS,
+            vec!["north"],
+            "Only an initialization report can be generated per country",
+        ),
+        (
+            per_country(),
+            "INITIALIZATION_REPORT",
+            vec!["west"],
+            "Area west is not a country of the Post",
+        ),
+        (
+            per_country(),
+            "INITIALIZATION_REPORT",
+            vec![],
+            "Choose at least one country to initialize",
+        ),
+    ] {
+        let ceremony = closed_event(presentation);
+        let error = initialize_countries(&ceremony, tally_type, &areas)
+            .await
+            .unwrap_err();
+        assert_eq!(validation_message(error), message);
+        assert_nothing_written(&ceremony);
     }
 }

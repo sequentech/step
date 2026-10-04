@@ -58,3 +58,28 @@ CREATE TABLE sequent_backend.secret (
     tenant_id uuid, election_event_id uuid, key text, value text,
     PRIMARY KEY (tenant_id, election_event_id, key)
 );
+
+-- This narrow timing fixture has no configuration approvals. Keep the empty
+-- private boundary projection required by the production point-read query;
+-- full migration-backed signed-approval controls live in the backend tests.
+CREATE TABLE sequent_backend.signed_voting_boundary (
+    tenant_id uuid NOT NULL,
+    election_event_id uuid NOT NULL,
+    election_id uuid NOT NULL,
+    approval_request_id uuid NOT NULL,
+    scheduled_event_id text NOT NULL,
+    event_processor text NOT NULL,
+    channels jsonb NOT NULL,
+    source_timezone text,
+    scheduled_date text NOT NULL,
+    scheduled_at timestamptz NOT NULL,
+    PRIMARY KEY (tenant_id, election_event_id, election_id, scheduled_event_id)
+);
+CREATE INDEX signed_voting_boundary_bound ON sequent_backend.signed_voting_boundary
+    (tenant_id, election_event_id, election_id, event_processor, scheduled_at);
+
+-- These unsigned timing fixtures use the default optional closing rule.
+-- Production authorization (including both-copy signature policies) is
+-- exercised with the complete migrations in the backend regression suite.
+CREATE FUNCTION sequent_backend.live_voting_close_allowed(uuid, uuid, uuid)
+RETURNS boolean LANGUAGE sql STABLE AS $$ SELECT true $$;

@@ -100,7 +100,7 @@ async fn request(pool: &Pool, id: &Value) -> (String, String, Value, i32) {
 async fn open_post(pool: &Pool, election: &str) {
     rows::execute(
         pool,
-        "UPDATE sequent_backend.election SET status = $2 WHERE id = $1",
+        "UPDATE sequent_backend.election SET status = $2 WHERE id = $1 AND set_config('sequent.trusted_write', 'on', true) = 'on'",
         &[
             &Uuid::parse_str(election).unwrap(),
             &json!({"voting_status": "OPEN"}),

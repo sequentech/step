@@ -544,6 +544,16 @@ impl TallySessions for InMemoryTallyCeremony {
 }
 
 impl TallyCreationReader for InMemoryTallyCeremony {
+    async fn initialization_scopes(
+        &self,
+        tenant_id: &str,
+        election_event_id: &str,
+        _post: uuid::Uuid,
+    ) -> Result<crate::services::initialization_scope::ScopeCopies> {
+        let event = ElectionEventReader::get(self, tenant_id, election_event_id).await?;
+        crate::services::initialization_scope::scope_copies_of(&event)
+    }
+
     async fn event_snapshot(
         &self,
         tenant_id: &str,

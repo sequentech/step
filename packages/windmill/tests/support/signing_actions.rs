@@ -160,6 +160,8 @@ async fn set_channels(
         };
         status.insert(key.to_owned(), json!(target));
     }
+    // As the real effect does.
+    windmill::postgres::trusted_write(tx).await?;
     tx.execute(
         "UPDATE sequent_backend.election
          SET status = COALESCE(status, '{}'::jsonb) || $2::jsonb WHERE id = $1",
@@ -247,7 +249,7 @@ pub fn starter(w: &World) -> SigningCaller {
 /// Sets the Post's voting status (its JSON `status`).
 pub async fn set_post_status(w: &World, status: Value) {
     w.execute(
-        "UPDATE sequent_backend.election SET status = $2 WHERE id = $1",
+        "UPDATE sequent_backend.election SET status = $2 WHERE id = $1 AND set_config('sequent.trusted_write', 'on', true) = 'on'",
         &[&w.post, &status],
     )
     .await;

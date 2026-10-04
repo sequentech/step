@@ -6,6 +6,7 @@ use crate::postgres::application::insert_applications;
 use crate::postgres::election_event::{get_election_event_by_id_if_exist, update_bulletin_board};
 use crate::postgres::reports::insert_reports;
 use crate::postgres::reports::Report;
+use crate::postgres::trusted_write;
 use crate::postgres::trustee::get_all_trustees;
 use crate::services::electoral_log::ElectoralLogAdminContext;
 use crate::services::import::import_publications::{
@@ -697,11 +698,15 @@ pub async fn process_election_event_file(
                 .unwrap_or_default()
                 .unwrap_or_default();
 
+            // An imported election starts with voting not started on every
+            // channel (the database refuses anything else).
             status.voting_status = VotingStatus::default();
             status.kiosk_voting_status = VotingStatus::default();
+            status.early_voting_status = VotingStatus::default();
             status.telephone_voting_status = VotingStatus::default();
             status.voting_period_dates = PeriodDates::default();
             status.kiosk_voting_period_dates = PeriodDates::default();
+            status.early_voting_period_dates = PeriodDates::default();
             status.telephone_voting_period_dates = PeriodDates::default();
 
             clone.status = Some(
@@ -738,6 +743,8 @@ pub async fn process_election_event_file(
     .await
     .with_context(|| format!("Error upserting Keycloak realm for tenant ID {tenant_id} and election event ID {election_event_id}"))?;
 
+    // The import keeps an exported lockdown, which only the server may set.
+    trusted_write(hasura_transaction).await?;
     insert_election_event(hasura_transaction, &data.election_event)
         .await
         .with_context(|| "Error inserting election event")?;
@@ -1644,18 +1651,22 @@ pub async fn manage_dates(
         {
             continue;
         }
-        let Some(date) = scheduled_event
+        // The wall time and its zone come along with the instant. A date
+        // without an offset is recomputed from them, or refused.
+        let Some(cron_config) = scheduled_event
             .cron_config
-            .and_then(|config| config.scheduled_date)
+            .filter(|config| config.scheduled_date.is_some())
         else {
             continue;
         };
+        let cron_config = crate::services::schedule_csv::checked_import_cron_config(cron_config)
+            .with_context(|| format!("Scheduled event {}", scheduled_event.id))?;
         maybe_create_scheduled_event(
             hasura_transaction,
             &data.tenant_id.to_string(),
             &data.election_event.id,
             processor,
-            date,
+            cron_config,
             payload.election_id.as_deref(),
             payload.voting_channels,
         )
@@ -1671,7 +1682,7 @@ pub async fn maybe_create_scheduled_event(
     tenant_id: &str,
     election_event_id: &str,
     event_processor: EventProcessors,
-    start_date: String,
+    cron_config: CronConfig,
     election_id: Option<&str>,
     voting_channels: Option<Vec<sequent_core::ballot::VotingStatusChannel>>,
 ) -> Result<()> {
@@ -1683,7 +1694,7 @@ pub async fn maybe_create_scheduled_event(
     };
     let cron_config = CronConfig {
         cron: None,
-        scheduled_date: Some(start_date.to_string()),
+        ..cron_config
     };
     insert_scheduled_event(
         hasura_transaction,

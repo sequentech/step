@@ -214,7 +214,10 @@ pub async fn stop_scheduled_event(
             UPDATE
                 "sequent_backend".scheduled_event
             SET
-                stopped_at = NOW()
+                stopped_at = NOW(),
+                -- A row that ran has no pending tz database recompute.
+                annotations = CASE WHEN jsonb_typeof(annotations) = 'object'
+                    THEN annotations - 'schedule_recompute' ELSE annotations END
             WHERE
                 tenant_id = $1
                 AND id = $2
@@ -265,6 +268,9 @@ pub async fn archive_scheduled_event(
     Ok(())
 }
 
+/// Replaces the cron config (and the channels, when given) of an active
+/// scheduled event. Returns how many rows it changed: 0 when the event has
+/// already run or doesn't exist.
 #[instrument(skip(hasura_transaction), err)]
 pub async fn update_scheduled_event(
     hasura_transaction: &Transaction<'_>,
@@ -272,14 +278,23 @@ pub async fn update_scheduled_event(
     id: &str,
     cron_config: CronConfig,
     voting_channels: Option<&Vec<sequent_core::ballot::VotingStatusChannel>>,
-) -> Result<()> {
+) -> Result<u64> {
     let tenant_uuid: uuid::Uuid =
         parse_uuid_v4(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
     let id_uuid: uuid::Uuid =
         parse_uuid_v4(id).with_context(|| "Error parsing election_event_id as UUID")?;
 
+    // An edit to a future time re-arms an event that already ran; the
+    // instant is the one the scheduler reads (RFC 3339 with an offset).
+    let instant: Option<DateTime<Utc>> = cron_config
+        .scheduled_date
+        .as_deref()
+        .and_then(|date| DateTime::parse_from_rfc3339(date).ok())
+        .map(|date| date.with_timezone(&Utc));
     let cron_config_js: Value = serde_json::to_value(cron_config)?;
 
+    // A pending tz database recompute no longer applies once the row is
+    // saved again: the new instant comes from the current database.
     let statement = hasura_transaction
         .prepare(
             r#"
@@ -288,29 +303,33 @@ pub async fn update_scheduled_event(
             SET
                 cron_config = $3,
                 event_payload = CASE WHEN $4::jsonb IS NULL THEN event_payload
-                    ELSE COALESCE(event_payload, '{}'::jsonb) || jsonb_build_object('voting_channels', $4::jsonb) END
+                    ELSE COALESCE(event_payload, '{}'::jsonb) || jsonb_build_object('voting_channels', $4::jsonb) END,
+                stopped_at = CASE WHEN $5::timestamptz > NOW() THEN NULL ELSE stopped_at END,
+                annotations = CASE WHEN jsonb_typeof(annotations) = 'object'
+                    THEN annotations - 'schedule_recompute' ELSE annotations END
             WHERE
                 tenant_id = $1
                 AND id = $2
-                AND stopped_at IS NULL
+                AND archived_at IS NULL
             "#,
         )
         .await?;
 
-    let _rows: Vec<Row> = hasura_transaction
-        .query(
+    let updated = hasura_transaction
+        .execute(
             &statement,
             &[
                 &tenant_uuid,
                 &id_uuid,
                 &cron_config_js,
                 &voting_channels.map(serde_json::to_value).transpose()?,
+                &instant,
             ],
         )
         .await
         .map_err(|err| anyhow!("Error running the update_scheduled_event query: {err}"))?;
 
-    Ok(())
+    Ok(updated)
 }
 
 #[instrument(skip(hasura_transaction), err)]
@@ -591,4 +610,118 @@ pub async fn insert_new_scheduled_event(
             rows.len()
         ))
     }
+}
+
+/// Sets (`Some`) or removes (`None`) one key of a scheduled event's
+/// annotations. Annotations that aren't a JSON object are left alone.
+#[instrument(skip(hasura_transaction, value), err)]
+pub async fn set_scheduled_event_annotation(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    id: &str,
+    key: &str,
+    value: Option<Value>,
+) -> Result<()> {
+    let tenant_uuid: uuid::Uuid =
+        parse_uuid_v4(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
+    let id_uuid: uuid::Uuid =
+        parse_uuid_v4(id).with_context(|| "Error parsing scheduled event id as UUID")?;
+    hasura_transaction
+        .execute(
+            r#"
+            UPDATE "sequent_backend".scheduled_event
+            SET annotations = CASE
+                WHEN $4::jsonb IS NULL THEN annotations - $3::text
+                ELSE COALESCE(annotations, '{}'::jsonb) || jsonb_build_object($3::text, $4::jsonb)
+            END
+            WHERE tenant_id = $1
+              AND id = $2
+              AND (annotations IS NULL OR jsonb_typeof(annotations) = 'object')
+              AND ($4::jsonb IS NOT NULL OR annotations ? $3::text)
+            "#,
+            &[&tenant_uuid, &id_uuid, &key, &value],
+        )
+        .await
+        .map_err(|err| anyhow!("Error setting a scheduled event annotation: {err}"))?;
+    Ok(())
+}
+
+/// Serializes scheduling/signing before locking mutable rows. The parent
+/// row stays locked too, so archiving cannot race an executed transition.
+#[instrument(skip(hasura_transaction), err)]
+pub async fn lock_scheduling_event(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+) -> Result<()> {
+    let tenant_uuid = parse_uuid_v4(tenant_id)?;
+    let event_uuid = parse_uuid_v4(election_event_id)?;
+    crate::postgres::signing::lock_signing_event(hasura_transaction, tenant_uuid, event_uuid)
+        .await?;
+    hasura_transaction
+        .query(
+            "SELECT id FROM sequent_backend.election_event
+             WHERE tenant_id = $1 AND id = $2 FOR UPDATE",
+            &[&tenant_uuid, &event_uuid],
+        )
+        .await
+        .context("Error locking the scheduling event")?;
+    Ok(())
+}
+
+/// Keeps the queued task's schedule unchanged between authorization and
+/// its effect, including changes sent directly through Hasura.
+#[instrument(skip(hasura_transaction), err)]
+pub async fn lock_scheduled_event(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    scheduled_event_id: &str,
+) -> Result<()> {
+    lock_scheduling_event(hasura_transaction, tenant_id, election_event_id).await?;
+    hasura_transaction
+        .query(
+            "SELECT id FROM sequent_backend.scheduled_event
+             WHERE tenant_id = $1 AND election_event_id = $2 AND id = $3 FOR UPDATE",
+            &[
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
+                &parse_uuid_v4(scheduled_event_id)?,
+            ],
+        )
+        .await
+        .context("Error locking the scheduled row")?;
+    Ok(())
+}
+
+/// Locks the election rows of the event (or one election) until the end of
+/// the transaction, so a read-modify-write of their status or presentation
+/// doesn't lose a concurrent one. Statements after it see the latest
+/// committed rows.
+#[instrument(skip(hasura_transaction), err)]
+pub async fn lock_elections(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    election_id: Option<&str>,
+) -> Result<()> {
+    let election_uuid = election_id.map(parse_uuid_v4).transpose()?;
+    lock_scheduling_event(hasura_transaction, tenant_id, election_event_id).await?;
+    hasura_transaction
+        .query(
+            r#"
+            SELECT id FROM "sequent_backend".election
+            WHERE tenant_id = $1 AND election_event_id = $2 AND ($3::uuid IS NULL OR id = $3)
+            ORDER BY id
+            FOR UPDATE
+            "#,
+            &[
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
+                &election_uuid,
+            ],
+        )
+        .await
+        .map_err(|err| anyhow!("Error locking elections: {err}"))?;
+    Ok(())
 }

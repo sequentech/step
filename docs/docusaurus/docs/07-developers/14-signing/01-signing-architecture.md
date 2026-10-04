@@ -68,6 +68,8 @@ flowchart LR
 | `packages/windmill/external-bin/janitor/` | `templates/COMELEC/signing.json` and `signing_preset.py`: the sample tenant template's rules, checks and titles. |
 
 The [API contract](./02-signing-api.md) describes the routes and the panel.
+[Signed scheduled transitions](./scheduled-transitions.md) describes trusted
+publication snapshots, retained close deadlines and prediction/audit hooks.
 
 ## Data model
 
@@ -192,6 +194,178 @@ Signers (`signers.rs`) are read from the Keycloak database: users holding `sign-
 directly or through a group, with their permission labels and a `title` attribute
 (falling back to the group name).
 
+## Scheduled openings and closings
+
+Decision D4 said "no bypass": a scheduled START/END_VOTING_PERIOD whose Open or Close voting
+rule is `Required` never ran. It is revised (VOTE-LIFECYCLE D-U2): a scheduled transition
+runs when **the signed configuration already authorized it**, that is, when the Approve
+configuration that published the configuration signed this exact row, and the row hasn't
+changed since. Everything else is still left to people, with one policy for closes.
+
+### What the configuration approval signs
+
+`ConfigurationSubject` (`actions/configuration.rs`) gains, each `#[serde(default)]`:
+
+- `policies`: the event's `presentation.lifecycle_policies` (`initialization_scope`,
+  `unsigned_scheduled_close`);
+- `open_voting`, `close_voting`: the two rules as `RuleSnapshot {required, signatures,
+  digest}` (the digest is SHA-256 of the rule's canonical content, without its revision);
+- `post_channels`: each covered Post's enabled voting channels (the target's Post, or every
+  Post of the event);
+- `schedule`: every active START/END_VOTING_PERIOD of the target (a Post's own rows and the
+  event-wide ones, or every row for an event-level publication), each a
+  `ScheduledTransition {scheduled_event_id, event_processor, election_id, scheduled_date,
+  local, timezone, voting_channels, fingerprint}`, where the fingerprint is SHA-256 of the
+  canonical text of the other fields (channels sorted).
+
+Requests made before these fields cover nothing, and executing one keeps no new snapshot,
+so the previous signed copy stays the published one.
+Publishing keeps the same `LifecycleSnapshot` in `sequent_backend.lifecycle_snapshot`, one row
+per publication (`update_publish_ballot` writes the current values; the approval's effect then
+adds the **signed** ones, with `approval_request_id`), so the published copy is what the
+signers saw. The table isn't tracked in Hasura and its rows outlive the publication row: the
+publication's own columns (annotations, `published_at`, deletion) are writable by admin
+roles, so they never decide a value.
+
+### One function, two copies
+
+`services::scheduled_outcome::evaluate` decides every scheduled outcome; the scheduler at
+fire time, the Scheduled Events list and the stored predictions all call it. It reads two
+copies of the configuration:
+
+- **current**: the live rules and policies;
+- **published**: the newest kept snapshot of the Post (its own publication's or the
+  event's) or of the event, by the database time it was kept. Before anything is published,
+  or for publications from before snapshots, the defaults stand for it: rules not required,
+  `REFUSE`, `POST`.
+
+The transition runs only if both copies allow it:
+
+- it **needs signatures** when the action's rule is `Required` in either copy;
+- it is **covered** when the newest *executed* Approve configuration of the Post or the
+  event lists the row with the same fingerprint and the Post with the same enabled voting
+  channels (editing either after signing drops the coverage until the next approved
+  publication), the row hasn't already run at that Post with that fingerprint
+  (`sequent_backend.lifecycle_fired`, untracked, so a re-armed or re-inserted row is a replay
+  that needs signatures), and it fires at most 15 minutes after its `scheduled_date` (a held
+  row can't be released at a time of someone's choosing);
+- an uncovered close runs without signatures only when **both** copies say
+  `RUN_AS_SYSTEM`.
+
+| Transition | Covered | Not covered |
+| --- | --- | --- |
+| Open voting | Runs, authorized by the approval | Refused (`not-in-signed-configuration`) |
+| Close voting | Runs, authorized by the approval | `REFUSE` (default): refused (`signing-required`). `RUN_AS_SYSTEM` in both copies: closes without signatures (`unsigned-scheduled-close`) |
+
+So tightening a rule or a policy applies at once, and loosening one applies only after the
+next publication, which needs signatures while Approve configuration is `Required`. Manual
+actions keep the live rules. An event-wide row is decided per Post, at the Posts it
+changes: `event_wide_targets` is the one definition the dispatch, the predictions and the
+fire-time check share (every Post without its own row of the same kind; an own row is not
+archived, names the Post's id exactly as stored, has the Post's task id and includes ONLINE).
+`event_wide_decision` decides and logs each of those Posts, and the event-wide task changes
+only the ones that run. A Post's own approval covers the event-wide rows too.
+
+**Signed closes are authoritative.** `enforce_signed_closes` runs on every scheduler tick:
+at each Post, the newest executed approval's signed close (the Post's own, else the
+event-wide one) whose signed time has passed, and that no later signed opening (also passed)
+supersedes, closes the channels still open, whatever happened to the live row since
+(edited, stopped, archived, deleted). It logs `reason: "signed-close"` with
+`authorized_by` and runs once. Only a newer approved configuration moves a signed close. An
+approval whose publication was published meanwhile fails (`payload-changed`), so a request
+never counts as executed without keeping what it signed.
+
+The answer is an `Explanation {outcome, checks, deciding, next_step, authorized_by}`
+(`sequent_core::types::scheduled_outcome`). The checks are `needs_signatures`, `covered`,
+`unsigned_close` (uncovered closes), `stricter_copy` and `defaults`, each with the current
+and published values as i18n keys under `scheduledOutcome.check.*`. The deciding check is
+the published copy (`stricter_copy`, or `defaults` before anything is published) when the
+current settings alone would allow more, otherwise `covered` for openings and
+`unsigned_close` for closes. `next_step` (`scheduledOutcome.nextStep.*`) is
+`publishAndApprove`, `requireConfigurationApproval` (Approve configuration needs no
+signatures, so nothing can cover the row), `askSignersToClose` (a close that will run
+unsigned), `askSignersToOpen` / `askSignersToClose` at fire time, or `none`.
+
+### At fire time
+
+`actions::voting::scheduled_change_needs_signatures` (and `scheduled_change_for_posts` for
+a list of Posts) evaluates the row at each Post. When the action needed signatures, each
+Post gets one SYSTEM `SigningActionExecuted` entry, actor `scheduled-event`, with details
+`{action, election_id, scheduled_event_id, outcome, authorized_by, unsigned, fingerprint,
+explanation, reason?, record?, cancelled?}`:
+
+- covered: INFO, "Opened/Closed voting at {Post} on schedule, authorized by the signed
+  configuration {code}"; `authorized_by` = `{request_id, code, signers}` of the approval;
+- unsigned close: INFO, "Closed voting at {Post} on schedule without signatures",
+  `reason: "unsigned-scheduled-close"`;
+- refused: ERROR, "Did not … on schedule: …", `reason` `not-in-signed-configuration`,
+  `signing-required`, `replay` (it already ran there) or `late-fire`.
+
+A close that runs cancels the Post's waiting Close voting requests whose channels it closes
+with `closed-on-schedule`; their partial signatures stay in the Requests history and don't
+count as a signed close. Like a signed change, any scheduled change also cancels the Post's
+waiting requests of the opposite action (`payload-changed`). They are listed in `cancelled:
+[{request_id, action, code, signatures, required}]`. A close's record (`record`, the
+`SealRecord` shape) has no closing signatures, no signing code and carries `authorized_by` or
+`unsigned: true`. When no channel can change (the Post is already closed, say), the entry
+says "Nothing to …" with `nothing_to_change: true`, and nothing is cancelled. The row keeps
+what happened, openings and closes alike, in `annotations.fired_outcome = {at, posts:
+[details]}`. The signing lock is taken first, before any read or row lock.
+
+`scheduled_change_for_posts(tx, tenant, event, posts, status, scheduled_event_id)` answers
+the Posts that may change; the event-wide task calls it with the Posts the row applies to.
+`scheduled_change_needs_signatures(…, None, …)` answers for the whole event: it runs only if
+it runs at every Post; otherwise each Post logs a refusal, the ones that would have run with
+`event-wide-refused` and no explanation of their own. A row that isn't a scheduled opening or
+closing is refused while either copy of the rule needs signatures.
+
+### Predictions and their log
+
+Each future row keeps `annotations.predicted_outcome = {fingerprint, edited_at, edited_by,
+outcomes: [{election_id, explanation}]}`. `recompute_predictions(tx, tenant, event,
+actor)` runs, in the write's transaction, after every write that can change an outcome:
+saving a signing rule, saving the lifecycle policies (`save_lifecycle_policies`),
+creating, editing or importing a scheduled event, publishing, an approval executing, and
+locking down or lifting it. Each row and Post whose outcome changed (or that had no
+prediction yet) gets one `ScheduledOutcomeChanged` step: USER = whoever made the write,
+SYSTEM = the change, details `{scheduled_event_id, election_id, action, fingerprint, before,
+after}`, each side an `Explanation`. A write that changes no outcome logs nothing more. A
+row without a prediction is seeded silently unless this transaction wrote it (its
+creation is then logged with `before: null`). A row this transaction changed records the
+write's time and user as its last edit (`covered.changedBy`); a row changed some other way
+is marked changed by nobody known (`covered.changed`).
+
+Rule saves and policy saves say how they apply: an Open/Close voting or Approve
+configuration rule that starts needing signatures (or more of them), or a policy that gets
+stricter, "Applies now to manual and scheduled actions" (`tightens`); one that stops needing
+them (or needs fewer), or gets looser, "Applies now to manual actions; to scheduled openings
+and closings after the next approved publication" (`loosens`). Like the signing rules,
+`save_lifecycle_policies` answers 409 `locked-down` while the event is locked down. `SigningRuleChanged` carries it in its description and details (`applies`),
+and the save answers it with `outcome_changes`.
+
+### Known gaps and future improvements
+
+- **Signing a close ahead of its deadline.** A close the Post's signers sign before the deadline
+  would wait for its scheduled time and be executed by the scheduler, with `RUN_AS_SYSTEM`
+  only as the fallback. Not built: today a signed close runs when its last signature
+  arrives.
+- **Rule edits before lockdown or after it's lifted.** The rules belong to the event's
+  configuration version, so after lockdown a change goes through Approve configuration;
+  `PUT /signing-rules` answers 409 `locked-down` while the event is locked down. Before
+  lockdown or after it's lifted, an unsigned rule edit (including one to Approve
+  configuration itself) applies at once to manual actions, is logged
+  (`SigningRuleChanged`) and cancels waiting requests; for scheduled transitions a
+  loosening still waits for the next approved publication. Lifting lockdown is itself a live,
+  unsigned change. Future improvement: lifting lockdown, or loosening a rule, needs
+  signatures.
+- **Policies saved outside `save_lifecycle_policies`.** The event form can still write
+  `presentation.lifecycle_policies` through Hasura; the outcomes stay right (both copies),
+  but that save logs no `ScheduledOutcomeChanged`.
+- **Direct edits of scheduled events.** Admin roles can change `scheduled_event.cron_config`
+  and `annotations` through Hasura. A changed row loses its coverage (the safe direction),
+  and `predicted_outcome` is for display only: the scheduler recomputes the outcome when the
+  row fires. Such an edit isn't attributed to anyone.
+
 ## Log outbox and worker
 
 `signing::log::stage(tx, LogStep)` writes two outbox rows with one `step_id` in the step's
@@ -210,7 +384,7 @@ twice. A failure stops that event's queue, to keep order, and retries with expon
 back-off (at most 10 minutes). USER entries are signed with the person's admin key
 (`ElectoralLog::for_admin_user`), SYSTEM entries with the system key.
 
-The 16 statement kinds are appended to `StatementType`, with one body variant
+The 16 signing statement kinds, and `ScheduledOutcomeChanged`, are appended to `StatementType`, with one body variant
 `StatementBody::Signing`. The Logs tab labels the USER/SYSTEM column **Event type**, and
 its CSV export adds `event_type` and `log_type`.
 

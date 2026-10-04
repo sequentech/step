@@ -240,6 +240,21 @@ impl<'a> PgTallyCreationReader<'a> {
 }
 
 impl TallyCreationReader for PgTallyCreationReader<'_> {
+    async fn initialization_scopes(
+        &self,
+        tenant_id: &str,
+        election_event_id: &str,
+        post: uuid::Uuid,
+    ) -> Result<crate::services::initialization_scope::ScopeCopies> {
+        crate::services::initialization_scope::initialization_scope_for_post(
+            self.transaction,
+            tenant_id,
+            election_event_id,
+            post,
+        )
+        .await
+    }
+
     async fn event_snapshot(
         &self,
         tenant_id: &str,

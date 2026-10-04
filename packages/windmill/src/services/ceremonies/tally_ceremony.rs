@@ -33,6 +33,8 @@ use crate::services::ceremonies::serialize_logs::{
 };
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::election_event_status::get_election_status;
+use crate::services::initialization_record::INITIALIZATION_AREA_IDS_ANNOTATION;
+use crate::services::initialization_scope::check_initialization_area_filter;
 use crate::services::protocol_manager::get_event_board;
 use anyhow::{anyhow, Context, Result};
 use b4::messages::newtypes::BatchNumber;
@@ -331,6 +333,10 @@ pub struct TallyCreation<'a> {
     pub tally_type: String,
     pub permission_labels: &'a Vec<String>,
     pub username: String,
+    /// The countries an initialization report covers, when it is generated
+    /// country by country (initialization scope POST_AND_COUNTRY); `None`
+    /// covers the whole Posts.
+    pub area_ids: Option<Vec<String>>,
 }
 
 #[instrument(err, skip(transaction))]
@@ -344,6 +350,7 @@ pub async fn create_tally_ceremony(
     tally_type: String,
     permission_labels: &Vec<String>,
     username: String,
+    area_ids: Option<Vec<String>>,
 ) -> Result<String> {
     create_tally_ceremony_with(
         &PgTallyCreationReader::new(transaction),
@@ -361,6 +368,7 @@ pub async fn create_tally_ceremony(
             tally_type,
             permission_labels,
             username,
+            area_ids,
         },
     )
     .await
@@ -385,6 +393,7 @@ pub async fn create_tally_ceremony_with(
         tally_type,
         permission_labels,
         username,
+        area_ids: area_filter,
     } = request;
     let TallyEventSnapshot {
         election_event,
@@ -397,7 +406,7 @@ pub async fn create_tally_ceremony_with(
         .await?;
     let parsed_tally_type = TallyType::try_from(tally_type.as_str())
         .map_err(|_| TallyValidationError::new("Invalid tally type"))?;
-    validate_tally_elections(&all_elections, &election_ids, parsed_tally_type)?;
+    validate_tally_elections(&all_elections, &election_ids, parsed_tally_type.clone())?;
     let contest_encryption_policy = election_event.get_contest_encryption_policy();
     let decoded_ballots_inclusion_policy = election_event.get_decoded_ballots_inclusion_policy();
     let delegated_voting_policy = election_event.get_delegated_voting_policy();
@@ -516,13 +525,43 @@ pub async fn create_tally_ceremony_with(
         "relevant_area_contests {:?}",
         relevant_area_contests
     );
-    let area_ids: Vec<String> = relevant_area_contests
+    let mut area_ids: Vec<String> = relevant_area_contests
         .iter()
         .map(|area_contest| area_contest.area_id.clone())
         .collect::<HashSet<String>>()
         .iter()
         .map(|val| val.clone())
         .collect();
+
+    // A country-by-country initialization covers only the chosen countries.
+    let mut published_ballot_styles = published_ballot_styles;
+    if let Some(filter) = &area_filter {
+        let post = election_ids
+            .first()
+            .context("Country initialization requires one Post")?;
+        let scopes = reader
+            .initialization_scopes(&tenant_id, &election_event_id, uuid::Uuid::parse_str(post)?)
+            .await?;
+        // The Post's countries: its areas where voters vote (a ballot style).
+        let countries = area_ids
+            .iter()
+            .filter(|area_id| {
+                published_ballot_styles
+                    .iter()
+                    .any(|ballot_style| ballot_style.area_id == **area_id)
+            })
+            .cloned()
+            .collect();
+        check_initialization_area_filter(
+            parsed_tally_type.clone(),
+            &election_ids,
+            &scopes,
+            &countries,
+            filter,
+        )?;
+        area_ids.retain(|area_id| filter.contains(area_id));
+        published_ballot_styles.retain(|ballot_style| filter.contains(&ballot_style.area_id));
+    }
 
     let keys_ceremony =
         find_keys_ceremony_with(keys_ceremonies, &tenant_id, &election_event_id, &elections)
@@ -532,10 +571,13 @@ pub async fn create_tally_ceremony_with(
     let initial_status = generate_initial_tally_status(&election_ids, &keys_ceremony_status);
     let tally_session_id: String = ids.new_id().to_string();
 
-    let annotations: Value = json!({
+    let mut annotations: Value = json!({
         EXECUTER_USERNAME_ANNOTATION: username,
         EXECUTER_USER_ID_ANNOTATION: user_id,
     });
+    if let Some(filter) = &area_filter {
+        annotations[INITIALIZATION_AREA_IDS_ANNOTATION] = json!(filter);
+    }
 
     let keys_ceremony_policy = keys_ceremony.policy();
 

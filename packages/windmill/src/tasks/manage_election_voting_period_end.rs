@@ -48,6 +48,11 @@ async fn manage_election_voting_period_end_wrapped(
             scheduled_event_id
         ));
     };
+    // Queued before the row moved to a later time: it runs then.
+    if crate::tasks::scheduled_events::fires_later(&scheduled_event, chrono::Utc::now()) {
+        info!("Scheduled event {scheduled_event_id} was moved to a later time; it runs then");
+        return Ok(());
+    }
 
     let Some(election) = get_election_by_id(
         hasura_transaction,

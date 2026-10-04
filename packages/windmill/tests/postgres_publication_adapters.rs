@@ -1898,7 +1898,7 @@ async fn get_published_ballot_styles_maps_the_object_root_and_the_live_election_
     tx.execute(
         "UPDATE sequent_backend.election
          SET status = '{\"voting_status\": \"OPEN\"}', voting_channels = '{\"online\": true}'
-         WHERE tenant_id = $1 AND election_event_id = $2 AND id = $3",
+         WHERE tenant_id = $1 AND election_event_id = $2 AND id = $3 AND set_config('sequent.trusted_write', 'on', true) = 'on'",
         &[&a.tenant, &a.event, &election],
     )
     .await
@@ -2013,7 +2013,7 @@ async fn get_election_event_status_distinguishes_a_missing_event_from_a_missing_
     let other = f.scope().await;
     tx.execute(
         "UPDATE sequent_backend.election_event SET status = '{\"voting_status\": \"OPEN\"}'
-         WHERE id = $1",
+         WHERE id = $1 AND set_config('sequent.trusted_write', 'on', true) = 'on'",
         &[&with_status.event],
     )
     .await

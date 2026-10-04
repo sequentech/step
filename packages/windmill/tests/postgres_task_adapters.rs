@@ -452,6 +452,7 @@ fn cron(scheduled_date: &str) -> CronConfig {
     CronConfig {
         cron: None,
         scheduled_date: Some(scheduled_date.into()),
+        ..Default::default()
     }
 }
 
@@ -1044,6 +1045,7 @@ async fn update_scheduled_event_replaces_the_cron_config_and_keeps_the_payload()
         CronConfig {
             cron: Some("0 10 * * *".into()),
             scheduled_date: None,
+            ..Default::default()
         },
         None,
     )
@@ -1098,39 +1100,78 @@ async fn update_scheduled_event_adds_the_voting_channels_to_the_payload() {
     tx.rollback().await.unwrap();
 }
 
+/// Editing a schedule that already ran to a future time arms it again
+/// (VOTE-LIFECYCLE); a past time keeps it done. An archived one is left
+/// alone, and a pending tz database recompute no longer applies.
 #[tokio::test]
-async fn update_scheduled_event_leaves_a_stopped_schedule_unchanged() {
+async fn update_scheduled_event_rearms_a_stopped_schedule_edited_to_a_future_time() {
     let mut client = schema::pool().await.get().await.unwrap();
     let tx = client.transaction().await.unwrap();
     let w = World::new(&tx, ids!()).await;
-    schedule_row(&tx, Some(&w.tenant), Some(&w.event), &w.id(10), "task-10").await;
+    for (n, task) in [(10, "task-10"), (11, "task-11"), (12, "task-12")] {
+        schedule_row(&tx, Some(&w.tenant), Some(&w.event), &w.id(n), task).await;
+        set(
+            &tx,
+            "scheduled_event",
+            &w.id(n),
+            &format!(
+                "stopped_at = '{H10}', annotations = '{{\"schedule_recompute\": {{}}, \"note\": 1}}'"
+            ),
+        )
+        .await;
+    }
     set(
         &tx,
         "scheduled_event",
-        &w.id(10),
-        &format!("stopped_at = '{H10}'"),
+        &w.id(12),
+        &format!("archived_at = '{H10}'"),
     )
     .await;
 
-    scheduled_event::update_scheduled_event(
-        &tx,
-        &w.tenant,
-        &w.id(10),
-        cron("2026-03-01T10:00:00Z"),
-        Some(&vec![VotingStatusChannel::ONLINE]),
-    )
-    .await
-    .unwrap();
+    for (n, date) in [
+        (10, "2099-03-01T10:00:00Z"),
+        (11, "2026-03-01T10:00:00Z"),
+        (12, "2099-03-01T10:00:00Z"),
+    ] {
+        scheduled_event::update_scheduled_event(
+            &tx,
+            &w.tenant,
+            &w.id(n),
+            cron(date),
+            Some(&vec![VotingStatusChannel::ONLINE]),
+        )
+        .await
+        .unwrap();
+    }
 
-    let row = stored(
+    let future = stored(&tx, "scheduled_event", &w.id(10), &["created_at"]).await;
+    assert_eq!(
+        (
+            &future["cron_config"],
+            &future["stopped_at"],
+            &future["annotations"]
+        ),
+        (
+            &json!({"cron": null, "scheduled_date": "2099-03-01T10:00:00Z"}),
+            &Value::Null,
+            &json!({"note": 1})
+        )
+    );
+    let past = stored(&tx, "scheduled_event", &w.id(11), &["created_at"]).await;
+    assert_eq!(
+        past["cron_config"],
+        json!({"cron": null, "scheduled_date": "2026-03-01T10:00:00Z"})
+    );
+    assert_ne!(past["stopped_at"], Value::Null);
+    let archived = stored(
         &tx,
         "scheduled_event",
-        &w.id(10),
-        &["created_at", "stopped_at"],
+        &w.id(12),
+        &["created_at", "stopped_at", "archived_at"],
     )
     .await;
     assert_eq!(
-        (&row["cron_config"], &row["event_payload"]),
+        (&archived["cron_config"], &archived["event_payload"]),
         (
             &json!({"cron": null, "scheduled_date": "2026-02-01T10:00:00Z"}),
             &json!({"report_id": "report-1"})

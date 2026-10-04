@@ -6,6 +6,7 @@ use crate::postgres::election_event::{
     get_election_event_by_id, update_election_event_presentation,
 };
 use crate::postgres::scheduled_event::*;
+use crate::services::enrollment_windows;
 use crate::services::providers::transactions_provider::provide_hasura_transaction;
 use crate::services::voting_status::{self};
 use crate::types::error::{Error, Result};
@@ -138,6 +139,11 @@ pub async fn manage_election_event_enrollment_wrapped(
             scheduled_event_id
         ));
     };
+    // Queued before the row moved to a later time: it runs then.
+    if crate::tasks::scheduled_events::fires_later(&scheduled_event, chrono::Utc::now()) {
+        info!("Scheduled event {scheduled_event_id} was moved to a later time; it runs then");
+        return Ok(());
+    }
 
     let enable_enrollment =
         scheduled_event.event_processor == Some(EventProcessors::START_ENROLLMENT_PERIOD);
@@ -175,6 +181,20 @@ pub async fn manage_election_event_enrollment_wrapped(
     stop_scheduled_event(&hasura_transaction, &tenant_id, &scheduled_event.id)
         .await
         .with_context(|| "Error stopping scheduled event")?;
+
+    // The per-Post windows the registration form enforces (VOTE-LIFECYCLE §8),
+    // in a savepoint: the realm switch has already changed, so a failure here
+    // must not roll back stopping this event (it would fire again every tick).
+    // It is logged; the next enrollment change or publication writes them.
+    if let Err(err) =
+        enrollment_windows::refresh_in_savepoint(hasura_transaction, &tenant_id, &election_event_id)
+            .await
+    {
+        error!(
+            "Event {election_event_id}: the enrollment windows were not updated after scheduled \
+             event {scheduled_event_id}: {err:?}"
+        );
+    }
 
     Ok(())
 }

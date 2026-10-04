@@ -26,7 +26,7 @@ use tracing::{error, event, info, Level};
 use uuid::Uuid;
 
 #[instrument(err)]
-async fn manage_election_allow_tally_wrapped(
+pub async fn manage_election_allow_tally_wrapped(
     hasura_transaction: &Transaction<'_>,
     tenant_id: String,
     election_event_id: String,
@@ -48,6 +48,11 @@ async fn manage_election_allow_tally_wrapped(
             scheduled_event_id
         ));
     };
+    // Queued before the row moved to a later time: it runs then.
+    if crate::tasks::scheduled_events::fires_later(&scheduled_event, chrono::Utc::now()) {
+        info!("Scheduled event {scheduled_event_id} was moved to a later time; it runs then");
+        return Ok(());
+    }
 
     let Some(mut election) = get_election_by_id(
         hasura_transaction,

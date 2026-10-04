@@ -41,6 +41,14 @@ pub struct TallyEventSnapshot {
 }
 
 pub trait TallyCreationReader: Sync {
+    /// Both current and trusted published initialization scopes for this Post.
+    fn initialization_scopes(
+        &self,
+        tenant_id: &str,
+        election_event_id: &str,
+        post: uuid::Uuid,
+    ) -> impl Future<Output = anyhow::Result<crate::services::initialization_scope::ScopeCopies>> + Send;
+
     fn event_snapshot(
         &self,
         tenant_id: &str,
