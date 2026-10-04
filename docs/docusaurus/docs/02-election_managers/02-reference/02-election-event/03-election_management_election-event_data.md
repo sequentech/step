@@ -57,8 +57,10 @@ Manage language options for your Election Event, and how it writes numbers. The 
   - **Force Default**: The default language will be the one selected as **Default**.
 - **Number Format Policy**: How the event writes vote counts, totals and
   percentages. It applies to the results and dashboards in the Admin Portal,
-  to the Voting Portal, to the results website and to the generated result
-  reports, in PDF and HTML. Each option shows how it writes 1234567.89:
+  including the monitoring dashboards' charts, KPIs and data tables and the
+  ballot counts of closed voting seals, to the Voting Portal, to the results
+  website and to the generated result reports, in PDF and HTML. Each option
+  shows how it writes 1234567.89:
   - **1,234,567.89** (`comma-period`): comma thousands separator and period
     decimal separator. This is the default, and Election Events created
     before this setting existed use it.
