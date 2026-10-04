@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import React from "react"
 import {Box, Typography} from "@mui/material"
-import {useTranslation} from "react-i18next"
+import {useNumberFormat} from "@sequentech/ui-core"
 import {EColumnKind} from "./types"
 import {formatInteger, formatRatio} from "./lib/format"
 
@@ -14,13 +14,14 @@ export interface MonitoringKpiProps {
     kind: EColumnKind | string
 }
 
-/** One figure, large: a count grouped by the locale, a ratio as a percentage, "—" when undefined. */
+/**
+ * One figure, large, in the election event's number format: a count, a ratio
+ * as a percentage, "—" when undefined.
+ */
 export function MonitoringKpi({label, value, kind}: MonitoringKpiProps) {
-    const {i18n} = useTranslation()
+    const {policy} = useNumberFormat()
     const text =
-        kind === EColumnKind.NUMBER
-            ? formatRatio(value, i18n.language)
-            : formatInteger(value, i18n.language)
+        kind === EColumnKind.NUMBER ? formatRatio(value, policy) : formatInteger(value, policy)
     return (
         <Box sx={{minWidth: 120, px: 1}}>
             <Typography variant="h5" component="p" sx={{fontVariantNumeric: "tabular-nums"}}>

@@ -5,7 +5,9 @@
 import React from "react"
 import {fireEvent, render, screen, within} from "@testing-library/react"
 import "@testing-library/jest-dom"
+import {ENumberFormatPolicy, NumberFormatProvider} from "@sequentech/ui-core"
 import englishTranslation from "@/translations/en"
+import {MonitoringKpi} from "./MonitoringKpi"
 import {MonitoringDataTable, DATA_TABLE_PAGE_SIZE} from "./MonitoringDataTable"
 import {MonitoringDataTableDialog} from "./MonitoringDataTableDialog"
 import {EColumnKind, type MonitoringTable} from "./types"
@@ -122,6 +124,41 @@ describe("MonitoringDataTable at scale", () => {
     it("still says there are no rows", () => {
         render(<MonitoringDataTable table={bigTable(0)} caption="Empty · data" />)
         expect(screen.getByText("No rows")).toBeInTheDocument()
+    })
+})
+
+describe("monitoring figures in the election event's number format", () => {
+    it("writes a table's counts, ratios and pager in the event's number format", () => {
+        render(
+            <NumberFormatProvider policy={ENumberFormatPolicy.PERIOD_COMMA}>
+                <MonitoringDataTable table={bigTable(1_050)} caption="Big · data" />
+            </NumberFormatProvider>
+        )
+        fireEvent.click(screen.getByRole("button", {name: "Last page"}))
+        const cells = within(bodyRows()[49])
+            .getAllByRole("cell")
+            .map((cell) => cell.textContent)
+        expect(cells).toEqual(["row-1050", "3.147", "5.246", "59,9886%"])
+        expect(screen.getByText("1.001–1.050 of 1.050")).toBeInTheDocument()
+    })
+
+    it("writes a KPI in the event's number format", () => {
+        render(
+            <NumberFormatProvider policy={ENumberFormatPolicy.SPACE_COMMA}>
+                <MonitoringKpi label="Voted" value={8589934591} kind={EColumnKind.INTEGER} />
+                <MonitoringKpi label="Turnout" value={0.5323} kind={EColumnKind.NUMBER} />
+            </NumberFormatProvider>
+        )
+        // Exactly, no-break spaces included: the default matcher folds them.
+        expect(
+            screen.getByText("8\u00a0589\u00a0934\u00a0591", {normalizer: (text) => text})
+        ).toBeInTheDocument()
+        expect(screen.getByText("53,2%")).toBeInTheDocument()
+    })
+
+    it("writes a KPI with commas for an event without a number format", () => {
+        render(<MonitoringKpi label="Voted" value={874624} kind={EColumnKind.INTEGER} />)
+        expect(screen.getByText("874,624")).toBeInTheDocument()
     })
 })
 
