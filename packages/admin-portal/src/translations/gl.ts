@@ -472,6 +472,7 @@ const galegoTranslation: TranslationType = {
                 customUrls: "Prefixo de URLs Personalizados",
                 votingPeriod: "Período de Votación",
                 language: "Idioma",
+                languageAndRegion: "Idioma e rexión",
                 allowed: "Canles de Votación Permitidas",
                 materials: "Materiais de Soporte",
                 ballotDesign: "Deseño da Papeleta",
@@ -703,6 +704,10 @@ const galegoTranslation: TranslationType = {
                         "browser-detect": "Detectar desde o navegador",
                         "force-default": "Forzar predeterminado",
                     },
+                },
+                numberFormatPolicy: {
+                    policyLabel: "Política de formato de números",
+                    helperText: "Aplícase aos números dos resultados, os taboleiros e os informes.",
                 },
             },
             error: {

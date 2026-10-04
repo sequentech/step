@@ -17,7 +17,7 @@ module.exports = {
     testMatch: ["<rootDir>/src/**/*.test.{ts,tsx}"],
     moduleNameMapper: {
         "^@/(.*)$": "<rootDir>/src/$1",
-        "^@sequentech/ui-core$": "<rootDir>/../ui-core/src/types/VotingChannel.ts",
+        "^@sequentech/ui-core$": "<rootDir>/src/__mocks__/uiCoreTestEntry.ts",
     },
     transform: {
         "^.+\\.[jt]sx?$": [

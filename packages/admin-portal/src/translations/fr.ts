@@ -472,6 +472,7 @@ const frenchTranslation: TranslationType = {
                 customUrls: "Préfixer les URL personnalisées",
                 votingPeriod: "Période de vote",
                 language: "Langues",
+                languageAndRegion: "Langue et région",
                 allowed: "Canaux de Vote Permis",
                 materials: "Matériaux de Support",
                 ballotDesign: "Design du Bulletin",
@@ -704,6 +705,11 @@ const frenchTranslation: TranslationType = {
                         "browser-detect": "Détection par le navigateur",
                         "force-default": "Forcer par défaut",
                     },
+                },
+                numberFormatPolicy: {
+                    policyLabel: "Politique de format des nombres",
+                    helperText:
+                        "S'applique aux nombres des résultats, des tableaux de bord et des rapports.",
                 },
             },
             error: {

@@ -58,16 +58,21 @@ Manage language options for your Election Event, and how it writes numbers. The 
 - **Number Format Policy**: How the event writes vote counts, totals and
   percentages. It applies to the results and dashboards in the Admin Portal,
   to the Voting Portal, to the results website and to the generated result
-  reports, in PDF and HTML. Each option shows its own sample:
-  - **1,234,567.89** (`comma-period`): the default. Election events created
-    before this setting existed keep using it.
-  - **1.234.567,89** (`period-comma`)
-  - **1 234 567,89** (`space-comma`)
-  - **1 234 567.89** (`space-period`)
-  - **1’234’567.89** (`apostrophe-period`)
+  reports, in PDF and HTML. Each option shows how it writes 1234567.89:
+  - **1,234,567.89** (`comma-period`): comma thousands separator and period
+    decimal separator. This is the default, and Election Events created
+    before this setting existed use it.
+  - **1.234.567,89** (`period-comma`): period thousands separator and comma
+    decimal separator.
+  - **1 234 567,89** (`space-comma`): space thousands separator and comma
+    decimal separator.
+  - **1 234 567.89** (`space-period`): space thousands separator and period
+    decimal separator.
+  - **1’234’567.89** (`apostrophe-period`): apostrophe thousands separator and
+    period decimal separator.
 
-  The spaces are no-break spaces, so a number never wraps across two lines.
-  Files meant for other programs, such as CSV and JSON downloads, keep plain
+  The spaces are no-break spaces, so a number is never split across two lines.
+  Machine-readable files such as CSV, JSON and EML exports always use plain
   numbers. Report templates write figures with the `format_u64` and percentage
   helpers, which follow this setting. A custom template that prints a figure
   without them shows it unformatted.

@@ -473,6 +473,7 @@ const dutchTranslation: TranslationType = {
                 customUrls: "Aangepaste URL-prefix",
                 votingPeriod: "Stemperiode",
                 language: "Taal",
+                languageAndRegion: "Taal en regio",
                 allowed: "Toegestane stemkanalen",
                 materials: "Ondersteunend materiaal",
                 ballotDesign: "Ontwerp stembiljet",
@@ -704,6 +705,10 @@ const dutchTranslation: TranslationType = {
                         "browser-detect": "Detecteren via browser",
                         "force-default": "Standaard afdwingen",
                     },
+                },
+                numberFormatPolicy: {
+                    policyLabel: "Getalnotatiebeleid",
+                    helperText: "Geldt voor de getallen in resultaten, dashboards en rapporten.",
                 },
             },
             error: {

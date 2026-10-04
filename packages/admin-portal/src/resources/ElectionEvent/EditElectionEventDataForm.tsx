@@ -79,6 +79,7 @@ import {
     REALM_ATTR_VOTER_CERTIFICATE_POLICY,
     ESupportMaterialsPolicy,
     getEffectiveSupportMaterialsPolicy,
+    DEFAULT_NUMBER_FORMAT_POLICY,
 } from "@sequentech/ui-core"
 import {ListActions} from "@/components/ListActions"
 import {ImportDataDrawer} from "@/components/election-event/import-data/ImportDataDrawer"
@@ -121,6 +122,7 @@ import {
     PasswordPolicyAccordionHandle,
 } from "@/components/election-event/PasswordPolicyAccordion"
 import {SettingsLanguageSelector} from "../../components/SettingsLanguageSelector"
+import {getNumberFormatPolicyChoices} from "@/services/numberFormatPolicy"
 import {
     CONFIGURE_RESULTS_WEBSITE_POLICY,
     ConfigureResultsWebsitePolicyData,
@@ -1270,7 +1272,7 @@ export const EditElectionEventDataForm: React.FC<{
                     >
                         <ElectionHeaderStyles.Wrapper>
                             <ElectionHeaderStyles.Title>
-                                {t("electionEventScreen.edit.language")}
+                                {t("electionEventScreen.edit.languageAndRegion")}
                             </ElectionHeaderStyles.Title>
                         </ElectionHeaderStyles.Wrapper>
                     </AccordionSummary>
@@ -1290,6 +1292,23 @@ export const EditElectionEventDataForm: React.FC<{
                                             )
                                         )}
                                         defaultValue={getDefaultLanguageDetectionPolicy()}
+                                        emptyText={undefined}
+                                        validate={required()}
+                                    />
+                                    <SelectInput
+                                        source={"presentation.number_format_policy"}
+                                        choices={getNumberFormatPolicyChoices()}
+                                        label={String(
+                                            t(
+                                                "electionEventScreen.field.numberFormatPolicy.policyLabel"
+                                            )
+                                        )}
+                                        helperText={String(
+                                            t(
+                                                "electionEventScreen.field.numberFormatPolicy.helperText"
+                                            )
+                                        )}
+                                        defaultValue={DEFAULT_NUMBER_FORMAT_POLICY}
                                         emptyText={undefined}
                                         validate={required()}
                                     />
