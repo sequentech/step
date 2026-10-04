@@ -129,6 +129,7 @@ fn the_setting_and_the_published_key_leave_the_ballot_style_hash_unchanged() {
         Some(ElectionEventPresentation {
             receipts: Some(ReceiptsPresentation {
                 policy: Some(ReceiptsPolicy::SIGNED_BY_BALLOT_BOX),
+                ..Default::default()
             }),
             ..style
                 .election_event_presentation
@@ -163,6 +164,7 @@ fn the_published_key_and_the_setting_reach_the_voters_device() {
     style.election_event_presentation = Some(ElectionEventPresentation {
         receipts: Some(ReceiptsPresentation {
             policy: Some(ReceiptsPolicy::SIGNED_BY_BALLOT_BOX),
+            ..Default::default()
         }),
         ..Default::default()
     });

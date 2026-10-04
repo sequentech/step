@@ -1428,6 +1428,20 @@ actions:
               version: 2
       permissions:
           - role: admin-user
+    - name: locate_ballot
+      definition:
+          kind: ""
+          handler: http://{{HARVEST_DOMAIN}}/locate-ballot
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: user
+      comment: Look up one of the voter's own cast ballots while checks are open
     - name: logEvent
       definition:
           kind: ""
@@ -2491,6 +2505,7 @@ custom_types:
         - name: ElectoralLogRow
         - name: CastVoteEntry
         - name: ListCastVoteMessagesOutput
+        - name: LocateBallotOutput
         - name: DataListElectoralLog
         - name: ScheduledEventOutput2
         - name: ScheduledEventOutput3

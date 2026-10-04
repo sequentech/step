@@ -672,6 +672,14 @@ type Query {
 }
 
 type Query {
+    locate_ballot(
+        election_event_id: uuid!
+        election_id: uuid!
+        ballot_id: String!
+    ): LocateBallotOutput
+}
+
+type Query {
     logEvent(
         election_event_id: uuid!
         message_type: String!
@@ -1361,6 +1369,14 @@ type CastVoteEntry {
 type ListCastVoteMessagesOutput {
     list: [CastVoteEntry]!
     total: Int!
+}
+
+type LocateBallotOutput {
+    status: String!
+    ballot_id: String
+    content: String
+    cast_at: String
+    checks_available_until: String
 }
 
 type DataListElectoralLog {

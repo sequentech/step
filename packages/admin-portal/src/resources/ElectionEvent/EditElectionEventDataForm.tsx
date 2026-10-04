@@ -22,6 +22,7 @@ import {
     required,
     FormDataConsumer,
     useGetList,
+    DateTimeInput,
 } from "react-admin"
 import {
     Accordion,
@@ -59,6 +60,9 @@ import {
     EVoterSigningPolicy,
     EVoterCertificatePolicy,
     EShowCastVoteLogsPolicy,
+    EChecksPeriodPolicy,
+    IReceiptsPresentation,
+    isValidChecksAvailableUntil,
     EElectionEventDecodedBallots,
     EElectionEventCeremoniesPolicy,
     EElectionEventAutomaticRecountPolicy,
@@ -532,6 +536,7 @@ export const EditElectionEventDataForm: React.FC<{
             weighted_voting_policy?: EElectionEventWeightedVotingPolicy
             delegated_voting_policy?: EElectionEventDelegatedVotingPolicy
             decoded_ballot_inclusion_policy?: EElectionEventDecodedBallots
+            receipts?: IReceiptsPresentation
         }
     }): Record<string, unknown> => {
         const errors: Record<string, unknown> = {}
@@ -585,6 +590,18 @@ export const EditElectionEventDataForm: React.FC<{
         // other, so the weighted field reports every conflict it has.
         if (weightedPolicyMessages.length > 0) {
             presentationErrors.weighted_voting_policy = weightedPolicyMessages.join(" ")
+        }
+
+        const receipts = values?.presentation?.receipts
+        if (
+            receipts?.checks_period_policy === EChecksPeriodPolicy.UNTIL_DATE &&
+            !isValidChecksAvailableUntil(receipts.checks_available_until)
+        ) {
+            presentationErrors.receipts = {
+                checks_available_until: String(
+                    t("electionEventScreen.field.ballotReceipts.checksAvailableUntilRequired")
+                ),
+            }
         }
 
         if (Object.keys(presentationErrors).length > 0) {
@@ -708,6 +725,13 @@ export const EditElectionEventDataForm: React.FC<{
         return Object.values(EShowCastVoteLogsPolicy).map((value) => ({
             id: value,
             name: t(`electionEventScreen.field.showCastVoteLogs.options.${value.toLowerCase()}`),
+        }))
+    }
+
+    const checksPeriodChoices = (): Array<EnumChoice<EChecksPeriodPolicy>> => {
+        return Object.values(EChecksPeriodPolicy).map((value) => ({
+            id: value,
+            name: t(`electionEventScreen.field.ballotReceipts.checksPeriod.options.${value}`),
         }))
     }
 
@@ -1678,6 +1702,48 @@ export const EditElectionEventDataForm: React.FC<{
                     </AccordionSummary>
                     <AccordionDetails>
                         <BallotReceiptsInput canEdit={canEdit} status={record?.status} />
+                        <SelectInput
+                            disabled={!canEdit}
+                            source="presentation.receipts.checks_period_policy"
+                            choices={checksPeriodChoices()}
+                            validate={required()}
+                            defaultValue={EChecksPeriodPolicy.UNLIMITED}
+                            label={String(
+                                t(
+                                    "electionEventScreen.field.ballotReceipts.checksPeriod.policyLabel"
+                                )
+                            )}
+                            helperText={String(
+                                t("electionEventScreen.field.ballotReceipts.checksPeriod.helper")
+                            )}
+                        />
+                        <FormDataConsumer>
+                            {({formData}) =>
+                                (formData?.presentation as IElectionEventPresentation | undefined)
+                                    ?.receipts?.checks_period_policy ===
+                                EChecksPeriodPolicy.UNTIL_DATE ? (
+                                    <DateTimeInput
+                                        disabled={!canEdit}
+                                        source="presentation.receipts.checks_available_until"
+                                        parse={(value: string) =>
+                                            value && !Number.isNaN(new Date(value).getTime())
+                                                ? new Date(value).toISOString()
+                                                : null
+                                        }
+                                        label={String(
+                                            t(
+                                                "electionEventScreen.field.ballotReceipts.checksAvailableUntil",
+                                                {
+                                                    timezone:
+                                                        Intl.DateTimeFormat().resolvedOptions()
+                                                            .timeZone,
+                                                }
+                                            )
+                                        )}
+                                    />
+                                ) : null
+                            }
+                        </FormDataConsumer>
                     </AccordionDetails>
                 </Accordion>
 

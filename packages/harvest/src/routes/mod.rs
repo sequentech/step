@@ -4,6 +4,7 @@
 pub mod api_datafix;
 pub mod applications;
 pub mod areas;
+pub mod ballot_checks;
 pub mod ballot_publication;
 pub mod ballot_publication_prepare_preview;
 pub mod cast_ballot;

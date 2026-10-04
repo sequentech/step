@@ -585,6 +585,19 @@ const galegoTranslation: TranslationType = {
                 css: "CSS Personalizado",
                 skipElectionList: "Omitir Pantalla de Lista de Eleccións",
                 showUserProfile: "Mostrar Perfil do Usuario",
+                ballotReceipts: {
+                    checksPeriod: {
+                        policyLabel: "Período de comprobación dos votos emitidos",
+                        helper: "Durante canto tempo os votantes poden localizar o seu voto emitido e imprimir o seu recibo no Portal de Votación.",
+                        options: {
+                            "unlimited": "Sen límite",
+                            "until-date": "Ata unha data",
+                        },
+                    },
+                    checksAvailableUntil: "Comprobacións dispoñibles ata ({{timezone}})",
+                    checksAvailableUntilRequired:
+                        "Introduce a data e a hora ata a que se poden comprobar os votos.",
+                },
                 showCastVoteLogs: {
                     policyLabel: "Mostrar Tab de Logs de Votación",
                     options: {

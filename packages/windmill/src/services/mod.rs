@@ -4,6 +4,7 @@
 
 pub mod application;
 pub mod ballot_box_key;
+pub mod ballot_checks;
 pub mod ballot_styles;
 pub mod cast_ballot;
 pub mod cast_votes;

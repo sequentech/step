@@ -585,6 +585,19 @@ const frenchTranslation: TranslationType = {
                 css: "CSS personnalisé",
                 skipElectionList: "Passer l'écran pour choisir l'élection",
                 showUserProfile: "Afficher le profil utilisateur",
+                ballotReceipts: {
+                    checksPeriod: {
+                        policyLabel: "Période de vérification des bulletins déposés",
+                        helper: "Durée pendant laquelle les électeurs peuvent retrouver leur bulletin déposé et imprimer son reçu dans le Portail de vote.",
+                        options: {
+                            "unlimited": "Sans limite",
+                            "until-date": "Jusqu'à une date",
+                        },
+                    },
+                    checksAvailableUntil: "Vérifications disponibles jusqu'au ({{timezone}})",
+                    checksAvailableUntilRequired:
+                        "Saisissez la date et l'heure jusqu'auxquelles les bulletins peuvent être vérifiés.",
+                },
                 showCastVoteLogs: {
                     policyLabel: "Afficher les logs de vote",
                     options: {

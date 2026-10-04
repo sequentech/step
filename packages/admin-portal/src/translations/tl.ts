@@ -587,6 +587,19 @@ const tagalogTranslation: TranslationType = {
                 css: "Custom CSS",
                 skipElectionList: "Laktawan ang Screen ng Listahan ng Halalan",
                 showUserProfile: "Ipakita ang Profile ng Gumagamit",
+                ballotReceipts: {
+                    checksPeriod: {
+                        policyLabel: "Panahon ng pagsusuri ng mga naihulog na balota",
+                        helper: "Kung gaano katagal mahahanap ng mga botante ang kanilang naihulog na balota at mai-print ang resibo nito sa Voting Portal.",
+                        options: {
+                            "unlimited": "Walang limitasyon",
+                            "until-date": "Hanggang sa isang petsa",
+                        },
+                    },
+                    checksAvailableUntil: "Available ang mga pagsusuri hanggang ({{timezone}})",
+                    checksAvailableUntilRequired:
+                        "Ilagay ang petsa at oras kung hanggang kailan masusuri ang mga balota.",
+                },
                 showCastVoteLogs: {
                     policyLabel: "Patakaran sa Ipakita ng mga Log ng Pagboto",
                     options: {

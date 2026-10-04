@@ -586,6 +586,19 @@ const catalanTranslation: TranslationType = {
                 css: "CSS personalitzat",
                 skipElectionList: "Saltar pantalla per escollir elecció",
                 showUserProfile: "Mostra el perfil de l'usuari",
+                ballotReceipts: {
+                    checksPeriod: {
+                        policyLabel: "Període de comprovació dels vots emesos",
+                        helper: "Durant quant de temps els votants poden localitzar el seu vot emès i imprimir-ne el rebut al Portal de Votació.",
+                        options: {
+                            "unlimited": "Sense límit",
+                            "until-date": "Fins a una data",
+                        },
+                    },
+                    checksAvailableUntil: "Comprovacions disponibles fins a ({{timezone}})",
+                    checksAvailableUntilRequired:
+                        "Introdueix la data i l'hora fins a la qual es poden comprovar els vots.",
+                },
                 showCastVoteLogs: {
                     policyLabel: "Mostra els registres de votació",
                     options: {

@@ -38,13 +38,20 @@ export enum EReceiptsPolicy {
     SIGNED_BY_BALLOT_BOX = "signed-by-ballot-box",
 }
 
-export interface IReceiptsPresentation {
-    policy?: EReceiptsPolicy
-}
-
 export enum EShowCastVoteLogsPolicy {
     SHOW_LOGS_TAB = "show-logs-tab",
     HIDE_LOGS_TAB = "hide-logs-tab",
+}
+
+export enum EChecksPeriodPolicy {
+    UNLIMITED = "unlimited",
+    UNTIL_DATE = "until-date",
+}
+
+export interface IReceiptsPresentation {
+    policy?: EReceiptsPolicy
+    checks_period_policy?: EChecksPeriodPolicy
+    checks_available_until?: string
 }
 
 export enum ElectionsOrder {
@@ -221,6 +228,7 @@ export interface IElectionEventPresentation {
     css?: string
     skip_election_list?: boolean
     show_user_profile?: boolean
+    show_cast_vote_logs?: EShowCastVoteLogsPolicy
     elections_order?: ElectionsOrder
     voting_portal_countdown_policy?: IVotingPortalCountdownPolicy
     custom_urls?: ICustomUrls

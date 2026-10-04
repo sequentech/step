@@ -579,6 +579,19 @@ const englishTranslation = {
                 css: "Custom CSS",
                 skipElectionList: "Skip Election List Screen",
                 showUserProfile: "Show User Profile",
+                ballotReceipts: {
+                    checksPeriod: {
+                        policyLabel: "Period for checking cast ballots",
+                        helper: "How long voters can look up their cast ballot and print its receipt in the Voting Portal.",
+                        options: {
+                            "unlimited": "No limit",
+                            "until-date": "Until a date",
+                        },
+                    },
+                    checksAvailableUntil: "Checks available until ({{timezone}})",
+                    checksAvailableUntilRequired:
+                        "Enter the date and time until which ballots can be checked.",
+                },
                 showCastVoteLogs: {
                     policyLabel: "Show Cast Vote Logs Tab",
                     options: {

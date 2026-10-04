@@ -585,6 +585,19 @@ const spanishTranslation: TranslationType = {
                 css: "CSS personalizado",
                 skipElectionList: "Saltar pantalla para escoger elección",
                 showUserProfile: "Mostrar perfil de usuario",
+                ballotReceipts: {
+                    checksPeriod: {
+                        policyLabel: "Periodo de comprobación de los votos emitidos",
+                        helper: "Durante cuánto tiempo los votantes pueden localizar su voto emitido e imprimir su recibo en el Portal de Votación.",
+                        options: {
+                            "unlimited": "Sin límite",
+                            "until-date": "Hasta una fecha",
+                        },
+                    },
+                    checksAvailableUntil: "Comprobaciones disponibles hasta ({{timezone}})",
+                    checksAvailableUntilRequired:
+                        "Introduce la fecha y hora hasta la que se pueden comprobar los votos.",
+                },
                 showCastVoteLogs: {
                     policyLabel: "Mostrar logs de votación",
                     options: {
