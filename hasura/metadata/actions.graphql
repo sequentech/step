@@ -2699,7 +2699,9 @@ type ExportScheduleOutput {
 }
 
 type Query {
-    get_scheduled_outcomes(election_event_id: uuid!): GetScheduledOutcomesOutput!
+    get_scheduled_outcomes(
+        election_event_id: uuid!
+    ): GetScheduledOutcomesOutput!
 }
 
 type GetScheduledOutcomesOutput {
@@ -2735,7 +2737,9 @@ type SaveLifecyclePoliciesOutput {
 }
 
 type Query {
-    get_lifecycle_snapshots(election_event_id: uuid!): GetLifecycleSnapshotsOutput!
+    get_lifecycle_snapshots(
+        election_event_id: uuid!
+    ): GetLifecycleSnapshotsOutput!
 }
 
 type GetLifecycleSnapshotsOutput {
