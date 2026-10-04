@@ -41,7 +41,7 @@ interface ResultsSummaryProps {
 const percent = (value: unknown, policy: ENumberFormatPolicy): string =>
     isNumber(value) ? formatPercentOne(value, policy) : "-"
 const valueOrDash = (value: unknown, policy: ENumberFormatPolicy): string =>
-    typeof value === "string" || typeof value === "number" ? formatNumber(value, policy) : "-"
+    finiteNumber(value) === null ? "-" : formatNumber(value as string | number, policy)
 const stringOrUndefined = (value: unknown): string | undefined =>
     typeof value === "string" && value.length > 0 ? value : undefined
 const sameId = (left: unknown, right: unknown): boolean =>
