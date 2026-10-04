@@ -451,6 +451,22 @@ const englishTranslation = {
                 offices_one: "{{count}} office",
                 offices_other: "{{count}} offices",
             },
+            candidateList: {
+                show: "Show candidates",
+                hide: "Hide candidates",
+            },
+            tabs: {
+                label: "Ways to fill in your ballot",
+                slates: "Choose a slate",
+                candidates: "Individual candidates",
+            },
+            selection: {
+                all: "All {{total}} selected",
+                mixed: "Mixed · {{selected}} of {{total}} selected",
+                partly: "Partly selected · {{selected}} of {{total}}",
+                selected: "Selected",
+                edit: "Edit selections",
+            },
             apply: {
                 button: "Choose this slate",
                 buttonLabel: "Choose slate {{slate}}",

@@ -460,6 +460,22 @@ const dutchTranslation: TranslationType = {
                 offices_one: "{{count}} functie",
                 offices_other: "{{count}} functies",
             },
+            candidateList: {
+                show: "Kandidaten tonen",
+                hide: "Kandidaten verbergen",
+            },
+            tabs: {
+                label: "Manieren om uw stembiljet in te vullen",
+                slates: "Kies een lijst",
+                candidates: "Individuele kandidaten",
+            },
+            selection: {
+                all: "Alle {{total}} geselecteerd",
+                mixed: "Gemengd · {{selected}} van {{total}} geselecteerd",
+                partly: "Gedeeltelijk geselecteerd · {{selected}} van {{total}}",
+                selected: "Geselecteerd",
+                edit: "Selectie bewerken",
+            },
             apply: {
                 button: "Deze lijst kiezen",
                 buttonLabel: "Lijst {{slate}} kiezen",

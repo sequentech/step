@@ -459,6 +459,22 @@ const tagalogTranslation: TranslationType = {
                 offices_one: "{{count}} posisyon",
                 offices_other: "{{count}} posisyon",
             },
+            candidateList: {
+                show: "Ipakita ang mga kandidato",
+                hide: "Itago ang mga kandidato",
+            },
+            tabs: {
+                label: "Mga paraan ng pagsagot sa iyong balota",
+                slates: "Pumili ng slate",
+                candidates: "Mga indibidwal na kandidato",
+            },
+            selection: {
+                all: "Napili ang lahat ng {{total}}",
+                mixed: "Halo · {{selected}} sa {{total}} ang napili",
+                partly: "Bahagyang napili · {{selected}} sa {{total}}",
+                selected: "Napili",
+                edit: "Baguhin ang mga pinili",
+            },
             apply: {
                 button: "Piliin ang slate na ito",
                 buttonLabel: "Piliin ang slate na {{slate}}",

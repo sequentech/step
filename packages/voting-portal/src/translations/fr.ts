@@ -458,6 +458,22 @@ const frenchTranslation: TranslationType = {
                 offices_one: "{{count}} poste",
                 offices_other: "{{count}} postes",
             },
+            candidateList: {
+                show: "Afficher les candidatures",
+                hide: "Masquer les candidatures",
+            },
+            tabs: {
+                label: "Façons de remplir votre bulletin",
+                slates: "Choisir une liste",
+                candidates: "Candidatures individuelles",
+            },
+            selection: {
+                all: "Les {{total}} sélectionnées",
+                mixed: "Mixte · {{selected}} sur {{total}} sélectionnées",
+                partly: "Sélection partielle · {{selected}} sur {{total}}",
+                selected: "Sélectionnée",
+                edit: "Modifier la sélection",
+            },
             apply: {
                 button: "Choisir cette liste",
                 buttonLabel: "Choisir la liste {{slate}}",

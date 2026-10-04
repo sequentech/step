@@ -462,6 +462,22 @@ const spanishTranslation: TranslationType = {
                 offices_one: "{{count}} cargo",
                 offices_other: "{{count}} cargos",
             },
+            candidateList: {
+                show: "Mostrar candidaturas",
+                hide: "Ocultar candidaturas",
+            },
+            tabs: {
+                label: "Formas de rellenar su papeleta",
+                slates: "Elegir una lista",
+                candidates: "Candidaturas individuales",
+            },
+            selection: {
+                all: "Las {{total}} seleccionadas",
+                mixed: "Mixta · {{selected}} de {{total}} seleccionadas",
+                partly: "Seleccionada en parte · {{selected}} de {{total}}",
+                selected: "Seleccionada",
+                edit: "Editar la selección",
+            },
             apply: {
                 button: "Elegir esta candidatura",
                 buttonLabel: "Elegir la candidatura {{slate}}",

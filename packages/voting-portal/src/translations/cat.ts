@@ -463,6 +463,22 @@ const catalanTranslation: TranslationType = {
                 offices_one: "{{count}} càrrec",
                 offices_other: "{{count}} càrrecs",
             },
+            candidateList: {
+                show: "Mostra les candidatures",
+                hide: "Amaga les candidatures",
+            },
+            tabs: {
+                label: "Maneres d'omplir la papereta",
+                slates: "Triar una llista",
+                candidates: "Candidatures individuals",
+            },
+            selection: {
+                all: "Les {{total}} seleccionades",
+                mixed: "Mixta · {{selected}} de {{total}} seleccionades",
+                partly: "Seleccionada en part · {{selected}} de {{total}}",
+                selected: "Seleccionada",
+                edit: "Editar la selecció",
+            },
             apply: {
                 button: "Tria aquesta candidatura",
                 buttonLabel: "Tria la candidatura {{slate}}",

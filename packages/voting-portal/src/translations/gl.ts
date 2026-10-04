@@ -460,6 +460,22 @@ const galegoTranslation: TranslationType = {
                 offices_one: "{{count}} cargo",
                 offices_other: "{{count}} cargos",
             },
+            candidateList: {
+                show: "Amosar candidaturas",
+                hide: "Agochar candidaturas",
+            },
+            tabs: {
+                label: "Formas de cubrir a súa papeleta",
+                slates: "Elixir unha lista",
+                candidates: "Candidaturas individuais",
+            },
+            selection: {
+                all: "As {{total}} seleccionadas",
+                mixed: "Mixta · {{selected}} de {{total}} seleccionadas",
+                partly: "Seleccionada en parte · {{selected}} de {{total}}",
+                selected: "Seleccionada",
+                edit: "Editar a selección",
+            },
             apply: {
                 button: "Elixir esta candidatura",
                 buttonLabel: "Elixir a candidatura {{slate}}",
