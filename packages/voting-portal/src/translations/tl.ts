@@ -468,6 +468,16 @@ const tagalogTranslation: TranslationType = {
                 slates: "Pumili ng slate",
                 candidates: "Mga indibidwal na kandidato",
             },
+            review: {
+                title: "Ang iyong mga pinili",
+                total: "Mga kandidatong napili: {{selected}} sa {{seats}}",
+                slate: "{{slate}}: {{status}}",
+                independent: "Mga independiyenteng kandidatong napili: {{count}}",
+                note: "Itinatala ang iyong boto para sa bawat napiling kandidato. Ang slate ay hindi hiwalay na boto.",
+                contestCount: "{{selected}} sa {{max}} ang napili",
+                edit: "Baguhin",
+                editLabel: "Baguhin ang {{contest}}",
+            },
             selection: {
                 all: "Napili ang lahat ng {{total}}",
                 mixed: "Halo · {{selected}} sa {{total}} ang napili",

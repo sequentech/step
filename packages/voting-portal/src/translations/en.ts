@@ -460,6 +460,16 @@ const englishTranslation = {
                 slates: "Choose a slate",
                 candidates: "Individual candidates",
             },
+            review: {
+                title: "Your selections",
+                total: "Candidates selected: {{selected}} of {{seats}}",
+                slate: "{{slate}}: {{status}}",
+                independent: "Independent candidates selected: {{count}}",
+                note: "Your vote is recorded for each selected candidate. A slate is not a vote of its own.",
+                contestCount: "{{selected}} of {{max}} selected",
+                edit: "Edit",
+                editLabel: "Edit {{contest}}",
+            },
             selection: {
                 all: "All {{total}} selected",
                 mixed: "Mixed · {{selected}} of {{total}} selected",

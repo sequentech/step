@@ -469,6 +469,16 @@ const galegoTranslation: TranslationType = {
                 slates: "Elixir unha lista",
                 candidates: "Candidaturas individuais",
             },
+            review: {
+                title: "As túas seleccións",
+                total: "Candidaturas seleccionadas: {{selected}} de {{seats}}",
+                slate: "{{slate}}: {{status}}",
+                independent: "Candidaturas independentes seleccionadas: {{count}}",
+                note: "O teu voto rexístrase para cada candidatura seleccionada. Unha lista non é un voto por si mesma.",
+                contestCount: "{{selected}} de {{max}} seleccionadas",
+                edit: "Editar",
+                editLabel: "Editar {{contest}}",
+            },
             selection: {
                 all: "As {{total}} seleccionadas",
                 mixed: "Mixta · {{selected}} de {{total}} seleccionadas",

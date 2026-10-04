@@ -471,6 +471,16 @@ const spanishTranslation: TranslationType = {
                 slates: "Elegir una lista",
                 candidates: "Candidaturas individuales",
             },
+            review: {
+                title: "Tus selecciones",
+                total: "Candidaturas seleccionadas: {{selected}} de {{seats}}",
+                slate: "{{slate}}: {{status}}",
+                independent: "Candidaturas independientes seleccionadas: {{count}}",
+                note: "Tu voto se registra para cada candidatura seleccionada. Una lista no es un voto por sí misma.",
+                contestCount: "{{selected}} de {{max}} seleccionadas",
+                edit: "Editar",
+                editLabel: "Editar {{contest}}",
+            },
             selection: {
                 all: "Las {{total}} seleccionadas",
                 mixed: "Mixta · {{selected}} de {{total}} seleccionadas",
