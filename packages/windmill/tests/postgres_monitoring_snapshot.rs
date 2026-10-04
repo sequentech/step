@@ -68,6 +68,14 @@ async fn seed(client: &mut Client) -> Event {
     )
     .await
     .unwrap();
+    // Seed the already opened and closed Posts in the setup transaction.
+    // Counting and refreshes use their ordinary, separate transactions.
+    tx.execute(
+        "SELECT set_config('sequent.trusted_write', 'on', true)",
+        &[],
+    )
+    .await
+    .unwrap();
     let mut ids = Vec::new();
     for (name, region, status) in [("Madrid", "Europe", "OPEN"), ("Tokyo", "Asia", "CLOSED")] {
         let id = Uuid::new_v4();
