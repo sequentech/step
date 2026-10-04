@@ -838,6 +838,8 @@ fn event_data(scope: Scope) -> ElectionEvent {
 async fn insert_election_event_writes_every_column() {
     let mut client = connect().await;
     let tx = client.transaction().await.unwrap();
+    // Import and report generation authorize protected state before these adapters write it.
+    trusted_write(&tx).await.unwrap();
     let f = Fixture::new(&tx, line!());
     let audited = f.scope().await;
     let scope = Scope {
@@ -887,6 +889,7 @@ async fn insert_election_event_writes_every_column() {
 async fn insert_election_event_silently_drops_an_invalid_audit_event_id() {
     let mut client = connect().await;
     let tx = client.transaction().await.unwrap();
+    trusted_write(&tx).await.unwrap();
     let f = Fixture::new(&tx, line!());
     let tenant = f.tenant().await;
     let scope = Scope {
@@ -933,6 +936,7 @@ async fn insert_election_event_rejects_invalid_policy_json_before_writing() {
 async fn get_election_event_by_id_maps_every_column() {
     let mut client = connect().await;
     let tx = client.transaction().await.unwrap();
+    trusted_write(&tx).await.unwrap();
     let f = Fixture::new(&tx, line!());
     let audited = f.scope().await;
     let scope = Scope {
@@ -1659,6 +1663,7 @@ async fn get_election_max_revotes_defaults_to_one_for_an_unset_limit_or_a_missin
 async fn get_election_by_id_maps_every_column() {
     let mut client = connect().await;
     let tx = client.transaction().await.unwrap();
+    trusted_write(&tx).await.unwrap();
     let f = Fixture::new(&tx, line!());
     let a = f.scope().await;
     let (id, ceremony) = (f.id(), f.id());
@@ -1921,6 +1926,7 @@ async fn create_election_writes_the_default_status_and_voting_channels() {
 async fn insert_elections_copies_every_column_of_the_imported_elections() {
     let mut client = connect().await;
     let tx = client.transaction().await.unwrap();
+    trusted_write(&tx).await.unwrap();
     let f = Fixture::new(&tx, line!());
     let a = f.scope().await;
     let (first, second, ceremony) = (f.id(), f.id(), f.id());
@@ -2076,6 +2082,7 @@ async fn set_election_keys_ceremony_fails_when_no_election_matches() {
 async fn set_election_initialization_report_generated_flags_one_election() {
     let mut client = connect().await;
     let tx = client.transaction().await.unwrap();
+    trusted_write(&tx).await.unwrap();
     let f = Fixture::new(&tx, line!());
     let a = f.scope().await;
     let (target, neighbour) = (f.election(a).await, f.election(a).await);
