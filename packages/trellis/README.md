@@ -11,9 +11,9 @@ Trellis provides **tamper-evident append-only logs** for PostgreSQL tables using
 - **Consistency proofs** - verify the log only appended (no deletions/modifications)
 
 **Security properties** (see [RFC 6962](https://datatracker.ietf.org/doc/html/rfc6962)):
-- ✅ Tamper detection - any modification invalidates cryptographic proofs
-- ✅ Append-only guarantee - consistency proofs catch deletions or reordering
-- ✅ Independent verifiability - clients verify proofs without trusting the operator
+- ✅ Membership verification against an independently trusted log root and size
+- ✅ Append-only verification - consistency proofs authenticate extension of a saved checkpoint
+- ✅ Independent verifiability - clients verify proofs against their own trusted checkpoints
 - ✅ Efficient auditing - verify without downloading entire log
 
 **Out of scope**:
@@ -31,6 +31,8 @@ Trellis provides **tamper-evident append-only logs** for PostgreSQL tables using
   DATABASE_URL=postgres://user:password@localhost/dbname
   # The following are optional, with given default values
   TRELLIS_SERVER_ADDR=127.0.0.1:3000
+  # Optional: admin controls are disabled unless a separate loopback listener is configured
+  # TRELLIS_ADMIN_ADDR=127.0.0.1:3001
   TRELLIS_BATCH_INTERVAL_SECS=1
   TRELLIS_BATCH_SIZE=30000
   TRELLIS_SERVER_URL=http://localhost:3000
@@ -50,7 +52,7 @@ The following tables are created:
 
     A collection of one or more verification_sources. Proofs of inclusion and consistency are computed over a verifiable log as a unit, combining its sources.
     
-    **Log name restrictions**: Log names must match `[a-z0-9_]+` (lowercase letters, digits, underscores) and cannot start with a digit. This ensures safe use as PostgreSQL table name suffixes.
+    **Log name restrictions**: Log names must match `[a-z0-9_]+` (lowercase letters, digits, underscores) and cannot start with a digit. Names are limited to 52 ASCII bytes so `merkle_log_` plus the name fits PostgreSQL’s 63-byte identifier limit. Existing longer names must be reconciled and renamed by an operator before enabling them; silently truncating them could merge unrelated logs.
 
 * `verification_sources`
 
@@ -74,14 +76,15 @@ This binary runs
 
 ```bash
 # Simulate a post and compute an inclusion proof
-cargo run --example post
+MONITOR_CHECKPOINT_FILE=/path/to/example_post_log.checkpoint.json \
+  cargo run --features upstream-service --example post
 ```
 
 This [example](examples/post.rs)
 1. Simulates a post to a verification source
 2. Waits for the new entry to be aggregated into the log
 3. Requests a proof of inclusion for the entry
-4. Verifies the returned proof
+4. Waits for the independently maintained checkpoint file to cover the proof root and size, then verifies membership against that checkpoint
    
 In order to work as a self-contained example, it also creates a sample `verification_source` and `verification_log`. To detect when the new entry is aggregated, `post` uses the `has_leaf` HTTP [endpoint](#api-reference).
 
@@ -89,7 +92,7 @@ In order to work as a self-contained example, it also creates a sample `verifica
 
 ```bash
 # Run a log monitor
-cargo run --example monitor -- example_post_log
+cargo run --features upstream-service --example monitor -- example_post_log
 ```
 
 This [example](examples/monitor.rs)
@@ -112,6 +115,20 @@ run the `post` example from a new window and observe the output of the `monitor`
 💤 [Check #80] No changes (size: 4)
 ```
 To detect when the the log root has changed, `monitor` uses the `get_log_size` and `get_root` HTTP [endpoints](#api-reference).
+
+The monitor atomically saves its last verified root and size in
+`<log_name>.checkpoint.json` (override with `MONITOR_CHECKPOINT_FILE`). Keep this file
+on durable storage and run only one writer for each file. Restart loads it before
+contacting the service. Corrupt files or service/log identity mismatches stop the
+monitor instead of silently resetting trust. Failed verification preserves the
+checkpoint and sets a persistent alert, including for rollbacks to zero and
+same-size root changes. Investigate the failure before manually clearing
+`verification_failed` in the saved file; subsequent successes do not clear it.
+
+A missing checkpoint bootstraps with **trust on first use**. To authenticate an
+election's history, seed or independently witness a checkpoint through your trusted
+audit process. Persistence alone does not make the first response trustworthy, and
+neither persistence nor these proofs supplies gossip or split-view protection.
 
 ### Metrics and the dashboard
 
@@ -137,13 +154,13 @@ load_test_2              1032        7        5        4        3.9        0    
 
 ```bash
 # Pause the Batch Processor
-curl -X POST localhost:3000/admin/pause
+curl -X POST localhost:3001/admin/pause
 {"status":"ok","message":"Batch processor paused","state":"paused"}
 ```
 
 ```bash
 # Resume the Batch Processor
-curl -X POST localhost:3000/admin/resume
+curl -X POST localhost:3001/admin/resume
 {"status":"ok","message":"Batch processor resumed","state":"running"}
 ```
 
@@ -151,7 +168,7 @@ curl -X POST localhost:3000/admin/resume
 
 ```bash
 # Stop the server
-curl -X POST localhost:3000/admin/stop
+curl -X POST localhost:3001/admin/stop
 {"status":"ok","message":"Batch processor stopping (will shut down entire application)","state":"stopping"}
 ```
 ## How to..
@@ -222,9 +239,20 @@ let hash = b"my hash";
 // Get inclusion proof
 let proof = client.get_inclusion_proof("my_log", hash).await?;
 
-proof.verify(&hash)?;
+// Load a checkpoint supplied by your independent monitor/auditor, not the proof server.
+let checkpoint = trellis::service::checkpoint::Checkpoint::load(
+    std::path::Path::new("my_log.checkpoint.json"),
+    "http://localhost:3000",
+    "my_log",
+)?.ok_or_else(|| anyhow::anyhow!("Trusted checkpoint required"))?;
+anyhow::ensure!(!checkpoint.verification_failed, "Unresolved monitor failure");
+client.verify_inclusion_proof_against(hash, &proof, &checkpoint.state)?;
 ```
-A complete example can be seen in [examples/post.rs](examples/post.rs).
+A complete example can be seen in [examples/post.rs](examples/post.rs). The root and
+size must match the independently trusted checkpoint; a changing log may require a
+fresh proof after the monitor catches up. `proof.verify(hash)` is only the low-level
+check for membership in the responder-selected root and does not authenticate the
+log. A fabricated singleton can pass that low-level check.
 
 ### Verify Log Consistency
 
@@ -305,12 +333,34 @@ The **id column** _must_ be unique across all entries in a source table. It must
 constraint on it - either a `PRIMARY KEY` or `UNIQUE` constraint. It is _not_ sufficient that 
 this id is _part_ of a composite unique constraint.
 
-**Why uniqueness matters**: The batch processor queries source tables by id ranges (e.g., `WHERE id > last_processed_id`). 
-If ids are not unique, entries with duplicate ids could be skipped - if a row with id=5 is processed, 
-any other rows with id=5 inserted later will never be picked up by subsequent batches.
+**Why uniqueness matters**: `(source_table, source_id)` identifies a durable copied
+receipt. Each poll selects visible rows that have no receipt, including IDs below
+previously copied IDs. A transaction that allocates ID 1 before ID 2 but commits
+after ID 2 is therefore picked up on a later poll and appended to the log.
 
-The validation tool (`cargo run --bin main -- --verify-db`) will check for the required 
-uniqueness constraint.
+Supported ID types are `smallint`, `integer`, and `bigint`. `numeric` is rejected
+because fractional or out-of-range values cannot be represented faithfully as the
+persisted `bigint` identity. Source IDs must remain stable and must not be reused.
+Configured tables are in `public`; table and column settings are quoted identifiers,
+never SQL expressions. Invalid columns/types/constraints fail ingestion.
+
+Reconciliation avoids assuming sequence order equals commit order, but it can scan
+already copied source rows on each poll. The durable receipt has a unique index on
+`(source_table, source_id)`; batch size bounds inserts per source and in-memory catch-up, not the
+amount of source data scanned. For high-volume ingestion, use a transactional outbox
+or Step's transactional `journal` adapter instead of high-frequency full reconciliation.
+
+Persisted leaves are fetched on every successful poll, even when no new source rows
+were copied. Replicas, a re-enabled log, and a failed fetch can thus catch up in bounded
+batches without waiting for another source insert.
+
+### Integration responsibilities
+
+The polling service copies supplied hashes. It does not recompute hashes from source
+payloads or detect later source edits/deletions. Integrations must define canonical
+payload hashing, enforce source immutability, and audit coverage against expected
+records. A valid membership proof alone does not establish that every electoral record
+was captured. Preserve the per-log tables as the authoritative committed order.
 
 ### Tiered ordering
 
@@ -432,6 +482,12 @@ Check if a root exists in history.
 ```
 
 ### Admin
+
+Administrative endpoints are absent from the public proof router. To enable them,
+set `TRELLIS_ADMIN_ADDR=127.0.0.1:3001`; non-loopback addresses are rejected. They are
+unauthenticated local controls: do not proxy or publish this listener to external
+clients. Library embedders using `create_admin_server` must provide their own access
+boundary. All `/admin/*` examples use this separate listener.
 
 #### `POST /admin/pause`
 Pause batch processing (HTTP server continues).

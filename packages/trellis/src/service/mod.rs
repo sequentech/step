@@ -1,3 +1,6 @@
+/// Durable service and log checkpoints for independent monitoring.
+pub mod checkpoint;
+
 /// HTTP client for interacting with the merkle log service
 pub mod client;
 

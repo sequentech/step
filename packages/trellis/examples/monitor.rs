@@ -19,7 +19,8 @@
 
 use anyhow::Result;
 use base64::Engine;
-use std::time::Duration;
+use std::{path::PathBuf, time::Duration};
+use trellis::service::checkpoint::Checkpoint;
 use trellis::{
     service::{Client, client::RootInfo},
     tree::CtMerkleTree,
@@ -61,21 +62,34 @@ async fn main() -> Result<()> {
     // Create client
     let client = Client::new(&server_url)?;
 
-    // Get initial state
-    println!("🔍 Fetching initial state...");
-    let mut state = match fetch_log_state(&client, log_name).await {
-        Ok(s) => {
-            println!("✅ Initial state:");
-            print_state(&s);
-            println!();
-            s
+    trellis::service::validate_log_name(log_name)?;
+    let checkpoint_path = std::env::var_os("MONITOR_CHECKPOINT_FILE")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from(format!("{log_name}.checkpoint.json")));
+    let mut checkpoint = match Checkpoint::load(&checkpoint_path, &server_url, log_name)? {
+        Some(saved) => {
+            println!(
+                "Restored trusted checkpoint from {}",
+                checkpoint_path.display()
+            );
+            saved
         }
-        Err(e) => {
-            eprintln!("❌ Failed to fetch initial state: {e}");
-            eprintln!("   Make sure the log exists and the server is running.");
-            std::process::exit(1);
+        None => {
+            println!(
+                "Bootstrapping from the service (trust on first use). Independently witness this checkpoint."
+            );
+            let initial = Checkpoint {
+                server_url: server_url.clone(),
+                log_name: log_name.clone(),
+                state: fetch_log_state(&client, log_name).await?,
+                verification_failed: false,
+            };
+            initial.save(&checkpoint_path)?;
+            initial
         }
     };
+    let mut state = checkpoint.state.clone();
+    print_state(&state);
 
     println!("👁️  Monitoring for changes... (Ctrl+C to stop)\n");
 
@@ -83,6 +97,11 @@ async fn main() -> Result<()> {
     loop {
         tokio::time::sleep(Duration::from_secs(poll_interval_secs)).await;
         check_count += 1;
+        if checkpoint.verification_failed {
+            eprintln!(
+                "UNRESOLVED VERIFICATION FAILURE: retaining the last trusted checkpoint; investigate before clearing the saved alert."
+            );
+        }
 
         match fetch_log_state(&client, log_name).await {
             Ok(new_state) => {
@@ -93,8 +112,12 @@ async fn main() -> Result<()> {
                     );
 
                     let old_size = state.tree_size;
-                    match advance_state(&client, log_name, &mut state, new_state).await {
+                    let mut candidate = state.clone();
+                    match advance_state(&client, log_name, &mut candidate, new_state).await {
                         Ok(()) => {
+                            checkpoint.state = candidate.clone();
+                            checkpoint.save(&checkpoint_path)?;
+                            state = candidate;
                             println!("   ✅ Consistency proof VERIFIED");
                             println!(
                                 "   → Log correctly appended {} new entries",
@@ -102,6 +125,8 @@ async fn main() -> Result<()> {
                             );
                         }
                         Err(e) => {
+                            checkpoint.verification_failed = true;
+                            checkpoint.save(&checkpoint_path)?;
                             println!("   ❌ CONSISTENCY VERIFICATION FAILED!: {e}");
                         }
                     }
@@ -114,7 +139,9 @@ async fn main() -> Result<()> {
                     );
                     print_state(&new_state);
                     println!();
-                    // Keep the trusted checkpoint after a same-size root mismatch.
+                    // Keep the trusted checkpoint and preserve the alert across restarts.
+                    checkpoint.verification_failed = true;
+                    checkpoint.save(&checkpoint_path)?;
                 } else {
                     // No change - print periodic status
                     println!(
@@ -167,7 +194,10 @@ async fn verify_consistency(
     let mut new = new_state.clone();
     for _ in 0..8 {
         anyhow::ensure!(new.tree_size >= old.tree_size, "Tree size decreased");
-        anyhow::ensure!(new.root.len() == 32, "Invalid root length");
+        anyhow::ensure!(
+            new.root.len() == 32 && new.tree_size <= (1_u64 << 63),
+            "Invalid root or size"
+        );
         if new.tree_size == old.tree_size {
             anyhow::ensure!(new.root == old.root, "Tree root mismatch with same size");
             return Ok(());
@@ -351,6 +381,10 @@ mod tests {
         let (client, task, _) = server(vec![invalid]).await;
         let mut saved = states[1].clone();
         for observation in [
+            LogState {
+                tree_size: 0,
+                root: CtMerkleTree::new().root(),
+            },
             states[0].clone(),
             LogState {
                 tree_size: 2,

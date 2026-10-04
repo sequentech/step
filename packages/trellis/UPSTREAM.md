@@ -18,3 +18,22 @@ proofs. The upstream HTTP client retains complete root/size checkpoints, and the
 monitor validates their ordering, bounds growth-race retries, and keeps its last
 verified checkpoint after any failure. Run its adversarial HTTP regressions with
 `cargo test -p trellis --features upstream-service --example monitor`.
+
+Additional local fixes reject out-of-domain proof metadata, preserve the earliest
+index of duplicate hashes, and provide `InclusionProof::verify_against` for a trusted
+root/size. The monitor persists checkpoints and failure alerts across restarts.
+
+The optional polling service reconciles source identities against persisted receipts
+instead of relying on source sequence/commit order, catches up memory independently
+of new copies, validates and quotes source identifiers, supports integer ID types,
+and rejects log names longer than 52 bytes. Public proof routes exclude administrative
+controls; `TRELLIS_ADMIN_ADDR` enables a separate loopback-only listener.
+
+Run the isolated database regression with `TRELLIS_TEST_DATABASE_URL` pointing at an
+empty disposable database:
+
+```sh
+cargo test -p trellis --features upstream-service --lib \
+  service::processor::tests::postgres_source_reconciliation_and_tree_recovery \
+  -- --ignored --exact --test-threads=1
+```

@@ -57,7 +57,7 @@ pub const LEAF_HASH_SIZE: u64 = 32;
 pub struct CtMerkleTree {
     /// The underlying CT merkle tree implementation
     tree: MemoryBackedTree<Sha256, LeafHash>,
-    /// Maps leaf hash to its position (index) in the tree
+    /// Maps leaf hash to its earliest position (index) in the tree
     leaf_hash_to_index: HashMap<Vec<u8>, u64>,
     /// Maps root hash to the tree size that produced it
     root_hash_to_size: HashMap<Vec<u8>, u64>,
@@ -77,7 +77,10 @@ impl CtMerkleTree {
     /// Adds a new leaf to the tree and updates the associated maps
     pub fn push(&mut self, leaf: LeafHash) {
         let idx = self.tree.len();
-        self.leaf_hash_to_index.insert(leaf.hash.clone(), idx);
+        // Keep the earliest occurrence so every historical prefix remains provable.
+        self.leaf_hash_to_index
+            .entry(leaf.hash.clone())
+            .or_insert(idx);
         self.tree.push(leaf);
         // for the moment we must checkpoint after each addition,
         // because in a rebuild scenario we do not know which roots have been published
@@ -164,6 +167,22 @@ impl CtMerkleTree {
     #[must_use]
     pub fn get_index(&self, hash: &[u8]) -> Option<u64> {
         self.leaf_hash_to_index.get(hash).copied()
+    }
+
+    /// Generates a proof for an exact leaf position, including duplicate hashes.
+    ///
+    /// # Errors
+    /// Returns `LeafNotPresentAtTree` for an out-of-range position or `SizeTooLarge`
+    /// when the index cannot be represented on this platform.
+    pub fn prove_inclusion_at_index(
+        &self,
+        index: u64,
+    ) -> Result<InclusionProof<Sha256>, ProofError> {
+        if index >= self.tree.len() {
+            return Err(ProofError::LeafNotPresentAtTree);
+        }
+        let index = usize::try_from(index).map_err(|_| ProofError::SizeTooLarge)?;
+        Ok(self.tree.prove_inclusion(index))
     }
 
     /// Gets the tree size for a given root hash
@@ -411,6 +430,38 @@ impl Default for CtMerkleTree {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn duplicates_preserve_historical_and_current_inclusion() {
+        let mut tree = CtMerkleTree::new();
+        let hash = vec![42; 32];
+        tree.push(LeafHash::new(hash.clone()));
+        let root = tree.root();
+        let original_proof = tree.prove_inclusion(&hash).expect("original proof");
+        tree.push(LeafHash::new(vec![7; 32]));
+        tree.push(LeafHash::new(hash.clone()));
+        tree.verify_inclusion_at_root(&hash, &root, &original_proof)
+            .expect("old proof survives duplicate");
+        let historical = tree
+            .prove_inclusion_at_root(&hash, &root)
+            .expect("historical proof");
+        tree.verify_inclusion_at_root(&hash, &root, &historical)
+            .expect("valid historical proof");
+        for index in [0, 2] {
+            let proof = tree.prove_inclusion_at_index(index).expect("indexed proof");
+            let wrapped = crate::InclusionProof {
+                index,
+                tree_size: tree.len(),
+                root: tree.root(),
+                proof_bytes: proof.as_bytes().to_vec(),
+            };
+            wrapped.verify(&hash).expect("exact duplicate position");
+        }
+        assert!(tree.prove_inclusion_at_index(3).is_err());
+        let current = tree.prove_inclusion(&hash).expect("current proof");
+        tree.verify_inclusion(&hash, &current)
+            .expect("valid current proof");
+    }
 
     fn create_test_tree() -> CtMerkleTree {
         let mut tree = CtMerkleTree::new();

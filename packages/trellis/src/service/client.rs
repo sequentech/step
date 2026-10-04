@@ -10,7 +10,7 @@ use sha2::{Digest, Sha256};
 use std::time::Duration;
 
 /// Root information returned by `get_root`
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct RootInfo {
     /// The root hash bytes
     pub root: Vec<u8>,
@@ -222,7 +222,8 @@ impl Client {
         }
     }
 
-    /// Verifies an inclusion proof for a given leaf hash
+    /// Verifies membership in the proof's own root, without authenticating the log.
+    /// Use `verify_inclusion_proof_against` for an independently trusted checkpoint.
     ///
     /// # Errors
     ///
@@ -231,6 +232,21 @@ impl Client {
         proof
             .verify(leaf_hash)
             .map_err(|e| anyhow::anyhow!("Inclusion proof verification failed: {e}"))
+    }
+
+    /// Verifies inclusion against an independently trusted checkpoint.
+    ///
+    /// # Errors
+    /// Returns an error on checkpoint mismatch or invalid proof.
+    pub fn verify_inclusion_proof_against(
+        &self,
+        leaf_hash: &[u8],
+        proof: &InclusionProof,
+        checkpoint: &RootInfo,
+    ) -> Result<()> {
+        proof
+            .verify_against(leaf_hash, &checkpoint.root, checkpoint.tree_size)
+            .map_err(|error| anyhow::anyhow!("Inclusion proof verification failed: {error}"))
     }
 
     /// Verifies a consistency proof against a saved root and tree size

@@ -23,11 +23,13 @@ use crate::service::state::AppState;
 ///
 /// # Errors
 /// Returns an error if the log name is empty, contains invalid characters,
-/// or starts with a digit.
+/// exceeds 52 bytes, or starts with a digit.
 pub fn validate_log_name(log_name: &str) -> Result<()> {
     if log_name.is_empty() {
         return Err(anyhow::anyhow!("Log name cannot be empty"));
     }
+
+    anyhow::ensure!(log_name.len() <= 52, "Log name exceeds 52 bytes");
 
     if !log_name
         .chars()
@@ -73,10 +75,8 @@ fn merkle_log_table_name(log_name: &str) -> String {
 /// - `processed_at TIMESTAMPTZ` - When the entry was added
 /// - `UNIQUE (source_table, source_id)` - Defense in depth against duplicates
 ///
-/// The UNIQUE constraint is defense-in-depth: given that source IDs are unique per table,
-/// we copy with `WHERE source_id > last_processed`, and operations are transactional,
-/// duplicates are logically impossible. The constraint catches programming bugs and
-/// could be removed as a future optimization if INSERT performance is critical.
+/// The unique source identity is the durable receipt used by reconciliation.
+/// Source IDs need not be allocated in commit order.
 async fn ensure_merkle_log_table_exists(conn: &PooledConnection, log_name: &str) -> Result<()> {
     let table_name = merkle_log_table_name(log_name);
 
@@ -304,6 +304,7 @@ pub async fn run_batch_processor(app_state: AppState) {
 /// to `merkle_log_{log_name}`, ensuring that published log information can always be reconstructed
 /// from persisted data.
 async fn process_log(app_state: &AppState, log_name: &str, batch_size: u32) -> Result<()> {
+    validate_log_name(log_name)?;
     // Time the entire processing cycle
     let total_start = std::time::Instant::now();
 
@@ -329,84 +330,68 @@ async fn process_log(app_state: &AppState, log_name: &str, batch_size: u32) -> R
 
     // Copy pending entries into merkle_log_{log_name}
 
-    // let batch_stats = copy_source_rows(app_state, log_name, batch_size).await?;
     let batch_stats = copy_source_rows(app_state, log_name, batch_size).await?;
 
     let copy_duration = copy_start.elapsed();
 
-    if batch_stats.rows_copied > 0 {
-        // Time the retrieval from merkle_log_{log_name}
-        let fetch_start = std::time::Instant::now();
+    // Always reconcile persisted leaves, including after failures and on replicas.
+    // Time the retrieval from merkle_log_{log_name}
+    let fetch_start = std::time::Instant::now();
 
-        // Query everything after our last known processed ID for this log
-        let conn = app_state.db_pool.get().await?;
-        let table_name = merkle_log_table_name(log_name);
-        let fetch_query =
-            format!("SELECT id, leaf_hash FROM {table_name} WHERE id > $1 ORDER BY id");
-        let fetch_result = conn.query(&fetch_query, &[&current_last_id]).await;
+    // Query everything after our last known processed ID for this log
+    let conn = app_state.db_pool.get().await?;
+    let table_name = merkle_log_table_name(log_name);
+    let fetch_query =
+        format!("SELECT id, leaf_hash FROM {table_name} WHERE id > $1 ORDER BY id LIMIT $2");
+    let fetch_result = conn
+        .query(&fetch_query, &[&current_last_id, &i64::from(batch_size)])
+        .await;
 
-        let fetch_duration = fetch_start.elapsed();
+    let fetch_duration = fetch_start.elapsed();
 
-        let rows = fetch_result?;
+    let rows = fetch_result?;
 
-        let leaves_added = rows.len();
-        // Start timing the tree construction
-        let tree_start = std::time::Instant::now();
+    let leaves_added = rows.len();
+    // Start timing the tree construction
+    let tree_start = std::time::Instant::now();
 
-        // Update the merkle state and maps
-        let mut merkle_state = merkle_state_arc.write();
+    // Update the merkle state and maps
+    let mut merkle_state = merkle_state_arc.write();
 
-        for row in rows {
-            let id: i64 = row.get("id");
-            let hash: Vec<u8> = row.get("leaf_hash");
-            let leaf_hash = LeafHash::new(hash);
+    for row in rows {
+        let id: i64 = row.get("id");
+        let hash: Vec<u8> = row.get("leaf_hash");
+        let leaf_hash = LeafHash::new(hash);
 
+        // Another caller may have advanced this tree while the query was in flight.
+        if id > merkle_state.last_processed_id {
             merkle_state.update_with_entry(leaf_hash, id);
         }
-        let tree_duration = tree_start.elapsed();
-
-        // Update metrics for this log
-        let final_tree_size = merkle_state.tree.len();
-
-        // Release lock asap
-        drop(merkle_state);
-
-        let total_duration = total_start.elapsed();
-
-        app_state
-            .metrics
-            .update_log_metrics(log_name, |log_metrics| {
-                log_metrics.record_batch(
-                    batch_stats.rows_copied as u64,
-                    leaves_added as u64,
-                    u64_millis(total_duration.as_millis()),
-                    u64_millis(copy_duration.as_millis()),
-                    batch_stats.insert_ms,
-                    u64_millis(fetch_duration.as_millis()),
-                    u64_millis(tree_duration.as_millis()),
-                    final_tree_size,
-                );
-            });
-    } else {
-        // Update metrics even when no rows copied (catching up)
-        let tree_size = merkle_state_arc.read().tree.len();
-        let total_duration = total_start.elapsed();
-
-        app_state
-            .metrics
-            .update_log_metrics(log_name, |log_metrics| {
-                log_metrics.record_batch(
-                    0,
-                    0,
-                    u64_millis(total_duration.as_millis()),
-                    u64_millis(copy_duration.as_millis()),
-                    0,
-                    0,
-                    0,
-                    tree_size,
-                );
-            });
     }
+    let tree_duration = tree_start.elapsed();
+
+    // Update metrics for this log
+    let final_tree_size = merkle_state.tree.len();
+
+    // Release lock asap
+    drop(merkle_state);
+
+    let total_duration = total_start.elapsed();
+
+    app_state
+        .metrics
+        .update_log_metrics(log_name, |log_metrics| {
+            log_metrics.record_batch(
+                batch_stats.rows_copied as u64,
+                leaves_added as u64,
+                u64_millis(total_duration.as_millis()),
+                u64_millis(copy_duration.as_millis()),
+                batch_stats.insert_ms,
+                u64_millis(fetch_duration.as_millis()),
+                u64_millis(tree_duration.as_millis()),
+                final_tree_size,
+            );
+        });
 
     Ok(())
 }
@@ -469,106 +454,45 @@ async fn copy_source_rows(
     // Build UNION ALL query dynamically for all source tables
     // Each source table needs its own LIMIT to avoid fetching unbounded rows
     let mut union_parts = Vec::new();
-    let mut param_values: Vec<i64> = Vec::new();
+    let mut source_names = Vec::new();
 
     for config in &valid_configs {
-        // Get last processed source_id for this specific source table in this log
-        let last_processed_query = format!(
-            "SELECT COALESCE(MAX(source_id), 0) FROM {table_name} WHERE source_table = $1::text"
+        source_names.push(config.table_name.clone());
+        let source_param = source_names.len();
+        let source = quote_identifier(&config.table_name);
+        let id = quote_identifier(&config.id_column);
+        let hash = quote_identifier(&config.hash_column);
+        let timestamp = config.timestamp_column.as_ref().map_or_else(
+            || "NULL::timestamptz".to_owned(),
+            |column| format!("s.{}", quote_identifier(column)),
         );
-        let last_processed: i64 = txn
-            .query_one(&last_processed_query, &[&config.table_name])
-            .await?
-            .get(0);
-
-        param_values.push(last_processed);
-        let last_processed_idx = param_values.len();
-
-        // Add batch_size as a parameter for this source's LIMIT
-        param_values.push(i64::from(batch_size));
-        let limit_idx = param_values.len();
-
-        // Build SELECT with LIMIT per source table to cap rows fetched
-        // The LIMIT ensures we don't fetch unbounded rows from source tables
-        // NOTE: Wrapped in parentheses because ORDER BY/LIMIT in UNION requires it
-        let select = if let Some(ref ts_col) = config.timestamp_column {
-            format!(
-                "(SELECT {} AS source_id, {} AS leaf_hash, {} AS timestamp_col, '{}' AS source_table \
-                 FROM {} WHERE {} > ${} ORDER BY {} LIMIT ${})",
-                config.id_column,
-                config.hash_column,
-                ts_col,
-                config.table_name,
-                config.table_name,
-                config.id_column,
-                last_processed_idx,
-                config.id_column,
-                limit_idx
-            )
-        } else {
-            format!(
-                "(SELECT {} AS source_id, {} AS leaf_hash, NULL::timestamptz AS timestamp_col, '{}' AS source_table \
-                 FROM {} WHERE {} > ${} ORDER BY {} LIMIT ${})",
-                config.id_column,
-                config.hash_column,
-                config.table_name,
-                config.table_name,
-                config.id_column,
-                last_processed_idx,
-                config.id_column,
-                limit_idx
-            )
-        };
-
-        union_parts.push(select);
+        // Reconcile every visible source identity against durable receipts. A source
+        // transaction can commit a smaller ID after a larger ID has been copied.
+        // No high-water mark on source IDs can safely rule those rows out.
+        union_parts.push(format!(
+            "(SELECT s.{id}::bigint AS source_id, s.{hash} AS leaf_hash, \
+             {timestamp} AS timestamp_col, ${source_param}::text AS source_table \
+             FROM public.{source} s WHERE NOT EXISTS (\
+                 SELECT 1 FROM {table_name} copied \
+                 WHERE copied.source_table = ${source_param}::text \
+                   AND copied.source_id = s.{id}) \
+             ORDER BY s.{id} LIMIT ${limit_param}::bigint)",
+            limit_param = valid_configs.len() + 1,
+        ));
     }
 
-    // Build the full query with CTE, ordering and INSERT
-    // ORDER BY: timestamp NULLS LAST (timestamped entries first), then source_id, then source_table
-    //
-    // IMPORTANT: We use DEFAULT for id column, letting PostgreSQL's SERIAL sequence assign IDs.
-    // This avoids a full table scan from SELECT MAX(id) which would grow O(n) with table size.
-    // The SERIAL sequence is O(1) regardless of table size.
     let query = format!(
-        "WITH combined AS (
-            {}
-        ),
-        ordered AS (
-            SELECT 
-                source_id,
-                leaf_hash,
-                source_table
-            FROM combined
-            ORDER BY timestamp_col NULLS LAST, source_id, source_table
-            LIMIT ${}
-        )
-        INSERT INTO {} (source_table, source_id, leaf_hash)
-        SELECT 
-            source_table,
-            source_id,
-            leaf_hash
-        FROM ordered",
+        "WITH combined AS ({}) \
+         INSERT INTO {table_name} (source_table, source_id, leaf_hash) \
+         SELECT source_table, source_id, leaf_hash FROM combined \
+         ORDER BY timestamp_col NULLS LAST, source_id, source_table",
         union_parts.join(" UNION ALL "),
-        // $? parameter for final limit
-        param_values
-            .len()
-            .checked_add(1)
-            .expect("number of union tables << usize::MAX"),
-        table_name
     );
-
-    // Prepare all parameters
-    let mut all_params: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> = Vec::new();
-    for p in &param_values {
-        all_params.push(p);
-    }
-
-    let valid_configs_len =
-        u32::try_from(valid_configs.len()).expect("number of valid configs << u32::MAX");
-    let total_batch_size = batch_size
-        .checked_mul(valid_configs_len)
-        .expect("batch_size * (<< u32::MAX) << u32::MAX");
-    let batch_size_i64 = i64::from(total_batch_size);
+    let mut all_params: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> = source_names
+        .iter()
+        .map(|name| name as &(dyn tokio_postgres::types::ToSql + Sync))
+        .collect();
+    let batch_size_i64 = i64::from(batch_size);
     all_params.push(&batch_size_i64);
 
     let rows_affected = txn.execute(&query, &all_params).await?;
@@ -761,9 +685,8 @@ async fn load_source_configs(conn: &PooledConnection, log_name: &str) -> Result<
     Ok(configs)
 }
 
-/// Returns only the configs for tables that actually exist
-///
-/// Determines if a table exists by querying the database's information schema
+/// Validates configured source tables, columns, types, and unique identities.
+/// Invalid configuration fails the batch before copying any source rows.
 async fn get_valid_source_tables(
     conn: &PooledConnection,
     configs: &[SourceConfig],
@@ -771,23 +694,22 @@ async fn get_valid_source_tables(
     let mut valid_configs = Vec::new();
 
     for config in configs {
-        // Check if table exists in database
-        let exists: bool = conn
-            .query_one(
-                "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = $1)",
-                &[&config.table_name],
-            )
-            .await?
-            .get(0);
-
-        if exists {
-            valid_configs.push(config.clone());
-        } else {
-            tracing::warn!(
-                source_table = config.table_name,
-                "Skipping configured source - table does not exist"
-            );
-        }
+        let validation = crate::service::validation::validate_source(
+            conn,
+            &config.log_name,
+            &config.table_name,
+            &config.id_column,
+            &config.hash_column,
+            config.timestamp_column.as_deref(),
+        )
+        .await?;
+        anyhow::ensure!(
+            validation.is_valid(),
+            "Invalid source '{}': {}",
+            config.table_name,
+            validation.errors().join("; ")
+        );
+        valid_configs.push(config.clone());
     }
 
     Ok(valid_configs)
@@ -820,4 +742,267 @@ async fn get_advisory_lock(log_name: &str, txn: &tokio_postgres::Transaction<'_>
     }
 
     Ok(())
+}
+
+/// Quotes a configured SQL identifier; configuration never supplies expressions.
+fn quote_identifier(identifier: &str) -> String {
+    format!("\"{}\"", identifier.replace('"', "\"\""))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::service::server::tests::test_state;
+
+    #[test]
+    fn log_names_cannot_alias_postgres_identifiers() {
+        assert!(validate_log_name(&"a".repeat(52)).is_ok());
+        for name in [
+            format!("{}x", "a".repeat(52)),
+            format!("{}y", "a".repeat(52)),
+        ] {
+            assert!(validate_log_name(&name).is_err());
+        }
+    }
+
+    /// Run only against an empty disposable database; no application data is used.
+    #[tokio::test]
+    #[ignore = "requires TRELLIS_TEST_DATABASE_URL pointing to an empty disposable database"]
+    async fn postgres_source_reconciliation_and_tree_recovery() -> Result<()> {
+        let url = std::env::var("TRELLIS_TEST_DATABASE_URL")?;
+        let state = test_state(&url);
+        let conn = state.db_pool.get().await?;
+        conn.batch_execute(
+            "CREATE TABLE verification_logs (log_name text PRIMARY KEY, enabled boolean NOT NULL DEFAULT true);
+             CREATE TABLE verification_sources (
+                 source_table text NOT NULL, log_name text NOT NULL, hash_column text NOT NULL,
+                 id_column text NOT NULL, timestamp_column text, enabled boolean NOT NULL DEFAULT true,
+                 PRIMARY KEY (source_table, log_name));
+             CREATE TABLE regression_source (id bigserial PRIMARY KEY, hash bytea NOT NULL);
+             INSERT INTO verification_logs VALUES ('regression', true);
+             INSERT INTO verification_sources (source_table, log_name, hash_column, id_column)
+                 VALUES ('regression_source', 'regression', 'hash', 'id');"
+        ).await?;
+        let mut delayed = state.db_pool.get().await?;
+        let txn = delayed.transaction().await?;
+        txn.execute(
+            "INSERT INTO regression_source (hash) VALUES ($1)",
+            &[&vec![1u8; 32]],
+        )
+        .await?;
+        conn.execute(
+            "INSERT INTO regression_source (hash) VALUES ($1)",
+            &[&vec![2u8; 32]],
+        )
+        .await?;
+        process_log(&state, "regression", 10).await?;
+        assert_eq!(
+            state
+                .merkle_states
+                .get("regression")
+                .unwrap()
+                .read()
+                .tree
+                .len(),
+            1
+        );
+        txn.commit().await?;
+        process_log(&state, "regression", 10).await?;
+        let ids: Vec<i64> = conn
+            .query(
+                "SELECT source_id FROM merkle_log_regression ORDER BY id",
+                &[],
+            )
+            .await?
+            .iter()
+            .map(|row| row.get(0))
+            .collect();
+        assert_eq!(
+            ids,
+            vec![2, 1],
+            "late commit is appended without rewriting history"
+        );
+        let expected_root = state
+            .merkle_states
+            .get("regression")
+            .unwrap()
+            .read()
+            .tree
+            .root();
+
+        // A second instance must catch up even if it copied no rows locally.
+        let replica = test_state(&url);
+        process_log(&replica, "regression", 1).await?;
+        assert_eq!(
+            replica
+                .merkle_states
+                .get("regression")
+                .unwrap()
+                .read()
+                .tree
+                .len(),
+            1
+        );
+        process_log(&replica, "regression", 1).await?;
+        assert_eq!(
+            replica
+                .merkle_states
+                .get("regression")
+                .unwrap()
+                .read()
+                .tree
+                .root(),
+            expected_root
+        );
+
+        // Simulate disabling/unloading and re-enabling a populated log.
+        state.merkle_states.remove("regression");
+        process_log(&state, "regression", 10).await?;
+        assert_eq!(
+            state
+                .merkle_states
+                .get("regression")
+                .unwrap()
+                .read()
+                .tree
+                .root(),
+            expected_root
+        );
+
+        // Commit the final batch without fetching it (e.g. a fetch/network failure).
+        conn.execute(
+            "INSERT INTO regression_source (hash) VALUES ($1)",
+            &[&vec![3u8; 32]],
+        )
+        .await?;
+        assert_eq!(
+            copy_source_rows(&state, "regression", 10)
+                .await?
+                .rows_copied,
+            1
+        );
+        assert_eq!(
+            copy_source_rows(&state, "regression", 10)
+                .await?
+                .rows_copied,
+            0
+        );
+        process_log(&state, "regression", 10).await?;
+        assert_eq!(
+            state
+                .merkle_states
+                .get("regression")
+                .unwrap()
+                .read()
+                .tree
+                .len(),
+            3
+        );
+
+        // Supported ID types must work, including zero and negative identities.
+        for (suffix, sql_type) in [("small", "smallint"), ("int", "integer"), ("big", "bigint")] {
+            let table = format!("regression_{suffix}");
+            let log = format!("regression_{suffix}");
+            conn.batch_execute(&format!("CREATE TABLE {table} (id {sql_type} PRIMARY KEY, hash bytea NOT NULL, stamp timestamptz);\
+                INSERT INTO {table} VALUES (-1, decode(repeat('01', 32), 'hex'), now()), (0, decode(repeat('02', 32), 'hex'), now()), (1, decode(repeat('03', 32), 'hex'), now());")).await?;
+            conn.execute("INSERT INTO verification_sources (source_table, log_name, hash_column, id_column, timestamp_column) VALUES ($1, $2, 'hash', 'id', 'stamp')", &[&table, &log]).await?;
+            process_log(&state, &log, 10).await?;
+            assert_eq!(state.merkle_states.get(&log).unwrap().read().tree.len(), 3);
+            assert_eq!(copy_source_rows(&state, &log, 10).await?.rows_copied, 0);
+        }
+
+        // Each source gets a bounded batch; tree catch-up remains bounded independently.
+        conn.execute("INSERT INTO verification_sources (source_table, log_name, hash_column, id_column, timestamp_column) SELECT source_table, 'regression_multi', hash_column, id_column, timestamp_column FROM verification_sources WHERE log_name IN ('regression', 'regression_small', 'regression_int')", &[]).await?;
+        for _ in 0..5 {
+            let before = state
+                .merkle_states
+                .get("regression_multi")
+                .map_or(0, |entry| entry.read().tree.len());
+            process_log(&state, "regression_multi", 2).await?;
+            let after = state
+                .merkle_states
+                .get("regression_multi")
+                .unwrap()
+                .read()
+                .tree
+                .len();
+            assert!(after - before <= 2);
+        }
+        assert_eq!(
+            state
+                .merkle_states
+                .get("regression_multi")
+                .unwrap()
+                .read()
+                .tree
+                .len(),
+            9
+        );
+
+        // Identifier quoting and value parameters support literal punctuation safely.
+        conn.batch_execute(
+            r#"CREATE TABLE "odd'source" ("select" integer PRIMARY KEY, "leaf""hash" bytea);
+            INSERT INTO "odd'source" VALUES (1, decode(repeat('04', 32), 'hex'));"#,
+        )
+        .await?;
+        conn.execute("INSERT INTO verification_sources (source_table, log_name, hash_column, id_column) VALUES ($1, 'regression_quoted', $2, $3)", &[&"odd'source", &"leaf\"hash", &"select"]).await?;
+        process_log(&state, "regression_quoted", 10).await?;
+        assert_eq!(
+            state
+                .merkle_states
+                .get("regression_quoted")
+                .unwrap()
+                .read()
+                .tree
+                .len(),
+            1
+        );
+
+        // Fractional numeric IDs cannot be safely represented by persisted bigint IDs.
+        conn.batch_execute(
+            "CREATE TABLE regression_numeric (id numeric PRIMARY KEY, hash bytea NOT NULL);
+            INSERT INTO verification_sources (source_table, log_name, hash_column, id_column)
+                VALUES ('regression_numeric', 'regression_numeric', 'hash', 'id');",
+        )
+        .await?;
+        assert!(
+            copy_source_rows(&state, "regression_numeric", 10)
+                .await
+                .is_err()
+        );
+
+        // Step's journal requests proofs by persisted position, including duplicates.
+        conn.batch_execute(crate::journal::SCHEMA).await?;
+        conn.execute("INSERT INTO trellis_logs (name) VALUES ('duplicates')", &[])
+            .await?;
+        let journal = crate::journal::Journal::new(state.db_pool.clone());
+        for (id, hash) in [
+            (10_i64, vec![1u8; 32]),
+            (11, vec![2u8; 32]),
+            (12, vec![1u8; 32]),
+        ] {
+            let mut writer = state.db_pool.get().await?;
+            let transaction = writer.transaction().await?;
+            crate::journal::Journal::append(&transaction, "duplicates", id, &hash).await?;
+            transaction.commit().await?;
+        }
+        journal.process_once().await?;
+        for (id, index) in [(10_i64, 0_u64), (12, 2)] {
+            let inclusion = journal
+                .inclusion("duplicates", id)
+                .await?
+                .expect("processed leaf");
+            assert_eq!(inclusion.proof.index, index);
+            inclusion.verify(&[1; 32], &inclusion.checkpoint)?;
+        }
+
+        // Configuration expressions fail validation rather than being executed as SQL.
+        conn.execute(
+            "UPDATE verification_sources SET hash_column = $1 WHERE log_name = 'regression'",
+            &[&"decode(repeat('00',32),'hex')"],
+        )
+        .await?;
+        assert!(copy_source_rows(&state, "regression", 10).await.is_err());
+        Ok(())
+    }
 }

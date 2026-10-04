@@ -219,7 +219,7 @@ pub async fn validate_all_logs(conn: &PooledConnection) -> Result<Vec<LogValidat
 }
 
 /// Validates a single source configuration
-async fn validate_source(
+pub(crate) async fn validate_source(
     conn: &PooledConnection,
     log_name: &str,
     source_table: &str,
@@ -255,7 +255,7 @@ async fn validate_source(
         conn,
         source_table,
         id_column,
-        &["bigint", "integer", "smallint", "numeric"],
+        &["bigint", "integer", "smallint"],
         true, // Check uniqueness on id column
     )
     .await?;

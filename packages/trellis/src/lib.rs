@@ -65,12 +65,19 @@ pub struct InclusionProof {
     pub tree_size: u64,
 }
 impl InclusionProof {
-    /// Verifies this proof against the given leaf hash using ct-merkle's proof verification
+    /// Verifies membership in the root carried by this proof.
+    ///
+    /// This does not authenticate the log. Use `verify_against` with an independently
+    /// trusted checkpoint to establish membership in a particular log.
     ///
     /// # Errors
     ///
-    /// Returns an error if the root hash length is invalid.
+    /// Returns an error for invalid sizes, indices, roots, or proof paths.
     pub fn verify(&self, hash: &[u8]) -> Result<(), ct_merkle::InclusionVerifError> {
+        // ct-merkle uses doubled u64 node indices and panics outside this domain.
+        if self.tree_size == 0 || self.tree_size > (1_u64 << 63) || self.index >= self.tree_size {
+            return Err(ct_merkle::InclusionVerifError::MalformedProof);
+        }
         // Create the leaf hash from the provided hash
         let leaf_hash = LeafHash::new(hash.to_vec());
 
@@ -88,11 +95,22 @@ impl InclusionProof {
         let proof = CtInclusionProof::<Sha256>::from_bytes(self.proof_bytes.clone());
 
         // Verify using root's verification method
-        /*match root_hash.verify_inclusion(&leaf_hash, self.index, &proof) {
-            Ok(()) => Ok(true),
-            Err(_) => Ok(false),
-        }*/
         root_hash.verify_inclusion(&leaf_hash, self.index, &proof)
+    }
+    /// Verifies inclusion against an independently trusted root and tree size.
+    ///
+    /// # Errors
+    /// Returns an error if the checkpoint differs or the proof is invalid.
+    pub fn verify_against(
+        &self,
+        hash: &[u8],
+        trusted_root: &[u8],
+        trusted_tree_size: u64,
+    ) -> Result<(), ct_merkle::InclusionVerifError> {
+        if self.root != trusted_root || self.tree_size != trusted_tree_size {
+            return Err(ct_merkle::InclusionVerifError::MalformedProof);
+        }
+        self.verify(hash)
     }
 }
 
@@ -124,7 +142,10 @@ impl ConsistencyProof {
         old_tree_size: u64,
     ) -> Result<(), ct_merkle::ConsistencyVerifError> {
         // Sizes are part of the checkpoint, not assertions the prover may replace.
-        if self.old_tree_size != old_tree_size || self.new_tree_size < old_tree_size {
+        if self.old_tree_size != old_tree_size
+            || self.new_tree_size < old_tree_size
+            || self.new_tree_size > (1_u64 << 63)
+        {
             return Err(ct_merkle::ConsistencyVerifError::MalformedProof);
         }
         // Create digest from old root bytes
@@ -228,5 +249,49 @@ mod consistency_checkpoint_tests {
             proof_bytes: vec![],
         };
         assert!(rollback.verify(&two, 2).is_err());
+    }
+}
+
+#[cfg(test)]
+mod inclusion_boundary_tests {
+    use super::*;
+
+    #[test]
+    fn hostile_metadata_returns_errors_without_panicking() {
+        for (index, tree_size) in [
+            (1_u64 << 63, (1_u64 << 63) + 1),
+            (0, u64::MAX),
+            (u64::MAX, u64::MAX),
+            (0, 0),
+            (1, 1),
+            ((1_u64 << 63) - 1, 1_u64 << 63),
+            (0, 1_u64 << 63),
+        ] {
+            let proof = InclusionProof {
+                index,
+                tree_size,
+                root: vec![0; 32],
+                proof_bytes: vec![],
+            };
+            assert!(proof.verify(b"leaf").is_err());
+        }
+    }
+
+    #[test]
+    fn inclusion_requires_the_independent_checkpoint() {
+        let hash = b"leaf";
+        let mut tree = tree::CtMerkleTree::new();
+        tree.push(LeafHash::new(hash.to_vec()));
+        let proof = InclusionProof {
+            index: 0,
+            tree_size: 1,
+            root: tree.root(),
+            proof_bytes: vec![],
+        };
+        assert!(proof.verify_against(hash, &tree.root(), 1).is_ok());
+        assert!(proof.verify_against(hash, &tree.root(), 2).is_err());
+        tree.push(LeafHash::new(b"other".to_vec()));
+        assert!(proof.verify_against(hash, &tree.root(), 2).is_err());
+        assert!(proof.verify_against(hash, &[0; 32], 1).is_err());
     }
 }

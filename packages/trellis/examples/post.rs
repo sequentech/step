@@ -13,12 +13,12 @@
 #![allow(clippy::print_stdout)]
 #![allow(clippy::print_stderr)]
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use base64::Engine;
-use trellis::service::Client;
 use sha2::{Digest, Sha256};
 use std::time::Duration;
 use tokio_postgres::NoTls;
+use trellis::service::{Client, checkpoint::Checkpoint};
 
 /// The name of the merkle log used in this example.
 const LOG_NAME: &str = "example_post_log";
@@ -33,6 +33,12 @@ async fn main() -> Result<()> {
 
     let server_url =
         std::env::var("TRELLIS_SERVER_URL").unwrap_or_else(|_| "http://localhost:3000".to_string());
+
+    // This example only reports authenticated membership with an independent anchor.
+    let checkpoint_path = std::path::PathBuf::from(
+        std::env::var_os("MONITOR_CHECKPOINT_FILE")
+            .context("Set MONITOR_CHECKPOINT_FILE to an independently maintained checkpoint")?,
+    );
 
     // Step 1: Setup - Create database connection and ensure log exists
     println!("📋 Setting up test environment...");
@@ -54,7 +60,28 @@ async fn main() -> Result<()> {
 
     // Step 5: Verify - Get inclusion proof and verify it
     println!("🔍 Fetching inclusion proof...");
-    let proof = client.get_inclusion_proof(LOG_NAME, &hash).await?;
+    // The independent monitor may lag ingestion. Retry a bounded number of times
+    // until it publishes the same checkpoint as the proof (never trust proof metadata
+    // as an anchor). Missing or old checkpoints cannot produce a success message.
+    let mut verified = None;
+    for _ in 0..30 {
+        let proof = client.get_inclusion_proof(LOG_NAME, &hash).await?;
+        if let Some(checkpoint) = Checkpoint::load(&checkpoint_path, &server_url, LOG_NAME)? {
+            anyhow::ensure!(
+                !checkpoint.verification_failed,
+                "Unresolved monitor verification failure"
+            );
+            if checkpoint.state.root == proof.root && checkpoint.state.tree_size == proof.tree_size
+            {
+                client.verify_inclusion_proof_against(&hash, &proof, &checkpoint.state)?;
+                verified = Some(proof);
+                break;
+            }
+        }
+        tokio::time::sleep(Duration::from_secs(1)).await;
+    }
+    let proof =
+        verified.context("Independent checkpoint did not cover the proof within 30 seconds")?;
     println!("✅ Received proof:");
     println!("   - Leaf index: {}", proof.index);
     println!("   - Tree size: {}", proof.tree_size);
@@ -65,18 +92,7 @@ async fn main() -> Result<()> {
     );
     println!();
 
-    println!("🔐 Verifying inclusion proof...");
-    let result = proof.verify(&hash);
-
-    if result.is_ok() {
-        println!("✅ Proof verification PASSED");
-        println!(
-            "   Entry \"{data}\" is cryptographically verified to be in the log!"
-        );
-    } else {
-        println!("❌ Proof verification FAILED");
-        return Err(anyhow::anyhow!("Inclusion proof verification failed"));
-    }
+    println!("✅ Inclusion VERIFIED against the independently maintained checkpoint");
 
     println!("\n✨ Example completed successfully!");
     Ok(())
@@ -142,9 +158,7 @@ async fn insert_entry(client: &tokio_postgres::Client, data: &str) -> Result<Vec
 
     client
         .execute(
-            &format!(
-                "INSERT INTO {SOURCE_TABLE} (data, leaf_hash) VALUES ($1, $2)"
-            ),
+            &format!("INSERT INTO {SOURCE_TABLE} (data, leaf_hash) VALUES ($1, $2)"),
             &[&data, &hash.as_slice()],
         )
         .await?;

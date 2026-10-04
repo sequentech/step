@@ -197,10 +197,9 @@ impl Journal {
     /// Returns an error for unknown records, missing logs or database failures.
     pub async fn inclusion(&self, name: &str, source_id: i64) -> Result<Option<Inclusion>> {
         let conn = self.pool.get().await?;
-        let row = conn.query_opt("SELECT l.id, e.leaf_index, e.hash FROM trellis_logs l JOIN trellis_leaves e ON e.log_id=l.id WHERE l.name=$1 AND e.source_id=$2", &[&name, &source_id]).await?.context("Log entry does not exist")?;
+        let row = conn.query_opt("SELECT l.id, e.leaf_index FROM trellis_logs l JOIN trellis_leaves e ON e.log_id=l.id WHERE l.name=$1 AND e.source_id=$2", &[&name, &source_id]).await?.context("Log entry does not exist")?;
         let id: i64 = row.get(0);
         let index: i64 = row.get(1);
-        let hash: Vec<u8> = row.get(2);
         let trees = self.trees.lock().await;
         let Some(tree) = trees.get(&id) else {
             return Ok(None);
@@ -209,7 +208,7 @@ impl Journal {
             return Ok(None);
         }
         let proof = tree
-            .prove_inclusion(&hash)
+            .prove_inclusion_at_index(u64::try_from(index)?)
             .map_err(|e| anyhow!("Cannot generate inclusion proof: {e:?}"))?;
         let checkpoint = Checkpoint {
             log_name: name.to_owned(),

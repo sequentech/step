@@ -8,7 +8,7 @@ use tokio_postgres::NoTls;
 
 use crate::service::state::AppState;
 
-/// Creates and configures the HTTP server with all routes
+/// Creates the public, read-only proof server. Administrative controls are excluded.
 pub fn create_server(app_state: AppState) -> Router {
     // Fallback handler for unmatched routes
     async fn handle_unmatched() -> (StatusCode, Json<serde_json::Value>) {
@@ -41,6 +41,16 @@ pub fn create_server(app_state: AppState) -> Router {
             get(crate::service::routes::has_log),
         )
         .route("/metrics", get(crate::service::routes::metrics))
+        .with_state(app_state)
+        .fallback(handle_unmatched)
+}
+
+/// Creates administrative controls for a separately secured listener.
+///
+/// `run_server` binds this router only to an explicitly configured loopback address.
+/// Embedders must enforce their own access boundary when using this router.
+pub fn create_admin_server(app_state: AppState) -> Router {
+    Router::new()
         .route(
             "/admin/pause",
             axum::routing::post(crate::service::routes::admin_pause),
@@ -55,7 +65,15 @@ pub fn create_server(app_state: AppState) -> Router {
         )
         .route("/admin/status", get(crate::service::routes::admin_status))
         .with_state(app_state)
-        .fallback(handle_unmatched)
+}
+
+/// Rejects accidental exposure of unauthenticated controls beyond the host.
+fn validate_admin_address(addr: SocketAddr) -> Result<SocketAddr> {
+    anyhow::ensure!(
+        addr.ip().is_loopback(),
+        "TRELLIS_ADMIN_ADDR must be a loopback address"
+    );
+    Ok(addr)
 }
 
 /// Initialize the application state with database connection pool and empty merkle states map
@@ -99,6 +117,24 @@ pub async fn initialize_app_state() -> Result<AppState> {
 /// Returns an error if rebuilding logs from the database fails or if the TCP listener
 /// cannot bind to the specified address.
 pub async fn run_server(app_state: AppState, addr: &SocketAddr) -> Result<()> {
+    // Bind all requested listeners before starting background processing.
+    let listener = tokio::net::TcpListener::bind(addr).await?;
+    let admin_listener = match std::env::var("TRELLIS_ADMIN_ADDR") {
+        Ok(value) => {
+            Some(tokio::net::TcpListener::bind(validate_admin_address(value.parse()?)?).await?)
+        }
+        Err(std::env::VarError::NotPresent) => None,
+        Err(error) => return Err(error.into()),
+    };
+    let admin_app = create_admin_server(app_state.clone());
+    let admin_server = async move {
+        if let Some(listener) = admin_listener {
+            tracing::info!(address = %listener.local_addr()?, "Administrative server listening on loopback");
+            axum::serve(listener, admin_app).await
+        } else {
+            std::future::pending::<std::io::Result<()>>().await
+        }
+    };
     // Clone the state for the processing task
     let process_state = app_state.clone();
 
@@ -106,7 +142,7 @@ pub async fn run_server(app_state: AppState, addr: &SocketAddr) -> Result<()> {
     crate::service::rebuild_all_logs(&app_state).await?;
 
     // Spawn the batch processing task
-    let processor = tokio::spawn(async move {
+    let mut processor = tokio::spawn(async move {
         crate::service::processor::run_batch_processor(process_state).await;
     });
 
@@ -114,23 +150,145 @@ pub async fn run_server(app_state: AppState, addr: &SocketAddr) -> Result<()> {
     let app = create_server(app_state);
 
     tracing::info!(address = %addr, "HTTP server listening");
-    let server = axum::serve(tokio::net::TcpListener::bind(addr).await?, app);
+    let server = axum::serve(listener, app);
 
     // Wait for Ctrl+C, processor, or server to finish
     tokio::select! {
         _ = tokio::signal::ctrl_c() => {
             tracing::info!("Received Ctrl+C, shutting down");
         }
-        result = processor => {
+        result = &mut processor => {
             match result {
                 Ok(()) => tracing::info!("Processor completed successfully"),
                 Err(e) => tracing::error!(error = ?e, "Processor error"),
             }
         }
-        _ = server => {
-            tracing::info!("HTTP server shut down");
+        result = server => {
+            processor.abort();
+            result?;
+        }
+        result = admin_server => {
+            processor.abort();
+            result?;
         }
     }
 
+    processor.abort();
     Ok(())
+}
+
+#[cfg(test)]
+pub(crate) mod tests {
+    use super::*;
+    use reqwest::StatusCode;
+
+    pub(crate) fn test_state(url: &str) -> AppState {
+        let mut config = Config::new();
+        config.url = Some(url.to_owned());
+        // Two source writers plus the processor must fit even on a one-CPU host.
+        config.pool = Some(deadpool_postgres::PoolConfig::new(4));
+        AppState {
+            merkle_states: Arc::new(DashMap::new()),
+            db_pool: config
+                .create_pool(Some(Runtime::Tokio1), NoTls)
+                .expect("pool"),
+            metrics: Arc::new(crate::service::metrics::Metrics::new()),
+            http_metrics: Arc::new(crate::service::metrics::HttpMetrics::new()),
+            processor_state: Arc::new(std::sync::atomic::AtomicU8::new(0)),
+        }
+    }
+
+    #[test]
+    fn administrative_listener_requires_loopback() {
+        for address in ["0.0.0.0:3001", "[::]:3001", "192.0.2.1:3001"] {
+            assert!(validate_admin_address(address.parse().unwrap()).is_err());
+        }
+        for address in ["127.0.0.1:3001", "[::1]:3001"] {
+            assert!(validate_admin_address(address.parse().unwrap()).is_ok());
+        }
+    }
+
+    #[tokio::test]
+    async fn public_routes_cannot_control_the_processor() {
+        let state = test_state("postgres://unused@127.0.0.1/unused");
+        let mut merkle_state = crate::service::MerkleState::new();
+        merkle_state.update_with_entry(crate::LeafHash::new(vec![1; 32]), 1);
+        state.merkle_states.insert(
+            "test".into(),
+            Arc::new(parking_lot::RwLock::new(merkle_state)),
+        );
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let address = listener.local_addr().unwrap();
+        let app = create_server(state.clone());
+        let task = tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
+        let client = reqwest::Client::new();
+        for route in ["pause", "resume", "stop"] {
+            assert_eq!(
+                client
+                    .post(format!("http://{address}/admin/{route}"))
+                    .send()
+                    .await
+                    .unwrap()
+                    .status(),
+                StatusCode::NOT_FOUND
+            );
+            assert_eq!(
+                state
+                    .processor_state
+                    .load(std::sync::atomic::Ordering::Relaxed),
+                0
+            );
+        }
+        assert_eq!(
+            client
+                .get(format!("http://{address}/metrics"))
+                .send()
+                .await
+                .unwrap()
+                .status(),
+            StatusCode::OK
+        );
+        assert_eq!(
+            client
+                .get(format!("http://{address}/admin/status"))
+                .send()
+                .await
+                .unwrap()
+                .status(),
+            StatusCode::NOT_FOUND
+        );
+        assert_eq!(
+            client
+                .get(format!("http://{address}/logs/test/root"))
+                .send()
+                .await
+                .unwrap()
+                .status(),
+            StatusCode::OK
+        );
+        task.abort();
+
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let address = listener.local_addr().unwrap();
+        let app = create_admin_server(state.clone());
+        let task = tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
+        for (route, expected) in [("pause", 1), ("resume", 0), ("stop", 2)] {
+            assert_eq!(
+                client
+                    .post(format!("http://{address}/admin/{route}"))
+                    .send()
+                    .await
+                    .unwrap()
+                    .status(),
+                StatusCode::OK
+            );
+            assert_eq!(
+                state
+                    .processor_state
+                    .load(std::sync::atomic::Ordering::Relaxed),
+                expected
+            );
+        }
+        task.abort();
+    }
 }

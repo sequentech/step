@@ -41,6 +41,11 @@ name = "monitor"
 required-features = ["upstream-service"]
 path = "examples/monitor.rs"
 
+[[example]]
+name = "post"
+required-features = ["upstream-service"]
+path = "examples/post.rs"
+
 # Define our binaries
 [[bin]]
 name = "trellis-setup"
