@@ -55,6 +55,11 @@ const EditElectionEventAreas = lazy(() =>
 const EditElectionEventKeys = lazy(() =>
     import("./EditElectionEventKeys").then((m) => ({default: m.EditElectionEventKeys}))
 )
+const EditElectionEventSignatures = lazy(() =>
+    import("./Signatures/EditElectionEventSignatures").then((m) => ({
+        default: m.EditElectionEventSignatures,
+    }))
+)
 const EditElectionEventCAs = lazy(() =>
     import("./EditElectionEventCAs").then((m) => ({default: m.EditElectionEventCAs}))
 )
@@ -152,6 +157,15 @@ const KeysTab: React.FC<{showKeysList: string | null}> = ({showKeysList}) => (
         <EditElectionEventKeys isShowCeremony={showKeysList} isShowTrusteeCeremony={showKeysList} />
     </Suspense>
 )
+
+const SignaturesTab: React.FC = () => {
+    const {t} = useTranslation()
+    return (
+        <Suspense fallback={<div>{t("common.label.loadingData")}</div>}>
+            <EditElectionEventSignatures />
+        </Suspense>
+    )
+}
 
 const CAsTab: React.FC = () => {
     const {t} = useTranslation()
@@ -371,6 +385,18 @@ export const ElectionEventTabs: React.FC = () => {
             authContext.tenantId,
             IPermissions.ELECTION_EVENT_APPROVALS_TAB
         )
+    // The tab and at least one of its sub-tabs; each sub-tab checks its own read permission.
+    const showSignatures =
+        authContext.isAuthorized(
+            true,
+            authContext.tenantId,
+            IPermissions.ELECTION_EVENT_SIGNATURES_TAB
+        ) &&
+        authContext.isAuthorized(true, authContext.tenantId, [
+            IPermissions.SIGNING_RULES_READ,
+            IPermissions.SIGNING_CERTIFICATES_READ,
+            IPermissions.SIGNING_REQUESTS_READ,
+        ])
     const showCAs =
         authContext.isAuthorized(true, authContext.tenantId, IPermissions.ELECTION_EVENT_CAS_TAB) &&
         record?.presentation?.voter_certificate_policy === EVoterCertificatePolicy.ENABLED
@@ -439,6 +465,14 @@ export const ElectionEventTabs: React.FC = () => {
             })
         }
 
+        // Signatures
+        if (showSignatures) {
+            result.push({
+                label: t("signing.tab.title"),
+                component: SignaturesTab,
+            })
+        }
+
         // CAs
         if (showCAs) {
             result.push({label: t("electionEventScreen.tabs.cas"), component: CAsTab})
@@ -469,16 +503,11 @@ export const ElectionEventTabs: React.FC = () => {
         // Publish
         if (showPublish) {
             result.push({
+                id: "publish",
                 label: t("electionEventScreen.tabs.publish"),
                 component: PublishTab,
                 props: {showList: showPublishList},
-                action: (index?: number) => {
-                    if (!index) {
-                        return
-                    }
-                    localStorage.setItem("electionEventPublishTabIndex", index.toString())
-                    setShowPublishList(uuidv4())
-                },
+                action: () => setShowPublishList(uuidv4()),
             })
         }
 
@@ -536,6 +565,7 @@ export const ElectionEventTabs: React.FC = () => {
         showEvents,
         showReports,
         showApprovalsExecution,
+        showSignatures,
         showCAs,
         showIvr,
         t,
@@ -551,6 +581,15 @@ export const ElectionEventTabs: React.FC = () => {
     ])
 
     const tallySheetImportsTabIndex = tabs.findIndex((tab) => tab.id === "tally-sheet-imports")
+    const publishTabIndex = tabs.findIndex((tab) => tab.id === "publish")
+
+    // Publish's re-authentication returns with `tabId=publish`: tab positions depend on permissions.
+    useEffect(() => {
+        const tabId = new URLSearchParams(location.search).get("tabId")
+        if (tabId === "publish" && publishTabIndex >= 0) {
+            setSelectedTab(publishTabIndex)
+        }
+    }, [location.search, publishTabIndex])
 
     useEffect(() => {
         const searchParams = new URLSearchParams(location.search)

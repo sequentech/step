@@ -573,7 +573,7 @@ test.describe("an assigned trustee without action privileges", () => {
         await openTransmission(page, portal)
         await expect(
             page.getByRole("button", {
-                name: "SBEI Signatures 1 out of 2 Signed, 1 minimum",
+                name: "Signatures 1 out of 2 Signed, 1 minimum",
                 exact: true,
             })
         ).toBeVisible()

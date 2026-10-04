@@ -33,6 +33,14 @@ export const permissionRecords = (): PermissionRecord[] => [
     permission("offline_access", 5),
 ]
 
+/** Some signing permissions: the tab's own and the sign permissions of two actions. */
+export const signingPermissionRecords = (): PermissionRecord[] => [
+    permission(IPermissions.ELECTION_EVENT_SIGNATURES_TAB, 6),
+    permission(IPermissions.SIGNING_REQUESTS_READ, 7),
+    permission(IPermissions.SIGN_OPEN_VOTING, 8),
+    permission(IPermissions.SIGN_CLOSE_VOTING, 9),
+]
+
 const access = {manage: true, manageMembers: true, manageMembership: true, view: true}
 
 export const roleRecords = (): RoleRecord[] => [
@@ -53,3 +61,7 @@ export const roleRecords = (): RoleRecord[] => [
         client_roles: {},
     },
 ]
+
+/** A sign permission: role-write alone changes it, as it decides who can sign. */
+export const signPermissionRecord = (): PermissionRecord =>
+    permission(IPermissions.SIGN_CLOSE_VOTING, 6)

@@ -9,6 +9,7 @@ use crate::adapters::memory::keys_ceremony::{
     MemoryKeysCeremonyStore, MemoryKeysCeremonyTasks, PostedMessage, QueuedTask, StoreCall,
 };
 use crate::domain::keys_ceremony::KeysBoardStatement;
+use crate::domain::trustee_signatures::TrusteeSignatures;
 use chrono::{DateTime, Local, TimeZone};
 use sequent_core::types::ceremonies::Log;
 use sequent_core::types::hasura::core::{Election, ElectionEvent};
@@ -302,8 +303,13 @@ impl Fixture {
             &self.clock,
             request(trustee),
             private_key,
+            &TrusteeSignatures::NotNeeded,
         )
         .await
+    }
+
+    async fn matches(&self, trustee: Option<&str>, private_key: &str) -> Result<bool> {
+        trustee_key_share_matches(&self.store, &self.board, request(trustee), private_key).await
     }
 
     async fn create(&self, request: KeysCeremonyRequest<'_>) -> Result<String> {
@@ -714,6 +720,59 @@ async fn a_check_refused_by_the_ceremony_state_writes_nothing() {
 
         let error = fixture
             .check(Some(TRUSTEE), &private_key_of(TRUSTEE))
+            .await
+            .unwrap_err();
+
+        assert_eq!(error.to_string(), message);
+        assert!(fixture.nothing_written());
+    }
+}
+
+#[tokio::test]
+async fn a_key_share_is_matched_as_the_check_matches_it_without_recording_anything() {
+    let fixture = Fixture::new().with_ceremony(in_progress(
+        TrusteeStatus::KEY_RETRIEVED,
+        TrusteeStatus::KEY_RETRIEVED,
+    ));
+
+    assert!(fixture
+        .matches(Some(TRUSTEE), &private_key_of(TRUSTEE))
+        .await
+        .unwrap());
+    assert!(!fixture
+        .matches(Some(TRUSTEE), &private_key_of(OTHER_TRUSTEE))
+        .await
+        .unwrap());
+    assert!(fixture.nothing_written());
+}
+
+#[tokio::test]
+async fn a_key_share_is_not_matched_when_the_check_would_be_refused() {
+    let cases = [
+        (
+            Some(TRUSTEE),
+            keys_ceremony(
+                KeysCeremonyExecutionStatus::STARTED,
+                &[(TRUSTEE, TrusteeStatus::KEY_RETRIEVED)],
+            ),
+            "Keys ceremony not in ExecutionStatus::IN_PROCESS or  ExecutionStatus::SUCCESS",
+        ),
+        (
+            Some(TRUSTEE),
+            in_progress(TrusteeStatus::WAITING, TrusteeStatus::KEY_RETRIEVED),
+            "Trustee not part of the keys ceremony or has invalid state",
+        ),
+        (
+            None,
+            in_progress(TrusteeStatus::KEY_RETRIEVED, TrusteeStatus::KEY_RETRIEVED),
+            "trustee name not found",
+        ),
+    ];
+    for (trustee, keys_ceremony, message) in cases {
+        let fixture = Fixture::new().with_ceremony(keys_ceremony);
+
+        let error = fixture
+            .matches(trustee, &private_key_of(TRUSTEE))
             .await
             .unwrap_err();
 

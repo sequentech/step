@@ -6,6 +6,7 @@
 import copy
 import re
 import tempfile
+import tomllib
 import unittest
 from pathlib import Path
 
@@ -105,6 +106,29 @@ class FunctionExportTests(unittest.TestCase):
                 self.payload["data"][0]["functions"] = functions
                 with self.assertRaisesRegex(CoverageError, "Invalid LLVM function"):
                     self.filter()
+
+
+class HarvestPolicyTests(unittest.TestCase):
+    def test_mounted_manual_verification_route_remains_measured(self):
+        root = Path(__file__).resolve().parents[2]
+        package = root / "packages/harvest"
+        policy = tomllib.loads((root / "scripts/coverage/profiles.toml").read_text())[
+            "profiles"
+        ]["harvest"]
+        route = package / "src/routes/manual_verification_pdf.rs"
+        payload = export(
+            *(
+                llvm_file(path, covered=int(path == route), count=int(path == route))
+                for path in (package / "src").rglob("*.rs")
+            )
+        )
+        result = summarize(
+            payload, package, minimum=0, exceptions=policy["scope_exceptions"]
+        )
+        self.assertEqual(
+            result["files"]["src/routes/manual_verification_pdf.rs"]["lines"],
+            {"covered": 1, "count": 1},
+        )
 
 
 class CoverageReportTests(unittest.TestCase):

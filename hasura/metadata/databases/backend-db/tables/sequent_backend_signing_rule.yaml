@@ -1,0 +1,25 @@
+table:
+    name: signing_rule
+    schema: sequent_backend
+select_permissions:
+    - comment: ""
+      permission:
+          allow_aggregations: true
+          columns:
+              - id
+              - tenant_id
+              - election_event_id
+              - action
+              - requirement
+              - signatures
+              - requester_signing
+              - expires_minutes
+              - revision
+              - updated_by
+              - updated_by_name
+              - updated_at
+              - created_at
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: signing-rules-read

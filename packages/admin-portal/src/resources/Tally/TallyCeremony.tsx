@@ -44,6 +44,7 @@ import {useGetList, useGetOne, useNotify, useRecordContext} from "react-admin"
 import {WizardStyles} from "@/components/styles/WizardStyles"
 import {UPDATE_TALLY_CEREMONY} from "@/queries/UpdateTallyCeremony"
 import {CREATE_TALLY_CEREMONY} from "@/queries/CreateTallyCeremony"
+import {useSignedAction} from "@/hooks/useSignedAction"
 import {useMutation, useQuery} from "@apollo/client"
 import {ETallyType, ITallyExecutionStatus} from "@/types/ceremonies"
 import {
@@ -160,6 +161,7 @@ export const TallyCeremony: React.FC = () => {
     const electionEvent = useRecordContext<Sequent_Backend_Election_Event>()
     const [CreateTallyCeremonyMutation] =
         useMutation<CreateTallyCeremonyMutation>(CREATE_TALLY_CEREMONY)
+    const openSigning = useSignedAction()
     const [UpdateTallyCeremonyMutation] =
         useMutation<UpdateTallyCeremonyMutation>(UPDATE_TALLY_CEREMONY)
 
@@ -578,6 +580,10 @@ export const TallyCeremony: React.FC = () => {
                 return
             }
 
+            // Initializing voting may wait for signatures: its panel opens instead.
+            if (openSigning(data.create_tally_ceremony)) {
+                return
+            }
             if (data) {
                 notify(t("tally.createTallySuccess"), {type: "success"})
                 setLocalTallyId(data.create_tally_ceremony.tally_session_id)

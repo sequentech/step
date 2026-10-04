@@ -27,6 +27,12 @@ export const CHANGE_APPLICATION_STATUS = gql`
         ) {
             message
             error
+            signing_request {
+                id
+                code
+                required
+                expires_at
+            }
         }
     }
 `

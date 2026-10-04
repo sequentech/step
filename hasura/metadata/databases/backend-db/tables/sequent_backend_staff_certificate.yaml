@@ -1,0 +1,310 @@
+table:
+    name: staff_certificate
+    schema: sequent_backend
+object_relationships:
+    - name: election
+      using:
+          manual_configuration:
+              column_mapping:
+                  election_id: id
+                  tenant_id: tenant_id
+              insertion_order: null
+              remote_table:
+                  name: election
+                  schema: sequent_backend
+select_permissions:
+    - comment: ""
+      permission:
+          columns:
+              - id
+              - tenant_id
+              - election_event_id
+              - user_id
+              - username
+              - election_id
+              - fingerprint_sha256
+              - serial
+              - subject
+              - issuer
+              - not_before
+              - not_after
+              - status
+              - registration
+              - registered_at
+          filter:
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - user_id:
+                        _eq: X-Hasura-User-Id
+      role: sign-approve-configuration
+    - comment: ""
+      permission:
+          columns:
+              - id
+              - tenant_id
+              - election_event_id
+              - user_id
+              - username
+              - election_id
+              - fingerprint_sha256
+              - serial
+              - subject
+              - issuer
+              - not_before
+              - not_after
+              - status
+              - registration
+              - registered_at
+          filter:
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - user_id:
+                        _eq: X-Hasura-User-Id
+      role: sign-approve-voter
+    - comment: ""
+      permission:
+          columns:
+              - id
+              - tenant_id
+              - election_event_id
+              - user_id
+              - username
+              - election_id
+              - fingerprint_sha256
+              - serial
+              - subject
+              - issuer
+              - not_before
+              - not_after
+              - status
+              - registration
+              - registered_at
+          filter:
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - user_id:
+                        _eq: X-Hasura-User-Id
+      role: sign-close-voting
+    - comment: ""
+      permission:
+          columns:
+              - id
+              - tenant_id
+              - election_event_id
+              - user_id
+              - username
+              - election_id
+              - fingerprint_sha256
+              - serial
+              - subject
+              - issuer
+              - not_before
+              - not_after
+              - status
+              - registration
+              - registered_at
+          filter:
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - user_id:
+                        _eq: X-Hasura-User-Id
+      role: sign-generate-election-returns
+    - comment: ""
+      permission:
+          columns:
+              - id
+              - tenant_id
+              - election_event_id
+              - user_id
+              - username
+              - election_id
+              - fingerprint_sha256
+              - serial
+              - subject
+              - issuer
+              - not_before
+              - not_after
+              - status
+              - registration
+              - registered_at
+          filter:
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - user_id:
+                        _eq: X-Hasura-User-Id
+      role: sign-generate-reports
+    - comment: ""
+      permission:
+          columns:
+              - id
+              - tenant_id
+              - election_event_id
+              - user_id
+              - username
+              - election_id
+              - fingerprint_sha256
+              - serial
+              - subject
+              - issuer
+              - not_before
+              - not_after
+              - status
+              - registration
+              - registered_at
+          filter:
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - user_id:
+                        _eq: X-Hasura-User-Id
+      role: sign-initialize-voting
+    - comment: ""
+      permission:
+          columns:
+              - id
+              - tenant_id
+              - election_event_id
+              - user_id
+              - username
+              - election_id
+              - fingerprint_sha256
+              - serial
+              - subject
+              - issuer
+              - not_before
+              - not_after
+              - status
+              - registration
+              - registered_at
+          filter:
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - user_id:
+                        _eq: X-Hasura-User-Id
+      role: sign-key-ceremony
+    - comment: ""
+      permission:
+          columns:
+              - id
+              - tenant_id
+              - election_event_id
+              - user_id
+              - username
+              - election_id
+              - fingerprint_sha256
+              - serial
+              - subject
+              - issuer
+              - not_before
+              - not_after
+              - status
+              - registration
+              - registered_at
+          filter:
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - user_id:
+                        _eq: X-Hasura-User-Id
+      role: sign-open-voting
+    - comment: ""
+      permission:
+          columns:
+              - id
+              - tenant_id
+              - election_event_id
+              - user_id
+              - username
+              - election_id
+              - fingerprint_sha256
+              - serial
+              - subject
+              - issuer
+              - not_before
+              - not_after
+              - status
+              - registration
+              - registered_at
+          filter:
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - user_id:
+                        _eq: X-Hasura-User-Id
+      role: sign-tally-key
+    - comment: ""
+      permission:
+          columns:
+              - id
+              - tenant_id
+              - election_event_id
+              - user_id
+              - username
+              - election_id
+              - fingerprint_sha256
+              - serial
+              - subject
+              - issuer
+              - not_before
+              - not_after
+              - status
+              - registration
+              - registered_at
+          filter:
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - user_id:
+                        _eq: X-Hasura-User-Id
+      role: sign-transmit-results
+    - comment: ""
+      permission:
+          allow_aggregations: true
+          columns:
+              - id
+              - tenant_id
+              - election_event_id
+              - user_id
+              - username
+              - user_display_name
+              - election_id
+              - fingerprint_sha256
+              - spki_sha256
+              - holder_sha256
+              - serial
+              - subject
+              - issuer
+              - not_before
+              - not_after
+              - pem
+              - status
+              - registration
+              - linked_to
+              - registered_by
+              - registered_by_name
+              - registered_at
+              - revoked_by
+              - revoked_by_name
+              - revoked_at
+              - revoke_reason
+              - created_at
+          filter:
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - _or:
+                        - election_id:
+                              _is_null: true
+                        - election:
+                              _or:
+                                  - permission_label:
+                                        _is_null: true
+                                  - permission_label:
+                                        _in: X-Hasura-Permission-Labels
+      role: signing-certificates-read

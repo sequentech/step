@@ -452,6 +452,41 @@ impl Message {
         Self::from_body(event, body, sd, user_id, username, None, None, None)
     }
 
+    /// One entry of a signing step. The worker that posts the outbox calls
+    /// it twice per step: for the USER entry with the person's user id and
+    /// username, and for the SYSTEM entry without them. `timestamp` is when
+    /// the step happened (the outbox row's `occurred_at`), not when the
+    /// entry is posted.
+    #[allow(clippy::too_many_arguments)]
+    pub fn signing_message(
+        event: EventIdString,
+        entry: SigningLogEntry,
+        timestamp: Timestamp,
+        sd: &SigningData,
+        user_id: Option<String>,
+        username: Option<String>,
+        election_id: Option<String>,
+        area_id: Option<String>,
+    ) -> Result<Self> {
+        let body = StatementBody::Signing(entry);
+        let head = StatementHead {
+            timestamp,
+            ..StatementHead::from_body(event, &body)
+        };
+        Message::sign(
+            Statement::new(head, body),
+            None,
+            &sd.sender_sk,
+            &sd.sender_name,
+            &sd.system_sk,
+            user_id,
+            username,
+            election_id,
+            area_id,
+            None,
+        )
+    }
+
     pub fn results_publication_action_message(
         event: EventIdString,
         details: ResultsPublicationDetails,

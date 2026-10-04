@@ -50,7 +50,13 @@ CRUD endpoints for:
 - contest-create|read|write|delete
 - candidate-create|read|write|delete
 - election-data-tab|approvals-tab
-- election-event-areas-tab|data-tab|keys-tab|logs-tab|publish-tab|reports-tab|scheduled-tab|tally-tab|tasks-tab|voters-tab|approvals-tab
+- election-event-areas-tab|data-tab|keys-tab|logs-tab|publish-tab|reports-tab|scheduled-tab|tally-tab|tasks-tab|voters-tab|approvals-tab|signatures-tab
 - election-publish-tab|voters-tab
 - election-event-voter-list-reconciliation
 - monitoring-view|configure
+- signing-rules-read|write
+- signing-certificates-read|register|revoke
+- signing-issuers-write
+- signing-checks-write
+- signing-requests-read|cancel|export
+- sign-initialize-voting|open-voting|close-voting|generate-election-returns|generate-reports|transmit-results|approve-voter|approve-configuration|key-ceremony|tally-key (one per protected action: `sign-<action id>`)
