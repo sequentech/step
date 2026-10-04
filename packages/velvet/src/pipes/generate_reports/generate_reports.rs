@@ -2004,12 +2004,12 @@ mod participation_by_channel_tests {
                                 "candidate-a": {
                                     "wins": 1,
                                     "transference": 0,
-                                    "percentage": 50.0
+                                    "percentage": 0.5
                                 },
                                 "candidate-z": {
                                     "wins": 7,
                                     "transference": 3,
-                                    "percentage": 87.5
+                                    "percentage": 0.875
                                 }
                             }
                         }]
@@ -2452,6 +2452,7 @@ mod number_format_tests {
                 reports::render_template_text(template, instant_runoff_report()).unwrap();
 
             assert!(rendered.contains(">12.000"), "votes: {rendered}");
+            assert!(rendered.contains("56,70%"), "round share: {rendered}");
             assert!(rendered.contains(">5.000<"), "transfer: {rendered}");
             assert!(!rendered.contains("5000"), "ungrouped transfer: {rendered}");
         }
