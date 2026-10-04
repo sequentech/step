@@ -195,6 +195,9 @@ const meta = {
         })
         boundary = graphqlBoundary(
             {
+                GetScheduledOutcomes: () => ({
+                    data: {get_scheduled_outcomes: {outcomes: [], retained_closes: []}},
+                }),
                 GetLifecycleSnapshots: () => ({data: {get_lifecycle_snapshots: {snapshots: []}}}),
                 // A configuration approval's panel compares with the previous approval: none yet.
                 GetConfigurationApprovals: () => ({data: {current: null, approvals: []}}),
@@ -235,7 +238,7 @@ const meta = {
                                         ? [{log_text: "Synthetic ballot exceeded maximum size"}]
                                         : [],
                                     annotations: {},
-                                    executed_by_user: null,
+                                    executed_by_user: "admin",
                                 },
                             ],
                         },
@@ -312,6 +315,7 @@ const meta = {
             getList: async <RecordType extends RaRecord>(resource: string) => {
                 // The election's fired scheduled transitions and the event's zones: none here.
                 if (
+                    resource === "sequent_backend_area" ||
                     resource === "sequent_backend_scheduled_event" ||
                     resource === "sequent_backend_election"
                 ) {
@@ -330,8 +334,11 @@ const meta = {
                 resource: string,
                 {id}: {id: string | number}
             ) => {
-                if (resource === "sequent_backend_election_event") {
+                if (resource === "sequent_backend_election_event" && id === EVENT_ID) {
                     return {data: eventRecord() as unknown as RecordType}
+                }
+                if (resource === "sequent_backend_election" && id === ELECTION_ID) {
+                    return {data: electionRecord(args.votingStatus) as unknown as RecordType}
                 }
                 if (resource !== "sequent_backend_ballot_publication" || id !== PUBLICATION_ID) {
                     data.unexpected.push(`${resource}/${id}`)
@@ -387,7 +394,9 @@ export const EventGenerationAndPublication: Story = {
             ballotPublicationId: PUBLICATION_ID,
         })
         await expect(await canvas.findByText(PUBLICATION_ID)).toBeVisible()
-        await expect(await canvas.findByText(FIXED_TIME, {exact: false})).toBeVisible()
+        await expect(
+            await canvas.findByText("Jan 15, 2026, 12:00:00 PM UTC", {exact: false})
+        ).toBeVisible()
     },
 }
 

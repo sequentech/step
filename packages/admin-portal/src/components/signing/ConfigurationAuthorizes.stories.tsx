@@ -74,6 +74,7 @@ const meta = {
             },
         }
         data = resourceBoundary({
+            sequent_backend_area: [],
             sequent_backend_election: lifecycleElections(configuration),
             [EVENT_RESOURCE]: [lifecycleEvent(configuration)],
         })
