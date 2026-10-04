@@ -1,7 +1,6 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use borsh::{BorshDeserialize, BorshSerialize};
 use schemars::JsonSchema;
 use serde::{Deserialize, Deserializer, Serialize};
 use strum_macros::{Display, EnumString};
@@ -22,8 +21,6 @@ const RIGHT_SINGLE_QUOTATION_MARK: &str = "\u{2019}";
     Copy,
     PartialEq,
     Eq,
-    BorshSerialize,
-    BorshDeserialize,
     Serialize,
     Deserialize,
     JsonSchema,
