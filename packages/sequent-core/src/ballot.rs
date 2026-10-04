@@ -17,6 +17,7 @@ use crate::types::ceremonies::{
 };
 use crate::types::hasura::core as hasura_core;
 use crate::types::hasura::core::{Area, ElectionEvent};
+use crate::types::number_format::NumberFormatPolicy;
 use ::core::convert::TryInto;
 use anyhow::anyhow;
 use borsh::{BorshDeserialize, BorshSerialize};
@@ -1195,6 +1196,9 @@ pub struct ElectionEventPresentation {
     #[serde(default, deserialize_with = "deserialize_optional_json_string")]
     pub results_website: Option<String>,
     pub voting_portal_datetime_format: Option<VotingPortalDateTimeFormat>,
+    /// Absent in events created before it existed, which then use the
+    /// default.
+    pub number_format_policy: Option<NumberFormatPolicy>,
 }
 
 impl ElectionEvent {
