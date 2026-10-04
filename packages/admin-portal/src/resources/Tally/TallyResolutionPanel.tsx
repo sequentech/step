@@ -37,7 +37,8 @@ import {SUBMIT_TALLY_RESOLUTION} from "@/queries/SubmitTallyResolution"
 import {IPermissions} from "@/types/keycloak"
 import {ITallyExecutionStatus} from "@/types/ceremonies"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
-import {ITieBreakingPolicy} from "@sequentech/ui-core"
+import {ITieBreakingPolicy, useNumberFormat} from "@sequentech/ui-core"
+import {formatTiedVoteShare} from "./utils"
 
 const GLOBAL_AREA_ID = "__global__"
 
@@ -75,6 +76,7 @@ export const TallyResolutionPanel: React.FC<TallyResolutionPanelProps> = ({
 }) => {
     const {t, i18n} = useTranslation()
     const aliasRenderer = useAliasRenderer()
+    const {formatNumber, policy} = useNumberFormat()
     const notify = useNotify()
     const {globalSettings} = useContext(SettingsContext)
     const tallyData = useAtomValue(tallyQueryData)
@@ -576,12 +578,7 @@ export const TallyResolutionPanel: React.FC<TallyResolutionPanelProps> = ({
         !!(selectedResolution?.contest_id && pendingSelections[selectedResolution.contest_id])
     const tiedVoteCount: number =
         (selectedResolution?.resolution_data as TallySessionResolutionData)?.vote_count ?? 0
-    const tiedVotePercent: string | undefined =
-        tiedVoteCount !== undefined && totalVotes !== undefined && totalVotes > 0
-            ? ((tiedVoteCount / totalVotes) * 100).toFixed(1)
-            : totalVotes === 0
-              ? "0.0"
-              : undefined
+    const tiedVotePercent = formatTiedVoteShare(tiedVoteCount, totalVotes, policy)
     const tiedCandidateNames = tiedCandidatesForSelected
         .map((c) => aliasRenderer(c.presentation))
         .join(", ")
@@ -830,7 +827,7 @@ export const TallyResolutionPanel: React.FC<TallyResolutionPanelProps> = ({
                                     </AlertTitle>
                                     {t("tally.pendingResolutions.tieInfoBody", {
                                         candidates: tiedCandidateNames || "?",
-                                        votes: tiedVoteCount ?? "?",
+                                        votes: formatNumber(tiedVoteCount),
                                         percent: tiedVotePercent ?? "?",
                                     })}
                                 </Alert>

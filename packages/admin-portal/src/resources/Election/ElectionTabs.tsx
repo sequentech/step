@@ -26,10 +26,16 @@ import {IPermissions} from "@/types/keycloak"
 import {EditElectionEventUsers} from "../ElectionEvent/EditElectionEventUsers"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {Box, Typography} from "@mui/material"
-import {EElectionEventLockedDown, i18n, translateFromPresentation} from "@sequentech/ui-core"
+import {
+    EElectionEventLockedDown,
+    i18n,
+    NumberFormatProvider,
+    translateFromPresentation,
+} from "@sequentech/ui-core"
 import {EditElectionEventApprovals} from "../ElectionEvent/EditElectionEventApprovals"
 import {Tabs} from "@/components/Tabs"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
+import {getElectionEventNumberFormatPolicy} from "@/services/numberFormatPolicy"
 import {TallySheetWizard, WizardSteps} from "../TallySheet/TallySheetWizard"
 import {Sequent_Backend_Contest} from "../../gql/graphql"
 import {ListTallySheet} from "../TallySheet/ListTallySheet"
@@ -171,7 +177,8 @@ export const ElectionTabs: React.FC = () => {
     const [open] = useSidebarState()
     const aliasRenderer = useAliasRenderer()
 
-    // The lockdown is a property of the election event, not of the election.
+    // The lockdown and the number format are properties of the election
+    // event, not of the election.
     const {data: electionEvent} = useGetOne<Sequent_Backend_Election_Event>(
         "sequent_backend_election_event",
         {id: electionRecord?.election_event_id},
@@ -309,7 +316,11 @@ export const ElectionTabs: React.FC = () => {
             />
             <Box sx={{bgcolor: "background.paper"}}>
                 <RecordContextProvider value={electionRecord}>
-                    <Tabs elements={tabs} />
+                    <NumberFormatProvider
+                        policy={getElectionEventNumberFormatPolicy(electionEvent?.presentation)}
+                    >
+                        <Tabs elements={tabs} />
+                    </NumberFormatProvider>
                 </RecordContextProvider>
             </Box>
         </Box>

@@ -4,7 +4,26 @@
 
 import {ParsedAnnotations, RunoffStatus} from "./types"
 import {Sequent_Backend_Candidate, Sequent_Backend_Contest} from "@/gql/graphql"
-import {ICandidate, IContest, ICountingAlgorithm} from "@sequentech/ui-core"
+import {
+    ENumberFormatPolicy,
+    formatNumber,
+    ICandidate,
+    IContest,
+    ICountingAlgorithm,
+} from "@sequentech/ui-core"
+
+/**
+ * The tied candidates' share of their contest's votes, as a percentage with one
+ * decimal and no % sign, or undefined while the contest's total is unknown.
+ */
+export const formatTiedVoteShare = (
+    tiedVotes: number,
+    totalVotes: number | undefined,
+    numberFormatPolicy: ENumberFormatPolicy
+): string | undefined =>
+    totalVotes === undefined
+        ? undefined
+        : formatNumber(totalVotes > 0 ? (tiedVotes / totalVotes) * 100 : 0, numberFormatPolicy, 1)
 
 /**
  * Safely extracts the value from a GraphQL 'Maybe<T>' type.

@@ -9,3 +9,5 @@
 export * from "../../../ui-core/src/types/VotingChannel"
 export * from "../../../ui-core/src/types/ElectionEventPresentation"
 export * from "../../../ui-core/src/services/numberFormat"
+export * from "../../../ui-core/src/services/NumberFormatContext"
+export * from "../../../ui-core/src/services/presentationOrder"
