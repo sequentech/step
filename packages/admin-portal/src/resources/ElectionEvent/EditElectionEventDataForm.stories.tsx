@@ -99,8 +99,9 @@ type Story = StoryObj<Scenario>
 const edit = (key: string) => i18n.t(`electionEventScreen.edit.${key}`)
 const field = (key: string) => i18n.t(`electionEventScreen.field.${key}`)
 const results = (key: string) => i18n.t(`tally.resultsPublication.${key}`)
+/** A section by its `electionEventScreen.edit` key, or by a full key such as `lifecycle.settings.accordion`. */
 const section = (canvasElement: HTMLElement, key: string) =>
-    within(canvasElement).getByRole("button", {name: edit(key)})
+    within(canvasElement).getByRole("button", {name: key.includes(".") ? i18n.t(key) : edit(key)})
 const operations = () => boundaries.graphql.calls.map(({name}) => name)
 
 async function loaded(canvasElement: HTMLElement) {
@@ -350,10 +351,15 @@ export const WeightedVotingConflicts: Story = {
 }
 
 export const InvalidCustomDateTimeFormat: Story = {
-    parameters: openedSection,
+    parameters: {
+        expectedFailure: {
+            reason: "The language selector's default-language radios have no labels.",
+            a11y: ["label"],
+        },
+    },
     play: async ({canvasElement, args}) => {
         const canvas = await loaded(canvasElement)
-        await openSection(canvasElement, "advancedConfigurations")
+        await openSection(canvasElement, "lifecycle.settings.accordion")
         await choose(
             canvasElement,
             field("votingPortalDateTimeFormat.policyLabel"),

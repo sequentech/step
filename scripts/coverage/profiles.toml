@@ -297,6 +297,7 @@ DEFAULT_SQL_BATCH_SIZE = "1000"
 "src/services/signing/log_tests.rs" = "Standalone unit-test module under cfg(test); the signing log outbox worker remains measured."
 "src/tasks/signing_log_outbox_tests.rs" = "Standalone unit-test module under cfg(test); the signing log outbox task remains measured."
 "src/services/signing/actions/actions_tests.rs" = "Standalone unit-test module under cfg(test); the protected actions' integrations remain measured."
+"src/services/scheduled_outcome_tests.rs" = "Standalone unit-test module under cfg(test); the scheduled outcomes remain measured."
 
 [profiles.windmill.scope_exceptions]
 "src/adapters/memory/mod.rs" = "Module declarations only; the in-memory adapters remain in the source inventory."

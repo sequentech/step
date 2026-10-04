@@ -146,21 +146,22 @@ const listed = () => data.calls.find(({method}) => method === "getList")?.args
 async function exportAs(canvasElement: HTMLElement, format: "CSV" | "PDF") {
     await within(canvasElement).findByText("alice")
     await userEvent.click(within(canvasElement).getByRole("button", {name: "Export"}))
-    await userEvent.click(
-        await within(document.body).findByRole("menuitem", {name: `Export in ${format}`})
-    )
-    return within(await within(document.body).findByRole("dialog"))
+    const dialog = within(await within(document.body).findByRole("dialog"))
+    await userEvent.click(dialog.getByRole("radio", {name: format}))
+    return dialog
 }
 
+/** Without a range, the whole log in the event's primary zone (UTC without zones). */
 const exported = (electionEventId: string, format: string) => [
     {
         name: "ExportElectionEventLogs",
-        variables: {electionEventId, format},
+        variables: {electionEventId, format, createdFrom: null, createdTo: null, timeZone: "UTC"},
         headers: {"x-hasura-role": "logs-export"},
     },
 ]
 
 export const Populated: Story = {
+    parameters: {widgets: ["LogRowTime"]},
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
         await expect(await canvas.findByText("alice")).toBeVisible()
@@ -174,7 +175,8 @@ export const Populated: Story = {
         expect(listed()).toEqual([
             "electoral_log",
             expect.objectContaining({
-                filter: {election_event_id: EVENT_ID},
+                // The range filter's zone defaults to the event's primary (UTC without zones).
+                filter: {election_event_id: EVENT_ID, default_time_zone: "UTC"},
                 sort: {field: "id", order: "DESC"},
             }),
         ])
@@ -248,10 +250,9 @@ export const WithoutExportPermission: Story = {
 }
 
 export const ExportAsCsv: Story = {
-    parameters: {widgets: ["ExportDialog"]},
     play: async ({canvasElement}) => {
         const dialog = await exportAs(canvasElement, "CSV")
-        const title = dialog.getByText("Export in CSV format - 'Logs' results")
+        const title = dialog.getByText("Export logs")
         await waitFor(() => expect(title).toBeVisible())
         expect(graphql.calls).toEqual([])
         await userEvent.click(dialog.getByRole("button", {name: "Export"}))
@@ -260,10 +261,9 @@ export const ExportAsCsv: Story = {
 }
 
 export const CancelThePdfExport: Story = {
-    parameters: {widgets: ["ExportDialog"]},
     play: async ({canvasElement}) => {
         const dialog = await exportAs(canvasElement, "PDF")
-        const title = dialog.getByText("Export in PDF format - 'Logs' results")
+        const title = dialog.getByText("Export logs")
         await waitFor(() => expect(title).toBeVisible())
         await userEvent.click(dialog.getByRole("button", {name: "Cancel"}))
         await waitFor(() => expect(within(document.body).queryByRole("dialog")).toBeNull())
@@ -273,7 +273,6 @@ export const CancelThePdfExport: Story = {
 
 export const ExportOutsideTheEventRecord: Story = {
     args: {inEvent: false, electionEventId: EVENT_ID},
-    parameters: {widgets: ["ExportDialog"]},
     play: async ({canvasElement}) => {
         const dialog = await exportAs(canvasElement, "CSV")
         await userEvent.click(dialog.getByRole("button", {name: "Export"}))

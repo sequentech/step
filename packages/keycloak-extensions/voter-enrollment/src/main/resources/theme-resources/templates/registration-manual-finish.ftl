@@ -24,6 +24,16 @@
                 </ul>
             </#if>
             <p>${msg("registerFinishManualMessage")?no_esc}</p>
+            <#--  The election officer's reply-by time in the Post's zone (lookup-and-update-user's
+                  reply-by-hours), named by timezones.name.<zone>, else the CLDR long name.  -->
+            <#if enrollmentReplyBy??>
+                <#assign replyByZoneKey = "timezones.name." + enrollmentReplyBy.zone>
+                <#assign replyByZoneName = msg(replyByZoneKey)>
+                <#if replyByZoneName == replyByZoneKey>
+                    <#assign replyByZoneName = enrollmentReplyBy.zoneName>
+                </#if>
+                <p id="enrollment-reply-by" class="enrollment-reply-by">${msg("enrollment.replyBy", msg("timezones.voterDateTimeZone", enrollmentReplyBy.dateTime, replyByZoneName))}</p>
+            </#if>
             <p id="instruction1" class="instruction">
                 ${msg("pageExpiredMsg2")} <a id="loginContinueLink" href="${url.loginRestartFlowUrl}">${msg("doClickHere")}</a> .
             </p>

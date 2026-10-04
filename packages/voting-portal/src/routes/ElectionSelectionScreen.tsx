@@ -79,6 +79,7 @@ import {GET_SUPPORT_MATERIALS} from "../queries/GetSupportMaterials"
 import {GET_SUPPORT_MATERIALS_ACKNOWLEDGMENT} from "../queries/GetSupportMaterialsAcknowledgment"
 import {setSupportMaterial} from "../store/supportMaterials/supportMaterialsSlice"
 import {useElectionClassName} from "../hooks/useElectionClassName"
+import {ballotTimeZones, votingClosedMessage} from "../services/ElectionTimeZones"
 
 // `StyledTitle`, `TitleSection`, `PageActions` and `ElectionContainer` were here.
 // They are `ElectionListLayout` in `ui-essentials` now, with the class names they
@@ -152,6 +153,12 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
     const election = useAppSelector(selectElectionById(electionId))
     const ballotStyle = useAppSelector(selectBallotStyleByElectionId(electionId))
     const castVotes = useAppSelector(selectCastVotesByElectionId(String(electionId)))
+    // Nothing for an event without timezones: the card then renders as before.
+    const zones = ballotTimeZones(
+        electionEvent?.presentation,
+        election?.presentation,
+        ballotStyle?.ballot_eml
+    )
     const isAcclaimedCompleted = useAppSelector(isAcclaimedElectionCompleted(electionId))
     const [visitedBypassChooser, setVisitedBypassChooser] = useState(false)
     const authContext = useContext(AuthContext)
@@ -282,11 +289,14 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
             electionDates={summary?.election_dates ?? ballotStyle?.ballot_eml?.election_dates}
             isStarted={isVotingStarted()}
             className={electionClassName}
-            formatDateTime={(input) =>
+            timeZone={zones?.timeZone}
+            closeTimeZone={zones?.closeTimeZone}
+            formatDateTime={(input, zone) =>
                 formatVotingPortalDateTime(
                     input,
                     electionEvent,
-                    i18n.resolvedLanguage || i18n.language
+                    i18n.resolvedLanguage || i18n.language,
+                    zone
                 )
             }
         />
@@ -336,6 +346,8 @@ const ElectionSelectionScreen: React.FC = () => {
         electionEvent?.presentation?.language_conf?.default_language_code
     const oneBallotStyle = useAppSelector(selectFirstBallotStyle)
     const electionIds = useAppSelector(selectElectionIds)
+    const electionsById = useAppSelector((state) => state.elections)
+    const ballotStylesById = useAppSelector((state) => state.ballotStyles)
     const dispatch = useAppDispatch()
     const [canVoteTest, setCanVoteTest] = useState<boolean>(true)
     const [testElectionId, setTestElectionId] = useState<string | null>(null)
@@ -680,6 +692,36 @@ const ElectionSelectionScreen: React.FC = () => {
             ? t(`electionSelectionScreen.alerts.${alertMsg}`)
             : undefined
 
+    // Once the event's voting is closed and every listed ballot's close has
+    // passed: when it closed, in the primary zone with the Post's time.
+    const closedMsg = isElectionEventVotingClosed(electionEvent)
+        ? votingClosedMessage({
+              ballots: electionIds.map((electionId) => {
+                  const ballotStyle = ballotStylesById[electionId]
+                  return {
+                      electionDates:
+                          voterContext.summaries?.[electionId]?.election_dates ??
+                          ballotStyle?.ballot_eml?.election_dates,
+                      zones: ballotTimeZones(
+                          electionEvent?.presentation,
+                          electionsById[electionId]?.presentation,
+                          ballotStyle?.ballot_eml
+                      ),
+                  }
+              }),
+              now: new Date(),
+              t,
+              lang: i18n.resolvedLanguage || i18n.language,
+              formatDateTime: (input, zone) =>
+                  formatVotingPortalDateTime(
+                      input,
+                      electionEvent,
+                      i18n.resolvedLanguage || i18n.language,
+                      zone
+                  ),
+          })
+        : undefined
+
     // Block voting until we positively know the voter has acknowledged.
     const materialsGate =
         isMaterialsMandatory && !(hasAcknowledgmentLoaded && hasAcknowledgedSupportMaterials)
@@ -727,10 +769,19 @@ const ElectionSelectionScreen: React.FC = () => {
                 </>
             }
             alert={
-                warningMsg ? (
-                    <Alert className="election-selection-warning" severity="warning">
-                        {stringToHtml(warningMsg)}
-                    </Alert>
+                warningMsg || closedMsg ? (
+                    <>
+                        {warningMsg ? (
+                            <Alert className="election-selection-warning" severity="warning">
+                                {stringToHtml(warningMsg)}
+                            </Alert>
+                        ) : null}
+                        {closedMsg ? (
+                            <Alert className="election-selection-closed" severity="warning">
+                                {closedMsg}
+                            </Alert>
+                        ) : null}
+                    </>
                 ) : undefined
             }
             actions={

@@ -5,6 +5,7 @@
 import {Box, Menu, MenuItem} from "@mui/material"
 import React, {useMemo, useState} from "react"
 import {useTranslation} from "react-i18next"
+import {useEventZonedFormat} from "@/hooks/useZonedFormat"
 import {Dialog} from "@sequentech/ui-essentials"
 import {sanitizeFilename, FOLDER_MAX_CHARS} from "@sequentech/ui-core"
 import {EExportFormat} from "@/types/results"
@@ -68,6 +69,7 @@ export const MiruPackageDownload: React.FC<MiruPackageDownloadProps> = ({
     eventName,
 }) => {
     const {t} = useTranslation()
+    const zoned = useEventZonedFormat(electionEventId)
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null)
     const [openModal, setOpenModal] = useState(false)
     const [documentToDownload, setDocumentToDownload] = useState<string | null>(null)
@@ -151,8 +153,10 @@ export const MiruPackageDownload: React.FC<MiruPackageDownloadProps> = ({
         return newestDocument
     }, [documents])
 
+    // The file name keeps its compact date; the menu shows the time with its zone label.
     const lastDocumentDate =
         (lastDocument?.created_at && formatDate(new Date(lastDocument?.created_at))) || ""
+    const lastDocumentTime = zoned.format(lastDocument?.created_at)
 
     const emlDocumentId = lastDocument?.document_ids.eml
     return (
@@ -223,7 +227,7 @@ export const MiruPackageDownload: React.FC<MiruPackageDownloadProps> = ({
                                 )}
                             >
                                 {t("tally.transmissionPackage.actions.download.emlTitle", {
-                                    date: lastDocumentDate,
+                                    date: lastDocumentTime,
                                 })}
                             </span>
                         </Box>
@@ -253,7 +257,7 @@ export const MiruPackageDownload: React.FC<MiruPackageDownloadProps> = ({
                                     t(
                                         "tally.transmissionPackage.actions.download.transmissionPackageTitle",
                                         {
-                                            date: lastDocumentDate,
+                                            date: lastDocumentTime,
                                         }
                                     )
                                 )}
@@ -261,7 +265,7 @@ export const MiruPackageDownload: React.FC<MiruPackageDownloadProps> = ({
                                 {t(
                                     "tally.transmissionPackage.actions.download.transmissionPackageTitle",
                                     {
-                                        date: lastDocumentDate,
+                                        date: lastDocumentTime,
                                     }
                                 )}
                             </span>

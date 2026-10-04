@@ -91,7 +91,7 @@ function Fixture({widgetId, configure, onConfigureWidget, onDuplicateWidget}: Sc
                             scopeLabel: "All regions · All Posts · All countries",
                             snapshot: MONITORING_SNAPSHOT,
                             sources: response.sources,
-                            timeZone: response.settings.time_zone,
+                            timeZone: response.time_zone,
                             eventDays: EVENT_DAYS,
                             configVersion: "3/1/1",
                             pollCount,

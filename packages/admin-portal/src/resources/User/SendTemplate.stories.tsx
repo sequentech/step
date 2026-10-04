@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React from "react"
+import {eventRecord} from "@/__stories__/fixtures"
 import type {StoryObj} from "@storybook/react-vite"
 import {expect, fn, userEvent, waitFor, within} from "storybook/test"
 import type {Identifier} from "react-admin"
@@ -80,7 +81,12 @@ const meta = {
             },
             {schema: true}
         )
-        data = resourceBoundary({sequent_backend_template: templates})
+        // The event's zones: the schedule is entered in its primary timezone.
+        data = resourceBoundary({
+            sequent_backend_template: templates,
+            sequent_backend_election_event: [eventRecord()],
+            sequent_backend_election: [],
+        })
         await graphql.ready
     },
     render: ({ids, audienceSelection, secretAttributeNames, close}) => (
@@ -182,7 +188,8 @@ export const EmailTemplateWithSecretAttribute: Story = {
     play: async ({args, canvasElement}) => {
         const canvas = within(canvasElement)
         await waitFor(() => expect(data.calls).not.toHaveLength(0))
-        const [, , alias] = canvas.getAllByRole("combobox")
+        // The template is the third select (the schedule's timezone picker isn't one).
+        const [, , alias] = canvas.getAllByRole("combobox").filter((box) => box.tagName !== "INPUT")
         await userEvent.click(alias)
         await userEvent.click(await within(document.body).findByRole("option", {name: "welcome"}))
         await waitFor(() =>

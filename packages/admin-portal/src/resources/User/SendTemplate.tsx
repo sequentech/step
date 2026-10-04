@@ -9,7 +9,6 @@ import {
     useListContext,
     useNotify,
     Toolbar,
-    DateTimeInput,
     Identifier,
     useGetList,
 } from "react-admin"
@@ -38,6 +37,12 @@ import {ScheduledEventType} from "@/services/ScheduledEvent"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {ITemplateMethod, IEmail, ISendTemplateBody} from "@/types/templates"
 import {useLocation} from "react-router-dom"
+import {
+    ZonedDateTimeInput,
+    type IStoredZonedDateTime,
+} from "@/components/timezones/ZonedDateTimeInput"
+import {useTimeZoneContext} from "@/components/timezones/useTimeZoneContext"
+import {useTimeZoneService} from "@/components/timezones/timeZoneService"
 
 export enum AudienceSelection {
     ALL_USERS = "ALL_USERS",
@@ -51,7 +56,8 @@ interface ITemplatePayload {
     audience_voter_ids?: Array<Identifier>
     communication_method: ITemplateMethod
     schedule_now: boolean
-    schedule_date?: Date
+    /** RFC 3339 instant. */
+    schedule_date?: string
     email?: {
         subject: string
         plaintext_body: string
@@ -72,7 +78,8 @@ interface ITemplate {
     alias?: string
     schedule: {
         now: boolean
-        date?: Date
+        /** The time as entered: the instant, its wall time and zone. */
+        zoned?: IStoredZonedDateTime | null
     }
     i18n: {
         [lang_code: string]: {
@@ -115,6 +122,9 @@ export const SendTemplate: React.FC<SendTemplateProps> = ({
     const [errors, setErrors] = useState<String | null>(null)
     const [createScheduledEvent] = useMutation<CreateScheduledEventMutation>(CREATE_SCHEDULED_EVENT)
     const [showProgress, setShowProgress] = useState(false)
+    // A time is entered in the event's primary zone, else the viewer's.
+    const zones = useTimeZoneContext(electionEventId)
+    const timeZones = useTimeZoneService()
 
     const [template, setTemplate] = useState<ITemplate>({
         audience: {
@@ -124,7 +134,7 @@ export const SendTemplate: React.FC<SendTemplateProps> = ({
         communication_method: ITemplateMethod.EMAIL,
         schedule: {
             now: true,
-            date: undefined,
+            zoned: undefined,
         },
         i18n: {
             en: {
@@ -151,7 +161,7 @@ export const SendTemplate: React.FC<SendTemplateProps> = ({
             audience_voter_ids: formData.audience.voter_ids,
             communication_method: formData.communication_method,
             schedule_now: formData.schedule.now,
-            schedule_date: formData.schedule.date,
+            schedule_date: formData.schedule.zoned?.scheduled_date ?? undefined,
             email: formData.i18n["en"].email,
             sms: formData.i18n["en"].sms,
             secret_attribute_names: getReferencedSecretAttributeNames(
@@ -287,8 +297,8 @@ export const SendTemplate: React.FC<SendTemplateProps> = ({
         setTemplate(newTemplate)
     }
 
-    const validateDate = (value: any) => {
-        if (!template.schedule.now && !value) {
+    const validateDate = (value: IStoredZonedDateTime | null | undefined) => {
+        if (!template.schedule.now && !value?.scheduled_date) {
             return t("sendCommunication.chooseDate")
         }
     }
@@ -394,12 +404,14 @@ export const SendTemplate: React.FC<SendTemplateProps> = ({
                                 />
                             }
                         />
-                        <DateTimeInput
-                            validate={validateDate as any}
+                        <ZonedDateTimeInput
+                            validate={validateDate}
                             disabled={template.schedule.now}
-                            source="schedule.date"
+                            source="schedule.zoned"
                             label={String(t("sendCommunication.dateInput"))}
-                            parse={(value) => new Date(value).toISOString()}
+                            defaultZone={electionEventId ? zones.primary : timeZones.myTimeZone}
+                            zones={electionEventId ? zones.configured : undefined}
+                            primary={electionEventId ? zones.primary : undefined}
                         />
                     </AccordionDetails>
                 </FormStyles.AccordionExpanded>

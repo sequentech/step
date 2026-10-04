@@ -212,7 +212,7 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
                     </WizardStyles.AccordionDetails>
                 </Accordion>
 
-                <Logs logs={status?.logs} />
+                <Logs logs={status?.logs} event={electionEvent} />
             </WizardStyles.ContentWrapper>
 
             <WizardStyles.FooterContainer>

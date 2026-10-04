@@ -7,8 +7,8 @@ import {gql} from "@apollo/client"
 export const LIST_CAST_VOTE_MESSAGES = gql`
     query listCastVoteMessages(
         $tenantId: String!
-        $electionEventId: String!
-        $electionId: String
+        $electionEventId: uuid!
+        $electionId: uuid
         $ballotId: String!
         $limit: Int
         $offset: Int

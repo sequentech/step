@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React from "react"
+import {eventRecord} from "@/__stories__/fixtures"
 import type {StoryObj} from "@storybook/react-vite"
 import {expect, fn, userEvent, waitFor, within} from "storybook/test"
 import {GraphQLError} from "graphql"
@@ -55,6 +56,8 @@ const meta = {
             sequent_backend_report: REPORTS,
             sequent_backend_template: TEMPLATES,
             sequent_backend_election: ELECTIONS,
+            // The event's zones: a repeatable report runs in its primary timezone.
+            sequent_backend_election_event: [eventRecord()],
         })
         const rejected = {errors: [new GraphQLError("Synthetic report rejected")]}
         graphql = graphqlBoundary(

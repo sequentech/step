@@ -388,6 +388,8 @@ const basqueTranslation: TranslationType = {
                 instructions:
                     "<MaterialsLink>{{materialsTitle}}</MaterialsLink> irakurri behar duzu bozkatu ahal izateko.",
             },
+            votingClosedAt: "Bozketa itxi zen: {{close}} ({{localClose}}).",
+            votingClosedOn: "Bozketa itxi zen: {{close}}.",
         },
         errors: {
             encoding: {
