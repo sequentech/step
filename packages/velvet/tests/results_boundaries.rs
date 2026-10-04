@@ -16,13 +16,14 @@ use velvet::pipes::do_tally::counting_algorithm::{
 };
 use velvet::pipes::do_tally::tally::{BallotsFile, Tally};
 use velvet::pipes::do_tally::{
-    CandidateResult, ContestResult, OUTPUT_BREAKDOWNS_FOLDER, OUTPUT_CONTEST_RESULT_FILE,
+    CandidateResult, ContestResult, MAX_COUNT, OUTPUT_BREAKDOWNS_FOLDER, OUTPUT_CONTEST_RESULT_FILE,
 };
 use velvet::pipes::mark_winners::{MarkWinners, OUTPUT_WINNERS};
 
-// Both overflow cases merge PAPER counts. Velvet's error Display delegates to
-// Debug, so the counting-algorithm message wraps the pipe error; match the
-// overflow and its channel rather than that wrapper.
+// Both overflow cases merge PAPER counts past MAX_COUNT, the largest count a
+// tally publishes exactly. Velvet's error Display delegates to Debug, so the
+// counting-algorithm message wraps the pipe error; match the overflow and its
+// channel rather than that wrapper.
 const PAPER_CHANNEL_OVERFLOW: &str = "Voting channel count overflow for PAPER";
 
 fn election_result(counts: &[(&str, u64)]) -> ContestResult {
@@ -72,16 +73,16 @@ fn area_result_aggregation_rejects_channel_overflow_before_combining_totals() {
         0,
         0,
         vec![],
-        vec![result(u64::MAX - 1), result(1)],
+        vec![result(MAX_COUNT - 1), result(1)],
     )
     .unwrap();
-    // These are already-counted area results, not u64::MAX allocated ballots.
+    // These are already-counted area results, not MAX_COUNT allocated ballots.
     // The public aggregation entry point must accept the exact boundary first.
     let combined = tally.aggregate_results().unwrap();
-    assert_eq!(combined.total_votes, u64::MAX);
+    assert_eq!(combined.total_votes, MAX_COUNT);
     assert_eq!(
         combined.extended_metrics.unwrap().votes_by_channel[&channel],
-        u64::MAX
+        MAX_COUNT
     );
 
     tally.tally_results[1] = result(2);
@@ -89,7 +90,7 @@ fn area_result_aggregation_rejects_channel_overflow_before_combining_totals() {
     assert!(matches!(error,
         velvet::pipes::do_tally::counting_algorithm::Error::UnexpectedError(message)
         if message.contains(PAPER_CHANNEL_OVERFLOW)));
-    assert_eq!(tally.tally_results[0].total_votes, u64::MAX - 1);
+    assert_eq!(tally.tally_results[0].total_votes, MAX_COUNT - 1);
 }
 
 #[test]
@@ -109,7 +110,7 @@ fn counting_algorithms_reject_overflow_when_merging_paper_sheets() {
         contest.counting_algorithm = Some(algorithm);
         contest.winning_candidates_num = 1;
         for last_count in [1, 2] {
-            let sheets = [u64::MAX - 1, last_count].map(|count| ContestResult {
+            let sheets = [MAX_COUNT - 1, last_count].map(|count| ContestResult {
                 contest: contest.clone(),
                 total_votes: count,
                 total_valid_votes: count,
@@ -137,10 +138,10 @@ fn counting_algorithms_reject_overflow_when_merging_paper_sheets() {
             };
             if last_count == 1 {
                 let combined = combined.unwrap();
-                assert_eq!(combined.total_votes, u64::MAX);
+                assert_eq!(combined.total_votes, MAX_COUNT);
                 assert_eq!(
                     combined.extended_metrics.unwrap().votes_by_channel[&channel],
-                    u64::MAX
+                    MAX_COUNT
                 );
             } else {
                 assert!(
