@@ -168,6 +168,25 @@ type Mutation {
     delete_phone_blacklist_entry(id: uuid!, election_event_id: uuid!): IdOutput
 }
 
+type Query {
+    get_approval_matrix(election_event_id: uuid!): ApprovalMatrixOutput!
+}
+
+type Query {
+    evaluate_approval_matrix(
+        election_event_id: uuid!
+        matrix: jsonb!
+        enrollment: jsonb!
+    ): EvaluateApprovalMatrixOutput!
+}
+
+type Mutation {
+    save_approval_matrix(
+        election_event_id: uuid!
+        matrix: jsonb!
+    ): ApprovalMatrixOutput!
+}
+
 type Mutation {
     delete_role(tenant_id: String!, role_id: String!): SetUserRoleOutput
 }
@@ -2614,4 +2633,29 @@ type SigningPdfPrepareOutput {
 
 type SigningHeldReportRequestsOutput {
     requests: jsonb!
+}
+
+type ApprovalMatrixOutput {
+    version: Int!
+    source: String!
+    matrix: jsonb!
+    sha256: String
+    created_at: String
+    created_by: String
+    next_version: Int!
+    valid_ids: [String!]!
+}
+
+type ApprovalMatrixError {
+    code: String!
+    rule: Int
+    field: String
+}
+
+type EvaluateApprovalMatrixOutput {
+    rule: Int
+    decision: String
+    reason: String
+    invariant: String
+    errors: [ApprovalMatrixError!]!
 }

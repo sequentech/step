@@ -60,6 +60,8 @@ pub const DEFAULT_VERSION: &str = "v10.0.0";
 /// The bundle's signing configuration, carried over from a base export.
 const SIGNING_RULES_KEY: &str = "signing_rules";
 const SIGNING_CHECKS_KEY: &str = "signing_checks";
+/// The bundle's enrollment approval matrix, carried over the same way.
+const APPROVAL_MATRIX_KEY: &str = "approval_matrix";
 
 /// Columns the builder consumes itself.
 ///
@@ -759,8 +761,10 @@ impl<'a> Builder<'a> {
         // How the event signs its protected actions belongs to the event as a
         // whole, so a base export's configuration is carried over as it is:
         // that is how a client's preset (its rules and certificate checks)
-        // reaches a bundle built from a workbook.
-        for key in [SIGNING_RULES_KEY, SIGNING_CHECKS_KEY] {
+        // reaches a bundle built from a workbook. The approval matrix travels
+        // the same way.
+        for key in [SIGNING_RULES_KEY, SIGNING_CHECKS_KEY, APPROVAL_MATRIX_KEY]
+        {
             if let Some(value) =
                 self.base_export.get(key).filter(|value| !value.is_null())
             {

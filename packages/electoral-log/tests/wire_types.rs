@@ -60,6 +60,7 @@ string_wire_cases! {
     monitoring_config_key => MonitoringConfigKeyString,
     monitoring_config_digest => MonitoringConfigDigestString,
     monitoring_preset_identifier => MonitoringPresetIdString,
+    approval_matrix_digest => ApprovalMatrixDigestString,
 }
 
 #[test]

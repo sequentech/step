@@ -867,6 +867,33 @@ fn a_base_export_carries_its_signing_configuration_over() {
 }
 
 #[test]
+fn a_base_exports_approval_matrix_is_carried_over() {
+    let templates = TemplateSet::builtin().unwrap();
+    let matrix = json!({
+        "compared_fields": ["firstName", "lastName", "dateOfBirth"],
+        "rules": [{"when": {"differing": "none"}, "then": {"decision": "ACCEPTED"}}],
+        "otherwise": {"decision": "PENDING", "reason": "NO_VOTER"},
+    });
+
+    let bundle = build(
+        &sound(),
+        &templates,
+        &BuildOptions {
+            base_export: Some(json!({"approval_matrix": matrix})),
+            ..BuildOptions::default()
+        },
+        &Sources::default(),
+    )
+    .unwrap();
+
+    assert_eq!(bundle.export["approval_matrix"], matrix);
+    let schema: crate::election_config::schema::ImportElectionEventSchema =
+        serde_json::from_value(bundle.export.clone()).unwrap();
+    assert_eq!(schema.approval_matrix, Some(matrix));
+    assert!(built(&sound()).export.get("approval_matrix").is_none());
+}
+
+#[test]
 fn without_a_base_export_a_bundle_has_no_signing_configuration() {
     let export = built(&sound()).export;
     assert!(export.get("signing_rules").is_none());

@@ -79,6 +79,11 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
   public static final String SEARCH_ATTRIBUTES = "search-attributes";
   public static final String UNSET_ATTRIBUTES = "unset-attributes";
   public static final String UPDATE_ATTRIBUTES = "update-attributes";
+  /**
+   * Auth note an identity verification step sets to say how the applicant's identity was
+   * established: VERIFIED or MANUAL_ENTRY. The approval matrix decides with it.
+   */
+  public static final String IDENTITY_METHOD = "identity-method";
   public static final String AUTO_LOGIN = "auto-login";
   private static final String MESSAGE_COURIER_ATTRIBUTE = "messageCourierAttribute";
   private static final String TEL_USER_ATTRIBUTE = "telUserAttribute";
@@ -94,6 +99,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
     INSUFFICIENT_INFORMATION,
     NO_VOTER,
     ALREADY_APPROVED,
+    IDENTITY_NOT_VERIFIED,
     OTHER,
     NO_REASON_GIVEN;
 
@@ -217,6 +223,10 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
     annotationsMap.put(UNSET_ATTRIBUTES, unsetAttributes);
     annotationsMap.put("credentials", credentials);
     annotationsMap.put("sessionId", sessionId);
+    String identityMethod = context.getAuthenticationSession().getAuthNote(IDENTITY_METHOD);
+    if (identityMethod != null) {
+      annotationsMap.put(IDENTITY_METHOD, identityMethod);
+    }
 
     MessageCourier messageCourier =
         MessageCourier.fromString(config.getConfig().get(MESSAGE_COURIER_ATTRIBUTE));

@@ -305,6 +305,19 @@ pub struct ResultsPublicationDetails {
     pub contest_ids: Vec<ContestIdString>,
 }
 
+/// The version of an election event's enrollment approval matrix.
+#[derive(
+    BorshSerialize, BorshDeserialize, Deserialize, Serialize, Clone, PartialEq, Eq, Hash, Debug,
+)]
+pub struct ApprovalMatrixVersion(pub u32);
+
+/// Lowercase hex SHA-256 of an approval matrix's JSON, which binds the
+/// entry to the saved version.
+#[derive(
+    BorshSerialize, BorshDeserialize, Deserialize, Serialize, Clone, PartialEq, Eq, Hash, Debug,
+)]
+pub struct ApprovalMatrixDigestString(pub String);
+
 /// A monitoring configuration document's kind, as sequent-core names it:
 /// `widget`, `dashboard`, `theme` or `settings`.
 #[derive(

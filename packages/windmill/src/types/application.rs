@@ -42,6 +42,8 @@ pub enum ApplicationRejectReason {
     NO_VOTER,
     #[strum(to_string = "voter-already-approved")]
     ALREADY_APPROVED,
+    #[strum(to_string = "identity-not-verified")]
+    IDENTITY_NOT_VERIFIED,
     #[default]
     #[strum(to_string = "other")]
     OTHER, //mandatory comment

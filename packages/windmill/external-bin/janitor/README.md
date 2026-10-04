@@ -31,7 +31,10 @@ python3 ./run.py import-data/OCF-0-20241122.zip 17-12-2024-parameters-reports.xl
 The output files are:
 - `output/election-event.zip`. This is the election event zip that you
 	can import in the admin portal. It carries the signing rules and certificate
-	checks of `templates/COMELEC/signing.json`.
+	checks of `templates/COMELEC/signing.json`, and the enrollment approval matrix of
+	`templates/COMELEC/approvalMatrix.json`, which the import saves as version 1 of the
+	election event. `--approval-matrix <path>` uses another matrix, for example
+	`templates/association/approvalMatrix.json`.
 - `admins.csv`. CSV to be imported to configure the admin users, including sbei users.
   Each SBEI account gets the `title` attribute of its role from `sbei_titles` in
   `templates/COMELEC/signing.json`.

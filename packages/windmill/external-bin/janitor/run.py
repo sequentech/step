@@ -12,6 +12,7 @@ import os
 import logging
 from pybars import Compiler
 
+import approval_matrix_preset
 import signing_preset
 import openpyxl
 import copy
@@ -1592,6 +1593,7 @@ parser.add_argument('excel', type=str, help='Excel config (with .xlsx extension)
 parser.add_argument('--voters', type=str, metavar='VOTERS_FILE_PATH', help='Create a voters file if this flag is set')
 parser.add_argument('--only-voters', type=str, metavar='VOTERS_FILE_PATH', help='Only create a voters file if this flag is set')
 parser.add_argument('--multiply-elections', type=int, default=1, help='Multiply the number of elections created by this factor')
+parser.add_argument('--approval-matrix', type=str, metavar='APPROVAL_MATRIX_PATH', default=approval_matrix_preset.DEFAULT_PATH, help='Enrollment approval matrix saved as version 1 of the election event')
 
 
 # Step 3: Parse the arguments
@@ -1667,6 +1669,7 @@ try:
     # checks, and the titles of the SBEI accounts.
     preset = signing_preset.load('templates/COMELEC/signing.json')
     client_tenant = signing_preset.load('templates/COMELEC/tenant.json')
+    approval_matrix = approval_matrix_preset.load(args.approval_matrix)
     
 
     logging.info("Loaded all templates successfully.")
@@ -1701,6 +1704,7 @@ final_json = {
     "reports": reports
 }
 signing_preset.add_to_bundle(final_json, preset)
+approval_matrix_preset.add_to_bundle(final_json, approval_matrix)
 
 patch_json_with_excel(excel_data, final_json, "event")
 
