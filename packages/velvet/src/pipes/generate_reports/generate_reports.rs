@@ -2390,4 +2390,70 @@ mod number_format_tests {
         let json: serde_json::Value = serde_json::from_slice(&json).unwrap();
         assert_eq!(json["reports"][0]["contest_result"]["census"], 1234);
     }
+
+    /// Two rounds in which Bob is eliminated and 5,000 of his 5,345 ballots
+    /// transfer to Alice.
+    fn instant_runoff_report() -> serde_json::Map<String, serde_json::Value> {
+        let variables = json!({
+            "reports": [{
+                "contest": {
+                    "name": "Contest",
+                    "counting_algorithm": "instant-runoff",
+                    "min_votes": 0,
+                    "max_votes": 1
+                },
+                "contest_result": {
+                    "process_results": {
+                        "round_count": 2,
+                        "max_rounds": 3,
+                        "name_references": [
+                            { "id": "alice", "name": "Alice" },
+                            { "id": "bob", "name": "Bob" }
+                        ],
+                        "rounds": [{
+                            "active_candidates_count": 2,
+                            "active_ballots_count": 12345,
+                            "exhausted_ballots_count": 1000,
+                            "candidates_wins": {
+                                "alice": { "wins": 7000, "transference": 0, "percentage": 0.567 },
+                                "bob": { "wins": 5345, "transference": 0, "percentage": 0.433 }
+                            },
+                            "eliminated_candidates": [{ "id": "bob", "name": "Bob" }]
+                        }, {
+                            "active_candidates_count": 1,
+                            "active_ballots_count": 12000,
+                            "exhausted_ballots_count": 1345,
+                            "candidates_wins": {
+                                "alice": { "wins": 12000, "transference": 5000, "percentage": 1.0 }
+                            },
+                            "winner": { "id": "alice", "name": "Alice" }
+                        }]
+                    }
+                },
+                "candidate_result": []
+            }],
+            "number_format_policy": "period-comma"
+        });
+        let serde_json::Value::Object(variables) = variables else {
+            panic!("report variables must be an object");
+        };
+        variables
+    }
+
+    #[test]
+    fn instant_runoff_rounds_follow_the_number_format_policy() {
+        for template in [
+            include_str!("../../resources/report_content.hbs"),
+            include_str!(
+                "../../../../../.devcontainer/minio/public-assets/electoral_results_user.hbs"
+            ),
+        ] {
+            let rendered =
+                reports::render_template_text(template, instant_runoff_report()).unwrap();
+
+            assert!(rendered.contains(">12.000"), "votes: {rendered}");
+            assert!(rendered.contains(">5.000<"), "transfer: {rendered}");
+            assert!(!rendered.contains("5000"), "ungrouped transfer: {rendered}");
+        }
+    }
 }
