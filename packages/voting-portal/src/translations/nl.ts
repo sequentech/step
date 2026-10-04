@@ -481,6 +481,15 @@ const dutchTranslation: TranslationType = {
                 ballot_id: "Stembiljet ID",
                 message: "Bericht",
             },
+            pagination: {
+                rowsPerPage: "Rijen per pagina:",
+                displayedRows: "{{from}}–{{to}} van {{total}}",
+                displayedRowsMoreThan: "{{from}}–{{to}} van meer dan {{to}}",
+                firstPage: "Ga naar de eerste pagina",
+                lastPage: "Ga naar de laatste pagina",
+                nextPage: "Ga naar de volgende pagina",
+                previousPage: "Ga naar de vorige pagina",
+            },
         },
     },
 }
