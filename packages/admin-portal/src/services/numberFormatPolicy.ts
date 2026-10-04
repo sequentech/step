@@ -2,7 +2,13 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import {ENumberFormatPolicy, formatNumber} from "@sequentech/ui-core"
+import {
+    ENumberFormatPolicy,
+    formatNumber,
+    IElectionEventPresentation,
+    parseEntityPresentation,
+    resolveNumberFormatPolicy,
+} from "@sequentech/ui-core"
 
 const NUMBER_FORMAT_SAMPLE = 1234567.89
 
@@ -17,3 +23,12 @@ export const getNumberFormatPolicyChoices = (): INumberFormatPolicyChoice[] =>
         id: policy,
         name: formatNumber(NUMBER_FORMAT_SAMPLE, policy, 2),
     }))
+
+/**
+ * The policy an election event writes its numbers with. Events whose
+ * presentation names none, or one this version does not know, use the default.
+ */
+export const getElectionEventNumberFormatPolicy = (presentation: unknown): ENumberFormatPolicy =>
+    resolveNumberFormatPolicy(
+        parseEntityPresentation<IElectionEventPresentation>(presentation)?.number_format_policy
+    )

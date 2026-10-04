@@ -4,13 +4,19 @@
 
 import React, {Suspense, useContext, useEffect, useMemo, useState} from "react"
 import {useTranslation} from "react-i18next"
-import {useRecordContext, useSidebarState, Identifier, RecordContextProvider} from "react-admin"
+import {
+    useGetOne,
+    useRecordContext,
+    useSidebarState,
+    Identifier,
+    RecordContextProvider,
+} from "react-admin"
 import {v4 as uuidv4} from "uuid"
 
 import {AuthContext} from "@/providers/AuthContextProvider"
 import ElectionHeader from "@/components/ElectionHeader"
 import DashboardElection from "@/components/dashboard/election/Dashboard"
-import {Sequent_Backend_Election} from "@/gql/graphql"
+import {Sequent_Backend_Election, Sequent_Backend_Election_Event} from "@/gql/graphql"
 import {Publish} from "../Publish/Publish"
 import {EditElectionData} from "./ElectionData"
 import {EPublishType} from "../Publish/EPublishType"
@@ -18,10 +24,16 @@ import {IPermissions} from "@/types/keycloak"
 import {EditElectionEventUsers} from "../ElectionEvent/EditElectionEventUsers"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {Box, Typography} from "@mui/material"
-import {EElectionEventLockedDown, i18n, translateFromPresentation} from "@sequentech/ui-core"
+import {
+    EElectionEventLockedDown,
+    i18n,
+    NumberFormatProvider,
+    translateFromPresentation,
+} from "@sequentech/ui-core"
 import {EditElectionEventApprovals} from "../ElectionEvent/EditElectionEventApprovals"
 import {Tabs} from "@/components/Tabs"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
+import {getElectionEventNumberFormatPolicy} from "@/services/numberFormatPolicy"
 import {TallySheetWizard, WizardSteps} from "../TallySheet/TallySheetWizard"
 import {Sequent_Backend_Contest} from "../../gql/graphql"
 import {ListTallySheet} from "../TallySheet/ListTallySheet"
@@ -147,6 +159,10 @@ export const ElectionTabs: React.FC = () => {
     const [hasPermissionToViewElection, setHasPermissionToViewElection] = useState<boolean>(true)
     const [open] = useSidebarState()
     const aliasRenderer = useAliasRenderer()
+    const {data: electionEvent} = useGetOne<Sequent_Backend_Election_Event>(
+        "sequent_backend_election_event",
+        {id: electionRecord?.election_event_id}
+    )
 
     const isElectionEventLocked =
         electionRecord?.presentation?.locked_down === EElectionEventLockedDown.LOCKED_DOWN
@@ -287,7 +303,11 @@ export const ElectionTabs: React.FC = () => {
             />
             <Box sx={{bgcolor: "background.paper"}}>
                 <RecordContextProvider value={electionRecord}>
-                    <Tabs elements={tabs} />
+                    <NumberFormatProvider
+                        policy={getElectionEventNumberFormatPolicy(electionEvent?.presentation)}
+                    >
+                        <Tabs elements={tabs} />
+                    </NumberFormatProvider>
                 </RecordContextProvider>
             </Box>
         </Box>
