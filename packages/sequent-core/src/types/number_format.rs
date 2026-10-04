@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use borsh::{BorshDeserialize, BorshSerialize};
 use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use strum_macros::{Display, EnumString};
 
 /// The template variable through which an election event's number format
@@ -110,6 +110,19 @@ impl NumberFormatPolicy {
     }
 }
 
+/// Reads an optional policy, taking a code this version does not know as no
+/// policy, so that one unknown value cannot make a whole election event
+/// presentation unreadable.
+pub fn deserialize_lenient_number_format_policy<'de, D>(
+    deserializer: D,
+) -> Result<Option<NumberFormatPolicy>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let value = Option::<serde_json::Value>::deserialize(deserializer)?;
+    Ok(value.and_then(|value| serde_json::from_value(value).ok()))
+}
+
 fn group_digits(digits: &str, separator: &str) -> String {
     let length = digits.len();
     let mut grouped = String::with_capacity(length + length / 3 * 3);
@@ -205,6 +218,31 @@ mod tests {
             NumberFormatPolicy::CommaPeriod.format_decimal(f64::NAN, 2),
             "NaN"
         );
+    }
+
+    #[cfg(feature = "default_features")]
+    #[test]
+    fn a_presentation_with_an_unknown_policy_still_reads() {
+        use crate::ballot::ElectionEventPresentation;
+        let read = |value: serde_json::Value| {
+            serde_json::from_value::<ElectionEventPresentation>(value)
+                .expect("presentation reads")
+                .number_format_policy
+        };
+        assert_eq!(read(serde_json::json!({})), None);
+        assert_eq!(
+            read(serde_json::json!({"number_format_policy": null})),
+            None
+        );
+        assert_eq!(
+            read(serde_json::json!({"number_format_policy": "period-comma"})),
+            Some(NumberFormatPolicy::PeriodComma)
+        );
+        assert_eq!(
+            read(serde_json::json!({"number_format_policy": "dot-space"})),
+            None
+        );
+        assert_eq!(read(serde_json::json!({"number_format_policy": 3})), None);
     }
 
     #[test]

@@ -17,7 +17,9 @@ use crate::types::ceremonies::{
 };
 use crate::types::hasura::core as hasura_core;
 use crate::types::hasura::core::{Area, ElectionEvent};
-use crate::types::number_format::NumberFormatPolicy;
+use crate::types::number_format::{
+    deserialize_lenient_number_format_policy, NumberFormatPolicy,
+};
 use ::core::convert::TryInto;
 use anyhow::anyhow;
 use borsh::{BorshDeserialize, BorshSerialize};
@@ -1198,6 +1200,10 @@ pub struct ElectionEventPresentation {
     pub voting_portal_datetime_format: Option<VotingPortalDateTimeFormat>,
     /// Absent in events created before it existed, which then use the
     /// default.
+    #[serde(
+        default,
+        deserialize_with = "deserialize_lenient_number_format_policy"
+    )]
     pub number_format_policy: Option<NumberFormatPolicy>,
 }
 
