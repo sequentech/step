@@ -12,7 +12,7 @@ import {
     type RaRecord,
     type SaveHandler,
 } from "react-admin"
-import {i18n, initCore} from "@sequentech/ui-core"
+import {ENumberFormatPolicy, i18n, initCore} from "@sequentech/ui-core"
 import {AdminStoryProvider, EVENT_ID} from "@/__stories__/AdminStoryProvider"
 import type {WidgetMeta} from "@/__stories__/widgetStory"
 import {WidgetsContextProvider} from "@/providers/WidgetsContextProvider"
@@ -299,11 +299,16 @@ export const UnknownNumberFormat: Story = {
     parameters: {widgets: ["EventSaveButton"]},
     play: async ({canvasElement, args}) => {
         const canvas = await loaded(canvasElement)
-        // A format this version doesn't know, such as a newer version's, reads as the default.
+        // A format this version doesn't know, such as a newer version's, is shown as the default.
         await openSection(canvasElement, "languageAndRegion")
         await expect(
             canvas.getByRole("combobox", {name: field("numberFormatPolicy.policyLabel")})
-        ).toHaveTextContent("1,234,567.89")
+        ).toHaveTextContent(
+            i18n.t("electionEventScreen.field.numberFormatPolicy.unknownPolicy", {
+                policy: "no-such-format",
+                sample: "1,234,567.89",
+            })
+        )
         // Saving another change keeps it.
         await openSection(canvasElement, "general", "languageAndRegion")
         await editDescription(canvasElement)
@@ -311,6 +316,24 @@ export const UnknownNumberFormat: Story = {
         await waitFor(() => expect(args.saved).toHaveBeenCalledTimes(1))
         const [values] = args.transform.mock.calls[0]
         expect(values).toMatchObject({presentation: {number_format_policy: "no-such-format"}})
+    },
+}
+
+export const UnknownNumberFormatToDefault: Story = {
+    args: {numberFormatPolicy: "no-such-format"},
+    parameters: {widgets: ["EventSaveButton"]},
+    play: async ({canvasElement, args}) => {
+        await loaded(canvasElement)
+        // The default it is shown as can be chosen instead.
+        await openSection(canvasElement, "languageAndRegion")
+        await choose(canvasElement, field("numberFormatPolicy.policyLabel"), "1,234,567.89")
+        await openSection(canvasElement, "general", "languageAndRegion")
+        await userEvent.click(saveButton(canvasElement))
+        await waitFor(() => expect(args.saved).toHaveBeenCalledTimes(1))
+        const [values] = args.transform.mock.calls[0]
+        expect(values).toMatchObject({
+            presentation: {number_format_policy: ENumberFormatPolicy.COMMA_PERIOD},
+        })
     },
 }
 
