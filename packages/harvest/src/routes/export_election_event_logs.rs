@@ -88,6 +88,7 @@ pub async fn export_election_event_logs_route(
                 report_fmt,
                 None,
                 task_execution.clone(),
+                None,
             ),
         )
         .await

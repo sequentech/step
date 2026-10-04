@@ -629,6 +629,8 @@ async fn build_reports_pipe_config(
     ]);
 
     Ok(PipeConfigGenerateReports {
+        template_variables: Default::default(),
+        election_time_zones: Default::default(),
         enable_pdfs: false,
         report_content_template,
         execution_annotations,

@@ -48,6 +48,8 @@ pub enum ErrorCode {
     BallotIdMismatch,
     BallotPublicationValidation,
     TallyValidation,
+    VotingStatusValidation,
+    RealmAttributesValidation,
     InvalidVotingChannels,
     /// The election event is locked down (as the signing rules answer).
     #[strum(serialize = "locked-down")]

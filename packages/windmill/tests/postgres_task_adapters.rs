@@ -450,6 +450,8 @@ async fn schedule_row(
 
 fn cron(scheduled_date: &str) -> CronConfig {
     CronConfig {
+        local: None,
+        timezone: None,
         cron: None,
         scheduled_date: Some(scheduled_date.into()),
     }
@@ -1042,6 +1044,8 @@ async fn update_scheduled_event_replaces_the_cron_config_and_keeps_the_payload()
         &w.tenant,
         &w.id(10),
         CronConfig {
+            local: None,
+            timezone: None,
             cron: Some("0 10 * * *".into()),
             scheduled_date: None,
         },

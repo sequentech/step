@@ -1682,6 +1682,8 @@ pub async fn maybe_create_scheduled_event(
         voting_channels,
     };
     let cron_config = CronConfig {
+        local: None,
+        timezone: None,
         cron: None,
         scheduled_date: Some(start_date.to_string()),
     };
