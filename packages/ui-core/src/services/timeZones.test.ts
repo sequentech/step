@@ -648,3 +648,82 @@ describe.each([
         )
     })
 })
+
+describe("timezone localization when browser capabilities are unavailable", () => {
+    it("lists supported country zones without Intl.supportedValuesOf", () => {
+        const descriptor = Object.getOwnPropertyDescriptor(Intl, "supportedValuesOf")
+        Object.defineProperty(Intl, "supportedValuesOf", {value: undefined, configurable: true})
+        try {
+            let service: typeof import("./timeZones") | undefined
+            jest.isolateModules(() => {
+                service = require("./timeZones")
+            })
+            const zones = (service as typeof import("./timeZones")).listTimeZones()
+            expect(zones).toContain("Asia/Manila")
+            expect(zones).toContain("UTC")
+            expect(zones).not.toContain("Asia/Calcutta")
+            expect(new Set(zones).size).toBe(zones.length)
+        } finally {
+            if (descriptor) Object.defineProperty(Intl, "supportedValuesOf", descriptor)
+        }
+    })
+
+    it("accepts the standard Catalan language code for bundled offset labels", () => {
+        const unavailable = {...options("ca-ES"), t: (() => null) as unknown as TFunction}
+        expect(formatZoneOffset(345, unavailable)).toBe("GMT+05:45")
+    })
+
+    it("uses the current instant when picker callers omit a date", () => {
+        jest.useFakeTimers().setSystemTime(CLOSE)
+        try {
+            expect(zoneLabel("UTC", options())).toBe("UTC")
+            expect(zoneName("UTC", options())).toBe("Coordinated Universal Time")
+            expect(timeZoneOption("Asia/Manila", options())).toEqual({
+                zone: "Asia/Manila",
+                label: "(GMT+08:00) Manila",
+                detail: "Philippines · Philippine Standard Time",
+                offsetMinutes: 480,
+            })
+        } finally {
+            jest.useRealTimers()
+        }
+    })
+
+    it.each(["", "Unsupported/Device"])(
+        "uses UTC for the unavailable device zone %s",
+        (timeZone) => {
+            const resolved = new Intl.DateTimeFormat().resolvedOptions()
+            jest.spyOn(Intl.DateTimeFormat.prototype, "resolvedOptions").mockReturnValue({
+                ...resolved,
+                timeZone,
+            })
+            expect(browserTimeZone()).toBe("UTC")
+            expect(formatOnThisDevice(CLOSE, options("en", adminFormat))).toBe(
+                "On this device: 08 May 2028, 11:00"
+            )
+        }
+    )
+
+    it.each(["en-US", "unknown-language", "bad_locale", ""])(
+        "keeps English offset labels when the requested language %s has no bundle",
+        (lang) => {
+            const unavailable = {...options(lang), t: (() => null) as unknown as TFunction}
+            expect(formatZoneOffset(330, unavailable)).toBe("GMT+05:30")
+            expect(zoneName("Invalid/Zone", unavailable, CLOSE)).toBe("Invalid/Zone")
+        }
+    )
+
+    it("keeps country codes in details if Intl region and list names fail", () => {
+        jest.spyOn(Intl, "DisplayNames").mockImplementation(() => {
+            throw new RangeError("Synthetic unsupported region names")
+        })
+        jest.spyOn(Intl, "ListFormat").mockImplementation(() => {
+            throw new RangeError("Synthetic unsupported list formatting")
+        })
+        const unavailable = {...options("de-DE"), t: ((key: string) => key) as TFunction}
+        const option = timeZoneOption("Europe/Zurich", unavailable, CLOSE)
+        expect(option.label).toBe("(GMT+02:00) Zurich")
+        expect(option.detail).toBe("CH · Mitteleuropäische Sommerzeit")
+        expect(option.detail).toContain("Mitteleuropäische Sommerzeit")
+    })
+})

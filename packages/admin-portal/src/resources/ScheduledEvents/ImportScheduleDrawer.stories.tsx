@@ -133,6 +133,7 @@ const importButton = async () =>
 
 /** tz-schedule-import: the row that needs attention comes first; Import waits for a clean file. */
 export const RowNeedsAttention: Story = {
+    parameters: {widgets: ["PreviewRow"]},
     play: async () => {
         await chooseFile()
         const view = await drawer()

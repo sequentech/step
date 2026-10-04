@@ -104,6 +104,7 @@ const policies = (key: string, options?: Record<string, unknown>) =>
 
 /** The defaults, published as they are. */
 export const PublishedDefaults: Story = {
+    parameters: {widgets: ["PublishedValue"]},
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
         await expect(
