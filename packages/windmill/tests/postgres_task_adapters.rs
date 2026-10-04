@@ -18,6 +18,7 @@ use sequent_core::ballot::VotingStatusChannel;
 use sequent_core::types::hasura::core::{
     Document, DocumentAnnotations, SupportMaterial, TasksExecution,
 };
+use sequent_core::types::number_format::NumberFormatPolicy;
 use sequent_core::types::scheduled_event::{CronConfig, EventProcessors, ScheduledEvent};
 use serde_json::{json, Map, Value};
 use std::collections::HashSet;
@@ -28,7 +29,10 @@ use windmill::postgres::{
     document, lock, render_report, reports, scheduled_event, tasks_execution,
 };
 use windmill::services::export::export_election_event;
-use windmill::services::reports::template_renderer::EReportEncryption;
+use windmill::services::reports::template_renderer::{
+    EReportEncryption, ReportOriginatedFrom, ReportOrigins, TemplateRenderer,
+};
+use windmill::services::reports::voter_information_letter::VoterInformationLetterTemplate;
 use windmill::tasks::render_report::{FormatType, RenderTemplateBody};
 
 /// Row identifiers of one test. The test's line keeps them apart from the rows
@@ -2686,5 +2690,73 @@ async fn render_report_task_fails_on_an_invalid_template_before_writing_a_docume
         .to_string()
         .starts_with("Failed to parse template Template error: invalid handlebars syntax"));
     assert_eq!(documents_named(&tx, &name).await, 0);
+    tx.rollback().await.unwrap();
+}
+
+// The number format a report writes its figures in
+
+/// A report of this election event; the voter information letter reads its
+/// number format as every report does.
+fn report_of(w: &World, event: &str) -> VoterInformationLetterTemplate {
+    VoterInformationLetterTemplate::new_preview(ReportOrigins {
+        tenant_id: w.tenant.clone(),
+        election_event_id: event.into(),
+        election_id: None,
+        template_alias: None,
+        voter_id: None,
+        report_origin: ReportOriginatedFrom::ReportsTab,
+        executer_username: None,
+        tally_session_id: None,
+    })
+}
+
+/// A report writes its figures in its election event's number format, and
+/// in the default one (none) for an event without one, with a code this
+/// version does not know, or that no longer exists.
+#[tokio::test]
+async fn a_report_reads_the_number_format_of_its_election_event() {
+    let mut client = schema::pool().await.get().await.unwrap();
+    let tx = client.transaction().await.unwrap();
+    let w = World::new(&tx, ids!()).await;
+    let report = report_of(&w, &w.event);
+
+    assert_eq!(report.get_number_format_policy(&tx).await.unwrap(), None);
+    for (code, policy) in [
+        ("period-comma", Some(NumberFormatPolicy::PeriodComma)),
+        ("no-such-format", None),
+    ] {
+        set(
+            &tx,
+            "election_event",
+            &w.event,
+            &format!(r#"presentation = '{{"number_format_policy": "{code}"}}'"#),
+        )
+        .await;
+        assert_eq!(report.get_number_format_policy(&tx).await.unwrap(), policy);
+    }
+    assert_eq!(
+        report_of(&w, &w.id(10))
+            .get_number_format_policy(&tx)
+            .await
+            .unwrap(),
+        None
+    );
+    tx.rollback().await.unwrap();
+}
+
+/// A report whose number format can't be read fails instead of going on in
+/// the default one: the failure aborts the transaction the report reads its
+/// data with, so going on would only fail later and hide why.
+#[tokio::test]
+async fn a_report_fails_when_the_number_format_of_its_election_event_cannot_be_read() {
+    let mut client = schema::pool().await.get().await.unwrap();
+    let tx = client.transaction().await.unwrap();
+    let w = World::new(&tx, ids!()).await;
+    tx.batch_execute("SELECT 1 / 0").await.unwrap_err();
+
+    report_of(&w, &w.event)
+        .get_number_format_policy(&tx)
+        .await
+        .unwrap_err();
     tx.rollback().await.unwrap();
 }
