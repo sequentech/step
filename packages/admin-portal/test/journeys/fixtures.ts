@@ -98,6 +98,19 @@ export const test = base.extend<
             },
         }
         graphql.on("IntrospectionQuery", () => ({data: {}}))
+        // Synthetic events are unpublished unless a journey supplies a signed snapshot.
+        graphql.on("GetLifecycleSnapshots", () => ({
+            data: {get_lifecycle_snapshots: {snapshots: []}},
+        }))
+        graphql.on("GetScheduledOutcomes", () => ({
+            data: {get_scheduled_outcomes: {outcomes: [], retained_closes: []}},
+        }))
+        graphql.on("sequent_backend_scheduled_event", () => ({
+            data: {
+                sequent_backend_scheduled_event: [],
+                sequent_backend_scheduled_event_aggregate: {aggregate: {count: 0}},
+            },
+        }))
         // Default empty signing reads; signing journeys replace these with their own state.
         graphql.on("GetWaitingSigningRequests", () => ({
             data: {sequent_backend_signing_request: []},
