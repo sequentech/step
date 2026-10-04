@@ -24,34 +24,25 @@ import {GENERATE_GOOGLE_MEET} from "../../../queries/GenerateGoogleMeet"
 import {getGraphQLActionErrorReason} from "@/services/graphqlActionError"
 import {GenerateGoogleMeetMutation} from "@/gql/graphql"
 import {IPermissions} from "@/types/keycloak"
-import {ZonedDateTimeField, zonedValueOf} from "@/components/timezones/ZonedDateTimeInput"
-import {useTimeZoneService} from "@/components/timezones/timeZoneService"
-import type {ITimeZoneContext} from "@/components/timezones/useTimeZoneContext"
 
 interface GoogleMeetLinkGeneratorProps {
     open: boolean
     onClose: () => void
     electionEventName?: string
-    /** The event's zones: the meeting starts in its primary unless another is chosen. */
-    timeZones?: Pick<ITimeZoneContext, "configured" | "primary">
 }
 
 export const GoogleMeetLinkGenerator: React.FC<GoogleMeetLinkGeneratorProps> = ({
     open,
     onClose,
     electionEventName = "",
-    timeZones,
 }) => {
     const {t} = useTranslation()
-    const service = useTimeZoneService()
     const [meetingTitle, setMeetingTitle] = useState(
         electionEventName ? `${electionEventName} - Meeting` : "Election Event Meeting"
     )
     const [meetingDescription, setMeetingDescription] = useState("")
-    // The start as a wall time in a zone: the event's primary, else the viewer's.
-    const [start, setStart] = useState({local: "", timezone: ""})
-    const startZone = start.timezone || timeZones?.primary || service.myTimeZone
-    const zonedStart = zonedValueOf(start.local, startZone, service)
+    const [startDate, setStartDate] = useState("")
+    const [startTime, setStartTime] = useState("")
     const [duration, setDuration] = useState("60") // minutes
     const [attendeeEmails, setAttendeeEmails] = useState("participant@example.com") // Mock emails
     const [generatedLink, setGeneratedLink] = useState("")
@@ -77,8 +68,7 @@ export const GoogleMeetLinkGenerator: React.FC<GoogleMeetLinkGeneratorProps> = (
         setError("")
         setIsGenerating(true)
         try {
-            if (!zonedStart) throw new Error("No start time")
-            const startDateTime = new Date(zonedStart.scheduled_date)
+            const startDateTime = new Date(`${startDate}T${startTime}`)
             const endDateTime = new Date(startDateTime.getTime() + parseInt(duration) * 60000)
             let {data} = await generateGoogleMeet({
                 variables: {
@@ -86,7 +76,7 @@ export const GoogleMeetLinkGenerator: React.FC<GoogleMeetLinkGeneratorProps> = (
                     description: meetingDescription,
                     startDateTime: startDateTime.toISOString(),
                     endDateTime: endDateTime.toISOString(),
-                    timeZone: zonedStart.timezone,
+                    timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
                     attendeeEmails: attendeeEmails
                         .split(",")
                         .map((email) => email.trim())
@@ -127,15 +117,17 @@ export const GoogleMeetLinkGenerator: React.FC<GoogleMeetLinkGeneratorProps> = (
         setCopySuccess(false)
     }
 
-    // The default start: an hour from now, in the start's zone.
+    // Set default date and time to current date/time + 1 hour
     React.useEffect(() => {
-        if (open && !start.local) {
-            setStart({
-                local: service.instantToZoned(new Date(Date.now() + 3_600_000), startZone),
-                timezone: startZone,
-            })
+        if (open && !startDate) {
+            const now = new Date()
+            now.setHours(now.getHours() + 1)
+            const date = now.toISOString().split("T")[0]
+            const time = now.toTimeString().slice(0, 5)
+            setStartDate(date)
+            setStartTime(time)
         }
-    }, [open, start.local, startZone, service])
+    }, [open, startDate])
 
     return (
         <>
@@ -175,15 +167,26 @@ export const GoogleMeetLinkGenerator: React.FC<GoogleMeetLinkGeneratorProps> = (
                                     rows={2}
                                 />
 
-                                <ZonedDateTimeField
-                                    required
-                                    label={t("lifecycle.input.meetingStart")}
-                                    local={start.local}
-                                    timezone={startZone}
-                                    zones={timeZones?.configured}
-                                    primary={timeZones?.primary}
-                                    onChange={(_value, next) => setStart(next)}
-                                />
+                                <Box display="flex" gap={2}>
+                                    <TextField
+                                        label={String(t("googleMeet.startDate", "Start Date"))}
+                                        type="date"
+                                        value={startDate}
+                                        onChange={(e) => setStartDate(e.target.value)}
+                                        required
+                                        InputLabelProps={{shrink: true}}
+                                        sx={{flex: 1}}
+                                    />
+                                    <TextField
+                                        label={String(t("googleMeet.startTime", "Start Time"))}
+                                        type="time"
+                                        value={startTime}
+                                        onChange={(e) => setStartTime(e.target.value)}
+                                        required
+                                        InputLabelProps={{shrink: true}}
+                                        sx={{flex: 1}}
+                                    />
+                                </Box>
 
                                 <TextField
                                     label={String(t("googleMeet.duration", "Duration (minutes))"))}
@@ -266,7 +269,8 @@ export const GoogleMeetLinkGenerator: React.FC<GoogleMeetLinkGeneratorProps> = (
                             disabled={
                                 isGenerating ||
                                 !meetingTitle ||
-                                !zonedStart ||
+                                !startDate ||
+                                !startTime ||
                                 !duration ||
                                 !attendeeEmails
                             }

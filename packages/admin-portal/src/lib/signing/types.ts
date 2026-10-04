@@ -161,7 +161,7 @@ export interface ISigningActionInfo {
 export const SIGNING_ACTIONS: Record<SigningAction, ISigningActionInfo> = {
     [SigningAction.InitializeVoting]: {
         group: SigningActionGroup.Voting,
-        scope: SigningScope.PostAndCountry,
+        scope: SigningScope.Post,
         mode: ExecutionMode.Deferred,
         document: DocumentKind.NoDocument,
         signPermission: IPermissions.SIGN_INITIALIZE_VOTING,

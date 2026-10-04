@@ -48,7 +48,6 @@ export const MONITORING_GET_DASHBOARD = gql`
             }
             event_days
             refresh_seconds
-            time_zone
         }
     }
 `

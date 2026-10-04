@@ -4,7 +4,7 @@
 import {gql} from "@apollo/client"
 
 export const ENCRYPT_REPORT = gql`
-    mutation EncryptReport($electionEventId: uuid!, $reportId: String, $password: String!) {
+    mutation EncryptReport($electionEventId: String!, $reportId: String, $password: String!) {
         encrypt_report(
             election_event_id: $electionEventId
             report_id: $reportId

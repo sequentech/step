@@ -5,7 +5,7 @@ import {gql} from "@apollo/client"
 
 export const PREPARE_BALLOT_PUBLICATION_PREVIEW = gql`
     mutation PrepareBallotPublicationPreview(
-        $electionEventId: uuid!
+        $electionEventId: String!
         $ballotPublicationId: String!
     ) {
         prepare_ballot_publication_preview(

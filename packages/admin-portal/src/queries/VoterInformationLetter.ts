@@ -5,7 +5,7 @@
 import {gql} from "@apollo/client"
 
 export const GENERATE_VOTER_INFORMATION_LETTER = gql`
-    mutation GenerateVoterInformationLetter($electionEventId: uuid!, $voterId: String!) {
+    mutation GenerateVoterInformationLetter($electionEventId: String!, $voterId: String!) {
         generate_voter_information_letter(election_event_id: $electionEventId, voter_id: $voterId) {
             document_id
             pdf_password

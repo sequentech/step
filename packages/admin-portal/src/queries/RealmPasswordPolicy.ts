@@ -40,7 +40,7 @@ export const GET_REALM_PASSWORD_POLICY = gql`
 
 export const UPDATE_REALM_PASSWORD_POLICY = gql`
     mutation UpdateRealmPasswordPolicy(
-        $election_event_id: uuid!
+        $election_event_id: String!
         $minimum_length: Int!
         $maximum_length: Int!
         $include_uppercase: Boolean!

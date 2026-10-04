@@ -6,7 +6,7 @@ import {gql} from "@apollo/client"
 
 export const CREATE_NEW_TALLY_SHEET = gql`
     mutation CreateNewTallySheet(
-        $electionEventId: uuid!
+        $electionEventId: String!
         $channel: String!
         $content: jsonb!
         $contestId: String!

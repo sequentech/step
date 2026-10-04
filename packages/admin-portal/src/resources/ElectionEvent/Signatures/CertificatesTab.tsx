@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useId, useState} from "react"
 import {useTranslation} from "react-i18next"
-import {useEventZonedFormat} from "@/hooks/useZonedFormat"
 import {useNotify} from "react-admin"
 import {
     Accordion,
@@ -76,6 +75,7 @@ import {
     useSigningEventInfo,
     useWriteError,
 } from "./useSigningSettings"
+import {useSigningFormat} from "@/components/signing/format"
 import {CERTIFICATE_FILES, FileButton, RegisterCertificateDialog} from "./RegisterCertificateDialog"
 import type {ISignaturesSubTabProps} from "./ProtectedActionsTab"
 
@@ -86,9 +86,9 @@ const mono = {fontFamily: "monospace", fontSize: "0.75rem"}
  * signing panel shows them; and the signers' titles.
  */
 const useEventFormat = (electionEventId: string) => {
-    const {titles} = useSigningEventInfo(electionEventId)
-    const zoned = useEventZonedFormat(electionEventId)
-    return {date: zoned.format, time: zoned.format, titles}
+    const {timeZone, titles} = useSigningEventInfo(electionEventId)
+    const format = useSigningFormat(timeZone)
+    return {date: format.date, time: format.dateTime, titles}
 }
 
 /** Under a person's name: their username when the name isn't it, and their title. */

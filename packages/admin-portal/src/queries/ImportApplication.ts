@@ -8,7 +8,7 @@ export const IMPORT_APPLICATION = gql`
     mutation ImportApplication(
         $tenantId: String!
         $electionEventId: String
-        $electionId: uuid
+        $electionId: String
         $documentId: String!
         $sha256: String
     ) {

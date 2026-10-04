@@ -32,7 +32,6 @@ import {VotingStatusChannel} from "@/gql/graphql"
 import {IElectionPresentation, IElectionStatus, IChannelButtonInfo} from "@sequentech/ui-core"
 import {usePublishPermissions} from "./usePublishPermissions"
 import {ThreeStateDatagridHeader} from "@/components/ThreeStateDatagridHeader"
-import {AdminDateField} from "@/components/AdminDateTime"
 
 const OMIT_FIELDS: string[] = []
 
@@ -60,8 +59,6 @@ type TPublishList = {
     /** Initializes voting at the Post; election level only. */
     onInitialize?: () => void
     initializing?: boolean
-    perCountryInitialization?: boolean
-    initializationReportPolicy?: import("@sequentech/ui-core").EInitializeReportPolicy
     setBallotPublicationId: (id: string | Identifier) => void
     onPreview: (id: string | Identifier) => void
 }
@@ -82,8 +79,6 @@ export const PublishList: React.FC<TPublishList> = ({
     onChangeStatus = () => null,
     onInitialize,
     initializing = false,
-    perCountryInitialization = false,
-    initializationReportPolicy,
     setBallotPublicationId = () => null,
     onPreview = () => null,
 }) => {
@@ -168,8 +163,6 @@ export const PublishList: React.FC<TPublishList> = ({
                         onChangeStatus={onChangeStatus}
                         onInitialize={onInitialize}
                         initializing={initializing}
-                        perCountryInitialization={perCountryInitialization}
-                        initializationReportPolicy={initializationReportPolicy}
                         type={EPublishActionsType.List}
                     />
                 }
@@ -199,8 +192,8 @@ export const PublishList: React.FC<TPublishList> = ({
                 >
                     <TextField source="id" />
                     <BooleanField source="is_generated" />
-                    <AdminDateField source="published_at" seconds />
-                    <AdminDateField source="created_at" seconds />
+                    <TextField source="published_at" />
+                    <TextField source="created_at" />
                     <WrapperField label={String(t("common.label.actions"))}>
                         <ActionsColumn actions={actions} />
                     </WrapperField>

@@ -13,11 +13,7 @@ import type {RealmPasswordPolicy} from "@/queries/RealmPasswordPolicy"
 
 export const SECOND_ELECTION_ID = storyId(4, 2)
 
-export const REALM_ATTRIBUTES = {
-    voter_certificate_policy: "disabled",
-    enrollment_windows: "null",
-    enrollment_registration_restore: "enabled",
-}
+export const REALM_ATTRIBUTES = {voter_certificate_policy: "disabled"}
 
 export const PASSWORD_POLICY: RealmPasswordPolicy = {
     configured: true,
@@ -77,10 +73,7 @@ export function eventDataBoundaries({reads, customOrder, realmAttributesFail}: E
                 realmAttributesFail
                     ? {errors: [new GraphQLError("Synthetic Keycloak failure")]}
                     : {data: {get_realm_attributes: {attributes: REALM_ATTRIBUTES}}},
-            UpdateRealmAttributes: () => ({data: {update_realm_attributes: {updated: true}}}),
             GetRealmPasswordPolicy: () => ({data: {get_realm_password_policy: PASSWORD_POLICY}}),
-            // The published configuration the Voting lifecycle section compares with: none yet.
-            GetLifecycleSnapshots: () => ({data: {get_lifecycle_snapshots: {snapshots: []}}}),
             SetCustomUrls: () => ({data: {set_custom_urls: {success: true, message: ""}}}),
             SetVoterAuthentication: () => ({
                 data: {set_voter_authentication: {success: true, message: ""}},
@@ -96,8 +89,7 @@ export function eventDataBoundaries({reads, customOrder, realmAttributesFail}: E
                 },
             }),
         },
-        // get_lifecycle_snapshots isn't in the generated schema yet: no schema check.
-        {schema: false}
+        {schema: true}
     )
     return {data, graphql}
 }

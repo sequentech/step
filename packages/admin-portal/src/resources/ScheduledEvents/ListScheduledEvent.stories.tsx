@@ -6,12 +6,7 @@ import type {StoryObj} from "@storybook/react-vite"
 import {expect, fireEvent, userEvent, waitFor, within} from "storybook/test"
 import {GraphQLError} from "graphql"
 import {ResourceContextProvider} from "react-admin"
-import {
-    formatDateTimeZone,
-    formatMyTime,
-    i18n,
-    type IScheduledOutcomeExplanation,
-} from "@sequentech/ui-core"
+import {i18n} from "@sequentech/ui-core"
 import {
     AdminStoryProvider,
     EVENT_ID,
@@ -32,31 +27,6 @@ import {
     scheduledEventRecords,
     scheduledEventsProvider,
 } from "./__stories__/ScheduledEventsFixture"
-import {
-    EVENT_RESOURCE,
-    REFUSED,
-    instantOf,
-    lifecycleElections,
-    lifecycleEvent,
-    lifecycleOutcomes,
-    lifecycleSnapshotEntry,
-    lifecycleSchedule,
-} from "./__stories__/LifecycleScheduleFixture"
-import {eventRecord} from "@/__stories__/fixtures"
-import {MyTimeZoneProvider, adminDateTimeFormat} from "@/components/timezones/timeZoneService"
-import {
-    MY_TIME_ZONE,
-    madridConfiguration,
-    overseasConfiguration,
-    type ITimeZoneConfiguration,
-} from "@/components/timezones/__fixtures__/configurations"
-import {
-    refusedEdited,
-    runsAuthorized,
-    runsNoSignatures,
-    runsUnsigned,
-} from "@/components/timezones/__fixtures__/explanations"
-import type {IScheduledOutcomeRow} from "@/types/lifecycle"
 
 interface Scenario {
     /** What reading the scheduled events does. */
@@ -67,35 +37,7 @@ interface Scenario {
     failure: boolean
     /** The signed-in user's roles. */
     roles: string[]
-    /** The event's timezones: none (UTC), the overseas preset or the Madrid association. */
-    configuration: "none" | "overseas" | "madrid"
-    /** Whether the event was published, and with the schedule as it is now. */
-    published: boolean
-    /** A row was edited after publication, a tz database update moved one, a row has no offset. */
-    changes: boolean
 }
-
-const CONFIGURATIONS: Record<"overseas" | "madrid", () => ITimeZoneConfiguration> = {
-    overseas: overseasConfiguration,
-    madrid: madridConfiguration,
-}
-
-/** Tokyo's opening was edited after signing; the common close runs without signatures. */
-const overseasOutcome = (row: {id: string; event_processor: string; election_id: string}) => {
-    const tokyo = overseasConfiguration().elections[1].id
-    if (row.event_processor === "END_VOTING_PERIOD") return runsUnsigned()
-    return row.election_id === tokyo ? refusedEdited() : runsAuthorized()
-}
-
-const outcomesOf = (configuration: Scenario["configuration"]): Array<IScheduledOutcomeRow> =>
-    configuration === "none"
-        ? []
-        : lifecycleOutcomes(
-              CONFIGURATIONS[configuration](),
-              configuration === "overseas"
-                  ? overseasOutcome
-                  : (): IScheduledOutcomeExplanation => runsNoSignatures()
-          )
 
 let graphql: ReturnType<typeof graphqlBoundary>
 let data: ReturnType<typeof resourceBoundary>
@@ -110,19 +52,8 @@ const ALL_ROLES = [
 const meta = {
     title: "Admin/Scheduled events/ListScheduledEvents",
     component: ListScheduledEvents,
-    args: {
-        reads: "records",
-        populated: true,
-        failure: false,
-        roles: ALL_ROLES,
-        configuration: "none",
-        published: false,
-        changes: false,
-    },
-    argTypes: {
-        reads: {control: "inline-radio", options: ["records", "loading", "error"]},
-        configuration: {control: "inline-radio", options: ["none", "overseas", "madrid"]},
-    },
+    args: {reads: "records", populated: true, failure: false, roles: ALL_ROLES},
+    argTypes: {reads: {control: "inline-radio", options: ["records", "loading", "error"]}},
     parameters: {
         expectedFailure: {
             reason: "The grid has an unlabelled header cell and the rows' edit and delete actions are unnamed icon buttons.",
@@ -130,68 +61,19 @@ const meta = {
         },
     },
     beforeEach: async ({args}) => {
-        const configuration =
-            args.configuration === "none" ? null : CONFIGURATIONS[args.configuration]()
-        const schedule = configuration ? lifecycleSchedule(configuration) : scheduledEventRecords()
-        if (configuration && args.changes) {
-            // Edited after publication; moved by a tz database update; stored without an offset.
-            schedule[0].cron_config = {...schedule[0].cron_config, local: "2028-04-09T08:00"}
-            schedule[1].annotations = {
-                schedule_recompute: {
-                    scheduled_date: "2028-04-08T14:00:00Z",
-                    previous: schedule[1].cron_config.scheduled_date,
-                    local: schedule[1].cron_config.local,
-                    timezone: schedule[1].cron_config.timezone,
-                    checked_at: "2028-03-02T03:00:00Z",
-                },
-            }
-            schedule[2].cron_config = {scheduled_date: "2028-04-09T00:00:00"}
-        }
         data = resourceBoundary(
             {
-                [SCHEDULED_EVENT_RESOURCE]: args.populated ? schedule : [],
-                [ELECTION_RESOURCE]: configuration
-                    ? lifecycleElections(configuration)
-                    : scheduledElections(),
-                [EVENT_RESOURCE]: [configuration ? lifecycleEvent(configuration) : eventRecord()],
+                [SCHEDULED_EVENT_RESOURCE]: args.populated ? scheduledEventRecords() : [],
+                [ELECTION_RESOURCE]: scheduledElections(),
             },
             {reads: {[SCHEDULED_EVENT_RESOURCE]: args.reads}}
         )
-
         graphql = graphqlBoundary(
             {
                 ManageElectionDates: () =>
                     args.failure
                         ? {errors: [new GraphQLError("Synthetic scheduler unavailable")]}
-                        : {data: {manage_election_dates: {error_msg: null, warnings: []}}},
-                GetScheduledOutcomes: () => ({
-                    data: {get_scheduled_outcomes: {outcomes: outcomesOf(args.configuration)}},
-                }),
-                GetLifecycleSnapshots: () => ({
-                    data: {
-                        get_lifecycle_snapshots: {
-                            snapshots:
-                                args.published && configuration
-                                    ? [lifecycleSnapshotEntry(configuration)]
-                                    : [],
-                        },
-                    },
-                }),
-                PreviewScheduledOutcomeChange: () => ({
-                    data: {
-                        preview_scheduled_outcome_change: {
-                            applies: null,
-                            applies_message_key: null,
-                            changes: [],
-                        },
-                    },
-                }),
-                ApplyScheduleRecompute: () => ({data: {apply_schedule_recompute: {updated: 1}}}),
-                ExportSchedule: () => ({
-                    data: {export_schedule: {document_id: "doc-schedule"}},
-                }),
-                GetDocument: () => ({data: {sequent_backend_document: []}}),
-                FetchDocument: () => ({data: {fetchDocument: null}}),
+                        : {data: {manage_election_dates: {error_msg: null}}},
             },
             {schema: true}
         )
@@ -204,11 +86,9 @@ const meta = {
             roles={roles}
             auth={{tenantId: TENANT_ID}}
         >
-            <MyTimeZoneProvider zone={MY_TIME_ZONE}>
-                <ResourceContextProvider value="sequent_backend_election_event">
-                    <ListScheduledEvents electionEventId={EVENT_ID} />
-                </ResourceContextProvider>
-            </MyTimeZoneProvider>
+            <ResourceContextProvider value="sequent_backend_election_event">
+                <ListScheduledEvents electionEventId={EVENT_ID} />
+            </ResourceContextProvider>
         </AdminStoryProvider>
     ),
 } satisfies WidgetMeta<Scenario>
@@ -265,7 +145,7 @@ export const Populated: Story = {
         expect(listCalls().at(-1)?.args[1]).toMatchObject({
             filter: {election_event_id: EVENT_ID, tenant_id: TENANT_ID},
         })
-        expect(scheduled()).toEqual([])
+        expect(graphql.calls).toEqual([])
     },
 }
 
@@ -323,10 +203,7 @@ export const ScheduleAnEvent: Story = {
                 expect.objectContaining({
                     electionEventId: EVENT_ID,
                     eventProcessor: EventProcessors.START_VOTING_PERIOD,
-                    // No zone configured: the event's zone is UTC.
-                    scheduledDate: "2026-11-02T09:30:00Z",
-                    localDateTime: "2026-11-02T09:30",
-                    timeZone: "UTC",
+                    scheduledDate: new Date("2026-11-02T09:30").toISOString(),
                 }),
             ])
         )
@@ -399,130 +276,5 @@ export const LoadError: Story = {
     play: async ({canvasElement}) => {
         await expectNotification("Synthetic service unavailable")
         expect(within(canvasElement).queryByRole("row", {name: /Voting Period/})).toBeNull()
-    },
-}
-
-/** The two times of a row as the screen words them, derived from the configuration. */
-const zonedTexts = (local: string, zone: string) => {
-    const options = {t: i18n.t, lang: "en", formatDateTime: adminDateTimeFormat("en")}
-    const instant = instantOf(local, zone)
-    return {
-        inZone: formatDateTimeZone(instant, zone, options),
-        mine: formatMyTime(instant, options, MY_TIME_ZONE),
-    }
-}
-
-const rowOf = async (canvasElement: HTMLElement, name: string, type: string) => {
-    const rows = await within(canvasElement).findAllByRole("row", {
-        name: new RegExp(i18n.t(`eventsScreen.eventType.${type}`)),
-    })
-    const row = rows.find((candidate) => within(candidate).queryByText(name))
-    if (!row) throw new Error(`No ${type} row for ${name}`)
-    return within(row)
-}
-
-/** tz-schedule: each Post opens at 00:00 its time; the common close is event-wide. */
-export const OverseasSchedule: Story = {
-    args: {configuration: "overseas", published: true},
-    play: async ({canvasElement}) => {
-        const configuration = overseasConfiguration()
-        const dubai = configuration.schedule[0]
-        const row = await rowOf(canvasElement, "Dubai PCG", "START_VOTING_PERIOD")
-        const times = zonedTexts(dubai.local, dubai.timezone)
-        await expect(row.getByText(times.inZone)).toBeVisible()
-        await expect(row.getByText(times.mine)).toBeVisible()
-        await expect(row.getByText(i18n.t("scheduledOutcome.chip.runs"))).toBeVisible()
-        const close = configuration.schedule.find(
-            ({event_processor}) => event_processor === "END_VOTING_PERIOD"
-        )!
-        const closeRow = await rowOf(
-            canvasElement,
-            i18n.t("lifecycle.schedule.allElections"),
-            "END_VOTING_PERIOD"
-        )
-        await expect(
-            closeRow.getByText(zonedTexts(close.local, close.timezone).inZone)
-        ).toBeVisible()
-        await expect(closeRow.getByText(i18n.t("scheduledOutcome.chip.runsUnsigned"))).toBeVisible()
-    },
-}
-
-/** The totals banner counts the refused transitions and filters the list to them. */
-export const RefusedTotals: Story = {
-    args: {configuration: "overseas", published: true},
-    play: async ({canvasElement}) => {
-        const canvas = within(canvasElement)
-        const banner = within(await canvas.findByTestId(`schedule-totals-${REFUSED}`))
-        await expect(
-            banner.getByText(
-                i18n.t("lifecycle.schedule.totals.refused", {count: 1, transitions: 1})
-            )
-        ).toBeVisible()
-        await userEvent.click(
-            banner.getByRole("button", {name: i18n.t("lifecycle.schedule.totals.review")})
-        )
-        await waitFor(() =>
-            expect(listCalls().at(-1)?.args[1]).toMatchObject({
-                filter: {id: {value: {_in: [overseasConfiguration().schedule[1].id]}}},
-            })
-        )
-        const why = await rowOf(canvasElement, "Tokyo PE", "START_VOTING_PERIOD")
-        await userEvent.click(
-            why.getByRole("button", {name: i18n.t("scheduledOutcome.why.button")})
-        )
-        const panel = within(await within(document.body).findByRole("dialog"))
-        // The popover fades in.
-        await waitFor(() =>
-            expect(
-                panel.getByText(i18n.t("scheduledOutcome.nextStep.publishAndApprove"))
-            ).toBeVisible()
-        )
-        await userEvent.keyboard("{Escape}")
-        await waitFor(() => expect(within(document.body).queryByRole("dialog")).toBeNull())
-    },
-}
-
-/** tz-fixture: the Madrid association, one line where the row's zone is mine. */
-export const MadridAssociation: Story = {
-    args: {configuration: "madrid", published: true},
-    play: async ({canvasElement}) => {
-        const configuration = madridConfiguration()
-        const canary = configuration.schedule[1]
-        const row = await rowOf(
-            canvasElement,
-            "Council: Canary Islands office",
-            "START_VOTING_PERIOD"
-        )
-        await expect(row.getByText(zonedTexts(canary.local, canary.timezone).inZone)).toBeVisible()
-        await expect(row.getByText(i18n.t("scheduledOutcome.chip.runs"))).toBeVisible()
-    },
-}
-
-/** Unpublished edits, a tz database update to apply and a time without an offset are flagged. */
-export const ScheduleChanges: Story = {
-    args: {configuration: "overseas", published: true, changes: true},
-    play: async ({canvasElement}) => {
-        const canvas = within(canvasElement)
-        await expect(await canvas.findByTestId("schedule-unpublished")).toBeVisible()
-        await expect(canvas.getByTestId("schedule-offsetless")).toBeVisible()
-        await expect(canvas.getAllByText(i18n.t("lifecycle.schedule.noOffset"))[0]).toBeVisible()
-        const recompute = within(canvas.getByTestId("schedule-recompute"))
-        await userEvent.click(
-            recompute.getByRole("button", {name: i18n.t("lifecycle.schedule.recompute.apply")})
-        )
-        await waitFor(() =>
-            expect(graphql.calls.map(({name}) => name)).toContain("ApplyScheduleRecompute")
-        )
-        await expectNotification(i18n.t("lifecycle.schedule.recompute.applied", {count: 1}))
-    },
-}
-
-/** Nothing published: voters see the schedule after the first publication. */
-export const NotPublished: Story = {
-    args: {configuration: "overseas", published: false},
-    play: async ({canvasElement}) => {
-        await expect(
-            await within(canvasElement).findByText(i18n.t("lifecycle.schedule.notPublished"))
-        ).toBeVisible()
     },
 }

@@ -17,7 +17,7 @@ export const DELETE_USERS = gql`
     mutation DeleteUsers(
         $tenantId: String!
         $electionEventId: String
-        $electionId: uuid
+        $electionId: String
         $usersId: [String!]
         $selectAll: Boolean
         $first_name: json

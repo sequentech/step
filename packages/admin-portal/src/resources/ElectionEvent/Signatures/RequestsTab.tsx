@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useState} from "react"
 import {useTranslation} from "react-i18next"
-import {useEventZonedFormat} from "@/hooks/useZonedFormat"
 import {
     Alert,
     Box,
@@ -33,9 +32,11 @@ import {filterRequests, lastSignature, personName, requestStatus} from "./signin
 import {
     useExportRequests,
     useScopeNames,
+    useSigningEventInfo,
     useSigningRequests,
     useWriteError,
 } from "./useSigningSettings"
+import {useSigningFormat} from "@/components/signing/format"
 import type {ISignaturesSubTabProps} from "./ProtectedActionsTab"
 
 const ALL = "all"
@@ -60,7 +61,9 @@ export const RequestsTab: React.FC<ISignaturesSubTabProps> = ({electionEventId, 
     const [status, setStatus] = useState<SigningRequestStatus | null>(null)
     const [exported, setExported] = useState<string | null>(null)
     const [exportRequests, {loading: exporting}] = useExportRequests()
-    const time = useEventZonedFormat(electionEventId).format
+    // In the event's zone with its name, as the signing panel shows times.
+    const {timeZone} = useSigningEventInfo(electionEventId)
+    const {dateTime: time} = useSigningFormat(timeZone)
 
     const runExport = async () => {
         try {

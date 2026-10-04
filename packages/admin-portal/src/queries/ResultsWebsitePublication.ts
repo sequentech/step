@@ -58,7 +58,7 @@ export interface ConfigureResultsWebsitePolicyData {
 
 export const PUBLISH_RESULTS_WEBSITE = gql`
     mutation PublishResultsWebsite(
-        $election_event_id: uuid!
+        $election_event_id: String!
         $tally_session_id: String!
         $tally_session_execution_id: String!
         $results_event_id: String!
@@ -91,7 +91,7 @@ export const PUBLISH_RESULTS_WEBSITE = gql`
 
 export const CONFIGURE_RESULTS_WEBSITE_POLICY = gql`
     mutation ConfigureResultsWebsitePolicy(
-        $election_event_id: uuid!
+        $election_event_id: String!
         $status: ResultsWebsiteStatus!
         $access: ResultsWebsiteAccess!
         $visibility_scope: ResultsWebsiteVisibilityScope!
@@ -111,7 +111,7 @@ export const CONFIGURE_RESULTS_WEBSITE_POLICY = gql`
 `
 
 export const REVOKE_RESULTS_PUBLICATION = gql`
-    mutation RevokeResultsPublication($election_event_id: uuid!, $publication_id: String!) {
+    mutation RevokeResultsPublication($election_event_id: String!, $publication_id: String!) {
         revokeResultsPublication(
             election_event_id: $election_event_id
             publication_id: $publication_id

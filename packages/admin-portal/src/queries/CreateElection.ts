@@ -5,7 +5,7 @@ import {gql} from "@apollo/client"
 
 export const CREATE_ELECTION = gql`
     mutation CreateElection(
-        $electionEventId: uuid!
+        $electionEventId: String!
         $externalId: String!
         $presentation: jsonb
         $description: String

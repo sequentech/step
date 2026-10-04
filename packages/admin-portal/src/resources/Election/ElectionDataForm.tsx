@@ -93,8 +93,6 @@ import {CustomFilter} from "@/types/filters"
 import {useGetDocumentUrl} from "@/hooks/useGetDocumentUrl"
 import {SettingsLanguageSelector} from "@/components/SettingsLanguageSelector"
 import {IVR_ENTITY_I18N_ANNOTATION, parseIvrEntityAnnotations} from "@/utils/ivr"
-import {ElectionTimeZoneInput} from "@/components/timezones/ElectionTimeZoneInput"
-import {timeZoneContextOf} from "@/components/timezones/useTimeZoneContext"
 
 const formResetOptions = {keepDirtyValues: true}
 
@@ -664,7 +662,7 @@ export const ElectionDataForm: React.FC = () => {
                             >
                                 <ElectionStyles.Wrapper>
                                     <ElectionStyles.Title>
-                                        {t("lifecycle.settings.accordion")}
+                                        {t("electionScreen.edit.language")}
                                     </ElectionStyles.Title>
                                 </ElectionStyles.Wrapper>
                             </AccordionSummary>
@@ -674,14 +672,6 @@ export const ElectionDataForm: React.FC = () => {
                                         <SettingsLanguageSelector
                                             languageSettings={languageSettings}
                                             canEdit={canEdit}
-                                        />
-                                        <ElectionTimeZoneInput
-                                            context={timeZoneContextOf(
-                                                data?.presentation as
-                                                    | IElectionEventPresentation
-                                                    | undefined
-                                            )}
-                                            disabled={!canEdit}
                                         />
                                     </ElectionStyles.AccordionWrapper>
                                 </ElectionStyles.AccordionContainer>

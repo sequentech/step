@@ -4,7 +4,6 @@
 
 import React, {Suspense, useContext, useMemo, useState} from "react"
 import {useTranslation} from "react-i18next"
-import {EventTimeZoneProvider} from "@/providers/EventTimeZoneProvider"
 import {
     useGetOne,
     useRecordContext,
@@ -310,10 +309,7 @@ export const ElectionTabs: React.FC = () => {
             />
             <Box sx={{bgcolor: "background.paper"}}>
                 <RecordContextProvider value={electionRecord}>
-                    {/* The election's screens show their times in its zone. */}
-                    <EventTimeZoneProvider event={electionEvent} election={electionRecord}>
-                        <Tabs elements={tabs} />
-                    </EventTimeZoneProvider>
+                    <Tabs elements={tabs} />
                 </RecordContextProvider>
             </Box>
         </Box>

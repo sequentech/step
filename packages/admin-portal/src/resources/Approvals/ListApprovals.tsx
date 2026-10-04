@@ -5,6 +5,7 @@
 import React, {useContext, useEffect, useMemo, useState} from "react"
 import {
     List,
+    DateField,
     FunctionField,
     TextField,
     DatagridConfigurable,
@@ -19,7 +20,6 @@ import {
     useGetOne,
     useRemoveFromStore,
 } from "react-admin"
-import {AdminDateField} from "@/components/AdminDateTime"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {useTranslation} from "react-i18next"
 import {Visibility} from "@mui/icons-material"
@@ -229,8 +229,8 @@ const ApprovalsList = (props: ApprovalsListProps) => {
             bulkActionButtons={false}
         >
             <TextField source="id" />
-            <AdminDateField source="created_at" seconds />
-            <AdminDateField source="updated_at" seconds />
+            <DateField showTime source="created_at" />
+            <DateField showTime source="updated_at" />
             <FunctionField
                 source="applicant_id"
                 render={(record: Sequent_Backend_Applications) => {

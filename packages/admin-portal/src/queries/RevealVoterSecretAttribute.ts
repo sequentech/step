@@ -6,7 +6,7 @@ import {gql} from "@apollo/client"
 export const REVEAL_VOTER_SECRET_ATTRIBUTE = gql`
     query RevealVoterSecretAttribute(
         $tenantId: String!
-        $electionEventId: uuid!
+        $electionEventId: String!
         $userId: String!
         $attributeName: String!
     ) {

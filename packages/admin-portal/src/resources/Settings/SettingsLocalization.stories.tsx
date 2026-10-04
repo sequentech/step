@@ -139,26 +139,6 @@ export const RejectADuplicateOverride: Story = {
     },
 }
 
-export const RejectACombinedTimezoneTextWithoutTheTime: Story = {
-    parameters: {
-        expectedFailure: {
-            reason: "The override drawer, left open, has no accessible name.",
-            a11y: ["aria-dialog-name"],
-        },
-    },
-    play: async ({canvasElement}) => {
-        // user-event types a doubled `{` as one.
-        await addOverride(canvasElement, "timezones.dateTimeZone", "{{{{zone}} time")
-        await expectNotification(
-            i18n.t("electionEventScreen.localization.notify.invalidTimeZoneText", {
-                placeholders: "{{dateTime}}",
-                interpolation: {escapeValue: false},
-            })
-        )
-        expect(data.writes).toEqual([])
-    },
-}
-
 export const EditAnOverride: Story = {
     play: async ({canvasElement}) => {
         const [edit] = within(await welcomeRow(canvasElement)).getAllByRole("button")

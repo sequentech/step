@@ -16,9 +16,8 @@
 //            signers are {user_id, username, display_name, title, is_you,
 //            status, signed_at, certificate_cn}
 //            plus the optional election_name, area_name, document_name,
-//            document_pages, details [{key, label?, value}], and time_zone
-//            (the election event's primary IANA zone from its
-//            presentation.timezones, e.g. "Asia/Manila"; "UTC" when it names none).
+//            document_pages, details [{key, label?, value}] and time_zone
+//            (the election event's IANA zone, e.g. "Asia/Manila").
 //   mutation signingCheckCertificate(request_id: uuid!, chain_pem: [String!]!):
 //            {checks: jsonb!, certificate, registration, revocation_status} (the widget reads checks)
 //            POST …/check-certificate. `checks` = [{id, ok, detail}] (CertificateCheckId).
@@ -108,10 +107,7 @@ export interface ISigningPanelData extends ISigningRequestPanel {
     document_pages?: number | null
     /** What the dialog shows for actions without a document; the subject when absent. */
     details?: ISigningDetail[] | null
-    /**
-     * The election event's primary timezone (IANA, `presentation.timezones`), as the signed PDF
-     * prints it; times are shown in the browser's when absent.
-     */
+    /** The election event's time zone (IANA); times are shown in the browser's when absent. */
     time_zone?: string | null
 }
 

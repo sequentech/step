@@ -77,6 +77,7 @@ const showsOutcome = async (canvasElement: HTMLElement, explanation: keyof typeo
 }
 
 export const WillRunAuthorized: Story = {
+    parameters: {widgets: ["OutcomeChip", "OutcomeChecks"]},
     play: ({canvasElement}) => showsOutcome(canvasElement, "runsAuthorized"),
 }
 export const WillRunNoSignaturesNeeded: Story = {

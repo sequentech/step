@@ -7,8 +7,8 @@ import {gql} from "@apollo/client"
 export const GENERATE_TRANSMISSION_REPORT = gql`
     mutation generate_transmission_report(
         $tenantId: String!
-        $electionEventId: uuid!
-        $electionId: uuid
+        $electionEventId: String!
+        $electionId: String
         $tallySessionId: String
     ) {
         generate_transmission_report(

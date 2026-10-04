@@ -73,10 +73,27 @@ CREATE TABLE sequent_backend.signed_voting_boundary (
     source_timezone text,
     scheduled_date text NOT NULL,
     scheduled_at timestamptz NOT NULL,
+    fingerprint text,
     PRIMARY KEY (tenant_id, election_event_id, election_id, scheduled_event_id)
 );
 CREATE INDEX signed_voting_boundary_bound ON sequent_backend.signed_voting_boundary
     (tenant_id, election_event_id, election_id, event_processor, scheduled_at);
+
+-- Match the execution proof consumed by the production point-read query.
+-- The timing fixtures remain unsigned, so this private projection starts empty.
+CREATE TABLE sequent_backend.lifecycle_fired (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id uuid NOT NULL,
+    election_event_id uuid NOT NULL,
+    scheduled_event_id uuid NOT NULL,
+    election_id uuid NOT NULL,
+    fingerprint text NOT NULL CHECK (fingerprint ~ '^[0-9a-f]{64}$'),
+    fired_at timestamptz NOT NULL DEFAULT clock_timestamp(),
+    executed_channels jsonb CHECK (executed_channels IS NULL OR (
+        jsonb_typeof(executed_channels) = 'array'
+        AND executed_channels <@ '["ONLINE", "KIOSK", "EARLY_VOTING", "TELEPHONE"]'::jsonb
+    ))
+);
 
 -- These unsigned timing fixtures use the default optional closing rule.
 -- Production authorization (including both-copy signature policies) is

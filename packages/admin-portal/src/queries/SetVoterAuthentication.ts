@@ -4,7 +4,11 @@
 import {gql} from "@apollo/client"
 
 export const SET_VOTER_AOTHENTICATION = gql`
-    mutation SetVoterAuthentication($electionEventId: uuid!, $enrollment: String!, $otp: String!) {
+    mutation SetVoterAuthentication(
+        $electionEventId: String!
+        $enrollment: String!
+        $otp: String!
+    ) {
         set_voter_authentication(
             election_event_id: $electionEventId
             enrollment: $enrollment

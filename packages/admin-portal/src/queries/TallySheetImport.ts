@@ -6,7 +6,7 @@ import {gql} from "@apollo/client"
 
 export const PREVIEW_TALLY_SHEET_IMPORT = gql`
     mutation PreviewTallySheetImport(
-        $electionEventId: uuid!
+        $electionEventId: String!
         $documentId: String!
         $sha256: String
         $sourceFormat: String!
@@ -26,7 +26,7 @@ export const PREVIEW_TALLY_SHEET_IMPORT = gql`
 
 export const CREATE_TALLY_SHEET_IMPORT = gql`
     mutation CreateTallySheetImport(
-        $electionEventId: uuid!
+        $electionEventId: String!
         $documentId: String!
         $sha256: String
         $sourceFormat: String!
@@ -46,7 +46,7 @@ export const CREATE_TALLY_SHEET_IMPORT = gql`
 
 export const REVIEW_TALLY_SHEET_IMPORT = gql`
     mutation ReviewTallySheetImport(
-        $electionEventId: uuid!
+        $electionEventId: String!
         $importId: String!
         $decision: String!
     ) {

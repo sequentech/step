@@ -10,12 +10,6 @@ import {SigningAction} from "@/lib/signing/types"
 import {requestTitle} from "./format"
 import {subjectNotes, worded} from "./SigningSubject"
 
-// The configuration approval's lifecycle section has its own tests.
-jest.mock("./ConfigurationAuthorizes", () => ({
-    ConfigurationAuthorizes: () => null,
-    LIFECYCLE_SUBJECT_KEYS: [],
-}))
-
 let t: TFunction
 
 beforeAll(async () => {

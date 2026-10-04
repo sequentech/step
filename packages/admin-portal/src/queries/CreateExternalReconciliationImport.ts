@@ -4,7 +4,10 @@
 import {gql} from "@apollo/client"
 
 export const CREATE_EXTERNAL_RECONCILIATION_IMPORT = gql`
-    mutation CreateExternalReconciliationImport($election_event_id: uuid!, $document_id: String!) {
+    mutation CreateExternalReconciliationImport(
+        $election_event_id: String!
+        $document_id: String!
+    ) {
         create_external_reconciliation_import(
             election_event_id: $election_event_id
             document_id: $document_id
