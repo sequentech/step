@@ -229,4 +229,24 @@ describe("ResultsSummary", () => {
         expect(markup).toMatch(/seq-results-summary__eligible-cell[^"]*">-</)
         expect(markup).toMatch(/seq-results-summary__participation-cell[^"]*">-</)
     })
+
+    it("writes a dash for figures that are not numbers", () => {
+        const markup = renderToStaticMarkup(
+            <ResultsSummary
+                elections={[{id: "election-id", presentation: {en: "Election"}}]}
+                resultsElections={[
+                    {
+                        id: "result-id",
+                        election_id: "election-id",
+                        elegible_census: "",
+                        total_voters: "n/a",
+                    },
+                ]}
+                locale="en"
+            />
+        )
+
+        expect(markup).toMatch(/seq-results-summary__eligible-cell[^"]*">-</)
+        expect(markup).not.toContain("n/a")
+    })
 })
