@@ -55,7 +55,9 @@ jest.mock("./signing/SigningRequestPanel", () => ({
     },
 }))
 const mockClient = {}
-const provider = testDataProvider({getOne: async () => ({data: {id: "post", name: "Madrid Post"}})})
+const provider = testDataProvider({
+    getOne: jest.fn().mockResolvedValue({data: {id: "post", name: "Madrid Post"}}),
+})
 function Launch() {
     const signing = useSigningRequest()
     return <button onClick={() => signing.open("request")}>Open request</button>

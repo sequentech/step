@@ -192,6 +192,59 @@ export const RealmAttributes: Story = {
     },
 }
 
+export const EnrollmentAuthorityIsReadOnly: Story = {
+    parameters: openedSection,
+    play: async ({canvasElement}) => {
+        await loaded(canvasElement)
+        await openSection(canvasElement, "realm_attributes")
+        const canvas = within(canvasElement)
+        for (const key of ["enrollment_windows", "enrollment_registration_restore"]) {
+            const name = await canvas.findByText(key)
+            const row = name.closest(".jer-value-component") as HTMLElement
+            await expect(row).toBeVisible()
+            // Copy remains available; edit/delete controls are absent.
+            expect(
+                row.querySelector(".jer-edit-buttons")?.children.length ?? 0
+            ).toBeLessThanOrEqual(1)
+            await userEvent.dblClick(name)
+            expect(row.querySelector("input, textarea")).toBeNull()
+        }
+        const ordinary = canvas
+            .getByText("voter_certificate_policy")
+            .closest(".jer-value-component") as HTMLElement
+        await userEvent.dblClick(canvas.getByText("voter_certificate_policy"))
+        expect(ordinary.querySelector("input.jer-key-edit")).not.toBeNull()
+        await userEvent.keyboard("{Escape}")
+        const editor = ordinary.closest(".jer-collection-component") as HTMLElement
+        const root = editor.querySelector(".jer-collection-header-row") as HTMLElement
+        await userEvent.dblClick(root.querySelector(".jer-collection-name") as HTMLElement)
+        expect(editor.querySelector(".jer-collection-text-edit")).toBeNull()
+    },
+}
+
+export const SaveRealmAttributesWithoutAuthority: Story = {
+    parameters: openedSection,
+    play: async ({canvasElement, args}) => {
+        await loaded(canvasElement)
+        await openSection(canvasElement, "realm_attributes")
+        const canvas = within(canvasElement)
+        const row = canvas
+            .getByText("voter_certificate_policy")
+            .closest(".jer-value-component") as HTMLElement
+        await userEvent.dblClick(row.querySelector(".jer-value-string") as HTMLElement)
+        const value = within(row).getByRole("textbox")
+        await userEvent.clear(value)
+        await userEvent.type(value, "optional{Enter}")
+        await userEvent.click(saveButton(canvasElement))
+        await waitFor(() => expect(args.saved).toHaveBeenCalledTimes(1))
+        const update = boundaries.graphql.calls.find(({name}) => name === "UpdateRealmAttributes")
+        expect(update?.variables).toEqual({
+            election_event_id: EVENT_ID,
+            attributes: {voter_certificate_policy: "optional"},
+        })
+    },
+}
+
 export const RealmAttributesLoadError: Story = {
     parameters: openedSection,
     args: {realmAttributesFail: true},

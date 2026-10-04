@@ -108,7 +108,7 @@ import {getAuthUrl} from "@/services/UrlGeneration"
 import {WizardStyles} from "@/components/styles/WizardStyles"
 import {CustomUrlsStyle} from "@/components/styles/CustomUrlsStyle"
 import {StatusChip} from "@/components/StatusChip"
-import {JsonEditor, UpdateFunction} from "json-edit-react"
+import {JsonEditor, UpdateFunction, type NodeData} from "json-edit-react"
 import {CustomFilter} from "@/types/filters"
 import {SET_VOTER_AOTHENTICATION} from "@/queries/SetVoterAuthentication"
 import {
@@ -982,9 +982,20 @@ export const EditElectionEventDataForm: React.FC<{
         }, {})
     }
 
+    const serverOwnedRealmAttributes = ["enrollment_windows", "enrollment_registration_restore"]
+    const restrictRealmAttribute = ({path}: NodeData) =>
+        path.length === 0 || serverOwnedRealmAttributes.includes(String(path[0]))
+
     const updateRealmAttributesDraft = ({newData}: UpdateFunctionProps) => {
         try {
-            setRealmAttributes(normalizeRealmAttributes(newData))
+            const next = normalizeRealmAttributes(newData)
+            const loaded = realmAttributesData?.get_realm_attributes?.attributes ?? {}
+            for (const key of serverOwnedRealmAttributes) {
+                if (next[key] !== loaded[key]) {
+                    throw new Error(`Realm attribute ${key} is managed by enrollment scheduling`)
+                }
+            }
+            setRealmAttributes(next)
             setRealmAttributesError(undefined)
             setRealmAttributesDirty(true)
             setActivateSave(true)
@@ -1143,7 +1154,11 @@ export const EditElectionEventDataForm: React.FC<{
             await manageRealmAttributes({
                 variables: {
                     election_event_id: recordId,
-                    attributes: normalizeRealmAttributes(realmAttributes),
+                    attributes: Object.fromEntries(
+                        Object.entries(normalizeRealmAttributes(realmAttributes)).filter(
+                            ([key]) => !serverOwnedRealmAttributes.includes(key)
+                        )
+                    ),
                 },
             })
             if (canReadRealmAttributes) {
@@ -1773,6 +1788,12 @@ export const EditElectionEventDataForm: React.FC<{
                             ) : canEditRealmAttributes ? (
                                 <JsonEditor
                                     data={realmAttributes}
+                                    restrictEdit={restrictRealmAttribute}
+                                    restrictDelete={restrictRealmAttribute}
+                                    restrictDrag={restrictRealmAttribute}
+                                    restrictAdd={({path}) =>
+                                        serverOwnedRealmAttributes.includes(String(path[0]))
+                                    }
                                     onUpdate={(data) =>
                                         updateRealmAttributesDraft(data as UpdateFunctionProps)
                                     }

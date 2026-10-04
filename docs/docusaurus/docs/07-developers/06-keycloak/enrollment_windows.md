@@ -73,11 +73,24 @@ Publication copies the event's overrides into the realm:
 
 ## Realm templates and existing realms
 
-- **Templates.** New event realms get the form action from their template:
-  - `.devcontainer/keycloak/import/tenant-…-event-….json`. This is the default event realm, the file `KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_S3_KEY` points to in MinIO.
-  - The janitor's client realm templates (`windmill/external-bin/janitor/templates/<client>/keycloak.hbs`).
-- **S3 copies.** A deployment that keeps its own copy of the default realm in S3 must add the execution there too. Without it, new events start without the check until the migration runs.
-- **Existing realms.** Windmill's beat runs `migrate_registration_flows` once at start, as it does for `migrate_realm_permissions`. To run it by hand, use `step-cli step migrate-registration-flows`. For each event realm, it finds the form flow of the realm's registration flow (the `registration-page-form` execution) and appends a REQUIRED `enrollment-window-check`. A realm that already has the check is skipped.
+- **Templates and imports.** Event creation and import enforce a REQUIRED `enrollment-window-check` in every registration form referenced by a `registration-page-form` execution. This includes custom nested forms supplied in an exported realm. The selected registration and login flows are preserved. Default templates also include the action.
+- **Installed flows.** The shared realm upsert verifies the installed registration flow after import, including Keycloak-generated builtin forms. A missing or disabled check must be repaired successfully before registration can be enabled.
+- **Existing realms.** Windmill's beat runs `migrate_registration_flows` once at start, as it does for `migrate_realm_permissions`. To run it by hand, use `step-cli step migrate-registration-flows`. It checks each registration form separately, adds missing checks and repairs non-REQUIRED checks. A REQUIRED check in another form does not satisfy the current form.
+
+## Enrollment-owned attributes
+
+`enrollment_windows` and `enrollment_registration_restore` are managed by the
+server. The administration editor shows them as read-only and omits them from
+ordinary saves. The attributes API rejects attempts to alter or remove them;
+unchanged values remain safe no-ops.
+
+Guard repair and event realm setup keep registration disabled until verification
+finishes. A persisted intent records the requested enabled or disabled state
+across retries. Enrollment START and END update that intent while preserving the
+pause. An incomplete import stays paused until its remaining realm setup,
+including JWKS registration, completes; ordinary startup repair cannot finish it.
+Event realm writes share the scheduling lock so unrelated settings cannot replay
+stale registration state or enrollment attributes.
 
 ## Known gaps
 

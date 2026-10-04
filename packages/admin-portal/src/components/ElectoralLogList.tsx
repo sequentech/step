@@ -10,9 +10,9 @@ import {
     NumberField,
     useRecordContext,
     TextInput,
-    DateTimeInput,
     SelectInput,
 } from "react-admin"
+import {LogRangeDateTimeInput} from "./logs/LogRangeDateTimeInput"
 import {ListActions} from "@/components/ListActions"
 import {useTranslation} from "react-i18next"
 import {timeZoneOption} from "@sequentech/ui-core"
@@ -118,13 +118,15 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
     // Range filters hold wall times in the chosen zone; the data provider
     // turns them into instants.
     const filters: Array<ReactElement> = [
-        <DateTimeInput
+        <LogRangeDateTimeInput
+            defaultZone={zones.primary}
             key="created_from"
             source="created_from"
             label={String(t("logsScreen.filter.createdFrom"))}
             alwaysOn
         />,
-        <DateTimeInput
+        <LogRangeDateTimeInput
+            defaultZone={zones.primary}
             key="created_to"
             source="created_to"
             label={String(t("logsScreen.filter.createdTo"))}
@@ -148,12 +150,14 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
             source={"username"}
             label={String(t("logsScreen.column.username"))}
         />,
-        <DateTimeInput
+        <LogRangeDateTimeInput
+            defaultZone={zones.primary}
             key="statement_timestamp_from"
             source="statement_timestamp_from"
             label={String(t("logsScreen.filter.statementTimestampFrom"))}
         />,
-        <DateTimeInput
+        <LogRangeDateTimeInput
+            defaultZone={zones.primary}
             key="statement_timestamp_to"
             source="statement_timestamp_to"
             label={String(t("logsScreen.filter.statementTimestampTo"))}

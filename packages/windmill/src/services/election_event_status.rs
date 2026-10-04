@@ -6,7 +6,7 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 use crate::postgres::election::{get_election_by_id, get_elections, update_election_voting_status};
 use crate::postgres::election_event::{get_election_event_by_id, update_election_event_status};
 use crate::postgres::trusted_write;
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result};
 use deadpool_postgres::Transaction;
 use sequent_core::ballot::*;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
@@ -18,6 +18,12 @@ use super::initialization_scope::{
     initialization_refusal_for, initialization_refusals, name_list, post_display_name,
 };
 use super::voting_status::update_board_on_status_change;
+
+/// A policy or state transition refusal safe for action clients to display.
+/// Storage and external-service errors retain their ordinary internal error type.
+#[derive(Debug, thiserror::Error)]
+#[error("{0}")]
+pub struct VotingTransitionError(String);
 
 pub fn get_election_event_status(status_json_opt: Option<Value>) -> Option<ElectionEventStatus> {
     status_json_opt.and_then(|status_json| deserialize_value(status_json).ok())
@@ -317,17 +323,17 @@ async fn update_event_voting_status_impl(
         };
 
         if !expected_next_status.contains(&new_status) {
-            return Err(anyhow!(
+            return Err(VotingTransitionError(format!(
             "Unexpected next status {new_status:?}, expected {expected_next_status:?}, current {current_voting_status:?}",
-        ));
+        )).into());
         }
 
         if channel == VotingStatusChannel::EARLY_VOTING
             && status.status_by_channel(VotingStatusChannel::ONLINE) != VotingStatus::NOT_STARTED
         {
-            return Err(anyhow!(
-                "It is not allowed to start EARLY_VOTING channel because ONLINE channel was already started in the past.",
-            ));
+            return Err(VotingTransitionError(
+                "It is not allowed to start EARLY_VOTING channel because ONLINE channel was already started in the past.".into(),
+            ).into());
         }
 
         let blocked: Vec<String> = opening_refusals
@@ -343,7 +349,7 @@ async fn update_event_voting_status_impl(
             })
             .collect();
         if !blocked.is_empty() {
-            return Err(anyhow!(blocked.join("; ")));
+            return Err(VotingTransitionError(blocked.join("; ")).into());
         }
 
         status.close_early_voting_if_online_status_change(channel, new_status.clone());
@@ -481,22 +487,24 @@ pub async fn update_election_voting_status_impl(
     }
 
     if let Some(refusal) = voting_transition_refusal(&election, &status, channel, &new_status) {
-        return Err(anyhow!(refusal.message(
+        return Err(VotingTransitionError(refusal.message(
             &election_id,
             &new_status,
-            &current_voting_status
-        )));
+            &current_voting_status,
+        ))
+        .into());
     }
 
     if new_status == VotingStatus::OPEN {
         if let Some(refusal) =
             initialization_refusal_for(hasura_transaction, &election_event, &election).await?
         {
-            return Err(anyhow!(refusal.message(
+            return Err(VotingTransitionError(refusal.message(
                 &election_id,
                 &new_status,
-                &current_voting_status
-            )));
+                &current_voting_status,
+            ))
+            .into());
         }
     }
 
@@ -695,9 +703,9 @@ fn apply_scheduled_event_channel(
         && *new_status == VotingStatus::OPEN
         && event_status.status_by_channel(VotingStatusChannel::ONLINE) != VotingStatus::NOT_STARTED
     {
-        return Err(anyhow!(
-            "It is not allowed to start EARLY_VOTING channel because ONLINE channel was already started in the past.",
-        ));
+        return Err(VotingTransitionError(
+            "It is not allowed to start EARLY_VOTING channel because ONLINE channel was already started in the past.".into(),
+        ).into());
     }
 
     let mut changed = Vec::new();
