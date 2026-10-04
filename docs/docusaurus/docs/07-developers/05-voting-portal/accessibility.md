@@ -59,6 +59,13 @@ write test or automation selectors against `aria-label` — resolve the name thr
 `aria-labelledby`, or match on the stable `class` hooks (`candidate-input`, `contest-title`)
 instead.
 
+The language selector is the worked example of a name that must say more than the visible
+text. Its button shows only the current language's own name, so its accessible name is
+"Language: English" (`a11y.languageSelector`), which still contains the visible label
+(SC 2.5.3). Its options are `menuitemradio`s with the current language checked, and each
+carries the `lang` of the language it names, so a screen reader pronounces "Français" with a
+French voice (SC 3.1.2).
+
 Use the shared `VisuallyHidden` component from `ui-essentials` for text that assistive
 technology should read but that should not be painted. It wraps MUI's `visuallyHidden`
 style, and is the right tool instead of `display: none` — content hidden with `display: none`

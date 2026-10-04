@@ -23,6 +23,7 @@ const spanishTranslation: TranslationType = {
         },
         a11y: {
             closeDialog: "Cerrar diálogo",
+            languageSelector: "Idioma: {{language}}",
             dismissMessage: "Descartar mensaje",
             ballotIdHelp: "Acerca de su ID de voto",
             loading: "Cargando",

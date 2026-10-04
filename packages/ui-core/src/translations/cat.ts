@@ -23,6 +23,7 @@ const catalanTranslation: TranslationType = {
         },
         a11y: {
             closeDialog: "Tancar el diàleg",
+            languageSelector: "Idioma: {{language}}",
             dismissMessage: "Descartar el missatge",
             ballotIdHelp: "Sobre el vostre ID de vot",
             loading: "Carregant",

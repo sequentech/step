@@ -23,6 +23,7 @@ const dutchTranslation: TranslationType = {
         },
         a11y: {
             closeDialog: "Dialoogvenster sluiten",
+            languageSelector: "Taal: {{language}}",
             dismissMessage: "Bericht sluiten",
             ballotIdHelp: "Over uw stembiljet-ID",
             loading: "Laden",

@@ -23,6 +23,7 @@ const frenchTranslation: TranslationType = {
         },
         a11y: {
             closeDialog: "Fermer la boîte de dialogue",
+            languageSelector: "Langue : {{language}}",
             dismissMessage: "Masquer le message",
             ballotIdHelp: "À propos de votre identifiant de vote",
             loading: "Chargement",

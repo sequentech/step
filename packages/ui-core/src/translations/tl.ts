@@ -23,6 +23,7 @@ const tagalogTranslation: TranslationType = {
         },
         a11y: {
             closeDialog: "Isara ang dialog",
+            languageSelector: "Wika: {{language}}",
             dismissMessage: "I-dismiss ang mensahe",
             ballotIdHelp: "Tungkol sa iyong Ballot ID",
             loading: "Naglo-load",
