@@ -3,7 +3,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import {applySlate, BallotSelection, ISlate, ISlateProblem} from "@sequentech/ui-core"
-import type {IResolvedSlate} from "./Slates"
+import {exceedsMaximum} from "./SelectionLimits"
+import type {IResolvedSlate, ISlateContest} from "./Slates"
 
 export interface ISlateContestChange {
     contestId: string
@@ -30,6 +31,19 @@ const describeProblems = (error: unknown): string => {
         .join("; ")
 }
 
+/** The slate has more candidates in a contest than the contest allows. */
+export class SlateOverMaximumError extends SlateChoicesError {
+    constructor(
+        slate: IResolvedSlate,
+        readonly slateContest: ISlateContest
+    ) {
+        super(
+            `slate "${slate.id}" has ${slateContest.candidates.length} candidates in contest "${slateContest.contest.id}", which allows ${slateContest.contest.max_votes}`
+        )
+        this.name = "SlateOverMaximumError"
+    }
+}
+
 /**
  * The ballot that choosing a slate produces, and what it changes.
  *
@@ -44,6 +58,12 @@ export const computeSlateChoices = (
     current: BallotSelection
 ): ISlateChoices => {
     const members: ISlate["members"] = {}
+    for (const slateContest of slate.contests) {
+        const memberIds = new Set(slateContest.candidates.map((candidate) => candidate.id))
+        if (exceedsMaximum(slateContest.contest, memberIds.size)) {
+            throw new SlateOverMaximumError(slate, slateContest)
+        }
+    }
     for (const {contest, candidates} of slate.contests) {
         members[contest.id] = candidates.map((candidate) => candidate.id)
     }

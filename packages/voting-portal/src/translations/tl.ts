@@ -463,6 +463,10 @@ const tagalogTranslation: TranslationType = {
                 button: "Piliin ang slate na ito",
                 buttonLabel: "Piliin ang slate na {{slate}}",
                 chosen: "Napili ang {{slate}}. Mga napiling kandidato: {{candidates}}. Mga paligsahan: {{contests}}.",
+                overMaximum:
+                    "Hindi mapipili ang {{slate}}: mayroon itong {{candidates}} kandidato para sa {{contest}}, na {{max}} lamang ang pinapayagan. Maaari ka pa ring pumili ng mga kandidato nang isa-isa.",
+                unavailable:
+                    "Hindi mapipili ang {{slate}} sa balotang ito. Maaari ka pa ring pumili ng mga kandidato nang isa-isa.",
                 replaceDialog: {
                     title: "Palitan ang iyong kasalukuyang mga pinili?",
                     content:

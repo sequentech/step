@@ -462,6 +462,10 @@ const frenchTranslation: TranslationType = {
                 button: "Choisir cette liste",
                 buttonLabel: "Choisir la liste {{slate}}",
                 chosen: "{{slate}} choisie. Candidats sélectionnés : {{candidates}}. Scrutins : {{contests}}.",
+                overMaximum:
+                    "{{slate}} ne peut pas être choisie : elle compte {{candidates}} candidats pour {{contest}}, qui en autorise {{max}}. Vous pouvez toujours choisir des candidats individuellement.",
+                unavailable:
+                    "{{slate}} ne peut pas être choisie sur ce bulletin. Vous pouvez toujours choisir des candidats individuellement.",
                 replaceDialog: {
                     title: "Remplacer vos choix actuels ?",
                     content:

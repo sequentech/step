@@ -467,6 +467,10 @@ const catalanTranslation: TranslationType = {
                 button: "Tria aquesta candidatura",
                 buttonLabel: "Tria la candidatura {{slate}}",
                 chosen: "{{slate}} triada. Candidats seleccionats: {{candidates}}. Conteses: {{contests}}.",
+                overMaximum:
+                    "{{slate}} no es pot triar: té {{candidates}} candidatures per a {{contest}}, que en permet {{max}}. Podeu continuar triant candidatures individualment.",
+                unavailable:
+                    "{{slate}} no es pot triar en aquesta papereta. Podeu continuar triant candidatures individualment.",
                 replaceDialog: {
                     title: "Vols substituir les teves opcions actuals?",
                     content:
