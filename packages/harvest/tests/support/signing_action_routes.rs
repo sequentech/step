@@ -20,6 +20,59 @@ use serde_json::{json, Value};
 use uuid::Uuid;
 use windmill::postgres::signing::upsert_signing_rule;
 
+/// Seed one already-authorized server result, then restore the marker before
+/// any route or ordinary fixture write can use this pooled connection.
+async fn trusted_seed(
+    pool: &deadpool_postgres::Pool,
+    sql: &str,
+    params: &[&(dyn tokio_postgres::types::ToSql + Sync)],
+) {
+    let mut client = pool.get().await.unwrap();
+    let tx = client.transaction().await.unwrap();
+    let previous: Option<String> = tx
+        .query_one("SELECT current_setting('sequent.trusted_write', true)", &[])
+        .await
+        .unwrap()
+        .get(0);
+    windmill::postgres::trusted_write(&tx).await.unwrap();
+    tx.execute(sql, params).await.unwrap();
+    tx.execute(
+        "SELECT set_config('sequent.trusted_write', $1, true)",
+        &[&previous.unwrap_or_default()],
+    )
+    .await
+    .unwrap();
+    tx.commit().await.unwrap();
+}
+
+/// Generated event-level publication with the same target membership and
+/// immutable root that the normal server completion workflow records.
+async fn generated_publication(
+    pool: &deadpool_postgres::Pool,
+    event: &Event,
+    published: bool,
+) -> String {
+    let tenant = uuid::Uuid::parse_str(&event.tenant_id).unwrap();
+    let election_event =
+        uuid::Uuid::parse_str(&event.election_event_id).unwrap();
+    let id = uuid::Uuid::new_v4();
+    let elections: Vec<uuid::Uuid> = rows::query(pool,
+        "SELECT id FROM sequent_backend.election WHERE tenant_id=$1 AND election_event_id=$2 ORDER BY id",
+        &[&tenant, &election_event],
+    ).await.into_iter().map(|row| row.get(0)).collect();
+    let annotations = published.then(|| serde_json::json!({
+        windmill::domain::publication_files::FILES_ANNOTATION:
+            windmill::domain::publication_files::publication_root(tenant, election_event, id, uuid::Uuid::new_v4())
+    }));
+    trusted_seed(pool,
+        "INSERT INTO sequent_backend.ballot_publication
+        (id,tenant_id,election_event_id,is_generated,election_ids,published_at,annotations)
+        VALUES ($1,$2,$3,true,$4,CASE WHEN $5 THEN now() END,$6)",
+        &[&id,&tenant,&election_event,&elections,&published,&annotations],
+    ).await;
+    id.to_string()
+}
+
 /// Two configurations: a Post label and how many sign.
 const PRESETS: [(&str, u16); 2] = [("madrid-pe", 2), ("faculty-of-science", 3)];
 
@@ -113,7 +166,7 @@ async fn open_post(pool: &Pool, election: &str) {
 async fn published_for(pool: &Pool, event: &Event, election: &str) -> String {
     let (tenant, election_event) = ids(event);
     let id = Uuid::new_v4();
-    rows::execute(
+    trusted_seed(
         pool,
         "INSERT INTO sequent_backend.ballot_publication
              (id, tenant_id, election_event_id, is_generated, election_ids, published_at)
@@ -274,9 +327,8 @@ async fn publishing_waits_for_signatures_and_a_new_publication_cancels_the_reque
         2,
     )
     .await;
-    let publication = event
-        .ballot_publication(&services.hasura, true, false)
-        .await;
+    let publication =
+        generated_publication(&services.hasura, &event, false).await;
     let publisher = Claims::new(&event.tenant_id, "publisher")
         .roles([Permissions::PUBLISH_WRITE])
         .acr(&Permissions::GOLD.to_string())

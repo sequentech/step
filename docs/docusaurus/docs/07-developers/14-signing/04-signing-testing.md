@@ -95,7 +95,6 @@ remain recorded with their USER and SYSTEM entries.
   event/contest-level tally HTML/PDF renderings are removed when report signing is active,
   because they have no Post signing scope. The tally holds supported election returns
   per Post and country and Initialization Reports per Post.
-- **Scheduled transitions** follow the signed configuration and the current stricter requirements. The scoped `postgres_scheduled_outcome` suite covers the decision table, both copies and prediction logs. Signing a close ahead of its deadline remains future work.
 - **Group membership changes** (adding a user to a group that holds a `sign-<action>`
   permission, or removing them) are not written to the election event's log; changes of
   a role's permissions are.

@@ -13,7 +13,7 @@ import {
     EUnsignedScheduledClosePolicy,
     type ILifecyclePolicies,
 } from "@sequentech/ui-core"
-import type {Sequent_Backend_Election} from "@/gql/graphql"
+import type {Sequent_Backend_Election, Sequent_Backend_Area} from "@/gql/graphql"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 import {
     GET_CONFIGURATION_APPROVALS,
@@ -28,6 +28,7 @@ import {
     closePolicyChange,
     policiesOf,
     ruleChange,
+    requirementChange,
     scopeChange,
 } from "@/components/election-event/lifecyclePolicyChange"
 
@@ -73,6 +74,8 @@ export const snapshotOfSubject = (subject: Record<string, unknown>): ILifecycleS
     policies: (subject.policies as ILifecyclePolicies | undefined) ?? null,
     open_voting: (subject.open_voting as IRuleSnapshot | undefined) ?? null,
     close_voting: (subject.close_voting as IRuleSnapshot | undefined) ?? null,
+    initialization_countries:
+        subject.initialization_countries as ILifecycleSnapshot["initialization_countries"],
     initialization_report_policies: subject.initialization_report_policies as
         | ILifecycleSnapshot["initialization_report_policies"]
         | undefined,
@@ -97,7 +100,8 @@ export const configurationDiff = (
     t: TFunction,
     previous: ILifecycleSnapshot,
     next: ILifecycleSnapshot,
-    postName: (electionId: string) => string = (electionId) => electionId
+    postName: (electionId: string) => string = (electionId) => electionId,
+    countryName: (areaId: string) => string = (areaId) => areaId
 ): Array<IConfigurationDiff> => {
     const from = policiesOf(previous.policies)
     const to = policiesOf(next.policies)
@@ -159,6 +163,27 @@ export const configurationDiff = (
             after: t(`electionScreen.initializeReportPolicy.${after}`),
         })
     }
+    // Legacy absent membership is unknown, rather than an empty country set.
+    if (previous.initialization_countries && next.initialization_countries) {
+        const posts = new Set([
+            ...Object.keys(previous.initialization_countries),
+            ...Object.keys(next.initialization_countries),
+        ])
+        for (const electionId of Array.from(posts)) {
+            const before = previous.initialization_countries[electionId]
+            const after = next.initialization_countries[electionId]
+            if (!before || !after) continue
+            diffs.push({
+                change: requirementChange(before, after),
+                setting: t("lifecycle.authorizes.reportPolicyOf", {
+                    election: postName(electionId),
+                    value: t("publish.initialization.country"),
+                }),
+                before: before.map(countryName).join(", ") || "—",
+                after: after.map(countryName).join(", ") || "—",
+            })
+        }
+    }
     return diffs.filter(({change}) => change !== EPolicyChange.NONE)
 }
 
@@ -209,6 +234,19 @@ export const ConfigurationAuthorizes: React.FC<{
         pagination: {page: 1, perPage: 9999},
         filter: {election_event_id: electionEventId},
     })
+    const {data: areas} = useGetList<Sequent_Backend_Area>("sequent_backend_area", {
+        pagination: {page: 1, perPage: 9999},
+        filter: {election_event_id: electionEventId},
+    })
+    const postName = (electionId: string) => {
+        const election = elections?.find(({id}) => id === electionId)
+        return election ? aliasRenderer(election) : electionId
+    }
+    const countryName = (areaId: string) => {
+        const area = areas?.find(({id}) => id === areaId)
+        const name = area ? aliasRenderer(area) : undefined
+        return name && name !== "-" ? name : areaId
+    }
     const {data: approvalsData, loading} = useQuery<GetConfigurationApprovalsData>(
         GET_CONFIGURATION_APPROVALS,
         {variables: {electionEventId, requestId}}
@@ -220,17 +258,13 @@ export const ConfigurationAuthorizes: React.FC<{
           )
         : null
     const diffs = previous
-        ? configurationDiff(t, snapshotOfSubject(previous.subject), snapshot, (electionId) => {
-              const election = elections?.find(({id}) => id === electionId)
-              return election ? aliasRenderer(election) : electionId
-          })
+        ? configurationDiff(t, snapshotOfSubject(previous.subject), snapshot, postName, countryName)
         : null
     const policies = policiesOf(snapshot.policies)
     const reportPolicies = Object.entries(snapshot.initialization_report_policies ?? {})
     const placeOf = (transition: IScheduledTransition) => {
         if (!transition.election_id) return t("lifecycle.schedule.allElections")
-        const election = elections?.find(({id}) => id === transition.election_id)
-        return election ? aliasRenderer(election) : transition.election_id
+        return postName(transition.election_id)
     }
 
     return (
@@ -286,9 +320,7 @@ export const ConfigurationAuthorizes: React.FC<{
                             <li key={electionId}>
                                 <Typography variant="body2">
                                     {t("lifecycle.authorizes.channelsOf", {
-                                        election: placeOf({
-                                            election_id: electionId,
-                                        } as IScheduledTransition),
+                                        election: postName(electionId),
                                         channels: channels.length
                                             ? channels
                                                   .map((channel) =>
@@ -340,6 +372,27 @@ export const ConfigurationAuthorizes: React.FC<{
                     </li>
                 </Box>
             </Box>
+            {Object.keys(snapshot.initialization_countries ?? {}).length ? (
+                <Box data-testid="authorizes-initialization-countries">
+                    <Typography variant="body2" sx={{fontWeight: 600}}>
+                        {t("publish.initialization.country")}
+                    </Typography>
+                    <Box component="ul" sx={{m: 0, pl: 2}}>
+                        {Object.entries(snapshot.initialization_countries ?? {}).map(
+                            ([electionId, countries]) => (
+                                <li key={electionId}>
+                                    <Typography variant="body2">
+                                        {t("lifecycle.authorizes.reportPolicyOf", {
+                                            election: postName(electionId),
+                                            value: countries.map(countryName).join(", ") || "—",
+                                        })}
+                                    </Typography>
+                                </li>
+                            )
+                        )}
+                    </Box>
+                </Box>
+            ) : null}
             {reportPolicies.length ? (
                 <Box data-testid="authorizes-initialization-reports">
                     <Typography variant="body2" sx={{fontWeight: 600}}>
@@ -350,9 +403,7 @@ export const ConfigurationAuthorizes: React.FC<{
                             <li key={electionId}>
                                 <Typography variant="body2">
                                     {t("lifecycle.authorizes.reportPolicyOf", {
-                                        election: placeOf({
-                                            election_id: electionId,
-                                        } as IScheduledTransition),
+                                        election: postName(electionId),
                                         value: t(`electionScreen.initializeReportPolicy.${policy}`),
                                     })}
                                 </Typography>

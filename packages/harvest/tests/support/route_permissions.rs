@@ -166,6 +166,14 @@ fn cases() -> Vec<Case> {
     use VoterPermissions::{ACK_SUPPORT_MATERIALS, CAST_VOTE};
     vec![
         case!(Voter, "/acknowledge-support-materials", {"election_event_id": EVENT_ID, "document_ids": []}, [ACK_SUPPORT_MATERIALS], BACKEND, UNAUTHORIZED),
+        case!(UuidTenant, "/apply-schedule-recompute", {"election_event_id": UUID_EVENT_ID}, [SCHEDULED_EVENT_WRITE], BACKEND, UNAUTHORIZED_JSON),
+        case!(UuidTenant, "/export-schedule", {"election_event_id": UUID_EVENT_ID}, [SCHEDULED_EVENT_WRITE], BACKEND, UNAUTHORIZED),
+        case!(UuidTenant, "/get-lifecycle-snapshots", {"election_event_id": UUID_EVENT_ID}, [ELECTION_EVENT_READ], BACKEND, UNAUTHORIZED_JSON),
+        case!(UuidTenant, "/get-scheduled-outcomes", {"election_event_id": UUID_EVENT_ID}, [ELECTION_EVENT_READ], BACKEND, UNAUTHORIZED_JSON),
+        case!(UuidTenant, "/import-schedule", {"election_event_id": UUID_EVENT_ID, "document_id": ELECTION_ID}, [SCHEDULED_EVENT_WRITE], BACKEND, UNAUTHORIZED),
+        case!(UuidTenant, "/preview-schedule-import", {"election_event_id": UUID_EVENT_ID, "document_id": ELECTION_ID}, [SCHEDULED_EVENT_WRITE], BACKEND, UNAUTHORIZED),
+        case!(UuidTenant, "/preview-scheduled-outcome-change", {"election_event_id": UUID_EVENT_ID, "change": {"policies": {"initialization_scope": "post", "unsigned_scheduled_close": "refuse"}}}, [ELECTION_EVENT_READ], BACKEND, UNAUTHORIZED_JSON),
+        case!(UuidTenant, "/save-lifecycle-policies", {"election_event_id": UUID_EVENT_ID, "policies": {"initialization_scope": "post-and-country", "unsigned_scheduled_close": "refuse"}}, [ELECTION_EVENT_WRITE], BACKEND, UNAUTHORIZED_JSON),
         case!(Admin, "/apply-reconciliation-changes", {"election_event_id": EVENT_ID, "diff_document_id": "test-document"}, [ELECTION_EVENT_VOTER_LIST_SYNC], BACKEND, FORBIDDEN),
         case!(Admin, "/change-application-status", {"tenant_id": TENANT_ID, "election_event_id": EVENT_ID, "id": "test-application", "user_id": USER_ID}, [APPLICATION_WRITE], BACKEND, UNAUTHORIZED_JSON),
         case!(Admin, "/check-private-key", {"election_event_id": EVENT_ID, "keys_ceremony_id": "test-ceremony", "private_key_base64": "not-a-key"}, [TRUSTEE_CEREMONY], BACKEND, UNAUTHORIZED),

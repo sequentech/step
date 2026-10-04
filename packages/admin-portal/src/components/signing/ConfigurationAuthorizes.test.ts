@@ -24,7 +24,11 @@ jest.mock("@sequentech/ui-core", () => ({
     ...jest.requireActual("../../../../ui-core/src/types/ElectionEventPresentation"),
     ...jest.requireActual("../../../../ui-core/src/types/ElectionPresentation"),
 }))
-jest.mock("react-admin", () => ({useGetList: () => ({data: mockPosts})}))
+jest.mock("react-admin", () => ({
+    useGetList: (resource: string) => ({
+        data: resource === "sequent_backend_area" ? mockAreas : mockPosts,
+    }),
+}))
 jest.mock("@apollo/client", () => ({
     gql: (s: TemplateStringsArray) => s.join(""),
     useQuery: () => ({loading: false}),
@@ -36,6 +40,10 @@ jest.mock("@/hooks/useAliasRenderer", () => ({
 }))
 jest.mock("@/components/timezones/timeZoneService", () => ({useTimeZoneService: () => ({})}))
 jest.mock("@/components/timezones/useTimeZoneContext", () => ({useTimeZoneContext: () => ({})}))
+const mockAreas = [
+    {id: "a", name: "Country A"},
+    {id: "b", name: "Country B"},
+]
 const mockPosts = [
     {
         id: "madrid",
@@ -217,4 +225,44 @@ describe("signed initialization report requirements", () => {
         expect(html).toContain("canary: Not Required")
         expect(html).toContain("remains required")
     })
+})
+
+it("keeps signed country membership and shows map-only tightening or loosening", () => {
+    const before = snapshotOfSubject({initialization_countries: {madrid: ["a", "b"]}})
+    const after = snapshotOfSubject({initialization_countries: {madrid: ["a"]}})
+    expect(after.initialization_countries).toEqual({madrid: ["a"]})
+    expect(configurationDiff(mockI18n.t, before, after, () => "Madrid Post")).toEqual([
+        expect.objectContaining({change: EPolicyChange.LOOSENS, before: "a, b", after: "a"}),
+    ])
+    expect(configurationDiff(mockI18n.t, after, before)).toEqual([
+        expect.objectContaining({change: EPolicyChange.TIGHTENS}),
+    ])
+    const html = renderToStaticMarkup(
+        React.createElement(ConfigurationAuthorizes, {
+            subject: {initialization_countries: {madrid: ["a", "b"]}},
+            electionEventId: "event",
+            requestId: "request",
+        })
+    )
+    expect(html).toContain("Madrid Post: Country A, Country B")
+})
+
+it("explains a country replacement as mixed and keeps missing-area ID fallback", () => {
+    const before = snapshotOfSubject({initialization_countries: {post: ["a", "gone"]}})
+    const after = snapshotOfSubject({initialization_countries: {post: ["a", "b"]}})
+    const changes = Reflect.apply(configurationDiff, undefined, [
+        mockI18n.t,
+        before,
+        after,
+        () => "Post",
+        (id: string) => (id === "a" ? "Country A" : id),
+    ])
+    expect(changes).toEqual([
+        expect.objectContaining({
+            change: EPolicyChange.MIXED,
+            before: "Country A, gone",
+            after: "Country A, b",
+        }),
+    ])
+    expect(configurationDiff(mockI18n.t, snapshotOfSubject({}), after)).toEqual([])
 })

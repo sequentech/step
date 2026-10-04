@@ -531,3 +531,193 @@ fn synchronization_marker_is_nonempty_and_not_a_windows_object() {
     assert!(marker.is_null());
     assert!(!marker.is_object());
 }
+
+#[test]
+fn malformed_post_opening_denies_that_post_instead_of_using_the_event_fallback() {
+    let config = madrid();
+    let mut schedule = config.schedule();
+    for row in &mut schedule {
+        if payload_election_id(row).as_deref() == Some(config.posts[1].election_id) {
+            row.cron_config.as_mut().unwrap().scheduled_date = Some("2028-03-01T09:00:00".into());
+        }
+    }
+    let computed = compute_windows(
+        Some(&config.event()),
+        &config.elections(),
+        &schedule,
+        &config.options(),
+        &config.areas(),
+    );
+    assert_eq!(
+        serde_json::to_value(&computed.entries["Canary office"]).unwrap(),
+        json!({"problem": "invalid-schedule"})
+    );
+    assert!(matches!(
+        computed.entries["Madrid office"],
+        WindowEntry::Window(_)
+    ));
+    assert_eq!(computed.problems.len(), 1);
+}
+
+#[test]
+fn malformed_common_close_denies_every_scheduled_post() {
+    let config = madrid();
+    let mut schedule = config.schedule();
+    for row in &mut schedule {
+        if row.event_processor == Some(EventProcessors::END_ENROLLMENT_PERIOD) {
+            row.cron_config.as_mut().unwrap().scheduled_date = Some("tomorrow".into());
+        }
+    }
+    let computed = compute_windows(
+        Some(&config.event()),
+        &config.elections(),
+        &schedule,
+        &config.options(),
+        &config.areas(),
+    );
+    for post in &config.posts {
+        assert_eq!(
+            serde_json::to_value(&computed.entries[post.option]).unwrap(),
+            json!({"problem": "invalid-schedule"})
+        );
+    }
+    assert_eq!(computed.problems.len(), 2);
+}
+
+#[test]
+fn a_malformed_only_restriction_is_not_removed_as_an_absent_schedule() {
+    let config = comelec();
+    let mut opening = row(
+        "broken",
+        EventProcessors::START_ENROLLMENT_PERIOD,
+        Some(config.posts[0].election_id),
+        "2028-02-09T00:00",
+        "Asia/Dubai",
+    );
+    opening.cron_config.as_mut().unwrap().scheduled_date = Some("not an instant".into());
+    let computed = compute_windows(
+        Some(&config.event()),
+        &config.elections(),
+        &[opening],
+        &config.options(),
+        &config.areas(),
+    );
+    assert_eq!(
+        serde_json::to_value(&computed.entries["Dubai PCG"]).unwrap(),
+        json!({"problem": "invalid-schedule"})
+    );
+    assert!(!computed.entries.contains_key("Toronto PCG"));
+}
+
+#[test]
+fn a_superseded_or_archived_malformed_row_does_not_deny_valid_windows() {
+    let config = madrid();
+    let mut old = row(
+        "old-broken",
+        EventProcessors::END_ENROLLMENT_PERIOD,
+        None,
+        "2028-03-31T20:00",
+        "Europe/Madrid",
+    );
+    old.cron_config.as_mut().unwrap().scheduled_date = Some("bad".into());
+    old.created_at = Some(
+        DateTime::parse_from_rfc3339("2027-01-01T00:00:00Z")
+            .unwrap()
+            .into(),
+    );
+    let mut schedule = config.schedule();
+    for row in &mut schedule {
+        row.created_at = Some(
+            DateTime::parse_from_rfc3339("2027-06-01T00:00:00Z")
+                .unwrap()
+                .into(),
+        );
+    }
+    schedule.push(old.clone());
+    let computed = compute_windows(
+        Some(&config.event()),
+        &config.elections(),
+        &schedule,
+        &config.options(),
+        &config.areas(),
+    );
+    assert!(computed.problems.is_empty());
+    assert!(computed
+        .entries
+        .values()
+        .all(|entry| matches!(entry, WindowEntry::Window(_))));
+    old.archived_at = Some(Utc::now());
+    old.created_at = Some(
+        DateTime::parse_from_rfc3339("2027-12-01T00:00:00Z")
+            .unwrap()
+            .into(),
+    );
+    schedule.push(old);
+    let computed = compute_windows(
+        Some(&config.event()),
+        &config.elections(),
+        &schedule,
+        &config.options(),
+        &config.areas(),
+    );
+    assert!(computed.problems.is_empty());
+}
+
+#[test]
+fn malformed_event_opening_denies_only_posts_that_inherit_it() {
+    let config = madrid();
+    let mut schedule = config.schedule();
+    for row in &mut schedule {
+        if row.event_processor == Some(EventProcessors::START_ENROLLMENT_PERIOD)
+            && payload_election_id(row).is_none()
+        {
+            row.cron_config.as_mut().unwrap().scheduled_date = Some("bad".into());
+        }
+    }
+    let computed = compute_windows(
+        Some(&config.event()),
+        &config.elections(),
+        &schedule,
+        &config.options(),
+        &config.areas(),
+    );
+    assert_eq!(
+        serde_json::to_value(&computed.entries["Madrid office"]).unwrap(),
+        json!({"problem": "invalid-schedule"})
+    );
+    assert!(matches!(
+        computed.entries["Canary office"],
+        WindowEntry::Window(_)
+    ));
+}
+
+#[test]
+fn cron_only_and_legacy_immediate_rows_do_not_create_fixed_enrollment_windows() {
+    let config = comelec();
+    let mut recurring = row(
+        "recurring",
+        EventProcessors::START_ENROLLMENT_PERIOD,
+        None,
+        "2028-02-09T00:00",
+        "Asia/Manila",
+    );
+    recurring.cron_config.as_mut().unwrap().scheduled_date = None;
+    recurring.cron_config.as_mut().unwrap().cron = Some("0 0 9 * * *".into());
+    let mut immediate = row(
+        "immediate",
+        EventProcessors::END_ENROLLMENT_PERIOD,
+        None,
+        "2028-05-08T18:00",
+        "Asia/Manila",
+    );
+    immediate.cron_config = None;
+    let computed = compute_windows(
+        Some(&config.event()),
+        &config.elections(),
+        &[recurring, immediate],
+        &config.options(),
+        &config.areas(),
+    );
+    assert!(computed.entries.is_empty());
+    assert!(computed.problems.is_empty());
+}

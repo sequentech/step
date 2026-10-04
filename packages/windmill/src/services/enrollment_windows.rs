@@ -78,6 +78,8 @@ pub enum PostProblemKind {
     AmbiguousPost,
     /// The option matches no area that votes in an election.
     NoPost,
+    /// An applicable enrollment deadline is present but cannot be checked.
+    InvalidSchedule,
 }
 
 /// What the attribute holds for one option.
@@ -146,6 +148,15 @@ pub async fn refresh(
     tenant_id: &str,
     election_event_id: &str,
 ) -> Result<RefreshReport> {
+    // All callers, including publication and scheduled tasks, serialize with
+    // writers before reading windows or replacing their fail-closed pause.
+    // Existing callers may already hold these same transaction locks.
+    crate::postgres::scheduled_event::lock_scheduling_event(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+    )
+    .await?;
     let election_event = get_election_event_by_id(hasura_transaction, tenant_id, election_event_id)
         .await
         .with_context(|| "Error obtaining the election event")?;
@@ -219,7 +230,7 @@ pub async fn refresh(
     if !report.problems.is_empty() {
         let problems = serde_json::to_string(&report.problems)?;
         error!(
-            "Event {election_event_id}: {} {POST_ATTRIBUTE} options can't be mapped to one Post, \
+            "Event {election_event_id}: {} {POST_ATTRIBUTE} options have an unchecked enrollment configuration, \
              so registrations for them are refused: {problems}",
             report.problems.len()
         );
@@ -354,7 +365,7 @@ async fn log_problems(
             election_event_id.to_string(),
             PROBLEM_LOG_EVENT_TYPE.to_string(),
             format!(
-                "Registrations are refused for {POST_ATTRIBUTE} options that can't be mapped \
+                "Registrations are refused for {POST_ATTRIBUTE} options whose enrollment configuration can't be checked \
                  to one Post: {problems}"
             ),
             None,
@@ -374,36 +385,115 @@ pub fn compute_windows(
     areas: &[PostArea],
 ) -> ComputedWindows {
     let by_election = election_windows(event, elections, scheduled_events);
+    let invalid = invalid_enrollment_targets(scheduled_events);
+    let invalid_start =
+        invalid.contains(&(EventProcessors::START_ENROLLMENT_PERIOD.to_string(), None));
+    let invalid_end = invalid.contains(&(EventProcessors::END_ENROLLMENT_PERIOD.to_string(), None));
     let matches = post_elections(options, areas);
-    let problems: Vec<PostProblem> = matches
+    let mut problems: Vec<PostProblem> = matches
         .values()
         .filter_map(|post| match post {
             PostMatch::Problem(problem) => Some(problem.clone()),
             PostMatch::Election(_) => None,
         })
         .collect();
-    if by_election.is_empty() {
+    if by_election.is_empty() && invalid.is_empty() {
         return ComputedWindows {
             entries: BTreeMap::new(),
             problems,
         };
     }
-    let entries = matches
-        .into_iter()
-        .filter_map(|(option, post)| match post {
-            // A Post without any enrollment row has no window to enforce.
-            PostMatch::Election(election_id) => by_election
-                .get(&election_id)
-                .map(|window| (option, WindowEntry::Window(window.clone()))),
-            PostMatch::Problem(problem) => Some((
-                option,
-                WindowEntry::Problem {
-                    problem: problem.kind,
-                },
-            )),
-        })
-        .collect();
+    let mut entries = BTreeMap::new();
+    for (option, post) in matches {
+        match post {
+            PostMatch::Election(election_id) => {
+                let invalid_post = invalid.contains(&(
+                    EventProcessors::START_ENROLLMENT_PERIOD.to_string(),
+                    Some(election_id.clone()),
+                ));
+                let inherits_invalid_start = invalid_start
+                    && latest(
+                        scheduled_events,
+                        EventProcessors::START_ENROLLMENT_PERIOD,
+                        Some(&election_id),
+                    )
+                    .is_none();
+                if invalid_end || invalid_post || inherits_invalid_start {
+                    problems.push(PostProblem {
+                        option: option.clone(),
+                        kind: PostProblemKind::InvalidSchedule,
+                        election_ids: vec![election_id],
+                    });
+                    entries.insert(
+                        option,
+                        WindowEntry::Problem {
+                            problem: PostProblemKind::InvalidSchedule,
+                        },
+                    );
+                } else if let Some(window) = by_election.get(&election_id) {
+                    // A genuinely unscheduled Post keeps the legacy realm-switch behavior.
+                    entries.insert(option, WindowEntry::Window(window.clone()));
+                }
+            }
+            PostMatch::Problem(problem) => {
+                entries.insert(
+                    option,
+                    WindowEntry::Problem {
+                        problem: problem.kind,
+                    },
+                );
+            }
+        }
+    }
     ComputedWindows { entries, problems }
+}
+
+/// Present but unreadable fixed deadlines must deny their targets, rather than
+/// become an unlimited window. Only the newest active row of each scope applies;
+/// legacy immediate switches and cron-only schedules still have no fixed window.
+fn invalid_enrollment_targets(
+    scheduled_events: &[ScheduledEvent],
+) -> BTreeSet<(String, Option<String>)> {
+    let mut newest: BTreeMap<(String, Option<String>), &ScheduledEvent> = BTreeMap::new();
+    for row in scheduled_events
+        .iter()
+        .filter(|row| row.archived_at.is_none())
+    {
+        let Some(processor) = row.event_processor.as_ref() else {
+            continue;
+        };
+        let target = payload_election_id(row);
+        if *processor != EventProcessors::START_ENROLLMENT_PERIOD
+            && !(*processor == EventProcessors::END_ENROLLMENT_PERIOD && target.is_none())
+        {
+            continue;
+        }
+        let key = (processor.to_string(), target);
+        if newest
+            .get(&key)
+            .is_none_or(|previous| row.created_at >= previous.created_at)
+        {
+            newest.insert(key, row);
+        }
+    }
+    newest
+        .into_iter()
+        .filter_map(|(key, row)| {
+            let config = row.cron_config.as_ref()?;
+            let invalid = match config.scheduled_date.as_deref() {
+                Some(date) => DateTime::parse_from_rfc3339(date).is_err(),
+                None if config
+                    .cron
+                    .as_deref()
+                    .is_some_and(|cron| !cron.trim().is_empty()) =>
+                {
+                    false
+                }
+                None => config.local.is_some(),
+            };
+            invalid.then_some(key)
+        })
+        .collect()
 }
 
 /// The window of every election that has an enrollment start or end.

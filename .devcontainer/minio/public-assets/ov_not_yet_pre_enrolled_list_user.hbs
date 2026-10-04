@@ -46,7 +46,7 @@
                     </div>
                     <div class="online">ONLINE VOTING AND COUNTING SYSTEM</div>
                     <div class="voting-period">
-                      Voting Period: {{datetime_zone election_dates.scheduled_event_dates.ALLOW_INIT_REPORT.scheduled_at output_format="%d %B %Y" style="plain"}} - {{datetime_zone election_dates.scheduled_event_dates.END_VOTING_PERIOD.scheduled_at output_format="%d %B %Y" style="plain"}}
+                      Voting Period: {{#if election_dates.scheduled_event_dates.START_VOTING_PERIOD.scheduled_at}}{{datetime_zone election_dates.scheduled_event_dates.START_VOTING_PERIOD.scheduled_at output_format="%d %B %Y"}}{{else}}{{#if election_dates.first_started_at}}{{datetime_zone election_dates.first_started_at output_format="%d %B %Y"}}{{else}}-{{/if}}{{/if}} - {{#if election_dates.scheduled_event_dates.END_VOTING_PERIOD.scheduled_at}}{{datetime_zone election_dates.scheduled_event_dates.END_VOTING_PERIOD.scheduled_at @root.electionEventTimezone output_format="%d %B %Y"}}{{else}}{{#if election_dates.last_stopped_at}}{{datetime_zone election_dates.last_stopped_at @root.electionTimezone output_format="%d %B %Y"}}{{else}}-{{/if}}{{/if}}
                     </div>
                   </td>
                       <td width="23%" class="right" valign="top">

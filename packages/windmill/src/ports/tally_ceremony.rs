@@ -29,6 +29,8 @@ pub struct NewTallySession {
     pub tally_type: String,
     pub annotations: Value,
     pub permission_labels: Vec<String>,
+    /// Actual parsed generated-style countries by Post, captured with session insertion.
+    pub initialization_country_coverage: Option<std::collections::BTreeMap<String, Vec<String>>>,
 }
 
 /// The election event data a tally session is created from, read together.
@@ -41,6 +43,17 @@ pub struct TallyEventSnapshot {
 }
 
 pub trait TallyCreationReader: Sync {
+    /// Trusted current/published countries, when the reader retains publication evidence.
+    fn initialization_countries(
+        &self,
+        _tenant_id: &str,
+        _election_event_id: &str,
+        _post: uuid::Uuid,
+    ) -> impl Future<Output = anyhow::Result<Option<std::collections::BTreeSet<String>>>> + Send
+    {
+        async { Ok(None) }
+    }
+
     /// Both current and trusted published initialization scopes for this Post.
     fn initialization_scopes(
         &self,
