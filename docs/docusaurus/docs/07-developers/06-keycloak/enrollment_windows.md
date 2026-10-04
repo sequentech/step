@@ -92,8 +92,11 @@ including JWKS registration, completes; ordinary startup repair cannot finish it
 Event realm writes share the scheduling lock so unrelated settings cannot replay
 stale registration state or enrollment attributes.
 
+Removing a published timezone override also removes its realm localization key,
+including keys containing `/`. Subsequent registration pages use the theme's
+default timezone name.
+
 ## Known gaps
 
 - **The page state is fixed when the page renders.** A page left open across the opening instant keeps Continue held back until it is reloaded. The server check always uses the current time.
 - **Realm texts are written inside the publication's database transaction.** If the transaction then fails, the realm already has the new texts. The copy is idempotent, and the next publication writes them again.
-- **Removing a realm text whose key contains `/` (zone keys) needs an end-to-end check against Keycloak.** The VOTE-LIFECYCLE journey removes a `timezones.name.Asia/Manila` override and checks that the theme default shows again.
