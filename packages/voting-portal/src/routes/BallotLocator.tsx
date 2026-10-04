@@ -693,12 +693,21 @@ const LogsTable: React.FC<LogsTableProps> = ({
                 page={page}
                 onPageChange={handleChangePage}
                 onRowsPerPageChange={handleChangeRowsPerPage}
-                // MUI's default wording, with the counts in the event's number format.
+                // In the voter's language, with the counts in the event's number format.
+                labelRowsPerPage={t("ballotLocator.pagination.rowsPerPage")}
                 labelDisplayedRows={({from, to, count}) =>
-                    `${formatNumber(from)}–${formatNumber(to)} of ${
-                        count !== -1 ? formatNumber(count) : `more than ${formatNumber(to)}`
-                    }`
+                    count !== -1
+                        ? t("ballotLocator.pagination.displayedRows", {
+                              from: formatNumber(from),
+                              to: formatNumber(to),
+                              total: formatNumber(count),
+                          })
+                        : t("ballotLocator.pagination.displayedRowsMoreThan", {
+                              from: formatNumber(from),
+                              to: formatNumber(to),
+                          })
                 }
+                getItemAriaLabel={(type) => t(`ballotLocator.pagination.${type}Page`)}
             />
             {somethingWentWrongErr && (
                 <StyledError className="cast-vote-logs-error" component="div">

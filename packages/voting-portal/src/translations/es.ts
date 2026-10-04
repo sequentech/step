@@ -455,6 +455,15 @@ const spanishTranslation: TranslationType = {
                 ballot_id: "ID de Papeleta",
                 message: "Mensaje",
             },
+            pagination: {
+                rowsPerPage: "Filas por página:",
+                displayedRows: "{{from}}–{{to}} de {{total}}",
+                displayedRowsMoreThan: "{{from}}–{{to}} de más de {{to}}",
+                firstPage: "Ir a la primera página",
+                lastPage: "Ir a la última página",
+                nextPage: "Ir a la página siguiente",
+                previousPage: "Ir a la página anterior",
+            },
         },
     },
 }

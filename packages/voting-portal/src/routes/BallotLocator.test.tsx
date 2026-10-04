@@ -12,8 +12,9 @@ import BallotLocator from "./BallotLocator"
 
 jest.mock("react-i18next", () => ({
     useTranslation: () => ({
-        t: (key: string, options?: {total?: string}) =>
-            options?.total === undefined ? key : `${key}: ${options.total}`,
+        // The key, then the values it is given, in order.
+        t: (key: string, options?: Record<string, string>) =>
+            options === undefined ? key : `${key}: ${Object.values(options).join("|")}`,
         i18n: {language: "en"},
     }),
 }))
@@ -103,7 +104,9 @@ test("the cast vote logs count ballots in the event's number format", async () =
     expect(
         await screen.findByRole("heading", {name: "ballotLocator.totalBallots: 1.234.567"})
     ).toBeVisible()
-    expect(screen.getByText("1–5 of 1.234.567")).toBeVisible()
+    expect(screen.getByText("ballotLocator.pagination.displayedRows: 1|5|1.234.567")).toBeVisible()
+    expect(screen.getByText("ballotLocator.pagination.rowsPerPage")).toBeVisible()
+    expect(screen.getByRole("button", {name: "ballotLocator.pagination.nextPage"})).toBeVisible()
     view.unmount()
 })
 
@@ -114,6 +117,6 @@ test("the cast vote logs group the ballot count with commas by default", async (
     expect(
         await screen.findByRole("heading", {name: "ballotLocator.totalBallots: 1,234,567"})
     ).toBeVisible()
-    expect(screen.getByText("1–5 of 1,234,567")).toBeVisible()
+    expect(screen.getByText("ballotLocator.pagination.displayedRows: 1|5|1,234,567")).toBeVisible()
     view.unmount()
 })

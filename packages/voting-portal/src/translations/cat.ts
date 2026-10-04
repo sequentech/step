@@ -455,6 +455,15 @@ const catalanTranslation: TranslationType = {
                 ballot_id: "ID de la Papereta",
                 message: "Missatge",
             },
+            pagination: {
+                rowsPerPage: "Files per pàgina:",
+                displayedRows: "{{from}}–{{to}} de {{total}}",
+                displayedRowsMoreThan: "{{from}}–{{to}} de més de {{to}}",
+                firstPage: "Anar a la primera pàgina",
+                lastPage: "Anar a l'última pàgina",
+                nextPage: "Anar a la pàgina següent",
+                previousPage: "Anar a la pàgina anterior",
+            },
         },
     },
 }
