@@ -68,7 +68,6 @@ const expiryChipColor = (status: "expired" | "expiringSoon" | "valid") => {
     return "success"
 }
 
-
 const LabelValue: React.FC<{label: string; value?: string | null; mono?: boolean}> = ({
     label,
     value,
