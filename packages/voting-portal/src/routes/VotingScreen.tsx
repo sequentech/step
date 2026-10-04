@@ -55,6 +55,7 @@ import {sortContestList} from "@sequentech/ui-core"
 import {useEncryptBallotForReview} from "../hooks/useEncryptBallotForReview"
 import {useBallotStyleSlates} from "../hooks/useBallotStyleSlates"
 import {SlateChooser} from "../components/SlateChooser/SlateChooser"
+import {SlateApplyAction} from "../components/SlateChooser/SlateApplyAction"
 
 // `StyledTitle`, `ActionsContainer` and `StyledButton` were here. The heading is
 // `BallotScreenLayout` in `ui-essentials` now and the row of buttons is
@@ -503,7 +504,13 @@ const VotingScreen: React.FC = () => {
                 description={electionDescription ? stringToHtml(electionDescription) : undefined}
             >
                 {slates.resolved ? (
-                    <SlateChooser slates={slates.resolved} defaultLanguage={defaultLanguageCode} />
+                    <SlateChooser
+                        slates={slates.resolved}
+                        defaultLanguage={defaultLanguageCode}
+                        renderActions={(slate) => (
+                            <SlateApplyAction ballotStyle={ballotStyle} slate={slate} />
+                        )}
+                    />
                 ) : null}
                 <ContestPagination
                     ballotStyle={ballotStyle}
