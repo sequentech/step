@@ -111,15 +111,15 @@ async function loaded(canvasElement: HTMLElement) {
     return canvas
 }
 
-async function openSection(canvasElement: HTMLElement, key: string) {
+async function openSection(canvasElement: HTMLElement, key: string, open = "general") {
     const summary = section(canvasElement, key)
     await userEvent.click(summary)
     await waitFor(() => expect(summary).toHaveAttribute("aria-expanded", "true"))
-    // Only one section is open: the general section finishes collapsing.
-    const general = section(canvasElement, "general")
+    // Only one section is open: the one that was open finishes collapsing.
+    const previous = section(canvasElement, open)
     await waitFor(() =>
         expect(
-            general.closest(".MuiAccordion-root")?.querySelector(".MuiCollapse-root")
+            previous.closest(".MuiAccordion-root")?.querySelector(".MuiCollapse-root")
         ).toHaveClass("MuiCollapse-hidden")
     )
 }
@@ -224,7 +224,11 @@ export const LockedDownAdministrator: Story = {
         // Without the event write permission there is nothing to save.
         expect(canvas.getByRole("textbox", {name: field("name")})).toBeDisabled()
         expect(canvas.queryByRole("button", {name: "Save"})).toBeNull()
-        await openSection(canvasElement, "advancedConfigurations")
+        await openSection(canvasElement, "languageAndRegion")
+        await expect(
+            canvas.getByRole("combobox", {name: field("numberFormatPolicy.policyLabel")})
+        ).toHaveAttribute("aria-disabled", "true")
+        await openSection(canvasElement, "advancedConfigurations", "languageAndRegion")
         await expect(canvas.getByRole("combobox", {name: results("policyAccess")})).toBeVisible()
     },
 }
