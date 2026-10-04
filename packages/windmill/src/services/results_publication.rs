@@ -21,6 +21,7 @@ use crate::services::documents::{
     upload_and_return_public_event_document,
 };
 use crate::services::election_event_board::get_election_event_board;
+use crate::services::election_event_presentation::change_presentation;
 use crate::services::electoral_log::ElectoralLog;
 use crate::services::tasks_execution::post;
 use crate::types::results_publication::{
@@ -223,22 +224,19 @@ pub async fn configure_results_website_policy(
     let election_event = get_election_event_by_id(tx, tenant_id, &input.election_event_id)
         .await
         .map_err(|err| ResultsPublicationServiceError::BadRequest(err.to_string()))?;
-    let mut presentation = election_event
-        .get_presentation()
-        .map_err(|err| ResultsPublicationServiceError::BadRequest(err.to_string()))?
-        .unwrap_or_default();
-    presentation.results_website = Some(
-        serde_json::to_string(&input.policy())
-            .context("Failed to serialize results website policy")?,
-    );
-    update_election_event_presentation(
-        tx,
-        tenant_id,
-        &input.election_event_id,
-        serde_json::to_value(presentation)
-            .context("Failed to serialize election event presentation")?,
+    let presentation = change_presentation(
+        election_event.presentation.unwrap_or_default(),
+        ElectionEventPresentation {
+            results_website: Some(
+                serde_json::to_string(&input.policy())
+                    .context("Failed to serialize results website policy")?,
+            ),
+            ..Default::default()
+        },
     )
-    .await?;
+    .map_err(|err| ResultsPublicationServiceError::BadRequest(err.to_string()))?;
+    update_election_event_presentation(tx, tenant_id, &input.election_event_id, presentation)
+        .await?;
     Ok(ConfigureResultsWebsitePolicyOutput {
         election_event_id: input.election_event_id.clone(),
         status: input.status,

@@ -6,6 +6,7 @@ use crate::postgres::election_event::{
     get_election_event_by_id, update_election_event_presentation,
 };
 use crate::postgres::scheduled_event::*;
+use crate::services::election_event_presentation::change_presentation;
 use crate::services::providers::transactions_provider::provide_hasura_transaction;
 use crate::services::voting_status::{self};
 use crate::types::error::{Error, Result};
@@ -14,7 +15,6 @@ use async_trait::async_trait;
 use celery::error::TaskError;
 use deadpool_postgres::Transaction;
 use sequent_core::ballot::{ElectionEventPresentation, Enrollment};
-use sequent_core::serialization::deserialize_with_path::{self, deserialize_value};
 use sequent_core::services::keycloak::{get_event_realm, KeycloakAdminClient};
 use sequent_core::types::scheduled_event::*;
 use serde::{Deserialize, Serialize};
@@ -155,19 +155,22 @@ pub async fn manage_election_event_enrollment_wrapped(
     .await?;
 
     if let Some(election_event_presentation) = election_event.presentation {
-        let election_event_presentation = ElectionEventPresentation {
-            enrollment: if (enable_enrollment) {
-                Some(Enrollment::ENABLED)
-            } else {
-                Some(Enrollment::DISABLED)
+        let election_event_presentation = change_presentation(
+            election_event_presentation,
+            ElectionEventPresentation {
+                enrollment: if (enable_enrollment) {
+                    Some(Enrollment::ENABLED)
+                } else {
+                    Some(Enrollment::DISABLED)
+                },
+                ..Default::default()
             },
-            ..deserialize_with_path::deserialize_value(election_event_presentation)?
-        };
+        )?;
         update_election_event_presentation(
             hasura_transaction,
             &tenant_id,
             &election_event_id,
-            serde_json::to_value(election_event_presentation)?,
+            election_event_presentation,
         )
         .await?;
     }
