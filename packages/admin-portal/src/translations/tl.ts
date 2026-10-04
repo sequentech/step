@@ -709,6 +709,8 @@ const tagalogTranslation: TranslationType = {
                     policyLabel: "Patakaran sa Format ng Numero",
                     helperText:
                         "Nalalapat sa mga numerong ipinapakita sa mga resulta, dashboard at ulat.",
+                    unknownPolicy:
+                        "Hindi kilalang format na '{{policy}}', ipinapakita bilang {{sample}}",
                 },
             },
             error: {

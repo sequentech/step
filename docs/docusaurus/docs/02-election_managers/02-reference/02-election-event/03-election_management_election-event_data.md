@@ -73,6 +73,11 @@ Manage language options for your Election Event, and how it writes numbers. The 
   - **1’234’567.89** (`apostrophe-period`): apostrophe thousands separator and
     period decimal separator.
 
+  An Election Event imported from a newer version can name a format this
+  version doesn't know. It is listed as **Unknown format**, its numbers are
+  written with the default format, and the Election Event keeps it until
+  another format is chosen.
+
   The spaces are no-break spaces, so a number is never split across two lines.
   Machine-readable files such as CSV, JSON and EML exports always use plain
   numbers. Report templates write figures with the `format_u64` and percentage
