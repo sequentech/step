@@ -200,7 +200,6 @@ DOC_RENDERER_BACKEND = "inplace"
 "src/pipes/mark_winners/mod.rs" = "Module declarations and re-exports only."
 "src/pipes/mod.rs" = "Module declarations and re-exports only."
 "src/config/config.rs" = "Struct declarations and derives without handwritten executable methods. LLVM attributes no line regions to this file; configuration deserialization is exercised through CLI tests."
-"src/config/generate_reports.rs" = "Struct/enum declarations, derives and a constant without handwritten executable methods. This native compiler export attributes no line regions to this file."
 
 [profiles.wrap-map-err]
 package = "wrap-map-err"
