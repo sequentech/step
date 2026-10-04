@@ -1190,7 +1190,9 @@ pub struct ElectionEventPresentation {
     pub results_website: Option<String>,
     pub voting_portal_datetime_format: Option<VotingPortalDateTimeFormat>,
     /// Absent in events created before it existed, which then use the
-    /// default.
+    /// default. Left out of Borsh: ballot styles embed this presentation,
+    /// and their Borsh bytes are part of what each voter signs.
+    #[borsh(skip)]
     #[serde(
         default,
         deserialize_with = "deserialize_lenient_number_format_policy"
@@ -3169,9 +3171,17 @@ mod presentation_borsh_compat_tests {
         let event_bytes = borsh::to_vec(&event_presentation).unwrap();
         let event_with_results = ElectionEventPresentation {
             results_website: Some("enabled".to_string()),
-            ..event_presentation
+            ..event_presentation.clone()
         };
         assert_eq!(borsh::to_vec(&event_with_results).unwrap(), event_bytes);
+        let event_with_number_format = ElectionEventPresentation {
+            number_format_policy: Some(NumberFormatPolicy::PeriodComma),
+            ..event_presentation
+        };
+        assert_eq!(
+            borsh::to_vec(&event_with_number_format).unwrap(),
+            event_bytes
+        );
 
         let election_presentation = ElectionPresentation::default();
         let election_bytes = borsh::to_vec(&election_presentation).unwrap();
