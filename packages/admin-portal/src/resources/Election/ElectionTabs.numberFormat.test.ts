@@ -29,6 +29,11 @@ jest.mock("@/components/ElectionHeader", () => () => null)
 jest.mock("@/components/styles/ResourceListStyles", () => ({
     ResourceListStyles: {EmptyBox: "div"},
 }))
+// The dashboard tab shows the monitoring dashboard, or the dashboard it
+// replaces for an event without one.
+jest.mock("@/components/monitoring/MonitoringDashboardTab", () => ({
+    MonitoringDashboardTab: ({legacy}: {legacy: React.ReactNode}) => legacy,
+}))
 jest.mock("@/components/dashboard/election/Dashboard", () => () => {
     const {formatNumber} = require("@sequentech/ui-core").useNumberFormat()
     return formatNumber(1234567)
@@ -62,9 +67,11 @@ describe("ElectionTabs", () => {
         render(React.createElement(ElectionTabs))
 
         expect(screen.getByText("1.234.567")).toBeTruthy()
-        expect(mockUseGetOne).toHaveBeenCalledWith("sequent_backend_election_event", {
-            id: "event",
-        })
+        expect(mockUseGetOne).toHaveBeenCalledWith(
+            "sequent_backend_election_event",
+            {id: "event"},
+            {enabled: true}
+        )
     })
 
     it("groups figures with commas until the election event loads", () => {

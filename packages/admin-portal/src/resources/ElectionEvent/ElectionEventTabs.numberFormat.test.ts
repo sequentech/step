@@ -29,6 +29,11 @@ jest.mock("@/providers/ElectionEventTallyProvider", () => ({
 }))
 jest.mock("@/hooks/useAliasRenderer", () => ({useAliasRenderer: () => () => "Event"}))
 jest.mock("@/components/ElectionHeader", () => () => null)
+// The dashboard tab shows the monitoring dashboard, or the dashboard it
+// replaces for an event without one.
+jest.mock("@/components/monitoring/MonitoringDashboardTab", () => ({
+    MonitoringDashboardTab: ({legacy}: {legacy: React.ReactNode}) => legacy,
+}))
 jest.mock("@/components/dashboard/election-event/Dashboard", () => () => {
     const {formatNumber} = require("@sequentech/ui-core").useNumberFormat()
     return formatNumber(1234567)
