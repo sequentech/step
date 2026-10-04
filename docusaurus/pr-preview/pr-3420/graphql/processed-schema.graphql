@@ -1190,6 +1190,7 @@ type mutation_root {
   applies the Sequent-side reconciliation diff for an already-computed import
   """
   apply_external_reconciliation_changes(diff_document_id: String!, election_event_id: String!): taskOutput
+  audit_electoral_log(election_event_id: String!): taskOutput!
   call_plugin_route(data: jsonb!, path: String!): PluginsRouteOutput!
   """check private key"""
   check_private_key(object: CheckPrivateKeyInput!): CheckPrivateKeyOutput
@@ -1377,6 +1378,17 @@ type mutation_root {
   delete single row from the table: "sequent_backend.election_type"
   """
   delete_sequent_backend_election_type_by_pk(id: uuid!, tenant_id: uuid!): election_type
+  """
+  delete data from the table: "sequent_backend.electoral_log_checkpoint"
+  """
+  delete_sequent_backend_electoral_log_checkpoint(
+    """filter the rows which have to be deleted"""
+    where: electoral_log_checkpoint_bool_exp!
+  ): electoral_log_checkpoint_mutation_response
+  """
+  delete single row from the table: "sequent_backend.electoral_log_checkpoint"
+  """
+  delete_sequent_backend_electoral_log_checkpoint_by_pk(id: uuid!): electoral_log_checkpoint
   """
   delete data from the table: "sequent_backend.event_execution"
   """
@@ -2000,6 +2012,24 @@ type mutation_root {
     """upsert condition"""
     on_conflict: election_type_on_conflict
   ): election_type
+  """
+  insert data into the table: "sequent_backend.electoral_log_checkpoint"
+  """
+  insert_sequent_backend_electoral_log_checkpoint(
+    """the rows to be inserted"""
+    objects: [electoral_log_checkpoint_insert_input!]!
+    """upsert condition"""
+    on_conflict: electoral_log_checkpoint_on_conflict
+  ): electoral_log_checkpoint_mutation_response
+  """
+  insert a single row into the table: "sequent_backend.electoral_log_checkpoint"
+  """
+  insert_sequent_backend_electoral_log_checkpoint_one(
+    """the row to be inserted"""
+    object: electoral_log_checkpoint_insert_input!
+    """upsert condition"""
+    on_conflict: electoral_log_checkpoint_on_conflict
+  ): electoral_log_checkpoint
   """
   insert data into the table: "sequent_backend.event_execution"
   """
@@ -3319,6 +3349,34 @@ type mutation_root {
     """updates to execute, in order"""
     updates: [election_type_updates!]!
   ): [election_type_mutation_response]
+  """
+  update data of the table: "sequent_backend.electoral_log_checkpoint"
+  """
+  update_sequent_backend_electoral_log_checkpoint(
+    """increments the numeric columns with given value of the filtered values"""
+    _inc: electoral_log_checkpoint_inc_input
+    """sets the columns of the filtered rows to the given values"""
+    _set: electoral_log_checkpoint_set_input
+    """filter the rows which have to be updated"""
+    where: electoral_log_checkpoint_bool_exp!
+  ): electoral_log_checkpoint_mutation_response
+  """
+  update single row of the table: "sequent_backend.electoral_log_checkpoint"
+  """
+  update_sequent_backend_electoral_log_checkpoint_by_pk(
+    """increments the numeric columns with given value of the filtered values"""
+    _inc: electoral_log_checkpoint_inc_input
+    """sets the columns of the filtered rows to the given values"""
+    _set: electoral_log_checkpoint_set_input
+    pk_columns: electoral_log_checkpoint_pk_columns_input!
+  ): electoral_log_checkpoint
+  """
+  update multiples rows of table: "sequent_backend.electoral_log_checkpoint"
+  """
+  update_sequent_backend_electoral_log_checkpoint_many(
+    """updates to execute, in order"""
+    updates: [electoral_log_checkpoint_updates!]!
+  ): [electoral_log_checkpoint_mutation_response]
   """
   update data of the table: "sequent_backend.event_execution"
   """
@@ -5484,6 +5542,40 @@ type query_root {
   fetch data from the table: "sequent_backend.election_type" using primary key columns
   """
   sequent_backend_election_type_by_pk(id: uuid!, tenant_id: uuid!): election_type
+  """
+  fetch data from the table: "sequent_backend.electoral_log_checkpoint"
+  """
+  sequent_backend_electoral_log_checkpoint(
+    """distinct select on columns"""
+    distinct_on: [electoral_log_checkpoint_select_column!]
+    """limit the number of rows returned"""
+    limit: Int
+    """skip the first n rows. Use only with order_by"""
+    offset: Int
+    """sort the rows by one or more columns"""
+    order_by: [electoral_log_checkpoint_order_by!]
+    """filter the rows returned"""
+    where: electoral_log_checkpoint_bool_exp
+  ): [electoral_log_checkpoint!]!
+  """
+  fetch aggregated fields from the table: "sequent_backend.electoral_log_checkpoint"
+  """
+  sequent_backend_electoral_log_checkpoint_aggregate(
+    """distinct select on columns"""
+    distinct_on: [electoral_log_checkpoint_select_column!]
+    """limit the number of rows returned"""
+    limit: Int
+    """skip the first n rows. Use only with order_by"""
+    offset: Int
+    """sort the rows by one or more columns"""
+    order_by: [electoral_log_checkpoint_order_by!]
+    """filter the rows returned"""
+    where: electoral_log_checkpoint_bool_exp
+  ): electoral_log_checkpoint_aggregate!
+  """
+  fetch data from the table: "sequent_backend.electoral_log_checkpoint" using primary key columns
+  """
+  sequent_backend_electoral_log_checkpoint_by_pk(id: uuid!): electoral_log_checkpoint
   """
   fetch data from the table: "sequent_backend.event_execution"
   """
@@ -12122,6 +12214,335 @@ order by variance() on columns of table "sequent_backend.election"
 """
 input election_variance_order_by {
   num_allowed_revotes: order_by
+}
+
+"""
+Signed checkpoints of election event electoral logs, kept outside the electoral-log database. The application only inserts rows.
+"""
+type electoral_log_checkpoint {
+  board_name: String!
+  created_at: timestamptz!
+  election_event_id: uuid!
+  id: uuid!
+  log_id: bigint!
+  reason: String!
+  root: String!
+  signature: String!
+  signer_pk: String!
+  tenant_id: uuid!
+  tree_size: bigint!
+}
+
+"""
+aggregated selection of "sequent_backend.electoral_log_checkpoint"
+"""
+type electoral_log_checkpoint_aggregate {
+  aggregate: electoral_log_checkpoint_aggregate_fields
+  nodes: [electoral_log_checkpoint!]!
+}
+
+"""
+aggregate fields of "sequent_backend.electoral_log_checkpoint"
+"""
+type electoral_log_checkpoint_aggregate_fields {
+  avg: electoral_log_checkpoint_avg_fields
+  count(columns: [electoral_log_checkpoint_select_column!], distinct: Boolean): Int!
+  max: electoral_log_checkpoint_max_fields
+  min: electoral_log_checkpoint_min_fields
+  stddev: electoral_log_checkpoint_stddev_fields
+  stddev_pop: electoral_log_checkpoint_stddev_pop_fields
+  stddev_samp: electoral_log_checkpoint_stddev_samp_fields
+  sum: electoral_log_checkpoint_sum_fields
+  var_pop: electoral_log_checkpoint_var_pop_fields
+  var_samp: electoral_log_checkpoint_var_samp_fields
+  variance: electoral_log_checkpoint_variance_fields
+}
+
+"""aggregate avg on columns"""
+type electoral_log_checkpoint_avg_fields {
+  log_id: Float
+  tree_size: Float
+}
+
+"""
+Boolean expression to filter rows from the table "sequent_backend.electoral_log_checkpoint". All fields are combined with a logical 'AND'.
+"""
+input electoral_log_checkpoint_bool_exp {
+  _and: [electoral_log_checkpoint_bool_exp!]
+  _not: electoral_log_checkpoint_bool_exp
+  _or: [electoral_log_checkpoint_bool_exp!]
+  board_name: String_comparison_exp
+  created_at: timestamptz_comparison_exp
+  election_event_id: uuid_comparison_exp
+  id: uuid_comparison_exp
+  log_id: bigint_comparison_exp
+  reason: String_comparison_exp
+  root: String_comparison_exp
+  signature: String_comparison_exp
+  signer_pk: String_comparison_exp
+  tenant_id: uuid_comparison_exp
+  tree_size: bigint_comparison_exp
+}
+
+"""
+unique or primary key constraints on table "sequent_backend.electoral_log_checkpoint"
+"""
+enum electoral_log_checkpoint_constraint {
+  """
+  unique or primary key constraint on columns "id"
+  """
+  electoral_log_checkpoint_pkey
+  """
+  unique or primary key constraint on columns "tree_size", "log_id", "tenant_id", "election_event_id"
+  """
+  electoral_log_checkpoint_tenant_id_election_event_id_log_id_key
+}
+
+"""
+input type for incrementing numeric columns in table "sequent_backend.electoral_log_checkpoint"
+"""
+input electoral_log_checkpoint_inc_input {
+  log_id: bigint
+  tree_size: bigint
+}
+
+"""
+input type for inserting data into table "sequent_backend.electoral_log_checkpoint"
+"""
+input electoral_log_checkpoint_insert_input {
+  board_name: String
+  created_at: timestamptz
+  election_event_id: uuid
+  id: uuid
+  log_id: bigint
+  reason: String
+  root: String
+  signature: String
+  signer_pk: String
+  tenant_id: uuid
+  tree_size: bigint
+}
+
+"""aggregate max on columns"""
+type electoral_log_checkpoint_max_fields {
+  board_name: String
+  created_at: timestamptz
+  election_event_id: uuid
+  id: uuid
+  log_id: bigint
+  reason: String
+  root: String
+  signature: String
+  signer_pk: String
+  tenant_id: uuid
+  tree_size: bigint
+}
+
+"""aggregate min on columns"""
+type electoral_log_checkpoint_min_fields {
+  board_name: String
+  created_at: timestamptz
+  election_event_id: uuid
+  id: uuid
+  log_id: bigint
+  reason: String
+  root: String
+  signature: String
+  signer_pk: String
+  tenant_id: uuid
+  tree_size: bigint
+}
+
+"""
+response of any mutation on the table "sequent_backend.electoral_log_checkpoint"
+"""
+type electoral_log_checkpoint_mutation_response {
+  """number of rows affected by the mutation"""
+  affected_rows: Int!
+  """data from the rows affected by the mutation"""
+  returning: [electoral_log_checkpoint!]!
+}
+
+"""
+on_conflict condition type for table "sequent_backend.electoral_log_checkpoint"
+"""
+input electoral_log_checkpoint_on_conflict {
+  constraint: electoral_log_checkpoint_constraint!
+  update_columns: [electoral_log_checkpoint_update_column!]! = []
+  where: electoral_log_checkpoint_bool_exp
+}
+
+"""
+Ordering options when selecting data from "sequent_backend.electoral_log_checkpoint".
+"""
+input electoral_log_checkpoint_order_by {
+  board_name: order_by
+  created_at: order_by
+  election_event_id: order_by
+  id: order_by
+  log_id: order_by
+  reason: order_by
+  root: order_by
+  signature: order_by
+  signer_pk: order_by
+  tenant_id: order_by
+  tree_size: order_by
+}
+
+"""
+primary key columns input for table: sequent_backend.electoral_log_checkpoint
+"""
+input electoral_log_checkpoint_pk_columns_input {
+  id: uuid!
+}
+
+"""
+select columns of table "sequent_backend.electoral_log_checkpoint"
+"""
+enum electoral_log_checkpoint_select_column {
+  """column name"""
+  board_name
+  """column name"""
+  created_at
+  """column name"""
+  election_event_id
+  """column name"""
+  id
+  """column name"""
+  log_id
+  """column name"""
+  reason
+  """column name"""
+  root
+  """column name"""
+  signature
+  """column name"""
+  signer_pk
+  """column name"""
+  tenant_id
+  """column name"""
+  tree_size
+}
+
+"""
+input type for updating data in table "sequent_backend.electoral_log_checkpoint"
+"""
+input electoral_log_checkpoint_set_input {
+  board_name: String
+  created_at: timestamptz
+  election_event_id: uuid
+  id: uuid
+  log_id: bigint
+  reason: String
+  root: String
+  signature: String
+  signer_pk: String
+  tenant_id: uuid
+  tree_size: bigint
+}
+
+"""aggregate stddev on columns"""
+type electoral_log_checkpoint_stddev_fields {
+  log_id: Float
+  tree_size: Float
+}
+
+"""aggregate stddev_pop on columns"""
+type electoral_log_checkpoint_stddev_pop_fields {
+  log_id: Float
+  tree_size: Float
+}
+
+"""aggregate stddev_samp on columns"""
+type electoral_log_checkpoint_stddev_samp_fields {
+  log_id: Float
+  tree_size: Float
+}
+
+"""
+Streaming cursor of the table "sequent_backend_electoral_log_checkpoint"
+"""
+input electoral_log_checkpoint_stream_cursor_input {
+  """Stream column input with initial value"""
+  initial_value: electoral_log_checkpoint_stream_cursor_value_input!
+  """cursor ordering"""
+  ordering: cursor_ordering
+}
+
+"""Initial value of the column from where the streaming should start"""
+input electoral_log_checkpoint_stream_cursor_value_input {
+  board_name: String
+  created_at: timestamptz
+  election_event_id: uuid
+  id: uuid
+  log_id: bigint
+  reason: String
+  root: String
+  signature: String
+  signer_pk: String
+  tenant_id: uuid
+  tree_size: bigint
+}
+
+"""aggregate sum on columns"""
+type electoral_log_checkpoint_sum_fields {
+  log_id: bigint
+  tree_size: bigint
+}
+
+"""
+update columns of table "sequent_backend.electoral_log_checkpoint"
+"""
+enum electoral_log_checkpoint_update_column {
+  """column name"""
+  board_name
+  """column name"""
+  created_at
+  """column name"""
+  election_event_id
+  """column name"""
+  id
+  """column name"""
+  log_id
+  """column name"""
+  reason
+  """column name"""
+  root
+  """column name"""
+  signature
+  """column name"""
+  signer_pk
+  """column name"""
+  tenant_id
+  """column name"""
+  tree_size
+}
+
+input electoral_log_checkpoint_updates {
+  """increments the numeric columns with given value of the filtered values"""
+  _inc: electoral_log_checkpoint_inc_input
+  """sets the columns of the filtered rows to the given values"""
+  _set: electoral_log_checkpoint_set_input
+  """filter the rows which have to be updated"""
+  where: electoral_log_checkpoint_bool_exp!
+}
+
+"""aggregate var_pop on columns"""
+type electoral_log_checkpoint_var_pop_fields {
+  log_id: Float
+  tree_size: Float
+}
+
+"""aggregate var_samp on columns"""
+type electoral_log_checkpoint_var_samp_fields {
+  log_id: Float
+  tree_size: Float
+}
+
+"""aggregate variance on columns"""
+type electoral_log_checkpoint_variance_fields {
+  log_id: Float
+  tree_size: Float
 }
 
 """
@@ -24692,6 +25113,51 @@ type subscription_root {
     """filter the rows returned"""
     where: election_type_bool_exp
   ): [election_type!]!
+  """
+  fetch data from the table: "sequent_backend.electoral_log_checkpoint"
+  """
+  sequent_backend_electoral_log_checkpoint(
+    """distinct select on columns"""
+    distinct_on: [electoral_log_checkpoint_select_column!]
+    """limit the number of rows returned"""
+    limit: Int
+    """skip the first n rows. Use only with order_by"""
+    offset: Int
+    """sort the rows by one or more columns"""
+    order_by: [electoral_log_checkpoint_order_by!]
+    """filter the rows returned"""
+    where: electoral_log_checkpoint_bool_exp
+  ): [electoral_log_checkpoint!]!
+  """
+  fetch aggregated fields from the table: "sequent_backend.electoral_log_checkpoint"
+  """
+  sequent_backend_electoral_log_checkpoint_aggregate(
+    """distinct select on columns"""
+    distinct_on: [electoral_log_checkpoint_select_column!]
+    """limit the number of rows returned"""
+    limit: Int
+    """skip the first n rows. Use only with order_by"""
+    offset: Int
+    """sort the rows by one or more columns"""
+    order_by: [electoral_log_checkpoint_order_by!]
+    """filter the rows returned"""
+    where: electoral_log_checkpoint_bool_exp
+  ): electoral_log_checkpoint_aggregate!
+  """
+  fetch data from the table: "sequent_backend.electoral_log_checkpoint" using primary key columns
+  """
+  sequent_backend_electoral_log_checkpoint_by_pk(id: uuid!): electoral_log_checkpoint
+  """
+  fetch data from the table in a streaming manner: "sequent_backend.electoral_log_checkpoint"
+  """
+  sequent_backend_electoral_log_checkpoint_stream(
+    """maximum number of rows returned in a single batch"""
+    batch_size: Int!
+    """cursor to stream the results returned by the query"""
+    cursor: [electoral_log_checkpoint_stream_cursor_input]!
+    """filter the rows returned"""
+    where: electoral_log_checkpoint_bool_exp
+  ): [electoral_log_checkpoint!]!
   """
   fetch data from the table: "sequent_backend.event_execution"
   """

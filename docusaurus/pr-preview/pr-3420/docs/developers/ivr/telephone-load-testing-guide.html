@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Telephone Load Testing Guide | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-3420/docs/developers/ivr/telephone-load-testing-guide"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Telephone Load Testing Guide | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-3420/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3420/docs/developers/ivr/telephone-load-testing-guide"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3420/docs/developers/ivr/telephone-load-testing-guide" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3420/docs/developers/ivr/telephone-load-testing-guide" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Telephone Load Testing Guide","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-3420/docs/developers/ivr/telephone-load-testing-guide"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-3420/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/pr-preview/pr-3420/assets/js/runtime~main.8e322f9a.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-3420/assets/js/runtime~main.d2c8ebdd.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-3420/assets/js/main.d1cd1918.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -188,7 +188,7 @@ whether that tenant was created fresh or reused via
 <code>setup.use_existing_tenants</code>.</p>
 <p><code>delete-election-event</code> calls the <code>delete_election_event</code> GraphQL mutation,
 which queues an async task tearing down the election event&#x27;s Postgres/Hasura
-rows, its Keycloak realm, and its ImmuDB and document-store data — the
+rows, its Keycloak realm, and its electoral log and document-store data — the
 command blocks and polls until that task finishes (or fails/times out after
 5 minutes), so a <code>Success!</code> means cleanup is actually done, not just queued.</p>
 <p>To delete an event by hand, <a class="" href="/docusaurus/pr-preview/pr-3420/docs/developers/cli/cli#authenticate-a-tenant-administrator">authenticate the CLI</a> against its tenant, then run:</p>

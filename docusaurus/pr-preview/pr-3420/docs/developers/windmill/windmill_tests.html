@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Testing | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-3420/docs/developers/windmill/windmill_tests"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Testing | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-3420/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3420/docs/developers/windmill/windmill_tests"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3420/docs/developers/windmill/windmill_tests" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3420/docs/developers/windmill/windmill_tests" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Testing","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-3420/docs/developers/windmill/windmill_tests"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-3420/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/pr-preview/pr-3420/assets/js/runtime~main.8e322f9a.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-3420/assets/js/runtime~main.d2c8ebdd.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-3420/assets/js/main.d1cd1918.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -23,8 +23,8 @@ including all required environment variables, is set up automatically.</p></div>
 realistic load and measures its heap usage. The test:</p>
 <ol>
 <li class="">Reads <code>tenant_id</code> and <code>election_event_id</code> from the external config file.</li>
-<li class="">Creates a fresh ImmuDB database (using a time-stamped slug so each run gets a
-clean database — ImmuDB&#x27;s delete is unreliable).</li>
+<li class="">Creates a fresh electoral-log board (using a time-stamped slug so each run
+gets a clean board).</li>
 <li class="">Seeds 120 000 log entries by calling the <code>step-cli</code> binary.</li>
 <li class="">Wraps the call to <code>generate_export_csv_data</code> with a
 <a href="https://docs.rs/dhat" target="_blank" rel="noopener noreferrer" class="">dhat</a> heap profiler so peak memory usage is recorded.</li>
@@ -36,7 +36,7 @@ the header), catching any silent truncation in the batching logic.</li>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="running-ignored-tests">Running Ignored Tests<a href="#running-ignored-tests" class="hash-link" aria-label="Direct link to Running Ignored Tests" title="Direct link to Running Ignored Tests" translate="no">​</a></h2>
 <p>This test is annotated with <code>#[ignore]</code> because it:</p>
 <ul>
-<li class="">Requires a live ImmuDB instance and Keycloak database.</li>
+<li class="">Requires the electoral-log PostgreSQL database and Keycloak database.</li>
 <li class="">Seeds 120 000 entries — expensive in time and resources.</li>
 <li class="">Is therefore skipped in GitHub Actions CI.</li>
 </ul>
@@ -72,7 +72,7 @@ directory when running tests (typically <code>packages/windmill/</code>).</p>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="why-this-test-is-ignored-in-ci">Why this test is ignored in CI<a href="#why-this-test-is-ignored-in-ci" class="hash-link" aria-label="Direct link to Why this test is ignored in CI" title="Direct link to Why this test is ignored in CI" translate="no">​</a></h3>
 <p>Running it in GitHub Actions would:</p>
 <ul>
-<li class="">Require a live ImmuDB + Keycloak environment in the CI runner.</li>
+<li class="">Require the electoral-log PostgreSQL + Keycloak environment in the CI runner.</li>
 <li class="">Seed 120 000 log entries per run, making the job slow and expensive.</li>
 <li class="">Produce a <code>dhat-heap.json</code> artefact that is only meaningful when reviewed
 manually.</li>
@@ -82,7 +82,7 @@ development when investigating memory regressions.</p>
 <hr>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="seeding-electoral-logs-with-step-cli">Seeding Electoral Logs with step-cli<a href="#seeding-electoral-logs-with-step-cli" class="hash-link" aria-label="Direct link to Seeding Electoral Logs with step-cli" title="Direct link to Seeding Electoral Logs with step-cli" translate="no">​</a></h2>
 <p>The test above internally calls the <code>step-cli</code> binary to seed log entries into
-ImmuDB. You can also run that command manually — for example, to load log
+the electoral log. You can also run that command manually — for example, to load log
 entries into an existing election event&#x27;s electoral log for manual QA or
 performance testing.</p>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="1-build-step-cli-in-release-mode">1. Build step-cli in release mode<a href="#1-build-step-cli-in-release-mode" class="hash-link" aria-label="Direct link to 1. Build step-cli in release mode" title="Direct link to 1. Build step-cli in release mode" translate="no">​</a></h3>
