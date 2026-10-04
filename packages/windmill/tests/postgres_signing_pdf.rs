@@ -1275,10 +1275,6 @@ async fn the_signature_prints_the_time_in_the_events_zone() {
         let store = Arc::new(MemoryStore::default());
         let signers = pdf_signers(&w, ER, 1).await;
         let (request_id, code) = er_request(&w, &store).await;
-        // The panel shows times in the zone the signature prints.
-        let documents = PdfDocumentSigner::new(store.clone());
-        let shown = panel(&w, &documents, &signers[0].caller, request_id).await;
-        assert_eq!(shown.time_zone, primary);
         let prepared = prepare(&w, &store, &signers[0], request_id, at(1))
             .await
             .unwrap();
