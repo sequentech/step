@@ -53,14 +53,15 @@ for (const method of ["EMAIL", "SMS"] as const) {
         await page.getByRole("button", {name: "Send", exact: true}).first().click()
         const drawer = page.getByRole("dialog")
         await expect(drawer.getByText("Everyone", {exact: true})).toBeVisible()
-        // These three selectors have visual captions but no accessible names.
-        await drawer.getByRole("combobox").nth(0).click()
+        // The timezone picker is an input combobox; these native selects keep their order.
+        const selects = drawer.locator('[role="combobox"]:not(input)')
+        await selects.nth(0).click()
         await page.getByRole("option", {name: "Those who didn't vote yet", exact: true}).click()
         if (method === "SMS") {
-            await drawer.getByRole("combobox").nth(1).click()
+            await selects.nth(1).click()
             await page.getByRole("option", {name: "SMS", exact: true}).click()
         }
-        await drawer.getByRole("combobox").nth(2).click()
+        await selects.nth(2).click()
         await page.getByRole("option", {name: "Council reminder", exact: true}).click()
         if (method === "SMS") {
             await expect(drawer.getByRole("textbox", {name: "SMS Message"})).toHaveValue(
@@ -102,7 +103,7 @@ for (const method of ["EMAIL", "SMS"] as const) {
                 audience_voter_ids: [],
                 communication_method: method,
                 schedule_now: false,
-                schedule_date: "2026-01-16T10:30:00.000Z",
+                schedule_date: "2026-01-16T10:30:00Z",
                 email:
                     method === "EMAIL"
                         ? EMAIL

@@ -42,6 +42,12 @@ requires an explicit project name; use the name printed at startup to remove a
 retained default run. Set `STEP_E2E_PORTS=1`
 to expose Hasura, Keycloak and MinIO on dynamically allocated loopback ports;
 `docker ps` shows the allocated ports.
+`STEP_E2E_COMPOSE_OVERLAY=/absolute/path/manual.yml` adds an existing readable
+Compose file after the standard, port and coverage overlays. Relative paths are
+resolved from the caller's directory. Use the same override for startup and
+`--down`; it can give an isolated stack its own service image tags and browser
+URLs without editing the development Compose files. `--bootstrap-only --keep`
+prepares services and the administrator without executing voting journeys.
 
 Results are written to `.cache/backend-e2e/<project>/journeys.json`, with CLI output and
 service logs beside it. Override this directory with `STEP_E2E_OUTPUT_DIR`.
