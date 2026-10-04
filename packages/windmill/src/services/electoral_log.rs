@@ -478,6 +478,29 @@ async fn prepare_voter_secret_attribute_audit(
     })
 }
 
+/// Prefix of the delivery IDs of checkpoint statements, which are unique per log size.
+const CHECKPOINT_DELIVERY_PREFIX: &str = "electoral-log-checkpoint:";
+
+/// Sign a checkpoint publication with the system key of `sd`.
+pub fn sign_checkpoint(
+    sd: &SigningData,
+    checkpoint: &electoral_log::proofs::Checkpoint,
+    reason: ElectoralLogCheckpointReason,
+) -> Result<crate::postgres::electoral_log_checkpoint::PublishedCheckpoint> {
+    let bytes = electoral_log::proofs::checkpoint_signing_bytes(checkpoint, reason)?;
+    Ok(
+        crate::postgres::electoral_log_checkpoint::PublishedCheckpoint {
+            board_name: checkpoint.log_name.clone(),
+            log_id: checkpoint.log_id,
+            tree_size: i64::try_from(checkpoint.tree_size)?,
+            root: hex::encode(&checkpoint.root),
+            reason: reason.to_string(),
+            signer_pk: sd.system_pk()?.to_der_b64_string()?,
+            signature: sd.system_sign(&bytes)?.to_b64_string()?,
+        },
+    )
+}
+
 pub struct ElectoralLog {
     pub(crate) sd: SigningData,
     pub(crate) elog_database: String,
@@ -1366,11 +1389,83 @@ impl ElectoralLog {
         self.post(&message).await
     }
 
+    /// Publish a signed checkpoint of this event's electoral log.
+    ///
+    /// The checkpoint is stored in the Hasura database, outside the electoral-log
+    /// database, on its own connection so a caller's transaction is never aborted by
+    /// it, and a statement recording it is appended to the log once per log size.
+    #[instrument(skip(self), err)]
+    pub async fn publish_checkpoint(
+        &self,
+        tenant_id: &str,
+        election_event_id: &str,
+        reason: ElectoralLogCheckpointReason,
+    ) -> Result<electoral_log::proofs::Checkpoint> {
+        let checkpoint = crate::services::protocol_manager::get_electoral_log_store()
+            .await?
+            .journal()
+            .checkpoint(&self.elog_database)
+            .await?;
+        let published = sign_checkpoint(&self.sd, &checkpoint, reason)?;
+        let mut hasura_db_client = get_hasura_pool()
+            .await
+            .get()
+            .await
+            .context("Error acquiring hasura connection")?;
+        let hasura_transaction = hasura_db_client.transaction().await?;
+        let stored = crate::postgres::electoral_log_checkpoint::insert_electoral_log_checkpoint(
+            &hasura_transaction,
+            tenant_id,
+            election_event_id,
+            &published,
+        )
+        .await?;
+        ensure!(
+            stored.root == published.root,
+            "A different checkpoint was already published at size {}: the log may have been \
+             rolled back or forked",
+            checkpoint.tree_size
+        );
+        hasura_transaction.commit().await?;
+        // Record the stored publication in the log. The delivery ID is fixed per log size,
+        // so publishing the same size again, or retrying, records it once.
+        let message = Message::electoral_log_checkpoint_message(
+            EventIdString(election_event_id.to_string()),
+            ElectoralLogCheckpoint {
+                log_id: checkpoint.log_id,
+                tree_size: checkpoint.tree_size,
+                root: published.root.clone(),
+                reason: stored
+                    .reason
+                    .parse()
+                    .with_context(|| format!("Unknown checkpoint reason {}", stored.reason))?,
+            },
+            &self.sd,
+        )?;
+        self.post_with_delivery_id(
+            &message,
+            format!(
+                "{CHECKPOINT_DELIVERY_PREFIX}{}:{}",
+                checkpoint.log_id, checkpoint.tree_size
+            ),
+        )
+        .await
+        .context("The checkpoint was stored but could not be recorded in the log")?;
+        Ok(checkpoint)
+    }
+
     #[instrument(skip(self), err)]
     async fn post(&self, message: &Message) -> Result<()> {
+        self.post_with_delivery_id(message, Uuid::new_v4().to_string())
+            .await
+    }
+
+    /// Append a message under a delivery ID; a repeated delivery ID appends nothing.
+    #[instrument(skip(self, message), err)]
+    async fn post_with_delivery_id(&self, message: &Message, delivery_id: String) -> Result<()> {
         let board_message: ElectoralLogMessage = message.try_into()?;
         let ms = vec![LogEntry {
-            delivery_id: Uuid::new_v4().to_string(),
+            delivery_id,
             message: board_message,
         }];
 
@@ -2033,6 +2128,11 @@ mod postgres_wiring_tests {
         let mut other = input.clone();
         other.tenant_id = Uuid::new_v4().to_string();
         assert_eq!(count_electoral_log(other).await?, 0);
+        let store = crate::services::protocol_manager::get_electoral_log_store().await?;
+        let checkpoint = store.journal().checkpoint(&board).await?;
+        assert_eq!(checkpoint.tree_size, 1);
+        let report = store.audit(&board, &[checkpoint]).await?;
+        assert!(report.is_clean(), "{:?}", report.findings());
         client.delete_board(&board).await?;
         assert_eq!(count_electoral_log(input).await?, 0);
         Ok(())

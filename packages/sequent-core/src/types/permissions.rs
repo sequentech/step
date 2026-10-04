@@ -117,6 +117,8 @@ pub enum Permissions {
     PUBLISH_RESULTS_WRITE,
     #[strum(serialize = "logs-read")]
     LOGS_READ,
+    #[strum(serialize = "electoral-log-audit")]
+    ELECTORAL_LOG_AUDIT,
     #[strum(serialize = "tasks-read")]
     TASKS_READ,
     #[strum(serialize = "keys-read")]

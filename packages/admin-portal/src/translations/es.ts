@@ -219,6 +219,12 @@ const spanishTranslation: TranslationType = {
                 description: "Descripción",
                 version: "Versión",
             },
+            auditDialog: {
+                title: "Auditar el registro electoral",
+                confirm: "Auditar",
+                description:
+                    "La auditoría comprueba cada entrada del registro con su registro Merkle y verifica los puntos de control publicados. El resultado se guarda como una tarea.",
+            },
             exportdialog: {
                 description:
                     "Por favor, confirma que deseas ejecutar esta acción; puede tardar un tiempo en completarse.",
@@ -226,6 +232,7 @@ const spanishTranslation: TranslationType = {
             actions: {
                 csv: "Exportar en CSV",
                 pdf: "Exportar en PDF",
+                audit: "Auditar",
             },
             main: {
                 title: "Bitácora de Base de Datos Principal",
@@ -257,6 +264,7 @@ const spanishTranslation: TranslationType = {
                 DELETE_TENANT: "Eliminar organización",
                 PUBLISH_BALLOT: "Publicar papeleta",
                 VOTER_INFORMATION_LETTER: "Carta de información para el votante",
+                AUDIT_ELECTORAL_LOG: "Auditar registro electoral",
                 EXPORT_ELECTION_EVENT: "Exportar evento electoral",
                 CREATE_ELECTION_EVENT: "Crear Evento Electoral",
                 IMPORT_ELECTION_EVENT: "Importar evento electoral",
@@ -1363,6 +1371,7 @@ const spanishTranslation: TranslationType = {
                 "publish-results-read": "Leer Publicación de Resultados",
                 "publish-results-write": "Editar Publicación de Resultados",
                 "logs-read": "Leer Registros",
+                "electoral-log-audit": "Auditar Registro Electoral",
                 "tasks-read": "Leer la Ejecución de Tareas",
                 "keys-read": "Leer Claves",
                 "document-upload": "Subir Documentos",

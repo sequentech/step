@@ -986,12 +986,8 @@ mod tests {
             crate::journal::Journal::append(&transaction, "duplicates", id, &hash).await?;
             transaction.commit().await?;
         }
-        journal.process_once().await?;
         for (id, index) in [(10_i64, 0_u64), (12, 2)] {
-            let inclusion = journal
-                .inclusion("duplicates", id)
-                .await?
-                .expect("processed leaf");
+            let inclusion = journal.inclusion("duplicates", id).await?;
             assert_eq!(inclusion.proof.index, index);
             inclusion.verify(&[1; 32], &inclusion.checkpoint)?;
         }

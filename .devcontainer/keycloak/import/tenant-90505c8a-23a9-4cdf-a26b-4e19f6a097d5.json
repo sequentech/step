@@ -960,6 +960,15 @@
         "attributes": {}
       },
       {
+        "id": "8b6b57c5-8bc2-426b-94c4-52d00d41bb7c",
+        "name": "electoral-log-audit",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
         "id": "81ff4801-d4bb-4c3e-8d46-f525443c21d1",
         "name": "miru-create",
         "description": "",
@@ -2471,6 +2480,7 @@
         "election-event-approvals-tab",
         "candidate-delete",
         "logs-read",
+        "electoral-log-audit",
         "election-state-write",
         "candidate-write",
         "role-create",

@@ -15,7 +15,7 @@ Command-line tool for automating and streamlining operations within the Sequent 
 - Key ceremony and tally management
 - Load testing and data generation utilities
 - Template rendering for email notifications
-- ImmuDB bulletin board export
+- Electoral-log cast-vote export
 
 ## Quick Start
 

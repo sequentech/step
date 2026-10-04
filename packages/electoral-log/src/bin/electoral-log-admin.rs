@@ -33,6 +33,8 @@ enum Action {
     Consistency,
     VerifyInclusion,
     VerifyConsistency,
+    Audit,
+    BackfillNodes,
 }
 fn read_json<T: serde::de::DeserializeOwned>(path: Option<&PathBuf>, name: &str) -> Result<T> {
     Ok(serde_json::from_slice(&std::fs::read(
@@ -67,35 +69,48 @@ async fn main() -> Result<()> {
     if matches!(args.action, Action::Init) {
         return store.initialize().await;
     }
-    let board = args.board.context("--board is required")?;
     let journal = store.journal();
-    if matches!(
-        args.action,
-        Action::Checkpoint | Action::Inclusion | Action::Consistency
-    ) {
-        // Catch up to the committed size observed at invocation, without chasing new appends.
-        let target = journal.checkpoint(&board).await?.1;
-        while journal.checkpoint(&board).await?.0.tree_size < target {
-            journal.process_once().await?;
+    // Without a board, back-fill every log created before subtrees were stored.
+    if matches!(args.action, Action::BackfillNodes) && args.board.is_none() {
+        let mut rebuilt = Vec::new();
+        for board in journal.unbuilt_logs().await? {
+            rebuilt.push(journal.rebuild(&board).await?);
         }
+        return output(&rebuilt);
+    }
+    let board = args.board.context("--board is required")?;
+    // Optional trusted checkpoint for inclusion (anchor) and audit (extra history check).
+    let checkpoint: Option<Checkpoint> = match args.checkpoint.as_ref() {
+        Some(path) => Some(read_json(Some(path), "checkpoint")?),
+        None => None,
+    };
+    if let Some(checkpoint) = &checkpoint {
+        anyhow::ensure!(
+            checkpoint.log_name == board,
+            "Checkpoint belongs to another board"
+        );
     }
     match args.action {
-        Action::Checkpoint => output(&journal.checkpoint(&board).await?.0),
-        Action::Inclusion => output(
-            &store
-                .record_proof(
-                    &journal,
-                    &board,
-                    args.record_id.context("--record-id is required")?,
-                )
-                .await?
-                .context("Proof is pending")?,
-        ),
+        Action::Checkpoint => output(&journal.checkpoint(&board).await?),
+        Action::Inclusion => {
+            let id = args.record_id.context("--record-id is required")?;
+            output(
+                &store
+                    .record_proof(&journal, &board, id, checkpoint.as_ref())
+                    .await?,
+            )
+        }
         Action::Consistency => {
-            let old: Checkpoint = read_json(args.checkpoint.as_ref(), "checkpoint")?;
-            anyhow::ensure!(old.log_name == board, "Checkpoint belongs to another board");
+            let old = checkpoint.context("--checkpoint is required")?;
             output(&journal.consistency(&old).await?)
         }
+        Action::Audit => {
+            let report = store.audit(&board, checkpoint.as_slice()).await?;
+            output(&report)?;
+            anyhow::ensure!(report.is_clean(), "Audit found inconsistencies");
+            Ok(())
+        }
+        Action::BackfillNodes => output(&journal.rebuild(&board).await?),
         Action::CreateBoard => BoardClient::new(Arc::new(store)).create_board(&board).await,
         Action::DeleteBoard => BoardClient::new(Arc::new(store)).delete_board(&board).await,
         _ => unreachable!(),

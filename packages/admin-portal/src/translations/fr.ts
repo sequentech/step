@@ -209,6 +209,13 @@ const frenchTranslation: TranslationType = {
             actions: {
                 csv: "Exporter en CSV",
                 pdf: "Exporter en PDF",
+                audit: "Auditer",
+            },
+            auditDialog: {
+                title: "Auditer le journal électoral",
+                confirm: "Auditer",
+                description:
+                    "L'audit vérifie chaque entrée du journal par rapport à son journal Merkle et contrôle les points de contrôle publiés. Le résultat est enregistré en tant que tâche.",
             },
             exportdialog: {
                 description:
@@ -258,6 +265,7 @@ const frenchTranslation: TranslationType = {
                 DELETE_TENANT: "Supprimer l’organisation",
                 PUBLISH_BALLOT: "Publier le bulletin",
                 VOTER_INFORMATION_LETTER: "Lettre d'information de l'électeur",
+                AUDIT_ELECTORAL_LOG: "Auditer le journal électoral",
                 EXPORT_ELECTION_EVENT: "Exporter l'événement électoral",
                 CREATE_ELECTION_EVENT: "Créer Événement Électoral",
                 IMPORT_ELECTION_EVENT: "Importer l'événement électoral",
@@ -1368,6 +1376,7 @@ const frenchTranslation: TranslationType = {
                 "publish-results-read": "Lire Publication des Résultats",
                 "publish-results-write": "Éditer Publication des Résultats",
                 "logs-read": "Lire Journaux",
+                "electoral-log-audit": "Auditer le Journal Électoral",
                 "tasks-read": "Lire l'Exécution des Tâches",
                 "keys-read": "Lire Clés",
                 "document-upload": "Télécharger Documents",

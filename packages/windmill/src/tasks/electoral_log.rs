@@ -246,12 +246,22 @@ pub async fn process_electoral_log_events_batch(events: Vec<LogEventInput>) -> R
         .await
         .with_context(|| "Error committing Hasura transaction")?;
 
+    // Append every board before failing, so one failing board does not hold back the
+    // others; a retry appends the failed boards again, idempotently.
     let client = get_board_client().await?;
+    let mut failures = Vec::new();
     for (board, messages) in messages_by_board {
-        client
-            .append(&board, &messages)
-            .await
-            .with_context(|| format!("Error appending electoral-log batch for board {board}"))?;
+        if let Err(error) = client.append(&board, &messages).await {
+            tracing::error!("Error appending electoral-log batch for board {board}: {error:?}");
+            failures.push(format!("{board}: {error:#}"));
+        }
+    }
+    if !failures.is_empty() {
+        return Err(anyhow!(
+            "Error appending electoral-log batches: {}",
+            failures.join("; ")
+        )
+        .into());
     }
 
     Ok(())

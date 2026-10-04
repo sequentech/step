@@ -1,26 +1,23 @@
 //! Trellis - PostgreSQL-integrated Merkle Tree Verification Service
 //!
-//! This crate provides an addon service to existing postgresql database that
-//! maintains multiple independent Certificate Transparency-style merkle logs. It enables
-//! cryptographic verification of append-only logs through inclusion and consistency proofs.
+//! This crate maintains multiple independent Certificate Transparency-style Merkle
+//! logs in the application database. It enables cryptographic verification of append-only logs
+//! through inclusion and consistency proofs.
 //!
 //! # Proofs
 //!
-//! The HTTP endpoints provide cryptographic proofs that data entries:
+//! Proofs show that data entries:
 //! - **Exist in the log** (inclusion proofs)
 //! - **Were never removed or modified** (append-only consistency proofs)
 //!
-//! # Architecture
-//!
-//! - **Multiple Independent Logs**: Each log tracks different source tables
-//! - **Continuous Processing**: Background batch processor merges data from configured sources
-//! - **HTTP API**: HTTP endpoints to interact with the logs and request proofs
-//! - **In-memory Proof Generation**: In-memory merkle trees for fast proof generation
-//!
 //! # Modules
 //!
-//! - [`service`]: HTTP server and batch processing logic
-//! - [`tree`]: Merkle tree implementation with proof generation, based on the `ct-merkle` crate
+//! - [`journal`]: transactional journal that stores each log's leaves and perfect
+//!   subtrees with the application's records, and answers proofs statelessly
+//! - [`rfc6962`]: RFC 6962 tree arithmetic over the stored perfect subtrees
+//! - [`tree`]: in-memory Merkle tree with proof generation, based on the `ct-merkle` crate
+//! - `service` (feature `upstream-service`): the upstream HTTP server and batch
+//!   processor that track source tables in memory
 
 use anyhow::Result;
 use ct_merkle::{ConsistencyProof as CtConsistencyProof, InclusionProof as CtInclusionProof};
@@ -36,8 +33,11 @@ use sha2::{Sha256, digest::Output};
 #[cfg(feature = "upstream-service")]
 pub mod service;
 
-/// Transactional PostgreSQL journal and proof processing.
+/// Transactional PostgreSQL journal with persisted subtrees and stateless proofs.
 pub mod journal;
+
+/// RFC 6962 tree arithmetic over persisted perfect subtrees.
+pub mod rfc6962;
 
 /// Merkle tree data structures and proof generation
 ///
@@ -92,7 +92,7 @@ impl InclusionProof {
         let root_hash = RootHash::<Sha256>::new(digest, self.tree_size);
 
         // Create the inclusion proof from our stored bytes
-        let proof = CtInclusionProof::<Sha256>::from_bytes(self.proof_bytes.clone());
+        let proof = CtInclusionProof::<Sha256>::try_from_bytes(self.proof_bytes.clone())?;
 
         // Verify using root's verification method
         root_hash.verify_inclusion(&leaf_hash, self.index, &proof)
@@ -275,6 +275,17 @@ mod inclusion_boundary_tests {
             };
             assert!(proof.verify(b"leaf").is_err());
         }
+    }
+
+    #[test]
+    fn truncated_proof_bytes_return_errors_without_panicking() {
+        let proof = InclusionProof {
+            index: 0,
+            tree_size: 2,
+            root: vec![0; 32],
+            proof_bytes: vec![0; 31],
+        };
+        assert!(proof.verify(b"leaf").is_err());
     }
 
     #[test]

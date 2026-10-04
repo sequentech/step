@@ -13,6 +13,10 @@ type Mutation {
 }
 
 type Mutation {
+    audit_electoral_log(election_event_id: String!): taskOutput!
+}
+
+type Mutation {
     call_plugin_route(path: String!, data: jsonb!): PluginsRouteOutput!
 }
 

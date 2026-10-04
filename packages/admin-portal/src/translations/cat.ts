@@ -225,6 +225,7 @@ const catalanTranslation: TranslationType = {
                 DELETE_TENANT: "Suprimir organització",
                 PUBLISH_BALLOT: "Publicar papereta",
                 VOTER_INFORMATION_LETTER: "Carta d'informació per al votant",
+                AUDIT_ELECTORAL_LOG: "Auditar registre electoral",
                 EXPORT_ELECTION_EVENT: "Exportar esdeveniment electoral",
                 CREATE_ELECTION_EVENT: "Crear Esdeveniment Electoral",
                 IMPORT_ELECTION_EVENT: "Importar esdeveniment electoral",
@@ -282,6 +283,13 @@ const catalanTranslation: TranslationType = {
             actions: {
                 csv: "Exportar en CSV",
                 pdf: "Exportar en PDF",
+                audit: "Auditar",
+            },
+            auditDialog: {
+                title: "Auditar el registre electoral",
+                confirm: "Auditar",
+                description:
+                    "L'auditoria comprova cada entrada del registre amb el seu registre Merkle i verifica els punts de control publicats. El resultat es desa com una tasca.",
             },
             exportdialog: {
                 description:
@@ -1366,6 +1374,7 @@ const catalanTranslation: TranslationType = {
                 "publish-results-read": "Llegir Publicació de Resultats",
                 "publish-results-write": "Editar Publicació de Resultats",
                 "logs-read": "Llegir Registres",
+                "electoral-log-audit": "Auditar Registre Electoral",
                 "tasks-read": "Llegir l'Execució de Tasques",
                 "keys-read": "Llegir Claus",
                 "document-upload": "Pujar Documents",

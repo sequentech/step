@@ -416,12 +416,21 @@ pub async fn add_ballots_to_board<C: Ctx>(
     b3_client.insert_ballots::<C>(board_name, message).await
 }
 
+static ELECTORAL_LOG_STORE: OnceCell<PostgresStore> = OnceCell::const_new();
 static ELECTORAL_LOG_CLIENT: OnceCell<BoardClient> = OnceCell::const_new();
+
+/// The process-wide electoral-log store, sharing one connection pool.
+pub async fn get_electoral_log_store() -> Result<PostgresStore> {
+    let store = ELECTORAL_LOG_STORE
+        .get_or_try_init(|| async { PostgresStore::from_env() })
+        .await?;
+    Ok(store.clone())
+}
 
 pub async fn get_board_client() -> Result<BoardClient> {
     let client = ELECTORAL_LOG_CLIENT
         .get_or_try_init(|| async {
-            Ok::<_, anyhow::Error>(BoardClient::new(Arc::new(PostgresStore::from_env()?)))
+            Ok::<_, anyhow::Error>(BoardClient::new(Arc::new(get_electoral_log_store().await?)))
         })
         .await?;
     Ok(client.clone())

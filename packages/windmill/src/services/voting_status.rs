@@ -3,12 +3,14 @@ use crate::postgres::election_event::update_election_event_status;
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use crate::services::celery_app::get_celery_app;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::election_event_status;
 use crate::services::electoral_log::*;
+use crate::tasks::publish_electoral_log_checkpoint::publish_electoral_log_checkpoint;
 use anyhow::{Context, Result};
 use deadpool_postgres::Transaction;
-use electoral_log::messages::newtypes::VotingChannelString;
+use electoral_log::messages::newtypes::{ElectoralLogCheckpointReason, VotingChannelString};
 use sequent_core::ballot::ElectionEventStatus;
 use sequent_core::ballot::ElectionStatus;
 use sequent_core::ballot::VotingStatus;
@@ -104,8 +106,9 @@ pub async fn update_election_status(
         ]
     };
 
+    let mut changed_channels = 0_usize;
     for voting_channel in voting_channels {
-        election_event_status::update_election_voting_status_impl(
+        let change = election_event_status::update_election_voting_status_impl(
             tenant_id.clone(),
             user_id,
             username,
@@ -117,6 +120,9 @@ pub async fn update_election_status(
             &hasura_transaction,
         )
         .await?;
+        if change == election_event_status::StatusChange::Changed {
+            changed_channels += 1;
+        }
         let current_event_status = event_status.status_by_channel(voting_channel);
 
         info!("current_voting_status={current_event_status:?} next_voting_status={voting_status:?}, voting_channel={voting_channel:?}");
@@ -152,6 +158,10 @@ pub async fn update_election_status(
     )
     .await
     .with_context(|| "Error updating election event status")?;
+
+    if *voting_status == VotingStatus::CLOSED && changed_channels > 0 {
+        queue_voting_closed_checkpoint(&tenant_id, election_event_id).await;
+    }
 
     Ok(())
 }
@@ -246,6 +256,38 @@ pub async fn update_board_on_status_change(
         }
     };
     Ok(())
+}
+
+/// Longest wait for queueing a checkpoint publication when voting closes.
+const CHECKPOINT_QUEUE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(5);
+
+/// Queue the publication of a checkpoint of the event's electoral log after a voting
+/// closure was logged.
+///
+/// Best effort, and the closure never waits for it: every completed tally publishes
+/// another checkpoint and audits all of them. Like the closure's log entries, the
+/// publication happens even if the caller's transaction later rolls back.
+pub async fn queue_voting_closed_checkpoint(tenant_id: &str, election_event_id: &str) {
+    let queued = tokio::time::timeout(CHECKPOINT_QUEUE_TIMEOUT, async {
+        get_celery_app()
+            .await
+            .send_task(publish_electoral_log_checkpoint::new(
+                tenant_id.to_string(),
+                election_event_id.to_string(),
+                ElectoralLogCheckpointReason::VotingClosed,
+            ))
+            .await
+    })
+    .await;
+    match queued {
+        Ok(Ok(_)) => {}
+        Ok(Err(error)) => tracing::error!(
+            "Could not queue the electoral-log checkpoint after voting closed for event {election_event_id}: {error:?}"
+        ),
+        Err(_) => tracing::error!(
+            "Timed out queueing the electoral-log checkpoint after voting closed for event {election_event_id}"
+        ),
+    }
 }
 
 #[derive(Debug)]

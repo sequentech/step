@@ -260,42 +260,6 @@ Harvest provides data collection and processing capabilities.
 | tracing | 0.1 | MIT | Application-level tracing for Rust. |
 | uuid | 1.5 | Apache-2.0 OR MIT | A library to generate and parse UUIDs. |
 
-## Immu Board
-
-Immu Board provides immutable board management and verification capabilities.
-
-| Dependency | Version | License | Description |
-|------------|---------|---------|-------------|
-| anyhow | 1.0 | MIT OR Apache-2.0 | Flexible concrete Error type built on std::error::Error |
-| clap | 4.0 | MIT OR Apache-2.0 | A simple to use, efficient, and full-featured Command Line Argument Parser |
-| hex | 0.4 | MIT OR Apache-2.0 | Encoding and decoding data into/from hexadecimal representation. |
-| log | 0.4 | MIT OR Apache-2.0 | A lightweight logging facade for Rust |
-| tokio | 1.31 | MIT | An event-driven, non-blocking I/O platform for writing asynchronous I/O backed applications. |
-| tonic | 0.13 | MIT | A gRPC over HTTP/2 implementation focused on high performance, interoperability, and flexibility. |
-| tracing | 0.1 | MIT | Application-level tracing for Rust. |
-| tracing-attributes | 0.1 | MIT | Procedural macro attributes for automatically instrumenting functions. |
-| tracing-log | 0.2 | MIT | Provides compatibility between `tracing` and the `log` crate. |
-| tracing-subscriber | 0.3 | MIT | Utilities for implementing and composing `tracing` subscribers. |
-| tracing-tree | 0.4 | MIT OR Apache-2.0 | A Tracing Layer which prints a tree of spans and events. |
-
-## ImmuDB-RS
-
-ImmuDB-RS provides Rust bindings for ImmuDB database operations.
-
-| Dependency | Version | License | Description |
-|------------|---------|---------|-------------|
-| anyhow | 1.0 | MIT OR Apache-2.0 | Flexible concrete Error type built on std::error::Error |
-| log | 0.4 | MIT OR Apache-2.0 | A lightweight logging facade for Rust |
-| prost | 0.13 | Apache-2.0 | A Protocol Buffers implementation for the Rust Language. |
-| prost-types | 0.13 | Apache-2.0 | Prost definitions of Protocol Buffers well known types. |
-| serde | 1.0 | MIT OR Apache-2.0 | A generic serialization/deserialization framework |
-| tonic | 0.13 | MIT | A gRPC over HTTP/2 implementation focused on high performance, interoperability, and flexibility. |
-| tracing | 0.1 | MIT | Application-level tracing for Rust. |
-| tracing-attributes | 0.1 | MIT | Procedural macro attributes for automatically instrumenting functions. |
-| tracing-log | 0.2 | MIT | Provides compatibility between `tracing` and the `log` crate. |
-| tracing-subscriber | 0.3 | MIT | Utilities for implementing and composing `tracing` subscribers. |
-| tracing-tree | 0.4 | MIT OR Apache-2.0 | A Tracing Layer which prints a tree of spans and events. |
-
 ## Keycloak Extensions
 
 Keycloak Extensions provides custom authentication and authorization extensions.

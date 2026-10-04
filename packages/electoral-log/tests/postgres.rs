@@ -259,35 +259,68 @@ async fn visibility_and_user_filters_apply_to_both_list_and_count() -> Result<()
     Ok(())
 }
 
-#[tokio::test]
-#[ignore = "requires ELECTORAL_LOG_TEST_DATABASE_URL"]
-async fn trellis_atomic_append_proofs_and_restart() -> Result<()> {
-    use electoral_log::{ports::ElectoralLogStore, proofs::leaf_hash};
-    let store = PostgresStore::new(std::env::var("ELECTORAL_LOG_TEST_DATABASE_URL")?.parse()?)?;
+async fn trellis_store() -> Result<(PostgresStore, String, tokio_postgres::Client)> {
+    use electoral_log::ports::ElectoralLogStore;
+    let url = std::env::var("ELECTORAL_LOG_TEST_DATABASE_URL")?;
+    let store = PostgresStore::new(url.parse()?)?;
     store.initialize().await?;
     let board = format!("trellis-{}", Uuid::new_v4());
     store.create_board(&board).await?;
+    let (db, connection) = tokio_postgres::connect(&url, tokio_postgres::NoTls).await?;
+    tokio::spawn(connection);
+    Ok((store, board, db))
+}
+
+async fn newest(client: &BoardClient, board: &str) -> Result<ElectoralLogMessage> {
+    Ok(client
+        .query(
+            board,
+            &LogQuery {
+                limit: 1,
+                ..LogQuery::default()
+            },
+        )
+        .await?
+        .remove(0))
+}
+
+#[tokio::test]
+#[ignore = "requires ELECTORAL_LOG_TEST_DATABASE_URL"]
+async fn trellis_atomic_append_proofs_and_board_recreation() -> Result<()> {
+    use electoral_log::{
+        ports::ElectoralLogStore,
+        proofs::{leaf_hash, JournalError},
+    };
+    let (store, board, _db) = trellis_store().await?;
     let client = BoardClient::new(Arc::new(store.clone()));
     let journal = store.journal();
-    let (empty, committed) = journal.checkpoint(&board).await?;
-    assert_eq!(committed, 0);
+    let empty = journal.checkpoint(&board).await?;
+    assert_eq!(empty.tree_size, 0);
+    assert_eq!(empty.root, trellis::rfc6962::empty_root());
     client.append(&board, &[entry("a", 1, None)]).await?;
-    let first = client.query(&board, &LogQuery::default()).await?.remove(0);
-    assert!(store
-        .record_proof(&journal, &board, first.id)
-        .await?
-        .is_none());
+    let first = newest(&client, &board).await?;
+    // Proofs are available as soon as the append commits.
+    let proof = store.record_proof(&journal, &board, first.id, None).await?;
+    let old = proof.inclusion.checkpoint.clone();
+    assert_eq!(old.tree_size, 1);
+    proof.verify(&old)?;
+    assert!(matches!(
+        store
+            .record_proof(&journal, &board, first.id + 1_000_000, None)
+            .await,
+        Err(JournalError::NotFound(_))
+    ));
     let bad = vec![entry("rolled-back", 2, None), entry("", 3, None)];
     assert!(client.append(&board, &bad).await.is_err());
-    assert_eq!(journal.checkpoint(&board).await?.1, 1);
-    journal.process_once().await?;
-    let proof = store
-        .record_proof(&journal, &board, first.id)
-        .await?
-        .unwrap();
-    let old = proof.inclusion.checkpoint.clone();
-    proof.verify(&old)?;
+    assert_eq!(journal.checkpoint(&board).await?, old);
+    assert_eq!(client.count(&board, &LogQuery::default()).await?, 1);
     journal.consistency(&empty).await?.verify(&empty)?;
+    // The empty checkpoint anchors every record through a proof-less link.
+    let from_empty = store
+        .record_proof(&journal, &board, first.id, Some(&empty))
+        .await?;
+    from_empty.verify(&empty)?;
+    assert!(from_empty.verify(&old).is_err());
     let mut changed = proof.entry.clone();
     changed.message.username = Some("changed".into());
     assert!(proof
@@ -301,26 +334,444 @@ async fn trellis_atomic_append_proofs_and_restart() -> Result<()> {
     );
     a?;
     b?;
-    assert_eq!(journal.checkpoint(&board).await?.1, 2);
-    journal.process_once().await?;
+    let current = journal.checkpoint(&board).await?;
+    assert_eq!(current.tree_size, 2);
     let consistency = journal.consistency(&old).await?;
     consistency.verify(&old)?;
     let mut wrong = old.clone();
     wrong.tree_size += 1;
     assert!(consistency.verify(&wrong).is_err());
-    let checkpoint = journal.checkpoint(&board).await?.0;
-    let restarted = store.journal();
-    restarted.process_once().await?;
-    assert_eq!(restarted.checkpoint(&board).await?.0, checkpoint);
-    restarted.consistency(&old).await?.verify(&old)?;
-    // Refresh an already-running replica even when another replica consumed the last write.
-    journal.process_once().await?;
-    assert_eq!(journal.checkpoint(&board).await?.0, checkpoint);
+    // Readers keep no state: a new instance answers identically.
+    let other = store.journal();
+    assert_eq!(other.checkpoint(&board).await?, current);
+    other.consistency(&old).await?.verify(&old)?;
     store.delete_board(&board).await?;
     store.create_board(&board).await?;
-    restarted.process_once().await?;
-    assert!(restarted.consistency(&old).await.is_err());
-    assert_eq!(restarted.checkpoint(&board).await?.1, 0);
+    assert!(matches!(
+        journal.consistency(&old).await,
+        Err(JournalError::Diverged(_))
+    ));
+    assert_eq!(journal.checkpoint(&board).await?.tree_size, 0);
+    store.delete_board(&board).await?;
+    Ok(())
+}
+
+/// Dense positions under concurrency, large batches, historical proofs and forks.
+#[tokio::test]
+#[ignore = "requires ELECTORAL_LOG_TEST_DATABASE_URL"]
+async fn trellis_concurrency_history_and_forks() -> Result<()> {
+    use electoral_log::{
+        adapters::postgres::AUDIT_LOCK_NAMESPACE,
+        ports::ElectoralLogStore,
+        proofs::{Journal, JournalError},
+    };
+    use sha2::{Digest, Sha256};
+    let (store, board, mut db) = trellis_store().await?;
+    let client = Arc::new(BoardClient::new(Arc::new(store.clone())));
+    let tasks: Vec<_> = (0..32)
+        .map(|i| {
+            let (client, board) = (client.clone(), board.clone());
+            tokio::spawn(async move {
+                client
+                    .append(&board, &[entry(&format!("concurrent-{i}"), i, None)])
+                    .await
+            })
+        })
+        .collect();
+    for task in tasks {
+        task.await??;
+    }
+    let journal = store.journal();
+    let early = journal.checkpoint(&board).await?;
+    assert_eq!(early.tree_size, 32);
+    assert!(store.audit(&board, &[]).await?.is_clean());
+    // Crosses the insert chunk size, so one append writes leaves in several batches.
+    let bulk: Vec<_> = (0..5_003)
+        .map(|i| entry(&format!("bulk-{i}"), i, None))
+        .collect();
+    client.append(&board, &bulk).await?;
+    let trusted = journal.checkpoint(&board).await?;
+    assert_eq!(trusted.tree_size, 5_035);
+    let report = store
+        .audit(&board, &[early.clone(), trusted.clone()])
+        .await?;
+    assert!(report.is_clean(), "{:?}", report.findings());
+    assert_eq!(report.published_checked, 2);
+    journal.consistency(&early).await?.verify(&early)?;
+
+    let mut forged = trusted.clone();
+    forged.root = vec![7; 32];
+    let mut beyond = trusted.clone();
+    beyond.tree_size += 10;
+    let mut other_generation = trusted.clone();
+    other_generation.log_id += 1;
+    for checkpoint in [&forged, &beyond, &other_generation] {
+        assert!(matches!(
+            journal.consistency(checkpoint).await,
+            Err(JournalError::Diverged(_))
+        ));
+    }
+
+    // A record added after the trusted checkpoint verifies against it in one bundle.
+    client
+        .append(&board, &[entry("after-trusted", 1, None)])
+        .await?;
+    let latest = newest(&client, &board).await?;
+    let anchored = store
+        .record_proof(&journal, &board, latest.id, Some(&trusted))
+        .await?;
+    assert!(anchored.consistency.is_some());
+    anchored.verify(&trusted)?;
+    let unanchored = store
+        .record_proof(&journal, &board, latest.id, None)
+        .await?;
+    assert!(unanchored.verify(&trusted).is_err());
+    // A record the trusted checkpoint already covers is proven at that checkpoint.
+    let oldest = client
+        .query(
+            &board,
+            &LogQuery {
+                limit: 1,
+                order: vec![(OrderColumn::Id, SortDirection::Asc)],
+                ..LogQuery::default()
+            },
+        )
+        .await?
+        .remove(0);
+    let historical = store
+        .record_proof(&journal, &board, oldest.id, Some(&early))
+        .await?;
+    assert!(historical.consistency.is_none());
+    assert_eq!(historical.inclusion.checkpoint, early);
+    historical.verify(&early)?;
+    let mut other_board = early.clone();
+    other_board.log_name = format!("{board}-other");
+    let report = store
+        .audit(
+            &board,
+            &[
+                forged.clone(),
+                early.clone(),
+                beyond.clone(),
+                other_generation.clone(),
+                other_board,
+            ],
+        )
+        .await?;
+    assert_eq!(report.published_checked, 5);
+    let sizes: Vec<u64> = report
+        .published_mismatches
+        .iter()
+        .map(|mismatch| mismatch.tree_size)
+        .collect();
+    assert_eq!(
+        sizes,
+        vec![
+            forged.tree_size,
+            beyond.tree_size,
+            trusted.tree_size,
+            early.tree_size
+        ]
+    );
+    assert!(report.published_mismatches[3]
+        .reason
+        .contains("another board"));
+    assert_eq!(report.findings().len(), 4, "{:?}", report.findings());
+    // Audits of a board run one at a time: a second one waits for the first.
+    let lock = format!("{AUDIT_LOCK_NAMESPACE}{board}");
+    db.execute("SELECT pg_advisory_lock(hashtextextended($1, 0))", &[&lock])
+        .await?;
+    let waiting = {
+        let (store, board) = (store.clone(), board.clone());
+        tokio::spawn(async move { store.audit(&board, &[]).await })
+    };
+    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+    assert!(!waiting.is_finished());
+    db.execute(
+        "SELECT pg_advisory_unlock(hashtextextended($1, 0))",
+        &[&lock],
+    )
+    .await?;
+    assert!(waiting.await??.is_clean());
+
+    // An append that fails after its first leaf batch was written stores nothing.
+    let before_failure = journal.checkpoint(&board).await?;
+    let stored = client.count(&board, &LogQuery::default()).await?;
+    let mut failing: Vec<_> = (0..5_003)
+        .map(|i| entry(&format!("failing-{i}"), i, None))
+        .collect();
+    failing.push(entry("", 0, None));
+    assert!(client.append(&board, &failing).await.is_err());
+    assert_eq!(journal.checkpoint(&board).await?, before_failure);
+    assert_eq!(client.count(&board, &LogQuery::default()).await?, stored);
+    assert!(matches!(
+        store
+            .record_proof(&journal, &board, latest.id, Some(&forged))
+            .await,
+        Err(JournalError::Diverged(_))
+    ));
+
+    // One journal append larger than the insert chunk.
+    let log_name = format!("{board}-journal");
+    db.execute("INSERT INTO trellis_logs (name) VALUES ($1)", &[&log_name])
+        .await?;
+    // More leaves and completed subtrees than one insert chunk.
+    let leaves: Vec<(i64, Vec<u8>)> = (0..6_007_i64)
+        .map(|i| (i, Sha256::digest(i.to_le_bytes()).to_vec()))
+        .collect();
+    let tx = db.transaction().await?;
+    Journal::append_batch(&tx, &log_name, &leaves).await?;
+    tx.commit().await?;
+    let mut frontier = trellis::rfc6962::Frontier::new();
+    for (_, data) in &leaves {
+        frontier.push(data);
+    }
+    let appended = journal.checkpoint(&log_name).await?;
+    assert_eq!(appended.tree_size, 6_007);
+    assert_eq!(appended.root, frontier.root().to_vec());
+    let tree = trellis::journal::audit_tree(&db, &log_name, &[3, 6_007]).await?;
+    assert!(tree.is_clean());
+    assert_eq!(tree.roots[&6_007], appended.root);
+    assert_eq!(tree.roots.len(), 2);
+    db.execute("DELETE FROM trellis_logs WHERE name = $1", &[&log_name])
+        .await?;
+    store.delete_board(&board).await?;
+    Ok(())
+}
+
+/// The audit reports changed subtrees, roots and records instead of failing; a rebuild
+/// repairs subtrees but keeps only a root of the leaves; and a legacy log must be
+/// rebuilt before it is read or extended.
+#[tokio::test]
+#[ignore = "requires ELECTORAL_LOG_TEST_DATABASE_URL"]
+async fn trellis_audit_tampering_and_rebuild() -> Result<()> {
+    use electoral_log::{ports::ElectoralLogStore, proofs::JournalError};
+    let (store, board, db) = trellis_store().await?;
+    let client = BoardClient::new(Arc::new(store.clone()));
+    let journal = store.journal();
+    let entries: Vec<_> = (0..4)
+        .map(|i| entry(&format!("record-{i}"), i, Some("voter")))
+        .collect();
+    client.append(&board, &entries[..2]).await?;
+    let early = journal.checkpoint(&board).await?;
+    client.append(&board, &entries[2..]).await?;
+    let honest = journal.checkpoint(&board).await?;
+    let published = [early.clone(), honest.clone()];
+    assert!(store.audit(&board, &published).await?.is_clean());
+    let ids: Vec<i64> = db
+        .query(
+            "SELECT id FROM electoral_log_messages WHERE board_name = $1 ORDER BY id",
+            &[&board],
+        )
+        .await?
+        .iter()
+        .map(|row| row.get(0))
+        .collect();
+
+    // A changed subtree breaks proofs that use it and is reported by the audit. The
+    // published checkpoints still match the leaves.
+    db.execute(
+        "UPDATE trellis_nodes n SET hash = decode(repeat('ab', 32), 'hex') FROM trellis_logs l \
+         WHERE l.id = n.log_id AND l.name = $1 AND n.level = 1 AND n.idx = 0",
+        &[&board],
+    )
+    .await?;
+    let report = store.audit(&board, &published).await?;
+    assert_eq!(report.tree.node_mismatches, 1);
+    assert_eq!(report.tree.first_node_mismatches, vec![(1, 0)]);
+    assert!(report.published_mismatches.is_empty());
+    assert_eq!(report.published_checked, 2);
+    assert!(!report.findings().is_empty());
+    assert!(matches!(
+        store.record_proof(&journal, &board, ids[3], None).await,
+        Err(JournalError::Corrupt(_))
+    ));
+    // The damaged subtree also changes the root at size 2, which is reported as damage,
+    // not as a checkpoint outside the history.
+    assert!(matches!(
+        journal.consistency(&early).await,
+        Err(JournalError::Corrupt(_))
+    ));
+    // The root is unchanged, so a rebuild may repair the subtrees.
+    assert_eq!(journal.rebuild(&board).await?, honest);
+    assert!(store.audit(&board, &published).await?.is_clean());
+
+    // A changed root makes the log unreadable and is reported by the audit.
+    db.execute(
+        "UPDATE trellis_logs SET root = decode(repeat('cd', 32), 'hex') WHERE name = $1",
+        &[&board],
+    )
+    .await?;
+    let report = store.audit(&board, &published).await?;
+    assert!(!report.tree.root_matches);
+    assert!(!report.is_clean());
+    assert!(report.published_mismatches.is_empty());
+    assert!(matches!(
+        journal.checkpoint(&board).await,
+        Err(JournalError::Corrupt(_))
+    ));
+    assert!(matches!(
+        journal.consistency(&honest).await,
+        Err(JournalError::Corrupt(_))
+    ));
+    // A rebuild never adopts a root that the leaves do not have.
+    let refused = journal.rebuild(&board).await.unwrap_err().to_string();
+    assert!(refused.contains("is not a root of its leaves"), "{refused}");
+    db.execute(
+        "UPDATE trellis_logs SET root = $2 WHERE name = $1",
+        &[&board, &honest.root],
+    )
+    .await?;
+    assert!(store.audit(&board, &published).await?.is_clean());
+
+    // Record-level tampering: a changed, a deleted and an unlogged record.
+    db.execute(
+        "UPDATE electoral_log_messages SET username = 'tampered' WHERE id = $1",
+        &[&ids[0]],
+    )
+    .await?;
+    db.execute(
+        "DELETE FROM electoral_log_messages WHERE id = $1",
+        &[&ids[1]],
+    )
+    .await?;
+    let unlogged: i64 = db
+        .query_one(
+            "INSERT INTO electoral_log_messages (board_name, delivery_id, created, sender_pk, \
+             statement_timestamp, statement_kind, message, version) \
+             VALUES ($1, 'unlogged', 0, 'sender', 0, 'CastVote', '\\x00', '2') RETURNING id",
+            &[&board],
+        )
+        .await?
+        .get(0);
+    let report = store.audit(&board, &published).await?;
+    assert!(!report.is_clean());
+    assert_eq!(report.hash_mismatches, vec![ids[0]]);
+    assert_eq!(report.leaves_without_message, vec![ids[1]]);
+    assert_eq!(report.messages_without_leaf, vec![unlogged]);
+    assert!(report.tree.is_clean());
+    assert!(report.published_mismatches.is_empty());
+    // A stored record without a leaf is an integrity fault, not an unknown record.
+    assert!(matches!(
+        store.record_proof(&journal, &board, unlogged, None).await,
+        Err(JournalError::Corrupt(_))
+    ));
+
+    // A log from before subtrees were stored has the empty root: it serves no
+    // checkpoint and takes no append until it is rebuilt.
+    db.execute(
+        "UPDATE trellis_logs SET \
+         root = decode('e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855', 'hex') \
+         WHERE name = $1",
+        &[&board],
+    )
+    .await?;
+    db.execute(
+        "DELETE FROM trellis_nodes n USING trellis_logs l WHERE l.id = n.log_id AND l.name = $1",
+        &[&board],
+    )
+    .await?;
+    let unread = journal.checkpoint(&board).await.unwrap_err().to_string();
+    assert!(unread.contains("must be rebuilt"), "{unread}");
+    let stored = client.count(&board, &LogQuery::default()).await?;
+    let error = format!(
+        "{:#}",
+        client
+            .append(&board, &[entry("before-rebuild", 9, None)])
+            .await
+            .unwrap_err()
+    );
+    assert!(error.contains("must be rebuilt"), "{error}");
+    assert_eq!(client.count(&board, &LogQuery::default()).await?, stored);
+    assert_eq!(journal.rebuild(&board).await?, honest);
+    client
+        .append(&board, &[entry("after-rebuild", 9, None)])
+        .await?;
+    let after = journal.checkpoint(&board).await?;
+    assert_eq!(after.tree_size, 5);
+    journal.consistency(&honest).await?.verify(&honest)?;
+
+    // A log extended without updating its root and subtrees, as an older writer
+    // would, is repaired by a rebuild: its stored root is still a root of its leaves.
+    let log_id: i64 = db
+        .query_one("SELECT id FROM trellis_logs WHERE name = $1", &[&board])
+        .await?
+        .get(0);
+    db.execute(
+        "INSERT INTO trellis_leaves (log_id, leaf_index, source_id, hash) \
+         VALUES ($1, 5, -1, decode(repeat('ef', 32), 'hex'))",
+        &[&log_id],
+    )
+    .await?;
+    db.execute("UPDATE trellis_logs SET size = 6 WHERE id = $1", &[&log_id])
+        .await?;
+    assert!(matches!(
+        journal.checkpoint(&board).await,
+        Err(JournalError::Corrupt(_))
+    ));
+    assert_eq!(journal.rebuild(&board).await?.tree_size, 6);
+    journal.consistency(&after).await?.verify(&after)?;
+    store.delete_board(&board).await?;
+    Ok(())
+}
+
+/// Leaves moved out of record order are reported even when the tree was recomputed to
+/// match them.
+#[tokio::test]
+#[ignore = "requires ELECTORAL_LOG_TEST_DATABASE_URL"]
+async fn trellis_audit_detects_reordered_leaves() -> Result<()> {
+    use electoral_log::ports::ElectoralLogStore;
+    let (store, board, db) = trellis_store().await?;
+    let client = BoardClient::new(Arc::new(store.clone()));
+    let journal = store.journal();
+    let entries: Vec<_> = (0..3)
+        .map(|i| entry(&format!("ordered-{i}"), i, None))
+        .collect();
+    client.append(&board, &entries).await?;
+    let before = journal.checkpoint(&board).await?;
+    assert!(store
+        .audit(&board, std::slice::from_ref(&before))
+        .await?
+        .is_clean());
+    let log_id: i64 = db
+        .query_one("SELECT id FROM trellis_logs WHERE name = $1", &[&board])
+        .await?
+        .get(0);
+    // Swap the first two leaves, record IDs and hashes together.
+    db.execute(
+        "UPDATE trellis_leaves SET source_id = -source_id \
+         WHERE log_id = $1 AND leaf_index IN (0, 1)",
+        &[&log_id],
+    )
+    .await?;
+    db.execute(
+        "UPDATE trellis_leaves l SET source_id = -o.source_id, hash = o.hash \
+         FROM trellis_leaves o WHERE l.log_id = $1 AND o.log_id = $1 \
+         AND l.leaf_index IN (0, 1) AND o.leaf_index = 1 - l.leaf_index",
+        &[&log_id],
+    )
+    .await?;
+    // Recompute a consistent tree over the reordered leaves, as a database owner could.
+    db.execute(
+        "UPDATE trellis_logs SET root = \
+         decode('e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855', 'hex') \
+         WHERE id = $1",
+        &[&log_id],
+    )
+    .await?;
+    db.execute("DELETE FROM trellis_nodes WHERE log_id = $1", &[&log_id])
+        .await?;
+    journal.rebuild(&board).await?;
+    let report = store.audit(&board, std::slice::from_ref(&before)).await?;
+    assert!(report.tree.is_clean());
+    assert_eq!(report.published_mismatches.len(), 1);
+    assert_eq!(report.hash_mismatch_count, 0);
+    assert_eq!(report.leaves_out_of_order, 1);
+    assert!(!report.is_clean());
+    assert!(report
+        .findings()
+        .iter()
+        .any(|finding| finding.contains("record order")));
     store.delete_board(&board).await?;
     Ok(())
 }

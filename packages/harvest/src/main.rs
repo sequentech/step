@@ -78,6 +78,7 @@ async fn rocket() -> _ {
                 routes::electoral_log_proofs::checkpoint,
                 routes::electoral_log_proofs::inclusion,
                 routes::electoral_log_proofs::consistency,
+                routes::electoral_log_audit::audit_electoral_log,
                 routes::export_election_event::export_election_event_route,
                 routes::export_election_event_logs::export_election_event_logs_route,
                 routes::insert_election_event::insert_election_event_f,

@@ -3,7 +3,7 @@
 use crate::services::authorization::authorize;
 use electoral_log::{
     adapters::postgres::PostgresStore,
-    proofs::{Checkpoint, Consistency, Journal, RecordProof},
+    proofs::{Checkpoint, Consistency, Journal, JournalError, RecordProof},
 };
 use rocket::{http::Status, serde::json::Json, State};
 use sequent_core::{services::jwt::JwtClaims, types::permissions::Permissions};
@@ -44,6 +44,9 @@ pub struct InclusionRequest {
     #[serde(flatten)]
     scope: ProofRequest,
     record_id: i64,
+    /// When present, the response verifies against this checkpoint.
+    #[serde(default)]
+    trusted_checkpoint: Option<Checkpoint>,
 }
 
 #[derive(Deserialize)]
@@ -56,7 +59,6 @@ pub struct ConsistencyRequest {
 #[derive(Serialize)]
 pub struct CheckpointResponse {
     checkpoint: Checkpoint,
-    committed_size: u64,
 }
 
 fn internal_error(error: impl std::fmt::Display) -> (Status, String) {
@@ -67,6 +69,20 @@ fn internal_error(error: impl std::fmt::Display) -> (Status, String) {
     )
 }
 
+/// A checkpoint outside the log's history is a conflict (409): a possible fork or
+/// rollback that monitors must investigate, not retry. Stored data that is
+/// inconsistent is a server fault that operators must investigate.
+fn journal_error(error: JournalError) -> (Status, String) {
+    match error {
+        JournalError::NotFound(_) => {
+            (Status::NotFound, "Unknown electoral log or record".into())
+        }
+        JournalError::Diverged(_) => (Status::Conflict, error.to_string()),
+        JournalError::Corrupt(_) => internal_error(&error),
+        JournalError::Failed(error) => internal_error(format!("{error:#}")),
+    }
+}
+
 #[post("/electoral-log/checkpoint", format = "json", data = "<body>")]
 pub async fn checkpoint(
     body: Json<ProofRequest>,
@@ -74,15 +90,12 @@ pub async fn checkpoint(
     state: &State<ProofService>,
 ) -> ApiResult<CheckpointResponse> {
     let board = body.board(&claims)?;
-    let (checkpoint, committed_size) = state
+    let checkpoint = state
         .journal
         .checkpoint(&board)
         .await
-        .map_err(internal_error)?;
-    Ok(Json(CheckpointResponse {
-        checkpoint,
-        committed_size,
-    }))
+        .map_err(journal_error)?;
+    Ok(Json(CheckpointResponse { checkpoint }))
 }
 
 #[post("/electoral-log/inclusion", format = "json", data = "<body>")]
@@ -92,15 +105,27 @@ pub async fn inclusion(
     state: &State<ProofService>,
 ) -> ApiResult<RecordProof> {
     let board = body.scope.board(&claims)?;
-    let proof = state
+    if body
+        .trusted_checkpoint
+        .as_ref()
+        .is_some_and(|trusted| trusted.log_name != board)
+    {
+        return Err((
+            Status::BadRequest,
+            "Checkpoint belongs to another board".into(),
+        ));
+    }
+    state
         .store
-        .record_proof(&state.journal, &board, body.record_id)
+        .record_proof(
+            &state.journal,
+            &board,
+            body.record_id,
+            body.trusted_checkpoint.as_ref(),
+        )
         .await
-        .map_err(internal_error)?;
-    proof.map(Json).ok_or((
-        Status::Accepted,
-        "Entry is committed; Merkle proof is pending".into(),
-    ))
+        .map(Json)
+        .map_err(journal_error)
 }
 
 #[post("/electoral-log/consistency", format = "json", data = "<body>")]
@@ -121,49 +146,52 @@ pub async fn consistency(
         .consistency(&body.checkpoint)
         .await
         .map(Json)
-        .map_err(|_| {
-            (
-                Status::BadRequest,
-                "Checkpoint is not in the processed log".into(),
-            )
-        })
+        .map_err(journal_error)
 }
 
 pub fn fairing() -> rocket::fairing::AdHoc {
     rocket::fairing::AdHoc::try_on_ignite(
         "Trellis electoral-log proofs",
         |rocket| async {
-            let store = match PostgresStore::from_env() {
-                Ok(store) => store,
+            match PostgresStore::from_env() {
+                Ok(store) => {
+                    let journal = store.journal();
+                    Ok(rocket.manage(ProofService { store, journal }))
+                }
                 Err(error) => {
                     tracing::error!(
                         "Cannot configure electoral-log proofs: {error}"
                     );
-                    return Err(rocket);
+                    Err(rocket)
                 }
-            };
-            let journal = store.journal();
-            Ok(rocket.manage(ProofService { store, journal }).attach(
-            rocket::fairing::AdHoc::on_liftoff("Trellis processor", |rocket| Box::pin(async move {
-                let Some(state) = rocket.state::<ProofService>() else { return };
-                let journal = state.journal.clone();
-                let shutdown = rocket.shutdown();
-                tokio::spawn(async move {
-                    let mut interval = tokio::time::interval(std::time::Duration::from_secs(1));
-                    interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
-                    loop {
-                        tokio::select! {
-                            _ = shutdown.clone() => break,
-                            _ = interval.tick() => {
-                                if let Err(error) = journal.process_once().await {
-                                    tracing::error!("Trellis catch-up failed; retrying: {error}");
-                                }
-                            }
-                        }
-                    }
-                });
-            }))
-        ))
+            }
         },
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn journal_errors_map_to_statuses_without_leaking_details() {
+        let (status, body) = journal_error(JournalError::NotFound(
+            "Log 'slug-tenant-event'".into(),
+        ));
+        assert_eq!(status, Status::NotFound);
+        assert!(!body.contains("slug-tenant-event"), "{body}");
+        assert_eq!(
+            journal_error(JournalError::Diverged("other generation".into())).0,
+            Status::Conflict
+        );
+        let (status, body) =
+            journal_error(JournalError::Corrupt("node 3/1 is missing".into()));
+        assert_eq!(status, Status::InternalServerError);
+        assert!(!body.contains("node 3/1"), "{body}");
+        let (status, body) = journal_error(JournalError::Failed(
+            anyhow::anyhow!("password=secret"),
+        ));
+        assert_eq!(status, Status::InternalServerError);
+        assert!(!body.contains("secret"), "{body}");
+    }
 }

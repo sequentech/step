@@ -209,6 +209,13 @@ const basqueTranslation: TranslationType = {
             actions: {
                 csv: "CSV formatuan esportatu",
                 pdf: "PDF formatuan esportatu",
+                audit: "Ikuskatu",
+            },
+            auditDialog: {
+                title: "Hauteskunde-erregistroa ikuskatu",
+                confirm: "Ikuskatu",
+                description:
+                    "Ikuskaritzak erregistroko sarrera bakoitza bere Merkle erregistroarekin egiaztatzen du eta argitaratutako kontrol-puntuak egiaztatzen ditu. Emaitza zeregin gisa gordetzen da.",
             },
             exportdialog: {
                 description:
@@ -258,6 +265,7 @@ const basqueTranslation: TranslationType = {
                 DELETE_TENANT: "Ezabatu erakundea",
                 PUBLISH_BALLOT: "Boto-papera argitaratu",
                 VOTER_INFORMATION_LETTER: "Hauteslearen informazio-gutuna",
+                AUDIT_ELECTORAL_LOG: "Hauteskunde-erregistroa ikuskatu",
                 EXPORT_ELECTION_EVENT: "Esportatu Hauteskunde Gertaera",
                 CREATE_ELECTION_EVENT: "Sortu Hauteskunde Gertaera",
                 IMPORT_ELECTION_EVENT: "Inportatu Hauteskunde Gertaera",
@@ -1358,6 +1366,7 @@ const basqueTranslation: TranslationType = {
                 "publish-results-read": "Irakurri Emaitzen Argitalpena",
                 "publish-results-write": "Editatu Emaitzen Argitalpena",
                 "logs-read": "Irakurri Egunkariak",
+                "electoral-log-audit": "Hauteskunde Erregistroa Ikuskatu",
                 "tasks-read": "Irakurri Ataza Exekuzioa",
                 "keys-read": "Irakurri Giltzak",
                 "document-upload": "Igo Dokumentuak",

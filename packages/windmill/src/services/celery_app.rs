@@ -13,6 +13,7 @@ use tracing::{event, info, instrument, Level};
 use crate::services::plugins_manager::plugin_manager::init_plugin_manager;
 use crate::tasks::activity_logs_report::generate_activity_logs_report;
 use crate::tasks::apply_reconciliation_patch::apply_reconciliation_patch;
+use crate::tasks::audit_electoral_log::audit_electoral_log;
 use crate::tasks::create_ballot_receipt::create_ballot_receipt;
 use crate::tasks::create_keys::create_keys;
 use crate::tasks::delete_election_event::delete_election_event_t;
@@ -58,6 +59,7 @@ use crate::tasks::post_tally::post_tally_task;
 use crate::tasks::prepare_publication_preview::prepare_publication_preview;
 use crate::tasks::process_board::process_board;
 use crate::tasks::process_cast_vote::process_cast_vote;
+use crate::tasks::publish_electoral_log_checkpoint::publish_electoral_log_checkpoint;
 use crate::tasks::publish_results_website::publish_results_website_task;
 use crate::tasks::render_document_pdf::render_document_pdf;
 use crate::tasks::render_report::render_report;
@@ -287,6 +289,8 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
             manage_election_date,
             export_election_event,
             generate_activity_logs_report,
+            audit_electoral_log,
+            publish_electoral_log_checkpoint,
             export_certificate_authority,
             create_transmission_package_task,
             send_transmission_package_task,
@@ -337,6 +341,8 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
             import_users::NAME => &Queue::ImportExport.queue_name(&slug),
             export_users::NAME => &Queue::ImportExport.queue_name(&slug),
             export_election_event::NAME => &Queue::ImportExport.queue_name(&slug),
+            audit_electoral_log::NAME => &Queue::Reports.queue_name(&slug),
+            publish_electoral_log_checkpoint::NAME => &Queue::Short.queue_name(&slug),
             generate_activity_logs_report::NAME => &Queue::Reports.queue_name(&slug), // Using reports queue because there is more memory allocated for that queue
             export_tasks_execution::NAME => &Queue::ImportExport.queue_name(&slug),
             export_trustees_task::NAME => &Queue::ImportExport.queue_name(&slug),

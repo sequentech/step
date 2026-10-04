@@ -209,6 +209,13 @@ const tagalogTranslation: TranslationType = {
             actions: {
                 csv: "I-export sa CSV",
                 pdf: "I-export sa PDF",
+                audit: "I-audit",
+            },
+            auditDialog: {
+                title: "I-audit ang electoral log",
+                confirm: "I-audit",
+                description:
+                    "Sinusuri ng audit ang bawat entry ng log laban sa Merkle log nito at bine-verify ang mga na-publish na checkpoint. Itinatala ang resulta bilang isang task.",
             },
             exportdialog: {
                 description:
@@ -258,6 +265,7 @@ const tagalogTranslation: TranslationType = {
                 DELETE_TENANT: "Tanggalin ang tenant",
                 PUBLISH_BALLOT: "I-publish ang balota",
                 VOTER_INFORMATION_LETTER: "Liham ng impormasyon para sa botante",
+                AUDIT_ELECTORAL_LOG: "I-audit ang Electoral Log",
                 EXPORT_ELECTION_EVENT: "I-export ang Kaganapan sa Halalan",
                 CREATE_ELECTION_EVENT: "Lumikha ng Kaganapan ng Halalan",
                 IMPORT_ELECTION_EVENT: "I-import ang Kaganapan sa Halalan",
@@ -1364,6 +1372,7 @@ const tagalogTranslation: TranslationType = {
                 "publish-results-read": "Basahin ang Results Publication",
                 "publish-results-write": "I-edit ang Results Publication",
                 "logs-read": "Basahin ang Logs",
+                "electoral-log-audit": "I-audit ang Electoral Log",
                 "tasks-read": "Basahin ang Pagpapatupad ng Mga Gawain",
                 "keys-read": "Basahin ang Mga Susi",
                 "document-upload": "Mag-upload ng Mga Dokumento",

@@ -1,20 +1,33 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
-//! Transactional leaves with bounded, restartable in-memory proof processing.
-use crate::{ConsistencyProof, InclusionProof, LeafHash, tree::CtMerkleTree};
+//! Transactional Merkle log persisted in PostgreSQL.
+//!
+//! An append writes its leaves, the perfect subtrees they complete, and the updated
+//! size and root in the same transaction as the application records. Proofs for any
+//! committed size are assembled from `O(log n)` stored hashes, so readers keep no
+//! state and every reader returns the same answer.
+use crate::rfc6962::{self, Frontier, Hash, Node, Nodes, Recorder, TreeError};
+use crate::{ConsistencyProof, InclusionProof};
 use anyhow::{Context, Result, anyhow, ensure};
-use deadpool_postgres::Pool;
+use deadpool_postgres::{Object, Pool};
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, sync::Arc};
-use tokio::sync::Mutex;
-use tokio_postgres::Transaction;
+use std::{
+    collections::{BTreeMap, HashMap, HashSet},
+    fmt,
+    fmt::Write as _,
+};
+use tokio_postgres::{GenericClient, IsolationLevel, Transaction};
 
 /// Database schema, installed by the application's provisioning operation.
 pub const SCHEMA: &str = include_str!("../schema.sql");
-/// Maximum leaves loaded per log in one processor pass.
+/// Leaves read per database round trip when rebuilding or auditing a log.
 pub const BATCH_SIZE: i64 = 1000;
+/// Rows per multi-row insert during appends.
+pub const INSERT_CHUNK: usize = 5000;
+/// Mismatching positions listed per audit finding.
+const AUDIT_SAMPLE: usize = 100;
 
-/// A named log generation and its processed Merkle state.
+/// A named log generation and its Merkle state at some size.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Checkpoint {
     /// Application board name.
@@ -27,7 +40,7 @@ pub struct Checkpoint {
     pub root: Vec<u8>,
 }
 
-/// Inclusion proof at a specific processed checkpoint.
+/// Inclusion proof at a specific checkpoint.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Inclusion {
     /// Checkpoint used to generate the proof.
@@ -55,12 +68,12 @@ impl Inclusion {
     }
 }
 
-/// Append-only proof linking two complete checkpoints.
+/// Append-only proof linking two checkpoints.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Consistency {
     /// Earlier checkpoint.
     pub old: Checkpoint,
-    /// Current processed checkpoint.
+    /// Later checkpoint.
     pub new: Checkpoint,
     /// Merkle path; an empty initial checkpoint needs no path.
     pub proof: Option<ConsistencyProof>,
@@ -77,7 +90,7 @@ impl Consistency {
         ensure!(self.new.tree_size >= old.tree_size, "Tree shrank");
         if old.tree_size == 0 {
             ensure!(
-                old.root == CtMerkleTree::new().root() && self.proof.is_none(),
+                old.root == rfc6962::empty_root() && self.proof.is_none(),
                 "Invalid empty checkpoint"
             );
             return Ok(());
@@ -95,20 +108,499 @@ impl Consistency {
     }
 }
 
-/// Reusable proof processor sharing the application's PostgreSQL pool.
+/// Inclusion evidence anchored to a caller's trusted checkpoint.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Evidence {
+    /// Membership proof, at the trusted checkpoint when it already covers the leaf,
+    /// otherwise at the current checkpoint.
+    pub inclusion: Inclusion,
+    /// Present when the inclusion checkpoint is newer than the trusted one: proves that
+    /// it extends the trusted checkpoint.
+    pub consistency: Option<Consistency>,
+}
+impl Evidence {
+    /// Verify membership of `hash`, anchored to the caller's trusted checkpoint.
+    ///
+    /// Without a consistency proof the trusted checkpoint must equal the inclusion
+    /// checkpoint. With one, it must be the consistency proof's earlier checkpoint.
+    /// # Errors
+    /// Returns an error when any link between the trusted checkpoint and the leaf fails.
+    pub fn verify(&self, hash: &[u8], trusted: &Checkpoint) -> Result<()> {
+        match &self.consistency {
+            Some(consistency) => {
+                consistency.verify(trusted)?;
+                self.inclusion.verify(hash, &consistency.new)
+            }
+            None => self.inclusion.verify(hash, trusted),
+        }
+    }
+}
+
+/// Why the journal cannot answer a proof request.
+#[derive(Debug)]
+pub enum JournalError {
+    /// The named log or record does not exist.
+    NotFound(String),
+    /// The supplied checkpoint is not part of this log's history: another generation,
+    /// a root this log never had at that size, or more leaves than were ever committed.
+    Diverged(String),
+    /// Stored Merkle data is internally inconsistent, or the log was created before
+    /// subtrees were stored and must be rebuilt.
+    Corrupt(String),
+    /// Database or other operational failure.
+    Failed(anyhow::Error),
+}
+impl fmt::Display for JournalError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::NotFound(what) => write!(f, "{what} does not exist"),
+            Self::Diverged(reason) => {
+                write!(f, "Checkpoint is not in this log's history: {reason}")
+            }
+            Self::Corrupt(reason) => write!(f, "Stored Merkle data is inconsistent: {reason}"),
+            Self::Failed(error) => write!(f, "{error:#}"),
+        }
+    }
+}
+impl std::error::Error for JournalError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Failed(error) => Some(&**error),
+            _ => None,
+        }
+    }
+}
+impl From<anyhow::Error> for JournalError {
+    fn from(error: anyhow::Error) -> Self {
+        Self::Failed(error)
+    }
+}
+impl From<tokio_postgres::Error> for JournalError {
+    fn from(error: tokio_postgres::Error) -> Self {
+        Self::Failed(error.into())
+    }
+}
+impl From<deadpool_postgres::PoolError> for JournalError {
+    fn from(error: deadpool_postgres::PoolError) -> Self {
+        Self::Failed(error.into())
+    }
+}
+impl From<std::num::TryFromIntError> for JournalError {
+    fn from(error: std::num::TryFromIntError) -> Self {
+        Self::Failed(error.into())
+    }
+}
+impl From<TreeError> for JournalError {
+    fn from(error: TreeError) -> Self {
+        Self::Corrupt(error.to_string())
+    }
+}
+
+/// Comparison of a log's stored tree with one recomputed from its leaves.
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct TreeAudit {
+    /// Committed size recorded for the log.
+    pub committed_size: u64,
+    /// Leaves read, in position order, before the first gap.
+    pub leaves: u64,
+    /// Whether leaf positions run from 0 without gaps.
+    pub dense: bool,
+    /// Stored perfect subtrees (level 1 and up).
+    pub stored_nodes: u64,
+    /// Stored perfect subtrees whose hash differs from the recomputed one, or are missing.
+    pub node_mismatches: u64,
+    /// First mismatching subtrees, as `(level, index)`.
+    pub first_node_mismatches: Vec<(u8, u64)>,
+    /// Whether the stored root matches the recomputed one.
+    pub root_matches: bool,
+    /// The log was created before subtrees were stored and must be rebuilt.
+    pub unbuilt: bool,
+    /// Roots recomputed from the leaves at the requested sizes the leaves cover.
+    pub roots: BTreeMap<u64, Vec<u8>>,
+}
+impl TreeAudit {
+    /// True when the stored tree is exactly the tree of the stored leaves.
+    #[must_use]
+    pub const fn is_clean(&self) -> bool {
+        self.dense
+            && !self.unbuilt
+            && self.leaves == self.committed_size
+            && self.node_mismatches == 0
+            && self.stored_nodes == self.expected_nodes()
+            && self.root_matches
+    }
+
+    /// Number of perfect subtrees (level 1 and up) in a tree of the leaves read.
+    #[must_use]
+    pub const fn expected_nodes(&self) -> u64 {
+        self.leaves.saturating_sub(self.leaves.count_ones() as u64)
+    }
+}
+
+/// Current state of a log, checked against its stored subtrees.
+struct Head {
+    /// Generation ID.
+    id: i64,
+    /// Committed leaves.
+    size: u64,
+    /// Root over the committed leaves.
+    root: Hash,
+    /// Right edge of the tree, read from the stored subtrees.
+    frontier: Frontier,
+}
+
+/// Whether reading a log's head locks its row.
+#[derive(Clone, Copy)]
+enum RowLock {
+    /// Plain read.
+    Read,
+    /// Lock the row until the transaction ends, serializing appends.
+    ForUpdate,
+}
+impl Head {
+    /// Checkpoint of the current state.
+    fn checkpoint(&self, name: &str) -> Checkpoint {
+        Checkpoint {
+            log_name: name.to_owned(),
+            log_id: self.id,
+            tree_size: self.size,
+            root: self.root.to_vec(),
+        }
+    }
+}
+
+/// Convert stored bytes to a hash.
+fn hash_of(bytes: &[u8]) -> Result<Hash> {
+    Hash::try_from(bytes).map_err(|_| anyhow!("Stored hash is not 32 bytes"))
+}
+
+/// Read a log's current state and check that its stored right edge produces its root.
+///
+/// A log created before subtrees were stored still has the empty root with a nonzero
+/// size; it is reported as needing a rebuild.
+async fn head<C: GenericClient + Sync>(
+    client: &C,
+    name: &str,
+    lock: RowLock,
+) -> Result<Head, JournalError> {
+    let query = match lock {
+        RowLock::Read => "SELECT id, size, root FROM trellis_logs WHERE name = $1",
+        RowLock::ForUpdate => "SELECT id, size, root FROM trellis_logs WHERE name = $1 FOR UPDATE",
+    };
+    let row = client
+        .query_opt(query, &[&name])
+        .await?
+        .ok_or_else(|| JournalError::NotFound(format!("Log '{name}'")))?;
+    let id: i64 = row.try_get(0)?;
+    let size = u64::try_from(row.try_get::<_, i64>(1)?)?;
+    let root = hash_of(&row.try_get::<_, Vec<u8>>(2)?)?;
+    let unbuilt = is_unbuilt(size, &root);
+    let not_built = || JournalError::Corrupt(format!("log '{name}' must be rebuilt"));
+    let edge = rfc6962::decomposition(size);
+    let stored = fetch(client, id, &edge).await?;
+    let mut hashes = Vec::with_capacity(edge.len());
+    for node in edge {
+        match stored.get(&node) {
+            Some(hash) => hashes.push(*hash),
+            None if unbuilt => return Err(not_built()),
+            None => return Err(TreeError::MissingNode(node).into()),
+        }
+    }
+    let frontier = Frontier::from_hashes(size, hashes)?;
+    if frontier.root() != root {
+        return Err(if unbuilt {
+            not_built()
+        } else {
+            JournalError::Corrupt(format!(
+                "the stored subtrees of log '{name}' do not produce its stored root"
+            ))
+        });
+    }
+    Ok(Head {
+        id,
+        size,
+        root,
+        frontier,
+    })
+}
+
+/// Whether a log was created before subtrees were stored: those logs gained the empty
+/// root with a nonzero size, which no tree with leaves can have.
+fn is_unbuilt(size: u64, root: &[u8]) -> bool {
+    size > 0 && root == rfc6962::empty_root()
+}
+
+/// Start a read-only transaction that sees one snapshot of the database.
+async fn snapshot(client: &mut Object) -> Result<deadpool_postgres::Transaction<'_>, JournalError> {
+    Ok(client
+        .build_transaction()
+        .isolation_level(IsolationLevel::RepeatableRead)
+        .read_only(true)
+        .start()
+        .await?)
+}
+
+/// Lowercase hexadecimal encoding of a hash, for messages.
+fn hex(hash: &[u8]) -> String {
+    hash.iter().fold(String::new(), |mut out, byte| {
+        // Writing to a `String` cannot fail.
+        let _ = write!(out, "{byte:02x}");
+        out
+    })
+}
+
+/// Fetch the stored hashes of the given perfect subtrees; level 0 reads leaves.
+async fn fetch<C: GenericClient + Sync>(
+    client: &C,
+    log_id: i64,
+    needed: &[Node],
+) -> Result<HashMap<Node, Hash>, JournalError> {
+    let mut leaves = Vec::new();
+    let mut levels = Vec::new();
+    let mut indexes = Vec::new();
+    for node in needed {
+        if node.level == 0 {
+            leaves.push(i64::try_from(node.index)?);
+        } else {
+            levels.push(i16::from(node.level));
+            indexes.push(i64::try_from(node.index)?);
+        }
+    }
+    let mut found = HashMap::with_capacity(needed.len());
+    if !leaves.is_empty() {
+        for row in client
+            .query(
+                "SELECT leaf_index, hash FROM trellis_leaves \
+                 WHERE log_id = $1 AND leaf_index = ANY($2)",
+                &[&log_id, &leaves],
+            )
+            .await?
+        {
+            let index = u64::try_from(row.try_get::<_, i64>(0)?)?;
+            let data: Vec<u8> = row.try_get(1)?;
+            found.insert(Node { level: 0, index }, rfc6962::leaf_hash(&data));
+        }
+    }
+    if !levels.is_empty() {
+        for row in client
+            .query(
+                "SELECT n.level, n.idx, n.hash FROM trellis_nodes n \
+                 JOIN UNNEST($2::SMALLINT[], $3::BIGINT[]) AS w(level, idx) \
+                 ON n.level = w.level AND n.idx = w.idx WHERE n.log_id = $1",
+                &[&log_id, &levels, &indexes],
+            )
+            .await?
+        {
+            let level = u8::try_from(row.try_get::<_, i16>(0)?)?;
+            let index = u64::try_from(row.try_get::<_, i64>(1)?)?;
+            found.insert(
+                Node { level, index },
+                hash_of(&row.try_get::<_, Vec<u8>>(2)?)?,
+            );
+        }
+    }
+    Ok(found)
+}
+
+/// Run a tree computation against stored hashes, fetching exactly the nodes it reads.
+async fn with_nodes<C, T, F>(client: &C, log_id: i64, compute: F) -> Result<T, JournalError>
+where
+    C: GenericClient + Sync,
+    F: Fn(&dyn Nodes) -> Result<T, TreeError> + Send,
+{
+    let recorder = Recorder::default();
+    compute(&recorder)?;
+    let nodes = fetch(client, log_id, &recorder.into_nodes()).await?;
+    Ok(compute(&nodes)?)
+}
+
+/// Check that `old` is a checkpoint of this log's history and prove `head` extends it.
+async fn extension<C: GenericClient + Sync>(
+    client: &C,
+    name: &str,
+    head: &Head,
+    old: &Checkpoint,
+) -> Result<Consistency, JournalError> {
+    if old.log_name != name || old.log_id != head.id {
+        return Err(JournalError::Diverged(
+            "checkpoint belongs to another log generation".into(),
+        ));
+    }
+    if old.tree_size > head.size {
+        return Err(JournalError::Diverged(format!(
+            "checkpoint has {} leaves but only {} were committed",
+            old.tree_size, head.size
+        )));
+    }
+    let (root, path) = with_nodes(client, head.id, |nodes| {
+        let root = rfc6962::root_at(nodes, old.tree_size)?;
+        let path = if old.tree_size == 0 {
+            None
+        } else {
+            Some(rfc6962::consistency_path(nodes, old.tree_size, head.size)?)
+        };
+        Ok((root, path))
+    })
+    .await?;
+    if old.root != root {
+        // Damaged stored subtrees also yield a different root; they are a fault of this
+        // log, not evidence that the checkpoint is outside its history.
+        let stored_tree_is_consistent = path.as_ref().is_none_or(|path| {
+            ConsistencyProof {
+                old_tree_size: old.tree_size,
+                new_tree_size: head.size,
+                new_root: head.root.to_vec(),
+                proof_bytes: path.concat(),
+            }
+            .verify(&root, old.tree_size)
+            .is_ok()
+        });
+        if !stored_tree_is_consistent {
+            return Err(JournalError::Corrupt(format!(
+                "the stored subtrees of log '{name}' do not produce its root"
+            )));
+        }
+        return Err(JournalError::Diverged(format!(
+            "this log had a different root at size {}",
+            old.tree_size
+        )));
+    }
+    let consistency = Consistency {
+        old: old.clone(),
+        new: head.checkpoint(name),
+        proof: path.map(|path| ConsistencyProof {
+            old_tree_size: old.tree_size,
+            new_tree_size: head.size,
+            new_root: head.root.to_vec(),
+            proof_bytes: path.concat(),
+        }),
+    };
+    // The old root matched, so a failure here means the stored nodes disagree with the root.
+    consistency
+        .verify(old)
+        .map_err(|error| JournalError::Corrupt(format!("{error:#}")))?;
+    Ok(consistency)
+}
+
+/// Prove leaf `index` (with stored data `data`) at `checkpoint`, whose root is trusted.
+async fn inclusion_at<C: GenericClient + Sync>(
+    client: &C,
+    checkpoint: &Checkpoint,
+    index: u64,
+    data: &[u8],
+) -> Result<Inclusion, JournalError> {
+    let path = with_nodes(client, checkpoint.log_id, |nodes| {
+        rfc6962::inclusion_path(nodes, index, checkpoint.tree_size)
+    })
+    .await?;
+    let inclusion = Inclusion {
+        proof: InclusionProof {
+            index,
+            root: checkpoint.root.clone(),
+            proof_bytes: path.concat(),
+            tree_size: checkpoint.tree_size,
+        },
+        checkpoint: checkpoint.clone(),
+    };
+    inclusion
+        .verify(data, checkpoint)
+        .map_err(|error| JournalError::Corrupt(format!("{error:#}")))?;
+    Ok(inclusion)
+}
+
+/// Recompute a log's tree from its leaves and compare it with the stored tree, also
+/// recording the recomputed roots at the given sizes.
+///
+/// Reads the whole log in batches; run it inside a repeatable-read transaction so the
+/// leaves, nodes and head come from one snapshot.
+/// # Errors
+/// Returns `NotFound` for an unknown log, or `Failed` on database errors.
+pub async fn audit_tree<C: GenericClient + Sync>(
+    client: &C,
+    name: &str,
+    sizes: &[u64],
+) -> Result<TreeAudit, JournalError> {
+    let sizes: HashSet<u64> = sizes.iter().copied().collect();
+    let log = client
+        .query_opt(
+            "SELECT id, size, root FROM trellis_logs WHERE name = $1",
+            &[&name],
+        )
+        .await?
+        .ok_or_else(|| JournalError::NotFound(format!("Log '{name}'")))?;
+    let log_id: i64 = log.try_get(0)?;
+    let mut audit = TreeAudit {
+        committed_size: u64::try_from(log.try_get::<_, i64>(1)?)?,
+        dense: true,
+        ..TreeAudit::default()
+    };
+    let stored_root: Vec<u8> = log.try_get(2)?;
+    audit.unbuilt = is_unbuilt(audit.committed_size, &stored_root);
+    let mut frontier = Frontier::new();
+    if sizes.contains(&0) {
+        audit.roots.insert(0, frontier.root().to_vec());
+    }
+    while audit.dense {
+        let rows = client
+            .query(
+                "SELECT leaf_index, hash FROM trellis_leaves \
+                 WHERE log_id = $1 AND leaf_index >= $2 ORDER BY leaf_index LIMIT $3",
+                &[&log_id, &i64::try_from(frontier.size())?, &BATCH_SIZE],
+            )
+            .await?;
+        if rows.is_empty() {
+            break;
+        }
+        let mut completed = Vec::new();
+        for row in rows {
+            if u64::try_from(row.try_get::<_, i64>(0)?)? != frontier.size() {
+                audit.dense = false;
+                break;
+            }
+            let data: Vec<u8> = row.try_get(1)?;
+            completed.extend(frontier.push(&data));
+            if sizes.contains(&frontier.size()) {
+                audit
+                    .roots
+                    .insert(frontier.size(), frontier.root().to_vec());
+            }
+        }
+        let nodes: Vec<Node> = completed.iter().map(|(node, _)| *node).collect();
+        let stored = fetch(client, log_id, &nodes).await?;
+        for (node, hash) in completed {
+            if stored.get(&node) != Some(&hash) {
+                audit.node_mismatches = audit.node_mismatches.saturating_add(1);
+                if audit.first_node_mismatches.len() < AUDIT_SAMPLE {
+                    audit.first_node_mismatches.push((node.level, node.index));
+                }
+            }
+        }
+    }
+    audit.leaves = frontier.size();
+    audit.stored_nodes = u64::try_from(
+        client
+            .query_one(
+                "SELECT count(*) FROM trellis_nodes WHERE log_id = $1",
+                &[&log_id],
+            )
+            .await?
+            .try_get::<_, i64>(0)?,
+    )?;
+    audit.root_matches = audit.dense && frontier.root().as_slice() == stored_root.as_slice();
+    Ok(audit)
+}
+
+/// Stateless proof service over the application's database pool.
 #[derive(Clone)]
 pub struct Journal {
+    /// Connections for reading the persisted tree.
     pool: Pool,
-    trees: Arc<Mutex<HashMap<i64, CtMerkleTree>>>,
 }
 impl Journal {
-    /// Construct an empty cache; durable leaves remain authoritative.
+    /// Construct a reader over the pool; the database is the only state.
     #[must_use]
-    pub fn new(pool: Pool) -> Self {
-        Self {
-            pool,
-            trees: Arc::new(Mutex::new(HashMap::new())),
-        }
+    pub const fn new(pool: Pool) -> Self {
+        Self { pool }
     }
 
     /// Add a leaf inside the same transaction as the application record.
@@ -120,150 +612,399 @@ impl Journal {
         source_id: i64,
         hash: &[u8],
     ) -> Result<()> {
-        ensure!(hash.len() == 32, "Expected SHA-256 leaf hash");
-        let row = tx
-            .query_one(
-                "UPDATE trellis_logs SET size = size + 1 WHERE name = $1 RETURNING id, size - 1",
-                &[&name],
+        Self::append_batch(tx, name, &[(source_id, hash.to_vec())]).await
+    }
+
+    /// Add leaves, in order, inside the same transaction as the application records.
+    ///
+    /// Locks the log row, writes the leaves and the perfect subtrees they complete, and
+    /// updates the size and root, so the tree is committed with the records.
+    /// # Errors
+    /// Returns an error if the log is absent, a hash is not 32 bytes, the stored
+    /// subtrees do not produce the stored root (or the log must be rebuilt), or
+    /// persistence fails.
+    pub async fn append_batch(
+        tx: &Transaction<'_>,
+        name: &str,
+        leaves: &[(i64, Vec<u8>)],
+    ) -> Result<()> {
+        if leaves.is_empty() {
+            return Ok(());
+        }
+        ensure!(
+            leaves.iter().all(|(_, hash)| hash.len() == 32),
+            "Expected SHA-256 leaf hashes"
+        );
+        let Head {
+            id: log_id,
+            size,
+            mut frontier,
+            ..
+        } = head(tx, name, RowLock::ForUpdate)
+            .await
+            .map_err(|error| anyhow!("Cannot append to Trellis log '{name}': {error}"))?;
+        let mut nodes = Vec::new();
+        for (_, hash) in leaves {
+            nodes.extend(frontier.push(hash));
+        }
+        let mut next = size;
+        for chunk in leaves.chunks(INSERT_CHUNK) {
+            let mut indexes = Vec::with_capacity(chunk.len());
+            for _ in chunk {
+                indexes.push(i64::try_from(next)?);
+                next = next.checked_add(1).context("Trellis log is full")?;
+            }
+            let sources: Vec<i64> = chunk.iter().map(|(source, _)| *source).collect();
+            let hashes: Vec<&[u8]> = chunk.iter().map(|(_, hash)| hash.as_slice()).collect();
+            tx.execute(
+                "INSERT INTO trellis_leaves (log_id, leaf_index, source_id, hash) \
+                 SELECT $1, * FROM UNNEST($2::BIGINT[], $3::BIGINT[], $4::BYTEA[])",
+                &[&log_id, &indexes, &sources, &hashes],
             )
             .await?;
-        let log_id: i64 = row.get(0);
-        let index: i64 = row.get(1);
+        }
+        for chunk in nodes.chunks(INSERT_CHUNK) {
+            let levels: Vec<i16> = chunk
+                .iter()
+                .map(|(node, _)| i16::from(node.level))
+                .collect();
+            let mut indexes = Vec::with_capacity(chunk.len());
+            for (node, _) in chunk {
+                indexes.push(i64::try_from(node.index)?);
+            }
+            let hashes: Vec<&[u8]> = chunk.iter().map(|(_, hash)| hash.as_slice()).collect();
+            tx.execute(
+                "INSERT INTO trellis_nodes (log_id, level, idx, hash) \
+                 SELECT $1, * FROM UNNEST($2::SMALLINT[], $3::BIGINT[], $4::BYTEA[])",
+                &[&log_id, &levels, &indexes, &hashes],
+            )
+            .await?;
+        }
         tx.execute(
-            "INSERT INTO trellis_leaves (log_id, leaf_index, source_id, hash) VALUES ($1,$2,$3,$4)",
-            &[&log_id, &index, &source_id, &hash],
+            "UPDATE trellis_logs SET size = $2, root = $3 WHERE id = $1",
+            &[
+                &log_id,
+                &i64::try_from(frontier.size())?,
+                &frontier.root().as_slice(),
+            ],
         )
         .await?;
         Ok(())
     }
 
-    /// Load at most one batch per log, including logs with no new source writes.
+    /// Return the current checkpoint of a log.
     /// # Errors
-    /// Returns database or persisted ordering errors; the next pass can retry.
-    pub async fn process_once(&self) -> Result<()> {
-        let conn = self.pool.get().await?;
-        let logs = conn
-            .query("SELECT id FROM trellis_logs ORDER BY id", &[])
-            .await?;
-        let mut trees = self.trees.lock().await;
-        let ids: Vec<i64> = logs.iter().map(|r| r.get(0)).collect();
-        trees.retain(|id, _| ids.contains(id));
-        for id in ids {
-            let tree = trees.entry(id).or_insert_with(CtMerkleTree::new);
-            let cursor = i64::try_from(tree.len())?;
-            let rows = conn.query("SELECT leaf_index, hash FROM trellis_leaves WHERE log_id = $1 AND leaf_index >= $2 ORDER BY leaf_index LIMIT $3", &[&id, &cursor, &BATCH_SIZE]).await?;
-            for row in rows {
-                let index: i64 = row.get(0);
-                ensure!(
-                    u64::try_from(index)? == tree.len(),
-                    "Non-contiguous Trellis journal"
-                );
-                tree.push(LeafHash::new(row.get(1)));
-            }
-            tokio::task::yield_now().await;
-        }
-        Ok(())
+    /// Returns `NotFound` for an unknown log, `Corrupt` when its stored subtrees do not
+    /// produce its root, or `Failed` if the database is unavailable.
+    pub async fn checkpoint(&self, name: &str) -> Result<Checkpoint, JournalError> {
+        let mut client = self.pool.get().await?;
+        let tx = snapshot(&mut client).await?;
+        let checkpoint = head(&*tx, name, RowLock::Read).await?.checkpoint(name);
+        tx.commit().await?;
+        Ok(checkpoint)
     }
 
-    /// Return the processed checkpoint and number of leaves durably committed.
+    /// Generate membership evidence at the current checkpoint.
     /// # Errors
-    /// Returns an error when the log does not exist or PostgreSQL is unavailable.
-    pub async fn checkpoint(&self, name: &str) -> Result<(Checkpoint, u64)> {
-        let conn = self.pool.get().await?;
-        let mut trees = self.trees.lock().await;
-        let row = conn
+    /// Returns `NotFound` for unknown logs or records, or `Failed`.
+    pub async fn inclusion(&self, name: &str, source_id: i64) -> Result<Inclusion, JournalError> {
+        Ok(self.evidence(name, source_id, None).await?.inclusion)
+    }
+
+    /// Generate membership evidence anchored to an optional trusted checkpoint.
+    ///
+    /// Without a trusted checkpoint the proof is at the current checkpoint. With one,
+    /// the proof is at the trusted checkpoint when it already contains the leaf, and
+    /// otherwise at the current checkpoint together with a consistency proof from the
+    /// trusted one.
+    /// # Errors
+    /// Returns `NotFound`, `Diverged` for a trusted checkpoint outside this log's
+    /// history, `Corrupt`, or `Failed`.
+    pub async fn evidence(
+        &self,
+        name: &str,
+        source_id: i64,
+        trusted: Option<&Checkpoint>,
+    ) -> Result<Evidence, JournalError> {
+        let mut client = self.pool.get().await?;
+        let tx = snapshot(&mut client).await?;
+        let reader: &Transaction<'_> = &tx;
+        let head = head(reader, name, RowLock::Read).await?;
+        let row = reader
             .query_opt(
-                "SELECT id, size FROM trellis_logs WHERE name = $1",
+                "SELECT leaf_index, hash FROM trellis_leaves WHERE log_id = $1 AND source_id = $2",
+                &[&head.id, &source_id],
+            )
+            .await?
+            .ok_or_else(|| JournalError::NotFound(format!("Log entry {source_id}")))?;
+        let index = u64::try_from(row.try_get::<_, i64>(0)?)?;
+        let data: Vec<u8> = row.try_get(1)?;
+        let current = head.checkpoint(name);
+        let evidence = match trusted {
+            None => Evidence {
+                inclusion: inclusion_at(reader, &current, index, &data).await?,
+                consistency: None,
+            },
+            Some(trusted) => {
+                let link = extension(reader, name, &head, trusted).await?;
+                if index < trusted.tree_size {
+                    Evidence {
+                        inclusion: inclusion_at(reader, trusted, index, &data).await?,
+                        consistency: None,
+                    }
+                } else {
+                    Evidence {
+                        inclusion: inclusion_at(reader, &current, index, &data).await?,
+                        consistency: Some(link),
+                    }
+                }
+            }
+        };
+        tx.commit().await?;
+        Ok(evidence)
+    }
+
+    /// Prove that the current checkpoint extends a previously saved one.
+    /// # Errors
+    /// Returns `NotFound`, `Diverged` when the saved checkpoint is not in this log's
+    /// history, `Corrupt`, or `Failed`.
+    pub async fn consistency(&self, old: &Checkpoint) -> Result<Consistency, JournalError> {
+        let mut client = self.pool.get().await?;
+        let tx = snapshot(&mut client).await?;
+        let reader: &Transaction<'_> = &tx;
+        let head = head(reader, &old.log_name, RowLock::Read).await?;
+        let consistency = extension(reader, &old.log_name, &head, old).await?;
+        tx.commit().await?;
+        Ok(consistency)
+    }
+
+    /// Names of the logs created before subtrees were stored, which must be rebuilt.
+    /// # Errors
+    /// Returns `Failed` if the database is unavailable.
+    pub async fn unbuilt_logs(&self) -> Result<Vec<String>, JournalError> {
+        let rows = self
+            .pool
+            .get()
+            .await?
+            .query(
+                "SELECT name FROM trellis_logs WHERE size > 0 AND root = $1 ORDER BY name",
+                &[&rfc6962::empty_root().as_slice()],
+            )
+            .await?;
+        Ok(rows
+            .iter()
+            .map(|row| row.try_get(0))
+            .collect::<Result<_, _>>()?)
+    }
+
+    /// Recompute a log's stored subtrees and root from its leaves.
+    ///
+    /// For logs created before subtrees were stored, and for repairing damaged or
+    /// missing subtrees. The root is a pure function of the ordered leaves, so earlier
+    /// checkpoints remain valid. Unless the log was created before subtrees were
+    /// stored, its stored root must be the root of some prefix of its leaves: changed
+    /// leaves are not turned into a consistent new history. Appends to the log wait
+    /// until the rebuild commits.
+    /// # Errors
+    /// Returns `NotFound` for an unknown log, `Corrupt` when leaves are missing or the
+    /// rebuilt root differs from the stored one, or `Failed` when persistence fails.
+    pub async fn rebuild(&self, name: &str) -> Result<Checkpoint, JournalError> {
+        let mut client = self.pool.get().await?;
+        let tx = client.transaction().await?;
+        let log = tx
+            .query_opt(
+                "SELECT id, size, root FROM trellis_logs WHERE name = $1 FOR UPDATE",
                 &[&name],
             )
             .await?
-            .context("Log does not exist")?;
-        let id: i64 = row.get(0);
-        let committed: i64 = row.get(1);
-        let tree = trees.entry(id).or_insert_with(CtMerkleTree::new);
-        Ok((
-            Checkpoint {
-                log_name: name.to_owned(),
-                log_id: id,
-                tree_size: tree.len(),
-                root: tree.root(),
-            },
-            u64::try_from(committed)?,
-        ))
-    }
-
-    /// Generate membership evidence, or `None` while the leaf is pending processing.
-    /// # Errors
-    /// Returns an error for unknown records, missing logs or database failures.
-    pub async fn inclusion(&self, name: &str, source_id: i64) -> Result<Option<Inclusion>> {
-        let conn = self.pool.get().await?;
-        let row = conn.query_opt("SELECT l.id, e.leaf_index FROM trellis_logs l JOIN trellis_leaves e ON e.log_id=l.id WHERE l.name=$1 AND e.source_id=$2", &[&name, &source_id]).await?.context("Log entry does not exist")?;
-        let id: i64 = row.get(0);
-        let index: i64 = row.get(1);
-        let trees = self.trees.lock().await;
-        let Some(tree) = trees.get(&id) else {
-            return Ok(None);
-        };
-        if u64::try_from(index)? >= tree.len() {
-            return Ok(None);
+            .ok_or_else(|| JournalError::NotFound(format!("Log '{name}'")))?;
+        let log_id: i64 = log.try_get(0)?;
+        let size = u64::try_from(log.try_get::<_, i64>(1)?)?;
+        let stored_root = hash_of(&log.try_get::<_, Vec<u8>>(2)?)?;
+        let unbuilt = is_unbuilt(size, &stored_root);
+        tx.execute("DELETE FROM trellis_nodes WHERE log_id = $1", &[&log_id])
+            .await?;
+        let mut frontier = Frontier::new();
+        let mut matches_prefix = frontier.root() == stored_root;
+        loop {
+            let rows = tx
+                .query(
+                    "SELECT leaf_index, hash FROM trellis_leaves \
+                     WHERE log_id = $1 AND leaf_index >= $2 ORDER BY leaf_index LIMIT $3",
+                    &[&log_id, &i64::try_from(frontier.size())?, &BATCH_SIZE],
+                )
+                .await?;
+            if rows.is_empty() {
+                break;
+            }
+            let mut nodes = Vec::new();
+            for row in rows {
+                let index = u64::try_from(row.try_get::<_, i64>(0)?)?;
+                if index != frontier.size() {
+                    return Err(JournalError::Corrupt(format!(
+                        "log '{name}' has no leaf at position {}",
+                        frontier.size()
+                    )));
+                }
+                let data: Vec<u8> = row.try_get(1)?;
+                nodes.extend(frontier.push(&data));
+                if !unbuilt && !matches_prefix {
+                    matches_prefix = frontier.root() == stored_root;
+                }
+            }
+            let levels: Vec<i16> = nodes
+                .iter()
+                .map(|(node, _)| i16::from(node.level))
+                .collect();
+            let mut indexes = Vec::with_capacity(nodes.len());
+            for (node, _) in &nodes {
+                indexes.push(i64::try_from(node.index)?);
+            }
+            let hashes: Vec<&[u8]> = nodes.iter().map(|(_, hash)| hash.as_slice()).collect();
+            tx.execute(
+                "INSERT INTO trellis_nodes (log_id, level, idx, hash) \
+                 SELECT $1, * FROM UNNEST($2::SMALLINT[], $3::BIGINT[], $4::BYTEA[])",
+                &[&log_id, &levels, &indexes, &hashes],
+            )
+            .await?;
         }
-        let proof = tree
-            .prove_inclusion_at_index(u64::try_from(index)?)
-            .map_err(|e| anyhow!("Cannot generate inclusion proof: {e:?}"))?;
-        let checkpoint = Checkpoint {
+        if frontier.size() != size {
+            return Err(JournalError::Corrupt(format!(
+                "log '{name}' has {} leaves but records {size} committed",
+                frontier.size()
+            )));
+        }
+        let root = frontier.root();
+        if !unbuilt && !matches_prefix {
+            return Err(JournalError::Corrupt(format!(
+                "the stored root {} of log '{name}' is not a root of its leaves; rebuilding \
+                 would replace it with {}",
+                hex(&stored_root),
+                hex(&root)
+            )));
+        }
+        tx.execute(
+            "UPDATE trellis_logs SET root = $2 WHERE id = $1",
+            &[&log_id, &root.as_slice()],
+        )
+        .await?;
+        tx.commit().await?;
+        Ok(Checkpoint {
             log_name: name.to_owned(),
-            log_id: id,
-            tree_size: tree.len(),
-            root: tree.root(),
+            log_id,
+            tree_size: size,
+            root: root.to_vec(),
+        })
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::indexing_slicing)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn audit_requires_every_property() {
+        let clean = TreeAudit {
+            committed_size: 5,
+            leaves: 5,
+            dense: true,
+            stored_nodes: 3,
+            node_mismatches: 0,
+            first_node_mismatches: vec![],
+            root_matches: true,
+            unbuilt: false,
+            roots: BTreeMap::new(),
         };
-        Ok(Some(Inclusion {
-            proof: InclusionProof {
-                index: u64::try_from(index)?,
-                root: checkpoint.root.clone(),
-                proof_bytes: proof.as_bytes().to_vec(),
-                tree_size: checkpoint.tree_size,
+        assert!(clean.is_clean());
+        for broken in [
+            TreeAudit {
+                dense: false,
+                ..clean.clone()
             },
-            checkpoint,
-        }))
+            TreeAudit {
+                leaves: 4,
+                ..clean.clone()
+            },
+            TreeAudit {
+                stored_nodes: 4,
+                ..clean.clone()
+            },
+            TreeAudit {
+                node_mismatches: 1,
+                ..clean.clone()
+            },
+            TreeAudit {
+                root_matches: false,
+                ..clean.clone()
+            },
+            TreeAudit {
+                unbuilt: true,
+                ..clean.clone()
+            },
+        ] {
+            assert!(!broken.is_clean(), "{broken:?}");
+        }
     }
 
-    /// Generate an extension proof from a previously saved checkpoint.
-    /// # Errors
-    /// Returns an error for another generation or an unknown/unprocessed checkpoint.
-    pub async fn consistency(&self, old: &Checkpoint) -> Result<Consistency> {
-        let (new, _) = self.checkpoint(&old.log_name).await?;
-        ensure!(
-            old.log_id == new.log_id && old.tree_size <= new.tree_size,
-            "Checkpoint is not in this log generation"
-        );
-        let trees = self.trees.lock().await;
-        let tree = trees.get(&new.log_id).context("Tree not processed")?;
-        let proof = if old.tree_size == 0 {
-            ensure!(
-                old.root == CtMerkleTree::new().root(),
-                "Invalid empty checkpoint"
+    #[test]
+    fn evidence_requires_its_trusted_anchor() {
+        // Build the proofs a server would return from in-memory subtrees.
+        let leaves: Vec<Vec<u8>> = (0..11_u8).map(|i| vec![i; 32]).collect();
+        let mut frontier = Frontier::new();
+        let mut nodes: HashMap<Node, Hash> = HashMap::new();
+        let mut checkpoints = vec![];
+        for (i, leaf) in leaves.iter().enumerate() {
+            nodes.insert(
+                Node {
+                    level: 0,
+                    index: i as u64,
+                },
+                rfc6962::leaf_hash(leaf),
             );
-            None
-        } else {
-            ensure!(
-                tree.get_size_for_root(&old.root) == Some(old.tree_size),
-                "Unknown checkpoint"
-            );
-            Some(ConsistencyProof {
-                old_tree_size: old.tree_size,
-                new_tree_size: new.tree_size,
-                new_root: new.root.clone(),
-                proof_bytes: tree
-                    .prove_consistency_between(&old.root, &new.root)
-                    .map_err(|e| anyhow!("Cannot generate consistency proof: {e:?}"))?
-                    .as_bytes()
-                    .to_vec(),
-            })
+            nodes.extend(frontier.push(leaf));
+            checkpoints.push(Checkpoint {
+                log_name: "board".into(),
+                log_id: 7,
+                tree_size: frontier.size(),
+                root: frontier.root().to_vec(),
+            });
+        }
+        let trusted = &checkpoints[5];
+        let current = &checkpoints[10];
+        let link = Consistency {
+            old: trusted.clone(),
+            new: current.clone(),
+            proof: Some(ConsistencyProof {
+                old_tree_size: 6,
+                new_tree_size: 11,
+                new_root: current.root.clone(),
+                proof_bytes: rfc6962::consistency_path(&nodes, 6, 11).unwrap().concat(),
+            }),
         };
-        Ok(Consistency {
-            old: old.clone(),
-            new,
-            proof,
-        })
+        let inclusion = Inclusion {
+            proof: InclusionProof {
+                index: 8,
+                root: current.root.clone(),
+                proof_bytes: rfc6962::inclusion_path(&nodes, 8, 11).unwrap().concat(),
+                tree_size: 11,
+            },
+            checkpoint: current.clone(),
+        };
+        let evidence = Evidence {
+            inclusion,
+            consistency: Some(link),
+        };
+        evidence.verify(&leaves[8], trusted).expect("anchored");
+        assert!(evidence.verify(&leaves[9], trusted).is_err());
+        assert!(evidence.verify(&leaves[8], current).is_err());
+        let unlinked = Evidence {
+            consistency: None,
+            ..evidence
+        };
+        assert!(unlinked.verify(&leaves[8], trusted).is_err());
+        unlinked
+            .verify(&leaves[8], current)
+            .expect("exact checkpoint");
     }
 }
