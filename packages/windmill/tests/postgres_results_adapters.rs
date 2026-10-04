@@ -1196,7 +1196,7 @@ async fn election_area_documents_are_stored_as_a_new_named_area_result() {
     }
     assert_eq!(row.get::<_, String>(5), "North");
     assert_eq!(row.get::<_, Value>(6), documents_json());
-    assert_eq!(row.get::<_, Option<i32>>(7), Some(12));
+    assert_eq!(row.get::<_, Option<i64>>(7), Some(12));
     assert_eq!(row.get::<_, Option<String>>(8).as_deref(), Some("0.375"));
     assert!(row.get::<_, bool>(9));
     transaction.rollback().await.unwrap();
