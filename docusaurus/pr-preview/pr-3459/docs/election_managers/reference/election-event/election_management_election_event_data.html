@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Data | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-3459/docs/election_managers/reference/election-event/election_management_election_event_data"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Data | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-3459/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3459/docs/election_managers/reference/election-event/election_management_election_event_data"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3459/docs/election_managers/reference/election-event/election_management_election_event_data" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3459/docs/election_managers/reference/election-event/election_management_election_event_data" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Data","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-3459/docs/election_managers/reference/election-event/election_management_election_event_data"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-3459/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/pr-preview/pr-3459/assets/js/runtime~main.ab47fec3.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-3459/assets/js/runtime~main.d7dd7a9f.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-3459/assets/js/main.58ce92cf.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -77,6 +77,10 @@ decimal separator.</li>
 <li class=""><strong>1’234’567.89</strong> (<code>apostrophe-period</code>): apostrophe thousands separator and
 period decimal separator.</li>
 </ul>
+<p>An Election Event imported from a newer version can name a format this
+version doesn&#x27;t know. It is listed as <strong>Unknown format</strong>, its numbers are
+written with the default format, and the Election Event keeps it until
+another format is chosen.</p>
 <p>The spaces are no-break spaces, so a number is never split across two lines.
 Machine-readable files such as CSV, JSON and EML exports always use plain
 numbers. Report templates write figures with the <code>format_u64</code> and percentage
