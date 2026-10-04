@@ -84,7 +84,11 @@ const meta = {
             sequent_backend_election: lifecycleElections(CONFIGURATION),
             [EVENT_RESOURCE]: [lifecycleEvent(CONFIGURATION)],
         })
-        graphql = graphqlBoundary({})
+        graphql = graphqlBoundary({
+            GetScheduledOutcomes: () => ({
+                data: {get_scheduled_outcomes: {outcomes: [], retained_closes: []}},
+            }),
+        })
     },
     render: () => (
         <AdminStoryProvider boundary={graphql} dataProvider={data.provider}>
