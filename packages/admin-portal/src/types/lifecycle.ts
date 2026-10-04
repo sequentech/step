@@ -36,6 +36,7 @@ export interface ILifecycleSnapshot {
     close_voting?: IRuleSnapshot | null
     schedule?: Array<IScheduledTransition> | null
     initialization_report_policies?: Record<string, EInitializeReportPolicy>
+    initialization_countries?: Record<string, string[]> | null
 }
 
 /**

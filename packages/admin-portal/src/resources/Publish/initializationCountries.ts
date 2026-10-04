@@ -50,7 +50,8 @@ export interface InitializationCountriesData {
 /** Match the backend: styled countries whose area or ancestor holds a Post contest. */
 export const initializationCountries = (
     data: InitializationCountriesData,
-    electionId: string
+    electionId: string,
+    snapshots: readonly ILifecycleSnapshotEntry[] = []
 ): InitializationArea[] => {
     const areas = new Map(data.sequent_backend_area.map((area) => [area.id, area]))
     const styled = new Set(
@@ -61,7 +62,12 @@ export const initializationCountries = (
             .filter((link) => link.contest?.election_id === electionId)
             .map((link) => link.area_id)
     )
-    return data.sequent_backend_area.filter((area) => {
+    const published = snapshots.find(
+        (entry) => entry.election_id === null || entry.election_id === electionId
+    )
+    const retained = new Set(published?.snapshot.initialization_countries?.[electionId] ?? [])
+    const current = data.sequent_backend_area.filter((area) => {
+        if (retained.has(area.id)) return true
         if (!styled.has(area.id)) return false
         let cursor: InitializationArea | undefined = area
         const seen = new Set<string>()
@@ -76,6 +82,11 @@ export const initializationCountries = (
         }
         return false
     })
+    // A retained country still has a usable identifier when its current label is absent.
+    for (const id of Array.from(retained)) {
+        if (!areas.has(id)) current.push({id, name: id})
+    }
+    return current
 }
 
 /** Only an explicit eligible country produces a filter; whole-Post keeps the old request. */

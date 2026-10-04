@@ -22,16 +22,20 @@ import {
     type InitializationCountriesData,
 } from "./initializationCountries"
 
+import type {ILifecycleSnapshotEntry} from "@/queries/Lifecycle"
+
 export const InitializationCountryDialog = ({
     electionEventId,
     electionId,
     busy,
+    snapshots = [],
     onClose,
     onGenerate,
 }: {
     electionEventId: string
     electionId: string
     busy: boolean
+    snapshots?: readonly ILifecycleSnapshotEntry[]
     onClose: () => void
     onGenerate: (areaIds?: string[]) => Promise<boolean>
 }) => {
@@ -44,11 +48,21 @@ export const InitializationCountryDialog = ({
             fetchPolicy: "network-only",
         }
     )
-    const countries = data ? initializationCountries(data, electionId) : []
+    const countries = data ? initializationCountries(data, electionId, snapshots) : []
+    const published = snapshots.find(
+        (entry) => entry.election_id === null || entry.election_id === electionId
+    )
+    const knownEmpty = published?.snapshot.initialization_countries?.[electionId]?.length === 0
+    const canGenerate = countries.length > 0 || knownEmpty
     const selectionValid = !country || countries.some((area) => area.id === country)
     const generate = async () => {
-        if (busy || loading || error || !countries.length || !selectionValid) return
-        if (await onGenerate(initializationAreaIds(country, countries))) onClose()
+        if (busy || loading || error || !canGenerate || !selectionValid) return
+        if (
+            await onGenerate(
+                countries.length ? initializationAreaIds(country, countries) : undefined
+            )
+        )
+            onClose()
     }
     return (
         <Dialog open onClose={busy ? undefined : onClose} fullWidth maxWidth="sm">
@@ -61,13 +75,15 @@ export const InitializationCountryDialog = ({
                     <CircularProgress size={24} />
                 ) : error ? (
                     <Alert severity="error">{t("publish.initialization.countriesError")}</Alert>
-                ) : !countries.length ? (
+                ) : !canGenerate ? (
                     <Alert severity="error">{t("publish.initialization.noCountries")}</Alert>
                 ) : (
                     <TextField
                         select
                         fullWidth
                         label={t("publish.initialization.country")}
+                        SelectProps={{displayEmpty: true}}
+                        InputLabelProps={{shrink: true}}
                         value={country}
                         onChange={(event) => setCountry(event.target.value)}
                         disabled={busy}
@@ -87,7 +103,7 @@ export const InitializationCountryDialog = ({
                 </Button>
                 <Button
                     onClick={generate}
-                    disabled={busy || loading || !!error || !countries.length || !selectionValid}
+                    disabled={busy || loading || !!error || !canGenerate || !selectionValid}
                 >
                     {busy ? (
                         <CircularProgress size={16} />

@@ -120,3 +120,27 @@ it("retains a published required report until a new applicable publication loose
         ReportPolicy.REQUIRED
     )
 })
+
+it("retains published countries after live links disappear and accepts their report selection", () => {
+    const data = {
+        sequent_backend_area: [
+            {id: "a", name: "Country A"},
+            {id: "b", name: "Country B"},
+            {id: "other"},
+        ],
+        sequent_backend_area_contest: [{area_id: "a", contest: {election_id: "post"}}],
+        sequent_backend_ballot_style: [{area_id: "a"}, {area_id: "b"}],
+    }
+    const kept = snapshot(null, Scope.POST_AND_COUNTRY)
+    Object.assign(kept.snapshot, {initialization_countries: {post: ["a", "b"], other: ["other"]}})
+    const countries = Reflect.apply(initializationCountries, undefined, [data, "post", [kept]])
+    expect(countries.map((area: {id: string}) => area.id)).toEqual(["a", "b"])
+    expect(initializationAreaIds("b", countries)).toEqual(["b"])
+    const latest = snapshot("post", Scope.POST_AND_COUNTRY)
+    Object.assign(latest.snapshot, {initialization_countries: {post: ["a"]}})
+    expect(
+        Reflect.apply(initializationCountries, undefined, [data, "post", [latest, kept]]).map(
+            (area: {id: string}) => area.id
+        )
+    ).toEqual(["a"])
+})

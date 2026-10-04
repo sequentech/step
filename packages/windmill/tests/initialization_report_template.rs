@@ -256,3 +256,146 @@ fn the_post_zone_overrides_the_run_fallback_and_event_wide_reports_keep_primary(
     add_template_time_variables(&mut event, &run, &zones, None);
     assert_eq!(event["electionTimezone"], json!("Europe/Madrid"));
 }
+
+// Receipt and ballot-image templates consume `data`; voter reports consume
+// `areas` at root. Keep both normal content shapes and the root zone registry.
+fn render_literal_template(template: &str, mut data: Map<String, Value>) -> String {
+    data.insert("data".into(), Value::Object(data.clone()));
+    render_template_text(template, data).unwrap()
+}
+
+#[test]
+fn receipts_and_voter_reports_use_voting_opening_and_common_close_zone() {
+    // Initialization is a month earlier than voting. The common close is May 9
+    // in Madrid but still May 8 in the Post, so either wrong source is visible.
+    let dates = json!({"scheduled_event_dates": {
+        "ALLOW_INIT_REPORT": {"scheduled_at": "2028-03-01T09:00:00Z"},
+        "START_VOTING_PERIOD": {"scheduled_at": "2028-04-08T23:00:00Z"},
+        "END_VOTING_PERIOD": {"scheduled_at": "2028-05-08T22:30:00Z"},
+    }});
+    let mut data = variables(
+        &CANARY_OFFICE,
+        "2028-04-08T23:00:00Z",
+        "2028-05-08T22:30:00Z",
+    );
+    data.insert("election_dates".into(), dates.clone());
+    data.insert("ballot_data".into(), json!([{}]));
+    data.insert(
+        "areas".into(),
+        json!([{
+            "election_dates": dates,
+            "execution_annotations": {"date_printed": GENERATED},
+            "voters": [],
+        }]),
+    );
+    for relative in [
+        "../../.devcontainer/minio/public-assets/vote_receipt_user.hbs",
+        "../../.devcontainer/minio/public-assets/ov_with_voting_status_user.hbs",
+        "../velvet/src/resources/ballot_images_user.hbs",
+    ] {
+        let template =
+            std::fs::read_to_string(Path::new(env!("CARGO_MANIFEST_DIR")).join(relative)).unwrap();
+        let rendered = render_literal_template(&template, data.clone());
+        let text = rendered.split_whitespace().collect::<Vec<_>>().join(" ");
+        assert!(
+            text.contains("Voting Period: 09 April 2028 WEST - 09 May 2028 CEST"),
+            "{relative} must show voting opening in the Post zone and the common close in the primary zone"
+        );
+    }
+}
+
+#[test]
+fn manual_voting_periods_render_actual_boundaries_without_a_schedule() {
+    let dates = json!({
+        "first_started_at": "2028-04-08T23:00:00Z",
+        "last_stopped_at": "2028-05-08T22:30:00Z",
+        "scheduled_event_dates": {"ALLOW_INIT_REPORT": {"scheduled_at": "2028-03-01T09:00:00Z"}},
+    });
+    let mut data = variables(
+        &CANARY_OFFICE,
+        "2028-04-08T23:00:00Z",
+        "2028-05-08T22:30:00Z",
+    );
+    data.insert("election_dates".into(), dates.clone());
+    data.insert("ballot_data".into(), json!([{}]));
+    data.insert(
+        "areas".into(),
+        json!([{"election_dates": dates,
+        "execution_annotations": {"date_printed": GENERATED}, "voters": []}]),
+    );
+    for relative in [
+        "../../.devcontainer/minio/public-assets/vote_receipt_user.hbs",
+        "../../.devcontainer/minio/public-assets/ov_with_voting_status_user.hbs",
+        "../velvet/src/resources/ballot_images_user.hbs",
+    ] {
+        let template =
+            std::fs::read_to_string(Path::new(env!("CARGO_MANIFEST_DIR")).join(relative)).unwrap();
+        let rendered = render_literal_template(&template, data.clone());
+        let text = rendered.split_whitespace().collect::<Vec<_>>().join(" ");
+        assert!(
+            text.contains("Voting Period: 09 April 2028 WEST - 08 May 2028 WEST"),
+            "{relative} must show actual manual boundaries in the Post zone"
+        );
+    }
+}
+
+#[test]
+fn unscheduled_unstarted_voting_periods_render_without_inventing_dates() {
+    let mut data = variables(
+        &CANARY_OFFICE,
+        "2028-04-08T23:00:00Z",
+        "2028-05-08T22:30:00Z",
+    );
+    let dates = json!({"scheduled_event_dates": {}});
+    data.insert("election_dates".into(), dates.clone());
+    data.insert("ballot_data".into(), json!([{}]));
+    data.insert(
+        "areas".into(),
+        json!([{"election_dates": dates,
+        "execution_annotations": {"date_printed": GENERATED}, "voters": []}]),
+    );
+    for relative in [
+        "../../.devcontainer/minio/public-assets/vote_receipt_user.hbs",
+        "../../.devcontainer/minio/public-assets/ov_with_voting_status_user.hbs",
+        "../velvet/src/resources/ballot_images_user.hbs",
+    ] {
+        let template =
+            std::fs::read_to_string(Path::new(env!("CARGO_MANIFEST_DIR")).join(relative)).unwrap();
+        let rendered = render_literal_template(&template, data.clone());
+        let text = rendered.split_whitespace().collect::<Vec<_>>().join(" ");
+        assert!(
+            text.contains("Voting Period: - - -"),
+            "{relative} must show explicit absent boundaries"
+        );
+    }
+}
+
+#[test]
+fn registered_voters_without_a_cast_timestamp_still_render_in_the_voter_report() {
+    let mut data = variables(
+        &CANARY_OFFICE,
+        "2028-04-08T23:00:00Z",
+        "2028-05-08T22:30:00Z",
+    );
+    data.insert(
+        "areas".into(),
+        json!([{
+            "election_dates": {"scheduled_event_dates": {
+                "START_VOTING_PERIOD": {"scheduled_at": "2028-04-08T23:00:00Z"},
+                "END_VOTING_PERIOD": {"scheduled_at": "2028-05-08T22:30:00Z"}}},
+            "execution_annotations": {"date_printed": GENERATED},
+            "voters": [{"date_voted": null, "first_name": "Uncast", "last_name": "Voter"}],
+        }]),
+    );
+    let template = std::fs::read_to_string(
+        Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../.devcontainer/minio/public-assets/overseas_voters_user.hbs"),
+    )
+    .unwrap();
+    let rendered = render_template_text(&template, data);
+    assert!(
+        rendered.is_ok(),
+        "Registered-but-uncast voters have no timestamp: {:?}",
+        rendered.as_ref().err()
+    );
+}

@@ -208,17 +208,37 @@ async fn recompute(w: &World, user: &str) {
     tx.commit().await.unwrap();
 }
 
+async fn publication_attack_refused(
+    world: &World,
+    sql: &str,
+    params: &[&(dyn tokio_postgres::types::ToSql + Sync)],
+) {
+    let mut client = world.pool.get().await.unwrap();
+    let tx = client.transaction().await.unwrap();
+    let error = tx
+        .execute(sql, params)
+        .await
+        .expect_err("raw publication authority change must be refused");
+    assert_eq!(
+        error.code(),
+        Some(&tokio_postgres::error::SqlState::INSUFFICIENT_PRIVILEGE)
+    );
+    tx.rollback().await.unwrap();
+}
+
 /// A generated publication of the event (or the Post) with one style.
 async fn publication(w: &World, election: Option<Uuid>) -> Uuid {
     let id = Uuid::new_v4();
-    w.execute(
+    publication_fixture_write(
+        w,
         "INSERT INTO sequent_backend.ballot_publication
              (id, tenant_id, election_event_id, is_generated, election_ids, election_id, created_at)
          VALUES ($1, $2, $3, true, ARRAY[$4::uuid], $5, now())",
         &[&id, &w.tenant, &w.event, &w.post, &election],
     )
     .await;
-    w.execute(
+    publication_fixture_write(
+        w,
         "INSERT INTO sequent_backend.ballot_style
              (id, tenant_id, election_event_id, election_id, area_id, ballot_publication_id, status)
          VALUES ($1, $2, $3, $4, $5, $6, 'generated')",
@@ -234,6 +254,7 @@ async fn publish(w: &World, election: Option<Uuid>) -> Uuid {
     let id = publication(w, election).await;
     let mut client = w.pool.get().await.unwrap();
     let tx = client.transaction().await.unwrap();
+    windmill::postgres::trusted_write(&tx).await.unwrap();
     tx.execute(
         "UPDATE sequent_backend.ballot_publication SET published_at = clock_timestamp()
          WHERE id = $1",
@@ -277,6 +298,7 @@ impl SignedActionEffects for PublishingEffects {
     ) -> anyhow::Result<Value> {
         let signed: ConfigurationSubject = subject_of(request)?;
         let publication = Uuid::parse_str(&signed.ballot_publication_id)?;
+        windmill::postgres::trusted_write(tx).await?;
         tx.execute(
             "UPDATE sequent_backend.ballot_publication SET published_at = clock_timestamp()
              WHERE id = $1",
@@ -995,12 +1017,12 @@ async fn an_admin_alone_cannot_loosen_the_published_copy() {
         ScheduledOutcomeKind::Refused
     );
 
-    // What an admin can write through Hasura: the presentation, a
-    // publication's annotations and dates, a new publication row, and
-    // deleting publications.
+    // Editable presentation remains client configuration; forged publication
+    // completion/material authority is rejected before it can weaken the copy.
     set_policy(&w, RUN_AS_SYSTEM).await;
     let loose = serde_json::to_value(LifecycleSnapshotLoose::run_as_system()).unwrap();
-    w.execute(
+    publication_attack_refused(
+        &w,
         "UPDATE sequent_backend.ballot_publication
          SET annotations = jsonb_build_object('lifecycle_snapshot', $2::jsonb),
              published_at = now() + interval '1 hour'
@@ -1008,7 +1030,8 @@ async fn an_admin_alone_cannot_loosen_the_published_copy() {
         &[&w.event, &loose],
     )
     .await;
-    w.execute(
+    publication_attack_refused(
+        &w,
         "INSERT INTO sequent_backend.ballot_publication
              (id, tenant_id, election_event_id, is_generated, election_ids, published_at,
               annotations)
@@ -1020,16 +1043,28 @@ async fn an_admin_alone_cannot_loosen_the_published_copy() {
     let predicted = outcome_of(&w, closes).await;
     assert_eq!(kind(&predicted), ScheduledOutcomeKind::Refused);
     assert_eq!(predicted.explanation.deciding, CheckId::StricterCopy);
-    w.execute(
+    publication_attack_refused(
+        &w,
         "DELETE FROM sequent_backend.ballot_style WHERE election_event_id = $1",
         &[&w.event],
     )
     .await;
-    w.execute(
-        "DELETE FROM sequent_backend.ballot_publication WHERE election_event_id = $1",
-        &[&w.event],
-    )
-    .await;
+    // The protected styles still exist, so their restrictive FK also rejects
+    // deleting the parent. Authorized event deletion removes both as trusted.
+    let mut client = w.pool.get().await.unwrap();
+    let tx = client.transaction().await.unwrap();
+    let error = tx
+        .execute(
+            "DELETE FROM sequent_backend.ballot_publication WHERE election_event_id = $1",
+            &[&w.event],
+        )
+        .await
+        .unwrap_err();
+    assert_eq!(
+        error.code(),
+        Some(&tokio_postgres::error::SqlState::FOREIGN_KEY_VIOLATION)
+    );
+    tx.rollback().await.unwrap();
     assert_eq!(
         kind(&outcome_of(&w, closes).await),
         ScheduledOutcomeKind::Refused
@@ -1836,8 +1871,16 @@ async fn an_approval_of_a_publication_published_meanwhile_fails() {
         GuardOutcome::SigningRequired(summary) => summary.id,
         GuardOutcome::Proceed => panic!("expected a request"),
     };
-    // Published through Hasura before the request ran.
-    w.execute(
+    // Raw completion cannot bypass the pending request.
+    publication_attack_refused(
+        &w,
+        "UPDATE sequent_backend.ballot_publication SET published_at = now() WHERE id = $1",
+        &[&id],
+    )
+    .await;
+    // A competing trusted server publication is still detected by the effect.
+    publication_fixture_write(
+        &w,
         "UPDATE sequent_backend.ballot_publication SET published_at = now() WHERE id = $1",
         &[&id],
     )
@@ -1997,13 +2040,35 @@ async fn an_unrelated_signed_opening_cannot_extend_online_close() {
     w.execute("UPDATE sequent_backend.election SET voting_channels = '{\"online\": true, \"kiosk\": true}' WHERE id = $1", &[&w.post]).await;
     set_post_status(
         &w,
-        json!({"voting_status": "OPEN", "kiosk_voting_status": "OPEN"}),
+        json!({"voting_status": "OPEN", "kiosk_voting_status": "PAUSED"}),
     )
     .await;
     let online = close_due(&w, -10).await;
     let kiosk = close_due(&w, -5).await;
     w.execute("UPDATE sequent_backend.scheduled_event SET event_processor = 'START_VOTING_PERIOD', event_payload = event_payload || '{\"voting_channels\": [\"KIOSK\"]}'::jsonb WHERE id = $1", &[&kiosk]).await;
     approve(&w, None, 2, "officer").await;
+    // The gate records the effect; its caller applies status in the same transaction.
+    // The board is outside these tests, as with SqlCloser below.
+    let mut client = w.pool.get().await.unwrap();
+    let tx = client.transaction().await.unwrap();
+    assert!(!scheduled_change_needs_signatures(
+        &tx,
+        &w.tenant.to_string(),
+        &w.event.to_string(),
+        Some(&w.post.to_string()),
+        &VotingStatus::OPEN,
+        &kiosk.to_string(),
+    )
+    .await
+    .unwrap());
+    windmill::postgres::trusted_write::trusted_write(&tx)
+        .await
+        .unwrap();
+    tx.execute(
+        "UPDATE sequent_backend.election SET status = status || '{\"kiosk_voting_status\": \"OPEN\"}'::jsonb WHERE id=$1",
+        &[&w.post],
+    ).await.unwrap();
+    tx.commit().await.unwrap();
     w.execute(
         "DELETE FROM sequent_backend.scheduled_event WHERE id = ANY($1)",
         &[&vec![online, kiosk]],
@@ -2069,7 +2134,7 @@ async fn a_signed_opening_supersedes_only_its_channel_of_a_close() {
     w.execute("UPDATE sequent_backend.election SET voting_channels = '{\"online\": true, \"kiosk\": true}' WHERE id = $1", &[&w.post]).await;
     set_post_status(
         &w,
-        json!({"voting_status": "OPEN", "kiosk_voting_status": "OPEN"}),
+        json!({"voting_status": "OPEN", "kiosk_voting_status": "PAUSED"}),
     )
     .await;
     let close = close_due(&w, -10).await;
@@ -2077,6 +2142,12 @@ async fn a_signed_opening_supersedes_only_its_channel_of_a_close() {
     let opening = close_due(&w, -5).await;
     w.execute("UPDATE sequent_backend.scheduled_event SET event_processor = 'START_VOTING_PERIOD', event_payload = event_payload || '{\"voting_channels\": [\"KIOSK\"]}'::jsonb WHERE id = $1", &[&opening]).await;
     approve(&w, None, 2, "officer").await;
+    assert!(!fire(&w, opening, VotingStatus::OPEN).await);
+    set_post_status(
+        &w,
+        json!({"voting_status": "OPEN", "kiosk_voting_status": "OPEN"}),
+    )
+    .await;
     assert_eq!(enforce(&w).await, [w.post.to_string()]);
     let status = post_status(&w).await.unwrap();
     assert_eq!(status["voting_status"], json!("CLOSED"));
@@ -2211,7 +2282,230 @@ async fn a_later_signed_online_opening_supersedes_only_the_older_ballot_bound() 
     let next_close = close_due(&w, 60).await;
     let date = signed_row_date(&w, next_close).await;
     approve(&w, None, 2, "officer").await;
+    set_post_status(&w, json!({"voting_status": "PAUSED"})).await;
+    assert!(!fire(&w, opening, VotingStatus::OPEN).await);
     assert_eq!(cast_window_end(&w, w.post).await, Some(date));
+}
+
+#[tokio::test]
+async fn an_unexecuted_signed_opening_cannot_erase_the_previous_signed_deadline() {
+    let w = world("cast-unexecuted-new-period").await;
+    require(&w, SigningAction::ApproveConfiguration, 2).await;
+    set_post_status(&w, json!({"voting_status": "OPEN"})).await;
+    let close = close_due(&w, -10).await;
+    let original_deadline = signed_row_date(&w, close).await;
+    let opening = close_due(&w, -5).await;
+    w.execute(
+        "UPDATE sequent_backend.scheduled_event SET event_processor = 'START_VOTING_PERIOD' WHERE id = $1",
+        &[&opening],
+    )
+    .await;
+    close_due(&w, 60).await;
+    approve(&w, None, 2, "officer").await;
+    // Beat missed the first close. An operator deletes the later opening
+    // before it executes; merely passing its signed time cannot reopen a
+    // period or remove the old close's independent ballot acceptance bound.
+    w.execute(
+        "DELETE FROM sequent_backend.scheduled_event WHERE id = $1",
+        &[&opening],
+    )
+    .await;
+    assert_eq!(cast_window_end(&w, w.post).await, Some(original_deadline));
+    assert_eq!(enforce(&w).await, [w.post.to_string()]);
+    assert_eq!(
+        post_status(&w).await.unwrap()["voting_status"],
+        json!("CLOSED")
+    );
+}
+
+#[tokio::test]
+async fn an_offline_only_opening_effect_cannot_erase_the_online_signed_deadline() {
+    let w = world("cast-partial-opening-proof").await;
+    require(&w, SigningAction::ApproveConfiguration, 2).await;
+    w.execute(
+        "UPDATE sequent_backend.election SET voting_channels = '{\"online\":true,\"kiosk\":true}' WHERE id = $1",
+        &[&w.post],
+    )
+    .await;
+    set_post_status(
+        &w,
+        json!({"voting_status":"OPEN","kiosk_voting_status":"NOT_STARTED"}),
+    )
+    .await;
+    let close = close_due(&w, -10).await;
+    let original_deadline = signed_row_date(&w, close).await;
+    let opening = close_due(&w, -5).await;
+    w.execute(
+        "UPDATE sequent_backend.scheduled_event SET event_processor='START_VOTING_PERIOD', event_payload=event_payload || '{\"voting_channels\":[\"ONLINE\",\"KIOSK\"]}'::jsonb WHERE id=$1",
+        &[&opening],
+    )
+    .await;
+    close_due(&w, 60).await;
+    approve(&w, None, 2, "officer").await;
+    // Opening requires no individual signatures in this configuration. A
+    // disabled ONLINE channel does not change, while the KIOSK can open.
+    w.execute(
+        "UPDATE sequent_backend.election SET voting_channels='{\"online\":false,\"kiosk\":true}' WHERE id=$1",
+        &[&w.post],
+    )
+    .await;
+    assert!(!fire(&w, opening, VotingStatus::OPEN).await);
+    assert_eq!(
+        fired_outcome(&w, opening).await["channels"],
+        json!(["KIOSK"])
+    );
+    assert_eq!(cast_window_end(&w, w.post).await, Some(original_deadline));
+}
+
+#[tokio::test]
+async fn a_noop_signed_opening_keeps_the_previous_signed_deadline() {
+    let w = world("cast-noop-opening-proof").await;
+    require(&w, SigningAction::ApproveConfiguration, 2).await;
+    set_post_status(&w, json!({"voting_status":"OPEN"})).await;
+    let close = close_due(&w, -10).await;
+    let original = signed_row_date(&w, close).await;
+    let opening = close_due(&w, -5).await;
+    w.execute("UPDATE sequent_backend.scheduled_event SET event_processor='START_VOTING_PERIOD' WHERE id=$1", &[&opening]).await;
+    close_due(&w, 60).await;
+    approve(&w, None, 2, "officer").await;
+    assert!(!fire(&w, opening, VotingStatus::OPEN).await);
+    assert_eq!(
+        fired_outcome(&w, opening).await["nothing_to_change"],
+        json!(true)
+    );
+    assert_eq!(cast_window_end(&w, w.post).await, Some(original));
+    assert_eq!(enforce(&w).await, [w.post.to_string()]);
+}
+
+#[tokio::test]
+async fn fired_opening_proof_binds_post_fingerprint_channel_time_and_transaction() {
+    let w = world("cast-exact-opening-proof").await;
+    require(&w, SigningAction::ApproveConfiguration, 2).await;
+    let other = add_post(&w, "proof-other-post").await;
+    let close = close_due(&w, -10).await;
+    let original = signed_row_date(&w, close).await;
+    let opening = close_due(&w, -5).await;
+    w.execute("UPDATE sequent_backend.scheduled_event SET event_processor='START_VOTING_PERIOD' WHERE id=$1", &[&opening]).await;
+    let next = close_due(&w, 60).await;
+    let next_date = signed_row_date(&w, next).await;
+    approve(&w, None, 2, "officer").await;
+    let fingerprint: String = w.pool.get().await.unwrap().query_one(
+        "SELECT fingerprint FROM sequent_backend.signed_voting_boundary WHERE election_id=$1 AND scheduled_event_id=$2",
+        &[&w.post, &opening.to_string()],
+    ).await.unwrap().get(0);
+    let cases = [
+        (
+            "other Post",
+            other,
+            fingerprint.clone(),
+            Some(json!(["ONLINE"])),
+            -1,
+        ),
+        (
+            "different fingerprint",
+            w.post,
+            "f".repeat(64),
+            Some(json!(["ONLINE"])),
+            -1,
+        ),
+        (
+            "offline effect",
+            w.post,
+            fingerprint.clone(),
+            Some(json!(["KIOSK"])),
+            -1,
+        ),
+        (
+            "no effect",
+            w.post,
+            fingerprint.clone(),
+            Some(json!([])),
+            -1,
+        ),
+        (
+            "legacy unknown effect",
+            w.post,
+            fingerprint.clone(),
+            None,
+            -1,
+        ),
+        (
+            "future effect",
+            w.post,
+            fingerprint.clone(),
+            Some(json!(["ONLINE"])),
+            60,
+        ),
+        (
+            "effect before opening",
+            w.post,
+            fingerprint.clone(),
+            Some(json!(["ONLINE"])),
+            -20,
+        ),
+    ];
+    let mut client = w.pool.get().await.unwrap();
+    for (reason, post, fingerprint, channels, minutes) in cases {
+        let tx = client.transaction().await.unwrap();
+        tx.execute(
+            "INSERT INTO sequent_backend.lifecycle_fired (tenant_id,election_event_id,scheduled_event_id,election_id,fingerprint,executed_channels,fired_at)
+             VALUES ($1,$2,$3,$4,$5,$6,clock_timestamp()+make_interval(mins=>$7))",
+            &[&w.tenant, &w.event, &opening, &post, &fingerprint, &channels, &minutes],
+        ).await.unwrap();
+        let config = windmill::postgres::election::get_cast_vote_configuration(
+            &tx,
+            &w.tenant.to_string(),
+            &w.event.to_string(),
+            &w.post.to_string(),
+        )
+        .await
+        .unwrap();
+        assert_eq!(config.dates.end_date, Some(original.clone()), "{reason}");
+        let shown = windmill::postgres::election::get_display_voting_closes(
+            &tx,
+            &w.tenant.to_string(),
+            &w.event.to_string(),
+            &[w.post.to_string()],
+        )
+        .await
+        .unwrap();
+        assert_eq!(
+            shown[&w.post.to_string()].scheduled_at,
+            Some(original.clone()),
+            "{reason}"
+        );
+        let retained = windmill::services::signing::actions::voting::retained_signed_closes(
+            &tx, w.tenant, w.event,
+        )
+        .await
+        .unwrap();
+        assert!(
+            retained.iter().any(|retained| {
+                retained.scheduled_event_id == close.to_string()
+                    && retained.election_id == w.post
+                    && retained.channels.contains(&VotingStatusChannel::ONLINE)
+            }),
+            "{reason}"
+        );
+        tx.rollback().await.unwrap();
+    }
+    // A real channel effect rolled back with its task is not execution proof.
+    set_post_status(&w, json!({"voting_status":"PAUSED"})).await;
+    let tx = client.transaction().await.unwrap();
+    assert!(!scheduled_change_needs_signatures(
+        &tx,
+        &w.tenant.to_string(),
+        &w.event.to_string(),
+        Some(&w.post.to_string()),
+        &VotingStatus::OPEN,
+        &opening.to_string(),
+    )
+    .await
+    .unwrap());
+    tx.rollback().await.unwrap();
+    assert_eq!(cast_window_end(&w, w.post).await, Some(original));
+    assert!(!fire(&w, opening, VotingStatus::OPEN).await);
+    assert_eq!(cast_window_end(&w, w.post).await, Some(next_date));
 }
 
 #[tokio::test]

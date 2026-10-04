@@ -220,7 +220,15 @@ public final class EnrollmentWindows {
           replyByHours);
       return null;
     }
-    return now.plusSeconds(hours * 3600);
+    try {
+      return now.plusSeconds(Math.multiplyExact(hours, 3600));
+    } catch (ArithmeticException | DateTimeException e) {
+      log.warnv(
+          "Reply-by hours {0} exceed the supported instant range: the review page shows no"
+              + " reply-by time",
+          replyByHours);
+      return null;
+    }
   }
 
   /**

@@ -187,11 +187,44 @@ async fn the_monitoring_zone_moves_to_the_event_and_back() {
     let kept_stored =
         preset_settings("campus").replacen("scope:", "time_zone: Asia/Manila\nscope:", 1);
     monitoring_settings(&tx, tenant, kept, "campus", &kept_stored).await;
+    // Reconstruct data that predates the later timezone validation guard.
+    // Only this private fixture's legacy seed bypasses that one trigger;
+    // migration replay and every subsequent write run with it enabled.
+    tx.batch_execute(
+        "ALTER TABLE sequent_backend.election_event DISABLE TRIGGER validate_event_timezones",
+    )
+    .await
+    .unwrap();
     // Presentations that aren't objects become one holding the timezones.
     let mut not_objects = Vec::new();
     for presentation in [json!(null), json!([]), json!("x")] {
         not_objects.push(election_event(&tx, tenant, Some(presentation)).await);
     }
+    tx.batch_execute(
+        "ALTER TABLE sequent_backend.election_event ENABLE TRIGGER validate_event_timezones",
+    )
+    .await
+    .unwrap();
+    // Confirm the seed exception cannot leak into the migration or writes.
+    tx.batch_execute("SAVEPOINT restored_timezone_guard")
+        .await
+        .unwrap();
+    let rejected = tx
+        .execute(
+            "UPDATE sequent_backend.election_event SET presentation = '[]'::jsonb WHERE id = $1",
+            &[&bare],
+        )
+        .await
+        .unwrap_err();
+    assert_eq!(
+        rejected.code(),
+        Some(&tokio_postgres::error::SqlState::CHECK_VIOLATION)
+    );
+    tx.batch_execute(
+        "ROLLBACK TO SAVEPOINT restored_timezone_guard; RELEASE SAVEPOINT restored_timezone_guard",
+    )
+    .await
+    .unwrap();
     // A zone that isn't a zone name: the line goes, the event gets UTC.
     let unnamed = election_event(&tx, tenant, None).await;
     let unnamed_stored =

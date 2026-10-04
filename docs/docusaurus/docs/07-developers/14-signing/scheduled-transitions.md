@@ -41,8 +41,12 @@ wait only while the opening remains authorized and before its effective close.
 Normal signed coverage has a 15-minute lateness limit. Separately,
 `signing::actions::voting::enforce_signed_closes` enforces due closes retained in
 the newest executed approval for a target. Own signed closes take precedence over
-event-wide ones. A later already-due signed opening may supersede the close;
-only a newer approved configuration can replace the signed schedule. Changes to
+event-wide ones. A later signed opening supersedes a close only with private
+execution evidence matching its tenant, event, Post, schedule ID, fingerprint and
+actual changed channel. Execution must be at or after the opening, after the older
+close and no later than the current clock. Replay marks without channel effects,
+including legacy marks, do not release the deadline. Only a newer approved
+configuration can replace the signed schedule. Changes to
 a live row do not extend the retained deadline. The scheduler tick dispatches
 the close enforcement task in its own transaction. Replay records prevent
 repeated transitions and duplicate audit steps.

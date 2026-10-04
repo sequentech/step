@@ -53,6 +53,14 @@ class EnrollmentReplyByTest {
   }
 
   @Test
+  void unrepresentablePositiveHoursShowNoReplyByInsteadOfWrappingOrCrashing() {
+    for (String hours : new String[] {Long.toString(Long.MAX_VALUE), "3000000000000000"}) {
+      assertNull(EnrollmentWindows.replyBy(null, hours, SUBMITTED));
+    }
+    assertNull(EnrollmentWindows.replyBy(null, "1", Instant.MAX.minusSeconds(60)));
+  }
+
+  @Test
   void theReplyByShowsInThePostZone() {
     EnrollmentWindows.Windows windows = EnrollmentWindows.parse(WINDOWS);
     Instant replyBy = Instant.parse("2028-03-05T06:20:00Z");

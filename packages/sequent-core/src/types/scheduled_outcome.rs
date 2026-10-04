@@ -127,4 +127,8 @@ pub struct LifecycleSnapshot {
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub initialization_report_policies:
         BTreeMap<String, EInitializeReportPolicy>,
+    /// Frozen country membership of each Post in the generated publication.
+    /// None predates this evidence; a present Post key can prove an empty list.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub initialization_countries: Option<BTreeMap<String, Vec<String>>>,
 }

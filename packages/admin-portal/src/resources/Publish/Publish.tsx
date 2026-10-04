@@ -649,6 +649,9 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
                         electionEventId={electionEventId}
                         electionId={electionId}
                         busy={initializing}
+                        snapshots={
+                            initializationSnapshots?.get_lifecycle_snapshots?.snapshots ?? []
+                        }
                         onClose={() => setChooseInitializationCountry(false)}
                         onGenerate={generateInitialization}
                     />

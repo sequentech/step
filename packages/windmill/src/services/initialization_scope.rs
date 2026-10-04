@@ -235,30 +235,15 @@ pub async fn check_area_filter_for(
     election_id: &str,
     filter: &[String],
 ) -> Result<std::result::Result<(), TallyValidationError>> {
-    let snapshot = PgTallyCreationReader::new(hasura_transaction)
-        .event_snapshot(tenant_id, election_event_id)
-        .await?;
-    let scopes = initialization_scope_for_target(
-        hasura_transaction,
-        tenant_id,
-        election_event_id,
-        Some(Uuid::parse_str(election_id)?),
-    )
-    .await?;
-    let styled = list_post_ballot_style_areas(
+    let state = EventState::read(
         hasura_transaction,
         Uuid::parse_str(tenant_id)?,
         Uuid::parse_str(election_event_id)?,
     )
     .await?;
+    let scopes = state.initialization_scopes(Some(Uuid::parse_str(election_id)?));
     let election_ids = vec![election_id.to_string()];
-    let countries = post_area_ids(
-        &snapshot.areas,
-        &snapshot.area_contests,
-        &snapshot.contests,
-        &election_ids,
-        &styled,
-    )?;
+    let countries = effective_initialization_countries(&state, election_id)?;
     Ok(check_initialization_area_filter(
         TallyType::INITIALIZATION_REPORT,
         &election_ids,
@@ -266,6 +251,25 @@ pub async fn check_area_filter_for(
         &countries,
         filter,
     ))
+}
+
+/// The same effective country set used by opening, report completion and tally selection.
+/// Unknown legacy evidence only blocks a required country-level initialization.
+pub fn effective_initialization_countries(
+    state: &EventState,
+    election_id: &str,
+) -> Result<BTreeSet<String>> {
+    let post = state
+        .initialization
+        .posts
+        .get(election_id)
+        .ok_or_else(|| anyhow!("Post {election_id} not found"))?;
+    let id = Uuid::parse_str(election_id)?;
+    let required = post.requires_report
+        || state.published_report_policy(id) == Some(EInitializeReportPolicy::REQUIRED);
+    anyhow::ensure!(!(required && state.initialization_scopes(Some(id)).per_country() && post.unresolved_published_countries),
+        "Published country membership is unavailable; generate and approve a new publication before initialization");
+    Ok(post.areas.clone())
 }
 
 /// A Post's initialization state.
@@ -280,6 +284,8 @@ pub struct PostInitialization {
     pub areas: BTreeSet<String>,
     /// The countries an initialization report covered.
     pub initialized_areas: BTreeSet<String>,
+    /// Legacy retained membership cannot be proved from its publication material.
+    pub unresolved_published_countries: bool,
 }
 
 impl PostInitialization {
@@ -332,6 +338,7 @@ impl EventInitialization {
                         styled,
                     )?,
                     initialized_areas,
+                    unresolved_published_countries: false,
                 },
             );
         }
@@ -417,7 +424,7 @@ pub fn initialization_refusal(
     if !post.requires_report {
         return None;
     }
-    if !post.initialized {
+    if !post.initialized || (scopes.per_country() && post.unresolved_published_countries) {
         return Some(TransitionRefusal::InitializationReportRequired);
     }
     scopes

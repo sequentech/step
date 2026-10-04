@@ -15,7 +15,8 @@ screen and log entry shows, and how to recover when something goes wrong.
 A **Post** is an election of the election event. Its **countries** are the
 areas where its voters vote: the areas under the Post that have a ballot
 style of it. Areas that only group other areas are not countries. Every
-country under a Post uses the Post's timezone.
+country under a Post uses the Post's timezone. The published configuration
+also retains the countries included in its generated ballots.
 
 ## Before the ceremony
 
@@ -67,6 +68,28 @@ it:
   Approve configuration needs signatures);
 - before anything is published, the default (Post) applies.
 
+## Published countries stay required
+
+Under **Post and country**, the countries that must be initialized are the
+union of the current Post's countries and those retained by its published
+configuration. Removing an area/contest relationship, changing an area tree
+or retiring old ballots does not remove a published country's requirement.
+A change to the published country set takes effect through a new normal
+publication, with configuration approval when signatures are required.
+
+A report records initialization only for the countries it actually covers.
+Calling it a whole-Post report does not initialize a country omitted from its
+ballots. The Post becomes initialized once every required country is covered
+by that report or by an earlier completed initialization. If a required
+country is missing, restore its ballot coverage and generate its report;
+keep the earlier reports and log entries for the audit.
+
+The report's covered countries are recorded separately for each Post when its
+tally session is created, from the generated ballots selected for that report.
+Later edits to the session's area list or to live country relationships cannot
+expand that evidence. Selection, configuration and the decryption threshold
+are fixed; status and progress updates continue normally.
+
 ## Steps by scope
 
 ### Post
@@ -79,8 +102,9 @@ it:
    when the last required signature arrives.
 3. The report runs as an initialization report tally (Tally tab). When it
    completes:
-   - the Post is initialized: **Generate Initialization Report** is disabled
-     and the Post can open;
+   - once the required countries are covered, the Post is initialized:
+     **Generate Initialization Report** is disabled and the Post can open
+     when the configured scope also allows it;
    - the report is available in the Tally tab's results for that session;
    - the Logs tab shows an **ElectionInitialized** step for each country of
      the Post.
@@ -98,9 +122,9 @@ still missing (the first five, then how many more).
 
 ### Post and country
 
-Either initialize the whole Post at once (the Post steps: one report covers
-every country, one ElectionInitialized step per country), or one country at a
-time:
+Either initialize the whole Post at once (the Post steps: one report must
+cover every required country, with one ElectionInitialized step per covered
+country), or one country at a time:
 
 1. Generate the report for one country: `create_tally_ceremony` with
    `tally_type: INITIALIZATION_REPORT`, the Post in `election_ids` and the
@@ -157,8 +181,8 @@ country:
 - a SYSTEM entry with what was recorded. It is an ERROR entry when the report
   hash is missing (the report's results had none); the description says so.
 
-The description reads *Initialized Post {Post}, country {country} at {time}
-with initialization report hash {hash}.* Its details carry the Post, the
+The description reads `Initialized Post {Post}, country {country} at {time}
+with initialization report hash {hash}.` Its details carry the Post, the
 country, the report hash, the report document, the tally session and the
 time. The steps are queued right after the report's tally completes and
 posted to the electoral log in order, once each; the electoral log is
@@ -184,9 +208,12 @@ records nothing again.
 
 | Situation | What to do |
 | --- | --- |
+| An unfinished older report has no creation-time country coverage evidence | Generate a new Initialization Report and obtain its required signatures. Re-running the older session cannot supply missing evidence. Completed initializations already recorded remain valid and idempotent. |
 | The report tally fails or stalls | Check the Tally tab for the session's status and logs; generate the report again. Nothing is recorded until a report completes. |
 | The signing request expired or was cancelled | Start again from **Generate Initialization Report**; a new request gets a new code. |
 | A country was added to the Post after its report | Under **Post and country**, the Post can't open until the new country is initialized: generate a report for that country. Under **Post** and **Event**, nothing changes. |
+| A published country was removed from the current Post or omitted from a report | It remains required under **Post and country**. Restore its ballot coverage and generate its initialization report, or publish an intentionally changed configuration through the normal approval workflow. A whole-Post report that omits it cannot supply its missing evidence. |
+| An older publication cannot establish which countries belong to a required Post | With **Post and country**, opening and initialization remain refused. Generate and publish the current configuration through its normal approval workflow so the country set is recorded; absence of old evidence does not mean the Post has no countries. Closing continues to follow its configured rules. |
 | The scope was changed to Post and country after a Post was initialized with an older report | Rows exist only for initializations recorded by this version; generate a report for each country still missing (the refusal names them). |
 | The wrong country was initialized | Nothing to undo: it is a valid record. Initialize the right one. |
 | A scheduled opening is waiting | Finish the ceremony; the scheduler opens the Post at its next run. The common close stays authoritative: after it, the opening doesn't run. |

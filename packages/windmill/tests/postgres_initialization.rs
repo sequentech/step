@@ -193,6 +193,20 @@ impl World {
             ],
         )
         .await;
+        windmill::postgres::election_initialization::insert_initialization_report_coverage(
+            tx,
+            self.tenant,
+            self.event,
+            session,
+            &[(
+                post.to_string(),
+                areas.iter().map(|id| id.to_string()).collect(),
+            )]
+            .into_iter()
+            .collect(),
+        )
+        .await
+        .unwrap();
         let results = Uuid::new_v4();
         execute(
             tx,
@@ -816,6 +830,14 @@ async fn published_country_requirements_survive_live_loosening_and_are_per_targe
     execute(&tx, "UPDATE sequent_backend.election SET initialization_report_generated = true WHERE election_event_id = $1", &[&w.event]).await;
     let mut signed = LifecycleSnapshot::default();
     signed.policies.initialization_scope = InitializationScope::POST_AND_COUNTRY;
+    signed.initialization_countries = Some(
+        [
+            (w.p1.to_string(), vec![w.a.to_string(), w.b.to_string()]),
+            (w.p2.to_string(), vec![w.c.to_string()]),
+        ]
+        .into_iter()
+        .collect(),
+    );
     write_publication_snapshot(&tx, w.tenant, w.event, Uuid::new_v4(), None, None, &signed)
         .await
         .unwrap();
@@ -1235,4 +1257,389 @@ async fn invalid_initialization_topology_cannot_block_closing() {
     assert!(EventState::read_for_closes(&tx, w.tenant, w.event)
         .await
         .is_ok());
+}
+
+#[tokio::test]
+async fn retained_countries_survive_link_removal_and_incomplete_whole_post_reports() {
+    use windmill::services::scheduled_outcome::{write_publication_snapshot, EventState};
+    for evidence in ["complete", "legacy", "missing-post"] {
+        let mut client = schema::pool().await.get().await.unwrap();
+        let tx = client.transaction().await.unwrap();
+        let w = World::new(&tx, "post-and-country").await;
+        execute(&tx, "UPDATE sequent_backend.ballot_publication SET is_generated = true, election_ids = $3 WHERE tenant_id = $1 AND id = $2", &[&w.tenant, &w.event, &vec![w.p1, w.p2]]).await;
+        let mut value = serde_json::to_value(
+            sequent_core::types::scheduled_outcome::LifecycleSnapshot::default(),
+        )
+        .unwrap();
+        value["policies"]["initialization_scope"] = json!("post-and-country");
+        match evidence {
+            "complete" => {
+                value["initialization_countries"] =
+                    json!({ w.p1.to_string(): [w.a, w.b], w.p2.to_string(): [w.c] })
+            }
+            "missing-post" => {
+                value["initialization_countries"] = json!({ w.p2.to_string(): [w.c] })
+            }
+            _ => {}
+        }
+        let snapshot = serde_json::from_value(value).unwrap();
+        write_publication_snapshot(&tx, w.tenant, w.event, w.event, None, None, &snapshot)
+            .await
+            .unwrap();
+        let (first, _) = w.report(&tx, w.p1, &[w.a], true, "first-a").await;
+        w.store(&tx, first, w.p1).await;
+        tx.execute(
+            "SELECT set_config('sequent.trusted_write', 'off', true)",
+            &[],
+        )
+        .await
+        .unwrap();
+        execute(
+            &tx,
+            "DELETE FROM sequent_backend.area_contest WHERE tenant_id = $1 AND area_id = $2",
+            &[&w.tenant, &w.b],
+        )
+        .await;
+        let (second, _) = w
+            .report(&tx, w.p1, &[w.a], false, "whole-post-without-b")
+            .await;
+        w.store(&tx, second, w.p1).await;
+        assert!(
+            !w.initialized(&tx, w.p1).await,
+            "a report omitting retained B cannot initialize the Post"
+        );
+        let state = EventState::read(&tx, w.tenant, w.event).await.unwrap();
+        assert!(state.initialization.posts[&w.p1.to_string()]
+            .areas
+            .contains(&w.b.to_string()));
+        assert_eq!(
+            state.initialization.posts[&w.p2.to_string()].areas,
+            [w.c.to_string()].into_iter().collect()
+        );
+        assert!(state.initialization_refusal_at(w.p1).is_some());
+        let (last, _) = w.report(&tx, w.p1, &[w.b], true, "retained-b").await;
+        w.store(&tx, last, w.p1).await;
+        assert!(w.initialized(&tx, w.p1).await);
+        let state = EventState::read(&tx, w.tenant, w.event).await.unwrap();
+        assert!(state.initialization_refusal_at(w.p1).is_none());
+        // A newer published target snapshot can remove B; the other Post retains C.
+        let mut next = serde_json::to_value(
+            sequent_core::types::scheduled_outcome::LifecycleSnapshot::default(),
+        )
+        .unwrap();
+        next["initialization_countries"] = json!({ w.p1.to_string(): [w.a] });
+        write_publication_snapshot(
+            &tx,
+            w.tenant,
+            w.event,
+            Uuid::new_v4(),
+            Some(w.p1),
+            None,
+            &serde_json::from_value(next).unwrap(),
+        )
+        .await
+        .unwrap();
+        let state = EventState::read(&tx, w.tenant, w.event).await.unwrap();
+        assert_eq!(
+            state.initialization.posts[&w.p1.to_string()].areas,
+            [w.a.to_string()].into_iter().collect()
+        );
+        assert_eq!(
+            state.initialization.posts[&w.p2.to_string()].areas,
+            [w.c.to_string()].into_iter().collect()
+        );
+    }
+}
+
+#[tokio::test]
+async fn country_snapshot_captures_generated_styles_after_live_links_change() {
+    use windmill::services::scheduled_outcome::{lifecycle_snapshots, snapshot_publication};
+    let mut client = schema::pool().await.get().await.unwrap();
+    let tx = client.transaction().await.unwrap();
+    let w = World::new(&tx, "post-and-country").await;
+    execute(&tx, "UPDATE sequent_backend.ballot_publication SET is_generated = true WHERE tenant_id = $1 AND id = $2", &[&w.tenant, &w.event]).await;
+    execute(
+        &tx,
+        "SELECT set_config('sequent.trusted_write', 'off', true)",
+        &[],
+    )
+    .await;
+    execute(
+        &tx,
+        "DELETE FROM sequent_backend.area_contest WHERE tenant_id = $1 AND area_id = $2",
+        &[&w.tenant, &w.b],
+    )
+    .await;
+    snapshot_publication(
+        &tx,
+        &w.tenant.to_string(),
+        &w.event.to_string(),
+        &w.event.to_string(),
+        None,
+    )
+    .await
+    .unwrap();
+    let views = lifecycle_snapshots(&tx, w.tenant, w.event).await.unwrap();
+    let value = serde_json::to_value(&views[0].snapshot).unwrap();
+    let countries: Vec<String> =
+        serde_json::from_value(value["initialization_countries"][w.p1.to_string()].clone())
+            .unwrap();
+    assert_eq!(
+        countries
+            .into_iter()
+            .collect::<std::collections::BTreeSet<_>>(),
+        [w.a.to_string(), w.b.to_string()].into_iter().collect()
+    );
+}
+
+#[tokio::test]
+async fn unknown_legacy_countries_do_not_waive_required_country_initialization() {
+    use windmill::services::scheduled_outcome::{write_publication_snapshot, EventState};
+    let mut client = schema::pool().await.get().await.unwrap();
+    let tx = client.transaction().await.unwrap();
+    let w = World::new(&tx, "post").await;
+    execute(&tx, "UPDATE sequent_backend.election SET initialization_report_generated = true WHERE tenant_id = $1", &[&w.tenant]).await;
+    execute(
+        &tx,
+        "DELETE FROM sequent_backend.area_contest WHERE tenant_id = $1",
+        &[&w.tenant],
+    )
+    .await;
+    let mut snapshot = sequent_core::types::scheduled_outcome::LifecycleSnapshot::default();
+    snapshot.policies.initialization_scope =
+        sequent_core::ballot::InitializationScope::POST_AND_COUNTRY;
+    write_publication_snapshot(
+        &tx,
+        w.tenant,
+        w.event,
+        Uuid::new_v4(),
+        Some(w.p1),
+        None,
+        &snapshot,
+    )
+    .await
+    .unwrap();
+    assert!(EventState::read(&tx, w.tenant, w.event)
+        .await
+        .unwrap()
+        .initialization_refusal_at(w.p1)
+        .is_some());
+    assert!(EventState::read_for_closes(&tx, w.tenant, w.event)
+        .await
+        .is_ok());
+    let mut known = serde_json::to_value(&snapshot).unwrap();
+    known["initialization_countries"] = json!({w.p1.to_string(): []});
+    write_publication_snapshot(
+        &tx,
+        w.tenant,
+        w.event,
+        Uuid::new_v4(),
+        Some(w.p1),
+        None,
+        &serde_json::from_value(known).unwrap(),
+    )
+    .await
+    .unwrap();
+    assert!(EventState::read(&tx, w.tenant, w.event)
+        .await
+        .unwrap()
+        .initialization_refusal_at(w.p1)
+        .is_none());
+}
+
+#[tokio::test]
+async fn raw_draft_styles_do_not_prove_retained_membership_or_report_material() {
+    use windmill::adapters::tally_ceremony::PgTallyCreationReader;
+    use windmill::ports::tally_ceremony::TallyCreationReader;
+    use windmill::services::scheduled_outcome::{lifecycle_snapshots, write_publication_snapshot};
+    let mut client = schema::pool().await.get().await.unwrap();
+    let tx = client.transaction().await.unwrap();
+    let w = World::new(&tx, "post-and-country").await;
+    write_publication_snapshot(
+        &tx,
+        w.tenant,
+        w.event,
+        w.event,
+        None,
+        None,
+        &sequent_core::types::scheduled_outcome::LifecycleSnapshot::default(),
+    )
+    .await
+    .unwrap();
+    let reader = PgTallyCreationReader::new(&tx);
+    let styles = reader
+        .published_ballot_styles(
+            &w.tenant.to_string(),
+            &w.event.to_string(),
+            &[w.p1.to_string()],
+        )
+        .await
+        .unwrap();
+    assert!(
+        styles.is_empty(),
+        "raw draft parent material cannot supply an initialization report"
+    );
+    let views = lifecycle_snapshots(&tx, w.tenant, w.event).await.unwrap();
+    assert!(serde_json::to_value(&views[0].snapshot)
+        .unwrap()
+        .get("initialization_countries")
+        .is_none());
+    execute(&tx, "UPDATE sequent_backend.ballot_publication SET is_generated = true, election_ids = $3 WHERE tenant_id = $1 AND id = $2", &[&w.tenant, &w.event, &vec![w.p1, w.p2]]).await;
+    assert_eq!(
+        reader
+            .published_ballot_styles(
+                &w.tenant.to_string(),
+                &w.event.to_string(),
+                &[w.p1.to_string()]
+            )
+            .await
+            .unwrap()
+            .len(),
+        2
+    );
+    let views = lifecycle_snapshots(&tx, w.tenant, w.event).await.unwrap();
+    assert!(
+        serde_json::to_value(&views[0].snapshot).unwrap()["initialization_countries"]
+            [w.p1.to_string()]
+        .as_array()
+        .unwrap()
+        .contains(&json!(w.b))
+    );
+}
+
+#[tokio::test]
+async fn completed_report_uses_frozen_post_coverage_even_if_session_areas_are_amended() {
+    let mut client = schema::pool().await.get().await.unwrap();
+    let tx = client.transaction().await.unwrap();
+    let w = World::new(&tx, "post-and-country").await;
+    let (session, _) = w.report(&tx, w.p1, &[w.a], true, "only-a-executed").await;
+    // Simulate a privileged session amendment; creation proof remains only p1:A.
+    windmill::postgres::trusted_write(&tx).await.unwrap();
+    execute(
+        &tx,
+        "UPDATE sequent_backend.tally_session SET election_ids = $2, area_ids = $3 WHERE id = $1",
+        &[&session, &vec![w.p1, w.p2], &vec![w.a, w.b, w.c]],
+    )
+    .await;
+    w.store(&tx, session, w.p1).await;
+    assert!(
+        !w.initialized(&tx, w.p1).await,
+        "Post2/session area union cannot fabricate Post1 B coverage"
+    );
+    let rows = list_election_initializations(&tx, w.tenant, w.event)
+        .await
+        .unwrap();
+    assert_eq!(
+        rows.iter().map(|row| row.area_id).collect::<Vec<_>>(),
+        vec![Some(w.a)]
+    );
+}
+
+#[tokio::test]
+async fn unfinished_legacy_reports_need_new_proof_but_completed_records_remain_idempotent() {
+    let mut client = schema::pool().await.get().await.unwrap();
+    let tx = client.transaction().await.unwrap();
+    let w = World::new(&tx, "post-and-country").await;
+    let (old, _) = w
+        .report(&tx, w.p1, &[w.a, w.b], false, "legacy-unfinished")
+        .await;
+    execute(
+        &tx,
+        "DELETE FROM sequent_backend.initialization_report_coverage WHERE tally_session_id = $1",
+        &[&old],
+    )
+    .await;
+    let error = store_initialization(
+        &tx,
+        &w.tenant.to_string(),
+        &w.event.to_string(),
+        &old.to_string(),
+        &w.p1.to_string(),
+    )
+    .await
+    .unwrap_err();
+    assert!(error
+        .to_string()
+        .contains("predates immutable coverage evidence"));
+    assert!(!w.initialized(&tx, w.p1).await);
+    assert!(list_election_initializations(&tx, w.tenant, w.event)
+        .await
+        .unwrap()
+        .is_empty());
+    let (fresh, _) = w
+        .report(&tx, w.p1, &[w.a, w.b], false, "fresh-completed")
+        .await;
+    w.store(&tx, fresh, w.p1).await;
+    execute(
+        &tx,
+        "DELETE FROM sequent_backend.initialization_report_coverage WHERE tally_session_id = $1",
+        &[&fresh],
+    )
+    .await;
+    w.store(&tx, fresh, w.p1).await;
+    assert!(w.initialized(&tx, w.p1).await);
+    assert_eq!(
+        list_election_initializations(&tx, w.tenant, w.event)
+            .await
+            .unwrap()
+            .len(),
+        2
+    );
+}
+
+#[tokio::test]
+async fn one_posts_report_proof_cannot_initialize_another_post() {
+    let mut client = schema::pool().await.get().await.unwrap();
+    let tx = client.transaction().await.unwrap();
+    let w = World::new(&tx, "post-and-country").await;
+    let (session, _) = w.report(&tx, w.p2, &[w.c], false, "post-two-only").await;
+    let error = store_initialization(
+        &tx,
+        &w.tenant.to_string(),
+        &w.event.to_string(),
+        &session.to_string(),
+        &w.p1.to_string(),
+    )
+    .await
+    .unwrap_err();
+    assert!(error.to_string().contains("no immutable coverage of Post"));
+    assert!(!w.initialized(&tx, w.p1).await);
+    assert!(list_election_initializations(&tx, w.tenant, w.event)
+        .await
+        .unwrap()
+        .is_empty());
+}
+
+#[tokio::test]
+async fn report_creation_inputs_are_guarded_while_progress_and_annotations_remain_editable() {
+    let mut client = schema::pool().await.get().await.unwrap();
+    let tx = client.transaction().await.unwrap();
+    let w = World::new(&tx, "post-and-country").await;
+    let (session, _) = w.report(&tx, w.p1, &[w.a], true, "guarded-report").await;
+    execute(
+        &tx,
+        "SELECT set_config('sequent.trusted_write', 'off', true)",
+        &[],
+    )
+    .await;
+    for sql in [
+        "UPDATE sequent_backend.tally_session SET area_ids = '{}' WHERE id = $1",
+        "UPDATE sequent_backend.tally_session SET election_ids = '{}' WHERE id = $1",
+        "UPDATE sequent_backend.tally_session SET configuration = '{}' WHERE id = $1",
+        "UPDATE sequent_backend.tally_session SET tally_type = 'ELECTORAL_RESULTS' WHERE id = $1",
+        "UPDATE sequent_backend.tally_session SET threshold = 0 WHERE id = $1",
+        "DELETE FROM sequent_backend.tally_session WHERE id = $1",
+    ] {
+        tx.batch_execute("SAVEPOINT guarded_selection")
+            .await
+            .unwrap();
+        let error = tx.execute(sql, &[&session]).await.unwrap_err();
+        assert_eq!(error.as_db_error().unwrap().code().code(), "42501");
+        tx.batch_execute("ROLLBACK TO SAVEPOINT guarded_selection")
+            .await
+            .unwrap();
+    }
+    execute(&tx, "UPDATE sequent_backend.tally_session SET area_ids = area_ids, execution_status = 'SUCCESS', is_execution_completed = true, annotations = '{}' WHERE id = $1", &[&session]).await;
+    w.store(&tx, session, w.p1).await;
+    assert!(!w.initialized(&tx, w.p1).await);
 }

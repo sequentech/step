@@ -51,9 +51,10 @@ Three examples explain changes between publication and the deadline:
 An approved close remains an authoritative deadline for its signed target and
 channels even if its live schedule row is edited, stopped, archived or deleted.
 The scheduler enforces retained signed closes. A newer approved configuration
-can replace that deadline, and a later signed opening that has already occurred
-can supersede it. Editing the row does not extend
-voting. A replacement row's refusal and enforcement of the retained signed close
+can replace that deadline. A later signed opening supersedes it only for channels
+that the exact opening actually changed, at or after its scheduled time. A due,
+deleted, refused or no-op opening cannot remove the earlier close. Editing the
+row does not extend voting. A replacement row's refusal and enforcement of the retained signed close
 are separate decisions; review both the live row and the published schedule.
 
 Normal signed coverage rejects replay, changed channels and a transition that is

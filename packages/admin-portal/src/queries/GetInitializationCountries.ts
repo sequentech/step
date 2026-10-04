@@ -30,6 +30,9 @@ export const GET_INITIALIZATION_COUNTRIES = gql`
                 election_id: {_eq: $electionId}
                 deleted_at: {_is_null: true}
                 area_id: {_is_null: false}
+                ballot_publication: {
+                    _or: [{is_generated: {_eq: true}}, {published_at: {_is_null: false}}]
+                }
             }
         ) {
             area_id

@@ -113,6 +113,10 @@ struct State {
     areas: Vec<Area>,
     area_contests: Vec<ScopedAreaContest>,
     ballot_styles: Vec<BallotStyle>,
+    initialization_report_coverage:
+        HashMap<(String, String, String), std::collections::BTreeMap<String, Vec<String>>>,
+    initialization_countries:
+        HashMap<(String, String, uuid::Uuid), std::collections::BTreeSet<String>>,
     tally_sheets: Vec<TallySheet>,
     keys_ceremonies: Vec<KeysCeremony>,
     private_keys: HashMap<(String, String), String>,
@@ -236,6 +240,46 @@ impl InMemoryTallyCeremony {
             election_event_id: election_event_id.into(),
             link,
         });
+    }
+
+    pub fn set_initialization_countries(
+        &self,
+        tenant: &str,
+        event: &str,
+        post: uuid::Uuid,
+        countries: &[&str],
+    ) {
+        self.state().initialization_countries.insert(
+            (tenant.into(), event.into(), post),
+            countries.iter().map(|id| id.to_string()).collect(),
+        );
+    }
+
+    pub fn remove_country_material(&self, tenant: &str, event: &str, post: &str, country: &str) {
+        let mut state = self.state();
+        state.ballot_styles.retain(|style| {
+            !(style.tenant_id == tenant
+                && style.election_event_id == event
+                && style.election_id == post
+                && style.area_id.as_deref() == Some(country))
+        });
+        state.area_contests.retain(|link| {
+            !(link.tenant_id == tenant
+                && link.election_event_id == event
+                && link.link.area_id == country)
+        });
+    }
+
+    pub fn report_coverage(
+        &self,
+        tenant: &str,
+        event: &str,
+        session: &str,
+    ) -> Option<std::collections::BTreeMap<String, Vec<String>>> {
+        self.state()
+            .initialization_report_coverage
+            .get(&(tenant.into(), event.into(), session.into()))
+            .cloned()
     }
 
     pub fn add_ballot_style(&self, ballot_style: BallotStyle) {
@@ -471,6 +515,16 @@ impl TallySessions for InMemoryTallyCeremony {
     ) -> Result<()> {
         let mut state = self.state();
         state.check(TallyCall::InsertSession)?;
+        if let Some(coverage) = tally_session.initialization_country_coverage {
+            state.initialization_report_coverage.insert(
+                (
+                    tenant_id.into(),
+                    election_event_id.into(),
+                    tally_session.id.clone(),
+                ),
+                coverage,
+            );
+        }
         state.sessions.push(TallySession {
             id: tally_session.id,
             tenant_id: tenant_id.to_string(),
@@ -544,6 +598,19 @@ impl TallySessions for InMemoryTallyCeremony {
 }
 
 impl TallyCreationReader for InMemoryTallyCeremony {
+    async fn initialization_countries(
+        &self,
+        tenant: &str,
+        event: &str,
+        post: uuid::Uuid,
+    ) -> Result<Option<std::collections::BTreeSet<String>>> {
+        Ok(self
+            .state()
+            .initialization_countries
+            .get(&(tenant.into(), event.into(), post))
+            .cloned())
+    }
+
     async fn initialization_scopes(
         &self,
         tenant_id: &str,

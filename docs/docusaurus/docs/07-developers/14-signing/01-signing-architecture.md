@@ -294,9 +294,9 @@ Post gets one SYSTEM `SigningActionExecuted` entry, actor `scheduled-event`, wit
 `{action, election_id, scheduled_event_id, outcome, authorized_by, unsigned, fingerprint,
 explanation, reason?, record?, cancelled?}`:
 
-- covered: INFO, "Opened/Closed voting at {Post} on schedule, authorized by the signed
-  configuration {code}"; `authorized_by` = `{request_id, code, signers}` of the approval;
-- unsigned close: INFO, "Closed voting at {Post} on schedule without signatures",
+- covered: INFO, `Opened/Closed voting at {Post} on schedule, authorized by the signed
+  configuration {code}`; `authorized_by` = `{request_id, code, signers}` of the approval;
+- unsigned close: INFO, `Closed voting at {Post} on schedule without signatures`,
   `reason: "unsigned-scheduled-close"`;
 - refused: ERROR, "Did not … on schedule: …", `reason` `not-in-signed-configuration`,
   `signing-required`, `replay` (it already ran there) or `late-fire`.

@@ -287,3 +287,50 @@ pub async fn set_scheduled_event_annotation(
         .context("Error annotating the scheduled event")?;
     Ok(())
 }
+
+/// Keeps actual per-Post country coverage once, in the session creation transaction.
+/// Hasura cannot write this private evidence and later session edits cannot replace it.
+pub async fn insert_initialization_report_coverage(
+    transaction: &Transaction<'_>,
+    tenant: Uuid,
+    event: Uuid,
+    session: Uuid,
+    coverage: &std::collections::BTreeMap<String, Vec<String>>,
+) -> Result<()> {
+    for (post, countries) in coverage {
+        Uuid::parse_str(post)?;
+        for country in countries {
+            Uuid::parse_str(country)?;
+        }
+    }
+    crate::postgres::trusted_write(transaction).await?;
+    transaction.execute(
+        "INSERT INTO sequent_backend.initialization_report_coverage (tenant_id, election_event_id, tally_session_id, coverage)
+         VALUES ($1, $2, $3, $4)",
+        &[&tenant, &event, &session, &serde_json::to_value(coverage)?],
+    ).await.context("Error keeping initialization report coverage")?;
+    Ok(())
+}
+
+/// Actual creation-time coverage; absence on an unfinished legacy session
+/// requires creating a fresh initialization report rather than guessing.
+pub async fn initialization_report_coverage(
+    transaction: &Transaction<'_>,
+    tenant: Uuid,
+    event: Uuid,
+    session: Uuid,
+) -> Result<Option<std::collections::BTreeMap<String, Vec<String>>>> {
+    transaction
+        .query_opt(
+            "SELECT coverage FROM sequent_backend.initialization_report_coverage
+         WHERE tenant_id = $1 AND election_event_id = $2 AND tally_session_id = $3",
+            &[&tenant, &event, &session],
+        )
+        .await
+        .context("Error reading initialization report coverage")?
+        .map(|row| {
+            serde_json::from_value(row.try_get::<_, serde_json::Value>(0)?)
+                .map_err(anyhow::Error::from)
+        })
+        .transpose()
+}
