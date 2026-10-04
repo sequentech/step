@@ -36,7 +36,6 @@ import {
 import {
     GetUploadUrlMutation,
     Sequent_Backend_Template,
-    Sequent_Backend_Candidate,
     Sequent_Backend_Contest,
     Sequent_Backend_Document,
     Sequent_Backend_Election,
@@ -164,17 +163,6 @@ export const ElectionDataForm: React.FC = () => {
         },
         pagination: {page: 1, perPage: 9999},
     })
-
-    const {data: eventCandidates, total: eventCandidatesTotal} =
-        useGetList<Sequent_Backend_Candidate>("sequent_backend_candidate", {
-            filter: {
-                tenant_id: record?.tenant_id,
-                election_event_id: record?.election_event_id,
-            },
-            pagination: {page: 1, perPage: 9999},
-        })
-    const isCandidateListPartial =
-        !!eventCandidates && (eventCandidatesTotal ?? 0) > eventCandidates.length
 
     const {data: imageData, refetch: refetchImage} = useGetOne<Sequent_Backend_Document>(
         "sequent_backend_document",
@@ -886,8 +874,8 @@ export const ElectionDataForm: React.FC = () => {
                                             ?.default_language_code ?? "en"
                                     }
                                     contests={contests}
-                                    candidates={eventCandidates}
-                                    isCandidateListPartial={isCandidateListPartial}
+                                    tenantId={record?.tenant_id}
+                                    electionEventId={record?.election_event_id}
                                 />
                                 <SelectInput
                                     source={`presentation.initialization_report_policy`}

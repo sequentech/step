@@ -1,8 +1,8 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useCallback} from "react"
-import {TextInput} from "react-admin"
+import React, {useCallback, useEffect} from "react"
+import {TextInput, useGetList} from "react-admin"
 import {useFormContext, useWatch} from "react-hook-form"
 import {
     Box,
@@ -31,20 +31,37 @@ const MOBILE_LISTS_LABEL_ID = "slates-mobile-candidate-lists-label"
 interface SlatesConfigurationInputProps {
     defaultLanguage: string
     contests: Array<Sequent_Backend_Contest> | undefined
-    candidates: Array<Sequent_Backend_Candidate> | undefined
-    isCandidateListPartial: boolean
+    tenantId: string | undefined
+    electionEventId: string | undefined
 }
 
 export const SlatesConfigurationInput: React.FC<SlatesConfigurationInputProps> = ({
     defaultLanguage,
     contests,
-    candidates,
-    isCandidateListPartial,
+    tenantId,
+    electionEventId,
 }) => {
     const {t} = useTranslation()
-    const {setValue} = useFormContext()
+    const {setValue, trigger, getFieldState} = useFormContext()
     const text = useWatch({name: SLATES_FORM_FIELD}) as string | null | undefined
     const mobileCandidateLists = getMobileCandidateLists(text)
+    const hasConfiguration = !!text?.trim()
+
+    const {data: candidates, total: candidatesTotal} = useGetList<Sequent_Backend_Candidate>(
+        "sequent_backend_candidate",
+        {
+            filter: {tenant_id: tenantId, election_event_id: electionEventId},
+            pagination: {page: 1, perPage: 9999},
+        },
+        {enabled: hasConfiguration && !!tenantId && !!electionEventId}
+    )
+    const isCandidateListPartial = !!candidates && (candidatesTotal ?? 0) > candidates.length
+
+    useEffect(() => {
+        if (candidates && getFieldState(SLATES_FORM_FIELD).isDirty) {
+            trigger(SLATES_FORM_FIELD)
+        }
+    }, [candidates, getFieldState, trigger])
 
     const validate = useCallback(
         (value: string | null | undefined) => {

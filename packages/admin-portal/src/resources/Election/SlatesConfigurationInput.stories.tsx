@@ -6,7 +6,14 @@ import type {StoryObj} from "@storybook/react-vite"
 import {expect, userEvent, waitFor, within} from "storybook/test"
 import {SimpleForm} from "react-admin"
 import {EMobileCandidateLists, i18n} from "@sequentech/ui-core"
-import {AdminStoryProvider, graphqlBoundary} from "@/__stories__/AdminStoryProvider"
+import {
+    AdminStoryProvider,
+    EVENT_ID,
+    TENANT_ID,
+    graphqlBoundary,
+} from "@/__stories__/AdminStoryProvider"
+import {candidateRecords, contestRecord} from "@/__stories__/fixtures"
+import {resourceBoundary} from "@/__stories__/resourceBoundary"
 import type {WidgetMeta} from "@/__stories__/widgetStory"
 import {SLATES_FORM_FIELD} from "@/utils/slates"
 import {SlatesConfigurationInput} from "./SlatesConfigurationInput"
@@ -33,23 +40,27 @@ const CONFIGURATION = JSON.stringify(
 )
 
 let graphql: ReturnType<typeof graphqlBoundary>
+let data: ReturnType<typeof resourceBoundary>
 
 const meta = {
     title: "Admin/Election/SlatesConfigurationInput",
     component: SlatesConfigurationInput,
     args: {configuration: CONFIGURATION},
-    beforeEach: async () => {
+    beforeEach: async ({args}) => {
         graphql = graphqlBoundary({}, {schema: true})
         await graphql.ready
+        data = resourceBoundary(
+            args.configuration ? {sequent_backend_candidate: candidateRecords()} : {}
+        )
     },
     render: ({configuration}) => (
-        <AdminStoryProvider boundary={graphql}>
+        <AdminStoryProvider boundary={graphql} dataProvider={data.provider}>
             <SimpleForm record={{id: 1, [SLATES_FORM_FIELD]: configuration}} toolbar={false}>
                 <SlatesConfigurationInput
                     defaultLanguage="en"
-                    contests={undefined}
-                    candidates={undefined}
-                    isCandidateListPartial={false}
+                    contests={[contestRecord()]}
+                    tenantId={TENANT_ID}
+                    electionEventId={EVENT_ID}
                 />
             </SimpleForm>
         </AdminStoryProvider>
@@ -71,6 +82,9 @@ export const Populated: Story = {
         await expect(configurationInput(canvasElement)).toHaveValue(CONFIGURATION)
         await expect(mobileListsInput(canvasElement)).toHaveTextContent(
             label("mobileCandidateLists.options.collapsed")
+        )
+        await waitFor(() =>
+            expect(data.calls.map(({args}) => args[0])).toContain("sequent_backend_candidate")
         )
     },
 }
@@ -100,5 +114,6 @@ export const WithoutSlates: Story = {
     play: async ({canvasElement}) => {
         await expect(configurationInput(canvasElement)).toHaveValue("")
         await expect(mobileListsInput(canvasElement)).toHaveAttribute("aria-disabled", "true")
+        expect(data.calls).toEqual([])
     },
 }
