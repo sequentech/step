@@ -341,6 +341,9 @@ const catalanTranslation: TranslationType = {
                 helpLinks: "Enllaços d'Ajuda",
                 logoUrl: "URL del Logotip",
                 css: "CSS Personalitzat",
+                displayName: "Nom visible",
+                displayNameHelp:
+                    "El nom de l'organització en els missatges que l'esmenten. Buit: el nom curt del llogater.",
             },
             errors: {
                 invalidHelpLinks: "Format d'Enllaços d'Ajuda invàlid",
@@ -1328,6 +1331,27 @@ const catalanTranslation: TranslationType = {
                 "admin-dashboard-view": "Vista del Tauler d'Administració",
                 "monitoring-view": "Veure Taulers de Monitoratge",
                 "monitoring-configure": "Configurar Taulers de Monitoratge",
+                "election-event-signatures-tab": "Pestanya Signatures de l'Esdeveniment Electoral",
+                "signing-rules-read": "Signatures: veure accions protegides",
+                "signing-rules-write": "Signatures: editar accions protegides",
+                "signing-certificates-read": "Signatures: veure certificats",
+                "signing-issuers-write": "Signatures: importar i suprimir emissors de confiança",
+                "signing-checks-write": "Signatures: editar comprovacions de certificats",
+                "signing-certificates-register": "Signatures: registrar certificats",
+                "signing-certificates-revoke": "Signatures: revocar certificats",
+                "signing-requests-read": "Signatures: veure sol·licituds",
+                "signing-requests-cancel": "Signatures: cancel·lar sol·licituds",
+                "signing-requests-export": "Signatures: exportar sol·licituds",
+                "sign-initialize-voting": "Signar: inicialitzar la votació",
+                "sign-open-voting": "Signar: obrir la votació",
+                "sign-close-voting": "Signar: tancar la votació",
+                "sign-generate-election-returns": "Signar: generar actes electorals",
+                "sign-generate-reports": "Signar: generar altres informes electorals",
+                "sign-transmit-results": "Signar: transmetre resultats",
+                "sign-approve-voter": "Signar: aprovar manualment un votant",
+                "sign-approve-configuration": "Signar: aprovar una versió de configuració",
+                "sign-key-ceremony": "Signar: confirmar un fragment de clau",
+                "sign-tally-key": "Signar: aportar un fragment de clau",
                 "application-export": "Exportació d'Aplicacions",
                 "application-import": "Importació d'Aplicacions",
                 "tenant-create": "Crear Inquilí",
@@ -2201,6 +2225,9 @@ const catalanTranslation: TranslationType = {
                             confirm: "Enviar Paquet de Transmissió",
                             cancel: "Tancar",
                         },
+
+                        disabled:
+                            "Falten les signatures necessàries o el paquet de transmissió ja s’ha enviat a totes les destinacions.",
                     },
                     regenerate: {
                         title: "Regenerar",
@@ -2237,11 +2264,11 @@ const catalanTranslation: TranslationType = {
                     },
                 },
                 signatures: {
-                    title: "Signatures SBEI",
+                    title: "Signatures",
                     description:
-                        "Els SBEIs poden signar el Paquet de Transmissió. La taula a continuació mostra l'estat de signatura de cada un dels membres del SBEI.",
+                        "Els membres poden signar el paquet de transmissió. La taula mostra l’estat de signatura de cada membre.",
                     table: {
-                        trusteeName: "Nom del Fiduciari",
+                        trusteeName: "Membre",
                         signed: "Ha Signat",
                     },
                     status: "{{signed}} de {{total}} Han Signat",
@@ -3434,6 +3461,658 @@ const catalanTranslation: TranslationType = {
             confirmDelete: "Eliminar autoritat de certificació",
             confirmDeleteDescription:
                 'Esteu segurs que voleu eliminar el certificat "{{name}}" (empremta: {{fingerprint}})?',
+        },
+        signing: {
+            terms: {
+                post: "Lloc",
+                posts: "Llocs",
+            },
+            tab: {
+                title: "Signatures",
+                intro: "Les accions protegides només s'executen quan prou persones autoritzades les signen amb els seus certificats digitals. Cada signatura es comprova amb els emissors de confiança i queda anotada al registre.",
+                protectedActions: "Accions protegides",
+                certificates: "Certificats",
+                requests: "Sol·licituds",
+            },
+            loadError:
+                "No s'ha pogut carregar la configuració de signatures. Recarregueu la pàgina per tornar-ho a provar.",
+            errors: {
+                automatedCeremonies:
+                    "Aquest esdeveniment utilitza cerimònies de claus automàtiques. Els custodis no duen a terme aquests passos, per tant no es poden exigir les seves signatures. Per exigir les signatures dels custodis, utilitza cerimònies de claus manuals.",
+                forbidden: "No teniu permís per fer aquest canvi.",
+                invalid:
+                    "El servidor ha rebutjat aquests valors. Reviseu-los i torneu-ho a provar.",
+                conflict:
+                    "Una altra persona ho ha canviat mentrestant. Recarregueu la pàgina i torneu-ho a provar.",
+                lockedDown:
+                    "L'esdeveniment electoral està bloquejat: les regles de signatura només canvien mitjançant una nova versió de configuració.",
+                notFound: "Ja no existeix. Recarregueu la pàgina.",
+            },
+            readOnly: {
+                chip: "Només lectura",
+                rules: "Només lectura. Per canviar les regles de signatura cal el permís «Signatures: editar accions protegides».",
+                whoCanSign:
+                    "Rols amb el permís «Signar: {{action}}» a Usuaris i Rols. Per canviar-los cal permís per editar rols.",
+            },
+            groups: {
+                "voting": "Votació",
+                "results-and-reports": "Resultats i informes",
+                "enrollment": "Inscripció",
+                "configuration-and-keys": "Configuració i claus",
+            },
+            actions: {
+                "initialize-voting": {
+                    label: "Inicialitzar la votació",
+                    short: "Inicialització",
+                    permissionName: "inicialitzar la votació",
+                    object: "inicialització de la votació",
+                    appliesTo: "Cada $t(signing.terms.post)",
+                    description:
+                        "S'inicia a Publicar. Inicialitza el $t(signing.terms.post) i genera el seu Informe d'Inicialització.",
+                },
+                "open-voting": {
+                    label: "Obrir la votació",
+                    short: "Obertura",
+                    permissionName: "obrir la votació",
+                    object: "obertura de la votació",
+                    appliesTo: "Cada $t(signing.terms.post)",
+                    description:
+                        "S'inicia a Publicar amb Començar el període de votació. Obre la votació al $t(signing.terms.post).",
+                },
+                "close-voting": {
+                    label: "Tancar la votació",
+                    short: "Tancament",
+                    permissionName: "tancar la votació",
+                    object: "tancament de la votació",
+                    appliesTo: "Cada $t(signing.terms.post)",
+                    description:
+                        "S'inicia a Publicar amb Detenir el període de votació. Tanca la votació al $t(signing.terms.post); les signatures de tancament es conserven a la seva acta.",
+                },
+                "generate-election-returns": {
+                    label: "Generar actes electorals",
+                    short: "Actes electorals",
+                    permissionName: "generar actes electorals",
+                    object: "actes electorals",
+                    appliesTo: "Cada $t(signing.terms.post) i país",
+                    description:
+                        "L'inicia el recompte, una sol·licitud per $t(signing.terms.post) i país. Allibera les actes electorals signades per imprimir-les i transmetre-les.",
+                },
+                "generate-reports": {
+                    label: "Generar altres informes electorals",
+                    short: "Informe",
+                    permissionName: "generar altres informes electorals",
+                    object: "informe",
+                    appliesTo: "Cada $t(signing.terms.post)",
+                    description:
+                        "L'inicia el recompte per a l'Informe d'Inicialització i Informes per a l'informe de participació. Allibera l'informe signat.",
+                },
+                "transmit-results": {
+                    label: "Transmetre resultats",
+                    short: "Transmissió",
+                    permissionName: "transmetre resultats",
+                    object: "paquet de resultats",
+                    appliesTo: "Cada $t(signing.terms.post) i país",
+                    description:
+                        "S'inicia a Recompte, Transmissió. Genera el paquet de resultats signat per als seus destins; les signatures completen la seva llista de signatures.",
+                },
+                "approve-voter": {
+                    label: "Aprovar manualment un votant",
+                    short: "Aprovació de votant",
+                    permissionName: "aprovar manualment un votant",
+                    object: "aprovació de votant",
+                    appliesTo: "El $t(signing.terms.post) del votant",
+                    description:
+                        "S'inicia a Aprovacions. Aprova el votant i n'emet les credencials.",
+                },
+                "approve-configuration": {
+                    label: "Aprovar una versió de configuració",
+                    short: "Versió de configuració",
+                    permissionName: "aprovar una versió de configuració",
+                    object: "versió de configuració",
+                    appliesTo: "L'esdeveniment electoral",
+                    description: "S'inicia a Publicar. Publica la versió de configuració.",
+                },
+                "key-ceremony": {
+                    label: "Confirmar un fragment de clau (cerimònia de claus)",
+                    short: "Fragment de clau",
+                    permissionName: "confirmar un fragment de clau",
+                    object: "fragment de clau",
+                    appliesTo: "Cada autoritat",
+                    description:
+                        "L'inicia cada autoritat a Claus. Anota la signatura de l'autoritat a la cerimònia i al tauler d'anuncis.",
+                },
+                "tally-key": {
+                    label: "Aportar un fragment de clau (recompte)",
+                    short: "Aportació de fragment de clau",
+                    permissionName: "aportar un fragment de clau",
+                    object: "aportació de fragment de clau",
+                    appliesTo: "Cada autoritat",
+                    description:
+                        "L'inicia cada autoritat a Recompte. Anota l'aportació de l'autoritat.",
+                },
+            },
+            protectedActions: {
+                intro: "Cada signatura es fa amb el certificat digital del testimoni de seguretat del signant.",
+                columns: {
+                    action: "Acció",
+                    appliesTo: "S'aplica a",
+                    whoCanSign: "Qui pot signar",
+                    signaturesNeeded: "Signatures necessàries",
+                    requestExpires: "Caducitat de la sol·licitud",
+                    waiting: "En espera",
+                },
+                off: "Desactivada",
+                eachTrustee: "Cada autoritat",
+                footerVersion:
+                    "Les regles de signatura formen part de la versió de configuració {{version}} d'aquest esdeveniment.",
+                footerFirstVersion:
+                    "Les regles de signatura passaran a formar part de la primera versió de configuració d'aquest esdeveniment quan es publiqui.",
+                footerChanged: "Darrer canvi: {{date}}.",
+                footerChangedBy: "Darrer canvi: {{date}}, per {{name}}.",
+                lockedDown:
+                    "L'esdeveniment electoral està bloquejat: les seves regles de signatura pertanyen a la seva versió de configuració, de manera que només canvien mitjançant una nova versió de configuració.",
+                edit: "Editar {{action}}",
+                view: "Veure {{action}}",
+                waitingCount_one: "{{count}} sol·licitud en espera",
+                waitingCount_other: "{{count}} sol·licituds en espera",
+                capacityError:
+                    "No s'ha pogut carregar qui pot signar, de manera que el nombre de signatures no es pot comprovar amb els $t(signing.terms.posts).",
+            },
+            expiry: {
+                "30": "30 minuts",
+                "60": "1 hora",
+                "120": "2 hores",
+                "1440": "24 hores",
+                "none": "Sense límit",
+                "other": "{{count}} minuts",
+            },
+            rule: {
+                needsSignatures: "Requereix signatures",
+                whoCanSign: "Qui pot signar",
+                whoCanSignHelp:
+                    "Aquests rols reben el permís «Signar: {{action}}» a Usuaris i Rols, per a tots els esdeveniments electorals. Els signants també han de tenir accés al $t(signing.terms.post).",
+                signaturesNeeded: "Signatures necessàries",
+                signaturesNeededHelp:
+                    "Cada signant fa servir el seu certificat digital. Cada $t(signing.terms.post) té almenys {{n}} persones que poden signar.",
+                signaturesNeededShortHelp: "Cada signant fa servir el seu certificat digital.",
+                requesterSigning: "La persona que la inicia també pot signar",
+                expiresAfter: "Una sol·licitud caduca al cap de",
+                trusteesSign: "Les autoritats signen aquest pas",
+                trusteesHelp:
+                    "Cada autoritat signa el seu propi pas amb el seu certificat digital. La cerimònia de claus determina quantes autoritats hi participen.",
+                footer: "Els canvis queden anotats al registre de l'esdeveniment electoral i passen a formar part de la versió de configuració següent.",
+                cancel: "Cancel·lar",
+                save: "Desar",
+                saved: "S'ha desat la regla de signatura.",
+                savedShort_one:
+                    "S'ha desat la regla de signatura. {{posts}} encara no pot arribar al nombre: afegiu-hi un signant.",
+                savedShort_other:
+                    "S'ha desat la regla de signatura. {{posts}} encara no poden arribar al nombre: afegiu-hi signants.",
+                checkedOnSave: "El nombre es comprova amb els nous rols en desar.",
+                savedRequesterShort:
+                    "S'ha desat la regla de signatura. Alguns $t(signing.terms.posts) no poden arribar al nombre sense la persona que inicia una sol·licitud.",
+                saveError:
+                    "No s'ha pogut desar la regla de signatura. Potser una altra persona l'ha canviada mentrestant; recarregueu i torneu-ho a provar.",
+            },
+            validation: {
+                atLeastOne: "Almenys 1.",
+                tooMany:
+                    "Cap $t(signing.terms.post) no té {{n}} persones que puguin signar. El màxim és {{max}}.",
+                tooManyEvent:
+                    "Només {{max}} persones poden signar això. Trieu-ne com a màxim {{max}}.",
+                atMost: "Com a màxim {{max}}.",
+                shortPosts_one:
+                    "{{posts}} només té {{n}} persones que poden signar, de manera que no pot arribar a {{required}} signatures. Afegiu-hi un signant o reduïu el nombre.",
+                requesterShort_one:
+                    "Sense la persona que la inicia, {{posts}} només té {{n}} persones que poden signar, de manera que no pot arribar a {{required}} signatures.",
+                requesterShort_other:
+                    "Sense la persona que la inicia, {{posts}} només tenen {{n}} persones que poden signar, de manera que no poden arribar a {{required}} signatures.",
+                shortPosts_other:
+                    "{{posts}} només tenen {{n}} persones que poden signar, de manera que no poden arribar a {{required}} signatures. Afegiu-hi un signant o reduïu el nombre.",
+            },
+            pendingRequests_one:
+                "{{count}} sol·licitud espera signatures amb la regla actual. En desar es cancel·la; la persona que la va iniciar haurà de tornar a començar.",
+            pendingRequests_other:
+                "{{count}} sol·licituds esperen signatures amb la regla actual. En desar es cancel·len; les persones que les van iniciar hauran de tornar a començar.",
+            certificates: {
+                issuersIntro:
+                    "Els certificats del personal han d'encadenar amb un d'aquests. Són diferents dels certificats amb què inicien sessió els votants.",
+                checkRevocation: "Comprovar les llistes de revocació",
+                crlUnavailable: {
+                    "label": "Quan no es pot baixar una llista",
+                    "refuse": "No acceptar signatures",
+                    "accept-unchecked": "Acceptar i marcar la signatura com a no comprovada",
+                },
+                registration: {
+                    "label": "Registre d'un certificat a nom d'una persona",
+                    "on-first-use": "Quan el seu titular hi signa per primera vegada",
+                    "security-officer-only":
+                        "Només quan el registra algú que pot registrar certificats",
+                },
+                onePost: "Un certificat només signa per a un $t(signing.terms.post)",
+                issuers: "Emissors de confiança",
+                import: "Importar certificats d'emissors",
+                importHelp:
+                    "Trieu un fitxer PEM o CER amb el certificat de l'emissor. Un fitxer PEM pot contenir diversos certificats.",
+                chooseFile: "Triar un fitxer de certificat",
+                fileError: "No s'ha pogut llegir el fitxer.",
+                imported:
+                    "{{imported}} certificats d'emissors importats; {{skipped}} ja eren de confiança.",
+                importedWithErrors:
+                    "{{imported}} certificats d'emissors importats, {{skipped}} ja eren de confiança. Rebutjats: {{errors}}",
+                importError: "No s'han pogut importar els certificats d'emissors.",
+                deleteIssuer: "Suprimir {{name}}",
+                deleteIssuerConfirm:
+                    "Voleu suprimir {{name}} dels emissors de confiança? Els certificats que ha emès ja no podran signar.",
+                deleteError: "No s'ha pogut suprimir l'emissor.",
+                noIssuers:
+                    "Encara no hi ha emissors de confiança. El personal no pot signar fins que se n'importi un.",
+                root: "Arrel",
+                intermediate: "Intermedi",
+                columns: {
+                    issuer: "Emissor",
+                    type: "Tipus",
+                    issuedBy: "Emès per",
+                    validUntil: "Vàlid fins a",
+                    sha256: "SHA-256",
+                    person: "Persona",
+                    post: "$t(signing.terms.post)",
+                    certificate: "Certificat",
+                    registered: "Registrat",
+                    status: "Estat",
+                },
+                checks: "Comprovacions",
+                checksSaved: "S'han desat les comprovacions de certificats.",
+                checksError: "No s'han pogut desar les comprovacions de certificats.",
+                crlSchedule: "Es baixen de cada emissor cada hora.",
+                crlUpdated: "{{url}}: actualitzada {{time}}",
+                crlFailed: "{{url}}: no s'ha pogut baixar (darrer intent {{time}})",
+                registeredTitle: "Certificats registrats",
+                search: "Cercar persones, certificats o $t(signing.terms.posts)",
+                status: "Estat",
+                statusAll: "Tots",
+                statuses: {
+                    "active": "Actiu",
+                    "expires-soon": "Caduca aviat",
+                    "expired": "Caducat",
+                    "revoked": "Revocat",
+                },
+                revokedOn: "Revocat el {{date}}",
+                allPosts: "Tots",
+                noCertificates: "No hi ha certificats registrats.",
+                registeredHow: {
+                    "first-use": "En la primera signatura",
+                    "security-officer": "Registrat per un administrador",
+                },
+                register: "Registrar un certificat",
+                registerSubmit: "Registrar",
+                registerDone: "S'ha registrat el certificat.",
+                registerError: "No s'ha pogut registrar el certificat.",
+                person: "Persona",
+                personSearchHelp: "Escriviu part d'un nom d'usuari per trobar la persona.",
+                registeredBy: "Per {{name}}",
+                registerRefused:
+                    "Aquest certificat no es pot registrar: comproveu que l'ha emès un emissor de confiança, que és vàlid avui i que està destinat a signar.",
+                registeredToOther:
+                    "Aquest certificat està registrat a nom de {{name}}. Si aquest compte també és de {{name}}, vinculeu-lo com el seu segon compte.",
+                linkAccount: "Vincular com a segon compte de la mateixa persona",
+                alreadyRegistered: "Aquest certificat ja està registrat a nom d'aquesta persona.",
+                pem: "Certificat (PEM)",
+                revoke: "Revocar",
+                revokeOf: "Revocar el certificat de {{name}}",
+                revokeTitle: "Revocar el certificat de {{name}}",
+                revokeHelp:
+                    "Un certificat revocat ja no pot signar. Les signatures que ja ha fet continuen sent vàlides.",
+                revokeReason: "Motiu",
+                revokeDone: "S'ha revocat el certificat.",
+                revokeError: "No s'ha pogut revocar el certificat.",
+            },
+            requests: {
+                exportCsv: "Exportar CSV",
+                exportError: "No s'han pogut exportar les sol·licituds.",
+                exportFileName: "signing-requests.csv",
+                status: "Estat",
+                statusAll: "Totes",
+                statusCount: "{{status}} · {{count}} de {{total}}",
+                expires: "Caduca {{time}}",
+                lastSignatureBy: "{{name}}, {{time}}",
+                empty: "Encara no hi ha sol·licituds de signatura.",
+                columns: {
+                    request: "Sol·licitud",
+                    status: "Estat",
+                    started: "Iniciada",
+                    by: "Per",
+                    lastSignature: "Darrera signatura",
+                    code: "Codi",
+                },
+            },
+            reports: {
+                postRequired:
+                    "Selecciona un lloc per generar aquest informe quan es requereixen signatures.",
+                generateNotice:
+                    "{{post}}: el document es genera ara. Es podrà imprimir i transmetre quan l'hagin signat {{n}} persones.",
+            },
+            status: {
+                waiting: "En espera",
+                completed: "Signada",
+                executed: "Feta",
+                cancelled: "Cancel·lada",
+                expired: "Caducada",
+                failed: "Fallida",
+            },
+            cancelReasons: {
+                "by-requester": "La persona que la va iniciar l'ha cancel·lada",
+                "by-operator": "Un operador l'ha cancel·lada",
+                "rule-changed": "Ha canviat la regla de signatura de l'acció",
+                "payload-changed": "Ha canviat el que se signa",
+                "superseded": "Una sol·licitud més recent l'ha substituïda",
+                "certificate-revoked": "S'ha revocat un certificat que l'havia signada",
+            },
+            panel: {
+                rulePost:
+                    "Requereix {{n}} signatures dels signants de {{post}}, cadascuna amb el seu certificat digital.",
+                ruleEvent:
+                    "Requereix {{n}} signatures, cadascuna amb el certificat digital del signant.",
+                signingCode: "Codi de signatura",
+                signers: "Signants",
+                sign: "Signar",
+                handover: "El següent membre inicia la sessió",
+                cancel: "Cancel·lar la sol·licitud",
+                signedAt: "Signat {{time}}",
+                notSigned: "Sense signar",
+                certificate: "Certificat {{name}}",
+                you: "(vós)",
+                expiresAt: "Caduca a les {{time}}",
+                progress: "{{count}} de {{total}}",
+                openDocument: "Obrir el document",
+                configurationVersion: "Versió de configuració {{version}}",
+                configurationChanges: "Canvis en aquesta versió",
+            },
+            dialog: {
+                title: "Signar {{object}}",
+                steps: {
+                    check: "Revisar",
+                    certificate: "Certificat",
+                    signed: "Signat",
+                },
+                localNote:
+                    "La signatura es fa en aquest navegador. El vostre fitxer de certificat, la seva clau privada i la contrasenya no s'envien mai. Només la vostra signatura i el vostre certificat públic arriben al servidor.",
+                check: {
+                    signingAs: "Esteu signant com a {{name}}",
+                    titlePost: "{{title}}, {{post}}",
+                    sameCode: "Totes les persones que signen veuen el mateix codi.",
+                    confirmDocument: "He revisat el que signo: {{object}}",
+                },
+                certificate: {
+                    intro: "Inseriu el vostre testimoni de seguretat i trieu el vostre fitxer de certificat.",
+                    password: "Contrasenya del certificat",
+                    open: "Obrir el certificat",
+                    chooseAnother: "Triar un altre fitxer",
+                },
+                checks: {
+                    "passed": {
+                        "trusted-issuer": "Emès per un emissor de confiança ({{root}})",
+                        "valid-now": "Vàlid avui",
+                        "signing-key-usage": "Destinat a signar",
+                        "not-revoked": "No revocat (llistes actualitzades {{time}})",
+                        "registered": "Registrat a nom vostre el {{date}}",
+                        "registered-to-other": "No registrat a nom de cap altra persona",
+                        "already-signed": "Encara no s'ha fet servir per a aquesta sol·licitud",
+                        "post-binding": "Registrat per a aquest $t(signing.terms.post)",
+                        "signature": "La signatura cobreix aquesta sol·licitud",
+                    },
+                    "failed": {
+                        "trusted-issuer": "No emès per un emissor de confiança",
+                        "valid-now": "No vàlid avui",
+                        "signing-key-usage": "No destinat a signar",
+                        "not-revoked":
+                            "Revocat, o no hi ha cap llista de revocació vigent per comprovar-ho",
+                        "registered": "No registrat a nom vostre",
+                        "registered-to-other": "Registrat a nom de {{name}}",
+                        "already-signed": "Ja s'ha fet servir per a aquesta sol·licitud",
+                        "post-binding": "Registrat per a un altre $t(signing.terms.post)",
+                        "signature": "La signatura no cobreix aquesta sol·licitud",
+                    },
+                    "first-use": "Primer ús: es registrarà a nom vostre",
+                },
+                problems: {
+                    wrongPassword: "Contrasenya incorrecta. Reviseu-la i torneu-ho a provar.",
+                    notForYou:
+                        "Aquest certificat no pot signar per vós. Feu servir el certificat del vostre propi testimoni de seguretat.",
+                    issuerNotAccepted:
+                        "Feu servir el certificat que {{organization}} us ha registrat. No s'accepten certificats d'altres emissors.",
+                    cancelled:
+                        "Aquesta sol·licitud s'ha cancel·lat: {{reason}}. Les signatures que s'hi van donar ja no compten. Torneu-la a iniciar per signar la versió actual.",
+                },
+                signed: {
+                    title: "Signat",
+                    withCertificate: "amb el certificat de {{name}}",
+                    count: "{{n}} de {{total}} signatures.",
+                    allIn: "Ja hi són totes les {{total}} signatures.",
+                    next: "A continuació signen: {{names}}.",
+                },
+                handover:
+                    "Es tancarà la vostra sessió. El següent membre inicia la sessió en aquest ordinador i torna a aquesta sol·licitud per signar. La sol·licitud continua oberta fins a les {{time}}.",
+                sign: "Signar",
+                back: "Enrere",
+                cancel: "Cancel·lar",
+            },
+            widget: {
+                continue: "Continuar",
+                done: "Fet",
+                close: "Tancar",
+                retry: "Tornar-ho a provar",
+                loading: "S'està carregant la sol·licitud…",
+                loadError: "No s'ha pogut carregar la sol·licitud.",
+                chooseFile: "Triar el fitxer de certificat",
+                fileInput: "Fitxer de certificat",
+                fileSize: "{{size}} KB",
+                showPassword: "Mostrar la contrasenya",
+                hidePassword: "Amagar la contrasenya",
+                opening: "S'està obrint el certificat…",
+                checking: "S'està comprovant el certificat…",
+                signing: "S'està signant…",
+                certificateCard: "Emès per {{issuer}} · vàlid fins a {{date}} · {{algorithm}}",
+                fingerprint: "SHA-256 {{fingerprint}}",
+                algorithms: {
+                    "rsa-pkcs1-sha256": "RSA",
+                    "ecdsa-p256-sha256": "EC P-256",
+                },
+                document: "{{type}} · SHA-256 {{hash}}",
+                documentPages: "{{type}} · {{pages}} pàgines · SHA-256 {{hash}}",
+                checksTitle: "Comprovacions del certificat",
+                untrustedIssuer:
+                    "{{issuer}} no és un emissor de confiança per a aquest esdeveniment electoral",
+                registeredToSomeoneElse: "Registrat a nom d'una altra persona",
+                checkPassedNoDetail: {
+                    "trusted-issuer": "Emès per un emissor de confiança",
+                    "not-revoked": "No revocat",
+                },
+                organization: "la vostra organització",
+                cantSign: "Aquest certificat no pot signar aquesta sol·licitud.",
+                checkError: "No s'ha pogut comprovar el certificat. Torneu-ho a provar.",
+                fileErrors: {
+                    UNREADABLE_FILE:
+                        "Aquest fitxer no és un fitxer de certificat (.p12 o .pfx), o està malmès.",
+                    UNSUPPORTED_ENCRYPTION:
+                        "Aquest navegador no pot obrir el xifratge que fa servir aquest fitxer.",
+                    NO_PRIVATE_KEY:
+                        "Aquest fitxer no té clau privada. Trieu el fitxer de certificat del vostre testimoni de seguretat.",
+                    NO_CERTIFICATE: "Aquest fitxer no té cap certificat.",
+                    UNSUPPORTED_KEY:
+                        "El tipus de clau d'aquest certificat no és compatible. Feu servir un certificat RSA o EC P-256.",
+                    KEY_CERTIFICATE_MISMATCH:
+                        "El certificat d'aquest fitxer no coincideix amb la seva clau.",
+                },
+                openError: "No s'ha pogut obrir el certificat. Torneu-ho a provar.",
+                signError: "No s'ha pogut enviar la signatura. Torneu-ho a provar.",
+                refused: "El servidor ha rebutjat la signatura.",
+                stale: "El document ha canviat mentre signàveu. Torneu a signar.",
+                mismatch:
+                    "El que se signaria no coincideix amb aquesta sol·licitud. Tanqueu el diàleg i torneu a obrir la sol·licitud.",
+                documentMismatch: "El document no coincideix amb el que signa aquesta sol·licitud.",
+                documentError: "No s'ha pogut baixar el document. Torneu-ho a provar.",
+                alreadySigned: "Ja heu signat aquesta sol·licitud.",
+                closed: {
+                    changed:
+                        "Aquesta sol·licitud ha canviat després que l'obríssiu. Tanqueu aquesta finestra i torneu-la a revisar abans de signar.",
+                    allSigned: "Aquesta sol·licitud ja té totes les seves signatures.",
+                },
+                chooseCertificate: "Certificat amb què signar",
+                renderError:
+                    "No s'ha pogut mostrar la sol·licitud de signatura. Tanqueu-la i torneu-la a obrir.",
+                signedAt: "{{time}}",
+                panel: {
+                    completedAt: "Signada a les {{time}}",
+                    expired:
+                        "Aquesta sol·licitud ha caducat. Les signatures que s'hi van donar ja no compten. Torneu-la a iniciar per signar.",
+                    failed: "Hi són totes les signatures, però l'acció ha fallat. El registre en té els detalls.",
+                    details: "Detalls",
+                    close: "Tancar el tauler de la sol·licitud",
+                },
+                cancelDialog: {
+                    title: "Voleu cancel·lar aquesta sol·licitud?",
+                    body: "Les signatures que s'hi van donar ja no compten. La persona que la va iniciar haurà de tornar a començar.",
+                    reason: "Motiu (opcional)",
+                    confirm: "Cancel·lar la sol·licitud",
+                    back: "Mantenir-la",
+                    error: "No s'ha pogut cancel·lar la sol·licitud. Torneu-ho a provar.",
+                },
+                handoverDialog: {
+                    title: "El següent membre inicia la sessió",
+                    noExpiry:
+                        "Es tancarà la vostra sessió. El següent membre inicia la sessió en aquest ordinador i torna a aquesta sol·licitud per signar.",
+                    confirm: "Tancar la sessió",
+                    back: "Mantenir la sessió",
+                    error: "No s'ha pogut registrar el relleu. Torneu-ho a provar.",
+                },
+            },
+            details: {
+                keys_ceremony_id: "Cerimònia",
+                tally_session_id: "Sessió de recompte",
+                trustee_id: "Autoritat",
+                key_share_sha256: "SHA-256 del fragment de clau",
+                channel: "Canal",
+                channels: "Canals",
+                publication_id: "Publicació de paperetes",
+                ballot_publication_id: "Publicació de paperetes",
+                digest: "SHA-256 de la configuració",
+                signing_rules: "Regles de signatura",
+                scheduled_events: "Nous esdeveniments programats",
+                ballots_and_contests: "Paperetes i concursos",
+                application_id: "Sol·licitud d'inscripció",
+                applicant_registry_id: "Compte del registre",
+                decision: "Decisió",
+                submitted_at: "Enviada",
+                reason: "Per què requereix una persona",
+                registry_record: "Registre del cens",
+                status: "Estat de la sol·licitud d'inscripció",
+                from: "Estat anterior",
+            },
+            closed: {
+                pending: "Ja hi són totes les signatures. La votació es tanca d'aquí a un moment.",
+                title: "La votació s'ha tancat a les {{time}}.",
+                titleSealed: "La votació s'ha tancat a les {{time}}. Paperetes segellades.",
+                record: "Acta de segellat",
+                ballots: "Paperetes al segell",
+                sealHash: "{{algorithm}} del segell",
+                signedBy: "Signat per",
+                signatures: "Signatures de tancament a l'acta de segellat",
+                signaturesValue_one: "{{count}}, codi de signatura {{code}}",
+                signaturesValue_other: "{{count}}, codi de signatura {{code}}",
+                signers: "Signat pels membres",
+            },
+            values: {
+                ballots_and_contests: {
+                    "first-version": "Primera versió",
+                    "no-changes": "Sense canvis",
+                    "changed": "Amb canvis",
+                },
+                signing_rules: {
+                    "initialize-voting": "$t(signing.actions.initialize-voting.label)",
+                    "open-voting": "$t(signing.actions.open-voting.label)",
+                    "close-voting": "$t(signing.actions.close-voting.label)",
+                    "generate-election-returns":
+                        "$t(signing.actions.generate-election-returns.label)",
+                    "generate-reports": "$t(signing.actions.generate-reports.label)",
+                    "transmit-results": "$t(signing.actions.transmit-results.label)",
+                    "approve-voter": "$t(signing.actions.approve-voter.label)",
+                    "approve-configuration": "$t(signing.actions.approve-configuration.label)",
+                    "key-ceremony": "$t(signing.actions.key-ceremony.label)",
+                    "tally-key": "$t(signing.actions.tally-key.label)",
+                },
+                channels: {
+                    ONLINE: "En línia",
+                    KIOSK: "Quiosc",
+                    EARLY_VOTING: "Votació anticipada",
+                    TELEPHONE: "Telèfon",
+                },
+                statuses: {
+                    NOT_STARTED: "No iniciada",
+                    OPEN: "Oberta",
+                    PAUSED: "En pausa",
+                    CLOSED: "Tancada",
+                },
+                channelStatus: "{{channel}}: {{status}}",
+                ruleChange: "{{action}}: {{rule}}",
+                ruleChangeFrom: "{{action}}: {{rule}} (abans {{was}})",
+                ruleNeeds: "necessita {{n}}",
+                ruleOff: "desactivada",
+                decision: {
+                    approve: "Aprovar",
+                },
+            },
+            results: {
+                signatures: "Signatures",
+                needs: "Requereix {{n}}",
+                off: "Desactivada",
+                openRequest: "Obrir la sol·licitud de signatura",
+                downloadSigned: "Baixar el PDF signat",
+                print: "Imprimir",
+                transmit: "Transmetre resultats",
+                sendTo: "Enviar a {{count}} destins",
+                awaiting: "{{item}}: esperant signatures",
+                transmission: {
+                    title: "Signatures",
+                    description:
+                        "Cada signant signa els resultats del paquet amb el seu certificat digital, en aquest navegador. El paquet es pot enviar quan l'hagin signat {{n}} persones.",
+                    waiting:
+                        "El paquet es pot enviar quan la seva sol·licitud de signatura tingui totes les signatures.",
+                    signed: "El paquet porta totes les seves signatures i es pot enviar.",
+                    ended: "La sol·licitud de signatura d'aquest paquet ha acabat. Torneu a crear el paquet per signar-lo.",
+                },
+            },
+            waiting: {
+                title: "Pendent de la meva signatura",
+                buttonCount_one: "Pendent de la meva signatura: {{count}} sol·licitud per signar",
+                buttonCount_other:
+                    "Pendent de la meva signatura: {{count}} sol·licituds per signar",
+                intro: "Sol·licituds que esperen les signatures de les accions que podeu signar, als vostres $t(signing.terms.posts).",
+                close: "Tanca la llista",
+                empty: "No hi ha res pendent de la vostra signatura.",
+                loadError: "No s'han pogut carregar les sol·licituds que esperen signatures.",
+                signedByYou: "Signada per vós",
+            },
+            notes: {
+                afterApproval: "Després de l'aprovació",
+                afterApprovalValue: "S'emeten les credencials del votant i se li envien",
+                keyShare: "El vostre fragment de clau",
+                keyShareChecked: "Comprovat: és el vostre fragment de clau per a aquesta cerimònia",
+                recordedIn: "S'anota a",
+                recordedInCeremony: "La cerimònia de claus i el tauler d'anuncis",
+                recordedInTally: "La sessió de recompte",
+            },
+            keyShare: {
+                signing:
+                    "Signeu el vostre fragment de clau al tauler de signatura. Queda anotat un cop l'hàgiu signat.",
+                record: "Anotar el meu fragment de clau",
+                failed: "No s'ha pogut anotar el vostre fragment de clau signat: {{error}}",
+                dropAgain:
+                    "Torneu a deixar anar el vostre fitxer de fragment de clau per anotar el fragment de clau signat.",
+                redo: "El vostre fragment de clau es va aportar sense la vostra signatura, que ara aquesta elecció requereix. Torneu-lo a aportar i signeu-lo.",
+                notTaken:
+                    "La cerimònia ja no accepta aquest fragment de clau. Torneu a deixar anar el vostre fitxer de fragment de clau.",
+            },
         },
     },
 }

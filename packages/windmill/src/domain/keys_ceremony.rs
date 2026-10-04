@@ -6,6 +6,7 @@
 //! and check their private keys, and how a ceremony advances while the
 //! bulletin board generates the election keys.
 
+use crate::domain::trustee_signatures::TrusteeSignatures;
 use anyhow::{anyhow, Context, Result};
 use chrono::{DateTime, Local};
 use sequent_core::serialization::deserialize_with_path::deserialize_str;
@@ -293,13 +294,13 @@ pub fn with_key_checked(
     status: &KeysCeremonyStatus,
     trustee_name: &str,
     logs: Vec<Log>,
+    signatures: &TrusteeSignatures,
 ) -> (KeysCeremonyStatus, KeysCeremonyExecutionStatus) {
     let new_status = with_trustee_status(status, trustee_name, &TrusteeStatus::KEY_CHECKED, logs);
-    let execution_status = if new_status
-        .trustees
-        .iter()
-        .all(|trustee| trustee.status == TrusteeStatus::KEY_CHECKED)
-    {
+    // When the rule makes trustees sign, an unsigned check doesn't count.
+    let execution_status = if new_status.trustees.iter().all(|trustee| {
+        trustee.status == TrusteeStatus::KEY_CHECKED && signatures.counts(&trustee.name)
+    }) {
         KeysCeremonyExecutionStatus::SUCCESS
     } else {
         KeysCeremonyExecutionStatus::IN_PROGRESS
@@ -796,8 +797,12 @@ mod tests {
             (OTHER_TRUSTEE, TrusteeStatus::KEY_RETRIEVED),
         ]);
 
-        let (new_status, execution_status) =
-            with_key_checked(&current, TRUSTEE, vec![log("checked")]);
+        let (new_status, execution_status) = with_key_checked(
+            &current,
+            TRUSTEE,
+            vec![log("checked")],
+            &TrusteeSignatures::NotNeeded,
+        );
 
         assert_eq!(
             statuses(&new_status),
@@ -818,9 +823,29 @@ mod tests {
             (OTHER_TRUSTEE, TrusteeStatus::KEY_CHECKED),
         ]);
 
-        let (_, execution_status) = with_key_checked(&current, TRUSTEE, vec![]);
+        let (_, execution_status) =
+            with_key_checked(&current, TRUSTEE, vec![], &TrusteeSignatures::NotNeeded);
 
         assert_eq!(execution_status, KeysCeremonyExecutionStatus::SUCCESS);
+    }
+
+    #[test]
+    fn with_signatures_needed_the_ceremony_succeeds_only_when_every_check_was_signed() {
+        let current = status(&[
+            (TRUSTEE, TrusteeStatus::KEY_RETRIEVED),
+            (OTHER_TRUSTEE, TrusteeStatus::KEY_CHECKED),
+        ]);
+        let signed = |others: &[&str]| TrusteeSignatures::Needed {
+            signed: others.iter().map(|name| name.to_string()).collect(),
+            signing: Some(TRUSTEE.to_string()),
+        };
+
+        // The other trustee checked before the rule: they check again, signed.
+        let (_, unsigned_other) = with_key_checked(&current, TRUSTEE, vec![], &signed(&[]));
+        assert_eq!(unsigned_other, KeysCeremonyExecutionStatus::IN_PROGRESS);
+        let (_, all_signed) =
+            with_key_checked(&current, TRUSTEE, vec![], &signed(&[OTHER_TRUSTEE]));
+        assert_eq!(all_signed, KeysCeremonyExecutionStatus::SUCCESS);
     }
 
     #[test]

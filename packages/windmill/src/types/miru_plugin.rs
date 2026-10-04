@@ -61,6 +61,18 @@ pub struct MiruTransmissionPackageData {
     pub documents: Vec<MiruDocument>,
     pub logs: Vec<Log>,
     pub threshold: i64,
+    /// The request whose signatures the package waits for, when the event's
+    /// transmit-results rule needs them.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub signing_request: Option<MiruSigningRequest>,
+}
+
+/// The signing request of a transmission package.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+pub struct MiruSigningRequest {
+    pub id: String,
+    pub code: String,
+    pub required: i32,
 }
 
 #[derive(PartialEq, Eq, Serialize, Deserialize, Debug, Clone)]

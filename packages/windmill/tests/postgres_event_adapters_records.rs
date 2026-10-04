@@ -1543,6 +1543,8 @@ async fn insert_certificate_authority_writes_the_record() {
             "fingerprint_sha256": "aa",
             "serial_number": "01",
             "pem": "PEM aa",
+            // Written without a purpose: a voter sign-in authority.
+            "purpose": "voter-sign-in",
         })
     );
     tx.rollback().await.unwrap();

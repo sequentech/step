@@ -15,6 +15,7 @@ use crate::domain::keys_ceremony::{
     with_key_checked, with_key_retrieved, KeygenAuditEntry, KeysBoardMessage, KeysBoardStep,
     NewKeysCeremony,
 };
+use crate::domain::trustee_signatures::TrusteeSignatures;
 use crate::ports::clock::{Clock, IdGenerator};
 use crate::ports::keys_ceremony::{
     KeysBoard, KeysCeremonies, KeysCeremonyAudit, KeysCeremonyElectionEvents,
@@ -266,14 +267,76 @@ pub async fn find_trustee_private_key(
     .await
 }
 
+/// Whether `private_key_base64` is the trustee's key share of the ceremony,
+/// compared as [`check_trustee_private_key`] compares it, recording nothing.
+/// Fails as the check fails when the trustee can't check it now.
+pub async fn trustee_key_share_matches<S, B>(
+    store: &S,
+    board: &B,
+    request: TrusteeKeyRequest<'_>,
+    private_key_base64: &str,
+) -> Result<bool>
+where
+    S: KeysCeremonies + KeysCeremonyElectionEvents + KeysCeremonyElections + KeysCeremonyTrustees,
+    B: KeysBoard,
+{
+    let TrusteeKeyRequest {
+        trustee,
+        tenant_id,
+        election_event_id,
+        keys_ceremony_id,
+    } = request;
+    let trustee_name = trustee.ok_or(anyhow!("trustee name not found"))?;
+    let keys_ceremony = store
+        .keys_ceremony(tenant_id, election_event_id, keys_ceremony_id)
+        .await?;
+    validate_private_key_check(&keys_ceremony, &trustee_name)?;
+    let encrypted_private_key = trustee_private_key(
+        store,
+        board,
+        tenant_id,
+        election_event_id,
+        &trustee_name,
+        &keys_ceremony,
+    )
+    .await?;
+    Ok(encrypted_private_key == private_key_base64)
+}
+
+/// [`trustee_key_share_matches`] on the database and the board.
+#[instrument(err, skip(transaction, private_key_base64))]
+pub async fn key_share_matches(
+    transaction: &Transaction<'_>,
+    trustee: Option<String>,
+    tenant_id: &str,
+    election_event_id: &str,
+    keys_ceremony_id: &str,
+    private_key_base64: &str,
+) -> Result<bool> {
+    trustee_key_share_matches(
+        &PgKeysCeremonyStore { transaction },
+        &B4KeysBoard { transaction },
+        TrusteeKeyRequest {
+            trustee,
+            tenant_id,
+            election_event_id,
+            keys_ceremony_id,
+        },
+        private_key_base64,
+    )
+    .await
+}
+
 /// Compares the private key a trustee kept with the one on the board, and
-/// records the check when they match.
+/// records the check when they match. With signatures needed, the ceremony
+/// succeeds only once every check counts as signed.
 pub async fn check_trustee_private_key<S, B, C>(
     store: &S,
     board: &B,
     clock: &C,
     request: TrusteeKeyRequest<'_>,
     private_key_base64: &str,
+    signatures: &TrusteeSignatures,
 ) -> Result<bool>
 where
     S: KeysCeremonies + KeysCeremonyElectionEvents + KeysCeremonyElections + KeysCeremonyTrustees,
@@ -312,7 +375,8 @@ where
     }
 
     let logs = append_keys_trustee_check_log_at(&current_status.logs, &trustee_name, clock.now());
-    let (new_status, new_execution_status) = with_key_checked(&current_status, &trustee_name, logs);
+    let (new_status, new_execution_status) =
+        with_key_checked(&current_status, &trustee_name, logs, signatures);
 
     store
         .update_keys_ceremony_status(
@@ -335,7 +399,7 @@ where
     Ok(true)
 }
 
-#[instrument(err)]
+#[instrument(err, skip(transaction, claims, private_key_base64, signatures))]
 pub async fn check_private_key(
     transaction: &Transaction<'_>,
     claims: JwtClaims,
@@ -343,6 +407,7 @@ pub async fn check_private_key(
     election_event_id: String,
     keys_ceremony_id: String,
     private_key_base64: String,
+    signatures: &TrusteeSignatures,
 ) -> Result<bool> {
     check_trustee_private_key(
         &PgKeysCeremonyStore { transaction },
@@ -355,6 +420,7 @@ pub async fn check_private_key(
             keys_ceremony_id: &keys_ceremony_id,
         },
         &private_key_base64,
+        signatures,
     )
     .await
 }

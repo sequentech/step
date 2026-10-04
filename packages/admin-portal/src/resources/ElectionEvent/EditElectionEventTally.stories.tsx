@@ -10,6 +10,7 @@ import {STORY_IDS, eventRecord} from "@/__stories__/fixtures"
 import type {WidgetMeta} from "@/__stories__/widgetStory"
 import {ElectionEventTallyContext} from "@/providers/ElectionEventTallyProvider"
 import {miruPackage} from "@/components/__stories__/MiruFixture"
+import {fakeApi, makePanel} from "@/components/signing/__stories__/fixtures"
 import {EditElectionEventTally} from "./EditElectionEventTally"
 import {
     answerOrPending,
@@ -28,6 +29,9 @@ interface Scenario {
 
 let graphql: ReturnType<typeof graphqlBoundary>
 let data: ReturnType<typeof recordsOrPending>
+// The portal's root SigningProvider: the transmission wizard opens signing
+// requests from it. No request is opened here.
+let signingApi: ReturnType<typeof fakeApi>
 
 function Fixture({view}: Scenario) {
     const {permissions, tenant} = useStoryGlobals()
@@ -38,6 +42,7 @@ function Fixture({view}: Scenario) {
             dataProvider={data.provider}
             role={permissions}
             tenant={tenant}
+            signingApi={signingApi}
         >
             <ElectionEventTallyContext.Provider
                 value={{
@@ -67,6 +72,7 @@ const meta = {
     beforeEach: async () => {
         data = recordsOrPending()
         graphql = graphqlBoundary(answerOrPending(), {schema: true})
+        signingApi = fakeApi(await makePanel())
         await graphql.ready
     },
     render: (args, {globals}) => <Fixture key={JSON.stringify(globals)} {...args} />,

@@ -342,6 +342,9 @@ const tagalogTranslation: TranslationType = {
                 helpLinks: "Mga Link ng Tulong",
                 logoUrl: "URL ng Logo",
                 css: "Custom CSS",
+                displayName: "Ipinapakitang pangalan",
+                displayNameHelp:
+                    "Ang pangalan ng organisasyon sa mga mensaheng bumabanggit dito. Kapag walang laman: ang maikling pangalan ng tenant.",
             },
             errors: {
                 invalidHelpLinks: "Hindi wastong format ng Mga Link ng Tulong",
@@ -1326,6 +1329,29 @@ const tagalogTranslation: TranslationType = {
                 "admin-dashboard-view": "Tingnan ang Dashboard ng Admin",
                 "monitoring-view": "Tingnan ang mga Dashboard ng Pagsubaybay",
                 "monitoring-configure": "I-configure ang mga Dashboard ng Pagsubaybay",
+                "election-event-signatures-tab": "Tab ng mga Pirma ng Kaganapan sa Halalan",
+                "signing-rules-read": "Mga Pirma: tingnan ang mga protektadong aksyon",
+                "signing-rules-write": "Mga Pirma: i-edit ang mga protektadong aksyon",
+                "signing-certificates-read": "Mga Pirma: tingnan ang mga sertipiko",
+                "signing-issuers-write":
+                    "Mga Pirma: mag-import at mag-alis ng mga pinagkakatiwalaang issuer",
+                "signing-checks-write": "Mga Pirma: i-edit ang mga pagsusuri sa sertipiko",
+                "signing-certificates-register": "Mga Pirma: magrehistro ng mga sertipiko",
+                "signing-certificates-revoke": "Mga Pirma: bawiin ang mga sertipiko",
+                "signing-requests-read": "Mga Pirma: tingnan ang mga kahilingan",
+                "signing-requests-cancel": "Mga Pirma: kanselahin ang mga kahilingan",
+                "signing-requests-export": "Mga Pirma: i-export ang mga kahilingan",
+                "sign-initialize-voting": "Pirmahan: i-initialize ang pagboto",
+                "sign-open-voting": "Pirmahan: buksan ang pagboto",
+                "sign-close-voting": "Pirmahan: isara ang pagboto",
+                "sign-generate-election-returns": "Pirmahan: bumuo ng election returns",
+                "sign-generate-reports": "Pirmahan: bumuo ng iba pang ulat ng halalan",
+                "sign-transmit-results": "Pirmahan: i-transmit ang mga resulta",
+                "sign-approve-voter": "Pirmahan: manwal na aprubahan ang isang botante",
+                "sign-approve-configuration":
+                    "Pirmahan: aprubahan ang isang bersyon ng configuration",
+                "sign-key-ceremony": "Pirmahan: kumpirmahin ang isang piraso ng susi",
+                "sign-tally-key": "Pirmahan: iambag ang isang piraso ng susi",
                 "application-export": "Pag-export ng Aplikasyon",
                 "application-import": "Pag-import ng Aplikasyon",
                 "tenant-create": "Lumikha ng Tenant",
@@ -2194,6 +2220,9 @@ const tagalogTranslation: TranslationType = {
                             confirm: "Ipadala ang Pakete ng Transmisyon",
                             cancel: "Isara",
                         },
+
+                        disabled:
+                            "Kulang ang mga kinakailangang lagda o naipadala na ang transmission package sa lahat ng destinasyon.",
                     },
                     regenerate: {
                         title: "I-regenerate",
@@ -2230,11 +2259,11 @@ const tagalogTranslation: TranslationType = {
                     },
                 },
                 signatures: {
-                    title: "SBEI Signatures",
+                    title: "Mga lagda",
                     description:
-                        "Maaaring pirmahan ng mga SBEI ang Pakete ng Transmisyon. Ipinapakita ng talahanayan sa ibaba ang katayuan ng pirma ng bawat isa sa mga miyembro ng SBEI.",
+                        "Maaaring lagdaan ng mga miyembro ang transmission package. Ipinapakita ng talahanayan ang katayuan ng paglagda ng bawat miyembro.",
                     table: {
-                        trusteeName: "ID ng SBEI",
+                        trusteeName: "Miyembro",
                         signed: "Napirmahan",
                     },
                     status: "{{signed}} sa {{total}} Napirmahan",
@@ -3432,6 +3461,663 @@ const tagalogTranslation: TranslationType = {
             confirmDelete: "Burahin ang awtoridad sa sertipikasyon",
             confirmDeleteDescription:
                 'Sigurado ka bang nais mong burahin ang sertipikong "{{name}}" (fingerprint: {{fingerprint}})?',
+        },
+        signing: {
+            terms: {
+                post: "Post",
+                posts: "Mga Post",
+            },
+            tab: {
+                title: "Mga Pirma",
+                intro: "Tumatakbo lamang ang mga protektadong aksyon kapag sapat na awtorisadong tao ang pumirma sa mga ito gamit ang kanilang digital na sertipiko. Sinusuri ang bawat pirma laban sa mga pinagkakatiwalaang issuer at itinatala sa log.",
+                protectedActions: "Mga protektadong aksyon",
+                certificates: "Mga Sertipiko",
+                requests: "Mga Kahilingan",
+            },
+            loadError:
+                "Hindi ma-load ang mga setting ng pagpirma. I-reload ang pahina para subukang muli.",
+            errors: {
+                automatedCeremonies:
+                    "Gumagamit ang event na ito ng mga awtomatikong seremonya ng susi. Hindi ginagawa ng mga trustee ang mga hakbang na ito, kaya hindi maaaring hingin ang kanilang mga lagda. Gumamit ng mga manwal na seremonya ng susi upang hingin ang mga lagda ng trustee.",
+                forbidden: "Wala kang pahintulot para sa pagbabagong ito.",
+                invalid:
+                    "Tinanggihan ng server ang mga value na ito. Suriin ang mga ito at subukang muli.",
+                conflict:
+                    "May ibang nagbago nito habang ginagawa mo ito. I-reload ang pahina at subukang muli.",
+                lockedDown:
+                    "Naka-lock ang kaganapan sa halalan: nagbabago lamang ang mga patakaran sa pagpirma sa pamamagitan ng bagong bersyon ng configuration.",
+                notFound: "Wala na ito. I-reload ang pahina.",
+            },
+            readOnly: {
+                chip: "Pagbasa lamang",
+                rules: "Pagbasa lamang. Kailangan ang pahintulot na “Mga Pirma: i-edit ang mga protektadong aksyon” para baguhin ang mga patakaran sa pagpirma.",
+                whoCanSign:
+                    "Mga tungkulin na may pahintulot na “Pirmahan: {{action}}” sa Mga Tagagamit at Tungkulin. Kailangan ng pahintulot na mag-edit ng mga tungkulin para baguhin ang mga ito.",
+            },
+            groups: {
+                "voting": "Pagboto",
+                "results-and-reports": "Mga resulta at ulat",
+                "enrollment": "Pagpapatala",
+                "configuration-and-keys": "Configuration at mga susi",
+            },
+            actions: {
+                "initialize-voting": {
+                    label: "I-initialize ang pagboto",
+                    short: "Initialization",
+                    permissionName: "i-initialize ang pagboto",
+                    object: "initialization ng pagboto",
+                    appliesTo: "Bawat $t(signing.terms.post)",
+                    description:
+                        "Sinisimulan sa I-publish. Ini-initialize ang $t(signing.terms.post) at binubuo ang Initialization Report nito.",
+                },
+                "open-voting": {
+                    label: "Buksan ang pagboto",
+                    short: "Pagbubukas",
+                    permissionName: "buksan ang pagboto",
+                    object: "pagbubukas ng pagboto",
+                    appliesTo: "Bawat $t(signing.terms.post)",
+                    description:
+                        "Sinisimulan sa I-publish gamit ang Simulan ang Pagboto. Binubuksan ang pagboto sa $t(signing.terms.post).",
+                },
+                "close-voting": {
+                    label: "Isara ang pagboto",
+                    short: "Pagsasara",
+                    permissionName: "isara ang pagboto",
+                    object: "pagsasara ng pagboto",
+                    appliesTo: "Bawat $t(signing.terms.post)",
+                    description:
+                        "Sinisimulan sa I-publish gamit ang Itigil ang Pagboto. Isinasara ang pagboto sa $t(signing.terms.post); itinatago sa record nito ang mga pirma ng pagsasara.",
+                },
+                "generate-election-returns": {
+                    label: "Bumuo ng election returns",
+                    short: "Election returns",
+                    permissionName: "bumuo ng election returns",
+                    object: "election returns",
+                    appliesTo: "Bawat $t(signing.terms.post) at bansa",
+                    description:
+                        "Sinisimulan ng tally, isang kahilingan bawat $t(signing.terms.post) at bansa. Inilalabas ang pinirmahang election returns para i-print at ipadala.",
+                },
+                "generate-reports": {
+                    label: "Bumuo ng iba pang ulat ng halalan",
+                    short: "Ulat",
+                    permissionName: "bumuo ng iba pang ulat ng halalan",
+                    object: "ulat",
+                    appliesTo: "Bawat $t(signing.terms.post)",
+                    description:
+                        "Sinisimulan ng tally para sa Initialization Report at sa Mga Ulat para sa ulat ng partisipasyon. Inilalabas ang pinirmahang ulat.",
+                },
+                "transmit-results": {
+                    label: "I-transmit ang mga resulta",
+                    short: "Transmisyon",
+                    permissionName: "i-transmit ang mga resulta",
+                    object: "results package",
+                    appliesTo: "Bawat $t(signing.terms.post) at bansa",
+                    description:
+                        "Sinisimulan sa Tally, Transmisyon. Binubuo ang pinirmahang results package para sa mga destinasyon nito; pinupunan ng mga pirma ang listahan ng pirma nito.",
+                },
+                "approve-voter": {
+                    label: "Manwal na aprubahan ang isang botante",
+                    short: "Pag-apruba ng botante",
+                    permissionName: "manwal na aprubahan ang isang botante",
+                    object: "pag-apruba ng botante",
+                    appliesTo: "Ang $t(signing.terms.post) ng botante",
+                    description:
+                        "Sinisimulan sa Approvals. Inaaprubahan ang botante at ibinibigay ang kanyang mga credential.",
+                },
+                "approve-configuration": {
+                    label: "Aprubahan ang isang bersyon ng configuration",
+                    short: "Bersyon ng configuration",
+                    permissionName: "aprubahan ang isang bersyon ng configuration",
+                    object: "bersyon ng configuration",
+                    appliesTo: "Ang kaganapan sa halalan",
+                    description:
+                        "Sinisimulan sa I-publish. Ipina-publish ang bersyon ng configuration.",
+                },
+                "key-ceremony": {
+                    label: "Kumpirmahin ang isang piraso ng susi (seremonya ng mga susi)",
+                    short: "Piraso ng susi",
+                    permissionName: "kumpirmahin ang isang piraso ng susi",
+                    object: "piraso ng susi",
+                    appliesTo: "Bawat trustee",
+                    description:
+                        "Sinisimulan ng bawat trustee sa Mga Susi. Itinatala ang pirma ng trustee sa seremonya at sa bulletin board.",
+                },
+                "tally-key": {
+                    label: "Iambag ang isang piraso ng susi (tally)",
+                    short: "Ambag na piraso ng susi",
+                    permissionName: "iambag ang isang piraso ng susi",
+                    object: "ambag na piraso ng susi",
+                    appliesTo: "Bawat trustee",
+                    description:
+                        "Sinisimulan ng bawat trustee sa Tally. Itinatala ang ambag ng trustee.",
+                },
+            },
+            protectedActions: {
+                intro: "Ginagawa ang bawat pirma gamit ang digital na sertipiko sa security token ng pumipirma.",
+                columns: {
+                    action: "Aksyon",
+                    appliesTo: "Para sa",
+                    whoCanSign: "Sino ang maaaring pumirma",
+                    signaturesNeeded: "Kailangang pirma",
+                    requestExpires: "Pag-expire ng kahilingan",
+                    waiting: "Naghihintay",
+                },
+                off: "Naka-off",
+                eachTrustee: "Bawat trustee",
+                footerVersion:
+                    "Bahagi ang mga patakaran sa pagpirma ng bersyon {{version}} ng configuration ng kaganapang ito.",
+                footerFirstVersion:
+                    "Magiging bahagi ang mga panuntunan sa pagpirma ng unang bersyon ng configuration ng event na ito kapag ito ay na-publish.",
+                footerChanged: "Huling binago noong {{date}}.",
+                footerChangedBy: "Huling binago noong {{date}} ni {{name}}.",
+                lockedDown:
+                    "Naka-lock ang kaganapan sa halalan: kabilang ang mga patakaran nito sa pagpirma sa bersyon nito ng configuration, kaya nagbabago lamang ang mga ito sa pamamagitan ng bagong bersyon ng configuration.",
+                edit: "I-edit ang {{action}}",
+                view: "Tingnan ang {{action}}",
+                waitingCount_one: "{{count}} kahilingan ang naghihintay",
+                waitingCount_other: "{{count}} kahilingan ang naghihintay",
+                capacityError:
+                    "Hindi ma-load kung sino ang maaaring pumirma, kaya hindi masuri ang bilang ng pirma laban sa $t(signing.terms.posts).",
+            },
+            expiry: {
+                "30": "30 minuto",
+                "60": "1 oras",
+                "120": "2 oras",
+                "1440": "24 oras",
+                "none": "Walang limitasyon",
+                "other": "{{count}} minuto",
+            },
+            rule: {
+                needsSignatures: "Kailangan ng mga pirma",
+                whoCanSign: "Sino ang maaaring pumirma",
+                whoCanSignHelp:
+                    "Nakakakuha ang mga tungkuling ito ng pahintulot na “Pirmahan: {{action}}” sa Mga Tagagamit at Tungkulin, para sa bawat kaganapan sa halalan. Kailangan ding may access ang mga pumipirma sa $t(signing.terms.post).",
+                signaturesNeeded: "Kailangang pirma",
+                signaturesNeededHelp:
+                    "Ginagamit ng bawat pumipirma ang kanyang digital na sertipiko. May hindi bababa sa {{n}} taong maaaring pumirma ang bawat $t(signing.terms.post).",
+                signaturesNeededShortHelp:
+                    "Ginagamit ng bawat pumipirma ang kanyang digital na sertipiko.",
+                requesterSigning: "Maaari ring pumirma ang taong nagsimula nito",
+                expiresAfter: "Mag-e-expire ang kahilingan pagkalipas ng",
+                trusteesSign: "Pumipirma ang mga trustee sa hakbang na ito",
+                trusteesHelp:
+                    "Pinipirmahan ng bawat trustee ang sarili niyang hakbang gamit ang kanyang digital na sertipiko. Itinatakda ng seremonya ng mga susi kung ilang trustee ang lalahok.",
+                footer: "Itinatala ang mga pagbabago sa log ng kaganapan sa halalan at nagiging bahagi ng susunod na bersyon ng configuration.",
+                cancel: "Kanselahin",
+                save: "I-save",
+                saved: "Na-save ang patakaran sa pagpirma.",
+                savedShort_one:
+                    "Na-save ang patakaran sa pagpirma. Hindi pa maaabot ng {{posts}} ang bilang: magdagdag ng pumipirma doon.",
+                savedShort_other:
+                    "Na-save ang patakaran sa pagpirma. Hindi pa maaabot ng {{posts}} ang bilang: magdagdag ng mga pumipirma doon.",
+                checkedOnSave:
+                    "Sinusuri ang bilang laban sa mga bagong tungkulin kapag nag-save ka.",
+                savedRequesterShort:
+                    "Na-save ang patakaran sa pagpirma. Hindi maaabot ng ilan sa $t(signing.terms.posts) ang bilang nang wala ang taong nagsisimula ng kahilingan.",
+                saveError:
+                    "Hindi ma-save ang patakaran sa pagpirma. Maaaring may ibang nagbago nito habang ginagawa mo ito; i-reload at subukang muli.",
+            },
+            validation: {
+                atLeastOne: "Hindi bababa sa 1.",
+                tooMany:
+                    "Walang $t(signing.terms.post) na may {{n}} taong maaaring pumirma. Ang pinakamarami ay {{max}}.",
+                tooManyEvent:
+                    "{{max}} tao lamang ang maaaring pumirma nito. Pumili ng hindi hihigit sa {{max}}.",
+                atMost: "Hindi hihigit sa {{max}}.",
+                shortPosts_one:
+                    "{{n}} tao lamang ang maaaring pumirma sa {{posts}}, kaya hindi nito maaabot ang {{required}} pirma. Magdagdag ng pumipirma doon o babaan ang bilang.",
+                requesterShort_one:
+                    "Kung wala ang taong nagsimula nito, {{n}} tao lamang ang maaaring pumirma sa {{posts}}, kaya hindi nito maaabot ang {{required}} pirma.",
+                requesterShort_other:
+                    "Kung wala ang taong nagsimula nito, {{n}} tao lamang ang maaaring pumirma sa {{posts}}, kaya hindi nila maaabot ang {{required}} pirma.",
+                shortPosts_other:
+                    "{{n}} tao lamang ang maaaring pumirma sa {{posts}}, kaya hindi nila maaabot ang {{required}} pirma. Magdagdag ng pumipirma doon o babaan ang bilang.",
+            },
+            pendingRequests_one:
+                "{{count}} kahilingan ang naghihintay ng mga pirma sa ilalim ng kasalukuyang patakaran. Kakanselahin ito ng pag-save; magsisimulang muli ang taong nagsimula nito.",
+            pendingRequests_other:
+                "{{count}} kahilingan ang naghihintay ng mga pirma sa ilalim ng kasalukuyang patakaran. Kakanselahin ang mga ito ng pag-save; magsisimulang muli ang mga taong nagsimula ng mga ito.",
+            certificates: {
+                issuersIntro:
+                    "Dapat naka-chain sa isa sa mga ito ang mga sertipiko ng staff. Hiwalay ang mga ito sa mga sertipikong ginagamit ng mga botante sa pag-sign in.",
+                checkRevocation: "Suriin ang mga revocation list",
+                crlUnavailable: {
+                    "label": "Kapag hindi ma-download ang isang listahan",
+                    "refuse": "Huwag tanggapin ang mga pirma",
+                    "accept-unchecked": "Tanggapin at markahan ang pirma bilang hindi nasuri",
+                },
+                registration: {
+                    "label": "Pagrehistro ng sertipiko sa isang tao",
+                    "on-first-use": "Kapag unang pumirma ang may-ari nito gamit ito",
+                    "security-officer-only":
+                        "Kapag nirehistro lamang ito ng taong maaaring magrehistro ng mga sertipiko",
+                },
+                onePost:
+                    "Pumipirma ang isang sertipiko para sa iisang $t(signing.terms.post) lamang",
+                issuers: "Mga pinagkakatiwalaang issuer",
+                import: "Mag-import ng mga sertipiko ng issuer",
+                importHelp:
+                    "Pumili ng PEM o CER file na may sertipiko ng issuer. Maaaring maglaman ang isang PEM file ng ilang sertipiko.",
+                chooseFile: "Pumili ng file ng sertipiko",
+                fileError: "Hindi mabasa ang file.",
+                imported:
+                    "Na-import ang {{imported}} sertipiko ng issuer; {{skipped}} ang pinagkakatiwalaan na.",
+                importedWithErrors:
+                    "Na-import ang {{imported}} sertipiko ng issuer, {{skipped}} ang pinagkakatiwalaan na. Tinanggihan: {{errors}}",
+                importError: "Hindi ma-import ang mga sertipiko ng issuer.",
+                deleteIssuer: "Alisin ang {{name}}",
+                deleteIssuerConfirm:
+                    "Alisin ang {{name}} sa mga pinagkakatiwalaang issuer? Hindi na makakapirma ang mga sertipikong inisyu nito.",
+                deleteError: "Hindi maalis ang issuer.",
+                noIssuers:
+                    "Wala pang pinagkakatiwalaang issuer. Hindi makakapirma ang staff hangga't walang na-import.",
+                root: "Root",
+                intermediate: "Intermediate",
+                columns: {
+                    issuer: "Issuer",
+                    type: "Uri",
+                    issuedBy: "Inisyu ni",
+                    validUntil: "Valid hanggang",
+                    sha256: "SHA-256",
+                    person: "Tao",
+                    post: "$t(signing.terms.post)",
+                    certificate: "Sertipiko",
+                    registered: "Nakarehistro",
+                    status: "Katayuan",
+                },
+                checks: "Mga pagsusuri",
+                checksSaved: "Na-save ang mga pagsusuri sa sertipiko.",
+                checksError: "Hindi ma-save ang mga pagsusuri sa sertipiko.",
+                crlSchedule: "Dina-download mula sa bawat issuer kada oras.",
+                crlUpdated: "{{url}}: na-update {{time}}",
+                crlFailed: "{{url}}: hindi ma-download (huling subok {{time}})",
+                registeredTitle: "Mga nakarehistrong sertipiko",
+                search: "Maghanap ng mga tao, sertipiko o $t(signing.terms.posts)",
+                status: "Katayuan",
+                statusAll: "Lahat",
+                statuses: {
+                    "active": "Aktibo",
+                    "expires-soon": "Malapit nang mag-expire",
+                    "expired": "Nag-expire",
+                    "revoked": "Binawi",
+                },
+                revokedOn: "Binawi noong {{date}}",
+                allPosts: "Lahat",
+                noCertificates: "Walang nakarehistrong sertipiko.",
+                registeredHow: {
+                    "first-use": "Sa unang pirma",
+                    "security-officer": "Nirehistro ng isang administrator",
+                },
+                register: "Magrehistro ng sertipiko",
+                registerSubmit: "Irehistro",
+                registerDone: "Nairehistro ang sertipiko.",
+                registerError: "Hindi mairehistro ang sertipiko.",
+                person: "Tao",
+                personSearchHelp: "Mag-type ng bahagi ng username para mahanap ang tao.",
+                registeredBy: "Ni {{name}}",
+                registerRefused:
+                    "Hindi mairehistro ang sertipikong ito: tiyaking inisyu ito ng pinagkakatiwalaang issuer, valid ito ngayon at ginawa ito para sa pagpirma.",
+                registeredToOther:
+                    "Nakarehistro ang sertipikong ito kay {{name}}. Kung kay {{name}} din ang account na ito, i-link ito bilang kanyang pangalawang account.",
+                linkAccount: "I-link bilang pangalawang account ng parehong tao",
+                alreadyRegistered: "Nakarehistro na ang sertipikong ito sa taong ito.",
+                pem: "Sertipiko (PEM)",
+                revoke: "Bawiin",
+                revokeOf: "Bawiin ang sertipiko ni {{name}}",
+                revokeTitle: "Bawiin ang sertipiko ni {{name}}",
+                revokeHelp:
+                    "Hindi na makakapirma ang binawing sertipiko. Bilang pa rin ang mga pirmang nagawa na nito.",
+                revokeReason: "Dahilan",
+                revokeDone: "Nabawi ang sertipiko.",
+                revokeError: "Hindi mabawi ang sertipiko.",
+            },
+            requests: {
+                exportCsv: "I-export ang CSV",
+                exportError: "Hindi ma-export ang mga kahilingan.",
+                exportFileName: "signing-requests.csv",
+                status: "Katayuan",
+                statusAll: "Lahat",
+                statusCount: "{{status}} · {{count}} sa {{total}}",
+                expires: "Mag-e-expire {{time}}",
+                lastSignatureBy: "{{name}}, {{time}}",
+                empty: "Wala pang kahilingan sa pagpirma.",
+                columns: {
+                    request: "Kahilingan",
+                    status: "Katayuan",
+                    started: "Sinimulan",
+                    by: "Ni",
+                    lastSignature: "Huling pirma",
+                    code: "Code",
+                },
+            },
+            reports: {
+                postRequired:
+                    "Pumili ng Post upang buuin ang ulat na ito kapag kailangan ng mga lagda.",
+                generateNotice:
+                    "{{post}}: binubuo na ngayon ang dokumento. Maaari itong i-print at i-transmit kapag napirmahan na ito ng {{n}} tao.",
+            },
+            status: {
+                waiting: "Naghihintay",
+                completed: "Napirmahan",
+                executed: "Tapos na",
+                cancelled: "Kinansela",
+                expired: "Nag-expire",
+                failed: "Nabigo",
+            },
+            cancelReasons: {
+                "by-requester": "Kinansela ito ng taong nagsimula nito",
+                "by-operator": "Kinansela ito ng isang operator",
+                "rule-changed": "Nagbago ang patakaran sa pagpirma ng aksyon",
+                "payload-changed": "Nagbago ang pinipirmahan nito",
+                "superseded": "Pinalitan ito ng mas bagong kahilingan",
+                "certificate-revoked": "Binawi ang isang sertipikong pumirma rito",
+            },
+            panel: {
+                rulePost:
+                    "Kailangan ng {{n}} pirma mula sa mga pumipirma ng {{post}}, bawat isa gamit ang kanilang digital na sertipiko.",
+                ruleEvent:
+                    "Kailangan ng {{n}} pirma, bawat isa gamit ang digital na sertipiko ng pumipirma.",
+                signingCode: "Code ng pagpirma",
+                signers: "Mga pumipirma",
+                sign: "Pirmahan",
+                handover: "Susunod na miyembro ang mag-sign in",
+                cancel: "Kanselahin ang kahilingan",
+                signedAt: "Pinirmahan {{time}}",
+                notSigned: "Hindi pa napirmahan",
+                certificate: "Sertipiko {{name}}",
+                you: "(ikaw)",
+                expiresAt: "Mag-e-expire nang {{time}}",
+                progress: "{{count}} sa {{total}}",
+                openDocument: "Buksan ang dokumento",
+                configurationVersion: "Bersyon ng configuration {{version}}",
+                configurationChanges: "Mga pagbabago sa bersyong ito",
+            },
+            dialog: {
+                title: "Pirmahan ang {{object}}",
+                steps: {
+                    check: "Suriin",
+                    certificate: "Sertipiko",
+                    signed: "Napirmahan",
+                },
+                localNote:
+                    "Nangyayari ang pagpirma sa browser na ito. Hindi kailanman ipinapadala ang iyong file ng sertipiko, ang private key nito at ang password nito. Ang iyong pirma at pampublikong sertipiko lamang ang napupunta sa server.",
+                check: {
+                    signingAs: "Pumipirma ka bilang {{name}}",
+                    titlePost: "{{title}}, {{post}}",
+                    sameCode: "Iisang code ang nakikita ng lahat ng pumipirma.",
+                    confirmDocument: "Nasuri ko na ang {{object}}",
+                },
+                certificate: {
+                    intro: "Ipasok ang iyong security token at piliin ang iyong file ng sertipiko.",
+                    password: "Password ng sertipiko",
+                    open: "Buksan ang sertipiko",
+                    chooseAnother: "Pumili ng ibang file",
+                },
+                checks: {
+                    "passed": {
+                        "trusted-issuer": "Inisyu ng pinagkakatiwalaang issuer ({{root}})",
+                        "valid-now": "Valid ngayon",
+                        "signing-key-usage": "Ginawa para sa pagpirma",
+                        "not-revoked": "Hindi binawi (na-update ang mga listahan {{time}})",
+                        "registered": "Nakarehistro sa iyo noong {{date}}",
+                        "registered-to-other": "Hindi nakarehistro sa ibang tao",
+                        "already-signed": "Hindi pa nagamit para sa kahilingang ito",
+                        "post-binding": "Nakarehistro para sa $t(signing.terms.post) na ito",
+                        "signature": "Saklaw ng pirma ang kahilingang ito",
+                    },
+                    "failed": {
+                        "trusted-issuer": "Hindi inisyu ng pinagkakatiwalaang issuer",
+                        "valid-now": "Hindi valid ngayon",
+                        "signing-key-usage": "Hindi ginawa para sa pagpirma",
+                        "not-revoked":
+                            "Binawi, o walang kasalukuyang revocation list para suriin ito",
+                        "registered": "Hindi nakarehistro sa iyo",
+                        "registered-to-other": "Nakarehistro kay {{name}}",
+                        "already-signed": "Nagamit na para sa kahilingang ito",
+                        "post-binding": "Nakarehistro para sa ibang $t(signing.terms.post)",
+                        "signature": "Hindi saklaw ng pirma ang kahilingang ito",
+                    },
+                    "first-use": "Unang paggamit: irerehistro ito sa iyo",
+                },
+                problems: {
+                    wrongPassword: "Maling password. Suriin ito at subukang muli.",
+                    notForYou:
+                        "Hindi makakapirma ang sertipikong ito para sa iyo. Gamitin ang sertipiko sa sarili mong security token.",
+                    issuerNotAccepted:
+                        "Gamitin ang sertipikong nirehistro ng {{organization}} para sa iyo. Hindi tinatanggap ang mga sertipiko mula sa ibang issuer.",
+                    cancelled:
+                        "Kinansela ang kahilingang ito: {{reason}}. Hindi na bilang ang mga pirmang ibinigay para dito. Simulan itong muli para pirmahan ang kasalukuyang bersyon.",
+                },
+                signed: {
+                    title: "Napirmahan",
+                    withCertificate: "gamit ang sertipiko ni {{name}}",
+                    count: "{{n}} sa {{total}} pirma.",
+                    allIn: "Kumpleto na ang lahat ng {{total}} pirma.",
+                    next: "Susunod na pipirma: {{names}}.",
+                },
+                handover:
+                    "Mala-log out ka. Mag-sign in ang susunod na miyembro sa computer na ito at babalik sa kahilingang ito para pumirma. Bukas ang kahilingan hanggang {{time}}.",
+                sign: "Pirmahan",
+                back: "Bumalik",
+                cancel: "Kanselahin",
+            },
+            widget: {
+                continue: "Magpatuloy",
+                done: "Tapos na",
+                close: "Isara",
+                retry: "Subukang muli",
+                loading: "Nilo-load ang kahilingan…",
+                loadError: "Hindi ma-load ang kahilingan.",
+                chooseFile: "Pumili ng file ng sertipiko",
+                fileInput: "File ng sertipiko",
+                fileSize: "{{size}} KB",
+                showPassword: "Ipakita ang password",
+                hidePassword: "Itago ang password",
+                opening: "Binubuksan ang sertipiko…",
+                checking: "Sinusuri ang sertipiko…",
+                signing: "Pumipirma…",
+                certificateCard: "Inisyu ni {{issuer}} · valid hanggang {{date}} · {{algorithm}}",
+                fingerprint: "SHA-256 {{fingerprint}}",
+                algorithms: {
+                    "rsa-pkcs1-sha256": "RSA",
+                    "ecdsa-p256-sha256": "EC P-256",
+                },
+                document: "{{type}} · SHA-256 {{hash}}",
+                documentPages: "{{type}} · {{pages}} pahina · SHA-256 {{hash}}",
+                checksTitle: "Mga pagsusuri sa sertipiko",
+                untrustedIssuer:
+                    "Hindi pinagkakatiwalaang issuer ang {{issuer}} para sa kaganapang ito sa halalan",
+                registeredToSomeoneElse: "Nakarehistro sa ibang tao",
+                checkPassedNoDetail: {
+                    "trusted-issuer": "Inisyu ng pinagkakatiwalaang issuer",
+                    "not-revoked": "Hindi binawi",
+                },
+                organization: "iyong organisasyon",
+                cantSign: "Hindi mapipirmahan ng sertipikong ito ang kahilingang ito.",
+                checkError: "Hindi masuri ang sertipiko. Subukang muli.",
+                fileErrors: {
+                    UNREADABLE_FILE:
+                        "Hindi file ng sertipiko (.p12 o .pfx) ang file na ito, o sira ito.",
+                    UNSUPPORTED_ENCRYPTION:
+                        "Hindi mabuksan ng browser na ito ang encryption na ginagamit ng file na ito.",
+                    NO_PRIVATE_KEY:
+                        "Walang private key ang file na ito. Piliin ang file ng sertipiko mula sa iyong security token.",
+                    NO_CERTIFICATE: "Walang sertipiko ang file na ito.",
+                    UNSUPPORTED_KEY:
+                        "Hindi suportado ang uri ng key ng sertipikong ito. Gumamit ng RSA o EC P-256 na sertipiko.",
+                    KEY_CERTIFICATE_MISMATCH:
+                        "Hindi tugma ang sertipiko sa file na ito sa key nito.",
+                },
+                openError: "Hindi mabuksan ang sertipiko. Subukang muli.",
+                signError: "Hindi maipadala ang pirma. Subukang muli.",
+                refused: "Tinanggihan ng server ang pirma.",
+                stale: "Nagbago ang dokumento habang pumipirma ka. Pumirmang muli.",
+                mismatch:
+                    "Hindi tugma sa kahilingang ito ang pipirmahan. Isara ang dialog at buksang muli ang kahilingan.",
+                documentMismatch:
+                    "Hindi tugma ang dokumento sa dokumentong pinipirmahan ng kahilingang ito.",
+                documentError: "Hindi ma-download ang dokumento. Subukang muli.",
+                alreadySigned: "Napirmahan mo na ang kahilingang ito.",
+                closed: {
+                    changed:
+                        "Nagbago ang kahilingang ito pagkatapos mo itong buksan. Isara ang window na ito at suriin itong muli bago ka pumirma.",
+                    allSigned: "Kumpleto na ang lahat ng pirma ng kahilingang ito.",
+                },
+                chooseCertificate: "Sertipikong gagamitin sa pagpirma",
+                renderError:
+                    "Hindi maipakita ang kahilingan sa pagpirma. Isara ito at buksang muli.",
+                signedAt: "{{time}}",
+                panel: {
+                    completedAt: "Napirmahan nang {{time}}",
+                    expired:
+                        "Nag-expire ang kahilingang ito. Hindi na bilang ang mga pirmang ibinigay para dito. Simulan itong muli para pumirma.",
+                    failed: "Kumpleto na ang lahat ng pirma, pero nabigo ang aksyon. Nasa log ang mga detalye.",
+                    details: "Mga detalye",
+                    close: "Isara ang panel ng kahilingan",
+                },
+                cancelDialog: {
+                    title: "Kanselahin ang kahilingang ito?",
+                    body: "Hindi na bilang ang mga pirmang ibinigay para dito. Magsisimulang muli ang taong nagsimula nito.",
+                    reason: "Dahilan (opsyonal)",
+                    confirm: "Kanselahin ang kahilingan",
+                    back: "Panatilihin ito",
+                    error: "Hindi makansela ang kahilingan. Subukang muli.",
+                },
+                handoverDialog: {
+                    title: "Susunod na miyembro ang mag-sign in",
+                    noExpiry:
+                        "Mala-log out ka. Mag-sign in ang susunod na miyembro sa computer na ito at babalik sa kahilingang ito para pumirma.",
+                    confirm: "Mag-sign out",
+                    back: "Manatiling naka-sign in",
+                    error: "Hindi maitala ang handover. Subukang muli.",
+                },
+            },
+            details: {
+                keys_ceremony_id: "Seremonya",
+                tally_session_id: "Tally session",
+                trustee_id: "Trustee",
+                key_share_sha256: "SHA-256 ng piraso ng susi",
+                channel: "Channel",
+                channels: "Mga channel",
+                publication_id: "Paglalathala ng balota",
+                ballot_publication_id: "Paglalathala ng balota",
+                digest: "SHA-256 ng configuration",
+                signing_rules: "Mga patakaran sa pagpirma",
+                scheduled_events: "Mga bagong nakaiskedyul na kaganapan",
+                ballots_and_contests: "Mga balota at paligsahan",
+                application_id: "Aplikasyon",
+                applicant_registry_id: "Account sa registry",
+                decision: "Desisyon",
+                submitted_at: "Isinumite",
+                reason: "Bakit kailangan ng tao",
+                registry_record: "Record sa registry",
+                status: "Katayuan ng aplikasyon",
+                from: "Dating katayuan",
+            },
+            closed: {
+                pending: "Kumpleto na ang lahat ng pirma. Magsasara ang pagboto sa ilang sandali.",
+                title: "Nagsara ang pagboto nang {{time}}.",
+                titleSealed: "Nagsara ang pagboto nang {{time}}. Naka-seal ang mga balota.",
+                record: "Seal record",
+                ballots: "Mga balota sa seal",
+                sealHash: "{{algorithm}} ng seal",
+                signedBy: "Pinirmahan ni",
+                signatures: "Mga pirma ng pagsasara sa seal record",
+                signaturesValue_one: "{{count}}, code ng pagpirma {{code}}",
+                signaturesValue_other: "{{count}}, code ng pagpirma {{code}}",
+                signers: "Pinirmahan ng mga miyembro",
+            },
+            values: {
+                ballots_and_contests: {
+                    "first-version": "Unang bersyon",
+                    "no-changes": "Walang pagbabago",
+                    "changed": "Binago",
+                },
+                signing_rules: {
+                    "initialize-voting": "$t(signing.actions.initialize-voting.label)",
+                    "open-voting": "$t(signing.actions.open-voting.label)",
+                    "close-voting": "$t(signing.actions.close-voting.label)",
+                    "generate-election-returns":
+                        "$t(signing.actions.generate-election-returns.label)",
+                    "generate-reports": "$t(signing.actions.generate-reports.label)",
+                    "transmit-results": "$t(signing.actions.transmit-results.label)",
+                    "approve-voter": "$t(signing.actions.approve-voter.label)",
+                    "approve-configuration": "$t(signing.actions.approve-configuration.label)",
+                    "key-ceremony": "$t(signing.actions.key-ceremony.label)",
+                    "tally-key": "$t(signing.actions.tally-key.label)",
+                },
+                channels: {
+                    ONLINE: "Online",
+                    KIOSK: "Kiosk",
+                    EARLY_VOTING: "Maagang pagboto",
+                    TELEPHONE: "Telepono",
+                },
+                statuses: {
+                    NOT_STARTED: "Hindi pa nagsisimula",
+                    OPEN: "Bukas",
+                    PAUSED: "Naka-pause",
+                    CLOSED: "Sarado",
+                },
+                channelStatus: "{{channel}}: {{status}}",
+                ruleChange: "{{action}}: {{rule}}",
+                ruleChangeFrom: "{{action}}: {{rule}} (dati {{was}})",
+                ruleNeeds: "kailangan ng {{n}}",
+                ruleOff: "naka-off",
+                decision: {
+                    approve: "Aprubahan",
+                },
+            },
+            results: {
+                signatures: "Mga Pirma",
+                needs: "Kailangan ng {{n}}",
+                off: "Naka-off",
+                openRequest: "Buksan ang kahilingan sa pagpirma",
+                downloadSigned: "I-download ang pinirmahang PDF",
+                print: "I-print",
+                transmit: "I-transmit ang mga resulta",
+                sendTo: "Ipadala sa {{count}} destinasyon",
+                awaiting: "{{item}}: naghihintay ng mga pirma",
+                transmission: {
+                    title: "Mga Pirma",
+                    description:
+                        "Pinipirmahan ng bawat pumipirma ang mga resulta ng package gamit ang kanyang digital na sertipiko, sa browser na ito. Maaaring ipadala ang package kapag napirmahan na ito ng {{n}} tao.",
+                    waiting:
+                        "Maaaring ipadala ang package kapag kumpleto na ang lahat ng pirma ng kahilingan nito sa pagpirma.",
+                    signed: "Dala ng package ang lahat ng pirma nito at maaari na itong ipadala.",
+                    ended: "Natapos na ang kahilingan sa pagpirma ng package na ito. Gawin muli ang package para pirmahan ito.",
+                },
+            },
+            waiting: {
+                title: "Naghihintay ng aking pirma",
+                buttonCount_one: "Naghihintay ng aking pirma: {{count}} kahilingang pipirmahan",
+                buttonCount_other: "Naghihintay ng aking pirma: {{count}} kahilingang pipirmahan",
+                intro: "Mga kahilingang naghihintay ng mga pirma para sa mga aksyong maaari mong pirmahan, sa iyong mga $t(signing.terms.posts).",
+                close: "Isara ang listahan",
+                empty: "Walang naghihintay ng iyong pirma.",
+                loadError: "Hindi ma-load ang mga kahilingang naghihintay ng mga pirma.",
+                signedByYou: "Pinirmahan mo",
+            },
+            notes: {
+                afterApproval: "Pagkatapos ng pag-apruba",
+                afterApprovalValue:
+                    "Ibinibigay at ipinapadala sa botante ang kanyang mga credential",
+                keyShare: "Ang iyong piraso ng susi",
+                keyShareChecked: "Nasuri: ito ang iyong piraso ng susi para sa seremonyang ito",
+                recordedIn: "Itinatala sa",
+                recordedInCeremony: "Ang seremonya ng mga susi at ang bulletin board",
+                recordedInTally: "Ang tally session",
+            },
+            keyShare: {
+                signing:
+                    "Pirmahan ang iyong piraso ng susi sa panel ng pagpirma. Itatala ito kapag napirmahan mo na.",
+                record: "Itala ang aking piraso ng susi",
+                failed: "Hindi maitala ang iyong pinirmahang piraso ng susi: {{error}}",
+                dropAgain:
+                    "I-drop muli ang file ng iyong piraso ng susi para maitala ang iyong pinirmahang piraso ng susi.",
+                redo: "Naiambag ang iyong piraso ng susi nang walang pirma mo, na kailangan na ngayon ng halalang ito. Iambag itong muli at pirmahan.",
+                notTaken:
+                    "Hindi na tinatanggap ng seremonya ang piraso ng susi na ito. I-drop muli ang file ng iyong piraso ng susi.",
+            },
         },
     },
 }

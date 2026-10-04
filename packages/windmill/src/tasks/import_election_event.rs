@@ -28,6 +28,10 @@ pub struct ImportElectionEventBody {
     pub may_write_secret_attributes: bool,
     #[serde(default)]
     pub secret_write_initiator: Option<ElectoralLogAdminContext>,
+    /// The administrator who started the import, set by the server; the
+    /// signing configuration's log entries name them.
+    #[serde(default)]
+    pub importer: Option<ElectoralLogAdminContext>,
 }
 
 #[instrument(err)]

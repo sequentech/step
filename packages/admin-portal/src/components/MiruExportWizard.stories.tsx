@@ -28,6 +28,10 @@ import {
 } from "./__stories__/MiruFixture"
 import {startedTask} from "./tally/__stories__/DownloadFixture"
 import {MiruExportWizard} from "./MiruExportWizard"
+import {SigningProvider} from "./signing/SigningProvider"
+import {CODE, JOSE, MARIA, REQUEST_ID, fakeApi, makePanel} from "./signing/__stories__/fixtures"
+import type {ISigningPanelData} from "@/lib/signing/api"
+import {SigningAction, SigningRequestStatus} from "@/lib/signing/types"
 import {
     EStoryPermissions,
     EStoryWorkflow,
@@ -50,15 +54,63 @@ interface Scenario {
     /** What the send, regenerate and upload services do. */
     service: "success" | "failure"
     onBack: (data: IMiruTransmissionPackageData | null) => void
+    /** Whether the transmit-results rule needs signatures now (read with signing-rules-read). */
+    transmitRuleRequired?: boolean
+    /** The transmit-results rule needs signatures: the package's request is in this state. */
+    signingRequest?:
+        | SigningRequestStatus.Waiting
+        | SigningRequestStatus.Executed
+        | SigningRequestStatus.Cancelled
 }
+
+/** The transmit-results rule asks for two signatures. */
+const REQUIRED = 2
+const SIGNING_REQUEST = {id: REQUEST_ID, code: CODE, required: REQUIRED}
+
+const packageOf = ({signed, sentTo, signingRequest}: Scenario) =>
+    miruPackage({
+        documents: miruDocuments(signed, sentTo),
+        signing_request: signingRequest ? SIGNING_REQUEST : undefined,
+    })
+
+/** The transmission request as the signing panel shows it. */
+const transmissionPanel = async (status: SigningRequestStatus): Promise<ISigningPanelData> => {
+    const eml = new TextEncoder().encode("%PDF-1.7 synthetic election returns")
+    const digest = await crypto.subtle.digest("SHA-256", eml)
+    const emlSha256 = Array.from(new Uint8Array(digest), (b) =>
+        b.toString(16).padStart(2, "0")
+    ).join("")
+    const signed = status === SigningRequestStatus.Executed ? [MARIA, JOSE] : [MARIA]
+    const panel = await makePanel({
+        action: SigningAction.TransmitResults,
+        status,
+        required: REQUIRED,
+        signed,
+        subject: {
+            tally_session_id: STORY_IDS.tallySession,
+            package_sha256: "c0a8b41e".padEnd(64, "0"),
+            eml_sha256: emlSha256,
+            destinations: ["ccs-east", "ccs-north", "ccs-south"],
+        },
+    })
+    return {
+        ...panel,
+        request: {...panel.request, document_sha256: emlSha256},
+        document_url: "https://documents.admin-story.invalid/er.xml",
+        document_name: "er_tx-0002.xml",
+    }
+}
+
+let signingApi: ReturnType<typeof fakeApi>
 
 let boundary: ReturnType<typeof graphqlBoundary>
 let data: ReturnType<typeof resourceBoundary>
 let uploads: ReturnType<typeof storyFetch>
 
-function Fixture({signed, sentTo, roles, onBack}: Scenario) {
+function Fixture(scenario: Scenario) {
+    const {roles, onBack} = scenario
     const {permissions} = useStoryGlobals()
-    const selected = miruPackage({documents: miruDocuments(signed, sentTo)})
+    const selected = packageOf(scenario)
     return (
         <AdminStoryProvider
             boundary={boundary}
@@ -76,7 +128,9 @@ function Fixture({signed, sentTo, roles, onBack}: Scenario) {
                         annotations: SBEI_USERS_ANNOTATION,
                     })}
                 >
-                    <MiruExportWizard />
+                    <SigningProvider api={signingApi}>
+                        <MiruExportWizard />
+                    </SigningProvider>
                 </RecordContextProvider>
             </TallyStoryContext>
         </AdminStoryProvider>
@@ -97,7 +151,10 @@ const meta = {
         const fail = () => {
             if (args.service === "failure") throw new Error("Synthetic Miru service unavailable")
         }
-        const packageData = miruPackage({documents: miruDocuments(args.signed, args.sentTo)})
+        const packageData = packageOf(args)
+        signingApi = fakeApi(
+            await transmissionPanel(args.signingRequest ?? SigningRequestStatus.Waiting)
+        )
         data = resourceBoundary({
             sequent_backend_tally_session: [
                 tallySession(EStoryWorkflow.RESULTS, {
@@ -133,8 +190,32 @@ const meta = {
                     return {data: {get_upload_url: {url: UPLOAD_URL, document_id: SIGNATURE_ID}}}
                 },
                 UploadSignature: () => ({data: {upload_signature: {id: SIGNATURE_ID}}}),
+                GetSigningRules: () => ({
+                    data: {
+                        sequent_backend_signing_rule: args.transmitRuleRequired
+                            ? [
+                                  {
+                                      action: SigningAction.TransmitResults,
+                                      requirement: "required",
+                                      signatures: REQUIRED,
+                                      requester_signing: "not-allowed",
+                                      expires_minutes: 60,
+                                      revision: 1,
+                                      updated_by: "configuration-manager",
+                                      updated_by_name: "Configuration Manager",
+                                      updated_at: "2028-05-01T09:00:00Z",
+                                  },
+                              ]
+                            : [],
+                    },
+                }),
+                SigningGetRequest: async () => ({
+                    data: {signingGetRequest: {panel: await signingApi.getRequest(REQUEST_ID)}},
+                }),
             },
-            {schema: true}
+            // The signing actions are not in the stories' schema, as in the
+            // Signatures tab's stories.
+            {schema: !args.signingRequest}
         )
         uploads = storyFetch({[UPLOAD_URL]: () => ({status: 200})})
         await boundary.ready
@@ -145,7 +226,11 @@ export default meta
 type Story = StoryObj<Scenario>
 
 const action = (key: string) => i18n.t(`tally.transmissionPackage.actions.${key}`)
-const mutations = () => boundary.calls.map(({name}) => name)
+/** The calls the wizard makes, besides reading its package's signing request. */
+const mutations = () =>
+    boundary.calls
+        .map(({name}) => name)
+        .filter((name) => !["SigningGetRequest", "GetSigningRules"].includes(name))
 /** A notification is visible once its enter transition has ended. */
 const notified = (text: string) =>
     waitFor(() => expect(within(document.body).getByText(text)).toBeVisible())
@@ -171,7 +256,7 @@ async function confirm(canvasElement: HTMLElement, button: string, ok: string) {
     await userEvent.click(within(canvasElement).getByRole("button", {name: button}))
     const dialog = await within(document.body).findByRole("dialog")
     await waitFor(() => expect(dialog).toBeVisible())
-    expect(boundary.calls).toEqual([])
+    expect(boundary.calls.filter(({name}) => name !== "GetSigningRules")).toEqual([])
     await userEvent.click(within(dialog).getByRole("button", {name: ok}))
     await waitFor(() => expect(within(document.body).queryByRole("dialog")).toBeNull())
 }
@@ -229,7 +314,7 @@ export const SendAfterConfirmation: Story = {
         )
         await confirm(canvasElement, "send transmission package", action("send.dialog.confirm"))
         await notified(i18n.t("miruExport.send.success"))
-        expect(boundary.calls).toEqual([
+        expect(boundary.calls.filter(({name}) => name !== "GetSigningRules")).toEqual([
             {
                 name: "SendTransmissionPackage",
                 variables: {
@@ -292,7 +377,7 @@ export const RegenerateAfterConfirmation: Story = {
             action("regenerate.dialog.confirm")
         )
         await notified(i18n.t("miruExport.create.success"))
-        expect(boundary.calls).toEqual([
+        expect(boundary.calls.filter(({name}) => name !== "GetSigningRules")).toEqual([
             {
                 name: "CreateTransmissionPackage",
                 variables: {
@@ -364,7 +449,7 @@ export const SbeiMemberSignsThePackage: Story = {
                 body: "synthetic-signature",
             },
         ])
-        expect(boundary.calls).toEqual([
+        expect(boundary.calls.filter(({name}) => name !== "GetSigningRules")).toEqual([
             {
                 name: "GetUploadUrl",
                 variables: {
@@ -438,6 +523,145 @@ export const BackLeavesThePackage: Story = {
         await userEvent.click(canvas.getByRole("button", {name: i18n.t("common.label.back")}))
         expect(args.onBack).toHaveBeenCalledTimes(1)
         expect(args.onBack).toHaveBeenCalledWith(null)
-        expect(boundary.calls).toEqual([])
+        expect(boundary.calls.filter(({name}) => name !== "GetSigningRules")).toEqual([])
+    },
+}
+
+const signingTitle = () => i18n.t("signing.results.transmission.title")
+
+export const SignaturesNeededReplaceTheCertificateUpload: Story = {
+    args: {roles: MIRU_ROLES, signed: [], signingRequest: SigningRequestStatus.Waiting},
+    globals: {permissions: EStoryPermissions.ADMIN},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await expect((await canvas.findAllByText(signingTitle()))[0]).toBeVisible()
+        await expect(
+            canvas.getByText(i18n.t("signing.results.transmission.description", {n: REQUIRED}))
+        ).toBeVisible()
+        // The 2025 upload of a certificate file and its password is gone.
+        expect(canvas.queryByText(i18n.t("tally.uploadTransmissionPackage"))).toBeNull()
+        expect(canvasElement.querySelector('input[type="file"]')).toBeNull()
+        await canvas.findByText(
+            i18n.t("tally.transmissionPackage.signatures.status", {
+                signed: 0,
+                total: 2,
+                minimum: REQUIRED,
+            }),
+            {exact: false}
+        )
+        await expect(canvas.getByRole("button", {name: "send transmission package"})).toBeDisabled()
+        await expect(canvas.getByText(i18n.t("signing.results.transmission.waiting"))).toBeVisible()
+
+        // The panel of the package's request opens from the wizard.
+        await userEvent.click(
+            canvas.getByRole("button", {name: i18n.t("signing.results.openRequest")})
+        )
+        await waitFor(() => expect(signingApi.getRequest).toHaveBeenCalledWith(REQUEST_ID))
+        await expect(await within(document.body).findByText(CODE)).toBeVisible()
+        // Not signed yet: nothing to send from the panel.
+        expect(
+            within(document.body).queryByRole("button", {
+                name: i18n.t("signing.results.sendTo", {count: 3}),
+            })
+        ).toBeNull()
+        expect(mutations()).toEqual([])
+    },
+}
+
+export const SignedPackageIsSentFromThePanel: Story = {
+    args: {
+        roles: MIRU_ROLES,
+        signed: ["sbei-1", "sbei-2"],
+        signingRequest: SigningRequestStatus.Executed,
+    },
+    globals: {permissions: EStoryPermissions.ADMIN},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await expect(
+            await canvas.findByText(i18n.t("signing.results.transmission.signed"))
+        ).toBeVisible()
+        await expect(canvas.getByRole("button", {name: "send transmission package"})).toBeEnabled()
+        await userEvent.click(
+            canvas.getByRole("button", {name: i18n.t("signing.results.openRequest")})
+        )
+        const send = await within(document.body).findByRole("button", {
+            name: i18n.t("signing.results.sendTo", {count: 3}),
+        })
+        await userEvent.click(send)
+        const dialog = await within(document.body).findByRole("dialog", {
+            name: action("send.dialog.title"),
+        })
+        await userEvent.click(
+            within(dialog).getByRole("button", {name: action("send.dialog.confirm")})
+        )
+        await notified(i18n.t("miruExport.send.success"))
+        expect(mutations()).toEqual(["SendTransmissionPackage"])
+    },
+}
+
+export const AnEndedRequestBringsBackTheCertificateUploadOnceTheRuleIsOff: Story = {
+    parameters: signingRegions,
+    args: {
+        roles: [...MIRU_ROLES, "signing-rules-read"],
+        signed: [],
+        signingRequest: SigningRequestStatus.Cancelled,
+        transmitRuleRequired: false,
+    },
+    globals: {permissions: EStoryPermissions.ADMIN},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        // The package's request was cancelled and signatures are no longer
+        // needed: the 2025 upload is offered again.
+        await expect(
+            await canvas.findByText(i18n.t("tally.uploadTransmissionPackage"))
+        ).toBeVisible()
+        expect(
+            canvas.queryByRole("button", {name: i18n.t("signing.results.openRequest")})
+        ).toBeNull()
+        expect(canvas.queryByText(i18n.t("signing.results.transmission.ended"))).toBeNull()
+    },
+}
+
+export const AnEndedRequestWhileSignaturesAreNeededAsksToRecreate: Story = {
+    args: {
+        roles: [...MIRU_ROLES, "signing-rules-read"],
+        signed: [],
+        signingRequest: SigningRequestStatus.Cancelled,
+        transmitRuleRequired: true,
+    },
+    globals: {permissions: EStoryPermissions.ADMIN},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await expect(
+            await canvas.findByText(i18n.t("signing.results.transmission.ended"))
+        ).toBeVisible()
+        expect(canvas.queryByText(i18n.t("tally.uploadTransmissionPackage"))).toBeNull()
+        expect(canvasElement.querySelector('input[type="file"]')).toBeNull()
+    },
+}
+
+/** A package created before the rule was enabled must be created again to sign it. */
+export const RequiredRuleWithoutARequestHidesTheLegacyUpload: Story = {
+    args: {
+        roles: [...MIRU_ROLES, "signing-rules-read"],
+        signed: ["sbei-1", "sbei-2"],
+        transmitRuleRequired: true,
+    },
+    globals: {permissions: EStoryPermissions.ADMIN},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await expect(
+            await canvas.findByText(i18n.t("signing.results.transmission.ended"))
+        ).toBeVisible()
+        expect(canvasElement.querySelector('input[type="file"]')).toBeNull()
+        await expect(canvas.getByRole("button", {name: "send transmission package"})).toBeDisabled()
+        expect(mutations()).toEqual([])
+        expect(boundary.calls).toEqual([
+            {
+                name: "GetSigningRules",
+                variables: {electionEventId: EVENT_ID},
+                headers: {"x-hasura-role": "signing-rules-read"},
+            },
+        ])
     },
 }

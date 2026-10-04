@@ -93,6 +93,18 @@ fn statement_body_borsh_discriminants_are_append_only() {
     assert_eq!(borsh::to_vec(&cast_vote_with_channel).unwrap()[0], 27);
     assert_eq!(borsh::to_vec(&external_reconciliation).unwrap()[0], 28);
     assert_eq!(borsh::to_vec(&monitoring_config_changed()).unwrap()[0], 29);
+    assert_eq!(borsh::to_vec(&signing()).unwrap()[0], 30);
+}
+
+fn signing() -> StatementBody {
+    StatementBody::Signing(SigningLogEntry {
+        kind: SigningStatementKind::SigningRequestCreated,
+        event_type: StatementEventType::USER,
+        log_type: StatementLogType::INFO,
+        description: String::new(),
+        details_json: String::new(),
+        step_id: String::new(),
+    })
 }
 
 fn monitoring_config_changed() -> StatementBody {
@@ -153,6 +165,14 @@ fn statement_type_borsh_discriminants_are_append_only() {
     assert_eq!(
         borsh::to_vec(&StatementType::MonitoringConfigChanged).unwrap(),
         vec![29]
+    );
+    assert_eq!(
+        borsh::to_vec(&StatementType::SigningRequestCreated).unwrap(),
+        vec![30]
+    );
+    assert_eq!(
+        borsh::to_vec(&StatementType::SigningRequestsExported).unwrap(),
+        vec![45]
     );
 }
 

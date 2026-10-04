@@ -28,6 +28,7 @@ const SelectElection = ({
     isRequired,
     disabled,
     value,
+    validate,
 }: SelectElectionProps) => {
     isRequired = isRequired === undefined ? true : isRequired
     const aliasRenderer = useAliasRenderer()
@@ -52,6 +53,7 @@ const SelectElection = ({
             <AutocompleteInput
                 TextFieldProps={{required: isRequired}}
                 label={label}
+                validate={validate}
                 fullWidth={true}
                 optionText={aliasRenderer}
                 filterToQuery={electionSearchFilter}

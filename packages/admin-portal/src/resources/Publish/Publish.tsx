@@ -57,6 +57,10 @@ import {EditPreview} from "./EditPreview"
 import FormDialog from "@/components/FormDialog"
 import {EPublishActions} from "@/types/publishActions"
 import {getGraphQLActionErrorMessage} from "@/services/graphqlActionError"
+import {CREATE_TALLY_CEREMONY} from "@/queries/CreateTallyCeremony"
+import {CreateTallyCeremonyMutation} from "@/gql/graphql"
+import {ETallyType} from "@/types/ceremonies"
+import {useSignedAction} from "@/hooks/useSignedAction"
 
 enum ViewMode {
     Edit,
@@ -114,9 +118,14 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
         )
         const [updateStatusEvent, {error: updateStatusEventError}] =
             useMutation<UpdateEventVotingStatusOutput>(UPDATE_EVENT_VOTING_STATUS)
-        const [updateStatusElection] = useMutation<UpdateElectionVotingStatusOutput>(
-            UPDATE_ELECTION_VOTING_STATUS
-        )
+        const [updateStatusElection] = useMutation<{
+            update_election_voting_status?: UpdateElectionVotingStatusOutput | null
+        }>(UPDATE_ELECTION_VOTING_STATUS)
+        const [createTallyCeremony] =
+            useMutation<CreateTallyCeremonyMutation>(CREATE_TALLY_CEREMONY)
+        // A protected action answers its signing request while it waits for signatures.
+        const openSigning = useSignedAction()
+        const [initializing, setInitializing] = useState(false)
 
         const {data: ballotPublication, refetch} = useGetOne<Sequent_Backend_Ballot_Publication>(
             "sequent_backend_ballot_publication",
@@ -150,6 +159,11 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
                         ballotPublicationId,
                     },
                 })
+
+                if (openSigning(data?.publish_ballot, {onChange: () => refetch()})) {
+                    handleSetPublishStatus(PublishStatus.Generated)
+                    return
+                }
 
                 if (data?.publish_ballot?.ballot_publication_id) {
                     setBallotPublicationId(data?.publish_ballot?.ballot_publication_id)
@@ -273,7 +287,7 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
         ) => {
             try {
                 setChangingStatus(true)
-                await updateStatusElection({
+                const {data} = await updateStatusElection({
                     variables: {
                         votingStatus,
                         electionId,
@@ -281,6 +295,19 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
                         votingChannel,
                     },
                 })
+                if (
+                    openSigning(data?.update_election_voting_status, {
+                        onChange: () => refresh(),
+                    })
+                ) {
+                    // Nothing changed yet: the status changes once enough people sign.
+                    const current = (record?.status as IElectionStatus | undefined)?.voting_status
+                    handleSetPublishStatus(
+                        current ? MAP_ELECTION_EVENT_STATUS_PUBLISH[current] : PublishStatus.Void
+                    )
+                    setChangingStatus(false)
+                    return
+                }
                 // No matter the channel, we need to update the general publish status.
                 // That´s used to control the loading icon in the buttons for the transitions.
                 handleSetPublishStatus(MAP_ELECTION_EVENT_STATUS_PUBLISH[votingStatus])
@@ -323,6 +350,31 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
                 notify(t("publish.dialog.error_status"), {
                     type: "error",
                 })
+            }
+        }
+
+        /** Initializes voting at the Post: its initialization report tally (A2). */
+        const onInitialize = async () => {
+            if (!electionId) return
+            setInitializing(true)
+            try {
+                const {data} = await createTallyCeremony({
+                    variables: {
+                        election_event_id: electionEventId,
+                        election_ids: [electionId],
+                        tally_type: ETallyType.INITIALIZATION_REPORT,
+                    },
+                })
+                if (!openSigning(data?.create_tally_ceremony, {onChange: () => refresh()})) {
+                    notify(t("tally.createTallySuccess"), {type: "success"})
+                    refresh()
+                }
+            } catch (e) {
+                notify(getGraphQLActionErrorMessage(e) ?? t("tally.createTallyError"), {
+                    type: "error",
+                })
+            } finally {
+                setInitializing(false)
             }
         }
 
@@ -515,6 +567,8 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
                         electionId={electionId}
                         onGenerate={onGenerate}
                         onChangeStatus={onChangeStatus}
+                        onInitialize={type === EPublishType.Election ? onInitialize : undefined}
+                        initializing={initializing}
                         electionEventId={electionEventId}
                         setBallotPublicationId={(id: Identifier) => {
                             setViewMode(ViewMode.View)

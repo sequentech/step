@@ -45,6 +45,7 @@ pub mod insert_election_event;
 pub mod insert_tenant;
 pub mod keys_ceremony;
 pub mod limit_access_by_countries;
+pub mod manual_verification_pdf;
 pub mod miru_plugin;
 pub mod monitoring;
 pub mod monitoring_config;
@@ -72,3 +73,5 @@ pub mod voter_information_letter;
 pub mod voting_status;
 
 pub mod ballot_files;
+pub mod signing;
+pub mod signing_certificates;

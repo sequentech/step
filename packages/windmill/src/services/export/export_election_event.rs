@@ -22,6 +22,8 @@ use crate::services::reports::template_renderer::{
     ReportOriginatedFrom, ReportOrigins, TemplateRenderer,
 };
 use crate::services::reports_vault::get_password;
+use crate::services::signing::configuration::export_bundle_signing;
+use crate::services::signing::issuers::staff_issuers_pem_bundle;
 use crate::tasks::export_election_event::ExportOptions;
 use crate::types::documents::EDocuments;
 
@@ -161,7 +163,7 @@ pub async fn read_export_data(
     let version =
         std::env::var(ENV_VAR_APP_VERSION).unwrap_or_else(|_| DEV_APP_VERSION.to_string());
 
-    let import_election_event_schema = ImportElectionEventSchema {
+    let mut import_election_event_schema = ImportElectionEventSchema {
         // parse_uuid_v4 still runs: the schema now carries a String, but an
         // export must not emit a tenant id that is not a UUID.
         tenant_id: parse_uuid_v4(&tenant_id)?.to_string(),
@@ -177,8 +179,18 @@ pub async fn read_export_data(
         keys_ceremonies: Some(export_keys_ceremonies),
         applications: Some(export_applications),
         support_materials: Some(export_support_materials),
+        signing_rules: None,
+        signing_checks: None,
         version,
     };
+
+    export_bundle_signing(
+        &transaction,
+        Uuid::parse_str(tenant_id)?,
+        Uuid::parse_str(election_event_id)?,
+        &mut import_election_event_schema,
+    )
+    .await?;
 
     let images_files_path =
         process_event_images(&transaction, tenant_id, elections, contests, candidates).await?;
@@ -822,7 +834,9 @@ pub async fn process_export_zip(
     }
 
     if export_config.include_certificates {
-        let election_event_uuid = parse_uuid_v4(election_event_id)?;
+        // Any UUID: imported events keep the ids they had.
+        let election_event_uuid = Uuid::parse_str(election_event_id)
+            .map_err(|e| anyhow!("Invalid election event id: {e}"))?;
         let pems = get_certificate_authorities_pem(&hasura_transaction, election_event_uuid)
             .await
             .map_err(|e| anyhow!("Error fetching certificate authorities: {e:?}"))?;
@@ -839,6 +853,25 @@ pub async fn process_export_zip(
             zip_writer
                 .write_all(pem_bundle.as_bytes())
                 .map_err(|e| anyhow!("Error writing certificates to ZIP: {e:?}"))?;
+        }
+        // Staff issuers go in a file of their own, so an import keeps them
+        // apart from the voters' authorities.
+        if let Some(pem_bundle) =
+            staff_issuers_pem_bundle(&hasura_transaction, tenant_id, election_event_id)
+                .await
+                .map_err(|e| anyhow!("Error fetching staff issuers: {e:?}"))?
+        {
+            let issuers_filename = format!(
+                "{}-{}.pem",
+                EDocuments::STAFF_ISSUERS.to_file_name(),
+                election_event_id
+            );
+            zip_writer
+                .start_file(&issuers_filename, options)
+                .map_err(|e| anyhow!("Error starting staff issuers file in ZIP: {e:?}"))?;
+            zip_writer
+                .write_all(pem_bundle.as_bytes())
+                .map_err(|e| anyhow!("Error writing staff issuers to ZIP: {e:?}"))?;
         }
     }
 

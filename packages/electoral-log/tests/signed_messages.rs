@@ -8,7 +8,9 @@
 use anyhow::Result;
 use electoral_log::messages::message::{Message, SigningData, GENERIC_EVENT};
 use electoral_log::messages::newtypes::*;
-use electoral_log::messages::statement::{StatementBody, StatementHead};
+use electoral_log::messages::statement::{
+    StatementBody, StatementEventType, StatementHead, StatementLogType,
+};
 use electoral_log::ElectoralLogMessage;
 use strand::hash::STRAND_HASH_LENGTH_BYTES;
 use strand::serialization::{StrandDeserialize, StrandSerialize};
@@ -612,6 +614,40 @@ fn a_monitoring_config_change_is_an_event_wide_signed_record() -> Result<()> {
             assert_eq!(event_id, &event());
             assert_eq!(signed, &details);
         }
+        other => panic!("unexpected body {other:?}"),
+    }
+    Ok(())
+}
+
+#[test]
+fn a_signing_entry_is_signed_with_the_time_of_its_step() -> Result<()> {
+    let (data, public) = signer()?;
+    let entry = SigningLogEntry {
+        kind: SigningStatementKind::SigningRequestSigned,
+        event_type: StatementEventType::USER,
+        log_type: StatementLogType::INFO,
+        description: "Signed request 7F3A-91C2: 2 of 3".into(),
+        details_json: r#"{"code":"7F3A-91C2","count":2,"required":3}"#.into(),
+        step_id: "2b7c9e40-1f5d-4a8e-9c3b-6d2e1f0a9b87".into(),
+    };
+    // An hour before the entry is posted.
+    let occurred_at = electoral_log::timestamp() - 3600;
+    let message = Message::signing_message(
+        event(),
+        entry.clone(),
+        occurred_at,
+        &data,
+        actor(),
+        actor(),
+        Some(ELECTION.into()),
+        Some("synthetic-area".into()),
+    )?;
+    assert_record(&message, &public, "SigningRequestSigned", Some(ELECTION))?;
+    assert_eq!(message.statement.head.timestamp, occurred_at);
+    assert_eq!(message.statement.head.description, entry.description);
+    assert_eq!(message.area_id.as_deref(), Some("synthetic-area"));
+    match &message.statement.body {
+        StatementBody::Signing(signed) => assert_eq!(signed, &entry),
         other => panic!("unexpected body {other:?}"),
     }
     Ok(())

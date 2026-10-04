@@ -17,6 +17,7 @@ use keycloak::{
 use rand::distributions::Alphanumeric;
 use rand::Rng;
 use reqwest::Client;
+use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::collections::{HashMap, HashSet};
 use std::env;
@@ -273,6 +274,51 @@ async fn error_check(
     }
 
     Ok(response)
+}
+
+/// What Keycloak's `/partialImport` does with a resource the realm already
+/// has.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum IfResourceExists {
+    Fail,
+    Skip,
+    Overwrite,
+}
+
+/// How many resources a partial import added, skipped and overwrote.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize)]
+#[serde(default)]
+pub struct PartialImportSummary {
+    pub added: usize,
+    pub skipped: usize,
+    pub overwritten: usize,
+}
+
+/// Imports realm roles into an existing realm and nothing else: the payload
+/// holds only the roles and the policy, so the realm's groups, clients and
+/// settings stay as they are.
+#[instrument(skip(client, roles), fields(roles = roles.len()), err)]
+pub async fn partial_import_realm_roles(
+    client: &PubKeycloakAdmin,
+    realm: &str,
+    roles: &[RoleRepresentation],
+    if_resource_exists: IfResourceExists,
+) -> Result<PartialImportSummary> {
+    let req_url =
+        format!("{}/admin/realms/{}/partialImport", client.url, realm);
+    let payload = json!({
+        "ifResourceExists": if_resource_exists,
+        "roles": { "realm": roles },
+    });
+    let response = client
+        .client
+        .post(&req_url)
+        .bearer_auth(client.token_supplier.get(&client.url).await?)
+        .json(&payload)
+        .send()
+        .await?;
+    Ok(error_check(response).await?.json().await?)
 }
 
 impl KeycloakAdminClient {

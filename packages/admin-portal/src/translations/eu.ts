@@ -341,6 +341,9 @@ const basqueTranslation: TranslationType = {
                 helpLinks: "Laguntza Estekak",
                 logoUrl: "Logo URLa",
                 css: "CSS Pertsonalizatua",
+                displayName: "Bistaratzeko izena",
+                displayNameHelp:
+                    "Erakundearen izena hura aipatzen duten mezuetan. Hutsik: maizterraren izen laburra.",
             },
             errors: {
                 invalidHelpLinks: "Laguntza Esteken formatu baliogabea",
@@ -1320,6 +1323,27 @@ const basqueTranslation: TranslationType = {
                 "admin-dashboard-view": "Admin Panela Ikusi",
                 "monitoring-view": "Monitorizazio-panelak ikusi",
                 "monitoring-configure": "Monitorizazio-panelak konfiguratu",
+                "election-event-signatures-tab": "Hauteskunde Ekitaldiaren Sinadurak Fitxa",
+                "signing-rules-read": "Sinadurak: ikusi ekintza babestuak",
+                "signing-rules-write": "Sinadurak: editatu ekintza babestuak",
+                "signing-certificates-read": "Sinadurak: ikusi ziurtagiriak",
+                "signing-issuers-write": "Sinadurak: inportatu eta kendu jaulkitzaile fidagarriak",
+                "signing-checks-write": "Sinadurak: editatu ziurtagirien egiaztapenak",
+                "signing-certificates-register": "Sinadurak: erregistratu ziurtagiriak",
+                "signing-certificates-revoke": "Sinadurak: baliogabetu ziurtagiriak",
+                "signing-requests-read": "Sinadurak: ikusi eskaerak",
+                "signing-requests-cancel": "Sinadurak: ezeztatu eskaerak",
+                "signing-requests-export": "Sinadurak: esportatu eskaerak",
+                "sign-initialize-voting": "Sinatu: bozketa hasieratu",
+                "sign-open-voting": "Sinatu: bozketa ireki",
+                "sign-close-voting": "Sinatu: bozketa itxi",
+                "sign-generate-election-returns": "Sinatu: hauteskunde-aktak sortu",
+                "sign-generate-reports": "Sinatu: beste hauteskunde-txosten batzuk sortu",
+                "sign-transmit-results": "Sinatu: emaitzak transmititu",
+                "sign-approve-voter": "Sinatu: hautesle bat eskuz onartu",
+                "sign-approve-configuration": "Sinatu: konfigurazio-bertsio bat onartu",
+                "sign-key-ceremony": "Sinatu: giltza-zati bat berretsi",
+                "sign-tally-key": "Sinatu: giltza-zati bat eman",
                 "application-export": "Aplikazio Esportazioa",
                 "application-import": "Aplikazio Inportazioa",
                 "tenant-create": "Sortu Maizterra",
@@ -2171,6 +2195,9 @@ const basqueTranslation: TranslationType = {
                             confirm: "Bidali Transmisio Paketea",
                             cancel: "Itxi",
                         },
+
+                        disabled:
+                            "Beharrezko sinadurak falta dira, edo transmisio-paketea helmuga guztietara bidali da dagoeneko.",
                     },
                     regenerate: {
                         title: "Bersortu",
@@ -2220,12 +2247,12 @@ const basqueTranslation: TranslationType = {
                     },
                 },
                 signatures: {
-                    title: "SBEI Sinadurak",
+                    title: "Sinadurak",
                     description:
-                        "SBEIek Transmisio Paketea sinatu dezakete. Beheko taulak SBEI kide bakoitzaren sinadura egoera erakusten du.",
+                        "Kideek transmisio-paketea sina dezakete. Taulak kide bakoitzaren sinadura-egoera erakusten du.",
                     status: "{{signed}}/{{total}} Sinatuak, {{minimum}} gutxienez",
                     table: {
-                        trusteeName: "SBEI id",
+                        trusteeName: "Kidea",
                         signed: "Sinatua du",
                     },
                 },
@@ -3410,6 +3437,659 @@ const basqueTranslation: TranslationType = {
             confirmDelete: "Ziurtagiri-agintaritza ezabatu",
             confirmDeleteDescription:
                 'Ziur al zaude "{{name}}" ziurtagiria (hatz-marka: {{fingerprint}}) ezabatu nahi duzula?',
+        },
+        signing: {
+            terms: {
+                post: "Postu",
+                posts: "Postuak",
+            },
+            tab: {
+                title: "Sinadurak",
+                intro: "Ekintza babestuak behar adina pertsona baimendunek beren ziurtagiri digitalekin sinatu ondoren bakarrik exekutatzen dira. Sinadura bakoitza jaulkitzaile fidagarrien aurka egiaztatzen da eta erregistroan jasotzen da.",
+                protectedActions: "Ekintza babestuak",
+                certificates: "Ziurtagiriak",
+                requests: "Eskaerak",
+            },
+            loadError:
+                "Ezin izan da sinadura-ezarpenak kargatu. Kargatu berriro orria berriro saiatzeko.",
+            errors: {
+                automatedCeremonies:
+                    "Ekitaldi honek gakoen zeremonia automatikoak erabiltzen ditu. Zaindariek ez dituzte urrats hauek egiten; beraz, ezin dira haien sinadurak eskatu. Zaindarien sinadurak eskatzeko, erabili eskuzko gakoen zeremoniak.",
+                forbidden: "Ez duzu aldaketa hau egiteko baimenik.",
+                invalid: "Zerbitzariak balio hauek baztertu ditu. Egiaztatu eta saiatu berriro.",
+                conflict:
+                    "Beste norbaitek aldatu du bitartean. Kargatu berriro orria eta saiatu berriro.",
+                lockedDown:
+                    "Hauteskunde-ekitaldia blokeatuta dago: sinadura-arauak konfigurazio-bertsio berri baten bidez bakarrik aldatzen dira.",
+                notFound: "Jada ez dago. Kargatu berriro orria.",
+            },
+            readOnly: {
+                chip: "Irakurtzeko soilik",
+                rules: "Irakurtzeko soilik. Sinadura-arauak aldatzeko «Sinadurak: editatu ekintza babestuak» baimena behar da.",
+                whoCanSign:
+                    "Erabiltzaileak eta Rolak atalean «Sinatu: {{action}}» baimena duten rolak. Horiek aldatzeko rolak editatzeko baimena behar da.",
+            },
+            groups: {
+                "voting": "Bozketa",
+                "results-and-reports": "Emaitzak eta txostenak",
+                "enrollment": "Izen-ematea",
+                "configuration-and-keys": "Konfigurazioa eta giltzak",
+            },
+            actions: {
+                "initialize-voting": {
+                    label: "Bozketa hasieratu",
+                    short: "Hasieratzea",
+                    permissionName: "bozketa hasieratu",
+                    object: "bozketaren hasieratzea",
+                    appliesTo: "$t(signing.terms.post) bakoitza",
+                    description:
+                        "Argitaratu atalean hasten da. $t(signing.terms.post)a hasieratzen du eta haren Hasieratze Txostena sortzen du.",
+                },
+                "open-voting": {
+                    label: "Bozketa ireki",
+                    short: "Irekiera",
+                    permissionName: "bozketa ireki",
+                    object: "bozketaren irekiera",
+                    appliesTo: "$t(signing.terms.post) bakoitza",
+                    description:
+                        "Argitaratu atalean hasten da, Hasi Bozketa botoiarekin. Bozketa irekitzen du $t(signing.terms.post)an.",
+                },
+                "close-voting": {
+                    label: "Bozketa itxi",
+                    short: "Itxiera",
+                    permissionName: "bozketa itxi",
+                    object: "bozketaren itxiera",
+                    appliesTo: "$t(signing.terms.post) bakoitza",
+                    description:
+                        "Argitaratu atalean hasten da, Gelditu Bozketa botoiarekin. Bozketa ixten du $t(signing.terms.post)an; itxierako sinadurak haren aktan gordetzen dira.",
+                },
+                "generate-election-returns": {
+                    label: "Hauteskunde-aktak sortu",
+                    short: "Hauteskunde-aktak",
+                    permissionName: "hauteskunde-aktak sortu",
+                    object: "hauteskunde-aktak",
+                    appliesTo: "$t(signing.terms.post) eta herrialde bakoitza",
+                    description:
+                        "Zenbaketak hasten du, eskaera bat $t(signing.terms.post) eta herrialde bakoitzeko. Sinatutako hauteskunde-aktak askatzen ditu inprimatzeko eta transmititzeko.",
+                },
+                "generate-reports": {
+                    label: "Beste hauteskunde-txosten batzuk sortu",
+                    short: "Txostena",
+                    permissionName: "beste hauteskunde-txosten batzuk sortu",
+                    object: "txostena",
+                    appliesTo: "$t(signing.terms.post) bakoitza",
+                    description:
+                        "Zenbaketak hasten du Hasieratze Txostenerako, eta Txostenak atalak parte-hartze txostenerako. Sinatutako txostena askatzen du.",
+                },
+                "transmit-results": {
+                    label: "Emaitzak transmititu",
+                    short: "Transmisioa",
+                    permissionName: "emaitzak transmititu",
+                    object: "emaitza-paketea",
+                    appliesTo: "$t(signing.terms.post) eta herrialde bakoitza",
+                    description:
+                        "Zenbaketa atalean hasten da, Transmisioa urratsean. Sinatutako emaitza-paketea sortzen du bere helburuetarako; sinadurek haren sinadura-zerrenda betetzen dute.",
+                },
+                "approve-voter": {
+                    label: "Hautesle bat eskuz onartu",
+                    short: "Hautesle-onarpena",
+                    permissionName: "hautesle bat eskuz onartu",
+                    object: "hautesle-onarpena",
+                    appliesTo: "Hauteslearen $t(signing.terms.post)a",
+                    description:
+                        "Onespenak atalean hasten da. Hauteslea onartzen du eta haren kredentzialak igortzen ditu.",
+                },
+                "approve-configuration": {
+                    label: "Konfigurazio-bertsio bat onartu",
+                    short: "Konfigurazio-bertsioa",
+                    permissionName: "konfigurazio-bertsio bat onartu",
+                    object: "konfigurazio-bertsioa",
+                    appliesTo: "Hauteskunde-ekitaldia",
+                    description:
+                        "Argitaratu atalean hasten da. Konfigurazio-bertsioa argitaratzen du.",
+                },
+                "key-ceremony": {
+                    label: "Giltza-zati bat berretsi (giltzen zeremonia)",
+                    short: "Giltza-zatia",
+                    permissionName: "giltza-zati bat berretsi",
+                    object: "giltza-zatia",
+                    appliesTo: "Fideikomisario bakoitza",
+                    description:
+                        "Fideikomisario bakoitzak hasten du Giltzak atalean. Fideikomisarioaren sinadura zeremonian eta iragarki-taulan jasotzen du.",
+                },
+                "tally-key": {
+                    label: "Giltza-zati bat eman (zenbaketa)",
+                    short: "Giltza-zatiaren ekarpena",
+                    permissionName: "giltza-zati bat eman",
+                    object: "giltza-zatiaren ekarpena",
+                    appliesTo: "Fideikomisario bakoitza",
+                    description:
+                        "Fideikomisario bakoitzak hasten du Zenbaketa atalean. Fideikomisarioaren ekarpena jasotzen du.",
+                },
+            },
+            protectedActions: {
+                intro: "Sinadura bakoitza sinatzailearen segurtasun-tokeneko ziurtagiri digitalarekin egiten da.",
+                columns: {
+                    action: "Ekintza",
+                    appliesTo: "Honi aplikatzen zaio",
+                    whoCanSign: "Nork sina dezakeen",
+                    signaturesNeeded: "Behar diren sinadurak",
+                    requestExpires: "Eskaeraren iraungitzea",
+                    waiting: "Zain",
+                },
+                off: "Desaktibatuta",
+                eachTrustee: "Fideikomisario bakoitza",
+                footerVersion:
+                    "Sinadura-arauak ekitaldi honen {{version}} konfigurazio-bertsioaren parte dira.",
+                footerFirstVersion:
+                    "Sinadura-arauak gertaera honen lehen konfigurazio-bertsioaren parte izango dira argitaratzen denean.",
+                footerChanged: "Azken aldaketa: {{date}}.",
+                footerChangedBy: "Azken aldaketa: {{date}}, {{name}}(e)k egina.",
+                lockedDown:
+                    "Hauteskunde-ekitaldia blokeatuta dago: haren sinadura-arauak bere konfigurazio-bertsioaren parte dira, beraz konfigurazio-bertsio berri baten bidez bakarrik aldatzen dira.",
+                edit: "Editatu: {{action}}",
+                view: "Ikusi: {{action}}",
+                waitingCount_one: "{{count}} eskaera zain",
+                waitingCount_other: "{{count}} eskaera zain",
+                capacityError:
+                    "Ezin izan da kargatu nork sina dezakeen; beraz, sinadura kopurua ezin da egiaztatu $t(signing.terms.posts) kontuan hartuta.",
+            },
+            expiry: {
+                "30": "30 minutu",
+                "60": "Ordu 1",
+                "120": "2 ordu",
+                "1440": "24 ordu",
+                "none": "Mugarik gabe",
+                "other": "{{count}} minutu",
+            },
+            rule: {
+                needsSignatures: "Sinadurak behar ditu",
+                whoCanSign: "Nork sina dezakeen",
+                whoCanSignHelp:
+                    "Rol hauek «Sinatu: {{action}}» baimena jasotzen dute Erabiltzaileak eta Rolak atalean, hauteskunde-ekitaldi guztietarako. Sinatzaileek $t(signing.terms.post)rako sarbidea ere izan behar dute.",
+                signaturesNeeded: "Behar diren sinadurak",
+                signaturesNeededHelp:
+                    "Sinatzaile bakoitzak bere ziurtagiri digitala erabiltzen du. $t(signing.terms.post) bakoitzak gutxienez sina dezaketen {{n}} pertsona ditu.",
+                signaturesNeededShortHelp:
+                    "Sinatzaile bakoitzak bere ziurtagiri digitala erabiltzen du.",
+                requesterSigning: "Hasten duen pertsonak ere sina dezake",
+                expiresAfter: "Eskaera bat iraungitzen da denbora hau igarotakoan:",
+                trusteesSign: "Fideikomisarioek sinatzen dute urrats hau",
+                trusteesHelp:
+                    "Fideikomisario bakoitzak bere urratsa sinatzen du bere ziurtagiri digitalarekin. Giltzen zeremoniak zehazten du zenbat fideikomisariok hartzen duten parte.",
+                footer: "Aldaketak hauteskunde-ekitaldiaren erregistroan jasotzen dira eta hurrengo konfigurazio-bertsioaren parte bihurtzen dira.",
+                cancel: "Ezeztatu",
+                save: "Gorde",
+                saved: "Sinadura-araua gorde da.",
+                savedShort_one:
+                    "Sinadura-araua gorde da. {{posts}} ezin da oraindik kopurura iritsi: gehitu sinatzaile bat bertan.",
+                savedShort_other:
+                    "Sinadura-araua gorde da. {{posts}} ezin dira oraindik kopurura iritsi: gehitu sinatzaileak bertan.",
+                checkedOnSave: "Gordetzean, kopurua rol berrien arabera egiaztatzen da.",
+                savedRequesterShort:
+                    "Sinadura-araua gorde da. Badira eskaera bat hasten duen pertsonarik gabe kopurura iritsi ezin diren $t(signing.terms.posts).",
+                saveError:
+                    "Ezin izan da sinadura-araua gorde. Baliteke beste norbaitek bitartean aldatu izana; kargatu berriro eta saiatu berriro.",
+            },
+            validation: {
+                atLeastOne: "Gutxienez 1.",
+                tooMany:
+                    "Ez dago sina dezaketen {{n}} pertsona dituen $t(signing.terms.post)rik. Gehienez {{max}} dira.",
+                tooManyEvent:
+                    "{{max}} pertsonak bakarrik sina dezakete hau. Aukeratu gehienez {{max}}.",
+                atMost: "Gehienez {{max}}.",
+                shortPosts_one:
+                    "{{posts}}(e)k sina dezaketen {{n}} pertsona baino ez ditu, beraz ezin da {{required}} sinadurara iritsi. Gehitu sinatzaile bat bertan edo jaitsi kopurua.",
+                requesterShort_one:
+                    "Hasten duen pertsonarik gabe, {{posts}}(e)k sina dezaketen {{n}} pertsona baino ez ditu, beraz ezin da {{required}} sinadurara iritsi.",
+                requesterShort_other:
+                    "Hasten duen pertsonarik gabe, {{posts}}(e)k sina dezaketen {{n}} pertsona baino ez dituzte, beraz ezin dira {{required}} sinadurara iritsi.",
+                shortPosts_other:
+                    "{{posts}}(e)k sina dezaketen {{n}} pertsona baino ez dituzte, beraz ezin dira {{required}} sinadurara iritsi. Gehitu sinatzaile bat bertan edo jaitsi kopurua.",
+            },
+            pendingRequests_one:
+                "{{count}} eskaera sinaduren zain dago uneko arauarekin. Gordetzeak ezeztatu egingo du; hasi zuen pertsonak berriro hasi beharko du.",
+            pendingRequests_other:
+                "{{count}} eskaera sinaduren zain daude uneko arauarekin. Gordetzeak ezeztatu egingo ditu; hasi zituzten pertsonek berriro hasi beharko dute.",
+            certificates: {
+                issuersIntro:
+                    "Langileen ziurtagiriek hauetako batekin kateatu behar dute. Hautesleek saioa hasteko erabiltzen dituzten ziurtagirietatik bereizita daude.",
+                checkRevocation: "Egiaztatu baliogabetze-zerrendak",
+                crlUnavailable: {
+                    "label": "Zerrenda bat deskargatu ezin denean",
+                    "refuse": "Ez onartu sinadurak",
+                    "accept-unchecked": "Onartu eta markatu sinadura egiaztatu gabe gisa",
+                },
+                registration: {
+                    "label": "Ziurtagiri bat pertsona bati erregistratzea",
+                    "on-first-use": "Titularrak lehen aldiz harekin sinatzen duenean",
+                    "security-officer-only":
+                        "Ziurtagiriak erregistra ditzakeen norbaitek erregistratzen duenean bakarrik",
+                },
+                onePost: "Ziurtagiri batek $t(signing.terms.post) bakarrerako sinatzen du",
+                issuers: "Jaulkitzaile fidagarriak",
+                import: "Inportatu jaulkitzaileen ziurtagiriak",
+                importHelp:
+                    "Aukeratu jaulkitzailearen ziurtagiria duen PEM edo CER fitxategi bat. PEM fitxategi batek hainbat ziurtagiri izan ditzake.",
+                chooseFile: "Aukeratu ziurtagiri-fitxategi bat",
+                fileError: "Ezin izan da fitxategia irakurri.",
+                imported:
+                    "Jaulkitzaileen {{imported}} ziurtagiri inportatu dira; {{skipped}} fidagarriak ziren jada.",
+                importedWithErrors:
+                    "Jaulkitzaileen {{imported}} ziurtagiri inportatu dira, {{skipped}} fidagarriak ziren jada. Baztertuak: {{errors}}",
+                importError: "Ezin izan dira jaulkitzaileen ziurtagiriak inportatu.",
+                deleteIssuer: "Kendu {{name}}",
+                deleteIssuerConfirm:
+                    "{{name}} jaulkitzaile fidagarrietatik kendu? Hark jaulkitako ziurtagiriek ezin izango dute sinatu.",
+                deleteError: "Ezin izan da jaulkitzailea kendu.",
+                noIssuers:
+                    "Oraindik ez dago jaulkitzaile fidagarririk. Langileek ezin dute sinatu bat inportatu arte.",
+                root: "Erroa",
+                intermediate: "Tartekoa",
+                columns: {
+                    issuer: "Jaulkitzailea",
+                    type: "Mota",
+                    issuedBy: "Nork jaulkia",
+                    validUntil: "Baliozkoa noiz arte",
+                    sha256: "SHA-256",
+                    person: "Pertsona",
+                    post: "$t(signing.terms.post)a",
+                    certificate: "Ziurtagiria",
+                    registered: "Erregistratua",
+                    status: "Egoera",
+                },
+                checks: "Egiaztapenak",
+                checksSaved: "Ziurtagirien egiaztapenak gorde dira.",
+                checksError: "Ezin izan dira ziurtagirien egiaztapenak gorde.",
+                crlSchedule: "Jaulkitzaile bakoitzetik orduro deskargatzen dira.",
+                crlUpdated: "{{url}}: eguneratua {{time}}",
+                crlFailed: "{{url}}: ezin izan da deskargatu (azken saiakera {{time}})",
+                registeredTitle: "Erregistratutako ziurtagiriak",
+                search: "Bilatu pertsonak, ziurtagiriak edo $t(signing.terms.posts)",
+                status: "Egoera",
+                statusAll: "Guztiak",
+                statuses: {
+                    "active": "Aktiboa",
+                    "expires-soon": "Laster iraungiko da",
+                    "expired": "Iraungita",
+                    "revoked": "Baliogabetuta",
+                },
+                revokedOn: "Baliogabetua: {{date}}",
+                allPosts: "Guztiak",
+                noCertificates: "Ez dago erregistratutako ziurtagiririk.",
+                registeredHow: {
+                    "first-use": "Lehen sinaduran",
+                    "security-officer": "Administratzaile batek erregistratua",
+                },
+                register: "Erregistratu ziurtagiri bat",
+                registerSubmit: "Erregistratu",
+                registerDone: "Ziurtagiria erregistratu da.",
+                registerError: "Ezin izan da ziurtagiria erregistratu.",
+                person: "Pertsona",
+                personSearchHelp: "Idatzi erabiltzaile-izen baten zati bat pertsona aurkitzeko.",
+                registeredBy: "Egilea: {{name}}",
+                registerRefused:
+                    "Ziurtagiri hau ezin da erregistratu: egiaztatu jaulkitzaile fidagarri batek jaulki duela, gaur baliozkoa dela eta sinatzeko egina dagoela.",
+                registeredToOther:
+                    "Ziurtagiri hau {{name}}(r)en izenean erregistratuta dago. Kontu hau ere {{name}}(r)ena bada, lotu bere bigarren kontu gisa.",
+                linkAccount: "Lotu pertsona beraren bigarren kontu gisa",
+                alreadyRegistered:
+                    "Ziurtagiri hau pertsona honen izenean erregistratuta dago jada.",
+                pem: "Ziurtagiria (PEM)",
+                revoke: "Baliogabetu",
+                revokeOf: "Baliogabetu {{name}}(r)en ziurtagiria",
+                revokeTitle: "Baliogabetu {{name}}(r)en ziurtagiria",
+                revokeHelp:
+                    "Baliogabetutako ziurtagiri batek ezin du gehiago sinatu. Lehendik egindako sinadurek balio dute.",
+                revokeReason: "Arrazoia",
+                revokeDone: "Ziurtagiria baliogabetu da.",
+                revokeError: "Ezin izan da ziurtagiria baliogabetu.",
+            },
+            requests: {
+                exportCsv: "Esportatu CSV",
+                exportError: "Ezin izan dira eskaerak esportatu.",
+                exportFileName: "signing-requests.csv",
+                status: "Egoera",
+                statusAll: "Guztiak",
+                statusCount: "{{status}} · {{count}} / {{total}}",
+                expires: "Iraungitzea: {{time}}",
+                lastSignatureBy: "{{name}}, {{time}}",
+                empty: "Oraindik ez dago sinadura-eskaerarik.",
+                columns: {
+                    request: "Eskaera",
+                    status: "Egoera",
+                    started: "Hasiera",
+                    by: "Egilea",
+                    lastSignature: "Azken sinadura",
+                    code: "Kodea",
+                },
+            },
+            reports: {
+                postRequired:
+                    "Hautatu hauteskunde-postu bat txosten hau sortzeko sinadurak behar direnean.",
+                generateNotice:
+                    "{{post}}: dokumentua orain sortzen da. {{n}} pertsonak sinatu ondoren inprimatu eta transmititu ahal izango da.",
+            },
+            status: {
+                waiting: "Zain",
+                completed: "Sinatuta",
+                executed: "Eginda",
+                cancelled: "Ezeztatuta",
+                expired: "Iraungita",
+                failed: "Huts egin du",
+            },
+            cancelReasons: {
+                "by-requester": "Hasi zuen pertsonak ezeztatu zuen",
+                "by-operator": "Operadore batek ezeztatu zuen",
+                "rule-changed": "Ekintzaren sinadura-araua aldatu zen",
+                "payload-changed": "Sinatzen duena aldatu zen",
+                "superseded": "Eskaera berriago batek ordezkatu zuen",
+                "certificate-revoked": "Hura sinatu zuen ziurtagiri bat baliogabetu zen",
+            },
+            panel: {
+                rulePost:
+                    "{{post}}(e)ko sinatzaileen {{n}} sinadura behar ditu, bakoitza bere ziurtagiri digitalarekin.",
+                ruleEvent:
+                    "{{n}} sinadura behar ditu, bakoitza sinatzailearen ziurtagiri digitalarekin.",
+                signingCode: "Sinadura-kodea",
+                signers: "Sinatzaileak",
+                sign: "Sinatu",
+                handover: "Hurrengo kideak saioa hasten du",
+                cancel: "Ezeztatu eskaera",
+                signedAt: "Sinatua {{time}}",
+                notSigned: "Sinatu gabe",
+                certificate: "{{name}} ziurtagiria",
+                you: "(zu)",
+                expiresAt: "Iraungitzea: {{time}}",
+                progress: "{{count}} / {{total}}",
+                openDocument: "Ireki dokumentua",
+                configurationVersion: "{{version}}. konfigurazio-bertsioa",
+                configurationChanges: "Bertsio honetako aldaketak",
+            },
+            dialog: {
+                title: "Sinatu: {{object}}",
+                steps: {
+                    check: "Berrikusi",
+                    certificate: "Ziurtagiria",
+                    signed: "Sinatuta",
+                },
+                localNote:
+                    "Sinadura nabigatzaile honetan egiten da. Zure ziurtagiri-fitxategia, haren giltza pribatua eta pasahitza ez dira inoiz bidaltzen. Zure sinadura eta zure ziurtagiri publikoa bakarrik iristen dira zerbitzarira.",
+                check: {
+                    signingAs: "{{name}} gisa sinatzen ari zara",
+                    titlePost: "{{title}}, {{post}}",
+                    sameCode: "Sinatzen duten guztiek kode bera ikusten dute.",
+                    confirmDocument: "Sinatzen dudana berrikusi dut: {{object}}",
+                },
+                certificate: {
+                    intro: "Sartu zure segurtasun-tokena eta aukeratu zure ziurtagiri-fitxategia.",
+                    password: "Ziurtagiriaren pasahitza",
+                    open: "Ireki ziurtagiria",
+                    chooseAnother: "Aukeratu beste fitxategi bat",
+                },
+                checks: {
+                    "passed": {
+                        "trusted-issuer": "Jaulkitzaile fidagarri batek jaulkia ({{root}})",
+                        "valid-now": "Gaur baliozkoa",
+                        "signing-key-usage": "Sinatzeko egina",
+                        "not-revoked": "Baliogabetu gabea (zerrendak eguneratuta {{time}})",
+                        "registered": "Zure izenean erregistratua {{date}}(e)an",
+                        "registered-to-other": "Ez dago beste inoren izenean erregistratuta",
+                        "already-signed": "Oraindik ez da eskaera honetarako erabili",
+                        "post-binding": "$t(signing.terms.post) honetarako erregistratua",
+                        "signature": "Sinadurak eskaera hau estaltzen du",
+                    },
+                    "failed": {
+                        "trusted-issuer": "Ez du jaulkitzaile fidagarri batek jaulki",
+                        "valid-now": "Gaur ez da baliozkoa",
+                        "signing-key-usage": "Ez dago sinatzeko egina",
+                        "not-revoked":
+                            "Baliogabetuta, edo ez dago hura egiaztatzeko baliogabetze-zerrenda eguneraturik",
+                        "registered": "Ez dago zure izenean erregistratuta",
+                        "registered-to-other": "{{name}}(r)en izenean erregistratua",
+                        "already-signed": "Eskaera honetarako erabili da jada",
+                        "post-binding": "Beste $t(signing.terms.post) baterako erregistratua",
+                        "signature": "Sinadurak ez du eskaera hau estaltzen",
+                    },
+                    "first-use": "Lehen erabilera: zure izenean erregistratuko da",
+                },
+                problems: {
+                    wrongPassword: "Pasahitz okerra. Egiaztatu eta saiatu berriro.",
+                    notForYou:
+                        "Ziurtagiri honek ezin du zure izenean sinatu. Erabili zure segurtasun-tokeneko ziurtagiria.",
+                    issuerNotAccepted:
+                        "Erabili {{organization}}(e)k zuretzat erregistratu duen ziurtagiria. Ez dira beste jaulkitzaile batzuen ziurtagiriak onartzen.",
+                    cancelled:
+                        "Eskaera hau ezeztatu da: {{reason}}. Harentzat emandako sinadurek ez dute balio. Hasi berriro uneko bertsioa sinatzeko.",
+                },
+                signed: {
+                    title: "Sinatuta",
+                    withCertificate: "{{name}}(r)en ziurtagiriarekin",
+                    count: "{{n}} / {{total}} sinadura.",
+                    allIn: "{{total}} sinadurak jasota daude.",
+                    next: "Hurrengo sinatzaileak: {{names}}.",
+                },
+                handover:
+                    "Zure saioa itxiko da. Hurrengo kideak ordenagailu honetan hasiko du saioa eta eskaera honetara itzuliko da sinatzeko. Eskaera irekita egongo da {{time}} arte.",
+                sign: "Sinatu",
+                back: "Atzera",
+                cancel: "Ezeztatu",
+            },
+            widget: {
+                continue: "Jarraitu",
+                done: "Eginda",
+                close: "Itxi",
+                retry: "Saiatu berriro",
+                loading: "Eskaera kargatzen…",
+                loadError: "Ezin izan da eskaera kargatu.",
+                chooseFile: "Aukeratu ziurtagiri-fitxategia",
+                fileInput: "Ziurtagiri-fitxategia",
+                fileSize: "{{size}} KB",
+                showPassword: "Erakutsi pasahitza",
+                hidePassword: "Ezkutatu pasahitza",
+                opening: "Ziurtagiria irekitzen…",
+                checking: "Ziurtagiria egiaztatzen…",
+                signing: "Sinatzen…",
+                certificateCard:
+                    "Jaulkitzailea: {{issuer}} · baliozkoa {{date}} arte · {{algorithm}}",
+                fingerprint: "SHA-256 {{fingerprint}}",
+                algorithms: {
+                    "rsa-pkcs1-sha256": "RSA",
+                    "ecdsa-p256-sha256": "EC P-256",
+                },
+                document: "{{type}} · SHA-256 {{hash}}",
+                documentPages: "{{type}} · {{pages}} orri · SHA-256 {{hash}}",
+                checksTitle: "Ziurtagiriaren egiaztapenak",
+                untrustedIssuer:
+                    "{{issuer}} ez da hauteskunde-ekitaldi honetarako jaulkitzaile fidagarria",
+                registeredToSomeoneElse: "Beste norbaiten izenean erregistratua",
+                checkPassedNoDetail: {
+                    "trusted-issuer": "Jaulkitzaile fidagarri batek jaulkia",
+                    "not-revoked": "Baliogabetu gabea",
+                },
+                organization: "zure erakundea",
+                cantSign: "Ziurtagiri honek ezin du eskaera hau sinatu.",
+                checkError: "Ezin izan da ziurtagiria egiaztatu. Saiatu berriro.",
+                fileErrors: {
+                    UNREADABLE_FILE:
+                        "Fitxategi hau ez da ziurtagiri-fitxategi bat (.p12 edo .pfx), edo hondatuta dago.",
+                    UNSUPPORTED_ENCRYPTION:
+                        "Nabigatzaile honek ezin du fitxategi honek erabiltzen duen zifratzea ireki.",
+                    NO_PRIVATE_KEY:
+                        "Fitxategi honek ez du giltza pribaturik. Aukeratu zure segurtasun-tokeneko ziurtagiri-fitxategia.",
+                    NO_CERTIFICATE: "Fitxategi honek ez du ziurtagiririk.",
+                    UNSUPPORTED_KEY:
+                        "Ziurtagiri honen giltza-mota ez da onartzen. Erabili RSA edo EC P-256 ziurtagiri bat.",
+                    KEY_CERTIFICATE_MISMATCH:
+                        "Fitxategi honetako ziurtagiria ez dator bat haren giltzarekin.",
+                },
+                openError: "Ezin izan da ziurtagiria ireki. Saiatu berriro.",
+                signError: "Ezin izan da sinadura bidali. Saiatu berriro.",
+                refused: "Zerbitzariak sinadura baztertu du.",
+                stale: "Dokumentua aldatu egin da sinatzen ari zinen bitartean. Sinatu berriro.",
+                mismatch:
+                    "Sinatuko litzatekeena ez dator bat eskaera honekin. Itxi elkarrizketa-koadroa eta ireki berriro eskaera.",
+                documentMismatch: "Dokumentua ez dator bat eskaera honek sinatzen duenarekin.",
+                documentError: "Ezin izan da dokumentua deskargatu. Saiatu berriro.",
+                alreadySigned: "Eskaera hau sinatu duzu jada.",
+                closed: {
+                    changed:
+                        "Eskaera hau aldatu egin da ireki ondoren. Itxi leiho hau eta berrikusi berriro sinatu aurretik.",
+                    allSigned: "Eskaera honek bere sinadura guztiak ditu jada.",
+                },
+                chooseCertificate: "Sinatzeko ziurtagiria",
+                renderError: "Ezin izan da sinadura-eskaera erakutsi. Itxi eta ireki berriro.",
+                signedAt: "{{time}}",
+                panel: {
+                    completedAt: "Sinatua {{time}}",
+                    expired:
+                        "Eskaera hau iraungi da. Harentzat emandako sinadurek ez dute balio. Hasi berriro sinatzeko.",
+                    failed: "Sinadura guztiak jasota daude, baina ekintzak huts egin du. Erregistroan daude xehetasunak.",
+                    details: "Xehetasunak",
+                    close: "Itxi eskaeraren panela",
+                },
+                cancelDialog: {
+                    title: "Eskaera hau ezeztatu?",
+                    body: "Harentzat emandako sinadurek ez dute balio. Hasi zuen pertsonak berriro hasi beharko du.",
+                    reason: "Arrazoia (aukerakoa)",
+                    confirm: "Ezeztatu eskaera",
+                    back: "Mantendu",
+                    error: "Ezin izan da eskaera ezeztatu. Saiatu berriro.",
+                },
+                handoverDialog: {
+                    title: "Hurrengo kideak saioa hasten du",
+                    noExpiry:
+                        "Zure saioa itxiko da. Hurrengo kideak ordenagailu honetan hasiko du saioa eta eskaera honetara itzuliko da sinatzeko.",
+                    confirm: "Itxi saioa",
+                    back: "Mantendu saioa",
+                    error: "Ezin izan da txandakatzea erregistratu. Saiatu berriro.",
+                },
+            },
+            details: {
+                keys_ceremony_id: "Zeremonia",
+                tally_session_id: "Zenbaketa-saioa",
+                trustee_id: "Fideikomisarioa",
+                key_share_sha256: "Giltza-zatiaren SHA-256",
+                channel: "Kanala",
+                channels: "Kanalak",
+                publication_id: "Boto-txartelen argitalpena",
+                ballot_publication_id: "Boto-txartelen argitalpena",
+                digest: "Konfigurazioaren SHA-256",
+                signing_rules: "Sinadura-arauak",
+                scheduled_events: "Programatutako gertaera berriak",
+                ballots_and_contests: "Boto-txartelak eta lehiaketak",
+                application_id: "Izen-emate eskaera",
+                applicant_registry_id: "Erroldako kontua",
+                decision: "Erabakia",
+                submitted_at: "Bidalia",
+                reason: "Zergatik behar duen pertsona bat",
+                registry_record: "Erroldako erregistroa",
+                status: "Izen-emate eskaeraren egoera",
+                from: "Aurreko egoera",
+            },
+            closed: {
+                pending: "Sinadura guztiak jasota daude. Bozketa berehala itxiko da.",
+                title: "Bozketa {{time}}(e)an itxi da.",
+                titleSealed: "Bozketa {{time}}(e)an itxi da. Boto-txartelak zigilatuta.",
+                record: "Zigilatze-akta",
+                ballots: "Zigiluko boto-txartelak",
+                sealHash: "Zigiluaren {{algorithm}}",
+                signedBy: "Sinatzaileak",
+                signatures: "Zigilatze-aktako itxierako sinadurak",
+                signaturesValue_one: "{{count}}, sinadura-kodea {{code}}",
+                signaturesValue_other: "{{count}}, sinadura-kodea {{code}}",
+                signers: "Kideek sinatua",
+            },
+            values: {
+                ballots_and_contests: {
+                    "first-version": "Lehen bertsioa",
+                    "no-changes": "Aldaketarik ez",
+                    "changed": "Aldatuta",
+                },
+                signing_rules: {
+                    "initialize-voting": "$t(signing.actions.initialize-voting.label)",
+                    "open-voting": "$t(signing.actions.open-voting.label)",
+                    "close-voting": "$t(signing.actions.close-voting.label)",
+                    "generate-election-returns":
+                        "$t(signing.actions.generate-election-returns.label)",
+                    "generate-reports": "$t(signing.actions.generate-reports.label)",
+                    "transmit-results": "$t(signing.actions.transmit-results.label)",
+                    "approve-voter": "$t(signing.actions.approve-voter.label)",
+                    "approve-configuration": "$t(signing.actions.approve-configuration.label)",
+                    "key-ceremony": "$t(signing.actions.key-ceremony.label)",
+                    "tally-key": "$t(signing.actions.tally-key.label)",
+                },
+                channels: {
+                    ONLINE: "Linean",
+                    KIOSK: "Kioskoa",
+                    EARLY_VOTING: "Boto aurreratua",
+                    TELEPHONE: "Telefonoa",
+                },
+                statuses: {
+                    NOT_STARTED: "Hasi gabe",
+                    OPEN: "Irekita",
+                    PAUSED: "Etenda",
+                    CLOSED: "Itxita",
+                },
+                channelStatus: "{{channel}}: {{status}}",
+                ruleChange: "{{action}}: {{rule}}",
+                ruleChangeFrom: "{{action}}: {{rule}} (lehen {{was}})",
+                ruleNeeds: "{{n}} behar ditu",
+                ruleOff: "desaktibatuta",
+                decision: {
+                    approve: "Onartu",
+                },
+            },
+            results: {
+                signatures: "Sinadurak",
+                needs: "{{n}} behar ditu",
+                off: "Desaktibatuta",
+                openRequest: "Ireki sinadura-eskaera",
+                downloadSigned: "Deskargatu sinatutako PDFa",
+                print: "Inprimatu",
+                transmit: "Transmititu emaitzak",
+                sendTo: "Bidali {{count}} helburutara",
+                awaiting: "{{item}}: sinaduren zain",
+                transmission: {
+                    title: "Sinadurak",
+                    description:
+                        "Sinatzaile bakoitzak paketearen emaitzak sinatzen ditu bere ziurtagiri digitalarekin, nabigatzaile honetan. Paketea bidali ahal izango da {{n}} pertsonak sinatu ondoren.",
+                    waiting:
+                        "Paketea bidali ahal izango da bere sinadura-eskaerak sinadura guztiak dituenean.",
+                    signed: "Paketeak bere sinadura guztiak ditu eta bidal daiteke.",
+                    ended: "Pakete honen sinadura-eskaera amaitu da. Sortu berriro paketea hura sinatzeko.",
+                },
+            },
+            waiting: {
+                title: "Nire sinaduraren zain",
+                buttonCount_one: "Nire sinaduraren zain: sinatzeko {{count}} eskaera",
+                buttonCount_other: "Nire sinaduraren zain: sinatzeko {{count}} eskaera",
+                intro: "Sina ditzakezun ekintzen sinaduren zain dauden eskaerak. $t(signing.terms.posts): zureak soilik.",
+                close: "Itxi zerrenda",
+                empty: "Ez dago ezer zure sinaduraren zain.",
+                loadError: "Ezin izan dira kargatu sinaduren zain dauden eskaerak.",
+                signedByYou: "Zuk sinatua",
+            },
+            notes: {
+                afterApproval: "Onartu ondoren",
+                afterApprovalValue: "Hautesleari kredentzialak igorri eta bidaltzen zaizkio",
+                keyShare: "Zure giltza-zatia",
+                keyShareChecked: "Egiaztatuta: zeremonia honetarako zure giltza-zatia da",
+                recordedIn: "Non jasotzen den",
+                recordedInCeremony: "Giltzen zeremonia eta iragarki-taula",
+                recordedInTally: "Zenbaketa-saioa",
+            },
+            keyShare: {
+                signing:
+                    "Sinatu zure giltza-zatia sinadura-panelean. Sinatu ondoren erregistratzen da.",
+                record: "Erregistratu nire giltza-zatia",
+                failed: "Ezin izan da zure giltza-zati sinatua erregistratu: {{error}}",
+                dropAgain:
+                    "Jaregin berriro zure giltza-zatiaren fitxategia zure giltza-zati sinatua erregistratzeko.",
+                redo: "Zure giltza-zatia zure sinadurarik gabe eman zen, eta hauteskunde honek orain sinadura behar du. Eman berriro eta sinatu.",
+                notTaken:
+                    "Zeremoniak ez du giltza-zati hau onartzen jada. Jaregin berriro zure giltza-zatiaren fitxategia.",
+            },
         },
     },
 }

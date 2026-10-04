@@ -388,6 +388,7 @@ actions:
               version: 2
       permissions:
           - role: admin-user
+          - role: role-write
     - name: delete_user
       definition:
           kind: synchronous
@@ -964,6 +965,7 @@ actions:
               version: 2
       permissions:
           - role: admin-user
+          - role: user-permission-read
       comment: list permissions
     - name: get_realm_attributes
       definition:
@@ -1038,6 +1040,7 @@ actions:
               version: 2
       permissions:
           - role: admin-user
+          - role: role-read
     - name: get_top_votes_by_ip
       definition:
           kind: ""
@@ -1507,6 +1510,20 @@ actions:
       permissions:
           - role: trustee-ceremony
           - role: admin-user
+    - name: key_share_signature_status
+      definition:
+          kind: ""
+          handler: http://{{HARVEST_DOMAIN}}/key-share-signature-status
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input.object}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: trustee-ceremony
+          - role: admin-user
     - name: send_transmission_package
       definition:
           kind: synchronous
@@ -1547,6 +1564,7 @@ actions:
               version: 2
       permissions:
           - role: admin-user
+          - role: role-write
     - name: set_user_role
       definition:
           kind: synchronous
@@ -1988,6 +2006,347 @@ actions:
           - role: admin-user
           - role: monitoring-view
       comment: Export a monitoring dashboard's figures as CSV or SQL
+    - name: signingCheckCertificate
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/signing-requests
+          forward_client_headers: true
+          request_transform:
+              method: POST
+              url: "{{$base_url}}/{{$body.input.request_id}}/check-certificate"
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
+          - role: sign-initialize-voting
+          - role: sign-open-voting
+          - role: sign-close-voting
+          - role: sign-generate-election-returns
+          - role: sign-generate-reports
+          - role: sign-transmit-results
+          - role: sign-approve-voter
+          - role: sign-approve-configuration
+          - role: sign-key-ceremony
+          - role: sign-tally-key
+      comment: Dry-run every certificate check of a signing request for the signer's chain
+    - name: signingImportIssuers
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/signing-issuers
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
+          - role: signing-issuers-write
+      comment: Import trusted issuers of staff signatures (PEM, or a DER certificate in base64)
+    - name: signingDeleteIssuer
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/signing-issuers
+          forward_client_headers: true
+          request_transform:
+              method: DELETE
+              url: "{{$base_url}}/{{$body.input.issuer_id}}"
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
+          - role: signing-issuers-write
+      comment: Remove a trusted issuer of staff signatures
+    - name: signingPutChecks
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/signing-checks
+          forward_client_headers: true
+          request_transform:
+              method: PUT
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
+          - role: signing-checks-write
+      comment: Save an election event's certificate checks
+    - name: signingRegisterCertificate
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/staff-certificates
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
+          - role: signing-certificates-register
+      comment: Register a staff certificate to a person, or link it to the same person's second account
+    - name: signingRevokeCertificate
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/staff-certificates
+          forward_client_headers: true
+          request_transform:
+              method: POST
+              url: "{{$base_url}}/{{$body.input.certificate_id}}/revoke"
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
+          - role: signing-certificates-revoke
+      comment: Revoke a registered staff certificate
+    - name: signingGetRequest
+      definition:
+          type: query
+          handler: http://{{HARVEST_DOMAIN}}/signing-requests/get
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
+          - role: sign-initialize-voting
+          - role: sign-open-voting
+          - role: sign-close-voting
+          - role: sign-generate-election-returns
+          - role: sign-generate-reports
+          - role: sign-transmit-results
+          - role: sign-approve-voter
+          - role: sign-approve-configuration
+          - role: sign-key-ceremony
+          - role: sign-tally-key
+          - role: signing-requests-read
+      comment: "A signing request's panel: the request, its rule, who signed and who can sign"
+    - name: signingApprove
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/signing-requests/approve
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
+          - role: sign-initialize-voting
+          - role: sign-open-voting
+          - role: sign-close-voting
+          - role: sign-generate-election-returns
+          - role: sign-generate-reports
+          - role: sign-transmit-results
+          - role: sign-approve-voter
+          - role: sign-approve-configuration
+          - role: sign-key-ceremony
+          - role: sign-tally-key
+      comment: Sign a signing request with a staff certificate
+    - name: signingOpenFailure
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/signing-requests/open-failures
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
+          - role: sign-initialize-voting
+          - role: sign-open-voting
+          - role: sign-close-voting
+          - role: sign-generate-election-returns
+          - role: sign-generate-reports
+          - role: sign-transmit-results
+          - role: sign-approve-voter
+          - role: sign-approve-configuration
+          - role: sign-key-ceremony
+          - role: sign-tally-key
+      comment: Log that a certificate file didn't open, without the file or its password
+    - name: signingHandover
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/signing-requests/handover
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
+          - role: sign-initialize-voting
+          - role: sign-open-voting
+          - role: sign-close-voting
+          - role: sign-generate-election-returns
+          - role: sign-generate-reports
+          - role: sign-transmit-results
+          - role: sign-approve-voter
+          - role: sign-approve-configuration
+          - role: sign-key-ceremony
+          - role: sign-tally-key
+      comment: Log that the next member signs on this computer
+    - name: signingCancel
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/signing-requests/cancel
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
+          - role: signing-requests-cancel
+          - role: sign-initialize-voting
+          - role: sign-open-voting
+          - role: sign-close-voting
+          - role: sign-generate-election-returns
+          - role: sign-generate-reports
+          - role: sign-transmit-results
+          - role: sign-approve-voter
+          - role: sign-approve-configuration
+          - role: sign-key-ceremony
+          - role: sign-tally-key
+          - role: admin-ceremony
+          - role: election-state-write
+          - role: report-read
+          - role: miru-create
+          - role: application-write
+          - role: publish-write
+          - role: trustee-ceremony
+      comment: Cancel a waiting signing request
+    - name: signingExportRequests
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/signing-requests/export
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
+          - role: signing-requests-export
+      comment: Export an election event's signing requests as CSV
+    - name: signingPutRule
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/signing-rules/put
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
+          - role: signing-rules-write
+      comment: Save the signing rule of a protected action
+    - name: signingRuleCapacity
+      definition:
+          type: query
+          handler: http://{{HARVEST_DOMAIN}}/signing-rules/capacity
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
+          - role: signing-rules-read
+      comment: How many people can sign a protected action in each Post
+    - name: signingEventInfo
+      definition:
+          type: query
+          handler: http://{{HARVEST_DOMAIN}}/signing-event-info
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: signing-rules-read
+          - role: signing-certificates-read
+          - role: signing-requests-read
+          - role: sign-initialize-voting
+          - role: sign-open-voting
+          - role: sign-close-voting
+          - role: sign-generate-election-returns
+          - role: sign-generate-reports
+          - role: sign-transmit-results
+          - role: sign-approve-voter
+          - role: sign-approve-configuration
+          - role: sign-key-ceremony
+          - role: sign-tally-key
+      comment: "The election event's time zone and, for a reader of the certificates, the signers' titles"
+    - name: signingHeldReportRequests
+      definition:
+          type: query
+          handler: http://{{HARVEST_DOMAIN}}/signing-reports/requests
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: signing-requests-read
+          - role: sign-generate-election-returns
+          - role: sign-generate-reports
+          - role: report-read
+          - role: miru-create
+          - role: miru-send
+      comment: Safe held-report request references, filtered by action permissions and Post labels
+    - name: signingPdfPrepare
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/signing-requests/pdf-prepare
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
+          - role: sign-generate-election-returns
+          - role: sign-generate-reports
+      comment: Prepare the PDF revision a signer's certificate signs
 custom_types:
     enums:
         - name: EarlyVotingPolicy
@@ -2075,6 +2434,7 @@ custom_types:
         - name: GetManualVerificationInput
         - name: KeycloakRole2
         - name: RestorePrivateKeyInput
+        - name: KeyShareSignatureStatusInput
         - name: UserProfileAttributesInput
         - name: EventListFilter
         - name: EventListOrderBy
@@ -2084,6 +2444,7 @@ custom_types:
         - name: ApplicationChangeStatusBody
         - name: ImportOptions
         - name: CountUsersInput
+        - name: SigningRoleChangesInput
     objects:
         - name: MonitoringSnapshot
         - name: MonitoringDashboardSummary
@@ -2165,6 +2526,7 @@ custom_types:
         - name: BallotPublicationStyles
         - name: GetBallotPublicationChangesOutput
         - name: RestorePrivateKeyOutput
+        - name: KeyShareSignatureStatusOutput
         - name: InsertCastVoteOutput
         - name: ReceiveBallotOutput
         - name: CastBallotOutput
@@ -2234,4 +2596,19 @@ custom_types:
         - name: RevokeResultsPublicationOutput
         - name: VoterInformationLetterOutput
         - name: DocumentPasswordOutput
+        - name: SigningCheckCertificateOutput
+        - name: SigningImportIssuersOutput
+        - name: SigningIssuerIdOutput
+        - name: SigningPutChecksOutput
+        - name: SigningCertificateIdOutput
+        - name: SigningGetRequestOutput
+        - name: SigningApproveOutput
+        - name: SigningRequestIdOutput
+        - name: SigningExportOutput
+        - name: SigningPutRuleOutput
+        - name: SigningRuleCapacityOutput
+        - name: SigningEventInfoOutput
+        - name: SigningHeldReportRequestsOutput
+        - name: SigningRequestSummary
+        - name: SigningPdfPrepareOutput
     scalars: []

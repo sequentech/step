@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {useMutation} from "@apollo/client"
-import React, {useContext, useState} from "react"
+import React, {useCallback, useContext, useState} from "react"
 import {Typography} from "@mui/material"
 import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos"
 import ArrowBackIosIcon from "@mui/icons-material/ArrowBackIos"
@@ -10,6 +10,7 @@ import {Trans, useTranslation} from "react-i18next"
 
 import {
     CheckPrivateKeyMutation,
+    CheckPrivateKeyMutationVariables,
     Sequent_Backend_Election_Event,
     Sequent_Backend_Keys_Ceremony,
 } from "@/gql/graphql"
@@ -17,6 +18,12 @@ import {AuthContext} from "@/providers/AuthContextProvider"
 import {WizardStyles} from "@/components/styles/WizardStyles"
 import {CHECK_PRIVATE_KEY} from "@/queries/CheckPrivateKey"
 import {DropFile} from "@sequentech/ui-essentials"
+import {
+    KeyShareCheck,
+    useKeyShareSigning,
+    type IKeyShareAnswer,
+    type IKeyShareSubmission,
+} from "./useKeyShareSigning"
 
 export interface DownloadStepProps {
     electionEvent: Sequent_Backend_Election_Event
@@ -37,7 +44,33 @@ export const CheckStep: React.FC<DownloadStepProps> = ({
     const [uploading, setUploading] = useState<boolean>(false)
     const [errors, setErrors] = useState<String | null>(null)
 
-    const [checkPrivateKeysMutation] = useMutation<CheckPrivateKeyMutation>(CHECK_PRIVATE_KEY)
+    const [checkPrivateKeysMutation] = useMutation<
+        CheckPrivateKeyMutation,
+        CheckPrivateKeyMutationVariables
+    >(CHECK_PRIVATE_KEY)
+    const submit = useCallback(
+        async (submission: IKeyShareSubmission): Promise<IKeyShareAnswer> => {
+            const {data, errors} = await checkPrivateKeysMutation({
+                variables: {
+                    electionEventId: electionEvent.id,
+                    keysCeremonyId: currentCeremony.id,
+                    ...submission,
+                },
+            })
+            if (errors) throw new Error(errors.toString())
+            return data?.check_private_key ?? {is_valid: false}
+        },
+        [checkPrivateKeysMutation, electionEvent.id, currentCeremony.id]
+    )
+    const keyShareSigning = useKeyShareSigning({
+        submit,
+        onRecorded: useCallback(() => setVerified(true), []),
+        onFailed: useCallback(
+            (error: string) => setErrors(t("signing.keyShare.failed", {error})),
+            [t]
+        ),
+    })
+
     const uploadPrivateKey = async (files: FileList | null) => {
         setErrors(null)
         setVerified(false)
@@ -63,28 +96,16 @@ export const CheckStep: React.FC<DownloadStepProps> = ({
                 return
             }
             setUploading(true)
-            const {data, errors} = await checkPrivateKeysMutation({
-                variables: {
-                    electionEventId: electionEvent.id,
-                    keysCeremonyId: currentCeremony.id,
-                    privateKeyBase64: fileContent,
-                },
-            })
+            const checked = await keyShareSigning.check(fileContent)
             setUploading(false)
-            if (errors) {
-                setErrors(t("keysGeneration.checkStep.errorUploading", {error: errors.toString()}))
-                return
-            } else {
-                const isValid = data?.check_private_key?.is_valid
-                if (!isValid) {
-                    setErrors(t("keysGeneration.checkStep.errorUploading", {error: "empty"}))
-                    return
-                }
+            if (checked === KeyShareCheck.Invalid) {
+                setErrors(t("keysGeneration.checkStep.errorUploading", {error: "empty"}))
+            } else if (checked === KeyShareCheck.Verified) {
                 setVerified(true)
             }
-        } catch (exception: any) {
+        } catch (exception) {
             setUploading(false)
-            setErrors(t("keysGeneration.checkStep.errorUploading", {error: exception.toString()}))
+            setErrors(t("keysGeneration.checkStep.errorUploading", {error: String(exception)}))
         }
     }
     return (
@@ -108,6 +129,9 @@ export const CheckStep: React.FC<DownloadStepProps> = ({
                             <WizardStyles.ErrorMessage variant="body2">
                                 {errors}
                             </WizardStyles.ErrorMessage>
+                        ) : null}
+                        {keyShareSigning.waiting && !errors ? (
+                            <Typography variant="body1">{t("signing.keyShare.signing")}</Typography>
                         ) : null}
                         {verified && (
                             <WizardStyles.SucessMessage variant="body1">
