@@ -450,22 +450,28 @@ pub trait TemplateRenderer: Debug {
     }
 
     /// The number format of the report's election event, which the report
-    /// writes its figures in, or `None` for the default.
-    #[instrument(err, skip_all)]
+    /// writes its figures in, or `None` for the default. A report that cannot
+    /// read its event still renders, with the default.
+    #[instrument(skip_all)]
     async fn get_number_format_policy(
         &self,
         hasura_transaction: &Transaction<'_>,
-    ) -> Result<Option<NumberFormatPolicy>> {
-        let election_event = election_event::get_election_event_by_id_if_exist(
+    ) -> Option<NumberFormatPolicy> {
+        match election_event::get_election_event_by_id_if_exist(
             hasura_transaction,
             &self.get_tenant_id(),
             &self.get_election_event_id(),
         )
         .await
-        .with_context(|| "Error getting the election event of the report")?;
-        Ok(election_event
-            .as_ref()
-            .and_then(utils::get_number_format_policy))
+        {
+            Ok(election_event) => election_event
+                .as_ref()
+                .and_then(utils::get_number_format_policy),
+            Err(error) => {
+                warn!("Writing the report in the default number format: {error:?}");
+                None
+            }
+        }
     }
 
     /// Renders the user template with `user_data_map`, then the system
@@ -718,7 +724,7 @@ pub trait TemplateRenderer: Debug {
                 anyhow!("Error providing the user template and extra config: {e:?}")
             })?;
 
-        let number_format_policy = self.get_number_format_policy(hasura_transaction).await?;
+        let number_format_policy = self.get_number_format_policy(hasura_transaction).await;
 
         let contains_voter_secrets =
             generate_mode == GenerateReportMode::REAL && !declared_secret_names.is_empty();
