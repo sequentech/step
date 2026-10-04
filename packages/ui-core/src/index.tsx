@@ -43,6 +43,8 @@ export {
 export * from "./services/votingPortalDateTime"
 export * from "./types/ElectionEventPresentation"
 export * from "./services/percentFormatter"
+export * from "./services/numberFormat"
+export * from "./services/NumberFormatContext"
 export * from "./services/cssClassNameFormatter"
 export * from "./services/wasm"
 export * from "./services/presentationOrder"
