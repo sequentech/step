@@ -1297,6 +1297,7 @@ export const EditElectionEventDataForm: React.FC<{
                                     />
                                     <SelectInput
                                         source={"presentation.number_format_policy"}
+                                        disabled={!canEdit}
                                         choices={getNumberFormatPolicyChoices()}
                                         label={String(
                                             t(
