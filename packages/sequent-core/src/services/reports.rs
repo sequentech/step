@@ -30,6 +30,10 @@ fn get_registry<'reg>(policy: NumberFormatPolicy) -> Handlebars<'reg> {
         helper_wrapper_or(Box::new(FormatU64(policy)), String::from("-")),
     );
     reg.register_helper(
+        "format_i64",
+        helper_wrapper_or(Box::new(FormatI64(policy)), String::from("-")),
+    );
+    reg.register_helper(
         "format_percentage",
         helper_wrapper_or(
             Box::new(FormatDecimal {
@@ -391,6 +395,44 @@ impl HelperDef for FormatU64 {
             .ok_or(RenderErrorReason::ParamNotFoundForIndex("format_u64", 0))?
             .value();
         out.write(&self.0.format_integer(parse_u64_value(value)?))?;
+        Ok(())
+    }
+}
+
+fn parse_i64_value(value: &JsonValue) -> Result<i64, RenderError> {
+    match value {
+        JsonValue::Number(n) => n.as_i64().ok_or_else(|| {
+            RenderError::new(format!(
+                "Expected i64 but got invalid number: {n}"
+            ))
+        }),
+        JsonValue::String(s) => s.parse::<i64>().map_err(|_| {
+            RenderError::new(format!("Failed to parse '{}' as i64", s))
+        }),
+        _ => Err(RenderError::new(
+            "Expected i64 or a string representing an i64",
+        )),
+    }
+}
+
+/// `{{format_i64 value}}`: a signed integer, such as a change in votes,
+/// grouped in thousands.
+struct FormatI64(NumberFormatPolicy);
+
+impl HelperDef for FormatI64 {
+    fn call<'reg: 'rc, 'rc>(
+        &self,
+        helper: &Helper<'rc>,
+        _: &'reg Handlebars<'reg>,
+        _: &'rc Context,
+        _: &mut RenderContext<'reg, 'rc>,
+        out: &mut dyn Output,
+    ) -> HelperResult {
+        let value = helper
+            .param(0)
+            .ok_or(RenderErrorReason::ParamNotFoundForIndex("format_i64", 0))?
+            .value();
+        out.write(&self.0.format_integer(parse_i64_value(value)?))?;
         Ok(())
     }
 }
@@ -909,6 +951,35 @@ mod tests {
     fn an_unknown_number_format_policy_renders_with_the_default() {
         assert_eq!(figures(Some(json!("unknown"))), figures(None));
         assert_eq!(figures(Some(json!(null))), figures(None));
+    }
+
+    fn signed_counts(policy: Option<serde_json::Value>) -> String {
+        let mut variables = Map::new();
+        variables.insert("gained".to_string(), json!(1_234_567));
+        variables.insert("lost".to_string(), json!(-1_234_567));
+        variables.insert("written".to_string(), json!("-1234"));
+        variables.insert("lowest".to_string(), json!(i64::MIN));
+        if let Some(policy) = policy {
+            variables.insert(NUMBER_FORMAT_POLICY_VARIABLE.to_string(), policy);
+        }
+        render_template_text(
+            "{{format_i64 gained}} {{format_i64 lost}} {{format_i64 written}} \
+             {{format_i64 lowest}} {{format_i64 missing}}",
+            variables,
+        )
+        .expect("template renders")
+    }
+
+    #[test]
+    fn format_i64_groups_signed_counts_in_the_number_format_policy() {
+        assert_eq!(
+            signed_counts(None),
+            "1,234,567 -1,234,567 -1,234 -9,223,372,036,854,775,808 -"
+        );
+        assert_eq!(
+            signed_counts(Some(json!("period-comma"))),
+            "1.234.567 -1.234.567 -1.234 -9.223.372.036.854.775.808 -"
+        );
     }
 
     #[test]
