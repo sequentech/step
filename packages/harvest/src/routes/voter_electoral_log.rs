@@ -93,6 +93,19 @@ pub async fn list_cast_vote_messages(
         )
     })?;
 
+    // The log list's range filter keys aren't columns: they never sort.
+    if let Some(field) = input
+        .order_by
+        .as_ref()
+        .and_then(|order_by| order_by.keys().find(|field| !field.is_column()))
+    {
+        return Err(ErrorResponse::new(
+            Status::BadRequest,
+            &format!("Cannot sort by {field}"),
+            ErrorCode::InvalidOrderBy,
+        ));
+    }
+
     let ballot_id = input.ballot_id.as_str();
     let elog_input = GetElectoralLogBody {
         tenant_id: input.tenant_id,

@@ -919,7 +919,7 @@ async fn a_refused_save_writes_nothing_and_records_nothing() {
             event,
             ConfigKind::Settings,
             &settings,
-            Edit::Upsert("time_zone: UTC\n"),
+            Edit::Upsert("unknown_label: Unknown\n"),
             ExpectedHead::At(1),
         )
         .await,

@@ -9,7 +9,7 @@ use super::eml_generator::{
     MIRU_AREA_THRESHOLD, MIRU_PLUGIN_PREPEND, MIRU_TALLY_SESSION_DATA,
 };
 use super::logs::create_transmission_package_log;
-use super::signed_transmission_package::{lock_transmission_data, transmission_timezone};
+use super::signed_transmission_package::{lock_transmission_data, transmission_zone};
 use super::transmission_package::{
     create_logs_package, create_transmission_package, generate_base_compressed_xml,
 };
@@ -38,11 +38,10 @@ use crate::{
     types::miru_plugin::MiruTallySessionData,
 };
 use anyhow::{anyhow, Context, Result};
-use chrono::{DateTime, Local, Utc};
+use chrono::{DateTime, Utc};
 use deadpool_postgres::{Client as DbClient, Transaction};
 use sequent_core::ballot::Annotations;
 use sequent_core::serialization::deserialize_with_path::{deserialize_str, deserialize_value};
-use sequent_core::services::date::ISO8601;
 use sequent_core::services::translations::Name;
 use sequent_core::signatures::ecies_encrypt::generate_ecies_key_pair;
 use sequent_core::types::ceremonies::Log;
@@ -322,9 +321,11 @@ pub async fn create_transmission_package_service(
     let tally_id = tally_session_id;
     let transaction_id = generate_transaction_id().to_string();
     let now_utc = Utc::now();
-    let time_zone =
-        transmission_timezone(&hasura_transaction, tenant_id, &election_event.id, now_utc).await?;
-    let now_local = now_utc.with_timezone(&Local);
+    // The package is dated in the event's primary zone.
+    let zone =
+        transmission_zone(&hasura_transaction, tenant_id, &election_event.id, now_utc).await?;
+    let time_zone = zone.offset;
+    let now_local = now_utc.with_timezone(&zone.zone);
 
     let election_event_annotations = election_event.get_annotations()?;
     let Some(result) = results
@@ -484,7 +485,7 @@ pub async fn create_transmission_package_service(
             },
             transaction_id: transaction_id.clone(),
             servers_sent_to: vec![],
-            created_at: ISO8601::to_string(&now_local),
+            created_at: now_local.to_rfc3339(),
             signatures: vec![],
         }],
         logs,

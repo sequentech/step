@@ -790,6 +790,24 @@ const galegoTranslation: TranslationType = {
                 },
             },
         },
+        timezones: {
+            abbr: {
+                "Asia/Manila": "PhST",
+            },
+            name: {},
+            city: {},
+            offset: "GMT{{sign}}{{hours}}:{{minutes}}",
+            option: "({{offset}}) {{city}}",
+            optionPrimary: "{{option}} · principal",
+            optionDetail: "{{countries}} · {{name}}",
+            dateTimeZone: "{{dateTime}} {{zone}}",
+            myTime: "{{dateTime}} {{zone}} · a miña hora",
+            placeTime: "{{dateTime}} {{zone}} · {{place}}",
+            voterDateTimeZone: "{{dateTime}} {{zoneName}}",
+            onThisDevice: "Neste dispositivo: {{dateTime}}",
+            gap: "{{dateTime}} non existe en {{city}} porque os reloxos se adiantan. Executarase á hora indicada.",
+            overlap: "{{dateTime}} ocorre dúas veces en {{city}}. Úsase a primeira.",
+        },
     },
 }
 

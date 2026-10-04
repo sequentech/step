@@ -21,7 +21,7 @@ use sequent_core::{
     util::{date_time::get_date_and_time, path::list_subfolders},
 };
 use serde::{Deserialize, Serialize};
-use serde_json::Map;
+use serde_json::{Map, Value};
 use std::cmp::{self, Ordering};
 use std::{
     collections::HashMap,
@@ -76,6 +76,41 @@ pub struct GeneratedReportsBytes {
     bytes_pdf: Option<Vec<u8>>,
     bytes_html: Vec<u8>,
     bytes_json: Vec<u8>,
+}
+
+/// Adds the run's time variables to a report's template variables
+/// (VOTE-LIFECYCLE): the event's (`electionEventTimezone`, timezone texts)
+/// and the report's election zone (`electionTimezone`, else the event's).
+/// The report's own variables win.
+pub fn add_template_time_variables(
+    template_vars: &mut serde_json::Map<String, Value>,
+    run_variables: &serde_json::Map<String, Value>,
+    election_time_zones: &HashMap<String, String>,
+    election_id: Option<&str>,
+) {
+    for (key, value) in run_variables {
+        // The run's electionTimezone is the primary fallback; choose the
+        // report's target before filling that key.
+        if key == reports::ELECTION_TIMEZONE_VAR {
+            continue;
+        }
+        template_vars
+            .entry(key.clone())
+            .or_insert_with(|| value.clone());
+    }
+    let election_zone = election_id
+        .and_then(|election_id| election_time_zones.get(election_id))
+        .map(|zone| Value::String(zone.clone()))
+        .or_else(|| {
+            run_variables
+                .get(reports::ELECTION_EVENT_TIMEZONE_VAR)
+                .cloned()
+        });
+    if let Some(zone) = election_zone {
+        template_vars
+            .entry(reports::ELECTION_TIMEZONE_VAR.to_string())
+            .or_insert(zone);
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -313,11 +348,24 @@ impl GenerateReports {
             reports: computed_reports,
         };
 
-        let template_vars = template_data
+        let mut template_vars = template_data
             .clone()
             .to_map()
             // TODO: Fix neededing to do a Map Err
             .map_err(|err| Error::UnexpectedError(format!("serialization error: {err:?}")))?;
+        add_template_time_variables(
+            &mut template_vars,
+            &config.template_variables,
+            &config.election_time_zones,
+            reports
+                .first()
+                .filter(|first| {
+                    reports
+                        .iter()
+                        .all(|report| report.election_id == first.election_id)
+                })
+                .map(|report| report.election_id.as_str()),
+        );
 
         let mut template_map = HashMap::new();
         let report_base_html = include_str!("../../resources/report_base_html.hbs");
@@ -350,6 +398,18 @@ impl GenerateReports {
         if let serde_json::Value::Object(obj) = &config.extra_data {
             for (key, value) in obj {
                 template_system_vars.insert(key.clone(), value.clone());
+            }
+        }
+
+        // The outer HTML/PDF template uses the same target zone and texts as
+        // its report content, including custom date helpers.
+        for key in [
+            reports::ELECTION_EVENT_TIMEZONE_VAR,
+            reports::ELECTION_TIMEZONE_VAR,
+            reports::TIMEZONE_TEXTS_VAR,
+        ] {
+            if let Some(value) = template_vars.get(key) {
+                template_system_vars.insert(key.to_string(), value.clone());
             }
         }
 

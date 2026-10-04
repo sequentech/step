@@ -134,7 +134,8 @@ SPDX-License-Identifier: AGPL-3.0-only
                   border: 1px solid black;
                 "
               >
-                {{datetime from_rfc3339=created output_format="%B %d, %Y %H:%M GMT %:z"}}
+                {{created_label}}<br />
+                <small>{{created_utc}}<br />{{time_zone}}</small>
               </td>
               <td
                 style="
@@ -143,7 +144,8 @@ SPDX-License-Identifier: AGPL-3.0-only
                   border: 1px solid black;
                 "
               >
-                {{datetime from_rfc3339=statement_timestamp output_format="%B %d, %Y %H:%M GMT %:z"}}
+                {{statement_timestamp_label}}<br />
+                <small>{{statement_timestamp_utc}}<br />{{time_zone}}</small>
               </td>
               <td
                 style="

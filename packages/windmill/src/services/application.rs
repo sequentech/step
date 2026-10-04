@@ -7,6 +7,7 @@ use crate::postgres::area::get_event_areas;
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::services::celery_app::get_celery_app;
 use crate::services::providers::{email_sender::EmailSender, sms_sender::SmsSender};
+use crate::services::reports::template_time::NotificationTimeContext;
 use crate::services::reports::utils::get_public_asset_template;
 use crate::services::temp_path::PUBLIC_ASSETS_I18N_DEFAULTS;
 use crate::tasks::send_template::{send_template, send_template_email_or_sms};
@@ -24,6 +25,7 @@ use sequent_core::serialization::deserialize_with_path::*;
 
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::services::keycloak::KeycloakAdminClient;
+use sequent_core::services::translation_scopes::template_translations;
 use sequent_core::services::translations::DEFAULT_LANG;
 use sequent_core::types::hasura::core::Application;
 use sequent_core::types::keycloak::{User, MOBILE_PHONE_ATTR_NAME};
@@ -696,21 +698,38 @@ pub async fn get_i18n_application_communication(
     app_status: ApplicationStatus,
     communication_method: TemplateMethod,
 ) -> Result<ApplicationCommunicationChannels> {
-    let mut application_channels =
+    let application_channels =
         get_i18n_default_application_communication(&lang, app_status.clone()).await?;
+    Ok(apply_application_overrides(
+        application_channels,
+        &presentation,
+        lang,
+        &app_status,
+    ))
+}
+
+/// The event's overrides of an application message, over the defaults. The
+/// Localization tab stores `scope:key`; templates read the `templates:` >
+/// unprefixed > `global:` overrides.
+fn apply_application_overrides(
+    mut application_channels: ApplicationCommunicationChannels,
+    presentation: &ElectionEventPresentation,
+    lang: &str,
+    app_status: &ApplicationStatus,
+) -> ApplicationCommunicationChannels {
     let Some(localization_map) = presentation
         .i18n
-        .map(|val| val.get(lang).cloned())
-        .flatten()
+        .as_ref()
+        .and_then(|val| val.get(lang))
+        .map(template_translations)
     else {
-        return Ok(application_channels);
+        return application_channels;
     };
     let key_prefix = format!("application.{}", app_status.to_string().to_lowercase());
 
     if let Some(sms_message) = localization_map
         .get(&format!("{key_prefix}.sms.message"))
         .cloned()
-        .flatten()
     {
         application_channels.sms.message = sms_message;
     };
@@ -718,7 +737,6 @@ pub async fn get_i18n_application_communication(
     if let Some(email_subject) = localization_map
         .get(&format!("{key_prefix}.email.subject"))
         .cloned()
-        .flatten()
     {
         application_channels.email.subject = email_subject;
     };
@@ -726,7 +744,6 @@ pub async fn get_i18n_application_communication(
     if let Some(plaintext_body) = localization_map
         .get(&format!("{key_prefix}.email.plaintext_body"))
         .cloned()
-        .flatten()
     {
         application_channels.email.plaintext_body = plaintext_body;
     };
@@ -734,12 +751,11 @@ pub async fn get_i18n_application_communication(
     if let Some(html_body) = localization_map
         .get(&format!("{key_prefix}.email.html_body"))
         .cloned()
-        .flatten()
     {
         application_channels.email.html_body = Some(html_body);
     };
 
-    Ok(application_channels)
+    application_channels
 }
 
 /// Get the accepted/rejected message if configured, otherwise the default.
@@ -1039,13 +1055,14 @@ pub async fn send_application_communication_response(
     };
 
     // Get the presentation to obtain the default language and presentation.i18n
-    let presentation: ElectionEventPresentation =
-        get_election_event_by_id(hasura_transaction, tenant_id, election_event_id)
-            .await
-            .with_context(|| "Error obtaining election event")?
-            .presentation
-            .map(deserialize_value)
-            .unwrap_or(Ok(ElectionEventPresentation::default()))?;
+    let election_event = get_election_event_by_id(hasura_transaction, tenant_id, election_event_id)
+        .await
+        .with_context(|| "Error obtaining election event")?;
+    let presentation: ElectionEventPresentation = election_event
+        .presentation
+        .clone()
+        .map(deserialize_value)
+        .unwrap_or(Ok(ElectionEventPresentation::default()))?;
 
     let (email_config, sms_config) = get_application_response_communication(
         communication_method.clone(),
@@ -1088,6 +1105,10 @@ pub async fn send_application_communication_response(
         }
 
         ApplicationStatus::REJECTED => {
+            let time_context =
+                NotificationTimeContext::load(hasura_transaction, tenant_id, &election_event)
+                    .await
+                    .with_context(|| "Error loading the notification times")?;
             let email_sender = EmailSender::new().await?;
             let sms_sender = SmsSender::new().await?;
             send_template_email_or_sms(
@@ -1101,6 +1122,7 @@ pub async fn send_application_communication_response(
                 &email_sender,
                 &sms_sender,
                 communication_method.clone(),
+                &time_context,
             )
             .await
             .map_err(|err| anyhow!("Error sending email or sms: {err}"))?;
@@ -1181,6 +1203,82 @@ fn is_fuzzy_match(applicant_value: Option<String>, user_value: Option<String>) -
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn default_channels() -> ApplicationCommunicationChannels {
+        ApplicationCommunicationChannels {
+            email: EmailConfig {
+                subject: "default subject".to_string(),
+                plaintext_body: "default body".to_string(),
+                html_body: None,
+            },
+            sms: SmsConfig {
+                message: "default sms".to_string(),
+            },
+        }
+    }
+
+    fn presentation_with(lang: &str, entries: &[(&str, &str)]) -> ElectionEventPresentation {
+        let mut presentation = ElectionEventPresentation::default();
+        presentation.i18n = Some(HashMap::from([(
+            lang.to_string(),
+            entries
+                .iter()
+                .map(|(key, value)| (key.to_string(), Some(value.to_string())))
+                .collect(),
+        )]));
+        presentation
+    }
+
+    #[test]
+    fn application_messages_read_scoped_overrides_from_the_localization_tab() {
+        let presentation = presentation_with(
+            "en",
+            &[
+                (
+                    "global:application.accepted.email.subject",
+                    "global subject",
+                ),
+                ("application.accepted.email.subject", "legacy subject"),
+                (
+                    "templates:application.accepted.email.subject",
+                    "templates subject",
+                ),
+                ("global:application.accepted.sms.message", "global sms"),
+                ("application.accepted.email.plaintext_body", "legacy body"),
+                (
+                    "votingPortal:application.accepted.email.html_body",
+                    "portal only",
+                ),
+            ],
+        );
+
+        let channels = apply_application_overrides(
+            default_channels(),
+            &presentation,
+            "en",
+            &ApplicationStatus::ACCEPTED,
+        );
+
+        assert_eq!(channels.email.subject, "templates subject");
+        assert_eq!(channels.email.plaintext_body, "legacy body");
+        assert_eq!(channels.sms.message, "global sms");
+        assert_eq!(channels.email.html_body, None);
+    }
+
+    #[test]
+    fn application_messages_keep_the_defaults_without_overrides() {
+        let channels = apply_application_overrides(
+            default_channels(),
+            &presentation_with(
+                "es",
+                &[("templates:application.accepted.sms.message", "es")],
+            ),
+            "en",
+            &ApplicationStatus::ACCEPTED,
+        );
+
+        assert_eq!(channels.sms.message, "default sms");
+    }
 
     #[test]
     fn test_accent_mark() {

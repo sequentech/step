@@ -18,8 +18,7 @@
                     <td class="left">
                       <div>
                         <p>
-                          {{datetime from_rfc3339=date_printed output_format="%B %d, %Y %H:%M"
-                          with_timezone="UTC"}}
+                          {{datetime_zone date_printed output_format="%B %d, %Y %H:%M"}}
                         </p>
                       </div>
                     </td>
@@ -46,12 +45,7 @@
                     </div>
                     <div class="online">ONLINE VOTING AND COUNTING SYSTEM</div>
                     <div class="voting-period">
-                      Overseas Voting Period: {{datetime
-                      from_rfc3339=elections.0.election_dates.scheduled_event_dates.ALLOW_INIT_REPORT.scheduled_at
-                      output_format="%d %B %Y" with_timezone="UTC"}} - {{datetime
-                      from_rfc3339=elections.0.election_dates.scheduled_event_dates.END_VOTING_PERIOD.scheduled_at
-                      output_format="%d %B %Y"
-                      with_timezone="UTC"}}
+                      Overseas Voting Period: {{datetime_zone elections.0.election_dates.scheduled_event_dates.ALLOW_INIT_REPORT.scheduled_at output_format="%d %B %Y" style="plain"}} - {{datetime_zone elections.0.election_dates.scheduled_event_dates.END_VOTING_PERIOD.scheduled_at output_format="%d %B %Y" style="plain"}}
                     </div>
 
                   </td>
@@ -80,12 +74,7 @@
     <tr>
       <td>
         <div class="covered-dates">
-            Covered Period: {{datetime
-            from_rfc3339=elections.0.election_dates.scheduled_event_dates.ALLOW_INIT_REPORT.scheduled_at
-            output_format="%d %B %Y" with_timezone="UTC"}} - {{datetime
-            from_rfc3339=elections.0.election_dates.scheduled_event_dates.END_VOTING_PERIOD.scheduled_at
-            output_format="%d %B %Y"
-            with_timezone="UTC"}}
+            Covered Period: {{datetime_zone elections.0.election_dates.scheduled_event_dates.ALLOW_INIT_REPORT.scheduled_at output_format="%d %B %Y" style="plain"}} - {{datetime_zone elections.0.election_dates.scheduled_event_dates.END_VOTING_PERIOD.scheduled_at output_format="%d %B %Y" style="plain"}}
           </div>
         </div>
       </td>
@@ -253,12 +242,7 @@
       <tr>
         <td>
           <div class="covered-dates">
-            Covered Period: {{datetime
-            from_rfc3339=elections.0.election_dates.scheduled_event_dates.ALLOW_INIT_REPORT.scheduled_at
-            output_format="%d %B %Y" with_timezone="UTC"}} - {{datetime
-            from_rfc3339=elections.0.election_dates.scheduled_event_dates.END_VOTING_PERIOD.scheduled_at
-            output_format="%d %B %Y"
-            with_timezone="UTC"}}
+            Covered Period: {{datetime_zone elections.0.election_dates.scheduled_event_dates.ALLOW_INIT_REPORT.scheduled_at output_format="%d %B %Y" style="plain"}} - {{datetime_zone elections.0.election_dates.scheduled_event_dates.END_VOTING_PERIOD.scheduled_at output_format="%d %B %Y" style="plain"}}
           </div>
         </td>
       </tr>
@@ -393,12 +377,7 @@
       <tr>
         <td>
           <div class="covered-dates">
-            Covered Period: {{datetime
-            from_rfc3339=elections.0.election_dates.scheduled_event_dates.ALLOW_INIT_REPORT.scheduled_at
-            output_format="%d %B %Y" with_timezone="UTC"}} - {{datetime
-            from_rfc3339=elections.0.election_dates.scheduled_event_dates.END_VOTING_PERIOD.scheduled_at
-            output_format="%d %B %Y"
-            with_timezone="UTC"}}
+            Covered Period: {{datetime_zone elections.0.election_dates.scheduled_event_dates.ALLOW_INIT_REPORT.scheduled_at output_format="%d %B %Y" style="plain"}} - {{datetime_zone elections.0.election_dates.scheduled_event_dates.END_VOTING_PERIOD.scheduled_at output_format="%d %B %Y" style="plain"}}
           </div>
         </td>
       </tr>
@@ -606,8 +585,7 @@
   let systemHash = '{{{execution_annotations.app_hash}}}';
   let softwareVersion = '{{{execution_annotations.software_version}}}';
   let ovcsVersion = '{{{execution_annotations.app_version}}}';
-  let date = `{{datetime from_rfc3339=execution_annotations.date_printed output_format="%B %d, %Y %H:%M"
-                          with_timezone="UTC"}}`
+  let date = `{{datetime_zone execution_annotations.date_printed output_format="%B %d, %Y %H:%M"}}`
   let user = '{{expr execution_annotations.executer_username}}'
 
   const qrcode = new QRCode(document.getElementById("qrcode"), {

@@ -18,7 +18,7 @@ use std::cell::Cell;
 use tokio_postgres::error::SqlState;
 use tokio_postgres::types::{FromSql, ToSql};
 use uuid::Uuid;
-use windmill::postgres::{election, election_event, keycloak_realm, tenant};
+use windmill::postgres::{election, election_event, keycloak_realm, tenant, trusted_write};
 
 const BAD_UUID: &str = "not-a-uuid";
 
@@ -1142,6 +1142,8 @@ async fn update_elections_status_by_election_event_sets_the_status_of_every_elec
 {
     let mut client = connect().await;
     let tx = client.transaction().await.unwrap();
+    // These writers' callers mark the transaction before changing a voting status.
+    trusted_write(&tx).await.unwrap();
     let f = Fixture::new(&tx, line!());
     let a = f.scope().await;
     let sibling = f.event_in(a.tenant).await;
@@ -1175,6 +1177,8 @@ async fn update_elections_status_by_election_event_sets_the_status_of_every_elec
 async fn update_election_event_status_sets_the_status_of_one_event() {
     let mut client = connect().await;
     let tx = client.transaction().await.unwrap();
+    // These writers' callers mark the transaction before changing a voting status.
+    trusted_write(&tx).await.unwrap();
     let f = Fixture::new(&tx, line!());
     let a = f.scope().await;
     let sibling = f.event_in(a.tenant).await;
@@ -1812,6 +1816,8 @@ async fn get_elections_by_keys_ceremony_id_returns_the_elections_of_the_ceremony
 async fn update_election_presentation_and_voting_status_rewrite_one_election() {
     let mut client = connect().await;
     let tx = client.transaction().await.unwrap();
+    // These writers' callers mark the transaction before changing a voting status.
+    trusted_write(&tx).await.unwrap();
     let f = Fixture::new(&tx, line!());
     let a = f.scope().await;
     let other = f.scope().await;
@@ -2099,6 +2105,8 @@ async fn set_election_initialization_report_generated_flags_one_election() {
 async fn update_election_status_sets_is_published_and_keeps_the_rest_of_the_status() {
     let mut client = connect().await;
     let tx = client.transaction().await.unwrap();
+    // These writers' callers mark the transaction before changing a voting status.
+    trusted_write(&tx).await.unwrap();
     let f = Fixture::new(&tx, line!());
     let a = f.scope().await;
     let (with_status, without_status) = (f.election(a).await, f.election(a).await);
@@ -2207,6 +2215,8 @@ async fn get_election_permission_label_fails_when_no_election_matches() {
 async fn get_cast_vote_configuration_reads_the_election_policy_and_its_voting_window() {
     let mut client = connect().await;
     let tx = client.transaction().await.unwrap();
+    // These writers' callers mark the transaction before changing a voting status.
+    trusted_write(&tx).await.unwrap();
     let f = Fixture::new(&tx, line!());
     let a = f.scope().await;
     let other = f.scope().await;
