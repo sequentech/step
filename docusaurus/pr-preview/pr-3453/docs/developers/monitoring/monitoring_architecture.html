@@ -1,0 +1,447 @@
+<!doctype html>
+<html lang="en" dir="ltr" class="docs-wrapper plugin-docs plugin-id-default docs-version-current docs-doc-page docs-doc-id-developers/monitoring/monitoring_architecture" data-has-hydrated="false">
+<head>
+<meta charset="UTF-8">
+<meta name="generator" content="Docusaurus v3.9.2">
+<title data-rh="true">Monitoring Dashboards Architecture | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-3453/docs/developers/monitoring/monitoring_architecture"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Monitoring Dashboards Architecture | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-3453/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3453/docs/developers/monitoring/monitoring_architecture"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3453/docs/developers/monitoring/monitoring_architecture" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3453/docs/developers/monitoring/monitoring_architecture" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Architecture","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-3453/docs/developers/monitoring/monitoring_architecture"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-3453/assets/css/styles.871bebf1.css">
+<script src="/docusaurus/pr-preview/pr-3453/assets/js/runtime~main.de84de70.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-3453/assets/js/main.ff7ed9b9.js" defer="defer"></script>
+</head>
+<body class="navigation-with-keyboard">
+<svg style="display: none;"><defs>
+<symbol id="theme-svg-external-link" viewBox="0 0 24 24"><path fill="currentColor" d="M21 13v10h-21v-19h12v2h-10v15h17v-8h2zm3-12h-10.988l4.035 4-6.977 7.07 2.828 2.828 6.977-7.07 4.125 4.172v-11z"/></symbol>
+</defs></svg>
+<script>!function(){var t=function(){try{return new URLSearchParams(window.location.search).get("docusaurus-theme")}catch(t){}}()||function(){try{return window.localStorage.getItem("theme")}catch(t){}}();document.documentElement.setAttribute("data-theme",t||"light"),document.documentElement.setAttribute("data-theme-choice",t||"light")}(),function(){try{const c=new URLSearchParams(window.location.search).entries();for(var[t,e]of c)if(t.startsWith("docusaurus-data-")){var a=t.replace("docusaurus-data-","data-");document.documentElement.setAttribute(a,e)}}catch(t){}}()</script><div id="__docusaurus"><link rel="preload" as="image" href="/docusaurus/pr-preview/pr-3453/img/logo_negative.svg"><div role="region" aria-label="Skip to main content"><a class="skipToContent_fXgn" href="#__docusaurus_skipToContent_fallback">Skip to main content</a></div><nav aria-label="Main" class="theme-layout-navbar navbar navbar--fixed-top"><div class="navbar__inner"><div class="theme-layout-navbar-left navbar__items"><button aria-label="Toggle navigation bar" aria-expanded="false" class="navbar__toggle clean-btn" type="button"><svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><path stroke="currentColor" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2" d="M4 7h22M4 15h22M4 23h22"></path></svg></button><a class="navbar__brand" href="/docusaurus/pr-preview/pr-3453/docs/system_introduction"><div class="navbar__logo"><img src="/docusaurus/pr-preview/pr-3453/img/logo_negative.svg" alt="Sequent Logo" class="themedComponent_mlkZ themedComponent--light_NVdE"><img src="/docusaurus/pr-preview/pr-3453/img/logo_negative.svg" alt="Sequent Logo" class="themedComponent_mlkZ themedComponent--dark_xIcU"></div><b class="navbar__title text--truncate"></b></a><a aria-current="page" class="navbar__item navbar__link navbar__link--active" href="/docusaurus/pr-preview/pr-3453/docs/system_introduction">Docs</a><a href="/docusaurus/pr-preview/pr-3453/graphql" class="navbar__item navbar__link" target="_blank">GraphQL API</a></div><div class="theme-layout-navbar-right navbar__items navbar__items--right"><a href="https://github.com/sequentech" target="_blank" rel="noopener noreferrer" class="navbar__item navbar__link">GitHub<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a><div class="toggle_vylO colorModeToggle_DEke"><button class="clean-btn toggleButton_gllP toggleButtonDisabled_aARS" type="button" disabled="" title="system mode" aria-label="Switch between dark and light mode (currently system mode)"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" class="toggleIcon_g3eP lightToggleIcon_pyhR"><path fill="currentColor" d="M12,9c1.65,0,3,1.35,3,3s-1.35,3-3,3s-3-1.35-3-3S10.35,9,12,9 M12,7c-2.76,0-5,2.24-5,5s2.24,5,5,5s5-2.24,5-5 S14.76,7,12,7L12,7z M2,13l2,0c0.55,0,1-0.45,1-1s-0.45-1-1-1l-2,0c-0.55,0-1,0.45-1,1S1.45,13,2,13z M20,13l2,0c0.55,0,1-0.45,1-1 s-0.45-1-1-1l-2,0c-0.55,0-1,0.45-1,1S19.45,13,20,13z M11,2v2c0,0.55,0.45,1,1,1s1-0.45,1-1V2c0-0.55-0.45-1-1-1S11,1.45,11,2z M11,20v2c0,0.55,0.45,1,1,1s1-0.45,1-1v-2c0-0.55-0.45-1-1-1C11.45,19,11,19.45,11,20z M5.99,4.58c-0.39-0.39-1.03-0.39-1.41,0 c-0.39,0.39-0.39,1.03,0,1.41l1.06,1.06c0.39,0.39,1.03,0.39,1.41,0s0.39-1.03,0-1.41L5.99,4.58z M18.36,16.95 c-0.39-0.39-1.03-0.39-1.41,0c-0.39,0.39-0.39,1.03,0,1.41l1.06,1.06c0.39,0.39,1.03,0.39,1.41,0c0.39-0.39,0.39-1.03,0-1.41 L18.36,16.95z M19.42,5.99c0.39-0.39,0.39-1.03,0-1.41c-0.39-0.39-1.03-0.39-1.41,0l-1.06,1.06c-0.39,0.39-0.39,1.03,0,1.41 s1.03,0.39,1.41,0L19.42,5.99z M7.05,18.36c0.39-0.39,0.39-1.03,0-1.41c-0.39-0.39-1.03-0.39-1.41,0l-1.06,1.06 c-0.39,0.39-0.39,1.03,0,1.41s1.03,0.39,1.41,0L7.05,18.36z"></path></svg><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" class="toggleIcon_g3eP darkToggleIcon_wfgR"><path fill="currentColor" d="M9.37,5.51C9.19,6.15,9.1,6.82,9.1,7.5c0,4.08,3.32,7.4,7.4,7.4c0.68,0,1.35-0.09,1.99-0.27C17.45,17.19,14.93,19,12,19 c-3.86,0-7-3.14-7-7C5,9.07,6.81,6.55,9.37,5.51z M12,3c-4.97,0-9,4.03-9,9s4.03,9,9,9s9-4.03,9-9c0-0.46-0.04-0.92-0.1-1.36 c-0.98,1.37-2.58,2.26-4.4,2.26c-2.98,0-5.4-2.42-5.4-5.4c0-1.81,0.89-3.42,2.26-4.4C12.92,3.04,12.46,3,12,3L12,3z"></path></svg><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" class="toggleIcon_g3eP systemToggleIcon_QzmC"><path fill="currentColor" d="m12 21c4.971 0 9-4.029 9-9s-4.029-9-9-9-9 4.029-9 9 4.029 9 9 9zm4.95-13.95c1.313 1.313 2.05 3.093 2.05 4.95s-0.738 3.637-2.05 4.95c-1.313 1.313-3.093 2.05-4.95 2.05v-14c1.857 0 3.637 0.737 4.95 2.05z"></path></svg></button></div><div class="navbarSearchContainer_Bca1"></div></div></div><div role="presentation" class="navbar-sidebar__backdrop"></div></nav><div id="__docusaurus_skipToContent_fallback" class="theme-layout-main main-wrapper mainWrapper_z2l0"><div class="docsWrapper_hBAB"><button aria-label="Scroll back to top" class="clean-btn theme-back-to-top-button backToTopButton_sjWU" type="button"></button><div class="docRoot_UBD9"><aside class="theme-doc-sidebar-container docSidebarContainer_YfHR"><div class="sidebarViewport_aRkj"><div class="sidebar_njMd"><nav aria-label="Docs sidebar" class="menu thin-scrollbar menu_SIkG"><ul class="theme-doc-sidebar-menu menu__list"><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist" href="/docusaurus/pr-preview/pr-3453/docs/system_introduction"><span title="System Introduction" class="categoryLinkLabel_W154">System Introduction</span></a><button aria-label="Expand sidebar category &#x27;System Introduction&#x27;" aria-expanded="false" type="button" class="clean-btn menu__caret"></button></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" href="/docusaurus/pr-preview/pr-3453/docs/election_managers/election_management"><span title="Election Managers" class="categoryLinkLabel_W154">Election Managers</span></a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" href="/docusaurus/pr-preview/pr-3453/docs/voters/tutorials/cast_your_vote"><span title="Voters" class="categoryLinkLabel_W154">Voters</span></a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" href="/docusaurus/pr-preview/pr-3453/docs/election_auditors/introduction/auditor_introduction"><span title="Election Auditors" class="categoryLinkLabel_W154">Election Auditors</span></a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" href="/docusaurus/pr-preview/pr-3453/docs/reference/reference"><span title="Reference" class="categoryLinkLabel_W154">Reference</span></a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" href="/docusaurus/pr-preview/pr-3453/docs/technology/threat-model"><span title="Technology" class="categoryLinkLabel_W154">Technology</span></a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret menu__link--active" role="button" aria-expanded="true" href="/docusaurus/pr-preview/pr-3453/docs/developers/contributing"><span title="Developers" class="categoryLinkLabel_W154">Developers</span></a></div><ul class="menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docusaurus/pr-preview/pr-3453/docs/developers/contributing"><span title="Contributing Guide" class="linkLabel_WmDU">Contributing Guide</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docusaurus/pr-preview/pr-3453/docs/developers/graphql_api"><span title="GraphQL API" class="linkLabel_WmDU">GraphQL API</span></a></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" tabindex="0" href="/docusaurus/pr-preview/pr-3453/docs/developers/cli/cli"><span title="CLI" class="categoryLinkLabel_W154">CLI</span></a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" tabindex="0" href="/docusaurus/pr-preview/pr-3453/docs/developers/development-environment/testing/admin-portal"><span title="Development Environment" class="categoryLinkLabel_W154">Development Environment</span></a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" tabindex="0" href="/docusaurus/pr-preview/pr-3453/docs/developers/admin-portal/developers_admin_portal"><span title="Admin Portal" class="categoryLinkLabel_W154">Admin Portal</span></a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" tabindex="0" href="/docusaurus/pr-preview/pr-3453/docs/developers/voting-portal/voter-status-performance"><span title="Voting Portal" class="categoryLinkLabel_W154">Voting Portal</span></a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" tabindex="0" href="/docusaurus/pr-preview/pr-3453/docs/developers/keycloak/developers_keycloak"><span title="Keycloak" class="categoryLinkLabel_W154">Keycloak</span></a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" tabindex="0" href="/docusaurus/pr-preview/pr-3453/docs/developers/velvet/velvet_introduction"><span title="Velvet" class="categoryLinkLabel_W154">Velvet</span></a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" tabindex="0" href="/docusaurus/pr-preview/pr-3453/docs/developers/windmill/windmill_tests"><span title="Windmill" class="categoryLinkLabel_W154">Windmill</span></a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" tabindex="0" href="/docusaurus/pr-preview/pr-3453/docs/developers/braid/braid_trustees_configuration"><span title="Braid" class="categoryLinkLabel_W154">Braid</span></a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" tabindex="0" href="/docusaurus/pr-preview/pr-3453/docs/developers/tutorials/add_new_language"><span title="Tutorials" class="categoryLinkLabel_W154">Tutorials</span></a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" tabindex="0" href="/docusaurus/pr-preview/pr-3453/docs/developers/updates/generating-dependency-report"><span title="Updates" class="categoryLinkLabel_W154">Updates</span></a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" tabindex="0" href="/docusaurus/pr-preview/pr-3453/docs/developers/ivr/dob-pin-direct-grant-authenticator"><span title="IVR Telephone Voting" class="categoryLinkLabel_W154">IVR Telephone Voting</span></a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret menu__link--active" role="button" aria-expanded="true" tabindex="0" href="/docusaurus/pr-preview/pr-3453/docs/developers/monitoring/monitoring_architecture"><span title="Monitoring" class="categoryLinkLabel_W154">Monitoring</span></a></div><ul class="menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-3 menu__list-item"><a class="menu__link menu__link--active" aria-current="page" tabindex="0" href="/docusaurus/pr-preview/pr-3453/docs/developers/monitoring/monitoring_architecture"><span title="Architecture" class="linkLabel_WmDU">Architecture</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-3 menu__list-item"><a class="menu__link" tabindex="0" href="/docusaurus/pr-preview/pr-3453/docs/developers/monitoring/monitoring_data_sources"><span title="Data sources and presets" class="linkLabel_WmDU">Data sources and presets</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-3 menu__list-item"><a class="menu__link" tabindex="0" href="/docusaurus/pr-preview/pr-3453/docs/developers/monitoring/monitoring_scale"><span title="Scale" class="linkLabel_WmDU">Scale</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-3 menu__list-item"><a class="menu__link" tabindex="0" href="/docusaurus/pr-preview/pr-3453/docs/developers/monitoring/monitoring_testing_verification"><span title="Testing and verification" class="linkLabel_WmDU">Testing and verification</span></a></li></ul></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" tabindex="0" href="/docusaurus/pr-preview/pr-3453/docs/developers/signing/signing_architecture"><span title="Signing" class="categoryLinkLabel_W154">Signing</span></a></div></li></ul></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" href="/docusaurus/pr-preview/pr-3453/docs/integrations/idp_initiated_sso_integration_guide"><span title="Integrations" class="categoryLinkLabel_W154">Integrations</span></a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" href="/docusaurus/pr-preview/pr-3453/docs/releases/release-10.0/release-10.0.0"><span title="Releases" class="categoryLinkLabel_W154">Releases</span></a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" href="/docusaurus/pr-preview/pr-3453/docs/support/support"><span title="Support" class="categoryLinkLabel_W154">Support</span></a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" href="/docusaurus/pr-preview/pr-3453/docs/try_it_out/full-standalone-deployment"><span title="Try it out" class="categoryLinkLabel_W154">Try it out</span></a></div></li></ul></nav></div></div></aside><main class="docMainContainer_TBSr"><div class="container padding-top--md padding-bottom--lg"><div class="row"><div class="col docItemCol_VOVn"><div class="docItemContainer_Djhp"><article><nav class="theme-doc-breadcrumbs breadcrumbsContainer_Z_bl" aria-label="Breadcrumbs"><ul class="breadcrumbs"><li class="breadcrumbs__item"><a aria-label="Home page" class="breadcrumbs__link" href="/docusaurus/pr-preview/pr-3453/"><svg viewBox="0 0 24 24" class="breadcrumbHomeIcon_YNFT"><path d="M10 19v-5h4v5c0 .55.45 1 1 1h3c.55 0 1-.45 1-1v-7h1.7c.46 0 .68-.57.33-.87L12.67 3.6c-.38-.34-.96-.34-1.34 0l-8.36 7.53c-.34.3-.13.87.33.87H5v7c0 .55.45 1 1 1h3c.55 0 1-.45 1-1z" fill="currentColor"></path></svg></a></li><li class="breadcrumbs__item"><span class="breadcrumbs__link">Developers</span></li><li class="breadcrumbs__item"><span class="breadcrumbs__link">Monitoring</span></li><li class="breadcrumbs__item breadcrumbs__item--active"><span class="breadcrumbs__link">Architecture</span></li></ul></nav><div class="tocCollapsible_ETCw theme-doc-toc-mobile tocMobile_ITEo"><button type="button" class="clean-btn tocCollapsibleButton_TO0P">On this page</button></div><div class="theme-doc-markdown markdown"><header><h1>Monitoring Dashboards Architecture</h1></header><p>The configurable monitoring dashboards
+(<a class="" href="/docusaurus/pr-preview/pr-3453/docs/election_managers/reference/election-event/election_management_election_event_monitoring">user guide</a>,
+<a class="" href="/docusaurus/pr-preview/pr-3453/docs/election_managers/reference/monitoring_configuration">configuration reference</a>)
+split the work so that viewers never scan source data and configuration
+never decides how anything is counted:</p>
+<ul>
+<li class=""><strong>sequent-core</strong> holds the pure rules: configuration types, the policy,
+the data sources, query evaluation and the board sent to the renderer. It
+also compiles to WASM, so the Admin Portal&#x27;s editor reaches the same
+verdicts as the server.</li>
+<li class=""><strong>Windmill</strong> counts. A beat task refreshes a per-voter projection and
+writes content-addressed snapshots of every data source for every scope.
+The electoral-log batch processor counts sign-in attempts.</li>
+<li class=""><strong>Harvest</strong> serves. Its <code>/monitoring/*</code> routes check permissions and
+permission labels, read configuration and snapshots, and ask the renderer
+to draw.</li>
+<li class=""><strong>monitoring-renderer</strong> draws. A small internal Python service with a
+pinned dbt Charts 0.8.0 turns a board into SVG.</li>
+<li class=""><strong>The Admin Portal</strong> shows and edits, through Hasura actions.</li>
+</ul>
+<!-- -->
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="code-map">Code map<a href="#code-map" class="hash-link" aria-label="Direct link to Code map" title="Direct link to Code map" translate="no">​</a></h2>
+<table><thead><tr><th>Where</th><th>What</th></tr></thead><tbody><tr><td><code>packages/sequent-core/src/monitoring/</code></td><td>Feature <code>monitoring</code>. <code>config.rs</code> (the four document kinds), <code>policy.rs</code> and <code>dbt_charts_keys.txt</code> (what is refused), <code>sources.rs</code> (data sources: the only place counting units, measures, templates and dimensions are stated), <code>resolve.rs</code> (selector values to concrete queries), <code>compute.rs</code> (a query over a payload to rows), <code>render_request.rs</code> (theme merge and inline queries), <code>scope.rs</code> (scope keys), <code>payload.rs</code>, <code>voter.rs</code>, <code>revision.rs</code> (what a save or reset may write), <code>presets/</code> and <code>presets.rs</code>, <code>sample.rs</code> (made-up payloads for previews and tests).</td></tr><tr><td><code>packages/windmill/src/services/monitoring/</code></td><td><code>config_store.rs</code> and <code>audit.rs</code> (saving and the electoral-log entry), <code>projection.rs</code> (<code>monitoring_voter</code>), <code>producers.rs</code> (payloads per source and scope), <code>snapshot.rs</code> (passes, reads, pruning), <code>login_counter.rs</code>.</td></tr><tr><td><code>packages/windmill/src/tasks/refresh_monitoring_snapshot.rs</code></td><td>The beat task and the per-event pass.</td></tr><tr><td><code>packages/windmill/src/postgres/monitoring_config.rs</code></td><td>Queries of the configuration tables.</td></tr><tr><td><code>hasura/migrations/backend-db/1790640000000_create_monitoring_tables/</code></td><td>Every monitoring table, with triggers that hold the write protocols.</td></tr><tr><td><code>packages/harvest/src/routes/monitoring*.rs</code>, <code>services/monitoring*.rs</code>, <code>ports/</code> and <code>adapters/</code> <code>monitoring_*</code></td><td>The routes, render cache, SVG sanitizer, save checks, and the renderer and snapshot ports with in-memory fakes.</td></tr><tr><td><code>packages/monitoring-renderer/</code></td><td>The renderer service; its README documents the API.</td></tr><tr><td><code>packages/admin-portal/src/components/monitoring/</code></td><td>The Dashboard tab, widget cards, chart frame and editor.</td></tr></tbody></table>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="configuration-store">Configuration store<a href="#configuration-store" class="hash-link" aria-label="Direct link to Configuration store" title="Direct link to Configuration store" translate="no">​</a></h2>
+<p>Configuration is stored per tenant and election event:</p>
+<table><thead><tr><th>Table</th><th>Holds</th></tr></thead><tbody><tr><td><code>monitoring_event</code></td><td>One row per event that has ever been configured: <code>dashboard_mode</code> (<code>LEGACY</code> or <code>CONFIGURED</code>), the preset last reset to, and <code>config_generation</code>. No row means the standard dashboard.</td></tr><tr><td><code>monitoring_config</code></td><td>Every revision of every document, append-only: <code>kind</code>, <code>key</code>, <code>revision</code>, <code>change</code> (<code>UPSERT</code> or <code>DELETE</code>), <code>yaml</code>, its <code>sha256</code>, <code>origin</code> (<code>PRESET</code> or <code>EDITOR</code>), <code>config_generation</code>, author and time.</td></tr><tr><td><code>monitoring_config_head</code></td><td>The live revision of each document, moved by compare-and-set.</td></tr></tbody></table>
+<p>A change (a save, a reset or a mode switch) raises the event&#x27;s generation
+first, which queues changes of one event behind each other; then moves the
+heads, writes the revisions and records the change in the electoral log
+(<code>MonitoringConfigChanged</code>, signed for the author) before it commits.
+Anything refused writes nothing.</p>
+<p>A save is checked <strong>before</strong> its transaction, so a slow chart engine holds
+no lock:</p>
+<ol>
+<li class="">the sequent-core policy, for the document on its own;</li>
+<li class="">the set-wide checks (<code>validate_set</code>) against the event&#x27;s live documents;</li>
+<li class="">the renderer&#x27;s <code>/validate</code> (dbt Charts&#x27; schema) and a test render of each
+affected widget with the figures of <code>sample.rs</code>, so a save never depends on
+a snapshot.</li>
+</ol>
+<p>The transaction then writes only if the generation it raises is the next
+after the one the checks read; otherwise the save is checked again, up to
+three times, before it reports busy. A head at another revision than the
+editor&#x27;s <code>expected_revision</code> is a conflict. Harvest maps the outcomes to
+HTTP: conflict 409 (with the current revision and its author), invalid 422
+(with the problems), checks unavailable or busy 503, and a locked-down event
+403.</p>
+<p>Resetting to a preset writes a <code>PRESET</code> revision for every document of the
+preset and a <code>DELETE</code> revision for every document the event has that the
+preset does not, sets the mode (configured by default) and records the
+preset and version. This is also how an event opts in. Settings are
+<code>PRESET_ONLY</code>: the editor cannot save them.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="snapshot-job">Snapshot job<a href="#snapshot-job" class="hash-link" aria-label="Direct link to Snapshot job" title="Direct link to Snapshot job" translate="no">​</a></h2>
+<p>The beat task <code>refresh_monitoring_snapshots</code> runs once per snapshot interval
+(<code>MONITORING_SNAPSHOT_INTERVAL_SECONDS</code>, default 30; see
+<a href="#snapshot-cadence" class="">Snapshot cadence</a>) on the beat queue. It prunes old
+login-counter receipts and sends one <code>refresh_monitoring_event_snapshot</code>
+task per <code>CONFIGURED</code> event to its own <code>&lt;slug&gt;_monitoring_queue</code>
+(<code>Queue::Monitoring</code>), so a long pass never delays reports. Both messages
+expire after one interval: by then the next beat has asked again. The event
+task takes <code>PgLock(&quot;monitoring_snapshot-&lt;tenant&gt;-&lt;event&gt;&quot;)</code> and skips the
+pass if another holds it.</p>
+<p>A pass of an event:</p>
+<ol>
+<li class=""><strong>Refreshes the projection</strong> (<code>projection.rs</code>), in its own transaction.
+<code>monitoring_voter</code> has one row per voter and election they can vote in,
+holding only derived values: region, country, the configured dimensions
+(an age band, never a date of birth), enrollment state and reason, and
+when the voter pre-enrolled, received credentials, test-voted and first
+voted.<!-- -->
+<ul>
+<li class="">A <strong>full pass</strong> reads the event realm&#x27;s voters (members of the
+<code>KEYCLOAK_VOTER_GROUP_NAME</code> group) from the Keycloak database in
+keyset pages of 2,000, with their areas, attributes and credentials. It
+runs when there is no projection yet, when the settings revision
+changed, and otherwise every <code>MONITORING_VOTER_FULL_PASS_SECONDS</code>
+(default 300). An unchanged voter (same attribute hash) is not
+rewritten; a voter who is gone is removed.</li>
+<li class="">On <strong>every pass</strong>, each voter&#x27;s latest application and first valid vote
+(<code>MIN(cast_vote.created_at)</code> over valid votes, so revotes do not count)
+are read from the backend tables, one statement each.</li>
+</ul>
+</li>
+<li class=""><strong>Records a RUNNING run</strong> in <code>monitoring_snapshot_run</code>, in its own
+transaction, after marking FAILED any run a crash left RUNNING.</li>
+<li class=""><strong>Counts</strong> in one REPEATABLE READ transaction, which gives a coherent
+<code>as_of</code>. It first reads what it counts from (<code>CountedInputs</code>, below) and,
+when that is what the live run records, counts nothing (<code>Unchanged</code>,
+<code>recount: Skipped</code>). Otherwise <code>load_facts</code> reads the projection, the
+elections (poll state from <code>election.status</code> and the initialization
+report), the areas, the tally sessions (counting and transmission state)
+and the login counters. <code>produce</code> then builds the payload of every source,
+for every scope, for every election set. The pass writes only the scopes
+whose figures changed, records per source whether it was counted
+(<code>monitoring_snapshot_source</code>: <code>CONNECTED</code> or <code>NOT_CONNECTED</code> with a
+reason) and what it counted from (<code>monitoring_snapshot_run.counted_inputs</code>),
+completes the run and makes it the live one. When nothing changed it
+deletes its run and only marks the live run checked (<code>checked_at</code>), so
+viewers keep the revision they have; having counted (<code>recount: Done</code>), it
+records the new inputs with the live run. On an error the run is FAILED
+and the live revision stays in service.</li>
+<li class=""><strong>Prunes</strong> (<code>prune_snapshots</code>), in its own transaction: runs finished more
+than <code>EXPORT_WINDOW</code> (2 hours) ago, never the live one; then figures no
+remaining complete run holds; then payloads no figure names.</li>
+</ol>
+<p><strong>Scopes.</strong> Every figure is counted at its own scope, never added up from
+narrower ones: the whole event, each region, Post and country, and each
+country within a region or a Post. <code>sequent_core::monitoring::scope</code> builds
+the canonical key (<code>event</code>, <code>region=…&amp;country=…</code>) on both sides.</p>
+<p><strong>Election sets.</strong> A viewer restricted by permission labels may see only
+some elections, and their figures must not include the rest. Harvest records
+the viewer&#x27;s set in <code>monitoring_election_set</code> (refreshing <code>requested_at</code> at
+most every 5 minutes); the job counts the full set of the event plus every
+set requested in the last 24 hours. A set not counted yet reads as
+<code>SCOPE_PENDING</code>.</p>
+<p><strong>Content addressing.</strong> <code>monitoring_snapshot_payload</code> stores each scope&#x27;s
+payload once, keyed by the SHA-256 of its canonical JSON, and
+<code>monitoring_snapshot_figure</code> records which payload a scope showed over a
+range of revisions (<code>from_revision</code> up to, not including, <code>to_revision</code>). An
+unchanged scope costs nothing new, and Harvest can cache by hash. The
+figures of revision R are the rows whose range holds R, so an export of a
+revision still within the window reads the figures that were shown, with
+the configuration the dashboard drew them with (see
+<a href="#harvest-routes" class="">render-widget</a> below); the export request names that
+configuration&#x27;s generation, so later saves do not change the file. A
+revision below the live run that is no longer kept answers 410
+<code>MONITORING_SNAPSHOT_PRUNED</code>. One that never was a snapshot answers 404
+<code>MONITORING_NOT_FOUND</code>: 0 or below, after the live run, or a run still kept
+that did not complete (running, failed or superseded). Pruning deletes a
+run&#x27;s row, so any other revision below the live run with no row is taken
+as pruned. <code>render-widget</code> pinned to a revision answers the same.</p>
+<p><strong>Buckets.</strong> Series are hourly buckets in the settings&#x27; time zone, each
+<code>[start, end)</code>; a day is the sum of its hours. Each voter has one first-vote
+time, so buckets sum to the totals, including across DST changes.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="login-counters">Login counters<a href="#login-counters" class="hash-link" aria-label="Direct link to Login counters" title="Direct link to Login counters" translate="no">​</a></h2>
+<p>Sign-in attempts are counted where the electoral log receives Keycloak
+events: <code>persist_electoral_log_deliveries</code> in
+<code>windmill/src/tasks/electoral_log.rs</code> calls <code>count_login_attempts_apart</code> in
+its Hasura transaction, before the batch&#x27;s messages are signed and written
+to the board.</p>
+<ul>
+<li class=""><code>monitoring_login_counter</code> holds attempts per 15-minute UTC bucket, event
+type, registration (<code>REGISTERED</code> or <code>UNREGISTERED</code>) and area. Fifteen
+minutes rebuild exact hours in any time zone, including those a quarter or
+half hour off UTC.</li>
+<li class="">A delivery counts once: its <code>delivery_id</code> goes into
+<code>monitoring_login_counter_receipt</code> first (<code>ON CONFLICT DO NOTHING</code>), and
+only a new receipt adds to a counter. The beat task prunes receipts after
+7 days.</li>
+<li class="">The bucket comes from the event&#x27;s own time, <code>event_time_ms</code>, which the
+Keycloak custom event listener sends; older messages without it use the
+time of receipt. A missing user id (the listener writes <code>&quot;null&quot;</code>) is
+<code>UNREGISTERED</code>.</li>
+<li class="">Counting runs in a savepoint: if it fails, it is undone and logged, and
+the electoral log carries on.</li>
+<li class="">Attempts are counted whether or not the event is configured, so a
+dashboard switched on during an election still has the history.</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="harvest-routes">Harvest routes<a href="#harvest-routes" class="hash-link" aria-label="Direct link to Harvest routes" title="Direct link to Harvest routes" translate="no">​</a></h2>
+<p>Every route runs in this order: authorize; load the event&#x27;s monitoring row;
+work out the elections the viewer may see from their permission labels (no
+labels: every election; otherwise unlabeled elections and those whose label
+the user has); reject a region, Post or country outside them with 403; only
+then read configuration or snapshot rows. An <code>election_id</code> in the request
+pins the Post.</p>
+<table><thead><tr><th>Route</th><th>Hasura action</th><th>Permission</th></tr></thead><tbody><tr><td><code>/monitoring/list-dashboards</code></td><td><code>monitoringListDashboards</code></td><td><code>monitoring-view</code></td></tr><tr><td><code>/monitoring/get-dashboard</code></td><td><code>monitoringGetDashboard</code></td><td><code>monitoring-view</code></td></tr><tr><td><code>/monitoring/render-widget</code></td><td><code>monitoringRenderWidget</code></td><td><code>monitoring-view</code>; a draft preview also needs <code>monitoring-configure</code></td></tr><tr><td><code>/monitoring/export</code></td><td><code>monitoringExport</code></td><td><code>monitoring-view</code></td></tr><tr><td><code>/monitoring/validate-config</code></td><td><code>monitoringValidateConfig</code></td><td><code>monitoring-configure</code></td></tr><tr><td><code>/monitoring/list-presets</code>, <code>/monitoring/list-config</code>, <code>/monitoring/get-config</code></td><td><code>monitoringListPresets</code>, <code>monitoringListConfig</code>, <code>monitoringGetConfig</code></td><td><code>monitoring-configure</code></td></tr><tr><td><code>/monitoring/save-config</code>, <code>/monitoring/reset-to-preset</code>, <code>/monitoring/set-mode</code></td><td><code>monitoringSaveConfig</code>, <code>monitoringResetToPreset</code>, <code>monitoringSetMode</code></td><td><code>monitoring-configure</code> and <code>election-event-write</code>; refused while the event is locked down</td></tr></tbody></table>
+<p>Every refusal, from a route or from what fails before it runs, is JSON
+Hasura passes on: <code>{message, extensions: {code, ...}}</code>. A body that is not
+JSON answers 400 and one that lacks a field or has one of the wrong type
+answers 422, both with <code>MONITORING_BAD_REQUEST</code> and a message naming what is
+wrong; missing credentials answer 401 <code>Unauthorized</code>. A catcher registered
+for <code>/monitoring</code> only keeps other Harvest routes&#x27; answers as they are.</p>
+<p><code>render-widget</code> answers a state: <code>RENDERED</code>, <code>NOT_CONNECTED</code> (the renderer is
+not called), <code>NO_SNAPSHOT</code>, <code>SCOPE_PENDING</code>, <code>RENDER_FAILED</code> (the table is
+still returned) or <code>INVALID</code>. Rendering resolves the selectors, evaluates
+the queries with <code>compute::evaluate</code>, builds the board with
+<code>render_request::build_board</code> and posts it to the renderer with the
+<code>X-Renderer-Token</code> header, a 500 ms connect timeout and no retry.</p>
+<p>A run counts every source at every scope from the settings and the event&#x27;s
+elections alone; widgets, dashboards and themes only read its figures. So
+<code>render-widget</code> draws with the live configuration whenever the run was
+counted with the live settings revision: a saved title, chart, query,
+layout or theme shows at once, without waiting for the next run. When the
+settings changed since the run, it draws with the configuration the run was
+counted under until the next run (a count the new settings add is
+<code>SCOPE_PENDING</code> with <code>SETTINGS_PENDING</code>); when that configuration is no
+longer kept, or lacks the widget, it falls back to the live one with the
+notice <code>CONFIG_AT_SNAPSHOT_UNAVAILABLE</code> or <code>CONFIG_NEWER_THAN_SNAPSHOT</code>. An
+export chooses its configuration by the same rule, so a widget saved a
+moment ago exports as it is drawn, and records the generation chosen in
+the task&#x27;s request, which the task reads (a request without it reads the
+generation the run was counted under). Where the draw would fall back
+with a notice, the export is refused with 404 instead: a file cannot carry
+the notice. Export again after the next run.</p>
+<p>Drawn charts are cached in an LRU with single flight, so viewers asking for
+the same chart at once wait on one draw. The key covers the tenant and
+event, the revisions of the dashboard, widget, theme and settings, the
+snapshot revision, the election set, the scope, the selector values, the
+engine version, the locale, the width (in 40 px buckets) and the colour
+scheme. Harvest then rebuilds the SVG from an allowlist of elements: no
+scripts, foreign objects, images, links, event handlers, non-fragment
+<code>href</code>s or external <code>url()</code>.</p>
+<p>The read routes (<code>list-dashboards</code>, <code>get-dashboard</code>, <code>render-widget</code>,
+<code>export</code>) read the event&#x27;s <code>config_generation</code> first, and parse and check
+its documents only for a generation they have not kept yet
+(<code>services/monitoring_config_cache.rs</code>). This is safe because every save,
+reset or mode switch raises the generation in its own transaction, and the
+migration&#x27;s triggers refuse a revision written without that raise. So what
+an event had at a generation never changes. Configuration past a snapshot&#x27;s
+generation is kept the same way. The configuration routes (<code>list-config</code>,
+<code>get-config</code>, and the saves) always read the database.</p>
+<p>Exports run as a task (<code>EXPORT_MONITORING_DATA</code>) over the snapshot revision
+the viewer saw: CSV in long format, or SQL as <code>CREATE TABLE</code> and <code>INSERT</code>
+statements, with rows in <code>[from, to)</code>. The file is one long table: what
+each row was read at (<code>snapshot_revision</code>, <code>as_of</code>, <code>scope</code>), <code>widget_id</code>,
+<code>query</code>, <code>row</code>, every query&#x27;s columns, then <code>range_from</code>, <code>range_to</code>,
+<code>ignored_selectors</code> and <code>notice</code>. A query without rows still has one row,
+with no <code>row</code> number and no figures, noticed <code>NO_ROWS_IN_RANGE</code> (a series
+when a range is given) or <code>NO_ROWS</code>, so no widget drops out of the file; a
+widget not connected has one noticed <code>NOT_CONNECTED: &lt;reason&gt;</code>.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="renderer">Renderer<a href="#renderer" class="hash-link" aria-label="Direct link to Renderer" title="Direct link to Renderer" translate="no">​</a></h2>
+<p><code>packages/monitoring-renderer</code> is a FastAPI service with <code>dbt-charts==0.8.0</code>
+pinned by hash. It keeps one resident, warmed <code>ProjectSession</code>, so a draw
+takes 20 to 200 ms instead of seconds. It re-checks every board with a port
+of the sequent-core policy (a test keeps its copy of <code>dbt_charts_keys.txt</code>
+in step), accepts only inline <code>values</code> queries, disables DuckDB external
+access, refuses every outbound socket, checks the SVG it produced, and
+bundles the map geometry and fonts for offline networks. In compose it sits
+alone with Harvest on an <code>internal</code> network and publishes no ports. See its
+README for the request and response bodies.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="admin-portal">Admin Portal<a href="#admin-portal" class="hash-link" aria-label="Direct link to Admin Portal" title="Direct link to Admin Portal" translate="no">​</a></h2>
+<p><code>MonitoringDashboardTab</code> wraps the standard dashboard in the election event
+and election tabs. A user without <code>monitoring-view</code> gets the standard
+dashboard and no monitoring request; a <code>LEGACY</code> event, or a failed request,
+also shows it. <code>MonitoringGetDashboard</code> is polled every <code>refresh_seconds</code>,
+the snapshot interval Harvest reports in <code>MonitoringListDashboards</code> and
+<code>MonitoringGetDashboard</code> (30 seconds when a server does not report it, never
+under 5), while the browser tab is visible and not in edit mode; the header
+shows that interval. A widget re-renders only when the snapshot changes.</p>
+<p>Charts are shown in an <code>iframe</code> with an empty <code>sandbox</code> attribute and a
+content security policy that allows no network requests; the SVG is
+sanitized again with DOMPurify before it is placed there. The editor
+(CodeMirror 6 and <code>yaml</code>) is loaded only for users who may configure: the
+YAML text is the single source of truth, the form tabs patch it keeping its
+comments, and problems come from the browser&#x27;s sequent-core checks while
+typing and from the server on preview and Validate.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="environment-and-settings">Environment and settings<a href="#environment-and-settings" class="hash-link" aria-label="Direct link to Environment and settings" title="Direct link to Environment and settings" translate="no">​</a></h2>
+<table><thead><tr><th>Setting</th><th>Where</th><th>Default</th><th>Meaning</th></tr></thead><tbody><tr><td><code>MONITORING_SNAPSHOT_INTERVAL_SECONDS</code></td><td>Windmill <code>beat</code> and workers, Harvest</td><td><code>30</code>, within 5..=3600</td><td>Seconds between snapshot passes; Harvest reports it as <code>refresh_seconds</code>. Beat&#x27;s <code>-m</code>, <code>--monitoring-snapshot-interval</code> flag is the same setting.</td></tr><tr><td><code>MONITORING_VOTER_FULL_PASS_SECONDS</code></td><td>Windmill workers</td><td><code>300</code>, within the snapshot interval..=86400</td><td>Seconds between full passes over the Keycloak voters.</td></tr><tr><td><code>KEYCLOAK_VOTER_GROUP_NAME</code></td><td>Windmill</td><td>none; required</td><td>The Keycloak group whose members are voters.</td></tr><tr><td><code>HARVEST_MONITORING_RENDERER_URL</code></td><td>Harvest</td><td>compose: <code>http://monitoring-renderer:8080</code></td><td>The renderer&#x27;s base URL.</td></tr><tr><td><code>HARVEST_MONITORING_RENDERER_TOKEN</code></td><td>Harvest</td><td>none</td><td>Sent as <code>X-Renderer-Token</code>; must equal the renderer&#x27;s <code>RENDERER_TOKEN</code>. Compose sets both from <code>MONITORING_RENDERER_TOKEN</code>.</td></tr><tr><td><code>HARVEST_MONITORING_RENDERER_TIMEOUT_MS</code></td><td>Harvest</td><td><code>5000</code></td><td>Per-request timeout, set above the renderer&#x27;s own limit.</td></tr><tr><td><code>HARVEST_MONITORING_CACHE_ENTRIES</code></td><td>Harvest</td><td><code>1024</code></td><td>Drawn charts kept in the render cache.</td></tr><tr><td><code>HARVEST_MONITORING_CONFIG_CACHE_ENTRIES</code></td><td>Harvest</td><td><code>64</code></td><td>Event configurations (one per event and generation) kept for the read routes.</td></tr><tr><td><code>RENDERER_TOKEN</code></td><td>renderer</td><td>none; required</td><td>The service will not start without it.</td></tr><tr><td><code>RENDERER_CONCURRENCY</code></td><td>renderer</td><td><code>2</code></td><td>Draws running at once.</td></tr><tr><td><code>RENDERER_TIMEOUT_MS</code></td><td>renderer</td><td><code>4000</code></td><td>Waiting plus drawing, after which a request gets 504.</td></tr><tr><td><code>RENDERER_CACHE_BYTES</code></td><td>renderer</td><td><code>67108864</code></td><td>Size of the renderer&#x27;s SVG cache.</td></tr></tbody></table>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="snapshot-cadence">Snapshot cadence<a href="#snapshot-cadence" class="hash-link" aria-label="Direct link to Snapshot cadence" title="Direct link to Snapshot cadence" translate="no">​</a></h3>
+<p><code>sequent_core::monitoring::cadence</code> parses both settings, so beat, the
+workers and Harvest agree on them. Set them to the same values on the
+<code>beat</code>, <code>windmill</code> and <code>harvest</code> services (the compose files pass both
+through, defaulting to 30 and 300), otherwise the dashboards poll at a
+different cadence than figures are made. A value outside its bounds is
+clamped to the nearest bound, and a value that is not a whole number of
+seconds is replaced by the default; in both cases the service starts and
+logs a warning naming the variable and the value used. Every service logs
+the cadence it runs with at startup (<code>Monitoring cadence: ...</code>).</p>
+<p>The interval trades freshness against load on the sources. A pass reads the
+projection sources once per event, however many people watch the
+dashboards, so viewers add only cheap Harvest reads. What grows with the
+event is the pass itself:</p>
+<ul>
+<li class="">Every pass reads each voter&#x27;s latest application and first valid vote
+from the backend tables. It counts every scope only when something it
+counts from moved since the live run was counted (see below).</li>
+<li class=""><strong>An unchanged pass counts nothing.</strong> Before counting, a pass reads, in
+one statement, digests of every row it would count from: all of the
+event&#x27;s <code>monitoring_voter</code> rows (so votes, applications and projection
+writes and removals), the elections (status, initialization, names and
+annotations), the areas and which elections each votes in, the tally
+sessions, the login counters and the sets of elections still asked for.
+These digests, with the settings revision, the configuration
+generation, a hash of the settings, the UTC day ages are counted on, the
+reader&#x27;s version and the time, make up <code>CountedInputs</code>, which is stored
+with the run it counted (<code>monitoring_snapshot_run.counted_inputs</code>). When a pass finds the live
+run&#x27;s inputs, it only marks the run checked. It counts again when any of
+them moved, on a new day, at least every 10 minutes (<code>RECOUNT_EVERY</code>, for
+what no digest covers, such as producers deployed under the same
+version), and when the live run records no inputs, as runs completed
+before inputs were recorded. An unchanged pass then takes 0.1 s at
+10,000 voters and 0.5 s at 50,000 (release build) instead of 0.9 s and
+3.2 s; see the scale guide.</li>
+<li class="">The <strong>full voter pass</strong> reads every voter of the event realm from the
+Keycloak database. It is the expensive part and grows with the number of
+voters; between full passes a voter change in Keycloak shows only at the
+next full pass (a settings change forces one at once).</li>
+</ul>
+<p>A pass that takes longer than the interval is not stacked: the next beat
+finds the event&#x27;s lock held and skips it, so the effective cadence becomes
+the pass duration. Watch the <code>Monitoring snapshot pass</code> log lines and keep
+the interval above the usual pass duration.</p>
+<table><thead><tr><th>Event</th><th><code>MONITORING_SNAPSHOT_INTERVAL_SECONDS</code></th><th><code>MONITORING_VOTER_FULL_PASS_SECONDS</code></th></tr></thead><tbody><tr><td>Small (up to about 10,000 voters)</td><td><code>15</code>–<code>30</code></td><td><code>300</code></td></tr><tr><td>Medium (about 10,000–100,000 voters)</td><td><code>30</code>–<code>60</code></td><td><code>600</code></td></tr><tr><td>Large (100,000 voters or more)</td><td><code>60</code>–<code>120</code></td><td><code>1800</code>–<code>3600</code></td></tr></tbody></table>
+<p>Shorter intervals than <code>15</code> are rarely worth it: figures change in steps
+of a pass anyway, and the portal never polls more often than every 5
+seconds.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="running-the-tests">Running the tests<a href="#running-the-tests" class="hash-link" aria-label="Direct link to Running the tests" title="Direct link to Running the tests" translate="no">​</a></h2>
+<p>Rust commands run in the devenv shell with this checkout&#x27;s target
+directory:</p>
+<div class="language-sh codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-sh codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token plain">devenv shell -- </span><span class="token function" style="color:rgb(130, 170, 255)">bash</span><span class="token plain"> </span><span class="token parameter variable" style="color:rgb(191, 199, 213)">-c</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&#x27;cd packages &amp;&amp; export CARGO_TARGET_DIR=&quot;$PWD/rust-local-target&quot; &amp;&amp; cargo test -p sequent-core --features monitoring --lib monitoring::&#x27;</span><br></span></code></pre></div></div>
+<ul>
+<li class="">
+<p><strong>sequent-core</strong>: the unit tests under <code>src/monitoring/*_tests.rs</code> cover
+the policy (including every refused key and string in
+<code>fixtures/refused.yaml</code>), resolution, evaluation, the board builder and
+the presets. Every preset must load without errors and every widget in it
+must evaluate against the sample payloads; <code>fixtures/preset_versions.txt</code>
+fails the tests when a preset&#x27;s documents change without a new <code>version</code>
+(<code>MONITORING_UPDATE_PRESET_VERSIONS=1</code> rewrites it after a raise).</p>
+</li>
+<li class="">
+<p><strong>Windmill</strong>, pure logic: <code>cargo test -p windmill --lib monitoring</code>.</p>
+</li>
+<li class="">
+<p><strong>Windmill</strong>, against PostgreSQL: the <code>postgres_monitoring_*</code> targets
+(<code>schema</code>, <code>config</code>, <code>projection</code>, <code>snapshot</code>, <code>login_counter</code>). Each test
+binary creates a private database with every backend migration applied, on
+the server <code>HASURA_DB__*</code> names, and works in transactions it rolls back:</p>
+<div class="language-sh codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-sh codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token assign-left variable" style="color:rgb(191, 199, 213)">HASURA_DB__HOST</span><span class="token operator" style="color:rgb(137, 221, 255)">=</span><span class="token plain">postgres </span><span class="token assign-left variable" style="color:rgb(191, 199, 213)">HASURA_DB__PORT</span><span class="token operator" style="color:rgb(137, 221, 255)">=</span><span class="token number" style="color:rgb(247, 140, 108)">5432</span><span class="token plain"> </span><span class="token assign-left variable" style="color:rgb(191, 199, 213)">HASURA_DB__USER</span><span class="token operator" style="color:rgb(137, 221, 255)">=</span><span class="token plain">postgres </span><span class="token punctuation" style="color:rgb(199, 146, 234)">\</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain"></span><span class="token assign-left variable" style="color:rgb(191, 199, 213)">HASURA_DB__PASSWORD</span><span class="token operator" style="color:rgb(137, 221, 255)">=</span><span class="token plain">postgrespassword </span><span class="token assign-left variable" style="color:rgb(191, 199, 213)">HASURA_DB__DBNAME</span><span class="token operator" style="color:rgb(137, 221, 255)">=</span><span class="token plain">postgres </span><span class="token punctuation" style="color:rgb(199, 146, 234)">\</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain"></span><span class="token function" style="color:rgb(130, 170, 255)">cargo</span><span class="token plain"> </span><span class="token builtin class-name" style="color:rgb(255, 203, 107)">test</span><span class="token plain"> </span><span class="token parameter variable" style="color:rgb(191, 199, 213)">-p</span><span class="token plain"> windmill </span><span class="token parameter variable" style="color:rgb(191, 199, 213)">--test</span><span class="token plain"> postgres_monitoring_snapshot</span><br></span></code></pre></div></div>
+</li>
+<li class="">
+<p><strong>Harvest</strong>: <code>cargo test -p harvest monitoring</code>. Route permission cases
+are listed in <code>harvest/tests/fixtures/guarded-post-routes.txt</code> and
+<code>harvest/tests/support/route_permissions.rs</code>; the in-memory renderer and
+snapshot fakes let the route tests run without either.</p>
+</li>
+<li class="">
+<p><strong>Renderer</strong>: from <code>packages/monitoring-renderer</code>, create a Python 3.12
+virtual environment, install <code>requirements.txt</code> and
+<code>requirements-dev.txt</code> with <code>--require-hashes</code>, and run <code>python -m pytest -q</code>. Sockets are disabled in every test.</p>
+</li>
+<li class="">
+<p><strong>Admin Portal</strong>: <code>yarn jest src/components/monitoring</code> from
+<code>packages/admin-portal</code>, plus the stories checks.</p>
+</li>
+</ul>
+<p><code>scripts/dev/step-dev test &lt;package&gt; [name]</code> picks the narrowest of these
+commands for a package or file.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="viewer-load-benchmark">Viewer load benchmark<a href="#viewer-load-benchmark" class="hash-link" aria-label="Direct link to Viewer load benchmark" title="Direct link to Viewer load benchmark" translate="no">​</a></h2>
+<p><code>scripts/dev/step-dev bench monitoring-viewers</code> checks the promise above: the
+number of viewers never changes how often source data is scanned. It also
+measures what viewers cost in latency and CPU. It runs against a stack that
+is already up, and only reads.</p>
+<p>Each simulated viewer goes through Hasura and does what the Dashboard tab
+does:</p>
+<ol>
+<li class=""><code>monitoringListDashboards</code>;</li>
+<li class=""><code>monitoringGetDashboard</code>;</li>
+<li class=""><code>monitoringRenderWidget</code> for every widget the dashboard places.</li>
+</ol>
+<p>The render widths follow the portal&#x27;s grid for one of five screen profiles
+(1920, 1440 and 1366 px desktops, a tablet and a phone). Colour scheme,
+locale and scope also vary per viewer, drawn from a fixed seed, so the
+render cache sees the key spread real viewers give it.</p>
+<p><code>--cycle</code> sets what a viewer repeats every <code>--poll-interval</code> (30 s):</p>
+<ul>
+<li class=""><code>reload</code>, the default: all three steps every poll, as if every viewer
+reloaded the page. This is an upper bound.</li>
+<li class=""><code>portal</code>: the portal&#x27;s steady state. The list and the renders run once,
+then <code>monitoringGetDashboard</code> runs every poll. The renders run again only
+when the snapshot revision changes or a widget failed.</li>
+</ul>
+<p>Viewers are spread over one poll interval and over <code>--processes</code> worker
+processes. Each worker shares one pool of keep-alive connections
+(<code>--connections</code>). The access token comes from <code>--token-command</code>, which
+runs again a minute before the token expires.</p>
+<p>A run measures an idle baseline window first, then each <code>--viewers</code> count
+in turn: a warm-up of one poll interval, then a window of <code>--duration</code>
+seconds. For every window it records:</p>
+<ul>
+<li class="">p50, p95 and p99 latency, and errors, for each operation;</li>
+<li class="">renderer calls, counted from Harvest&#x27;s <code>render</code> spans in <code>docker logs</code>;</li>
+<li class=""><code>pg_stat_user_tables</code> before and after, for the source tables
+(<code>cast_vote</code>, <code>applications</code>, <code>monitoring_voter</code>,
+<code>monitoring_login_counter</code>, <code>tally_session</code>, and Keycloak&#x27;s
+<code>user_entity</code>, <code>user_attribute</code>, <code>user_group_membership</code> and
+<code>credential</code>) and for the tables Harvest reads;</li>
+<li class="">snapshot passes, from <code>monitoring_snapshot_run</code> inserts;</li>
+<li class=""><code>docker stats</code> CPU of Harvest, Hasura, the renderer, both databases and
+Windmill;</li>
+<li class="">the load generator&#x27;s own CPU and event-loop lag, to show it was not the
+bottleneck.</li>
+</ul>
+<p>The result is a <code>step-bench/1</code> file whose notes hold a Markdown table.</p>
+<div class="language-sh codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-sh codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token plain">devenv shell -- </span><span class="token function" style="color:rgb(130, 170, 255)">bash</span><span class="token plain"> </span><span class="token parameter variable" style="color:rgb(191, 199, 213)">-c</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&#x27;scripts/dev/step-dev bench monitoring-viewers \</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token string" style="color:rgb(195, 232, 141)">  --label before --checkout . \</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token string" style="color:rgb(195, 232, 141)">  --tenant-id &quot;$TENANT_ID&quot; --election-event-id &quot;$EVENT_ID&quot; \</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token string" style="color:rgb(195, 232, 141)">  --viewers 10,100,1000 --duration 60&#x27;</span><br></span></code></pre></div></div>
+<p>The default token command, <code>python3 -m scripts.dev.bench.admin_token</code>, needs
+the checkout&#x27;s <code>.devcontainer/.env</code>. From a worktree without one, pass a
+command that prints a token with <code>monitoring-view</code>.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="results-30-september-2026">Results, 30 September 2026<a href="#results-30-september-2026" class="hash-link" aria-label="Direct link to Results, 30 September 2026" title="Direct link to Results, 30 September 2026" translate="no">​</a></h3>
+<p>These numbers come from the local dev stack:</p>
+<ul>
+<li class="">a debug Harvest build;</li>
+<li class="">the comelec preset, 53 documents;</li>
+<li class=""><code>--cycle reload</code>, 60 s windows;</li>
+<li class="">a shared 16-core host that other builds kept saturated (load average
+about 32).</li>
+</ul>
+<p>Read them for how things scale, not as absolute capacity.</p>
+<table><thead><tr><th>Viewers</th><th>list p50/p95/p99 (ms)</th><th>get p50/p95/p99 (ms)</th><th>render p50/p95/p99 (ms)</th><th>Errors</th><th>Renderer calls</th><th>Source reads/min</th><th>Harvest CPU</th></tr></thead><tbody><tr><td>idle</td><td></td><td></td><td></td><td>0</td><td>0</td><td>142</td><td>1%</td></tr><tr><td>10</td><td>49 / 57 / 65</td><td>54 / 65 / 78</td><td>55 / 92 / 121</td><td>0 of 160</td><td>0</td><td>95</td><td>12%</td></tr><tr><td>100</td><td>49 / 50 / 63</td><td>53 / 55 / 58</td><td>52 / 64 / 89</td><td>0 of 1,600</td><td>0</td><td>95</td><td>129%</td></tr><tr><td>1,000</td><td>16,148 / 26,572 / 27,893</td><td>17,994 / 26,150 / 27,306</td><td>23,121 / 27,362 / 28,740</td><td>0 of 8,814</td><td>72</td><td>141</td><td>597%</td></tr></tbody></table>
+<ul>
+<li class=""><strong>Source reads do not follow viewers.</strong> Every window saw the same four
+snapshot passes, and the same scans of the source tables: about 33 of
+<code>cast_vote</code>, 4 of <code>applications</code> and <code>monitoring_login_counter</code>, and 20 of
+<code>tally_session</code>. The only difference is Windmill&#x27;s five-minute full pass
+over the Keycloak voters. That pass reads the Keycloak tables and
+<code>monitoring_voter</code> a few more times, and it fell inside the idle and
+1,000-viewer windows (142 and 141 reads a minute against 95).</li>
+<li class=""><strong>Renderer calls do not follow viewers.</strong> At 10 and 100 viewers every
+chart came from the render cache. The 72 calls at 1,000 were first draws
+of new cache keys: queueing pushed them into the measured window, and a
+new snapshot revision starts the cache over. They are bounded by
+distinct keys per snapshot revision (294 in that run), not by viewers.</li>
+<li class=""><strong>Harvest&#x27;s own reads do follow requests.</strong> Each request reads the
+event&#x27;s monitoring row, its elections (for permission labels), the
+snapshot heads and the configuration. That is by design, and cheap.</li>
+<li class=""><strong>1,000 reloading viewers saturated Harvest&#x27;s CPU.</strong> Latency collapsed,
+though nothing failed: 147 requests a second were served, against about
+267 asked for. Every request re-parsed and re-checked the event&#x27;s whole
+configuration, about 37 ms of CPU in a debug build. With 16 request
+workers competing for a saturated host, requests queued for tens of
+seconds. The configuration cache per generation, described under Harvest
+routes, removes that step for every request after a generation&#x27;s first.</li>
+</ul>
+<p>The portal&#x27;s steady state (<code>--cycle portal</code>, same stack, host load about
+8) is much lighter. The viewers had loaded the dashboard during the
+warm-up, so the window saw only polls, plus re-renders after a snapshot
+change:</p>
+<table><thead><tr><th>Viewers</th><th>get p50/p95/p99 (ms)</th><th>render p50/p95/p99 (ms)</th><th>Errors</th><th>Renderer calls</th><th>Source reads/min</th><th>Harvest CPU mean (max)</th></tr></thead><tbody><tr><td>100</td><td>54 / 55 / 61</td><td></td><td>0 of 200</td><td>0</td><td>95</td><td>17% (22%)</td></tr><tr><td>1,000</td><td>53 / 1,520 / 1,836</td><td>1,323 / 1,593 / 1,730</td><td>0 of 2,510</td><td>0</td><td>143</td><td>256% (1,000%)</td></tr></tbody></table>
+<p>At 1,000 viewers, a new snapshot revision makes every viewer re-render
+within one poll, and that burst saturated Harvest for a few seconds. The
+per-generation configuration cache takes most of each request&#x27;s CPU out
+of that burst.</p></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-edit-meta-row"><div class="col noPrint_WFHX"><a href="https://github.com/sequentech/step/edit/main/docs/docusaurus/docs/07-developers/13-monitoring/01-monitoring-architecture.md" target="_blank" rel="noopener noreferrer" class="theme-edit-this-page"><svg fill="currentColor" height="20" width="20" viewBox="0 0 40 40" class="iconEdit_Z9Sw" aria-hidden="true"><g><path d="m34.5 11.7l-3 3.1-6.3-6.3 3.1-3q0.5-0.5 1.2-0.5t1.1 0.5l3.9 3.9q0.5 0.4 0.5 1.1t-0.5 1.2z m-29.5 17.1l18.4-18.5 6.3 6.3-18.4 18.4h-6.3v-6.2z"></path></g></svg>Edit this page</a></div><div class="col lastUpdated_JAkA"></div></div></footer></article><nav class="docusaurus-mt-lg pagination-nav" aria-label="Docs pages"><a class="pagination-nav__link pagination-nav__link--prev" href="/docusaurus/pr-preview/pr-3453/docs/developers/ivr/telephone-load-testing-guide"><div class="pagination-nav__sublabel">Previous</div><div class="pagination-nav__label">Telephone Load Testing Guide</div></a><a class="pagination-nav__link pagination-nav__link--next" href="/docusaurus/pr-preview/pr-3453/docs/developers/monitoring/monitoring_data_sources"><div class="pagination-nav__sublabel">Next</div><div class="pagination-nav__label">Data sources and presets</div></a></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#code-map" class="table-of-contents__link toc-highlight">Code map</a></li><li><a href="#configuration-store" class="table-of-contents__link toc-highlight">Configuration store</a></li><li><a href="#snapshot-job" class="table-of-contents__link toc-highlight">Snapshot job</a></li><li><a href="#login-counters" class="table-of-contents__link toc-highlight">Login counters</a></li><li><a href="#harvest-routes" class="table-of-contents__link toc-highlight">Harvest routes</a></li><li><a href="#renderer" class="table-of-contents__link toc-highlight">Renderer</a></li><li><a href="#admin-portal" class="table-of-contents__link toc-highlight">Admin Portal</a></li><li><a href="#environment-and-settings" class="table-of-contents__link toc-highlight">Environment and settings</a><ul><li><a href="#snapshot-cadence" class="table-of-contents__link toc-highlight">Snapshot cadence</a></li></ul></li><li><a href="#running-the-tests" class="table-of-contents__link toc-highlight">Running the tests</a></li><li><a href="#viewer-load-benchmark" class="table-of-contents__link toc-highlight">Viewer load benchmark</a><ul><li><a href="#results-30-september-2026" class="table-of-contents__link toc-highlight">Results, 30 September 2026</a></li></ul></li></ul></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="footer__bottom text--center"><div class="footer__copyright">Copyright © 2026 Sequent</div></div></div></footer></div>
+</body>
+</html>
