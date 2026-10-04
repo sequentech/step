@@ -167,6 +167,15 @@ const spanishTranslation: TranslationType = {
                 ok: "Sí, quiero emitir mi papeleta en blanco",
                 cancel: "Cancelar",
             },
+            unfilledContestsDialog: {
+                title: "Hay selecciones sin completar",
+                content:
+                    "Puede dejar selecciones en blanco o elegir menos opciones de las permitidas. Revise lo siguiente antes de continuar.",
+                selected: "{{selected}} de {{max}} seleccionadas",
+                nothingSelected: "Sin selección",
+                ok: "Continuar con estas selecciones",
+                cancel: "Revisar selecciones",
+            },
             error: {
                 NETWORK_ERROR:
                     "Hubo un problema de red. Por favor, inténtalo de nuevo más tarde o contacta con el soporte para obtener ayuda.",

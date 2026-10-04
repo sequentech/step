@@ -1930,6 +1930,7 @@ const englishTranslation = {
                 "warn-only-in-review": "Warn in Review",
                 "warn": "Warn",
                 "warn-and-alert": "Warn and Alert",
+                "warn-and-confirm-in-review": "Warn and Confirm in Review",
             },
             invalidVotePolicy: {
                 "label": "Invalid Vote Policy",

@@ -168,6 +168,15 @@ const tagalogTranslation: TranslationType = {
                 ok: "Oo, nais kong isumite ang aking blangkong balota",
                 cancel: "Kanselahin",
             },
+            unfilledContestsDialog: {
+                title: "May mga pagpiling hindi napunan",
+                content:
+                    "Maaari mong iwanang blangko ang isang pagpili o pumili ng mas kaunting opsyon kaysa sa pinapayagan. Suriin ang sumusunod bago magpatuloy.",
+                selected: "{{selected}} sa {{max}} ang napili",
+                nothingSelected: "Walang napili",
+                ok: "Magpatuloy sa mga pagpiling ito",
+                cancel: "Suriin ang mga pinili",
+            },
             error: {
                 NETWORK_ERROR:
                     "Nagkaroon ng problema sa network. Pakisubukan ulit mamaya o makipag-ugnayan sa helpdesk para sa tulong.",

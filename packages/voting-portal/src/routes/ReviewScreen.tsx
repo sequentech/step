@@ -84,6 +84,8 @@ import {isSameBallotSelection} from "../services/BallotSelectionComparison"
 import {getBallotReviewSummary} from "../services/ReviewSummary"
 import {ReviewContestFooter} from "../components/ReviewSummary/ReviewContestFooter"
 import {ReviewSelectionSummary} from "../components/ReviewSummary/ReviewSelectionSummary"
+import UnfilledContestsDialog from "../components/UnfilledContestsDialog/UnfilledContestsDialog"
+import {getUnfilledContests, IUnfilledContest} from "../services/UnfilledContests"
 
 const StyledButton = styled(Button)`
     display: flex;
@@ -284,6 +286,7 @@ interface ActionButtonProps {
     isBlankBallot: boolean
     isFullyAcclaimed: boolean
     hasInconsistentHash: boolean
+    unfilledContests: Array<IUnfilledContest>
 }
 
 const ActionButtons: React.FC<ActionButtonProps> = ({
@@ -299,6 +302,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
     isBlankBallot,
     isFullyAcclaimed,
     hasInconsistentHash,
+    unfilledContests,
 }) => {
     const {t} = useTranslation()
     const navigate = useNavigate()
@@ -306,6 +310,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
     const [auditBallotHelp, setAuditBallotHelp] = useState<boolean>(false)
     const {castingRef, isCasting, setCasting} = useCastingState()
     const [isConfirmCastVoteModal, setConfirmCastVoteModal] = React.useState<boolean>(false)
+    const [isUnfilledContestsModal, setUnfilledContestsModal] = useState<boolean>(false)
     const {tenantId, eventId} = useParams<TenantEventType>()
     const {toHashableBallot, toHashableMultiBallot} = provideBallotService()
     const submit = useSubmit()
@@ -329,6 +334,25 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
     const handleCloseCastVoteDialog = (value: boolean) => {
         setConfirmCastVoteModal(false)
         if (value) {
+            castBallotAction()
+        }
+    }
+
+    const handleCloseUnfilledContestsDialog = (value: boolean) => {
+        setUnfilledContestsModal(false)
+        if (value) {
+            castBallotAction()
+        }
+    }
+
+    // Asked again on every cast: the answer is not kept, so a voter who goes
+    // back to edit and returns with unfilled positions confirms them anew.
+    const onCast = () => {
+        if (unfilledContests.length > 0) {
+            setUnfilledContestsModal(true)
+        } else if (castVoteConfirmModal && !isFullyAcclaimed) {
+            setConfirmCastVoteModal(true)
+        } else {
             castBallotAction()
         }
     }
@@ -470,14 +494,12 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
                 onAudit={() => setAuditBallotHelp(true)}
                 // A detected hash mismatch refuses the cast; leaving the handler
                 // out is what disables the button.
-                onCast={
-                    hasInconsistentHash
-                        ? undefined
-                        : () =>
-                              castVoteConfirmModal && !isFullyAcclaimed
-                                  ? setConfirmCastVoteModal(true)
-                                  : castBallotAction()
-                }
+                onCast={hasInconsistentHash ? undefined : onCast}
+            />
+            <UnfilledContestsDialog
+                open={isUnfilledContestsModal}
+                unfilledContests={unfilledContests}
+                handleClose={handleCloseUnfilledContestsDialog}
             />
             <Dialog
                 className="confirm-cast-ballot-dialog"
@@ -848,6 +870,10 @@ export const ReviewScreen: React.FC = () => {
     const defaultLanguageCode =
         ballotStyle.ballot_eml.election_presentation?.language_conf?.default_language_code ??
         ballotStyle.ballot_eml.election_event_presentation?.language_conf?.default_language_code
+    // A voter who declined to vote already confirmed leaving the ballot empty.
+    const unfilledContests = isDeclineToVote
+        ? []
+        : getUnfilledContests(contests, errorSelectionState)
 
     return (
         // The arrangement is `ReviewLayout`, in `ui-essentials`, so that the
@@ -909,6 +935,7 @@ export const ReviewScreen: React.FC = () => {
                             isDeclineToVote={isDeclineToVote}
                             isBlankBallot={isBlankBallot}
                             isFullyAcclaimed={isFullyAcclaimed}
+                            unfilledContests={unfilledContests}
                         />
                     )
                 }

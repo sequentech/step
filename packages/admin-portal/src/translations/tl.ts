@@ -1955,6 +1955,7 @@ const tagalogTranslation: TranslationType = {
                 "warn-only-in-review": "Warn in Review",
                 "warn": "Patanid",
                 "warn-and-alert": "Patanid asin Alerto",
+                "warn-and-confirm-in-review": "Patanid asin Kumpirmahon sa Review",
             },
             invalidVotePolicy: {
                 "label": "Patakaran sa walang boto",

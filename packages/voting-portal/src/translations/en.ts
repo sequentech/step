@@ -165,6 +165,15 @@ const englishTranslation = {
                 ok: "Yes, cast my blank ballot",
                 cancel: "Cancel",
             },
+            unfilledContestsDialog: {
+                title: "Some selections are unfilled",
+                content:
+                    "You may leave a selection blank or choose fewer options than allowed. Check the following before continuing.",
+                selected: "{{selected}} of {{max}} selected",
+                nothingSelected: "Nothing selected",
+                ok: "Continue with these selections",
+                cancel: "Review selections",
+            },
             error: {
                 NETWORK_ERROR:
                     "A network problem occurred. Please try again later or contact support",

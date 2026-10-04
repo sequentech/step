@@ -1953,6 +1953,7 @@ const galegoTranslation: TranslationType = {
                 "warn-only-in-review": "Avisar na Revisión",
                 "warn": "Avisar",
                 "warn-and-alert": "Avisar e Alertar",
+                "warn-and-confirm-in-review": "Avisar e Confirmar na Revisión",
             },
             invalidVotePolicy: {
                 "label": "Política de Voto Nulo",

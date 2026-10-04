@@ -1952,6 +1952,7 @@ const spanishTranslation: TranslationType = {
                 "warn-only-in-review": "Advertir en Revisión",
                 "warn": "Advertir",
                 "warn-and-alert": "Advertir y Alertar",
+                "warn-and-confirm-in-review": "Advertir y Confirmar en Revisión",
             },
             invalidVotePolicy: {
                 "label": "Política de Voto Inválido",

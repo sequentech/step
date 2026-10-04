@@ -11,12 +11,14 @@ import {createMemoryRouter, RouterProvider} from "react-router-dom"
 import {
     ECastVoteGoldLevelPolicy,
     EConsolidatedReportPolicy,
+    EUnderVotePolicy,
     EVotingPortalAuditButtonCfg,
 } from "@sequentech/ui-core"
 import type {
     BallotSelection,
     IAuditableBallot,
     IContest,
+    IDecodedVoteContest,
     IElection,
     IVotingScreenBackPolicy,
 } from "@sequentech/ui-core"
@@ -91,9 +93,27 @@ jest.mock("@sequentech/ui-essentials", () => ({
         "../../../ui-essentials/src/components/BallotHash/BallotHash"
     ).BallotHashCopyButton,
     theme: jest.requireActual("../../../ui-essentials/src/services/theme").default,
-    // Only which dialog is open, so a test can see one open without its content.
-    Dialog: ({open, className}: {open: boolean; className?: string}) =>
-        open ? <div className={className} data-testid="open-dialog" /> : null,
+    // Only which dialog is open and its two answers, so a test can see one open
+    // without its content.
+    Dialog: ({
+        open,
+        className,
+        ok,
+        cancel,
+        handleClose,
+    }: {
+        open: boolean
+        className?: string
+        ok?: string
+        cancel?: string
+        handleClose: (value: boolean) => void
+    }) =>
+        open ? (
+            <div className={className} data-testid="open-dialog">
+                {cancel ? <button onClick={() => handleClose(false)}>{cancel}</button> : null}
+                {ok ? <button onClick={() => handleClose(true)}>{ok}</button> : null}
+            </div>
+        ) : null,
     WarnBox: jest.requireActual("../../../ui-essentials/src/components/WarnBox/WarnBox").default,
     EWarnBoxAnnouncement: jest.requireActual(
         "../../../ui-essentials/src/components/WarnBox/WarnBox"
@@ -123,8 +143,8 @@ jest.mock("../providers/SettingsContextProvider", () => ({
 }))
 jest.mock("../services/BallotService", () => ({
     provideBallotService: () => ({
-        interpretContestSelection: () => [],
-        interpretMultiContestSelection: () => [],
+        interpretContestSelection: () => mockDecodedContests,
+        interpretMultiContestSelection: () => mockDecodedContests,
         hashBallot: () => "0123456789abcdef".repeat(4),
         hashMultiBallot: () => "0123456789abcdef".repeat(4),
         toHashableBallot: () => ({}),
@@ -168,6 +188,7 @@ let mockEmptyHashTranslation = false
 let mockIsGoldUser = false
 let mockDisableAuth = true
 let mockDecodedBallot: BallotSelection | null = null
+let mockDecodedContests: Array<IDecodedVoteContest> = []
 let mockElectionQueryData:
     | {
           sequent_backend_election: Array<{
@@ -296,6 +317,7 @@ beforeEach(() => {
     mockEmptyHashTranslation = false
     mockDisableAuth = true
     mockDecodedBallot = null
+    mockDecodedContests = []
     mockIsKiosk = false
     mockElectionQueryData = undefined
     sessionStorage.clear()
@@ -675,6 +697,104 @@ describe("pending cast", () => {
         resolveCastVote()
         await waitFor(() => expect(routeAction).toHaveBeenCalledTimes(1))
         expect(mockInsertCastVote).toHaveBeenCalledTimes(1)
+    })
+})
+
+describe("unfilled positions", () => {
+    const CAST = "reviewScreen.castBallotButton"
+    const DIALOG = "reviewScreen.unfilledContestsDialog"
+
+    const underVote = (contestId: string): IDecodedVoteContest =>
+        ({
+            contest_id: contestId,
+            is_explicit_invalid: false,
+            choices: [],
+            invalid_errors: [],
+            invalid_alerts: [
+                {
+                    error_type: "Implicit",
+                    message: "errors.implicit.underVote",
+                    message_map: {numSelected: "0", max: "1"},
+                },
+            ],
+        }) as unknown as IDecodedVoteContest
+
+    const setUpUnderVote = (policy: EUnderVotePolicy) => {
+        const contest = mockState.ballotStyles["election-1"]!.ballot_eml.contests[0]
+        contest.presentation = {...contest.presentation, under_vote_policy: policy}
+        mockDecodedContests = [underVote("contest-0")]
+        mockDisableAuth = false
+    }
+
+    it("asks before casting, and casts only when the voter continues", async () => {
+        setUpUnderVote(EUnderVotePolicy.WARN_AND_CONFIRM_IN_REVIEW)
+        const user = userEvent.setup()
+        renderRoute(<ReviewScreen />, "review")
+
+        await user.click(screen.getByRole("button", {name: CAST}))
+        expect(screen.getByTestId("open-dialog")).toHaveClass("unfilled-contests-dialog")
+        await user.click(screen.getByRole("button", {name: `${DIALOG}.cancel`}))
+        expect(screen.queryByTestId("open-dialog")).toBeNull()
+        expect(mockInsertCastVote).not.toHaveBeenCalled()
+        expect(screen.getByRole("heading", {name: "First contest"})).toBeVisible()
+
+        await user.click(screen.getByRole("button", {name: CAST}))
+        await user.click(screen.getByRole("button", {name: `${DIALOG}.ok`}))
+        await waitFor(() => expect(routeAction).toHaveBeenCalledTimes(1))
+        expect(mockInsertCastVote).toHaveBeenCalledTimes(1)
+    })
+
+    it("takes the place of the election's cast confirmation", async () => {
+        setUpUnderVote(EUnderVotePolicy.WARN_AND_CONFIRM_IN_REVIEW)
+        mockState.ballotStyles["election-1"]!.ballot_eml.election_presentation!.cast_vote_confirm =
+            true
+        const user = userEvent.setup()
+        renderRoute(<ReviewScreen />, "review")
+
+        await user.click(screen.getByRole("button", {name: CAST}))
+        expect(screen.getByTestId("open-dialog")).toHaveClass("unfilled-contests-dialog")
+        await user.click(screen.getByRole("button", {name: `${DIALOG}.ok`}))
+        await waitFor(() => expect(mockInsertCastVote).toHaveBeenCalledTimes(1))
+        expect(screen.queryByTestId("open-dialog")).toBeNull()
+    })
+
+    it("leaves the election's cast confirmation alone when every position is filled", async () => {
+        setUpUnderVote(EUnderVotePolicy.WARN_AND_CONFIRM_IN_REVIEW)
+        mockDecodedContests = []
+        mockState.ballotStyles["election-1"]!.ballot_eml.election_presentation!.cast_vote_confirm =
+            true
+        const user = userEvent.setup()
+        renderRoute(<ReviewScreen />, "review")
+
+        await user.click(screen.getByRole("button", {name: CAST}))
+        expect(screen.getByTestId("open-dialog")).toHaveClass("confirm-cast-ballot-dialog")
+    })
+
+    it.each([EUnderVotePolicy.WARN_ONLY_IN_REVIEW, EUnderVotePolicy.WARN_AND_ALERT])(
+        "does not ask under the %s policy",
+        async (policy) => {
+            setUpUnderVote(policy)
+            const user = userEvent.setup()
+            renderRoute(<ReviewScreen />, "review")
+
+            await user.click(screen.getByRole("button", {name: CAST}))
+            await waitFor(() => expect(mockInsertCastVote).toHaveBeenCalledTimes(1))
+            expect(screen.queryByTestId("open-dialog")).toBeNull()
+        }
+    )
+
+    it("does not ask a voter who declined to vote", async () => {
+        setUpUnderVote(EUnderVotePolicy.WARN_AND_CONFIRM_IN_REVIEW)
+        mockState = {
+            ...mockState,
+            extra: {...mockState.extra, declinedToVote: {"election-1": true}},
+        }
+        const user = userEvent.setup()
+        renderRoute(<ReviewScreen />, "review")
+
+        await user.click(screen.getByRole("button", {name: CAST}))
+        await waitFor(() => expect(mockInsertCastVote).toHaveBeenCalledTimes(1))
+        expect(screen.queryByTestId("open-dialog")).toBeNull()
     })
 })
 
