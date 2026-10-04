@@ -103,6 +103,7 @@ test("the cast vote logs count ballots in the event's number format", async () =
     expect(
         await screen.findByRole("heading", {name: "ballotLocator.totalBallots: 1.234.567"})
     ).toBeVisible()
+    expect(screen.getByText("1–5 of 1.234.567")).toBeVisible()
     view.unmount()
 })
 
@@ -113,5 +114,6 @@ test("the cast vote logs group the ballot count with commas by default", async (
     expect(
         await screen.findByRole("heading", {name: "ballotLocator.totalBallots: 1,234,567"})
     ).toBeVisible()
+    expect(screen.getByText("1–5 of 1,234,567")).toBeVisible()
     view.unmount()
 })
