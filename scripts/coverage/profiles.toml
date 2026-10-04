@@ -61,6 +61,7 @@ issue = "https://github.com/sequentech/meta/issues/13302"
 # These files have no measured executable bodies. If one gains executable code,
 # the reporter rejects the exception instead of hiding its new implementation.
 [profiles.sequent-core.scope_exceptions]
+"src/types/scheduled_outcome.rs" = "Data declarations and derive-generated API traits only; JSON compatibility is tested in time_zones_tests. No explicit executable bodies; the reporter rejects this exception if measured code appears."
 "src/ballot_codec/mod.rs" = "Module declarations, re-exports and a marker trait without methods."
 "src/ballot_verifier.rs" = "Imports only; no executable implementation."
 "src/election_config/mod.rs" = "Module declarations and re-exports."
@@ -132,6 +133,7 @@ issue = "https://github.com/sequentech/meta/issues/13302"
 # These files have no measured executable bodies. If one gains executable code,
 # the reporter rejects the exception instead of hiding its new implementation.
 [profiles.sequent-core-native.scope_exceptions]
+"src/types/scheduled_outcome.rs" = "Data declarations and derive-generated API traits only; JSON compatibility is tested in time_zones_tests. No explicit executable bodies; the reporter rejects this exception if measured code appears."
 "src/ballot_codec/mod.rs" = "Module declarations, re-exports and a marker trait without methods."
 "src/ballot_verifier.rs" = "Imports only; no executable implementation."
 "src/election_config/mod.rs" = "Module declarations and re-exports."

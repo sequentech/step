@@ -536,3 +536,78 @@ fn the_unescaped_dash_counts_only_right_after_the_braces() {
         "{{dateTime}} {{ -zone}}"
     ));
 }
+
+#[test]
+fn nested_pipeline_data_copies_only_timezone_context_and_preserves_other_variables(
+) {
+    let mut target = serde_json::Map::from_iter([
+        ("electionTimezone".to_owned(), json!("UTC")),
+        ("title".to_owned(), json!("Election report")),
+    ]);
+    let source = json!({
+        "electionEventTimezone": "Asia/Manila",
+        "electionTimezone": "Asia/Dubai",
+        "timezoneTexts": {"timezones.abbr.Asia/Dubai": "Gulf"},
+        "title": "Untrusted source title",
+        "unrelated": "ignored"
+    });
+    copy_template_time_variables(&source, &mut target);
+    assert_eq!(
+        target,
+        serde_json::Map::from_iter([
+            ("electionEventTimezone".to_owned(), json!("Asia/Manila")),
+            ("electionTimezone".to_owned(), json!("Asia/Dubai")),
+            (
+                "timezoneTexts".to_owned(),
+                json!({"timezones.abbr.Asia/Dubai": "Gulf"})
+            ),
+            ("title".to_owned(), json!("Election report")),
+        ])
+    );
+    let before = target.clone();
+    copy_template_time_variables(&json!({"unrelated": "ignored"}), &mut target);
+    copy_template_time_variables(&Value::Null, &mut target);
+    assert_eq!(target, before);
+}
+
+#[test]
+fn an_unknown_report_zone_uses_utc_time_and_label_together() {
+    let instant = at("2028-04-08T12:34:00Z");
+    assert_eq!(format_in_zone(instant, "Not/A_Timezone", "%H:%M"), "12:34");
+    assert_eq!(
+        TimeZoneTexts::default().label("Not/A_Timezone", instant),
+        "UTC"
+    );
+}
+
+#[test]
+fn invalid_report_timestamps_are_rejected_instead_of_printing_a_date() {
+    let mut variables = template_time_variables(None, None, &defaults());
+    variables.insert("timestamp".to_owned(), json!("2028-not-a-date"));
+    let error =
+        render_template_text("{{datetime_zone timestamp}}", variables.clone())
+            .unwrap_err();
+    assert!(
+        error.to_string().contains("RFC 3339 date and time"),
+        "{error}"
+    );
+    variables.insert("timestamp".to_owned(), json!(1.5));
+    let error = render_template_text("{{datetime_zone timestamp}}", variables)
+        .unwrap_err();
+    assert!(error.to_string().contains("unix seconds"), "{error}");
+}
+
+#[test]
+fn an_incomplete_language_catalog_falls_back_to_english_timezone_texts() {
+    let configuration = madrid_association(&[]);
+    let catalogs = json!({
+        "es": {"other": "Unrelated translation"},
+        "en": {"timezones": {"name": {"Europe/Madrid": "Madrid Time"}}}
+    });
+    let variables =
+        template_time_variables(Some(&configuration.event), None, &catalogs);
+    assert_eq!(
+        render("{{timezone_name electionEventTimezone}}", variables),
+        "Madrid Time"
+    );
+}
