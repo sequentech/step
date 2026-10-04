@@ -112,3 +112,33 @@ fn an_unreachable_database_fails_the_realm_permission_migration() {
     assert!(stderr.contains("Hasura DB"), "{stderr}");
     assert!(stderr.contains("error connecting to server"), "{stderr}");
 }
+
+#[test]
+fn an_unreachable_database_refuses_the_registration_flow_migration() {
+    let port = TcpListener::bind("127.0.0.1:0")
+        .unwrap()
+        .local_addr()
+        .unwrap()
+        .port();
+    let output = Command::new(env!("CARGO_BIN_EXE_step-cli"))
+        .args(["step", "migrate-registration-flows"])
+        .env("HASURA_DB__HOST", "127.0.0.1")
+        .env("HASURA_DB__PORT", port.to_string())
+        .env("HASURA_DB__USER", "synthetic")
+        .env("HASURA_DB__PASSWORD", "synthetic")
+        .env("HASURA_DB__DBNAME", "synthetic")
+        .env("LOW_SQL_LIMIT", "1000")
+        .env("DEFAULT_SQL_LIMIT", "20")
+        .env("DEFAULT_SQL_BATCH_SIZE", "1000")
+        .env_remove("KEYCLOAK_URL")
+        .output()
+        .unwrap();
+    // A failed migration must be visible to deployment scripts and must not
+    // print a successful realm outcome. The shared pool currently panics on
+    // connection failure; the diagnostic must still name the actual backend.
+    assert!(!output.status.success());
+    assert!(output.stdout.is_empty());
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("Hasura DB"), "{stderr}");
+    assert!(stderr.contains("error connecting to server"), "{stderr}");
+}

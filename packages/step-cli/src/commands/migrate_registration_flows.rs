@@ -53,12 +53,17 @@ mod tests {
             ),
             ("tenant-a-event-c".to_string(), FlowOutcome::AlreadyPresent),
             ("tenant-a-event-d".to_string(), FlowOutcome::NoRealm),
+            (
+                "tenant-a-event-e".to_string(),
+                FlowOutcome::NoRegistrationForm,
+            ),
         ];
         assert_eq!(
             report(&migrated),
             "tenant-a-event-b: added to registration form\n\
              tenant-a-event-c: already present\n\
-             tenant-a-event-d: no realm\n"
+             tenant-a-event-d: no realm\n\
+             tenant-a-event-e: no registration form\n"
         );
     }
 }
