@@ -126,7 +126,11 @@ import {
 } from "@/components/election-event/PasswordPolicyAccordion"
 import {SettingsLanguageSelector} from "../../components/SettingsLanguageSelector"
 import {BallotReceiptsInput} from "./BallotReceiptsInput"
-import {VOTER_SIGNING_POLICY_SOURCE, areReceiptsSignedByBallotBox} from "@/services/BallotReceipts"
+import {
+    VOTER_SIGNING_POLICY_SOURCE,
+    areReceiptsSignedByBallotBox,
+    parseChecksAvailableUntil,
+} from "@/services/BallotReceipts"
 import {
     CONFIGURE_RESULTS_WEBSITE_POLICY,
     ConfigureResultsWebsitePolicyData,
@@ -1725,11 +1729,7 @@ export const EditElectionEventDataForm: React.FC<{
                                     <DateTimeInput
                                         disabled={!canEdit}
                                         source="presentation.receipts.checks_available_until"
-                                        parse={(value: string) =>
-                                            value && !Number.isNaN(new Date(value).getTime())
-                                                ? new Date(value).toISOString()
-                                                : null
-                                        }
+                                        parse={parseChecksAvailableUntil}
                                         label={String(
                                             t(
                                                 "electionEventScreen.field.ballotReceipts.checksAvailableUntil",

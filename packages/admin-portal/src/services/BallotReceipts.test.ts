@@ -5,6 +5,7 @@ import {EReceiptsPolicy, EVotingStatus} from "@sequentech/ui-core"
 import {
     areReceiptsSignedByBallotBox,
     hasVotingStarted,
+    parseChecksAvailableUntil,
     receiptsHelperTextKey,
 } from "./BallotReceipts"
 
@@ -72,5 +73,20 @@ describe("receiptsHelperTextKey", () => {
         expect(receiptsHelperTextKey(true)).toBe(
             "electionEventScreen.field.receiptsPolicy.lockedHelperText"
         )
+    })
+})
+
+describe("parseChecksAvailableUntil", () => {
+    it("stores the chosen local time as an RFC 3339 instant", () => {
+        expect(parseChecksAvailableUntil("2028-06-07T23:59:00+08:00")).toBe(
+            "2028-06-07T15:59:00.000Z"
+        )
+    })
+
+    it("stores nothing for an empty or unreadable date", () => {
+        expect(parseChecksAvailableUntil("")).toBeNull()
+        expect(parseChecksAvailableUntil(null)).toBeNull()
+        expect(parseChecksAvailableUntil(undefined)).toBeNull()
+        expect(parseChecksAvailableUntil("not a date")).toBeNull()
     })
 })

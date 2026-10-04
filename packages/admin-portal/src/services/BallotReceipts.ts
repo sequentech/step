@@ -24,3 +24,6 @@ export const receiptsHelperTextKey = (votingStarted: boolean): string =>
     votingStarted
         ? "electionEventScreen.field.receiptsPolicy.lockedHelperText"
         : "electionEventScreen.field.receiptsPolicy.helperText"
+
+export const parseChecksAvailableUntil = (value?: string | null): string | null =>
+    value && !Number.isNaN(new Date(value).getTime()) ? new Date(value).toISOString() : null
