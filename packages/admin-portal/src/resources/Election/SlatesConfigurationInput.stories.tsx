@@ -14,6 +14,7 @@ import {
 } from "@/__stories__/AdminStoryProvider"
 import {candidateRecords, contestRecord} from "@/__stories__/fixtures"
 import {resourceBoundary} from "@/__stories__/resourceBoundary"
+import type {Sequent_Backend_Contest} from "@/gql/graphql"
 import type {WidgetMeta} from "@/__stories__/widgetStory"
 import {SLATES_FORM_FIELD} from "@/utils/slates"
 import {SlatesConfigurationInput} from "./SlatesConfigurationInput"
@@ -58,7 +59,7 @@ const meta = {
             <SimpleForm record={{id: 1, [SLATES_FORM_FIELD]: configuration}} toolbar={false}>
                 <SlatesConfigurationInput
                     defaultLanguage="en"
-                    contests={[contestRecord()]}
+                    contests={[contestRecord()] as Sequent_Backend_Contest[]}
                     tenantId={TENANT_ID}
                     electionEventId={EVENT_ID}
                 />
