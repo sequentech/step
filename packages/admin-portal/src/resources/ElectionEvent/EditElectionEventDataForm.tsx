@@ -460,6 +460,7 @@ export const EditElectionEventDataForm: React.FC<{
             }
 
             temp.presentation.elections_order ??= ElectionsOrder.ALPHABETICAL
+            temp.presentation.number_format_policy ??= DEFAULT_NUMBER_FORMAT_POLICY
 
             if (!temp.presentation.voting_portal_countdown_policy) {
                 temp.presentation.voting_portal_countdown_policy = {
@@ -1276,7 +1277,6 @@ export const EditElectionEventDataForm: React.FC<{
                                                 "electionEventScreen.field.numberFormatPolicy.helperText"
                                             )
                                         )}
-                                        defaultValue={DEFAULT_NUMBER_FORMAT_POLICY}
                                         emptyText={undefined}
                                         validate={required()}
                                     />
