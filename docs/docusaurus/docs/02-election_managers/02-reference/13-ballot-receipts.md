@@ -20,7 +20,7 @@ The setting is off by default. Election events without it keep computing the Bal
 ## Enabling the setting
 
 1. Open the **Election Event** and go to the **Data** tab.
-2. Expand **Ballot receipts**.
+2. Expand **Ballot Receipts**.
 3. Set **Receipts signed by the ballot box** to **Signed by the ballot box**.
 4. Save, then publish the ballots again in the **Publish** tab.
 

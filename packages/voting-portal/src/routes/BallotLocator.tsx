@@ -787,7 +787,7 @@ const BallotLocatorLogic: React.FC<BallotLocatorLogicProps> = ({electionEvent}) 
         variables: {
             electionEventId: eventId,
             electionId,
-            ballotId: ballotId ?? "",
+            ballotId: ballotId?.toLowerCase() ?? "",
         },
         skip:
             globalSettings.DISABLE_AUTH ||

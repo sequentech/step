@@ -500,6 +500,10 @@ const frenchTranslation: TranslationType = {
                     },
                 },
                 event: {
+                    "checks-period-invalid": {
+                        lead: "Période de vérification non valide",
+                        text: "Période de vérification non valide — la période pendant laquelle les électeurs peuvent vérifier leur bulletin n'a pas pu être lue : {{reason}}",
+                    },
                     "no-identifier": {
                         lead: "Aucun identifiant",
                         text: "Aucun identifiant — chaque id généré en est dérivé, donc sans lui rien ne peut être généré deux fois de la même façon.",

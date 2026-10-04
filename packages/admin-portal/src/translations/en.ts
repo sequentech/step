@@ -471,7 +471,7 @@ const englishTranslation = {
                 language: "Language",
                 allowed: "Voting Channels Allowed",
                 materials: "Support Materials",
-                ballotReceipts: "Ballot receipts",
+                ballotReceipts: "Ballot Receipts",
                 ballotDesign: "Ballot Design",
                 templates: "Templates",
                 reorder: "Reorder elections",

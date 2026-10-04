@@ -496,6 +496,10 @@ const basqueTranslation: TranslationType = {
                     },
                 },
                 event: {
+                    "checks-period-invalid": {
+                        lead: "Egiaztatze-epea ez da baliozkoa",
+                        text: "Egiaztatze-epea ez da baliozkoa — ezin izan da irakurri hautesleek emandako botoa egiaztatzeko duten epea: {{reason}}",
+                    },
                     "no-identifier": {
                         lead: "Identifikatzailerik ez",
                         text: "Identifikatzailerik ez — sortutako ID guztiak horretatik eratortzen dira, beraz, bat gabe ezin da ezer bi aldiz modu berean eraiki.",

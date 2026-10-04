@@ -90,7 +90,7 @@ const SAVED_PRESENTATION_DEFAULTS = {
     show_cast_vote_logs: "hide-logs-tab",
     automatic_recount_policy: "disabled",
     materials: {policy: "off"},
-    receipts: {policy: "disabled"},
+    receipts: {policy: "disabled", checks_period_policy: "unlimited"},
     contest_encryption_policy: "single-contest",
     locked_down: "not-locked-down",
     decoded_ballot_inclusion_policy: "not-included",
@@ -100,7 +100,6 @@ const SAVED_PRESENTATION_DEFAULTS = {
     voting_portal_datetime_format: "legacy-gb-24h",
     voter_signing_policy: "no-signature",
     voter_certificate_policy: "disabled",
-    receipts: {checks_period_policy: "unlimited"},
 }
 
 async function save(page: Page, portal: AdminPortal) {
@@ -480,6 +479,7 @@ test("saves a period for checking cast ballots and requires its date", async ({p
     const update = await save(page, portal)
     const presentation = (update._set as {presentation: Row}).presentation
     expect(presentation.receipts).toEqual({
+        policy: "disabled",
         checks_period_policy: "until-date",
         checks_available_until: until,
     })

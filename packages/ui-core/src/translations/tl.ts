@@ -498,6 +498,10 @@ const tagalogTranslation: TranslationType = {
                     },
                 },
                 event: {
+                    "checks-period-invalid": {
+                        lead: "Hindi wasto ang panahon ng pagsusuri",
+                        text: "Hindi wasto ang panahon ng pagsusuri — hindi mabasa ang panahon kung kailan masusuri ng mga botante ang kanilang naihulog na balota: {{reason}}",
+                    },
                     "no-identifier": {
                         lead: "Walang identifier",
                         text: "Walang identifier — dito hinahango ang bawat nabuong id, kaya kung wala ito, walang mabubuo nang dalawang beses sa parehong paraan.",

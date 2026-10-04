@@ -499,6 +499,10 @@ const spanishTranslation: TranslationType = {
                     },
                 },
                 event: {
+                    "checks-period-invalid": {
+                        lead: "Periodo de comprobación no válido",
+                        text: "Periodo de comprobación no válido — no se pudo leer el periodo en el que los votantes pueden comprobar su voto emitido: {{reason}}",
+                    },
                     "no-identifier": {
                         lead: "Sin identificador",
                         text: "Sin identificador — cada id generado se deriva de él, así que sin uno nada puede construirse dos veces igual.",

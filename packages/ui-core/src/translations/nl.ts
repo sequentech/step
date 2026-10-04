@@ -497,6 +497,10 @@ const dutchTranslation: TranslationType = {
                     },
                 },
                 event: {
+                    "checks-period-invalid": {
+                        lead: "Controleperiode niet geldig",
+                        text: "Controleperiode niet geldig — de periode waarin kiezers hun uitgebrachte stem kunnen controleren kon niet worden gelezen: {{reason}}",
+                    },
                     "no-identifier": {
                         lead: "Geen identificatie",
                         text: "Geen identificatie — elke gegenereerde id wordt ervan afgeleid, dus zonder identificatie kan niets twee keer op dezelfde manier worden opgebouwd.",
