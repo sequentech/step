@@ -57,7 +57,10 @@ use sequent_core::ballot::{
 };
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::services::s3;
-use sequent_core::sqlite::election_event::replace_election_event_translation_overrides_sqlite;
+use sequent_core::sqlite::election_event::{
+    replace_election_event_number_format_policy_sqlite,
+    replace_election_event_translation_overrides_sqlite,
+};
 use sequent_core::temp_path::{generate_temp_file, get_file_size};
 use sequent_core::types::hasura::extra::TasksExecutionStatus;
 use serde_json::{json, Value};
@@ -994,6 +997,32 @@ async fn source_sqlite_file(
     get_document_as_temp_file(&publication.tenant_id, &document).await
 }
 
+/// The tally stored the event's presentation as it was then. Its translations
+/// and number format may have changed since, and the published results use
+/// the current ones.
+fn refresh_presentation_snapshot(
+    source_path: &Path,
+    election_event_id: &str,
+    current_presentation: &ElectionEventPresentation,
+) -> Result<()> {
+    let current_translation_overrides = current_presentation
+        .i18n
+        .as_ref()
+        .map(serde_json::to_value)
+        .transpose()?;
+    let source_connection = Connection::open(source_path)?;
+    replace_election_event_translation_overrides_sqlite(
+        &source_connection,
+        election_event_id,
+        current_translation_overrides.as_ref(),
+    )?;
+    replace_election_event_number_format_policy_sqlite(
+        &source_connection,
+        election_event_id,
+        current_presentation.number_format_policy,
+    )
+}
+
 fn publication_base_path(publication: &TallyResultsPublication) -> String {
     match publication.route_scope {
         ResultsRouteScope::Election => format!(
@@ -1327,17 +1356,11 @@ pub(crate) async fn prepare_publication_source(
             .await?
             .get_presentation()?
             .unwrap_or_default();
-    let current_translation_overrides = current_presentation
-        .i18n
-        .map(serde_json::to_value)
-        .transpose()?;
-    let source_connection = Connection::open(&source_path)?;
-    replace_election_event_translation_overrides_sqlite(
-        &source_connection,
+    refresh_presentation_snapshot(
+        &source_path,
         &publication.election_event_id,
-        current_translation_overrides.as_ref(),
+        &current_presentation,
     )?;
-    drop(source_connection);
     let contests = query_manifest_contests(&source_path, publication, selected_contests)?;
     let custom_css = query_manifest_custom_css(&source_path, publication)?;
     let language_config = query_manifest_language_config(&source_path, publication)?;
@@ -2121,6 +2144,7 @@ mod tests {
     use crate::domain::results_publication::fixtures::*;
     use crate::postgres::tally_results_publication::PublicationSourceFacts;
     use sequent_core::ballot::{ResultsWebsitePolicy, ResultsWebsiteStatus};
+    use sequent_core::types::number_format::NumberFormatPolicy;
 
     fn row_count(conn: &Connection, table: &str) -> Result<i64> {
         Ok(
@@ -2198,6 +2222,81 @@ mod tests {
             error_message: None,
             published_by_user_id: None,
         }
+    }
+
+    fn tally_snapshot_with_event_presentation(presentation: &str) -> Result<NamedTempFile> {
+        let source = generate_temp_file("results-publication-source", ".sqlite")?;
+        let conn = Connection::open(source.path())?;
+        conn.execute_batch("CREATE TABLE election_event (id TEXT, presentation TEXT);")?;
+        conn.execute(
+            "INSERT INTO election_event VALUES ('event-1', ?)",
+            [presentation],
+        )?;
+        Ok(source)
+    }
+
+    fn published_event_presentation(
+        publication: &TallyResultsPublication,
+        source: &NamedTempFile,
+    ) -> Result<ElectionEventPresentation> {
+        let target = copy_filtered_sqlite(
+            source.path(),
+            publication,
+            &publication.published_contest_ids,
+            None,
+        )?;
+        let presentation: String = Connection::open(target.path())?.query_row(
+            "SELECT presentation FROM election_event",
+            [],
+            |row| row.get(0),
+        )?;
+        Ok(serde_json::from_str(&presentation)?)
+    }
+
+    #[test]
+    fn published_results_use_the_events_current_number_format() -> Result<()> {
+        let publication = test_publication();
+        let source = tally_snapshot_with_event_presentation(
+            r#"{"css":"tally-css","i18n":{"en":{"resultsPortal:key":"tally"}}}"#,
+        )?;
+        let current_presentation = ElectionEventPresentation {
+            number_format_policy: Some(NumberFormatPolicy::PeriodComma),
+            ..Default::default()
+        };
+
+        refresh_presentation_snapshot(
+            source.path(),
+            &publication.election_event_id,
+            &current_presentation,
+        )?;
+        let published = published_event_presentation(&publication, &source)?;
+
+        assert_eq!(
+            published.number_format_policy,
+            Some(NumberFormatPolicy::PeriodComma)
+        );
+        assert_eq!(published.css.as_deref(), Some("tally-css"));
+        assert_eq!(published.i18n, None);
+        Ok(())
+    }
+
+    #[test]
+    fn published_results_drop_a_number_format_the_event_no_longer_sets() -> Result<()> {
+        let publication = test_publication();
+        let source = tally_snapshot_with_event_presentation(
+            r#"{"css":"tally-css","number_format_policy":"space-comma"}"#,
+        )?;
+
+        refresh_presentation_snapshot(
+            source.path(),
+            &publication.election_event_id,
+            &ElectionEventPresentation::default(),
+        )?;
+        let published = published_event_presentation(&publication, &source)?;
+
+        assert_eq!(published.number_format_policy, None);
+        assert_eq!(published.css.as_deref(), Some("tally-css"));
+        Ok(())
     }
 
     #[test]
