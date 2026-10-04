@@ -73,6 +73,7 @@ import {
     ISlate,
     ISlateChoices,
 } from ".."
+import {SLATES_ANNOTATION} from "../types/Slates"
 
 export type {
     IPermission,
@@ -412,11 +413,17 @@ export const check_voting_error_dialog_bool = (
     }
 }
 
+const hasSlates = (ballotStyle: IBallotStyle): boolean =>
+    SLATES_ANNOTATION in (ballotStyle.election_annotations ?? {})
+
 /**
  * The slates a ballot style carries, or null when its election has none.
  * Throws the list of problems (ISlateProblem) of an invalid configuration.
  */
 export const getBallotStyleSlates = (ballotStyle: IBallotStyle): ISlatesConfig | null => {
+    if (!hasSlates(ballotStyle)) {
+        return null
+    }
     try {
         return get_ballot_style_slates_js(ballotStyle) ?? null
     } catch (error) {
@@ -433,6 +440,9 @@ export const getBallotStyleSlates = (ballotStyle: IBallotStyle): ISlatesConfig |
 export const getBallotStyleSlatesCoverage = (
     ballotStyle: IBallotStyle
 ): Array<ISlateCoverage> | null => {
+    if (!hasSlates(ballotStyle)) {
+        return null
+    }
     try {
         return get_ballot_style_slates_coverage_js(ballotStyle) ?? null
     } catch (error) {

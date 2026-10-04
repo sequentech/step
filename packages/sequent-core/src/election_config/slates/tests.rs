@@ -242,6 +242,17 @@ fn a_slate_needs_a_name() {
 }
 
 #[test]
+fn a_name_needs_a_language_code() {
+    let mut document = sample();
+    document["slates"][0]["name"][" "] = json!("Forward Together");
+
+    let problem = only_problem(document);
+
+    assert_eq!(problem.code, Code::InvalidValue);
+    assert_eq!(problem.path, "slates.slates[0].name");
+}
+
+#[test]
 fn a_blank_translation_is_refused() {
     let mut document = sample();
     document["slates"][0]["name"]["es"] = json!("   ");

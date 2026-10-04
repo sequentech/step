@@ -313,3 +313,10 @@ fn a_ballot_style_enforces_contest_limits() {
         vec![Code::ContestArithmetic]
     );
 }
+
+#[test]
+fn a_ballot_style_with_an_unreadable_annotation_is_refused() {
+    let style =
+        ballot_style(&[PRESIDENT, TRUSTEES], Some(&json!("not slates")));
+    assert!(!check_ballot_style(&style, PATH).is_empty());
+}

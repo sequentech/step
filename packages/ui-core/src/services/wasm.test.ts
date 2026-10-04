@@ -78,6 +78,10 @@ const decoded = decodedContest({choices: [{id: "candidate-1", selected: 0}]})
 const multiBallot = {...auditableBallot, contests: "synthetic-multi-contest"}
 const option = candidate("candidate-1")
 const question = contest({candidates: [option]})
+const slatesBallotStyle = {
+    ...ballotStyle,
+    election_annotations: {[publicApi.SLATES_ANNOTATION]: "{}"},
+}
 const slate = {id: "slate-1", name: {en: "Slate"}, members: {[question.id]: [option.id]}}
 const election = {
     id: "election-1",
@@ -356,16 +360,16 @@ const cases: AdapterCase[] = [
     },
     {
         name: "ballot style slates",
-        run: () => adapter.getBallotStyleSlates(ballotStyle),
+        run: () => adapter.getBallotStyleSlates(slatesBallotStyle),
         backend: backend.get_ballot_style_slates_js,
-        args: [ballotStyle],
+        args: [slatesBallotStyle],
         result: {version: 1, mobile_candidate_lists: "collapsed", slates: []},
     },
     {
         name: "ballot style slates coverage",
-        run: () => adapter.getBallotStyleSlatesCoverage(ballotStyle),
+        run: () => adapter.getBallotStyleSlatesCoverage(slatesBallotStyle),
         backend: backend.get_ballot_style_slates_coverage_js,
-        args: [ballotStyle],
+        args: [slatesBallotStyle],
         result: [
             {
                 slate_id: "voices",
@@ -414,6 +418,23 @@ it("does not invoke WASM for empty collections or an absent counting algorithm",
     expect(backend.sort_contests_list_js).not.toHaveBeenCalled()
     expect(backend.sort_candidates_list_js).not.toHaveBeenCalled()
     expect(backend.is_preferential_js).not.toHaveBeenCalled()
+})
+
+it("does not invoke WASM for a ballot style without slates", () => {
+    expect(adapter.getBallotStyleSlates(ballotStyle)).toBeNull()
+    expect(adapter.getBallotStyleSlatesCoverage(ballotStyle)).toBeNull()
+    expect(
+        adapter.getBallotStyleSlates({...ballotStyle, election_annotations: {other: "value"}})
+    ).toBeNull()
+    expect(backend.get_ballot_style_slates_js).not.toHaveBeenCalled()
+    expect(backend.get_ballot_style_slates_coverage_js).not.toHaveBeenCalled()
+})
+
+it("reports no slates when the configured annotation resolves to none", () => {
+    jest.mocked(backend.get_ballot_style_slates_js).mockReturnValue(undefined)
+    jest.mocked(backend.get_ballot_style_slates_coverage_js).mockReturnValue(undefined)
+    expect(adapter.getBallotStyleSlates(slatesBallotStyle)).toBeNull()
+    expect(adapter.getBallotStyleSlatesCoverage(slatesBallotStyle)).toBeNull()
 })
 
 it("interprets each contest in order and refuses partial results on failure", () => {
