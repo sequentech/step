@@ -31,7 +31,7 @@ interface Scenario {
 }
 let boundary: ReturnType<typeof graphqlBoundary>
 const meta = {
-    title: "Admin/Timezones/RetainedSignedCloses",
+    title: "Admin/Timezones/RetainedSignedCloseNotice",
     component: RetainedSignedCloseNotice,
     args: {processed: false},
     beforeEach: () => {
