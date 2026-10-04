@@ -27,6 +27,7 @@ fn isolated(test: &str) -> bool {
             .env(CHILD, test)
             .env("KEYCLOAK_ADMIN_CLIENT_ID", "synthetic-admin")
             .env("KEYCLOAK_ADMIN_CLIENT_SECRET", "synthetic-secret")
+            .env("SUPER_ADMIN_TENANT_ID", "fixture-super-admin")
             .stdout(output.try_clone().unwrap())
             .stderr(output)
             .spawn()
