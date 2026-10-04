@@ -36,8 +36,8 @@ interface Scenario extends EventDataScenario {
     saved: Mock<(values: RaRecord<Identifier>) => void>
     /** A save rejects with this message. */
     saveError?: string
-    /** The event's number format code, if it names one. */
-    numberFormatPolicy?: string
+    /** The event's number format code, or the `null` stored for an event without one. */
+    numberFormatPolicy?: string | null
 }
 
 let boundaries: ReturnType<typeof eventDataBoundaries>
@@ -328,6 +328,28 @@ export const UnknownNumberFormatToDefault: Story = {
         await openSection(canvasElement, "languageAndRegion")
         await choose(canvasElement, field("numberFormatPolicy.policyLabel"), "1,234,567.89")
         await openSection(canvasElement, "general", "languageAndRegion")
+        await userEvent.click(saveButton(canvasElement))
+        await waitFor(() => expect(args.saved).toHaveBeenCalledTimes(1))
+        const [values] = args.transform.mock.calls[0]
+        expect(values).toMatchObject({
+            presentation: {number_format_policy: ENumberFormatPolicy.COMMA_PERIOD},
+        })
+    },
+}
+
+export const NumberFormatStoredAsNull: Story = {
+    args: {numberFormatPolicy: null},
+    parameters: {widgets: ["EventSaveButton"]},
+    play: async ({canvasElement, args}) => {
+        const canvas = await loaded(canvasElement)
+        // An event without a format stores `null`, which is shown as the default.
+        await openSection(canvasElement, "languageAndRegion")
+        await expect(
+            canvas.getByRole("combobox", {name: field("numberFormatPolicy.policyLabel")})
+        ).toHaveTextContent("1,234,567.89")
+        // Saving another change writes the default.
+        await openSection(canvasElement, "general", "languageAndRegion")
+        await editDescription(canvasElement)
         await userEvent.click(saveButton(canvasElement))
         await waitFor(() => expect(args.saved).toHaveBeenCalledTimes(1))
         const [values] = args.transform.mock.calls[0]
