@@ -29,6 +29,7 @@ import {
 import {DocumentKind, SigningAction} from "@/lib/signing/types"
 import {actionObject, documentTypeLabel, shortHash} from "./format"
 import {problemMessage, useSignedView} from "./useSignedView"
+import {ConfigurationAuthorizes, LIFECYCLE_SUBJECT_KEYS} from "./ConfigurationAuthorizes"
 
 export enum SigningSubjectVariant {
     Panel = "panel",
@@ -218,6 +219,11 @@ export const SigningSubject: React.FC<{
     const {view, problem} = useSignedView(data)
     const kind = documentKindOf(data.request)
     const notes = subjectNotes(t, data.request.action)
+    // A configuration approval shows its lifecycle snapshot in words, not as rows.
+    const configuration = data.request.action === SigningAction.ApproveConfiguration
+    const rows = (view?.rows ?? []).filter(
+        (row) => !configuration || !LIFECYCLE_SUBJECT_KEYS.includes(row.key)
+    )
 
     return (
         <Stack spacing={2}>
@@ -228,7 +234,7 @@ export const SigningSubject: React.FC<{
             ) : null}
             {view && kind !== DocumentKind.NoDocument ? (
                 <DocumentCard data={data} view={view} api={api} />
-            ) : view && (view.rows.length || notes.length) ? (
+            ) : view && (rows.length || notes.length) ? (
                 <Box>
                     {data.request.action === SigningAction.ApproveConfiguration ? (
                         <Typography variant="subtitle2" component="h3" sx={{mb: 1}}>
@@ -237,7 +243,7 @@ export const SigningSubject: React.FC<{
                     ) : null}
                     <Table size="small" aria-label={t("signing.widget.panel.details")}>
                         <TableBody>
-                            {view.rows.map((row) => (
+                            {rows.map((row) => (
                                 <TableRow key={row.key}>
                                     <TableCell
                                         component="th"
@@ -281,6 +287,13 @@ export const SigningSubject: React.FC<{
                         </TableBody>
                     </Table>
                 </Box>
+            ) : null}
+            {view && configuration ? (
+                <ConfigurationAuthorizes
+                    subject={view.subject}
+                    electionEventId={data.request.election_event_id}
+                    requestId={data.request.id}
+                />
             ) : null}
             <Stack
                 direction={{xs: "column", sm: "row"}}

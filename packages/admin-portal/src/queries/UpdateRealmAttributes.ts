@@ -10,7 +10,7 @@ export interface UpdateRealmAttributesMutation {
 }
 
 export const UPDATE_REALM_ATTRIBUTES = gql`
-    mutation UpdateRealmAttributes($election_event_id: String!, $attributes: jsonb!) {
+    mutation UpdateRealmAttributes($election_event_id: uuid!, $attributes: jsonb!) {
         update_realm_attributes(election_event_id: $election_event_id, attributes: $attributes) {
             updated
         }

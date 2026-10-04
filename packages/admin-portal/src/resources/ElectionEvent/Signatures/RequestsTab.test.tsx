@@ -20,6 +20,9 @@ import {signaturesAccess} from "./signingSettings"
 
 jest.mock("@sequentech/ui-core", () => ({
     ...jest.requireActual("../../../../../ui-core/src/utils/typechecks"),
+    // The request times are labelled through the timezone service.
+    ...jest.requireActual("../../../../../ui-core/src/services/timeZones"),
+    ...jest.requireActual("../../../../../ui-core/src/services/eventTimeZones"),
     downloadUrl: jest.fn(() => Promise.resolve()),
 }))
 jest.mock("@sequentech/ui-essentials", () => ({Dialog: () => null}), {virtual: true})

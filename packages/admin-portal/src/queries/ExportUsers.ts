@@ -7,7 +7,7 @@ export const EXPORT_USERS = gql`
     mutation ExportUsers(
         $tenantId: String!
         $electionEventId: String
-        $electionId: String
+        $electionId: uuid
         $includeSecretAttributes: Boolean
     ) {
         export_users(

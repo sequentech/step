@@ -213,6 +213,51 @@ const frenchTranslation: TranslationType = {
             exportdialog: {
                 description:
                     "Veuillez confirmer que vous souhaitez exécuter cette action, cela pourrait prendre un certain temps.",
+                title: "Exporter les journaux",
+                from: "Du",
+                to: "Au",
+                timeZone: "Fuseau horaire",
+                format: "Format",
+                csv: "CSV",
+                pdf: "PDF",
+                zoneNote:
+                    "Chaque ligne conserve son heure en UTC (ISO 8601) et en {{abbr}}, avec le nom du fuseau horaire. La plage de dates inclut les deux bornes, en {{abbr}}.",
+                zoneNotePdf:
+                    "Le PDF affiche chaque heure en {{abbr}}. La plage de dates inclut les deux bornes, en {{abbr}}.",
+                rowZones: "Le fuseau horaire de l'élection de chaque ligne",
+                zoneNoteRows:
+                    "Chaque ligne conserve son heure en UTC (ISO 8601) et dans le fuseau horaire de son élection, avec le nom du fuseau horaire. La plage de dates inclut les deux bornes, en {{abbr}}.",
+                zoneNoteRowsPdf:
+                    "Le PDF affiche chaque heure dans le fuseau horaire de son élection. La plage de dates inclut les deux bornes, en {{abbr}}.",
+            },
+            filter: {
+                createdFrom: "Créé du",
+                createdTo: "au",
+                statementTimestampFrom: "Horodatage de la déclaration du",
+                statementTimestampTo: "Horodatage de la déclaration au",
+                timeZone: "Fuseau horaire",
+            },
+            scheduledOutcome: {
+                outcome: {
+                    "waiting-for-initialization": "En attente d’initialisation",
+                    "runs": "s'exécute",
+                    "runs-unsigned": "s'exécute sans signatures",
+                    "refused": "est refusée",
+                },
+                check: {
+                    "initialization": "L’initialisation requise est incomplète",
+                    "voting-close": "Le vote ne peut pas ouvrir après sa date limite de clôture",
+                    "needs-signatures": "signatures requises",
+                    "covered": "dans la configuration signée",
+                    "unsigned-close": "fermeture sans signatures",
+                    "stricter-copy": "paramètres actuels ou publiés",
+                    "defaults": "rien n'est encore publié",
+                },
+                changed: "Désormais {{after}} (avant : {{before}}).",
+                result: "Résultat : {{outcome}}.",
+                deciding: "Vérification décisive : {{check}}. {{value}}",
+                authorizedBy: "Autorisée par la configuration {{code}}.",
+                nextStep: "Étape suivante : {{step}}",
             },
             column: {
                 id: "ID",
@@ -505,6 +550,7 @@ const frenchTranslation: TranslationType = {
                     duplicateKey: "Un remplacement avec cette clé et cette portée existe déjà.",
                     invalidDateTimeFormat:
                         "Format de date/heure non valide. Utilisez les jetons yyyy, MM, dd, HH, mm, ss (ex. dd/MM/yyyy HH:mm).",
+                    invalidTimeZoneText: "Ce texte doit conserver {{placeholders}}.",
                 },
                 common: {
                     title: "Localisation",
@@ -522,6 +568,7 @@ const frenchTranslation: TranslationType = {
                     ballotVerifier: "Vérificateur de bulletins",
                     resultsPortal: "Portail des résultats",
                     adminPortal: "Portail d'administration",
+                    templates: "Rapports et messages",
                 },
             },
             field: {
@@ -593,6 +640,8 @@ const frenchTranslation: TranslationType = {
                 },
                 lockdownState: {
                     policyLabel: "État de Confinement",
+                    helperText:
+                        "Programmez le début ou la fin de la période de verrouillage pour modifier cet état.",
                     options: {
                         "locked-down": "Confiné",
                         "not-locked-down": "Non Confiné",
@@ -1608,6 +1657,22 @@ const frenchTranslation: TranslationType = {
                 START_LOCKDOWN_PERIOD: "Début de la période de blocage des données du recensement",
                 END_LOCKDOWN_PERIOD: "Fin de la période de blocage des données du recensement",
                 ALLOW_TALLY: "Autoriser le décompte",
+                START_READINESS_TEST: "Démarrer le test de préparation électorale",
+                END_READINESS_TEST: "Terminer le test de préparation électorale",
+                START_FINAL_TESTING: "Démarrer les tests finaux et le verrouillage",
+                END_FINAL_TESTING: "Terminer les tests finaux et le verrouillage",
+                START_TEST_VOTING: "Démarrer le vote de test",
+                END_TEST_VOTING: "Terminer le vote de test",
+            },
+            warning: {
+                votingWindowDays:
+                    "La période de vote de {{election}} couvre {{days}} jours locaux (du {{start_local}} au {{end_local}}, {{time_zone}}) ; la règle en demande {{expected}}.",
+                finalTestingLeadTime:
+                    "Les tests finaux de {{election}} commencent le {{final_testing_local}}, moins de {{minimum_days}} jours avant l'ouverture du vote le {{voting_start_local}} ({{time_zone}}).",
+                closeBeforeOpen:
+                    "Le vote de {{election}} se clôture au moment de son ouverture ou avant ({{start_local}} à {{end_local}}, {{time_zone}}).",
+                shortLastDay:
+                    "Le dernier jour de vote de {{election}} compte {{hours}} heures, moins de {{minimum_hours}} : le vote se clôture le {{end_local}} ({{time_zone}}).",
             },
             election: {
                 label: "Élection",
@@ -2454,6 +2519,15 @@ const frenchTranslation: TranslationType = {
                 "Exporter les résultats de toutes les zones au format {{format}} pour '{{item}}'",
         },
         publish: {
+            initialization: {
+                countryInfo:
+                    "Générez le rapport pour tout le poste ou pour un pays. Le vote reste bloqué tant que toutes les initialisations requises par pays et pour l’événement entier ne sont pas terminées.",
+                countriesError: "Impossible de charger les pays admissibles. Fermez et réessayez.",
+                noCountries:
+                    "Ce poste n’a aucun pays admissible avec des modèles de bulletin actifs. Vérifiez ses zones et sa publication avant l’initialisation.",
+                country: "Pays",
+                entirePost: "Poste entier",
+            },
             preview: {
                 publicationAreas: "Sélectionnez la zone pour l'aperçu",
                 action: "Aperçu",
@@ -4116,6 +4190,383 @@ const frenchTranslation: TranslationType = {
                 redo: "Votre fragment de clé a été apporté sans votre signature, que cette élection exige désormais. Apportez-le à nouveau et signez-le.",
                 notTaken:
                     "La cérémonie n'accepte plus ce fragment de clé. Déposez à nouveau votre fichier de fragment de clé.",
+            },
+        },
+        lifecycle: {
+            signedClose: {
+                title: "Échéance de clôture signée",
+                deadline: "{{election}} : {{time}} · autorisée par la configuration {{code}}.",
+                explanation:
+                    "Cette échéance signée reste contraignante même si le calendrier modifiable est changé ou supprimé. Le planificateur ferme les canaux autorisés encore ouverts.",
+                reached:
+                    "Cette échéance signée est passée. Vérifiez l’état actuel du vote et le journal d’audit ; son traitement n’a pas encore été enregistré.",
+                processed: "Échéance de clôture signée traitée à {{time}}.",
+                signedAt: "Échéance signée : {{time}}.",
+                channels: "Canaux encore couverts par cette échéance : {{channels}}.",
+                result: "Consultez l’état du vote et le journal d’audit pour connaître les changements réels et le résultat complet.",
+                unavailable:
+                    "Impossible de charger les échéances de clôture signées. Vérifiez le calendrier publié et le journal d’audit.",
+            },
+            picker: {
+                noMatch:
+                    "Aucun fuseau horaire ne correspond. Saisissez une ville, un pays, une zone, une abréviation ou un décalage.",
+            },
+            input: {
+                timezone: "Fuseau horaire",
+                scheduledAt: "Prévu le",
+                meetingStart: "Début de la réunion",
+                cronZone:
+                    "La planification s'exécute dans le fuseau horaire principal de l'événement, {{zone}}.",
+                unconfiguredZone:
+                    "{{zone}} ne fait pas partie des fuseaux horaires configurés de l'événement. Choisissez-en un.",
+            },
+            schedule: {
+                allElections: "Toutes les élections",
+                outcome: "Résultat",
+                noOffset: "Pas de décalage horaire : ne s'exécute jamais",
+                unpublished: "Pas encore publié",
+                notPublished:
+                    "Rien n'est encore publié : les électeurs voient le calendrier après la première publication.",
+                unpublishedChanges_one:
+                    "{{count}} événement planifié a changé depuis la dernière publication. Les électeurs le voient après votre publication.",
+                unpublishedChanges_other:
+                    "{{count}} événements planifiés ont changé depuis la dernière publication. Les électeurs les voient après votre publication.",
+                offsetless_one:
+                    "{{count}} horaire planifié n'a pas de décalage horaire et ne s'exécute donc jamais. Modifiez-le pour définir son fuseau horaire.",
+                offsetless_other:
+                    "{{count}} horaires planifiés n'ont pas de décalage horaire et ne s'exécutent donc jamais. Modifiez-les pour définir leur fuseau horaire.",
+                outcomeChange:
+                    "L'enregistrement modifie l'effet de cette transition planifiée : {{before}} → {{after}}.",
+                outcomeNew: "Une fois enregistrée, cette transition planifiée : {{after}}.",
+                outcomeElections: "{{count}} élections sur {{total}}",
+                exportError: "Le calendrier n'a pas pu être exporté.",
+                exportFileName: "schedule.csv",
+                totals: {
+                    refused_one:
+                        "{{count}} ligne planifiée sera refusée ({{transitions}} transitions d'élections).",
+                    refused_other:
+                        "{{count}} lignes planifiées seront refusées ({{transitions}} transitions d'élections).",
+                    runsUnsigned_one:
+                        "{{count}} clôture planifiée s'exécutera sans signatures ({{transitions}} transitions d'élections).",
+                    runsUnsigned_other:
+                        "{{count}} clôtures planifiées s'exécuteront sans signatures ({{transitions}} transitions d'élections).",
+                    review: "Examiner",
+                    showAll: "Tout afficher",
+                    showing: {
+                        refused:
+                            "Affichage des {{count}} lignes planifiées qui seront refusées ({{transitions}} transitions d'élections).",
+                        runsUnsigned:
+                            "Affichage des {{count}} clôtures planifiées qui s'exécuteront sans signatures ({{transitions}} transitions d'élections).",
+                    },
+                },
+                recompute: {
+                    title_one:
+                        "Une mise à jour de la base de données des fuseaux horaires déplace {{count}} horaire planifié à venir. Rien ne change tant que vous ne l'appliquez pas.",
+                    title_other:
+                        "Une mise à jour de la base de données des fuseaux horaires déplace {{count}} horaires planifiés à venir. Rien ne change tant que vous ne les appliquez pas.",
+                    change: "{{type}} : {{before}} → {{after}}",
+                    apply: "Appliquer",
+                    applied_one: "{{count}} horaire planifié mis à jour.",
+                    applied_other: "{{count}} horaires planifiés mis à jour.",
+                    error: "Les horaires planifiés n'ont pas pu être mis à jour.",
+                },
+                outcomeChangeElections_one:
+                    "Enregistrer change le résultat pour {{count}} élection :",
+                outcomeChangeElections_other:
+                    "Enregistrer change le résultat pour {{count}} élections :",
+            },
+            authorizes: {
+                reportPolicyOf: "{{election}} : {{value}}",
+                initializationRetained:
+                    "Un rapport obligatoire dans cette configuration signée reste obligatoire si le paramètre actuel du poste devient non obligatoire.",
+                title: "Ce que cette approbation autorise",
+                schedule: "Ouvertures et clôtures planifiées",
+                noSchedule:
+                    "Aucune ouverture ni clôture planifiée : les signataires ouvrent et clôturent le vote.",
+                opens: "Ouverture : {{time}}",
+                closes: "Clôture : {{time}}",
+                settings: "Paramètres",
+                unsignedClose: "Clôture planifiée sans signatures : {{value}}",
+                initialization: "Initialisation : {{value}}",
+                firstConfiguration: "C'est la première configuration approuvée : rien à comparer.",
+                sameAsPrevious:
+                    "Les paramètres sont identiques à ceux de la configuration approuvée précédente.",
+                rule: {
+                    openNeeds_one: "L'ouverture nécessite {{count}} signature",
+                    openNeeds_other: "L'ouverture nécessite {{count}} signatures",
+                    openNoSignatures: "L'ouverture ne nécessite aucune signature",
+                    closeNeeds_one: "La clôture nécessite {{count}} signature",
+                    closeNeeds_other: "La clôture nécessite {{count}} signatures",
+                    closeNoSignatures: "La clôture ne nécessite aucune signature",
+                    openSetting: "Ouverture du vote",
+                    closeSetting: "Clôture du vote",
+                    signatures_one: "{{count}} signature",
+                    signatures_other: "{{count}} signatures",
+                    none: "aucune signature",
+                },
+                diff: {
+                    tightens: "Renforce : {{setting}} {{before}} → {{after}}",
+                    loosens: "Assouplit : {{setting}} {{before}} → {{after}}",
+                    mixed: "Modifie : {{setting}} {{before}} → {{after}} (plus strict sur un point, plus souple sur un autre)",
+                },
+                comparedWith:
+                    "Par rapport à la configuration approuvée précédente, approbation {{code}} :",
+                channels: "Canaux de vote par élection",
+                channelsOf: "{{election}} : {{channels}}",
+                noChannels: "aucun",
+            },
+            publish: {
+                openedAuthorized:
+                    "Vote ouvert comme prévu à {{time}}, autorisé par l'approbation de configuration {{code}} (signée par {{names}}).",
+                closedAuthorized:
+                    "Vote clôturé comme prévu à {{time}}, autorisé par l'approbation de configuration {{code}} (signée par {{names}}).",
+                closedUnsigned:
+                    "Vote clôturé comme prévu à {{time}}. Aucune signature de clôture : le calendrier a clôturé le vote à son échéance.",
+                authorizedBy: "Autorisé par",
+                cancelledRequest:
+                    "La demande {{code}} avait {{n}} signatures sur {{k}} et a été annulée.",
+                openedRefused: "L'ouverture planifiée du {{time}} a été refusée.",
+                closedRefused: "La clôture planifiée du {{time}} a été refusée.",
+                openedNoSignaturesNeeded:
+                    "Le vote s'est ouvert comme prévu ({{time}}) ; aucune signature n'était nécessaire.",
+                closedNoSignaturesNeeded:
+                    "Le vote s'est clôturé comme prévu ({{time}}) ; aucune signature n'était nécessaire.",
+                openedNothingToChange:
+                    "À {{time}}, l'ouverture planifiée n'avait rien à ouvrir : ses canaux étaient déjà ouverts.",
+                closedNothingToChange:
+                    "À {{time}}, la clôture planifiée n'avait rien à clôturer : ses canaux étaient déjà fermés.",
+            },
+            import: {
+                title: "Importer le calendrier",
+                subtitle:
+                    "Une ligne par événement et par élection, en heure locale. Laissez le fuseau horaire vide pour utiliser celui de l'élection.",
+                chooseFile: "Choisir un fichier CSV",
+                template: "Télécharger le modèle",
+                templateFileName: "schedule-template.csv",
+                ready: "{{ok}} événements prêts pour {{posts}} élections.",
+                needsAttention_one:
+                    "{{ok}} événements prêts pour {{posts}} élections. {{count}} ligne nécessite votre attention ; corrigez le fichier et téléversez-le à nouveau.",
+                needsAttention_other:
+                    "{{ok}} événements prêts pour {{posts}} élections. {{count}} lignes nécessitent votre attention ; corrigez le fichier et téléversez-le à nouveau.",
+                preview: "Lignes à importer",
+                row: "Ligne",
+                asWritten: "{{local}} · {{place}}",
+                moreRows: "…et {{count}} lignes de plus",
+                imported: "Calendrier importé : {{created}} créés, {{updated}} mis à jour.",
+                uploadError: "Le fichier n'a pas pu être vérifié. Téléversez-le à nouveau.",
+                importError: "Le calendrier n'a pas pu être importé.",
+                error: {
+                    unknownElection: "Aucune élection n'a l'alias {{election}}.",
+                    unknownEventType: "{{type}} n'est pas un type d'événement planifié.",
+                    invalidTimeZone: "{{zone}} n'est pas un fuseau horaire.",
+                    invalidDateTime: "La date et l'heure doivent être au format YYYY-MM-DDTHH:MM.",
+                    invalidVotingChannels:
+                        "Les canaux de vote sont inconnus, ou ouvrent ensemble le vote en ligne et le vote anticipé.",
+                    dstGap: "{{dateTime}} n'existe pas à {{city}} car les horloges avancent. Indiquez une heure qui existe.",
+                    duplicate: "Une autre ligne planifie le même événement pour cette élection.",
+                    other: "Cette ligne ne peut pas être importée ({{code}}).",
+                    ambiguousElection: "Plusieurs élections ont l'alias {{election}}.",
+                },
+            },
+            settings: {
+                accordion: "Langue, date et heure",
+                dateAndTime: "Date et heure",
+                configured: "Fuseaux horaires configurés",
+                configuredHelp:
+                    "{{count}} fuseaux horaires. Les élections choisissent le leur dans cette liste ; saisissez une ville ou un pays pour en ajouter un.",
+                moreZones: "+{{count}}",
+                primary: "Fuseau horaire principal",
+                primaryHelp:
+                    "Utilisé pour les planifications de tout l'événement, les rapports et les élections sans fuseau horaire propre.",
+                primaryInUse:
+                    "{{zone}} est le fuseau horaire principal. Choisissez d'abord un autre fuseau horaire principal.",
+                inUse: "{{zone}} est utilisé par {{names}}. Modifiez d'abord ces élections.",
+                logs: "Heures dans les journaux et leurs exports",
+                logsPrimary: "Fuseau horaire principal ({{abbr}})",
+                logsElection: "Le fuseau horaire de l'élection de chaque ligne",
+                logsHelp: "Les lignes sans élection utilisent le fuseau horaire principal.",
+                electionZone: "Fuseau horaire",
+                electionPrimary: "Principal de l'événement : {{zone}}",
+                electionZoneHelp:
+                    "Les planifications, les écrans des électeurs et les rapports de cette élection utilisent ce fuseau horaire, y compris pour toutes ses zones. Vide, le fuseau horaire principal de l'événement s'applique.",
+                electionUnconfigured:
+                    "L'événement ne configure plus ce fuseau horaire : l'élection utilise donc le fuseau horaire principal, {{zone}}. Choisissez l'un des fuseaux horaires configurés.",
+                electionUnconfiguredSave:
+                    "Choisissez l'un des fuseaux horaires configurés de l'événement.",
+            },
+            policies: {
+                accordion: "Cycle de vie du vote",
+                intro: "Ces paramètres font partie de la configuration de l'événement électoral : l'approbation de configuration les signe, et les ouvertures et clôtures planifiées suivent le plus strict des paramètres actuels et publiés.",
+                nothingPublished:
+                    "Rien n'est encore publié : jusqu'à la première publication, les ouvertures et clôtures planifiées utilisent les valeurs par défaut (par élection, refuser).",
+                publishedValue: "Configuration publiée : {{value}}",
+                changedSincePublished:
+                    "Modifié depuis la configuration publiée : les ouvertures et clôtures planifiées suivent la plus stricte des deux jusqu'à la prochaine publication approuvée.",
+                scope: {
+                    title: "Initialisation avant l'ouverture du vote",
+                    post: {
+                        label: "Par élection",
+                        help: "Une élection s'ouvre dès qu'elle est initialisée.",
+                    },
+                    event: {
+                        label: "Événement entier",
+                        help: "Aucune élection ne s'ouvre tant que toutes les élections ne sont pas initialisées.",
+                        warning:
+                            "Une seule élection non initialisée maintient toutes les élections fermées, y compris à leur ouverture planifiée.",
+                    },
+                    postAndCountry: {
+                        label: "Par élection et par pays",
+                        help: "Une élection s'ouvre dès que chaque pays (zone) qui en dépend est initialisé.",
+                        warning:
+                            "Une élection reste fermée, même à son ouverture planifiée, tant que chaque pays qui en dépend n'est pas initialisé ; chaque pays est initialisé avec son propre rapport.",
+                    },
+                },
+                close: {
+                    title: "Clôture planifiée sans signatures",
+                    help: "Lorsque la clôture du vote nécessite des signatures et qu'une clôture planifiée ne figure pas dans la configuration signée.",
+                    refuse: {
+                        label: "Refuser",
+                        help: "La clôture ne s'exécute pas ; les signataires de l'élection clôturent le vote avec leurs signatures.",
+                    },
+                    runAsSystem: {
+                        label: "Exécuter en tant que système",
+                        help: "Le vote est clôturé à l'échéance, enregistré comme clôturé par le calendrier sans signatures.",
+                        warning:
+                            "Les clôtures planifiées hors de la configuration signée clôturent le vote sans la signature de quiconque. Le journal et les documents l'indiquent.",
+                    },
+                },
+                onSave: {
+                    outcomes_zero: "Aucune transition planifiée ne change de résultat.",
+                    outcomes_one:
+                        "{{count}} transition planifiée change de résultat. Examinez-la dans Événements Planifiés.",
+                    outcomes_other:
+                        "{{count}} transitions planifiées changent de résultat. Examinez-les dans Événements Planifiés.",
+                },
+                saveError: "Les paramètres du cycle de vie du vote n'ont pas pu être enregistrés.",
+                publishedPerTarget: "Configuration publiée, par cible : {{values}}",
+                publishedCount_one: "{{value}} ({{count}} cible)",
+                publishedCount_other: "{{value}} ({{count}} cibles)",
+                savedWithoutPolicies:
+                    "L'événement électoral a été enregistré, mais pas les paramètres du cycle de vote : {{reason}}. Enregistrez-les à nouveau.",
+            },
+        },
+        scheduledOutcome: {
+            chip: {
+                waitingForInitialization: "En attente d’initialisation",
+                runs: "S'exécutera",
+                runsUnsigned: "S'exécutera sans signatures",
+                refused: "Sera refusée",
+            },
+            note: {
+                waitingForInitialization: "En attente d’initialisation",
+                authorized: "Autorisée par la configuration {{code}}",
+                noSignaturesNeeded: "Aucune signature nécessaire",
+                closesUnsigned: "Clôture sans signatures",
+                refused: {
+                    initialization: "L’initialisation requise est incomplète",
+                    votingClose: "Le vote ne peut pas ouvrir après sa date limite de clôture",
+                    needsSignatures: "Nécessite les signatures des signataires",
+                    covered: "Absent de la configuration signée",
+                    unsignedClose: "Une clôture sans signatures est refusée",
+                    stricterCopy: "Modifié depuis la configuration publiée, qui décide encore",
+                    defaults: "Rien n'est encore publié : les valeurs par défaut s'appliquent",
+                },
+                refusedWithStep: "{{reason}}. {{next}}",
+            },
+            why: {
+                button: "Pourquoi ?",
+                title: {
+                    waitingForInitialization: "Pourquoi l’initialisation est attendue",
+                    runs: "Pourquoi elle s'exécutera",
+                    runsUnsigned: "Pourquoi elle s'exécutera sans signatures",
+                    refused: "Pourquoi elle sera refusée",
+                },
+                checks: "Vérifications",
+                check: "Vérification",
+                current: "Paramètres actuels",
+                published: "Configuration publiée",
+                verdict: "Verdict",
+                allows: "Autorise",
+                blocks: "Bloque",
+                deciding: "Vérification décisive",
+                nextStep: "Prochaine étape :",
+                signedBy: "Signée par {{names}}",
+            },
+            question: {
+                initialization: "L’initialisation requise est-elle terminée ?",
+                votingClose: "Cette ouverture respecte-t-elle la date limite de clôture du vote ?",
+                needsSignatures: "Cette action nécessite-t-elle des signatures ?",
+                covered: "Ce calendrier exact figure-t-il dans la configuration signée ?",
+                unsignedClose: "Que se passe-t-il pour une clôture sans signatures ?",
+                stricterCopy:
+                    "Les paramètres actuels et publiés diffèrent-ils ? Lesquels décident ?",
+                defaults: "Quelque chose est-il déjà publié ?",
+            },
+            check: {
+                initialization: {
+                    waiting:
+                        "Les initialisations exigées par les paramètres actuels et publiés doivent toutes être terminées.",
+                },
+                votingClose: {
+                    passed: "Le vote ferme à {{closes_at}} ; cette ouverture ne peut pas être exécutée à cette échéance ou après.",
+                },
+                needsSignatures: {
+                    yes: "Oui, {{signatures}} signatures",
+                    yes_one: "Oui, {{count}} signature",
+                    yes_other: "Oui, {{count}} signatures",
+                    no: "Non",
+                },
+                covered: {
+                    overriddenBySignedPostRow:
+                        "La configuration signée {{code}} utilise l’ouverture propre à ce poste, {{scheduled_event_id}}. L’ouverture de l’événement entier ne s’applique pas.",
+                    yes: "Oui : approbation {{code}}, inchangée",
+                    changed: "Non : modifiée depuis l'approbation {{code}}",
+                    changedBy:
+                        "Non : modifiée le {{edited_at}} par {{edited_by}}, après l'approbation {{code}}",
+                    notInApproval: "Non : l'approbation {{code}} ne l'inclut pas",
+                    noApproval: "Aucune configuration approuvée pour l'instant",
+                    channelsChanged:
+                        "Non : les canaux de vote de l'élection ont changé depuis l'approbation {{code}}",
+                    alreadyFired:
+                        "Non : cette transition de l'approbation {{code}} a déjà eu lieu le {{fired_at}} ; la relancer nécessite des signatures",
+                    late: "Non : plus de 15 minutes se sont écoulées depuis {{scheduled_date}} (approbation {{code}}) ; l'exécuter maintenant nécessite des signatures",
+                },
+                unsignedClose: {
+                    refuse: "Refuser",
+                    runAsSystem: "Exécuter en tant que système",
+                },
+                stricterCopy: {
+                    same: "Ils sont identiques",
+                    currentStricter:
+                        "Les paramètres actuels sont plus stricts : appliqués dès maintenant",
+                    currentLooser:
+                        "Les paramètres actuels sont plus souples : ils s'appliquent après la prochaine publication approuvée",
+                    combined: "Chacun est plus strict sur une valeur : les deux s'appliquent",
+                },
+                defaults: {
+                    published: "Publié le {{published_at}}",
+                    nothingPublished: "Rien n'est publié : les valeurs par défaut s'appliquent",
+                    noSnapshot:
+                        "Publié le {{published_at}}, avant que les publications ne conservent ces paramètres : les valeurs par défaut s'appliquent",
+                },
+            },
+            nextStep: {
+                initialize:
+                    "Terminez l’initialisation requise. Le planificateur réessaiera avant la clôture du vote.",
+                closed: "Cette ouverture ne sera pas exécutée après la clôture du vote.",
+                none: "Aucune action nécessaire.",
+                publishAndApprove: "Publiez et approuvez la configuration.",
+                requireConfigurationApproval:
+                    "Faites en sorte que Approuver la configuration nécessite des signatures, puis publiez et approuvez la configuration.",
+                askSignersToOpen: "Demandez aux signataires de l'élection d'ouvrir le vote.",
+                askSignersToClose: "Demandez aux signataires de l'élection de clôturer le vote.",
+            },
+            applies: {
+                tightens: "S'applique dès maintenant aux actions manuelles et planifiées.",
+                loosens:
+                    "S'applique dès maintenant aux actions manuelles ; aux ouvertures et clôtures planifiées après la prochaine publication approuvée.",
+                tightensAndLoosens:
+                    "Sa partie plus stricte s'applique dès maintenant aux actions manuelles et planifiées ; sa partie plus souple s'applique dès maintenant aux actions manuelles, et aux ouvertures et clôtures planifiées après la prochaine publication approuvée.",
             },
         },
     },

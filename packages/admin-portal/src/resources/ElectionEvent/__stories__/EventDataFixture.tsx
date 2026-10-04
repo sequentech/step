@@ -74,6 +74,8 @@ export function eventDataBoundaries({reads, customOrder, realmAttributesFail}: E
                     ? {errors: [new GraphQLError("Synthetic Keycloak failure")]}
                     : {data: {get_realm_attributes: {attributes: REALM_ATTRIBUTES}}},
             GetRealmPasswordPolicy: () => ({data: {get_realm_password_policy: PASSWORD_POLICY}}),
+            // The published configuration the Voting lifecycle section compares with: none yet.
+            GetLifecycleSnapshots: () => ({data: {get_lifecycle_snapshots: {snapshots: []}}}),
             SetCustomUrls: () => ({data: {set_custom_urls: {success: true, message: ""}}}),
             SetVoterAuthentication: () => ({
                 data: {set_voter_authentication: {success: true, message: ""}},
@@ -89,7 +91,8 @@ export function eventDataBoundaries({reads, customOrder, realmAttributesFail}: E
                 },
             }),
         },
-        {schema: true}
+        // get_lifecycle_snapshots isn't in the generated schema yet: no schema check.
+        {schema: false}
     )
     return {data, graphql}
 }
