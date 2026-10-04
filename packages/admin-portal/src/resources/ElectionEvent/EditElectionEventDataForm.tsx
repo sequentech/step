@@ -76,6 +76,7 @@ import {
     ESupportMaterialsPolicy,
     getEffectiveSupportMaterialsPolicy,
     DEFAULT_NUMBER_FORMAT_POLICY,
+    resolveNumberFormatPolicy,
 } from "@sequentech/ui-core"
 import {ListActions} from "@/components/ListActions"
 import {ImportDataDrawer} from "@/components/election-event/import-data/ImportDataDrawer"
@@ -1263,6 +1264,10 @@ export const EditElectionEventDataForm: React.FC<{
                                         source={"presentation.number_format_policy"}
                                         disabled={!canEdit}
                                         choices={getNumberFormatPolicyChoices()}
+                                        // A code this version doesn't know, such as one from a
+                                        // newer version, shows as the default it is read as. It is
+                                        // kept until another format is chosen.
+                                        format={resolveNumberFormatPolicy}
                                         label={String(
                                             t(
                                                 "electionEventScreen.field.numberFormatPolicy.policyLabel"
