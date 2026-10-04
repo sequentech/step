@@ -1051,6 +1051,21 @@ const catalanTranslation: TranslationType = {
                     "no-gold-level": "No Gold level Authentication",
                 },
             },
+            slates: {
+                title: "Candidatures",
+                configuration: "Configuració de candidatures (JSON)",
+                helper: "Candidatures amb nom i els candidats que cadascuna presenta a cada contesa. Deixa-ho buit per a una elecció sense candidatures.",
+                loading:
+                    "Les conteses i els candidats de l'elecció encara s'estan carregant. Torna-ho a provar d'aquí a un moment.",
+                mobileCandidateLists: {
+                    label: "Llistes de candidats al mòbil",
+                    helper: "Com apareix inicialment la llista de candidats de cada candidatura al mòbil. El votant sempre la pot obrir o tancar.",
+                    options: {
+                        collapsed: "Replegades",
+                        expanded: "Desplegades",
+                    },
+                },
+            },
             startScreenTitlePolicy: {
                 label: "Política de títol de la pantalla d'inici",
                 options: {
