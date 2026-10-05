@@ -71,11 +71,12 @@ const formatNumeric = (
     }
     const {group, decimal} = numberFormatSeparators(policy)
     const text = String(value).trim()
-    if (decimals === 0 && INTEGER.test(text)) {
+    if (INTEGER.test(text)) {
         const negative = text.startsWith("-")
         const digits = (negative ? text.slice(1) : text).replace(/^0+(?=\d)/, "")
         const sign = negative && digits !== "0" ? "-" : ""
-        return `${sign}${groupDigits(digits, group)}`
+        const fraction = decimals > 0 ? `${decimal}${"0".repeat(decimals)}` : ""
+        return `${sign}${groupDigits(digits, group)}${fraction}`
     }
     const numberValue = typeof value === "number" ? value : Number(text)
     if (text === "" || !Number.isFinite(numberValue)) {

@@ -48,6 +48,14 @@ describe("number format policy", () => {
         expect(formatNumber(BigInt("9007199254740993"))).toBe("9,007,199,254,740,993")
     })
 
+    it("keeps them exact with decimals", () => {
+        expect(formatNumber("9007199254740993", undefined, 2)).toBe("9,007,199,254,740,993.00")
+        expect(formatNumber(BigInt("-9007199254740993"), ENumberFormatPolicy.PERIOD_COMMA, 1)).toBe(
+            "-9.007.199.254.740.993,0"
+        )
+        expect(formatNumber("-000", undefined, 2)).toBe("0.00")
+    })
+
     it("rounds decimals and uses the policy's decimal separator", () => {
         expect(formatNumber(1234.5, ENumberFormatPolicy.SPACE_COMMA, 2)).toBe("1 234,50")
         expect(formatNumber(99.999, ENumberFormatPolicy.PERIOD_COMMA, 2)).toBe("100,00")
