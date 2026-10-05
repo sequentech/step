@@ -59,13 +59,26 @@ pub async fn insert_election_event_anyhow(
         // has disabled is not silently re-enabled on every event it creates.
         // This runs only when the caller supplied none, which is the create
         // path; existing events keep whatever they already store. META-12778.
-        let tenant_channels = get_tenant_by_id(&hasura_transaction, tenant_id.as_str())
+        // Only an absent configuration falls back to the default: defaulting on
+        // a failed lookup or a malformed value could re-enable a disabled channel.
+        let tenant_channels = match get_tenant_by_id(&hasura_transaction, tenant_id.as_str())
             .await
-            .ok()
-            .and_then(|tenant| tenant.voting_channels)
-            .and_then(|channels| serde_json::from_value::<VotingChannels>(channels).ok())
-            .unwrap_or_default();
-        final_object.voting_channels = serde_json::to_value(tenant_channels).ok();
+            .and_then(|tenant| match tenant.voting_channels {
+                Some(channels) if !channels.is_null() => {
+                    serde_json::from_value::<VotingChannels>(channels)
+                        .context("Invalid tenant voting channels")
+                }
+                _ => Ok(VotingChannels::default()),
+            }) {
+            Ok(channels) => channels,
+            Err(err) => {
+                update_fail(&task_execution, "Failed to read tenant voting channels").await?;
+                return Err(err.context(format!(
+                    "Failed to read voting channels for tenant {tenant_id}"
+                )));
+            }
+        };
+        final_object.voting_channels = Some(serde_json::to_value(tenant_channels)?);
     }
 
     match upsert_keycloak_realm(tenant_id.as_str(), &id.as_ref(), None, None).await {

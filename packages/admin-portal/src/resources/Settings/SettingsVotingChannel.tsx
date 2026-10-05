@@ -7,6 +7,20 @@ import {Switch} from "@mui/material"
 import {useEditController} from "react-admin"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {useTranslation} from "react-i18next"
+import {IVotingChannelsConfig} from "@sequentech/ui-core"
+
+type TenantVotingChannels = Pick<IVotingChannelsConfig, "online" | "kiosk" | "telephone">
+type TenantVotingChannel = keyof TenantVotingChannels
+
+// `??`, not `||`: disabling a channel stores `false`, and `false || true`
+// reads back as enabled, so the online toggle could never be turned off.
+const toTenantVotingChannels = (
+    channels?: Partial<TenantVotingChannels> | null
+): TenantVotingChannels => ({
+    online: channels?.online ?? true,
+    kiosk: channels?.kiosk ?? false,
+    telephone: channels?.telephone ?? false,
+})
 
 const SettingsVotingChannelsStyles = {
     Wrapper: styled("div")`
@@ -34,16 +48,12 @@ export const SettingsVotingChannels: React.FC<void> = () => {
         undoable: false,
     })
 
-    // `??`, not `||`: disabling a channel stores `false`, and `false || true`
-    // reads back as enabled, so the online toggle could never be turned off.
-    const [voting, setVoting] = useState<any>({
-        online: record?.voting_channels?.online ?? true,
-        kiosk: record?.voting_channels?.kiosk ?? false,
-        telephone: record?.voting_channels?.telephone ?? false,
-    })
+    const [voting, setVoting] = useState<TenantVotingChannels>(
+        toTenantVotingChannels(record?.voting_channels)
+    )
 
-    const handleToggle = (method: any) => {
-        const updatedVoting = {
+    const handleToggle = (method: TenantVotingChannel) => {
+        const updatedVoting: TenantVotingChannels = {
             ...voting,
             [method]: !voting[method],
         }
@@ -65,12 +75,8 @@ export const SettingsVotingChannels: React.FC<void> = () => {
 
     useEffect(() => {
         console.log(record)
-        if (record.voting_channels) {
-            setVoting({
-                online: record?.voting_channels?.online ?? true,
-                kiosk: record?.voting_channels?.kiosk ?? false,
-                telephone: record?.voting_channels?.telephone ?? false,
-            })
+        if (record?.voting_channels) {
+            setVoting(toTenantVotingChannels(record.voting_channels))
         }
     }, [record])
 
@@ -78,16 +84,13 @@ export const SettingsVotingChannels: React.FC<void> = () => {
 
     return (
         <SettingsVotingChannelsStyles.Wrapper>
-            {Object.keys(voting).map((method: string) => (
+            {(Object.keys(voting) as TenantVotingChannel[]).map((method) => (
                 <SettingsVotingChannelsStyles.Content key={method}>
                     <SettingsVotingChannelsStyles.Text>
                         {t(`electionTypeScreen.common.${method}Voting`)}
                     </SettingsVotingChannelsStyles.Text>
 
-                    <Switch
-                        checked={voting?.[method] || false}
-                        onChange={() => handleToggle(method)}
-                    />
+                    <Switch checked={voting[method]} onChange={() => handleToggle(method)} />
                 </SettingsVotingChannelsStyles.Content>
             ))}
         </SettingsVotingChannelsStyles.Wrapper>
