@@ -10,7 +10,6 @@ as well. No downloaded or checked-in percentage can serve as a passing baseline.
 """
 
 import argparse
-import contextlib
 import json
 import os
 import re
@@ -22,7 +21,7 @@ from typing import Any
 
 from ratchet import compare, compare_rust, frontend_metrics, markdown, python_metrics
 from report import CoverageError
-from run import NATIVE_TIMEOUT_ENV, execute, native_cancellation, write_json
+from run import execute, write_json
 
 HERE = Path(__file__).resolve().parent
 
@@ -41,19 +40,13 @@ def identity(root: Path) -> str:
     return revision
 
 
-def command(
-    arguments: list[str], root: Path, output: Path, name: str, *, native: bool = False
-) -> str:
+def command(arguments: list[str], root: Path, output: Path, name: str) -> str:
     """Retain command output and bound the entire child process group."""
     environment = dict(os.environ, CI="true", PYTHONDONTWRITEBYTECODE="1")
     # Keep per-revision target reports out of the final CI verdict. The paired
     # summary, written below, is the only statement about passing this gate.
     environment.pop("GITHUB_STEP_SUMMARY", None)
-    if not native:
-        environment.pop(NATIVE_TIMEOUT_ENV, None)
-    return execute(
-        arguments, output / f"{name}.log", environment, cwd=root, cooperative=native
-    )
+    return execute(arguments, output / f"{name}.log", environment, cwd=root)
 
 
 def read_json(path: Path) -> dict[str, Any]:
@@ -123,7 +116,6 @@ def measure_rust(
         root,
         output,
         "measurement",
-        native=True,
     )
     created = set(parent.glob("*/summary.json")) - before
     if len(created) != 1:
@@ -238,14 +230,13 @@ def main() -> int:
     args = parser.parse_args()
     if not re.fullmatch(r"[a-z][a-z0-9-]*", args.package):
         parser.error("Expected a package identifier")
-    with native_cancellation() if args.kind == "rust" else contextlib.nullcontext():
-        return paired_run(
-            args.base.resolve(),
-            args.head.resolve(),
-            args.kind,
-            args.package,
-            args.output.resolve(),
-        )
+    return paired_run(
+        args.base.resolve(),
+        args.head.resolve(),
+        args.kind,
+        args.package,
+        args.output.resolve(),
+    )
 
 
 if __name__ == "__main__":

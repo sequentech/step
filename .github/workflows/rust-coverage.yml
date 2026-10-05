@@ -71,8 +71,7 @@ jobs:
   package-comparison:
     name: ${{ matrix.profile }} coverage — no decrease
     runs-on: ubuntu-24.04
-    # Two bounded one-hour measurements plus setup and artifact publication.
-    timeout-minutes: ${{ (matrix.profile == 'windmill' || matrix.profile == 'wrap-map-err') && 150 || 60 }}
+    timeout-minutes: 60
     needs: reporter-tests
     strategy:
       fail-fast: false
@@ -96,7 +95,6 @@ jobs:
           --health-retries 5
     env:
       COVERAGE_PROFILE: ${{ matrix.profile }}
-      NATIVE_COVERAGE_TIMEOUT_SECONDS: ${{ (matrix.profile == 'windmill' || matrix.profile == 'wrap-map-err') && '3600' || '1200' }}
       # Harvest's route tests reach the service above through the same
       # settings as its ordinary test job. Other profiles do not read them.
       KEYCLOAK_DB__PORT: "3322"
