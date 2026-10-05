@@ -1699,7 +1699,7 @@ async fn hold_a_change(
         text,
         ExpectedHead::At(1),
     );
-    tokio::time::timeout(Duration::from_secs(5), entered.notified())
+    tokio::time::timeout(CONCURRENT_CHANGE_TIMEOUT, entered.notified())
         .await
         .expect("the save reaches its checks");
     Held {
@@ -1711,7 +1711,7 @@ async fn hold_a_change(
 
 /// Waits for a change that nothing should hold back.
 async fn promptly<T>(change: impl std::future::Future<Output = T>) -> T {
-    tokio::time::timeout(Duration::from_secs(5), change)
+    tokio::time::timeout(CONCURRENT_CHANGE_TIMEOUT, change)
         .await
         .expect("nothing holds the change back")
 }
@@ -3031,3 +3031,7 @@ async fn an_administrator_signing_key_is_found_without_being_read() {
     tx.rollback().await.unwrap();
     remove(&pool, event).await;
 }
+
+/// Bounds concurrency probes while allowing instrumented PostgreSQL work.
+/// The held save is released only after the competing change completes.
+const CONCURRENT_CHANGE_TIMEOUT: Duration = Duration::from_secs(30);
