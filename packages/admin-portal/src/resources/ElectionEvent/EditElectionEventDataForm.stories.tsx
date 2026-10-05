@@ -430,3 +430,54 @@ export const InvalidCustomDateTimeFormat: Story = {
         expect(args.transform).not.toHaveBeenCalled()
     },
 }
+
+/** The timezone editor must use the accordion width, including on narrow screens. */
+export const FullWidthDateAndTime: Story = {
+    parameters: {
+        expectedFailure: {
+            reason: "The language selector's default-language radios have no labels.",
+            a11y: ["label"],
+        },
+    },
+    play: async ({canvasElement}) => {
+        const canvas = await loaded(canvasElement)
+        await openSection(canvasElement, "lifecycle.settings.accordion")
+        const zones = canvas.getByTestId("event-time-zones")
+        const details = zones.closest(".MuiAccordionDetails-root") as HTMLElement
+        const style = getComputedStyle(details)
+        const available =
+            details.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight)
+        expect(zones.getBoundingClientRect().width).toBeGreaterThan(available * 0.95)
+        const format = canvas.getByRole("combobox", {
+            name: field("votingPortalDateTimeFormat.policyLabel"),
+        })
+        expect(format.getBoundingClientRect().width).toBeGreaterThan(available * 0.9)
+    },
+}
+
+export const FullWidthDateAndTimeNarrow: Story = {
+    ...FullWidthDateAndTime,
+    decorators: [
+        (Story) => (
+            <div style={{width: 600, maxWidth: "100%"}}>
+                <Story />
+            </div>
+        ),
+    ],
+}
+
+export const LifecycleRadioAlignment: Story = {
+    play: async ({canvasElement}) => {
+        const canvas = await loaded(canvasElement)
+        await openSection(canvasElement, "lifecycle.policies.accordion")
+        const lifecycle = canvas.getByTestId("voting-lifecycle")
+        for (const radio of within(lifecycle).getAllByRole("radio")) {
+            const label = radio.closest("label") as HTMLElement
+            const text = label.querySelector(".MuiFormControlLabel-label") as HTMLElement
+            const icon = label.querySelector("svg") as SVGElement
+            expect(
+                Math.abs(text.getBoundingClientRect().top - icon.getBoundingClientRect().top)
+            ).toBeLessThan(5)
+        }
+    },
+}

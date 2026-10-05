@@ -57,7 +57,7 @@ const PublishedValue: React.FC<{
     const changed = published.some((value) => value !== current)
     return (
         <Stack spacing={0.5}>
-            <Typography variant="body2" color="text.secondary">
+            <Typography variant="body2" color="text.secondary" sx={{m: 0}}>
                 {published.length === 0
                     ? t("lifecycle.policies.nothingPublished")
                     : counts.size === 1
@@ -74,7 +74,7 @@ const PublishedValue: React.FC<{
                         })}
             </Typography>
             {changed ? (
-                <Typography variant="body2" data-testid="changed-since-published">
+                <Typography variant="body2" sx={{m: 0}} data-testid="changed-since-published">
                     {t("lifecycle.policies.changedSincePublished")}
                 </Typography>
             ) : null}
@@ -139,12 +139,15 @@ export const VotingLifecycleSettings: React.FC<{
         t(`lifecycle.policies.close.${CLOSE_KEY[value]}.label`)
 
     return (
-        <Stack spacing={3} sx={{width: "100%"}} data-testid="voting-lifecycle">
-            <Typography variant="body2" color="text.secondary">
+        <Stack spacing={3} sx={{width: "100%", minWidth: 0}} data-testid="voting-lifecycle">
+            <Typography variant="body2" color="text.secondary" sx={{m: 0}}>
                 {t("lifecycle.policies.intro")}
             </Typography>
-            <FormControl disabled={disabled}>
-                <FormLabel id="lifecycle-initialization-scope">
+            <FormControl fullWidth disabled={disabled}>
+                <FormLabel
+                    sx={{color: "text.primary", fontWeight: "bold", mb: 1}}
+                    id="lifecycle-initialization-scope"
+                >
                     {t("lifecycle.policies.scope.title")}
                 </FormLabel>
                 <RadioGroup
@@ -156,7 +159,14 @@ export const VotingLifecycleSettings: React.FC<{
                         <FormControlLabel
                             key={value}
                             value={value}
-                            control={<Radio />}
+                            control={<Radio sx={{py: 0}} />}
+                            sx={{
+                                "alignItems": "flex-start",
+                                "mx": 0,
+                                "my": 1,
+                                "gap": 1,
+                                "& .MuiFormControlLabel-label": {m: 0},
+                            }}
                             label={
                                 <span>
                                     {scopeLabel(value)}
@@ -164,7 +174,7 @@ export const VotingLifecycleSettings: React.FC<{
                                         component="span"
                                         variant="body2"
                                         color="text.secondary"
-                                        sx={{display: "block"}}
+                                        sx={{display: "block", m: 0}}
                                     >
                                         {t(`lifecycle.policies.scope.${SCOPE_KEY[value]}.help`)}
                                     </Typography>
@@ -187,11 +197,14 @@ export const VotingLifecycleSettings: React.FC<{
                 ) : null}
             </FormControl>
 
-            <FormControl disabled={disabled}>
-                <FormLabel id="lifecycle-unsigned-close">
+            <FormControl fullWidth disabled={disabled}>
+                <FormLabel
+                    sx={{color: "text.primary", fontWeight: "bold", mb: 1}}
+                    id="lifecycle-unsigned-close"
+                >
                     {t("lifecycle.policies.close.title")}
                 </FormLabel>
-                <Typography variant="body2" color="text.secondary">
+                <Typography variant="body2" color="text.secondary" sx={{m: 0}}>
                     {t("lifecycle.policies.close.help")}
                 </Typography>
                 <RadioGroup
@@ -203,7 +216,14 @@ export const VotingLifecycleSettings: React.FC<{
                         <FormControlLabel
                             key={value}
                             value={value}
-                            control={<Radio />}
+                            control={<Radio sx={{py: 0}} />}
+                            sx={{
+                                "alignItems": "flex-start",
+                                "mx": 0,
+                                "my": 1,
+                                "gap": 1,
+                                "& .MuiFormControlLabel-label": {m: 0},
+                            }}
                             label={
                                 <span>
                                     {closeLabel(value)}
@@ -211,7 +231,7 @@ export const VotingLifecycleSettings: React.FC<{
                                         component="span"
                                         variant="body2"
                                         color="text.secondary"
-                                        sx={{display: "block"}}
+                                        sx={{display: "block", m: 0}}
                                     >
                                         {t(`lifecycle.policies.close.${CLOSE_KEY[value]}.help`)}
                                     </Typography>

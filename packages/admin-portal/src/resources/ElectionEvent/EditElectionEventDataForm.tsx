@@ -1392,84 +1392,90 @@ export const EditElectionEventDataForm: React.FC<{
                         </ElectionHeaderStyles.Wrapper>
                     </AccordionSummary>
                     <AccordionDetails>
-                        <ElectionStyles.AccordionContainer>
-                            <ElectionStyles.AccordionWrapper>
-                                <Box sx={{display: "flex", flexDirection: "column", gap: 2}}>
-                                    <SettingsLanguageSelector languageSettings={languageSettings} />
-                                    <SelectInput
-                                        source={
-                                            "presentation.language_conf.language_detection_policy"
-                                        }
-                                        choices={languageDetectionPolicyOptions()}
-                                        label={String(
-                                            t(
-                                                "electionEventScreen.field.languageDetectionPolicy.policyLabel"
-                                            )
-                                        )}
-                                        defaultValue={getDefaultLanguageDetectionPolicy()}
-                                        emptyText={undefined}
-                                        validate={required()}
-                                    />
-                                    <EventTimeZoneSettings
-                                        elections={electionZones}
-                                        disabled={!canEdit}
-                                    />
-                                    <SelectInput
-                                        source={"presentation.voting_portal_datetime_format"}
-                                        choices={votingPortalDateTimeFormatChoices()}
-                                        label={String(
-                                            t(
-                                                "electionEventScreen.field.votingPortalDateTimeFormat.policyLabel"
-                                            )
-                                        )}
-                                        helperText={String(
-                                            t(
-                                                "electionEventScreen.field.votingPortalDateTimeFormat.helperText"
-                                            )
-                                        )}
-                                        defaultValue={EVotingPortalDateTimeFormat.LEGACY_GB_24H}
-                                        format={dateTimePolicyToSelectValue}
-                                        parse={selectValueToDateTimePolicy}
-                                        emptyText={undefined}
-                                        validate={required()}
-                                        slotProps={{
-                                            input: {error: false},
-                                            inputLabel: {error: false},
-                                            formHelperText: {error: false},
-                                        }}
-                                        sx={{marginBottom: "1.5em"}}
-                                    />
-                                    <FormDataConsumer>
-                                        {({formData}) =>
-                                            isCustomVotingPortalDateTimeFormat(
-                                                formData?.presentation
-                                                    ?.voting_portal_datetime_format
-                                            ) ? (
-                                                <TextInput
-                                                    source={
-                                                        "presentation.voting_portal_datetime_format.custom"
-                                                    }
-                                                    label={String(
-                                                        t(
-                                                            "electionEventScreen.field.votingPortalDateTimeFormat.customFormat.label"
-                                                        )
-                                                    )}
-                                                    helperText={String(
-                                                        t(
-                                                            "electionEventScreen.field.votingPortalDateTimeFormat.customFormat.helperText"
-                                                        )
-                                                    )}
-                                                    sx={{marginBottom: "1.5em"}}
-                                                />
-                                            ) : null
-                                        }
-                                    </FormDataConsumer>
-                                    <CustomDateTimeFormatInvalidNotifier
-                                        checkRef={checkCustomDateTimeFormatRef}
-                                    />
-                                </Box>
-                            </ElectionStyles.AccordionWrapper>
-                        </ElectionStyles.AccordionContainer>
+                        <Box
+                            sx={{
+                                display: "flex",
+                                flexDirection: "column",
+                                gap: 3,
+                                width: "100%",
+                                minWidth: 0,
+                            }}
+                        >
+                            <Box sx={{width: "100%", maxWidth: 372}}>
+                                <SettingsLanguageSelector
+                                    languageSettings={languageSettings}
+                                    canEdit={canEdit}
+                                />
+                            </Box>
+                            <SelectInput
+                                fullWidth
+                                source={"presentation.language_conf.language_detection_policy"}
+                                choices={languageDetectionPolicyOptions()}
+                                label={String(
+                                    t(
+                                        "electionEventScreen.field.languageDetectionPolicy.policyLabel"
+                                    )
+                                )}
+                                defaultValue={getDefaultLanguageDetectionPolicy()}
+                                emptyText={undefined}
+                                validate={required()}
+                            />
+                            <EventTimeZoneSettings elections={electionZones} disabled={!canEdit} />
+                            <SelectInput
+                                fullWidth
+                                source={"presentation.voting_portal_datetime_format"}
+                                choices={votingPortalDateTimeFormatChoices()}
+                                label={String(
+                                    t(
+                                        "electionEventScreen.field.votingPortalDateTimeFormat.policyLabel"
+                                    )
+                                )}
+                                helperText={String(
+                                    t(
+                                        "electionEventScreen.field.votingPortalDateTimeFormat.helperText"
+                                    )
+                                )}
+                                defaultValue={EVotingPortalDateTimeFormat.LEGACY_GB_24H}
+                                format={dateTimePolicyToSelectValue}
+                                parse={selectValueToDateTimePolicy}
+                                emptyText={undefined}
+                                validate={required()}
+                                slotProps={{
+                                    input: {error: false},
+                                    inputLabel: {error: false},
+                                    formHelperText: {error: false},
+                                }}
+                                sx={{marginBottom: "1.5em"}}
+                            />
+                            <FormDataConsumer>
+                                {({formData}) =>
+                                    isCustomVotingPortalDateTimeFormat(
+                                        formData?.presentation?.voting_portal_datetime_format
+                                    ) ? (
+                                        <TextInput
+                                            fullWidth
+                                            source={
+                                                "presentation.voting_portal_datetime_format.custom"
+                                            }
+                                            label={String(
+                                                t(
+                                                    "electionEventScreen.field.votingPortalDateTimeFormat.customFormat.label"
+                                                )
+                                            )}
+                                            helperText={String(
+                                                t(
+                                                    "electionEventScreen.field.votingPortalDateTimeFormat.customFormat.helperText"
+                                                )
+                                            )}
+                                            sx={{marginBottom: "1.5em"}}
+                                        />
+                                    ) : null
+                                }
+                            </FormDataConsumer>
+                            <CustomDateTimeFormatInvalidNotifier
+                                checkRef={checkCustomDateTimeFormatRef}
+                            />
+                        </Box>
                     </AccordionDetails>
                 </Accordion>
 

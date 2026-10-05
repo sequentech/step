@@ -669,22 +669,30 @@ export const ElectionDataForm: React.FC = () => {
                                 </ElectionStyles.Wrapper>
                             </AccordionSummary>
                             <AccordionDetails>
-                                <ElectionStyles.AccordionContainer>
-                                    <ElectionStyles.AccordionWrapper>
+                                <Box
+                                    sx={{
+                                        display: "flex",
+                                        flexDirection: "column",
+                                        gap: 3,
+                                        width: "100%",
+                                        minWidth: 0,
+                                    }}
+                                >
+                                    <Box sx={{width: "100%", maxWidth: 372}}>
                                         <SettingsLanguageSelector
                                             languageSettings={languageSettings}
                                             canEdit={canEdit}
                                         />
-                                        <ElectionTimeZoneInput
-                                            context={timeZoneContextOf(
-                                                data?.presentation as
-                                                    | IElectionEventPresentation
-                                                    | undefined
-                                            )}
-                                            disabled={!canEdit}
-                                        />
-                                    </ElectionStyles.AccordionWrapper>
-                                </ElectionStyles.AccordionContainer>
+                                    </Box>
+                                    <ElectionTimeZoneInput
+                                        context={timeZoneContextOf(
+                                            data?.presentation as
+                                                | IElectionEventPresentation
+                                                | undefined
+                                        )}
+                                        disabled={!canEdit}
+                                    />
+                                </Box>
                             </AccordionDetails>
                         </Accordion>
 

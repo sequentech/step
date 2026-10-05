@@ -32,7 +32,7 @@ export const ElectionTimeZoneInput: React.FC<{
     // A zone the event no longer configures is shown, and the election uses the primary.
     const unconfigured = value !== null && !context.configured.includes(value)
     return (
-        <Box sx={{maxWidth: 560}}>
+        <Box sx={{width: "100%", minWidth: 0}}>
             <TimeZonePicker
                 label={t("lifecycle.settings.electionZone")}
                 value={value}
