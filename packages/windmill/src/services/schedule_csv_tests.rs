@@ -787,6 +787,86 @@ fn row_zones_are_stored_canonical_and_abbreviations_refused() {
 }
 
 #[test]
+fn imported_offset_dates_validate_supplied_wall_time_and_zone() {
+    let valid = CronConfig {
+        scheduled_date: Some("2028-04-09T00:00:00+05:30".into()),
+        local: Some("2028-04-09T00:00".into()),
+        timezone: Some("Asia/Kolkata".into()),
+        cron: None,
+    };
+    assert_eq!(checked_import_cron_config(valid.clone()).unwrap(), valid);
+    for (local, timezone, message) in [
+        (
+            Some("2028-04-09T00:00"),
+            Some("Not/AZone"),
+            "Unknown timezone",
+        ),
+        (
+            Some("not-a-date"),
+            Some("Asia/Kolkata"),
+            "Invalid local time",
+        ),
+        (Some("2028-04-09T00:00"), None, "requires a timezone"),
+    ] {
+        let error = checked_import_cron_config(CronConfig {
+            local: local.map(str::to_owned),
+            timezone: timezone.map(str::to_owned),
+            ..valid.clone()
+        })
+        .expect_err("Malformed supplied timezone metadata must not bypass validation");
+        assert!(error.to_string().contains(message), "{error}");
+    }
+    let canonical = checked_import_cron_config(CronConfig {
+        timezone: Some("Asia/Calcutta".into()),
+        ..valid.clone()
+    })
+    .unwrap();
+    assert_eq!(canonical.timezone.as_deref(), Some("Asia/Kolkata"));
+    assert_eq!(canonical.scheduled_date, valid.scheduled_date);
+    let trimmed = checked_import_cron_config(CronConfig {
+        scheduled_date: Some(" 2028-04-09T00:00:00+05:30 ".into()),
+        ..valid.clone()
+    })
+    .unwrap();
+    assert_eq!(trimmed.scheduled_date, valid.scheduled_date);
+    let normalized = checked_import_cron_config(CronConfig {
+        local: Some(" 2028-04-09 00:00 ".into()),
+        ..valid.clone()
+    })
+    .unwrap();
+    assert_eq!(normalized.local, valid.local);
+    assert!(checked_import_cron_config(CronConfig {
+        timezone: Some("Not/AZone".into()),
+        ..Default::default()
+    })
+    .unwrap_err()
+    .to_string()
+    .contains("Unknown timezone"));
+}
+
+#[test]
+fn imported_offset_dates_preserve_selected_overlap_and_tzdata_drift() {
+    for config in [
+        CronConfig {
+            scheduled_date: Some("2028-11-05T06:30:00Z".into()),
+            local: Some("2028-11-05T01:30".into()),
+            timezone: Some("America/New_York".into()),
+            cron: None,
+        },
+        // A previous tzdata version may have resolved this wall time differently.
+        // Recompute proposes the change for Apply; importing must retain its instant.
+        CronConfig {
+            scheduled_date: Some("2028-04-09T01:00:00Z".into()),
+            local: Some("2028-04-09T00:00".into()),
+            timezone: Some("Europe/Madrid".into()),
+            cron: None,
+        },
+    ] {
+        assert_eq!(checked_import_cron_config(config.clone()).unwrap(), config);
+    }
+}
+
+#[test]
 fn an_imported_date_without_an_offset_is_recomputed_or_refused() {
     let with_offset = CronConfig {
         scheduled_date: Some("2028-04-09T00:00:00+04:00".to_string()),

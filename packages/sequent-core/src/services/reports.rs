@@ -20,8 +20,8 @@ use tracing::{info, instrument, warn};
 mod time_zones;
 pub use time_zones::{
     copy_template_time_variables, format_in_zone, is_invalid_timezone_text,
-    template_time_variables, DateTimeZoneStyle, TimeZoneTexts,
-    DATE_TIME_ZONE_KEY, DEFAULT_TEMPLATE_DATE_TIME_FORMAT,
+    normalize_placeholders, template_time_variables, DateTimeZoneStyle,
+    TimeZoneTexts, DATE_TIME_ZONE_KEY, DEFAULT_TEMPLATE_DATE_TIME_FORMAT,
     ELECTION_EVENT_TIMEZONE_VAR, ELECTION_TIMEZONE_VAR,
     TIMEZONE_COMBINED_TEXTS, TIMEZONE_TEXTS_VAR, VOTER_DATE_TIME_ZONE_KEY,
 };
