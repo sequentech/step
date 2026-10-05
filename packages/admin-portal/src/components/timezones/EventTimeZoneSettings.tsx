@@ -112,7 +112,7 @@ export const EventTimeZoneSettings: React.FC<{
     const primaryAbbr = service.zoneLabel(timezones.primary, service.text)
 
     return (
-        <Stack spacing={3} sx={{width: "100%"}} data-testid="event-time-zones">
+        <Stack spacing={3} sx={{width: "100%", minWidth: 0}} data-testid="event-time-zones">
             <Typography component="h3" variant="body1" sx={{fontWeight: "bold"}}>
                 {t("lifecycle.settings.dateAndTime")}
             </Typography>
@@ -166,7 +166,7 @@ export const EventTimeZoneSettings: React.FC<{
                 )}
             />
             <Stack direction={{xs: "column", md: "row"}} spacing={3}>
-                <Box sx={{flex: 1}}>
+                <Box sx={{flex: 1, minWidth: 0}}>
                     <TimeZonePicker
                         label={t("lifecycle.settings.primary")}
                         value={timezones.primary}
@@ -176,7 +176,7 @@ export const EventTimeZoneSettings: React.FC<{
                         onChange={(zone) => zone && save({primary: zone})}
                     />
                 </Box>
-                <FormControl sx={{flex: 1}} disabled={disabled}>
+                <FormControl sx={{flex: 1, minWidth: 0}} disabled={disabled}>
                     <FormLabel id="event-log-time-zone">{t("lifecycle.settings.logs")}</FormLabel>
                     <RadioGroup
                         aria-labelledby="event-log-time-zone"
