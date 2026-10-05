@@ -18,11 +18,14 @@ use sequent_core;
 use sequent_core::services::connection;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::services::keycloak::{get_client_credentials, KeycloakAdminClient};
+use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::hasura::core::{TasksExecution, VotingChannels};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::env;
 use std::fs;
+use strum_macros::Display;
+use thiserror::Error;
 use tokio_postgres::row::Row;
 use tracing::{event, instrument, Level};
 
@@ -145,6 +148,61 @@ pub struct CreateElectionEventInput {
     pub statistics: Option<Value>,
 }
 
+/// Fields of a new election event that only the server sets.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Display)]
+#[strum(serialize_all = "snake_case")]
+pub enum ServerOwnedField {
+    CreatedAt,
+    UpdatedAt,
+    BulletinBoardReference,
+    Status,
+    UserBoards,
+    IsAudit,
+    AuditElectionEventId,
+    PublicKey,
+    Statistics,
+}
+
+#[derive(Debug, PartialEq, Eq, Error)]
+pub enum CreateElectionEventInputError {
+    #[error("id is not a valid UUID v4")]
+    InvalidId,
+    #[error("{0} is set by the server and cannot be provided when creating an election event")]
+    ServerOwnedField(ServerOwnedField),
+}
+
+impl CreateElectionEventInput {
+    /// A new event carries a well-formed id, if any, and nothing the server
+    /// sets itself.
+    pub fn validate_new_event(&self) -> std::result::Result<(), CreateElectionEventInputError> {
+        if let Some(id) = &self.id {
+            parse_uuid_v4(id).map_err(|_| CreateElectionEventInputError::InvalidId)?;
+        }
+
+        let supplied = [
+            (ServerOwnedField::CreatedAt, self.created_at.is_some()),
+            (ServerOwnedField::UpdatedAt, self.updated_at.is_some()),
+            (
+                ServerOwnedField::BulletinBoardReference,
+                self.bulletin_board_reference.is_some(),
+            ),
+            (ServerOwnedField::Status, self.status.is_some()),
+            (ServerOwnedField::UserBoards, self.user_boards.is_some()),
+            (ServerOwnedField::IsAudit, self.is_audit == Some(true)),
+            (
+                ServerOwnedField::AuditElectionEventId,
+                self.audit_election_event_id.is_some(),
+            ),
+            (ServerOwnedField::PublicKey, self.public_key.is_some()),
+            (ServerOwnedField::Statistics, self.statistics.is_some()),
+        ];
+        match supplied.into_iter().find(|(_, is_supplied)| *is_supplied) {
+            Some((field, _)) => Err(CreateElectionEventInputError::ServerOwnedField(field)),
+            None => Ok(()),
+        }
+    }
+}
+
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task]
@@ -156,4 +214,159 @@ pub async fn insert_election_event_t(
     insert_election_event_anyhow(object, id, task_execution).await?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const TENANT_ID: &str = "90505c8a-23a9-4cdf-a26b-4e19f6a097d5";
+
+    fn admin_portal_input() -> CreateElectionEventInput {
+        CreateElectionEventInput {
+            id: Some("d9ecdb61-f799-4d64-8f60-4251cb7dc8cf".to_string()),
+            created_at: None,
+            updated_at: None,
+            labels: None,
+            annotations: None,
+            tenant_id: TENANT_ID.to_string(),
+            name: "Event".to_string(),
+            description: None,
+            presentation: Some(json!({"i18n": {"en": {"name": "Event"}}})),
+            bulletin_board_reference: None,
+            is_archived: Some(false),
+            voting_channels: None,
+            status: None,
+            user_boards: None,
+            encryption_protocol: Some("RSA256".to_string()),
+            is_audit: None,
+            audit_election_event_id: None,
+            public_key: None,
+            alias: None,
+            statistics: None,
+        }
+    }
+
+    #[test]
+    fn accepts_what_the_admin_portal_sends() {
+        assert_eq!(admin_portal_input().validate_new_event(), Ok(()));
+    }
+
+    #[test]
+    fn accepts_a_request_without_id() {
+        let input = CreateElectionEventInput {
+            id: None,
+            ..admin_portal_input()
+        };
+        assert_eq!(input.validate_new_event(), Ok(()));
+    }
+
+    #[test]
+    fn accepts_an_explicit_non_audit_event() {
+        let input = CreateElectionEventInput {
+            is_audit: Some(false),
+            ..admin_portal_input()
+        };
+        assert_eq!(input.validate_new_event(), Ok(()));
+    }
+
+    #[test]
+    fn rejects_an_id_that_is_not_a_uuid() {
+        let input = CreateElectionEventInput {
+            id: Some("not-a-uuid".to_string()),
+            ..admin_portal_input()
+        };
+        assert_eq!(
+            input.validate_new_event(),
+            Err(CreateElectionEventInputError::InvalidId)
+        );
+    }
+
+    #[test]
+    fn rejects_each_server_owned_field() {
+        let cases = [
+            (
+                CreateElectionEventInput {
+                    created_at: Some("2026-01-01T00:00:00Z".to_string()),
+                    ..admin_portal_input()
+                },
+                ServerOwnedField::CreatedAt,
+            ),
+            (
+                CreateElectionEventInput {
+                    updated_at: Some("2026-01-01T00:00:00Z".to_string()),
+                    ..admin_portal_input()
+                },
+                ServerOwnedField::UpdatedAt,
+            ),
+            (
+                CreateElectionEventInput {
+                    bulletin_board_reference: Some(json!({"id": 1})),
+                    ..admin_portal_input()
+                },
+                ServerOwnedField::BulletinBoardReference,
+            ),
+            (
+                CreateElectionEventInput {
+                    status: Some(json!({"voting_status": "OPEN"})),
+                    ..admin_portal_input()
+                },
+                ServerOwnedField::Status,
+            ),
+            (
+                CreateElectionEventInput {
+                    user_boards: Some("board".to_string()),
+                    ..admin_portal_input()
+                },
+                ServerOwnedField::UserBoards,
+            ),
+            (
+                CreateElectionEventInput {
+                    is_audit: Some(true),
+                    ..admin_portal_input()
+                },
+                ServerOwnedField::IsAudit,
+            ),
+            (
+                CreateElectionEventInput {
+                    audit_election_event_id: Some(
+                        "3af34059-6bc9-4c89-b99e-c75c1eec9ac5".to_string(),
+                    ),
+                    ..admin_portal_input()
+                },
+                ServerOwnedField::AuditElectionEventId,
+            ),
+            (
+                CreateElectionEventInput {
+                    public_key: Some("key".to_string()),
+                    ..admin_portal_input()
+                },
+                ServerOwnedField::PublicKey,
+            ),
+            (
+                CreateElectionEventInput {
+                    statistics: Some(json!({})),
+                    ..admin_portal_input()
+                },
+                ServerOwnedField::Statistics,
+            ),
+        ];
+
+        for (input, field) in cases {
+            assert_eq!(
+                input.validate_new_event(),
+                Err(CreateElectionEventInputError::ServerOwnedField(field)),
+                "{field} should be rejected"
+            );
+        }
+    }
+
+    #[test]
+    fn server_owned_field_errors_name_the_graphql_field() {
+        assert_eq!(
+            CreateElectionEventInputError::ServerOwnedField(ServerOwnedField::PublicKey)
+                .to_string(),
+            "public_key is set by the server and cannot be provided when creating an election event"
+        );
+    }
 }
