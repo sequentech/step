@@ -149,6 +149,16 @@ async fn async_main(opt: CeleryOpt) -> Result<()> {
                     ));
                 }
             }
+            let copies =
+                windmill::services::electoral_log_checkpoint_copies::CheckpointCopyConfig::from_env()?;
+            event!(
+                Level::INFO,
+                "Electoral-log checkpoint copies: {}, bucket {}, {} lock for {} days",
+                copies.policy,
+                copies.bucket,
+                copies.lock_mode,
+                copies.retention_days
+            );
             if queues.contains(&Queue::ElectoralLogBeat.queue_name(&slug)) {
                 let limits = windmill::tasks::electoral_log::BatchLimits::from_env()?;
                 event!(

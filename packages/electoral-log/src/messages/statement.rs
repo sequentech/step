@@ -324,6 +324,8 @@ impl StatementHead {
                 let reason = match details.reason {
                     ElectoralLogCheckpointReason::VotingClosed => "voting closed",
                     ElectoralLogCheckpointReason::TallyCompleted => "tally completed",
+                    ElectoralLogCheckpointReason::VotingOpened => "voting opened",
+                    ElectoralLogCheckpointReason::Periodic => "periodic",
                 };
                 StatementHead {
                     kind: StatementType::ElectoralLogCheckpoint,

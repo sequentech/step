@@ -337,6 +337,10 @@ pub struct BallotPublicationFailure {
 pub enum ElectoralLogCheckpointReason {
     VotingClosed,
     TallyCompleted,
+    // New reasons go last: signed checkpoint messages store the variant's index.
+    VotingOpened,
+    /// Published at a fixed interval while voting is open.
+    Periodic,
 }
 
 /// A published checkpoint of the board's Merkle log, recorded in the log itself.

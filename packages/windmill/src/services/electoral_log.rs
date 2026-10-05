@@ -6,6 +6,9 @@ use crate::postgres::election_event::get_election_event_by_id;
 use crate::services::celery_app::get_celery_app;
 use crate::services::database::{get_hasura_pool, PgConfig};
 use crate::services::election_event_board::get_election_event_board;
+use crate::services::electoral_log_checkpoint_copies::{
+    store_checkpoint_copy, CheckpointCopyConfig,
+};
 use crate::services::insert_cast_vote::hash_voter_id;
 use crate::services::protocol_manager::get_board_client;
 use crate::services::protocol_manager::get_event_board;
@@ -1407,6 +1410,15 @@ impl ElectoralLog {
             .checkpoint(&self.elog_database)
             .await?;
         let published = sign_checkpoint(&self.sd, &checkpoint, reason)?;
+        // Copy first, so that with the `required` policy nothing is published without
+        // its write-once copy.
+        store_checkpoint_copy(
+            &CheckpointCopyConfig::from_env()?,
+            tenant_id,
+            election_event_id,
+            &published,
+        )
+        .await?;
         let mut hasura_db_client = get_hasura_pool()
             .await
             .get()

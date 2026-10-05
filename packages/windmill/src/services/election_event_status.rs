@@ -13,7 +13,9 @@ use sequent_core::types::hasura::core::{ElectionEvent, VotingChannels};
 use serde_json::value::Value;
 use tracing::{event, info, instrument, warn, Level};
 
-use super::voting_status::{queue_voting_closed_checkpoint, update_board_on_status_change};
+use super::voting_status::{
+    queue_voting_checkpoint, update_board_on_status_change, voting_checkpoint_reason,
+};
 
 pub fn get_election_event_status(status_json_opt: Option<Value>) -> Option<ElectionEventStatus> {
     status_json_opt.and_then(|status_json| deserialize_value(status_json).ok())
@@ -275,8 +277,8 @@ async fn update_event_voting_status_impl(
         logged_changes += 1;
     }
 
-    if *new_status == VotingStatus::CLOSED && logged_changes > 0 {
-        queue_voting_closed_checkpoint(&tenant_id, election_event_id).await;
+    if let Some(reason) = voting_checkpoint_reason(new_status).filter(|_| logged_changes > 0) {
+        queue_voting_checkpoint(&tenant_id, election_event_id, reason).await;
     }
 
     for election in &elections {

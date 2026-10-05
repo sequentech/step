@@ -186,6 +186,8 @@ mod tests {
                 ElectoralLogCheckpointReason::TallyCompleted,
                 "TALLY_COMPLETED",
             ),
+            (ElectoralLogCheckpointReason::VotingOpened, "VOTING_OPENED"),
+            (ElectoralLogCheckpointReason::Periodic, "PERIODIC"),
         ] {
             assert_eq!(reason.to_string(), name);
             assert_eq!(
@@ -200,6 +202,20 @@ mod tests {
         assert!("voting_closed"
             .parse::<ElectoralLogCheckpointReason>()
             .is_err());
+    }
+
+    /// Signed checkpoint messages store the reason by its index, so the indices of
+    /// existing reasons never change.
+    #[test]
+    fn checkpoint_reasons_keep_their_encoded_indices() {
+        for (reason, index) in [
+            (ElectoralLogCheckpointReason::VotingClosed, 0u8),
+            (ElectoralLogCheckpointReason::TallyCompleted, 1),
+            (ElectoralLogCheckpointReason::VotingOpened, 2),
+            (ElectoralLogCheckpointReason::Periodic, 3),
+        ] {
+            assert_eq!(borsh::to_vec(&reason).unwrap(), vec![index]);
+        }
     }
 
     /// `schema.sql` is applied directly by provisioning scripts, so it carries a copy of

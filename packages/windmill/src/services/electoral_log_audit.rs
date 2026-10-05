@@ -9,14 +9,20 @@
 //! task execution; findings are reported, never repaired.
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::electoral_log_checkpoint::{
-    get_electoral_log_checkpoints, PublishedCheckpoint,
+    get_election_events_with_open_voting, get_electoral_log_checkpoints,
+    get_last_published_tree_size, PublishedCheckpoint,
 };
 use crate::postgres::tally_session_execution::append_tally_session_log;
 use crate::services::celery_app::get_celery_app;
 use crate::services::database::get_hasura_pool;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::electoral_log::ElectoralLog;
-use crate::services::protocol_manager::{get_electoral_log_store, get_protocol_manager};
+use crate::services::electoral_log_checkpoint_copies::{
+    cross_check, read_checkpoint_copies, CheckpointCopyConfig, CheckpointCopyPolicy,
+};
+use crate::services::protocol_manager::{
+    get_board_client, get_electoral_log_store, get_protocol_manager,
+};
 use crate::services::serialize_tasks_logs::append_general_log;
 use crate::services::tasks_execution::{post, update_fail, update_with_annotations};
 use crate::tasks::audit_electoral_log::audit_electoral_log;
@@ -24,7 +30,9 @@ use crate::types::tasks::ETasksExecution;
 use anyhow::{Context, Result};
 use b4::messages::message::Signer;
 use electoral_log::adapters::postgres::{AuditAnnotations, AuditOutcome};
+use electoral_log::domain::{LogQuery, OrderColumn, SortDirection};
 use electoral_log::messages::newtypes::ElectoralLogCheckpointReason;
+use electoral_log::messages::statement::StatementType;
 use electoral_log::proofs::{verify_checkpoint_signature, Checkpoint};
 use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::types::hasura::extra::TasksExecutionStatus;
@@ -119,6 +127,150 @@ pub async fn publish_event_checkpoint(
     electoral_log
         .publish_checkpoint(tenant_id, election_event_id, reason)
         .await
+}
+
+/// Environment variable with the seconds between periodic checkpoints of the logs of
+/// election events with open voting.
+pub const CHECKPOINT_INTERVAL_ENV: &str = "ELECTORAL_LOG_CHECKPOINT_INTERVAL_SECS";
+/// Seconds between periodic checkpoints when the variable is unset or empty.
+pub const DEFAULT_CHECKPOINT_INTERVAL_SECS: u64 = 300;
+
+/// Seconds between periodic checkpoints, from `ELECTORAL_LOG_CHECKPOINT_INTERVAL_SECS`.
+pub fn checkpoint_interval_secs() -> Result<u64> {
+    parse_checkpoint_interval(std::env::var(CHECKPOINT_INTERVAL_ENV).ok().as_deref())
+}
+
+fn parse_checkpoint_interval(value: Option<&str>) -> Result<u64> {
+    match value.map(str::trim).filter(|value| !value.is_empty()) {
+        None => Ok(DEFAULT_CHECKPOINT_INTERVAL_SECS),
+        Some(value) => value
+            .parse::<u64>()
+            .ok()
+            .filter(|secs| *secs > 0)
+            .with_context(|| {
+                format!(
+                    "{CHECKPOINT_INTERVAL_ENV} must be a positive number of seconds, got {value:?}"
+                )
+            }),
+    }
+}
+
+/// What a periodic run does with a log, from its size and the size of its last
+/// published checkpoint.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum PeriodicCheck {
+    /// Nothing was appended since the last checkpoint.
+    UpToDate,
+    /// One record was appended: usually the record of the last checkpoint itself,
+    /// which needs no checkpoint of its own.
+    NewestRecordDecides,
+    /// Records were appended since the last checkpoint.
+    Due,
+}
+
+fn periodic_check(tree_size: i64, last_published: Option<i64>) -> Result<PeriodicCheck> {
+    let Some(last_published) = last_published else {
+        return Ok(if tree_size == 0 {
+            PeriodicCheck::UpToDate
+        } else {
+            PeriodicCheck::Due
+        });
+    };
+    match tree_size - last_published {
+        grown if grown < 0 => anyhow::bail!(
+            "The log has {tree_size} records, fewer than the {last_published} of its last \
+             published checkpoint: it may have been rolled back"
+        ),
+        0 => Ok(PeriodicCheck::UpToDate),
+        1 => Ok(PeriodicCheck::NewestRecordDecides),
+        _ => Ok(PeriodicCheck::Due),
+    }
+}
+
+/// Outcome of one periodic checkpoint run.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub struct PeriodicCheckpoints {
+    pub published: usize,
+    pub up_to_date: usize,
+    pub failed: usize,
+}
+
+/// Publish a checkpoint of the log of every election event with open voting that grew
+/// since its last checkpoint. A failure for one event is logged and does not stop the
+/// others.
+#[instrument(err)]
+pub async fn publish_periodic_checkpoints() -> Result<PeriodicCheckpoints> {
+    let events = {
+        let mut client = get_hasura_pool().await.get().await?;
+        let transaction = client.build_transaction().read_only(true).start().await?;
+        get_election_events_with_open_voting(&transaction).await?
+    };
+    let mut outcome = PeriodicCheckpoints::default();
+    for (tenant_id, election_event_id) in events {
+        match publish_periodic_checkpoint(&tenant_id, &election_event_id).await {
+            Ok(true) => outcome.published += 1,
+            Ok(false) => outcome.up_to_date += 1,
+            Err(error) => {
+                outcome.failed += 1;
+                tracing::error!(
+                    "Could not publish the periodic electoral-log checkpoint of election event {election_event_id}: {error:?}"
+                );
+            }
+        }
+    }
+    Ok(outcome)
+}
+
+/// Publish a periodic checkpoint of one election event's log if it grew since its
+/// last checkpoint, and return whether it did.
+async fn publish_periodic_checkpoint(tenant_id: &str, election_event_id: &str) -> Result<bool> {
+    let (board, checkpoint, last_published) = {
+        let mut client = get_hasura_pool().await.get().await?;
+        let transaction = client.build_transaction().read_only(true).start().await?;
+        let event = get_election_event_by_id(&transaction, tenant_id, election_event_id).await?;
+        let board = get_election_event_board(event.bulletin_board_reference)
+            .context("Election event has no electoral-log board")?;
+        let checkpoint = get_electoral_log_store()
+            .await?
+            .journal()
+            .checkpoint(&board)
+            .await?;
+        let last_published = get_last_published_tree_size(
+            &transaction,
+            tenant_id,
+            election_event_id,
+            checkpoint.log_id,
+        )
+        .await?;
+        (board, checkpoint, last_published)
+    };
+    let due = match periodic_check(i64::try_from(checkpoint.tree_size)?, last_published)? {
+        PeriodicCheck::UpToDate => false,
+        PeriodicCheck::Due => true,
+        PeriodicCheck::NewestRecordDecides => !newest_record_is_checkpoint(&board).await?,
+    };
+    if due {
+        publish_event_checkpoint(
+            tenant_id,
+            election_event_id,
+            ElectoralLogCheckpointReason::Periodic,
+        )
+        .await?;
+    }
+    Ok(due)
+}
+
+/// Whether the newest record of a board records a published checkpoint.
+async fn newest_record_is_checkpoint(board: &str) -> Result<bool> {
+    let query = LogQuery {
+        order: vec![(OrderColumn::Id, SortDirection::Desc)],
+        limit: 1,
+        ..LogQuery::default()
+    };
+    let newest = get_board_client().await?.query(board, &query).await?;
+    Ok(newest.first().is_some_and(|record| {
+        record.statement_kind == StatementType::ElectoralLogCheckpoint.to_string()
+    }))
 }
 
 /// Create the audit task and enqueue it. Audits started by a tally also report to
@@ -220,7 +372,31 @@ pub async fn run_electoral_log_audit(
     transaction.commit().await?;
     drop(client);
 
-    let (checkpoints, mut findings) = check_publications(&board, &expected_signer, &published);
+    let (mut checkpoints, mut findings) = check_publications(&board, &expected_signer, &published);
+    let copies = CheckpointCopyConfig::from_env()?;
+    if copies.policy != CheckpointCopyPolicy::Off {
+        match read_checkpoint_copies(&copies, tenant_id, election_event_id).await {
+            Ok(read) => {
+                findings.extend(read.findings);
+                findings.extend(cross_check(&published, &read.copies));
+                let (copied, copy_findings) = check_labelled_publications(
+                    &board,
+                    &expected_signer,
+                    &read.copies,
+                    "Write-once copy of the checkpoint",
+                );
+                findings.extend(copy_findings);
+                for checkpoint in copied {
+                    if !checkpoints.contains(&checkpoint) {
+                        checkpoints.push(checkpoint);
+                    }
+                }
+            }
+            Err(error) => findings.push(format!(
+                "Could not read the write-once checkpoint copies: {error:#}"
+            )),
+        }
+    }
     let report = get_electoral_log_store()
         .await?
         .audit(&board, &checkpoints)
@@ -242,6 +418,16 @@ fn check_publications(
     expected_signer: &str,
     published: &[PublishedCheckpoint],
 ) -> (Vec<Checkpoint>, Vec<String>) {
+    check_labelled_publications(board, expected_signer, published, "Published checkpoint")
+}
+
+/// Like `check_publications`, naming the checked items `label` in the findings.
+fn check_labelled_publications(
+    board: &str,
+    expected_signer: &str,
+    published: &[PublishedCheckpoint],
+    label: &str,
+) -> (Vec<Checkpoint>, Vec<String>) {
     let mut checkpoints = Vec::new();
     let mut findings = Vec::new();
     for publication in published {
@@ -251,7 +437,7 @@ fn check_publications(
             hex::decode(&publication.root),
             publication.reason.parse::<ElectoralLogCheckpointReason>(),
         ) else {
-            findings.push(format!("Published checkpoint at size {size} is malformed"));
+            findings.push(format!("{label} at size {size} is malformed"));
             continue;
         };
         let checkpoint = Checkpoint {
@@ -262,14 +448,14 @@ fn check_publications(
         };
         if publication.board_name != board {
             findings.push(format!(
-                "Published checkpoint at size {size} names board {} instead of {board}",
+                "{label} at size {size} names board {} instead of {board}",
                 publication.board_name
             ));
             continue;
         }
         if publication.signer_pk != expected_signer {
             findings.push(format!(
-                "Published checkpoint at size {size} is signed by an unexpected key"
+                "{label} at size {size} is signed by an unexpected key"
             ));
         } else if let Err(error) = verify_checkpoint_signature(
             &checkpoint,
@@ -278,7 +464,7 @@ fn check_publications(
             &publication.signature,
         ) {
             findings.push(format!(
-                "Published checkpoint at size {size} has an invalid signature: {error:#}"
+                "{label} at size {size} has an invalid signature: {error:#}"
             ));
         }
         checkpoints.push(checkpoint);
@@ -448,5 +634,47 @@ mod tests {
         assert!(findings[2].contains("names board"));
         assert!(findings[3].contains("malformed"));
         assert!(findings[4].contains("malformed"));
+    }
+}
+
+#[cfg(test)]
+mod periodic_checkpoint_tests {
+    use super::*;
+
+    #[test]
+    fn the_interval_defaults_and_rejects_invalid_values() {
+        assert_eq!(
+            parse_checkpoint_interval(None).unwrap(),
+            DEFAULT_CHECKPOINT_INTERVAL_SECS
+        );
+        assert_eq!(
+            parse_checkpoint_interval(Some(" ")).unwrap(),
+            DEFAULT_CHECKPOINT_INTERVAL_SECS
+        );
+        assert_eq!(parse_checkpoint_interval(Some("60")).unwrap(), 60);
+        for invalid in ["0", "-5", "5m", "1.5"] {
+            let error = parse_checkpoint_interval(Some(invalid))
+                .unwrap_err()
+                .to_string();
+            assert!(error.contains(CHECKPOINT_INTERVAL_ENV), "{error}");
+        }
+    }
+
+    #[test]
+    fn a_log_is_checkpointed_only_when_it_grew() {
+        assert_eq!(periodic_check(0, None).unwrap(), PeriodicCheck::UpToDate);
+        assert_eq!(periodic_check(5, None).unwrap(), PeriodicCheck::Due);
+        assert_eq!(periodic_check(5, Some(5)).unwrap(), PeriodicCheck::UpToDate);
+        assert_eq!(
+            periodic_check(6, Some(5)).unwrap(),
+            PeriodicCheck::NewestRecordDecides
+        );
+        assert_eq!(periodic_check(7, Some(5)).unwrap(), PeriodicCheck::Due);
+    }
+
+    #[test]
+    fn a_log_smaller_than_its_last_checkpoint_is_an_error() {
+        let error = periodic_check(4, Some(5)).unwrap_err().to_string();
+        assert!(error.contains("rolled back"), "{error}");
     }
 }

@@ -5,10 +5,11 @@
 use anyhow::{Context, Result};
 use deadpool_postgres::Transaction;
 use sequent_core::services::uuid_validation::parse_uuid_v4;
+use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
 /// A published checkpoint of an election event's electoral log.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PublishedCheckpoint {
     pub board_name: String,
     pub log_id: i64,
@@ -122,5 +123,65 @@ pub async fn get_electoral_log_checkpoints(
                 signature: row.try_get("signature")?,
             })
         })
+        .collect()
+}
+
+/// Size of the largest checkpoint published for one generation of an election event's
+/// log, if any.
+#[instrument(skip(hasura_transaction), err)]
+pub async fn get_last_published_tree_size(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    log_id: i64,
+) -> Result<Option<i64>> {
+    let row = hasura_transaction
+        .query_one(
+            r#"
+            SELECT max(tree_size) AS tree_size
+            FROM sequent_backend.electoral_log_checkpoint
+            WHERE tenant_id = $1 AND election_event_id = $2 AND log_id = $3
+            "#,
+            &[
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
+                &log_id,
+            ],
+        )
+        .await
+        .context("Error reading the last published electoral-log checkpoint")?;
+    Ok(row.try_get("tree_size")?)
+}
+
+/// `(tenant_id, election_event_id)` of every election event with voting open on any
+/// channel, for the whole event or for one of its elections.
+#[instrument(skip(hasura_transaction), err)]
+pub async fn get_election_events_with_open_voting(
+    hasura_transaction: &Transaction<'_>,
+) -> Result<Vec<(String, String)>> {
+    let rows = hasura_transaction
+        .query(
+            r#"
+            SELECT tenant_id::text AS tenant_id, id::text AS election_event_id
+            FROM sequent_backend.election_event
+            WHERE 'OPEN' IN (
+                status->>'voting_status', status->>'kiosk_voting_status',
+                status->>'early_voting_status', status->>'telephone_voting_status'
+            )
+            UNION
+            SELECT tenant_id::text, election_event_id::text
+            FROM sequent_backend.election
+            WHERE 'OPEN' IN (
+                status->>'voting_status', status->>'kiosk_voting_status',
+                status->>'early_voting_status', status->>'telephone_voting_status'
+            )
+            ORDER BY 1, 2
+            "#,
+            &[],
+        )
+        .await
+        .context("Error reading the election events with open voting")?;
+    rows.into_iter()
+        .map(|row| Ok((row.try_get("tenant_id")?, row.try_get("election_event_id")?)))
         .collect()
 }

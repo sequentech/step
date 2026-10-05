@@ -33,7 +33,7 @@ Every record is a *signed statement*: a structured description of one event. Ste
 | Records of one event have a stable order that only grows | Appends to a board are serialized, and record IDs are allocated in commit order (section 6.3) | |
 | A holder of a trusted checkpoint can check that a record is in the log | Inclusion proofs against the Merkle root (section 7.6) | Proofs need `logs-read` or database access (section 9.4) |
 | A holder of an earlier checkpoint can check that the log only grew since | Consistency proofs between two roots (section 7.7) | Same |
-| Changes to history covered by a checkpoint kept outside the log's database are detected | Signed checkpoints are published to the Hasura database when voting closes and when a results tally completes, and auditors can keep their own copies (section 8) | Until voting closes, nothing outside the log's database covers the history, unless an auditor saved a checkpoint |
+| Changes to history covered by a checkpoint kept outside the log's database are detected | Signed checkpoints are published to the Hasura database when voting opens, every few minutes while it is open, when it closes and when a results tally completes, and auditors can keep their own copies (section 8) | Records newer than the latest checkpoint, at most one interval old while voting is open, are covered by nothing outside the log's database |
 | Damage is found by audits and proofs | Audits recompute everything (section 10); checkpoint, proof and append operations check the tree's right edge (section 7.5) | Lists, counts and exports do not check, so they serve edited rows until an audit or a proof runs |
 
 Non-goals:
@@ -441,13 +441,16 @@ The JSON form, used by the API and the CLI, carries `root` as an array of byte v
 
 | Moment | Reason | How |
 | --- | --- | --- |
-| Voting closes, once per closure that changed some channel | `VOTING_CLOSED` | Queued as the `publish_electoral_log_checkpoint` task after the closure is logged, so closing never waits for it |
+| Voting opens, once per opening that changed some channel | `VOTING_OPENED` | Queued as the `publish_electoral_log_checkpoint` task after the opening is logged, so opening never waits for it |
+| Every `ELECTORAL_LOG_CHECKPOINT_INTERVAL_SECS` seconds (300 by default) while voting is open | `PERIODIC` | The `publish_periodic_electoral_log_checkpoints` task, scheduled by Windmill beat, for each election event with voting open on any channel, for the event or one of its elections |
+| Voting closes, once per closure that changed some channel | `VOTING_CLOSED` | Queued like the opening one |
 | A results tally session completes and commits | `TALLY_COMPLETED` | Right after the tally's commit, followed by an audit (section 10.3) |
 
 - **Not a seal of the voting period:** the `VOTING_CLOSED` checkpoint covers the records committed when it was taken. Cast votes and Keycloak events that were still queued at closure are appended after it. The `TALLY_COMPLETED` checkpoint covers those that were appended before the tally completed, which in practice means all of them.
-- **Nothing is published before voting closes.** Until then, no checkpoint outside the electoral-log database covers the board, unless an auditor saves one (section 8.4).
-- **Best effort:** a failed publication fails neither the closure nor the tally. It is logged, and for a tally it is also written to the tally session's logs.
-- **No rollback:** like the closure's own log records, a publication is not undone if the closure's transaction later rolls back.
+- **Periodic checkpoints only when the log grew.** A run skips a board with no new record since its latest checkpoint, and one whose only new record is the record of that checkpoint itself, so an idle board does not grow by one checkpoint record per interval. It compares sizes within the board's current log generation, and reports a board smaller than its latest checkpoint as a failure instead of publishing. A failure for one event is logged and the run continues with the others, then fails so that it shows in the worker logs.
+- **The window that no checkpoint covers** is the time since the latest checkpoint: up to one interval while voting is open, plus however long the publication takes. A shorter interval narrows it at the cost of one more checkpoint record and one more Hasura row per interval for every event with open voting.
+- **Best effort:** a failed publication fails neither the voting change nor the tally. It is logged, and for a tally it is also written to the tally session's logs.
+- **No rollback:** like the voting change's own log records, a publication is not undone if the change's transaction later rolls back.
 - **Initialization reports** publish nothing.
 
 ### 8.3 Signing, storing and recording a publication
@@ -459,20 +462,47 @@ The JSON form, used by the API and the CLI, carries `root` as an array of byte v
    ["sequent-electoral-log-checkpoint-v1", log_name, log_id, tree_size, hex(root), reason]
    ```
 
-3. **Store** it in `sequent_backend.electoral_log_checkpoint` with `tenant_id`, `election_event_id`, `board_name`, `log_id`, `tree_size`, `root`, `reason`, `signer_pk`, `signature` and `created_at`.
+3. **Copy** it to the write-once bucket, when copies are on (section 8.5). With the `required` policy, a failed copy fails the publication before anything is stored.
+4. **Store** it in `sequent_backend.electoral_log_checkpoint` with `tenant_id`, `election_event_id`, `board_name`, `log_id`, `tree_size`, `root`, `reason`, `signer_pk`, `signature` and `created_at`.
    - The row is unique per event, generation and size. Publishing the same size again keeps the first row.
    - If a different root was already published at that size, publication fails with "the log may have been rolled back or forked".
-4. **Record** the publication in the log itself as an `ElectoralLogCheckpoint` statement, under the delivery ID `electoral-log-checkpoint:<log_id>:<size>`, so each size is recorded once.
+5. **Record** the publication in the log itself as an `ElectoralLogCheckpoint` statement, under the delivery ID `electoral-log-checkpoint:<log_id>:<size>`, so each size is recorded once.
 
 The application only inserts into this table. Through GraphQL, the `logs-read` and `admin-user` roles can read the rows of their own tenant, and `service-account` can read every row.
 
 ### 8.4 Keeping your own copy
 
-Published checkpoints protect against changes made only in the electoral-log database. They do not protect against someone who can also change the Hasura database or who controls the backend (section 12.3), and they cover nothing before voting closes. An auditor who wants protection that does not depend on Step's databases should copy checkpoints to storage they control, starting before or during voting if that period matters to them:
+Published checkpoints protect against changes made only in the electoral-log database. They do not protect against someone who can also change the Hasura database or who controls the backend (section 12.3), and they cover nothing newer than the latest one. An auditor who wants protection that does not depend on Step's databases should copy checkpoints to storage they control, starting before or during voting if that period matters to them:
 
 - **What to save:** the checkpoint JSON (section 8.1) and, for published ones, the signature and signer key from the table. The signer key is a base64 DER public key and the signature is base64, over the signing bytes of section 8.3. No Step tool verifies these signatures offline; the audit verifies them against the protocol-manager key.
 - **How to get it:** read the table through GraphQL, call the checkpoint API (section 9.4) or run `electoral-log-admin checkpoint`. To use a table row with `electoral-log-admin`, convert it to the JSON of section 8.1: `board_name` becomes `log_name`, and the 64-character hex `root` becomes an array of 32 byte values.
 - **How to use it:** later, verify records and growth against those copies (sections 7.8 and 9.5). A copy saved at a given time covers the history up to its size, so saving regularly narrows the window in which an undetected rewrite is possible.
+
+### 8.5 Write-once copies
+
+Windmill can also write every publication to an S3 bucket with Object Lock, where no one, the backend included, can change or delete it until its retention ends. The audit compares those copies with the table, so deleting or changing a published row is detected.
+
+- **Object:** `tenant-<tenant>/event-<event>/log-<log_id>/size-<tree_size, 20 digits>.json`, holding the published row as JSON: `board_name`, `log_id`, `tree_size`, `root`, `reason`, `signer_pk` and `signature`. It is written with the configured lock mode and a retention of `ELECTORAL_LOG_CHECKPOINT_RETENTION_DAYS` from the moment of writing.
+- **Policy** (`ELECTORAL_LOG_CHECKPOINT_COPY`):
+
+  | Value | Publication | Audit |
+  | --- | --- | --- |
+  | `off` (default) | No copy | Does not look for copies |
+  | `best-effort` | A failed copy is logged and the publication goes ahead | Reports the checkpoint without a copy |
+  | `required` | A failed copy fails the publication; nothing is stored | Same checks |
+
+- **Lock mode** (`ELECTORAL_LOG_CHECKPOINT_LOCK_MODE`): `compliance` (default) lets no one delete a copy or shorten its retention, not even the account's root user. `governance` lets users allowed to bypass governance retention delete copies; it is meant for development, whose configuration uses it with a one-day retention.
+- **The bucket:** `ELECTORAL_LOG_CHECKPOINT_BUCKET`, `electoral-log-checkpoints` by default, at the S3 endpoint Windmill uses for documents. Windmill creates it with Object Lock if it does not exist, and refuses to copy into a bucket without Object Lock. In production, create it beforehand. Windmill needs to put objects with retention, read objects and their versions, list object versions and read the bucket's Object Lock configuration.
+- **What the audit checks** (section 10.1): it reads every version of every copy of the event, not only the latest. It reports:
+  - a delete marker, left by an attempt to delete a copy;
+  - a copy overwritten with a different root;
+  - a copy without a published row, because the row was deleted;
+  - a row that differs from its copy;
+  - a row without a copy;
+  - a copy that is malformed or stored under another size's key.
+
+  Every copy then goes through the same signature, signer and history checks as the rows. If the bucket cannot be read, the audit reports that as a finding.
+- **What it does not cover:** a backend that stops writing copies leaves new checkpoints without them, which the audit reports while their rows exist. History newer than the latest copy has no write-once anchor. The audit itself runs in the backend, so to rely on the copies without trusting it, give auditors read access to the bucket and compare them with the log yourself (section 8.4).
 
 ## 9. Reading the log
 
@@ -587,8 +617,9 @@ An audit reads one consistent snapshot of the board and checks:
    - It must name the event's board.
    - Its signer must be the event's protocol-manager key, and its signature must be valid.
    - It must belong to this log generation, and the root recomputed from the leaves at its size must equal its root.
+6. **Write-once copies match the published checkpoints**, when copies are on (section 8.5). Every version of every copy also goes through the checks of item 5.
 
-An audit reports findings and never repairs anything. It does not verify message signatures (section 5.3), and it can only compare the published checkpoints that still exist: a deleted checkpoint row goes unnoticed (section 12.2).
+An audit reports findings and never repairs anything. It does not verify message signatures (section 5.3). Without write-once copies it can only compare the published checkpoints that still exist, so a deleted checkpoint row goes unnoticed (section 12.2).
 
 ### 10.2 How it runs
 
@@ -684,17 +715,18 @@ The table assumes the change is made directly in the electoral-log database, unl
 | Deleting a record | The audit (leaf without record, counts) |
 | Reordering records | The audit's leaf-order check, and changed roots |
 | Altering stored subtrees or the root | The right-edge check (`Corrupt`) if the change touches the edge or the root; otherwise proofs that use the subtree, and the audit |
-| Rewriting records, leaves, subtrees and root consistently | Nothing inside the electoral-log database. Detected for history covered by a checkpoint kept elsewhere: the audit compares the published checkpoints in the Hasura database, and anyone verifying against a checkpoint they saved gets `Diverged`. Until such a checkpoint exists, which for published ones means until voting closes, and for history newer than the newest one, a rewrite goes undetected. |
+| Rewriting records, leaves, subtrees and root consistently | Nothing inside the electoral-log database. Detected for history covered by a checkpoint kept elsewhere: the audit compares the published checkpoints in the Hasura database, and anyone verifying against a checkpoint they saved gets `Diverged`. For history newer than the newest such checkpoint, a rewrite goes undetected; while voting is open, published ones are at most one checkpoint interval old. |
 | Rolling back or restoring an older backup | Consistency against a newer saved checkpoint fails (`Diverged`), and publishing a different root at an already published size fails |
 | Appending a statement with forged content through the backend | Nothing in Step: no component verifies message signatures, and anyone with the protocol-manager key produces valid ones (section 5.3) |
-| Altering a published checkpoint row in the Hasura database | The audit's signature and signer checks, unless the row is re-signed with the protocol-manager key |
-| Deleting published checkpoint rows in the Hasura database | Nothing in Step. The audit checks only the rows that exist, and does not compare them with the `ElectoralLogCheckpoint` records in the log. Deleting the rows and then rewriting the log is not detected. |
+| Altering a published checkpoint row in the Hasura database | The audit's signature and signer checks, unless the row is re-signed with the protocol-manager key; with write-once copies, also the comparison with the row's copy |
+| Deleting published checkpoint rows in the Hasura database | With write-once copies, the audit reports each copy whose row is missing (section 8.5). Without them, nothing in Step: the audit checks only the rows that exist and does not compare them with the `ElectoralLogCheckpoint` records in the log, so deleting the rows and then rewriting the log is not detected. |
+| Changing or deleting a write-once copy | Object Lock refuses it until the retention ends. A new version or a delete marker can still be written; the audit reports both. |
 
 ### 12.3 Limits
 
-- **The backend controls both anchors.** Windmill and Harvest each hold credentials for the electoral-log and Hasura databases and load the protocol-manager key. Whoever controls either of them, or both databases and the master secret, can rewrite the log, the published checkpoints and their signatures. Harvest is the HTTP API. Only checkpoints kept outside Step detect such a rewrite (section 8.4).
+- **The backend controls both anchors.** Windmill and Harvest each hold credentials for the electoral-log and Hasura databases and load the protocol-manager key. Whoever controls either of them, or both databases and the master secret, can rewrite the log, the published checkpoints and their signatures. Harvest is the HTTP API. Only checkpoints kept outside Step's databases detect such a rewrite: auditors' own copies (section 8.4) and, for the history they cover, write-once copies in compliance mode, which the backend can add to but not change or delete (section 8.5).
 - **Harvest trusts token claims.** It decodes JWTs without verifying their signature or expiry. The permissions in section 12.1 therefore hold only when every path to Harvest verifies tokens first, as Hasura does for its actions. The proof routes are not Hasura actions, so reach them only through a gateway that verifies tokens.
-- **The history before voting closes has no outside anchor** unless an auditor saved a checkpoint. The first published checkpoint is taken at voting close, so whoever controls the electoral-log database can change records of the voting period, including cast votes, consistently before then.
+- **The newest records have no outside anchor.** Records appended after the latest published checkpoint, at most one checkpoint interval of them while voting is open, can be changed consistently by whoever controls the electoral-log database, until the next checkpoint covers them.
 - **Audits and proofs show integrity, not completeness at the source.** An event that a producer never delivered is not in the log. Known gaps: Keycloak's listener logs a failed RabbitMQ publish and moves on, without retrying or using publisher confirms; cast votes are queued after the vote commits, on a best-effort basis; and dead-lettered events stay out of the log until someone replays them (section 14.7).
 - **Signatures are server signatures.** They show that the backend built a statement, not that a voter or Keycloak produced it, and Step does not verify them.
 - **The log holds personal data.** Records carry user IDs and usernames, and cast-vote records also the voter's area, IP address and country. Voters never receive any of it (section 9.2); section 12.1 lists who can read records.
@@ -736,6 +768,11 @@ A load test filled one board to 20 million records on a PostgreSQL server with 1
 | `ELECTORAL_LOG_BATCH_SIZE` | Maximum events per dispatcher batch; 1,000 when unset or empty |
 | `ELECTORAL_LOG_BATCH_MAX_BYTES` | Maximum payload bytes per dispatcher batch; 16,777,216 (16 MiB) when unset or empty |
 | `--electoral-log-interval` (Windmill beat flag) | Seconds between dispatcher runs; 5 by default |
+| `ELECTORAL_LOG_CHECKPOINT_COPY` | Write-once copies of checkpoints: `off` (default), `best-effort` or `required` (section 8.5) |
+| `ELECTORAL_LOG_CHECKPOINT_BUCKET` | Bucket of the copies; `electoral-log-checkpoints` by default |
+| `ELECTORAL_LOG_CHECKPOINT_LOCK_MODE` | `compliance` (default) or `governance` |
+| `ELECTORAL_LOG_CHECKPOINT_RETENTION_DAYS` | Days each copy is locked; 3,650 by default |
+| `ELECTORAL_LOG_CHECKPOINT_INTERVAL_SECS` (Windmill beat) | Seconds between periodic checkpoints while voting is open; 300 when unset or empty. Any other value than a positive integer stops beat at startup, naming the variable. |
 
 - **Who reads them:** Windmill, Harvest, `electoral-log-admin`, `step export-cast-votes` and Windmill's `generate-logs` tool, which also needs `ENV_SLUG`. Harvest refuses to start without the `ELECTORAL_LOG_PG_*` variables.
 - **Sizing the dispatcher batch:** a batch closes at whichever limit it reaches first; a single message larger than the byte limit still goes out as a batch of one. Any value other than a positive integer stops the worker that runs the dispatcher at startup, naming the variable. The log no longer reads the shared `DEFAULT_SQL_BATCH_SIZE`, which still sizes user exports, send-template and the cast-vote review.
@@ -781,6 +818,7 @@ Old ImmuDB boards are not imported. Keep old storage and backups until retention
 | `Error appending electoral-log batch for board …` | Windmill worker logs | An append to that board failed; the other boards of the batch were appended |
 | `electoral_log_event_queue` keeps growing | RabbitMQ | The dispatcher is not running or has no worker, every run reaches its 30-second limit, or it cannot publish to the dead-letter queue |
 | `PRECONDITION_FAILED` and a message size error | RabbitMQ logs | A batch was larger than `max_message_size`, which the default byte limit prevents: it was lost, and the sending worker must be restarted (section 6.1) |
+| `Could not write the write-once copy of the electoral-log checkpoint` | Windmill worker logs | A copy failed under `best-effort`; the next audit reports the checkpoint without a copy (section 8.5) |
 | `Audit event was not delivered to RabbitMQ` | Keycloak logs | A Keycloak event that will never be in the log |
 | `Cannot append to Trellis log '…'` | Windmill and Harvest logs | The board's tree fails the right-edge check, or the log must be rebuilt (section 7.10). Every append to that board fails until it is repaired (section 14.6). |
 | `Stored Merkle data is inconsistent` without the line above | Harvest logs, proof responses | A proof hit damaged data, such as an altered interior subtree or a record without a leaf. Appends still work; run an audit. |
@@ -846,7 +884,8 @@ The voting-closed and tally-completed publications are covered by unit tests and
 | Check the right edge before checkpoints, proofs and appends | Trust the stored root | Damage at the edge is reported instead of being served as a proof or extended. The check reads a few rows; lists and exports skip it, and audits check everything. |
 | Commit to the whole stored record, including ID and delivery ID | Commit only to the signed message | Moving, swapping or re-labelling rows also changes the tree. |
 | Serialize appends per board | Allow concurrent appends | Commit order equals ID order, so cursors and the tree order are reliable. Batching recovers throughput. |
-| Publish signed checkpoints to the Hasura database | Keep checkpoints only in the log database | An outside anchor that a consistent rewrite of the log database alone cannot match. It covers the history from voting close on, and it does not protect against the backend, which can write both databases. |
+| Publish signed checkpoints to the Hasura database | Keep checkpoints only in the log database | An outside anchor that a consistent rewrite of the log database alone cannot match. It covers the history up to the latest checkpoint, which while voting is open is at most one interval old, and it does not protect against the backend, which can write both databases. |
+| Write-once copies in an S3 bucket with Object Lock | Rely on the Hasura table and auditors' own copies | Deleting or changing published rows is detected, and the backend cannot remove the copies. Off by default, because it needs a bucket with Object Lock. |
 | Audits as task executions | A synchronous API | Audits read the whole board. Tasks report progress, survive the request and record results in one place. |
 | Delivery IDs for idempotency | Content hashing | Two real events can have identical content. |
 
@@ -854,7 +893,7 @@ The voting-closed and tally-completed publications are covered by unit tests and
 
 Security and completeness (section 12.3):
 
-- No checkpoint outside the electoral-log database covers the board before voting closes, and deleting published checkpoint rows is not detected.
+- No checkpoint outside the electoral-log database covers records newer than the latest one, and unless write-once copies are on, deleting published checkpoint rows is not detected.
 - Message signatures are made by the backend with server-held keys, and no Step component verifies them.
 - Lists, counts, exports and the ballot locator serve stored rows without any integrity check.
 - Keycloak events whose publish to RabbitMQ fails are only logged. Dead-lettered events stay out of the log until someone replays them, and nothing alerts on the dead-letter queue by itself.

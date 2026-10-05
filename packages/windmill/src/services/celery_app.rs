@@ -59,7 +59,9 @@ use crate::tasks::post_tally::post_tally_task;
 use crate::tasks::prepare_publication_preview::prepare_publication_preview;
 use crate::tasks::process_board::process_board;
 use crate::tasks::process_cast_vote::process_cast_vote;
-use crate::tasks::publish_electoral_log_checkpoint::publish_electoral_log_checkpoint;
+use crate::tasks::publish_electoral_log_checkpoint::{
+    publish_electoral_log_checkpoint, publish_periodic_electoral_log_checkpoints,
+};
 use crate::tasks::publish_results_website::publish_results_website_task;
 use crate::tasks::render_document_pdf::render_document_pdf;
 use crate::tasks::render_report::render_report;
@@ -293,6 +295,7 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
             generate_activity_logs_report,
             audit_electoral_log,
             publish_electoral_log_checkpoint,
+            publish_periodic_electoral_log_checkpoints,
             export_certificate_authority,
             create_transmission_package_task,
             send_transmission_package_task,
@@ -345,6 +348,7 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
             export_election_event::NAME => &Queue::ImportExport.queue_name(&slug),
             audit_electoral_log::NAME => &Queue::Reports.queue_name(&slug),
             publish_electoral_log_checkpoint::NAME => &Queue::Short.queue_name(&slug),
+            publish_periodic_electoral_log_checkpoints::NAME => &Queue::Beat.queue_name(&slug),
             generate_activity_logs_report::NAME => &Queue::Reports.queue_name(&slug), // Using reports queue because there is more memory allocated for that queue
             export_tasks_execution::NAME => &Queue::ImportExport.queue_name(&slug),
             export_trustees_task::NAME => &Queue::ImportExport.queue_name(&slug),

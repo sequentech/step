@@ -12,8 +12,12 @@ use dotenv::dotenv;
 use sequent_core::util::init_log::init_log;
 use tokio::time::Duration;
 use windmill::services::celery_app::{set_is_app_active, Queue};
+use windmill::services::electoral_log_audit::{
+    checkpoint_interval_secs, DEFAULT_CHECKPOINT_INTERVAL_SECS,
+};
 use windmill::services::probe::{setup_probe, AppName};
 use windmill::tasks::electoral_log::electoral_log_batch_dispatcher;
+use windmill::tasks::publish_electoral_log_checkpoint::publish_periodic_electoral_log_checkpoints;
 use windmill::tasks::review_boards::review_boards;
 use windmill::tasks::review_cast_votes::review_cast_votes;
 use windmill::tasks::scheduled_events::scheduled_events;
@@ -40,6 +44,8 @@ async fn main() -> Result<()> {
     init_log(true);
     setup_probe(AppName::BEAT).await;
     let slug = std::env::var("ENV_SLUG").with_context(|| "missing env var ENV_SLUG")?;
+    // Refuse to start on an invalid interval; the schedule below cannot return errors.
+    checkpoint_interval_secs()?;
 
     let mut beat = celery::beat!(
         broker = AMQPBroker { std::env::var("AMQP_ADDR").unwrap_or_else(|_| "amqp://rabbitmq:5672".into()) },
@@ -69,6 +75,13 @@ async fn main() -> Result<()> {
                 schedule = DeltaSchedule::new(Duration::from_secs(CeleryOpt::parse().electoral_log_interval)),
                 args = (),
             },
+            publish_periodic_electoral_log_checkpoints::NAME => {
+                publish_periodic_electoral_log_checkpoints,
+                schedule = DeltaSchedule::new(Duration::from_secs(
+                    checkpoint_interval_secs().unwrap_or(DEFAULT_CHECKPOINT_INTERVAL_SECS),
+                )),
+                args = (),
+            },
         ],
         task_routes = [
             review_boards::NAME => &Queue::Beat.queue_name(&slug),
@@ -76,6 +89,7 @@ async fn main() -> Result<()> {
             scheduled_reports::NAME => &Queue::Beat.queue_name(&slug),
             review_cast_votes::NAME => &Queue::Beat.queue_name(&slug),
             electoral_log_batch_dispatcher::NAME => &Queue::ElectoralLogBeat.queue_name(&slug),
+            publish_periodic_electoral_log_checkpoints::NAME => &Queue::Beat.queue_name(&slug),
         ],
     ).await?;
 

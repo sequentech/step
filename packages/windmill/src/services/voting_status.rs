@@ -159,8 +159,8 @@ pub async fn update_election_status(
     .await
     .with_context(|| "Error updating election event status")?;
 
-    if *voting_status == VotingStatus::CLOSED && changed_channels > 0 {
-        queue_voting_closed_checkpoint(&tenant_id, election_event_id).await;
+    if let Some(reason) = voting_checkpoint_reason(voting_status).filter(|_| changed_channels > 0) {
+        queue_voting_checkpoint(&tenant_id, election_event_id, reason).await;
     }
 
     Ok(())
@@ -258,23 +258,37 @@ pub async fn update_board_on_status_change(
     Ok(())
 }
 
-/// Longest wait for queueing a checkpoint publication when voting closes.
+/// Longest wait for queueing a checkpoint publication when voting opens or closes.
 const CHECKPOINT_QUEUE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(5);
 
-/// Queue the publication of a checkpoint of the event's electoral log after a voting
-/// closure was logged.
+/// The checkpoint published when voting changes to `status`, if any.
+pub fn voting_checkpoint_reason(status: &VotingStatus) -> Option<ElectoralLogCheckpointReason> {
+    match status {
+        VotingStatus::OPEN => Some(ElectoralLogCheckpointReason::VotingOpened),
+        VotingStatus::CLOSED => Some(ElectoralLogCheckpointReason::VotingClosed),
+        VotingStatus::NOT_STARTED | VotingStatus::PAUSED => None,
+    }
+}
+
+/// Queue the publication of a checkpoint of the event's electoral log after voting
+/// opened or closed and the change was logged.
 ///
-/// Best effort, and the closure never waits for it: every completed tally publishes
-/// another checkpoint and audits all of them. Like the closure's log entries, the
-/// publication happens even if the caller's transaction later rolls back.
-pub async fn queue_voting_closed_checkpoint(tenant_id: &str, election_event_id: &str) {
+/// Best effort, and the change never waits for it: periodic checkpoints cover the
+/// log while voting is open, and every completed tally publishes another checkpoint
+/// and audits all of them. Like the change's log entries, the publication happens
+/// even if the caller's transaction later rolls back.
+pub async fn queue_voting_checkpoint(
+    tenant_id: &str,
+    election_event_id: &str,
+    reason: ElectoralLogCheckpointReason,
+) {
     let queued = tokio::time::timeout(CHECKPOINT_QUEUE_TIMEOUT, async {
         get_celery_app()
             .await
             .send_task(publish_electoral_log_checkpoint::new(
                 tenant_id.to_string(),
                 election_event_id.to_string(),
-                ElectoralLogCheckpointReason::VotingClosed,
+                reason,
             ))
             .await
     })
@@ -282,10 +296,10 @@ pub async fn queue_voting_closed_checkpoint(tenant_id: &str, election_event_id: 
     match queued {
         Ok(Ok(_)) => {}
         Ok(Err(error)) => tracing::error!(
-            "Could not queue the electoral-log checkpoint after voting closed for event {election_event_id}: {error:?}"
+            "Could not queue the {reason} electoral-log checkpoint for event {election_event_id}: {error:?}"
         ),
         Err(_) => tracing::error!(
-            "Timed out queueing the electoral-log checkpoint after voting closed for event {election_event_id}"
+            "Timed out queueing the {reason} electoral-log checkpoint for event {election_event_id}"
         ),
     }
 }
@@ -362,5 +376,24 @@ pub fn get_election_status_info(election: &Election) -> ElectionStatusInfo {
         total_open_votes,
         total_closed_votes,
         total_started_votes,
+    }
+}
+
+#[cfg(test)]
+mod voting_checkpoint_tests {
+    use super::*;
+
+    #[test]
+    fn opening_and_closing_voting_publish_checkpoints() {
+        assert_eq!(
+            voting_checkpoint_reason(&VotingStatus::OPEN),
+            Some(ElectoralLogCheckpointReason::VotingOpened)
+        );
+        assert_eq!(
+            voting_checkpoint_reason(&VotingStatus::CLOSED),
+            Some(ElectoralLogCheckpointReason::VotingClosed)
+        );
+        assert_eq!(voting_checkpoint_reason(&VotingStatus::PAUSED), None);
+        assert_eq!(voting_checkpoint_reason(&VotingStatus::NOT_STARTED), None);
     }
 }
