@@ -24,12 +24,14 @@ import {
     EElectionEventLockedDown,
     EVoterCertificatePolicy,
     IVotingChannelsConfig,
+    NumberFormatProvider,
 } from "@sequentech/ui-core"
 import {Box, CircularProgress} from "@mui/material"
 import {Tabs} from "@/components/Tabs"
 import {useNavigate, useLocation} from "react-router-dom"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 import {monitoringLock} from "@/components/monitoring/useMonitoringPermissions"
+import {getElectionEventNumberFormatPolicy} from "@/services/numberFormatPolicy"
 
 // ---------------------------------------------------------------------
 // Lazy load all tab contents
@@ -628,11 +630,15 @@ export const ElectionEventTabs: React.FC = () => {
             />
             <Box sx={{bgcolor: "background.paper"}}>
                 <RecordContextProvider value={record}>
-                    <Tabs
-                        elements={tabs}
-                        selectedTab={selectedTab}
-                        onSelectedTabChange={setSelectedTab}
-                    />
+                    <NumberFormatProvider
+                        policy={getElectionEventNumberFormatPolicy(record.presentation)}
+                    >
+                        <Tabs
+                            elements={tabs}
+                            selectedTab={selectedTab}
+                            onSelectedTabChange={setSelectedTab}
+                        />
+                    </NumberFormatProvider>
                 </RecordContextProvider>
             </Box>
         </Box>

@@ -473,6 +473,7 @@ const basqueTranslation: TranslationType = {
                 customUrls: "URL Aurrizki Pertsonalizatuak",
                 votingPeriod: "Bozketa Aldia",
                 language: "Hizkuntza",
+                languageAndRegion: "Hizkuntza eta eskualdea",
                 allowed: "Baimendutako Bozketa Kanalak",
                 materials: "Laguntza Materialak",
                 ballotDesign: "Bozketa Diseinua",
@@ -700,6 +701,13 @@ const basqueTranslation: TranslationType = {
                         "browser-detect": "Arakatzailetik detektatu",
                         "force-default": "Lehenetsia behartu",
                     },
+                },
+                numberFormatPolicy: {
+                    policyLabel: "Zenbakien formatuaren politika",
+                    helperText:
+                        "Emaitzetako, paneletako eta txostenetako zenbakiei aplikatzen zaie.",
+                    unknownPolicy:
+                        "'{{policy}}' formatu ezezaguna, honela erakusten da: {{sample}}",
                 },
             },
             error: {

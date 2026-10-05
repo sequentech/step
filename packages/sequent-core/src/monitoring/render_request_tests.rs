@@ -446,3 +446,29 @@ fn tags_are_read_through_and_every_kind_of_key_survives_as_text() {
         json!({"null": "none", "1.5": "half", "- a\n- b": "pair"})
     );
 }
+
+#[test]
+fn a_boards_figure_affixes_are_its_formats_prefixes_suffixes_and_glyphs() {
+    let board = json!({
+        "charts": {
+            "kpi": {
+                "type": "kpi",
+                "format": {"prefix": "≈", "suffix": " votes"},
+                "support": [{"value_suffix": " pts", "label": "turnout"}],
+            },
+            "bars": {"type": "bar", "labels": {"glyph": "▲", "prefix": ""}},
+        },
+        "style": {"formats": {"money": {"suffix": " votes"}}},
+        "queries": {"data": {"columns": ["prefix"], "values": [["prefix"]]}},
+    });
+
+    assert_eq!(
+        figure_affixes(&board),
+        [" pts", " votes", "≈", "▲"].map(String::from)
+    );
+}
+
+#[test]
+fn a_board_without_formats_has_no_figure_affixes() {
+    assert!(figure_affixes(&json!({"charts": {}, "queries": {}})).is_empty());
+}

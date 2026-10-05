@@ -474,6 +474,7 @@ const tagalogTranslation: TranslationType = {
                 customUrls: "Pasadyang Unang Bahagi ng URL",
                 votingPeriod: "Panahon ng Pagboto",
                 language: "Wika",
+                languageAndRegion: "Wika at Rehiyon",
                 allowed: "Pinapayagang Mga Channel ng Pagboto",
                 materials: "Mga Karagdagang Materyales",
                 ballotDesign: "Disenyo ng Balota",
@@ -703,6 +704,13 @@ const tagalogTranslation: TranslationType = {
                         "browser-detect": "Awtomatikong tuklasin mula sa browser",
                         "force-default": "Ipatupad ang default",
                     },
+                },
+                numberFormatPolicy: {
+                    policyLabel: "Patakaran sa Format ng Numero",
+                    helperText:
+                        "Nalalapat sa mga numerong ipinapakita sa mga resulta, dashboard at ulat.",
+                    unknownPolicy:
+                        "Hindi kilalang format na '{{policy}}', ipinapakita bilang {{sample}}",
                 },
             },
             error: {

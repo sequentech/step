@@ -6,6 +6,7 @@
 //! migrated test database with Windmill's configuration store; the renderer
 //! and the electoral log as fakes.
 
+use crate::adapters::memory::monitoring_renderer::MemoryRenderer;
 use crate::route_services::rows::{self, Event};
 use crate::route_services::{json, post, Services};
 use crate::test_claims::Claims;
@@ -14,6 +15,7 @@ use rocket::local::asynchronous::Client;
 use sequent_core::monitoring::problem::{Code, Problem};
 use sequent_core::types::permissions::Permissions;
 use serde_json::{json, Value};
+use uuid::Uuid;
 
 fn configurator(event: &Event) -> Claims {
     Claims::new(&event.tenant_id, "configurator")
@@ -297,6 +299,45 @@ async fn a_checked_widget_is_previewed_on_the_sample_figures() {
     assert_eq!(status, Status::Ok, "{body}");
     assert_eq!(body["result"], "INVALID", "{body}");
     assert_eq!(body["problems"][0]["severity"], "ERROR", "{body}");
+}
+
+#[rocket::async_test]
+async fn a_widget_preview_writes_its_figures_in_the_events_number_format() {
+    let services = Services::on_test_database().await.with_monitoring_renderer(
+        MemoryRenderer::drawing(
+            r#"<svg xmlns="http://www.w3.org/2000/svg"><text>8,589,934,591</text><text>53.2%</text></svg>"#,
+        ),
+    );
+    let client = services.client().await;
+    let event = rows::event(&services.hasura).await;
+    configure(&client, &event).await;
+    rows::execute(
+        &services.hasura,
+        "UPDATE sequent_backend.election_event
+         SET presentation = coalesce(presentation, '{}'::jsonb)
+             || '{\"number_format_policy\": \"period-comma\"}'::jsonb
+         WHERE id = $1",
+        &[&Uuid::parse_str(&event.election_event_id).unwrap()],
+    )
+    .await;
+    let (yaml, _) = widget(&client, &event, "turnout-summary").await;
+
+    let (status, body) = call(
+        &client,
+        "/monitoring/validate-config",
+        &event,
+        json!({"kind": "widget", "key": "turnout-summary", "yaml": yaml}),
+    )
+    .await;
+    assert_eq!(status, Status::Ok, "{body}");
+    assert_eq!(body["preview"]["state"], "RENDERED", "{body}");
+    assert!(
+        body["preview"]["svg"]
+            .as_str()
+            .unwrap()
+            .contains("<text>8.589.934.591</text><text>53,2%</text>"),
+        "{body}"
+    );
 }
 
 #[rocket::async_test]

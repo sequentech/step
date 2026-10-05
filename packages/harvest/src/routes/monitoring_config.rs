@@ -16,15 +16,15 @@ use crate::ports::monitoring_renderer::{ColorScheme, RenderBoard};
 use crate::routes::monitoring::authorize_monitoring;
 use crate::services::dependencies::HarvestServices;
 use crate::services::monitoring::{
-    author, event_ref, hasura_client, is_locked_down, live_config, problems,
-    refuse_when_locked_down, request_body, MonitoringBody, MonitoringError,
-    MonitoringResult, ProblemView, QueryTableView, RenderResponse, RenderState,
-    TableView,
+    author, event_number_format_policy, event_ref, hasura_client,
+    is_locked_down, live_config, problems, refuse_when_locked_down,
+    request_body, MonitoringBody, MonitoringError, MonitoringResult,
+    ProblemView, QueryTableView, RenderResponse, RenderState, TableView,
 };
 use crate::services::monitoring_checks::{
     check_boards, sample_board, RendererChecks,
 };
-use crate::services::monitoring_svg::sanitize_svg;
+use crate::services::monitoring_svg::{localize_figures_or_keep, sanitize_svg};
 use chrono::{DateTime, Utc};
 use indexmap::IndexMap;
 use rocket::http::Status;
@@ -33,10 +33,12 @@ use rocket::State;
 use sequent_core::monitoring::config::{ConfigKind, ConfigSet, DEFAULT_THEME};
 use sequent_core::monitoring::presets::{self, PRESETS};
 use sequent_core::monitoring::problem::{Report, Severity};
+use sequent_core::monitoring::render_request::figure_affixes;
 use sequent_core::monitoring::revision::{
     check_edit, DashboardMode, DocumentChange, Edit, RevisionOrigin,
 };
 use sequent_core::services::jwt::JwtClaims;
+use sequent_core::types::number_format::NumberFormatPolicy;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -197,21 +199,27 @@ pub async fn validate_config(
     })?;
     report.extend(engine);
     let preview = if report.is_accepted() && input.kind == ConfigKind::Widget {
-        preview_widget(services, &checked.set, &input.key).await
+        let number_format_policy =
+            event_number_format_policy(services, event).await;
+        preview_widget(services, &checked.set, &input.key, number_format_policy)
+            .await
     } else {
         None
     };
     Ok(Json(verdict(report, preview)))
 }
 
-/// The widget drawn on the sample figures, as a preview of what was checked.
+/// The widget drawn on the sample figures, as a preview of what was checked,
+/// with its figures in the event's number format as the dashboard shows them.
 async fn preview_widget(
     services: &HarvestServices,
     set: &ConfigSet,
     key: &str,
+    number_format_policy: NumberFormatPolicy,
 ) -> Option<RenderResponse> {
     let widget = set.widgets.get(key)?;
     let board = sample_board(set, widget, DEFAULT_THEME, &IndexMap::new())?;
+    let affixes = figure_affixes(&board.board);
     let table = board.data.as_ref().map(TableView::from);
     let tables = QueryTableView::all(&board.queries);
     let drawn = services
@@ -228,7 +236,11 @@ async fn preview_widget(
         Ok(drawn) => match sanitize_svg(&drawn.svg) {
             Ok(svg) => {
                 let mut response = RenderResponse::state(RenderState::Rendered);
-                response.svg = Some(svg);
+                response.svg = Some(localize_figures_or_keep(
+                    svg,
+                    number_format_policy,
+                    &affixes,
+                ));
                 response.render_ms = Some(drawn.render_ms);
                 response.diagnostics = problems(drawn.warnings.iter());
                 response

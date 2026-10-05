@@ -482,6 +482,14 @@ chart:
 Bars, areas, lines, donuts, KPIs, tables, stacking, layers, labels, colours,
 fonts and number formats are all available, within the rules below.
 
+A number format chooses how a figure is written, such as `integer` or
+`percent`, not its separators. Every figure a chart, KPI or data table shows
+uses the election event's
+[Number Format Policy](./02-election-event/03-election_management_election-event_data.md#language--region):
+an event set to `1.234.567,89` shows `53,2%` where the engine writes `53.2%`.
+Only a text that is a whole figure is rewritten, so labels such as `18-24`
+or `10:00` are shown as written. Exports keep plain numbers.
+
 
 The shipped presets draw parts of a whole as progress bars: a `spark_bar`
 over a `by_measure` query whose first measure is the whole, so every bar is

@@ -17,10 +17,11 @@ use crate::services::authorization::authorize;
 use crate::services::dependencies::HarvestServices;
 use crate::services::monitoring::{
     config_at_snapshot, dashboard_theme_id, dimension_label, draft_revision,
-    draft_theme, draft_widget, draw_widget, election_region, hasura_client,
-    live_config, pinned_snapshot, request_body, revision_of, viewed_config,
-    viewer, Draft, DrawPlan, MonitoringBody, MonitoringError, MonitoringResult,
-    RenderResponse, SnapshotConfig, SnapshotView, Viewer,
+    draft_theme, draft_widget, draw_widget, election_region,
+    event_number_format_policy, hasura_client, live_config, pinned_snapshot,
+    request_body, revision_of, viewed_config, viewer, Draft, DrawPlan,
+    MonitoringBody, MonitoringError, MonitoringResult, RenderResponse,
+    SnapshotConfig, SnapshotView, Viewer,
 };
 use indexmap::IndexMap;
 use rocket::http::Status;
@@ -718,6 +719,8 @@ pub async fn render_widget(
     let dashboard_values =
         placed.map(|item| item.values.clone()).unwrap_or_default();
     let locale = input.locale.clone().unwrap_or_else(default_locale);
+    let number_format_policy =
+        event_number_format_policy(services, viewer.event).await;
     let response = draw_widget(
         services,
         DrawPlan {
@@ -742,6 +745,7 @@ pub async fn render_widget(
                 .color_scheme
                 .unwrap_or_else(default_color_scheme),
             locale: &locale,
+            number_format_policy,
         },
     )
     .await?;

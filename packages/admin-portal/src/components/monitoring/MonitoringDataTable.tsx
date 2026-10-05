@@ -13,6 +13,7 @@ import {
     Typography,
 } from "@mui/material"
 import {useTranslation} from "react-i18next"
+import {useNumberFormat} from "@sequentech/ui-core"
 import {EColumnKind, POSITION_COLUMN, type MonitoringTable} from "./types"
 import {formatCell, formatInteger} from "./lib/format"
 
@@ -40,7 +41,8 @@ export function MonitoringDataTable({
     caption,
     columnLabel = (name) => name,
 }: MonitoringDataTableProps) {
-    const {t, i18n} = useTranslation()
+    const {t} = useTranslation()
+    const {policy} = useNumberFormat()
     const [page, setPage] = useState(0)
     const [pageSize, setPageSize] = useState(DATA_TABLE_PAGE_SIZE)
     const shown = table.columns
@@ -78,7 +80,7 @@ export function MonitoringDataTable({
                                     align={column.kind === EColumnKind.TEXT ? "left" : "right"}
                                     sx={{fontVariantNumeric: "tabular-nums"}}
                                 >
-                                    {formatCell(row[index], column.kind, i18n.language)}
+                                    {formatCell(row[index], column.kind, policy)}
                                 </TableCell>
                             ))}
                         </TableRow>
@@ -102,9 +104,9 @@ export function MonitoringDataTable({
                     labelRowsPerPage={t("monitoring.dataTable.rowsPerPage")}
                     labelDisplayedRows={({from, to, count}) =>
                         t("monitoring.dataTable.shownRows", {
-                            from: formatInteger(from, i18n.language),
-                            to: formatInteger(to, i18n.language),
-                            total: formatInteger(count, i18n.language),
+                            from: formatInteger(from, policy),
+                            to: formatInteger(to, policy),
+                            total: formatInteger(count, policy),
                         })
                     }
                     getItemAriaLabel={(type) => t(`monitoring.dataTable.${type}Page`)}

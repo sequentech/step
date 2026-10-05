@@ -23,8 +23,12 @@ import {
 import {Chart, ChartPanel} from "./ChartPanel"
 import {
     PARTICIPATION_CHANNEL_ORDER,
+    formatNumber,
+    formatPercentage,
     isKnownParticipationChannel,
     parseParticipationChannel,
+    useNumberFormat,
+    type ENumberFormatPolicy,
     type KnownParticipationChannel,
     type ParticipationChannel,
 } from "@sequentech/ui-core"
@@ -33,7 +37,7 @@ import type {
     ResultsAndParticipationLabels,
     ResultsParticipationSummary,
 } from "./types"
-import {mergeLabels, toFiniteNumber} from "./utils"
+import {mergeLabels, pieChartNumberFormatOptions, toFiniteNumber} from "./utils"
 
 interface ParticipationByChannelProps {
     result: ResultsParticipationSummary
@@ -71,11 +75,15 @@ const compareChannelKeys = (left: ParticipationChannel, right: ParticipationChan
     return left < right ? -1 : 1
 }
 
-const formatChannelPercentage = (total: number, totalChannelVotes: number): string => {
+const formatChannelPercentage = (
+    total: number,
+    totalChannelVotes: number,
+    policy: ENumberFormatPolicy
+): string => {
     if (totalChannelVotes <= 0) return "-"
 
     const percentage = Math.min(100, Math.max(0, (total / totalChannelVotes) * 100))
-    return `${percentage.toFixed(1)}%`
+    return formatPercentage(percentage, policy, 1)
 }
 
 export const ParticipationByChannel: React.FC<ParticipationByChannelProps> = ({
@@ -84,6 +92,7 @@ export const ParticipationByChannel: React.FC<ParticipationByChannelProps> = ({
     labels,
 }) => {
     const mergedLabels = useMemo(() => mergeLabels(labels), [labels])
+    const {policy} = useNumberFormat()
     const rows = useMemo(
         () =>
             Object.entries(result.votesByChannel ?? {})
@@ -124,10 +133,11 @@ export const ParticipationByChannel: React.FC<ParticipationByChannelProps> = ({
                 labels: chartData.map((item) => item.label),
                 legend: {position: "right"},
                 responsive: RESPONSIVE_PIE_OPTIONS,
+                ...pieChartNumberFormatOptions(policy),
             },
             series: chartData.map((item) => item.value),
         }),
-        [chartData]
+        [chartData, policy]
     )
 
     if (rows.length === 0) return null
@@ -190,9 +200,15 @@ export const ParticipationByChannel: React.FC<ParticipationByChannelProps> = ({
                                         <TableCell component="th" scope="row">
                                             {channelLabel(channel, mergedLabels)}
                                         </TableCell>
-                                        <TableCell align="right">{total}</TableCell>
                                         <TableCell align="right">
-                                            {formatChannelPercentage(total, totalChannelVotes)}
+                                            {formatNumber(total, policy)}
+                                        </TableCell>
+                                        <TableCell align="right">
+                                            {formatChannelPercentage(
+                                                total,
+                                                totalChannelVotes,
+                                                policy
+                                            )}
                                         </TableCell>
                                     </TableRow>
                                 ))}

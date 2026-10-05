@@ -472,6 +472,15 @@ const englishTranslation = {
                 ballot_id: "Ballot ID",
                 message: "Message",
             },
+            pagination: {
+                rowsPerPage: "Rows per page:",
+                displayedRows: "{{from}}–{{to}} of {{total}}",
+                displayedRowsMoreThan: "{{from}}–{{to}} of more than {{to}}",
+                firstPage: "Go to first page",
+                lastPage: "Go to last page",
+                nextPage: "Go to next page",
+                previousPage: "Go to previous page",
+            },
         },
     },
 }

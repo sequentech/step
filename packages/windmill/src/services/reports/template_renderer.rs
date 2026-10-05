@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use super::utils::get_public_asset_template;
+use super::utils::{self, get_public_asset_template};
 use crate::postgres::reports::{get_template_alias_for_report, Report, ReportType};
 use crate::postgres::signing_report_release::{
     ReleaseEncryption, ReleaseTarget, ReportEmail, ReportRelease,
@@ -39,6 +39,7 @@ use sequent_core::services::{pdf, reports};
 use sequent_core::signing::SigningAction;
 use sequent_core::types::hasura::core::{DocumentAnnotations, TasksExecution};
 use sequent_core::types::hasura::extra::TasksExecutionStatus;
+use sequent_core::types::number_format::{NumberFormatPolicy, NUMBER_FORMAT_POLICY_VARIABLE};
 use sequent_core::types::templates::{
     CommunicationTemplatesExtraConfig, EmailConfig, PrintToPdfOptionsLocal, ReportExtraConfig,
     ReportOptions, SendTemplateBody, SmsConfig,
@@ -448,6 +449,64 @@ pub trait TemplateRenderer: Debug {
         Ok(data)
     }
 
+    /// The number format of the report's election event, which the report
+    /// writes its figures in, or `None` for the default: the event has none,
+    /// has one this version doesn't know, or no longer exists. A failed
+    /// database read fails the report like its other reads: it aborts the
+    /// transaction the report goes on reading its data with.
+    #[instrument(err, skip_all)]
+    async fn get_number_format_policy(
+        &self,
+        hasura_transaction: &Transaction<'_>,
+    ) -> Result<Option<NumberFormatPolicy>> {
+        let election_event = election_event::get_election_event_by_id_if_exist(
+            hasura_transaction,
+            &self.get_tenant_id(),
+            &self.get_election_event_id(),
+        )
+        .await
+        .context("Error reading the election event's number format")?;
+        Ok(election_event
+            .as_ref()
+            .and_then(utils::get_number_format_policy))
+    }
+
+    /// Renders the user template with `user_data_map`, then the system
+    /// template around it, both writing their figures in
+    /// `number_format_policy`.
+    #[instrument(err, skip_all)]
+    async fn render_user_and_system_templates(
+        &self,
+        user_tpl_document: &str,
+        mut user_data_map: Map<String, Value>,
+        number_format_policy: Option<NumberFormatPolicy>,
+    ) -> Result<String> {
+        if let Some(policy) = number_format_policy {
+            user_data_map.insert(NUMBER_FORMAT_POLICY_VARIABLE.to_string(), json!(policy));
+        }
+        let rendered_user_template =
+            reports::render_template_text(user_tpl_document, user_data_map)
+                .map_err(|e| anyhow!("Error rendering user template: {e:?}"))?;
+
+        // Prepare system data
+        let mut system_data = self
+            .prepare_system_data(rendered_user_template)
+            .await
+            .map_err(|e| anyhow!("Error preparing system data: {e:?}"))?
+            .to_map()
+            .map_err(|e| anyhow!("Error converting system data to map: {e:?}"))?;
+        if let Some(policy) = number_format_policy {
+            system_data.insert(NUMBER_FORMAT_POLICY_VARIABLE.to_string(), json!(policy));
+        }
+        let system_template = self
+            .get_system_template()
+            .await
+            .map_err(|e| anyhow!("Error getting the system template: {e:?}"))?;
+
+        reports::render_template_text(&system_template, system_data)
+            .map_err(|e| anyhow!("Error rendering system template: {e:?}"))
+    }
+
     #[instrument(err, skip_all)]
     async fn generate_report_inner(
         &self,
@@ -457,6 +516,7 @@ pub trait TemplateRenderer: Debug {
         user_tpl_document: &str,
         declared_secret_names: &HashSet<String>,
         may_read_secret_attributes: bool,
+        number_format_policy: Option<NumberFormatPolicy>,
     ) -> Result<String> {
         // Prepare user data either preview or real
         let user_data = if generate_mode == GenerateReportMode::PREVIEW {
@@ -480,26 +540,12 @@ pub trait TemplateRenderer: Debug {
             )
             .await?;
         }
-        let rendered_user_template =
-            reports::render_template_text(&user_tpl_document, user_data_map)
-                .map_err(|e| anyhow!("Error rendering user template: {e:?}"))?;
-
-        // Prepare system data
-        let system_data = self
-            .prepare_system_data(rendered_user_template)
-            .await
-            .map_err(|e| anyhow!("Error preparing system data: {e:?}"))?
-            .to_map()
-            .map_err(|e| anyhow!("Error converting system data to map: {e:?}"))?;
-        let system_template = self
-            .get_system_template()
-            .await
-            .map_err(|e| anyhow!("Error getting the system template: {e:?}"))?;
-
-        let rendered_system_template = reports::render_template_text(&system_template, system_data)
-            .map_err(|e| anyhow!("Error rendering system template: {e:?}"))?;
-
-        Ok(rendered_system_template)
+        self.render_user_and_system_templates(
+            user_tpl_document,
+            user_data_map,
+            number_format_policy,
+        )
+        .await
     }
 
     #[instrument(err, skip_all)]
@@ -511,6 +557,7 @@ pub trait TemplateRenderer: Debug {
         user_tpl_document: &str,
         declared_secret_names: &HashSet<String>,
         may_read_secret_attributes: bool,
+        number_format_policy: Option<NumberFormatPolicy>,
         offset: &mut Option<i64>,
         limit: Option<i64>,
     ) -> Result<String> {
@@ -548,27 +595,12 @@ pub trait TemplateRenderer: Debug {
             .await?;
         }
 
-        let rendered_user_template =
-            reports::render_template_text(user_tpl_document, user_data_map)
-                .map_err(|e| anyhow!("Error rendering user template: {e:?}"))?;
-
-        // Prepare system data
-        let system_data = self
-            .prepare_system_data(rendered_user_template)
-            .await
-            .map_err(|e| anyhow!("Error preparing system data: {e:?}"))?
-            .to_map()
-            .map_err(|e| anyhow!("Error converting system data to map: {e:?}"))?;
-
-        let system_template = self
-            .get_system_template()
-            .await
-            .map_err(|e| anyhow!("Error getting default user template: {e:?}"))?;
-
-        let rendered_system_template = reports::render_template_text(&system_template, system_data)
-            .map_err(|e| anyhow!("Error rendering system template: {e:?}"))?;
-
-        Ok(rendered_system_template)
+        self.render_user_and_system_templates(
+            user_tpl_document,
+            user_data_map,
+            number_format_policy,
+        )
+        .await
     }
 
     /// Provides the User template String and the ReportExtraConfig, encapsulating the logic that gets either the custom or default.
@@ -689,6 +721,8 @@ pub trait TemplateRenderer: Debug {
                 anyhow!("Error providing the user template and extra config: {e:?}")
             })?;
 
+        let number_format_policy = self.get_number_format_policy(hasura_transaction).await?;
+
         let contains_voter_secrets =
             generate_mode == GenerateReportMode::REAL && !declared_secret_names.is_empty();
         let is_real = generate_mode == GenerateReportMode::REAL;
@@ -743,6 +777,7 @@ pub trait TemplateRenderer: Debug {
                                     &user_tpl_document,
                                     &declared_secret_names,
                                     may_read_secret_attributes,
+                                    number_format_policy,
                                     &mut Some(offset),
                                     Some(per_report_limit),
                                 )
@@ -811,6 +846,7 @@ pub trait TemplateRenderer: Debug {
                 &user_tpl_document,
                 &declared_secret_names,
                 may_read_secret_attributes,
+                number_format_policy,
                 generate_mode,
                 task_execution.clone(),
                 &ext_cfg,
@@ -1109,6 +1145,7 @@ pub trait TemplateRenderer: Debug {
         user_tpl_document: &str,
         declared_secret_names: &HashSet<String>,
         may_read_secret_attributes: bool,
+        number_format_policy: Option<NumberFormatPolicy>,
         generate_mode: GenerateReportMode,
         task_execution: Option<TasksExecution>,
         ext_cfg: &ReportExtraConfig,
@@ -1121,6 +1158,7 @@ pub trait TemplateRenderer: Debug {
                 &user_tpl_document,
                 declared_secret_names,
                 may_read_secret_attributes,
+                number_format_policy,
                 &mut None,
                 None,
             )
@@ -1221,5 +1259,109 @@ pub trait TemplateRenderer: Debug {
                 anyhow!("Error sending email: no email provided")
             })?])
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[derive(Debug)]
+    struct FiguresReport;
+
+    #[derive(Serialize, Deserialize, Clone)]
+    struct Figures {
+        votes: u64,
+        share: f64,
+    }
+
+    #[derive(Serialize, Deserialize, Clone)]
+    struct FiguresSystemData {
+        rendered_user_template: String,
+        total: u64,
+    }
+
+    #[async_trait]
+    impl TemplateRenderer for FiguresReport {
+        type UserData = Figures;
+        type SystemData = FiguresSystemData;
+
+        fn base_name(&self) -> String {
+            "figures".to_string()
+        }
+
+        fn get_report_type(&self) -> ReportType {
+            ReportType::PARTICIPATION_REPORT
+        }
+
+        fn prefix(&self) -> String {
+            "figures".to_string()
+        }
+
+        fn get_tenant_id(&self) -> String {
+            "tenant".to_string()
+        }
+
+        fn get_election_event_id(&self) -> String {
+            "event".to_string()
+        }
+
+        fn get_report_origin(&self) -> ReportOriginatedFrom {
+            ReportOriginatedFrom::ReportsTab
+        }
+
+        fn get_initial_template_alias(&self) -> Option<String> {
+            None
+        }
+
+        async fn prepare_user_data(
+            &self,
+            _hasura_transaction: &Transaction<'_>,
+            _keycloak_transaction: &Transaction<'_>,
+        ) -> Result<Figures> {
+            Err(anyhow!("The figures come from each test"))
+        }
+
+        async fn prepare_system_data(
+            &self,
+            rendered_user_template: String,
+        ) -> Result<FiguresSystemData> {
+            Ok(FiguresSystemData {
+                rendered_user_template,
+                total: 1_234_567,
+            })
+        }
+
+        async fn get_system_template(&self) -> Result<String> {
+            Ok("{{format_u64 total}} {{{rendered_user_template}}}".to_string())
+        }
+    }
+
+    async fn render(number_format_policy: Option<NumberFormatPolicy>) -> String {
+        let figures = Figures {
+            votes: 1234,
+            share: 12.3456,
+        };
+        FiguresReport
+            .render_user_and_system_templates(
+                "{{format_u64 votes}} {{format_percentage share}}%",
+                figures.to_map().unwrap(),
+                number_format_policy,
+            )
+            .await
+            .unwrap()
+    }
+
+    #[tokio::test]
+    async fn reports_write_figures_in_their_event_number_format() {
+        assert_eq!(
+            render(Some(NumberFormatPolicy::PeriodComma)).await,
+            "1.234.567 1.234 12,35%"
+        );
+    }
+
+    #[tokio::test]
+    async fn reports_of_events_without_a_number_format_keep_comma_grouping() {
+        assert_eq!(render(None).await, "1,234,567 1,234 12.35%");
     }
 }

@@ -5,7 +5,7 @@
 import React from "react"
 import {Box} from "@mui/material"
 import {useTranslation} from "react-i18next"
-import {formatNumber} from "@/services/Numbers"
+import {useNumberFormat} from "@sequentech/ui-core"
 import FenceIcon from "@mui/icons-material/Fence"
 import GroupIcon from "@mui/icons-material/Group"
 import MarkEmailReadOutlinedIcon from "@mui/icons-material/MarkEmailReadOutlined"
@@ -35,6 +35,7 @@ interface StatsProps {
 
 export const Stats: React.FC<StatsProps> = ({metrics}) => {
     const {t} = useTranslation()
+    const {formatNumber} = useNumberFormat()
 
     const iconSize = 60
 

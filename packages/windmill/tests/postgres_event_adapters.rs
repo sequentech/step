@@ -10,7 +10,10 @@ mod schema;
 
 use chrono::{DateTime, Local, TimeZone, Utc};
 use deadpool_postgres::{Object, Transaction};
-use sequent_core::ballot::{ElectionPresentation, ElectionStatus};
+use sequent_core::ballot::{
+    ElectionPresentation, ElectionStatus, ResultsWebsiteAccess, ResultsWebsiteStatus,
+    ResultsWebsiteVisibilityScope,
+};
 use sequent_core::election_config::ImportElectionEventSchema;
 use sequent_core::types::hasura::core::{Election, ElectionEvent, Tenant};
 use serde_json::{json, Value};
@@ -19,6 +22,8 @@ use tokio_postgres::error::SqlState;
 use tokio_postgres::types::{FromSql, ToSql};
 use uuid::Uuid;
 use windmill::postgres::{election, election_event, keycloak_realm, tenant};
+use windmill::services::results_publication::configure_results_website_policy;
+use windmill::types::results_publication::ConfigureResultsWebsitePolicyInput;
 
 const BAD_UUID: &str = "not-a-uuid";
 
@@ -1133,6 +1138,49 @@ async fn update_election_event_presentation_can_change_the_results_website_outsi
     assert_eq!(
         row_json(&tx, "election_event", "id", sibling.event).await["presentation"],
         Value::Null
+    );
+    tx.rollback().await.unwrap();
+}
+
+/// Setting the results website policy writes only that setting: the others
+/// stay as stored, including a number format and a setting this version
+/// doesn't know, such as a newer version's.
+#[tokio::test]
+async fn configure_results_website_policy_keeps_the_settings_this_version_does_not_know() {
+    let mut client = connect().await;
+    let tx = client.transaction().await.unwrap();
+    let f = Fixture::new(&tx, line!());
+    let a = f.scope().await;
+    let settings = json!({
+        "number_format_policy": "a-newer-format",
+        "a_newer_setting": {"enabled": true},
+    });
+    election_event::update_election_event_presentation(
+        &tx,
+        &a.tenant_id(),
+        &a.event_id(),
+        settings,
+    )
+    .await
+    .unwrap();
+    let input = ConfigureResultsWebsitePolicyInput {
+        election_event_id: a.event_id(),
+        status: ResultsWebsiteStatus::Enabled,
+        access: ResultsWebsiteAccess::Public,
+        visibility_scope: ResultsWebsiteVisibilityScope::FullEvent,
+    };
+
+    configure_results_website_policy(&tx, &a.tenant_id(), &input)
+        .await
+        .unwrap();
+
+    assert_eq!(
+        row_json(&tx, "election_event", "id", a.event).await["presentation"],
+        json!({
+            "number_format_policy": "a-newer-format",
+            "a_newer_setting": {"enabled": true},
+            "results_website": serde_json::to_string(&input.policy()).unwrap(),
+        })
     );
     tx.rollback().await.unwrap();
 }

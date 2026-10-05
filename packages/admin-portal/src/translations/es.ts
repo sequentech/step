@@ -472,6 +472,7 @@ const spanishTranslation: TranslationType = {
                 customUrls: "Prefixo de URLs personalizados",
                 votingPeriod: "Período de votación",
                 language: "Idiomas",
+                languageAndRegion: "Idioma y región",
                 allowed: "Canales de Voto Permitidos",
                 materials: "Materiales de Soporte",
                 ballotDesign: "Diseño de la Papeleta",
@@ -704,6 +705,12 @@ const spanishTranslation: TranslationType = {
                         "browser-detect": "Detectar desde el navegador",
                         "force-default": "Forzar predeterminado",
                     },
+                },
+                numberFormatPolicy: {
+                    policyLabel: "Política de formato de números",
+                    helperText:
+                        "Se aplica a los números de los resultados, los paneles de control y los informes.",
+                    unknownPolicy: "Formato desconocido '{{policy}}', se muestra como {{sample}}",
                 },
             },
             error: {

@@ -20,9 +20,11 @@ use super::{
     action_title, allowed_by, allowed_by_permission, log_scope, Allowance, SigningCaller,
     SigningError, SigningResult,
 };
+use crate::postgres::election_event::get_election_event_by_id_if_exist;
 use crate::postgres::signing::*;
 use crate::postgres::signing_certificates::get_signing_request_in_tenant;
 use crate::services::documents::{get_document_url, upload_and_return_document};
+use crate::services::reports::utils::get_number_format_policy;
 use crate::tasks::signing_log_outbox::kick_signing_log_outbox;
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
@@ -36,6 +38,7 @@ use sequent_core::signing::{
     sha256_hex, CancelReason, CertificateOpenFailure, ExecutionMode, SigningAction,
     SigningRequestStatus, SigningRule,
 };
+use sequent_core::types::number_format::NumberFormatPolicy;
 use sequent_core::types::permissions::Permissions;
 use sequent_core::util::temp_path::write_into_named_temp_file;
 use serde::Serialize;
@@ -547,6 +550,9 @@ pub struct SigningPanel {
     pub area_name: Option<String>,
     /// The election event's time zone (IANA), which its times are shown in.
     pub time_zone: Option<String>,
+    /// The election event's number format, which its figures are shown in;
+    /// `None` for the default.
+    pub number_format_policy: Option<NumberFormatPolicy>,
     /// For a trustee's request, the names beside its ceremony and trustee ids.
     #[serde(flatten)]
     pub key_share: KeyShareLabels,
@@ -722,6 +728,13 @@ pub async fn get_panel(
     let document = documents
         .panel_document(hasura_transaction, &request)
         .await?;
+    let key_share = key_share_labels(hasura_transaction, &request).await?;
+    let time_zone = event_time_zone(hasura_transaction, tenant_id, request.election_event_id)
+        .await?
+        .map(|zone| zone.name().to_owned());
+    // Last: a failed read would abort the transaction for any read after it.
+    let number_format_policy =
+        event_number_format_policy(hasura_transaction, tenant_id, request.election_event_id).await;
     Ok(SigningPanel {
         request: SigningRequestView::from(&request),
         rule,
@@ -735,11 +748,35 @@ pub async fn get_panel(
         details: subject_details(&request.subject),
         election_name,
         area_name,
-        time_zone: event_time_zone(hasura_transaction, tenant_id, request.election_event_id)
-            .await?
-            .map(|zone| zone.name().to_owned()),
-        key_share: key_share_labels(hasura_transaction, &request).await?,
+        time_zone,
+        number_format_policy,
+        key_share,
     })
+}
+
+/// The number format of the election event, which a panel shows its figures
+/// in; `None` for the default, including when the event can't be read: the
+/// panel still opens, with its figures in the default format.
+async fn event_number_format_policy(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: Uuid,
+    election_event_id: Uuid,
+) -> Option<NumberFormatPolicy> {
+    match get_election_event_by_id_if_exist(
+        hasura_transaction,
+        &tenant_id.to_string(),
+        &election_event_id.to_string(),
+    )
+    .await
+    {
+        Ok(election_event) => election_event.as_ref().and_then(get_number_format_policy),
+        Err(error) => {
+            warn!(
+                "Can't read election event {election_event_id}; its signing panel uses the default number format: {error:?}"
+            );
+            None
+        }
+    }
 }
 
 /// What the Signatures tab and a signer's list of waiting requests show

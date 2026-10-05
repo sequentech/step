@@ -469,6 +469,7 @@ const englishTranslation = {
                 customUrls: "Custom URLs Prefix",
                 votingPeriod: "Voting Period",
                 language: "Language",
+                languageAndRegion: "Language & Region",
                 allowed: "Voting Channels Allowed",
                 materials: "Support Materials",
                 ballotDesign: "Ballot Design",
@@ -698,6 +699,11 @@ const englishTranslation = {
                         "browser-detect": "Browser Detect",
                         "force-default": "Force Default",
                     },
+                },
+                numberFormatPolicy: {
+                    policyLabel: "Number Format Policy",
+                    helperText: "Applies to the numbers shown in results, dashboards and reports.",
+                    unknownPolicy: "Unknown format '{{policy}}', shown as {{sample}}",
                 },
             },
             error: {
