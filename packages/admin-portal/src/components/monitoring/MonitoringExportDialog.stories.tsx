@@ -103,7 +103,7 @@ export const WidgetCsv: Story = {
         await expect(
             body.getByText("Turnout by group · North · All Posts · All countries")
         ).toBeVisible()
-        await expect(body.getByText(/Times are in Asia\/Manila/)).toBeVisible()
+        await expect(body.getByText(/Times are in PhST/)).toBeVisible()
         await expect(body.getByRole("radio", {name: "CSV"})).toBeChecked()
         await userEvent.click(body.getByRole("button", {name: "Export"}))
         await expect(args.onClose).toHaveBeenCalled()
@@ -188,6 +188,42 @@ export const EndBeforeStart: Story = {
         fireEvent.change(body.getByLabelText("From"), {target: {value: "2026-05-12T08:00"}})
         fireEvent.change(body.getByLabelText("To"), {target: {value: "2026-05-11T08:00"}})
         await expect(body.getByText("The end must be after the start.")).toBeVisible()
+        await expect(body.getByRole("button", {name: "Export"})).toBeDisabled()
+        expect(exports()).toHaveLength(0)
+    },
+}
+
+/** Changing the range's zone leaves the shown dashboard and revision intact. */
+export const ChosenZoneAndRepeatedTime: Story = {
+    play: async () => {
+        const body = await dialog()
+        const picker = body.getByRole("combobox", {name: "Timezone"})
+        await userEvent.clear(picker)
+        await userEvent.type(picker, "New York")
+        await userEvent.keyboard("{ArrowDown}{Enter}")
+        fireEvent.change(body.getByLabelText("From"), {target: {value: "2028-11-05T01:30"}})
+        await expect(body.getByText(/happens twice/)).toBeVisible()
+        await userEvent.click(body.getByRole("button", {name: "Export"}))
+        await waitFor(() => expect(exports()).toHaveLength(1))
+        expect(exports()[0].variables).toEqual(
+            expect.objectContaining({
+                from: "2028-11-05T01:30:00-04:00",
+                snapshotRevision: MONITORING_SNAPSHOT.revision,
+                scope: {region: "north"},
+            })
+        )
+    },
+}
+
+export const NonexistentTime: Story = {
+    play: async () => {
+        const body = await dialog()
+        const picker = body.getByRole("combobox", {name: "Timezone"})
+        await userEvent.clear(picker)
+        await userEvent.type(picker, "New York")
+        await userEvent.keyboard("{ArrowDown}{Enter}")
+        fireEvent.change(body.getByLabelText("From"), {target: {value: "2028-03-12T02:30"}})
+        await expect(body.getByText(/does not exist/)).toBeVisible()
         await expect(body.getByRole("button", {name: "Export"})).toBeDisabled()
         expect(exports()).toHaveLength(0)
     },

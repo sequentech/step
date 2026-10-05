@@ -1152,30 +1152,54 @@ pub async fn export_schedule(
 /// a `scheduled_date` with an offset is kept; one without an offset is
 /// recomputed from `local` + `timezone` when both are there, and refused
 /// otherwise (the instant it means can't be known).
-pub fn checked_import_cron_config(cron_config: CronConfig) -> Result<CronConfig> {
+pub fn checked_import_cron_config(mut cron_config: CronConfig) -> Result<CronConfig> {
+    // Metadata must be valid even when the archive already supplies an instant.
+    // Keep that instant: older tzdata and a selected overlap occurrence are
+    // legitimate reasons it may differ from today's wall-time resolution.
+    let zone = cron_config
+        .timezone
+        .as_deref()
+        .map(|name| {
+            canonical_time_zone(name)
+                .ok_or_else(|| anyhow!("Unknown timezone {name:?} of the scheduled event"))
+        })
+        .transpose()?;
+    let local_time = cron_config
+        .local
+        .as_deref()
+        .map(|local| {
+            read_local(local)
+                .ok_or_else(|| anyhow!("Invalid local time {local:?} of the scheduled event"))
+        })
+        .transpose()?;
+    anyhow::ensure!(
+        local_time.is_none() || zone.is_some(),
+        "A scheduled event's local time requires a timezone"
+    );
+    if let Some(zone) = zone {
+        cron_config.timezone = Some(zone.name().to_string());
+    }
+    if let Some(local_time) = local_time {
+        cron_config.local = Some(format_local(local_time));
+    }
     let Some(scheduled_date) = cron_config.scheduled_date.as_deref() else {
         return Ok(cron_config);
     };
     if DateTime::parse_from_rfc3339(scheduled_date.trim()).is_ok() {
+        // The scheduler parses the stored string directly, without trimming.
+        cron_config.scheduled_date = Some(scheduled_date.trim().to_string());
         return Ok(cron_config);
     }
-    let (Some(local), Some(zone_name)) = (
-        cron_config.local.as_deref(),
-        cron_config.timezone.as_deref(),
-    ) else {
+    let (Some(local_time), Some(zone)) = (local_time, zone) else {
         return Err(anyhow!(
             "The scheduled date {scheduled_date:?} has no UTC offset, and no local time and \
              timezone to compute it from"
         ));
     };
-    let zone = canonical_time_zone(zone_name)
-        .ok_or_else(|| anyhow!("Unknown timezone {zone_name:?} of the scheduled event"))?;
-    let local_time = read_local(local)
-        .ok_or_else(|| anyhow!("Invalid local time {local:?} of the scheduled event"))?;
     let instant = match resolve_local(local_time, zone) {
         Resolved::Gap { .. } => {
             return Err(anyhow!(
-                "The local time {local} doesn't exist in {}: clocks go forward then",
+                "The local time {local_time} doesn't exist in {}: clocks go forward then",
                 zone.name()
             ))
         }
