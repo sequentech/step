@@ -222,7 +222,7 @@ export function MonitoringExportDialog({
                 />
                 <Typography variant="body2" color="text.secondary">
                     {t("monitoring.export.timeZoneHelp", {
-                        timeZone: service.zoneLabel(chosenZone, service.text),
+                        timeZone: service.zoneLabel(timeZone, service.text),
                     })}
                 </Typography>
             </Stack>
