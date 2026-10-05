@@ -230,8 +230,9 @@ export const ImportScheduleDrawer: React.FC<{
             open
             onClose={onClose}
             slotProps={{paper: {"aria-labelledby": titleId}}}
+            sx={{"& .MuiDrawer-paper": {width: {xs: "100%", md: 900}, maxWidth: "100%"}}}
         >
-            <Stack spacing={2} sx={{width: {xs: "100vw", md: 900}, p: 3}}>
+            <Stack spacing={2} sx={{width: "100%", boxSizing: "border-box", p: 3}}>
                 <Box>
                     <Typography id={titleId} variant="h5" component="h2">
                         {t("lifecycle.import.title")}

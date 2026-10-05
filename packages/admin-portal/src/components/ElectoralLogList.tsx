@@ -46,6 +46,13 @@ const LogTimeZoneFilter: React.FC<{
     return (
         <TimeZonePicker
             label={label}
+            size="small"
+            sx={{
+                width: {xs: "calc(100vw - 32px)", sm: 280},
+                maxWidth: "100%",
+                minWidth: {xs: 0, sm: 260},
+                flexShrink: 0,
+            }}
             value={field.value || primary}
             zones={zones}
             primary={primary}

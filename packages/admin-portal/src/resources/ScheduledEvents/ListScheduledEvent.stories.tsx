@@ -288,12 +288,7 @@ export const Populated: Story = {
 
 export const Empty: Story = {
     args: {populated: false},
-    parameters: {
-        expectedFailure: {
-            reason: "The empty state's create button nests its icon button.",
-            a11y: ["nested-interactive"],
-        },
-    },
+    parameters: {expectedFailure: null},
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
         await expect(await canvas.findByText(i18n.t("eventsScreen.empty.header"))).toBeVisible()
@@ -565,5 +560,32 @@ export const NotPublished: Story = {
         await expect(
             await within(canvasElement).findByText(i18n.t("lifecycle.schedule.notPublished"))
         ).toBeVisible()
+    },
+}
+
+/** A first calendar can be imported without creating a placeholder event. */
+export const ImportIntoEmptySchedule: Story = {
+    parameters: {expectedFailure: null},
+    args: {populated: false},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await canvas.findByText(i18n.t("eventsScreen.empty.header"))
+        await userEvent.click(canvas.getByRole("button", {name: i18n.t("common.label.import")}))
+        const form = within(await drawer())
+        await expect(form.getByText(i18n.t("lifecycle.import.title"))).toBeVisible()
+        await expect(form.getByRole("button", {name: i18n.t("common.label.import")})).toBeDisabled()
+        await userEvent.click(form.getByRole("button", {name: i18n.t("common.label.cancel")}))
+    },
+}
+export const EmptyScheduleReadOnly: Story = {
+    parameters: {expectedFailure: null},
+    args: {populated: false, roles: []},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await canvas.findByText(i18n.t("eventsScreen.empty.header"))
+        await expect(canvas.queryByRole("button", {name: i18n.t("common.label.import")})).toBeNull()
+        await expect(
+            canvas.queryByRole("button", {name: i18n.t("eventsScreen.empty.button")})
+        ).toBeNull()
     },
 }
