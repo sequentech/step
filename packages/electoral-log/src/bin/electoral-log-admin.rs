@@ -3,7 +3,7 @@
 use anyhow::{Context, Result};
 use clap::{Parser, ValueEnum};
 use electoral_log::{
-    adapters::postgres::PostgresStore,
+    adapters::router::StoreRouter,
     proofs::{Checkpoint, Consistency, RecordProof},
     BoardClient,
 };
@@ -22,6 +22,9 @@ struct Cli {
     checkpoint: Option<PathBuf>,
     #[arg(long)]
     proof: Option<PathBuf>,
+    /// Tenant whose database `provision-tenant` creates.
+    #[arg(long)]
+    tenant_id: Option<String>,
 }
 #[derive(Clone, ValueEnum)]
 enum Action {
@@ -35,6 +38,7 @@ enum Action {
     VerifyConsistency,
     Audit,
     BackfillNodes,
+    ProvisionTenant,
 }
 fn read_json<T: serde::de::DeserializeOwned>(path: Option<&PathBuf>, name: &str) -> Result<T> {
     Ok(serde_json::from_slice(&std::fs::read(
@@ -65,20 +69,37 @@ async fn main() -> Result<()> {
         println!("Verified");
         return Ok(());
     }
-    let store = PostgresStore::from_env()?;
-    if matches!(args.action, Action::Init) {
-        return store.initialize().await;
+    let router = StoreRouter::from_env()?;
+    // `init` and `backfill-nodes` without a board cover the shared database and every
+    // tenant database of the environment.
+    let mut databases = vec![router.shared()];
+    for database in router.tenant_databases().await? {
+        databases.push(router.database_store(&database).await?);
     }
-    let journal = store.journal();
+    if matches!(args.action, Action::Init) {
+        for store in &databases {
+            store.initialize().await?;
+        }
+        return Ok(());
+    }
+    if matches!(args.action, Action::ProvisionTenant) {
+        let tenant_id = args.tenant_id.context("--tenant-id is required")?;
+        return router.provision_tenant(&tenant_id).await;
+    }
     // Without a board, back-fill every log created before subtrees were stored.
     if matches!(args.action, Action::BackfillNodes) && args.board.is_none() {
         let mut rebuilt = Vec::new();
-        for board in journal.unbuilt_logs().await? {
-            rebuilt.push(journal.rebuild(&board).await?);
+        for store in &databases {
+            let journal = store.journal();
+            for board in journal.unbuilt_logs().await? {
+                rebuilt.push(journal.rebuild(&board).await?);
+            }
         }
         return output(&rebuilt);
     }
     let board = args.board.context("--board is required")?;
+    let store = router.store_for(&board).await?;
+    let journal = store.journal();
     // Optional trusted checkpoint for inclusion (anchor) and audit (extra history check).
     let checkpoint: Option<Checkpoint> = match args.checkpoint.as_ref() {
         Some(path) => Some(read_json(Some(path), "checkpoint")?),
@@ -111,8 +132,16 @@ async fn main() -> Result<()> {
             Ok(())
         }
         Action::BackfillNodes => output(&journal.rebuild(&board).await?),
-        Action::CreateBoard => BoardClient::new(Arc::new(store)).create_board(&board).await,
-        Action::DeleteBoard => BoardClient::new(Arc::new(store)).delete_board(&board).await,
+        Action::CreateBoard => {
+            BoardClient::new(Arc::new(router))
+                .create_board(&board)
+                .await
+        }
+        Action::DeleteBoard => {
+            BoardClient::new(Arc::new(router))
+                .delete_board(&board)
+                .await
+        }
         _ => unreachable!(),
     }
 }

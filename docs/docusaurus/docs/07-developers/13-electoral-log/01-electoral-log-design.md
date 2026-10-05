@@ -76,7 +76,7 @@ flowchart LR
 
 | Component | Role |
 | --- | --- |
-| `packages/electoral-log` | Domain types (`ElectoralLogMessage`, `LogEntry`, `LogQuery`), the `ElectoralLogStore` port, the `BoardClient` service, the PostgreSQL adapter (`PostgresStore`), record commitments and signed-checkpoint formats (`proofs.rs`), the signed message types, the `electoral-log-admin` CLI and the `load_test` example. |
+| `packages/electoral-log` | Domain types (`ElectoralLogMessage`, `LogEntry`, `LogQuery`), the `ElectoralLogStore` port, the `BoardClient` service, the PostgreSQL adapter (`PostgresStore`) and the router to each board's database (`StoreRouter`), record commitments and signed-checkpoint formats (`proofs.rs`), the signed message types, the `electoral-log-admin` CLI and the `load_test` example. |
 | `packages/trellis` | RFC 6962 tree arithmetic (`rfc6962.rs`) and the transactional journal (`journal.rs`) that stores leaves and subtrees and answers proofs. |
 | Windmill | The library code that builds, signs and posts records (`services/electoral_log.rs`), and the workers that run the queue dispatcher and batch task, checkpoint publication, audits, reports and exports. |
 | Harvest | The HTTP API. It runs Windmill's library code in-process: casting a vote builds, signs and queues its record, and administrative routes such as user management, the phone blacklist, reports and exports sign and append records directly. It also lists records, lists cast votes for the ballot locator, serves checkpoints and proofs, and starts audits. |
@@ -762,7 +762,11 @@ A load test filled one board to 20 million records on a PostgreSQL server with 1
 | --- | --- |
 | `ELECTORAL_LOG_PG_HOST`, `ELECTORAL_LOG_PG_PORT` | PostgreSQL server |
 | `ELECTORAL_LOG_PG_USER`, `ELECTORAL_LOG_PG_PASSWORD` | The dedicated role |
-| `ELECTORAL_LOG_PG_DATABASE` | The dedicated database |
+| `ELECTORAL_LOG_PG_DATABASE` | The dedicated database; with the `per-tenant` layout, the shared database and the start of tenant database names |
+| `ELECTORAL_LOG_PG_DATABASE_LAYOUT` | `shared` (default): every board in the dedicated database. `per-tenant`: each tenant's new boards in a database of their own (section 14.2) |
+| `ELECTORAL_LOG_PG_TENANT_POOL_SIZE` | Connections per tenant database and pool; 4 by default |
+| `ELECTORAL_LOG_PG_PROVISIONING_USER`, `ELECTORAL_LOG_PG_PROVISIONING_PASSWORD` | Windmill only: the role that creates tenant databases. Without it, the `per-tenant` layout cannot create them |
+| `ELECTORAL_LOG_PG_PROVISIONING_DATABASE` | Database the provisioning role connects to; `postgres` by default |
 | `ELECTORAL_LOG_PG_SSLMODE` | `disable`, `require` (default) or `verify-full` |
 | `ELECTORAL_LOG_PG_SSLROOTCERT` | Optional CA file for `verify-full` |
 | `ELECTORAL_LOG_BATCH_SIZE` | Maximum events per dispatcher batch; 1,000 when unset or empty |
@@ -774,21 +778,26 @@ A load test filled one board to 20 million records on a PostgreSQL server with 1
 | `ELECTORAL_LOG_CHECKPOINT_RETENTION_DAYS` | Days each copy is locked; 3,650 by default |
 | `ELECTORAL_LOG_CHECKPOINT_INTERVAL_SECS` (Windmill beat) | Seconds between periodic checkpoints while voting is open; 300 when unset or empty. Any other value than a positive integer stops beat at startup, naming the variable. |
 
-- **Who reads them:** Windmill, Harvest, `electoral-log-admin`, `step export-cast-votes` and Windmill's `generate-logs` tool, which also needs `ENV_SLUG`. Harvest refuses to start without the `ELECTORAL_LOG_PG_*` variables.
+- **Who reads them:** Windmill, Harvest, `electoral-log-admin`, `step export-cast-votes` and Windmill's `generate-logs` tool, which also needs `ENV_SLUG`, as all of them do with the `per-tenant` layout. Harvest refuses to start without the `ELECTORAL_LOG_PG_*` variables.
 - **Sizing the dispatcher batch:** a batch closes at whichever limit it reaches first; a single message larger than the byte limit still goes out as a batch of one. Any value other than a positive integer stops the worker that runs the dispatcher at startup, naming the variable. The log no longer reads the shared `DEFAULT_SQL_BATCH_SIZE`, which still sizes user exports, send-template and the cast-vote review.
   - keep `ELECTORAL_LOG_BATCH_MAX_BYTES` well below RabbitMQ's `max_message_size` (128 MiB by default in RabbitMQ 3.12), or a larger batch is lost and the worker cannot send tasks until it restarts (section 6.1);
   - a smaller `ELECTORAL_LOG_BATCH_SIZE` shortens how long one append holds a board and limits how many events one failing batch delays (section 6.5), and keeps each dispatcher run well within its 30 seconds;
   - a larger one makes fewer, bigger appends.
 - **Queues:** some worker must consume `electoral_log_beat_queue` (the dispatcher) and `electoral_log_batch_queue` (batch tasks). In development one Windmill worker consumes both, together with the other queues. Audits run on `reports_queue` and voting-closed publications on `short_queue`. No worker may consume `electoral_log_event_queue`, because it would discard every event (section 6.1), or `electoral_log_dead_letter_queue`, which holds set-aside events (section 14.7); Windmill refuses to start a worker configured to consume either. All names carry the `ENV_SLUG` prefix.
 - **TLS modes:** `require` encrypts without verifying the server, and `verify-full` also verifies its certificate and hostname. Mount the CA file when its issuer is not in the image's trust store. `disable` is meant for the internal development connection.
-- **Connections:** each connection pool has at most eight connections and a ten-second connection timeout. Windmill uses one pool for appends, reads and audits; Harvest opens two, one for proofs and one for everything else, so up to 16 connections per Harvest instance.
+- **Connections:** the pool of the shared database has at most eight connections, and each tenant database's pool `ELECTORAL_LOG_PG_TENANT_POOL_SIZE`, all with a ten-second connection timeout. Pools open when a database is first used and stay open. Windmill uses one set of pools for appends, reads and audits; Harvest opens two, one for proofs and one for everything else. With the `per-tenant` layout, a process can therefore hold up to 8 + 4 connections per active tenant per set: size the server's `max_connections` for the instances and active tenants, or put a connection pooler in front.
 - **Secrets:** no connection string or password is logged.
 
 ### 14.2 Provisioning and schema
 
-- **Development (Compose):** on an empty data directory, the `postgres` service creates the role and database and applies the schema with `.devcontainer/postgresql/init-electoral-log.sh`. On an existing volume, refresh the service's environment and mounts, then run `docker exec postgres sh /docker-entrypoint-initdb.d/20-electoral-log.sh`. The script creates what is missing and does not rotate an existing password.
+- **Layouts:** with `shared`, every board lives in `ELECTORAL_LOG_PG_DATABASE`. With `per-tenant`, the boards of each tenant live in a database named after that database, the environment slug and the first 17 characters of the tenant ID without dashes, as in `electoral_log_dev90505c8a23a94cdfa`: the same characters the board names carry. Characters of the slug other than letters and digits become underscores.
+  - **Routing:** a process finds a board's database from its name. A board of an election event of this environment whose name is not already in the shared database goes to its tenant's database; any other board, including every board created before the switch, stays in the shared database. So switching an installation to `per-tenant` moves no data: existing events keep their logs where they are, and new events get their tenant's database.
+  - **Creation:** Windmill creates a tenant's database when the tenant is created, before the tenant is stored, and also when it first creates a board in a tenant database that does not exist yet, as for tenants created before the switch. It connects as the provisioning role, runs `CREATE DATABASE … OWNER` the application role, and applies the schema as the application role. That role therefore owns each tenant database, as in development's shared one. The provisioning role needs `CREATEDB` and membership in the application role, and nothing else.
+  - **Isolation:** a tenant's events cannot be read through another tenant's database, and an event's data can be backed up, restored or dropped per tenant. All tenant databases share the application role, so a process that holds its credentials can open any of them, as it can today.
+  - **`electoral-log-admin`** routes `--board` the same way. `init` and `backfill-nodes` without a board cover the shared database and every tenant database of the environment, and `provision-tenant --tenant-id` creates a tenant's database.
+- **Development (Compose):** development uses the `per-tenant` layout. On an empty data directory, the `postgres` service creates the role, the provisioning role `electoral_log_provisioner` and the database, and applies the schema, with `.devcontainer/postgresql/init-electoral-log.sh`. On an existing volume, refresh the service's environment and mounts, then run `docker exec postgres sh /docker-entrypoint-initdb.d/20-electoral-log.sh`. The script creates what is missing and does not rotate an existing password.
 - **Cloud:** companion changes in the `gitops` repository create the password, role, database and backup grants on AWS and GCP. Apply its `client-secrets` module before `client-postgres-init`, then apply the schema as the database owner (`electoral-log-admin init`). The new-environment templates in the `beyond` repository provide the endpoint, database, role and the `electoral-log-db-credentials` ExternalSecret mapping.
-- **Schema upgrades:** `init` is idempotent, so apply it with each upgrade. After upgrading a database written by an earlier build, run `backfill-nodes` before starting producers (section 7.10).
+- **Schema upgrades:** `init` is idempotent, so apply it with each upgrade; it covers every tenant database. After upgrading a database written by an earlier build, run `backfill-nodes` before starting producers (section 7.10).
 
 ### 14.3 Backups
 
@@ -859,6 +868,7 @@ A board whose stored tree fails the right-edge check refuses every append (secti
 | Tree arithmetic: every root, inclusion proof and consistency proof compared byte for byte with `ct-merkle` | `packages/trellis` | `cargo test -p trellis --lib` |
 | Record encoding golden vector, checkpoint signing, audit findings and annotations | `packages/electoral-log` unit tests | `cargo test -p electoral-log` |
 | PostgreSQL contract tests | `packages/electoral-log/tests/postgres.rs` and the plan test in `src/adapters/postgres.rs` | `ELECTORAL_LOG_TEST_DATABASE_URL=… cargo test -p electoral-log --lib --test postgres -- --ignored --test-threads=1` |
+| Per-tenant databases: a tenant's new board gets the tenant's database, created by the provisioning role, and an existing board stays shared | `packages/electoral-log/tests/router.rs` | With the `ELECTORAL_LOG_PG_*` variables and the provisioning role: `cargo test -p electoral-log --test router -- --ignored` |
 | Windmill wiring: records written through Windmill pass an audit | Windmill `postgres_wiring_tests` | `cargo test -p windmill postgres_wiring_tests --lib -- --ignored --test-threads=1` |
 | Queued events: batch limits, delivery IDs, which events are set aside, one lookup per election event, the dead-letter message format | Windmill unit tests in `tasks::electoral_log` and `services::electoral_log_dead_letter` | `cargo test -p windmill --lib -- tasks::electoral_log electoral_log_dead_letter` |
 | Load and query plans at scale | `packages/electoral-log/examples/load_test.rs` | See the [load test page](02-electoral-log-load-test.md) |
@@ -917,6 +927,7 @@ Performance and operation:
 | `packages/electoral-log/src/domain.rs` | Records, queries, filters and visibility |
 | `packages/electoral-log/src/ports.rs`, `service.rs` | The storage port and `BoardClient` |
 | `packages/electoral-log/src/adapters/postgres.rs` | PostgreSQL store: appends, queries, counts, record proofs, audits |
+| `packages/electoral-log/src/adapters/router.rs` | Database layouts, routing boards to databases, creating tenant databases |
 | `packages/electoral-log/src/proofs.rs` | Record commitments, checkpoint signing and verification, `RecordProof` |
 | `packages/electoral-log/src/messages/` | Signed message and statement types |
 | `packages/electoral-log/src/bin/electoral-log-admin.rs` | Administration and offline verification CLI |

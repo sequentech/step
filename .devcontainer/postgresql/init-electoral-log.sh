@@ -20,3 +20,17 @@ SQL
 PGPASSWORD="$ELECTORAL_LOG_PG_PASSWORD" psql -v ON_ERROR_STOP=1 \
     --username "$ELECTORAL_LOG_PG_USER" --dbname "$ELECTORAL_LOG_PG_DATABASE" \
     --file /electoral-log-schema.sql
+
+# The role that creates tenant databases: it may create databases and act as the
+# application role, which owns them.
+if [ -n "${ELECTORAL_LOG_PG_PROVISIONING_USER:-}" ]; then
+    : "${ELECTORAL_LOG_PG_PROVISIONING_PASSWORD:?must be set}"
+    psql -v ON_ERROR_STOP=1 --username "${POSTGRES_USER:-postgres}" --dbname postgres \
+        -v log_user="$ELECTORAL_LOG_PG_USER" \
+        -v provisioning_user="$ELECTORAL_LOG_PG_PROVISIONING_USER" \
+        -v provisioning_password="$ELECTORAL_LOG_PG_PROVISIONING_PASSWORD" <<'SQL'
+SELECT format('CREATE ROLE %I LOGIN CREATEDB PASSWORD %L', :'provisioning_user', :'provisioning_password')
+WHERE NOT EXISTS (SELECT FROM pg_roles WHERE rolname = :'provisioning_user') \gexec
+SELECT format('GRANT %I TO %I', :'log_user', :'provisioning_user') \gexec
+SQL
+fi

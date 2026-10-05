@@ -230,7 +230,7 @@ async fn publish_periodic_checkpoint(tenant_id: &str, election_event_id: &str) -
         let event = get_election_event_by_id(&transaction, tenant_id, election_event_id).await?;
         let board = get_election_event_board(event.bulletin_board_reference)
             .context("Election event has no electoral-log board")?;
-        let checkpoint = get_electoral_log_store()
+        let checkpoint = get_electoral_log_store(&board)
             .await?
             .journal()
             .checkpoint(&board)
@@ -397,7 +397,7 @@ pub async fn run_electoral_log_audit(
             )),
         }
     }
-    let report = get_electoral_log_store()
+    let report = get_electoral_log_store(&board)
         .await?
         .audit(&board, &checkpoints)
         .await?;

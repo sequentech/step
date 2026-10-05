@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::authorization::authorize;
 use electoral_log::{
-    adapters::postgres::PostgresStore,
-    proofs::{Checkpoint, Consistency, Journal, JournalError, RecordProof},
+    adapters::{postgres::PostgresStore, router::StoreRouter},
+    proofs::{Checkpoint, Consistency, JournalError, RecordProof},
 };
 use rocket::{http::Status, serde::json::Json, State};
 use sequent_core::{services::jwt::JwtClaims, types::permissions::Permissions};
@@ -12,9 +12,18 @@ use windmill::services::protocol_manager::get_event_board;
 
 type ApiResult<T> = Result<Json<T>, (Status, String)>;
 
+/// Proofs use their own connection pools, separate from Windmill's.
 pub struct ProofService {
-    pub store: PostgresStore,
-    pub journal: Journal,
+    pub router: StoreRouter,
+}
+
+impl ProofService {
+    async fn store(
+        &self,
+        board: &str,
+    ) -> Result<PostgresStore, (Status, String)> {
+        self.router.store_for(board).await.map_err(internal_error)
+    }
 }
 
 #[derive(Deserialize)]
@@ -91,7 +100,9 @@ pub async fn checkpoint(
 ) -> ApiResult<CheckpointResponse> {
     let board = body.board(&claims)?;
     let checkpoint = state
-        .journal
+        .store(&board)
+        .await?
+        .journal()
         .checkpoint(&board)
         .await
         .map_err(journal_error)?;
@@ -115,10 +126,10 @@ pub async fn inclusion(
             "Checkpoint belongs to another board".into(),
         ));
     }
-    state
-        .store
+    let store = state.store(&board).await?;
+    store
         .record_proof(
-            &state.journal,
+            &store.journal(),
             &board,
             body.record_id,
             body.trusted_checkpoint.as_ref(),
@@ -142,7 +153,9 @@ pub async fn consistency(
         ));
     }
     state
-        .journal
+        .store(&board)
+        .await?
+        .journal()
         .consistency(&body.checkpoint)
         .await
         .map(Json)
@@ -153,11 +166,8 @@ pub fn fairing() -> rocket::fairing::AdHoc {
     rocket::fairing::AdHoc::try_on_ignite(
         "Trellis electoral-log proofs",
         |rocket| async {
-            match PostgresStore::from_env() {
-                Ok(store) => {
-                    let journal = store.journal();
-                    Ok(rocket.manage(ProofService { store, journal }))
-                }
+            match StoreRouter::from_env() {
+                Ok(router) => Ok(rocket.manage(ProofService { router })),
                 Err(error) => {
                     tracing::error!(
                         "Cannot configure electoral-log proofs: {error}"

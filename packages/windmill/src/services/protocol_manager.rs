@@ -27,6 +27,7 @@ use tracing::{event, info, instrument, Level};
 use crate::services::vault;
 use b4::client::pgsql::B3MessageRow;
 use electoral_log::adapters::postgres::PostgresStore;
+use electoral_log::adapters::router::StoreRouter;
 use electoral_log::BoardClient;
 use std::sync::Arc;
 use strand::signature::{StrandSignaturePk, StrandSignatureSk};
@@ -416,21 +417,27 @@ pub async fn add_ballots_to_board<C: Ctx>(
     b3_client.insert_ballots::<C>(board_name, message).await
 }
 
-static ELECTORAL_LOG_STORE: OnceCell<PostgresStore> = OnceCell::const_new();
+static ELECTORAL_LOG_ROUTER: OnceCell<Arc<StoreRouter>> = OnceCell::const_new();
 static ELECTORAL_LOG_CLIENT: OnceCell<BoardClient> = OnceCell::const_new();
 
-/// The process-wide electoral-log store, sharing one connection pool.
-pub async fn get_electoral_log_store() -> Result<PostgresStore> {
-    let store = ELECTORAL_LOG_STORE
-        .get_or_try_init(|| async { PostgresStore::from_env() })
+/// The process-wide router to the electoral-log databases, with one connection pool
+/// per database.
+pub async fn get_electoral_log_router() -> Result<Arc<StoreRouter>> {
+    let router = ELECTORAL_LOG_ROUTER
+        .get_or_try_init(|| async { StoreRouter::from_env().map(Arc::new) })
         .await?;
-    Ok(store.clone())
+    Ok(router.clone())
+}
+
+/// The store of the database that holds a board.
+pub async fn get_electoral_log_store(board: &str) -> Result<PostgresStore> {
+    get_electoral_log_router().await?.store_for(board).await
 }
 
 pub async fn get_board_client() -> Result<BoardClient> {
     let client = ELECTORAL_LOG_CLIENT
         .get_or_try_init(|| async {
-            Ok::<_, anyhow::Error>(BoardClient::new(Arc::new(get_electoral_log_store().await?)))
+            Ok::<_, anyhow::Error>(BoardClient::new(get_electoral_log_router().await?))
         })
         .await?;
     Ok(client.clone())

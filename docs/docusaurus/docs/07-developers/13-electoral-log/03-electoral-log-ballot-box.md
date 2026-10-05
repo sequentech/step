@@ -45,7 +45,7 @@ flowchart LR
     W[Windmill: tally, reports] --> T
 ```
 
-- **Tenant database:** created by Windmill when the tenant is created. It holds the Merkle log tables of today's design, for all the tenant's boards, plus the ballot box tables, partitioned by election event so that an event's data can be dropped, archived or moved on its own.
+- **Tenant database:** implemented as the `per-tenant` layout of the [design](01-electoral-log-design.md) (section 14.2). Windmill creates it when the tenant is created. It holds the Merkle log tables of today's design for the tenant's boards and will hold the ballot box tables, partitioned by election event so that an event's data can be dropped, archived or moved on its own.
 - **Accept path:** Harvest validates the ballot as today and then runs one SQL statement that inserts the ballot and updates the voter's state. When it commits, Harvest answers with the receipt. No Hasura transaction and no queue is involved.
 - **Sequencer:** one per election event. It reads accepted ballots in order, builds and signs their cast-vote records, which carry the ballot's hash rather than its content, and appends them to the event's board in large batches. Checkpoints and proofs cover what it has appended.
 - **Readers:** the voting portal, admin portal and reports read through Hasura actions backed by Harvest, which query the tenant database: has this voter voted, the voter's ballots, counts by election and area, and ballot lists for the tally.

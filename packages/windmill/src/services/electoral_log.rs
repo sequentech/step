@@ -1404,11 +1404,12 @@ impl ElectoralLog {
         election_event_id: &str,
         reason: ElectoralLogCheckpointReason,
     ) -> Result<electoral_log::proofs::Checkpoint> {
-        let checkpoint = crate::services::protocol_manager::get_electoral_log_store()
-            .await?
-            .journal()
-            .checkpoint(&self.elog_database)
-            .await?;
+        let checkpoint =
+            crate::services::protocol_manager::get_electoral_log_store(&self.elog_database)
+                .await?
+                .journal()
+                .checkpoint(&self.elog_database)
+                .await?;
         let published = sign_checkpoint(&self.sd, &checkpoint, reason)?;
         // Copy first, so that with the `required` policy nothing is published without
         // its write-once copy.
@@ -2152,7 +2153,7 @@ mod postgres_wiring_tests {
         let mut other = input.clone();
         other.tenant_id = Uuid::new_v4().to_string();
         assert_eq!(count_electoral_log(other).await?, 0);
-        let store = crate::services::protocol_manager::get_electoral_log_store().await?;
+        let store = crate::services::protocol_manager::get_electoral_log_store(&board).await?;
         let checkpoint = store.journal().checkpoint(&board).await?;
         assert_eq!(checkpoint.tree_size, 1);
         let report = store.audit(&board, &[checkpoint]).await?;

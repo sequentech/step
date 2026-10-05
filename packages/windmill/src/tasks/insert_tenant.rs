@@ -8,6 +8,7 @@ use crate::services::database::get_hasura_pool;
 use crate::services::import::import_election_event::remove_keycloak_realm_secrets;
 use crate::services::jwks::upsert_realm_jwks;
 use crate::services::keycloak::read_realm_config_from_s3;
+use crate::services::protocol_manager::get_electoral_log_router;
 use crate::services::tasks_execution::{update_complete, update_fail};
 use crate::types::error::Result;
 use ::keycloak::types::RealmRepresentation;
@@ -95,6 +96,12 @@ pub async fn process_insert_tenant(tenant_id: String, slug: String) -> Result<()
     }
 
     upsert_keycloak_realm(tenant_id.as_str(), slug.as_str()).await?;
+    // Before the tenant exists, so a tenant never lacks its electoral-log database.
+    get_electoral_log_router()
+        .await?
+        .provision_tenant(&tenant_id)
+        .await
+        .context("Error creating the tenant's electoral-log database")?;
     insert_tenant_db(&hasura_transaction, &tenant_id, &slug).await?;
 
     hasura_transaction
