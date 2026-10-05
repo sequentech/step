@@ -5,6 +5,7 @@ import i18next from "i18next"
 import {
     EVotingPortalDateTimeFormat,
     IElectionEventPresentation,
+    IElectionStatus,
     formatVotingPortalDateTime,
 } from "@sequentech/ui-core"
 import english from "../translations/en"
@@ -16,7 +17,12 @@ import {
     TEST_VOTING_DUBAI,
     zonedElectionDates,
 } from "../../../ui-essentials/src/components/SelectElection/__stories__/zonedFixtures"
-import {ballotTimeZones, formatBallotTime, votingClosedMessage} from "./ElectionTimeZones"
+import {
+    ballotTimeZones,
+    currentElectionDates,
+    formatBallotTime,
+    votingClosedMessage,
+} from "./ElectionTimeZones"
 
 const eventOf = (config: IZonedConfiguration) =>
     ({
@@ -285,5 +291,31 @@ describe("votingClosedMessage", () => {
                 OVERSEAS.now.closed
             )
         ).toBeUndefined()
+    })
+})
+
+describe("live voting dates", () => {
+    it("overlays the chosen channel while retaining scheduled authority and the immutable publication", () => {
+        const published = {
+            last_stopped_at: "2027-01-01T00:00:00Z",
+            authoritative_close: {scheduled_at: "2030-01-01T00:00:00Z"},
+        }
+        const original = JSON.stringify(published)
+        const status = {
+            voting_period_dates: {
+                last_started_at: "2028-04-09T00:00:00Z",
+                last_stopped_at: "2028-04-09T02:00:00Z",
+            },
+            kiosk_voting_period_dates: {last_stopped_at: "2028-04-09T02:30:00Z"},
+        } as IElectionStatus
+        expect(currentElectionDates(published, status, false)).toMatchObject({
+            last_stopped_at: "2028-04-09T02:00:00Z",
+            authoritative_close: {scheduled_at: "2030-01-01T00:00:00Z"},
+        })
+        expect(currentElectionDates(published, status, true)?.last_stopped_at).toBe(
+            "2028-04-09T02:30:00Z"
+        )
+        expect(JSON.stringify(published)).toBe(original)
+        expect(currentElectionDates(published, undefined, false)).toBe(published)
     })
 })

@@ -4,6 +4,7 @@
 import type {TFunction} from "i18next"
 import {
     IElectionDates,
+    IElectionStatus,
     IElectionEventPresentation,
     IElectionPresentation,
     VotingPortalDateTimeEvent,
@@ -14,6 +15,16 @@ import {
 } from "@sequentech/ui-core"
 import {getEndDateEntry, hasDate, sameWallClock} from "@sequentech/ui-essentials"
 import type {ZonedDateTimeFormatter} from "@sequentech/ui-essentials"
+
+/** Live execution dates overlay display metadata, leaving the signed publication unchanged. */
+export const currentElectionDates = (
+    published: IElectionDates | undefined,
+    status: IElectionStatus | null | undefined,
+    isKiosk: boolean
+): IElectionDates | undefined => {
+    const period = isKiosk ? status?.kiosk_voting_period_dates : status?.voting_period_dates
+    return period ? {...published, ...period} : published
+}
 
 /** The zones a ballot's dates show in. */
 export interface IBallotTimeZones {

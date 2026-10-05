@@ -2,11 +2,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import React from "react"
-import {render, screen} from "@testing-library/react"
+import {act, fireEvent, render, screen} from "@testing-library/react"
 import {createMemoryRouter, RouterProvider} from "react-router-dom"
 import {ThemeProvider} from "@mui/material/styles"
 import {
     EConsolidatedReportPolicy,
+    EEarlyVotingPolicy,
     EElectionEventDelegatedVotingPolicy,
     EVotingPortalDateTimeFormat,
     IElectionEventPresentation,
@@ -57,11 +58,17 @@ jest.mock("@apollo/client/react", () => ({
     useMutation: () => [jest.fn()],
 }))
 jest.mock("../providers/AuthContextProvider", () => ({
-    AuthContext: jest.requireActual<typeof React>("react").createContext({isKiosk: () => false}),
+    AuthContext: jest
+        .requireActual<typeof React>("react")
+        .createContext({isKiosk: () => mockKiosk}),
 }))
-jest.mock("../hooks/useVoterContext", () => ({useVoterContext: () => ({loading: false})}))
+jest.mock("../hooks/useVoterContext", () => ({
+    useVoterContext: () => ({loading: false, refetch: mockRefetch}),
+}))
 
 let mockState: RootState
+let mockKiosk = false
+const mockRefetch = jest.fn().mockResolvedValue({})
 
 const [DUBAI] = OVERSEAS.posts
 const FORMAT = EVotingPortalDateTimeFormat.ISO_LOCAL
@@ -149,7 +156,11 @@ const show = async () => {
 }
 
 const at = (instant: string) => jest.useFakeTimers({now: new Date(instant), advanceTimers: true})
-afterEach(() => jest.useRealTimers())
+afterEach(() => {
+    jest.useRealTimers()
+    mockKiosk = false
+    mockRefetch.mockClear()
+})
 
 // The Post's opening carries its zone, the event-wide close the primary, as
 // get_election_dates writes them.
@@ -212,6 +223,109 @@ describe("ElectionSelectionScreen with timezones", () => {
             close: "2028-04-09 10:00 Philippine Standard Time",
             closeLocal: "2028-04-09 06:00 Gulf Standard Time",
         })
+    })
+    it.each(["CLOSED", "OPEN"])(
+        "shows an online manual close with event %s and kiosk still open",
+        async (eventStatus) => {
+            at("2028-04-09T03:00:00Z")
+            const item = ballot("election-1", "Dubai PCG", MAIN_DATES, "CLOSED")
+            item.election.status = {
+                voting_status: "CLOSED",
+                kiosk_voting_status: "OPEN",
+                voting_period_dates: {
+                    last_started_at: "2028-04-09T00:00:00Z",
+                    last_stopped_at: "2028-04-09T02:00:00Z",
+                },
+            } as unknown as string
+            setUp(true, eventStatus, [item])
+            mockState.electionEvent["event-1"]!.status = {
+                voting_status: eventStatus,
+                kiosk_voting_status: "OPEN",
+            } as unknown as string
+            const {card, closed} = await show()
+            expect(closed?.replace(/\s+/g, " ")).toBe(
+                "electionSelectionScreen.votingClosedAt|2028-04-09 10:00 Philippine Standard Time|2028-04-09 06:00 Gulf Standard Time"
+            )
+            expect(card("Dubai PCG").close).toBe("2028-04-09 10:00 Philippine Standard Time")
+        }
+    )
+
+    it("does not tell a kiosk voter that voting closed while their kiosk is open", async () => {
+        mockKiosk = true
+        at("2028-04-09T03:00:00Z")
+        const item = ballot("election-1", "Dubai PCG", MAIN_DATES, "CLOSED")
+        item.election.status = {
+            voting_status: "CLOSED",
+            kiosk_voting_status: "OPEN",
+        } as unknown as string
+        setUp(true, "CLOSED", [item])
+        mockState.electionEvent["event-1"]!.status = {
+            voting_status: "CLOSED",
+            kiosk_voting_status: "OPEN",
+        } as unknown as string
+        expect((await show()).closed).toBeNull()
+    })
+
+    it("uses the kiosk's live manual close rather than the online timestamp", async () => {
+        mockKiosk = true
+        at("2028-04-09T03:00:00Z")
+        const item = ballot("election-1", "Dubai PCG", MAIN_DATES, "CLOSED")
+        item.election.status = {
+            voting_status: "CLOSED",
+            kiosk_voting_status: "CLOSED",
+            voting_period_dates: {
+                last_started_at: "2028-04-09T00:00:00Z",
+                last_stopped_at: "2028-04-09T02:00:00Z",
+            },
+            kiosk_voting_period_dates: {
+                last_started_at: "2028-04-09T00:00:00Z",
+                last_stopped_at: "2028-04-09T02:30:00Z",
+            },
+        } as unknown as string
+        setUp(true, "CLOSED", [item])
+        expect((await show()).closed?.replace(/\s+/g, " ")).toBe(
+            "electionSelectionScreen.votingClosedAt|2028-04-09 10:30 Philippine Standard Time|2028-04-09 06:30 Gulf Standard Time"
+        )
+    })
+
+    it("keeps the closed alert hidden while this voter can use early voting", async () => {
+        at("2028-04-09T03:00:00Z")
+        const item = ballot(
+            "election-1",
+            "Dubai PCG",
+            {
+                ...MAIN_DATES,
+                last_stopped_at: "2028-04-09T02:00:00Z",
+            },
+            "CLOSED"
+        )
+        item.election.status = {
+            voting_status: "CLOSED",
+            early_voting_status: "OPEN",
+        } as unknown as string
+        setUp(true, "CLOSED", [item])
+        mockState.electionEvent["event-1"]!.status = {
+            voting_status: "CLOSED",
+            early_voting_status: "OPEN",
+        } as unknown as string
+        const style = mockState.ballotStyles["election-1"]!
+        style.ballot_eml = {
+            ...style.ballot_eml,
+            area_presentation: {allow_early_voting: EEarlyVotingPolicy.ALLOW_EARLY_VOTING},
+        }
+        expect((await show()).closed).toBeNull()
+    })
+    it("refreshes status on window focus without an idle polling loop", async () => {
+        at(OVERSEAS.now.open)
+        setUp(true, "OPEN", [ballot("election-1", "Dubai PCG", MAIN_DATES, "OPEN")])
+        await show()
+        expect(mockRefetch).not.toHaveBeenCalled()
+        fireEvent(window, new Event("focus"))
+        expect(mockRefetch).toHaveBeenCalledTimes(1)
+        await act(async () => {
+            jest.advanceTimersByTime(5000)
+        })
+        expect(mockRefetch).toHaveBeenCalledTimes(1)
     })
 })
 

@@ -79,7 +79,11 @@ import {GET_SUPPORT_MATERIALS} from "../queries/GetSupportMaterials"
 import {GET_SUPPORT_MATERIALS_ACKNOWLEDGMENT} from "../queries/GetSupportMaterialsAcknowledgment"
 import {setSupportMaterial} from "../store/supportMaterials/supportMaterialsSlice"
 import {useElectionClassName} from "../hooks/useElectionClassName"
-import {ballotTimeZones, votingClosedMessage} from "../services/ElectionTimeZones"
+import {
+    ballotTimeZones,
+    currentElectionDates,
+    votingClosedMessage,
+} from "../services/ElectionTimeZones"
 
 // `StyledTitle`, `TitleSection`, `PageActions` and `ElectionContainer` were here.
 // They are `ElectionListLayout` in `ui-essentials` now, with the class names they
@@ -137,6 +141,24 @@ const isElectionEventVotingClosed = (electionEvent?: IElectionEvent): boolean =>
     )
 }
 
+/** Match the channels this voter can actually use, including their area's early-voting policy. */
+const isElectionOpenForVoter = (
+    event: IElectionEvent | undefined,
+    status: IElectionStatus | null | undefined,
+    isKiosk: boolean,
+    area: IAreaPresentation | undefined
+): boolean => {
+    if (isKiosk) {
+        return status?.kiosk_voting_status === EVotingStatus.OPEN && isElectionEventKioskOpen(event)
+    }
+    return (
+        (status?.voting_status === EVotingStatus.OPEN && isElectionEventOnlineVotingOpen(event)) ||
+        (area?.allow_early_voting === EEarlyVotingPolicy.ALLOW_EARLY_VOTING &&
+            status?.early_voting_status === EVotingStatus.OPEN &&
+            isElectionEventEarlyVotingOpen(event))
+    )
+}
+
 const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
     electionId,
     summary,
@@ -176,34 +198,16 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
     let electionClassName = getElectionClassName(election)
 
     const electionStatus = election?.status as IElectionStatus | null
-    const isVotingOpen = () => {
-        let isOnlineVotingOpen: boolean =
-            (electionStatus?.voting_status as EVotingStatus) === EVotingStatus.OPEN
-
-        if (isKiosk) {
-            return isKioskOpen() && isElectionEventKioskOpen(electionEvent)
-        } else {
-            return (
-                (isOnlineVotingOpen && isElectionEventOnlineVotingOpen(electionEvent)) ||
-                (isEarlyVotingOpen() && isElectionEventEarlyVotingOpen(electionEvent))
-            )
-        }
-    }
-
-    const isKioskOpen = () => {
-        return (electionStatus?.kiosk_voting_status as EVotingStatus) === EVotingStatus.OPEN
-    }
+    const areaPresentation = (summary?.area_presentation ??
+        ballotStyle?.ballot_eml?.area_presentation) as IAreaPresentation | undefined
+    const isVotingOpen = () =>
+        isElectionOpenForVoter(electionEvent, electionStatus, isKiosk, areaPresentation)
 
     const isEarlyVotingPolicyEnabled = () => {
         let area_presentation = (summary?.area_presentation ??
             ballotStyle?.ballot_eml?.area_presentation) as IAreaPresentation | undefined
         return area_presentation?.allow_early_voting === EEarlyVotingPolicy.ALLOW_EARLY_VOTING
     }
-    const isEarlyVotingOpen = () => {
-        let isOpen = electionStatus?.early_voting_status === EVotingStatus.OPEN
-        return isEarlyVotingPolicyEnabled() && isOpen
-    }
-
     const isVotingStarted = () => {
         if (isKiosk) {
             return electionStatus?.kiosk_voting_status !== EVotingStatus.NOT_STARTED
@@ -286,7 +290,11 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
             onClickToVote={canVote() ? onClickToVote : undefined}
             onClickBallotLocator={handleClickBallotLocator}
             resultsUrl={resultsUrl}
-            electionDates={summary?.election_dates ?? ballotStyle?.ballot_eml?.election_dates}
+            electionDates={currentElectionDates(
+                summary?.election_dates ?? ballotStyle?.ballot_eml?.election_dates,
+                electionStatus,
+                isKiosk
+            )}
             isStarted={isVotingStarted()}
             className={electionClassName}
             timeZone={zones?.timeZone}
@@ -340,6 +348,7 @@ const ElectionSelectionScreen: React.FC = () => {
     const location = useLocation()
 
     const {globalSettings} = useContext(SettingsContext)
+    const isKioskVoter = useContext(AuthContext).isKiosk()
     const {eventId, tenantId} = useParams<{eventId?: string; tenantId?: string}>()
     const electionEvent = useAppSelector(selectElectionEventById(eventId))
     const eventDefaultLanguageCode =
@@ -391,6 +400,22 @@ const ElectionSelectionScreen: React.FC = () => {
     const loadingBallotStyles = voterContext.loading
     const loadingElectionEvent = voterContext.loading
     const loadingElections = voterContext.loading
+
+    const refreshVoterStatus = voterContext.refetch
+    useEffect(() => {
+        if (
+            globalSettings.DISABLE_AUTH ||
+            !tenantId ||
+            !eventId ||
+            typeof refreshVoterStatus !== "function"
+        )
+            return
+        const refresh = () => {
+            void refreshVoterStatus().catch(() => undefined)
+        }
+        window.addEventListener("focus", refresh)
+        return () => window.removeEventListener("focus", refresh)
+    }, [globalSettings.DISABLE_AUTH, tenantId, eventId, refreshVoterStatus])
 
     // Materials
     const {
@@ -692,16 +717,32 @@ const ElectionSelectionScreen: React.FC = () => {
             ? t(`electionSelectionScreen.alerts.${alertMsg}`)
             : undefined
 
-    // Once the event's voting is closed and every listed ballot's close has
-    // passed: when it closed, in the primary zone with the Post's time.
-    const closedMsg = isElectionEventVotingClosed(electionEvent)
+    // Another channel being open must not hide this voter's closing message.
+    const allBallotsClosed =
+        electionIds.length > 0 &&
+        electionIds.every(
+            (id) =>
+                !isElectionOpenForVoter(
+                    electionEvent,
+                    electionsById[id]?.status as IElectionStatus | null,
+                    isKioskVoter,
+                    (voterContext.summaries?.[id]?.area_presentation ??
+                        ballotStylesById[id]?.ballot_eml?.area_presentation) as
+                        | IAreaPresentation
+                        | undefined
+                )
+        )
+    const closedMsg = allBallotsClosed
         ? votingClosedMessage({
               ballots: electionIds.map((electionId) => {
                   const ballotStyle = ballotStylesById[electionId]
                   return {
-                      electionDates:
+                      electionDates: currentElectionDates(
                           voterContext.summaries?.[electionId]?.election_dates ??
-                          ballotStyle?.ballot_eml?.election_dates,
+                              ballotStyle?.ballot_eml?.election_dates,
+                          electionsById[electionId]?.status as IElectionStatus | null,
+                          isKioskVoter
+                      ),
                       zones: ballotTimeZones(
                           electionEvent?.presentation,
                           electionsById[electionId]?.presentation,
