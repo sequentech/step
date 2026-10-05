@@ -40,7 +40,6 @@ import {useMutation} from "@apollo/client"
 import {MANAGE_ELECTION_DATES} from "@/queries/ManageElectionDates"
 import {ICronConfig, IManageElectionDatePayload} from "@/types/scheduledEvents"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
-import {canonicalZone} from "@sequentech/ui-core"
 import ElectionHeader from "@/components/ElectionHeader"
 import {useScheduledEventPermissions} from "../ElectionEvent/useScheduledEventPermissions"
 import {getGraphQLActionErrorReason} from "@/services/graphqlActionError"
@@ -200,21 +199,10 @@ const ListScheduledEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
     }
 
     const zones = useTimeZoneContext(electionEventId)
-    const zoneOfRow = (scheduledEvent: Sequent_Backend_Scheduled_Event) => {
-        const stored = (scheduledEvent.cron_config as ICronConfig | null)?.timezone
-        if (typeof stored === "string" && stored.trim()) {
-            try {
-                const zone = canonicalZone(stored)
-                // Historical rows keep their valid chosen zone even if the event
-                // no longer offers it. Malformed legacy metadata uses the Post default.
-                new Intl.DateTimeFormat(undefined, {timeZone: zone})
-                return zone
-            } catch {
-                // Legacy/directly written JSON may contain an invalid zone.
-            }
-        }
-        return zones.zoneOf(electionIdOf(scheduledEvent))
-    }
+    // The entered wall time and zone remain in cron_config for editing; the
+    // list displays that same instant in its Post's zone (or the event primary).
+    const zoneOfRow = (scheduledEvent: Sequent_Backend_Scheduled_Event) =>
+        zones.zoneOf(electionIdOf(scheduledEvent))
 
     // What each future opening and closing will do (design §5c), and the published configuration.
     const {data: outcomesData, error: outcomesError} = useQuery<GetScheduledOutcomesData>(
