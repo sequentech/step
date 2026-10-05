@@ -509,7 +509,7 @@ The voting portal's ballot locator calls `list_cast_vote_messages` (Harvest `POS
 | Election event import | Streams the CSV through one append, all or nothing, preserving the raw signed bytes |
 
 - **Exports page in ascending ID order.** They see records committed while they run, so they are not a historical snapshot, and an event must not be deleted while its log is being exported.
-- **Errors:** read or decoding errors fail the activity-log reports instead of returning partial results. `generate-logs` exits with an error but can leave partly written CSV files. `step-cli step export-cast-votes` prints the error but still exits with status 0 and leaves the rows written so far in its CSV, so check its output for `Error!`.
+- **Errors:** read or decoding errors fail the activity-log reports instead of returning partial results. `generate-logs` and `step-cli step export-cast-votes` exit with a non-zero status on any error. Both write each CSV file as `<name>.partial` and rename it only once it is complete, so a failed run removes its partial files and leaves any earlier export untouched.
 - **Imports start a new history.** Imported rows get new record IDs, new delivery IDs and new leaves in the new event's board, so the source event's checkpoints and proofs do not apply to the imported board. The signed message bytes and the `created` value are taken from the CSV as given.
 
 ### 9.4 Proof API
@@ -867,7 +867,6 @@ Performance and operation:
 - A dispatcher run that cannot finish one batch within 30 seconds stops the event queue from draining. If `ELECTORAL_LOG_BATCH_MAX_BYTES` is set above what RabbitMQ accepts, a larger batch is lost and its worker cannot send tasks until restarted.
 - Harvest does not verify JWT signatures; it relies on Hasura or a gateway to do so.
 - Direct appends block their actions while the log is unavailable or a board refuses appends.
-- `step export-cast-votes` exits with status 0 after an error, leaving a partial CSV.
 - Windmill shares one pool of eight electoral-log connections, without a wait timeout, between appends and audits.
 - A long audit holds a snapshot that slows concurrent appends.
 - An automatic recount that starts while an audit runs can drop the audit's summary line from the latest tally execution; the result remains on the audit task.

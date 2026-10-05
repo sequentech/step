@@ -24,10 +24,11 @@ use serde_json::Value;
 use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::env;
-use std::fs::File;
+use std::path::PathBuf;
 use strand::serialization::StrandDeserialize;
 use tokio_postgres::Transaction;
 use uuid::Uuid;
+use windmill::services::partial_file::PartialFile;
 use windmill::services::protocol_manager::get_board_client;
 use windmill::services::providers::transactions_provider::provide_hasura_transaction;
 #[derive(Serialize)]
@@ -82,22 +83,27 @@ pub struct ExportCastVotes {
 }
 
 impl ExportCastVotes {
-    pub fn run(&self) {
-        let runtime = tokio::runtime::Runtime::new().expect("Failed to create Tokio runtime");
-        match runtime.block_on(self.run_export_cast_votes()) {
-            Ok(_) => println!("{}", "Successfully exported cast votes".green()),
-            Err(err) => eprintln!("Error! Failed to export cast votes: {err:?}"),
-        }
+    pub fn run(&self) -> Result<()> {
+        let runtime = tokio::runtime::Runtime::new().context("Failed to create Tokio runtime")?;
+        let output = runtime
+            .block_on(self.run_export_cast_votes())
+            .context("Failed to export cast votes")?;
+        println!(
+            "{} {}",
+            "Successfully exported cast votes to".green(),
+            output.display()
+        );
+        Ok(())
     }
 
-    pub async fn run_export_cast_votes(&self) -> Result<(), Box<dyn std::error::Error>> {
-        println!("Creating file {}", self.output);
-        let file = File::create(&self.output)?;
+    /// Writes the export as `<output>.partial` and renames it to `<output>` only
+    /// once every cast vote is written, so a failed export leaves no file that
+    /// looks complete.
+    pub async fn run_export_cast_votes(&self) -> Result<PathBuf> {
+        let file = PartialFile::create(&self.output)?;
+        println!("Writing {}", file.path().display());
+        let mut writer = WriterBuilder::new().from_writer(file);
 
-        println!("Creating writer");
-        let mut writer = WriterBuilder::new().from_writer(&file);
-
-        println!("Creating client");
         let client = get_board_client().await?;
         let mut last_id = 0;
         loop {
@@ -114,7 +120,10 @@ impl ExportCastVotes {
                 limit: 1000,
                 ..LogQuery::default()
             };
-            let electoral_log_messages = client.query(&self.board_db, &query).await?;
+            let electoral_log_messages = client
+                .query(&self.board_db, &query)
+                .await
+                .context("Failed to read cast votes from the electoral log")?;
             let Some(last) = electoral_log_messages.last() else {
                 break;
             };
@@ -144,10 +153,9 @@ impl ExportCastVotes {
             }
         }
         writer
-            .flush()
-            .map_err(|error| anyhow!("Failed to flush writer {}", error))?;
-
-        Ok(())
+            .into_inner()
+            .map_err(|error| anyhow!("Failed to write {}: {}", self.output, error.error()))?
+            .commit()
     }
 }
 
@@ -166,6 +174,22 @@ mod tests {
             VoterIpString("ip".to_string()),
             VoterCountryString("country".to_string()),
         )
+    }
+
+    #[test]
+    fn a_failed_export_is_an_error_and_leaves_no_file() {
+        let directory = tempfile::tempdir().unwrap();
+        let output = directory.path().join("missing").join("votes.csv");
+        let command = ExportCastVotes {
+            board_db: "board".to_string(),
+            output: output.display().to_string(),
+        };
+
+        let error = format!("{:#}", command.run().unwrap_err());
+
+        assert!(error.contains("Failed to export cast votes"), "{error}");
+        assert!(error.contains("votes.csv.partial"), "{error}");
+        assert!(!output.exists());
     }
 
     #[test]

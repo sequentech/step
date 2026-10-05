@@ -2,18 +2,19 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 use clap::Parser;
 use csv::Writer;
 use electoral_log::messages::message::Message;
 use serde::Deserialize;
 use std::collections::HashMap; // Added for HashMap
-use std::fs::{self, File};
+use std::fs;
 use std::path::PathBuf;
 use strand::serialization::StrandDeserialize;
 use tracing::info;
 use tracing_subscriber::EnvFilter;
 use windmill::services::electoral_log::ElectoralLogRow;
+use windmill::services::partial_file::PartialFile;
 use windmill::services::protocol_manager::{get_board_client, get_event_board};
 use windmill::services::reports::activity_log::ActivityLogRow;
 
@@ -102,7 +103,7 @@ async fn main() -> Result<()> {
     info!(output_folder = %cli.output_folder_path.display(), "Output folder ensured.");
 
     // HashMap to store CSV writers, keyed by sanitized filename stem
-    let mut csv_writers: HashMap<String, Writer<File>> = HashMap::new();
+    let mut csv_writers: HashMap<String, Writer<PartialFile>> = HashMap::new();
 
     let client = get_board_client().await?;
     let mut cursor = 0;
@@ -129,9 +130,7 @@ async fn main() -> Result<()> {
                 let csv_path = cli
                     .output_folder_path
                     .join(format!("{}.csv", sanitized_stem));
-                let file = File::create(&csv_path).with_context(|| {
-                    format!("Failed to create CSV file: {}", csv_path.display())
-                })?;
+                let file = PartialFile::create(&csv_path)?;
                 csv_writers.insert(sanitized_stem.clone(), Writer::from_writer(file));
             }
             csv_writers
@@ -145,14 +144,23 @@ async fn main() -> Result<()> {
         }
     }
 
-    for (filename_stem, writer) in csv_writers.iter_mut() {
-        writer
-            .flush()
-            .with_context(|| format!("Failed to flush CSV writer for {}", filename_stem))?;
+    // Each CSV file is written as `<name>.csv.partial` and renamed only here, so a
+    // run that fails part-way leaves no file that looks complete.
+    for (filename_stem, writer) in csv_writers {
+        let path = writer
+            .into_inner()
+            .map_err(|error| {
+                anyhow!(
+                    "Failed to write CSV file for {}: {}",
+                    filename_stem,
+                    error.error()
+                )
+            })?
+            .commit()?;
         info!(
-            filename_stem,
-            count = activity_log_written_counts.get(filename_stem).unwrap_or(&0),
-            "CSV file flushed."
+            path = %path.display(),
+            count = activity_log_written_counts.get(&filename_stem).unwrap_or(&0),
+            "CSV file written."
         );
     }
 

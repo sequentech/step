@@ -576,3 +576,5 @@ cli step export-cast-votes \
 
 * `--board-db` – Electoral-log board name **(required)**
 * `--output` – Output CSV file *(default: `output.csv`)*
+
+The file is written as `<output>.partial` and renamed to `<output>` only when the export completes. On any error the command removes the partial file, leaves an existing `<output>` unchanged and exits with a non-zero status.
