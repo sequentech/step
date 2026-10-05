@@ -68,6 +68,8 @@ Published PRs: Step #3420, Beyond #939 and GitOps #11138, all targeting main fro
 
 ## Trellis integration
 
+The in-memory processor and its Harvest catch-up described here were later replaced by the persisted tree; see [Persisted Merkle tree, checkpoints and audits](#persisted-merkle-tree-checkpoints-and-audits).
+
 - Imported `ruescasd/mrkl` branch `trellis` at `57ddd6d171ae6fc9f1545a1302f2d1e82f2defb7` into `packages/trellis`, retaining source provenance and the original tools behind an opt-in feature.
 - Added a PostgreSQL journal with one generation per board and ordered leaves linked to source record IDs. Appends share the existing message transaction and delivery deduplication.
 - Added versioned full-record hashing, checkpoint/inclusion/consistency operations and offline CLI verification. Existing message encoding, list queries and CSV exports remain unchanged.
@@ -86,6 +88,15 @@ Verification passed:
 
 Harvest and Windmill watch builds completed under one-CPU limits. This follow-up does not include a complete production/offline image build, a historical-data migration or a full election lifecycle test. A user-initiated machine restart also exposed a stale PGMQ SQL mount from the other branch; the Keycloak PostgreSQL container was recreated from this branch's Compose definition with its existing data volume.
 
+## Upstream service hardening
+
+These fixes apply to the imported upstream tools behind `upstream-service`, which Step does not run (`packages/trellis/UPSTREAM.md`):
+
+- Proof verification rejects out-of-domain proof metadata, and `InclusionProof::verify_against` checks membership against a trusted root and size. Duplicate leaf hashes keep their earliest position, so proofs for earlier sizes remain available.
+- The example monitor persists its last verified checkpoint and verification failures across restarts, and refuses to continue after a failure, an identity mismatch or a corrupt checkpoint file. The example client verifies against that checkpoint.
+- The polling service reconciles source identities against persisted receipts instead of source sequence or commit order, catches up memory independently of new copies, validates and quotes source identifiers, accepts only integer ID types and rejects log names longer than 52 bytes. Administrative controls moved from the public proof routes to a separate loopback-only listener (`TRELLIS_ADMIN_ADDR`).
+- CI runs the `post` example and an isolated PostgreSQL regression of source reconciliation and tree recovery.
+
 ## Persisted Merkle tree, checkpoints and audits
 
 Review of the Trellis integration found that every Harvest instance rebuilt and held each board's tree in memory, that lagging and diverged checkpoints were hard to tell apart, and that nothing outside the log database anchored its history. The journal now stores the tree:
@@ -96,4 +107,27 @@ Review of the Trellis integration found that every Harvest instance rebuilt and 
 - Audits: an `AUDIT_ELECTORAL_LOG` task, started after each completed results tally and on demand from the Logs tab, the `audit_electoral_log` action or `cli step audit-electoral-log`, checks records against leaves, leaf order against record order, every stored subtree and the root against the leaves, and every published checkpoint's signer, signature and root against the roots recomputed from the leaves. Audits of a board run one at a time. Findings fail the task and are listed in its logs and, for tally audits, summarized in the tally logs. Audits never repair data.
 - Verification against a trusted checkpoint: inclusion requests and the CLI accept a trusted checkpoint. The proof is computed at that checkpoint when it already contains the record, and otherwise at the current checkpoint together with a consistency proof from it.
 
-The RFC 6962 arithmetic is checked byte for byte against `ct-merkle` for every root, inclusion proof and consistency proof of trees up to 130 leaves and for several larger trees. PostgreSQL tests cover atomic appends across insert chunks, concurrent appends, historical and anchored proofs, forged, future, other-generation and other-board checkpoints, tampered subtrees, roots, records and leaf order, legacy logs, refused rebuilds and concurrent audits. Windmill tests cover checkpoint signing against the audit's checks, and a PostgreSQL wiring test audits a board written through Windmill.
+- Interfaces: checkpoints are stored in the Hasura table `sequent_backend.electoral_log_checkpoint` (insert-only for the application; readable by `logs-read`). Manual audits need the new `electoral-log-audit` permission, added to the `/admin` group of the default tenant template and the COMELEC template; existing realms need the role added. The audit task's annotations record `outcome` (`clean`, `findings` or `error`), `board`, `tree_size`, `root`, `findings` and `published_checkpoints`.
+- Related fixes: truncated inclusion proof bytes return an error instead of panicking; a golden vector pins the v1 record encoding; a test keeps the electoral-log schema's copy of the Trellis schema identical; post-tally finalization copies the tally status read under the tally-session lock, so audit lines added meanwhile are kept; the remaining ImmuDB references outside release and migration notes were updated.
+
+Verification passed:
+
+- 19 Trellis unit tests, which compare every root, inclusion proof and consistency proof with `ct-merkle` byte for byte for trees of up to 130 leaves and for trees of 1,023 to 10,007 leaves. Clippy is clean for the Trellis library and its tests (default features).
+- 18 electoral-log unit tests, including the golden vector, signed-checkpoint binding, reason names, audit annotations and findings.
+- 8 PostgreSQL contract tests, run on PostgreSQL 16.15 (the CI version) and on the development server's 18.6. They cover atomic appends, including a failure after the first insert chunk, a single append larger than one chunk, 32 concurrent appends, historical and anchored proofs, forged, future, other-generation and other-board checkpoints, tampered subtrees, roots, records and leaf order, legacy logs, refused and accepted rebuilds, and audits that wait for each other.
+- Upstream-service unit and example tests and the upstream PostgreSQL regression.
+- 407 Windmill library tests, including checkpoint signing against the audit's checks and the tally-progress rule, and the PostgreSQL wiring test, which audits a board written through Windmill. Harvest electoral-log tests, including the error-to-status mapping. step-cli tests, including the audit output.
+- Admin portal: 42 Jest suites (276 tests), including the audit labels in all eight languages, ESLint and Prettier. Hasura Prettier, workspace `cargo fmt --check` and REUSE lint.
+- On the development stack: the migration and metadata apply, Hasura exposes the table and the action, and an audit started through the action as an administrator ran through Harvest and Windmill and recorded a clean result. A malformed event ID and a role without the permission are rejected. The checkpoint insert, including a repeated size, was exercised by hand on PostgreSQL 16.
+- Four rounds of independent hostile review of storage, proofs, audits, Windmill, Harvest, Hasura, permissions, UI, CLI and documentation. The final round found nothing at medium or higher.
+
+Development environment: the existing development electoral-log database was upgraded with `init` and its board back-filled with `backfill-nodes`, and the `electoral-log-audit` role was added to the development tenant realm's `/admin` group. A machine restart and a full disk interrupted the development containers; disposable Docker build cache and Rust incremental caches were removed and the devcontainer's create commands were run again. A later devcontainer rebuild started with new data volumes: the new electoral-log database was created directly with the new schema, and the tenant realm imported from the updated template includes the role.
+
+Not included or not exercised:
+
+- No load test: per-board append throughput and audit duration on large boards are not measured. A full audit reads the whole board, and appends to one board are serialized, as before.
+- The tally-triggered and voting-closed publications were not run end to end on the development stack; unit tests and the hand-run SQL cover their parts.
+- An automatic recount that starts while an audit runs can drop the audit's summary line from the latest tally execution; the result remains on the audit task.
+- Windmill shares one electoral-log connection pool of eight connections, without a wait timeout, between appends and audits.
+- The checkpoint insert SQL has no automated PostgreSQL test.
+- The sequent-core WebAssembly package was not rebuilt; the admin portal uses its own permission list.
