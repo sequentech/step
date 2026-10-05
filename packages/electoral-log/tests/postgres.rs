@@ -4,6 +4,7 @@
 use anyhow::{anyhow, Result};
 use electoral_log::{adapters::postgres::PostgresStore, domain::*, service::BoardClient};
 use std::sync::Arc;
+use trellis::journal::INSERT_CHUNK;
 use uuid::Uuid;
 
 async fn setup() -> Result<(BoardClient, String)> {
@@ -773,5 +774,100 @@ async fn trellis_audit_detects_reordered_leaves() -> Result<()> {
         .iter()
         .any(|finding| finding.contains("record order")));
     store.delete_board(&board).await?;
+    Ok(())
+}
+
+#[tokio::test]
+#[ignore = "requires ELECTORAL_LOG_TEST_DATABASE_URL"]
+async fn unfiltered_counts_come_from_the_journal() -> Result<()> {
+    let (store, board, db) = trellis_store().await?;
+    let client = BoardClient::new(Arc::new(store.clone()));
+    let entries: Vec<_> = (0..3)
+        .map(|n| entry(&format!("delivery-{n}"), n, Some("user")))
+        .collect();
+    client.append(&board, &entries).await?;
+    client.append(&board, &entries).await?;
+    let everything = LogQuery {
+        filters: vec![Filter::Number(
+            NumberColumn::Created,
+            NumberComparison::GreaterThanOrEqual,
+            0,
+        )],
+        ..LogQuery::default()
+    };
+    assert_eq!(client.count(&board, &LogQuery::default()).await?, 3);
+    assert_eq!(client.count(&board, &everything).await?, 3);
+    // A row written around the journal is listed and audited, but not counted as a
+    // committed record.
+    db.execute(
+        "INSERT INTO electoral_log_messages (board_name, delivery_id, created, sender_pk, \
+         statement_timestamp, statement_kind, message, version) \
+         VALUES ($1, 'outside', 0, 'sender', 0, 'CastVote', '\\x00', '1')",
+        &[&board],
+    )
+    .await?;
+    assert_eq!(client.count(&board, &LogQuery::default()).await?, 3);
+    assert_eq!(client.count(&board, &everything).await?, 4);
+    assert_eq!(client.query(&board, &LogQuery::default()).await?.len(), 4);
+    assert!(!store.audit(&board, &[]).await?.is_clean());
+    client.delete_board(&board).await?;
+    assert_eq!(client.count(&board, &LogQuery::default()).await?, 0);
+    assert_eq!(
+        client.count("missing-board", &LogQuery::default()).await?,
+        0
+    );
+    Ok(())
+}
+
+#[tokio::test]
+#[ignore = "requires ELECTORAL_LOG_TEST_DATABASE_URL"]
+async fn repeated_deliveries_in_one_append_store_the_first() -> Result<()> {
+    let (store, board, _db) = trellis_store().await?;
+    let client = BoardClient::new(Arc::new(store.clone()));
+    client.append(&board, &[entry("kept", 1, None)]).await?;
+    client
+        .append(
+            &board,
+            &[
+                entry("first", 2, Some("first")),
+                entry("kept", 3, None),
+                entry("first", 4, Some("second")),
+                entry("last", 5, None),
+            ],
+        )
+        .await?;
+    let rows = client
+        .query(
+            &board,
+            &LogQuery {
+                order: vec![(OrderColumn::Id, SortDirection::Asc)],
+                ..LogQuery::default()
+            },
+        )
+        .await?;
+    let created: Vec<_> = rows.iter().map(|row| row.created).collect();
+    assert_eq!(created, vec![1, 2, 5]);
+    assert_eq!(rows[1].user_id.as_deref(), Some("first"));
+    // A repeat in a later chunk of the same append meets the copy stored by the first.
+    let mut chunks: Vec<_> = (0..INSERT_CHUNK)
+        .map(|n| entry(&format!("chunk-{n}"), 6, None))
+        .collect();
+    chunks.push(entry("chunk-0", 7, None));
+    client.append(&board, &chunks).await?;
+    let repeated = LogQuery {
+        filters: vec![Filter::Number(
+            NumberColumn::Created,
+            NumberComparison::Equal,
+            7,
+        )],
+        ..LogQuery::default()
+    };
+    assert_eq!(client.count(&board, &repeated).await?, 0);
+    let records = 3 + i64::try_from(INSERT_CHUNK)?;
+    assert_eq!(client.count(&board, &LogQuery::default()).await?, records);
+    let report = store.audit(&board, &[]).await?;
+    assert!(report.is_clean(), "{:?}", report.findings());
+    assert_eq!(report.leaves, records);
+    client.delete_board(&board).await?;
     Ok(())
 }

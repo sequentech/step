@@ -99,6 +99,24 @@ An audit reads the whole board, so run it on demand or at milestones, not per re
 
 Use the bundled Step schema and CLI for provisioning. The retained upstream source-table polling server and setup tools are optional developer tools behind `upstream-service`; Step does not run them.
 
+## Capacity
+
+A load test filled one board to 20 million records on a PostgreSQL server with 12 GB of memory and extrapolated to 50 million; [the design notes](https://github.com/sequentech/step/blob/main/docs/design/electoral-log-load-test.md) have the measurements.
+
+- **Storage:** plan about 2 KB per record including indexes, about 100 GB for 50 million records.
+- **Appends to a board are serialized, and their speed depends on whether the message indexes (about 800 bytes per record) fit in memory.**
+  - Batch appends, inserting one record at a time, ran at about 9,000 records/s at 1 million records and 1,500 records/s at 20 million on that server.
+  - Batches now insert up to 5,000 records per statement. That was 20 to 60 % faster at 20 million records, and twice as fast with 0.5 ms of network latency to the database.
+  - Single-record appends make about 20 round trips each, so network latency to the database limits them.
+- **Proofs, checkpoints and index-backed queries stay in milliseconds.** These include the newest records, ID, creation-time and user ordering, and user, ballot-locator and cursor export queries.
+- **Some queries read the whole board and take minutes at tens of millions of records:**
+  - sorting by statement timestamp or kind;
+  - filtering by username, statement timestamp or ballot ID;
+  - filtering by creation time while sorted by ID;
+  - pages deep into the log;
+  - counts of filtered views.
+- **Audits:** a full audit reads the board, about 6 minutes at 20 million records on that server. Audit when the board is quiet: appends slow down while an audit's snapshot is open.
+
 ## Configuration
 
 | Variable | Meaning |
@@ -139,7 +157,7 @@ Use a disposable PostgreSQL database, setting `ELECTORAL_LOG_TEST_DATABASE_URL` 
 
 ```sh
 cd packages
-CARGO_BUILD_JOBS=1 cargo test -p electoral-log --test postgres -- --ignored --test-threads=1
+CARGO_BUILD_JOBS=1 cargo test -p electoral-log --lib --test postgres -- --ignored --test-threads=1
 ```
 
 Run `CARGO_BUILD_JOBS=1 cargo test -p trellis --lib` for the tree tests; they compare every root, inclusion proof and consistency proof for trees of up to 130 leaves, and for several larger trees, byte for byte with the `ct-merkle` implementation. The PostgreSQL integration tests also cover atomic message/leaf/node writes, duplicate deliveries, saved-checkpoint verification, changed-record rejection, board recreation, dense positions under concurrent appends, historical proofs, forged and future checkpoints, trusted-checkpoint inclusion, tampered nodes and roots, rebuilding legacy logs, and audit findings. They exercise isolation, complete raw rows, atomic rollback, concurrent idempotency, distinct same-content events, visibility rules, counts and pagination. The existing PostgreSQL-backed Windmill CI job runs them explicitly. Ordinary message/signature unit tests continue to cover the unchanged signed format. Targeted mutation checks and independent review outcomes are recorded in `docs/design/electoral-log-postgres-implementation.md`; their results are scoped to the changed code, not a whole-repository mutation score.

@@ -125,7 +125,7 @@ Development environment: the existing development electoral-log database was upg
 
 Not included or not exercised:
 
-- No load test: per-board append throughput and audit duration on large boards are not measured. A full audit reads the whole board, and appends to one board are serialized, as before.
+- Large boards: several admin portal sorts, filters, counts and deep pages read the whole board, and append throughput falls once the message indexes outgrow memory. [electoral-log-load-test.md](electoral-log-load-test.md) records the load test to 20 million records that measured this, and the fixes it led to: the quadratic audit, the full count on every admin page load and one round trip per appended record.
 - The tally-triggered and voting-closed publications were not run end to end on the development stack; unit tests and the hand-run SQL cover their parts.
 - An automatic recount that starts while an audit runs can drop the audit's summary line from the latest tally execution; the result remains on the audit task.
 - Windmill shares one electoral-log connection pool of eight connections, without a wait timeout, between appends and audits.

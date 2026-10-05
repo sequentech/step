@@ -13,6 +13,7 @@ use openssl::ssl::{SslConnector, SslMethod, SslVerifyMode};
 use postgres_openssl::MakeTlsConnector;
 use serde::{Deserialize, Serialize};
 use std::{
+    collections::{HashMap, HashSet},
     env,
     time::{Duration, Instant},
 };
@@ -239,13 +240,7 @@ async fn audit_snapshot(
         .iter()
         .map(|row| row.try_get(0))
         .collect::<Result<_, _>>()?;
-    let page = tx
-        .prepare(&format!(
-            "SELECT {COLUMNS}, delivery_id, e.hash FROM electoral_log_messages m \
-                 JOIN trellis_leaves e ON e.log_id = $2 AND e.source_id = m.id \
-                 WHERE m.board_name = $1 AND m.id > $3 ORDER BY m.id LIMIT 1000"
-        ))
-        .await?;
+    let page = tx.prepare(&audit_page_sql()).await?;
     let mut cursor = i64::MIN;
     loop {
         let rows = tx.query(&page, &[&board, &log_id, &cursor]).await?;
@@ -299,6 +294,106 @@ async fn audit_snapshot(
     Ok(Some(report))
 }
 
+/// Store records in one statement, in order, and append the new ones to the journal,
+/// then empty `pending`. A delivery that is already stored, or that appears earlier in
+/// `pending`, is not stored again.
+async fn insert_records(
+    tx: &deadpool_postgres::Transaction<'_>,
+    board: &str,
+    pending: &mut Vec<LogEntry>,
+) -> Result<()> {
+    let mut seen = HashSet::with_capacity(pending.len());
+    pending.retain(|entry| seen.insert(entry.delivery_id.clone()));
+    if pending.is_empty() {
+        return Ok(());
+    }
+    let text = |field: fn(&ElectoralLogMessage) -> &str| -> Vec<&str> {
+        pending.iter().map(|entry| field(&entry.message)).collect()
+    };
+    let optional = |field: fn(&ElectoralLogMessage) -> &Option<String>| -> Vec<Option<&str>> {
+        pending
+            .iter()
+            .map(|entry| field(&entry.message).as_deref())
+            .collect()
+    };
+    let number = |field: fn(&ElectoralLogMessage) -> i64| -> Vec<i64> {
+        pending.iter().map(|entry| field(&entry.message)).collect()
+    };
+    let deliveries: Vec<&str> = pending.iter().map(|e| e.delivery_id.as_str()).collect();
+    let messages: Vec<&[u8]> = pending
+        .iter()
+        .map(|e| e.message.message.as_slice())
+        .collect();
+    let rows = tx
+        .query(
+            "INSERT INTO electoral_log_messages (board_name, delivery_id, created, sender_pk, \
+             statement_timestamp, statement_kind, message, version, user_id, username, \
+             election_id, area_id, ballot_id) \
+             SELECT $1, delivery_id, created, sender_pk, statement_timestamp, statement_kind, \
+             message, version, user_id, username, election_id, area_id, ballot_id \
+             FROM UNNEST($2::TEXT[], $3::BIGINT[], $4::TEXT[], $5::BIGINT[], $6::TEXT[], \
+             $7::BYTEA[], $8::TEXT[], $9::TEXT[], $10::TEXT[], $11::TEXT[], $12::TEXT[], \
+             $13::TEXT[]) WITH ORDINALITY AS r(delivery_id, created, sender_pk, \
+             statement_timestamp, statement_kind, message, version, user_id, username, \
+             election_id, area_id, ballot_id, position) \
+             ORDER BY position \
+             ON CONFLICT (board_name, delivery_id) DO NOTHING RETURNING id, delivery_id",
+            &[
+                &board,
+                &deliveries,
+                &number(|m| m.created),
+                &text(|m| &m.sender_pk),
+                &number(|m| m.statement_timestamp),
+                &text(|m| &m.statement_kind),
+                &messages,
+                &text(|m| &m.version),
+                &optional(|m| &m.user_id),
+                &optional(|m| &m.username),
+                &optional(|m| &m.election_id),
+                &optional(|m| &m.area_id),
+                &optional(|m| &m.ballot_id),
+            ],
+        )
+        .await?;
+    let positions: HashMap<&str, usize> = deliveries
+        .iter()
+        .enumerate()
+        .map(|(index, delivery)| (*delivery, index))
+        .collect();
+    let mut stored = Vec::with_capacity(rows.len());
+    for row in rows {
+        let delivery: &str = row.try_get(1)?;
+        let index = *positions
+            .get(delivery)
+            .context("Stored an electoral-log delivery that was not appended")?;
+        stored.push((row.try_get::<_, i64>(0)?, index));
+    }
+    // The journal lists records in ID order.
+    stored.sort_unstable();
+    let mut leaves = Vec::with_capacity(stored.len());
+    for (id, index) in stored {
+        let entry = &mut pending[index];
+        entry.message.id = id;
+        leaves.push((id, leaf_hash(board, entry)?));
+    }
+    Journal::append_batch(tx, board, &leaves).await?;
+    pending.clear();
+    Ok(())
+}
+
+/// Records of a board after the cursor `$3`, with their leaves, in ID order.
+///
+/// The planner does not carry `m.id > $3` over to the leaves, so the page bounds both
+/// sides; otherwise every page rescans the leaves from the start of the log.
+fn audit_page_sql() -> String {
+    format!(
+        "SELECT {COLUMNS}, delivery_id, e.hash FROM electoral_log_messages m \
+         JOIN trellis_leaves e ON e.log_id = $2 AND e.source_id = m.id \
+         WHERE m.board_name = $1 AND m.id > $3 AND e.source_id > $3 \
+         ORDER BY m.id LIMIT {AUDIT_PAGE}"
+    )
+}
+
 fn decode(row: Row) -> Result<ElectoralLogMessage> {
     Ok(ElectoralLogMessage {
         id: row.try_get("id")?,
@@ -318,6 +413,8 @@ fn decode(row: Row) -> Result<ElectoralLogMessage> {
 
 /// Maximum IDs listed per audit finding.
 const AUDIT_SAMPLE: i64 = 100;
+/// Records compared per audit query.
+const AUDIT_PAGE: i64 = 1000;
 
 /// Result of an audit run, as recorded for operators.
 #[derive(
@@ -606,45 +703,19 @@ impl ElectoralLogStore for PostgresStore {
             .is_some(),
             "Electoral-log board does not exist"
         );
-        let insert = tx.prepare("INSERT INTO electoral_log_messages (board_name, delivery_id, created, sender_pk, statement_timestamp, statement_kind, message, version, user_id, username, election_id, area_id, ballot_id) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) ON CONFLICT (board_name, delivery_id) DO NOTHING RETURNING id").await?;
-        let mut leaves = Vec::new();
+        let mut pending = Vec::with_capacity(entries.size_hint().0.min(INSERT_CHUNK));
         for entry in entries {
-            let mut entry = entry?;
+            let entry = entry?;
             ensure!(
                 !entry.delivery_id.is_empty(),
                 "Electoral-log delivery ID must not be empty"
             );
-            let m = &entry.message;
-            let inserted = tx
-                .query_opt(
-                    &insert,
-                    &[
-                        &board,
-                        &entry.delivery_id,
-                        &m.created,
-                        &m.sender_pk,
-                        &m.statement_timestamp,
-                        &m.statement_kind,
-                        &m.message,
-                        &m.version,
-                        &m.user_id,
-                        &m.username,
-                        &m.election_id,
-                        &m.area_id,
-                        &m.ballot_id,
-                    ],
-                )
-                .await?;
-            if let Some(row) = inserted {
-                entry.message.id = row.try_get(0)?;
-                leaves.push((entry.message.id, leaf_hash(board, &entry)?));
-            }
-            if leaves.len() >= INSERT_CHUNK {
-                Journal::append_batch(&tx, board, &leaves).await?;
-                leaves.clear();
+            pending.push(entry);
+            if pending.len() >= INSERT_CHUNK {
+                insert_records(&tx, board, &mut pending).await?;
             }
         }
-        Journal::append_batch(&tx, board, &leaves).await?;
+        insert_records(&tx, board, &mut pending).await?;
         tx.commit().await?;
         Ok(())
     }
@@ -674,15 +745,24 @@ impl ElectoralLogStore for PostgresStore {
     }
 
     async fn count(&self, board: &str, query: &LogQuery) -> Result<i64> {
+        let client = self.pool.get().await?;
+        if query.filters.is_empty() && query.visibility.is_none() && !query.only_with_user {
+            // Each record commits with exactly one leaf, so the journal's size counts the
+            // board without scanning it.
+            return Ok(client
+                .query_opt(
+                    "SELECT l.size FROM trellis_logs l \
+                     JOIN electoral_log_boards b ON b.board_name = l.name WHERE l.name = $1",
+                    &[&board],
+                )
+                .await?
+                .map(|row| row.try_get(0))
+                .transpose()?
+                .unwrap_or(0));
+        }
         let (where_clause, params) = predicate(board, query);
         let sql = format!("SELECT COUNT(*) FROM electoral_log_messages WHERE {where_clause}");
-        Ok(self
-            .pool
-            .get()
-            .await?
-            .query_one(&sql, &params.refs())
-            .await?
-            .try_get(0)?)
+        Ok(client.query_one(&sql, &params.refs()).await?.try_get(0)?)
     }
 }
 
@@ -815,5 +895,97 @@ mod tests {
             assert!(!report.is_clean(), "{report:?}");
             assert!(!report.findings().is_empty(), "{report:?}");
         }
+    }
+
+    /// The JSON that `EXPLAIN (FORMAT JSON)` returns.
+    struct Plan(serde_json::Value);
+
+    impl<'a> tokio_postgres::types::FromSql<'a> for Plan {
+        fn from_sql(
+            _: &tokio_postgres::types::Type,
+            raw: &'a [u8],
+        ) -> Result<Self, Box<dyn std::error::Error + Sync + Send>> {
+            Ok(Self(serde_json::from_slice(raw)?))
+        }
+
+        fn accepts(ty: &tokio_postgres::types::Type) -> bool {
+            *ty == tokio_postgres::types::Type::JSON
+        }
+    }
+
+    /// Rows a plan reads from a table, including those its filters discard, over all
+    /// loops.
+    fn rows_read(plan: &serde_json::Value, table: &str) -> f64 {
+        let own = if plan["Relation Name"] == table {
+            let value = |key: &str| plan[key].as_f64().unwrap_or_default();
+            (value("Actual Rows")
+                + value("Rows Removed by Filter")
+                + value("Rows Removed by Index Recheck"))
+                * value("Actual Loops")
+        } else {
+            0.0
+        };
+        own + plan["Plans"].as_array().map_or(0.0, |children| {
+            children.iter().map(|child| rows_read(child, table)).sum()
+        })
+    }
+
+    #[tokio::test]
+    #[ignore = "requires ELECTORAL_LOG_TEST_DATABASE_URL"]
+    async fn audit_pages_read_only_the_leaves_after_their_cursor() -> Result<()> {
+        let store = PostgresStore::new(std::env::var("ELECTORAL_LOG_TEST_DATABASE_URL")?.parse()?)?;
+        store.initialize().await?;
+        let board = format!("audit-page-{}", uuid::Uuid::new_v4());
+        store.create_board(&board).await?;
+        let records = 20 * AUDIT_PAGE;
+        let mut entries = (0..records).map(|n| {
+            Ok(LogEntry {
+                delivery_id: n.to_string(),
+                message: ElectoralLogMessage {
+                    id: 0,
+                    created: n,
+                    sender_pk: "sender".into(),
+                    statement_timestamp: n,
+                    statement_kind: "CastVote".into(),
+                    message: vec![1, 2, 3],
+                    version: "1".into(),
+                    user_id: None,
+                    username: None,
+                    election_id: None,
+                    area_id: None,
+                    ballot_id: None,
+                },
+            })
+        });
+        store.append(&board, &mut entries).await?;
+        let client = store.pool.get().await?;
+        client
+            .batch_execute("ANALYZE electoral_log_messages; ANALYZE trellis_leaves")
+            .await?;
+        let log_id: i64 = client
+            .query_one("SELECT id FROM trellis_logs WHERE name = $1", &[&board])
+            .await?
+            .try_get(0)?;
+        let cursor: i64 = client
+            .query_one(
+                "SELECT id FROM electoral_log_messages WHERE board_name = $1 ORDER BY id OFFSET $2 LIMIT 1",
+                &[&board, &(records - AUDIT_PAGE)],
+            )
+            .await?
+            .try_get(0)?;
+        let Plan(plan) = client
+            .query_one(
+                &format!("EXPLAIN (ANALYZE, FORMAT JSON) {}", audit_page_sql()),
+                &[&board, &log_id, &cursor],
+            )
+            .await?
+            .try_get(0)?;
+        store.delete_board(&board).await?;
+        let read = rows_read(&plan[0]["Plan"], "trellis_leaves");
+        assert!(
+            read <= (2 * AUDIT_PAGE) as f64,
+            "One audit page read {read} leaves"
+        );
+        Ok(())
     }
 }
