@@ -9,6 +9,7 @@ cannot reuse an earlier successful summary. The default is a strict 95% check;
 """
 
 import argparse
+import contextlib
 import fcntl
 import hashlib
 import json
@@ -35,6 +36,51 @@ from report import (
 ROOT = Path(__file__).resolve().parents[2]
 WORKSPACE = ROOT / "packages"
 CONFIG = Path(__file__).with_name("profiles.toml")
+NATIVE_TIMEOUT_ENV = "NATIVE_COVERAGE_TIMEOUT_SECONDS"
+
+
+def command_timeout_seconds(environment: dict[str, str]) -> int:
+    """Bound native commands while retaining the existing twenty-minute default."""
+    value = environment.get(NATIVE_TIMEOUT_ENV, "1200")
+    if not re.fullmatch(r"[0-9]{1,4}", value) or not 1 <= int(value) <= 3600:
+        raise CoverageError(f"{NATIVE_TIMEOUT_ENV} must be an integer from 1 to 3600")
+    return int(value)
+
+
+def cancel_native_run(_signal: int, _frame: Any) -> None:
+    """Let an outer runner interrupt a native command and clean its own session."""
+    raise CoverageError("Native coverage was cancelled by its parent")
+
+
+@contextlib.contextmanager
+def native_cancellation():
+    signals = {signal.SIGTERM, signal.SIGINT}
+    previous_mask = signal.pthread_sigmask(signal.SIG_BLOCK, signals)
+    previous_handler = signal.signal(signal.SIGTERM, cancel_native_run)
+    try:
+        signal.pthread_sigmask(signal.SIG_UNBLOCK, signals)
+        yield
+    finally:
+        signal.pthread_sigmask(signal.SIG_BLOCK, signals)
+        signal.signal(signal.SIGTERM, previous_handler)
+        signal.pthread_sigmask(signal.SIG_SETMASK, previous_mask)
+
+
+def signal_process_group(pid: int, value: signal.Signals) -> None:
+    # The owned group may finish between wait's timeout and cancellation.
+    with contextlib.suppress(ProcessLookupError):
+        os.killpg(pid, value)
+
+
+def stop_process_group(process: subprocess.Popen, *, cooperative: bool) -> None:
+    """Allow a reporter to kill its inner session before bounded escalation."""
+    if cooperative:
+        signal_process_group(process.pid, signal.SIGTERM)
+        with contextlib.suppress(subprocess.TimeoutExpired):
+            process.wait(timeout=5)
+            return
+    signal_process_group(process.pid, signal.SIGKILL)
+    process.wait()
 
 
 def execute(
@@ -43,28 +89,58 @@ def execute(
     environment: dict[str, str],
     *,
     cwd: Path | None = None,
+    cooperative: bool = False,
 ) -> str:
     """Capture one command and stop its process group if the run times out."""
+    timeout_seconds = command_timeout_seconds(environment)
     print(f"Running {' '.join(command)}\n  Log: {log}", flush=True)
-    with log.open("w") as output:
-        process = subprocess.Popen(
-            command,
-            cwd=WORKSPACE if cwd is None else cwd,
-            env=environment,
-            stdin=subprocess.DEVNULL,
-            stdout=output,
-            stderr=subprocess.STDOUT,
-            start_new_session=True,
+    with log.open("w") as output, tempfile.TemporaryFile() as original_environment:
+        # Python startup can coerce a C locale. Pass the original environment
+        # through an anonymous descriptor, never through argv or a named file.
+        original_environment.write(json.dumps(environment).encode("utf-8"))
+        original_environment.seek(0)
+        # A pending parent cancellation must not arrive between child creation
+        # and installing the cleanup path. Restore the mask inside that path.
+        previous_mask = signal.pthread_sigmask(
+            signal.SIG_BLOCK, {signal.SIGTERM, signal.SIGINT}
+        )
+        # Restore the child's inherited mask before exec without preexec_fn,
+        # which is unsafe when the caller has other threads. Exec keeps the
+        # owned PID/session, original argv, environment and output descriptors.
+        restore_mask = sorted(int(value) for value in previous_mask)
+        bootstrap = (
+            "import json,os,signal,sys; "
+            "[signal.signal(getattr(signal,n),signal.SIG_DFL) "
+            "for n in ('SIGPIPE','SIGXFZ','SIGXFSZ') if hasattr(signal,n)]; "
+            f"signal.pthread_sigmask(signal.SIG_SETMASK,{restore_mask!r}); "
+            f"f=os.fdopen({original_environment.fileno()}); "
+            "environment=json.load(f); f.close(); "
+            "os.execvpe(sys.argv[1],sys.argv[1:],environment)"
         )
         try:
-            returncode = process.wait(timeout=1200)
-        except subprocess.TimeoutExpired:
-            os.killpg(process.pid, signal.SIGKILL)
-            process.wait()
-            raise CoverageError(f"Command exceeded 20 minutes; see {log}") from None
+            process = subprocess.Popen(
+                [sys.executable, "-I", "-S", "-c", bootstrap, *command],
+                cwd=WORKSPACE if cwd is None else cwd,
+                env=environment,
+                stdin=subprocess.DEVNULL,
+                stdout=output,
+                stderr=subprocess.STDOUT,
+                start_new_session=True,
+                pass_fds=(original_environment.fileno(),),
+            )
         except BaseException:
-            os.killpg(process.pid, signal.SIGKILL)
-            process.wait()
+            signal.pthread_sigmask(signal.SIG_SETMASK, previous_mask)
+            raise
+        try:
+            signal.pthread_sigmask(signal.SIG_SETMASK, previous_mask)
+            returncode = process.wait(timeout=timeout_seconds)
+        except subprocess.TimeoutExpired:
+            stop_process_group(process, cooperative=cooperative)
+            raise CoverageError(
+                f"Command exceeded {timeout_seconds} seconds; see {log}"
+            ) from None
+        except BaseException:
+            stop_process_group(process, cooperative=cooperative)
             raise
     if returncode:
         raise CoverageError(f"Command failed with exit {returncode}; see {log}")
@@ -296,6 +372,7 @@ def measure(
                 "features": profile["features"],
                 "consumer_packages": profile.get("consumer_packages", []),
                 "test_environment": profile.get("test_environment", {}),
+                "command_timeout_seconds": command_timeout_seconds(environment),
                 "tools": {"rust": rust, "cargo_llvm_cov": tool},
                 "limitations": profile["limitations"],
                 "issue": profile["issue"],
@@ -468,13 +545,14 @@ def main() -> int:
                 file=sys.stderr,
             )
             return 2
-        return measure(
-            arguments.profile,
-            arguments.baseline,
-            arguments.offline,
-            arguments.output_dir.resolve() if arguments.output_dir else None,
-            arguments.comparison_base,
-        )
+        with native_cancellation():
+            return measure(
+                arguments.profile,
+                arguments.baseline,
+                arguments.offline,
+                arguments.output_dir.resolve() if arguments.output_dir else None,
+                arguments.comparison_base,
+            )
 
 
 if __name__ == "__main__":
