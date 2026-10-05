@@ -47,8 +47,8 @@ export const getStartDate = (electionDates?: IElectionDates): string | null => {
  * 3. or else, if the election has been stopped, use the execution date (field
  *    `StringifiedPeriodDates::last_stopped_at`)
  */
-export const getEndDate = (electionDates?: IElectionDates): string | null =>
-    getEndDateEntry(electionDates)?.date ?? null
+export const getEndDate = (electionDates?: IElectionDates, closedAt?: Date): string | null =>
+    getEndDateEntry(electionDates, closedAt)?.date ?? null
 
 /**
  * The end date by the same algorithm, with the zone it was scheduled in when
@@ -56,8 +56,33 @@ export const getEndDate = (electionDates?: IElectionDates): string | null =>
  * event-wide close the primary). An execution date names none.
  */
 export const getEndDateEntry = (
-    electionDates?: IElectionDates
+    electionDates?: IElectionDates,
+    /** Observation time for a closed ballot's display; omit to retain deadline semantics. */
+    closedAt?: Date
 ): {date: string; timeZone?: string} | null => {
+    if (closedAt) {
+        const scheduled = getEndDateEntry(
+            electionDates ? {...electionDates, last_stopped_at: undefined} : undefined
+        )
+        if (hasDate(electionDates?.last_stopped_at)) {
+            const stopped = Date.parse(electionDates.last_stopped_at)
+            const bounds = [getStartDate(electionDates), electionDates.last_started_at]
+            const inCurrentPeriod = bounds.every(
+                (bound) =>
+                    !hasDate(bound) ||
+                    !Number.isFinite(Date.parse(bound)) ||
+                    stopped >= Date.parse(bound)
+            )
+            if (Number.isFinite(stopped) && stopped <= closedAt.getTime() && inCurrentPeriod) {
+                // A scheduled deadline already passed remains the effective close;
+                // an earlier manual stop is what the closed ballot should display.
+                return scheduled && Date.parse(scheduled.date) <= stopped
+                    ? scheduled
+                    : {date: electionDates.last_stopped_at}
+            }
+        }
+        return scheduled
+    }
     const authoritative = electionDates?.authoritative_close
     if (authoritative !== undefined) {
         return authoritative.scheduled_at
@@ -93,6 +118,8 @@ export const sameWallClock = (instant: string, zone: string, other: string): boo
 
 export interface IElectionTimesInput {
     electionDates?: IElectionDates
+    /** Set only while rendering a closed ballot, so its recorded manual stop can be shown. */
+    closedAt?: Date
     /** The Post's (election's) zone: the opening and the Post's line. */
     timeZone: string
     /**
@@ -130,6 +157,7 @@ export interface IElectionTimes {
 /** The voter's view of a ballot's opening and close (VOTE-LIFECYCLE design §8). */
 export const getElectionTimes = ({
     electionDates,
+    closedAt,
     timeZone,
     closeTimeZone,
     deviceTimeZone,
@@ -139,7 +167,7 @@ export const getElectionTimes = ({
     formatDateTime,
 }: IElectionTimesInput): IElectionTimes => {
     const start = getStartDate(electionDates)
-    const endEntry = getEndDateEntry(electionDates)
+    const endEntry = getEndDateEntry(electionDates, closedAt)
     const end = endEntry?.date ?? null
     const closeZone = endEntry?.timeZone ?? closeTimeZone
     const options = {
