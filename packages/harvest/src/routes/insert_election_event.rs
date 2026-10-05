@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::services::authorization::authorize;
+use crate::types::error_response::{ErrorCode, ErrorResponse, JsonError};
 use anyhow::Result;
 use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
@@ -16,6 +17,7 @@ use sequent_core::util::integrity_check::{
 use serde::{Deserialize, Serialize};
 use tracing::{info, instrument};
 use uuid::Uuid;
+use windmill::postgres::election_event::get_election_event_by_id_if_exist;
 use windmill::services;
 use windmill::services::celery_app::get_celery_app;
 use windmill::services::database::get_hasura_pool;
@@ -25,7 +27,9 @@ use windmill::services::import::import_election_event::{
 use windmill::services::tasks_execution::*;
 use windmill::services::tasks_execution::{update_complete, update_fail};
 use windmill::tasks::import_election_event;
-use windmill::tasks::insert_election_event::{self, CreateElectionEventInput};
+use windmill::tasks::insert_election_event::{
+    self, CreateElectionEventInput, CreateElectionEventInputError,
+};
 use windmill::types::tasks::ETasksExecution;
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -37,20 +41,88 @@ pub struct CreateElectionEventOutput {
     task_execution: Option<TasksExecution>,
 }
 
+/// The task treats an id that already exists as its own earlier attempt (celery
+/// retries it) and upserts that event's realm, so an existing id has to be
+/// refused before the task is queued.
+async fn reject_existing_election_event(
+    tenant_id: &str,
+    election_event_id: &str,
+) -> Result<(), JsonError> {
+    let mut hasura_db_client: DbClient =
+        get_hasura_pool().await.get().await.map_err(|e| {
+            ErrorResponse::new(
+                Status::InternalServerError,
+                &format!("{e:?}"),
+                ErrorCode::InternalServerError,
+            )
+        })?;
+    let hasura_transaction =
+        hasura_db_client.transaction().await.map_err(|e| {
+            ErrorResponse::new(
+                Status::InternalServerError,
+                &format!("{e:?}"),
+                ErrorCode::GetTransactionFailed,
+            )
+        })?;
+
+    let existing = get_election_event_by_id_if_exist(
+        &hasura_transaction,
+        tenant_id,
+        election_event_id,
+    )
+    .await
+    .map_err(|e| {
+        ErrorResponse::new(
+            Status::InternalServerError,
+            &format!("{e:?}"),
+            ErrorCode::InternalServerError,
+        )
+    })?;
+
+    match existing {
+        Some(_) => Err(ErrorResponse::new(
+            Status::BadRequest,
+            &format!("Election event {election_event_id} already exists"),
+            ErrorCode::ElectionEventAlreadyExists,
+        )),
+        None => Ok(()),
+    }
+}
+
 #[instrument(skip(claims))]
 #[post("/insert-election-event", format = "json", data = "<body>")]
 pub async fn insert_election_event_f(
     body: Json<CreateElectionEventInput>,
     claims: JwtClaims,
-) -> Result<Json<CreateElectionEventOutput>, (Status, String)> {
+) -> Result<Json<CreateElectionEventOutput>, JsonError> {
+    let object = body.into_inner();
     authorize(
         &claims,
         true,
-        Some(claims.hasura_claims.tenant_id.clone()),
+        Some(object.tenant_id.clone()),
         vec![Permissions::ELECTION_EVENT_CREATE],
-    )?;
+    )
+    .map_err(|(status, message)| {
+        ErrorResponse::new(status, &message, ErrorCode::Unauthorized)
+    })?;
+
+    object.validate_new_event().map_err(|err| {
+        let code = match err {
+            CreateElectionEventInputError::InvalidId => {
+                ErrorCode::UuidParseFailed
+            }
+            CreateElectionEventInputError::ServerOwnedField(_) => {
+                ErrorCode::ServerOwnedField
+            }
+        };
+        ErrorResponse::new(Status::BadRequest, &err.to_string(), code)
+    })?;
+    if let Some(id) = object.id.as_deref() {
+        reject_existing_election_event(&object.tenant_id, id).await?;
+    }
 
     let tenant_id = claims.hasura_claims.tenant_id.clone();
+
     let executer_name = claims
         .name
         .clone()
@@ -58,7 +130,6 @@ pub async fn insert_election_event_f(
 
     let celery_app = get_celery_app().await;
     // always set an id;
-    let object = body.into_inner().clone();
     let id = object.id.clone().unwrap_or(Uuid::new_v4().to_string());
 
     // Insert the task execution record
