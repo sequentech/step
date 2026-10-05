@@ -98,6 +98,7 @@ async fn rocket() -> _ {
                 routes::users::get_users,
                 routes::users::count_users,
                 routes::ballot_files::get_ballot_files_urls,
+                routes::voter_cast_votes::get_voter_cast_votes,
                 routes::users::get_user,
                 routes::users::reveal_voter_secret_attribute,
                 routes::users::edit_user,

@@ -2,6 +2,15 @@ type Query {
     get_ballot_files_urls(election_event_id: String!): jsonb!
 }
 
+type Query {
+    get_voter_cast_votes(
+        election_event_id: String!
+        election_id: String
+        ballot_id: String
+        ballot_id_prefix: String
+    ): [VoterCastVote!]!
+}
+
 type Mutation {
     ApplicationChangeStatus(
         body: ApplicationChangeStatusBody!
@@ -1255,6 +1264,18 @@ type ElectoralLogRow {
     statement_kind: String!
     message: String!
     user_id: String!
+}
+
+type VoterCastVote {
+    id: String!
+    tenant_id: String!
+    election_event_id: String!
+    election_id: String
+    area_id: String
+    ballot_id: String
+    status: String!
+    created_at: String
+    content: String
 }
 
 type CastVoteEntry {

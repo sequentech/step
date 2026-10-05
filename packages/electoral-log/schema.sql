@@ -86,6 +86,8 @@ CREATE TABLE IF NOT EXISTS ballot_box_ballot (
     PRIMARY KEY (election_event_id, seq),
     UNIQUE (election_event_id, ballot_id)
 ) PARTITION BY LIST (election_event_id);
+-- A voter's ballots, for the voter's status and lookups.
+CREATE INDEX IF NOT EXISTS ballot_box_ballot_voter ON ballot_box_ballot (election_event_id, voter_id);
 CREATE TABLE IF NOT EXISTS ballot_box_voter (
     election_event_id UUID NOT NULL,
     election_id UUID NOT NULL,

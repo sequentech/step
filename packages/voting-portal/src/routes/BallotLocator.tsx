@@ -644,22 +644,28 @@ const BallotLocatorLogic = () => {
     const election = dataElections?.sequent_backend_election.find((item) => item.id === electionId)
     const telephoneVotingEnabled = election?.voting_channels?.telephone === true
     const normalizedBallotId = ballotId?.toLowerCase() ?? ""
-    const ballotIdPattern = /^[0-9a-f]+$/.test(normalizedBallotId)
+    // Telephone voters read out the first four characters of their ballot ID.
+    const ballotLookup = /^[0-9a-f]+$/.test(normalizedBallotId)
         ? telephoneVotingEnabled && normalizedBallotId.length === 4
-            ? `${normalizedBallotId}%`
-            : normalizedBallotId
-        : ""
+            ? {ballotIdPrefix: normalizedBallotId}
+            : {ballotId: normalizedBallotId}
+        : null
 
     const dispatch = useAppDispatch()
 
     const {data, loading} = useQuery<GetCastVoteQuery>(GET_CAST_VOTE, {
         variables: {
-            tenantId,
-            electionEventId: eventId,
-            electionId,
-            ballotIdPattern,
+            electionEventId: eventId ?? "",
+            electionId: electionId ?? "",
+            ...ballotLookup,
         },
-        skip: globalSettings.DISABLE_AUTH || !hasBallotId || loadingElections,
+        skip:
+            globalSettings.DISABLE_AUTH ||
+            !hasBallotId ||
+            !eventId ||
+            !electionId ||
+            !ballotLookup ||
+            loadingElections,
     })
 
     const validatedBallotId = isHex(inputBallotId ?? "")

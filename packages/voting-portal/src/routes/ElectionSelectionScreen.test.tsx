@@ -175,7 +175,7 @@ test.each(cases)("refreshes cast status: $name", async ({initialStatus, replies}
                                           {
                                               ...cast,
                                               status: initialStatus,
-                                              __typename: "sequent_backend_cast_vote",
+                                              __typename: "VoterCastVote",
                                           },
                                       ]
                                     : [],
@@ -184,7 +184,7 @@ test.each(cases)("refreshes cast status: $name", async ({initialStatus, replies}
                         const status = replies[Math.min(statusRequests++, replies.length - 1)]
                         data = {
                             sequent_backend_cast_vote: status
-                                ? [{...cast, status, __typename: "sequent_backend_cast_vote"}]
+                                ? [{...cast, status, __typename: "VoterCastVote"}]
                                 : [],
                         }
                     } else {

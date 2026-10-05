@@ -419,11 +419,13 @@ const ElectionSelectionScreen: React.FC = () => {
         startPolling: startCastVotePolling,
         stopPolling: stopCastVotePolling,
     } = useQuery<GetCastVotesQuery>(GET_CAST_VOTES, {
+        variables: {electionEventId: eventId ?? ""},
         // The bootstrap supplies the initial cast metadata. Only unresolved
         // casts need the existing narrow polling query.
         fetchPolicy: "network-only",
         skip:
             globalSettings.DISABLE_AUTH ||
+            !eventId ||
             (!hasPendingCastVotes &&
                 !data?.sequent_backend_cast_vote.some(
                     (vote) => vote.status === CastVoteStatus.IN_PROGRESS

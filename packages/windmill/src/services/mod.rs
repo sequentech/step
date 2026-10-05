@@ -4,6 +4,7 @@
 
 pub mod application;
 pub mod ballot_box;
+pub mod ballot_box_reads;
 pub mod ballot_styles;
 pub mod cast_votes;
 pub mod celery_app;

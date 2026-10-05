@@ -48,7 +48,7 @@ flowchart LR
 - **Tenant database:** implemented as the `per-tenant` layout of the [design](01-electoral-log-design.md) (section 14.2). Windmill creates it when the tenant is created. It holds the Merkle log tables for the tenant's boards and the ballot box tables, partitioned by election event so that an event's data can be dropped, archived or moved on its own.
 - **Accept path (implemented):** Harvest validates the ballot and checks the voting period and channel as today, then runs one SQL statement that counts the vote for the voter, stores the ballot and queues it for the sequencer. When it commits, Harvest answers with the receipt. No `cast_vote` row and no queued log event are written.
 - **Sequencer (implemented):** one at a time per election event. It reads queued ballots in acceptance order, builds and signs their cast-vote records, which carry the ballot's hash rather than its content, and appends them to the event's board in batches. Checkpoints and proofs cover what it has appended.
-- **Readers (planned):** the voting portal, admin portal and reports will read through Hasura actions backed by Harvest, which query the tenant database: has this voter voted, the voter's ballots, counts by election and area, and ballot lists for the tally.
+- **Readers (implemented, except the tally):** every reader of cast votes reads an event's votes where its policy stores them (section 6). The voting portal reads the voter's own votes through a Hasura action served by Harvest, for every event.
 
 ### 3.1 Which events use the ballot box
 
@@ -108,8 +108,20 @@ SELECT seq, id FROM ballot;
 
 ## 6. Reads and the tally
 
-- **Has the voter voted:** a primary-key lookup in `ballot_box_voter`.
-- **Lists and counts:** from `ballot_box_ballot` and `ballot_box_voter`, with indexes on election and area, served by Harvest-backed Hasura actions that replace today's queries on `cast_vote`.
+Windmill finds an event's policy in its `bulletin_board_reference` and reads `cast_vote` or the ballot box accordingly (`windmill/src/services/ballot_box_reads.rs`). The ballot box's queries are in `electoral-log/src/adapters/ballot_box_reads.rs`.
+
+| Reader | Reads | With the `electoral-log` policy |
+| --- | --- | --- |
+| Voting portal: the voter's status, the polling of unresolved votes, the ballot locator | The Hasura action `get_voter_cast_votes`, served by Harvest, for every event | The voter's ballots in the ballot box |
+| Statistics of the admin portal's dashboards: voters by channel, ballots per time bucket, ballots by IP address | Harvest's statistics actions | Counted in the ballot box |
+| Voter list: each voter's votes, the "has voted" filter, the edit form's check that a voter has voted | `get_users` | Counted in the ballot box |
+| Participation report, ballot receipt | Windmill's report tasks | Counted and checked in the ballot box |
+| Tally | Windmill's tally tasks | Not yet: still reads `cast_vote` |
+
+- **What a voter can read:** `get_voter_cast_votes` returns the rows Hasura's `user` role may read from `cast_vote`: the voter's own votes, in the area and elections of their token. Without arguments it returns all of them without their content. With an election and a ballot ID, or the first characters of one, as telephone voters give it, it returns the matching ones with their content. Any other combination is refused.
+- **Statuses:** a ballot box status reads as the `cast_vote` status the portals know: `valid` as `valid`, `pending` as `in-progress` and `rejected` as `discarded`. Statistics count valid ballots, as they count valid cast votes.
+- **Index:** `ballot_box_ballot (election_event_id, voter_id)` serves the voter's lookups. It adds one index entry to each accepted vote; the load tests measure what that costs the accept path.
+- **Statistics scan the event's partition.** They read every valid ballot of the event, as the queries on `cast_vote` read every cast vote. On events with millions of ballots, dashboards that refresh often put that load on the tenant database.
 - **Tally input:** at a checkpoint taken after voting closes, the valid ballots of an election, deduplicated to each voter's last valid ballot, read in sequence order. Extraction is deterministic: the same checkpoint always yields the same ballots in the same order.
 
 ## 7. VoteSecure compatibility

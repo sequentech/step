@@ -2,5 +2,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 pub mod ballot_box;
+pub mod ballot_box_reads;
 pub mod postgres;
 pub mod router;

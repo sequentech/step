@@ -1121,6 +1121,19 @@ export type UserProfileConfiguration = {
     groups: Array<UserProfileAttributeGroup>
 }
 
+export type VoterCastVote = {
+    __typename?: "VoterCastVote"
+    area_id?: Maybe<Scalars["String"]["output"]>
+    ballot_id?: Maybe<Scalars["String"]["output"]>
+    content?: Maybe<Scalars["String"]["output"]>
+    created_at?: Maybe<Scalars["String"]["output"]>
+    election_event_id: Scalars["String"]["output"]
+    election_id?: Maybe<Scalars["String"]["output"]>
+    id: Scalars["String"]["output"]
+    status: Scalars["String"]["output"]
+    tenant_id: Scalars["String"]["output"]
+}
+
 export type VoterInformationLetterOutput = {
     __typename?: "VoterInformationLetterOutput"
     document_id: Scalars["String"]["output"]
@@ -4974,6 +4987,8 @@ export type Query_Root = {
     get_user_profile_attributes: Array<UserProfileAttribute>
     get_user_profile_configuration: UserProfileConfiguration
     get_users: GetUsersOutput
+    /** The voter's own cast votes, from the election event's ballot box or cast_vote table */
+    get_voter_cast_votes: Array<VoterCastVote>
     /** List Electoral Log */
     listElectoralLog?: Maybe<DataListElectoralLog>
     /** List electoral log entries of statement_kind CastVote */
@@ -5306,6 +5321,13 @@ export type Query_RootGet_User_Profile_ConfigurationArgs = {
 
 export type Query_RootGet_UsersArgs = {
     body: GetUsersInput
+}
+
+export type Query_RootGet_Voter_Cast_VotesArgs = {
+    ballot_id?: InputMaybe<Scalars["String"]["input"]>
+    ballot_id_prefix?: InputMaybe<Scalars["String"]["input"]>
+    election_event_id: Scalars["String"]["input"]
+    election_id?: InputMaybe<Scalars["String"]["input"]>
 }
 
 export type Query_RootListElectoralLogArgs = {
