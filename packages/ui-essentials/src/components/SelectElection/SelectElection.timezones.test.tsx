@@ -284,3 +284,37 @@ it("uses authenticated deadline authority instead of a rejected earlier publishe
     expect(getEndDateEntry({...legacy, authoritative_close: {scheduled_at: null}})).toBeNull()
     expect(getEndDateEntry(legacy)?.date).toBe("2030-01-02T09:00:00Z")
 })
+
+it("uses the recorded stop only for a closed display, preserving its scheduled deadline", async () => {
+    const {getEndDateEntry} = await import("./electionTimes")
+    const dates = {
+        last_started_at: "2030-01-02T08:00:00Z",
+        last_stopped_at: "2030-01-02T09:00:00Z",
+        authoritative_close: {scheduled_at: "2030-01-02T10:00:00Z", timezone: "Asia/Manila"},
+    }
+    expect(getEndDateEntry(dates)).toEqual({date: "2030-01-02T10:00:00Z", timeZone: "Asia/Manila"})
+    expect(getEndDateEntry(dates, new Date("2030-01-02T09:30:00Z"))).toEqual({
+        date: "2030-01-02T09:00:00Z",
+    })
+    expect(
+        getEndDateEntry(
+            {...dates, authoritative_close: {scheduled_at: null}},
+            new Date("2030-01-02T09:30:00Z")
+        )
+    ).toEqual({date: "2030-01-02T09:00:00Z"})
+    expect(
+        getEndDateEntry(
+            {...dates, last_started_at: "2030-01-02T09:15:00Z"},
+            new Date("2030-01-02T09:30:00Z")
+        )
+    ).toEqual({date: "2030-01-02T10:00:00Z", timeZone: "Asia/Manila"})
+    expect(getEndDateEntry(dates, new Date("2030-01-02T10:30:00Z"))).toEqual({
+        date: "2030-01-02T09:00:00Z",
+    })
+    expect(
+        getEndDateEntry(
+            {...dates, last_stopped_at: "2030-01-02T10:01:00Z"},
+            new Date("2030-01-02T10:30:00Z")
+        )
+    ).toEqual({date: "2030-01-02T10:00:00Z", timeZone: "Asia/Manila"})
+})
