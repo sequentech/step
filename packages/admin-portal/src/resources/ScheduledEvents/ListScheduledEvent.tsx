@@ -34,7 +34,8 @@ import {
 } from "@/gql/graphql"
 import CreateEvent, {EventProcessors} from "./CreateScheduledEvent"
 import {Dialog} from "@sequentech/ui-essentials"
-import {faPlus} from "@fortawesome/free-solid-svg-icons"
+import AddIcon from "@mui/icons-material/Add"
+import UploadIcon from "@mui/icons-material/Upload"
 import {IPermissions} from "@/types/keycloak"
 import {useMutation} from "@apollo/client"
 import {MANAGE_ELECTION_DATES} from "@/queries/ManageElectionDates"
@@ -350,17 +351,33 @@ const ListScheduledEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
             <Typography variant="h4" paragraph>
                 {t(`eventsScreen.empty.header`)}
             </Typography>
-            {canCreateScheduledEvent ? (
+            {canCreateScheduledEvent || canWriteScheduledEvent ? (
                 <>
                     <Typography variant="body1" paragraph>
                         {t(`eventsScreen.empty.body`)}
                     </Typography>
-                    <ResourceListStyles.EmptyButtonList className="voter-add-button">
-                        <Button onClick={() => setOpenCreateEvent(true)}>
-                            <ResourceListStyles.CreateIcon icon={faPlus as any} />
-                            {t(`eventsScreen.empty.button`)}
-                        </Button>
-                    </ResourceListStyles.EmptyButtonList>
+                    <Stack
+                        direction="row"
+                        sx={{gap: 1, flexWrap: "wrap", justifyContent: "center"}}
+                    >
+                        {canCreateScheduledEvent ? (
+                            <Button
+                                startIcon={<AddIcon />}
+                                onClick={() => setOpenCreateEvent(true)}
+                            >
+                                {t(`eventsScreen.empty.button`)}
+                            </Button>
+                        ) : null}
+                        {canWriteScheduledEvent ? (
+                            <Button
+                                variant="secondary"
+                                startIcon={<UploadIcon />}
+                                onClick={() => setOpenImport(true)}
+                            >
+                                {t("common.label.import")}
+                            </Button>
+                        ) : null}
+                    </Stack>
                 </>
             ) : null}
         </ResourceListStyles.EmptyBox>
@@ -549,7 +566,12 @@ const ListScheduledEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
                     </WrapperField>
                 </DatagridConfigurable>
             </List>
-            <ResourceListStyles.Drawer anchor="right" open={openCreateEvent} onClose={handleClose}>
+            <ResourceListStyles.Drawer
+                anchor="right"
+                open={openCreateEvent}
+                onClose={handleClose}
+                sx={{"& .MuiDrawer-paper": {width: {xs: "100%", md: "50%"}}}}
+            >
                 <CreateEvent
                     electionEventId={electionEventId}
                     setIsOpenDrawer={setOpenCreateEvent}
