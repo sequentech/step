@@ -69,12 +69,32 @@ export const TimeZoneOptionRow: React.FC<{
 }> = ({option, primary, props}) => {
     const service = useTimeZoneService()
     return (
-        <Box component="li" {...props} sx={{flexDirection: "column", alignItems: "start"}}>
-            <Typography component="span" variant="body2" sx={{fontWeight: 500, m: 0}}>
+        <Box
+            component="li"
+            {...props}
+            sx={{
+                "&&": {
+                    flexDirection: "column",
+                    alignItems: "flex-start",
+                    justifyContent: "flex-start",
+                    textAlign: "start",
+                },
+            }}
+        >
+            <Typography
+                component="span"
+                variant="body2"
+                sx={{fontWeight: 500, m: 0, width: "100%", textAlign: "start"}}
+            >
                 {optionText(option, primary, service)}
             </Typography>
             {option.detail ? (
-                <Typography component="span" variant="caption" color="text.secondary" sx={{m: 0}}>
+                <Typography
+                    component="span"
+                    variant="caption"
+                    color="text.secondary"
+                    sx={{m: 0, width: "100%", textAlign: "start"}}
+                >
                     {option.detail}
                 </Typography>
             ) : null}
