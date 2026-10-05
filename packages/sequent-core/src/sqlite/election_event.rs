@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::types::hasura::core::ElectionEvent;
-use crate::types::number_format::NumberFormatPolicy;
 use anyhow::{anyhow, Context, Result};
 use rusqlite::{params, Connection, OptionalExtension, Transaction};
 use serde_json::{json, to_string, Value};
@@ -110,20 +109,21 @@ pub fn replace_election_event_translation_overrides_sqlite(
     )
 }
 
-/// Stores `policy`, usually the event's current number format, in place of
-/// the one the tally stored. Without a policy the stored one is removed, so
-/// that readers use the default.
+/// Stores `policy`, usually the event's current number format as the event
+/// stores it, in place of the one the tally stored. A code this version
+/// doesn't know is stored as it is, for readers that know it. Without a
+/// policy the stored one is removed, so that readers use the default.
 #[instrument(err, skip_all)]
 pub fn replace_election_event_number_format_policy_sqlite(
     sqlite_connection: &Connection,
     election_event_id: &str,
-    policy: Option<NumberFormatPolicy>,
+    policy: Option<&Value>,
 ) -> Result<()> {
     replace_election_event_presentation_value_sqlite(
         sqlite_connection,
         election_event_id,
         "number_format_policy",
-        policy.map(serde_json::to_value).transpose()?,
+        policy.cloned(),
     )
 }
 
@@ -179,6 +179,7 @@ fn replace_election_event_presentation_value_sqlite(
 mod tests {
     use super::*;
     use crate::ballot::ElectionEventPresentation;
+    use crate::types::number_format::NumberFormatPolicy;
 
     fn stored_presentation(
         conn: &Connection,
@@ -208,7 +209,7 @@ mod tests {
         replace_election_event_number_format_policy_sqlite(
             &conn,
             "event-1",
-            Some(NumberFormatPolicy::PeriodComma),
+            Some(&json!("period-comma")),
         )?;
 
         let presentation = stored_presentation(&conn, "event-1")?;
@@ -249,7 +250,7 @@ mod tests {
         replace_election_event_number_format_policy_sqlite(
             &conn,
             "event-1",
-            Some(NumberFormatPolicy::ApostrophePeriod),
+            Some(&json!("apostrophe-period")),
         )?;
 
         assert_eq!(
@@ -272,15 +273,46 @@ mod tests {
         assert!(replace_election_event_number_format_policy_sqlite(
             &conn,
             "missing-event",
-            Some(NumberFormatPolicy::PeriodComma),
+            Some(&json!("period-comma")),
         )
         .is_err());
         assert!(replace_election_event_number_format_policy_sqlite(
             &conn,
             "event-1",
-            Some(NumberFormatPolicy::PeriodComma),
+            Some(&json!("period-comma")),
         )
         .is_err());
+        Ok(())
+    }
+
+    #[test]
+    fn a_number_format_policy_this_version_does_not_know_is_stored_as_it_is(
+    ) -> Result<()> {
+        let conn = Connection::open_in_memory()?;
+        conn.execute_batch(
+            r#"
+                CREATE TABLE election_event (id TEXT, presentation TEXT);
+                INSERT INTO election_event VALUES
+                    ('event-1', '{"css":"tally-css","number_format_policy":"space-comma"}');
+            "#,
+        )?;
+
+        replace_election_event_number_format_policy_sqlite(
+            &conn,
+            "event-1",
+            Some(&json!("a-newer-format")),
+        )?;
+
+        let presentation = stored_presentation(&conn, "event-1")?;
+        assert_eq!(
+            presentation,
+            json!({"css": "tally-css", "number_format_policy": "a-newer-format"})
+        );
+        assert_eq!(
+            serde_json::from_value::<ElectionEventPresentation>(presentation)?
+                .number_format_policy,
+            None
+        );
         Ok(())
     }
 

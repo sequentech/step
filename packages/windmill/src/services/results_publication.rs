@@ -56,6 +56,7 @@ use sequent_core::sqlite::election_event::{
 };
 use sequent_core::temp_path::{generate_temp_file, get_file_size};
 use sequent_core::types::permissions::Permissions;
+use serde::Deserialize;
 use serde_json::{json, Value};
 use std::collections::{HashMap, HashSet};
 use std::fs;
@@ -1130,29 +1131,39 @@ async fn source_sqlite_file(
     get_document_as_temp_file(&publication.tenant_id, &document).await
 }
 
+/// The settings of an event's presentation that its published results take
+/// from the event as it is now.
+#[derive(Default, Deserialize)]
+struct CurrentPresentationSettings {
+    i18n: Option<Value>,
+    number_format_policy: Option<Value>,
+}
+
 /// The tally stored the event's presentation as it was then. Its translations
 /// and number format may have changed since, and the published results use
-/// the current ones.
+/// the current ones, as the event stores them: a number format this version
+/// doesn't know still reaches a results website that knows it, and a setting
+/// this version can't read doesn't stop the publication.
 fn refresh_presentation_snapshot(
     source_path: &Path,
     election_event_id: &str,
-    current_presentation: &ElectionEventPresentation,
+    current_presentation: Option<Value>,
 ) -> Result<()> {
-    let current_translation_overrides = current_presentation
-        .i18n
-        .as_ref()
-        .map(serde_json::to_value)
-        .transpose()?;
+    let current_settings: CurrentPresentationSettings = current_presentation
+        .map(serde_json::from_value)
+        .transpose()
+        .context("Failed to read the event's presentation")?
+        .unwrap_or_default();
     let source_connection = Connection::open(source_path)?;
     replace_election_event_translation_overrides_sqlite(
         &source_connection,
         election_event_id,
-        current_translation_overrides.as_ref(),
+        current_settings.i18n.as_ref(),
     )?;
     replace_election_event_number_format_policy_sqlite(
         &source_connection,
         election_event_id,
-        current_presentation.number_format_policy,
+        current_settings.number_format_policy.as_ref(),
     )
 }
 
@@ -1479,12 +1490,11 @@ pub async fn publish_results_website_artifacts(
     let current_presentation =
         get_election_event_by_id(tx, &publication.tenant_id, &publication.election_event_id)
             .await?
-            .get_presentation()?
-            .unwrap_or_default();
+            .presentation;
     refresh_presentation_snapshot(
         &source_path,
         &publication.election_event_id,
-        &current_presentation,
+        current_presentation,
     )?;
     let contests = query_manifest_contests(&source_path, &publication, &selected_contests)?;
     let custom_css = query_manifest_custom_css(&source_path, &publication)?;
@@ -2291,7 +2301,7 @@ mod tests {
     fn published_event_presentation(
         publication: &TallyResultsPublication,
         source: &NamedTempFile,
-    ) -> Result<ElectionEventPresentation> {
+    ) -> Result<Value> {
         let target = copy_filtered_sqlite(
             source.path(),
             publication,
@@ -2312,29 +2322,54 @@ mod tests {
         let source = tally_snapshot_with_event_presentation(
             r#"{"css":"tally-css","i18n":{"en":{"resultsPortal:key":"tally"}}}"#,
         )?;
-        let current_presentation = ElectionEventPresentation {
-            number_format_policy: Some(NumberFormatPolicy::PeriodComma),
-            ..Default::default()
-        };
 
         refresh_presentation_snapshot(
             source.path(),
             &publication.election_event_id,
-            &current_presentation,
+            Some(json!({"number_format_policy": "period-comma"})),
         )?;
         let published = published_event_presentation(&publication, &source)?;
 
         assert_eq!(
-            published.number_format_policy,
+            serde_json::from_value::<ElectionEventPresentation>(published.clone())?
+                .number_format_policy,
             Some(NumberFormatPolicy::PeriodComma)
         );
-        assert_eq!(published.css.as_deref(), Some("tally-css"));
-        assert_eq!(published.i18n, None);
+        assert_eq!(
+            published,
+            json!({"css": "tally-css", "number_format_policy": "period-comma"})
+        );
         Ok(())
     }
 
     #[test]
     fn published_results_drop_a_number_format_the_event_no_longer_sets() -> Result<()> {
+        let publication = test_publication();
+        for current_presentation in [
+            None,
+            Some(json!({})),
+            Some(json!({"number_format_policy": null})),
+        ] {
+            let source = tally_snapshot_with_event_presentation(
+                r#"{"css":"tally-css","number_format_policy":"space-comma"}"#,
+            )?;
+
+            refresh_presentation_snapshot(
+                source.path(),
+                &publication.election_event_id,
+                current_presentation,
+            )?;
+
+            assert_eq!(
+                published_event_presentation(&publication, &source)?,
+                json!({"css": "tally-css"})
+            );
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn published_results_keep_a_number_format_this_version_does_not_know() -> Result<()> {
         let publication = test_publication();
         let source = tally_snapshot_with_event_presentation(
             r#"{"css":"tally-css","number_format_policy":"space-comma"}"#,
@@ -2343,12 +2378,40 @@ mod tests {
         refresh_presentation_snapshot(
             source.path(),
             &publication.election_event_id,
-            &ElectionEventPresentation::default(),
+            Some(json!({"number_format_policy": "a-newer-format"})),
         )?;
-        let published = published_event_presentation(&publication, &source)?;
 
-        assert_eq!(published.number_format_policy, None);
-        assert_eq!(published.css.as_deref(), Some("tally-css"));
+        assert_eq!(
+            published_event_presentation(&publication, &source)?,
+            json!({"css": "tally-css", "number_format_policy": "a-newer-format"})
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn published_results_take_the_current_settings_of_a_presentation_this_version_cannot_read(
+    ) -> Result<()> {
+        let publication = test_publication();
+        let source = tally_snapshot_with_event_presentation(r#"{"css":"tally-css"}"#)?;
+
+        refresh_presentation_snapshot(
+            source.path(),
+            &publication.election_event_id,
+            Some(json!({
+                "locked_down": "a-newer-lockdown",
+                "i18n": {"en": {"resultsPortal:key": "current"}},
+                "number_format_policy": "period-comma",
+            })),
+        )?;
+
+        assert_eq!(
+            published_event_presentation(&publication, &source)?,
+            json!({
+                "css": "tally-css",
+                "i18n": {"en": {"resultsPortal:key": "current"}},
+                "number_format_policy": "period-comma",
+            })
+        );
         Ok(())
     }
 
