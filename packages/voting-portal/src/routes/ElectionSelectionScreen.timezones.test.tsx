@@ -186,6 +186,33 @@ describe("ElectionSelectionScreen with timezones", () => {
             "electionSelectionScreen.votingClosedAt|2028-05-08 19:00 Philippine Standard Time|2028-05-08 15:00 Gulf Standard Time"
         )
     })
+    it("a manual close shows its actual time in both the card and closed note", async () => {
+        at("2028-04-09T03:00:00Z")
+        setUp(true, "CLOSED", [
+            ballot(
+                "election-1",
+                "Dubai PCG",
+                {
+                    ...MAIN_DATES,
+                    last_started_at: "2028-04-09T00:00:00Z",
+                    last_stopped_at: "2028-04-09T02:00:00Z",
+                    authoritative_close: {
+                        scheduled_at: OVERSEAS.closesAt,
+                        timezone: OVERSEAS.primary,
+                    },
+                },
+                "CLOSED"
+            ),
+        ])
+        const {card, closed} = await show()
+        expect(closed?.replace(/\s+/g, " ")).toBe(
+            "electionSelectionScreen.votingClosedAt|2028-04-09 10:00 Philippine Standard Time|2028-04-09 06:00 Gulf Standard Time"
+        )
+        expect(card("Dubai PCG")).toMatchObject({
+            close: "2028-04-09 10:00 Philippine Standard Time",
+            closeLocal: "2028-04-09 06:00 Gulf Standard Time",
+        })
+    })
 })
 
 describe("ElectionSelectionScreen without timezones (an event published before them)", () => {

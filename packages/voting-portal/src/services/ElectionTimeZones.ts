@@ -104,7 +104,8 @@ export interface IVotingClosedInput {
 /**
  * The ballot list's closed message, once the event's voting is closed (the
  * caller checks that) and every listed ballot's close has passed: the latest
- * close, in the zone it was scheduled in (the primary for the common close)
+ * close, including a recorded manual stop before the scheduled deadline,
+ * in the zone it was scheduled in (the primary for the common close)
  * with the Post's time in brackets (`electionSelectionScreen.votingClosedAt`),
  * or once when both read the same (`electionSelectionScreen.votingClosedOn`).
  * Nothing while a close is still ahead (a Post's test voting closing before its
@@ -120,7 +121,7 @@ export const votingClosedMessage = ({
 }: IVotingClosedInput): string | undefined => {
     let latest: {end: string; endZone?: string; zones?: IBallotTimeZones} | undefined
     for (const ballot of ballots) {
-        const entry = getEndDateEntry(ballot.electionDates)
+        const entry = getEndDateEntry(ballot.electionDates, now)
         if (!entry || !hasDate(entry.date)) {
             continue
         }

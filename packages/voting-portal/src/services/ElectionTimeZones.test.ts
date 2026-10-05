@@ -210,6 +210,70 @@ describe("votingClosedMessage", () => {
         ).toBeUndefined()
     })
 
+    it.each([
+        undefined,
+        {scheduled_at: null},
+        {scheduled_at: OVERSEAS.closesAt, timezone: OVERSEAS.primary},
+    ])("shows a recorded manual close with scheduled authority %j", (authoritative_close) => {
+        expect(
+            message(
+                OVERSEAS,
+                [
+                    {
+                        timeZone: DUBAI.timeZone,
+                        dates: {
+                            ...datesOf(OVERSEAS, DUBAI),
+                            last_started_at: "2028-04-09T00:00:00Z",
+                            last_stopped_at: "2028-04-09T02:00:00Z",
+                            authoritative_close,
+                        },
+                    },
+                ],
+                "2028-04-09T03:00:00Z"
+            )
+        ).toBe(
+            "Voting closed on 2028-04-09 10:00 Philippine Standard Time (2028-04-09 06:00 Gulf Standard Time)."
+        )
+    })
+
+    it("shows an unscheduled manual close but suppresses a previous cycle's stop", () => {
+        const dates = {last_stopped_at: "2028-04-09T02:00:00Z"}
+        expect(message(OVERSEAS, [{timeZone: DUBAI.timeZone, dates}], "2028-04-09T03:00:00Z")).toBe(
+            "Voting closed on 2028-04-09 10:00 Philippine Standard Time (2028-04-09 06:00 Gulf Standard Time)."
+        )
+        expect(
+            message(
+                OVERSEAS,
+                [
+                    {
+                        timeZone: DUBAI.timeZone,
+                        dates: {...dates, last_started_at: "2028-04-09T02:30:00Z"},
+                    },
+                ],
+                "2028-04-09T03:00:00Z"
+            )
+        ).toBeUndefined()
+    })
+
+    it("does not reuse a manual close from before a later opening", () => {
+        expect(
+            message(
+                OVERSEAS,
+                [
+                    {
+                        timeZone: DUBAI.timeZone,
+                        dates: {
+                            ...datesOf(OVERSEAS, DUBAI),
+                            last_started_at: "2028-04-10T00:00:00Z",
+                            last_stopped_at: "2028-04-09T02:00:00Z",
+                        },
+                    },
+                ],
+                "2028-04-10T01:00:00Z"
+            )
+        ).toBeUndefined()
+    })
+
     it("says nothing without a close date, or for an event without timezones", () => {
         expect(
             message(OVERSEAS, [{timeZone: "Asia/Dubai", dates: {}}], OVERSEAS.now.closed)
