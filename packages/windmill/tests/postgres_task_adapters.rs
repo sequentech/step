@@ -2710,9 +2710,10 @@ fn report_of(w: &World, event: &str) -> VoterInformationLetterTemplate {
     })
 }
 
-/// A report writes its figures in its election event's number format, and
-/// in the default one (none) for an event without one, with a code this
-/// version does not know, or that no longer exists.
+/// A report writes its figures in its election event's number format, even
+/// next to a setting this version can't read, and in the default one (none)
+/// for an event without one, with a code this version does not know, or that
+/// no longer exists.
 #[tokio::test]
 async fn a_report_reads_the_number_format_of_its_election_event() {
     let mut client = schema::pool().await.get().await.unwrap();
@@ -2734,6 +2735,17 @@ async fn a_report_reads_the_number_format_of_its_election_event() {
         .await;
         assert_eq!(report.get_number_format_policy(&tx).await.unwrap(), policy);
     }
+    set(
+        &tx,
+        "election_event",
+        &w.event,
+        r#"presentation = '{"locked_down": "a-newer-lockdown", "number_format_policy": "period-comma"}'"#,
+    )
+    .await;
+    assert_eq!(
+        report.get_number_format_policy(&tx).await.unwrap(),
+        Some(NumberFormatPolicy::PeriodComma)
+    );
     assert_eq!(
         report_of(&w, &w.id(10))
             .get_number_format_policy(&tx)
