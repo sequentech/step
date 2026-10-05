@@ -17,7 +17,8 @@ use tracing::instrument;
 use windmill::postgres::election_event::get_election_event_by_id;
 use windmill::services::electoral_log;
 use windmill::services::electoral_log::{
-    CastVoteMessagesOutput, GetElectoralLogBody, OrderField,
+    check_cast_vote_order_by, CastVoteMessagesOutput, GetElectoralLogBody,
+    OrderField,
 };
 use windmill::services::providers::transactions_provider::provide_hasura_transaction;
 use windmill::types::resources::OrderDirection;
@@ -90,6 +91,21 @@ pub async fn list_cast_vote_messages(
             Status::Forbidden,
             &format!("Failed to confirm that the show_cast_vote_logs policy is enabled: {error:?}"),
             ErrorCode::ConfirmPolicyShowCastVoteLogsFailed,
+        )
+    })?;
+
+    if input.tenant_id != claims.hasura_claims.tenant_id {
+        return Err(ErrorResponse::new(
+            Status::Unauthorized,
+            "The tenant does not match the voter's tenant",
+            ErrorCode::Unauthorized,
+        ));
+    }
+    check_cast_vote_order_by(input.order_by.as_ref()).map_err(|error| {
+        ErrorResponse::new(
+            Status::BadRequest,
+            &error.to_string(),
+            ErrorCode::InvalidCastVoteOrder,
         )
     })?;
 

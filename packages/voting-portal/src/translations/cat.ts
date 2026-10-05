@@ -13,7 +13,6 @@ const catalanTranslation: TranslationType = {
         a11y: {
             skipToContent: "Vés al contingut principal",
             helpAbout: "Ajuda sobre {{topic}}",
-            copyToClipboard: "Copia {{label}} al porta-retalls",
             previewMaterial: "Vista prèvia de {{title}}",
             ballotsTable: "Paperetes",
             ballotLocatorTabs: "Seccions del localitzador de paperetes",
@@ -479,9 +478,7 @@ const catalanTranslation: TranslationType = {
             column: {
                 statement_kind: "Tipus",
                 statement_timestamp: "Marca de temps",
-                username: "Usuari",
                 ballot_id: "ID de la Papereta",
-                message: "Missatge",
             },
         },
     },

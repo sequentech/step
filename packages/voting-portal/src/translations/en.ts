@@ -11,7 +11,6 @@ const englishTranslation = {
         a11y: {
             skipToContent: "Skip to main content",
             helpAbout: "Help about {{topic}}",
-            copyToClipboard: "Copy {{label}} to clipboard",
             previewMaterial: "Preview {{title}}",
             ballotsTable: "Ballots",
             ballotLocatorTabs: "Ballot locator sections",
@@ -467,9 +466,7 @@ const englishTranslation = {
             column: {
                 statement_kind: "Statement kind",
                 statement_timestamp: "Statement Timestamp",
-                username: "Username",
                 ballot_id: "Ballot ID",
-                message: "Message",
             },
         },
     },

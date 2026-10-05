@@ -1778,13 +1778,13 @@ impl TryFrom<ElectoralLogMessage> for ElectoralLogRow {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+/// A cast vote as voters see it in the ballot locator. It carries nothing that
+/// identifies the voter: no username, IP address, country or signed message.
+#[derive(Serialize, Deserialize, Debug, Clone, Default, PartialEq, Eq)]
 pub struct CastVoteEntry {
     pub statement_timestamp: i64,
     pub statement_kind: String,
     pub ballot_id: String,
-    pub username: Option<String>,
-    pub message: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
@@ -1794,21 +1794,41 @@ pub struct CastVoteMessagesOutput {
 }
 
 impl CastVoteEntry {
-    pub fn from_elog_message(entry: &ElectoralLogMessage) -> Result<Option<Self>, anyhow::Error> {
-        let ballot_id = entry.ballot_id.clone().unwrap_or_default();
-        let username = entry.username.clone();
-        let message: &Message = &Message::strand_deserialize(&entry.message)
-            .map_err(|err| anyhow!("Failed to deserialize message: {:?}", err))?;
-        let message = Some(message.to_string());
-
-        Ok(Some(CastVoteEntry {
+    pub fn from_elog_message(entry: &ElectoralLogMessage) -> Self {
+        CastVoteEntry {
             statement_timestamp: entry.statement_timestamp,
             statement_kind: StatementType::CastVote.to_string(),
-            ballot_id,
-            username,
-            message,
-        }))
+            ballot_id: entry.ballot_id.clone().unwrap_or_default(),
+        }
     }
+}
+
+/// Fields voters can sort the ballot locator by.
+pub const CAST_VOTE_ORDER_FIELDS: [OrderField; 4] = [
+    OrderField::Id,
+    OrderField::StatementTimestamp,
+    OrderField::StatementKind,
+    OrderField::BallotId,
+];
+
+/// Refuses a ballot-locator sort by a field voters cannot see, such as the
+/// username.
+pub fn check_cast_vote_order_by(
+    order_by: Option<&HashMap<OrderField, OrderDirection>>,
+) -> Result<()> {
+    let mut refused: Vec<String> = order_by
+        .into_iter()
+        .flat_map(HashMap::keys)
+        .filter(|field| !CAST_VOTE_ORDER_FIELDS.contains(field))
+        .map(ToString::to_string)
+        .collect();
+    refused.sort();
+    ensure!(
+        refused.is_empty(),
+        "Cast votes cannot be sorted by {}",
+        refused.join(", ")
+    );
+    Ok(())
 }
 
 #[instrument(err)]
@@ -1878,6 +1898,7 @@ pub async fn list_cast_vote_messages(
         ballot_id_filter.chars().count() % 2 == 0 && ballot_id_filter.is_ascii(),
         "Incorrect ballot_id, the length must be an even number of characters"
     );
+    check_cast_vote_order_by(input.order_by.as_ref())?;
     // The limits are used to cut the output after filtering the ballot id.
     // Because ballot_id cannot be filtered at SQL level the sql limit is constant
     let output_limit: i64 = input.limit.unwrap_or(MAX_ROWS_PER_PAGE as i64);
@@ -1923,18 +1944,9 @@ pub async fn list_cast_vote_messages(
         let t_entries = electoral_log_messages.len();
         info!("Got {t_entries} entries. Offset: {offset}, limit: {limit}, total: {total}");
         for message in electoral_log_messages.iter() {
-            match CastVoteEntry::from_elog_message(&message)? {
-                Some(entry) if !ballot_id_filter.is_empty() => {
-                    // If there is filter exit at the first match
-                    filter_matched = true;
-                    list.push(entry);
-                }
-                Some(entry) => {
-                    // Add all the entries till the limit, when there is no filter
-                    list.push(entry);
-                }
-                None => {}
-            }
+            list.push(CastVoteEntry::from_elog_message(message));
+            // If there is a filter, exit at the first match
+            filter_matched = !ballot_id_filter.is_empty();
             if (list.len() as i64) >= output_limit || filter_matched {
                 break;
             }
@@ -2136,5 +2148,65 @@ mod postgres_wiring_tests {
         client.delete_board(&board).await?;
         assert_eq!(count_electoral_log(input).await?, 0);
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod cast_vote_entry_tests {
+    use super::*;
+
+    fn cast_vote_record() -> ElectoralLogMessage {
+        ElectoralLogMessage {
+            id: 7,
+            created: 1_785_700_000,
+            sender_pk: "sender-public-key".to_string(),
+            statement_timestamp: 1_785_700_001,
+            statement_kind: StatementType::CastVote.to_string(),
+            message: vec![1, 2, 3, 4],
+            version: "1".to_string(),
+            user_id: Some("voter-id".to_string()),
+            username: Some("voter-user".to_string()),
+            election_id: Some("election-id".to_string()),
+            area_id: Some("area-id".to_string()),
+            ballot_id: Some("abcd".to_string()),
+        }
+    }
+
+    #[test]
+    fn voters_receive_only_the_ballot_id_timestamp_and_kind() {
+        let entry = CastVoteEntry::from_elog_message(&cast_vote_record());
+
+        assert_eq!(
+            serde_json::to_value(&entry).unwrap(),
+            serde_json::json!({
+                "statement_timestamp": 1_785_700_001,
+                "statement_kind": "CastVote",
+                "ballot_id": "abcd",
+            })
+        );
+    }
+
+    #[test]
+    fn voters_can_sort_only_by_fields_they_see() {
+        assert!(check_cast_vote_order_by(None).is_ok());
+        for field in CAST_VOTE_ORDER_FIELDS {
+            let order_by = HashMap::from([(field, OrderDirection::Desc)]);
+            assert!(check_cast_vote_order_by(Some(&order_by)).is_ok());
+        }
+
+        for field in [
+            OrderField::Username,
+            OrderField::UserId,
+            OrderField::Message,
+        ] {
+            let order_by = HashMap::from([
+                (OrderField::Id, OrderDirection::Desc),
+                (field.clone(), OrderDirection::Asc),
+            ]);
+            let error = check_cast_vote_order_by(Some(&order_by))
+                .unwrap_err()
+                .to_string();
+            assert!(error.contains(&field.to_string()), "{error}");
+        }
     }
 }

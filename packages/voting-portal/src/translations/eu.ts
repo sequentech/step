@@ -13,7 +13,6 @@ const basqueTranslation: TranslationType = {
         a11y: {
             skipToContent: "Joan eduki nagusira",
             helpAbout: "{{topic}} atalari buruzko laguntza",
-            copyToClipboard: "Kopiatu {{label}} arbelean",
             previewMaterial: "{{title}} aurrebista",
             ballotsTable: "Botoak",
             ballotLocatorTabs: "Boto-bilatzailearen atalak",
@@ -475,9 +474,7 @@ const basqueTranslation: TranslationType = {
             column: {
                 statement_kind: "Adierazpen mota",
                 statement_timestamp: "Adierazpen denbora-marka",
-                username: "Erabiltzaile izena",
                 ballot_id: "Bozketa IDa",
-                message: "Mezua",
             },
         },
     },

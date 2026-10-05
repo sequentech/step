@@ -492,11 +492,11 @@ The admin portal's Logs tab, and the logs dialog of a user, call the Hasura acti
 
 The voting portal's ballot locator calls `list_cast_vote_messages` (Harvest `POST /list-cast-vote-messages`).
 
-- **Who can use it:** a voter with the `cast-vote` permission for the election, and only when the election event's `show_cast_vote_logs` presentation setting is `show-logs-tab`. The default is `hide-logs-tab`, and then the route answers 403.
+- **Who can use it:** a voter with the `cast-vote` permission for the election, and only when the election event's `show_cast_vote_logs` presentation setting is `show-logs-tab`. The default is `hide-logs-tab`, and then the route answers 403. A request for a tenant other than the voter's own gets 401.
 - **Without a ballot ID**, it pages through the election's `CastVote` records and counts them.
 - **With a ballot ID**, it looks among the requesting voter's own cast votes for one matching it. It queries pages of 2,500 records at increasing offsets and stops at the first match, so a ballot ID that matches nothing runs one query per 2,500 cast votes of the election.
-- **What it shows:** each entry has the statement timestamp, the ballot ID, the username and the full decoded message as JSON. A cast-vote message contains the voter's user ID, username, area, IP address and country. Listing without a ballot ID therefore shows all of that, for every voter of the election, to any voter of the election who can use the locator.
-- **Sorting:** voters can sort by statement timestamp, username or ballot ID. None of these has an index (section 13).
+- **What it returns:** each entry has only the statement timestamp, the statement kind and the ballot ID. Harvest builds the entries from those columns without decoding the message, so the response carries no username, user ID, area, IP address, country or signed message, for the voter's own ballot or for anyone else's.
+- **Sorting:** by record ID (the default, newest first), statement timestamp, statement kind or ballot ID. Harvest answers 400 to any other field, such as the username. Only the record ID order uses an index (section 13).
 
 ### 9.3 Exports and imports
 
@@ -661,7 +661,7 @@ A wrong root at the size of a supplied checkpoint is reported as `Diverged` only
 
 | Actor | Can |
 | --- | --- |
-| Voters with `cast-vote`, when the event's `show_cast_vote_logs` is `show-logs-tab` | List their election's cast votes, including other voters' usernames and messages, and find their own through the ballot locator (section 9.2) |
+| Voters with `cast-vote`, when the event's `show_cast_vote_logs` is `show-logs-tab` | List the ballot IDs, timestamps and kinds of their election's cast votes, and find their own through the ballot locator (section 9.2) |
 | Users with `logs-read` | List records, read their tenant's published checkpoints, request checkpoints and proofs |
 | Users of the super-admin tenant with `logs-read` | Through Harvest directly, list records and request checkpoints and proofs of any tenant |
 | Hasura's `admin-user` role | Read its tenant's published checkpoints |
@@ -697,7 +697,7 @@ The table assumes the change is made directly in the electoral-log database, unl
 - **The history before voting closes has no outside anchor** unless an auditor saved a checkpoint. The first published checkpoint is taken at voting close, so whoever controls the electoral-log database can change records of the voting period, including cast votes, consistently before then.
 - **Audits and proofs show integrity, not completeness at the source.** An event that a producer never delivered is not in the log. Known gaps: Keycloak's listener logs a failed RabbitMQ publish and moves on, without retrying or using publisher confirms; cast votes are queued after the vote commits, on a best-effort basis; and dead-lettered events stay out of the log until someone replays them (section 14.7).
 - **Signatures are server signatures.** They show that the backend built a statement, not that a voter or Keycloak produced it, and Step does not verify them.
-- **The log holds personal data.** Records carry user IDs and usernames, and cast-vote records also the voter's area, IP address and country. Section 9.2 describes who can read them.
+- **The log holds personal data.** Records carry user IDs and usernames, and cast-vote records also the voter's area, IP address and country. Voters never receive any of it (section 9.2); section 12.1 lists who can read records.
 - **The application role** is not a cryptographically enforced append-only principal. Do not grant it access to other databases.
 
 ## 13. Capacity and performance
@@ -719,7 +719,7 @@ A load test filled one board to 20 million records on a PostgreSQL server with 1
   - pages deep into the log;
   - counts of filtered views;
   - the PDF activity report's offset batches.
-- **Not measured:** ballot-locator pages sorted by username, ballot ID or statement timestamp, which sort all of the election's cast votes; own-ballot lookups for a ballot ID that matches nothing, which run one query per 2,500 cast votes (section 9.2); and ballot-locator requests with a large `limit`, which is not capped, so one request can return every cast vote of the election.
+- **Not measured:** ballot-locator pages sorted by ballot ID, statement kind or statement timestamp, which sort all of the election's cast votes; own-ballot lookups for a ballot ID that matches nothing, which run one query per 2,500 cast votes (section 9.2); and ballot-locator requests with a large `limit`, which is not capped, so one request can return every cast vote of the election.
 - **Audits** are linear: about 6 minutes at 20 million records. An open audit slowed concurrent single appends by about 23 % over its run.
 
 ## 14. Operating the log
@@ -858,7 +858,6 @@ Security and completeness (section 12.3):
 - Message signatures are made by the backend with server-held keys, and no Step component verifies them.
 - Lists, counts, exports and the ballot locator serve stored rows without any integrity check.
 - Keycloak events whose publish to RabbitMQ fails are only logged. Dead-lettered events stay out of the log until someone replays them, and nothing alerts on the dead-letter queue by itself.
-- The ballot locator shows other voters' usernames, IP addresses and countries to voters who can use it.
 
 Performance and operation:
 

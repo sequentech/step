@@ -13,7 +13,6 @@ const tagalogTranslation: TranslationType = {
         a11y: {
             skipToContent: "Lumaktaw sa pangunahing nilalaman",
             helpAbout: "Tulong tungkol sa {{topic}}",
-            copyToClipboard: "Kopyahin ang {{label}} sa clipboard",
             previewMaterial: "I-preview ang {{title}}",
             ballotsTable: "Mga balota",
             ballotLocatorTabs: "Mga seksyon ng ballot locator",
@@ -474,9 +473,7 @@ const tagalogTranslation: TranslationType = {
             column: {
                 statement_kind: "Uri",
                 statement_timestamp: "Timestamp",
-                username: "Username",
                 ballot_id: "Ballot ID",
-                message: "Mensahe",
             },
         },
     },
