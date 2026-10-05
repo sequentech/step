@@ -5,7 +5,10 @@
 use anyhow::{anyhow, Context, Result};
 use sequent_core::services::s3::get_minio_url;
 use sequent_core::types::hasura::core::ElectionEvent;
-use sequent_core::types::number_format::NumberFormatPolicy;
+use sequent_core::types::number_format::{
+    deserialize_lenient_number_format_policy, NumberFormatPolicy,
+};
+use serde::Deserialize;
 use std::env;
 use tracing::{instrument, warn};
 
@@ -49,12 +52,23 @@ pub async fn get_public_asset_template(filename: &str) -> Result<String> {
     Ok(template_hbs)
 }
 
+/// The one setting of an election event's presentation that its reports
+/// read.
+#[derive(Deserialize)]
+struct NumberFormatSetting {
+    #[serde(default, deserialize_with = "deserialize_lenient_number_format_policy")]
+    number_format_policy: Option<NumberFormatPolicy>,
+}
+
 /// The number format the reports of `election_event` write their figures
-/// in, or `None` for the default. An event whose presentation can't be read
-/// gets the default too, so that its reports still render.
+/// in, or `None` for the default. Only this setting of the event's
+/// presentation is read, so that another one this version can't read doesn't
+/// change it. A presentation that isn't an object gets the default, so that
+/// its reports still render.
 pub fn get_number_format_policy(election_event: &ElectionEvent) -> Option<NumberFormatPolicy> {
-    match election_event.get_presentation() {
-        Ok(presentation) => presentation.and_then(|presentation| presentation.number_format_policy),
+    let presentation = election_event.presentation.clone()?;
+    match serde_json::from_value::<NumberFormatSetting>(presentation) {
+        Ok(setting) => setting.number_format_policy,
         Err(err) => {
             warn!(
                 "Can't read the presentation of election event {}, using the default number format: {err}",
@@ -121,6 +135,26 @@ mod tests {
     #[test]
     fn an_unreadable_number_format_policy_uses_the_default() {
         let event = election_event(Some(json!({ "number_format_policy": "unknown" })));
+
+        assert_eq!(get_number_format_policy(&event), None);
+    }
+
+    #[test]
+    fn a_setting_this_version_cannot_read_keeps_the_number_format_policy() {
+        let event = election_event(Some(json!({
+            "locked_down": "a-newer-lockdown",
+            "number_format_policy": "period-comma",
+        })));
+
+        assert_eq!(
+            get_number_format_policy(&event),
+            Some(NumberFormatPolicy::PeriodComma)
+        );
+    }
+
+    #[test]
+    fn a_presentation_that_is_not_an_object_uses_the_default() {
+        let event = election_event(Some(json!("period-comma")));
 
         assert_eq!(get_number_format_policy(&event), None);
     }

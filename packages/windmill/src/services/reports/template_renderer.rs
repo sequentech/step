@@ -427,9 +427,9 @@ pub trait TemplateRenderer: Debug {
 
     /// The number format of the report's election event, which the report
     /// writes its figures in, or `None` for the default: the event has none,
-    /// has one this version doesn't know, or no longer exists. A failed read
-    /// fails the report like its other reads: it aborts the transaction the
-    /// report goes on reading its data with.
+    /// has one this version doesn't know, or no longer exists. A failed
+    /// database read fails the report like its other reads: it aborts the
+    /// transaction the report goes on reading its data with.
     #[instrument(err, skip_all)]
     async fn get_number_format_policy(
         &self,
