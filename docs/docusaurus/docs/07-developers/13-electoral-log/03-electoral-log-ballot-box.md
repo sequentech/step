@@ -45,42 +45,71 @@ flowchart LR
     W[Windmill: tally, reports] --> T
 ```
 
-- **Tenant database:** implemented as the `per-tenant` layout of the [design](01-electoral-log-design.md) (section 14.2). Windmill creates it when the tenant is created. It holds the Merkle log tables of today's design for the tenant's boards and will hold the ballot box tables, partitioned by election event so that an event's data can be dropped, archived or moved on its own.
-- **Accept path:** Harvest validates the ballot as today and then runs one SQL statement that inserts the ballot and updates the voter's state. When it commits, Harvest answers with the receipt. No Hasura transaction and no queue is involved.
-- **Sequencer:** one per election event. It reads accepted ballots in order, builds and signs their cast-vote records, which carry the ballot's hash rather than its content, and appends them to the event's board in large batches. Checkpoints and proofs cover what it has appended.
-- **Readers:** the voting portal, admin portal and reports read through Hasura actions backed by Harvest, which query the tenant database: has this voter voted, the voter's ballots, counts by election and area, and ballot lists for the tally.
+- **Tenant database:** implemented as the `per-tenant` layout of the [design](01-electoral-log-design.md) (section 14.2). Windmill creates it when the tenant is created. It holds the Merkle log tables for the tenant's boards and the ballot box tables, partitioned by election event so that an event's data can be dropped, archived or moved on its own.
+- **Accept path (implemented):** Harvest validates the ballot and checks the voting period and channel as today, then runs one SQL statement that counts the vote for the voter, stores the ballot and queues it for the sequencer. When it commits, Harvest answers with the receipt. No `cast_vote` row and no queued log event are written.
+- **Sequencer (implemented):** one at a time per election event. It reads queued ballots in acceptance order, builds and signs their cast-vote records, which carry the ballot's hash rather than its content, and appends them to the event's board in batches. Checkpoints and proofs cover what it has appended.
+- **Readers (planned):** the voting portal, admin portal and reports will read through Hasura actions backed by Harvest, which query the tenant database: has this voter voted, the voter's ballots, counts by election and area, and ballot lists for the tally.
+
+### 3.1 Which events use the ballot box
+
+Each election event has a ballot box policy, `ballot_box` in its `bulletin_board_reference`:
+
+| Policy | Where cast votes go | Which events |
+| --- | --- | --- |
+| `cast-vote-table` (no value) | Hasura's `cast_vote` table, with the log record queued as before | Events created before the ballot box |
+| `electoral-log` | The ballot box of the event's electoral-log database | Events created or imported from now on |
+
+Windmill sets the policy and creates the event's partitions when it creates the event's board. Events created before keep `cast_vote` until they finish, so both paths exist until `cast_vote` is retired. Datafix events with the `electoral-log` policy refuse votes for now: their pending status, confirmation and rejection records are not implemented yet.
 
 ## 4. The accept path
 
+Tables, in every electoral-log database (`packages/electoral-log/schema.sql`):
+
+| Table | One row per | Key |
+| --- | --- | --- |
+| `ballot_box_ballot` | Accepted ballot: content, format, ballot and pseudonym hashes, voting channel, status, the voter's IP address, country and username, acceptance time | Event and sequence number; unique per event and ballot ID |
+| `ballot_box_voter` | Voter and election: area, number of votes, last ballot ID | Event, election, voter |
+| `ballot_box_pending` | Accepted ballot not yet appended to the board | Event and sequence number |
+| `ballot_box_sequencer` | Event being sequenced: the run holding it and until when | Event |
+
+The statement (`PostgresStore::accept_ballot`):
+
 ```sql
-WITH state AS (
-    INSERT INTO voter_state AS s
-        (election_event_id, election_id, voter, area_id, votes, last_ballot_id, updated_at)
-    VALUES ($event, $election, $voter, $area, 1, $ballot_id, now())
-    ON CONFLICT (election_event_id, election_id, voter) DO UPDATE
-        SET votes = s.votes + 1, last_ballot_id = EXCLUDED.last_ballot_id, updated_at = now()
-        WHERE (s.votes < $allowed_votes OR $allowed_votes = 0) AND s.area_id = EXCLUDED.area_id
-    RETURNING last_ballot_id
+WITH voter AS (
+    INSERT INTO ballot_box_voter AS v (..., area_id, votes, last_ballot_id, updated_at)
+    VALUES (..., $area, 1, $ballot_id, now())
+    ON CONFLICT (election_event_id, election_id, voter_id) DO UPDATE
+        SET votes = v.votes + 1, last_ballot_id = EXCLUDED.last_ballot_id, updated_at = EXCLUDED.updated_at
+        WHERE v.area_id = EXCLUDED.area_id AND ($allowed_votes = 0 OR v.votes < $allowed_votes)
+    RETURNING election_event_id
+), ballot AS (
+    INSERT INTO ballot_box_ballot (...) SELECT ... FROM voter RETURNING election_event_id, seq, id
+), queued AS (
+    INSERT INTO ballot_box_pending (election_event_id, seq) SELECT election_event_id, seq FROM ballot
 )
-INSERT INTO ballot (election_event_id, ballot_id, election_id, voter, area_id, content, status)
-SELECT $event, $ballot_id, $election, $voter, $area, $content, $status FROM state;
+SELECT seq, id FROM ballot;
 ```
 
-- **One statement, one round trip.** The upsert locks the voter's state row, so concurrent votes of one voter are serialized without advisory locks. If the vote is over the election's limit, or the voter already voted in another area, the upsert changes nothing, nothing is inserted, and Harvest reads the voter's state to say which rule refused it. These are the rules that Hasura's `check_revote_limit` trigger enforces today: `num_allowed_revotes` counts all votes, 0 means unlimited, and votes in another area are refused.
-- **Unique ballot IDs.** `ballot` is unique per event and ballot ID, as VoteSecure's trackers require.
-- **Status.** Ordinary votes are accepted as valid. In Datafix events they are accepted as pending, and count as votes, as `in-progress` votes count today. A Datafix rejection is appended as a record, and the voter's count goes down in the same transaction.
-- **What is durable when the voter gets the receipt:** the ballot and the voter's state, in the tenant database, with synchronous commit. Until the sequencer appends the vote, no checkpoint covers it.
+- **One statement, one round trip.** The upsert locks the voter's row, so concurrent votes of one voter are serialized without advisory locks. If the vote is over the election's limit, or the voter already voted in another area, the upsert changes nothing, nothing is inserted, and Windmill reads the voter's row to say which rule refused it. These are the rules of Hasura's `check_revote_limit` trigger: `num_allowed_revotes` counts all votes, unset means 1, 0 means unlimited, and votes in another area are refused.
+- **Unique ballot IDs.** A ballot ID already used in the event fails the whole statement, so the voter's count does not change either.
+- **Answers:** the same errors as for `cast_vote` (`insert_failed_exceeds_allowed_revotes`, `check_votes_in_other_areas_failed`, `insert_failed`), and on success a cast vote with the ballot's ID.
+- **What is durable when the voter gets the receipt:** the ballot, the voter's count and the queue entry, in the tenant database, with synchronous commit. Until the sequencer appends the vote, no checkpoint covers it.
+- **Schema upgrades:** the tables are part of `schema.sql`, so `electoral-log-admin init` creates them in existing databases. Run it before deploying a Windmill that creates ballot boxes: without the tables, creating an election event fails.
 
 ## 5. The sequencer
 
-- **Order:** it reads accepted ballots by their acceptance sequence number, after the last one it appended, and appends them in that order. A crash between the append and the update of its position appends nothing twice, because each record's delivery ID is derived from the event and the sequence number.
-- **Records:** the cast-vote record carries the ballot's hash, election, area, the voter's pseudonym and the voting channel, like today's. The ballot's content stays in `ballot`; the record commits to it through the hash.
-- **Lag:** the sequencer is slower than the accept path at the measured rates (section 8), so during a peak it falls behind and catches up afterwards. Its lag is the window in which accepted votes are not yet in the Merkle log; it must be monitored and is bounded by the peak's length.
+- **Scheduling:** Windmill beat runs `schedule_ballot_box_sequencers` every `--ballot-box-interval` seconds (2 by default) on `electoral_log_beat_queue`. It lists the events with queued ballots in every electoral-log database and queues one `sequence_ballot_box` task per event on `electoral_log_batch_queue`.
+- **One at a time per event:** a run takes a 150-second lease on the event in `ballot_box_sequencer` and ends it when it finishes. A run that finds a running lease held by another run ends at once; a run that dies leaves the event to the next one when its lease runs out. A lease, rather than a lock held on a connection, leaves the database's connection pool to the work.
+- **Batches:** a run reads up to 5,000 queued ballots in acceptance order, builds their records, appends them in one append, and removes them from the queue, until the queue is empty or 50 seconds have passed.
+- **Exactly once in the log:** each record's delivery ID is `ballot-box:<event>:<sequence number>`. If a run stops after the append and before removing the ballots from the queue, the next run appends them again and the log stores nothing new.
+- **Records:** the record is built as `post_cast_vote` builds it for `cast_vote`, signed with the event's protocol-manager key, with the ballot's hash, election, area, pseudonym, IP address, country and voting channel. Its statement timestamp is when the sequencer built it, a few seconds after acceptance; the acceptance time is in `ballot_box_ballot`.
+- **Order:** ballots accepted in concurrent transactions can commit out of sequence order, so a ballot can be appended after one with a higher sequence number. The log's order is the sequencing order.
+- **Lag:** the sequencer is slower than the accept path at the measured rates (section 8), so during a peak it falls behind and catches up afterwards. Its lag is the window in which accepted votes are not in the Merkle log. The number of queued ballots per event is the measure to monitor.
 
 ## 6. Reads and the tally
 
-- **Has the voter voted:** a primary-key lookup in `voter_state`.
-- **Lists and counts:** from `ballot` and `voter_state`, with indexes on election and area, served by Harvest-backed Hasura actions that replace today's queries on `cast_vote`.
+- **Has the voter voted:** a primary-key lookup in `ballot_box_voter`.
+- **Lists and counts:** from `ballot_box_ballot` and `ballot_box_voter`, with indexes on election and area, served by Harvest-backed Hasura actions that replace today's queries on `cast_vote`.
 - **Tally input:** at a checkpoint taken after voting closes, the valid ballots of an election, deduplicated to each voter's last valid ballot, read in sequence order. Extraction is deterministic: the same checkpoint always yields the same ballots in the same order.
 
 ## 7. VoteSecure compatibility

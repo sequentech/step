@@ -70,6 +70,7 @@ use crate::tasks::review_cast_votes::review_cast_votes;
 use crate::tasks::scheduled_events::scheduled_events;
 use crate::tasks::scheduled_reports::scheduled_reports;
 use crate::tasks::send_template::send_template;
+use crate::tasks::sequence_ballot_box::{schedule_ballot_box_sequencers, sequence_ballot_box};
 use crate::tasks::set_public_key::set_public_key;
 use crate::tasks::update_election_event_ballot_styles::update_election_event_ballot_styles;
 use crate::tasks::voter_information_letter::generate_voter_information_letter;
@@ -305,6 +306,8 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
             export_tasks_execution,
             scheduled_reports,
             review_cast_votes,
+            schedule_ballot_box_sequencers,
+            sequence_ballot_box,
             export_templates,
             export_ballot_publication,
             export_application,
@@ -359,6 +362,8 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
             scheduled_events::NAME => &Queue::Beat.queue_name(&slug),
             scheduled_reports::NAME => &Queue::Beat.queue_name(&slug),
             review_cast_votes::NAME => &Queue::Beat.queue_name(&slug),
+            schedule_ballot_box_sequencers::NAME => &Queue::ElectoralLogBeat.queue_name(&slug),
+            sequence_ballot_box::NAME => &Queue::ElectoralLogBatch.queue_name(&slug),
             manage_election_date::NAME => &Queue::Beat.queue_name(&slug),
             manage_election_event_date::NAME => &Queue::Beat.queue_name(&slug),
             manage_election_event_enrollment::NAME => &Queue::Beat.queue_name(&slug),

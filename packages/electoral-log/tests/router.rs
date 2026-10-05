@@ -6,11 +6,11 @@
 //! It creates a database for a random tenant and drops it at the end.
 
 use anyhow::Result;
+use electoral_log::ports::ElectoralLogStore;
 use electoral_log::{
     adapters::router::{tenant_database_name, tenant_prefix, StoreRouter, LAYOUT_ENV},
     ElectoralLogMessage, LogEntry, LogQuery,
 };
-use electoral_log::ports::ElectoralLogStore;
 
 const SLUG: &str = "routertest";
 
@@ -57,8 +57,15 @@ async fn tenant_boards_get_their_own_database_and_existing_boards_stay_shared() 
     router.shared().create_board(&legacy).await?;
 
     router.create_board(&board).await?;
-    router.append(&board, &mut [entry("a"), entry("b")].into_iter().map(anyhow::Ok)).await?;
-    router.append(&legacy, &mut [entry("c")].into_iter().map(anyhow::Ok)).await?;
+    router
+        .append(
+            &board,
+            &mut [entry("a"), entry("b")].into_iter().map(anyhow::Ok),
+        )
+        .await?;
+    router
+        .append(&legacy, &mut [entry("c")].into_iter().map(anyhow::Ok))
+        .await?;
 
     let all = LogQuery::default();
     assert_eq!(router.count(&board, &all).await?, 2);

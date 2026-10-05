@@ -2,6 +2,9 @@
 -- SPDX-License-Identifier: AGPL-3.0-only
 
 BEGIN;
+-- Serializes concurrent initializations of one database, such as two processes
+-- provisioning the same tenant.
+SELECT pg_advisory_xact_lock(7307648119525449473);
 -- SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 -- SPDX-License-Identifier: AGPL-3.0-only
 CREATE TABLE IF NOT EXISTS trellis_logs (
@@ -55,4 +58,53 @@ CREATE INDEX IF NOT EXISTS electoral_log_board_cursor ON electoral_log_messages 
 CREATE INDEX IF NOT EXISTS electoral_log_cast_vote ON electoral_log_messages (board_name, statement_kind, election_id, id);
 CREATE INDEX IF NOT EXISTS electoral_log_voter ON electoral_log_messages (board_name, user_id, ballot_id, id);
 CREATE INDEX IF NOT EXISTS electoral_log_created ON electoral_log_messages (board_name, created, id);
+-- Ballot box: cast votes stored in the electoral log. Tables are partitioned by
+-- election event; an event's partitions are created with its board. A vote is
+-- accepted when one statement has updated `ballot_box_voter`, stored the ballot
+-- and queued it in `ballot_box_pending`; the sequencer appends its record to the
+-- event's board later and removes it from the queue.
+CREATE SEQUENCE IF NOT EXISTS ballot_box_seq;
+CREATE TABLE IF NOT EXISTS ballot_box_ballot (
+    election_event_id UUID NOT NULL,
+    seq BIGINT NOT NULL DEFAULT nextval('ballot_box_seq'),
+    id UUID NOT NULL DEFAULT gen_random_uuid(),
+    ballot_id TEXT NOT NULL CHECK (ballot_id <> ''),
+    election_id UUID NOT NULL,
+    area_id UUID NOT NULL,
+    voter_id TEXT NOT NULL CHECK (voter_id <> ''),
+    format TEXT NOT NULL,
+    content TEXT NOT NULL,
+    voter_signature BYTEA,
+    pseudonym_hash BYTEA NOT NULL CHECK (octet_length(pseudonym_hash) = 64),
+    ballot_hash BYTEA NOT NULL CHECK (octet_length(ballot_hash) = 64),
+    voting_channel TEXT NOT NULL,
+    status TEXT NOT NULL CHECK (status IN ('valid', 'pending', 'rejected')),
+    voter_ip TEXT,
+    voter_country TEXT,
+    username TEXT,
+    accepted_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (election_event_id, seq),
+    UNIQUE (election_event_id, ballot_id)
+) PARTITION BY LIST (election_event_id);
+CREATE TABLE IF NOT EXISTS ballot_box_voter (
+    election_event_id UUID NOT NULL,
+    election_id UUID NOT NULL,
+    voter_id TEXT NOT NULL,
+    area_id UUID NOT NULL,
+    votes INTEGER NOT NULL CHECK (votes >= 0),
+    last_ballot_id TEXT NOT NULL,
+    updated_at TIMESTAMPTZ NOT NULL,
+    PRIMARY KEY (election_event_id, election_id, voter_id)
+) PARTITION BY LIST (election_event_id);
+CREATE TABLE IF NOT EXISTS ballot_box_pending (
+    election_event_id UUID NOT NULL,
+    seq BIGINT NOT NULL,
+    PRIMARY KEY (election_event_id, seq)
+);
+-- Lease that lets one sequencer at a time work on an event.
+CREATE TABLE IF NOT EXISTS ballot_box_sequencer (
+    election_event_id UUID PRIMARY KEY,
+    holder TEXT NOT NULL,
+    lease_until TIMESTAMPTZ NOT NULL
+);
 COMMIT;

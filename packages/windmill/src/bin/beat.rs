@@ -22,6 +22,7 @@ use windmill::tasks::review_boards::review_boards;
 use windmill::tasks::review_cast_votes::review_cast_votes;
 use windmill::tasks::scheduled_events::scheduled_events;
 use windmill::tasks::scheduled_reports::scheduled_reports;
+use windmill::tasks::sequence_ballot_box::schedule_ballot_box_sequencers;
 
 #[derive(Debug, Parser)]
 #[command(name = "beat", about = "Windmill's periodic task scheduler.")]
@@ -36,6 +37,9 @@ struct CeleryOpt {
     review_cast_votes_interval: u64,
     #[arg(short = 'e', long, default_value = "5")]
     electoral_log_interval: u64,
+    /// Seconds between scans for ballots waiting for the sequencer.
+    #[arg(short = 'b', long, default_value = "2")]
+    ballot_box_interval: u64,
 }
 
 #[tokio::main]
@@ -75,6 +79,11 @@ async fn main() -> Result<()> {
                 schedule = DeltaSchedule::new(Duration::from_secs(CeleryOpt::parse().electoral_log_interval)),
                 args = (),
             },
+            schedule_ballot_box_sequencers::NAME => {
+                schedule_ballot_box_sequencers,
+                schedule = DeltaSchedule::new(Duration::from_secs(CeleryOpt::parse().ballot_box_interval)),
+                args = (),
+            },
             publish_periodic_electoral_log_checkpoints::NAME => {
                 publish_periodic_electoral_log_checkpoints,
                 schedule = DeltaSchedule::new(Duration::from_secs(
@@ -90,6 +99,7 @@ async fn main() -> Result<()> {
             review_cast_votes::NAME => &Queue::Beat.queue_name(&slug),
             electoral_log_batch_dispatcher::NAME => &Queue::ElectoralLogBeat.queue_name(&slug),
             publish_periodic_electoral_log_checkpoints::NAME => &Queue::Beat.queue_name(&slug),
+            schedule_ballot_box_sequencers::NAME => &Queue::ElectoralLogBeat.queue_name(&slug),
         ],
     ).await?;
 

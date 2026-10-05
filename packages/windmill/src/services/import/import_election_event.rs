@@ -88,6 +88,7 @@ use crate::postgres::election::insert_elections;
 use crate::postgres::election_event::insert_election_event;
 use crate::postgres::keys_ceremony;
 use crate::postgres::scheduled_event::insert_scheduled_event;
+use crate::services::ballot_box::BallotBoxPolicy;
 use crate::services::certificate_authority::{parse_certificate_pem, split_pem_bundle};
 use crate::services::consolidation::aes_256_cbc_encrypt::decrypt_file_aes_256_cbc;
 use crate::services::documents;
@@ -100,7 +101,7 @@ use crate::services::jwks::upsert_realm_jwks;
 use crate::services::protocol_manager::get_election_board;
 use crate::services::protocol_manager::get_protocol_manager_secret_path;
 use crate::services::protocol_manager::{
-    create_protocol_manager_keys, get_b3_pgsql_client, get_board_client,
+    create_protocol_manager_keys, get_b3_pgsql_client, get_board_client, get_electoral_log_store,
 };
 use crate::tasks::import_election_event::ImportElectionEventBody;
 use crate::types::documents::EDocuments;
@@ -139,6 +140,10 @@ pub async fn upsert_b3_and_elog(
     let board_name = get_event_board(tenant_id, election_event_id, &slug);
     let electoral_log = get_board_client().await?;
     electoral_log.create_board(&board_name).await?;
+    get_electoral_log_store(&board_name)
+        .await?
+        .create_ballot_box(election_event_id)
+        .await?;
 
     let mut board_client = get_b3_pgsql_client().await?;
 
@@ -209,7 +214,9 @@ pub async fn upsert_b3_and_elog(
             ))?;
     }
 
-    let board_serializable: BoardSerializable = board.into();
+    let mut board_serializable: BoardSerializable = board.into();
+    // New election events store their cast votes in the electoral log.
+    board_serializable.ballot_box = BallotBoxPolicy::ElectoralLog;
 
     let board_value = serde_json::to_value(board_serializable.clone())?;
     Ok(board_value)
