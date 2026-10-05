@@ -4,7 +4,7 @@
 import React from "react"
 import {eventRecord} from "@/__stories__/fixtures"
 import type {StoryObj} from "@storybook/react-vite"
-import {expect, fn, userEvent, waitFor, within} from "storybook/test"
+import {expect, fireEvent, fn, userEvent, waitFor, within} from "storybook/test"
 import type {Identifier} from "react-admin"
 import {
     AdminStoryProvider,
@@ -165,6 +165,29 @@ export const SendNowToTheSelectedVoters: Story = {
             "Notification programmed/sent successfully"
         )
         await waitFor(() => expect(notice).toBeVisible())
+    },
+}
+
+/** The existing notification payload retains the entered time without changing dispatch. */
+export const ScheduledTimeKeepsItsZone: Story = {
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await userEvent.click(canvas.getByRole("switch", {name: "Send now"}))
+        fireEvent.change(canvas.getByLabelText("Date and time to start sending notifications"), {
+            target: {value: "2028-04-09T08:00"},
+        })
+        await send(canvasElement)
+        await waitFor(() =>
+            expect(sent()?.eventPayload).toEqual(
+                expect.objectContaining({
+                    schedule_now: false,
+                    schedule_date: "2028-04-09T08:00:00Z",
+                    schedule_local: "2028-04-09T08:00",
+                    schedule_timezone: "UTC",
+                })
+            )
+        )
+        expect(sent()?.cronConfig).toBeUndefined()
     },
 }
 

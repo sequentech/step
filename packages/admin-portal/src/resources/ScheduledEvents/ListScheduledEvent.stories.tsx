@@ -10,6 +10,7 @@ import {
     formatDateTimeZone,
     formatMyTime,
     i18n,
+    instantToZoned,
     type IScheduledOutcomeExplanation,
 } from "@sequentech/ui-core"
 import {
@@ -73,6 +74,7 @@ interface Scenario {
     published: boolean
     /** A row was edited after publication, a tz database update moved one, a row has no offset. */
     changes: boolean
+    storedInAnotherZone?: boolean
 }
 
 const CONFIGURATIONS: Record<"overseas" | "madrid", () => ITimeZoneConfiguration> = {
@@ -133,6 +135,21 @@ const meta = {
         const configuration =
             args.configuration === "none" ? null : CONFIGURATIONS[args.configuration]()
         const schedule = configuration ? lifecycleSchedule(configuration) : scheduledEventRecords()
+        if (args.storedInAnotherZone) {
+            for (const row of schedule) {
+                const stored = row.cron_config as {
+                    scheduled_date: string
+                    local?: string
+                    timezone?: string
+                }
+                row.cron_config = {
+                    ...stored,
+                    timezone: MY_TIME_ZONE,
+                    local: instantToZoned(stored.scheduled_date, MY_TIME_ZONE),
+                }
+                row.stopped_at = stored.scheduled_date
+            }
+        }
         if (configuration && args.changes) {
             // Edited after publication; moved by a tz database update; stored without an offset.
             schedule[0].cron_config = {...schedule[0].cron_config, local: "2028-04-09T08:00"}
@@ -444,6 +461,30 @@ export const OverseasSchedule: Story = {
             closeRow.getByText(zonedTexts(close.local, close.timezone).inZone)
         ).toBeVisible()
         await expect(closeRow.getByText(i18n.t("scheduledOutcome.chip.runsUnsigned"))).toBeVisible()
+    },
+}
+
+/** Stored input zones do not replace the configured display zone of a Post or the event. */
+export const ConfiguredRowZones: Story = {
+    args: {configuration: "overseas", published: true, storedInAnotherZone: true},
+    play: async ({canvasElement}) => {
+        const configuration = overseasConfiguration()
+        const dubai = configuration.schedule[0]
+        const row = await rowOf(canvasElement, "Dubai PCG", "START_VOTING_PERIOD")
+        const times = zonedTexts(dubai.local, dubai.timezone)
+        await expect(row.getAllByText(times.inZone)).toHaveLength(2)
+        await expect(row.getAllByText(times.mine)).toHaveLength(2)
+        const close = configuration.schedule.find(
+            ({event_processor}) => event_processor === "END_VOTING_PERIOD"
+        )!
+        const closeRow = await rowOf(
+            canvasElement,
+            i18n.t("lifecycle.schedule.allElections"),
+            "END_VOTING_PERIOD"
+        )
+        await expect(
+            closeRow.getAllByText(zonedTexts(close.local, close.timezone).inZone)
+        ).toHaveLength(2)
     },
 }
 

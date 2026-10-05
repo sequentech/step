@@ -1089,6 +1089,8 @@ pub async fn send_application_communication_response(
                 pdf_options: None,
                 report_options: None,
                 secret_attribute_names: Vec::new(),
+                schedule_local: None,
+                schedule_timezone: None,
             };
 
             let celery_app = get_celery_app().await;

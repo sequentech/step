@@ -58,6 +58,9 @@ interface ITemplatePayload {
     schedule_now: boolean
     /** RFC 3339 instant. */
     schedule_date?: string
+    /** Wall time and IANA zone entered alongside the notification instant. */
+    schedule_local?: string
+    schedule_timezone?: string
     email?: {
         subject: string
         plaintext_body: string
@@ -162,6 +165,8 @@ export const SendTemplate: React.FC<SendTemplateProps> = ({
             communication_method: formData.communication_method,
             schedule_now: formData.schedule.now,
             schedule_date: formData.schedule.zoned?.scheduled_date ?? undefined,
+            schedule_local: formData.schedule.zoned?.local ?? undefined,
+            schedule_timezone: formData.schedule.zoned?.timezone ?? undefined,
             email: formData.i18n["en"].email,
             sms: formData.i18n["en"].sms,
             secret_attribute_names: getReferencedSecretAttributeNames(

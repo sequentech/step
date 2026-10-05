@@ -121,8 +121,8 @@ export interface IElectionTimes {
     closeLocal?: string
     /**
      * `timezones.onThisDevice`: the next relevant instant (the opening while it
-     * is ahead, else the close) on the device, when the device's zone reads
-     * differently from the Post's.
+     * is ahead, else the close) on the device, when it names another canonical
+     * timezone than the Post's, including zones with the same offset.
      */
     device?: string
 }
@@ -160,7 +160,7 @@ export const getElectionTimes = ({
                 ? inZone(end, timeZone)
                 : undefined,
         device:
-            next && !sameWallClock(next, timeZone, deviceTimeZone)
+            next && canonicalZone(timeZone) !== canonicalZone(deviceTimeZone)
                 ? formatOnThisDevice(next, options, deviceTimeZone)
                 : undefined,
     }
