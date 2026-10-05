@@ -435,20 +435,19 @@ export const ApprovalMatrixRuleDialog: React.FC<ApprovalMatrixRuleDialogProps> =
                                     onChange={() =>
                                         setDraft((current) => ({
                                             ...current,
-                                            // A rule that stops approving starts from the
-                                            // reason the last rule gives.
-                                            then:
-                                                decision === IApplicationsStatus.ACCEPTED
-                                                    ? {decision}
-                                                    : {
-                                                          decision,
-                                                          reason:
-                                                              current.then.reason ??
-                                                              (rule.then.decision ===
-                                                              IApplicationsStatus.ACCEPTED
-                                                                  ? EMatrixReason.NO_VOTER
-                                                                  : undefined),
-                                                      },
+                                            // The reason is kept while trying Approve, which
+                                            // has none; a rule that stops approving starts
+                                            // from the reason the last rule gives.
+                                            then: {
+                                                decision,
+                                                reason:
+                                                    current.then.reason ??
+                                                    (decision !== IApplicationsStatus.ACCEPTED &&
+                                                    rule.then.decision ===
+                                                        IApplicationsStatus.ACCEPTED
+                                                        ? EMatrixReason.NO_VOTER
+                                                        : undefined),
+                                            },
                                         }))
                                     }
                                 />

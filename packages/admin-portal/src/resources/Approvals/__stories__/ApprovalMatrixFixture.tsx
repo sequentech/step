@@ -89,6 +89,8 @@ export interface MatrixServices {
     reads: "matrix" | "loading" | "error"
     /** Saving a version. */
     saves: "saved" | "error"
+    /** Trying an example; default "result". */
+    evaluates?: "result" | "error"
 }
 
 type Handlers = Parameters<typeof graphqlBoundary>[0]
@@ -155,6 +157,7 @@ export function matrixHandlers({
     saved = "built-in",
     reads = "matrix",
     saves = "saved",
+    evaluates = "result",
 }: Partial<MatrixServices> = {}): Handlers {
     return {
         getUserProfileAttributes: () => ({
@@ -174,9 +177,17 @@ export function matrixHandlers({
                 },
             }
         },
-        EvaluateApprovalMatrix: ({variables}: Operation) => ({
-            data: {evaluate_approval_matrix: evaluate(variables.matrix, variables.enrollment)},
-        }),
+        EvaluateApprovalMatrix: ({variables}: Operation) =>
+            evaluates === "error"
+                ? {errors: [new GraphQLError("Synthetic approval matrix evaluation failure")]}
+                : {
+                      data: {
+                          evaluate_approval_matrix: evaluate(
+                              variables.matrix,
+                              variables.enrollment
+                          ),
+                      },
+                  },
         SaveApprovalMatrix: ({variables}: Operation) => {
             if (saves === "error") {
                 return {errors: [new GraphQLError("Synthetic approval matrix save failure")]}

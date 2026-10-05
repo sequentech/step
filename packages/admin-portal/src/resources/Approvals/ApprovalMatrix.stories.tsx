@@ -7,7 +7,9 @@ import {expect, fn, userEvent, waitFor, within} from "storybook/test"
 import type {Mock} from "storybook/test"
 import {EVENT_ID} from "@/__stories__/AdminStoryProvider"
 import type {WidgetMeta} from "@/__stories__/widgetStory"
+import {IApplicationsStatus} from "@/types/applications"
 import {ApprovalMatrix} from "./ApprovalMatrix"
+import {EMatrixReason} from "./approvalMatrix"
 import {
     MatrixScreen,
     comelecMatrix,
@@ -18,8 +20,8 @@ import {
 } from "./__stories__/ApprovalMatrixFixture"
 
 interface Scenario extends MatrixServices {
-    /** The width of the screen, for a phone. */
-    width?: number
+    /** The rule that decided the enrollment the administrator came from. */
+    cameFrom?: {version: number; rule: number | null}
     goBack: Mock<() => void>
 }
 
@@ -32,17 +34,11 @@ const meta = {
         reads: {control: "inline-radio", options: ["matrix", "loading", "error"]},
         saves: {control: "inline-radio", options: ["saved", "error"]},
     },
-    parameters: {
-        expectedFailure: {
-            reason: "The status chips put white text on light colours.",
-            a11y: ["color-contrast"],
-        },
-    },
     beforeEach: ({args}) => setUpMatrix(args),
-    render: ({canEdit, goBack, width}) => (
+    render: ({canEdit, goBack, cameFrom}) => (
         <MatrixScreen canEdit={canEdit}>
-            <div data-testid="screen" style={{width}}>
-                <ApprovalMatrix electionEventId={EVENT_ID} goBack={goBack} />
+            <div data-testid="screen">
+                <ApprovalMatrix electionEventId={EVENT_ID} goBack={goBack} cameFrom={cameFrom} />
             </div>
         </MatrixScreen>
     ),
@@ -50,32 +46,55 @@ const meta = {
 export default meta
 type Story = StoryObj<Scenario>
 
-const rules = (canvasElement: HTMLElement) =>
-    within(canvasElement).findByRole("table", {name: "Rules"})
+/** The rule cards in order; the last one is the rule that applies when no other does. */
+const ruleCards = async (canvasElement: HTMLElement) =>
+    within(await within(canvasElement).findByRole("list", {name: "Rules"})).getAllByRole("listitem")
 
-const saveButton = (canvasElement: HTMLElement) =>
-    within(canvasElement).getByRole("button", {name: "Save"})
+const compared = (canvasElement: HTMLElement) =>
+    within(within(canvasElement).getByRole("group", {name: "What we compare"}))
 
-const dialog = async () => {
-    const element = await within(document.body).findByRole("dialog")
+const example = (canvasElement: HTMLElement) =>
+    within(canvasElement).getByRole("status", {name: "Try an example"})
+
+const unsavedBar = (canvasElement: HTMLElement) =>
+    within(canvasElement).queryByRole("region", {name: "Unsaved changes"})
+
+const dialog = async (name: string | RegExp) => {
+    const element = await within(document.body).findByRole("dialog", {name})
     await waitFor(() => expect(element).toBeVisible())
     return within(element)
 }
 
 export const BuiltInVersion: Story = {
     play: async ({canvasElement}) => {
-        const table = within(await rules(canvasElement))
-        await expect(table.getAllByRole("row")).toHaveLength(9)
-        await expect(
-            table.getByRole("row", {name: /5 Exactly 1 field differs Embassy matches PENDING/})
-        ).toBeVisible()
-        await expect(
-            table.getByRole("row", {name: /Otherwise REJECTED No Matching Voter/})
-        ).toBeVisible()
+        const cards = await ruleCards(canvasElement)
         const canvas = within(canvasElement)
-        await expect(canvas.getByText(/Version 1 · Built-in rules/)).toBeVisible()
-        await expect(saveButton(canvasElement)).toBeDisabled()
-        await expect(await canvas.findByText("Rule 3 applies:")).toBeVisible()
+        expect(cards).toHaveLength(8)
+        await expect(cards[4]).toHaveTextContent(
+            /^5When.*Exactly 1 detail differs.*and.*Embassy matches.*Then.*Send to a person.*The voter is told: “No matching voter”\./
+        )
+        await expect(cards[7]).toHaveTextContent(
+            /Otherwise.*None of the rules above apply.*Then.*Reject.*“No matching voter”/
+        )
+        await expect(canvas.getByText("Version 1")).toBeVisible()
+        await expect(
+            canvas.getByText("Built-in rules, used until a version is saved")
+        ).toBeVisible()
+        for (const detail of [
+            "First Name",
+            "Middle Name",
+            "Last Name",
+            "Date of birth",
+            "Embassy",
+        ]) {
+            await expect(
+                compared(canvasElement).getByRole("button", {name: detail})
+            ).toHaveAttribute("aria-pressed", "true")
+        }
+        // The example starts from an enrollment whose details all match.
+        await waitFor(() => expect(example(canvasElement)).toHaveTextContent("Rule 3 applies"))
+        await expect(await within(cards[2]).findByText("Applies to your example")).toBeVisible()
+        expect(unsavedBar(canvasElement)).toBeNull()
         expect(unexpectedCalls()).toEqual([])
     },
 }
@@ -83,122 +102,161 @@ export const BuiltInVersion: Story = {
 export const AssociationVersion: Story = {
     args: {saved: "association"},
     play: async ({canvasElement}) => {
-        const table = within(await rules(canvasElement))
-        await expect(table.getAllByRole("row")).toHaveLength(5)
-        await expect(
-            table.getByRole("row", {name: /Otherwise PENDING No Matching Voter/})
-        ).toBeVisible()
-        await expect(within(canvasElement).getByText(/Version 3 · Saved .* by admin/)).toBeVisible()
-        expect(within(canvasElement).queryByRole("combobox", {name: "Embassy"})).toBeNull()
+        const cards = await ruleCards(canvasElement)
+        const canvas = within(canvasElement)
+        expect(cards).toHaveLength(4)
+        await expect(cards[3]).toHaveTextContent(/Otherwise.*Send to a person.*“No matching voter”/)
+        await expect(canvas.getByText("Version 3")).toBeVisible()
+        await expect(canvas.getByText(/^Saved .* by admin$/)).toBeVisible()
+        expect(compared(canvasElement).queryByRole("button", {name: "Embassy"})).toBeNull()
+        expect(canvas.queryByRole("group", {name: "Embassy"})).toBeNull()
     },
 }
 
 export const ReadOnly: Story = {
     args: {canEdit: false},
     play: async ({canvasElement}) => {
-        const table = within(await rules(canvasElement))
+        const cards = await ruleCards(canvasElement)
         const canvas = within(canvasElement)
-        await expect(
-            canvas.getByText("You can view and test the matrix, but not change it.")
-        ).toBeVisible()
-        await expect(
-            canvas.getByText("First Name, Middle Name, Last Name, Date of birth, Embassy")
-        ).toBeVisible()
-        expect(table.queryByRole("button")).toBeNull()
-        expect(canvas.queryByRole("button", {name: "Save"})).toBeNull()
-        expect(canvas.queryByRole("button", {name: "Add Rule"})).toBeNull()
-        await expect(await canvas.findByText("Rule 3 applies:")).toBeVisible()
+        expect(cards).toHaveLength(8)
+        await expect(canvas.getByText("View only")).toBeVisible()
+        await expect(canvas.getByText("You can see the rules but not change them")).toBeVisible()
+        await expect(compared(canvasElement).getByRole("button", {name: "Embassy"})).toBeDisabled()
+        expect(canvas.queryByRole("button", {name: "Compare another detail"})).toBeNull()
+        expect(canvas.queryByRole("button", {name: /rule/})).toBeNull()
+        expect(canvas.queryByRole("button", {name: "Add rule"})).toBeNull()
+        // An example can still be tried.
+        await userEvent.click(
+            within(canvas.getByRole("group", {name: "Identity check"})).getByRole("button", {
+                name: "Typed by hand",
+            })
+        )
+        await waitFor(() => expect(example(canvasElement)).toHaveTextContent("Rule 2 applies"))
+        expect(unsavedBar(canvasElement)).toBeNull()
     },
 }
 
 export const EditARuleAndSave: Story = {
     play: async ({canvasElement}) => {
-        const table = within(await rules(canvasElement))
         const canvas = within(canvasElement)
-        await userEvent.click(table.getByRole("button", {name: "Edit rule 4"}))
-        const editor = await dialog()
-        await expect(editor.getByRole("heading", {name: "Edit Rule 4"})).toBeVisible()
-        await userEvent.click(editor.getByRole("combobox", {name: "Decision"}))
-        await userEvent.click(
-            await within(document.body).findByRole("option", {name: "Send to manual review"})
-        )
-        await userEvent.click(editor.getByRole("button", {name: "Apply"}))
-        await expect(await editor.findByText("Choose the reason shown to the voter.")).toBeVisible()
-        await userEvent.click(editor.getByRole("combobox", {name: "Reason Shown To The Voter"}))
-        await userEvent.click(
-            await within(document.body).findByRole("option", {name: "No Matching Voter"})
+        await ruleCards(canvasElement)
+        await userEvent.click(canvas.getByRole("button", {name: "Edit rule 4"}))
+        const editor = await dialog("Edit rule 4")
+        await userEvent.click(editor.getByRole("radio", {name: /^Send to a person/}))
+        // A rule that stops approving starts from the reason of the last rule.
+        await expect(editor.getByTestId("rule-summary")).toHaveTextContent(
+            "When exactly 1 detail differs and embassy differs, send the enrollment to a person."
         )
         await userEvent.click(editor.getByRole("button", {name: "Apply"}))
 
+        await waitFor(async () =>
+            expect((await ruleCards(canvasElement))[3]).toHaveTextContent(
+                /Embassy differs.*Send to a person.*“No matching voter”/
+            )
+        )
+        const bar = within(await canvas.findByRole("region", {name: "Unsaved changes"}))
+        await expect(bar.getByText("You have unsaved changes")).toBeVisible()
         await expect(
-            await table.findByRole("row", {
-                name: /4 Exactly 1 field differs Embassy differs PENDING/,
-            })
+            bar.getByText("Rule 4: approve automatically → send to a person")
         ).toBeVisible()
-        await expect(canvas.getByText("Unsaved changes")).toBeVisible()
-        await waitFor(() => expect(saveButton(canvasElement)).toBeEnabled())
-        await userEvent.click(saveButton(canvasElement))
-        const confirmation = await dialog()
-        await expect(confirmation.getByText(/Save these rules as version 2\?/)).toBeVisible()
-        await userEvent.click(confirmation.getByRole("button", {name: "Save"}))
+        await userEvent.click(bar.getByRole("button", {name: "Save as version 2"}))
 
-        await expect(await canvas.findByText(/Version 2 · Saved .* by admin/)).toBeVisible()
+        const confirmation = await dialog("Save as version 2?")
+        await expect(confirmation.getByText("What changed")).toBeVisible()
+        await expect(confirmation.getAllByRole("listitem")).toHaveLength(1)
+        await expect(confirmation.getByRole("listitem")).toHaveTextContent(
+            "Rule 4: approve automatically → send to a person"
+        )
+        await userEvent.click(confirmation.getByRole("button", {name: "Save version 2"}))
+
+        await expect(await canvas.findByText("Version 2")).toBeVisible()
+        await expect(canvas.getByText(/^Saved .* by admin$/)).toBeVisible()
+        const saved = await within(document.body).findByText("Saved as version 2")
+        await waitFor(() => expect(saved).toBeVisible())
         const expected = comelecMatrix()
-        expected.rules[3].then = {...expected.rules[4].then}
+        expected.rules[3].then = {
+            decision: IApplicationsStatus.PENDING,
+            reason: EMatrixReason.NO_VOTER,
+        }
+        expect(matrixCalls("SaveApprovalMatrix")).toHaveLength(1)
         expect(matrixCalls("SaveApprovalMatrix")[0].variables).toEqual({
             electionEventId: EVENT_ID,
             matrix: expected,
         })
-        await waitFor(() => expect(saveButton(canvasElement)).toBeDisabled())
+        await waitFor(() => expect(unsavedBar(canvasElement)).toBeNull())
     },
 }
 
-export const ReorderAddAndDelete: Story = {
+export const ReorderAddDeleteAndDiscard: Story = {
     args: {saved: "association"},
     play: async ({canvasElement}) => {
-        const table = within(await rules(canvasElement))
-        await userEvent.click(table.getByRole("button", {name: "Move rule 1 down"}))
-        await expect(
-            await table.findByRole("row", {name: /^1 Identity entered manually/})
-        ).toBeVisible()
-        await userEvent.click(table.getByRole("button", {name: "Delete rule 3"}))
-        await waitFor(() => expect(table.getAllByRole("row")).toHaveLength(4))
-
-        await userEvent.click(within(canvasElement).getByRole("button", {name: "Add Rule"}))
-        const editor = await dialog()
-        await expect(editor.getByRole("heading", {name: "New Rule"})).toBeVisible()
-        await userEvent.click(editor.getByRole("combobox", {name: "Identity Verification"}))
-        await userEvent.click(
-            await within(document.body).findByRole("option", {name: "Entered manually"})
+        const canvas = within(canvasElement)
+        await ruleCards(canvasElement)
+        await userEvent.click(canvas.getByRole("button", {name: "Move rule 1 down"}))
+        await waitFor(async () =>
+            expect((await ruleCards(canvasElement))[0]).toHaveTextContent(
+                /^1When.*Identity typed by hand/
+            )
         )
-        await userEvent.click(editor.getByRole("combobox", {name: "Decision"}))
+        const bar = within(await canvas.findByRole("region", {name: "Unsaved changes"}))
+        await expect(bar.getByText("Rules were reordered")).toBeVisible()
+
+        await userEvent.click(canvas.getByRole("button", {name: "Delete rule 3"}))
+        await waitFor(async () => expect(await ruleCards(canvasElement)).toHaveLength(3))
+
+        await userEvent.click(canvas.getByRole("button", {name: "Add rule"}))
+        const editor = await dialog("New rule")
+        await expect(editor.getByTestId("rule-summary")).toHaveTextContent(
+            "Add a condition to say when this rule applies."
+        )
+        await userEvent.click(editor.getByRole("button", {name: "Add condition"}))
         await userEvent.click(
-            await within(document.body).findByRole("option", {name: "Approve automatically"})
+            await within(document.body).findByRole("menuitem", {name: "Voter in the registry"})
+        )
+        await userEvent.click(
+            within(await editor.findByRole("group", {name: "Voter in the registry"})).getByRole(
+                "button",
+                {name: "No"}
+            )
+        )
+        await userEvent.click(editor.getByRole("combobox", {name: "What the voter is told"}))
+        await userEvent.click(
+            await within(document.body).findByRole("option", {name: "Missing data"})
         )
         await userEvent.click(editor.getByRole("button", {name: "Apply"}))
-        await expect(
-            await editor.findByText(
-                "Enrollments whose identity was entered manually can't be approved automatically."
+        await waitFor(async () =>
+            expect((await ruleCards(canvasElement))[2]).toHaveTextContent(
+                /^3When.*No voter found in the registry.*Send to a person.*“Missing data”/
             )
-        ).toBeVisible()
-        await userEvent.click(editor.getByRole("button", {name: "Cancel"}))
-        await waitFor(() => expect(table.getAllByRole("row")).toHaveLength(4))
-        await expect(saveButton(canvasElement)).toBeEnabled()
+        )
+        await expect(bar.getByRole("button", {name: "Save as version 4"})).toBeEnabled()
+
+        await userEvent.click(bar.getByRole("button", {name: "Discard changes"}))
+        await waitFor(() => expect(unsavedBar(canvasElement)).toBeNull())
+        const cards = await ruleCards(canvasElement)
+        expect(cards).toHaveLength(4)
+        await expect(cards[0]).toHaveTextContent(/^1When.*Already enrolled/)
+        expect(matrixCalls("SaveApprovalMatrix")).toEqual([])
     },
 }
 
-export const ChangeTheComparedFields: Story = {
+export const ChangeTheComparedDetails: Story = {
     play: async ({canvasElement}) => {
-        const table = within(await rules(canvasElement))
         const canvas = within(canvasElement)
-        await expect(canvas.getByRole("combobox", {name: "Embassy"})).toBeVisible()
-        await userEvent.click(
-            within(canvas.getByRole("button", {name: "Embassy"})).getByTestId("CancelIcon")
-        )
+        await ruleCards(canvasElement)
+        await expect(canvas.getByRole("group", {name: "Embassy"})).toBeVisible()
+        await userEvent.click(compared(canvasElement).getByRole("button", {name: "Embassy"}))
+
         await expect(
-            await table.findByRole("row", {name: /^4 Exactly 1 field differs ACCEPTED/})
-        ).toBeVisible()
-        await waitFor(() => expect(canvas.queryByRole("combobox", {name: "Embassy"})).toBeNull())
+            compared(canvasElement).getByRole("button", {name: "Embassy"})
+        ).toHaveAttribute("aria-pressed", "false")
+        // The conditions on a detail that is no longer compared go away.
+        await waitFor(async () =>
+            expect((await ruleCards(canvasElement))[3]).toHaveTextContent(
+                /^4When.*Exactly 1 detail differs.*Then.*Approve automatically$/
+            )
+        )
+        await waitFor(() => expect(canvas.queryByRole("group", {name: "Embassy"})).toBeNull())
         await waitFor(() =>
             expect(matrixCalls("EvaluateApprovalMatrix").at(-1)?.variables).toMatchObject({
                 enrollment: {
@@ -212,56 +270,149 @@ export const ChangeTheComparedFields: Story = {
                 matrix: {compared_fields: ["firstName", "middleName", "lastName", "dateOfBirth"]},
             })
         )
+        const bar = within(await canvas.findByRole("region", {name: "Unsaved changes"}))
+        await expect(bar.getByText(/^The details compared changed/)).toBeVisible()
+
+        // A detail of the voter's profile that wasn't compared yet.
+        await userEvent.click(canvas.getByRole("button", {name: "Compare another detail"}))
+        await userEvent.click(await within(document.body).findByRole("menuitem", {name: "Email"}))
+        await expect(
+            await compared(canvasElement).findByRole("button", {name: "Email"})
+        ).toHaveAttribute("aria-pressed", "true")
+        await expect(await canvas.findByRole("group", {name: "Email"})).toBeVisible()
+        await waitFor(() =>
+            expect(matrixCalls("EvaluateApprovalMatrix").at(-1)?.variables.matrix).toMatchObject({
+                compared_fields: ["firstName", "middleName", "lastName", "dateOfBirth", "email"],
+            })
+        )
+    },
+}
+
+export const ARuleThatCannotBeSaved: Story = {
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await ruleCards(canvasElement)
+        await userEvent.click(canvas.getByRole("button", {name: "Edit the last rule"}))
+        const editor = await dialog("Edit the last rule")
+        await userEvent.click(editor.getByRole("radio", {name: /^Approve automatically/}))
+        await expect(await editor.findByRole("alert")).toHaveTextContent(
+            "The last rule can send enrollments to a person or reject them, but not approve them."
+        )
+        await expect(editor.getByRole("button", {name: "Apply"})).toBeDisabled()
+        await userEvent.click(editor.getByRole("button", {name: "Cancel"}))
+        await waitFor(() => expect(within(document.body).queryByRole("dialog")).toBeNull())
+        expect(unsavedBar(canvasElement)).toBeNull()
+        await expect((await ruleCards(canvasElement))[7]).toHaveTextContent(/Reject/)
+    },
+}
+
+export const NothingToCompare: Story = {
+    args: {saved: "association"},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await ruleCards(canvasElement)
+        for (const detail of ["First Name", "Last Name", "Date of birth"]) {
+            await userEvent.click(compared(canvasElement).getByRole("button", {name: detail}))
+        }
+        await expect(await canvas.findByRole("alert")).toHaveTextContent(
+            "Choose at least one detail to compare with the registry."
+        )
+        await waitFor(() =>
+            expect(example(canvasElement)).toHaveTextContent(
+                "Fix these rules to try an example:Choose at least one detail to compare with the registry."
+            )
+        )
+        const bar = within(await canvas.findByRole("region", {name: "Unsaved changes"}))
+        await expect(bar.getByRole("button", {name: "Save as version 4"})).toBeDisabled()
+
+        await userEvent.click(compared(canvasElement).getByRole("button", {name: "Last Name"}))
+        await waitFor(() =>
+            expect(bar.getByRole("button", {name: "Save as version 4"})).toBeEnabled()
+        )
+        expect(canvas.queryByRole("alert")).toBeNull()
     },
 }
 
 export const SaveFails: Story = {
     args: {saves: "error"},
     play: async ({canvasElement}) => {
-        const table = within(await rules(canvasElement))
-        await userEvent.click(table.getByRole("button", {name: "Delete rule 7"}))
-        await waitFor(() => expect(saveButton(canvasElement)).toBeEnabled())
-        await userEvent.click(saveButton(canvasElement))
-        const confirmation = await dialog()
-        await userEvent.click(confirmation.getByRole("button", {name: "Save"}))
+        const canvas = within(canvasElement)
+        await ruleCards(canvasElement)
+        await userEvent.click(canvas.getByRole("button", {name: "Delete rule 7"}))
+        const bar = within(await canvas.findByRole("region", {name: "Unsaved changes"}))
         await expect(
-            await within(document.body).findByText("The approval matrix could not be saved")
+            bar.getByText(
+                "A rule was removed (Exactly 2 details differ, Middle Name differs, Last Name differs)"
+            )
         ).toBeVisible()
-        await expect(within(canvasElement).getByText("Unsaved changes")).toBeVisible()
+        await userEvent.click(bar.getByRole("button", {name: "Save as version 2"}))
+        const confirmation = await dialog("Save as version 2?")
+        await userEvent.click(confirmation.getByRole("button", {name: "Save version 2"}))
+        const failure = await within(document.body).findByText(
+            "The approval matrix could not be saved"
+        )
+        await waitFor(() => expect(failure).toBeVisible())
+        await expect(bar.getByText("You have unsaved changes")).toBeVisible()
+        await expect(canvas.getByText("Version 1")).toBeVisible()
+    },
+}
+
+export const OpenedFromAnEnrollment: Story = {
+    args: {cameFrom: {version: 1, rule: 5}},
+    play: async ({canvasElement, args}) => {
+        const cards = await ruleCards(canvasElement)
+        await expect(
+            within(cards[4]).getByText("Decided the enrollment you came from")
+        ).toBeVisible()
+        await expect(cards[4]).toHaveAttribute("data-highlighted", "true")
+        expect(
+            within(canvasElement).getAllByText("Decided the enrollment you came from")
+        ).toHaveLength(1)
+        await userEvent.click(within(canvasElement).getByRole("button", {name: "Approvals"}))
+        expect(args.goBack).toHaveBeenCalledTimes(1)
+    },
+}
+
+export const OpenedFromAnEnrollmentOfAnOlderVersion: Story = {
+    args: {saved: "association", cameFrom: {version: 1, rule: 5}},
+    play: async ({canvasElement}) => {
+        await ruleCards(canvasElement)
+        // The rules on screen are not the ones that decided the enrollment.
+        expect(within(canvasElement).queryByText("Decided the enrollment you came from")).toBeNull()
     },
 }
 
 export const Loading: Story = {
     args: {reads: "loading"},
-    parameters: {expectedFailure: null},
     play: async ({canvasElement}) => {
         await expect(
-            await within(canvasElement).findByRole("progressbar", {name: "Approval Matrix"})
+            await within(canvasElement).findByRole("progressbar", {name: "Approval matrix"})
         ).toBeVisible()
     },
 }
 
 export const LoadFails: Story = {
     args: {reads: "error"},
-    parameters: {expectedFailure: null},
     play: async ({canvasElement, args}) => {
         const canvas = within(canvasElement)
-        await expect(
-            await canvas.findByText("The approval matrix could not be loaded.")
-        ).toBeVisible()
-        await userEvent.click(canvas.getByRole("button", {name: "Back"}))
+        await expect(await canvas.findByRole("alert")).toHaveTextContent(
+            "The approval matrix could not be loaded."
+        )
+        await userEvent.click(canvas.getByRole("button", {name: "Approvals"}))
         expect(args.goBack).toHaveBeenCalledTimes(1)
     },
 }
 
 export const NarrowScreen: Story = {
-    args: {width: 320},
+    globals: {viewport: {value: "iphone5", isRotated: false}},
     play: async ({canvasElement}) => {
-        await expect(await rules(canvasElement)).toBeVisible()
+        const cards = await ruleCards(canvasElement)
+        await expect(cards[0]).toBeVisible()
         const screen = within(canvasElement).getByTestId("screen")
+        expect(window.innerWidth).toBe(320)
         expect(screen.scrollWidth).toBeLessThanOrEqual(screen.clientWidth)
         await expect(
-            await within(canvasElement).findByRole("combobox", {name: "Embassy"})
+            await within(canvasElement).findByRole("group", {name: "Embassy"})
         ).toBeVisible()
     },
 }
