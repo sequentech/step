@@ -18,17 +18,17 @@ import {
     cleanConditions,
     cleanMatrix,
     conditionLabels,
-    decidedByText,
     defaultEnrollment,
     deleteRule,
     enrollmentFor,
     humanizeField,
+    matrixChanges,
     moveRule,
     profileFieldLabel,
-    readDecision,
     rejectionReasonKey,
     readMatrix,
     replaceRule,
+    ruleSentence,
     sameMatrix,
     validateMatrix,
     validateRule,
@@ -119,42 +119,6 @@ describe("readMatrix", () => {
     })
 })
 
-describe("readDecision", () => {
-    it("reads the decision stored with an application", () => {
-        expect(
-            readDecision({
-                matrix_version: 2,
-                matrix_source: "SAVED",
-                rule: 5,
-                conditions: {differing: "exactly_1", fields: {embassy: "MATCHES"}},
-                decision: "PENDING",
-            })
-        ).toEqual({
-            matrix_version: 2,
-            rule: 5,
-            conditions: {
-                differing: EDifferingFields.EXACTLY_1,
-                fields: {embassy: EFieldMatch.MATCHES},
-            },
-        })
-    })
-
-    it("reads a decision by the last rule", () => {
-        expect(readDecision({matrix_version: 1, rule: null, conditions: null})).toEqual({
-            matrix_version: 1,
-            rule: null,
-            conditions: null,
-        })
-    })
-
-    it.each([undefined, null, "decision", {rule: 1}, {matrix_version: "1"}])(
-        "has none for %j",
-        (value) => {
-            expect(readDecision(value)).toBeNull()
-        }
-    )
-})
-
 describe("cleaning", () => {
     it("keeps only conditions that are set", () => {
         expect(
@@ -235,8 +199,19 @@ describe("validateRule", () => {
     })
 
     it.each([PENDING, REJECTED])("asks for the reason of %s", (decision) => {
-        expect(validateRule(rule({}, {decision}))).toEqual([EMatrixError.MISSING_REASON])
+        expect(validateRule(rule({voter_found: true}, {decision}))).toEqual([
+            EMatrixError.MISSING_REASON,
+        ])
         expect(validateRule(rule({}, {decision}), true)).toEqual([EMatrixError.MISSING_REASON])
+    })
+
+    it("refuses a rule without conditions, which would hide the rules below it", () => {
+        expect(validateRule(rule({}, {decision: PENDING, reason: EMatrixReason.OTHER}))).toEqual([
+            EMatrixError.NO_CONDITIONS,
+        ])
+        expect(
+            validateRule(rule({}, {decision: PENDING, reason: EMatrixReason.OTHER}), true)
+        ).toEqual([])
     })
 
     it("names the rule of each error of a matrix", () => {
@@ -309,11 +284,11 @@ describe("labels", () => {
         expect(
             comelec().rules.map((current) => conditionLabels(current.when, t).join(" · "))
         ).toEqual([
-            "Voter already enrolled · At most 1 field differs",
-            "Identity entered manually",
-            "All compared fields match",
-            "Exactly 1 field differs · Embassy differs",
-            "Exactly 1 field differs · Embassy matches",
+            "Already enrolled · At most 1 detail differs",
+            "Identity typed by hand",
+            "All details match",
+            "Exactly 1 detail differs · Embassy differs",
+            "Exactly 1 detail differs · Embassy matches",
         ])
     })
 
@@ -330,22 +305,22 @@ describe("labels", () => {
                 t
             )
         ).toEqual([
-            "Identity verified",
-            "No voter found in registry",
-            "Voter not enrolled yet",
-            "Valid ID: Philippine Passport",
-            "3 or more fields differ",
+            "Identity verified by ID scan",
+            "No voter found in the registry",
+            "Not enrolled yet",
+            "ID: Philippine Passport",
+            "3 or more details differ",
         ])
-        expect(conditionLabels({voter_found: true}, t)).toEqual(["Voter found in registry"])
+        expect(conditionLabels({voter_found: true}, t)).toEqual(["Voter found in the registry"])
         expect(
             conditionLabels({differing: EDifferingFields.EXACTLY_2}, t).concat(
                 conditionLabels({differing: EDifferingFields.AT_MOST_2}, t)
             )
-        ).toEqual(["Exactly 2 fields differ", "At most 2 fields differ"])
+        ).toEqual(["Exactly 2 details differ", "At most 2 details differ"])
     })
 
     it("says so when a rule has no condition", () => {
-        expect(conditionLabels({}, t)).toEqual(["Any enrollment"])
+        expect(conditionLabels({}, t)).toEqual(["No conditions yet"])
     })
 
     it("uses the caller's field names", () => {
@@ -361,26 +336,75 @@ describe("labels", () => {
         )
     })
 
-    it("says which version and rule decided an application", () => {
-        expect(
-            decidedByText(
-                {
-                    matrix_version: 1,
-                    rule: 5,
-                    conditions: {
-                        differing: EDifferingFields.EXACTLY_1,
-                        fields: {embassy: EFieldMatch.MATCHES},
-                    },
-                },
-                t
-            )
-        ).toBe("Approval matrix version 1, rule 5: Exactly 1 field differs, Embassy matches")
-        expect(decidedByText({matrix_version: 3, rule: null, conditions: null}, t)).toBe(
-            "Approval matrix version 3, last rule (Otherwise)"
+    it("says a rule in one sentence", () => {
+        const rules = comelec().rules
+        expect(ruleSentence(rules[3], false, t)).toBe(
+            "When exactly 1 detail differs and embassy differs, approve the enrollment automatically."
         )
-        expect(decidedByText({matrix_version: 2, rule: 1, conditions: null}, t)).toBe(
-            "Approval matrix version 2, rule 1: Any enrollment"
+        expect(ruleSentence(rules[1], false, t)).toBe(
+            "When identity typed by hand, send the enrollment to a person."
         )
+        expect(ruleSentence({when: {}, then: comelec().otherwise}, true, t)).toBe(
+            "If none of the rules above apply, reject the enrollment."
+        )
+        expect(ruleSentence({when: {}, then: {decision: PENDING}}, false, t)).toBe(
+            "Add a condition to say when this rule applies."
+        )
+    })
+})
+
+describe("matrixChanges", () => {
+    const changes = (draft: IApprovalMatrix) => matrixChanges(comelec(), draft, t)
+
+    it("has none for the saved matrix", () => {
+        expect(changes(comelec())).toEqual([])
+    })
+
+    it("says which decision a rule changed to", () => {
+        const draft = comelec()
+        draft.rules[3].then = {decision: PENDING, reason: EMatrixReason.NO_VOTER}
+        expect(changes(draft)).toEqual(["Rule 4: approve automatically → send to a person"])
+    })
+
+    it("says that a rule's conditions or reason changed", () => {
+        const draft = comelec()
+        draft.rules[4].when = {differing: EDifferingFields.EXACTLY_2}
+        draft.rules[1].then = {decision: PENDING, reason: EMatrixReason.OTHER}
+        expect(changes(draft)).toEqual(["Rule 2 changed", "Rule 5 changed"])
+    })
+
+    it("names an added rule by its position", () => {
+        const added = addRule(comelec(), {
+            when: {voter_found: false},
+            then: {decision: REJECTED, reason: EMatrixReason.NO_VOTER},
+        })
+        expect(changes(added)).toEqual(["Rule 6 added"])
+        expect(changes(moveRule(moveRule(added, 5, -1), 4, -1))).toEqual(["Rule 4 added"])
+    })
+
+    it("names a removed rule by its conditions", () => {
+        expect(changes(deleteRule(comelec(), 1))).toEqual([
+            "A rule was removed (Identity typed by hand)",
+        ])
+    })
+
+    it("says that the rules were reordered", () => {
+        expect(changes(moveRule(comelec(), 0, 1))).toEqual(["Rules were reordered"])
+    })
+
+    it("lists an edit and a removal made together", () => {
+        const draft = deleteRule(comelec(), 4)
+        draft.rules[2].then = {decision: PENDING, reason: EMatrixReason.OTHER}
+        expect(changes(draft)).toEqual([
+            "Rule 3: approve automatically → send to a person",
+            "A rule was removed (Exactly 1 detail differs, Embassy matches)",
+        ])
+    })
+
+    it("says that the last rule or the details compared changed", () => {
+        const draft = withComparedFields(comelec(), ["firstName", "lastName", "embassy"])
+        draft.otherwise = {decision: PENDING, reason: EMatrixReason.NO_VOTER}
+        expect(changes(draft)).toEqual(["The details compared changed", "The last rule changed"])
     })
 })
 

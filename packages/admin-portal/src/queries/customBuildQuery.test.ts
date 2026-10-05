@@ -250,6 +250,27 @@ describe("task and application lists", () => {
         })
     })
 
+    it("searches the applicant data of applications as text", () => {
+        const built = list("sequent_backend_applications", {
+            sort: {field: "created_at", order: "ASC"},
+            filter: {election_event_id: EVENT, q: " dela cruz "},
+        })
+        expect(built.variables.where).toEqual({
+            _and: [
+                {election_event_id: {_eq: EVENT}},
+                {applicant_data: {_cast: {String: {_ilike: "%dela cruz%"}}}},
+            ],
+        })
+    })
+
+    it("does not search applications for a blank text", () => {
+        const built = list("sequent_backend_applications", {
+            sort: {field: "created_at", order: "ASC"},
+            filter: {election_event_id: EVENT, q: "  "},
+        })
+        expect(built.variables.where).toEqual({_and: [{election_event_id: {_eq: EVENT}}]})
+    })
+
     it("does not order applications by their applicant data", () => {
         const built = list("sequent_backend_applications", {
             sort: {field: "applicant_data", order: "ASC"},

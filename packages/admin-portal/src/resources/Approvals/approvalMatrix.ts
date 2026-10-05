@@ -47,6 +47,8 @@ export enum EMatrixError {
     OTHERWISE_ACCEPTS = "OTHERWISE_ACCEPTS",
     MISSING_REASON = "MISSING_REASON",
     UNEXPECTED_REASON = "UNEXPECTED_REASON",
+    /** Only the editor refuses it: a rule without conditions hides the rules below it. */
+    NO_CONDITIONS = "NO_CONDITIONS",
 }
 
 export interface IRuleConditions {
@@ -83,13 +85,6 @@ export interface ITestEnrollment {
     fields: Record<string, EFieldMatch>
 }
 
-/** The matrix version, rule and inputs stored with an application. */
-export interface IDecisionRecord {
-    matrix_version: number
-    rule: number | null
-    conditions: IRuleConditions | null
-}
-
 export type Translate = (key: string, options?: Record<string, unknown>) => string
 export type FieldLabel = (field: string) => string
 
@@ -99,7 +94,7 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 const isMember = <T extends string>(values: Record<string, T>, value: unknown): value is T =>
     Object.values(values).some((candidate) => candidate === value)
 
-function readConditions(value: unknown): IRuleConditions {
+export function readConditions(value: unknown): IRuleConditions {
     if (!isRecord(value)) {
         return {}
     }
@@ -168,18 +163,6 @@ export function readMatrix(value: unknown): IApprovalMatrix | null {
     }
 }
 
-/** Reads the decision stored in an application's annotations. */
-export function readDecision(value: unknown): IDecisionRecord | null {
-    if (!isRecord(value) || typeof value.matrix_version !== "number") {
-        return null
-    }
-    return {
-        matrix_version: value.matrix_version,
-        rule: typeof value.rule === "number" ? value.rule : null,
-        conditions: isRecord(value.conditions) ? readConditions(value.conditions) : null,
-    }
-}
-
 /** Drops the reason of an accepting outcome, which has none. */
 function cleanOutcome(outcome: IRuleOutcome): IRuleOutcome {
     return outcome.decision === IApplicationsStatus.ACCEPTED || !outcome.reason
@@ -238,6 +221,9 @@ function sortedKeys(value: unknown): unknown {
 /** Why a rule can't be applied in the editor. `isOtherwise` is the last rule. */
 export function validateRule(rule: IApprovalRule, isOtherwise = false): EMatrixError[] {
     const errors: EMatrixError[] = []
+    if (!isOtherwise && Object.keys(readConditions(rule.when)).length === 0) {
+        errors.push(EMatrixError.NO_CONDITIONS)
+    }
     if (rule.then.decision === IApplicationsStatus.ACCEPTED) {
         if (isOtherwise) {
             return [EMatrixError.OTHERWISE_ACCEPTS]
@@ -347,20 +333,123 @@ export function conditionLabels(
     return labels.length > 0 ? labels : [t(`${KEY}.conditions.any`)]
 }
 
-/** "Approval matrix version 1, rule 5: Exactly 1 field differs, Embassy matches". */
-export function decidedByText(
-    decision: IDecisionRecord,
+/** "When exactly 1 detail differs and embassy differs, approve the enrollment automatically." */
+export function ruleSentence(
+    rule: IApprovalRule,
+    isOtherwise: boolean,
     t: Translate,
     fieldLabel: FieldLabel = humanizeField
 ): string {
-    if (decision.rule === null) {
-        return t("approvalsScreen.decision.otherwise", {version: decision.matrix_version})
+    const outcome = t(`${KEY}.outcomeSentence.${rule.then.decision}`)
+    if (isOtherwise) {
+        return t(`${KEY}.sentenceOtherwise`, {outcome})
     }
-    return t("approvalsScreen.decision.text", {
-        version: decision.matrix_version,
-        rule: decision.rule,
-        conditions: conditionLabels(decision.conditions ?? {}, t, fieldLabel).join(", "),
+    if (Object.keys(readConditions(rule.when)).length === 0) {
+        return t(`${KEY}.sentenceEmpty`)
+    }
+    const when = conditionLabels(rule.when, t, fieldLabel)
+        .map((label) => label.charAt(0).toLowerCase() + label.slice(1))
+        .join(t(`${KEY}.and`))
+    return t(`${KEY}.sentence`, {when, outcome})
+}
+
+const sameRule = (a: IApprovalRule, b: IApprovalRule): boolean =>
+    JSON.stringify(sortedKeys(a)) === JSON.stringify(sortedKeys(b))
+
+/** Whether every rule of `part` is in `whole`, in the same order. */
+function isSubsequence(part: IApprovalRule[], whole: IApprovalRule[]): boolean {
+    let next = 0
+    whole.forEach((rule) => {
+        if (next < part.length && sameRule(part[next], rule)) {
+            next += 1
+        }
     })
+    return next === part.length
+}
+
+/** The positions, starting at 1, of the rules of `whole` that `part` lacks. */
+function missingFrom(part: IApprovalRule[], whole: IApprovalRule[]): number[] {
+    const missing: number[] = []
+    let next = 0
+    whole.forEach((rule, index) => {
+        if (next < part.length && sameRule(part[next], rule)) {
+            next += 1
+        } else {
+            missing.push(index + 1)
+        }
+    })
+    return missing
+}
+
+/** What saving would change, one line each, for the unsaved bar and the save dialog. */
+export function matrixChanges(
+    savedMatrix: IApprovalMatrix,
+    draftMatrix: IApprovalMatrix,
+    t: Translate,
+    fieldLabel: FieldLabel = humanizeField
+): string[] {
+    const saved = cleanMatrix(savedMatrix)
+    const draft = cleanMatrix(draftMatrix)
+    const changes: string[] = []
+    const outcome = (rule: IApprovalRule) => t(`${KEY}.outcomeShort.${rule.then.decision}`)
+    if (JSON.stringify(saved.compared_fields) !== JSON.stringify(draft.compared_fields)) {
+        changes.push(t(`${KEY}.change.compared`))
+    }
+    const sorted = (rules: IApprovalRule[]) =>
+        rules.map((rule) => JSON.stringify(sortedKeys(rule))).sort()
+    if (saved.rules.length < draft.rules.length && isSubsequence(saved.rules, draft.rules)) {
+        missingFrom(saved.rules, draft.rules).forEach((number) =>
+            changes.push(t(`${KEY}.change.added`, {number}))
+        )
+    } else if (saved.rules.length > draft.rules.length && isSubsequence(draft.rules, saved.rules)) {
+        missingFrom(draft.rules, saved.rules).forEach((number) =>
+            changes.push(
+                t(`${KEY}.change.removed`, {
+                    text: conditionLabels(saved.rules[number - 1].when, t, fieldLabel).join(", "),
+                })
+            )
+        )
+    } else if (
+        saved.rules.length === draft.rules.length &&
+        JSON.stringify(sorted(saved.rules)) === JSON.stringify(sorted(draft.rules))
+    ) {
+        if (!saved.rules.every((rule, index) => sameRule(rule, draft.rules[index]))) {
+            changes.push(t(`${KEY}.change.moved`))
+        }
+    } else {
+        draft.rules.forEach((rule, index) => {
+            const number = index + 1
+            const before = saved.rules[index]
+            if (!before) {
+                changes.push(t(`${KEY}.change.added`, {number}))
+            } else if (!sameRule(before, rule)) {
+                changes.push(
+                    JSON.stringify(sortedKeys(before.when)) ===
+                        JSON.stringify(sortedKeys(rule.when)) &&
+                        before.then.decision !== rule.then.decision
+                        ? t(`${KEY}.change.decision`, {
+                              number,
+                              from: outcome(before),
+                              to: outcome(rule),
+                          })
+                        : t(`${KEY}.change.edited`, {number})
+                )
+            }
+        })
+        saved.rules.slice(draft.rules.length).forEach((rule) =>
+            changes.push(
+                t(`${KEY}.change.removed`, {
+                    text: conditionLabels(rule.when, t, fieldLabel).join(", "),
+                })
+            )
+        )
+    }
+    if (
+        JSON.stringify(sortedKeys(saved.otherwise)) !== JSON.stringify(sortedKeys(draft.otherwise))
+    ) {
+        changes.push(t(`${KEY}.change.otherwise`))
+    }
+    return changes
 }
 
 /** The enrollment the test panel starts from: a verified voter whose fields all match. */

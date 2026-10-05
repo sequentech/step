@@ -2,13 +2,14 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {useMemo, useState} from "react"
+import React, {useEffect, useMemo, useState} from "react"
 import {useTranslation} from "react-i18next"
 import {useQuery} from "@apollo/client"
-import {Alert, Box, MenuItem, TextField, Typography} from "@mui/material"
+import {Box, MenuItem, TextField} from "@mui/material"
 import {EvaluateApprovalMatrixQuery} from "@/gql/graphql"
 import {EVALUATE_APPROVAL_MATRIX} from "@/queries/EvaluateApprovalMatrix"
-import {StatusApplicationChip} from "@/components/StatusApplicationChip"
+import {IApplicationsStatus} from "@/types/applications"
+import {ApprovalOutcomeChip} from "./ApprovalChips"
 import {
     EFieldMatch,
     EIdentityMethod,
@@ -19,18 +20,15 @@ import {
     defaultEnrollment,
     enrollmentFor,
 } from "./approvalMatrix"
+import type {RulePointer} from "./ApprovalMatrixRules"
+import {Help, Notice, Overline, Segment, SegmentGroup} from "./approvalStyles"
 
 const NOT_REPORTED = ""
-// A select whose value is empty shows that option instead of a blank.
-const EMPTY_SHOWN = {select: {displayEmpty: true}, inputLabel: {shrink: true}}
-const YES = "true"
-const NO = "false"
 
-const GRID = {
-    display: "grid",
-    gap: "1rem",
-    gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-    marginTop: "1rem",
+const TONE: Record<string, string> = {
+    [IApplicationsStatus.ACCEPTED]: "success",
+    [IApplicationsStatus.PENDING]: "review",
+    [IApplicationsStatus.REJECTED]: "error",
 }
 
 export interface ApprovalMatrixTestProps {
@@ -39,6 +37,8 @@ export interface ApprovalMatrixTestProps {
     matrix: IApprovalMatrix
     validIds: string[]
     fieldLabel: FieldLabel
+    /** Tells which rule decides the example: a position from 1, or empty for the last rule. */
+    onResult?: (rule: RulePointer) => void
 }
 
 export const ApprovalMatrixTest: React.FC<ApprovalMatrixTestProps> = ({
@@ -46,6 +46,7 @@ export const ApprovalMatrixTest: React.FC<ApprovalMatrixTestProps> = ({
     matrix,
     validIds,
     fieldLabel,
+    onResult,
 }) => {
     const {t} = useTranslation()
     const [described, setDescribed] = useState<ITestEnrollment>(() =>
@@ -62,158 +63,175 @@ export const ApprovalMatrixTest: React.FC<ApprovalMatrixTestProps> = ({
         fetchPolicy: "no-cache",
     })
     const result = data?.evaluate_approval_matrix
+    const decided = result?.decision ? (result.rule ?? null) : undefined
+
+    useEffect(() => {
+        onResult?.(decided)
+    }, [decided, onResult])
+
+    const choice = <T,>(
+        label: string,
+        options: Array<{value: T; text: string}>,
+        value: T,
+        onChoose: (value: T) => void,
+        disabled = false
+    ) => (
+        <SegmentGroup role="group" aria-label={label}>
+            {options.map((option) => (
+                <Segment
+                    key={String(option.value)}
+                    type="button"
+                    aria-pressed={option.value === value}
+                    disabled={disabled}
+                    onClick={() => onChoose(option.value)}
+                >
+                    {option.text}
+                </Segment>
+            ))}
+        </SegmentGroup>
+    )
 
     const yesNo = [
-        <MenuItem key={YES} value={YES}>
-            {t("approvalsScreen.matrix.dialog.yes")}
-        </MenuItem>,
-        <MenuItem key={NO} value={NO}>
-            {t("approvalsScreen.matrix.dialog.no")}
-        </MenuItem>,
+        {value: true, text: String(t("approvalsScreen.matrix.dialog.yes"))},
+        {value: false, text: String(t("approvalsScreen.matrix.dialog.no"))},
     ]
+    const identityLabel = String(t("approvalsScreen.matrix.dialog.identity"))
+    const voterFoundLabel = String(t("approvalsScreen.matrix.dialog.voterFound"))
+    const alreadyEnrolledLabel = String(t("approvalsScreen.matrix.dialog.alreadyEnrolled"))
 
     return (
         <>
-            <Typography variant="body2">{t("approvalsScreen.matrix.testHelp")}</Typography>
-            <Box sx={GRID}>
-                <TextField
-                    select
-                    slotProps={EMPTY_SHOWN}
-                    label={t("approvalsScreen.matrix.dialog.identity")}
-                    value={enrollment.identity ?? NOT_REPORTED}
-                    onChange={(event) =>
-                        setDescribed({
-                            ...enrollment,
-                            identity:
-                                Object.values(EIdentityMethod).find(
-                                    (method) => method === event.target.value
-                                ) ?? null,
-                        })
-                    }
-                >
-                    {Object.values(EIdentityMethod).map((method) => (
-                        <MenuItem key={method} value={method}>
-                            {t(`approvalsScreen.matrix.identity.${method}`)}
-                        </MenuItem>
-                    ))}
-                    <MenuItem value={NOT_REPORTED}>
-                        {t("approvalsScreen.matrix.dialog.notReported")}
+            <Help>{t("approvalsScreen.matrix.testHelp")}</Help>
+            <Overline>{identityLabel}</Overline>
+            {choice<EIdentityMethod | null>(
+                identityLabel,
+                Object.values(EIdentityMethod).map((method) => ({
+                    value: method,
+                    text: String(t(`approvalsScreen.matrix.identity.${method}`)),
+                })),
+                enrollment.identity,
+                (identity) => setDescribed({...enrollment, identity})
+            )}
+            <Overline>{voterFoundLabel}</Overline>
+            {choice(voterFoundLabel, yesNo, enrollment.voter_found, (voter_found) =>
+                setDescribed({...enrollment, voter_found})
+            )}
+            <Overline>{alreadyEnrolledLabel}</Overline>
+            {choice(
+                alreadyEnrolledLabel,
+                yesNo,
+                enrollment.voter_found && enrollment.already_enrolled,
+                (already_enrolled) => setDescribed({...enrollment, already_enrolled}),
+                !enrollment.voter_found
+            )}
+            <Overline>{t("approvalsScreen.matrix.dialog.validId")}</Overline>
+            <TextField
+                select
+                fullWidth
+                size="small"
+                slotProps={{
+                    select: {displayEmpty: true},
+                    htmlInput: {"aria-label": String(t("approvalsScreen.matrix.dialog.validId"))},
+                }}
+                value={enrollment.valid_id ?? NOT_REPORTED}
+                onChange={(event) =>
+                    setDescribed({...enrollment, valid_id: event.target.value || null})
+                }
+            >
+                <MenuItem value={NOT_REPORTED}>
+                    {t("approvalsScreen.matrix.dialog.notReported")}
+                </MenuItem>
+                {validIds.map((id) => (
+                    <MenuItem key={id} value={id}>
+                        {t(id)}
                     </MenuItem>
-                </TextField>
-                <TextField
-                    select
-                    slotProps={EMPTY_SHOWN}
-                    label={t("approvalsScreen.matrix.dialog.voterFound")}
-                    value={enrollment.voter_found ? YES : NO}
-                    onChange={(event) =>
-                        setDescribed({...enrollment, voter_found: event.target.value === YES})
-                    }
-                >
-                    {yesNo}
-                </TextField>
-                <TextField
-                    select
-                    slotProps={EMPTY_SHOWN}
-                    label={t("approvalsScreen.matrix.dialog.alreadyEnrolled")}
-                    value={enrollment.voter_found && enrollment.already_enrolled ? YES : NO}
-                    disabled={!enrollment.voter_found}
-                    onChange={(event) =>
-                        setDescribed({...enrollment, already_enrolled: event.target.value === YES})
-                    }
-                >
-                    {yesNo}
-                </TextField>
-                <TextField
-                    select
-                    slotProps={EMPTY_SHOWN}
-                    label={t("approvalsScreen.matrix.dialog.validId")}
-                    value={enrollment.valid_id ?? NOT_REPORTED}
-                    onChange={(event) =>
-                        setDescribed({...enrollment, valid_id: event.target.value || null})
-                    }
-                >
-                    <MenuItem value={NOT_REPORTED}>
-                        {t("approvalsScreen.matrix.dialog.notReported")}
-                    </MenuItem>
-                    {validIds.map((id) => (
-                        <MenuItem key={id} value={id}>
-                            {t(id)}
-                        </MenuItem>
-                    ))}
-                </TextField>
-            </Box>
-            {enrollment.voter_found && (
-                <Box sx={GRID}>
-                    {tested.compared_fields.map((field) => (
-                        <TextField
-                            key={field}
-                            select
-                            slotProps={EMPTY_SHOWN}
-                            label={fieldLabel(field)}
-                            value={enrollment.fields[field]}
-                            onChange={(event) =>
-                                setDescribed({
-                                    ...enrollment,
-                                    fields: {
-                                        ...enrollment.fields,
-                                        [field]:
-                                            event.target.value === EFieldMatch.DIFFERS
-                                                ? EFieldMatch.DIFFERS
-                                                : EFieldMatch.MATCHES,
-                                    },
-                                })
-                            }
-                        >
-                            {Object.values(EFieldMatch).map((match) => (
-                                <MenuItem key={match} value={match}>
-                                    {t(`approvalsScreen.matrix.fieldMatch.${match}`)}
-                                </MenuItem>
-                            ))}
-                        </TextField>
-                    ))}
-                </Box>
+                ))}
+            </TextField>
+            {enrollment.voter_found && tested.compared_fields.length > 0 && (
+                <>
+                    <Overline>{t("approvalsScreen.matrix.testDetails")}</Overline>
+                    <Box sx={{display: "flex", flexDirection: "column", gap: "8px"}}>
+                        {tested.compared_fields.map((field) => (
+                            <Box
+                                key={field}
+                                sx={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "space-between",
+                                    gap: "8px",
+                                    fontSize: "14px",
+                                }}
+                            >
+                                <span>{fieldLabel(field)}</span>
+                                {choice(
+                                    fieldLabel(field),
+                                    Object.values(EFieldMatch).map((match) => ({
+                                        value: match,
+                                        text: String(
+                                            t(`approvalsScreen.matrix.fieldMatch.${match}`)
+                                        ),
+                                    })),
+                                    enrollment.fields[field],
+                                    (match) =>
+                                        setDescribed({
+                                            ...enrollment,
+                                            fields: {...enrollment.fields, [field]: match},
+                                        })
+                                )}
+                            </Box>
+                        ))}
+                    </Box>
+                </>
             )}
             <Box
-                sx={{marginTop: "1.5rem"}}
+                sx={{marginTop: "20px"}}
                 role="status"
                 aria-label={String(t("approvalsScreen.matrix.test"))}
             >
-                {error && <Alert severity="error">{t("approvalsScreen.matrix.testError")}</Alert>}
+                {error && (
+                    <Notice data-tone="error">{t("approvalsScreen.matrix.testError")}</Notice>
+                )}
                 {result && result.errors.length > 0 && (
-                    <Alert severity="warning">
-                        {t("approvalsScreen.matrix.testInvalid")}
-                        {result.errors.map((problem, index) => {
-                            const text = t(`approvalsScreen.matrix.errors.${problem.code}`)
-                            return (
-                                <div key={index}>
-                                    {problem.rule
-                                        ? t("approvalsScreen.matrix.ruleError", {
-                                              number: problem.rule,
-                                              error: text,
-                                          })
-                                        : text}
-                                </div>
-                            )
-                        })}
-                    </Alert>
+                    <Notice data-tone="warning">
+                        <div>
+                            {t("approvalsScreen.matrix.testInvalid")}
+                            {result.errors.map((problem, index) => {
+                                const text = t(`approvalsScreen.matrix.errors.${problem.code}`)
+                                return (
+                                    <div key={index}>
+                                        {problem.rule
+                                            ? t("approvalsScreen.matrix.ruleError", {
+                                                  number: problem.rule,
+                                                  error: text,
+                                              })
+                                            : text}
+                                    </div>
+                                )
+                            })}
+                        </div>
+                    </Notice>
                 )}
                 {result?.decision && (
-                    <Box sx={{display: "flex", flexWrap: "wrap", alignItems: "center", gap: "8px"}}>
-                        <Typography component="span" sx={{fontWeight: 500}}>
-                            {result.rule
-                                ? t("approvalsScreen.matrix.applies", {number: result.rule})
-                                : t("approvalsScreen.matrix.otherwiseApplies")}
-                        </Typography>
-                        <StatusApplicationChip status={result.decision} />
-                        {result.reason && (
-                            <span>{t(`approvalsScreen.matrix.reasons.${result.reason}`)}</span>
-                        )}
-                    </Box>
-                )}
-                {result?.invariant && (
-                    <Typography variant="body2" sx={{marginTop: "0.5rem"}}>
-                        {t(`approvalsScreen.matrix.invariants.${result.invariant}`)}
-                    </Typography>
+                    <Notice data-tone={TONE[result.decision] ?? "neutral"}>
+                        <div>
+                            <Overline sx={{margin: "0 0 8px", color: "inherit"}}>
+                                {result.rule
+                                    ? t("approvalsScreen.matrix.applies", {number: result.rule})
+                                    : t("approvalsScreen.matrix.otherwiseApplies")}
+                            </Overline>
+                            <ApprovalOutcomeChip decision={result.decision} />
+                            {result.reason && (
+                                <Box sx={{marginTop: "8px"}}>
+                                    {t(`approvalsScreen.matrix.voterText.${result.reason}`)}
+                                </Box>
+                            )}
+                            {result.invariant && (
+                                <Box sx={{marginTop: "8px"}}>
+                                    {t(`approvalsScreen.matrix.invariants.${result.invariant}`)}
+                                </Box>
+                            )}
+                        </div>
+                    </Notice>
                 )}
             </Box>
         </>

@@ -2824,73 +2824,271 @@ const dutchTranslation: TranslationType = {
         approvalsScreen: {
             column: {
                 status: "Status",
-                id: "ID",
-                applicantId: "ID Aanvrager",
-                verificationType: "Verificatietype",
-                createdAt: "Aangemaakt op",
-                updatedAt: "Bijgewerkt op",
+                id: "Aanvraag-ID",
+                applicantId: "ID aanvrager",
+                verificationType: "Verificatie",
+                createdAt: "Aangevraagd",
                 verified_by: "Geverifieerd door",
+                voter: "Kiezer",
+                what: "Wat er is gebeurd",
+                post: "Post",
+                when: "Wanneer",
             },
-            approvalRequest: "Goedkeuringsverzoek",
-            taskInformation: "Taakinformatie",
-            ok: "Ok",
-            title: "Kiezers",
-            subtitle: "Overeenkomende kiezers zoeken",
-            approve: {
-                body: "Weet u zeker dat u deze kiezer wilt goedkeuren? Deze actie kan niet ongedaan worden gemaakt.",
+            status: {
+                PENDING: "Te beoordelen",
+                ACCEPTED: "Goedgekeurd",
+                REJECTED: "Afgewezen",
             },
-            reject: {
-                label: "Aanvraag Afkeuren",
-                confirm:
-                    "Weet u zeker dat u deze kiezer wilt afkeuren? Deze actie kan niet ongedaan worden gemaakt.",
-                rejectReason: "Reden van Afkeuring",
-                message: "Schrijf hier de reden van afkeuring",
-                messageRequired: "Een afkeuringsbericht is vereist voor de optie 'Andere'.",
-                reasons: {
-                    "undefined": "-",
-                    "insufficient-information": "Ontbrekende Gegevens",
-                    "no-matching-voter": "Geen Overeenkomende Kiezer",
-                    "voter-already-approved": "Reeds Goedgekeurd",
-                    "other": "Andere",
+            verification: {
+                AUTOMATIC: "Automatisch",
+                MANUAL: "Handmatig",
+            },
+            time: {
+                minutes_one: "{{count}} minuut",
+                minutes_other: "{{count}} minuten",
+                hours_one: "{{count}} uur",
+                hours_other: "{{count}} uur",
+                days_one: "{{count}} dag",
+                days_other: "{{count}} dagen",
+            },
+            summary: {
+                join: "{{head}} en {{last}}",
+                differs_one: "{{fields}} wijkt af van het register",
+                differs_other: "{{fields}} wijken af van het register",
+                typedByHand:
+                    "Gegevens met de hand getypt, niet gelezen van een gescand identiteitsbewijs",
+                needsFaceToFace: "Controle in een persoonlijk gesprek nodig",
+                scanVerified: "Gescand identiteitsbewijs geverifieerd",
+                noVoter: "Geen kiezer gevonden in het register",
+                allMatch: "Alle gegevens komen overeen met het register",
+                needsReview: "Wacht op de beslissing van een persoon",
+                approvedBy: "Goedgekeurd door {{name}}",
+                approvedAuto: "Automatisch goedgekeurd",
+                rejectedBy: "Afgewezen door {{name}}",
+                rejectedAuto: "Automatisch afgewezen",
+            },
+            list: {
+                title: "Goedkeuringen",
+                subtitle:
+                    "Inschrijvingen waarover de regels niet zelf kunnen beslissen, wachten hier op een persoon.",
+                search: "Zoeken",
+                review: "Inschrijving beoordelen",
+                openRecord: "Inschrijving openen",
+                seeRule: "De regel bekijken die besliste",
+                unnamed: "Aanvrager zonder naam",
+                waiting: "Wacht al {{time}}",
+                applied: "Aangevraagd op {{date}}",
+                empty: {
+                    title: "Hier staat niets",
+                    text: "Inschrijvingen met deze status verschijnen hier. Probeer een andere zoekopdracht of status.",
                 },
             },
+            flow: {
+                stepsLabel: "Stappen van de beoordeling",
+                steps: {
+                    identity: "De identiteit controleren",
+                    voter: "De kiezer zoeken",
+                    decide: "Beslissen",
+                },
+                continue: "Doorgaan",
+                backToList: "Terug naar Goedkeuringen",
+                identity: {
+                    details: "Gegevens op de inschrijving",
+                    confirm:
+                        "Ik heb het identiteitsbewijs van de kiezer persoonlijk of via een videogesprek gecontroleerd, en het komt overeen met deze inschrijving.",
+                    checked: "Controle in een persoonlijk gesprek bevestigd",
+                    notChecked: "Controle in een persoonlijk gesprek nog niet bevestigd",
+                },
+                voter: {
+                    none: "Geen van deze is de kiezer",
+                    noneHint:
+                        "De inschrijving kan dan alleen worden afgewezen, omdat er geen overeenkomende kiezer is.",
+                    noneChosen: "Geen van deze is de kiezer",
+                    notChosen: "Nog geen kiezer gekozen",
+                },
+                decide: {
+                    approve: "Goedkeuren",
+                    reject: "Afwijzen",
+                    approveText:
+                        "Koppel deze inschrijving aan {{voter}} in het register. De kiezer krijgt bericht per e-mail of sms en kan inloggen om te stemmen zodra de stemming opent.",
+                    rejectText:
+                        "De kiezer krijgt te horen waarom. Dit kan niet ongedaan worden gemaakt.",
+                    chooseVoter: "Kies in stap 2 de overeenkomende kiezer om goed te keuren.",
+                    noVoter:
+                        "U hebt geen overeenkomende kiezer gevonden, dus deze inschrijving kan alleen worden afgewezen.",
+                    enrolled: "De gekozen kiezer is al ingeschreven.",
+                    faceToFace:
+                        "Bevestig in stap 1 de controle in een persoonlijk gesprek om goed te keuren.",
+                },
+            },
+            review: {
+                loadError: "De inschrijving kon niet worden geladen.",
+                applied: "Aangevraagd op {{date}}",
+                waiting: "Wacht al {{time}}",
+                whyTitle: "Waarom hier een persoon voor nodig is",
+                decisionTitle: "Hoe hierover is beslist",
+                rule: "Regel {{rule}} van matrixversie {{version}}",
+                ruleLast: "Laatste regel van matrixversie {{version}}",
+                seeRule: "De regel bekijken",
+                why: {
+                    typedByHand:
+                        "De kiezer heeft zijn gegevens met de hand getypt in plaats van een identiteitsbewijs te scannen. Zulke inschrijvingen worden nooit automatisch goedgekeurd: een ambtenaar bevestigt eerst wie de kiezer is.",
+                    differs_one:
+                        "Eén gegeven komt niet overeen met het register: {{details}}. De goedkeuringsregels vragen een persoon om deze inschrijving te controleren.",
+                    differs_other:
+                        "{{count}} gegevens komen niet overeen met het register: {{details}}. De goedkeuringsregels vragen een persoon om deze inschrijving te controleren.",
+                    differsFields_one:
+                        "Eén gegeven komt niet overeen met het register: {{fields}}. De goedkeuringsregels vragen een persoon om deze inschrijving te controleren.",
+                    differsFields_other:
+                        "{{count}} gegevens komen niet overeen met het register: {{fields}}. De goedkeuringsregels vragen een persoon om deze inschrijving te controleren.",
+                    difference:
+                        "bij {{field}} staat “{{enrollment}}” op de inschrijving en “{{registry}}” in het register",
+                    noVoter:
+                        "Geen kiezer in het register heeft deze gegevens. De goedkeuringsregels vragen een persoon om deze inschrijving te controleren.",
+                    severalVoters:
+                        "Meer dan één kiezer in het register past bij deze inschrijving. Een persoon kiest de juiste.",
+                    pending:
+                        "De goedkeuringsregels vragen een persoon om deze inschrijving te controleren.",
+                    unknown: "Deze inschrijving wacht op de beslissing van een persoon.",
+                    approvedAuto:
+                        "De goedkeuringsregels hebben deze inschrijving automatisch goedgekeurd. Alle controles die ze vereisen zijn geslaagd.",
+                    approvedBy: "{{name}} heeft deze inschrijving goedgekeurd op {{date}}.",
+                    rejectedAuto:
+                        "De goedkeuringsregels hebben deze inschrijving automatisch afgewezen: {{reason}}.",
+                    rejectedBy:
+                        "{{name}} heeft deze inschrijving afgewezen op {{date}}: {{reason}}.",
+                },
+                registryHelp:
+                    "We hebben gezocht naar kiezers met dezelfde gegevens: {{fields}}. Kies de kiezer bij wie deze inschrijving hoort.",
+                registrySearching:
+                    "Dit zijn de kiezers in het register die bij uw zoekopdracht passen. Kies de kiezer bij wie deze inschrijving hoort.",
+                registrySearch: "Niet in de lijst? Zoek in het register op naam of e-mailadres",
+                registryLoading: "Bezig met zoeken in het register",
+                registryError: "Er kon niet in het register worden gezocht.",
+                noCandidates:
+                    "Geen kiezer in het register komt overeen. Probeer te zoeken op naam of e-mailadres.",
+                candidates: "Kiezers in het register",
+                alreadyEnrolled: "Al ingeschreven",
+                bestMatch: "Beste overeenkomst",
+                detailsMatch: "{{count}} van {{total}} gegevens komen overeen",
+                compareTitle: "Vergeleken met {{name}} in het register",
+                col: {
+                    detail: "Gegeven",
+                    enrollment: "Op de inschrijving",
+                    registry: "In het register",
+                    result: "Resultaat",
+                },
+                same: "Gelijk",
+                differs: "Anders",
+                compareNote: "Bij namen tellen hoofdletters, accenten en koppeltekens niet mee.",
+                compareJoint:
+                    "Bij rijbewijzen en zeemansboekjes worden voornaam en tweede naam samen vergeleken.",
+                applicationId: "Aanvraag-ID",
+                copy: "Kopiëren",
+                copied: "Gekopieerd",
+                approve: "Inschrijving goedkeuren",
+                approveDialog: {
+                    title: "{{name}} goedkeuren?",
+                    body: "Hiermee wordt de inschrijving gekoppeld aan de kiezer uit het register hieronder. De kiezer krijgt bericht per e-mail of sms en kan inloggen om te stemmen zodra de stemming opent.",
+                    checked:
+                        "U hebt het identiteitsbewijs van de kiezer in een persoonlijk gesprek gecontroleerd.",
+                    irreversible: "Dit kan niet ongedaan worden gemaakt.",
+                    confirm: "Goedkeuren",
+                },
+                reject: "Inschrijving afwijzen",
+            },
+            idCheck: {
+                title: "Controle van het identiteitsbewijs",
+                method: {
+                    VERIFIED: "Gescand identiteitsbewijs geverifieerd",
+                    MANUAL_ENTRY: "Met de hand getypt",
+                    UNKNOWN: "Niet gemeld",
+                },
+                verified:
+                    "Het inschrijfproces heeft het identiteitsbewijs van de kiezer geverifieerd",
+                typedByHand: "De kiezer heeft zijn gegevens met de hand getypt",
+                unknown: "Het inschrijfproces heeft niet gemeld hoe de identiteit is gecontroleerd",
+                faceToFaceTitle:
+                    "Controleer de kiezer in een persoonlijk gesprek voordat u goedkeurt",
+                faceToFaceText:
+                    "Spreek de kiezer persoonlijk of via een videogesprek en vergelijk het identiteitsbewijs met de gegevens op deze pagina.",
+            },
+            reject: {
+                rejectReason: "Reden van afwijzing",
+                message: "Bericht aan de kiezer",
+                messageRequired: "Schrijf een bericht voor de kiezer als de reden Anders is.",
+                reasons: {
+                    "undefined": "-",
+                    "insufficient-information": "Ontbrekende gegevens",
+                    "no-matching-voter": "Geen overeenkomende kiezer",
+                    "voter-already-approved": "Al goedgekeurd",
+                    "other": "Anders",
+                },
+                hint: {
+                    "insufficient-information": "Er ontbreken gegevens of ze zijn onleesbaar.",
+                    "no-matching-voter": "De persoon staat niet in het kiezersregister.",
+                    "voter-already-approved": "Deze kiezer is al ingeschreven.",
+                    "other": "Schrijf uw eigen bericht.",
+                },
+                preview: {
+                    "insufficient-information":
+                        "We konden u niet inschrijven omdat een deel van uw gegevens ontbreekt of onleesbaar is. Schrijf u opnieuw in met volledige gegevens.",
+                    "no-matching-voter":
+                        "We konden in het register geen kiezer vinden die bij uw gegevens past. Controleer uw gegevens en schrijf u opnieuw in, of neem contact op met uw verkiezingskantoor.",
+                    "voter-already-approved":
+                        "U bent al ingeschreven. U kunt inloggen om te stemmen zodra de stemming opent.",
+                },
+                previewTitle: "De kiezer ziet",
+            },
             notifications: {
-                approveError: "Fout bij goedkeuren kiezer",
-                approveSuccess: "Kiezer goedgekeurd",
-                rejectError: "Fout bij afkeuren kiezer",
-                rejectSuccess: "Kiezer afgekeurd",
-                VoterApprovedAlready: "Kiezer is reeds goedgekeurd.",
+                approveError: "De inschrijving kon niet worden goedgekeurd",
+                approveSuccess: "{{name}} goedgekeurd. De kiezer heeft bericht gekregen.",
+                rejectError: "De inschrijving kon niet worden afgewezen",
+                rejectSuccess: "{{name}} afgewezen. De kiezer heeft bericht gekregen.",
+                VoterApprovedAlready: "Deze kiezer is al ingeschreven.",
             },
             export: {
-                success: "Export applicaties succesvol voltooid",
-                error: "Fout bij exporteren applicaties",
+                success: "Export van aanvragen succesvol voltooid",
+                error: "Fout bij het exporteren van aanvragen",
             },
             matrix: {
                 button: "Goedkeuringsmatrix",
                 title: "Goedkeuringsmatrix",
+                back: "Goedkeuringen",
                 subtitle:
-                    "Regels worden op volgorde gecontroleerd. De eerste regel die van toepassing is, beslist over de inschrijving.",
-                version: "Versie {{version}} · Opgeslagen op {{date}} door {{user}}",
-                builtInVersion:
-                    "Versie {{version}} · Ingebouwde regels, in gebruik totdat een versie is opgeslagen",
+                    "Regels bepalen wat er met elke inschrijving gebeurt. De eerste regel die van toepassing is, beslist.",
+                versionChip: "Versie {{version}}",
+                savedBy: "Opgeslagen op {{date}} door {{user}}",
+                builtIn: "Ingebouwde regels, in gebruik totdat een versie is opgeslagen",
                 unsaved: "Niet-opgeslagen wijzigingen",
-                readOnly: "U kunt de matrix bekijken en testen, maar niet wijzigen.",
+                viewOnly: "Alleen bekijken",
+                readOnlyTitle: "U kunt de regels bekijken, maar niet wijzigen",
+                readOnlyText:
+                    "Vraag een beheerder met de machtiging approval-matrix-write om wijzigingen aan te brengen.",
                 loadError: "De goedkeuringsmatrix kon niet worden geladen.",
-                compared: "Vergeleken met het Register",
+                compared: "Wat we vergelijken",
                 comparedHelp:
-                    "Elke inschrijving wordt vergeleken met de kiezer die in het register is gevonden. Namen negeren hoofdletters, accenten en koppeltekens; voor het Rijbewijs en het Zeemansboek worden voornaam en tweede naam samen vergeleken.",
-                comparedFields: "Vergeleken velden",
-                comparedFieldsHelp: "Typ een kiezerskenmerk en druk op Enter om het toe te voegen.",
+                    "Elke inschrijving wordt vergeleken met de kiezer die in het register is gevonden. Bij namen tellen hoofdletters, accenten en koppeltekens niet mee; bij rijbewijzen en zeemansboekjes worden voornaam en tweede naam samen vergeleken.",
+                addCompared: "Nog een gegeven vergelijken",
                 rules: "Regels",
-                columns: {
-                    number: "#",
-                    conditions: "Voorwaarden",
-                    decision: "Beslissing",
-                    reason: "Reden Getoond aan de Kiezer",
-                    actions: "Acties",
-                },
+                rulesHelp:
+                    "Regels worden van boven naar beneden gecontroleerd. De eerste die van toepassing is, beslist; als er geen van toepassing is, geldt de laatste regel.",
+                when: "Wanneer",
+                then: "Dan",
                 otherwise: "Anders",
-                addRule: "Regel Toevoegen",
+                noneApply: "Geen van de bovenstaande regels is van toepassing",
+                andWord: "en",
+                and: " en ",
+                appliesToExample: "Van toepassing op uw voorbeeld",
+                cameFrom: "Besliste over de inschrijving waar u vandaan komt",
+                voterIsTold: "De kiezer krijgt te horen: “{{reason}}”.",
+                sentence: "Als geldt: {{when}}, dan {{outcome}}.",
+                sentenceOtherwise:
+                    "Als geen van de bovenstaande regels van toepassing is, {{outcome}}.",
+                sentenceEmpty:
+                    "Voeg een voorwaarde toe om aan te geven wanneer deze regel van toepassing is.",
+                addRule: "Regel toevoegen",
+                discard: "Wijzigingen verwerpen",
                 actions: {
                     edit: "Regel {{number}} bewerken",
                     editOtherwise: "De laatste regel bewerken",
@@ -2898,44 +3096,57 @@ const dutchTranslation: TranslationType = {
                     moveDown: "Regel {{number}} omlaag verplaatsen",
                     delete: "Regel {{number}} verwijderen",
                 },
-                test: "De Matrix Testen",
+                saveBar: {
+                    title: "U hebt niet-opgeslagen wijzigingen",
+                    fix_one: "Corrigeer 1 regel voordat u opslaat",
+                    fix_other: "Corrigeer {{count}} regels voordat u opslaat",
+                    more: "+{{count}} meer",
+                },
+                test: "Een voorbeeld proberen",
                 testHelp:
-                    "Beschrijf een inschrijving om te zien welke regel erover beslist. Niet-opgeslagen wijzigingen tellen mee.",
-                applies: "Regel {{number}} is van toepassing:",
-                otherwiseApplies:
-                    "Geen regel is van toepassing, dus de laatste regel (Anders) beslist:",
-                testError: "De inschrijving kon niet worden getest.",
-                testInvalid: "Corrigeer deze regels voordat u test of opslaat:",
+                    "Beschrijf een inschrijving om te zien welke regel erover beslist. Uw niet-opgeslagen wijzigingen tellen mee.",
+                testDetails: "Vergeleken gegevens",
+                applies: "Regel {{number}} is van toepassing",
+                otherwiseApplies: "De laatste regel is van toepassing",
+                testError: "Het voorbeeld kon niet worden geprobeerd.",
+                testInvalid: "Corrigeer deze regels om een voorbeeld te proberen:",
                 ruleError: "Regel {{number}}: {{error}}",
                 invariants: {
                     MANUAL_ENTRY_NOT_ACCEPTED:
-                        "De regel keurt goed, maar inschrijvingen waarvan de identiteit handmatig is ingevoerd worden nooit automatisch goedgekeurd.",
+                        "Een getypte identiteit wordt nooit automatisch goedgekeurd, dus dit gaat naar een persoon.",
                     ALREADY_ENROLLED_NOT_ACCEPTED:
-                        "De regel keurt goed, maar een kiezer die al is ingeschreven wordt nooit opnieuw goedgekeurd.",
+                        "Een kiezer die al is ingeschreven wordt nooit opnieuw goedgekeurd.",
                     NO_VOTER_NOT_ACCEPTED:
-                        "De regel keurt goed, maar niemand wordt goedgekeurd zonder kiezer in het register.",
+                        "Niemand wordt goedgekeurd zonder kiezer in het register.",
                     OTHERWISE_NOT_ACCEPTED: "De laatste regel keurt nooit goed.",
                 },
                 dialog: {
-                    editTitle: "Regel {{number}} Bewerken",
-                    newTitle: "Nieuwe Regel",
-                    otherwiseTitle: "De Laatste Regel (Anders) Bewerken",
-                    identity: "Identiteitsverificatie",
-                    voterFound: "Kiezer Gevonden in Register",
-                    alreadyEnrolled: "Kiezer Al Ingeschreven",
-                    validId: "Geldig Identiteitsbewijs",
-                    differing: "Velden die Afwijken",
+                    editTitle: "Regel {{number}} bewerken",
+                    newTitle: "Nieuwe regel",
+                    otherwiseTitle: "De laatste regel bewerken",
+                    summary: "In het kort",
+                    whenHelp:
+                        "Deze moeten allemaal waar zijn. Laat een voorwaarde weg als die er niet toe doet.",
+                    otherwiseHelp: "Als geen van de bovenstaande regels van toepassing is",
+                    addCondition: "Voorwaarde toevoegen",
+                    remove: "“{{condition}}” verwijderen",
+                    identity: "Identiteitscontrole",
+                    voterFound: "Kiezer in het register",
+                    alreadyEnrolled: "Al ingeschreven",
+                    validId: "Type identiteitsbewijs",
+                    differing: "Gegevens die afwijken",
                     decision: "Beslissing",
-                    reason: "Reden Getoond aan de Kiezer",
+                    reason: "Wat de kiezer te horen krijgt",
+                    voterSees: "De kiezer ziet",
                     apply: "Toepassen",
-                    any: "Willekeurig",
+                    close: "Sluiten",
                     yes: "Ja",
                     no: "Nee",
                     notReported: "Niet gemeld",
                 },
                 identity: {
-                    VERIFIED: "Geverifieerd",
-                    MANUAL_ENTRY: "Handmatig ingevoerd",
+                    VERIFIED: "Geverifieerd met gescand identiteitsbewijs",
+                    MANUAL_ENTRY: "Met de hand getypt",
                 },
                 differing: {
                     none: "Geen",
@@ -2946,43 +3157,70 @@ const dutchTranslation: TranslationType = {
                     at_least_3: "3 of meer",
                 },
                 fieldMatch: {
-                    MATCHES: "Komt overeen",
-                    DIFFERS: "Wijkt af",
+                    MATCHES: "Gelijk",
+                    DIFFERS: "Anders",
                 },
                 decisions: {
                     ACCEPTED: "Automatisch goedkeuren",
-                    PENDING: "Naar handmatige beoordeling sturen",
+                    PENDING: "Naar een persoon sturen",
                     REJECTED: "Afwijzen",
                 },
+                outcomeShort: {
+                    ACCEPTED: "automatisch goedkeuren",
+                    PENDING: "naar een persoon sturen",
+                    REJECTED: "afwijzen",
+                },
+                outcomeHelp: {
+                    ACCEPTED: "De kiezer wordt ingeschreven zonder dat iemand ernaar kijkt.",
+                    PENDING:
+                        "Een ambtenaar beslist, en de kiezer krijgt te horen dat de inschrijving wordt beoordeeld.",
+                    REJECTED: "De kiezer krijgt te horen waarom, en kan zich opnieuw inschrijven.",
+                },
+                outcomeSentence: {
+                    ACCEPTED: "wordt de inschrijving automatisch goedgekeurd",
+                    PENDING: "wordt de inschrijving naar een persoon gestuurd",
+                    REJECTED: "wordt de inschrijving afgewezen",
+                },
                 reasons: {
-                    NO_VOTER: "Geen Overeenkomende Kiezer",
-                    ALREADY_APPROVED: "Reeds Goedgekeurd",
-                    INSUFFICIENT_INFORMATION: "Ontbrekende Gegevens",
-                    IDENTITY_NOT_VERIFIED: "Identiteit Niet Geverifieerd",
+                    NO_VOTER: "Geen overeenkomende kiezer",
+                    ALREADY_APPROVED: "Al goedgekeurd",
+                    INSUFFICIENT_INFORMATION: "Ontbrekende gegevens",
+                    IDENTITY_NOT_VERIFIED: "Identiteit niet geverifieerd",
                     OTHER: "Anders",
                 },
+                voterText: {
+                    NO_VOTER:
+                        "We konden in het register geen kiezer vinden die bij uw gegevens past. Controleer uw gegevens en schrijf u opnieuw in, of neem contact op met uw verkiezingskantoor.",
+                    ALREADY_APPROVED:
+                        "U bent al ingeschreven. U kunt inloggen om te stemmen zodra de stemming opent.",
+                    INSUFFICIENT_INFORMATION:
+                        "We konden u niet inschrijven omdat een deel van uw gegevens ontbreekt of onleesbaar is. Schrijf u opnieuw in met volledige gegevens.",
+                    IDENTITY_NOT_VERIFIED:
+                        "We konden uw identiteit niet automatisch verifiëren, dus een verkiezingsambtenaar zal uw inschrijving beoordelen.",
+                    OTHER: "Een verkiezingsambtenaar schrijft dit bericht bij het nemen van de beslissing.",
+                },
                 conditions: {
-                    any: "Elke inschrijving",
+                    any: "Nog geen voorwaarden",
                     identity: {
-                        VERIFIED: "Identiteit geverifieerd",
-                        MANUAL_ENTRY: "Identiteit handmatig ingevoerd",
+                        VERIFIED: "Identiteit geverifieerd met gescand identiteitsbewijs",
+                        MANUAL_ENTRY: "Identiteit met de hand getypt",
                     },
                     voterFound: {
-                        true: "Kiezer gevonden in register",
-                        false: "Geen kiezer gevonden in register",
+                        true: "Kiezer gevonden in het register",
+                        false: "Geen kiezer gevonden in het register",
                     },
                     alreadyEnrolled: {
-                        true: "Kiezer al ingeschreven",
-                        false: "Kiezer nog niet ingeschreven",
+                        true: "Al ingeschreven",
+                        false: "Nog niet ingeschreven",
                     },
-                    validId: "Geldig identiteitsbewijs: {{id}}",
+                    validId: "Identiteitsbewijs: {{id}}",
                     differing: {
-                        none: "Alle vergeleken velden komen overeen",
-                        exactly_1: "Precies 1 veld wijkt af",
-                        at_most_1: "Hoogstens 1 veld wijkt af",
-                        exactly_2: "Precies 2 velden wijken af",
-                        at_most_2: "Hoogstens 2 velden wijken af",
-                        at_least_3: "3 of meer velden wijken af",
+                        none: "Alle gegevens komen overeen",
+                        exactly_1: "Precies 1 gegeven wijkt af",
+                        at_most_1: "Hoogstens 1 gegeven wijkt af",
+                        exactly_2: "Precies 2 gegevens wijken af",
+                        at_most_2: "Hoogstens 2 gegevens wijken af",
+                        at_least_3: "3 of meer gegevens wijken af",
                     },
                     field: {
                         MATCHES: "{{field}} komt overeen",
@@ -2991,32 +3229,41 @@ const dutchTranslation: TranslationType = {
                 },
                 errors: {
                     ACCEPTS_MANUAL_ENTRY:
-                        "Inschrijvingen waarvan de identiteit handmatig is ingevoerd kunnen niet automatisch worden goedgekeurd.",
+                        "Inschrijvingen waarvan de identiteit met de hand is getypt kunnen niet automatisch worden goedgekeurd.",
                     ACCEPTS_ALREADY_ENROLLED:
                         "Een kiezer die al is ingeschreven kan niet opnieuw worden goedgekeurd.",
                     ACCEPTS_WITHOUT_VOTER:
                         "Een inschrijving kan niet worden goedgekeurd zonder kiezer in het register.",
                     OTHERWISE_ACCEPTS:
-                        "De laatste regel kan inschrijvingen naar handmatige beoordeling sturen of afwijzen, niet goedkeuren.",
-                    MISSING_REASON: "Kies de reden die aan de kiezer wordt getoond.",
+                        "De laatste regel kan inschrijvingen naar een persoon sturen of afwijzen, maar niet goedkeuren.",
+                    MISSING_REASON: "Kies wat de kiezer te horen krijgt.",
                     UNEXPECTED_REASON: "Een goedkeuring heeft geen reden.",
                     NO_COMPARED_FIELDS:
-                        "Kies ten minste één veld om met het register te vergelijken.",
-                    DUPLICATE_COMPARED_FIELD: "Een vergeleken veld komt twee keer voor.",
-                    UNKNOWN_FIELD: "Een regel gebruikt een veld dat niet wordt vergeleken.",
+                        "Kies ten minste één gegeven om met het register te vergelijken.",
+                    DUPLICATE_COMPARED_FIELD: "Een vergeleken gegeven komt twee keer voor.",
+                    UNKNOWN_FIELD: "Een regel gebruikt een gegeven dat niet wordt vergeleken.",
+                    NO_CONDITIONS:
+                        "Voeg ten minste één voorwaarde toe. Alleen de laatste regel geldt voor al het andere.",
+                },
+                change: {
+                    added: "Regel {{number}} toegevoegd",
+                    decision: "Regel {{number}}: {{from}} → {{to}}",
+                    edited: "Regel {{number}} gewijzigd",
+                    removed: "Een regel is verwijderd ({{text}})",
+                    moved: "De volgorde van de regels is gewijzigd",
+                    otherwise: "De laatste regel is gewijzigd",
+                    compared: "De vergeleken gegevens zijn gewijzigd",
                 },
                 save: {
-                    button: "Opslaan",
-                    title: "Goedkeuringsmatrix Opslaan",
-                    body: "Deze regels opslaan als versie {{version}}? Nieuwe inschrijvingen worden er vanaf nu mee beslist. Inschrijvingen waarover al is beslist behouden hun beslissing.",
-                    success: "Goedkeuringsmatrix opgeslagen als versie {{version}}",
+                    button: "Opslaan als versie {{version}}",
+                    title: "Opslaan als versie {{version}}?",
+                    body: "Over nieuwe inschrijvingen wordt vanaf nu met deze regels beslist. Inschrijvingen waarover al is beslist behouden hun beslissing.",
+                    changes: "Wat er is gewijzigd",
+                    log: "De nieuwe versie wordt vastgelegd in het verkiezingslogboek.",
+                    confirm: "Versie {{version}} opslaan",
+                    success: "Opgeslagen als versie {{version}}",
                     error: "De goedkeuringsmatrix kon niet worden opgeslagen",
                 },
-            },
-            decision: {
-                label: "Beslist door",
-                text: "Goedkeuringsmatrix versie {{version}}, regel {{rule}}: {{conditions}}",
-                otherwise: "Goedkeuringsmatrix versie {{version}}, laatste regel (Anders)",
             },
         },
         monitoring: {

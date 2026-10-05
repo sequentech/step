@@ -2,29 +2,25 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {useContext, useEffect, useId, useMemo, useState} from "react"
+import React, {useCallback, useContext, useEffect, useMemo, useState} from "react"
 import {useTranslation} from "react-i18next"
 import {useNotify} from "react-admin"
 import {useMutation, useQuery} from "@apollo/client"
-import {
-    Accordion,
-    AccordionSummary,
-    Alert,
-    Autocomplete,
-    Button,
-    Chip,
-    CircularProgress,
-    TextField,
-    Typography,
-} from "@mui/material"
-import ArrowBackIosIcon from "@mui/icons-material/ArrowBackIos"
+import {Box, Button, CircularProgress, Menu, MenuItem} from "@mui/material"
+import {styled} from "@mui/material/styles"
+import AddIcon from "@mui/icons-material/Add"
+import ArrowBackIcon from "@mui/icons-material/ArrowBack"
+import CheckIcon from "@mui/icons-material/Check"
+import FactCheckIcon from "@mui/icons-material/FactCheck"
+import LockOutlinedIcon from "@mui/icons-material/LockOutlined"
+import PlayCircleOutlineIcon from "@mui/icons-material/PlayCircleOutline"
+import RuleIcon from "@mui/icons-material/Rule"
 import {Dialog} from "@sequentech/ui-essentials"
 import {
     GetApprovalMatrixQuery,
     GetUserProfileAttributesQuery,
     SaveApprovalMatrixMutation,
 } from "@/gql/graphql"
-import {WizardStyles} from "@/components/styles/WizardStyles"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {GET_APPROVAL_MATRIX} from "@/queries/GetApprovalMatrix"
@@ -33,18 +29,19 @@ import {USER_PROFILE_ATTRIBUTES} from "@/queries/GetUserProfileAttributes"
 import {getAttributeLabel} from "@/services/UserService"
 import {IApplicationsStatus} from "@/types/applications"
 import {IPermissions} from "@/types/keycloak"
-import {CancelButton} from "../Tally/styles"
 import {ApprovalMatrixRuleDialog} from "./ApprovalMatrixRuleDialog"
-import {ApprovalMatrixRules} from "./ApprovalMatrixRules"
+import {ApprovalMatrixRules, RulePointer} from "./ApprovalMatrixRules"
 import {ApprovalMatrixTest} from "./ApprovalMatrixTest"
 import {convertToCamelCase} from "./UtilsApprovals"
 import {
+    EMatrixError,
     EMatrixSource,
     IApprovalMatrix,
     IApprovalRule,
     addRule,
     cleanMatrix,
     deleteRule,
+    matrixChanges,
     moveRule,
     profileFieldLabel,
     readMatrix,
@@ -53,21 +50,84 @@ import {
     validateMatrix,
     withComparedFields,
 } from "./approvalMatrix"
+import {
+    AccentTag,
+    Card,
+    CardIcon,
+    CardTitle,
+    Help,
+    Muted,
+    Notice,
+    NoticeTitle,
+    Overline,
+    Page,
+    Segment,
+    Tag,
+    TagRow,
+} from "./approvalStyles"
 
 /** The rule being edited: a position, the last rule, or a new rule. */
 type Editing = {index: number | null; isOtherwise: boolean; rule: IApprovalRule}
 
 const NEW_RULE: IApprovalRule = {when: {}, then: {decision: IApplicationsStatus.PENDING}}
 
+const BackLink = styled("button")(({theme}) => ({
+    "display": "inline-flex",
+    "alignItems": "center",
+    "gap": "8px",
+    "padding": "4px 8px 4px 0",
+    "border": 0,
+    "background": "none",
+    "color": theme.palette.brandColor,
+    "fontFamily": "inherit",
+    "fontSize": "15px",
+    "fontWeight": 600,
+    "cursor": "pointer",
+    "&:focus-visible": {outline: `2px solid ${theme.palette.brandSuccess}`},
+}))
+
+const Columns = styled("div")(({theme}) => ({
+    display: "grid",
+    gridTemplateColumns: "minmax(0, 1fr) 340px",
+    gap: "24px",
+    alignItems: "start",
+    marginTop: "24px",
+    [theme.breakpoints.down("lg")]: {
+        gridTemplateColumns: "minmax(0, 1fr)",
+    },
+}))
+
+const SaveBar = styled("div")(({theme}) => ({
+    position: "sticky",
+    bottom: "16px",
+    zIndex: 2,
+    display: "flex",
+    flexWrap: "wrap",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: "12px",
+    marginTop: "24px",
+    padding: "16px 20px",
+    borderRadius: "12px",
+    border: "1px solid #E3E7EF",
+    background: theme.palette.white,
+    boxShadow: "0 8px 24px rgba(15, 5, 76, 0.16)",
+}))
+
 export interface ApprovalMatrixProps {
     electionEventId: string
     goBack: () => void
+    /** The rule that decided the enrollment the administrator came from. */
+    cameFrom?: {version: number; rule: number | null}
 }
 
-export const ApprovalMatrix: React.FC<ApprovalMatrixProps> = ({electionEventId, goBack}) => {
-    const {t} = useTranslation()
+export const ApprovalMatrix: React.FC<ApprovalMatrixProps> = ({
+    electionEventId,
+    goBack,
+    cameFrom,
+}) => {
+    const {t, i18n} = useTranslation()
     const notify = useNotify()
-    const id = useId()
     const [tenantId] = useTenantStore()
     const authContext = useContext(AuthContext)
     const canEdit = authContext.isAuthorized(true, tenantId, IPermissions.APPROVAL_MATRIX_WRITE)
@@ -89,6 +149,9 @@ export const ApprovalMatrix: React.FC<ApprovalMatrixProps> = ({electionEventId, 
     const [draft, setDraft] = useState<IApprovalMatrix | null>(null)
     const [editing, setEditing] = useState<Editing | null>(null)
     const [confirmSave, setConfirmSave] = useState(false)
+    const [appliesTo, setAppliesTo] = useState<RulePointer>(undefined)
+    const [offered, setOffered] = useState<string[]>([])
+    const [detailMenu, setDetailMenu] = useState<HTMLElement | null>(null)
 
     useEffect(() => {
         if (data?.get_approval_matrix) {
@@ -103,43 +166,58 @@ export const ApprovalMatrix: React.FC<ApprovalMatrixProps> = ({electionEventId, 
         () => profileFieldLabel(profileAttributes ?? [], t, getAttributeLabel),
         [profileAttributes, t]
     )
-    const fieldOptions = useMemo(
+    const profileFields = useMemo(
         () =>
             (profileAttributes ?? [])
                 .map((attribute) => convertToCamelCase(attribute.name ?? ""))
                 .filter((name) => name),
         [profileAttributes]
     )
+    const onResult = useCallback((rule: RulePointer) => setAppliesTo(rule), [])
 
     if (loading) {
         return <CircularProgress aria-label={String(t("approvalsScreen.matrix.title"))} />
     }
 
-    const footer = (save?: React.ReactNode) => (
-        <WizardStyles.FooterContainer>
-            <WizardStyles.StyledFooter>
-                <CancelButton className="list-actions" onClick={goBack}>
-                    <ArrowBackIosIcon />
-                    {t("common.label.back")}
-                </CancelButton>
-                {save}
-            </WizardStyles.StyledFooter>
-        </WizardStyles.FooterContainer>
+    const back = (
+        <BackLink type="button" onClick={goBack}>
+            <ArrowBackIcon fontSize="small" />
+            {t("approvalsScreen.matrix.back")}
+        </BackLink>
     )
 
     if (error || !current || !draft || !saved) {
         return (
-            <WizardStyles.WizardContainer>
-                <WizardStyles.ContentWrapper>
-                    <Alert severity="error">{t("approvalsScreen.matrix.loadError")}</Alert>
-                </WizardStyles.ContentWrapper>
-                {footer()}
-            </WizardStyles.WizardContainer>
+            <Page>
+                {back}
+                <Notice data-tone="error" role="alert" sx={{marginTop: "16px"}}>
+                    {t("approvalsScreen.matrix.loadError")}
+                </Notice>
+            </Page>
         )
     }
 
     const changed = !sameMatrix(draft, saved)
     const problems = validateMatrix(draft)
+    const changes = changed ? matrixChanges(saved, draft, t, fieldLabel) : []
+    const brokenRules = new Set(problems.map(({rule}) => rule)).size
+    // The details offered to compare: those of the saved version and any added since.
+    const details = [...saved.compared_fields, ...draft.compared_fields, ...offered].filter(
+        (field, index, fields) => fields.indexOf(field) === index
+    )
+    const otherDetails = profileFields.filter((field) => !details.includes(field))
+
+    const toggleDetail = (field: string) =>
+        setDraft(
+            withComparedFields(
+                draft,
+                draft.compared_fields.includes(field)
+                    ? draft.compared_fields.filter((compared) => compared !== field)
+                    : details.filter(
+                          (detail) => detail === field || draft.compared_fields.includes(detail)
+                      )
+            )
+        )
 
     const applyRule = (rule: IApprovalRule | null) => {
         if (rule && editing) {
@@ -168,6 +246,7 @@ export const ApprovalMatrix: React.FC<ApprovalMatrixProps> = ({electionEventId, 
             }
             setCurrent(savedVersion)
             setDraft(matrix)
+            setOffered([])
             notify(t("approvalsScreen.matrix.save.success", {version: savedVersion.version}), {
                 type: "success",
             })
@@ -176,177 +255,259 @@ export const ApprovalMatrix: React.FC<ApprovalMatrixProps> = ({electionEventId, 
         }
     }
 
+    const savedOn = current.created_at
+        ? new Date(current.created_at).toLocaleString(i18n.language, {
+              dateStyle: "medium",
+              timeStyle: "short",
+          })
+        : "-"
+
     return (
-        <WizardStyles.WizardContainer>
-            <WizardStyles.ContentWrapper>
-                <WizardStyles.ContentBox>
-                    <Accordion sx={{width: "100%"}} expanded={true}>
-                        <AccordionSummary
-                            expandIcon={false}
-                            id={`${id}-title`}
-                            aria-controls={`${id}-title-content`}
+        <Page>
+            {back}
+            <Box
+                sx={{
+                    display: "flex",
+                    flexWrap: "wrap",
+                    justifyContent: "space-between",
+                    gap: "16px",
+                    marginTop: "16px",
+                }}
+            >
+                <Box sx={{maxWidth: "460px"}}>
+                    <Box component="h2" sx={{margin: "0 0 8px", fontSize: "26px", fontWeight: 600}}>
+                        {t("approvalsScreen.matrix.title")}
+                    </Box>
+                    <Muted>{t("approvalsScreen.matrix.subtitle")}</Muted>
+                </Box>
+                <Box sx={{textAlign: "right"}}>
+                    <TagRow sx={{justifyContent: "flex-end", marginBottom: "8px"}}>
+                        <AccentTag>
+                            {t("approvalsScreen.matrix.versionChip", {version: current.version})}
+                        </AccentTag>
+                        {changed && (
+                            <Tag
+                                sx={{
+                                    background: "#FFF3CD",
+                                    borderColor: "#F0D58C",
+                                    color: "#7A5200",
+                                }}
+                            >
+                                {t("approvalsScreen.matrix.unsaved")}
+                            </Tag>
+                        )}
+                        {!canEdit && (
+                            <Tag>
+                                <LockOutlinedIcon sx={{fontSize: "16px"}} aria-hidden />
+                                {t("approvalsScreen.matrix.viewOnly")}
+                            </Tag>
+                        )}
+                    </TagRow>
+                    <Muted>
+                        {current.source === EMatrixSource.SAVED
+                            ? t("approvalsScreen.matrix.savedBy", {
+                                  date: savedOn,
+                                  user: current.created_by ?? "-",
+                              })
+                            : t("approvalsScreen.matrix.builtIn")}
+                    </Muted>
+                </Box>
+            </Box>
+
+            {!canEdit && (
+                <Notice data-tone="info" sx={{marginTop: "24px"}}>
+                    <LockOutlinedIcon aria-hidden />
+                    <div>
+                        <NoticeTitle>{t("approvalsScreen.matrix.readOnlyTitle")}</NoticeTitle>
+                        {t("approvalsScreen.matrix.readOnlyText")}
+                    </div>
+                </Notice>
+            )}
+
+            <Columns>
+                <Box sx={{display: "flex", flexDirection: "column", gap: "24px"}}>
+                    <Card aria-labelledby="approval-matrix-compared">
+                        <CardTitle id="approval-matrix-compared">
+                            <CardIcon>
+                                <FactCheckIcon fontSize="small" />
+                            </CardIcon>
+                            {t("approvalsScreen.matrix.compared")}
+                        </CardTitle>
+                        <Help>{t("approvalsScreen.matrix.comparedHelp")}</Help>
+                        <TagRow
+                            role="group"
+                            aria-label={String(t("approvalsScreen.matrix.compared"))}
                         >
-                            <WizardStyles.AccordionTitle>
-                                {t("approvalsScreen.matrix.title")}
-                            </WizardStyles.AccordionTitle>
-                        </AccordionSummary>
-                        <WizardStyles.AccordionDetails>
-                            <Typography variant="body2">
-                                {t("approvalsScreen.matrix.subtitle")}
-                            </Typography>
-                            <Typography variant="body2" sx={{marginTop: "1rem"}}>
-                                {current.source === EMatrixSource.SAVED
-                                    ? t("approvalsScreen.matrix.version", {
-                                          version: current.version,
-                                          date: current.created_at
-                                              ? new Date(current.created_at).toLocaleString()
-                                              : "-",
-                                          user: current.created_by ?? "-",
-                                      })
-                                    : t("approvalsScreen.matrix.builtInVersion", {
-                                          version: current.version,
-                                      })}
-                                {changed && (
-                                    <Chip
+                            {details.map((field) => {
+                                const compared = draft.compared_fields.includes(field)
+                                return (
+                                    <Segment
+                                        key={field}
+                                        type="button"
+                                        aria-pressed={compared}
+                                        disabled={!canEdit}
+                                        onClick={() => toggleDetail(field)}
+                                        sx={{
+                                            "display": "inline-flex",
+                                            "alignItems": "center",
+                                            "gap": "6px",
+                                            "padding": "8px 14px",
+                                            "borderRadius": "8px",
+                                            "&[aria-pressed='true']": {
+                                                background: "#ECEEFB",
+                                                borderColor: "#C9CEF2",
+                                                color: "#0F054C",
+                                            },
+                                            "&:disabled": {opacity: 1},
+                                        }}
+                                    >
+                                        {compared && (
+                                            <CheckIcon sx={{fontSize: "18px"}} aria-hidden />
+                                        )}
+                                        {fieldLabel(field)}
+                                    </Segment>
+                                )
+                            })}
+                            {canEdit && otherDetails.length > 0 && (
+                                <>
+                                    <Button
+                                        variant="secondary"
                                         size="small"
-                                        sx={{marginLeft: "8px"}}
-                                        label={t("approvalsScreen.matrix.unsaved")}
-                                    />
+                                        startIcon={<AddIcon />}
+                                        aria-haspopup="menu"
+                                        onClick={(event) => setDetailMenu(event.currentTarget)}
+                                        sx={{minHeight: "38px"}}
+                                    >
+                                        {t("approvalsScreen.matrix.addCompared")}
+                                    </Button>
+                                    <Menu
+                                        anchorEl={detailMenu}
+                                        open={detailMenu !== null}
+                                        onClose={() => setDetailMenu(null)}
+                                    >
+                                        {otherDetails.map((field) => (
+                                            <MenuItem
+                                                key={field}
+                                                onClick={() => {
+                                                    setDetailMenu(null)
+                                                    setOffered([...offered, field])
+                                                    setDraft(
+                                                        withComparedFields(draft, [
+                                                            ...draft.compared_fields,
+                                                            field,
+                                                        ])
+                                                    )
+                                                }}
+                                            >
+                                                {fieldLabel(field)}
+                                            </MenuItem>
+                                        ))}
+                                    </Menu>
+                                </>
+                            )}
+                        </TagRow>
+                        {problems.some(({code}) => code === EMatrixError.NO_COMPARED_FIELDS) && (
+                            <Notice data-tone="error" role="alert" sx={{marginTop: "16px"}}>
+                                {t(
+                                    `approvalsScreen.matrix.errors.${EMatrixError.NO_COMPARED_FIELDS}`
                                 )}
-                            </Typography>
-                            {!canEdit && (
-                                <Alert severity="info" sx={{marginTop: "1rem"}}>
-                                    {t("approvalsScreen.matrix.readOnly")}
-                                </Alert>
-                            )}
-                        </WizardStyles.AccordionDetails>
-                    </Accordion>
+                            </Notice>
+                        )}
+                    </Card>
 
-                    <Accordion sx={{width: "100%"}} expanded={true}>
-                        <AccordionSummary
-                            expandIcon={false}
-                            id={`${id}-compared`}
-                            aria-controls={`${id}-compared-content`}
+                    <Card aria-labelledby="approval-matrix-rules">
+                        <CardTitle id="approval-matrix-rules">
+                            <CardIcon sx={{background: "#E3F4EC", color: "#0B6B43"}}>
+                                <RuleIcon fontSize="small" />
+                            </CardIcon>
+                            {t("approvalsScreen.matrix.rules")}
+                        </CardTitle>
+                        <Help>{t("approvalsScreen.matrix.rulesHelp")}</Help>
+                        <ApprovalMatrixRules
+                            matrix={draft}
+                            canEdit={canEdit}
+                            fieldLabel={fieldLabel}
+                            appliesTo={appliesTo}
+                            cameFrom={
+                                cameFrom && cameFrom.version === current.version && !changed
+                                    ? cameFrom.rule
+                                    : undefined
+                            }
+                            problems={problems}
+                            onEdit={(index) =>
+                                setEditing(
+                                    index === null
+                                        ? {
+                                              index,
+                                              isOtherwise: true,
+                                              rule: {when: {}, then: draft.otherwise},
+                                          }
+                                        : {index, isOtherwise: false, rule: draft.rules[index]}
+                                )
+                            }
+                            onMove={(index, offset) => setDraft(moveRule(draft, index, offset))}
+                            onDelete={(index) => setDraft(deleteRule(draft, index))}
+                            onAdd={() =>
+                                setEditing({index: null, isOtherwise: false, rule: NEW_RULE})
+                            }
+                        />
+                    </Card>
+                </Box>
+
+                <Card
+                    aria-labelledby="approval-matrix-example"
+                    sx={{position: {lg: "sticky"}, top: {lg: "16px"}}}
+                >
+                    <CardTitle id="approval-matrix-example">
+                        <CardIcon>
+                            <PlayCircleOutlineIcon fontSize="small" />
+                        </CardIcon>
+                        {t("approvalsScreen.matrix.test")}
+                    </CardTitle>
+                    <ApprovalMatrixTest
+                        electionEventId={electionEventId}
+                        matrix={draft}
+                        validIds={current.valid_ids}
+                        fieldLabel={fieldLabel}
+                        onResult={onResult}
+                    />
+                </Card>
+            </Columns>
+
+            {canEdit && changed && (
+                <SaveBar role="region" aria-label={String(t("approvalsScreen.matrix.unsaved"))}>
+                    <div>
+                        <NoticeTitle>{t("approvalsScreen.matrix.saveBar.title")}</NoticeTitle>
+                        <Muted>
+                            {problems.length > 0
+                                ? t("approvalsScreen.matrix.saveBar.fix", {count: brokenRules})
+                                : changes.length > 1
+                                  ? `${changes[0]} · ${t("approvalsScreen.matrix.saveBar.more", {
+                                        count: changes.length - 1,
+                                    })}`
+                                  : changes[0]}
+                        </Muted>
+                    </div>
+                    <Box sx={{display: "flex", gap: "12px"}}>
+                        <Button
+                            variant="cancel"
+                            onClick={() => {
+                                setDraft(saved)
+                                setOffered([])
+                            }}
                         >
-                            <WizardStyles.AccordionTitle>
-                                {t("approvalsScreen.matrix.compared")}
-                            </WizardStyles.AccordionTitle>
-                        </AccordionSummary>
-                        <WizardStyles.AccordionDetails>
-                            {canEdit ? (
-                                <Autocomplete
-                                    multiple
-                                    freeSolo
-                                    options={fieldOptions}
-                                    value={draft.compared_fields}
-                                    getOptionLabel={fieldLabel}
-                                    onChange={(_, fields) =>
-                                        setDraft(withComparedFields(draft, fields))
-                                    }
-                                    renderInput={(params) => (
-                                        <TextField
-                                            {...params}
-                                            label={t("approvalsScreen.matrix.comparedFields")}
-                                            helperText={t(
-                                                "approvalsScreen.matrix.comparedFieldsHelp"
-                                            )}
-                                        />
-                                    )}
-                                />
-                            ) : (
-                                <Typography>
-                                    {draft.compared_fields.map(fieldLabel).join(", ")}
-                                </Typography>
-                            )}
-                            <Typography variant="body2" sx={{marginTop: "1rem"}}>
-                                {t("approvalsScreen.matrix.comparedHelp")}
-                            </Typography>
-                        </WizardStyles.AccordionDetails>
-                    </Accordion>
-
-                    <Accordion sx={{width: "100%"}} expanded={true}>
-                        <AccordionSummary
-                            expandIcon={false}
-                            id={`${id}-rules`}
-                            aria-controls={`${id}-rules-content`}
+                            {t("approvalsScreen.matrix.discard")}
+                        </Button>
+                        <Button
+                            disabled={problems.length > 0 || saving}
+                            onClick={() => setConfirmSave(true)}
                         >
-                            <WizardStyles.AccordionTitle>
-                                {t("approvalsScreen.matrix.rules")}
-                            </WizardStyles.AccordionTitle>
-                        </AccordionSummary>
-                        <WizardStyles.AccordionDetails>
-                            <ApprovalMatrixRules
-                                matrix={draft}
-                                canEdit={canEdit}
-                                fieldLabel={fieldLabel}
-                                onEdit={(index) =>
-                                    setEditing(
-                                        index === null
-                                            ? {
-                                                  index,
-                                                  isOtherwise: true,
-                                                  rule: {when: {}, then: draft.otherwise},
-                                              }
-                                            : {index, isOtherwise: false, rule: draft.rules[index]}
-                                    )
-                                }
-                                onMove={(index, offset) => setDraft(moveRule(draft, index, offset))}
-                                onDelete={(index) => setDraft(deleteRule(draft, index))}
-                                onAdd={() =>
-                                    setEditing({index: null, isOtherwise: false, rule: NEW_RULE})
-                                }
-                            />
-                            {problems.length > 0 && (
-                                <Alert severity="warning" sx={{marginTop: "1rem"}}>
-                                    {problems.map(({code, rule}) => {
-                                        const text = t(`approvalsScreen.matrix.errors.${code}`)
-                                        return (
-                                            <div key={`${rule}-${code}`}>
-                                                {rule
-                                                    ? t("approvalsScreen.matrix.ruleError", {
-                                                          number: rule,
-                                                          error: text,
-                                                      })
-                                                    : text}
-                                            </div>
-                                        )
-                                    })}
-                                </Alert>
-                            )}
-                        </WizardStyles.AccordionDetails>
-                    </Accordion>
-
-                    <Accordion sx={{width: "100%"}} expanded={true}>
-                        <AccordionSummary
-                            expandIcon={false}
-                            id={`${id}-test`}
-                            aria-controls={`${id}-test-content`}
-                        >
-                            <WizardStyles.AccordionTitle>
-                                {t("approvalsScreen.matrix.test")}
-                            </WizardStyles.AccordionTitle>
-                        </AccordionSummary>
-                        <WizardStyles.AccordionDetails>
-                            <ApprovalMatrixTest
-                                electionEventId={electionEventId}
-                                matrix={draft}
-                                validIds={current.valid_ids}
-                                fieldLabel={fieldLabel}
-                            />
-                        </WizardStyles.AccordionDetails>
-                    </Accordion>
-                </WizardStyles.ContentBox>
-            </WizardStyles.ContentWrapper>
-
-            {footer(
-                canEdit && (
-                    <Button
-                        disabled={!changed || problems.length > 0 || saving}
-                        onClick={() => setConfirmSave(true)}
-                    >
-                        {t("approvalsScreen.matrix.save.button")}
-                    </Button>
-                )
+                            {t("approvalsScreen.matrix.save.button", {
+                                version: current.next_version,
+                            })}
+                        </Button>
+                    </Box>
+                </SaveBar>
             )}
 
             {editing && (
@@ -365,8 +526,12 @@ export const ApprovalMatrix: React.FC<ApprovalMatrixProps> = ({electionEventId, 
             <Dialog
                 variant="info"
                 open={confirmSave}
-                title={String(t("approvalsScreen.matrix.save.title"))}
-                ok={String(t("approvalsScreen.matrix.save.button"))}
+                title={String(
+                    t("approvalsScreen.matrix.save.title", {version: current.next_version})
+                )}
+                ok={String(
+                    t("approvalsScreen.matrix.save.confirm", {version: current.next_version})
+                )}
                 cancel={String(t("common.label.cancel"))}
                 handleClose={async (result: boolean) => {
                     if (result) {
@@ -376,8 +541,23 @@ export const ApprovalMatrix: React.FC<ApprovalMatrixProps> = ({electionEventId, 
                     }
                 }}
             >
-                {t("approvalsScreen.matrix.save.body", {version: current.next_version})}
+                <p>{t("approvalsScreen.matrix.save.body")}</p>
+                <Notice data-tone="neutral">
+                    <div>
+                        <Overline sx={{margin: "0 0 4px"}}>
+                            {t("approvalsScreen.matrix.save.changes")}
+                        </Overline>
+                        <Box component="ul" sx={{margin: 0, paddingLeft: "20px"}}>
+                            {changes.map((change) => (
+                                <li key={change}>{change}</li>
+                            ))}
+                        </Box>
+                    </div>
+                </Notice>
+                <Box component="p" sx={{marginBottom: 0}}>
+                    <Muted>{t("approvalsScreen.matrix.save.log")}</Muted>
+                </Box>
             </Dialog>
-        </WizardStyles.WizardContainer>
+        </Page>
     )
 }

@@ -2836,74 +2836,269 @@ const tagalogTranslation: TranslationType = {
         approvalsScreen: {
             column: {
                 status: "Katayuan",
-                id: "ID",
-                applicantId: "ID ng Aplikante",
-                verificationType: "Uri ng Pag-verify",
-                createdAt: "Nilikha Noong",
-                updatedAt: "Na-update Noong",
-                verified_by: "Napatunayan Noong",
+                id: "ID ng aplikasyon",
+                applicantId: "ID ng aplikante",
+                verificationType: "Pag-verify",
+                createdAt: "Nag-apply",
+                verified_by: "Na-verify ni",
+                voter: "Botante",
+                what: "Ano ang nangyari",
+                post: "Post",
+                when: "Kailan",
             },
-            approvalRequest: "Kahilingan para sa Pag-apruba",
-            taskInformation: "Impormasyon ng Gawain",
-            ok: "Sige",
-            title: "Mga Botante",
-            subtitle: "Maghanap ng mga tumutugmang botante",
-            approve: {
-                body: "Sigurado ka bang nais mong aprubahan ang botanteng ito? Hindi na mababawi ang aksyong ito.",
+            status: {
+                PENDING: "Kailangang suriin",
+                ACCEPTED: "Naaprubahan",
+                REJECTED: "Tinanggihan",
             },
-            reject: {
-                label: "Tanggihan ang aplikasyon",
-                confirm:
-                    "Sigurado ka bang gusto mong tanggihan ang botanteng ito? Ang aksyong ito ay hindi maaaring bawiin.",
-                message: "Isulat dito ang dahilan ng pagtanggi",
-                rejectReason: "Dahilan ng Pagtanggi",
-                messageRequired: "Kinakailangan ang mensahe ng pagtanggi para sa opsyon na 'Iba'",
-                reasons: {
-                    "undefined": "-",
-                    "insufficient-information": "Kulang na Datos",
-                    "no-matching-voter": "Walang Tumutugma na Botante",
-                    "voter-already-approved": "Naaprubahan Na",
-                    "other": "Iba Pa",
+            verification: {
+                AUTOMATIC: "Awtomatiko",
+                MANUAL: "Mano-mano",
+            },
+            time: {
+                minutes_one: "{{count}} minuto",
+                minutes_other: "{{count}} minuto",
+                hours_one: "{{count}} oras",
+                hours_other: "{{count}} oras",
+                days_one: "{{count}} araw",
+                days_other: "{{count}} araw",
+            },
+            summary: {
+                join: "{{head}} at {{last}}",
+                differs_one: "{{fields}} ang naiiba sa talaan",
+                differs_other: "{{fields}} ang naiiba sa talaan",
+                typedByHand:
+                    "Mano-manong tinype ang mga detalye, hindi binasa mula sa na-scan na ID",
+                needsFaceToFace: "Kailangan ng harapang pagsusuri",
+                scanVerified: "Na-verify ang na-scan na ID",
+                noVoter: "Walang natagpuang botante sa talaan",
+                allMatch: "Tumutugma sa talaan ang lahat ng detalye",
+                needsReview: "Naghihintay ng pasya ng isang tao",
+                approvedBy: "Inaprubahan ni {{name}}",
+                approvedAuto: "Awtomatikong naaprubahan",
+                rejectedBy: "Tinanggihan ni {{name}}",
+                rejectedAuto: "Awtomatikong tinanggihan",
+            },
+            list: {
+                title: "Mga Pag-apruba",
+                subtitle:
+                    "Dito naghihintay ng isang tao ang mga pagpapatalang hindi mapagpasyahan ng mga panuntunan nang mag-isa.",
+                search: "Maghanap",
+                review: "Suriin ang pagpapatala",
+                openRecord: "Buksan ang pagpapatala",
+                seeRule: "Tingnan ang panuntunang nagpasya",
+                unnamed: "Aplikanteng walang pangalan",
+                waiting: "{{time}} nang naghihintay",
+                applied: "Nag-apply noong {{date}}",
+                empty: {
+                    title: "Walang laman dito",
+                    text: "Lalabas dito ang mga pagpapatalang may ganitong katayuan. Subukan ang ibang paghahanap o katayuan.",
                 },
             },
+            flow: {
+                stepsLabel: "Mga hakbang ng pagsusuri",
+                steps: {
+                    identity: "Suriin ang pagkakakilanlan",
+                    voter: "Hanapin ang botante",
+                    decide: "Magpasya",
+                },
+                continue: "Magpatuloy",
+                backToList: "Bumalik sa Mga Pag-apruba",
+                identity: {
+                    details: "Mga detalye sa pagpapatala",
+                    confirm:
+                        "Sinuri ko ang ID ng botante nang personal o sa video call, at tumutugma ito sa pagpapatalang ito.",
+                    checked: "Nakumpirma ang harapang pagsusuri",
+                    notChecked: "Hindi pa nakukumpirma ang harapang pagsusuri",
+                },
+                voter: {
+                    none: "Wala sa mga ito ang botante",
+                    noneHint:
+                        "Kung gayon, matatanggihan lamang ang pagpapatala dahil walang tumutugmang botante.",
+                    noneChosen: "Wala sa mga ito ang botante",
+                    notChosen: "Wala pang napiling botante",
+                },
+                decide: {
+                    approve: "Aprubahan",
+                    reject: "Tanggihan",
+                    approveText:
+                        "Iugnay ang pagpapatalang ito kay {{voter}} sa talaan. Sasabihan ang botante sa email o text message at makakapag-sign in siya upang bumoto kapag nagbukas ang botohan.",
+                    rejectText: "Sasabihin sa botante ang dahilan. Hindi na ito mababawi.",
+                    chooseVoter:
+                        "Piliin ang tumutugmang botante sa hakbang 2 upang makapag-apruba.",
+                    noVoter:
+                        "Wala kang nahanap na tumutugmang botante, kaya matatanggihan lamang ang pagpapatalang ito.",
+                    enrolled: "Nakatala na ang napiling botante.",
+                    faceToFace:
+                        "Kumpirmahin ang harapang pagsusuri sa hakbang 1 upang makapag-apruba.",
+                },
+            },
+            review: {
+                loadError: "Hindi ma-load ang pagpapatala.",
+                applied: "Nag-apply noong {{date}}",
+                waiting: "{{time}} nang naghihintay",
+                whyTitle: "Bakit kailangan nito ng isang tao",
+                decisionTitle: "Paano ito napagpasyahan",
+                rule: "Panuntunan {{rule}} ng bersyon {{version}} ng matrix",
+                ruleLast: "Huling panuntunan ng bersyon {{version}} ng matrix",
+                seeRule: "Tingnan ang panuntunan",
+                why: {
+                    typedByHand:
+                        "Mano-manong tinype ng botante ang kanyang mga detalye sa halip na mag-scan ng ID. Hindi kailanman awtomatikong inaaprubahan ang ganitong mga pagpapatala: kinukumpirma muna ng isang opisyal kung sino siya.",
+                    differs_one:
+                        "Isang detalye ang hindi tumutugma sa talaan: {{details}}. Hinihiling ng mga panuntunan sa pag-apruba na suriin ng isang tao ang pagpapatalang ito.",
+                    differs_other:
+                        "{{count}} detalye ang hindi tumutugma sa talaan: {{details}}. Hinihiling ng mga panuntunan sa pag-apruba na suriin ng isang tao ang pagpapatalang ito.",
+                    differsFields_one:
+                        "Isang detalye ang hindi tumutugma sa talaan: {{fields}}. Hinihiling ng mga panuntunan sa pag-apruba na suriin ng isang tao ang pagpapatalang ito.",
+                    differsFields_other:
+                        "{{count}} detalye ang hindi tumutugma sa talaan: {{fields}}. Hinihiling ng mga panuntunan sa pag-apruba na suriin ng isang tao ang pagpapatalang ito.",
+                    difference:
+                        "ang {{field}} ay “{{enrollment}}” sa pagpapatala at “{{registry}}” sa talaan",
+                    noVoter:
+                        "Walang botante sa talaan na may ganitong mga detalye. Hinihiling ng mga panuntunan sa pag-apruba na suriin ng isang tao ang pagpapatalang ito.",
+                    severalVoters:
+                        "Higit sa isang botante sa talaan ang tumutugma sa pagpapatalang ito. Isang tao ang pipili ng tama.",
+                    pending:
+                        "Hinihiling ng mga panuntunan sa pag-apruba na suriin ng isang tao ang pagpapatalang ito.",
+                    unknown: "Naghihintay ang pagpapatalang ito ng pasya ng isang tao.",
+                    approvedAuto:
+                        "Awtomatikong inaprubahan ng mga panuntunan sa pag-apruba ang pagpapatalang ito. Pumasa ang lahat ng pagsusuring hinihingi ng mga ito.",
+                    approvedBy: "Inaprubahan ni {{name}} ang pagpapatalang ito noong {{date}}.",
+                    rejectedAuto:
+                        "Awtomatikong tinanggihan ng mga panuntunan sa pag-apruba ang pagpapatalang ito: {{reason}}.",
+                    rejectedBy:
+                        "Tinanggihan ni {{name}} ang pagpapatalang ito noong {{date}}: {{reason}}.",
+                },
+                registryHelp:
+                    "Naghanap kami ng mga botanteng may parehong {{fields}}. Piliin kung kanino ang pagpapatalang ito.",
+                registrySearching:
+                    "Ito ang mga botante sa talaan na tumutugma sa iyong paghahanap. Piliin kung kanino ang pagpapatalang ito.",
+                registrySearch: "Wala sa listahan? Maghanap sa talaan ayon sa pangalan o email",
+                registryLoading: "Naghahanap sa talaan",
+                registryError: "Hindi makapaghanap sa talaan.",
+                noCandidates:
+                    "Walang botante sa talaan na tumutugma. Subukang maghanap ayon sa pangalan o email.",
+                candidates: "Mga botante sa talaan",
+                alreadyEnrolled: "Nakatala na",
+                bestMatch: "Pinakatugma",
+                detailsMatch: "{{count}} sa {{total}} detalye ang tumutugma",
+                compareTitle: "Inihambing kay {{name}} sa talaan",
+                col: {
+                    detail: "Detalye",
+                    enrollment: "Sa pagpapatala",
+                    registry: "Sa talaan",
+                    result: "Resulta",
+                },
+                same: "Pareho",
+                differs: "Magkaiba",
+                compareNote:
+                    "Hindi isinasaalang-alang sa mga pangalan ang malaki at maliit na titik, mga tuldik at gitling.",
+                compareJoint:
+                    "Para sa mga lisensya sa pagmamaneho at seafarer's book, pinagsamang inihahambing ang unang pangalan at gitnang pangalan.",
+                applicationId: "ID ng aplikasyon",
+                copy: "Kopyahin",
+                copied: "Nakopya",
+                approve: "Aprubahan ang pagpapatala",
+                approveDialog: {
+                    title: "Aprubahan si {{name}}?",
+                    body: "Iuugnay nito ang pagpapatala sa botante sa talaan na nasa ibaba. Sasabihan ang botante sa email o text message at makakapag-sign in siya upang bumoto kapag nagbukas ang botohan.",
+                    checked: "Sinuri mo nang harapan ang ID ng botante.",
+                    irreversible: "Hindi na ito mababawi.",
+                    confirm: "Aprubahan",
+                },
+                reject: "Tanggihan ang pagpapatala",
+            },
+            idCheck: {
+                title: "Pagsusuri ng ID",
+                method: {
+                    VERIFIED: "Na-verify ang na-scan na ID",
+                    MANUAL_ENTRY: "Mano-manong tinype",
+                    UNKNOWN: "Hindi iniulat",
+                },
+                verified: "Na-verify ng proseso ng pagpapatala ang ID ng botante",
+                typedByHand: "Mano-manong tinype ng botante ang kanyang mga detalye",
+                unknown:
+                    "Hindi iniulat ng proseso ng pagpapatala kung paano sinuri ang pagkakakilanlan",
+                faceToFaceTitle: "Suriin siya nang harapan bago aprubahan",
+                faceToFaceText:
+                    "Kausapin ang botante nang personal o sa video call at ihambing ang kanyang ID sa mga detalye sa pahinang ito.",
+            },
+            reject: {
+                rejectReason: "Dahilan ng pagtanggi",
+                message: "Mensahe sa botante",
+                messageRequired: "Sumulat ng mensahe para sa botante kapag ang dahilan ay Iba pa.",
+                reasons: {
+                    "undefined": "-",
+                    "insufficient-information": "Kulang na datos",
+                    "no-matching-voter": "Walang tumutugmang botante",
+                    "voter-already-approved": "Naaprubahan na",
+                    "other": "Iba pa",
+                },
+                hint: {
+                    "insufficient-information": "May kulang na detalye o hindi ito mabasa.",
+                    "no-matching-voter": "Wala ang tao sa talaan ng mga botante.",
+                    "voter-already-approved": "Nakatala na ang botanteng ito.",
+                    "other": "Sumulat ng sarili mong mensahe.",
+                },
+                preview: {
+                    "insufficient-information":
+                        "Hindi ka namin naitala dahil may kulang o hindi mabasa sa iyong mga detalye. Mangyaring magpatala muli na may kumpletong detalye.",
+                    "no-matching-voter":
+                        "Wala kaming nahanap na botante sa talaan na tumutugma sa iyong mga detalye. Suriin ang iyong mga detalye at magpatala muli, o makipag-ugnayan sa iyong tanggapan ng halalan.",
+                    "voter-already-approved":
+                        "Nakatala ka na. Makakapag-sign in ka upang bumoto kapag nagbukas ang botohan.",
+                },
+                previewTitle: "Makikita ng botante",
+            },
             notifications: {
-                approveError: "Error sa pag-apruba ng botante",
-                approveSuccess: "Inaprubahan ang botante",
-                rejectError: "Error sa pagtanggi ng botante",
-                rejectSuccess: "Tinanggihan ang botante",
-                VoterApprovedAlready: "Ang botante ay naaprubahan na.",
+                approveError: "Hindi maaprubahan ang pagpapatala",
+                approveSuccess: "Naaprubahan si {{name}}. Nasabihan na ang botante.",
+                rejectError: "Hindi matanggihan ang pagpapatala",
+                rejectSuccess: "Tinanggihan si {{name}}. Nasabihan na ang botante.",
+                VoterApprovedAlready: "Nakatala na ang botanteng ito.",
             },
             export: {
                 success: "Matagumpay na natapos ang pag-export ng mga aplikasyon",
                 error: "Error sa pag-export ng mga aplikasyon",
             },
             matrix: {
-                button: "Matrix ng Pag-apruba",
-                title: "Matrix ng Pag-apruba",
+                button: "Matrix ng pag-apruba",
+                title: "Matrix ng pag-apruba",
+                back: "Mga Pag-apruba",
                 subtitle:
-                    "Sinusuri ang mga panuntunan ayon sa pagkakasunod-sunod. Ang unang panuntunang tumutugma ang nagpapasya sa pagpapatala.",
-                version: "Bersyon {{version}} · Na-save noong {{date}} ni {{user}}",
-                builtInVersion:
-                    "Bersyon {{version}} · Mga likas na panuntunan, ginagamit hanggang may ma-save na bersyon",
+                    "Ang mga panuntunan ang nagpapasya kung ano ang mangyayari sa bawat pagpapatala. Ang unang panuntunang tumutugma ang nagpapasya.",
+                versionChip: "Bersyon {{version}}",
+                savedBy: "Na-save noong {{date}} ni {{user}}",
+                builtIn: "Mga likas na panuntunan, ginagamit hanggang may ma-save na bersyon",
                 unsaved: "May mga pagbabagong hindi pa na-save",
-                readOnly: "Maaari mong tingnan at subukan ang matrix, ngunit hindi ito baguhin.",
+                viewOnly: "Pagtingin lamang",
+                readOnlyTitle: "Makikita mo ang mga panuntunan ngunit hindi mo mababago",
+                readOnlyText:
+                    "Hilingin sa isang administrator na may pahintulot na approval-matrix-write na gawin ang mga pagbabago.",
                 loadError: "Hindi ma-load ang matrix ng pag-apruba.",
-                compared: "Inihahambing sa Talaan",
+                compared: "Ano ang inihahambing namin",
                 comparedHelp:
-                    "Ang bawat pagpapatala ay inihahambing sa botanteng natagpuan sa talaan. Hindi isinasaalang-alang sa mga pangalan ang malaki at maliit na titik, mga tuldik at gitling; para sa Lisensya sa Pagmamaneho at Seafarer's Book, pinagsamang inihahambing ang unang pangalan at gitnang pangalan.",
-                comparedFields: "Mga inihahambing na field",
-                comparedFieldsHelp:
-                    "Mag-type ng katangian ng botante at pindutin ang Enter upang idagdag ito.",
-                rules: "Mga Panuntunan",
-                columns: {
-                    number: "#",
-                    conditions: "Mga Kondisyon",
-                    decision: "Pasya",
-                    reason: "Dahilang Ipinapakita sa Botante",
-                    actions: "Mga Aksyon",
-                },
-                otherwise: "Kung Hindi",
-                addRule: "Magdagdag ng Panuntunan",
+                    "Ang bawat pagpapatala ay inihahambing sa botanteng natagpuan sa talaan. Hindi isinasaalang-alang sa mga pangalan ang malaki at maliit na titik, mga tuldik at gitling; para sa mga lisensya sa pagmamaneho at seafarer's book, pinagsamang inihahambing ang unang pangalan at gitnang pangalan.",
+                addCompared: "Maghambing ng isa pang detalye",
+                rules: "Mga panuntunan",
+                rulesHelp:
+                    "Sinusuri ang mga panuntunan mula sa itaas. Ang unang tumutugma ang nagpapasya; kung walang tumutugma, ang huling panuntunan ang ilalapat.",
+                when: "Kapag",
+                then: "Kung gayon",
+                otherwise: "Kung hindi",
+                noneApply: "Walang tumutugma sa mga panuntunan sa itaas",
+                andWord: "at",
+                and: " at ",
+                appliesToExample: "Tumutugma sa iyong halimbawa",
+                cameFrom: "Nagpasya sa pagpapatalang pinanggalingan mo",
+                voterIsTold: "Sasabihin sa botante: “{{reason}}”.",
+                sentence: "Kapag {{when}}, {{outcome}}.",
+                sentenceOtherwise: "Kung walang tumutugma sa mga panuntunan sa itaas, {{outcome}}.",
+                sentenceEmpty:
+                    "Magdagdag ng kondisyon upang sabihin kung kailan tumutugma ang panuntunang ito.",
+                addRule: "Magdagdag ng panuntunan",
+                discard: "Itapon ang mga pagbabago",
                 actions: {
                     edit: "I-edit ang panuntunan {{number}}",
                     editOtherwise: "I-edit ang huling panuntunan",
@@ -2911,44 +3106,56 @@ const tagalogTranslation: TranslationType = {
                     moveDown: "Ibaba ang panuntunan {{number}}",
                     delete: "Tanggalin ang panuntunan {{number}}",
                 },
-                test: "Subukan ang Matrix",
+                saveBar: {
+                    title: "May mga pagbabago kang hindi pa na-save",
+                    fix_one: "Ayusin ang 1 panuntunan bago mag-save",
+                    fix_other: "Ayusin ang {{count}} panuntunan bago mag-save",
+                    more: "+{{count}} pa",
+                },
+                test: "Sumubok ng halimbawa",
                 testHelp:
-                    "Ilarawan ang isang pagpapatala upang makita kung aling panuntunan ang nagpapasya rito. Kasama ang mga pagbabagong hindi pa na-save.",
-                applies: "Tumutugma ang panuntunan {{number}}:",
-                otherwiseApplies:
-                    "Walang panuntunang tumutugma, kaya ang huling panuntunan (Kung Hindi) ang nagpapasya:",
-                testError: "Hindi masubukan ang pagpapatala.",
-                testInvalid: "Ayusin ang mga panuntunang ito bago subukan o i-save:",
+                    "Ilarawan ang isang pagpapatala upang makita kung aling panuntunan ang nagpapasya rito. Kasama ang mga pagbabago mong hindi pa na-save.",
+                testDetails: "Mga detalyeng inihahambing",
+                applies: "Tumutugma ang panuntunan {{number}}",
+                otherwiseApplies: "Ang huling panuntunan ang ilalapat",
+                testError: "Hindi masubukan ang halimbawa.",
+                testInvalid: "Ayusin ang mga panuntunang ito upang makasubok ng halimbawa:",
                 ruleError: "Panuntunan {{number}}: {{error}}",
                 invariants: {
                     MANUAL_ENTRY_NOT_ACCEPTED:
-                        "Nag-aapruba ang panuntunan, ngunit hindi kailanman awtomatikong inaaprubahan ang mga pagpapatalang mano-manong inilagay ang pagkakakilanlan.",
+                        "Hindi kailanman awtomatikong inaaprubahan ang pagkakakilanlang tinype, kaya ipapadala ito sa isang tao.",
                     ALREADY_ENROLLED_NOT_ACCEPTED:
-                        "Nag-aapruba ang panuntunan, ngunit hindi na muling inaaprubahan ang botanteng nakatala na.",
-                    NO_VOTER_NOT_ACCEPTED:
-                        "Nag-aapruba ang panuntunan, ngunit walang inaaprubahan kung walang botante sa talaan.",
+                        "Hindi na muling inaaprubahan ang botanteng nakatala na.",
+                    NO_VOTER_NOT_ACCEPTED: "Walang inaaprubahan kung walang botante sa talaan.",
                     OTHERWISE_NOT_ACCEPTED: "Hindi kailanman nag-aapruba ang huling panuntunan.",
                 },
                 dialog: {
-                    editTitle: "I-edit ang Panuntunan {{number}}",
-                    newTitle: "Bagong Panuntunan",
-                    otherwiseTitle: "I-edit ang Huling Panuntunan (Kung Hindi)",
-                    identity: "Pag-verify ng Pagkakakilanlan",
-                    voterFound: "Natagpuan ang Botante sa Talaan",
-                    alreadyEnrolled: "Nakatala na ang Botante",
-                    validId: "Balidong ID",
-                    differing: "Mga Field na Naiiba",
+                    editTitle: "I-edit ang panuntunan {{number}}",
+                    newTitle: "Bagong panuntunan",
+                    otherwiseTitle: "I-edit ang huling panuntunan",
+                    summary: "Sa madaling salita",
+                    whenHelp:
+                        "Dapat totoo ang lahat ng ito. Huwag isama ang isang kondisyon kapag hindi ito mahalaga.",
+                    otherwiseHelp: "Kung walang tumutugma sa mga panuntunan sa itaas",
+                    addCondition: "Magdagdag ng kondisyon",
+                    remove: "Alisin ang “{{condition}}”",
+                    identity: "Pagsusuri ng pagkakakilanlan",
+                    voterFound: "Botante sa talaan",
+                    alreadyEnrolled: "Nakatala na",
+                    validId: "Uri ng ID",
+                    differing: "Mga detalyeng naiiba",
                     decision: "Pasya",
-                    reason: "Dahilang Ipinapakita sa Botante",
+                    reason: "Ano ang sasabihin sa botante",
+                    voterSees: "Makikita ng botante",
                     apply: "Ilapat",
-                    any: "Kahit Ano",
+                    close: "Isara",
                     yes: "Oo",
                     no: "Hindi",
                     notReported: "Hindi iniulat",
                 },
                 identity: {
-                    VERIFIED: "Na-verify",
-                    MANUAL_ENTRY: "Mano-manong inilagay",
+                    VERIFIED: "Na-verify sa pag-scan ng ID",
+                    MANUAL_ENTRY: "Mano-manong tinype",
                 },
                 differing: {
                     none: "Wala",
@@ -2959,43 +3166,70 @@ const tagalogTranslation: TranslationType = {
                     at_least_3: "3 o higit pa",
                 },
                 fieldMatch: {
-                    MATCHES: "Tumutugma",
-                    DIFFERS: "Naiiba",
+                    MATCHES: "Pareho",
+                    DIFFERS: "Magkaiba",
                 },
                 decisions: {
                     ACCEPTED: "Awtomatikong aprubahan",
-                    PENDING: "Ipadala sa mano-manong pagsusuri",
+                    PENDING: "Ipadala sa isang tao",
                     REJECTED: "Tanggihan",
                 },
+                outcomeShort: {
+                    ACCEPTED: "awtomatikong aprubahan",
+                    PENDING: "ipadala sa isang tao",
+                    REJECTED: "tanggihan",
+                },
+                outcomeHelp: {
+                    ACCEPTED: "Naitatala ang botante nang walang taong tumitingin dito.",
+                    PENDING:
+                        "Isang opisyal ang magpapasya, at sasabihin sa botante na sinusuri ang kanyang pagpapatala.",
+                    REJECTED: "Sasabihin sa botante ang dahilan, at maaari siyang magpatala muli.",
+                },
+                outcomeSentence: {
+                    ACCEPTED: "awtomatikong aaprubahan ang pagpapatala",
+                    PENDING: "ipapadala ang pagpapatala sa isang tao",
+                    REJECTED: "tatanggihan ang pagpapatala",
+                },
                 reasons: {
-                    NO_VOTER: "Walang Tumutugma na Botante",
-                    ALREADY_APPROVED: "Naaprubahan Na",
-                    INSUFFICIENT_INFORMATION: "Kulang na Datos",
-                    IDENTITY_NOT_VERIFIED: "Hindi Na-verify ang Pagkakakilanlan",
-                    OTHER: "Iba Pa",
+                    NO_VOTER: "Walang tumutugmang botante",
+                    ALREADY_APPROVED: "Naaprubahan na",
+                    INSUFFICIENT_INFORMATION: "Kulang na datos",
+                    IDENTITY_NOT_VERIFIED: "Hindi na-verify ang pagkakakilanlan",
+                    OTHER: "Iba pa",
+                },
+                voterText: {
+                    NO_VOTER:
+                        "Wala kaming nahanap na botante sa talaan na tumutugma sa iyong mga detalye. Suriin ang iyong mga detalye at magpatala muli, o makipag-ugnayan sa iyong tanggapan ng halalan.",
+                    ALREADY_APPROVED:
+                        "Nakatala ka na. Makakapag-sign in ka upang bumoto kapag nagbukas ang botohan.",
+                    INSUFFICIENT_INFORMATION:
+                        "Hindi ka namin naitala dahil may kulang o hindi mabasa sa iyong mga detalye. Mangyaring magpatala muli na may kumpletong detalye.",
+                    IDENTITY_NOT_VERIFIED:
+                        "Hindi namin awtomatikong na-verify ang iyong pagkakakilanlan, kaya susuriin ng isang opisyal ng halalan ang iyong pagpapatala.",
+                    OTHER: "Isang opisyal ng halalan ang susulat ng mensaheng ito kapag nagpasya na siya.",
                 },
                 conditions: {
-                    any: "Anumang pagpapatala",
+                    any: "Wala pang kondisyon",
                     identity: {
-                        VERIFIED: "Na-verify ang pagkakakilanlan",
-                        MANUAL_ENTRY: "Mano-manong inilagay ang pagkakakilanlan",
+                        VERIFIED: "Na-verify ang pagkakakilanlan sa pag-scan ng ID",
+                        MANUAL_ENTRY: "Mano-manong tinype ang pagkakakilanlan",
                     },
                     voterFound: {
                         true: "Natagpuan ang botante sa talaan",
                         false: "Walang natagpuang botante sa talaan",
                     },
                     alreadyEnrolled: {
-                        true: "Nakatala na ang botante",
-                        false: "Hindi pa nakatala ang botante",
+                        true: "Nakatala na",
+                        false: "Hindi pa nakatala",
                     },
-                    validId: "Balidong ID: {{id}}",
+                    validId: "ID: {{id}}",
                     differing: {
-                        none: "Tumutugma ang lahat ng inihahambing na field",
-                        exactly_1: "Eksaktong 1 field ang naiiba",
-                        at_most_1: "Hindi hihigit sa 1 field ang naiiba",
-                        exactly_2: "Eksaktong 2 field ang naiiba",
-                        at_most_2: "Hindi hihigit sa 2 field ang naiiba",
-                        at_least_3: "3 o higit pang field ang naiiba",
+                        none: "Tumutugma ang lahat ng detalye",
+                        exactly_1: "Eksaktong 1 detalye ang naiiba",
+                        at_most_1: "Hindi hihigit sa 1 detalye ang naiiba",
+                        exactly_2: "Eksaktong 2 detalye ang naiiba",
+                        at_most_2: "Hindi hihigit sa 2 detalye ang naiiba",
+                        at_least_3: "3 o higit pang detalye ang naiiba",
                     },
                     field: {
                         MATCHES: "Tumutugma ang {{field}}",
@@ -3004,32 +3238,40 @@ const tagalogTranslation: TranslationType = {
                 },
                 errors: {
                     ACCEPTS_MANUAL_ENTRY:
-                        "Hindi maaaring awtomatikong aprubahan ang mga pagpapatalang mano-manong inilagay ang pagkakakilanlan.",
+                        "Hindi maaaring awtomatikong aprubahan ang mga pagpapatalang mano-manong tinype ang pagkakakilanlan.",
                     ACCEPTS_ALREADY_ENROLLED:
                         "Hindi na maaaring aprubahan muli ang botanteng nakatala na.",
                     ACCEPTS_WITHOUT_VOTER:
                         "Hindi maaaring aprubahan ang pagpapatala kung walang botante sa talaan.",
                     OTHERWISE_ACCEPTS:
-                        "Ang huling panuntunan ay maaaring magpadala ng mga pagpapatala sa mano-manong pagsusuri o tanggihan ang mga ito, hindi aprubahan.",
-                    MISSING_REASON: "Piliin ang dahilang ipinapakita sa botante.",
+                        "Ang huling panuntunan ay maaaring magpadala ng mga pagpapatala sa isang tao o tanggihan ang mga ito, ngunit hindi aprubahan.",
+                    MISSING_REASON: "Piliin kung ano ang sasabihin sa botante.",
                     UNEXPECTED_REASON: "Walang dahilan ang isang pag-apruba.",
-                    NO_COMPARED_FIELDS: "Pumili ng kahit isang field na ihahambing sa talaan.",
-                    DUPLICATE_COMPARED_FIELD: "May inihahambing na field na inulit.",
-                    UNKNOWN_FIELD: "May panuntunang gumagamit ng field na hindi inihahambing.",
+                    NO_COMPARED_FIELDS: "Pumili ng kahit isang detalyeng ihahambing sa talaan.",
+                    DUPLICATE_COMPARED_FIELD: "May inihahambing na detalyeng inulit.",
+                    UNKNOWN_FIELD: "May panuntunang gumagamit ng detalyeng hindi inihahambing.",
+                    NO_CONDITIONS:
+                        "Magdagdag ng kahit isang kondisyon. Ang huling panuntunan lamang ang sumasaklaw sa lahat ng iba pa.",
+                },
+                change: {
+                    added: "Naidagdag ang panuntunan {{number}}",
+                    decision: "Panuntunan {{number}}: {{from}} → {{to}}",
+                    edited: "Nabago ang panuntunan {{number}}",
+                    removed: "May inalis na panuntunan ({{text}})",
+                    moved: "Binago ang pagkakasunod-sunod ng mga panuntunan",
+                    otherwise: "Nabago ang huling panuntunan",
+                    compared: "Nabago ang mga detalyeng inihahambing",
                 },
                 save: {
-                    button: "I-save",
-                    title: "I-save ang Matrix ng Pag-apruba",
-                    body: "I-save ang mga panuntunang ito bilang bersyon {{version}}? Mula ngayon, ang mga bagong pagpapatala ay pagpapasyahan gamit ang mga ito. Mananatili ang pasya ng mga pagpapatalang napagpasyahan na.",
-                    success: "Na-save ang matrix ng pag-apruba bilang bersyon {{version}}",
+                    button: "I-save bilang bersyon {{version}}",
+                    title: "I-save bilang bersyon {{version}}?",
+                    body: "Mula ngayon, pagpapasyahan ang mga bagong pagpapatala gamit ang mga panuntunang ito. Mananatili ang pasya ng mga pagpapatalang napagpasyahan na.",
+                    changes: "Ano ang nagbago",
+                    log: "Itinatala ang bagong bersyon sa electoral log.",
+                    confirm: "I-save ang bersyon {{version}}",
+                    success: "Na-save bilang bersyon {{version}}",
                     error: "Hindi ma-save ang matrix ng pag-apruba",
                 },
-            },
-            decision: {
-                label: "Pinagpasyahan ng",
-                text: "Matrix ng pag-apruba bersyon {{version}}, panuntunan {{rule}}: {{conditions}}",
-                otherwise:
-                    "Matrix ng pag-apruba bersyon {{version}}, huling panuntunan (Kung Hindi)",
             },
         },
         monitoring: {
