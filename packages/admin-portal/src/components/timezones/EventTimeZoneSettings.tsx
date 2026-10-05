@@ -118,6 +118,7 @@ export const EventTimeZoneSettings: React.FC<{
             </Typography>
             <Autocomplete<ITimeZoneOption, true, true, false>
                 multiple
+                slotProps={{listbox: {sx: {maxHeight: 280, py: 0.5}}}}
                 disableClearable
                 disabled={disabled}
                 options={options}

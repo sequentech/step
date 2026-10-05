@@ -211,7 +211,29 @@ export const ScheduledOutcome: React.FC<{
                 <OutcomeChip outcome={explanation.outcome} />
                 <Button
                     size="small"
-                    sx={{minWidth: 0, p: 0, textTransform: "none"}}
+                    variant="text"
+                    sx={{
+                        "&&": {
+                            "minWidth": 0,
+                            "minHeight": 28,
+                            "px": 0.75,
+                            "py": 0.25,
+                            "fontSize": "0.8125rem",
+                            "textTransform": "none",
+                            "color": "primary.dark",
+                            "bgcolor": "transparent",
+                            "border": 0,
+                            "boxShadow": "none",
+                            "&:hover, &:focus, &:active": {
+                                color: (theme) => `${theme.palette.primary.dark} !important`,
+                                bgcolor: "transparent !important",
+                                border: 0,
+                                boxShadow: "none",
+                                textDecoration: "underline",
+                            },
+                            "&.Mui-focusVisible": {outline: "2px solid", outlineOffset: 2},
+                        },
+                    }}
                     aria-haspopup="dialog"
                     aria-expanded={!!anchor}
                     onClick={(event) => setAnchor(event.currentTarget)}

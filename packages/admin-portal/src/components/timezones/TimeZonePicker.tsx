@@ -2,7 +2,15 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useCallback, useMemo} from "react"
-import {Autocomplete, Box, TextField, Typography, type AutocompleteProps} from "@mui/material"
+import {
+    Autocomplete,
+    Box,
+    TextField,
+    Typography,
+    type AutocompleteProps,
+    type SxProps,
+    type Theme,
+} from "@mui/material"
 import {useTranslation} from "react-i18next"
 import type {ITimeZoneOption} from "@sequentech/ui-core"
 import {useTimeZoneService, type IAdminTimeZones} from "./timeZoneService"
@@ -62,9 +70,11 @@ export const TimeZoneOptionRow: React.FC<{
     const service = useTimeZoneService()
     return (
         <Box component="li" {...props} sx={{flexDirection: "column", alignItems: "start"}}>
-            <Typography component="span">{optionText(option, primary, service)}</Typography>
+            <Typography component="span" variant="body2" sx={{fontWeight: 500, m: 0}}>
+                {optionText(option, primary, service)}
+            </Typography>
             {option.detail ? (
-                <Typography component="span" variant="body2" color="text.secondary">
+                <Typography component="span" variant="caption" color="text.secondary" sx={{m: 0}}>
                     {option.detail}
                 </Typography>
             ) : null}
@@ -93,6 +103,7 @@ export interface ITimeZonePickerProps {
     at?: Date
     /** Shown in the field while no zone is chosen. */
     placeholder?: string
+    sx?: SxProps<Theme>
     size?: AutocompleteProps<ITimeZoneOption, false, boolean, false>["size"]
 }
 
@@ -115,6 +126,7 @@ export const TimeZonePicker: React.FC<ITimeZonePickerProps> = ({
     at,
     placeholder,
     size,
+    sx,
 }) => {
     const {t} = useTranslation()
     const {service, options, optionOf, filter} = useTimeZoneOptions(zones, at)
@@ -128,6 +140,9 @@ export const TimeZonePicker: React.FC<ITimeZonePickerProps> = ({
             disabled={disabled}
             disableClearable={!clearable}
             size={size}
+            fullWidth
+            sx={sx}
+            slotProps={{listbox: {sx: {maxHeight: 280, py: 0.5}}}}
             autoHighlight
             onChange={(_event, option) => onChange(option?.zone ?? null)}
             isOptionEqualToValue={(option, current) => option.zone === current.zone}

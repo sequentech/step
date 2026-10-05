@@ -121,9 +121,9 @@ export const ZonedDateTimeField: React.FC<IZonedDateTimeFieldProps> = ({
                     helperText={helperText}
                     onChange={(event) => change({local: event.target.value, timezone})}
                     slotProps={{inputLabel: {shrink: true}}}
-                    sx={{flex: 1}}
+                    sx={{flex: 1, minWidth: 0}}
                 />
-                <Box sx={{flex: 1}}>
+                <Box sx={{flex: 1, minWidth: 0}}>
                     <TimeZonePicker
                         label={t("lifecycle.input.timezone")}
                         value={timezone}
