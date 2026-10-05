@@ -214,7 +214,7 @@ describe("SelectElection with zones — the drafts", () => {
         expect(lines.device).toBe("On this device: Apr 8, 2028, 11:00 PM")
     })
 
-    it("no device line when the device's zone reads the same (Muscat for Dubai)", async () => {
+    it("shows the device time for a distinct zone even when its offset matches (Muscat for Dubai)", async () => {
         at(OVERSEAS.now.before)
         const lines = await show({
             isOpen: false,
@@ -222,6 +222,18 @@ describe("SelectElection with zones — the drafts", () => {
             timeZone: dubai.timeZone,
             closeTimeZone: OVERSEAS.primary,
             deviceTimeZone: "Asia/Muscat",
+        })
+        expect(lines.device).toBe(`On this device: ${format(dubai.opensAt, "Asia/Muscat")}`)
+    })
+
+    it("keeps one line for canonical aliases of the Post timezone", async () => {
+        at(OVERSEAS.now.before)
+        const lines = await show({
+            isOpen: false,
+            electionDates: zonedElectionDates(dubai.opensAt, OVERSEAS.closesAt),
+            timeZone: "Asia/Kolkata",
+            closeTimeZone: OVERSEAS.primary,
+            deviceTimeZone: "Asia/Calcutta",
         })
         expect(lines.device).toBeNull()
     })
