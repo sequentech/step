@@ -16,10 +16,13 @@ import runpy
 import subprocess
 import sys
 import tempfile
+import threading
+import time
 import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+import ci
 import run
 from report import CoverageError
 from test_report import export, llvm_file
@@ -663,6 +666,270 @@ class CheckoutIdentityTests(unittest.TestCase):
 
 class CommandExecutionTests(unittest.TestCase):
     """Check real process exit handling with tiny, deterministic Python commands."""
+
+    def test_outer_native_timeout_cleans_the_inner_command_session(self) -> None:
+        self.assert_nested_cleanup("timeout")
+
+    def test_outer_keyboard_interrupt_cleans_the_inner_command_session(self) -> None:
+        self.assert_nested_cleanup("interrupt")
+
+    def test_outer_sigterm_cleans_the_inner_command_session(self) -> None:
+        self.assert_nested_cleanup("sigterm")
+
+    def assert_nested_cleanup(self, cancellation: str) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            package = root / "packages/fixture/src"
+            package.mkdir(parents=True)
+            (package / "lib.rs").write_text("pub fn fixture() {}\n")
+            subprocess.run(["git", "init", "-q", str(root)], check=True)
+            config = root / "profiles.toml"
+            config.write_text(
+                '[profiles.fixture]\npackage="fixture"\nfeatures=[]\nscope_exceptions={}\n'
+            )
+            marker = root / "cargo.pid"
+            tools = root / "bin"
+            tools.mkdir()
+            cargo = tools / "cargo"
+            cargo.write_text(
+                f"#!{sys.executable}\nimport os,time\nfrom pathlib import Path\n"
+                f"Path({str(marker)!r}).write_text(str(os.getpid()))\n"
+                "time.sleep(60)\n"
+            )
+            cargo.chmod(0o755)
+            script = (
+                f"import sys; sys.path.insert(0, {str(Path(run.__file__).parent)!r}); "
+                "import run; from pathlib import Path; "
+                f"run.CONFIG=Path({str(config)!r}); "
+                "sys.argv=['run.py','fixture','--baseline','--checkout',"
+                f"{str(root)!r}]; "
+                "raise SystemExit(run.main())"
+            )
+            # The outer guard is deliberately shorter than its inner command.
+            environment = dict(
+                os.environ,
+                PATH=f"{tools}:{os.environ['PATH']}",
+                NATIVE_COVERAGE_TIMEOUT_SECONDS="2",
+            )
+            script = (
+                'import os; os.environ["NATIVE_COVERAGE_TIMEOUT_SECONDS"]="3600"; '
+                + script
+            )
+            pid = None
+            sender = None
+            try:
+                if cancellation != "timeout":
+
+                    def send_when_running():
+                        deadline = time.monotonic() + 1.5
+                        while not marker.exists() and time.monotonic() < deadline:
+                            time.sleep(0.01)
+                        if marker.exists():
+                            os.kill(
+                                os.getpid(),
+                                run.signal.SIGINT
+                                if cancellation == "interrupt"
+                                else run.signal.SIGTERM,
+                            )
+
+                    sender = threading.Thread(target=send_when_running)
+                    sender.start()
+                expected = (
+                    KeyboardInterrupt if cancellation == "interrupt" else CoverageError
+                )
+                with (
+                    patch.dict(os.environ, environment),
+                    run.native_cancellation(),
+                    self.assertRaises(expected),
+                ):
+                    ci.command(
+                        [sys.executable, "-c", script], root, root, "outer", native=True
+                    )
+                self.assertTrue(marker.exists(), (root / "outer.log").read_text())
+                pid = int(marker.read_text())
+                deadline = time.monotonic() + 2
+                while time.monotonic() < deadline:
+                    try:
+                        os.kill(pid, 0)
+                    except ProcessLookupError:
+                        break
+                    time.sleep(0.02)
+                else:
+                    self.fail("Outer timeout left the native command session running")
+            finally:
+                if sender is not None:
+                    sender.join()
+                if pid is None and marker.exists():
+                    pid = int(marker.read_text())
+                if pid is not None:
+                    try:
+                        os.killpg(pid, run.signal.SIGKILL)
+                    except ProcessLookupError:
+                        pass
+
+    def test_pending_interrupt_during_creation_cleans_the_assigned_group(self) -> None:
+        with (
+            tempfile.TemporaryDirectory() as directory,
+            patch.object(run.subprocess, "Popen") as popen,
+            patch.object(run.os, "killpg") as kill,
+        ):
+            child = popen.return_value
+            child.pid = 12345
+            child.wait.return_value = 0
+
+            def create(*_args, **_kwargs):
+                os.kill(os.getpid(), run.signal.SIGINT)
+                return child
+
+            popen.side_effect = create
+            with self.assertRaises(KeyboardInterrupt):
+                run.execute(["cargo"], Path(directory) / "creation.log", {})
+            kill.assert_called_once_with(12345, run.signal.SIGKILL)
+            child.wait.assert_called_once()
+
+    def test_native_budget_reaches_the_actual_process_wait(self) -> None:
+        with (
+            tempfile.TemporaryDirectory() as directory,
+            patch.object(run.subprocess, "Popen") as popen,
+        ):
+            popen.return_value.wait.return_value = 0
+            for budget, expected in (
+                ({}, 1200),
+                ({"NATIVE_COVERAGE_TIMEOUT_SECONDS": "3600"}, 3600),
+            ):
+                run.execute(["cargo"], Path(directory) / "budget.log", budget)
+                popen.return_value.wait.assert_called_with(timeout=expected)
+
+    def test_invalid_native_budgets_never_start_a_command(self) -> None:
+        with (
+            tempfile.TemporaryDirectory() as directory,
+            patch.object(run.subprocess, "Popen") as popen,
+        ):
+            for value in ["0", "-1", "3601", "1.5", "many", "", " 30"]:
+                with (
+                    self.subTest(value=value),
+                    self.assertRaisesRegex(
+                        CoverageError, "NATIVE_COVERAGE_TIMEOUT_SECONDS"
+                    ),
+                ):
+                    run.execute(
+                        ["cargo"],
+                        Path(directory) / "invalid.log",
+                        {"NATIVE_COVERAGE_TIMEOUT_SECONDS": value},
+                    )
+            popen.assert_not_called()
+
+    def test_extended_timeout_still_kills_the_entire_process_group(self) -> None:
+        with (
+            tempfile.TemporaryDirectory() as directory,
+            patch.object(run.subprocess, "Popen") as popen,
+            patch.object(run.os, "killpg") as kill,
+        ):
+            popen.return_value.pid = 12345
+            popen.return_value.wait.side_effect = [
+                subprocess.TimeoutExpired("cargo", 3600),
+                0,
+            ]
+            with self.assertRaisesRegex(CoverageError, "3600 seconds"):
+                run.execute(
+                    ["cargo"],
+                    Path(directory) / "timeout.log",
+                    {"NATIVE_COVERAGE_TIMEOUT_SECONDS": "3600"},
+                )
+            kill.assert_called_once_with(12345, run.signal.SIGKILL)
+            self.assertEqual(
+                popen.return_value.wait.call_args_list[0].kwargs["timeout"], 3600
+            )
+
+    def test_uncooperative_child_is_killed_after_bounded_grace(self) -> None:
+        with (
+            tempfile.TemporaryDirectory() as directory,
+            patch.object(run.subprocess, "Popen") as popen,
+            patch.object(run.os, "killpg") as kill,
+        ):
+            popen.return_value.pid = 12345
+            popen.return_value.wait.side_effect = [
+                subprocess.TimeoutExpired("cargo", 1200),
+                subprocess.TimeoutExpired("cargo", 5),
+                0,
+            ]
+            with self.assertRaises(CoverageError):
+                run.execute(
+                    ["cargo"], Path(directory) / "timeout.log", {}, cooperative=True
+                )
+            self.assertEqual(
+                [c.args for c in kill.call_args_list],
+                [(12345, run.signal.SIGTERM), (12345, run.signal.SIGKILL)],
+            )
+            self.assertEqual(
+                popen.return_value.wait.call_args_list[1].kwargs["timeout"], 5
+            )
+
+    def test_a_group_that_finishes_during_cancellation_is_still_reaped(self) -> None:
+        with (
+            tempfile.TemporaryDirectory() as directory,
+            patch.object(run.subprocess, "Popen") as popen,
+            patch.object(run.os, "killpg", side_effect=ProcessLookupError),
+        ):
+            popen.return_value.pid = 12345
+            popen.return_value.wait.side_effect = [
+                subprocess.TimeoutExpired("cargo", 1200),
+                0,
+            ]
+            with self.assertRaisesRegex(CoverageError, "1200 seconds"):
+                run.execute(["cargo"], Path(directory) / "finished.log", {})
+            self.assertEqual(popen.return_value.wait.call_count, 2)
+
+    def test_native_cancellation_restores_the_importing_process(self) -> None:
+        previous_handler = run.signal.getsignal(run.signal.SIGTERM)
+        previous_mask = run.signal.pthread_sigmask(run.signal.SIG_BLOCK, set())
+        with (
+            self.assertRaisesRegex(CoverageError, "cancelled"),
+            run.native_cancellation(),
+        ):
+            run.cancel_native_run(run.signal.SIGTERM, None)
+        self.assertEqual(run.signal.getsignal(run.signal.SIGTERM), previous_handler)
+        self.assertEqual(
+            run.signal.pthread_sigmask(run.signal.SIG_BLOCK, set()), previous_mask
+        )
+
+    def test_a_failed_launch_restores_the_signal_mask(self) -> None:
+        previous_mask = run.signal.pthread_sigmask(run.signal.SIG_BLOCK, set())
+        with (
+            tempfile.TemporaryDirectory() as directory,
+            patch.object(run.subprocess, "Popen", side_effect=FileNotFoundError),
+        ):
+            with self.assertRaises(FileNotFoundError):
+                run.execute(
+                    [str(Path(directory) / "missing")],
+                    Path(directory) / "failed.log",
+                    {},
+                )
+        self.assertEqual(
+            run.signal.pthread_sigmask(run.signal.SIG_BLOCK, set()), previous_mask
+        )
+
+    def test_normal_child_keeps_the_original_signal_mask(self) -> None:
+        previous_mask = run.signal.pthread_sigmask(run.signal.SIG_BLOCK, set())
+        with tempfile.TemporaryDirectory() as directory:
+            result = run.execute(
+                [
+                    sys.executable,
+                    "-c",
+                    "import signal; print(sorted(int(s) for s in "
+                    "signal.pthread_sigmask(signal.SIG_BLOCK,set())))",
+                ],
+                Path(directory) / "mask.log",
+                dict(os.environ),
+            )
+        self.assertEqual(result.strip(), repr(sorted(int(s) for s in previous_mask)))
+
+    def test_missing_executable_fails_and_retains_exec_error(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            log = Path(directory) / "exec.log"
+            with self.assertRaisesRegex(CoverageError, "Command failed"):
+                run.execute([str(Path(directory) / "missing")], log, dict(os.environ))
+            self.assertIn("FileNotFoundError", log.read_text())
 
     def test_failed_command_is_an_error_and_keeps_its_log(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
