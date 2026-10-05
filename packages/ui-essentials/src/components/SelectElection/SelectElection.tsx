@@ -252,14 +252,17 @@ const SelectElection: React.FC<SelectElectionProps> = ({
     const {t, i18n} = useTranslation()
     const formatElectionDate = formatDateTime ?? formatDate
     const startVotingDate = getStartDate(electionDates) ?? ""
-    const endVotingDate = getEndDate(electionDates) ?? ""
+    const now = new Date()
+    const closedAt = !isOpen && isStarted ? now : undefined
+    const endVotingDate = getEndDate(electionDates, closedAt) ?? ""
     const zoned = timeZone
         ? getElectionTimes({
               electionDates,
+              closedAt,
               timeZone,
               closeTimeZone: closeTimeZone ?? timeZone,
               deviceTimeZone: deviceTimeZone ?? browserTimeZone(),
-              now: new Date(),
+              now,
               t,
               lang: i18n?.resolvedLanguage || i18n?.language || "en",
               formatDateTime: formatElectionDate,
