@@ -35,6 +35,9 @@ const catalanTranslation: TranslationType = {
                 "Hi ha hagut un problema en importar el vot auditable. Has triat el fitxer correcte?",
             importErrorMoreInfo: "Més informació",
             importErrorTitle: "Error",
+            ciphertextErrorTitle: "La verificació del vot ha fallat",
+            ciphertextErrorDescription:
+                "El text xifrat d'aquest vot auditable no és el xifratge del text en clar i l'aleatorietat que conté. No es pot confiar en el vot.",
             useSampleLink: "Utilitza vot d'exemple",
             nextButton: "Continuar",
             ballotIdLabel: "ID de papereta",
@@ -78,6 +81,9 @@ const catalanTranslation: TranslationType = {
             points_other: "({{count}} Punts)",
             contestNotFound: "Pregunta no trobada: {{contestId}}",
             declineToVote: "Vot no emès",
+            blankBallot: "Papereta en blanc",
+            acclamationDescription:
+                "Aquesta votació s'ha resolt per aclamació. Les seves candidatures resulten elegides sense votació, per la qual cosa no es pot seleccionar cap opció ni es registra cap vot.",
         },
         "errors": {
             encoding: {

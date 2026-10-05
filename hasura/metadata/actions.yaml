@@ -1,4 +1,17 @@
 actions:
+    - name: get_ballot_files_urls
+      definition:
+          type: query
+          handler: http://{{HARVEST_DOMAIN}}/get-ballot-files-urls
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: user
     - name: ApplicationChangeStatus
       definition:
           kind: synchronous
@@ -133,6 +146,34 @@ actions:
       permissions:
           - role: admin-user
       comment: create scheduled event
+    - name: acknowledge_support_materials
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/acknowledge-support-materials
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: user
+      comment: acknowledge_support_materials
+    - name: get_support_materials_acknowledgment
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/get-support-materials-acknowledgment
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: user
+      comment: get_support_materials_acknowledgment
     - name: create_ballot_receipt
       definition:
           kind: synchronous
@@ -278,6 +319,23 @@ actions:
       permissions:
           - role: election-event-delete
           - role: admin-user
+    - name: delete_tenant
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/delete-tenant
+          forward_client_headers: true
+          headers:
+              - name: X-Hasura-Admin-Secret
+                value_from_env: ACTIONS_ADMIN_SECRET
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
+      comment: delete_tenant
     - name: delete_permission
       definition:
           kind: synchronous
@@ -694,6 +752,21 @@ actions:
           - role: admin-user
           - role: voter-read
           - role: user-read
+    - name: reveal_voter_secret_attribute
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/reveal-voter-secret-attribute
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: voter-read
+          - role: voter-secret-attribute-read
+          - role: admin-user
     - name: fetchDocument
       definition:
           kind: ""
@@ -1014,6 +1087,21 @@ actions:
       definition:
           kind: ""
           handler: http://{{HARVEST_DOMAIN}}/get-user-profile-attributes
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: voter-read
+          - role: user-read
+          - role: admin-user
+    - name: get_user_profile_configuration
+      definition:
+          kind: ""
+          handler: http://{{HARVEST_DOMAIN}}/get-user-profile-configuration
           forward_client_headers: true
           request_transform:
               body:
@@ -1846,7 +1934,10 @@ custom_types:
         - name: TallySheetOutput
         - name: PrepareBallotPublicationPreviewOutput
         - name: ExportUsersOutput
+        - name: RevealVoterSecretAttributeOutput
         - name: SetUserRoleOutput
+        - name: AcknowledgeSupportMaterialsOutput
+        - name: GetSupportMaterialsAcknowledgmentOutput
         - name: CreateTallyOutput
         - name: StartTallyOutput
         - name: PublishBallotOutput

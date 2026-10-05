@@ -128,7 +128,7 @@ reuse lint                           # Every file must have SPDX headers
   // SPDX-License-Identifier: AGPL-3.0-only
   ```
 - **Vendored Cargo dependencies**: `packages/vendor/` — Cargo.toml uses `[source.vendored-sources]`
-- **Pinned crate**: `wasm-bindgen` 0.2.104 — do not change
+- **Pinned crate**: `wasm-bindgen` 0.2.128 (`=0.2.128` in strand, braid, sequent-core and `packages/wbraid`) — the CLI pins in `devenv.nix` and the three `flake.nix` files must move with it
 - **Forked crate**: `celery` uses a custom fork (Findeton/rusty-celery)
 - **Hasura changes must go through** `hasura console` (not the web UI directly) for migrations to be tracked
 - **Rust toolchain**: 1.96.0 stable, WASM targets: `wasm32-unknown-unknown`
@@ -202,3 +202,5 @@ Dev service URLs (inside dev container):
 - RabbitMQ: http://127.0.0.1:15672
 
 **Dev container tips**: When editing Rust code in harvest, windmill, or sequent-core, don't run `cargo build` to verify it — check the container logs (`docker logs windmill` / `docker logs harvest`) instead, since those services auto-rebuild on changes inside the dev container. See the note under Build Commands → Rust.
+
+Before running `yarn start:voting-portal` or `yarn start:admin-portal`, check whether that dev server is already running (e.g. `ss -tlnp | grep -E ':3000|:3002'` or `curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:<port>/`) instead of starting a new one blind — avoids stacking duplicate/conflicting processes on the same port.

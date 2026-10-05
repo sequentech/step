@@ -12,6 +12,27 @@ use crate::{
 use graphql_client::{GraphQLQuery, Response};
 use serde_json::Value;
 use std::error::Error;
+use windmill::services::ceremonies::keys_ceremony::PrivateKeyDownloadUnavailable;
+
+// The code Harvest answers with once the key can no longer be downloaded
+const PRIVATE_KEY_DOWNLOAD_UNAVAILABLE_CODE: &str = "PrivateKeyDownloadUnavailable";
+
+/// Whether a GraphQL error says the key can no longer be downloaded. Hasura
+/// promotes Harvest's code when it can parse the answer, and otherwise keeps
+/// the answer as text in the error's internal response body.
+fn is_download_unavailable(error: &Value) -> bool {
+    let has_code = |value: &Value| {
+        value.pointer("/extensions/code").and_then(Value::as_str)
+            == Some(PRIVATE_KEY_DOWNLOAD_UNAVAILABLE_CODE)
+    };
+
+    has_code(error)
+        || error
+            .pointer("/extensions/internal/response/body")
+            .and_then(Value::as_str)
+            .and_then(|body| serde_json::from_str::<Value>(body).ok())
+            .is_some_and(|body| has_code(&body))
+}
 
 #[derive(GraphQLQuery)]
 #[graphql(
@@ -53,6 +74,10 @@ impl GetTrusteePrivateKey {
                 Box::<dyn Error>::from(format!("Error parsing JSON response: {:?}", err))
             })?;
             if let Some(errors) = json.get("errors").and_then(Value::as_array) {
+                if errors.iter().any(is_download_unavailable) {
+                    return Err(Box::new(PrivateKeyDownloadUnavailable));
+                }
+
                 let error_statuses: Vec<String> = errors
                     .iter()
                     .filter_map(|e| {

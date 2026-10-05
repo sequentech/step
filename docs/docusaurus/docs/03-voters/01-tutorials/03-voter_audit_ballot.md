@@ -75,5 +75,12 @@ Ensure the Decoded Ballot ID matches the the Ballot ID you provided.
 ### Step 4.2 Review Selections: 
 The system displays the decoded candidates for each contest.
 
+Contests decided by acclamation are also shown so this screen matches the
+Voting Portal review. Because an acclaimed contest is not encoded in the
+ballot, it has no decoded selection. The verifier obtains it from the ballot
+configuration and displays its acclamation notice and all available candidates
+as disabled options. This is display-only and does not change the decoded
+ballot or the Ballot ID verification.
+
 ### Step 4.3 Confirm Intent: 
 Ensure these selections match the choices you made in the Voting Portal.

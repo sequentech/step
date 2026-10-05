@@ -8,10 +8,11 @@ use anyhow::{anyhow, Context, Result};
 use keycloak::{
     types::{
         CredentialRepresentation, GroupRepresentation, UPAttribute, UPConfig,
-        UserRepresentation,
+        UPGroup, UserRepresentation,
     },
-    KeycloakError,
+    KeycloakError, KeycloakTokenSupplier,
 };
+use serde::Deserialize;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::convert::From;
@@ -21,6 +22,7 @@ use tracing::{info, instrument};
 use super::PubKeycloakAdmin;
 
 pub const MULTIVALUE_USER_ATTRIBUTE_SEPARATOR: &str = "|";
+
 #[derive(Debug)]
 pub struct GroupInfo {
     pub group_id: String,
@@ -41,6 +43,97 @@ async fn error_check(
     }
 
     Ok(response)
+}
+
+fn created_user_id(headers: &reqwest::header::HeaderMap) -> Result<String> {
+    let location = headers
+        .get(reqwest::header::LOCATION)
+        .context("Keycloak created the user without returning its location")?
+        .to_str()?;
+    let url = reqwest::Url::parse(location)?;
+    let mut segments =
+        url.path_segments().context("Invalid user location")?.rev();
+    let id = segments
+        .next()
+        .filter(|id| !id.is_empty())
+        .context("Keycloak created the user without returning its id")?;
+    if segments.next() != Some("users")
+        || url.query().is_some()
+        || url.fragment().is_some()
+    {
+        return Err(anyhow!("Invalid Keycloak user location"));
+    }
+    Ok(id.to_string())
+}
+
+/// A user profile constraint that Keycloak refused a write against.
+///
+/// Keycloak reports these as a 400 whose body names the offending attribute,
+/// an i18n key for the constraint, and the constraint's own arguments, e.g.
+/// `{"field": "roll", "errorMessage": "error-invalid-length", "params": ["roll", 1, 2]}`.
+/// The `keycloak` crate parses that body into `KeycloakHttpError`, which keeps
+/// only `errorMessage` and drops both the field and the arguments, so the raw
+/// body is parsed here instead.
+#[derive(Debug, Clone, Deserialize, PartialEq)]
+pub struct UserProfileValidationError {
+    pub field: Option<String>,
+    #[serde(rename = "errorMessage")]
+    pub error_message: Option<String>,
+    #[serde(default)]
+    pub params: Option<Vec<Value>>,
+}
+
+/// Keycloak reports several rejected attributes as a list and a single one as a
+/// bare object, so both are accepted.
+#[derive(Deserialize)]
+#[serde(untagged)]
+enum UserProfileValidationBody {
+    Many {
+        errors: Vec<UserProfileValidationError>,
+    },
+    One(UserProfileValidationError),
+}
+
+impl UserProfileValidationError {
+    /// Keycloak reports every error in this shape, and the untagged parse below
+    /// accepts any object, so only an entry that names the attribute it refused
+    /// is one of these. Without a name it is some other rejection — a password
+    /// against the realm policy, for instance — and belongs to whatever handles
+    /// that instead.
+    fn is_meaningful(&self) -> bool {
+        self.field.is_some()
+    }
+}
+
+/// Extract the user profile constraints Keycloak rejected a write against, so a
+/// caller can tell the operator which field was refused and why rather than
+/// only that the write failed. Returns an empty vector for any other error.
+pub fn get_user_profile_validation_errors(
+    error: &anyhow::Error,
+) -> Vec<UserProfileValidationError> {
+    error
+        .chain()
+        .find_map(|source| {
+            let keycloak_error = source.downcast_ref::<KeycloakError>()?;
+            let KeycloakError::HttpFailure {
+                status: 400, text, ..
+            } = keycloak_error
+            else {
+                return None;
+            };
+
+            let parsed = match serde_json::from_str(text).ok()? {
+                UserProfileValidationBody::Many { errors } => errors,
+                UserProfileValidationBody::One(error) => vec![error],
+            };
+            let meaningful: Vec<UserProfileValidationError> = parsed
+                .into_iter()
+                .filter(UserProfileValidationError::is_meaningful)
+                .collect();
+
+            (!meaningful.is_empty()).then_some(meaningful)
+        })
+        .unwrap_or_default()
 }
 
 /// Return whether an anyhow error chain contains an HTTP 400 returned by
@@ -99,9 +192,6 @@ impl User {
             .as_ref()?
             .get(AUTHORIZED_ELECTION_IDS_NAME)
             .cloned();
-
-        info!("get_authorized_election_ids: {:?}", result);
-        info!("attributes: {:?}", self.attributes);
 
         result
     }
@@ -324,7 +414,6 @@ impl KeycloakAdminClient {
         credentials: Option<Vec<CredentialRepresentation>>,
         temporary: Option<bool>,
     ) -> Result<User> {
-        info!("Editing user in keycloak ?: {:?}", attributes);
         let mut current_user: UserRepresentation = self
             .client
             .realm_users_with_user_id_get(realm, user_id, None)
@@ -402,7 +491,7 @@ impl KeycloakAdminClient {
         Ok(())
     }
 
-    #[instrument(skip(self), err)]
+    #[instrument(skip(self, user, attributes), err)]
     pub async fn create_user(
         self: &KeycloakAdminClient,
         realm: &str,
@@ -411,47 +500,35 @@ impl KeycloakAdminClient {
         groups: Option<Vec<String>>,
     ) -> Result<User> {
         let mut new_user_keycloak: UserRepresentation = user.clone().into();
+        new_user_keycloak.id = None;
         new_user_keycloak.attributes = attributes.clone();
-        info!("Creating user in keycloak ?: {:?}", new_user_keycloak);
         new_user_keycloak.groups = groups.clone();
-        self.client
-            .realm_users_post(realm, new_user_keycloak.clone())
-            .await
-            .map_err(|err| {
-                // Keep the KeycloakError as the source so callers can downcast
-                // it and react to the HTTP status Keycloak returned.
-                let message =
-                    format!("Failed to create user in keycloak: {:?}", err);
-                anyhow::Error::new(err).context(message)
-            })?;
-        let found_users = self
+        // The generated client's POST discards Location. Use the server's
+        // assigned id instead of searching by a possibly absent username.
+        let admin = Self::pub_new().await?;
+        let mut endpoint =
+            reqwest::Url::parse(&format!("{}/admin/realms/", admin.url))?;
+        endpoint
+            .path_segments_mut()
+            .map_err(|_| anyhow!("Invalid Keycloak URL"))?
+            .pop_if_empty()
+            .extend([realm, "users"]);
+        let response = admin
             .client
-            .realm_users_get(
-                realm,
-                Some(false),
-                None,
-                None,
-                Some(true),
-                Some(true),
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                user.username.clone(),
-            )
-            .await
-            .map_err(|err| {
-                anyhow!("Failed to find user in keycloak: {:?}", err)
-            })?;
-
-        match found_users.first() {
-            Some(found_user) => Ok(found_user.clone().into()),
-            None => Ok(user.clone()),
-        }
+            .post(endpoint)
+            .bearer_auth(admin.token_supplier.get(&admin.url).await?)
+            .json(&new_user_keycloak)
+            .send()
+            .await?;
+        let response = error_check(response).await.map_err(|err| {
+            // Keep the KeycloakError as the source so callers can downcast
+            // it and react to the HTTP status Keycloak returned.
+            let message =
+                format!("Failed to create user in keycloak: {:?}", err);
+            anyhow::Error::new(err).context(message)
+        })?;
+        let user_id = created_user_id(response.headers())?;
+        self.get_user(realm, &user_id).await
     }
 
     #[instrument(skip(self), err)]
@@ -459,17 +536,20 @@ impl KeycloakAdminClient {
         self: &KeycloakAdminClient,
         realm: &str,
     ) -> Result<Vec<UserProfileAttribute>> {
+        Ok(self.get_user_profile_configuration(realm).await?.attributes)
+    }
+
+    #[instrument(skip(self), err)]
+    pub async fn get_user_profile_configuration(
+        self: &KeycloakAdminClient,
+        realm: &str,
+    ) -> Result<UserProfileConfiguration> {
         let response: UPConfig = self
             .client
             .realm_users_profile_get(&realm)
             .await
             .map_err(|err| anyhow!("{:?}", err))?;
-        match response.attributes {
-            Some(attributes) => {
-                Ok(Self::get_formatted_attributes(&attributes.clone().into()))
-            }
-            None => Ok(vec![]),
-        }
+        Ok(Self::get_formatted_user_profile_configuration(response))
     }
 
     #[instrument(skip(self), err)]
@@ -505,8 +585,8 @@ impl KeycloakAdminClient {
 
     pub fn get_attribute_name(name: &Option<String>) -> Option<String> {
         match name.as_deref() {
-            Some(FIRST_NAME) => Some("first_name".to_string()),
-            Some(LAST_NAME) => Some("last_name".to_string()),
+            Some(FIRST_NAME) => Some(FIRST_NAME_ATTRIBUTE.to_string()),
+            Some(LAST_NAME) => Some(LAST_NAME_ATTRIBUTE.to_string()),
             Some(other) => Some(other.to_string()),
             None => None,
         }
@@ -565,13 +645,237 @@ impl KeycloakAdminClient {
             .collect();
         formatted_attributes
     }
+
+    pub fn get_formatted_groups(
+        groups: &Vec<UPGroup>,
+    ) -> Vec<UserProfileAttributeGroup> {
+        groups
+            .iter()
+            .map(|group| UserProfileAttributeGroup {
+                annotations: group.annotations.clone(),
+                display_description: group.display_description.clone(),
+                display_header: group.display_header.clone(),
+                name: group.name.clone(),
+            })
+            .collect()
+    }
+
+    pub fn get_formatted_user_profile_configuration(
+        configuration: UPConfig,
+    ) -> UserProfileConfiguration {
+        let attributes: Vec<UPAttribute> =
+            configuration.attributes.map(Into::into).unwrap_or_default();
+        let groups: Vec<UPGroup> =
+            configuration.groups.map(Into::into).unwrap_or_default();
+
+        UserProfileConfiguration {
+            attributes: Self::get_formatted_attributes(&attributes),
+            groups: Self::get_formatted_groups(&groups),
+        }
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::is_keycloak_bad_request;
+    #[test]
+    fn created_voter_id_comes_only_from_a_valid_location() {
+        use reqwest::header::{HeaderMap, LOCATION};
+        assert!(super::created_user_id(&HeaderMap::new()).is_err());
+        for location in [
+            "https://keycloak/admin/realms/event/users/",
+            "not-a-url",
+            "https://keycloak/admin/realms/event/groups/id",
+            "https://keycloak/admin/realms/event/users/id?other=user",
+        ] {
+            let mut headers = HeaderMap::new();
+            headers.insert(LOCATION, location.parse().unwrap());
+            assert!(super::created_user_id(&headers).is_err());
+        }
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            LOCATION,
+            "https://keycloak/admin/realms/event/users/server-assigned-id"
+                .parse()
+                .unwrap(),
+        );
+        assert_eq!(
+            super::created_user_id(&headers).unwrap(),
+            "server-assigned-id"
+        );
+    }
+
+    use super::{
+        get_user_profile_validation_errors, is_keycloak_bad_request,
+        KeycloakAdminClient,
+    };
     use anyhow::Context;
-    use keycloak::KeycloakError;
+    use keycloak::{
+        types::{UPAttribute, UPAttributePermissions, UPConfig, UPGroup},
+        KeycloakError,
+    };
+
+    fn editable_attribute(name: &str, group: Option<&str>) -> UPAttribute {
+        UPAttribute {
+            name: Some(name.to_string()),
+            group: group.map(str::to_string),
+            permissions: Some(UPAttributePermissions {
+                edit: Some(vec!["admin".to_string()].into()),
+                view: None,
+            }),
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn formats_profile_attributes_and_groups_without_reordering() {
+        let configuration = UPConfig {
+            attributes: Some(
+                vec![
+                    editable_attribute("first", Some("identity")),
+                    editable_attribute("tenant-id", Some("internal")),
+                    editable_attribute("second", Some("contact")),
+                ]
+                .into(),
+            ),
+            groups: Some(
+                vec![
+                    UPGroup {
+                        name: Some("identity".to_string()),
+                        display_header: Some("Identity".to_string()),
+                        ..Default::default()
+                    },
+                    UPGroup {
+                        name: Some("contact".to_string()),
+                        display_header: Some("Contact".to_string()),
+                        ..Default::default()
+                    },
+                ]
+                .into(),
+            ),
+            ..Default::default()
+        };
+
+        let formatted =
+            KeycloakAdminClient::get_formatted_user_profile_configuration(
+                configuration,
+            );
+
+        assert_eq!(
+            vec![Some("first".to_string()), Some("second".to_string())],
+            formatted
+                .attributes
+                .iter()
+                .map(|attribute| attribute.name.clone())
+                .collect::<Vec<_>>()
+        );
+        assert_eq!(
+            vec![Some("identity".to_string()), Some("contact".to_string())],
+            formatted
+                .groups
+                .iter()
+                .map(|group| group.name.clone())
+                .collect::<Vec<_>>()
+        );
+    }
+
+    #[test]
+    fn formats_missing_profile_groups_as_an_empty_collection() {
+        let formatted =
+            KeycloakAdminClient::get_formatted_user_profile_configuration(
+                UPConfig {
+                    attributes: Some(
+                        vec![editable_attribute("first", None)].into(),
+                    ),
+                    groups: None,
+                    ..Default::default()
+                },
+            );
+
+        assert_eq!(1, formatted.attributes.len());
+        assert!(formatted.groups.is_empty());
+    }
+
+    fn bad_request(text: &str) -> anyhow::Error {
+        anyhow::Error::new(KeycloakError::HttpFailure {
+            status: 400,
+            body: serde_json::from_str(text).ok(),
+            text: text.to_string(),
+        })
+        .context("Failed to create user in keycloak")
+    }
+
+    #[test]
+    fn reads_the_attribute_and_bounds_keycloak_refused() {
+        let errors = get_user_profile_validation_errors(&bad_request(
+            r#"{"field":"roll","errorMessage":"error-invalid-length","params":["roll",1,2]}"#,
+        ));
+
+        assert_eq!(errors.len(), 1);
+        assert_eq!(errors[0].field.as_deref(), Some("roll"));
+        assert_eq!(
+            errors[0].error_message.as_deref(),
+            Some("error-invalid-length")
+        );
+        assert_eq!(errors[0].params.as_ref().map(Vec::len), Some(3));
+    }
+
+    #[test]
+    fn reads_an_attribute_whose_arguments_keycloak_left_null() {
+        let errors = get_user_profile_validation_errors(&bad_request(
+            r#"{"field":"roll","errorMessage":"error-invalid-length","params":null}"#,
+        ));
+
+        assert_eq!(errors.len(), 1);
+        assert_eq!(errors[0].field.as_deref(), Some("roll"));
+    }
+
+    #[test]
+    fn reads_every_attribute_when_keycloak_refuses_several() {
+        let errors = get_user_profile_validation_errors(&bad_request(
+            r#"{"errors":[{"field":"roll","errorMessage":"error-invalid-length","params":["roll",1,2]},{"field":"ward","errorMessage":"error-user-attribute-required","params":["ward"]}]}"#,
+        ));
+
+        assert_eq!(errors.len(), 2);
+        assert_eq!(errors[1].field.as_deref(), Some("ward"));
+    }
+
+    #[test]
+    fn says_nothing_about_a_rejection_that_carries_no_attribute_name() {
+        // Keycloak's generic error shape: a rejected password reads like this,
+        // and is not a refused attribute.
+        assert!(get_user_profile_validation_errors(&bad_request(
+            r#"{"errorMessage":"invalidPasswordMinLengthMessage","params":["8"]}"#
+        ))
+        .is_empty());
+    }
+
+    #[test]
+    fn says_nothing_about_a_rejection_that_names_no_attribute() {
+        assert!(get_user_profile_validation_errors(&bad_request(
+            "Password policy violation"
+        ))
+        .is_empty());
+        assert!(get_user_profile_validation_errors(&bad_request(
+            r#"{"error":"invalid_grant"}"#
+        ))
+        .is_empty());
+        assert!(get_user_profile_validation_errors(&anyhow::anyhow!(
+            "connection refused"
+        ))
+        .is_empty());
+    }
+
+    #[test]
+    fn ignores_a_rejection_that_is_not_a_bad_request() {
+        let error = anyhow::Error::new(KeycloakError::HttpFailure {
+            status: 500,
+            body: None,
+            text: r#"{"field":"roll","errorMessage":"error-invalid-length"}"#
+                .to_string(),
+        });
+
+        assert!(get_user_profile_validation_errors(&error).is_empty());
+    }
 
     #[test]
     fn detects_a_keycloak_bad_request_through_anyhow_context() {
