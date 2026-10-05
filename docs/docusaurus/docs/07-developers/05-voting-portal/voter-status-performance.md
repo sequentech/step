@@ -15,7 +15,7 @@ Measure real voting journeys with **k6** or **Chromium** through `step-cli load`
 
 ## What a run exercises
 
-1. Authenticate each voter through Keycloak authorization, username/password login and PKCE token exchange.
+1. Authenticate each voter through Keycloak authorization, password login and PKCE token exchange. Voters log in by username, or by date of birth when `workload.login` is configured.
 2. Read `GetVoterStatus` through GraphQL for eligibility, cast status and signed publication URLs.
 3. Download the event, elections, summaries and ballot styles from S3.
 4. Submit `InsertCastVote` and verify the returned receipt.
@@ -112,7 +112,7 @@ min_casts_per_second: 1
 
 Start with 100 voters when checking a deployment. The examples above use 10,000 voters for k6 and 1,000 for Chromium; increase load only after reviewing the smaller run. Goals are workload targets, not promised capacity.
 
-A worker loads one shard at a time. Census generation computes one shared password hash and streams it into CSV; login still verifies every password. k6 ballots have fresh randomness and unique IDs even when every voter selects the same candidates. Preparation time is excluded from measured throughput.
+A worker loads one shard at a time. Census generation computes one password hash per collision-group position and streams it into CSV. With username login that is a single shared hash. Login still verifies every password. k6 ballots have fresh randomness and unique IDs even when every voter selects the same candidates. Preparation time is excluded from measured throughput.
 
 For a status-only workload, use `workload.mode: status` with k6, configure only status/journey latency goals, and leave `min_casts_per_second: 0`. This measures login and voter status without casting.
 
@@ -125,6 +125,25 @@ Shard `s`, iteration `i` owns voter `prefix + (start + s × shard_size + i)`. Wo
 Census CSV and encryption output are streamed, workers load one shard at a time, and reporting merges individual samples in SQLite on disk. `shard_size` bounds ballot input memory; total voter count determines disk usage and preparation time. Allow space for prepared ciphertexts and result samples on the coordinator and shared volume.
 
 Prepared configuration and ciphertexts are checked by digest before execution. A durable, exclusive attempt marker prevents a restarted worker from silently casting a shard twice. Use a new preparation and unused voter range for each subsequent run.
+
+### Match voters by date of birth
+
+Production realms usually identify voters with the multi-attribute authenticator, for example by date of birth and password. When several voters share a date of birth, Keycloak verifies the password against each of them, so one login can cost several password hashes. By default the synthetic realm matches the exact username, which costs one hash per login. Configure `workload.login` to measure the production path instead:
+
+```yaml
+workload:
+  login:
+    match_attributes: [dateOfBirth]
+    voters_per_value: 10
+    max_candidates: 10
+    match_policy: FIRST_MATCH
+```
+
+Each group of `voters_per_value` consecutive voters shares one date of birth. Dates count from 1900-01-01 and use the `YYYY-MM-DD` format that the login form submits. Voters in a group get distinct passwords: the shared password, a hyphen and their position in the group. Keycloak could not tell them apart otherwise. Both engines fill the login form with these values.
+
+Preparation installs the attributes, `maxCandidates` and `matchPolicy` in every multi-attribute authenticator of the template realm. It fails if the template has none. `FIRST_MATCH` stops at the first matching password, so a login costs one to `voters_per_value` hashes. `REJECT_AMBIGUOUS` verifies every candidate. Other attribute names receive opaque values and must be declared in the realm's user profile.
+
+Keycloak rejects every voter of a group larger than `max_candidates`. For capacity measurements keep `voters_per_value` at or below `max_candidates`. To verify how that rejection surfaces, run a small workload with a larger `voters_per_value`; its journeys are expected to fail. Reports state the match attributes, the number of values, the largest group and the candidate cap, so runs with different collision depths stay comparable.
 
 ## Target a remote deployment
 
@@ -274,7 +293,7 @@ Use your configured namespace in place of `load-testing`. Failed or interrupted 
 
 ## Existing events and preparation
 
-To reuse an already provisioned event, set `preparation.existing_event` to a previous run's `inputs/config.json`, and choose an unused `workload.start` range. The CLI imports the new census and prepares fresh ballots; it does not republish that event. The existing event must still be open and eligible.
+To reuse an already provisioned event, set `preparation.existing_event` to a previous run's `inputs/config.json`, and choose an unused `workload.start` range. The CLI imports the new census and prepares fresh ballots; it does not republish that event. The existing event must still be open and eligible. `workload.login` must match the settings the event was created with, because the realm keeps its authenticator and collision groups continue across voter ranges.
 
 Custom fixtures use `preparation.template`; explicit ballot selections use `preparation.choices`. Paths resolve relative to the workload YAML. Deployments that run S3 publication preparation separately can set `preparation.publication_preparer` to their application writer executable; its database and S3 environment must be configured on the coordinator.
 
