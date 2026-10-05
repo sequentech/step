@@ -1,25 +1,31 @@
-<!-- SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io> -->
-<!-- SPDX-License-Identifier: AGPL-3.0-only -->
+---
+id: electoral-log-load-test
+title: Electoral Log Load Test
+sidebar_label: Load Test
+---
 
-# PostgreSQL electoral log load test
+<!--
+SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+SPDX-License-Identifier: AGPL-3.0-only
+-->
 
-Parent issue: https://github.com/sequentech/meta/issues/13698
+# Electoral log load test
 
-This test measures whether appends, queries, proofs and audits of the PostgreSQL electoral log scale to 50 million records on one board. It also checks whether the indexes are used and sufficient. One board was filled to 20 million records and measured at 1, 5, 10 and 20 million. The 50 million figures are extrapolated from those measurements, the measured storage per record and a memory-pressure run. A 50 million record board needs about 100 GB, which the test machine did not have.
+The [design](01-electoral-log-design.md) explains the mechanisms measured here. This test measures whether appends, queries, proofs and audits of the PostgreSQL electoral log scale to 50 million records on one board. It also checks whether the indexes are used and sufficient. One board was filled to 20 million records and measured at 1, 5, 10 and 20 million. The 50 million figures are extrapolated from those measurements, the measured storage per record and a memory-pressure run. A 50 million record board needs about 100 GB, which the test machine did not have.
 
 ## Verdict
 
-- **Proofs, checkpoints and index-backed reads scale.** This covers the default admin page, sorting by ID, creation time or user ID, filtering by user ID, record lookups, the ballot locator's page and own-ballot lookup, and the cursor-based CSV and cast-vote exports. They stayed between 0.2 and 30 ms from 1 to 20 million records, with record proofs at 17 ms when cold. Their cost depends on the depth of the B-trees and on cache misses, not on the number of records.
-- **Appends work at 50 million, but per-board throughput falls as the indexes outgrow memory.** On a 12 GB database server, batch appends fell from 8,900 records/s at 1 million to 1,500 records/s at 20 million. With the bulk insert added here and memory scaled down to match 50 million records on 12 GB, they ran at 1,000 to 1,800 records/s. Single-record appends ran at about 400/s locally and at about 90/s with 0.5 ms of network latency. Appends to one board are serialized, so more workers do not help.
-- **Several admin portal features do not scale.** These are sorting by statement timestamp or kind, filtering by username, statement timestamp or ballot ID, filtering by creation time while sorted by ID, counts over most of the board, and deep pages. At 20 million records they took 20 seconds to 8 minutes per request, and they grow linearly. They are listed under [Remaining limits](#remaining-limits) with the measured fixes.
-- **The indexes are used as intended and are enough for the paths above, but not for the admin portal's username and statement-timestamp filters and sorts.** Indexes for those two fix them, measured below, at about 5 GB each at 50 million records and about a third slower batch appends.
+- **Proofs, checkpoints and index-backed reads scale.** This covers the default admin page, sorting by ID, creation time or user ID, filtering by user ID, record lookups, the ballot locator's page in its default order and a voter's lookup of their own ballot, and the cursor-based CSV and cast-vote exports. They stayed between 0.2 and 30 ms from 1 to 20 million records; a proof of a random record took 17 ms at 20 million (p95 23 ms). Their cost depends on the depth of the B-trees and on cache misses, not on the number of records.
+- **Appends work at 50 million, but per-board throughput falls as the indexes outgrow memory.** On a 12 GB database server, batch appends fell from 8,900 records/s at 1 million to 1,500 records/s at 20 million. With the bulk insert added after the test and memory scaled down to match 50 million records on 12 GB, they ran at 1,000 to 1,800 records/s. Single-record appends ran at about 400/s locally and at about 90/s with 0.5 ms of network latency. Appends to one board are serialized, so more workers do not help.
+- **Several admin portal features do not scale.** These are sorting by statement timestamp or kind, filtering by username or statement timestamp, filtering by creation time while sorted by ID, counts over most of the board, and deep pages. The ballot-ID filter, which only the API offers, does not scale either. At 20 million records they took 20 seconds to 8 minutes per request, and they grow linearly. They are listed under [Remaining limits](#remaining-limits) with the measured fixes.
+- **The indexes are used as intended and are enough for the paths above, but not for the admin portal's username filter and its statement-timestamp filter and sort.** Indexes for those two columns fix them, measured below, at about 5 GB each at 50 million records and about a third slower batch appends.
 - **Three problems were fixed.** The audit was quadratic in the board size, the admin page counted the whole board on every load, and batch appends made one round trip per record.
 
 ## Setup
 
 - **Machine and database:** an 8 vCPU, 31 GiB development VM with a GCP persistent disk. PostgreSQL 18.6 ran in its own container limited to 4 CPUs and 12 GB of memory, with `shared_buffers=3GB`, `effective_cache_size=8GB`, `work_mem=32MB`, `maintenance_work_mem=1GB`, `max_wal_size=4GB`, `random_page_cost=1.1`, `effective_io_concurrency=200`, default autovacuum and `synchronous_commit=on`. The database collation is `en_US.utf8`, as in development. The database was about three times larger than its memory at 20 million records, as a 100 GB database would be on a 32 GB server.
 - **Client:** the client was `packages/electoral-log/examples/load_test.rs`, a release build that appends through `PostgresStore`, the path Windmill uses. It ran on the same host (round trip about 0.1 ms) unless stated.
-- **Data:** one board shaped like an election. Each voter produced four Keycloak events and one cast vote, with 20,000 voters interleaved so a voter's records are far apart. Message sizes came from signed development records: 702 bytes for cast votes and 330 to 450 bytes for Keycloak events. The data used random UUID user and delivery IDs, 5 elections, 1,000 areas and 1,000 records per second of timestamps. Filling used appends of 5,000 records, and appends were measured in the forms Windmill uses: single records, and batches from the queue dispatcher.
+- **Data:** one board shaped like an election. Each voter produced four Keycloak events and one cast vote, with 20,000 voters interleaved so a voter's records are far apart. Message sizes came from signed development records: 702 bytes for cast votes and 330 to 450 bytes for Keycloak events. The data used random UUID user and delivery IDs, 5 elections, 1,000 areas and 1,000 records per second of timestamps. Filling used appends of 5,000 records, and appends were measured in the forms Windmill uses: single records, and batches of the kind the queue's batch task appends. The client called `PostgresStore` directly, so the batch task's own per-event work (Hasura and Keycloak lookups, loading the protocol-manager key and signing Keycloak events) is not included.
 - **Measurements:**
   - **Steps:** at each size the test timed appends with a warm cache, ran every query (`probe`), captured `EXPLAIN (ANALYZE, BUFFERS)` plans, repeated the appends, ran an audit, and ran an audit with appends running concurrently.
   - **Repetitions:** queries ran up to five times, and a query that took more than 30 seconds ran once.
@@ -55,7 +61,7 @@ Batch appends, in records per second. Appends to a board are serialized, so 4 co
 | 20 M | 2,200–3,300 | 1,527 | 204–800 |
 
 - **Why throughput falls:** `pg_stat_statements` shows that the record insert dominates. Over the whole run it took 2,987 s, of which 1,787 s was spent reading pages, against 302 s for the leaf and subtree inserts. The delivery-ID key and the voter index are the only indexes inserted at random positions; once they exceed memory, most inserted rows read one of their pages from disk. Admin queries that scan the board evict those pages, which is why appends ran 2 to 7 times slower right after the query probe.
-- **Bulk insert (added here):** batch appends now insert each chunk of up to 5,000 records with one `INSERT … SELECT … FROM UNNEST(…) ORDER BY position` instead of one statement per record. The semantics are unchanged: records get IDs in order, the first copy of a repeated delivery ID is kept, and each chunk is journaled in ID order. At 20 million records, A/B against the previous binary. Each row alternated the two binaries back to back, and the cache warmed between rows, so compare within a row. The table above was measured row by row, before this change.
+- **Bulk insert (added after the test):** batch appends now insert each chunk of up to 5,000 records with one `INSERT … SELECT … FROM UNNEST(…) ORDER BY position` instead of one statement per record. The semantics are unchanged: records get IDs in order, the first copy of a repeated delivery ID is kept, and each chunk is journaled in ID order. At 20 million records, A/B against the previous binary. Each row alternated the two binaries back to back, and the cache warmed between rows, so compare within a row. The table above was measured row by row, before the bulk insert.
 
   | Batch | Row by row | Bulk |
   | --- | ---: | ---: |
@@ -78,7 +84,7 @@ Median of the warm runs, with the cold first run in parentheses where it was muc
 | --- | --- | --- | --- | --- |
 | Newest page, ID order (admin default) | 0.3 ms | 0.4 ms | 0.3 ms | 0.4 ms |
 | Count of the whole board (every admin page load)¹ | 119 ms | 442 ms (2.6 s) | 781 ms (10.1 s) | 1.3 s (18.2 s) |
-| Sort by created or user ID | <1 ms | <1 ms | <1 ms | <1 ms |
+| Sort by created or user ID | &lt;1 ms | &lt;1 ms | &lt;1 ms | &lt;1 ms |
 | Sort by statement timestamp | 354 ms | 2.3 s (10.4 s) | 30 s | 36 s |
 | Sort by statement kind | 216 ms | 47 s (80 s) | 84 s | 33 s |
 | Page at offset size/2 | 130 ms | 619 ms (43 s) | 54 s | 476 s |
@@ -88,7 +94,7 @@ Median of the warm runs, with the cold first run in parentheses where it was muc
 | Filter by created minute, page / count | 126 / 5 ms | 1.2 s (45 s) / 5 ms | 114 s / 6 ms | 343 s / 5 ms |
 | Filter by statement-timestamp minute, page / count | — | — | 2.7 / 1.5 s | 391 / 20 s |
 | Filter by ballot ID, page / count | 68 / 68 ms | 0.3 (44) / 0.3 s | 89 / 0.5 s | 178 / 2.8 s |
-| Election-scoped admin, page / count | 0.4 / 202 ms | 0.5 ms / 1.1 s | 1.7 ms / 2.1 s | 2 ms / 21 s |
+| Election-scoped list (API only), page / count | 0.4 / 202 ms | 0.5 ms / 1.1 s | 1.7 ms / 2.1 s | 2 ms / 21 s |
 | Count of records with a user | 206 ms | 0.7 (18) s | 111 s | 182 s |
 | Ballot locator: count of the election's votes | 7 ms | 32 ms (2.9 s) | 48 ms (6 s) | 124 ms (11 s) |
 | Ballot locator: page, own ballot | ≤0.3 ms | ≤0.3 ms | ≤0.3 ms | ≤0.3 ms |
@@ -115,9 +121,9 @@ The plans confirm the slow rows:
 ## Audits
 
 - **Duration:** a full audit took 85 s at 5 million records, 166 s at 10 million and 376 s at 20 million. That is linear, about 16 to 20 minutes at 50 million on this server. The 1-million-record audit took 67 s before the fix below.
-- **Effect on appends:** an audit reads one snapshot for its whole run. While it runs, superseded versions of the board's `trellis_logs` row cannot be removed. With single-record appends running throughout, append latency rose from 4.4 to 5.4 ms (+23 %) over the 6.5-minute audit at 20 million records, and 15,500 row versions (2.2 MB) accumulated. Autovacuum removed them afterwards. The growth is proportional to audit duration times append rate, so audits are best run when the board is quiet, as the post-tally audit is.
+- **Effect on appends:** an audit reads one snapshot for its whole run. While it runs, superseded versions of the board's `trellis_logs` row cannot be removed. With single-record appends running throughout, append latency rose from 4.4 to 5.4 ms (+23 %) over the audit at 20 million records, and 15,500 row versions (2.2 MB) accumulated. Autovacuum removed them afterwards. The growth is proportional to audit duration times append rate, so audits are best run when the board is quiet, as the post-tally audit is.
 
-## Fixed in this change
+## Fixes that followed
 
 1. **Quadratic audit:** each audit page joined records after a cursor to the leaves, and PostgreSQL does not carry `m.id > $3` over to `trellis_leaves`. Every page therefore re-read the leaf index from the start of the log: a page in the middle of the 20-million-record board read 10 million leaf entries and took 4.8 s, so a full audit would have taken about a day there and about a week at 50 million. The page now bounds both sides and takes 0.7 ms. A PostgreSQL test reads the plan and fails if one page reads, or filters out, more than two pages' worth of leaves; it read 20,000 leaves for a 1,000-record page before the fix. CI now runs it with the other PostgreSQL tests.
 2. **Full count on every admin page load:** every list request also ran `COUNT(*)` over the board. A count with no filter now reads the board's committed size from `trellis_logs`, because each record commits with exactly one leaf. A test shows that a row written around the journal is still listed and fails the audit, but is not counted.
@@ -147,7 +153,11 @@ These need product or sizing decisions. Each fix was measured at 20 million reco
 - **Sizing:** plan about 2 KB per record (100 GB at 50 million) and memory for the message indexes (about 40 GB at 50 million) to keep appends fast.
   - Replacing the board name with the log's numeric ID in `electoral_log_messages` would save about 300 bytes per record (15 GB at 50 million) and shrink every index.
   - Making `electoral_log_cast_vote` partial to cast votes would save about 130 bytes per record, but the admin kind filter uses it for other kinds too.
-- **Dispatcher batch size:** a batch holds the board lock for its whole transaction, so batches of 100,000 events make other appends to the board wait; a smaller `DEFAULT_SQL_BATCH_SIZE` bounds that wait.
+- **Dispatcher batch size:** a batch holds the board lock for its whole transaction, so batches of 100,000 events make other appends to the board wait; a smaller `DEFAULT_SQL_BATCH_SIZE` bounds that wait. The batch must also fit in one RabbitMQ message, at about 3 KB per queued cast vote; the [design](01-electoral-log-design.md) explains why a larger batch is lost.
+- **Not measured:**
+  - the batch task's per-event work before the append, which bounds end-to-end throughput for Keycloak events;
+  - ballot-locator pages sorted by username, ballot ID or statement timestamp, which sort all of the election's cast votes;
+  - a voter's lookup of a ballot ID that matches nothing, which runs one query per 2,500 cast votes of the election.
 
 ## Reproduce
 

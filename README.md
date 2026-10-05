@@ -140,9 +140,9 @@ automatically run docker compose logs on start up, for convenience.
 ## Electoral log
 
 The electoral log is stored in a dedicated PostgreSQL database and committed to
-per-board Trellis Merkle logs. See
-[PostgreSQL and Trellis electoral log](docs/docusaurus/docs/07-developers/03-development-environment/electoral-log-postgres.md)
-for configuration, proofs and verification.
+per-board Trellis Merkle logs. See the
+[electoral log design](docs/docusaurus/docs/07-developers/13-electoral-log/01-electoral-log-design.md)
+for how it works, its configuration, proofs and verification.
 
 ## Keycloak default realms
 
