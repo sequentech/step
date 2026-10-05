@@ -7,6 +7,7 @@ use crate::postgres::election_event::{
 };
 use crate::postgres::scheduled_event::*;
 use crate::services::database::get_hasura_pool;
+use crate::services::election_event_presentation::change_presentation;
 use crate::services::pg_lock::PgLock;
 use crate::services::providers::transactions_provider::provide_hasura_transaction;
 use crate::services::voting_status::{self};
@@ -18,7 +19,6 @@ use chrono::Duration;
 use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::Transaction;
 use sequent_core::ballot::{ElectionEventPresentation, InitReport, LockedDown, VotingStatus};
-use sequent_core::serialization::deserialize_with_path::{self, deserialize_value};
 use sequent_core::services::date::ISO8601;
 use sequent_core::types::scheduled_event::*;
 use serde::{Deserialize, Serialize};
@@ -56,19 +56,22 @@ async fn manage_election_event_lockdown_wrapped(
         get_election_event_by_id(hasura_transaction, &tenant_id, &election_event_id).await?;
 
     if let Some(election_event_presentation) = election_event.presentation {
-        let election_event_presentation: ElectionEventPresentation = ElectionEventPresentation {
-            locked_down: if locked_down {
-                Some(LockedDown::LOCKED_DOWN)
-            } else {
-                Some(LockedDown::NOT_LOCKED_DOWN)
+        let election_event_presentation = change_presentation(
+            election_event_presentation,
+            ElectionEventPresentation {
+                locked_down: if locked_down {
+                    Some(LockedDown::LOCKED_DOWN)
+                } else {
+                    Some(LockedDown::NOT_LOCKED_DOWN)
+                },
+                ..Default::default()
             },
-            ..deserialize_with_path::deserialize_value(election_event_presentation)?
-        };
+        )?;
         update_election_event_presentation(
             hasura_transaction,
             &tenant_id,
             &election_event_id,
-            serde_json::to_value(election_event_presentation)?,
+            election_event_presentation,
         )
         .await?;
     }

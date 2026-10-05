@@ -9,13 +9,16 @@ use handlebars::{
     RenderErrorReason, Renderable, ScopedJson,
 };
 use handlebars_chrono::HandlebarsChronoDateTime;
-use num_format::{Locale, ToFormattedString};
 use serde_json::{json, to_string, Map, Value};
 use std::collections::{HashMap, HashSet};
 use std::str::FromStr;
 use tracing::{info, instrument, warn};
 
-fn get_registry<'reg>() -> Handlebars<'reg> {
+use crate::types::number_format::{
+    NumberFormatPolicy, NUMBER_FORMAT_POLICY_VARIABLE,
+};
+
+fn get_registry<'reg>(policy: NumberFormatPolicy) -> Handlebars<'reg> {
     let mut reg = Handlebars::new();
     reg.set_strict_mode(false);
     reg.register_helper(
@@ -24,19 +27,43 @@ fn get_registry<'reg>() -> Handlebars<'reg> {
     );
     reg.register_helper(
         "format_u64",
-        helper_wrapper_or(Box::new(format_u64), String::from("-")),
+        helper_wrapper_or(Box::new(FormatU64(policy)), String::from("-")),
     );
     reg.register_helper(
         "format_percentage",
-        helper_wrapper_or(Box::new(format_percentage), String::from("-")),
+        helper_wrapper_or(
+            Box::new(FormatDecimal {
+                name: "format_percentage",
+                policy,
+                decimals: 2,
+                from_fraction: false,
+            }),
+            String::from("-"),
+        ),
     );
     reg.register_helper(
         "format_percentage_one",
-        helper_wrapper_or(Box::new(format_percentage_one), String::from("-")),
+        helper_wrapper_or(
+            Box::new(FormatDecimal {
+                name: "format_percentage_one",
+                policy,
+                decimals: 1,
+                from_fraction: false,
+            }),
+            String::from("-"),
+        ),
     );
     reg.register_helper(
         "format_dec_percentage",
-        helper_wrapper_or(Box::new(format_dec_percentage), String::from("-")),
+        helper_wrapper_or(
+            Box::new(FormatDecimal {
+                name: "format_dec_percentage",
+                policy,
+                decimals: 2,
+                from_fraction: true,
+            }),
+            String::from("-"),
+        ),
     );
     reg.register_helper(
         "format_date",
@@ -93,12 +120,30 @@ fn get_registry<'reg>() -> Handlebars<'reg> {
     reg
 }
 
+/// The number format `variables_map` asks for under
+/// [`NUMBER_FORMAT_POLICY_VARIABLE`], or the default when it names none.
+fn number_format_policy(
+    variables_map: &Map<String, Value>,
+) -> NumberFormatPolicy {
+    match variables_map.get(NUMBER_FORMAT_POLICY_VARIABLE) {
+        None | Some(Value::Null) => NumberFormatPolicy::default(),
+        Some(value) => {
+            serde_json::from_value(value.clone()).unwrap_or_else(|_| {
+                warn!(
+                    "Unknown number format policy {value}, using the default"
+                );
+                NumberFormatPolicy::default()
+            })
+        }
+    }
+}
+
 #[instrument(skip_all, err)]
 pub fn render_template_text(
     template: &str,
     variables_map: Map<String, Value>,
 ) -> Result<String, RenderError> {
-    let reg = get_registry();
+    let reg = get_registry(number_format_policy(&variables_map));
 
     // render handlebars template
     reg.render_template(template, &json!(variables_map))
@@ -110,7 +155,7 @@ pub fn render_template(
     template_map: HashMap<String, String>,
     variables_map: Map<String, Value>,
 ) -> Result<String, RenderError> {
-    let mut reg = get_registry();
+    let mut reg = get_registry(number_format_policy(&variables_map));
 
     for (name, file) in template_map {
         reg.register_template_string(&name, &file)?;
@@ -329,23 +374,80 @@ fn parse_u64_value(value: &JsonValue) -> Result<u64, RenderError> {
     }
 }
 
-pub fn format_u64(
-    helper: &Helper,
-    _: &Handlebars,
-    _: &Context,
-    _: &mut RenderContext,
-    out: &mut dyn Output,
-) -> HelperResult {
-    let unformatted_val = helper
-        .param(0)
-        .ok_or(RenderErrorReason::ParamNotFoundForIndex("format_u64", 0))?
-        .value();
-    let unformatted_number: u64 = parse_u64_value(unformatted_val)?;
+/// `{{format_u64 value}}`: an integer grouped in thousands. A negative one,
+/// such as a change in votes between rounds, keeps its sign.
+struct FormatU64(NumberFormatPolicy);
 
-    let formatted_number = unformatted_number.to_formatted_string(&Locale::en);
-    out.write(&formatted_number)?;
+impl HelperDef for FormatU64 {
+    fn call<'reg: 'rc, 'rc>(
+        &self,
+        helper: &Helper<'rc>,
+        _: &'reg Handlebars<'reg>,
+        _: &'rc Context,
+        _: &mut RenderContext<'reg, 'rc>,
+        out: &mut dyn Output,
+    ) -> HelperResult {
+        let value = helper
+            .param(0)
+            .ok_or(RenderErrorReason::ParamNotFoundForIndex("format_u64", 0))?
+            .value();
+        let formatted = match parse_u64_value(value) {
+            Ok(unsigned) => self.0.format_integer(unsigned),
+            Err(error) => self
+                .0
+                .format_integer(parse_i64_value(value).map_err(|_| error)?),
+        };
+        out.write(&formatted)?;
+        Ok(())
+    }
+}
 
-    Ok(())
+fn parse_i64_value(value: &JsonValue) -> Result<i64, RenderError> {
+    match value {
+        JsonValue::Number(n) => n.as_i64().ok_or_else(|| {
+            RenderError::new(format!(
+                "Expected i64 but got invalid number: {n}"
+            ))
+        }),
+        JsonValue::String(s) => s.parse::<i64>().map_err(|_| {
+            RenderError::new(format!("Failed to parse '{}' as i64", s))
+        }),
+        _ => Err(RenderError::new(
+            "Expected i64 or a string representing an i64",
+        )),
+    }
+}
+
+/// `{{name value}}`: a percentage with `decimals` places. With
+/// `from_fraction`, `value` is a fraction of one and is written as a
+/// percentage between 0 and 100.
+struct FormatDecimal {
+    name: &'static str,
+    policy: NumberFormatPolicy,
+    decimals: usize,
+    from_fraction: bool,
+}
+
+impl HelperDef for FormatDecimal {
+    fn call<'reg: 'rc, 'rc>(
+        &self,
+        helper: &Helper<'rc>,
+        _: &'reg Handlebars<'reg>,
+        _: &'rc Context,
+        _: &mut RenderContext<'reg, 'rc>,
+        out: &mut dyn Output,
+    ) -> HelperResult {
+        let value = helper
+            .param(0)
+            .ok_or(RenderErrorReason::ParamNotFoundForIndex(self.name, 0))?
+            .value();
+        let mut value = parse_f64_value(value)?;
+        if self.from_fraction {
+            value = (value * 100.0).clamp(0.0, 100.0);
+        }
+        out.write(&self.policy.format_decimal(value, self.decimals))?;
+        Ok(())
+    }
 }
 
 fn parse_f64_value(value: &JsonValue) -> Result<f64, RenderError> {
@@ -557,77 +659,6 @@ impl HelperDef for parse_i64 {
 
         Ok(ScopedJson::Derived(json!(num_i64)))
     }
-}
-
-pub fn format_dec_percentage(
-    helper: &Helper,
-    _: &Handlebars,
-    _: &Context,
-    _: &mut RenderContext,
-    out: &mut dyn Output,
-) -> HelperResult {
-    let val_json = helper
-        .param(0)
-        .ok_or(RenderErrorReason::ParamNotFoundForIndex(
-            "format_dec_percentage",
-            0,
-        ))?
-        .value();
-
-    let val = parse_f64_value(val_json)?;
-
-    let val = (val * 100.0).clamp(0.00, 100.00);
-
-    let formatted_number = format!("{:.2}", val);
-
-    out.write(&formatted_number)?;
-
-    Ok(())
-}
-
-pub fn format_percentage(
-    helper: &Helper,
-    _: &Handlebars,
-    _: &Context,
-    _: &mut RenderContext,
-    out: &mut dyn Output,
-) -> HelperResult {
-    let val_json = helper
-        .param(0)
-        .ok_or(RenderErrorReason::ParamNotFoundForIndex(
-            "format_percentage",
-            0,
-        ))?
-        .value();
-
-    let val = parse_f64_value(val_json)?;
-
-    let formatted_number = format!("{:.2}", val);
-
-    out.write(&formatted_number)?;
-
-    Ok(())
-}
-
-pub fn format_percentage_one(
-    helper: &Helper,
-    _: &Handlebars,
-    _: &Context,
-    _: &mut RenderContext,
-    out: &mut dyn Output,
-) -> HelperResult {
-    let val_json = helper
-        .param(0)
-        .ok_or(RenderErrorReason::ParamNotFoundForIndex(
-            "format_percentage_one",
-            0,
-        ))?
-        .value();
-
-    let val = parse_f64_value(val_json)?;
-    out.write(&format!("{val:.1}"))?;
-
-    Ok(())
 }
 
 pub fn format_date(
@@ -857,7 +888,80 @@ impl HelperDef for is_some {
 #[cfg(test)]
 mod tests {
     use super::render_template_text;
+    use crate::types::number_format::NUMBER_FORMAT_POLICY_VARIABLE;
     use serde_json::{json, Map};
+
+    const FIGURES: &str = "{{format_u64 votes}} {{format_percentage share}} \
+        {{format_percentage_one share}} {{format_dec_percentage fraction}}\
+        {{#each rows}} {{format_u64 this}}{{/each}}";
+
+    fn figures(policy: Option<serde_json::Value>) -> String {
+        let mut variables = Map::new();
+        variables.insert("votes".to_string(), json!(8_589_934_591u64));
+        variables.insert("share".to_string(), json!(1234.5678));
+        variables.insert("fraction".to_string(), json!(0.123456));
+        variables.insert("rows".to_string(), json!([1_000, 12_000_000]));
+        if let Some(policy) = policy {
+            variables.insert(NUMBER_FORMAT_POLICY_VARIABLE.to_string(), policy);
+        }
+        render_template_text(FIGURES, variables).expect("template renders")
+    }
+
+    #[test]
+    fn number_helpers_keep_comma_grouping_without_a_policy() {
+        assert_eq!(
+            figures(None),
+            "8,589,934,591 1,234.57 1,234.6 12.35 1,000 12,000,000"
+        );
+    }
+
+    #[test]
+    fn number_helpers_follow_the_number_format_policy() {
+        assert_eq!(
+            figures(Some(json!("period-comma"))),
+            "8.589.934.591 1.234,57 1.234,6 12,35 1.000 12.000.000"
+        );
+        assert_eq!(
+            figures(Some(json!("apostrophe-period"))),
+            "8\u{2019}589\u{2019}934\u{2019}591 1\u{2019}234.57 1\u{2019}234.6 \
+             12.35 1\u{2019}000 12\u{2019}000\u{2019}000"
+        );
+    }
+
+    #[test]
+    fn an_unknown_number_format_policy_renders_with_the_default() {
+        assert_eq!(figures(Some(json!("unknown"))), figures(None));
+        assert_eq!(figures(Some(json!(null))), figures(None));
+    }
+
+    fn signed_counts(policy: Option<serde_json::Value>) -> String {
+        let mut variables = Map::new();
+        variables.insert("gained".to_string(), json!(1_234_567));
+        variables.insert("lost".to_string(), json!(-1_234_567));
+        variables.insert("written".to_string(), json!("-1234"));
+        variables.insert("lowest".to_string(), json!(i64::MIN));
+        if let Some(policy) = policy {
+            variables.insert(NUMBER_FORMAT_POLICY_VARIABLE.to_string(), policy);
+        }
+        render_template_text(
+            "{{format_u64 gained}} {{format_u64 lost}} {{format_u64 written}} \
+             {{format_u64 lowest}} {{format_u64 missing}}",
+            variables,
+        )
+        .expect("template renders")
+    }
+
+    #[test]
+    fn format_u64_keeps_the_sign_of_a_negative_integer() {
+        assert_eq!(
+            signed_counts(None),
+            "1,234,567 -1,234,567 -1,234 -9,223,372,036,854,775,808 -"
+        );
+        assert_eq!(
+            signed_counts(Some(json!("period-comma"))),
+            "1.234.567 -1.234.567 -1.234 -9.223.372.036.854.775.808 -"
+        );
+    }
 
     #[test]
     fn url_encode_keeps_dynamic_data_in_one_query_value() {

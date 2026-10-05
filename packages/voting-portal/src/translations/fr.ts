@@ -452,6 +452,15 @@ const frenchTranslation: TranslationType = {
                 ballot_id: "Numéro d'identification du bulletin",
                 message: "Message",
             },
+            pagination: {
+                rowsPerPage: "Lignes par page :",
+                displayedRows: "{{from}}–{{to}} sur {{total}}",
+                displayedRowsMoreThan: "{{from}}–{{to}} sur plus de {{to}}",
+                firstPage: "Aller à la première page",
+                lastPage: "Aller à la dernière page",
+                nextPage: "Aller à la page suivante",
+                previousPage: "Aller à la page précédente",
+            },
         },
     },
 }

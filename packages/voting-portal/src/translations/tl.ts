@@ -452,6 +452,15 @@ const tagalogTranslation: TranslationType = {
                 ballot_id: "Ballot ID",
                 message: "Mensahe",
             },
+            pagination: {
+                rowsPerPage: "Mga hilera bawat pahina:",
+                displayedRows: "{{from}}–{{to}} ng {{total}}",
+                displayedRowsMoreThan: "{{from}}–{{to}} ng higit sa {{to}}",
+                firstPage: "Pumunta sa unang pahina",
+                lastPage: "Pumunta sa huling pahina",
+                nextPage: "Pumunta sa susunod na pahina",
+                previousPage: "Pumunta sa nakaraang pahina",
+            },
         },
     },
 }

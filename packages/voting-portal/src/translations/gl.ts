@@ -453,6 +453,15 @@ const galegoTranslation: TranslationType = {
                 ballot_id: "ID da papeleta",
                 message: "Mensaxe",
             },
+            pagination: {
+                rowsPerPage: "Filas por páxina:",
+                displayedRows: "{{from}}–{{to}} de {{total}}",
+                displayedRowsMoreThan: "{{from}}–{{to}} de máis de {{to}}",
+                firstPage: "Ir á primeira páxina",
+                lastPage: "Ir á última páxina",
+                nextPage: "Ir á páxina seguinte",
+                previousPage: "Ir á páxina anterior",
+            },
         },
     },
 }

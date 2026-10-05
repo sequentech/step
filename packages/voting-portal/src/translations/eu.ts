@@ -452,6 +452,15 @@ const basqueTranslation: TranslationType = {
                 ballot_id: "Bozketa IDa",
                 message: "Mezua",
             },
+            pagination: {
+                rowsPerPage: "Errenkadak orrialdeko:",
+                displayedRows: "{{from}}–{{to}} / {{total}}",
+                displayedRowsMoreThan: "{{from}}–{{to}} / {{to}} baino gehiago",
+                firstPage: "Joan lehen orrialdera",
+                lastPage: "Joan azken orrialdera",
+                nextPage: "Joan hurrengo orrialdera",
+                previousPage: "Joan aurreko orrialdera",
+            },
         },
     },
 }

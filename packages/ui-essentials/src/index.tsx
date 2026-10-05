@@ -56,6 +56,7 @@ export {
     ParticipationSummaryChart,
     ParticipationByChannel,
     PreferentialCandidateResults,
+    pieChartNumberFormatOptions,
     sortCandidateResults,
     TALLY_RESULTS_PIE_HEIGHT,
     TALLY_RESULTS_PIE_PANEL_WIDTH,

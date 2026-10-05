@@ -75,6 +75,7 @@ import {
     REALM_ATTR_VOTER_CERTIFICATE_POLICY,
     ESupportMaterialsPolicy,
     getEffectiveSupportMaterialsPolicy,
+    DEFAULT_NUMBER_FORMAT_POLICY,
 } from "@sequentech/ui-core"
 import {ListActions} from "@/components/ListActions"
 import {ImportDataDrawer} from "@/components/election-event/import-data/ImportDataDrawer"
@@ -117,6 +118,7 @@ import {
     PasswordPolicyAccordionHandle,
 } from "@/components/election-event/PasswordPolicyAccordion"
 import {SettingsLanguageSelector} from "../../components/SettingsLanguageSelector"
+import {getNumberFormatPolicyChoices} from "@/services/numberFormatPolicy"
 import {
     CONFIGURE_RESULTS_WEBSITE_POLICY,
     ConfigureResultsWebsitePolicyData,
@@ -458,6 +460,7 @@ export const EditElectionEventDataForm: React.FC<{
             }
 
             temp.presentation.elections_order ??= ElectionsOrder.ALPHABETICAL
+            temp.presentation.number_format_policy ??= DEFAULT_NUMBER_FORMAT_POLICY
 
             if (!temp.presentation.voting_portal_countdown_policy) {
                 temp.presentation.voting_portal_countdown_policy = {
@@ -1138,6 +1141,11 @@ export const EditElectionEventDataForm: React.FC<{
             ...values,
             presentation: {
                 ...values.presentation,
+                // A disabled input isn't submitted, and the number format's is
+                // disabled without the event write permission: keep the stored one.
+                ...(canEdit
+                    ? {}
+                    : {number_format_policy: record?.presentation?.number_format_policy}),
                 ...(canConfigureResultsWebsite && values.resultsWebsitePolicy
                     ? {results_website: JSON.stringify(values.resultsWebsitePolicy)}
                     : {}),
@@ -1234,7 +1242,7 @@ export const EditElectionEventDataForm: React.FC<{
                     >
                         <ElectionHeaderStyles.Wrapper>
                             <ElectionHeaderStyles.Title>
-                                {t("electionEventScreen.edit.language")}
+                                {t("electionEventScreen.edit.languageAndRegion")}
                             </ElectionHeaderStyles.Title>
                         </ElectionHeaderStyles.Wrapper>
                     </AccordionSummary>
@@ -1254,6 +1262,26 @@ export const EditElectionEventDataForm: React.FC<{
                                             )
                                         )}
                                         defaultValue={getDefaultLanguageDetectionPolicy()}
+                                        emptyText={undefined}
+                                        validate={required()}
+                                    />
+                                    <SelectInput
+                                        source={"presentation.number_format_policy"}
+                                        disabled={!canEdit}
+                                        choices={getNumberFormatPolicyChoices(
+                                            parsedValue?.presentation,
+                                            t
+                                        )}
+                                        label={String(
+                                            t(
+                                                "electionEventScreen.field.numberFormatPolicy.policyLabel"
+                                            )
+                                        )}
+                                        helperText={String(
+                                            t(
+                                                "electionEventScreen.field.numberFormatPolicy.helperText"
+                                            )
+                                        )}
                                         emptyText={undefined}
                                         validate={required()}
                                     />
