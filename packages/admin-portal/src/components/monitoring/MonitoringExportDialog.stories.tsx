@@ -202,6 +202,8 @@ export const ChosenZoneAndRepeatedTime: Story = {
         await userEvent.type(picker, "New York")
         await userEvent.keyboard("{ArrowDown}{Enter}")
         fireEvent.change(body.getByLabelText("From"), {target: {value: "2028-11-05T01:30"}})
+        // Range entry may use another zone; exported timestamps stay in the event zone.
+        await expect(body.getByText(/Times are in PhST/)).toBeVisible()
         await expect(body.getByText(/happens twice/)).toBeVisible()
         await userEvent.click(body.getByRole("button", {name: "Export"}))
         await waitFor(() => expect(exports()).toHaveLength(1))
