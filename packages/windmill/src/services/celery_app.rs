@@ -92,6 +92,8 @@ pub enum Queue {
     ElectoralLogBatch,
     #[strum(serialize = "electoral_log_event_queue")]
     ElectoralLogEvent,
+    #[strum(serialize = "electoral_log_dead_letter_queue")]
+    ElectoralLogDeadLetter,
 }
 
 impl Queue {

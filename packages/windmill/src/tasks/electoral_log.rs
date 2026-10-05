@@ -1,26 +1,33 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::postgres::election_event::get_election_event_by_id;
+use crate::postgres::election_event::get_election_event_by_id_if_exist;
 use crate::services::celery_app::get_celery_connection;
 use crate::services::celery_app::Queue;
 use crate::services::database::get_hasura_pool;
 use crate::services::database::get_keycloak_pool;
-use crate::services::database::PgConfig;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::electoral_log::ElectoralLog;
-use crate::services::protocol_manager::get_board_client;
+use crate::services::electoral_log_dead_letter::{DeadLetterPublisher, DeadLetterStage};
+use crate::services::protocol_manager::{
+    deserialize_protocol_manager, get_board_client, get_protocol_manager_secret_path,
+};
 use crate::services::users::get_user_area_id;
+use crate::services::vault;
 use crate::types::error::{Error, Result};
 use anyhow::{anyhow, Context};
+use b4::messages::message::Signer;
 use celery::error::TaskError;
-use deadpool_postgres::Client as DbClient;
+use celery::task::Task;
+use deadpool_postgres::{Client as DbClient, Transaction};
 use electoral_log::{ElectoralLogMessage, LogEntry};
 use sequent_core::serialization::deserialize_with_path::deserialize_str;
 use sequent_core::services::keycloak::get_event_realm;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use strand::backend::ristretto::RistrettoCtx;
 use tracing::{event, info, instrument};
+use uuid::Uuid;
 
 use lapin::{
     options::{BasicAckOptions, BasicGetOptions, QueueDeclareOptions},
@@ -122,153 +129,436 @@ pub struct LogEventInput {
 }
 
 /// Enqueue the electoral log event.
-/// This task is routed to the durable electoral_log_batch_queue.
+/// This task is routed to the durable electoral_log_event_queue, which only the dispatcher reads.
 #[instrument(skip_all, err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task(max_retries = 0)]
 pub async fn enqueue_electoral_log_event(input: LogEventInput) -> Result<()> {
-    // By calling this task, the event is enqueued into the electoral_log_batch_queue.
+    // By calling this task, the event is enqueued into the electoral_log_event_queue.
     Ok(())
 }
 
 /// Process a batch of electoral log events.
-/// Uses a single Hasura transaction to fetch event details and group messages by board,
-/// then atomically appends each board group using stable delivery IDs.
+///
+/// Events that can never be stored as they are (an unknown election event, a malformed
+/// body, no signing key) go to the dead-letter queue, and the rest of the batch is
+/// appended, one transaction per board. Infrastructure failures fail the batch so that it
+/// is retried; delivery IDs make the retry idempotent. The last retry dead-letters the
+/// whole batch instead of dropping it.
 #[instrument(skip_all, err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
-#[celery::task(max_retries = 5, retry_for_unexpected = true, acks_late = true)]
-pub async fn process_electoral_log_events_batch(events: Vec<LogEventInput>) -> Result<()> {
-    let mut messages_by_board: HashMap<String, Vec<LogEntry>> = HashMap::new();
+#[celery::task(
+    bind = true,
+    max_retries = 10,
+    max_retry_delay = 60,
+    retry_for_unexpected = true,
+    acks_late = true
+)]
+pub async fn process_electoral_log_events_batch(
+    task: &Self,
+    events: Vec<LogEventInput>,
+) -> Result<()> {
+    match store_batch(&events).await {
+        Ok(()) => Ok(()),
+        Err(error) if retries_exhausted(task.request().retries, task.max_retries()) => {
+            tracing::error!(
+                "Dead-lettering {} electoral-log events after the last retry: {error:#}",
+                events.len()
+            );
+            let reason = format!("retries exhausted: {error:#}");
+            let publisher = DeadLetterPublisher::open().await?;
+            for event in &events {
+                publisher
+                    .publish_event(event, DeadLetterStage::Batch, &reason)
+                    .await?;
+            }
+            Ok(())
+        }
+        Err(error) => Err(error.into()),
+    }
+}
 
+/// Whether a failed run was the last one Celery would make.
+fn retries_exhausted(retries: u32, max_retries: Option<u32>) -> bool {
+    max_retries.is_some_and(|max| retries >= max)
+}
+
+/// Build the records of a batch, dead-letter the events that cannot be stored, and
+/// append the rest board by board.
+async fn store_batch(events: &[LogEventInput]) -> anyhow::Result<()> {
     let mut hasura_db_client: DbClient = get_hasura_pool()
         .await
         .get()
         .await
-        .with_context(|| "Error getting DB pool for batch processing")?;
+        .context("Error getting DB pool for batch processing")?;
     let hasura_tx = hasura_db_client
         .transaction()
         .await
-        .with_context(|| "Error starting Hasura transaction")?;
-
+        .context("Error starting Hasura transaction")?;
     let mut keycloak_db_client: DbClient = get_keycloak_pool()
         .await
         .get()
         .await
-        .with_context(|| "Error getting keycloak DB pool for batch processing")?;
-    let keycloak_transaction = keycloak_db_client
+        .context("Error getting keycloak DB pool for batch processing")?;
+    let keycloak_tx = keycloak_db_client
         .transaction()
         .await
-        .with_context(|| "Error starting keycloak transaction")?;
+        .context("Error starting keycloak transaction")?;
 
-    for input in events.iter() {
-        let delivery_id = input
-            .delivery_id
-            .as_deref()
-            .filter(|id| !id.is_empty())
-            .context("Missing electoral-log delivery ID")?;
-        let election_event =
-            get_election_event_by_id(&hasura_tx, &input.tenant_id, &input.election_event_id)
-                .await
-                .with_context(|| "Error getting election event")?;
-
-        let board_name = get_election_event_board(election_event.bulletin_board_reference.clone())
-            .with_context(|| "Error getting election event board")?;
-
-        let event_message = match &input.message_type {
-            LogMessageType::Internal => {
-                let message: ElectoralLogMessage = deserialize_str(&input.body.as_raw())
-                    .with_context(|| "Error parsing input.body into a ElectoralLogMessage")?;
-                message
-            }
-            LogMessageType::KeycloakEvent(event_type) => {
-                let user_id = input
-                    .user_id
-                    .clone()
-                    .unwrap_or_else(|| "unknown_user".into());
-                let username = input.username.clone();
-                let realm = get_event_realm(&input.tenant_id, &input.election_event_id);
-                let user_area_id = get_user_area_id(&keycloak_transaction, &realm, &user_id)
-                    .await
-                    .with_context(|| "Error getting user area id")?;
-                let electoral_log = ElectoralLog::new(
-                    &hasura_tx,
-                    &input.tenant_id,
-                    Some(&election_event.id),
-                    &board_name,
-                )
-                .await
-                .with_context(|| "Error initializing electoral log")?;
-
-                if let LogEventBody::Communications(ref template_body) = input.body {
-                    let send_template_msg = electoral_log
-                        .build_send_template_message(
-                            Some(template_body.clone()),
-                            input.election_event_id.clone(),
-                            Some(user_id.clone()),
-                            username.clone(),
-                            None,
-                            user_area_id.clone(),
-                        )
-                        .with_context(|| "Error building send template message")?;
-                    messages_by_board
-                        .entry(board_name.clone())
-                        .or_insert_with(Vec::new)
-                        .push(LogEntry {
-                            delivery_id: format!("{delivery_id}:communication"),
-                            message: send_template_msg,
-                        });
-                }
-
-                electoral_log
-                    .build_keycloak_event_message(
-                        input.election_event_id.clone(),
-                        event_type.clone(),
-                        input.body.as_raw(),
-                        Some(user_id.clone()),
-                        username.clone(),
-                        user_area_id,
-                    )
-                    .with_context(|| "Error building keycloak event message")?
-            }
-        };
-
-        messages_by_board
-            .entry(board_name.clone())
-            .or_insert_with(Vec::new)
-            .push(LogEntry {
-                delivery_id: format!("{delivery_id}:event"),
-                message: event_message,
-            });
-    }
-
+    let built = build_batch(
+        &mut DbLookups {
+            hasura: &hasura_tx,
+            keycloak: &keycloak_tx,
+        },
+        events,
+    )
+    .await?;
     hasura_tx
         .commit()
         .await
-        .with_context(|| "Error committing Hasura transaction")?;
+        .context("Error committing Hasura transaction")?;
+
+    if !built.dead_letters.is_empty() {
+        let publisher = DeadLetterPublisher::open().await?;
+        for (event, reason) in &built.dead_letters {
+            tracing::error!(
+                delivery_id = event.delivery_id.as_deref().unwrap_or_default(),
+                election_event_id = event.election_event_id.as_str(),
+                "Dead-lettering an electoral-log event: {reason}"
+            );
+            publisher
+                .publish_event(event, DeadLetterStage::Batch, reason)
+                .await?;
+        }
+    }
 
     // Append every board before failing, so one failing board does not hold back the
     // others; a retry appends the failed boards again, idempotently.
     let client = get_board_client().await?;
     let mut failures = Vec::new();
-    for (board, messages) in messages_by_board {
+    for (board, messages) in built.by_board {
         if let Err(error) = client.append(&board, &messages).await {
             tracing::error!("Error appending electoral-log batch for board {board}: {error:?}");
             failures.push(format!("{board}: {error:#}"));
         }
     }
-    if !failures.is_empty() {
-        return Err(anyhow!(
-            "Error appending electoral-log batches: {}",
-            failures.join("; ")
-        )
-        .into());
-    }
-
+    anyhow::ensure!(
+        failures.is_empty(),
+        "Error appending electoral-log batches: {}",
+        failures.join("; ")
+    );
     Ok(())
 }
 
-/// Dispatcher: repeatedly reads batches of messages from the electoral_log_batch_queue and dispatches them
-/// to the processing task. Each batch is processed sequentially so that only a single batch is held in memory.
+/// Why an event of a batch could not be turned into log records.
+#[derive(Debug)]
+enum EventFailure {
+    /// The event can never be stored as it is; it goes to the dead-letter queue.
+    Permanent(anyhow::Error),
+    /// A database or other infrastructure failure; the whole batch is retried.
+    Transient(anyhow::Error),
+}
+
+/// The records of a batch, grouped by board, and the events that cannot be stored.
+#[derive(Default)]
+struct BuiltBatch {
+    by_board: HashMap<String, Vec<LogEntry>>,
+    dead_letters: Vec<(LogEventInput, String)>,
+}
+
+/// What building a batch needs from the databases. Lookups are made once per
+/// election event and batch.
+#[async_trait::async_trait]
+trait BatchLookups {
+    /// The electoral-log board of an election event, or `None` if the event does not
+    /// exist or has no board.
+    async fn board(
+        &mut self,
+        tenant_id: &str,
+        election_event_id: &str,
+    ) -> anyhow::Result<Option<String>>;
+
+    /// The area of a voter, if the voter has one.
+    async fn user_area(
+        &mut self,
+        tenant_id: &str,
+        election_event_id: &str,
+        user_id: &str,
+    ) -> anyhow::Result<Option<String>>;
+
+    /// The system signer of a board, or `None` if the event has no protocol-manager key.
+    async fn signer(
+        &mut self,
+        tenant_id: &str,
+        election_event_id: &str,
+        board: &str,
+    ) -> anyhow::Result<Option<ElectoralLog>>;
+}
+
+struct DbLookups<'a, 'b> {
+    hasura: &'a Transaction<'b>,
+    keycloak: &'a Transaction<'b>,
+}
+
+#[async_trait::async_trait]
+impl BatchLookups for DbLookups<'_, '_> {
+    async fn board(
+        &mut self,
+        tenant_id: &str,
+        election_event_id: &str,
+    ) -> anyhow::Result<Option<String>> {
+        Ok(
+            get_election_event_by_id_if_exist(self.hasura, tenant_id, election_event_id)
+                .await
+                .context("Error getting election event")?
+                .and_then(|event| get_election_event_board(event.bulletin_board_reference)),
+        )
+    }
+
+    async fn user_area(
+        &mut self,
+        tenant_id: &str,
+        election_event_id: &str,
+        user_id: &str,
+    ) -> anyhow::Result<Option<String>> {
+        let realm = get_event_realm(tenant_id, election_event_id);
+        get_user_area_id(self.keycloak, &realm, user_id)
+            .await
+            .context("Error getting user area id")
+    }
+
+    async fn signer(
+        &mut self,
+        tenant_id: &str,
+        election_event_id: &str,
+        board: &str,
+    ) -> anyhow::Result<Option<ElectoralLog>> {
+        let Some(contents) = vault::read_secret(
+            self.hasura,
+            tenant_id,
+            Some(election_event_id),
+            &get_protocol_manager_secret_path(board),
+        )
+        .await
+        .context("Error reading the protocol-manager key")?
+        else {
+            return Ok(None);
+        };
+        let protocol_manager = deserialize_protocol_manager::<RistrettoCtx>(contents)
+            .context("Error decoding the protocol-manager key")?;
+        Ok(Some(ElectoralLog::for_system_with_signing_key(
+            board,
+            protocol_manager.get_signing_key(),
+        )))
+    }
+}
+
+/// Lookups already made for this batch, by (tenant, election event).
+#[derive(Default)]
+struct BatchCache {
+    boards: HashMap<(String, String), Option<String>>,
+    signers: HashMap<(String, String), Option<ElectoralLog>>,
+}
+
+async fn build_batch<L: BatchLookups + Send>(
+    lookups: &mut L,
+    events: &[LogEventInput],
+) -> anyhow::Result<BuiltBatch> {
+    let mut cache = BatchCache::default();
+    let mut built = BuiltBatch::default();
+    for input in events {
+        match build_event(lookups, &mut cache, input).await {
+            Ok(entries) => {
+                for (board, entry) in entries {
+                    built.by_board.entry(board).or_default().push(entry);
+                }
+            }
+            Err(EventFailure::Permanent(error)) => {
+                built
+                    .dead_letters
+                    .push((input.clone(), format!("{error:#}")));
+            }
+            Err(EventFailure::Transient(error)) => {
+                return Err(error.context(format!(
+                    "Error building the record of delivery {:?}",
+                    input.delivery_id
+                )));
+            }
+        }
+    }
+    Ok(built)
+}
+
+async fn build_event<L: BatchLookups + Send>(
+    lookups: &mut L,
+    cache: &mut BatchCache,
+    input: &LogEventInput,
+) -> std::result::Result<Vec<(String, LogEntry)>, EventFailure> {
+    use EventFailure::{Permanent, Transient};
+
+    let delivery_id = input
+        .delivery_id
+        .as_deref()
+        .filter(|id| !id.is_empty())
+        .ok_or_else(|| Permanent(anyhow!("Missing electoral-log delivery ID")))?;
+    Uuid::parse_str(&input.tenant_id)
+        .context("Invalid tenant ID")
+        .map_err(Permanent)?;
+    Uuid::parse_str(&input.election_event_id)
+        .context("Invalid election event ID")
+        .map_err(Permanent)?;
+
+    let key = (input.tenant_id.clone(), input.election_event_id.clone());
+    if !cache.boards.contains_key(&key) {
+        let board = lookups
+            .board(&input.tenant_id, &input.election_event_id)
+            .await
+            .map_err(Transient)?;
+        cache.boards.insert(key.clone(), board);
+    }
+    let board = cache.boards.get(&key).cloned().flatten().ok_or_else(|| {
+        Permanent(anyhow!(
+            "Election event {} does not exist or has no electoral-log board",
+            input.election_event_id
+        ))
+    })?;
+
+    let mut entries = Vec::new();
+    let message = match &input.message_type {
+        LogMessageType::Internal => deserialize_str::<ElectoralLogMessage>(&input.body.as_raw())
+            .context("Error parsing the body as an ElectoralLogMessage")
+            .map_err(Permanent)?,
+        LogMessageType::KeycloakEvent(event_type) => {
+            let user_id = input
+                .user_id
+                .clone()
+                .unwrap_or_else(|| "unknown_user".into());
+            let user_area_id = lookups
+                .user_area(&input.tenant_id, &input.election_event_id, &user_id)
+                .await
+                .map_err(Transient)?;
+            if !cache.signers.contains_key(&key) {
+                let signer = lookups
+                    .signer(&input.tenant_id, &input.election_event_id, &board)
+                    .await
+                    .map_err(Transient)?;
+                cache.signers.insert(key.clone(), signer);
+            }
+            let signer = cache
+                .signers
+                .get(&key)
+                .and_then(Option::as_ref)
+                .ok_or_else(|| {
+                    Permanent(anyhow!(
+                        "Election event {} has no protocol-manager key",
+                        input.election_event_id
+                    ))
+                })?;
+
+            if let LogEventBody::Communications(ref template_body) = input.body {
+                let send_template_msg = signer
+                    .build_send_template_message(
+                        Some(template_body.clone()),
+                        input.election_event_id.clone(),
+                        Some(user_id.clone()),
+                        input.username.clone(),
+                        None,
+                        user_area_id.clone(),
+                    )
+                    .context("Error building send template message")
+                    .map_err(Permanent)?;
+                entries.push((
+                    board.clone(),
+                    LogEntry {
+                        delivery_id: format!("{delivery_id}:communication"),
+                        message: send_template_msg,
+                    },
+                ));
+            }
+
+            signer
+                .build_keycloak_event_message(
+                    input.election_event_id.clone(),
+                    event_type.clone(),
+                    input.body.as_raw(),
+                    Some(user_id),
+                    input.username.clone(),
+                    user_area_id,
+                )
+                .context("Error building keycloak event message")
+                .map_err(Permanent)?
+        }
+    };
+    entries.push((
+        board,
+        LogEntry {
+            delivery_id: format!("{delivery_id}:event"),
+            message,
+        },
+    ));
+    Ok(entries)
+}
+
+/// Environment variable with the maximum number of events in one dispatcher batch.
+pub const BATCH_SIZE_ENV: &str = "ELECTORAL_LOG_BATCH_SIZE";
+/// Environment variable with the maximum payload bytes in one dispatcher batch.
+pub const BATCH_MAX_BYTES_ENV: &str = "ELECTORAL_LOG_BATCH_MAX_BYTES";
+/// Events per batch when `ELECTORAL_LOG_BATCH_SIZE` is not set.
+pub const DEFAULT_BATCH_SIZE: usize = 1_000;
+/// Payload bytes per batch when `ELECTORAL_LOG_BATCH_MAX_BYTES` is not set (16 MiB),
+/// well below the default maximum message size of RabbitMQ.
+pub const DEFAULT_BATCH_MAX_BYTES: usize = 16 * 1024 * 1024;
+
+/// How much the dispatcher puts in one batch task. A batch closes when it reaches
+/// either limit; a single message larger than `max_bytes` still forms a batch on its own.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct BatchLimits {
+    pub max_events: usize,
+    pub max_bytes: usize,
+}
+
+impl BatchLimits {
+    /// Read the limits from the environment. An unset or empty variable takes its
+    /// default; any other value must be a positive integer.
+    pub fn from_env() -> anyhow::Result<Self> {
+        Self::from_values(
+            std::env::var(BATCH_SIZE_ENV).ok().as_deref(),
+            std::env::var(BATCH_MAX_BYTES_ENV).ok().as_deref(),
+        )
+    }
+
+    fn from_values(max_events: Option<&str>, max_bytes: Option<&str>) -> anyhow::Result<Self> {
+        Ok(Self {
+            max_events: parse_limit(BATCH_SIZE_ENV, max_events, DEFAULT_BATCH_SIZE)?,
+            max_bytes: parse_limit(BATCH_MAX_BYTES_ENV, max_bytes, DEFAULT_BATCH_MAX_BYTES)?,
+        })
+    }
+
+    /// Whether a batch holding `events` messages with `bytes` payload bytes is full.
+    pub fn is_full(&self, events: usize, bytes: usize) -> bool {
+        events >= self.max_events || bytes >= self.max_bytes
+    }
+}
+
+fn parse_limit(name: &str, value: Option<&str>, default: usize) -> anyhow::Result<usize> {
+    match value.map(str::trim).filter(|value| !value.is_empty()) {
+        None => Ok(default),
+        Some(value) => {
+            let limit: usize = value
+                .parse()
+                .with_context(|| format!("{name} must be a positive integer, got {value:?}"))?;
+            anyhow::ensure!(
+                limit > 0,
+                "{name} must be a positive integer, got {value:?}"
+            );
+            Ok(limit)
+        }
+    }
+}
+
+/// Dispatcher: repeatedly reads batches of messages from the electoral_log_event_queue and hands
+/// each batch to the processing task. Each batch is processed sequentially so that only a single
+/// batch is held in memory.
 #[instrument(skip_all, err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task(time_limit = 30, max_retries = 0, expires = 1)]
@@ -296,23 +586,21 @@ pub async fn electoral_log_batch_dispatcher() -> Result<()> {
         .await
         .with_context(|| "Error declaring electoral_log_batch_queue")?;
 
-    // Get the batch size from PgConfig.
-    let batch_size: usize = PgConfig::from_env()?.default_sql_batch_size.try_into()?;
+    let limits = BatchLimits::from_env()?;
+    let mut dead_letters: Option<DeadLetterPublisher> = None;
 
     loop {
-        info!("starting a new batch for queue {queue_name}, max batch_size={batch_size}");
-        let mut batch_deliveries = Vec::with_capacity(batch_size);
-        for _ in 0..batch_size {
-            if let Some(delivery) = channel
+        let mut batch_deliveries = Vec::new();
+        let mut batch_bytes = 0usize;
+        while !limits.is_full(batch_deliveries.len(), batch_bytes) {
+            let Some(delivery) = channel
                 .basic_get(&queue_name, BasicGetOptions { no_ack: false })
                 .await?
-            {
-                info!("adding delivery element to batch_deliveries");
-                batch_deliveries.push(delivery);
-            } else {
-                info!("not adding to batch_deliveries, break");
+            else {
                 break;
-            }
+            };
+            batch_bytes = batch_bytes.saturating_add(delivery.data.len());
+            batch_deliveries.push(delivery);
         }
 
         if batch_deliveries.is_empty() {
@@ -320,44 +608,46 @@ pub async fn electoral_log_batch_dispatcher() -> Result<()> {
             break;
         }
         info!(
-            "deserializing {len} elements for this batch",
-            len = batch_deliveries.len()
+            "dispatching a batch of {len} events, {batch_bytes} bytes (limits: {max_events} events, {max_bytes} bytes)",
+            len = batch_deliveries.len(),
+            max_events = limits.max_events,
+            max_bytes = limits.max_bytes,
         );
 
-        // Deserialize messages sequentially.
+        // A message that cannot be parsed is dead-lettered, so it cannot block the queue.
         let mut events = Vec::with_capacity(batch_deliveries.len());
         for delivery in &batch_deliveries {
-            // Parse the raw message into a JSON value.
-            let v: serde_json::Value = serde_json::from_slice(&delivery.data)
-                .with_context(|| "Error parsing Celery message as JSON")?;
-            // Expect the message to be an array.
-            if let serde_json::Value::Array(arr) = v {
-                if arr.len() < 2 {
-                    return Err(
-                        "Invalid message format: expected array with at least 2 elements".into(),
+            match parse_delivery(&delivery.data, &delivery.properties) {
+                Ok(event) => events.push(event),
+                Err(error) => {
+                    tracing::error!(
+                        "Dead-lettering an electoral-log message that cannot be parsed: {error:#}"
                     );
+                    if dead_letters.is_none() {
+                        dead_letters = Some(DeadLetterPublisher::open().await?);
+                    }
+                    if let Some(publisher) = &dead_letters {
+                        publisher
+                            .publish_raw(
+                                &delivery.data,
+                                &delivery.properties,
+                                DeadLetterStage::Dispatcher,
+                                &format!("{error:#}"),
+                            )
+                            .await?;
+                    }
                 }
-                let payload = &arr[1];
-                let input_value = payload
-                    .get("input")
-                    .ok_or_else(|| anyhow!("Missing 'input' field in message payload"))?;
-                let mut event: LogEventInput = serde_json::from_value(input_value.clone())
-                    .with_context(|| "Error deserializing LogEventInput from input field")?;
-                retain_delivery_id(&mut event, &delivery.properties)?;
-                events.push(event);
-            } else {
-                return Err("Invalid message format: expected JSON array".into());
             }
         }
 
-        // Dispatch the processing task via the Celery app.
-        let celery_app = crate::services::celery_app::get_celery_app().await;
-        let celery_task = process_electoral_log_events_batch::new(events);
-        info!("sending processing task for current batch");
-        celery_app
-            .send_task(celery_task)
-            .await
-            .with_context(|| "Error sending process_electoral_log_events_batch task")?;
+        if !events.is_empty() {
+            let celery_app = crate::services::celery_app::get_celery_app().await;
+            let celery_task = process_electoral_log_events_batch::new(events);
+            celery_app
+                .send_task(celery_task)
+                .await
+                .with_context(|| "Error sending process_electoral_log_events_batch task")?;
+        }
 
         // Acknowledge all messages in the current batch.
         for delivery in batch_deliveries {
@@ -369,6 +659,27 @@ pub async fn electoral_log_batch_dispatcher() -> Result<()> {
     }
     info!("finishing electoral_log_batch_dispatcher");
     Ok(())
+}
+
+/// Parse an event-queue message: a Celery message whose second element carries the
+/// event as `input`.
+fn parse_delivery(
+    data: &[u8],
+    properties: &lapin::BasicProperties,
+) -> anyhow::Result<LogEventInput> {
+    let message: serde_json::Value =
+        serde_json::from_slice(data).context("Error parsing Celery message as JSON")?;
+    let input = message
+        .as_array()
+        .context("Invalid message format: expected a JSON array")?
+        .get(1)
+        .context("Invalid message format: expected an array with at least 2 elements")?
+        .get("input")
+        .context("Missing 'input' field in message payload")?;
+    let mut event: LogEventInput = serde_json::from_value(input.clone())
+        .context("Error deserializing LogEventInput from input field")?;
+    retain_delivery_id(&mut event, properties)?;
+    Ok(event)
 }
 
 /// Keycloak supplies the Celery header; internal producers persist an explicit ID.
@@ -402,9 +713,96 @@ fn retain_delivery_id(
 }
 
 #[cfg(test)]
+mod batch_limit_tests {
+    use super::*;
+
+    #[test]
+    fn unset_or_empty_values_take_the_defaults() {
+        let defaults = BatchLimits {
+            max_events: DEFAULT_BATCH_SIZE,
+            max_bytes: DEFAULT_BATCH_MAX_BYTES,
+        };
+        assert_eq!(BatchLimits::from_values(None, None).unwrap(), defaults);
+        assert_eq!(
+            BatchLimits::from_values(Some(""), Some("  ")).unwrap(),
+            defaults
+        );
+        assert_eq!(DEFAULT_BATCH_MAX_BYTES, 16_777_216);
+    }
+
+    #[test]
+    fn set_values_override_the_defaults() {
+        let limits = BatchLimits::from_values(Some(" 250 "), Some("1048576")).unwrap();
+        assert_eq!(limits.max_events, 250);
+        assert_eq!(limits.max_bytes, 1_048_576);
+    }
+
+    #[test]
+    fn invalid_values_are_rejected_with_the_variable_name() {
+        for bad in ["0", "-1", "ten", "1.5", "99999999999999999999999"] {
+            let error = BatchLimits::from_values(Some(bad), None).unwrap_err();
+            assert!(error.to_string().contains(BATCH_SIZE_ENV), "{bad}: {error}");
+            let error = BatchLimits::from_values(None, Some(bad)).unwrap_err();
+            assert!(
+                error.to_string().contains(BATCH_MAX_BYTES_ENV),
+                "{bad}: {error}"
+            );
+        }
+    }
+
+    /// Mirrors the dispatcher loop: messages are taken until a limit is reached.
+    fn split(limits: &BatchLimits, sizes: &[usize]) -> Vec<Vec<usize>> {
+        let mut batches = Vec::new();
+        let mut rest = sizes.iter().copied().peekable();
+        while rest.peek().is_some() {
+            let (mut batch, mut bytes) = (Vec::new(), 0usize);
+            while !limits.is_full(batch.len(), bytes) {
+                let Some(size) = rest.next() else { break };
+                bytes += size;
+                batch.push(size);
+            }
+            batches.push(batch);
+        }
+        batches
+    }
+
+    #[test]
+    fn batches_close_at_the_event_limit() {
+        let limits = BatchLimits {
+            max_events: 3,
+            max_bytes: usize::MAX,
+        };
+        assert_eq!(
+            split(&limits, &[1; 7]),
+            vec![vec![1, 1, 1], vec![1, 1, 1], vec![1]]
+        );
+    }
+
+    #[test]
+    fn batches_close_once_the_byte_limit_is_reached() {
+        let limits = BatchLimits {
+            max_events: 100,
+            max_bytes: 10,
+        };
+        assert_eq!(
+            split(&limits, &[4, 4, 4, 4, 2, 9]),
+            vec![vec![4, 4, 4], vec![4, 2, 9]]
+        );
+    }
+
+    #[test]
+    fn an_oversized_message_forms_a_batch_on_its_own() {
+        let limits = BatchLimits {
+            max_events: 100,
+            max_bytes: 10,
+        };
+        assert_eq!(split(&limits, &[50, 3]), vec![vec![50], vec![3]]);
+    }
+}
+
+#[cfg(test)]
 mod delivery_tests {
     use super::*;
-    use celery::task::Task;
     use lapin::types::{AMQPValue, LongString};
 
     #[test]
@@ -441,11 +839,274 @@ mod delivery_tests {
         );
         assert_eq!(
             process_electoral_log_events_batch::DEFAULTS.max_retries,
-            Some(5)
+            Some(10)
+        );
+        assert_eq!(
+            process_electoral_log_events_batch::DEFAULTS.max_retry_delay,
+            Some(60)
         );
         assert_eq!(
             process_electoral_log_events_batch::DEFAULTS.retry_for_unexpected,
             Some(true)
         );
+    }
+}
+
+#[cfg(test)]
+mod batch_build_tests {
+    use super::*;
+    use crate::services::electoral_log_dead_letter::event_message_body;
+    use strand::signature::StrandSignatureSk;
+
+    const TENANT: &str = "90505c8a-23a9-4cdf-a26b-4e19f6a097d5";
+    const EVENT: &str = "fdd21db2-dd68-4974-90eb-7f2750b2b5df";
+    const DELETED_EVENT: &str = "6f0c5c2e-3f43-4a5e-9d55-0d6a3e1f7b21";
+    const KEYLESS_EVENT: &str = "2b8e4a1d-7c6f-4e93-b0a2-5d9c8f1e3a47";
+
+    struct FakeLookups {
+        signing_key: StrandSignatureSk,
+        unreachable_event: Option<&'static str>,
+        board_calls: usize,
+        signer_calls: usize,
+    }
+
+    impl FakeLookups {
+        fn new() -> Self {
+            Self {
+                signing_key: StrandSignatureSk::generate().unwrap(),
+                unreachable_event: None,
+                board_calls: 0,
+                signer_calls: 0,
+            }
+        }
+    }
+
+    #[async_trait::async_trait]
+    impl BatchLookups for FakeLookups {
+        async fn board(
+            &mut self,
+            _tenant_id: &str,
+            election_event_id: &str,
+        ) -> anyhow::Result<Option<String>> {
+            self.board_calls += 1;
+            if self.unreachable_event == Some(election_event_id) {
+                return Err(anyhow!("connection reset"));
+            }
+            Ok((election_event_id != DELETED_EVENT).then(|| format!("board-{election_event_id}")))
+        }
+
+        async fn user_area(
+            &mut self,
+            _tenant_id: &str,
+            _election_event_id: &str,
+            _user_id: &str,
+        ) -> anyhow::Result<Option<String>> {
+            Ok(None)
+        }
+
+        async fn signer(
+            &mut self,
+            _tenant_id: &str,
+            election_event_id: &str,
+            board: &str,
+        ) -> anyhow::Result<Option<ElectoralLog>> {
+            self.signer_calls += 1;
+            Ok((election_event_id != KEYLESS_EVENT)
+                .then(|| ElectoralLog::for_system_with_signing_key(board, &self.signing_key)))
+        }
+    }
+
+    fn keycloak_event(delivery_id: Option<&str>, election_event_id: &str) -> LogEventInput {
+        LogEventInput {
+            delivery_id: delivery_id.map(str::to_string),
+            election_event_id: election_event_id.into(),
+            message_type: LogMessageType::KeycloakEvent("LOGIN".into()),
+            user_id: Some("voter".into()),
+            username: Some("voter".into()),
+            tenant_id: TENANT.into(),
+            body: LogEventBody::Plain("{}".into()),
+        }
+    }
+
+    fn internal_event(delivery_id: &str, body: String) -> LogEventInput {
+        LogEventInput {
+            message_type: LogMessageType::Internal,
+            user_id: None,
+            username: None,
+            body: LogEventBody::Plain(body),
+            ..keycloak_event(Some(delivery_id), EVENT)
+        }
+    }
+
+    fn internal_message() -> String {
+        serde_json::to_string(&ElectoralLogMessage {
+            id: 0,
+            created: 0,
+            sender_pk: "pk".into(),
+            statement_timestamp: 0,
+            statement_kind: "kind".into(),
+            message: vec![1, 2, 3],
+            version: "1".into(),
+            user_id: None,
+            username: None,
+            election_id: None,
+            area_id: None,
+            ballot_id: None,
+        })
+        .unwrap()
+    }
+
+    fn delivery_ids(entries: &[LogEntry]) -> Vec<&str> {
+        entries
+            .iter()
+            .map(|entry| entry.delivery_id.as_str())
+            .collect()
+    }
+
+    fn dead_letter_ids(built: &BuiltBatch) -> Vec<Option<&str>> {
+        built
+            .dead_letters
+            .iter()
+            .map(|(event, _)| event.delivery_id.as_deref())
+            .collect()
+    }
+
+    #[tokio::test]
+    async fn bad_events_are_dead_lettered_and_the_rest_is_stored() {
+        let mut communication = keycloak_event(Some("d2"), EVENT);
+        communication.body = LogEventBody::Communications("hello".into());
+        let mut invalid_tenant = keycloak_event(Some("d6"), EVENT);
+        invalid_tenant.tenant_id = "not-a-uuid".into();
+        let events = vec![
+            keycloak_event(Some("d1"), EVENT),
+            communication,
+            internal_event("d3", internal_message()),
+            internal_event("d4", "not a log message".into()),
+            keycloak_event(Some("d5"), DELETED_EVENT),
+            invalid_tenant,
+            keycloak_event(None, EVENT),
+            keycloak_event(Some(""), EVENT),
+            keycloak_event(Some("d7"), KEYLESS_EVENT),
+            keycloak_event(Some("d8"), EVENT),
+        ];
+
+        let mut lookups = FakeLookups::new();
+        let built = build_batch(&mut lookups, &events).await.unwrap();
+
+        assert_eq!(built.by_board.len(), 1);
+        assert_eq!(
+            delivery_ids(&built.by_board[&format!("board-{EVENT}")]),
+            vec![
+                "d1:event",
+                "d2:communication",
+                "d2:event",
+                "d3:event",
+                "d8:event"
+            ]
+        );
+        assert_eq!(
+            dead_letter_ids(&built),
+            vec![
+                Some("d4"),
+                Some("d5"),
+                Some("d6"),
+                None,
+                Some(""),
+                Some("d7")
+            ]
+        );
+        let reasons: Vec<&str> = built
+            .dead_letters
+            .iter()
+            .map(|(_, reason)| reason.as_str())
+            .collect();
+        assert!(reasons[0].contains("ElectoralLogMessage"), "{}", reasons[0]);
+        assert!(reasons[1].contains("does not exist"), "{}", reasons[1]);
+        assert!(reasons[2].contains("Invalid tenant ID"), "{}", reasons[2]);
+        assert!(reasons[3].contains("delivery ID"), "{}", reasons[3]);
+        assert!(reasons[4].contains("delivery ID"), "{}", reasons[4]);
+        assert!(
+            reasons[5].contains("protocol-manager key"),
+            "{}",
+            reasons[5]
+        );
+    }
+
+    #[tokio::test]
+    async fn lookups_are_made_once_per_election_event() {
+        let events = vec![
+            keycloak_event(Some("d1"), EVENT),
+            keycloak_event(Some("d2"), EVENT),
+            keycloak_event(Some("d3"), DELETED_EVENT),
+            keycloak_event(Some("d4"), DELETED_EVENT),
+            keycloak_event(Some("d5"), KEYLESS_EVENT),
+            keycloak_event(Some("d6"), KEYLESS_EVENT),
+        ];
+
+        let mut lookups = FakeLookups::new();
+        let built = build_batch(&mut lookups, &events).await.unwrap();
+
+        assert_eq!(lookups.board_calls, 3);
+        assert_eq!(lookups.signer_calls, 2);
+        assert_eq!(built.dead_letters.len(), 4);
+    }
+
+    #[tokio::test]
+    async fn a_lookup_failure_fails_the_whole_batch() {
+        let events = vec![
+            keycloak_event(Some("d1"), EVENT),
+            keycloak_event(Some("d2"), KEYLESS_EVENT),
+        ];
+        let mut lookups = FakeLookups::new();
+        lookups.unreachable_event = Some(KEYLESS_EVENT);
+
+        let error = match build_batch(&mut lookups, &events).await {
+            Ok(_) => panic!("a lookup failure must fail the batch"),
+            Err(error) => format!("{error:#}"),
+        };
+
+        assert!(error.contains("d2"), "{error}");
+        assert!(error.contains("connection reset"), "{error}");
+    }
+
+    #[test]
+    fn only_the_last_run_dead_letters_the_batch() {
+        assert!(!retries_exhausted(0, Some(10)));
+        assert!(!retries_exhausted(9, Some(10)));
+        assert!(retries_exhausted(10, Some(10)));
+        assert!(!retries_exhausted(1_000, None));
+    }
+
+    #[test]
+    fn dead_lettered_events_parse_back_unchanged() {
+        let mut event = keycloak_event(Some("d1"), EVENT);
+        event.body = LogEventBody::Communications("hello".into());
+        let body = event_message_body(&event).unwrap();
+
+        let parsed = parse_delivery(&body, &lapin::BasicProperties::default()).unwrap();
+
+        assert_eq!(
+            serde_json::to_value(&parsed).unwrap(),
+            serde_json::to_value(&event).unwrap()
+        );
+    }
+
+    #[test]
+    fn malformed_messages_are_rejected() {
+        let without_delivery_id = keycloak_event(None, EVENT);
+        for body in [
+            b"not json".to_vec(),
+            b"{}".to_vec(),
+            b"[[]]".to_vec(),
+            b"[[], {}]".to_vec(),
+            serde_json::to_vec(&serde_json::json!([[], {"input": {"tenant_id": TENANT}}])).unwrap(),
+            event_message_body(&without_delivery_id).unwrap(),
+        ] {
+            assert!(
+                parse_delivery(&body, &lapin::BasicProperties::default()).is_err(),
+                "{}",
+                String::from_utf8_lossy(&body)
+            );
+        }
     }
 }

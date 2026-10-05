@@ -215,26 +215,29 @@ sequenceDiagram
     participant BQ as electoral_log_batch_queue
     participant W as Worker: batch task
     participant DB as Electoral-log database
+    participant DLQ as electoral_log_dead_letter_queue
     P->>EQ: enqueue_electoral_log_event (durable, with a delivery ID)
     BT->>D: every 5 s: electoral_log_batch_dispatcher
     loop until the event queue is empty
-        D->>EQ: take up to DEFAULT_SQL_BATCH_SIZE messages
+        D->>EQ: take messages up to the batch limits
+        D->>DLQ: messages it cannot parse
         D->>BQ: send process_electoral_log_events_batch(events)
         D->>EQ: acknowledge those messages
     end
     BQ->>W: process_electoral_log_events_batch
     W->>W: build and sign Keycloak records, group all by board
+    W->>DLQ: events that can never be stored
     W->>DB: one append per board (section 6.2)
 ```
 
 - **Queued events:** these are the high-volume ones: Keycloak user events (logins, registrations, and so on) and cast votes, plus cast-vote errors and external API requests.
   - **Producers** publish them as `enqueue_electoral_log_event` messages to the durable `electoral_log_event_queue`. Windmill prefixes every queue name with `ENV_SLUG` and `_`. Keycloak's event listener publishes the raw event; it adds the same prefix only when `ENV_SLUG` is set in Keycloak's environment, and `ELECTORAL_LOG_QUEUE` and `ELECTORAL_LOG_TASK` can override its queue and task names. If they do not match Windmill's, Keycloak publishes to a queue that nothing reads. The backend publishes the other kinds as records it has already built and signed; for cast votes that happens in Harvest, after the vote is stored.
   - **Nothing consumes the event queue as a task queue.** `enqueue_electoral_log_event` does nothing when run, so a worker that consumed `electoral_log_event_queue` would acknowledge and discard every event. Only the dispatcher reads it.
-  - **Dispatcher:** Windmill beat only *schedules* `electoral_log_batch_dispatcher`, every 5 seconds (`--electoral-log-interval`), on `electoral_log_beat_queue`. A worker runs it, with a 30-second time limit and no retries. It repeatedly takes up to `DEFAULT_SQL_BATCH_SIZE` messages, one `basic_get` each, sends them as one `process_electoral_log_events_batch` task to the durable `electoral_log_batch_queue`, and only then acknowledges them, until the event queue is empty.
+  - **Dispatcher:** Windmill beat only *schedules* `electoral_log_batch_dispatcher`, every 5 seconds (`--electoral-log-interval`), on `electoral_log_beat_queue`. A worker runs it, with a 30-second time limit and no retries. It repeatedly takes messages, one `basic_get` each, until the batch holds `ELECTORAL_LOG_BATCH_SIZE` events (default 1,000) or `ELECTORAL_LOG_BATCH_MAX_BYTES` bytes of payload (default 16 MiB), sends them as one `process_electoral_log_events_batch` task to the durable `electoral_log_batch_queue`, and only then acknowledges them, until the event queue is empty. A message it cannot parse, including one without a delivery ID, goes to the dead-letter queue instead (section 6.5).
   - **Acknowledging after sending:** the events leave the event queue only after their batch task was sent. If the dispatcher stops between sending and acknowledging, the messages are delivered again and sent in a second batch, and their delivery IDs make the second append store nothing new. The batch task is sent without publisher confirms, so a broker failure at that moment can still lose a batch.
-  - **The 30-second limit:** when a run reaches it, the run is cancelled and the batch it was collecting returns to the event queue unsent. A run that cannot fetch and send one batch within 30 seconds therefore never dispatches anything. With a large backlog and a large batch size, fetching one message per round trip could approach that limit; this was not measured.
-  - **Batch message size:** the batch travels as one RabbitMQ message. A queued cast vote takes about 3 KB in it, because its message bytes are encoded as a JSON array of numbers, so 100,000 cast votes would make a message of about 300 MB. RabbitMQ 3.12, used in development, rejects messages above 128 MiB by default (`max_message_size`). Because the batch is sent without publisher confirms, the dispatcher does not see the rejection: it acknowledges the events, so the whole batch is lost, and RabbitMQ closes the worker's channel for sending tasks, so that worker cannot send any task until it restarts. This follows from the code and RabbitMQ's documented behaviour and was not reproduced. Size the batch to avoid it (section 14.1).
-  - **Batch task:** for each event it looks up the election event and its board in Hasura. For Keycloak events it also looks up the user's area in Keycloak, loads the protocol-manager key and builds and signs the record. It then groups the records by board and appends each group. It acknowledges late and retries unexpected failures up to five times.
+  - **The 30-second limit:** when a run reaches it, the run is cancelled and the batch it was collecting returns to the event queue unsent. A run that cannot fetch and send one batch within 30 seconds therefore never dispatches anything. With the default of 1,000 events per batch a run fetches at most 1,000 messages before sending, so this only becomes a risk with a much larger batch size or a very slow broker; it was not measured.
+  - **Batch message size:** the batch travels as one RabbitMQ message. A queued cast vote takes about 3 KB in it, because its message bytes are encoded as a JSON array of numbers. The byte limit keeps a batch at about 16 MiB by default, well below the 128 MiB that RabbitMQ 3.12, used in development, accepts by default (`max_message_size`). A batch above `max_message_size` would be lost silently: the batch is sent without publisher confirms, so the dispatcher acknowledges the events without seeing the rejection, and RabbitMQ closes the worker's channel for sending tasks, so that worker cannot send any task until it restarts. This follows from the code and RabbitMQ's documented behaviour and was not reproduced. Keep `ELECTORAL_LOG_BATCH_MAX_BYTES` well below `max_message_size` (section 14.1).
+  - **Batch task:** it looks up each election event and its board in Hasura, once per election event in the batch. For Keycloak events it also looks up the user's area in Keycloak, loads the protocol-manager key, also once per election event, and builds and signs the record. Events that can never be stored go to the dead-letter queue; the rest are grouped by board, and each group is appended. It acknowledges late and retries failures up to ten times (section 6.5).
 - **Direct appends:** administrative events are appended directly by the backend code that performs the action, with retries and exponential backoff. These include publications, voting-period changes, key ceremonies, tally steps, password changes, secret-attribute access and checkpoint publications. Each is a single-record append, and the action waits for it (section 6.5).
 
 ### 6.2 Inside one append
@@ -280,9 +283,10 @@ What happens when something fails, from the database outwards:
 
 - **One append is atomic.** If anything fails, including a later chunk or a malformed row in a streamed import, nothing from that append is stored.
 - **Append failures in a batch are isolated per board.** A batch spanning several boards commits each board separately. When one board's append fails, the others are still appended, and the task fails so that it is retried. Retrying an already stored board stores nothing new.
-- **Any other failure in a batch fails the whole batch, for every board.** The batch task builds all records before it appends any. If one event cannot be processed, for example because its election event was deleted, the user's area lookup failed, the protocol-manager key could not be loaded or the event body is malformed, nothing from the batch is appended.
-- **After five failed retries the batch's events are lost.** They are not in the event queue any more, and nothing re-sends them. A batch can hold up to `DEFAULT_SQL_BATCH_SIZE` events of any number of election events, so one bad event can lose many others. The worker logs record each failure as `process_electoral_log_events_batch` errors (section 14.5).
-- **A message the dispatcher cannot parse blocks the queue.** The dispatcher stops at it without acknowledging, so the message returns to the queue and stops the next run at the same place. The event queue then stops draining until the message is removed by hand.
+- **An event that can never be stored is set aside, not its batch.** The batch task dead-letters an event whose delivery ID is missing or empty, whose tenant or election event ID is not a UUID, whose election event does not exist or has no board, whose body is malformed, whose election event has no protocol-manager key, or whose record cannot be built. It publishes the event to the durable `electoral_log_dead_letter_queue`, waits for RabbitMQ to confirm it, and stores the rest of the batch. The dispatcher does the same with a message it cannot parse, so such a message does not block the event queue. Dead-lettered messages keep the event queue's format, with the reason in a header, so they can be inspected and replayed (section 14.7).
+- **A lookup failure fails the whole batch, for every board.** If looking up an election event or a user's area fails, or the protocol-manager key cannot be read or decoded, the task fails before appending anything, so that it is retried. These failures are treated as temporary; a key that can never be decoded is only set aside after the last retry.
+- **A failing batch is retried for about five minutes.** The task retries up to ten times, after 1, 2, 4, 8, 16 and 32 seconds and then every 60 seconds. On the last attempt it dead-letters every event of the batch, with the error, instead of failing. Events of boards whose append succeeded are dead-lettered too; replaying them stores nothing new. Only if RabbitMQ does not confirm the dead-lettered messages either are the batch's events lost.
+- **An event can be dead-lettered twice.** Dead-lettering happens before the appends, so a batch that is retried after an append failure dead-letters its bad events again. Replaying both copies stores the event at most once.
 - **No transaction spans the log and Hasura, Keycloak or RabbitMQ.** A log record that fails after its action committed elsewhere does not roll the action back.
 - **Queued producers do not wait for the log.** Cast votes are queued after the vote is stored, on a best-effort basis, and Keycloak's listener only logs an event it could not publish to RabbitMQ (section 12.3).
 - **Direct appends do wait, and many block their action.** A failed direct append fails the action that posts it, when the action posts before it finishes. That includes opening, pausing and closing voting, scheduled changes too, and secret-attribute actions, which deliberately record the access before handing out or storing a value. So while the electoral-log database is unreachable, or a board refuses appends (section 14.6), those actions fail for that event.
@@ -691,7 +695,7 @@ The table assumes the change is made directly in the electoral-log database, unl
 - **The backend controls both anchors.** Windmill and Harvest each hold credentials for the electoral-log and Hasura databases and load the protocol-manager key. Whoever controls either of them, or both databases and the master secret, can rewrite the log, the published checkpoints and their signatures. Harvest is the HTTP API. Only checkpoints kept outside Step detect such a rewrite (section 8.4).
 - **Harvest trusts token claims.** It decodes JWTs without verifying their signature or expiry. The permissions in section 12.1 therefore hold only when every path to Harvest verifies tokens first, as Hasura does for its actions. The proof routes are not Hasura actions, so reach them only through a gateway that verifies tokens.
 - **The history before voting closes has no outside anchor** unless an auditor saved a checkpoint. The first published checkpoint is taken at voting close, so whoever controls the electoral-log database can change records of the voting period, including cast votes, consistently before then.
-- **Audits and proofs show integrity, not completeness at the source.** An event that a producer never delivered is not in the log. Known gaps: Keycloak's listener logs a failed RabbitMQ publish and moves on, without retrying or using publisher confirms; cast votes are queued after the vote commits, on a best-effort basis; and a batch that fails other than in its appends loses all its events after five retries (section 6.5).
+- **Audits and proofs show integrity, not completeness at the source.** An event that a producer never delivered is not in the log. Known gaps: Keycloak's listener logs a failed RabbitMQ publish and moves on, without retrying or using publisher confirms; cast votes are queued after the vote commits, on a best-effort basis; and dead-lettered events stay out of the log until someone replays them (section 14.7).
 - **Signatures are server signatures.** They show that the backend built a statement, not that a voter or Keycloak produced it, and Step does not verify them.
 - **The log holds personal data.** Records carry user IDs and usernames, and cast-vote records also the voter's area, IP address and country. Section 9.2 describes who can read them.
 - **The application role** is not a cryptographically enforced append-only principal. Do not grant it access to other databases.
@@ -729,15 +733,16 @@ A load test filled one board to 20 million records on a PostgreSQL server with 1
 | `ELECTORAL_LOG_PG_DATABASE` | The dedicated database |
 | `ELECTORAL_LOG_PG_SSLMODE` | `disable`, `require` (default) or `verify-full` |
 | `ELECTORAL_LOG_PG_SSLROOTCERT` | Optional CA file for `verify-full` |
-| `DEFAULT_SQL_BATCH_SIZE` | Maximum events per dispatcher batch. Required: Windmill has no default for it. Development uses 100,000. |
+| `ELECTORAL_LOG_BATCH_SIZE` | Maximum events per dispatcher batch; 1,000 when unset or empty |
+| `ELECTORAL_LOG_BATCH_MAX_BYTES` | Maximum payload bytes per dispatcher batch; 16,777,216 (16 MiB) when unset or empty |
 | `--electoral-log-interval` (Windmill beat flag) | Seconds between dispatcher runs; 5 by default |
 
 - **Who reads them:** Windmill, Harvest, `electoral-log-admin`, `step export-cast-votes` and Windmill's `generate-logs` tool, which also needs `ENV_SLUG`. Harvest refuses to start without the `ELECTORAL_LOG_PG_*` variables.
-- **Sizing `DEFAULT_SQL_BATCH_SIZE`:** it is shared, and also sizes batches of user exports, send-template and the cast-vote review. For the log:
-  - a batch is one RabbitMQ message of about 3 KB per cast vote, so keep `DEFAULT_SQL_BATCH_SIZE` × 3 KB well below RabbitMQ's `max_message_size` (128 MiB by default in RabbitMQ 3.12), or the first larger batch is lost and the worker cannot send tasks until it restarts (section 6.1);
-  - a smaller value shortens how long one append holds a board and limits how many events one failing batch loses (section 6.5), and keeps each dispatcher run well within its 30 seconds;
-  - a larger value makes fewer, bigger appends.
-- **Queues:** some worker must consume `electoral_log_beat_queue` (the dispatcher) and `electoral_log_batch_queue` (batch tasks). In development one Windmill worker consumes both, together with the other queues. Audits run on `reports_queue` and voting-closed publications on `short_queue`. No worker may consume `electoral_log_event_queue`; it would discard every event (section 6.1). All names carry the `ENV_SLUG` prefix.
+- **Sizing the dispatcher batch:** a batch closes at whichever limit it reaches first; a single message larger than the byte limit still goes out as a batch of one. Any value other than a positive integer stops the worker that runs the dispatcher at startup, naming the variable. The log no longer reads the shared `DEFAULT_SQL_BATCH_SIZE`, which still sizes user exports, send-template and the cast-vote review.
+  - keep `ELECTORAL_LOG_BATCH_MAX_BYTES` well below RabbitMQ's `max_message_size` (128 MiB by default in RabbitMQ 3.12), or a larger batch is lost and the worker cannot send tasks until it restarts (section 6.1);
+  - a smaller `ELECTORAL_LOG_BATCH_SIZE` shortens how long one append holds a board and limits how many events one failing batch delays (section 6.5), and keeps each dispatcher run well within its 30 seconds;
+  - a larger one makes fewer, bigger appends.
+- **Queues:** some worker must consume `electoral_log_beat_queue` (the dispatcher) and `electoral_log_batch_queue` (batch tasks). In development one Windmill worker consumes both, together with the other queues. Audits run on `reports_queue` and voting-closed publications on `short_queue`. No worker may consume `electoral_log_event_queue`, because it would discard every event (section 6.1), or `electoral_log_dead_letter_queue`, which holds set-aside events (section 14.7); Windmill refuses to start a worker configured to consume either. All names carry the `ENV_SLUG` prefix.
 - **TLS modes:** `require` encrypts without verifying the server, and `verify-full` also verifies its certificate and hostname. Mount the CA file when its issuer is not in the image's trust store. `disable` is meant for the internal development connection.
 - **Connections:** each connection pool has at most eight connections and a ten-second connection timeout. Windmill uses one pool for appends, reads and audits; Harvest opens two, one for proofs and one for everything else, so up to 16 connections per Harvest instance.
 - **Secrets:** no connection string or password is logged.
@@ -769,17 +774,20 @@ Old ImmuDB boards are not imported. Keep old storage and backups until retention
 | Audit outcome `findings` or `error` | Task executions and annotations, tally logs | The board differs from its leaves, tree or published checkpoints; see section 14.6 |
 | 409 or 500 from the proof API | Responses; Harvest logs only the 500s, as `Electoral-log proof operation failed` | A diverged checkpoint, or stored Merkle data that is inconsistent |
 | `process_electoral_log_events_batch` errors | Windmill worker logs | A batch is failing and being retried (section 6.5) |
-| `Task process_electoral_log_events_batch[…] retries exceeded` | Windmill worker logs | A batch was dropped. Its events are lost, except those of boards whose append succeeded |
+| `Dead-lettering an electoral-log event` or `Dead-lettering an electoral-log message` | Windmill worker logs | An event or message was set aside, with the reason (section 6.5) |
+| `Dead-lettering … electoral-log events after the last retry` | Windmill worker logs | A batch failed every retry; its events are in the dead-letter queue |
+| `Task process_electoral_log_events_batch[…] retries exceeded` | Windmill worker logs | A batch failed every retry and could not be dead-lettered. Its events are lost, except those of boards whose append succeeded |
+| `electoral_log_dead_letter_queue` is not empty | RabbitMQ | Events wait to be inspected and replayed (section 14.7) |
 | `Error appending electoral-log batch for board …` | Windmill worker logs | An append to that board failed; the other boards of the batch were appended |
-| `electoral_log_event_queue` keeps growing | RabbitMQ | The dispatcher is not running or has no worker, every run reaches its 30-second limit, or it is stuck on a message it cannot parse |
-| `PRECONDITION_FAILED` and a message size error | RabbitMQ logs | A batch was larger than `max_message_size`: it was lost, and the sending worker must be restarted (section 6.1) |
+| `electoral_log_event_queue` keeps growing | RabbitMQ | The dispatcher is not running or has no worker, every run reaches its 30-second limit, or it cannot publish to the dead-letter queue |
+| `PRECONDITION_FAILED` and a message size error | RabbitMQ logs | A batch was larger than `max_message_size`, which the default byte limit prevents: it was lost, and the sending worker must be restarted (section 6.1) |
 | `Audit event was not delivered to RabbitMQ` | Keycloak logs | A Keycloak event that will never be in the log |
 | `Cannot append to Trellis log '…'` | Windmill and Harvest logs | The board's tree fails the right-edge check, or the log must be rebuilt (section 7.10). Every append to that board fails until it is repaired (section 14.6). |
 | `Stored Merkle data is inconsistent` without the line above | Harvest logs, proof responses | A proof hit damaged data, such as an altered interior subtree or a record without a leaf. Appends still work; run an audit. |
 
 ### 14.6 When the log is damaged
 
-A board whose stored tree fails the right-edge check refuses every append (section 7.5). Its direct appends fail, which also blocks actions such as opening and closing voting for that event (section 6.5). Its queued events fail too, and a failing batch is retried after about 1, 2, 4, 8 and 16 seconds and then dropped, so they are lost about half a minute after the first failure: faster than anyone can repair the board.
+A board whose stored tree fails the right-edge check refuses every append (section 7.5). Its direct appends fail, which also blocks actions such as opening and closing voting for that event (section 6.5). Its queued events fail too: a failing batch is retried for about five minutes and then dead-lettered (section 6.5), so they wait in the dead-letter queue until the board is repaired and they are replayed.
 
 1. **Stop the dispatcher** to keep queued events in the durable event queue: stop Windmill beat, or the workers that consume `electoral_log_beat_queue`. That also stops the other scheduled tasks or queues those processes handle, and a batch already sent is still processed.
 2. **Preserve the evidence.** Take a snapshot or backup of the electoral-log database and of the `electoral_log_checkpoint` table before changing anything. Do not run `backfill-nodes` or edit rows yet.
@@ -789,8 +797,22 @@ A board whose stored tree fails the right-edge check refuses every append (secti
    - **The stored root:** `backfill-nodes` refuses unless the stored root is the root of some prefix of the leaves. If the leaves agree with every published and saved checkpoint, the leaves are the evidence, and restoring the root from them is a deliberate decision; otherwise treat it as below.
    - **Records, leaves or their order, a "must be rebuilt" log written by the current build, or `backfill-nodes` refuses:** treat it as a security incident, because the stored history itself may have been changed (section 7.10). The original content can come only from a backup, and checkpoints saved outside Step show which backup still matches.
    - **A published checkpoint does not match:** compare it with checkpoints saved outside Step. A restored backup older than a published checkpoint also produces this finding (section 14.3).
-5. **Account for lost events.** The worker logs name only the board and the error, not the events. Keycloak logs each event's details (`logEvent: details …`) and, on a separate line, the correlation ID it was published with; the stored delivery ID is that ID with `:event` or `:communication` appended. Cast votes are in Hasura's cast-vote table.
-6. **Run a clean audit**, then restart the dispatcher.
+5. **Account for the events.** Events of batches that failed are in the dead-letter queue (section 14.7). For events lost elsewhere, the worker logs name only the board and the error, not the events. Keycloak logs each event's details (`logEvent: details …`) and, on a separate line, the correlation ID it was published with; the stored delivery ID is that ID with `:event` or `:communication` appended. Cast votes are in Hasura's cast-vote table.
+6. **Run a clean audit**, then restart the dispatcher and replay the dead-lettered events (section 14.7).
+
+### 14.7 The dead-letter queue
+
+`electoral_log_dead_letter_queue`, with the `ENV_SLUG` prefix, is a durable queue that no worker consumes. Each message has the format of the event queue, plus two headers:
+
+| Header | Content |
+| --- | --- |
+| `x-electoral-log-stage` | `dispatcher` for a message the dispatcher could not parse, `batch` for an event the batch task set aside |
+| `x-electoral-log-error` | The reason, up to 2,000 characters |
+
+1. **Inspect.** In the RabbitMQ management UI, open the queue and use *Get messages* with *Nack message requeue true*, which leaves the messages in the queue. The body holds the event and the headers say why it was set aside.
+2. **Fix the cause.** For example, restore a deleted election event, provision its protocol-manager key, or repair its board (section 14.6). Messages that can never be stored, such as malformed bodies, cannot be fixed by a replay.
+3. **Replay.** Move the messages back to `electoral_log_event_queue`, for example with *Move messages* in the management UI, which needs the `rabbitmq_shovel` and `rabbitmq_shovel_management` plugins. The dispatcher picks them up on its next run. Delivery IDs make an event that was already stored store nothing new, and an event that still cannot be stored returns to the dead-letter queue.
+4. **Discard** only what you have recorded and decided not to store, by purging or getting the messages with an acknowledging mode.
 
 ## 15. Testing
 
@@ -800,6 +822,7 @@ A board whose stored tree fails the right-edge check refuses every append (secti
 | Record encoding golden vector, checkpoint signing, audit findings and annotations | `packages/electoral-log` unit tests | `cargo test -p electoral-log` |
 | PostgreSQL contract tests | `packages/electoral-log/tests/postgres.rs` and the plan test in `src/adapters/postgres.rs` | `ELECTORAL_LOG_TEST_DATABASE_URL=… cargo test -p electoral-log --lib --test postgres -- --ignored --test-threads=1` |
 | Windmill wiring: records written through Windmill pass an audit | Windmill `postgres_wiring_tests` | `cargo test -p windmill postgres_wiring_tests --lib -- --ignored --test-threads=1` |
+| Queued events: batch limits, delivery IDs, which events are set aside, one lookup per election event, the dead-letter message format | Windmill unit tests in `tasks::electoral_log` and `services::electoral_log_dead_letter` | `cargo test -p windmill --lib -- tasks::electoral_log electoral_log_dead_letter` |
 | Load and query plans at scale | `packages/electoral-log/examples/load_test.rs` | See the [load test page](02-electoral-log-load-test.md) |
 
 The PostgreSQL contract tests cover:
@@ -834,14 +857,14 @@ Security and completeness (section 12.3):
 - No checkpoint outside the electoral-log database covers the board before voting closes, and deleting published checkpoint rows is not detected.
 - Message signatures are made by the backend with server-held keys, and no Step component verifies them.
 - Lists, counts, exports and the ballot locator serve stored rows without any integrity check.
-- Keycloak events whose publish to RabbitMQ fails are only logged, and a batch that fails five times for a reason other than an append loses all its events, for every board in it.
+- Keycloak events whose publish to RabbitMQ fails are only logged. Dead-lettered events stay out of the log until someone replays them, and nothing alerts on the dead-letter queue by itself.
 - The ballot locator shows other voters' usernames, IP addresses and countries to voters who can use it.
 
 Performance and operation:
 
 - Several admin portal sorts, filters, counts and deep pages read the whole board; section 13 lists them, and the load test page measures the fixes that were tried.
 - Appends to a board are serialized, and a large dispatcher batch holds the board for its whole transaction.
-- A message the dispatcher cannot parse, or a run that cannot finish one batch within 30 seconds, stops the event queue from draining. A batch larger than RabbitMQ accepts is lost, and its worker cannot send tasks until restarted.
+- A dispatcher run that cannot finish one batch within 30 seconds stops the event queue from draining. If `ELECTORAL_LOG_BATCH_MAX_BYTES` is set above what RabbitMQ accepts, a larger batch is lost and its worker cannot send tasks until restarted.
 - Harvest does not verify JWT signatures; it relies on Hasura or a gateway to do so.
 - Direct appends block their actions while the log is unavailable or a board refuses appends.
 - `step export-cast-votes` exits with status 0 after an error, leaving a partial CSV.
