@@ -106,7 +106,7 @@ impl ParticipationReportTemplate {
             .transpose()
             .with_context(|| "Error parsing election_id as UUID")?;
 
-        if let CastVoteSource::BallotBox(store) = get_cast_vote_source(
+        if let CastVoteSource::BallotBox { store, .. } = get_cast_vote_source(
             hasura_transaction,
             &self.ids.tenant_id,
             &self.ids.election_event_id,

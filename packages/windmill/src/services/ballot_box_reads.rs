@@ -5,6 +5,7 @@
 //! Cast votes read for voters, administrators and reports from wherever their
 //! election event stores them: Hasura's `cast_vote` table or the event's ballot box.
 
+use crate::postgres::cast_vote::count_unresolved_cast_votes;
 use crate::services::ballot_box::BallotBoxPolicy;
 use crate::services::cast_votes::CastVoteStatus;
 use crate::services::election_event_board::{get_ballot_box_policy, get_election_event_board};
@@ -19,13 +20,14 @@ use serde::Serialize;
 use serde_json::Value;
 use tokio_postgres::types::ToSql;
 use tracing::instrument;
+use uuid::Uuid;
 
 /// Where an election event's cast votes are read from.
 pub enum CastVoteSource {
     /// Hasura's `cast_vote` table.
     CastVoteTable,
-    /// The ballot box in this electoral-log database.
-    BallotBox(PostgresStore),
+    /// The ballot box in the electoral-log database of the event's board.
+    BallotBox { store: PostgresStore, board: String },
 }
 
 /// Where an election event's cast votes are read from, by its ballot box policy.
@@ -50,9 +52,49 @@ pub async fn get_cast_vote_source(
         BallotBoxPolicy::ElectoralLog => {
             let board = get_election_event_board(reference)
                 .context("Election event has no electoral-log board")?;
-            Ok(CastVoteSource::BallotBox(
-                get_electoral_log_store(&board).await?,
-            ))
+            Ok(CastVoteSource::BallotBox {
+                store: get_electoral_log_store(&board).await?,
+                board,
+            })
+        }
+    }
+}
+
+/// Votes of an election's area whose outcome is unresolved, which the tally refuses
+/// to count: Datafix's `in-progress` cast votes, or `pending` ballots.
+#[instrument(skip(hasura_transaction), err)]
+pub async fn count_unresolved_votes(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &Uuid,
+    election_event_id: &Uuid,
+    election_id: &Uuid,
+    area_id: &Uuid,
+) -> Result<i64> {
+    match get_cast_vote_source(
+        hasura_transaction,
+        &tenant_id.to_string(),
+        &election_event_id.to_string(),
+    )
+    .await?
+    {
+        CastVoteSource::CastVoteTable => {
+            count_unresolved_cast_votes(
+                hasura_transaction,
+                tenant_id,
+                election_event_id,
+                election_id,
+                area_id,
+            )
+            .await
+        }
+        CastVoteSource::BallotBox { store, .. } => {
+            store
+                .pending_status_count(
+                    &election_event_id.to_string(),
+                    &election_id.to_string(),
+                    &area_id.to_string(),
+                )
+                .await
         }
     }
 }
@@ -128,7 +170,9 @@ pub async fn get_voter_cast_votes(
         CastVoteSource::CastVoteTable => {
             cast_vote_table_voter_votes(hasura_transaction, scope, which).await
         }
-        CastVoteSource::BallotBox(store) => ballot_box_voter_votes(&store, scope, which).await,
+        CastVoteSource::BallotBox { store, .. } => {
+            ballot_box_voter_votes(&store, scope, which).await
+        }
     }
 }
 

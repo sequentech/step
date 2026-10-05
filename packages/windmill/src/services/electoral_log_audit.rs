@@ -13,9 +13,10 @@ use crate::postgres::electoral_log_checkpoint::{
     get_last_published_tree_size, PublishedCheckpoint,
 };
 use crate::postgres::tally_session_execution::append_tally_session_log;
+use crate::services::ballot_box::{wait_for_sequencer, BallotBoxPolicy, CLOSING_SEQUENCER_WAIT};
 use crate::services::celery_app::get_celery_app;
 use crate::services::database::get_hasura_pool;
-use crate::services::election_event_board::get_election_event_board;
+use crate::services::election_event_board::{get_ballot_box_policy, get_election_event_board};
 use crate::services::electoral_log::ElectoralLog;
 use crate::services::electoral_log_checkpoint_copies::{
     cross_check, read_checkpoint_copies, CheckpointCopyConfig, CheckpointCopyPolicy,
@@ -118,12 +119,30 @@ pub async fn publish_event_checkpoint(
     let mut client = get_hasura_pool().await.get().await?;
     let transaction = client.transaction().await?;
     let event = get_election_event_by_id(&transaction, tenant_id, election_event_id).await?;
+    let ballot_box = get_ballot_box_policy(event.bulletin_board_reference.clone());
     let board = get_election_event_board(event.bulletin_board_reference)
         .context("Election event has no electoral-log board")?;
     let electoral_log =
         ElectoralLog::new(&transaction, tenant_id, Some(election_event_id), &board).await?;
     transaction.commit().await?;
     drop(client);
+    // Ballots accepted before voting closed reach the log through the sequencer, so
+    // the closing checkpoint waits for them.
+    if matches!(reason, ElectoralLogCheckpointReason::VotingClosed)
+        && ballot_box == BallotBoxPolicy::ElectoralLog
+    {
+        let store = get_electoral_log_store(&board).await?;
+        let waiting = wait_for_sequencer(CLOSING_SEQUENCER_WAIT, || {
+            store.pending_count(election_event_id)
+        })
+        .await?;
+        if waiting > 0 {
+            tracing::warn!(
+                "{waiting} accepted ballot(s) of election event {election_event_id} are not \
+                 in the electoral log yet; the checkpoint of voting's close does not cover them"
+            );
+        }
+    }
     electoral_log
         .publish_checkpoint(tenant_id, election_event_id, reason)
         .await

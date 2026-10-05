@@ -1765,7 +1765,7 @@ pub async fn count_have_voted(
 ) -> Result<(i32)> {
     let tenant_uuid = parse_uuid_v4(tenant_id)?;
     if let Some(election_event_id) = &filter.election_event_id {
-        if let CastVoteSource::BallotBox(store) =
+        if let CastVoteSource::BallotBox { store, .. } =
             get_cast_vote_source(hasura_transaction, tenant_id, election_event_id).await?
         {
             let election_id = filter

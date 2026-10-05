@@ -45,6 +45,29 @@ const SEQUENCER_BUDGET: Duration = Duration::from_secs(50);
 /// that dies leaves the event to the next one after this delay at most.
 const SEQUENCER_LEASE_SECS: i32 = 150;
 
+/// How long the tally waits for the sequencer to append an area's accepted ballots.
+pub const TALLY_SEQUENCER_WAIT: Duration = Duration::from_secs(60);
+/// How long the checkpoint of voting's close waits for the sequencer.
+pub const CLOSING_SEQUENCER_WAIT: Duration = Duration::from_secs(60);
+const SEQUENCER_POLL: Duration = Duration::from_secs(1);
+
+/// Wait until `waiting`, a count of accepted ballots the sequencer has not appended
+/// yet, reaches 0 or `timeout` passes. Returns the last count.
+pub async fn wait_for_sequencer<F, Fut>(timeout: Duration, mut waiting: F) -> Result<i64>
+where
+    F: FnMut() -> Fut,
+    Fut: std::future::Future<Output = Result<i64>>,
+{
+    let started = Instant::now();
+    loop {
+        let count = waiting().await?;
+        if count == 0 || started.elapsed() >= timeout {
+            return Ok(count);
+        }
+        tokio::time::sleep(SEQUENCER_POLL.min(timeout)).await;
+    }
+}
+
 /// Where an election event's cast votes are stored.
 #[derive(
     Debug, Clone, Copy, Default, PartialEq, Eq, Display, EnumString, Serialize, Deserialize,
@@ -265,6 +288,27 @@ pub async fn events_waiting_for_sequencer() -> Result<Vec<(String, String)>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[tokio::test]
+    async fn waiting_for_the_sequencer_ends_when_it_catches_up_or_times_out() {
+        let mut counts: Vec<i64> = vec![0, 2, 5];
+        let left = wait_for_sequencer(Duration::from_secs(5), || {
+            let count = counts.pop().unwrap_or(0);
+            async move { Ok(count) }
+        })
+        .await
+        .unwrap();
+        assert_eq!(left, 0);
+        let left = wait_for_sequencer(Duration::ZERO, || async { Ok(7) })
+            .await
+            .unwrap();
+        assert_eq!(left, 7);
+        assert!(wait_for_sequencer(Duration::ZERO, || async {
+            Err(anyhow::anyhow!("unreachable"))
+        })
+        .await
+        .is_err());
+    }
 
     #[test]
     fn events_without_a_policy_keep_the_cast_vote_table() {

@@ -48,7 +48,7 @@ flowchart LR
 - **Tenant database:** implemented as the `per-tenant` layout of the [design](01-electoral-log-design.md) (section 14.2). Windmill creates it when the tenant is created. It holds the Merkle log tables for the tenant's boards and the ballot box tables, partitioned by election event so that an event's data can be dropped, archived or moved on its own.
 - **Accept path (implemented):** Harvest validates the ballot and checks the voting period and channel as today, then runs one SQL statement that counts the vote for the voter, stores the ballot and queues it for the sequencer. When it commits, Harvest answers with the receipt. No `cast_vote` row and no queued log event are written.
 - **Sequencer (implemented):** one at a time per election event. It reads queued ballots in acceptance order, builds and signs their cast-vote records, which carry the ballot's hash rather than its content, and appends them to the event's board in batches. Checkpoints and proofs cover what it has appended.
-- **Readers (implemented, except the tally):** every reader of cast votes reads an event's votes where its policy stores them (section 6). The voting portal reads the voter's own votes through a Hasura action served by Harvest, for every event.
+- **Readers and the tally (implemented):** every reader of cast votes, the tally included, reads an event's votes where its policy stores them (section 6). The voting portal reads the voter's own votes through a Hasura action served by Harvest, for every event.
 
 ### 3.1 Which events use the ballot box
 
@@ -105,6 +105,7 @@ SELECT seq, id FROM ballot;
 - **Records:** the record is built as `post_cast_vote` builds it for `cast_vote`, signed with the event's protocol-manager key, with the ballot's hash, election, area, pseudonym, IP address, country and voting channel. Its statement timestamp is when the sequencer built it, a few seconds after acceptance; the acceptance time is in `ballot_box_ballot`.
 - **Order:** ballots accepted in concurrent transactions can commit out of sequence order, so a ballot can be appended after one with a higher sequence number. The log's order is the sequencing order.
 - **Lag:** the sequencer is slower than the accept path at the measured rates (section 8), so during a peak it falls behind and catches up afterwards. Its lag is the window in which accepted votes are not in the Merkle log. The number of queued ballots per event is the measure to monitor.
+- **When voting closes:** the checkpoint of the closure waits up to 60 seconds for the sequencer to append the event's queued ballots, so that it covers every ballot accepted before the closure. If ballots still wait after that, Windmill logs a warning and publishes it anyway; the checkpoint after the tally covers them.
 
 ## 6. Reads and the tally
 
@@ -116,13 +117,22 @@ Windmill finds an event's policy in its `bulletin_board_reference` and reads `ca
 | Statistics of the admin portal's dashboards: voters by channel, ballots per time bucket, ballots by IP address | Harvest's statistics actions | Counted in the ballot box |
 | Voter list: each voter's votes, the "has voted" filter, the edit form's check that a voter has voted | `get_users` | Counted in the ballot box |
 | Participation report, ballot receipt | Windmill's report tasks | Counted and checked in the ballot box |
-| Tally | Windmill's tally tasks | Not yet: still reads `cast_vote` |
+| Tally | Windmill's tally tasks | Each area's input from the ballot box (section 6.1) |
 
 - **What a voter can read:** `get_voter_cast_votes` returns the rows Hasura's `user` role may read from `cast_vote`: the voter's own votes, in the area and elections of their token. Without arguments it returns all of them without their content. With an election and a ballot ID, or the first characters of one, as telephone voters give it, it returns the matching ones with their content. Any other combination is refused.
 - **Statuses:** a ballot box status reads as the `cast_vote` status the portals know: `valid` as `valid`, `pending` as `in-progress` and `rejected` as `discarded`. Statistics count valid ballots, as they count valid cast votes.
 - **Index:** `ballot_box_ballot (election_event_id, voter_id)` serves the voter's lookups. It adds one index entry to each accepted vote; the load tests measure what that costs the accept path.
 - **Statistics scan the event's partition.** They read every valid ballot of the event, as the queries on `cast_vote` read every cast vote. On events with millions of ballots, dashboards that refresh often put that load on the tenant database.
-- **Tally input:** at a checkpoint taken after voting closes, the valid ballots of an election, deduplicated to each voter's last valid ballot, read in sequence order. Extraction is deterministic: the same checkpoint always yields the same ballots in the same order.
+
+### 6.1 Tally input
+
+For each election and area it tallies, the tally reads the same input from the ballot box as from `cast_vote`: one row per voter with the content and voting channel of the voter's latest valid ballot, ordered by voter ID, which it then joins with the area's census.
+
+- **Only ballots in the log:** the input takes ballots the sequencer has appended. Before reading it, the tally waits up to 60 seconds for the sequencer to append the area's queued ballots, then refuses the area if any still wait, so that a ballot accepted before the closure is not left out silently. Run the tally again once the sequencer has caught up.
+- **Every ballot has its record:** the tally refuses the area if a valid ballot the sequencer appended has no cast-vote record on the board, because the record was deleted or never written.
+- **Pending outcomes:** the tally refuses an area with ballots whose outcome is pending, as it refuses one with `in-progress` cast votes.
+- **Deterministic once voting is closed:** with voting closed and the queue empty, the ballot box no longer changes, so reading an area again yields the same rows in the same order.
+- **Not checked:** that a ballot's content still hashes to the hash in its signed record. Someone who can write the tenant database can change the content of a stored ballot without the tally noticing, as they can change a row of `cast_vote` today.
 
 ## 7. VoteSecure compatibility
 

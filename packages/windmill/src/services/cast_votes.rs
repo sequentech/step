@@ -6,6 +6,7 @@ use super::sql_utils::escape_sql_literal;
 use crate::postgres::cast_vote::{
     count_distinct_voters_by_channel_query, count_votes_per_day_query, CastVoteRelation,
 };
+use crate::services::ballot_box::{wait_for_sequencer, TALLY_SEQUENCER_WAIT};
 use crate::services::ballot_box_reads::{ballot_box_time, get_cast_vote_source, CastVoteSource};
 use crate::services::electoral_log::ElectoralLog;
 use crate::services::external::utils::{
@@ -14,7 +15,9 @@ use crate::services::external::utils::{
 use anyhow::{anyhow, Context, Result};
 use chrono::{DateTime, NaiveDate, NaiveDateTime, NaiveTime, Utc};
 use deadpool_postgres::Transaction;
-use electoral_log::adapters::ballot_box_reads::{BucketRange, IpBallotsFilter};
+use electoral_log::adapters::ballot_box_reads::{
+    tally_ballots_query, BucketRange, IpBallotsFilter,
+};
 use electoral_log::adapters::postgres::PostgresStore;
 use futures::TryStreamExt;
 use sequent_core::ballot::VotingStatusChannel;
@@ -114,6 +117,19 @@ pub async fn find_area_ballots(
     parse_uuid_v4(election_event_id)?;
     parse_uuid_v4(area_id)?;
     parse_uuid_v4(election_id)?;
+    if let CastVoteSource::BallotBox { store, board } =
+        get_cast_vote_source(hasura_transaction, tenant_id, election_event_id).await?
+    {
+        return find_area_ballots_in_ballot_box(
+            &store,
+            &board,
+            election_event_id,
+            area_id,
+            election_id,
+            output_file,
+        )
+        .await;
+    }
     let tenant_id = escape_sql_literal(tenant_id);
     let election_event_id = escape_sql_literal(election_event_id);
     let area_id = escape_sql_literal(area_id);
@@ -141,16 +157,59 @@ pub async fn find_area_ballots(
                 "#
     );
 
+    let copy_out_query = format!("COPY ({}) TO STDOUT WITH (FORMAT CSV)", areas_statement);
+    debug!("copy_out_query: {copy_out_query}");
+    let reader = hasura_transaction.copy_out(&copy_out_query).await?;
+    write_copy_out(reader, output_file).await
+}
+
+/// The tally input of an election's area from the ballot box, once every ballot the
+/// area accepted is in the electoral log: the CSV `find_area_ballots` writes from
+/// `cast_vote`.
+async fn find_area_ballots_in_ballot_box(
+    store: &PostgresStore,
+    board: &str,
+    election_event_id: &str,
+    area_id: &str,
+    election_id: &str,
+    output_file: &PathBuf,
+) -> Result<()> {
+    let waiting = wait_for_sequencer(TALLY_SEQUENCER_WAIT, || {
+        store.unsequenced_count(election_event_id, election_id, area_id)
+    })
+    .await?;
+    if waiting > 0 {
+        return Err(anyhow!(
+            "Refusing to extract ballots for election {election_id} area {area_id}: \
+             {waiting} accepted ballot(s) are not in the electoral log yet. Tally again \
+             once the sequencer has appended them"
+        ));
+    }
+    let unrecorded = store
+        .unrecorded_count(board, election_event_id, election_id, area_id)
+        .await?;
+    if unrecorded > 0 {
+        return Err(anyhow!(
+            "Refusing to extract ballots for election {election_id} area {area_id}: \
+             {unrecorded} ballot(s) have no cast-vote record in the electoral log"
+        ));
+    }
+    let query = tally_ballots_query(election_event_id, election_id, area_id)?;
+    let client = store.client().await?;
+    let reader = client
+        .copy_out(&format!("COPY ({query}) TO STDOUT WITH (FORMAT CSV)"))
+        .await?;
+    write_copy_out(reader, output_file).await
+}
+
+async fn write_copy_out(
+    reader: tokio_postgres::CopyOutStream,
+    output_file: &PathBuf,
+) -> Result<()> {
     let tokio_temp_file = File::create(output_file)
         .await
-        .expect("Could not create/open temporary file for tokio");
-
-    let copy_out_query = format!("COPY ({}) TO STDOUT WITH (FORMAT CSV)", areas_statement);
+        .with_context(|| format!("Error creating {output_file:?}"))?;
     let mut writer = BufWriter::new(tokio_temp_file);
-
-    debug!("copy_out_query: {copy_out_query}");
-
-    let reader = hasura_transaction.copy_out(&copy_out_query).await?;
 
     let adapt_pg_error_to_io_error = |pg_err: tokio_postgres::Error| {
         std::io::Error::new(std::io::ErrorKind::Other, pg_err.to_string())
@@ -372,7 +431,7 @@ pub async fn get_count_distinct_voters_by_channel(
             )
             .await
         }
-        CastVoteSource::BallotBox(store) => {
+        CastVoteSource::BallotBox { store, .. } => {
             let election_id = election_id.map(parse_uuid_v4).transpose()?;
             store
                 .voters_by_channel(
@@ -566,7 +625,7 @@ pub async fn get_count_votes_per_day(
             )
             .await
         }
-        CastVoteSource::BallotBox(store) => {
+        CastVoteSource::BallotBox { store, .. } => {
             get_count_votes_per_day_from_ballot_box(
                 &store,
                 election_event_id,
@@ -739,7 +798,7 @@ pub async fn get_users_with_vote_info(
             )
             .await?
         }
-        CastVoteSource::BallotBox(store) => store
+        CastVoteSource::BallotBox { store, .. } => store
             .votes_of_voters(
                 election_event_id,
                 &user_ids,
@@ -935,7 +994,7 @@ pub async fn get_top_count_votes_by_ip(
     } else {
         None
     };
-    if let CastVoteSource::BallotBox(store) =
+    if let CastVoteSource::BallotBox { store, .. } =
         get_cast_vote_source(hasura_transaction, tenant_id, election_event_id).await?
     {
         let election_id = election_id_pattern.map(|id| id.to_string());

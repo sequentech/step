@@ -8,9 +8,11 @@
 use anyhow::Result;
 use electoral_log::adapters::ballot_box::{AcceptBallot, AcceptOutcome, BallotStatus};
 use electoral_log::adapters::ballot_box_reads::{
-    BallotIdMatch, BucketRange, IpBallotsFilter, Participation,
+    tally_ballots_query, BallotIdMatch, BucketRange, IpBallotsFilter, Participation,
 };
 use electoral_log::adapters::postgres::PostgresStore;
+use electoral_log::ports::ElectoralLogStore;
+use electoral_log::{ElectoralLogMessage, LogEntry};
 use uuid::Uuid;
 
 async fn store() -> Result<PostgresStore> {
@@ -44,6 +46,7 @@ struct Vote {
     ip: Option<&'static str>,
     country: Option<&'static str>,
     status: BallotStatus,
+    content: &'static str,
 }
 
 impl Vote {
@@ -59,7 +62,13 @@ impl Vote {
             ip: Some("192.0.2.1"),
             country: Some("ES"),
             status: BallotStatus::Valid,
+            content: "ciphertext",
         }
+    }
+
+    fn with_content(mut self, content: &'static str) -> Self {
+        self.content = content;
+        self
     }
 
     fn sent_from(
@@ -79,9 +88,9 @@ impl Vote {
         self
     }
 
-    async fn accept(&self, store: &PostgresStore) -> Result<()> {
+    async fn accept(&self, store: &PostgresStore) -> Result<i64> {
         match store.accept_ballot(&self.request()).await? {
-            AcceptOutcome::Accepted { .. } => Ok(()),
+            AcceptOutcome::Accepted { seq, .. } => Ok(seq),
             other => anyhow::bail!("unexpected {other:?}"),
         }
     }
@@ -94,7 +103,7 @@ impl Vote {
             voter_id: &self.voter,
             ballot_id: &self.ballot,
             format: "test",
-            content: "ciphertext",
+            content: self.content,
             voter_signature: None,
             pseudonym_hash: &[1; 64],
             ballot_hash: &[2; 64],
@@ -496,5 +505,119 @@ async fn reads_cover_voters_administrators_and_reports() -> Result<()> {
             voters: 2
         }
     );
+    drop_ballot_box(&store, &event).await
+}
+
+fn cast_vote_record(event: &str, seq: i64) -> LogEntry {
+    LogEntry {
+        delivery_id: format!("ballot-box:{event}:{seq}"),
+        message: ElectoralLogMessage {
+            id: 0,
+            created: 1,
+            sender_pk: "sender".into(),
+            statement_timestamp: 1,
+            statement_kind: "CastVote".into(),
+            message: seq.to_be_bytes().to_vec(),
+            version: "2".into(),
+            user_id: None,
+            username: None,
+            election_id: None,
+            area_id: None,
+            ballot_id: None,
+        },
+    }
+}
+
+#[tokio::test]
+#[ignore = "requires ELECTORAL_LOG_TEST_DATABASE_URL"]
+async fn the_tally_reads_each_voters_latest_valid_recorded_ballot() -> Result<()> {
+    let store = store().await?;
+    let (event, election, area, other_area) = ids();
+    store.create_ballot_box(&event).await?;
+    let board = format!("tallytest{}", Uuid::new_v4().simple());
+    store.create_board(&board).await?;
+
+    let mut sequenced = Vec::new();
+    for vote in [
+        Vote::new(&event, &election, &area, "v1", 0).with_content("first"),
+        Vote::new(&event, &election, &area, "v1", 0)
+            .with_content("second")
+            .sent_from("KIOSK", None, None),
+        Vote::new(&event, &election, &area, "v2", 0).with_content("valid"),
+        Vote::new(&event, &election, &area, "v2", 0)
+            .with_content("rejected")
+            .with_status(BallotStatus::Rejected),
+        Vote::new(&event, &election, &area, "v3", 0).with_status(BallotStatus::Pending),
+        Vote::new(&event, &election, &other_area, "v4", 0),
+    ] {
+        sequenced.push(vote.accept(&store).await?);
+    }
+    let waiting = Vote::new(&event, &election, &area, "v5", 0)
+        .accept(&store)
+        .await?;
+    store
+        .append(
+            &board,
+            &mut sequenced
+                .iter()
+                .map(|seq| anyhow::Ok(cast_vote_record(&event, *seq))),
+        )
+        .await?;
+    store.remove_pending(&event, &sequenced).await?;
+
+    assert_eq!(store.unsequenced_count(&event, &election, &area).await?, 1);
+    assert_eq!(
+        store
+            .unsequenced_count(&event, &election, &other_area)
+            .await?,
+        0
+    );
+    assert_eq!(
+        store.pending_status_count(&event, &election, &area).await?,
+        1
+    );
+    assert_eq!(
+        store
+            .unrecorded_count(&board, &event, &election, &area)
+            .await?,
+        0
+    );
+
+    let query = tally_ballots_query(&event, &election, &area)?;
+    let rows: Vec<(String, String, String)> = store
+        .client()
+        .await?
+        .query(&query, &[])
+        .await?
+        .iter()
+        .map(|row| (row.get(0), row.get(1), row.get(2)))
+        .collect();
+    assert_eq!(
+        rows,
+        [
+            ("v1".to_string(), "second".to_string(), "KIOSK".to_string()),
+            ("v2".to_string(), "valid".to_string(), "ONLINE".to_string()),
+        ]
+    );
+    assert!(tally_ballots_query(&event, &election, "x' OR '1'='1").is_err());
+
+    // A sequenced ballot whose record is gone is reported.
+    store
+        .client()
+        .await?
+        .execute(
+            "DELETE FROM electoral_log_messages WHERE board_name = $1 AND delivery_id = $2",
+            &[&board, &format!("ballot-box:{event}:{}", sequenced[1])],
+        )
+        .await?;
+    assert_eq!(
+        store
+            .unrecorded_count(&board, &event, &election, &area)
+            .await?,
+        1
+    );
+
+    store.remove_pending(&event, &[waiting]).await?;
+    store.delete_board(&board).await?;
     drop_ballot_box(&store, &event).await
 }

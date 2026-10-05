@@ -129,6 +129,20 @@ fn voter_state_from_row(row: tokio_postgres::Row) -> VoterState {
     }
 }
 
+/// A UUID in its canonical form, lowercase with dashes, for SQL that cannot take it
+/// as a parameter.
+pub(crate) fn canonical_uuid(id: &str) -> Result<String> {
+    let hex = partition_suffix(id)?;
+    Ok(format!(
+        "{}-{}-{}-{}-{}",
+        &hex[..8],
+        &hex[8..12],
+        &hex[12..16],
+        &hex[16..20],
+        &hex[20..]
+    ))
+}
+
 fn partition_suffix(election_event_id: &str) -> Result<String> {
     let suffix: String = election_event_id
         .chars()
@@ -146,14 +160,7 @@ impl PostgresStore {
     /// Create an election event's ballot box partitions. Idempotent.
     pub async fn create_ballot_box(&self, election_event_id: &str) -> Result<()> {
         let suffix = partition_suffix(election_event_id)?;
-        let event = format!(
-            "{}-{}-{}-{}-{}",
-            &suffix[..8],
-            &suffix[8..12],
-            &suffix[12..16],
-            &suffix[16..20],
-            &suffix[20..]
-        );
+        let event = canonical_uuid(election_event_id)?;
         self.client()
             .await?
             .batch_execute(&format!(
@@ -398,6 +405,15 @@ mod tests {
         assert!(partition_suffix("fdd21db2").is_err());
         assert!(partition_suffix("fdd21db2-dd68-4974-90eb-7f2750b2b5dz").is_err());
         assert!(partition_suffix("x'); DROP TABLE ballot_box_ballot; --").is_err());
+    }
+
+    #[test]
+    fn uuids_are_written_in_canonical_form() {
+        assert_eq!(
+            canonical_uuid("FDD21DB2DD68497490EB7F2750B2B5DF").unwrap(),
+            "fdd21db2-dd68-4974-90eb-7f2750b2b5df"
+        );
+        assert!(canonical_uuid("fdd21db2-dd68-4974-90eb-7f2750b2b5d'").is_err());
     }
 
     #[test]

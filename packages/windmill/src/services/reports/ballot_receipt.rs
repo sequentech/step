@@ -160,7 +160,7 @@ impl TemplateRenderer for BallotTemplate {
                 cv.ballot_id.as_deref().map_or(false, |id| id == ballot_id)
                     && cv.area_id.as_deref().map_or(false, |id| id == area_id)
             }),
-            CastVoteSource::BallotBox(store) => store
+            CastVoteSource::BallotBox { store, .. } => store
                 .voter_ballots(&election_event_uuid.to_string(), voter_id)
                 .await?
                 .iter()

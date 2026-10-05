@@ -4,7 +4,7 @@
 //! Reads of the ballot box for voters, administrators and reports. Counts and
 //! statistics cover valid ballots, as those of `cast_vote` cover valid cast votes.
 
-use super::ballot_box::BallotStatus;
+use super::ballot_box::{canonical_uuid, BallotStatus};
 use super::postgres::PostgresStore;
 use anyhow::{anyhow, Context, Result};
 use tokio_postgres::Row;
@@ -107,7 +107,32 @@ const STORED_BALLOT: &str = "id::text, ballot_id, election_id::text, area_id::te
      status, voting_channel, (extract(epoch FROM accepted_at) * 1000000)::bigint";
 
 const VALID: &str = "valid";
+const PENDING: &str = "pending";
 const REJECTED: &str = "rejected";
+
+/// Query of the tally input of an election's area, as rows `(voter_id, content,
+/// voting_channel)`: each voter's latest valid ballot among those the sequencer has
+/// appended to the board, ordered by voter ID. The IDs are checked and written as
+/// literals, so that the query can be streamed with `COPY`, which takes no
+/// parameters.
+pub fn tally_ballots_query(
+    election_event_id: &str,
+    election_id: &str,
+    area_id: &str,
+) -> Result<String> {
+    let event = canonical_uuid(election_event_id)?;
+    let election = canonical_uuid(election_id)?;
+    let area = canonical_uuid(area_id)?;
+    Ok(format!(
+        "SELECT DISTINCT ON (b.voter_id) b.voter_id, b.content, b.voting_channel \
+         FROM ballot_box_ballot b \
+         WHERE b.election_event_id = '{event}' AND b.election_id = '{election}' \
+           AND b.area_id = '{area}' AND b.status = '{VALID}' \
+           AND NOT EXISTS (SELECT 1 FROM ballot_box_pending p \
+                           WHERE p.election_event_id = b.election_event_id AND p.seq = b.seq) \
+         ORDER BY b.voter_id, b.seq DESC"
+    ))
+}
 
 fn stored_ballot(row: &Row) -> Result<StoredBallot> {
     let status: String = row.try_get(5)?;
@@ -394,5 +419,82 @@ impl PostgresStore {
             ballots: row.try_get(0)?,
             voters: row.try_get(1)?,
         })
+    }
+}
+
+/// Checks before an election's area is tallied.
+impl PostgresStore {
+    /// Accepted ballots of an election's area that the sequencer has not appended
+    /// to the board yet.
+    pub async fn unsequenced_count(
+        &self,
+        election_event_id: &str,
+        election_id: &str,
+        area_id: &str,
+    ) -> Result<i64> {
+        let row = self
+            .client()
+            .await?
+            .query_one(
+                "SELECT count(*) FROM ballot_box_pending p \
+                 JOIN ballot_box_ballot b \
+                   ON b.election_event_id = p.election_event_id AND b.seq = p.seq \
+                 WHERE p.election_event_id = $1::text::uuid \
+                   AND b.election_id = $2::text::uuid AND b.area_id = $3::text::uuid",
+                &[&election_event_id, &election_id, &area_id],
+            )
+            .await
+            .context("Error counting the ballots waiting for the sequencer")?;
+        Ok(row.try_get(0)?)
+    }
+
+    /// Ballots of an election's area whose outcome is still pending.
+    pub async fn pending_status_count(
+        &self,
+        election_event_id: &str,
+        election_id: &str,
+        area_id: &str,
+    ) -> Result<i64> {
+        let row = self
+            .client()
+            .await?
+            .query_one(
+                "SELECT count(*) FROM ballot_box_ballot \
+                 WHERE election_event_id = $1::text::uuid AND election_id = $2::text::uuid \
+                   AND area_id = $3::text::uuid AND status = $4",
+                &[&election_event_id, &election_id, &area_id, &PENDING],
+            )
+            .await
+            .context("Error counting the ballots with a pending outcome")?;
+        Ok(row.try_get(0)?)
+    }
+
+    /// Valid ballots of an election's area that the sequencer appended, by its queue,
+    /// but whose cast-vote record is not on the board: deleted or never written.
+    pub async fn unrecorded_count(
+        &self,
+        board: &str,
+        election_event_id: &str,
+        election_id: &str,
+        area_id: &str,
+    ) -> Result<i64> {
+        let row = self
+            .client()
+            .await?
+            .query_one(
+                "SELECT count(*) FROM ballot_box_ballot b \
+                 WHERE b.election_event_id = $2::text::uuid AND b.election_id = $3::text::uuid \
+                   AND b.area_id = $4::text::uuid AND b.status = $5 \
+                   AND NOT EXISTS (SELECT 1 FROM ballot_box_pending p \
+                                   WHERE p.election_event_id = b.election_event_id AND p.seq = b.seq) \
+                   AND NOT EXISTS (SELECT 1 FROM electoral_log_messages m \
+                                   WHERE m.board_name = $1 \
+                                     AND m.delivery_id = 'ballot-box:' || b.election_event_id::text \
+                                                         || ':' || b.seq::text)",
+                &[&board, &election_event_id, &election_id, &area_id, &VALID],
+            )
+            .await
+            .context("Error checking the ballots' cast-vote records")?;
+        Ok(row.try_get(0)?)
     }
 }
